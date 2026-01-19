@@ -1,0 +1,72 @@
+[general]
+database_path = "sqlite:data/bakarr.db"
+log_level = "info"
+images_path = "images"
+
+[qbittorrent]
+enabled = true
+url = "http://localhost:8080"
+username = "admin"
+password = "YOUR_PASSWORD_HERE"
+default_category = "anime"
+
+[nyaa]
+base_url = "https://nyaa.si"
+default_category = "1_2"
+filter_remakes = true
+preferred_resolution = "1080p"
+min_seeders = 1
+
+[scheduler]
+enabled = true
+check_interval_minutes = 15
+max_concurrent_checks = 3
+check_delay_seconds = 5
+
+[downloads]
+root_path = "./downloads"
+create_anime_folders = true
+preferred_groups = []
+use_seadex = true
+prefer_dual_audio = true
+max_size_gb = 0.0
+remote_path_mappings = []
+
+[library]
+library_path = "./library"
+recycle_path = "./recycle"
+recycle_cleanup_days = 7
+naming_format = "{Series Title}/Season {Season}/{Series Title} - S{Season:02}E{Episode:02} - {Title}"
+movie_naming_format = "{Series Title}/{Series Title}"
+import_mode = "Copy"
+
+[[profiles]]
+name = "Default"
+cutoff = "BluRay 1080p"
+upgrade_allowed = true
+seadex_preferred = true
+allowed_qualities = [
+    "BluRay 2160p",
+    "WEB 2160p",
+    "BluRay 1080p",
+    "WEB 1080p",
+    "BluRay 720p",
+    "WEB 720p",
+    "HDTV 1080p",
+    "HDTV 720p",
+]
+
+[[profiles]]
+name = "Test"
+cutoff = "BluRay 1080p"
+upgrade_allowed = true
+seadex_preferred = true
+allowed_qualities = [
+    "BluRay 1080p",
+    "WEB 1080p",
+]
+
+[auth]
+username = "admin"
+password = "YOUR_PASSWORD_HERE"
+api_key = "YOUR_API_KEY_HERE"

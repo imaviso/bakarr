@@ -1,0 +1,76 @@
+[general]
+database_path = "sqlite::memory:"
+log_level = "info"
+images_path = "images"
+
+[qbittorrent]
+enabled = true
+url = "http://localhost:8080"
+username = "admin"
+password = "adminadmin"
+default_category = "anime"
+
+[nyaa]
+base_url = "https://nyaa.si"
+default_category = "1_2"
+filter_remakes = true
+preferred_resolution = "1080p"
+min_seeders = 1
+
+[scheduler]
+enabled = true
+check_interval_minutes = 15
+max_concurrent_checks = 3
+check_delay_seconds = 5
+
+[downloads]
+root_path = "./downloads"
+create_anime_folders = true
+preferred_groups = []
+use_seadex = true
+prefer_dual_audio = true
+max_size_gb = 0.0
+remote_path_mappings = []
+
+[library]
+library_path = "./library"
+recycle_path = "./recycle"
+recycle_cleanup_days = 7
+naming_format = "{Series Title}/Season {Season}/{Series Title} - S{Season:02}E{Episode:02} - {Title}"
+import_mode = "Copy"
+movie_naming_format = "{Series Title}/{Series Title}"
+
+[[profiles]]
+name = "Default"
+cutoff = "BluRay 1080p"
+upgrade_allowed = true
+seadex_preferred = true
+allowed_qualities = [
+    "BluRay 2160p",
+    "WEB 2160p",
+    "BluRay 1080p",
+    "WEB 1080p",
+    "BluRay 720p",
+    "WEB 720p",
+    "HDTV 1080p",
+    "HDTV 720p",
+]
+
+[auth]
+username = "admin"
+password = "password"
+api_key = "test-api-key"
+
+[server]
+enabled = true
+port = 6789
+
+[observability]
+metrics_enabled = true
+# Metrics are exposed at /api/metrics on the main server port (default 6789).
+
+loki_enabled = true
+loki_url = "http://localhost:3100"
+[observability.loki_labels]
+app = "bakarr"
+env = "production"

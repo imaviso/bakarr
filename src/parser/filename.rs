@@ -1,0 +1,687 @@
+use crate::models::release::Release;
+use regex::Regex;
+use std::sync::OnceLock;
+
+pub fn parse_filename(filename: &str) -> Option<Release> {
+    parse_standard_bracket(filename)
+        .or_else(|| parse_sxxexx_bracket(filename))
+        .or_else(|| parse_simple_sxxexx(filename))
+        .or_else(|| parse_plex_format(filename))
+        .or_else(|| parse_dot_separated(filename))
+        .or_else(|| parse_group_at_end(filename))
+        .or_else(|| parse_fallback(filename))
+}
+
+fn parse_standard_bracket(filename: &str) -> Option<Release> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(
+            r"^\[(?P<group>[^\]]+)\]\s*(?P<title>.+?)\s*-\s*(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:(?:\[(?P<tags>[^\]]*)\])|(?:\((?P<tags_paren>[^)]*)\)))?.*$"
+        ).unwrap()
+    });
+
+    let caps = re.captures(filename)?;
+
+    let group = caps.name("group").map(|m| m.as_str().trim().to_string());
+    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
+    let episode_str = caps.name("episode").map(|m| m.as_str())?;
+    let episode_number = episode_str.parse::<f32>().ok()?;
+    let version = caps.name("version").and_then(|m| m.as_str().parse().ok());
+    let tags = caps
+        .name("tags")
+        .map(|m| m.as_str())
+        .or_else(|| caps.name("tags_paren").map(|m| m.as_str()));
+
+    let resolution = tags.and_then(extract_resolution);
+    let source = tags.and_then(extract_source);
+    let season = detect_season_from_title(&title);
+
+    Some(Release {
+        original_filename: filename.to_string(),
+        title: clean_title(&title),
+        episode_number,
+        season,
+        group,
+        resolution,
+        source,
+        version,
+    })
+}
+
+fn parse_sxxexx_bracket(filename: &str) -> Option<Release> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(
+            r"^\[(?P<group>[^\]]+)\]\s*(?P<title>.+?)\s*-?\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:\[(?P<tags>[^\]]*)\])?.*$"
+        ).unwrap()
+    });
+
+    let caps = re.captures(filename)?;
+
+    let group = caps.name("group").map(|m| m.as_str().trim().to_string());
+    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
+    let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
+    let episode_str = caps.name("episode").map(|m| m.as_str())?;
+    let episode_number = episode_str.parse::<f32>().ok()?;
+    let version = caps.name("version").and_then(|m| m.as_str().parse().ok());
+    let tags = caps.name("tags").map(|m| m.as_str());
+
+    let resolution = tags.and_then(extract_resolution);
+    let source = tags.and_then(extract_source);
+
+    Some(Release {
+        original_filename: filename.to_string(),
+        title: clean_title(&title),
+        episode_number,
+        season,
+        group,
+        resolution,
+        source,
+        version,
+    })
+}
+
+fn parse_simple_sxxexx(filename: &str) -> Option<Release> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(
+            r"^(?P<title>.+?)\s*-\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)(?:\s*-\s*.+)?.*$",
+        )
+        .unwrap()
+    });
+
+    let caps = re.captures(filename)?;
+
+    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
+
+    if title.ends_with(')')
+        && title
+            .chars()
+            .nth(title.len().saturating_sub(2))
+            .is_some_and(|c| c.is_numeric())
+    {
+        return None;
+    }
+
+    let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
+    let episode_str = caps.name("episode").map(|m| m.as_str())?;
+    let episode_number = episode_str.parse::<f32>().ok()?;
+
+    let resolution = extract_resolution(filename);
+    let source = extract_source(filename);
+    let group = extract_group_from_rest(filename);
+
+    Some(Release {
+        original_filename: filename.to_string(),
+        title: clean_title(&title),
+        episode_number,
+        season,
+        group,
+        resolution,
+        source,
+        version: None,
+    })
+}
+
+fn parse_plex_format(filename: &str) -> Option<Release> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(
+            r"^(?P<title>.+?)\s*(?:\(\d{4}\))?\s*-\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\s*(?:-\s*.+?)?\s*(?:\[(?P<tags>[^\]]*)\])*.*$"
+        ).unwrap()
+    });
+
+    let caps = re.captures(filename)?;
+
+    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
+    let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
+    let episode_str = caps.name("episode").map(|m| m.as_str())?;
+    let episode_number = episode_str.parse::<f32>().ok()?;
+
+    let resolution = extract_resolution(filename);
+    let source = extract_source(filename);
+
+    let group = extract_group_from_rest(filename);
+
+    Some(Release {
+        original_filename: filename.to_string(),
+        title: clean_title(&title),
+        episode_number,
+        season,
+        group,
+        resolution,
+        source,
+        version: None,
+    })
+}
+
+fn parse_dot_separated(filename: &str) -> Option<Release> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(r"^(?P<title>.+?)\.S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\.(?P<rest>.+)$")
+            .unwrap()
+    });
+
+    let caps = re.captures(filename)?;
+
+    let title = caps
+        .name("title")
+        .map(|m| m.as_str().replace('.', " ").trim().to_string())?;
+    let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
+    let episode_str = caps.name("episode").map(|m| m.as_str())?;
+    let episode_number = episode_str.parse::<f32>().ok()?;
+    let rest = caps.name("rest").map(|m| m.as_str()).unwrap_or("");
+
+    let resolution = extract_resolution(rest);
+    let source = extract_source(rest);
+    let group = extract_group_from_rest(rest);
+
+    Some(Release {
+        original_filename: filename.to_string(),
+        title: clean_title(&title),
+        episode_number,
+        season,
+        group,
+        resolution,
+        source,
+        version: None,
+    })
+}
+
+fn parse_group_at_end(filename: &str) -> Option<Release> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(
+            r"^(?P<title>.+?)\s*-\s*(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:\((?P<tags>[^)]*)\))?\s*\[(?P<group>[^\]]+)\].*$"
+        ).unwrap()
+    });
+
+    let caps = re.captures(filename)?;
+
+    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
+    let episode_str = caps.name("episode").map(|m| m.as_str())?;
+    let episode_number = episode_str.parse::<f32>().ok()?;
+    let version = caps.name("version").and_then(|m| m.as_str().parse().ok());
+    let group = caps.name("group").map(|m| m.as_str().trim().to_string());
+    let tags = caps.name("tags").map(|m| m.as_str());
+
+    let resolution = tags.and_then(extract_resolution);
+    let source = tags.and_then(extract_source);
+    let season = detect_season_from_title(&title);
+
+    Some(Release {
+        original_filename: filename.to_string(),
+        title: clean_title(&title),
+        episode_number,
+        season,
+        group,
+        resolution,
+        source,
+        version,
+    })
+}
+
+fn parse_fallback(filename: &str) -> Option<Release> {
+    let name = filename
+        .rsplit_once('.')
+        .map(|(name, _)| name)
+        .unwrap_or(filename);
+
+    static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    let patterns = PATTERNS.get_or_init(|| {
+        vec![
+            Regex::new(
+                r"-\s*(?P<episode>\d{1,4}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?(?:\s|$|\[|\()",
+            )
+            .unwrap(),
+            Regex::new(
+                r"[Ee](?:p(?:isode)?)?\s*(?P<episode>\d{1,4}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?",
+            )
+            .unwrap(),
+            Regex::new(r"[_\s](?P<episode>\d{1,3}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?[_\s\[\(]")
+                .unwrap(),
+        ]
+    });
+
+    for pattern in patterns.iter() {
+        let mut last_match = None;
+        for caps in pattern.captures_iter(name) {
+            last_match = Some(caps);
+        }
+
+        if let Some(caps) = last_match {
+            let episode_str = caps.name("episode").map(|m| m.as_str())?;
+            let episode_number = episode_str.parse::<f32>().ok()?;
+
+            let ep_int = episode_number as i32;
+            if (1990..=2099).contains(&ep_int) || [720, 1080, 2160, 480].contains(&ep_int) {
+                continue;
+            }
+
+            let version = caps.name("version").and_then(|m| m.as_str().parse().ok());
+
+            let group = extract_bracket_group(filename);
+            let resolution = extract_resolution(filename);
+            let source = extract_source(filename);
+
+            let title = extract_title_before_episode(name, episode_str)
+                .unwrap_or_else(|| "Unknown".to_string());
+            let season = detect_season_from_title(&title);
+
+            return Some(Release {
+                original_filename: filename.to_string(),
+                title: clean_title(&title),
+                episode_number,
+                season,
+                group,
+                resolution,
+                source,
+                version,
+            });
+        }
+    }
+
+    None
+}
+
+fn extract_resolution(s: &str) -> Option<String> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"(?i)(4K|2160p|1080p|720p|480p|576p)").unwrap());
+
+    re.find(s).map(|m| {
+        let res = m.as_str();
+        if res.eq_ignore_ascii_case("4K") {
+            "4K".to_string()
+        } else {
+            res.to_lowercase()
+        }
+    })
+}
+
+fn extract_source(s: &str) -> Option<String> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        Regex::new(
+            r"(?i)(BD|Blu-?Ray|WEB-?(?:Rip|DL)?|HDTV|DVDRip|BDRip|WEBRip|AMZN|CR|DSNP|NF|HMAX)",
+        )
+        .unwrap()
+    });
+
+    re.find(s).map(|m| {
+        let src = m.as_str();
+
+        match src.to_uppercase().as_str() {
+            "BLURAY" | "BLU-RAY" => "BD".to_string(),
+            "WEBRIP" | "WEB-RIP" | "WEBDL" | "WEB-DL" | "WEB" => "WEB".to_string(),
+            _ => src.to_string(),
+        }
+    })
+}
+
+fn extract_bracket_group(s: &str) -> Option<String> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| Regex::new(r"^\[([^\]]+)\]").unwrap());
+
+    re.captures(s)
+        .map(|c| c.get(1).unwrap().as_str().trim().to_string())
+}
+
+fn extract_group_from_rest(s: &str) -> Option<String> {
+    if let Some(pos) = s.rfind('-') {
+        let group = &s[pos + 1..];
+
+        let group = group.split('.').next().unwrap_or(group);
+        if !group.is_empty()
+            && !["x264", "x265", "HEVC", "AV1", "AAC", "FLAC"]
+                .contains(&group.to_uppercase().as_str())
+        {
+            return Some(group.to_string());
+        }
+    }
+    None
+}
+
+fn extract_title_before_episode(filename: &str, episode_str: &str) -> Option<String> {
+    let pos = filename.find(episode_str)?;
+    let before = &filename[..pos];
+
+    let title = before.trim_end_matches(|c: char| c == '-' || c == '_' || c.is_whitespace());
+
+    let title = if title.starts_with('[') {
+        if let Some(end) = title.find(']') {
+            title[end + 1..].trim()
+        } else {
+            title
+        }
+    } else {
+        title
+    };
+
+    if title.is_empty() {
+        None
+    } else {
+        Some(title.to_string())
+    }
+}
+
+pub fn detect_season_from_title(title: &str) -> Option<i32> {
+    static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    let patterns = PATTERNS.get_or_init(|| {
+        vec![
+            Regex::new(r"(?i)\b(?:Season|S)\s*(\d+)\b").unwrap(),
+            Regex::new(r"(?i)\b(\d+)(?:st|nd|rd|th)\s+Season\b").unwrap(),
+            Regex::new(r"(?i)\bPart\s+(\d+|I{1,3}V?|VI{0,3})\b").unwrap(),
+            Regex::new(r"(?i)\bCour\s+(\d+)\b").unwrap(),
+            Regex::new(r"\b(I{2,3}V?|VI{0,3})\s*$").unwrap(),
+        ]
+    });
+
+    for pattern in patterns.iter() {
+        if let Some(caps) = pattern.captures(title)
+            && let Some(m) = caps.get(1)
+        {
+            let num_str = m.as_str();
+
+            if let Ok(n) = num_str.parse::<i32>() {
+                return Some(n);
+            }
+
+            if let Some(n) = roman_to_int(num_str) {
+                return Some(n);
+            }
+        }
+    }
+
+    None
+}
+
+fn roman_to_int(s: &str) -> Option<i32> {
+    let s = s.to_uppercase();
+    match s.as_str() {
+        "I" => Some(1),
+        "II" => Some(2),
+        "III" => Some(3),
+        "IV" => Some(4),
+        "V" => Some(5),
+        "VI" => Some(6),
+        "VII" => Some(7),
+        "VIII" => Some(8),
+        "IX" => Some(9),
+        "X" => Some(10),
+        _ => None,
+    }
+}
+
+pub fn clean_title(title: &str) -> String {
+    let title = title.trim().trim_end_matches(['-', '_']).trim();
+
+    let title = if let Some(idx) = title.rfind('(') {
+        if let Some(end) = title.rfind(')') {
+            if end > idx {
+                let inside = &title[idx + 1..end];
+                if inside.len() == 4 && inside.chars().all(|c| c.is_ascii_digit()) {
+                    title[..idx].trim()
+                } else {
+                    title
+                }
+            } else {
+                title
+            }
+        } else {
+            title
+        }
+    } else {
+        title
+    };
+
+    let title = title.replace('_', " ");
+
+    let mut result = String::with_capacity(title.len());
+    let mut last_was_space = false;
+    for c in title.chars() {
+        if c.is_whitespace() {
+            if !last_was_space {
+                result.push(' ');
+                last_was_space = true;
+            }
+        } else {
+            result.push(c);
+            last_was_space = false;
+        }
+    }
+
+    result.trim().to_string()
+}
+
+pub fn normalize_title(title: &str) -> String {
+    let title = clean_title(title);
+
+    static NORMALIZE_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    let patterns = NORMALIZE_PATTERNS.get_or_init(|| {
+        vec![
+            Regex::new(r"(?i)\s*\d+(?:st|nd|rd|th)\s+Season\s*$").unwrap(),
+            Regex::new(r"(?i)\s*(?:Season|S)\s*\d+\s*$").unwrap(),
+            Regex::new(r"(?i)\s*Part\s+(?:\d+|I{1,3}V?|VI{0,3})\s*$").unwrap(),
+            Regex::new(r"(?i)\s*Cour\s+\d+\s*$").unwrap(),
+            Regex::new(r"\s+(?:I{2,3}V?|VI{0,3})\s*$").unwrap(),
+            Regex::new(r"\s*\(\d{4}\)\s*$").unwrap(),
+            Regex::new(r"\s*[:–—-]\s*$").unwrap(),
+        ]
+    });
+
+    let mut result = title;
+    for pattern in patterns.iter() {
+        result = pattern.replace_all(&result, "").to_string();
+    }
+
+    let mut cleaned = String::with_capacity(result.len());
+    let mut last_was_space = false;
+    for c in result.chars() {
+        if c.is_whitespace() {
+            if !last_was_space {
+                cleaned.push(' ');
+                last_was_space = true;
+            }
+        } else {
+            cleaned.push(c);
+            last_was_space = false;
+        }
+    }
+
+    cleaned.trim().to_string()
+}
+
+pub fn normalize_for_matching(title: &str) -> String {
+    let normalized = normalize_title(title).to_lowercase();
+
+    normalized
+        .chars()
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_standard_format() {
+        let r = parse_filename("[SubsPlease] Frieren - 01 [1080p].mkv").unwrap();
+        assert_eq!(r.title, "Frieren");
+        assert_eq!(r.episode_number, 1.0);
+        assert_eq!(r.group.as_deref(), Some("SubsPlease"));
+        assert_eq!(r.resolution.as_deref(), Some("1080p"));
+        assert_eq!(r.season, None);
+    }
+
+    #[test]
+    fn test_standard_with_version() {
+        let r = parse_filename("[Erai-raws] Oshi no Ko - 05v2 [1080p].mkv").unwrap();
+        assert_eq!(r.title, "Oshi no Ko");
+        assert_eq!(r.episode_number, 5.0);
+        assert_eq!(r.version, Some(2));
+        assert!(r.is_revised());
+    }
+
+    #[test]
+    fn test_decimal_episode() {
+        let r = parse_filename("[Group] Anime - 6.5 [1080p].mkv").unwrap();
+        assert_eq!(r.episode_number, 6.5);
+    }
+
+    #[test]
+    fn test_sxxexx_format() {
+        let r = parse_filename("[Group] My Hero Academia - S05E10 [1080p].mkv").unwrap();
+        assert_eq!(r.title, "My Hero Academia");
+        assert_eq!(r.season, Some(5));
+        assert_eq!(r.episode_number, 10.0);
+    }
+
+    #[test]
+    fn test_dot_separated() {
+        let r = parse_filename("Attack.on.Titan.S04E28.1080p.WEB.x264-SENPAI.mkv").unwrap();
+        assert_eq!(r.title, "Attack on Titan");
+        assert_eq!(r.season, Some(4));
+        assert_eq!(r.episode_number, 28.0);
+        assert_eq!(r.resolution.as_deref(), Some("1080p"));
+        assert_eq!(r.source.as_deref(), Some("WEB"));
+        assert_eq!(r.group.as_deref(), Some("SENPAI"));
+    }
+
+    #[test]
+    fn test_group_at_end() {
+        let r = parse_filename("Demon Slayer - 05 (1080p BD) [Cool-Group].mkv").unwrap();
+        assert_eq!(r.title, "Demon Slayer");
+        assert_eq!(r.episode_number, 5.0);
+        assert_eq!(r.group.as_deref(), Some("Cool-Group"));
+        assert_eq!(r.resolution.as_deref(), Some("1080p"));
+        assert_eq!(r.source.as_deref(), Some("BD"));
+    }
+
+    #[test]
+    fn test_season_in_title() {
+        let r = parse_filename("[Group] Mob Psycho 100 Season 2 - 08 [1080p].mkv").unwrap();
+        assert_eq!(r.season, Some(2));
+        assert_eq!(r.episode_number, 8.0);
+    }
+
+    #[test]
+    fn test_season_2nd_format() {
+        let r = parse_filename("[Group] Title 2nd Season - 05 [1080p].mkv").unwrap();
+        assert_eq!(r.season, Some(2));
+    }
+
+    #[test]
+    fn test_roman_numeral_season() {
+        let r = parse_filename("[Group] Re Zero II - 10 [1080p].mkv").unwrap();
+        assert_eq!(r.season, Some(2));
+    }
+
+    #[test]
+    fn test_part_format() {
+        let r = parse_filename("[Group] Attack on Titan Part 2 - 05 [1080p].mkv").unwrap();
+        assert_eq!(r.season, Some(2));
+    }
+
+    #[test]
+    fn test_extract_resolution() {
+        assert_eq!(extract_resolution("1080p HEVC"), Some("1080p".to_string()));
+        assert_eq!(extract_resolution("4K HDR"), Some("4K".to_string()));
+        assert_eq!(extract_resolution("720P web"), Some("720p".to_string()));
+    }
+
+    #[test]
+    fn test_extract_source() {
+        assert_eq!(extract_source("1080p BD x265"), Some("BD".to_string()));
+        assert_eq!(extract_source("WEBRip 720p"), Some("WEB".to_string()));
+        assert_eq!(extract_source("BluRay"), Some("BD".to_string()));
+    }
+
+    #[test]
+    fn test_fallback_parser() {
+        let r = parse_filename("Some Anime - 15.mkv").unwrap();
+        assert_eq!(r.episode_number, 15.0);
+        assert_eq!(r.title, "Some Anime");
+
+        let r2 = parse_filename("Anime Title E05.mkv").unwrap();
+        assert_eq!(r2.episode_number, 5.0);
+    }
+
+    #[test]
+    fn test_underscores() {
+        let r = parse_filename("[Group]_Anime_Title_-_05_[1080p].mkv").unwrap();
+        assert_eq!(r.title, "Anime Title");
+        assert_eq!(r.episode_number, 5.0);
+    }
+
+    #[test]
+    fn test_bd_source_variations() {
+        assert_eq!(extract_source("BD 1080p"), Some("BD".to_string()));
+        assert_eq!(extract_source("Blu-Ray"), Some("BD".to_string()));
+        assert_eq!(extract_source("BluRay"), Some("BD".to_string()));
+    }
+
+    #[test]
+    fn test_detect_season_from_title() {
+        assert_eq!(detect_season_from_title("Title Season 3"), Some(3));
+        assert_eq!(detect_season_from_title("Title S2"), Some(2));
+        assert_eq!(detect_season_from_title("Title 2nd Season"), Some(2));
+        assert_eq!(detect_season_from_title("Title Part 2"), Some(2));
+        assert_eq!(detect_season_from_title("Title Part II"), Some(2));
+        assert_eq!(detect_season_from_title("Title III"), Some(3));
+        assert_eq!(detect_season_from_title("Title Cour 2"), Some(2));
+        assert_eq!(detect_season_from_title("Just a Title"), None);
+    }
+
+    #[test]
+    fn test_normalize_title() {
+        assert_eq!(normalize_title("Oshi no Ko 2nd Season"), "Oshi no Ko");
+        assert_eq!(
+            normalize_title("My Hero Academia Season 5"),
+            "My Hero Academia"
+        );
+        assert_eq!(normalize_title("Re:Zero Part 2"), "Re:Zero");
+        assert_eq!(normalize_title("Title S2"), "Title");
+        assert_eq!(normalize_title("Demon Slayer (2019)"), "Demon Slayer");
+        assert_eq!(normalize_title("Attack on Titan III"), "Attack on Titan");
+        assert_eq!(normalize_title("Call of the Night"), "Call of the Night");
+    }
+
+    #[test]
+    fn test_normalize_for_matching() {
+        assert_eq!(
+            normalize_for_matching("Oshi no Ko 2nd Season"),
+            "oshi no ko"
+        );
+        assert_eq!(
+            normalize_for_matching("My Hero Academia!"),
+            "my hero academia"
+        );
+        assert_eq!(normalize_for_matching("Re:Zero"), "rezero");
+    }
+
+    #[test]
+    fn test_plex_format() {
+        let r = parse_filename(
+            "The Apothecary Diaries (2023) - S01E01 - Maomao [Bluray-1080p][Opus 2.0][x265]-MTBB.mkv",
+        )
+        .unwrap();
+        assert_eq!(r.title, "The Apothecary Diaries");
+        assert_eq!(r.season, Some(1));
+        assert_eq!(r.episode_number, 1.0);
+        assert_eq!(r.resolution.as_deref(), Some("1080p"));
+        assert_eq!(r.source.as_deref(), Some("BD"));
+        assert_eq!(r.group.as_deref(), Some("MTBB"));
+
+        let r2 = parse_filename(
+            "The Apothecary Diaries (2023) - S02E05 - The Moon Fairy [WEBDL-1080p][AAC 2.0][x264]-VARYG.mkv",
+        )
+        .unwrap();
+        assert_eq!(r2.season, Some(2));
+        assert_eq!(r2.episode_number, 5.0);
+        assert_eq!(r2.source.as_deref(), Some("WEB"));
+    }
+}

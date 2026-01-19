@@ -1,0 +1,526 @@
+use crate::library::LibraryService;
+use crate::parser::filename::parse_filename;
+use crate::quality::parse_quality_from_filename;
+use crate::scheduler::AppState;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
+use tracing::{debug, error, info, warn};
+
+const VIDEO_EXTENSIONS: &[&str] = &["mkv", "mp4", "avi", "webm", "m4v"];
+
+#[derive(Clone)]
+pub struct Monitor {
+    state: Arc<RwLock<AppState>>,
+}
+
+impl Monitor {
+    pub fn new(state: Arc<RwLock<AppState>>) -> Self {
+        Self { state }
+    }
+
+    pub async fn start(&self) {
+        tokio::time::sleep(Duration::from_secs(10)).await;
+
+        let monitor = self.clone();
+        tokio::spawn(async move {
+            monitor.import_loop().await;
+        });
+
+        let monitor = self.clone();
+        tokio::spawn(async move {
+            monitor.progress_loop().await;
+        });
+    }
+
+    async fn import_loop(&self) {
+        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        info!("Import monitor loop started");
+
+        loop {
+            interval.tick().await;
+            if let Err(e) = self.check_downloads().await {
+                error!("Monitor import check failed: {}", e);
+            }
+        }
+    }
+
+    async fn progress_loop(&self) {
+        let mut interval = tokio::time::interval(Duration::from_secs(2));
+        info!("Download progress loop started");
+
+        loop {
+            interval.tick().await;
+            if let Err(e) = self.broadcast_progress().await {
+                warn!("Monitor progress check failed: {}. Retrying in 30s.", e);
+                tokio::time::sleep(Duration::from_secs(30)).await;
+            }
+        }
+    }
+
+    async fn broadcast_progress(&self) -> anyhow::Result<()> {
+        let (qbit, event_bus) = {
+            let state = self.state.read().await;
+            (state.qbit.clone(), state.event_bus.clone())
+        };
+
+        let Some(client) = qbit else { return Ok(()) };
+
+        let torrents = client.get_torrents(None).await?;
+
+        let downloads: Vec<crate::api::events::DownloadStatus> = torrents
+            .into_iter()
+            .filter(|t| {
+                !t.state.is_completed()
+                    && t.state != crate::clients::qbittorrent::TorrentState::StoppedUP
+                    && t.progress < 1.0
+            })
+            .map(|t| crate::api::events::DownloadStatus {
+                hash: t.hash,
+                name: t.name,
+                progress: t.progress as f32,
+                speed: t.dlspeed,
+                eta: t.eta,
+                state: format!("{:?}", t.state),
+                total_bytes: t.size,
+                downloaded_bytes: t.downloaded,
+            })
+            .collect();
+
+        if !downloads.is_empty() {
+            let _ = event_bus
+                .send(crate::api::events::NotificationEvent::DownloadProgress { downloads });
+        }
+
+        Ok(())
+    }
+
+    async fn check_downloads(&self) -> anyhow::Result<()> {
+        let (qbit, config, store) = {
+            let state = self.state.read().await;
+            (
+                state.qbit.clone(),
+                state.config.clone(),
+                state.store.clone(),
+            )
+        };
+
+        let Some(client) = qbit else { return Ok(()) };
+
+        let torrents = match client.get_torrents(None).await {
+            Ok(t) => {
+                debug!("Fetched {} torrents from qBittorrent", t.len());
+                t
+            }
+            Err(e) => {
+                warn!("Failed to fetch torrents: {}", e);
+                return Ok(());
+            }
+        };
+
+        let library = LibraryService::new(config.library.clone());
+
+        for torrent in torrents {
+            let is_stalled = matches!(
+                torrent.state,
+                crate::clients::qbittorrent::TorrentState::StalledDL
+                    | crate::clients::qbittorrent::TorrentState::MetaDL
+            ) && torrent.num_seeds == 0;
+
+            let is_error = matches!(
+                torrent.state,
+                crate::clients::qbittorrent::TorrentState::Error
+                    | crate::clients::qbittorrent::TorrentState::MissingFiles
+            );
+
+            let stalled_duration_threshold = 900;
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64;
+            let duration_since_added = now - torrent.added_on;
+
+            if is_error || (is_stalled && duration_since_added > stalled_duration_threshold) {
+                let reason = if is_error {
+                    "Download Error"
+                } else {
+                    "Stalled (0 seeds)"
+                };
+
+                warn!(
+                    "Removing {} download: {} ({}) - Added {}s ago",
+                    reason, torrent.name, torrent.hash, duration_since_added
+                );
+
+                if let Err(e) = client.delete_torrent(&torrent.hash, true).await {
+                    error!("Failed to delete stalled torrent {}: {}", torrent.hash, e);
+                    continue;
+                }
+
+                if let Err(e) = store.add_to_blocklist(&torrent.hash, reason).await {
+                    error!("Failed to blocklist torrent {}: {}", torrent.hash, e);
+                }
+
+                continue;
+            }
+
+            if torrent.progress < 1.0 {
+                continue;
+            }
+
+            let entry = store.get_download_by_hash(&torrent.hash).await?;
+
+            if let Some(entry) = &entry {
+                if entry.imported {
+                    debug!(
+                        "Skipping already imported download: {} ({})",
+                        torrent.name, torrent.hash
+                    );
+                    continue;
+                }
+
+                info!(
+                    "Found completed download (Not imported): {} ({})",
+                    torrent.name, torrent.hash
+                );
+            } else {
+                debug!(
+                    "Torrent not found in DB (External download?): {} ({})",
+                    torrent.name, torrent.hash
+                );
+            }
+
+            if let Some(entry) = entry {
+                let Some(anime) = store.get_anime(entry.anime_id).await? else {
+                    warn!(
+                        "Anime {} not found for download {}",
+                        entry.anime_id, entry.id
+                    );
+                    continue;
+                };
+
+                debug!("Processing import for anime: {}", anime.title.romaji);
+
+                let mut source_path_str = torrent.content_path.clone();
+                let state = self.state.read().await;
+
+                debug!("Original content path from qBit: {}", source_path_str);
+
+                for (remote, local) in &state.config.downloads.remote_path_mappings {
+                    if source_path_str.starts_with(remote) {
+                        debug!(
+                            "Applying path mapping: {} -> {} for {}",
+                            remote, local, source_path_str
+                        );
+                        source_path_str = source_path_str.replacen(remote, local, 1);
+                    }
+                }
+                drop(state);
+
+                let source_path = Path::new(&source_path_str);
+                debug!("Resolved source path (Local): {:?}", source_path);
+
+                if !source_path.exists() {
+                    warn!(
+                        "Source path does not exist for {}: {:?}",
+                        torrent.name, source_path
+                    );
+                    continue;
+                }
+
+                let import_result = if source_path.is_file() {
+                    debug!("Source is a single file");
+
+                    self.import_single_file(&library, &anime, source_path, &entry)
+                        .await
+                } else if source_path.is_dir() {
+                    debug!("Source is a directory");
+
+                    self.import_directory(&library, &anime, source_path).await
+                } else {
+                    warn!("Unknown path type for {}: {:?}", torrent.name, source_path);
+                    continue;
+                };
+
+                match import_result {
+                    Ok(count) => {
+                        if count > 0 {
+                            info!(
+                                "Successfully imported {} file(s) from {}",
+                                count, torrent.name
+                            );
+                            store.set_imported(entry.id, true).await?;
+                        } else {
+                            warn!("No video files found in {}", torrent.name);
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to import {}: {}", torrent.name, e);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn import_single_file(
+        &self,
+        library: &LibraryService,
+        anime: &crate::models::anime::Anime,
+        source_path: &Path,
+        entry: &crate::db::DownloadEntry,
+    ) -> anyhow::Result<usize> {
+        let filename = source_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+
+        let parsed = parse_filename(&filename);
+        let quality_str = parse_quality_from_filename(&filename).to_string();
+        let extension = source_path
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        let episode_number = if let Some(ref p) = parsed {
+            p.episode_number as i32
+        } else {
+            entry.episode_number as i32
+        };
+
+        let season = parsed.as_ref().and_then(|p| p.season);
+
+        let episode_title = {
+            let state = self.state.read().await;
+            state
+                .episodes
+                .get_episode_title(anime.id, episode_number)
+                .await
+                .unwrap_or_else(|_| format!("Episode {}", episode_number))
+        };
+
+        let media_service = crate::services::MediaService::new();
+        let media_info = media_service.get_media_info(source_path).ok();
+
+        let options = crate::library::RenamingOptions {
+            anime: anime.clone(),
+            episode_number,
+            season,
+            episode_title,
+            quality: Some(quality_str),
+            group: entry.group_name.clone(),
+            original_filename: Some(filename.clone()),
+            extension,
+            year: anime.start_year,
+            media_info: media_info.clone(),
+        };
+
+        let dest_path = library.get_destination_path(&options);
+
+        library.import_file(source_path, &dest_path).await?;
+        info!("Imported to {:?}", dest_path);
+
+        let seadex_groups = {
+            let state = self.state.read().await;
+            state.get_seadex_groups_cached(anime.id).await
+        };
+
+        let is_seadex = {
+            let state = self.state.read().await;
+            state.is_from_seadex_group(&filename, &seadex_groups)
+        };
+
+        let quality = parse_quality_from_filename(&filename);
+        let file_size = tokio::fs::metadata(&dest_path)
+            .await
+            .map(|m| m.len() as i64)
+            .ok();
+
+        {
+            let state = self.state.read().await;
+            if let Err(e) = state
+                .store
+                .mark_episode_downloaded(
+                    anime.id,
+                    episode_number,
+                    season.unwrap_or(1),
+                    quality.id,
+                    is_seadex,
+                    dest_path.to_str().unwrap_or(""),
+                    file_size,
+                    media_info.as_ref(),
+                )
+                .await
+            {
+                warn!("Failed to update episode status: {}", e);
+            }
+        }
+
+        Ok(1)
+    }
+
+    async fn import_directory(
+        &self,
+        library: &LibraryService,
+        anime: &crate::models::anime::Anime,
+        dir_path: &Path,
+    ) -> anyhow::Result<usize> {
+        let video_files = find_video_files_recursive(dir_path).await?;
+
+        if video_files.is_empty() {
+            return Ok(0);
+        }
+
+        info!(
+            "Found {} video file(s) in directory {:?}",
+            video_files.len(),
+            dir_path
+        );
+
+        let mut imported = 0;
+
+        for file_path in video_files {
+            let filename = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let video_ext = file_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("mkv");
+
+            let parsed = parse_filename(filename);
+            let quality = parse_quality_from_filename(filename).to_string();
+
+            let episode_number = if let Some(ref p) = parsed {
+                p.episode_number as i32
+            } else {
+                warn!(
+                    "Could not detect episode number for {:?}, skipping",
+                    file_path
+                );
+                continue;
+            };
+
+            let season = parsed.as_ref().and_then(|p| p.season);
+
+            let media_service = crate::services::MediaService::new();
+            let media_info = media_service.get_media_info(&file_path).ok();
+
+            let options = crate::library::RenamingOptions {
+                anime: anime.clone(),
+                episode_number,
+                season,
+                episode_title: {
+                    let state = self.state.read().await;
+                    state
+                        .episodes
+                        .get_episode_title(anime.id, episode_number)
+                        .await
+                        .unwrap_or_else(|_| format!("Episode {}", episode_number))
+                },
+                quality: Some(quality.to_string()),
+                group: crate::parser::filename::parse_filename(filename).and_then(|r| r.group),
+                original_filename: Some(filename.to_string()),
+                extension: video_ext.to_string(),
+                year: anime.start_year,
+                media_info: media_info.clone(),
+            };
+
+            let dest_path = library.get_destination_path(&options);
+
+            match library.import_file(&file_path, &dest_path).await {
+                Ok(_) => {
+                    info!("Imported {} -> {:?}", filename, dest_path);
+                    imported += 1;
+
+                    let seadex_groups = {
+                        let state = self.state.read().await;
+                        state.get_seadex_groups_cached(anime.id).await
+                    };
+
+                    let is_seadex = {
+                        let state = self.state.read().await;
+                        state.is_from_seadex_group(filename, &seadex_groups)
+                    };
+
+                    let quality = parse_quality_from_filename(filename);
+                    let file_size = tokio::fs::metadata(&dest_path)
+                        .await
+                        .map(|m| m.len() as i64)
+                        .ok();
+
+                    {
+                        let state = self.state.read().await;
+                        if let Err(e) = state
+                            .store
+                            .mark_episode_downloaded(
+                                anime.id,
+                                episode_number,
+                                season.unwrap_or(1),
+                                quality.id,
+                                is_seadex,
+                                dest_path.to_str().unwrap_or(""),
+                                file_size,
+                                media_info.as_ref(),
+                            )
+                            .await
+                        {
+                            warn!("Failed to update episode status: {}", e);
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to import {}: {}", filename, e);
+                }
+            }
+        }
+
+        Ok(imported)
+    }
+}
+
+async fn find_video_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
+    let mut video_files = Vec::new();
+    let mut stack = vec![dir.to_path_buf()];
+
+    while let Some(current_dir) = stack.pop() {
+        let mut entries = tokio::fs::read_dir(&current_dir).await?;
+
+        while let Some(entry) = entries.next_entry().await? {
+            let path = entry.path();
+            let file_type = entry.file_type().await?;
+
+            if file_type.is_dir() {
+                stack.push(path);
+            } else if file_type.is_file()
+                && let Some(ext) = path.extension().and_then(|e| e.to_str())
+                && VIDEO_EXTENSIONS.contains(&ext.to_lowercase().as_str())
+            {
+                video_files.push(path);
+            }
+        }
+    }
+
+    video_files.sort_by(|a, b| {
+        a.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .cmp(b.file_name().and_then(|n| n.to_str()).unwrap_or(""))
+    });
+
+    Ok(video_files)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_video_extensions() {
+        assert!(VIDEO_EXTENSIONS.contains(&"mkv"));
+        assert!(VIDEO_EXTENSIONS.contains(&"mp4"));
+        assert!(!VIDEO_EXTENSIONS.contains(&"txt"));
+    }
+}
