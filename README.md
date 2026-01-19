@@ -2,6 +2,8 @@
 
 A **Sonarr**-like anime download manager built specifically for anime, with intelligent torrent searching, quality management, and SeaDex integration for batch releases.
 
+<img src="assets/screenshot.png" alt="Bakarr Dashboard" width="100%">
+
 ## Features
 
 ### Deployment
