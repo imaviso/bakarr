@@ -1000,10 +1000,6 @@ impl Store {
             )
             .join(
                 JoinType::LeftJoin,
-                episode_status::Relation::MonitoredAnime.def().rev(),
-            )
-            .join(
-                JoinType::LeftJoin,
                 episode_metadata::Entity::belongs_to(episode_status::Entity)
                     .from(episode_metadata::Column::AnimeId)
                     .to(episode_status::Column::AnimeId)
