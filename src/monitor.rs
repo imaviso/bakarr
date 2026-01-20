@@ -1,22 +1,21 @@
+use crate::constants::VIDEO_EXTENSIONS;
 use crate::library::LibraryService;
 use crate::parser::filename::parse_filename;
 use crate::quality::parse_quality_from_filename;
-use crate::scheduler::AppState;
+use crate::state::SharedState;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-const VIDEO_EXTENSIONS: &[&str] = &["mkv", "mp4", "avi", "webm", "m4v"];
-
 #[derive(Clone)]
 pub struct Monitor {
-    state: Arc<RwLock<AppState>>,
+    state: Arc<RwLock<SharedState>>,
 }
 
 impl Monitor {
-    pub fn new(state: Arc<RwLock<AppState>>) -> Self {
+    pub fn new(state: Arc<RwLock<SharedState>>) -> Self {
         Self { state }
     }
 
@@ -101,7 +100,7 @@ impl Monitor {
             let state = self.state.read().await;
             (
                 state.qbit.clone(),
-                state.config.clone(),
+                state.config.read().await.clone(),
                 state.store.clone(),
             )
         };
@@ -122,143 +121,165 @@ impl Monitor {
         let library = LibraryService::new(config.library.clone());
 
         for torrent in torrents {
-            let is_stalled = matches!(
-                torrent.state,
-                crate::clients::qbittorrent::TorrentState::StalledDL
-                    | crate::clients::qbittorrent::TorrentState::MetaDL
-            ) && torrent.num_seeds == 0;
-
-            let is_error = matches!(
-                torrent.state,
-                crate::clients::qbittorrent::TorrentState::Error
-                    | crate::clients::qbittorrent::TorrentState::MissingFiles
-            );
-
-            let stalled_duration_threshold = 900;
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs() as i64;
-            let duration_since_added = now - torrent.added_on;
-
-            if is_error || (is_stalled && duration_since_added > stalled_duration_threshold) {
-                let reason = if is_error {
-                    "Download Error"
-                } else {
-                    "Stalled (0 seeds)"
-                };
-
-                warn!(
-                    "Removing {} download: {} ({}) - Added {}s ago",
-                    reason, torrent.name, torrent.hash, duration_since_added
-                );
-
-                if let Err(e) = client.delete_torrent(&torrent.hash, true).await {
-                    error!("Failed to delete stalled torrent {}: {}", torrent.hash, e);
-                    continue;
-                }
-
-                if let Err(e) = store.add_to_blocklist(&torrent.hash, reason).await {
-                    error!("Failed to blocklist torrent {}: {}", torrent.hash, e);
-                }
-
+            // Handle stalled or errored torrents
+            if self
+                .handle_problematic_torrent(&client, &store, &torrent)
+                .await?
+            {
                 continue;
             }
 
+            // Skip incomplete downloads
             if torrent.progress < 1.0 {
                 continue;
             }
 
-            let entry = store.get_download_by_hash(&torrent.hash).await?;
+            // Process completed downloads
+            self.process_completed_torrent(&store, &library, &config, &torrent)
+                .await?;
+        }
 
-            if let Some(entry) = &entry {
-                if entry.imported {
-                    debug!(
-                        "Skipping already imported download: {} ({})",
-                        torrent.name, torrent.hash
-                    );
-                    continue;
-                }
+        Ok(())
+    }
 
-                info!(
-                    "Found completed download (Not imported): {} ({})",
-                    torrent.name, torrent.hash
-                );
-            } else {
+    /// Handle stalled or errored torrents by removing and blocklisting them.
+    /// Returns true if the torrent was handled (removed), false otherwise.
+    async fn handle_problematic_torrent(
+        &self,
+        client: &crate::clients::qbittorrent::QBitClient,
+        store: &crate::db::Store,
+        torrent: &crate::clients::qbittorrent::TorrentInfo,
+    ) -> anyhow::Result<bool> {
+        let is_stalled = matches!(
+            torrent.state,
+            crate::clients::qbittorrent::TorrentState::StalledDL
+                | crate::clients::qbittorrent::TorrentState::MetaDL
+        ) && torrent.num_seeds == 0;
+
+        let is_error = matches!(
+            torrent.state,
+            crate::clients::qbittorrent::TorrentState::Error
+                | crate::clients::qbittorrent::TorrentState::MissingFiles
+        );
+
+        const STALLED_DURATION_THRESHOLD: i64 = 900; // 15 minutes
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+        let duration_since_added = now - torrent.added_on;
+
+        if !(is_error || is_stalled && duration_since_added > STALLED_DURATION_THRESHOLD) {
+            return Ok(false);
+        }
+
+        let reason = if is_error {
+            "Download Error"
+        } else {
+            "Stalled (0 seeds)"
+        };
+
+        warn!(
+            "Removing {} download: {} ({}) - Added {}s ago",
+            reason, torrent.name, torrent.hash, duration_since_added
+        );
+
+        if let Err(e) = client.delete_torrent(&torrent.hash, true).await {
+            error!("Failed to delete stalled torrent {}: {}", torrent.hash, e);
+            return Ok(false);
+        }
+
+        if let Err(e) = store.add_to_blocklist(&torrent.hash, reason).await {
+            error!("Failed to blocklist torrent {}: {}", torrent.hash, e);
+        }
+
+        Ok(true)
+    }
+
+    /// Process a completed torrent download for import.
+    async fn process_completed_torrent(
+        &self,
+        store: &crate::db::Store,
+        library: &LibraryService,
+        config: &crate::config::Config,
+        torrent: &crate::clients::qbittorrent::TorrentInfo,
+    ) -> anyhow::Result<()> {
+        let entry = store.get_download_by_hash(&torrent.hash).await?;
+
+        if let Some(entry) = &entry {
+            if entry.imported {
                 debug!(
-                    "Torrent not found in DB (External download?): {} ({})",
+                    "Skipping already imported download: {} ({})",
                     torrent.name, torrent.hash
                 );
+                return Ok(());
             }
 
-            if let Some(entry) = entry {
-                let Some(anime) = store.get_anime(entry.anime_id).await? else {
-                    warn!(
-                        "Anime {} not found for download {}",
-                        entry.anime_id, entry.id
+            info!(
+                "Found completed download (Not imported): {} ({})",
+                torrent.name, torrent.hash
+            );
+        } else {
+            debug!(
+                "Torrent not found in DB (External download?): {} ({})",
+                torrent.name, torrent.hash
+            );
+            return Ok(());
+        }
+
+        let entry = entry.unwrap();
+        let Some(anime) = store.get_anime(entry.anime_id).await? else {
+            warn!(
+                "Anime {} not found for download {}",
+                entry.anime_id, entry.id
+            );
+            return Ok(());
+        };
+
+        debug!("Processing import for anime: {}", anime.title.romaji);
+
+        let source_path_str = apply_path_mappings(
+            &torrent.content_path,
+            &config.downloads.remote_path_mappings,
+        );
+        let source_path = Path::new(&source_path_str);
+
+        debug!("Resolved source path (Local): {:?}", source_path);
+
+        if !source_path.exists() {
+            warn!(
+                "Source path does not exist for {}: {:?}",
+                torrent.name, source_path
+            );
+            return Ok(());
+        }
+
+        let import_result = if source_path.is_file() {
+            debug!("Source is a single file");
+            self.import_single_file(library, &anime, source_path, &entry)
+                .await
+        } else if source_path.is_dir() {
+            debug!("Source is a directory");
+            self.import_directory(library, &anime, source_path).await
+        } else {
+            warn!("Unknown path type for {}: {:?}", torrent.name, source_path);
+            return Ok(());
+        };
+
+        match import_result {
+            Ok(count) => {
+                if count > 0 {
+                    info!(
+                        "Successfully imported {} file(s) from {}",
+                        count, torrent.name
                     );
-                    continue;
-                };
-
-                debug!("Processing import for anime: {}", anime.title.romaji);
-
-                let mut source_path_str = torrent.content_path.clone();
-                let state = self.state.read().await;
-
-                debug!("Original content path from qBit: {}", source_path_str);
-
-                for (remote, local) in &state.config.downloads.remote_path_mappings {
-                    if source_path_str.starts_with(remote) {
-                        debug!(
-                            "Applying path mapping: {} -> {} for {}",
-                            remote, local, source_path_str
-                        );
-                        source_path_str = source_path_str.replacen(remote, local, 1);
-                    }
-                }
-                drop(state);
-
-                let source_path = Path::new(&source_path_str);
-                debug!("Resolved source path (Local): {:?}", source_path);
-
-                if !source_path.exists() {
-                    warn!(
-                        "Source path does not exist for {}: {:?}",
-                        torrent.name, source_path
-                    );
-                    continue;
-                }
-
-                let import_result = if source_path.is_file() {
-                    debug!("Source is a single file");
-
-                    self.import_single_file(&library, &anime, source_path, &entry)
-                        .await
-                } else if source_path.is_dir() {
-                    debug!("Source is a directory");
-
-                    self.import_directory(&library, &anime, source_path).await
+                    store.set_imported(entry.id, true).await?;
                 } else {
-                    warn!("Unknown path type for {}: {:?}", torrent.name, source_path);
-                    continue;
-                };
-
-                match import_result {
-                    Ok(count) => {
-                        if count > 0 {
-                            info!(
-                                "Successfully imported {} file(s) from {}",
-                                count, torrent.name
-                            );
-                            store.set_imported(entry.id, true).await?;
-                        } else {
-                            warn!("No video files found in {}", torrent.name);
-                        }
-                    }
-                    Err(e) => {
-                        error!("Failed to import {}: {}", torrent.name, e);
-                    }
+                    warn!("No video files found in {}", torrent.name);
                 }
+            }
+            Err(e) => {
+                error!("Failed to import {}: {}", torrent.name, e);
             }
         }
 
@@ -479,6 +500,24 @@ impl Monitor {
 
         Ok(imported)
     }
+}
+
+/// Apply remote path mappings to convert a remote path to a local path.
+fn apply_path_mappings(path: &str, mappings: &[(String, String)]) -> String {
+    let mut result = path.to_string();
+    for (remote, local) in mappings {
+        if result.starts_with(remote) {
+            tracing::debug!(
+                "Applying path mapping: {} -> {} for {}",
+                remote,
+                local,
+                result
+            );
+            result = result.replacen(remote, local, 1);
+            break;
+        }
+    }
+    result
 }
 
 async fn find_video_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {

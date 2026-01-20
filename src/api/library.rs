@@ -29,7 +29,7 @@ pub struct ActivityItem {
 pub async fn get_stats(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<LibraryStats>>, ApiError> {
-    let anime_list = state.store.list_monitored().await?;
+    let anime_list = state.store().list_monitored().await?;
     let total_anime = anime_list.len() as i32;
 
     let mut total_episodes = 0;
@@ -41,7 +41,7 @@ pub async fn get_stats(
         total_episodes += ep_count;
 
         let downloaded = state
-            .store
+            .store()
             .get_downloaded_count(anime.id)
             .await
             .unwrap_or(0);
@@ -49,7 +49,7 @@ pub async fn get_stats(
 
         if ep_count > 0 {
             let missing = state
-                .store
+                .store()
                 .get_missing_episodes(anime.id, ep_count)
                 .await
                 .unwrap_or_default();
@@ -58,11 +58,11 @@ pub async fn get_stats(
     }
 
     let feeds = state
-        .store
+        .store()
         .get_enabled_rss_feeds()
         .await
         .unwrap_or_default();
-    let recent = state.store.recent_downloads(7).await.unwrap_or_default();
+    let recent = state.store().recent_downloads(7).await.unwrap_or_default();
 
     Ok(Json(ApiResponse::success(LibraryStats {
         total_anime,
@@ -77,11 +77,11 @@ pub async fn get_stats(
 pub async fn get_activity(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<ActivityItem>>>, ApiError> {
-    let downloads = state.store.recent_downloads(20).await?;
+    let downloads = state.store().recent_downloads(20).await?;
 
     let mut activities = Vec::new();
     for download in downloads {
-        let anime = state.store.get_anime(download.anime_id).await?;
+        let anime = state.store().get_anime(download.anime_id).await?;
         let anime_title = anime
             .map(|a| a.title.english.unwrap_or(a.title.romaji))
             .unwrap_or_else(|| format!("Anime #{}", download.anime_id));
@@ -132,7 +132,7 @@ pub async fn import_folder(
         .map_err(|e| ApiError::anilist_error(format!("Failed to fetch anime details: {}", e)))?
         .ok_or_else(|| ApiError::anime_not_found(request.anime_id))?;
 
-    let config = state.config.read().await;
+    let config = state.config().read().await;
     let library_path = Path::new(&config.library.library_path);
     let full_path = library_path.join(&request.folder_name);
 
@@ -152,7 +152,7 @@ pub async fn import_folder(
 
     if let Some(profile_name) = &request.profile_name {
         if let Some(profile) = state
-            .store
+            .store()
             .get_quality_profile_by_name(profile_name)
             .await?
         {
@@ -160,7 +160,7 @@ pub async fn import_folder(
         }
     } else if let Some(first_profile) = config.profiles.first()
         && let Some(profile) = state
-            .store
+            .store()
             .get_quality_profile_by_name(&first_profile.name)
             .await?
     {
@@ -168,7 +168,7 @@ pub async fn import_folder(
     }
     drop(config);
 
-    if state.store.get_anime(anime.id).await?.is_some() {
+    if state.store().get_anime(anime.id).await?.is_some() {
         return Err(ApiError::validation("Anime already exists in library"));
     }
 
@@ -178,12 +178,12 @@ pub async fn import_folder(
         .await;
     anime.added_at = chrono::Utc::now().to_rfc3339();
 
-    state.store.add_anime(&anime).await?;
+    state.store().add_anime(&anime).await?;
 
     let anime_id = anime.id;
     let folder_path = full_path.clone();
-    let store = state.store.clone();
-    let event_bus = state.event_bus.clone();
+    let store = state.store().clone();
+    let event_bus = state.event_bus().clone();
 
     tokio::spawn(async move {
         if let Err(e) = scan_folder_for_episodes(&store, &event_bus, anime_id, &folder_path).await {
@@ -216,6 +216,7 @@ pub async fn scan_folder_for_episodes(
     anime_id: i32,
     folder_path: &Path,
 ) -> anyhow::Result<()> {
+    use crate::constants::VIDEO_EXTENSIONS;
     use crate::parser::filename::parse_filename;
     use crate::quality::parse_quality_from_filename;
 
@@ -228,8 +229,6 @@ pub async fn scan_folder_for_episodes(
         anime_id,
         title: anime_title.clone(),
     });
-
-    const VIDEO_EXTENSIONS: &[&str] = &["mkv", "mp4", "avi", "webm", "mov", "wmv", "flv", "m4v"];
 
     tracing::info!("Scanning folder for episodes: {:?}", folder_path);
 

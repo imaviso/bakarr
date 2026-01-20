@@ -33,12 +33,12 @@ pub async fn get_rename_preview(
     validate_anime_id(id)?;
 
     let anime = state
-        .store
+        .store()
         .get_anime(id)
         .await?
         .ok_or_else(|| ApiError::anime_not_found(id))?;
 
-    let downloaded_eps = state.store.get_episode_statuses(id).await?;
+    let downloaded_eps = state.store().get_episode_statuses(id).await?;
 
     let episodes_with_files: Vec<_> = downloaded_eps
         .into_iter()
@@ -49,8 +49,8 @@ pub async fn get_rename_preview(
         return Ok(Json(ApiResponse::success(Vec::new())));
     }
 
-    let episode_service = EpisodeService::new(state.store.clone());
-    let config_guard = state.config.read().await;
+    let episode_service = EpisodeService::new(state.store().clone());
+    let config_guard = state.config().read().await;
     let library_service = LibraryService::new(config_guard.library.clone());
     drop(config_guard);
 
@@ -149,19 +149,19 @@ pub async fn execute_rename(
     validate_anime_id(id)?;
 
     let anime = state
-        .store
+        .store()
         .get_anime(id)
         .await?
         .ok_or_else(|| ApiError::anime_not_found(id))?;
 
     let _ = state
-        .event_bus
+        .event_bus()
         .send(crate::api::NotificationEvent::RenameStarted {
             anime_id: id,
             title: anime.title.romaji.clone(),
         });
 
-    let downloaded_eps = state.store.get_episode_statuses(id).await?;
+    let downloaded_eps = state.store().get_episode_statuses(id).await?;
     let episodes_with_files: Vec<_> = downloaded_eps
         .into_iter()
         .filter(|status| status.file_path.is_some())
@@ -175,8 +175,8 @@ pub async fn execute_rename(
         })));
     }
 
-    let episode_service = EpisodeService::new(state.store.clone());
-    let config_guard = state.config.read().await;
+    let episode_service = EpisodeService::new(state.store().clone());
+    let config_guard = state.config().read().await;
     let library_service = LibraryService::new(config_guard.library.clone());
     drop(config_guard);
 
@@ -265,7 +265,7 @@ pub async fn execute_rename(
         match tokio::fs::rename(&current_path, &new_path).await {
             Ok(_) => {
                 if let Err(e) = state
-                    .store
+                    .store()
                     .update_episode_path(id, ep_num, new_path.to_str().unwrap_or_default())
                     .await
                 {
@@ -310,7 +310,7 @@ pub async fn execute_rename(
     }
 
     let _ = state
-        .event_bus
+        .event_bus()
         .send(crate::api::NotificationEvent::RenameFinished {
             anime_id: id,
             title: anime.title.romaji,

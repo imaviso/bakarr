@@ -24,12 +24,12 @@ pub async fn get_history(
     Query(params): Query<HistoryQuery>,
 ) -> Result<Json<ApiResponse<Vec<DownloadDto>>>, ApiError> {
     validate_limit(params.limit)?;
-    let downloads = state.store.recent_downloads(params.limit as i32).await?;
+    let downloads = state.store().recent_downloads(params.limit as i32).await?;
 
     let mut dtos = Vec::new();
 
     for d in downloads {
-        let anime_title = if let Ok(Some(anime)) = state.store.get_anime(d.anime_id).await {
+        let anime_title = if let Ok(Some(anime)) = state.store().get_anime(d.anime_id).await {
             anime.title.romaji
         } else {
             "Unknown Anime".to_string()
@@ -54,7 +54,7 @@ pub async fn get_history(
 pub async fn get_queue(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<serde_json::Value>>>, ApiError> {
-    let config = state.config.read().await;
+    let config = state.config().read().await;
     let qbit_config = crate::clients::qbittorrent::QBitConfig {
         base_url: config.qbittorrent.url.clone(),
         username: config.qbittorrent.username.clone(),
@@ -85,18 +85,18 @@ pub async fn get_queue(
             let mut results = Vec::new();
             for t in active_torrents {
                 let db_entry = state
-                    .store
+                    .store()
                     .get_download_by_hash(&t.hash)
                     .await
                     .unwrap_or(None);
 
                 let (id, anime_id, anime_title, episode_number) = if let Some(entry) = db_entry {
-                    let title = if let Ok(Some(anime)) = state.store.get_anime(entry.anime_id).await
-                    {
-                        anime.title.romaji
-                    } else {
-                        "Unknown Anime".to_string()
-                    };
+                    let title =
+                        if let Ok(Some(anime)) = state.store().get_anime(entry.anime_id).await {
+                            anime.title.romaji
+                        } else {
+                            "Unknown Anime".to_string()
+                        };
                     (entry.id, entry.anime_id, title, entry.episode_number)
                 } else {
                     (0, 0, "Unknown (Manual)".to_string(), 0.0)
@@ -137,14 +137,14 @@ pub async fn search_missing(
     if let Some(anime_id) = payload.anime_id {
         validate_anime_id(anime_id)?;
 
-        let (title, category) = if let Some(a) = state.store.get_anime(anime_id).await? {
+        let (title, category) = if let Some(a) = state.store().get_anime(anime_id).await? {
             (a.title.romaji.clone(), sanitize_category(&a.title.romaji))
         } else {
             return Err(ApiError::anime_not_found(anime_id));
         };
 
         let _ = state
-            .event_bus
+            .event_bus()
             .send(crate::api::NotificationEvent::SearchMissingStarted {
                 anime_id,
                 title: title.clone(),
@@ -152,12 +152,12 @@ pub async fn search_missing(
 
         let state_clone = state.clone();
         tokio::spawn(async move {
-            match state_clone.search_service.search_anime(anime_id).await {
+            match state_clone.search_service().search_anime(anime_id).await {
                 Ok(results) => {
                     let mut count = 0;
                     for result in results {
                         if result.download_action.should_download()
-                            && let Some(qbit) = &state_clone.qbit
+                            && let Some(qbit) = &state_clone.qbit()
                         {
                             if let Err(e) =
                                 qbit.add_magnet(&result.link, None, Some(&category)).await
@@ -167,7 +167,7 @@ pub async fn search_missing(
                             }
 
                             if let Err(e) = state_clone
-                                .store
+                                .store()
                                 .record_download(
                                     anime_id,
                                     &result.title,
@@ -184,7 +184,7 @@ pub async fn search_missing(
                         }
                     }
 
-                    let _ = state_clone.event_bus.send(
+                    let _ = state_clone.event_bus().send(
                         crate::api::NotificationEvent::SearchMissingFinished {
                             anime_id,
                             title,
@@ -194,7 +194,7 @@ pub async fn search_missing(
                 }
                 Err(e) => {
                     let _ = state_clone
-                        .event_bus
+                        .event_bus()
                         .send(crate::api::NotificationEvent::Error {
                             message: format!("Search failed: {}", e),
                         });

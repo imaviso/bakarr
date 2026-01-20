@@ -10,7 +10,7 @@ use crate::api::validation::validate_profile_name;
 pub async fn list_profiles(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<ProfileDto>>>, ApiError> {
-    let config = state.config.read().await;
+    let config = state.config().read().await;
     let profiles: Vec<ProfileDto> = config
         .profiles
         .iter()
@@ -31,7 +31,7 @@ pub async fn get_profile(
     Path(name): Path<String>,
 ) -> Result<Json<ApiResponse<ProfileDto>>, ApiError> {
     validate_profile_name(&name)?;
-    let config = state.config.read().await;
+    let config = state.config().read().await;
     let profile = config
         .find_profile(&name)
         .ok_or_else(|| ApiError::profile_not_found(&name))?;
@@ -65,7 +65,7 @@ pub async fn create_profile(
         }
     }
 
-    let mut config = state.config.write().await;
+    let mut config = state.config().write().await;
 
     let profile = crate::config::QualityProfileConfig {
         name: payload.name.clone(),
@@ -99,7 +99,7 @@ pub async fn update_profile(
         }
     }
 
-    let mut config = state.config.write().await;
+    let mut config = state.config().write().await;
 
     let profile = crate::config::QualityProfileConfig {
         name: payload.name.clone(),
@@ -120,7 +120,7 @@ pub async fn delete_profile(
     State(state): State<Arc<AppState>>,
     Path(name): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
-    let mut config = state.config.write().await;
+    let mut config = state.config().write().await;
 
     config
         .delete_profile(&name)

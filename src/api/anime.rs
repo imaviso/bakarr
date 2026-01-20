@@ -28,20 +28,20 @@ pub struct AddAnimeRequest {
 pub async fn list_anime(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<AnimeDto>>>, ApiError> {
-    let anime_list = state.store.list_all_anime().await?;
-    let library_path = state.config.read().await.library.library_path.clone();
+    let anime_list = state.store().list_all_anime().await?;
+    let library_path = state.config().read().await.library.library_path.clone();
 
     let mut results = Vec::new();
     for anime in anime_list {
         let downloaded = state
-            .store
+            .store()
             .get_downloaded_count(anime.id)
             .await
             .unwrap_or(0);
 
         let missing = if let Some(total) = anime.episode_count {
             state
-                .store
+                .store()
                 .get_missing_episodes(anime.id, total)
                 .await
                 .unwrap_or_default()
@@ -103,7 +103,7 @@ pub async fn search_anime(
     validate_search_query(&params.q)?;
     let client = AnilistClient::new();
 
-    let monitored = state.store.list_monitored().await?;
+    let monitored = state.store().list_monitored().await?;
     let monitored_ids: std::collections::HashSet<i32> = monitored.iter().map(|a| a.id).collect();
 
     let results = client
@@ -146,7 +146,7 @@ pub async fn add_anime(
 
     if let Some(profile_name) = &payload.profile_name {
         let profile = state
-            .store
+            .store()
             .get_quality_profile_by_name(profile_name)
             .await?;
 
@@ -155,7 +155,7 @@ pub async fn add_anime(
         }
     }
 
-    let library_config = state.config.read().await.library.clone();
+    let library_config = state.config().read().await.library.clone();
     let library_service = crate::library::LibraryService::new(library_config);
 
     let dummy_options = crate::library::RenamingOptions {
@@ -191,7 +191,7 @@ pub async fn add_anime(
             .to_string()
     } else {
         let library_base = state
-            .config
+            .config()
             .try_read()
             .map(|c| c.library.library_path.clone())
             .unwrap_or_default();
@@ -237,13 +237,13 @@ pub async fn add_anime(
 
     anime.added_at = chrono::Utc::now().to_rfc3339();
 
-    state.store.add_anime(&anime).await?;
+    state.store().add_anime(&anime).await?;
 
     if payload.monitor_and_search {
-        let search_service = state.search_service.clone();
+        let search_service = state.search_service().clone();
         let anime_id = anime.id;
-        let store = state.store.clone();
-        let qbit = state.qbit.clone();
+        let store = state.store().clone();
+        let qbit = state.qbit().clone();
 
         let anime_title_romaji = anime.title.romaji.clone();
 
@@ -334,20 +334,20 @@ pub async fn get_anime(
 ) -> Result<Json<ApiResponse<AnimeDto>>, ApiError> {
     validate_anime_id(id)?;
     let anime = state
-        .store
+        .store()
         .get_anime(id)
         .await?
         .ok_or_else(|| ApiError::anime_not_found(id))?;
 
     let downloaded = state
-        .store
+        .store()
         .get_downloaded_count(anime.id)
         .await
         .unwrap_or(0);
 
     let missing = if let Some(total) = anime.episode_count {
         state
-            .store
+            .store()
             .get_missing_episodes(anime.id, total)
             .await
             .unwrap_or_default()
@@ -358,7 +358,7 @@ pub async fn get_anime(
     let root_folder = if let Some(path) = &anime.path {
         path.clone()
     } else {
-        std::path::Path::new(&state.config.read().await.library.library_path)
+        std::path::Path::new(&state.config().read().await.library.library_path)
             .join(&anime.title.romaji)
             .to_string_lossy()
             .to_string()
@@ -404,10 +404,10 @@ pub async fn remove_anime(
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     validate_anime_id(id)?;
 
-    if state.store.get_anime(id).await?.is_none() {
+    if state.store().get_anime(id).await?.is_none() {
         return Err(ApiError::anime_not_found(id));
     }
-    state.store.remove_anime(id).await?;
+    state.store().remove_anime(id).await?;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -424,11 +424,11 @@ pub async fn toggle_monitor(
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     validate_anime_id(id)?;
 
-    if state.store.get_anime(id).await?.is_none() {
+    if state.store().get_anime(id).await?.is_none() {
         return Err(ApiError::anime_not_found(id));
     }
 
-    state.store.toggle_monitor(id, payload.monitored).await?;
+    state.store().toggle_monitor(id, payload.monitored).await?;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -447,7 +447,7 @@ pub async fn update_anime_path(
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     validate_anime_id(id)?;
 
-    if state.store.get_anime(id).await?.is_none() {
+    if state.store().get_anime(id).await?.is_none() {
         return Err(ApiError::anime_not_found(id));
     }
 
@@ -459,11 +459,11 @@ pub async fn update_anime_path(
         )));
     }
 
-    state.store.update_anime_path(id, &payload.path).await?;
+    state.store().update_anime_path(id, &payload.path).await?;
 
     if payload.rescan {
-        let store = state.store.clone();
-        let event_bus = state.event_bus.clone();
+        let store = state.store().clone();
+        let event_bus = state.event_bus().clone();
         let folder_path = path.to_path_buf();
         let anime_id = id;
 

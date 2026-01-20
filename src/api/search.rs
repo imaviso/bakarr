@@ -82,7 +82,7 @@ pub async fn search_releases(
     };
 
     let torrents = state
-        .nyaa
+        .nyaa()
         .search(&request.query, category, filter)
         .await
         .map_err(|e| ApiError::internal(format!("Nyaa search failed: {}", e)))?;
@@ -91,9 +91,9 @@ pub async fn search_releases(
     let mut best_release_group = None;
 
     if let Some(anime_id) = request.anime_id
-        && let Some(anime) = state.store.get_anime(anime_id).await?
+        && let Some(anime) = state.store().get_anime(anime_id).await?
     {
-        match state.seadex.get_best_for_anime(anime.id).await {
+        match state.seadex().get_best_for_anime(anime.id).await {
             Ok(releases) => {
                 seadex_groups = releases.iter().map(|r| r.release_group.clone()).collect();
                 best_release_group = releases.first().map(|r| r.release_group.clone());
@@ -153,7 +153,7 @@ pub async fn search_episode(
     extract::Path((anime_id, episode_number)): extract::Path<(i32, i32)>,
 ) -> Result<Json<ApiResponse<Vec<crate::services::search::SearchResult>>>, ApiError> {
     let results = state
-        .search_service
+        .search_service()
         .search_episode(anime_id, episode_number)
         .await
         .map_err(|e| ApiError::internal(format!("Search failed: {}", e)))?;
@@ -166,12 +166,12 @@ pub async fn download_release(
     Json(request): Json<DownloadRequest>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     let qbit = state
-        .qbit
+        .qbit()
         .as_ref()
         .ok_or_else(|| ApiError::validation("Download client is not enabled".to_string()))?;
 
     let anime = state
-        .store
+        .store()
         .get_anime(request.anime_id)
         .await?
         .ok_or_else(|| ApiError::not_found("Anime", request.anime_id))?;
@@ -196,7 +196,7 @@ pub async fn download_release(
     };
 
     state
-        .store
+        .store()
         .record_download(
             anime.id,
             &request.title,
@@ -213,7 +213,7 @@ pub async fn download_release(
     );
 
     let _ = state
-        .event_bus
+        .event_bus()
         .send(crate::api::NotificationEvent::DownloadStarted {
             title: request.title,
         });

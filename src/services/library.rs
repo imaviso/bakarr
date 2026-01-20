@@ -91,8 +91,8 @@ impl LibraryScannerService {
     }
 
     pub async fn scan_library_files(&self) -> anyhow::Result<LibraryScanStats> {
-        use crate::determine_quality_id;
         use crate::parser::filename::parse_filename;
+        use crate::quality::determine_quality_id;
 
         let library_path = {
             let cfg = self.config.read().await;
@@ -122,7 +122,7 @@ impl LibraryScannerService {
             }
         }
 
-        let video_extensions = ["mkv", "mp4", "avi", "webm", "m4v"];
+        let video_extensions = crate::constants::VIDEO_EXTENSIONS;
         let mut stats = LibraryScanStats::default();
 
         let walker = walkdir::WalkDir::new(&library_path)
@@ -324,159 +324,213 @@ impl LibraryScannerService {
         config: Arc<RwLock<crate::config::Config>>,
         event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
     ) -> anyhow::Result<()> {
-        let (library_path, _profile) = {
+        let library_path = {
             let cfg = config.read().await;
-            (
-                PathBuf::from(&cfg.library.library_path),
-                cfg.profiles.first().cloned(),
-            )
+            PathBuf::from(&cfg.library.library_path)
         };
 
         if !library_path.exists() {
             return Err(anyhow::anyhow!("Library path does not exist"));
         }
 
+        // Build sets of existing anime data for matching
         let existing_anime = store.list_all_anime().await?;
-        let existing_ids: std::collections::HashSet<i32> =
-            existing_anime.iter().map(|a| a.id).collect();
-        let mut known_paths = std::collections::HashSet::new();
-        let mut known_titles = std::collections::HashSet::new();
+        let (existing_ids, known_paths, known_titles) =
+            build_existing_anime_sets(&existing_anime).await;
 
-        for anime in existing_anime {
-            let clean_romaji =
-                crate::parser::filename::clean_title(&anime.title.romaji).to_lowercase();
-            if !clean_romaji.is_empty() {
-                known_titles.insert(clean_romaji);
-            }
-            if let Some(eng) = &anime.title.english {
-                let clean_eng = crate::parser::filename::clean_title(eng).to_lowercase();
-                if !clean_eng.is_empty() {
-                    known_titles.insert(clean_eng);
-                }
-            }
+        // Collect unmapped folders from library
+        let initial_folders =
+            collect_unmapped_folders(&library_path, &known_paths, &known_titles).await?;
 
-            if let Some(path) = anime.path {
-                if let Ok(canon) = tokio::fs::canonicalize(Path::new(&path)).await {
-                    known_paths.insert(canon);
-                } else {
-                    known_paths.insert(Path::new(&path).to_path_buf());
-                }
-            }
-        }
-
-        let mut initial_folders = Vec::new();
-        let mut dir_entries = tokio::fs::read_dir(library_path).await?;
-
-        while let Ok(Some(entry)) = dir_entries.next_entry().await {
-            let path = entry.path();
-            if path.is_dir() {
-                let canon_path = match tokio::fs::canonicalize(&path).await {
-                    Ok(p) => p,
-                    Err(_) => path.clone(),
-                };
-
-                if known_paths.contains(&canon_path) {
-                    continue;
-                }
-
-                let folder_name = entry.file_name().to_string_lossy().to_string();
-                if known_paths.iter().any(|p| {
-                    p.file_name().map(|n| n.to_string_lossy())
-                        == Some(std::borrow::Cow::Borrowed(&folder_name))
-                }) {
-                    continue;
-                }
-
-                let clean_name = crate::parser::filename::clean_title(&folder_name).to_lowercase();
-                if !clean_name.is_empty() && known_titles.contains(&clean_name) {
-                    tracing::debug!(
-                        "Skipping folder '{}' because it matches a library title locally",
-                        folder_name
-                    );
-                    continue;
-                }
-
-                initial_folders.push(UnmappedFolder {
-                    name: folder_name,
-                    path: path.to_string_lossy().to_string(),
-                    size: 0,
-                    suggested_matches: Vec::new(),
-                });
-            }
-        }
-
-        initial_folders.sort_by(|a, b| a.name.cmp(&b.name));
-
+        // Update state with initial folders
         {
             let mut guard = state.write().await;
             guard.folders = initial_folders.clone();
         }
 
-        let client = crate::clients::anilist::AnilistClient::new();
+        // Search AniList for matches
+        search_and_update_matches(state, &initial_folders, &existing_ids, &event_bus).await;
 
-        let total = initial_folders.len();
-        for (i, folder) in initial_folders.iter().enumerate() {
-            let _ = event_bus.send(crate::api::NotificationEvent::ScanProgress {
-                current: i + 1,
-                total,
-            });
+        Ok(())
+    }
+}
 
-            let clean_name = crate::parser::filename::clean_title(&folder.name);
+/// Build sets of existing anime IDs, paths, and titles for efficient lookup.
+async fn build_existing_anime_sets(
+    existing_anime: &[crate::models::anime::Anime],
+) -> (
+    std::collections::HashSet<i32>,
+    std::collections::HashSet<PathBuf>,
+    std::collections::HashSet<String>,
+) {
+    let existing_ids: std::collections::HashSet<i32> =
+        existing_anime.iter().map(|a| a.id).collect();
 
-            if !clean_name.is_empty() {
-                tokio::time::sleep(tokio::time::Duration::from_millis(600)).await;
+    let mut known_paths = std::collections::HashSet::new();
+    let mut known_titles = std::collections::HashSet::new();
 
-                if let Ok(results) = client.search_anime(&clean_name).await {
-                    let matches: Vec<SearchResultDto> = results
-                        .into_iter()
-                        .take(3)
-                        .map(|a| SearchResultDto {
-                            id: a.id,
-                            title: TitleDto {
-                                romaji: a.title.romaji,
-                                english: a.title.english,
-                                native: a.title.native,
-                            },
-                            format: a.format,
-                            episode_count: a.episode_count,
-                            status: a.status,
-                            cover_image: a.cover_image,
-                            already_in_library: existing_ids.contains(&a.id),
-                        })
-                        .collect();
-
-                    let mut guard = state.write().await;
-
-                    let first_match = matches.first();
-                    let should_remove = first_match
-                        .map(|m| existing_ids.contains(&m.id))
-                        .unwrap_or(false);
-
-                    if should_remove {
-                        let match_id = first_match.unwrap().id;
-                        tracing::debug!(
-                            "Filtering out unmapped folder '{}' because match ID {} is already in library",
-                            folder.name,
-                            match_id
-                        );
-
-                        if let Some(pos) = guard.folders.iter().position(|f| f.name == folder.name)
-                        {
-                            guard.folders.remove(pos);
-                        }
-                    } else if let Some(f) = guard.folders.iter_mut().find(|f| f.name == folder.name)
-                    {
-                        tracing::debug!(
-                            "Keeping unmapped folder '{}'. Top match ID {:?}",
-                            folder.name,
-                            first_match.map(|m| m.id)
-                        );
-                        f.suggested_matches = matches;
-                    }
-                }
+    for anime in existing_anime {
+        let clean_romaji = crate::parser::filename::clean_title(&anime.title.romaji).to_lowercase();
+        if !clean_romaji.is_empty() {
+            known_titles.insert(clean_romaji);
+        }
+        if let Some(eng) = &anime.title.english {
+            let clean_eng = crate::parser::filename::clean_title(eng).to_lowercase();
+            if !clean_eng.is_empty() {
+                known_titles.insert(clean_eng);
             }
         }
 
-        Ok(())
+        if let Some(path) = &anime.path {
+            if let Ok(canon) = tokio::fs::canonicalize(Path::new(path)).await {
+                known_paths.insert(canon);
+            } else {
+                known_paths.insert(Path::new(path).to_path_buf());
+            }
+        }
+    }
+
+    (existing_ids, known_paths, known_titles)
+}
+
+/// Collect folders in library that aren't mapped to any anime.
+async fn collect_unmapped_folders(
+    library_path: &Path,
+    known_paths: &std::collections::HashSet<PathBuf>,
+    known_titles: &std::collections::HashSet<String>,
+) -> anyhow::Result<Vec<UnmappedFolder>> {
+    let mut folders = Vec::new();
+    let mut dir_entries = tokio::fs::read_dir(library_path).await?;
+
+    while let Ok(Some(entry)) = dir_entries.next_entry().await {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        let canon_path = match tokio::fs::canonicalize(&path).await {
+            Ok(p) => p,
+            Err(_) => path.clone(),
+        };
+
+        // Skip if path is already known
+        if known_paths.contains(&canon_path) {
+            continue;
+        }
+
+        let folder_name = entry.file_name().to_string_lossy().to_string();
+
+        // Skip if folder name matches a known path
+        if known_paths.iter().any(|p| {
+            p.file_name().map(|n| n.to_string_lossy())
+                == Some(std::borrow::Cow::Borrowed(&folder_name))
+        }) {
+            continue;
+        }
+
+        // Skip if folder name matches a known title
+        let clean_name = crate::parser::filename::clean_title(&folder_name).to_lowercase();
+        if !clean_name.is_empty() && known_titles.contains(&clean_name) {
+            tracing::debug!(
+                "Skipping folder '{}' because it matches a library title locally",
+                folder_name
+            );
+            continue;
+        }
+
+        folders.push(UnmappedFolder {
+            name: folder_name,
+            path: path.to_string_lossy().to_string(),
+            size: 0,
+            suggested_matches: Vec::new(),
+        });
+    }
+
+    folders.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(folders)
+}
+
+/// Search AniList for each folder and update the scanner state with matches.
+async fn search_and_update_matches(
+    state: Arc<RwLock<ScannerState>>,
+    folders: &[UnmappedFolder],
+    existing_ids: &std::collections::HashSet<i32>,
+    event_bus: &tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+) {
+    let client = crate::clients::anilist::AnilistClient::new();
+    let total = folders.len();
+
+    for (i, folder) in folders.iter().enumerate() {
+        let _ = event_bus.send(crate::api::NotificationEvent::ScanProgress {
+            current: i + 1,
+            total,
+        });
+
+        let clean_name = crate::parser::filename::clean_title(&folder.name);
+        if clean_name.is_empty() {
+            continue;
+        }
+
+        // Rate limit AniList API calls
+        tokio::time::sleep(tokio::time::Duration::from_millis(600)).await;
+
+        let Ok(results) = client.search_anime(&clean_name).await else {
+            continue;
+        };
+
+        let matches: Vec<SearchResultDto> = results
+            .into_iter()
+            .take(3)
+            .map(|a| SearchResultDto {
+                id: a.id,
+                title: TitleDto {
+                    romaji: a.title.romaji,
+                    english: a.title.english,
+                    native: a.title.native,
+                },
+                format: a.format,
+                episode_count: a.episode_count,
+                status: a.status,
+                cover_image: a.cover_image,
+                already_in_library: existing_ids.contains(&a.id),
+            })
+            .collect();
+
+        update_folder_matches(&state, &folder.name, matches, existing_ids).await;
+    }
+}
+
+/// Update a folder's matches in the scanner state, removing if match is already in library.
+async fn update_folder_matches(
+    state: &Arc<RwLock<ScannerState>>,
+    folder_name: &str,
+    matches: Vec<SearchResultDto>,
+    existing_ids: &std::collections::HashSet<i32>,
+) {
+    let mut guard = state.write().await;
+
+    let first_match = matches.first();
+    let should_remove = first_match
+        .map(|m| existing_ids.contains(&m.id))
+        .unwrap_or(false);
+
+    if should_remove {
+        let match_id = first_match.unwrap().id;
+        tracing::debug!(
+            "Filtering out unmapped folder '{}' because match ID {} is already in library",
+            folder_name,
+            match_id
+        );
+
+        if let Some(pos) = guard.folders.iter().position(|f| f.name == folder_name) {
+            guard.folders.remove(pos);
+        }
+    } else if let Some(f) = guard.folders.iter_mut().find(|f| f.name == folder_name) {
+        tracing::debug!(
+            "Keeping unmapped folder '{}'. Top match ID {:?}",
+            folder_name,
+            first_match.map(|m| m.id)
+        );
+        f.suggested_matches = matches;
     }
 }

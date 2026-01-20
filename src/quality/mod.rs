@@ -4,7 +4,43 @@ pub mod profile;
 pub use definition::{QUALITIES, Quality, QualitySource, get_quality_by_id, get_quality_by_name};
 pub use profile::{DownloadDecision, QualityProfile};
 
+use crate::models::release::Release;
 use crate::parser::filename::parse_filename;
+
+pub fn determine_quality_id(release: &Release) -> i32 {
+    let resolution = release
+        .resolution
+        .as_ref()
+        .map(|r| {
+            r.to_lowercase()
+                .replace("p", "")
+                .parse::<u16>()
+                .unwrap_or(0)
+        })
+        .unwrap_or(0);
+
+    let source = release.source.as_ref().map(|s| s.to_uppercase());
+    let is_bluray = source
+        .as_ref()
+        .map(|s| s.contains("BD") || s.contains("BLURAY"))
+        .unwrap_or(false);
+    let is_web = source.as_ref().map(|s| s.contains("WEB")).unwrap_or(false);
+
+    match (resolution, is_bluray, is_web) {
+        (2160, true, _) => 1,
+        (2160, _, true) => 2,
+        (2160, _, _) => 2,
+        (1080, true, _) => 3,
+        (1080, _, true) => 4,
+        (1080, _, _) => 4,
+        (720, true, _) => 5,
+        (720, _, true) => 6,
+        (720, _, _) => 6,
+        (576, _, _) => 9,
+        (480, _, _) => 10,
+        _ => 99,
+    }
+}
 
 pub fn parse_quality_from_filename(filename: &str) -> Quality {
     let parsed = parse_filename(filename);

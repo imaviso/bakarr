@@ -14,7 +14,7 @@ async fn spawn_app() -> Router {
     config.auth.password = "password".to_string();
     config.auth.api_key = "test-api-key".to_string();
 
-    let state = bakarr::api::create_app_state(config, None)
+    let state = bakarr::api::create_app_state_from_config(config, None)
         .await
         .expect("Failed to create app state");
     bakarr::api::router(state)

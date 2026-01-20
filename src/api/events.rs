@@ -128,7 +128,7 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn sse_handler(
     State(state): State<Arc<AppState>>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    let rx = state.event_bus.subscribe();
+    let rx = state.event_bus().subscribe();
 
     let stream = stream::unfold(rx, |mut rx| async move {
         match rx.recv().await {

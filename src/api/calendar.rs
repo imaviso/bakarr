@@ -37,7 +37,7 @@ pub async fn get_calendar(
     Query(query): Query<CalendarQuery>,
 ) -> Result<Json<ApiResponse<Vec<CalendarEventDto>>>, ApiError> {
     let events = state
-        .store
+        .store()
         .get_calendar_events(&query.start, &query.end)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;

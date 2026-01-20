@@ -34,7 +34,7 @@ pub async fn auth_middleware(
         return Ok(next.run(request).await);
     }
     let auth_config = {
-        let config = state.config.read().await;
+        let config = state.config().read().await;
         config.auth.clone()
     };
 
@@ -74,7 +74,7 @@ pub async fn login(
     session: Session,
     Json(payload): Json<LoginRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let config = state.config.read().await;
+    let config = state.config().read().await;
 
     if payload.username == config.auth.username && payload.password == config.auth.password {
         if let Err(e) = session.insert("user", &payload.username).await {

@@ -9,14 +9,14 @@ const MASK: &str = "********";
 pub async fn get_status(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<SystemStatus>>, ApiError> {
-    let monitored = state.store.list_monitored().await?;
+    let monitored = state.store().list_monitored().await?;
 
     let mut total_episodes = 0i64;
     let mut missing_episodes = 0i64;
 
     let anime_ids: Vec<i32> = monitored.iter().map(|a| a.id).collect();
     let downloaded_map = state
-        .store
+        .store()
         .get_download_counts_for_anime_ids(&anime_ids)
         .await
         .unwrap_or_default();
@@ -29,7 +29,7 @@ pub async fn get_status(
         }
     }
 
-    let (active_torrents, pending_downloads) = if let Some(qbit) = &state.qbit {
+    let (active_torrents, pending_downloads) = if let Some(qbit) = state.qbit() {
         let active = qbit.get_torrent_count().await.unwrap_or(0) as i64;
         let pending = qbit.get_downloading_count().await.unwrap_or(0) as i64;
         (active, pending)
@@ -37,7 +37,7 @@ pub async fn get_status(
         (0, 0)
     };
 
-    let config = state.config.read().await;
+    let config = state.config().read().await;
     let path = &config.library.library_path;
     let (free_space, total_space) = get_disk_space(path).unwrap_or((0, 0));
 
@@ -84,7 +84,7 @@ fn get_disk_space(path: &str) -> Option<(i64, i64)> {
 pub async fn get_config(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Config>>, ApiError> {
-    let config = state.config.read().await;
+    let config = state.config().read().await;
     let mut safe_config = config.clone();
 
     if !safe_config.qbittorrent.password.is_empty() {
@@ -101,7 +101,7 @@ pub async fn update_config(
     State(state): State<Arc<AppState>>,
     Json(mut new_config): Json<Config>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
-    let mut config = state.config.write().await;
+    let mut config = state.config().write().await;
 
     if new_config.qbittorrent.password == MASK {
         new_config.qbittorrent.password = config.qbittorrent.password.clone();

@@ -11,7 +11,7 @@ use time;
 
 use crate::clients::offline_db::OfflineDatabase;
 use crate::config::Config;
-use crate::db::Store;
+use crate::state::SharedState;
 
 mod anime;
 mod assets;
@@ -37,61 +37,96 @@ mod validation;
 pub use error::ApiError;
 pub use types::*;
 
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::RwLock;
 
 pub use events::NotificationEvent;
 
-use crate::clients::nyaa::NyaaClient;
-use crate::clients::qbittorrent::{QBitClient, QBitConfig};
-use crate::clients::seadex::SeaDexClient;
 use crate::services::AnimeMetadataService;
-use crate::services::DownloadDecisionService;
 use crate::services::ImageService;
 use crate::services::LibraryScannerService;
 use crate::services::RssService;
-use crate::services::SearchService;
 use metrics_exporter_prometheus::PrometheusHandle;
 
+/// API-specific application state.
+///
+/// This wraps `SharedState` and adds API-specific services like image handling,
+/// metadata lookups, and the library scanner. The shared fields are accessible
+/// directly through the embedded `shared` field.
 #[derive(Clone)]
 pub struct AppState {
-    pub config: Arc<RwLock<Config>>,
-    pub store: Store,
+    /// Shared state containing core services (store, clients, event_bus, etc.)
+    pub shared: Arc<SharedState>,
+
+    /// Image caching and serving service
     pub image_service: Arc<ImageService>,
+
+    /// Offline anime database for quick lookups
     pub offline_db: Arc<OfflineDatabase>,
+
+    /// Metadata resolution service
     pub metadata_service: Arc<AnimeMetadataService>,
-    pub search_service: Arc<SearchService>,
+
+    /// RSS feed monitoring service
     pub rss_service: Arc<RssService>,
-    pub nyaa: Arc<NyaaClient>,
-    pub seadex: Arc<SeaDexClient>,
-    pub qbit: Option<Arc<QBitClient>>,
+
+    /// Library folder scanning service
     pub library_scanner: Arc<LibraryScannerService>,
-    pub event_bus: broadcast::Sender<NotificationEvent>,
+
+    /// Server start time for uptime tracking
     pub start_time: std::time::Instant,
+
+    /// Prometheus metrics handle (optional)
     pub prometheus_handle: Option<PrometheusHandle>,
 }
 
+// Convenience accessors for commonly used shared fields
+impl AppState {
+    /// Get a reference to the shared config (wrapped in RwLock).
+    pub fn config(&self) -> &Arc<RwLock<Config>> {
+        &self.shared.config
+    }
+
+    /// Get a reference to the database store.
+    pub fn store(&self) -> &crate::db::Store {
+        &self.shared.store
+    }
+
+    /// Get a reference to the event bus.
+    pub fn event_bus(&self) -> &tokio::sync::broadcast::Sender<NotificationEvent> {
+        &self.shared.event_bus
+    }
+
+    /// Get a reference to the search service.
+    pub fn search_service(&self) -> &Arc<crate::services::SearchService> {
+        &self.shared.search_service
+    }
+
+    /// Get a reference to the Nyaa client.
+    pub fn nyaa(&self) -> &Arc<crate::clients::nyaa::NyaaClient> {
+        &self.shared.nyaa
+    }
+
+    /// Get a reference to the SeaDex client.
+    pub fn seadex(&self) -> &Arc<crate::clients::seadex::SeaDexClient> {
+        &self.shared.seadex
+    }
+
+    /// Get a reference to the qBittorrent client (if enabled).
+    pub fn qbit(&self) -> &Option<Arc<crate::clients::qbittorrent::QBitClient>> {
+        &self.shared.qbit
+    }
+}
+
+/// Create the API application state from shared state.
+///
+/// This initializes API-specific services and wraps the SharedState.
 pub async fn create_app_state(
-    config: Config,
+    shared: Arc<SharedState>,
     prometheus_handle: Option<PrometheusHandle>,
 ) -> anyhow::Result<Arc<AppState>> {
-    let store = Store::new(&config.general.database_path).await?;
-    store.initialize_quality_system(&config).await?;
+    let config = shared.config.read().await.clone();
+
     let image_service = Arc::new(ImageService::new(config.clone()));
-    let (event_bus, _) = broadcast::channel(100);
-
-    let nyaa = Arc::new(NyaaClient::new());
-    let seadex = Arc::new(SeaDexClient::new());
-
-    let qbit = if config.qbittorrent.enabled {
-        let qbit_config = QBitConfig {
-            base_url: config.qbittorrent.url.clone(),
-            username: config.qbittorrent.username.clone(),
-            password: config.qbittorrent.password.clone(),
-        };
-        Some(Arc::new(QBitClient::new(qbit_config)))
-    } else {
-        None
-    };
 
     let offline_db = Arc::new(
         OfflineDatabase::load()
@@ -101,49 +136,45 @@ pub async fn create_app_state(
 
     let metadata_service = Arc::new(AnimeMetadataService::new(offline_db.clone()));
 
-    let download_decisions = DownloadDecisionService::new(store.clone());
-    let search_service = Arc::new(SearchService::new(
-        store.clone(),
-        (*nyaa).clone(),
-        (*seadex).clone(),
-        download_decisions,
-        config.clone(),
-    ));
-
     let library_scanner = Arc::new(LibraryScannerService::new(
-        store.clone(),
-        Arc::new(RwLock::new(config.clone())),
-        event_bus.clone(),
+        shared.store.clone(),
+        shared.config.clone(),
+        shared.event_bus.clone(),
     ));
 
     let rss_service = Arc::new(RssService::new(
-        store.clone(),
-        nyaa.clone(),
-        qbit.clone(),
-        event_bus.clone(),
+        shared.store.clone(),
+        shared.nyaa.clone(),
+        shared.qbit.clone(),
+        shared.event_bus.clone(),
     ));
 
     Ok(Arc::new(AppState {
-        config: Arc::new(RwLock::new(config)),
-        store,
+        shared,
         image_service,
         offline_db,
         metadata_service,
-        search_service,
         rss_service,
-        nyaa,
-        seadex,
-        qbit,
         library_scanner,
-        event_bus,
         start_time: std::time::Instant::now(),
         prometheus_handle,
     }))
 }
 
+/// Create the API application state from configuration (convenience method).
+///
+/// This creates both SharedState and API-specific services in one call.
+pub async fn create_app_state_from_config(
+    config: Config,
+    prometheus_handle: Option<PrometheusHandle>,
+) -> anyhow::Result<Arc<AppState>> {
+    let shared = Arc::new(SharedState::new(config).await?);
+    create_app_state(shared, prometheus_handle).await
+}
+
 pub fn router(state: Arc<AppState>) -> Router {
     let images_path = state
-        .config
+        .config()
         .try_read()
         .map(|c| c.general.images_path.clone())
         .unwrap_or_else(|_| "images".to_string());

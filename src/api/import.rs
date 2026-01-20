@@ -133,9 +133,9 @@ pub async fn scan_path(
     let import_path = Path::new(&request.path);
 
     let library = crate::services::LibraryScannerService::new(
-        state.store.clone(),
-        state.config.clone(),
-        state.event_bus.clone(),
+        state.store().clone(),
+        state.config().clone(),
+        state.event_bus().clone(),
     );
 
     if !import_path.exists() {
@@ -145,11 +145,11 @@ pub async fn scan_path(
         )));
     }
 
-    let video_extensions = ["mkv", "mp4", "avi", "webm", "m4v"];
+    let video_extensions = crate::constants::VIDEO_EXTENSIONS;
     let mut scanned_files: Vec<ScannedFile> = Vec::new();
     let skipped_files: Vec<SkippedFile> = Vec::new();
 
-    let monitored = state.store.list_monitored().await?;
+    let monitored = state.store().list_monitored().await?;
     let monitored_ids: std::collections::HashSet<i32> = monitored.iter().map(|a| a.id).collect();
 
     let mut title_map: std::collections::HashMap<String, crate::models::anime::Anime> =
@@ -162,7 +162,7 @@ pub async fn scan_path(
     }
 
     let target_anime = if let Some(id) = request.anime_id {
-        match state.store.get_anime(id).await? {
+        match state.store().get_anime(id).await? {
             Some(a) => Some((a.id, a.title.romaji.clone())),
             None => {
                 return Err(ApiError::not_found("Anime", id));
@@ -372,9 +372,9 @@ pub async fn import_files(
     State(state): State<Arc<AppState>>,
     Json(request): Json<ImportRequest>,
 ) -> Result<Json<ApiResponse<ImportResultDto>>, ApiError> {
-    let config = state.config.read().await;
+    let config = state.config().read().await;
     let library = LibraryService::new(config.library.clone());
-    let episode_service = EpisodeService::new(state.store.clone());
+    let episode_service = EpisodeService::new(state.store().clone());
 
     let mut imported_files: Vec<ImportedFile> = Vec::new();
     let mut failed_files: Vec<FailedImport> = Vec::new();
@@ -383,7 +383,7 @@ pub async fn import_files(
     let total_count = files_to_process.len() as i32;
 
     let _ = state
-        .event_bus
+        .event_bus()
         .send(crate::api::NotificationEvent::ImportStarted { count: total_count });
 
     for file_request in files_to_process {
@@ -397,7 +397,7 @@ pub async fn import_files(
             continue;
         }
 
-        let anime = match state.store.get_anime(file_request.anime_id).await? {
+        let anime = match state.store().get_anime(file_request.anime_id).await? {
             Some(a) => a,
             None => {
                 let client = crate::clients::anilist::AnilistClient::new();
@@ -470,7 +470,7 @@ pub async fn import_files(
                             fetched_anime.banner_image = Some(path);
                         }
 
-                        if let Err(e) = state.store.add_anime(&fetched_anime).await {
+                        if let Err(e) = state.store().add_anime(&fetched_anime).await {
                             failed_files.push(FailedImport {
                                 source_path: file_request.source_path,
                                 error: format!("Failed to add anime to library: {}", e),
@@ -552,11 +552,11 @@ pub async fn import_files(
                 let release = parse_filename(filename);
                 let quality_id = release
                     .as_ref()
-                    .map(crate::determine_quality_id)
+                    .map(crate::quality::determine_quality_id)
                     .unwrap_or(1);
 
                 if let Err(e) = state
-                    .store
+                    .store()
                     .mark_episode_downloaded(
                         anime.id,
                         episode,
@@ -574,7 +574,7 @@ pub async fn import_files(
 
                 if let Some(rel) = release
                     && let Err(e) = state
-                        .store
+                        .store()
                         .record_download(
                             anime.id,
                             filename,
@@ -617,7 +617,7 @@ pub async fn import_files(
     }
 
     let _ = state
-        .event_bus
+        .event_bus()
         .send(crate::api::NotificationEvent::ImportFinished {
             count: total_count,
             imported: imported_files.len() as i32,
@@ -693,7 +693,7 @@ pub async fn browse_path(
     }
 
     let mut entries: Vec<BrowseEntry> = Vec::new();
-    let video_extensions = ["mkv", "mp4", "avi", "webm", "m4v"];
+    let video_extensions = crate::constants::VIDEO_EXTENSIONS;
 
     let mut dir_entries: Vec<_> = match std::fs::read_dir(browse_path) {
         Ok(entries) => entries.filter_map(|e| e.ok()).collect(),

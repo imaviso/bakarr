@@ -22,7 +22,7 @@ pub async fn stream_episode(
     headers: axum::http::HeaderMap,
     session: tower_sessions::Session,
 ) -> Result<impl IntoResponse, ApiError> {
-    let config = state.config.read().await;
+    let config = state.config().read().await;
     let auth = &config.auth;
 
     if let Ok(Some(_user)) = session.get::<String>("user").await {
@@ -47,7 +47,7 @@ pub async fn stream_episode(
     validate_episode_number(number)?;
 
     let status = state
-        .store
+        .store()
         .get_episode_status(id, number)
         .await?
         .ok_or_else(|| ApiError::NotFound("Episode not found".to_string()))?;

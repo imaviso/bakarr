@@ -19,15 +19,15 @@ pub async fn list_episodes(
 ) -> Result<Json<ApiResponse<Vec<EpisodeDto>>>, ApiError> {
     validate_anime_id(id)?;
     let anime = state
-        .store
+        .store()
         .get_anime(id)
         .await?
         .ok_or_else(|| ApiError::anime_not_found(id))?;
 
     let episode_count = anime.episode_count.unwrap_or(1);
-    let episode_service = EpisodeService::new(state.store.clone());
+    let episode_service = EpisodeService::new(state.store().clone());
 
-    let downloaded_eps = state.store.get_episode_statuses(id).await?;
+    let downloaded_eps = state.store().get_episode_statuses(id).await?;
 
     let max_downloaded = downloaded_eps
         .iter()
@@ -39,7 +39,7 @@ pub async fn list_episodes(
     let start_ep = if downloaded_eps.iter().any(|e| e.episode_number == 0) {
         0
     } else {
-        match state.store.get_episode_metadata(id, 0).await {
+        match state.store().get_episode_metadata(id, 0).await {
             Ok(Some(_)) => 0,
             _ => 1,
         }
@@ -77,13 +77,16 @@ pub async fn missing_episodes(
 ) -> Result<Json<ApiResponse<Vec<i32>>>, ApiError> {
     validate_anime_id(id)?;
     let anime = state
-        .store
+        .store()
         .get_anime(id)
         .await?
         .ok_or_else(|| ApiError::anime_not_found(id))?;
 
     let episode_count = anime.episode_count.unwrap_or(1);
-    let missing = state.store.get_missing_episodes(id, episode_count).await?;
+    let missing = state
+        .store()
+        .get_missing_episodes(id, episode_count)
+        .await?;
 
     Ok(Json(ApiResponse::success(missing)))
 }
@@ -96,12 +99,12 @@ pub async fn get_episode(
     validate_episode_number(number)?;
 
     let _anime = state
-        .store
+        .store()
         .get_anime(id)
         .await?
         .ok_or_else(|| ApiError::anime_not_found(id))?;
 
-    let episode_service = EpisodeService::new(state.store.clone());
+    let episode_service = EpisodeService::new(state.store().clone());
 
     let metadata = episode_service
         .get_episode_metadata(id, number)
@@ -110,7 +113,7 @@ pub async fn get_episode(
         .flatten();
 
     let status = state
-        .store
+        .store()
         .get_episode_statuses(id)
         .await?
         .into_iter()
@@ -133,14 +136,14 @@ pub async fn refresh_metadata(
 ) -> Result<Json<ApiResponse<usize>>, ApiError> {
     validate_anime_id(id)?;
 
-    let initial_title = if let Some(a) = state.store.get_anime(id).await? {
+    let initial_title = if let Some(a) = state.store().get_anime(id).await? {
         a.title.romaji
     } else {
         format!("Anime #{}", id)
     };
 
     let _ = state
-        .event_bus
+        .event_bus()
         .send(crate::api::NotificationEvent::RefreshStarted {
             anime_id: id,
             title: initial_title,
@@ -152,7 +155,7 @@ pub async fn refresh_metadata(
         .await
         .map_err(|e| ApiError::anilist_error(e.to_string()))?
     {
-        if let Some(existing) = state.store.get_anime(id).await? {
+        if let Some(existing) = state.store().get_anime(id).await? {
             anime.quality_profile_id = existing.quality_profile_id;
             anime.path = existing.path;
             anime.monitored = existing.monitored;
@@ -185,17 +188,17 @@ pub async fn refresh_metadata(
             .enrich_anime_metadata(&mut anime)
             .await;
 
-        state.store.add_anime(&anime).await?;
+        state.store().add_anime(&anime).await?;
 
         let _ = state
-            .event_bus
+            .event_bus()
             .send(crate::api::NotificationEvent::RefreshFinished {
                 anime_id: id,
                 title: anime.title.romaji,
             });
     }
 
-    let episode_service = EpisodeService::new(state.store.clone());
+    let episode_service = EpisodeService::new(state.store().clone());
     let count = episode_service.refresh_episode_cache(id).await?;
 
     Ok(Json(ApiResponse::success(count)))
@@ -209,7 +212,7 @@ pub async fn delete_episode_file(
     validate_episode_number(number)?;
 
     let status = state
-        .store
+        .store()
         .get_episode_status(id, number)
         .await?
         .ok_or_else(|| ApiError::NotFound("Episode not found or not monitored".to_string()))?;
@@ -218,7 +221,7 @@ pub async fn delete_episode_file(
         let path = std::path::Path::new(&path_str);
 
         if path.exists() {
-            let config_guard = state.config.read().await;
+            let config_guard = state.config().read().await;
             let recycle_path = config_guard.library.recycle_path.clone();
             let cleanup_days = config_guard.library.recycle_cleanup_days;
             drop(config_guard);
@@ -228,7 +231,7 @@ pub async fn delete_episode_file(
             match recycle_bin.recycle(path, "User triggered delete").await {
                 Ok(recycled_file) => {
                     state
-                        .store
+                        .store()
                         .add_to_recycle_bin(
                             &path_str,
                             Some(recycled_file.recycled_path.to_str().unwrap_or_default()),
@@ -250,7 +253,7 @@ pub async fn delete_episode_file(
             }
         }
 
-        state.store.clear_episode_download(id, number).await?;
+        state.store().clear_episode_download(id, number).await?;
     } else {
         return Err(ApiError::NotFound(
             "No file associated with this episode".to_string(),
@@ -269,7 +272,7 @@ pub async fn scan_folder(
     validate_anime_id(id)?;
 
     let anime = state
-        .store
+        .store()
         .get_anime(id)
         .await?
         .ok_or_else(|| ApiError::anime_not_found(id))?;
@@ -290,16 +293,16 @@ pub async fn scan_folder(
 
     tracing::info!("Scanning folder for anime {}: {:?}", id, path);
 
-    let before_count = state.store.get_downloaded_count(id).await.unwrap_or(0);
+    let before_count = state.store().get_downloaded_count(id).await.unwrap_or(0);
 
     if let Err(e) =
-        crate::api::library::scan_folder_for_episodes(&state.store, &state.event_bus, id, path)
+        crate::api::library::scan_folder_for_episodes(state.store(), state.event_bus(), id, path)
             .await
     {
         return Err(ApiError::internal(format!("Failed to scan folder: {}", e)));
     }
 
-    let after_count = state.store.get_downloaded_count(id).await.unwrap_or(0);
+    let after_count = state.store().get_downloaded_count(id).await.unwrap_or(0);
     let found = (after_count - before_count).max(0);
 
     tracing::info!(
@@ -327,7 +330,7 @@ pub async fn list_files(
     validate_anime_id(id)?;
 
     let anime = state
-        .store
+        .store()
         .get_anime(id)
         .await?
         .ok_or_else(|| ApiError::anime_not_found(id))?;
@@ -347,7 +350,7 @@ pub async fn list_files(
 
     tracing::info!("list_files: Scanning root {}", folder_path);
 
-    let statuses = state.store.get_episode_statuses(id).await?;
+    let statuses = state.store().get_episode_statuses(id).await?;
     let mapped_paths: std::collections::HashMap<String, i32> = statuses
         .into_iter()
         .filter_map(|s| s.file_path.map(|p| (p, s.episode_number)))
@@ -359,7 +362,7 @@ pub async fn list_files(
 
     let mut visited = std::collections::HashSet::new();
 
-    const VIDEO_EXTENSIONS: &[&str] = &["mkv", "mp4", "avi", "webm", "mov", "wmv", "flv", "m4v"];
+    const VIDEO_EXTENSIONS: &[&str] = crate::constants::VIDEO_EXTENSIONS;
 
     while let Some(current_dir) = dirs_to_visit.pop_front() {
         if !visited.insert(current_dir.clone()) {
@@ -478,11 +481,11 @@ pub async fn map_episode_file(
     let filename = path.file_name().unwrap_or_default().to_string_lossy();
     let quality = crate::quality::parse_quality_from_filename(&filename);
 
-    let existing_status = state.store.get_episode_status(id, number).await?;
+    let existing_status = state.store().get_episode_status(id, number).await?;
     let season = existing_status.map(|s| s.season).unwrap_or(1);
 
     state
-        .store
+        .store()
         .mark_episode_downloaded(
             id,
             number,
@@ -530,13 +533,13 @@ pub async fn bulk_map_episodes(
         let quality = crate::quality::parse_quality_from_filename(&filename);
 
         let existing_status = state
-            .store
+            .store()
             .get_episode_status(id, mapping.episode_number)
             .await?;
         let season = existing_status.map(|s| s.season).unwrap_or(1);
 
         if let Err(e) = state
-            .store
+            .store()
             .mark_episode_downloaded(
                 id,
                 mapping.episode_number,
