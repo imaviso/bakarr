@@ -278,6 +278,9 @@ impl EpisodeService {
     }
 
     pub async fn refresh_episode_cache(&self, anilist_id: i32) -> Result<usize> {
+        if let Ok(mut guard) = self.recent_fetches.write() {
+            guard.remove(&anilist_id);
+        }
         self.store.clear_episode_cache(anilist_id).await?;
         self.fetch_and_cache_episodes(anilist_id).await
     }

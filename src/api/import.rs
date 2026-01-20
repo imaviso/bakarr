@@ -8,7 +8,6 @@ use tracing::{info, warn};
 use super::{ApiError, ApiResponse, AppState, SearchResultDto, TitleDto};
 use crate::library::{LibraryService, RenamingOptions};
 use crate::parser::filename::parse_filename;
-use crate::services::EpisodeService;
 
 #[derive(Debug, Deserialize)]
 pub struct BrowseRequest {
@@ -374,7 +373,7 @@ pub async fn import_files(
 ) -> Result<Json<ApiResponse<ImportResultDto>>, ApiError> {
     let config = state.config().read().await;
     let library = LibraryService::new(config.library.clone());
-    let episode_service = EpisodeService::new(state.store().clone());
+    let episode_service = &state.shared.episodes;
 
     let mut imported_files: Vec<ImportedFile> = Vec::new();
     let mut failed_files: Vec<FailedImport> = Vec::new();

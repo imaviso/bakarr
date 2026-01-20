@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use super::{ApiError, ApiResponse, AppState};
 use crate::library::{LibraryService, RenamingOptions};
-use crate::services::episodes::EpisodeService;
 
 #[derive(Debug, Serialize)]
 pub struct RenamePreviewItem {
@@ -49,7 +48,7 @@ pub async fn get_rename_preview(
         return Ok(Json(ApiResponse::success(Vec::new())));
     }
 
-    let episode_service = EpisodeService::new(state.store().clone());
+    let episode_service = &state.shared.episodes;
     let config_guard = state.config().read().await;
     let library_service = LibraryService::new(config_guard.library.clone());
     drop(config_guard);
@@ -175,7 +174,7 @@ pub async fn execute_rename(
         })));
     }
 
-    let episode_service = EpisodeService::new(state.store().clone());
+    let episode_service = &state.shared.episodes;
     let config_guard = state.config().read().await;
     let library_service = LibraryService::new(config_guard.library.clone());
     drop(config_guard);

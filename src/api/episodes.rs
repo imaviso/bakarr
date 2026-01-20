@@ -10,7 +10,6 @@ use super::{
 };
 use crate::api::validation::{validate_anime_id, validate_episode_number};
 use crate::clients::anilist::AnilistClient;
-use crate::services::episodes::EpisodeService;
 use crate::services::image::ImageType;
 
 pub async fn list_episodes(
@@ -25,7 +24,7 @@ pub async fn list_episodes(
         .ok_or_else(|| ApiError::anime_not_found(id))?;
 
     let episode_count = anime.episode_count.unwrap_or(1);
-    let episode_service = EpisodeService::new(state.store().clone());
+    let episode_service = &state.shared.episodes;
 
     let downloaded_eps = state.store().get_episode_statuses(id).await?;
 
@@ -46,14 +45,25 @@ pub async fn list_episodes(
     };
 
     let mut episodes = Vec::new();
+
+    let metadata_list = state.store().get_episodes_for_anime(id).await?;
+    let metadata_map: std::collections::HashMap<_, _> = metadata_list
+        .into_iter()
+        .map(|m| (m.episode_number, m))
+        .collect();
+
     for ep_num in start_ep..=total_eps {
         let ep_num_i32 = ep_num;
 
-        let metadata = episode_service
-            .get_episode_metadata(id, ep_num_i32)
-            .await
-            .ok()
-            .flatten();
+        let metadata = if let Some(meta) = metadata_map.get(&ep_num_i32) {
+            Some(meta.clone())
+        } else {
+            episode_service
+                .get_episode_metadata(id, ep_num_i32)
+                .await
+                .ok()
+                .flatten()
+        };
 
         let status = downloaded_eps
             .iter()
@@ -104,7 +114,7 @@ pub async fn get_episode(
         .await?
         .ok_or_else(|| ApiError::anime_not_found(id))?;
 
-    let episode_service = EpisodeService::new(state.store().clone());
+    let episode_service = &state.shared.episodes;
 
     let metadata = episode_service
         .get_episode_metadata(id, number)
@@ -198,7 +208,7 @@ pub async fn refresh_metadata(
             });
     }
 
-    let episode_service = EpisodeService::new(state.store().clone());
+    let episode_service = &state.shared.episodes;
     let count = episode_service.refresh_episode_cache(id).await?;
 
     Ok(Json(ApiResponse::success(count)))
