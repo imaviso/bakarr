@@ -31,6 +31,16 @@ pub async fn get_stats(
 ) -> Result<Json<ApiResponse<LibraryStats>>, ApiError> {
     let anime_list = state.store().list_monitored().await?;
     let total_anime = anime_list.len() as i32;
+    let anime_ids: Vec<i32> = anime_list.iter().map(|a| a.id).collect();
+
+    let download_counts = state
+        .store()
+        .get_download_counts_for_anime_ids(&anime_ids)
+        .await?;
+    let main_counts = state
+        .store()
+        .get_main_episode_download_counts(&anime_ids)
+        .await?;
 
     let mut total_episodes = 0;
     let mut downloaded_episodes = 0;
@@ -40,20 +50,13 @@ pub async fn get_stats(
         let ep_count = anime.episode_count.unwrap_or(0);
         total_episodes += ep_count;
 
-        let downloaded = state
-            .store()
-            .get_downloaded_count(anime.id)
-            .await
-            .unwrap_or(0);
+        let downloaded = download_counts.get(&anime.id).copied().unwrap_or(0);
         downloaded_episodes += downloaded;
 
         if ep_count > 0 {
-            let missing = state
-                .store()
-                .get_missing_episodes(anime.id, ep_count)
-                .await
-                .unwrap_or_default();
-            missing_episodes += missing.len() as i32;
+            let main_downloaded = main_counts.get(&anime.id).copied().unwrap_or(0);
+            let missing = (ep_count - main_downloaded).max(0);
+            missing_episodes += missing;
         }
     }
 

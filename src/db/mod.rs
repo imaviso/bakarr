@@ -329,6 +329,15 @@ impl Store {
             .await
     }
 
+    pub async fn get_main_episode_download_counts(
+        &self,
+        anime_ids: &[i32],
+    ) -> Result<std::collections::HashMap<i32, i32>> {
+        self.episode_repo()
+            .get_main_episode_download_counts(anime_ids)
+            .await
+    }
+
     pub async fn get_missing_episodes(
         &self,
         anime_id: i32,

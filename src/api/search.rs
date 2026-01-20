@@ -4,7 +4,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::clients::nyaa::{NyaaCategory, NyaaFilter};
 use crate::clients::qbittorrent::AddTorrentOptions;
@@ -93,14 +93,10 @@ pub async fn search_releases(
     if let Some(anime_id) = request.anime_id
         && let Some(anime) = state.store().get_anime(anime_id).await?
     {
-        match state.seadex().get_best_for_anime(anime.id).await {
-            Ok(releases) => {
-                seadex_groups = releases.iter().map(|r| r.release_group.clone()).collect();
-                best_release_group = releases.first().map(|r| r.release_group.clone());
-            }
-            Err(e) => {
-                error!("SeaDex lookup failed: {}", e);
-            }
+        let releases = state.shared.get_seadex_releases_cached(anime.id).await;
+        if !releases.is_empty() {
+            seadex_groups = releases.iter().map(|r| r.release_group.clone()).collect();
+            best_release_group = releases.first().map(|r| r.release_group.clone());
         }
     }
 

@@ -244,6 +244,34 @@ impl EpisodeRepository {
         Ok(map)
     }
 
+    pub async fn get_main_episode_download_counts(
+        &self,
+        anime_ids: &[i32],
+    ) -> Result<HashMap<i32, i32>> {
+        if anime_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let results: Vec<(i32, i64)> = EpisodeStatus::find()
+            .select_only()
+            .column(episode_status::Column::AnimeId)
+            .column_as(episode_status::Column::AnimeId.count(), "count")
+            .filter(episode_status::Column::AnimeId.is_in(anime_ids.to_vec()))
+            .filter(episode_status::Column::FilePath.is_not_null())
+            .filter(episode_status::Column::EpisodeNumber.gt(0))
+            .group_by(episode_status::Column::AnimeId)
+            .into_tuple()
+            .all(&self.conn)
+            .await?;
+
+        let mut map = HashMap::new();
+        for (id, count) in results {
+            map.insert(id, count as i32);
+        }
+
+        Ok(map)
+    }
+
     pub async fn get_missing(&self, anime_id: i32, total_episodes: i32) -> Result<Vec<i32>> {
         let downloaded: Vec<i32> = EpisodeStatus::find()
             .select_only()

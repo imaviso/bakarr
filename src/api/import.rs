@@ -131,11 +131,7 @@ pub async fn scan_path(
 ) -> Result<Json<ApiResponse<ScanResult>>, ApiError> {
     let import_path = Path::new(&request.path);
 
-    let library = crate::services::LibraryScannerService::new(
-        state.store().clone(),
-        state.config().clone(),
-        state.event_bus().clone(),
-    );
+    let library = &state.library_scanner;
 
     if !import_path.exists() {
         return Err(ApiError::validation(format!(
