@@ -66,6 +66,8 @@ pub struct ServerConfig {
     pub enabled: bool,
 
     pub port: u16,
+
+    pub cors_allowed_origins: Vec<String>,
 }
 
 impl Default for ServerConfig {
@@ -73,6 +75,7 @@ impl Default for ServerConfig {
         Self {
             enabled: true,
             port: 6789,
+            cors_allowed_origins: vec!["*".to_string()],
         }
     }
 }
@@ -99,8 +102,36 @@ impl Default for AuthConfig {
     fn default() -> Self {
         Self {
             username: "admin".to_string(),
-            password: "admin".to_string(),
-            api_key: uuid::Uuid::new_v4().to_string(),
+            password: "password".to_string(),
+            api_key: "bakarr_api_key".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GeneralConfig {
+    pub database_path: String,
+
+    pub log_level: String,
+
+    pub images_path: String,
+
+    #[serde(default)]
+    pub suppress_connection_errors: bool,
+
+    /// Event bus buffer size (default: 100)
+    pub event_bus_buffer_size: usize,
+}
+
+impl Default for GeneralConfig {
+    fn default() -> Self {
+        Self {
+            database_path: "sqlite:data/bakarr.db".to_string(),
+            log_level: "info".to_string(),
+            images_path: "images".to_string(),
+            suppress_connection_errors: false,
+            event_bus_buffer_size: 100,
         }
     }
 }
@@ -133,30 +164,6 @@ impl Default for Config {
             auth: AuthConfig::default(),
             server: ServerConfig::default(),
             observability: ObservabilityConfig::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default)]
-pub struct GeneralConfig {
-    pub database_path: String,
-
-    pub log_level: String,
-
-    pub images_path: String,
-
-    #[serde(default)]
-    pub suppress_connection_errors: bool,
-}
-
-impl Default for GeneralConfig {
-    fn default() -> Self {
-        Self {
-            database_path: "sqlite:data/bakarr.db".to_string(),
-            log_level: "info".to_string(),
-            images_path: "images".to_string(),
-            suppress_connection_errors: false,
         }
     }
 }
@@ -204,6 +211,9 @@ pub struct QBittorrentConfig {
     pub password: String,
 
     pub default_category: String,
+
+    /// Seconds to wait before considering a stalled torrent as failed (default: 900 = 15 min)
+    pub stalled_timeout_seconds: u32,
 }
 
 impl Default for QBittorrentConfig {
@@ -214,6 +224,7 @@ impl Default for QBittorrentConfig {
             username: "admin".to_string(),
             password: "adminadmin".to_string(),
             default_category: "anime".to_string(),
+            stalled_timeout_seconds: 900,
         }
     }
 }
@@ -230,6 +241,9 @@ pub struct NyaaConfig {
     pub preferred_resolution: Option<String>,
 
     pub min_seeders: u32,
+
+    /// Request timeout in seconds (default: 30)
+    pub request_timeout_seconds: u32,
 }
 
 impl Default for NyaaConfig {
@@ -240,6 +254,7 @@ impl Default for NyaaConfig {
             filter_remakes: true,
             preferred_resolution: Some("1080p".to_string()),
             min_seeders: 1,
+            request_timeout_seconds: 30,
         }
     }
 }
@@ -256,6 +271,9 @@ pub struct SchedulerConfig {
     pub max_concurrent_checks: usize,
 
     pub check_delay_seconds: u32,
+
+    /// Metadata refresh interval in hours (default: 12)
+    pub metadata_refresh_hours: u32,
 }
 
 impl Default for SchedulerConfig {
@@ -266,6 +284,7 @@ impl Default for SchedulerConfig {
             cron_expression: None,
             max_concurrent_checks: 3,
             check_delay_seconds: 5,
+            metadata_refresh_hours: 12,
         }
     }
 }

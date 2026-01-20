@@ -1,5 +1,7 @@
 use axum::{
-    Router, middleware,
+    Router,
+    http::HeaderValue,
+    middleware,
     routing::{delete, get, post, put},
 };
 use std::sync::Arc;
@@ -172,12 +174,14 @@ pub async fn create_app_state_from_config(
     create_app_state(shared, prometheus_handle).await
 }
 
-pub fn router(state: Arc<AppState>) -> Router {
-    let images_path = state
-        .config()
-        .try_read()
-        .map(|c| c.general.images_path.clone())
-        .unwrap_or_else(|_| "images".to_string());
+pub async fn router(state: Arc<AppState>) -> Router {
+    let (images_path, cors_origins) = {
+        let config = state.config().read().await;
+        (
+            config.general.images_path.clone(),
+            config.server.cors_allowed_origins.clone(),
+        )
+    };
 
     let protected_routes = Router::new()
         .route("/anime", get(anime::list_anime))
@@ -270,16 +274,19 @@ pub fn router(state: Arc<AppState>) -> Router {
         .layer(session_layer)
         .with_state(state.clone());
 
+    let cors_layer = if cors_origins.contains(&"*".to_string()) {
+        CorsLayer::new().allow_origin(Any)
+    } else {
+        let origins: Vec<HeaderValue> =
+            cors_origins.iter().filter_map(|s| s.parse().ok()).collect();
+        CorsLayer::new().allow_origin(origins)
+    };
+
     Router::new()
         .nest("/api", api_router)
         .nest_service("/images", tower_http::services::ServeDir::new(images_path))
         .fallback(assets::serve_asset)
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any),
-        )
+        .layer(cors_layer.allow_methods(Any).allow_headers(Any))
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn(observability::track_metrics))
 }

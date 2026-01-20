@@ -6,7 +6,7 @@ use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, FromQueryResult, JoinType, PaginatorTrait,
     QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Repository for episode metadata and status operations
 pub struct EpisodeRepository {
@@ -254,8 +254,11 @@ impl EpisodeRepository {
             .all(&self.conn)
             .await?;
 
+        // Use HashSet for O(1) lookups instead of O(n) Vec::contains
+        let downloaded_set: HashSet<i32> = downloaded.into_iter().collect();
+
         let missing: Vec<i32> = (1..=total_episodes)
-            .filter(|ep| !downloaded.contains(ep))
+            .filter(|ep| !downloaded_set.contains(ep))
             .collect();
 
         Ok(missing)

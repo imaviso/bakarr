@@ -57,53 +57,8 @@ pub struct SharedState {
 impl SharedState {
     /// Create a new SharedState from configuration.
     pub async fn new(config: Config) -> anyhow::Result<Self> {
-        let store = Store::new(&config.general.database_path).await?;
-        store.initialize_quality_system(&config).await?;
-
-        let (event_bus, _) = broadcast::channel(100);
-
-        let nyaa = Arc::new(NyaaClient::new());
-        let seadex = Arc::new(SeaDexClient::new());
-
-        let qbit = if config.qbittorrent.enabled {
-            let qbit_config = QBitConfig {
-                base_url: config.qbittorrent.url.clone(),
-                username: config.qbittorrent.username.clone(),
-                password: config.qbittorrent.password.clone(),
-            };
-            Some(Arc::new(QBitClient::new(qbit_config)))
-        } else {
-            None
-        };
-
-        let episodes = EpisodeService::new(store.clone());
-        let download_decisions = DownloadDecisionService::new(store.clone());
-
-        let search_service = Arc::new(SearchService::new(
-            store.clone(),
-            (*nyaa).clone(),
-            (*seadex).clone(),
-            download_decisions.clone(),
-            config.clone(),
-        ));
-
-        let recycle_bin = RecycleBin::new(
-            &config.library.recycle_path,
-            config.library.recycle_cleanup_days,
-        );
-
-        Ok(Self {
-            config: Arc::new(RwLock::new(config)),
-            store,
-            nyaa,
-            seadex,
-            qbit,
-            search_service,
-            episodes,
-            download_decisions,
-            recycle_bin,
-            event_bus,
-        })
+        let (event_bus, _) = broadcast::channel(config.general.event_bus_buffer_size);
+        Self::init_with_event_bus(config, event_bus).await
     }
 
     /// Create SharedState with an existing event bus (for sharing between components).
@@ -111,10 +66,20 @@ impl SharedState {
         config: Config,
         event_bus: broadcast::Sender<NotificationEvent>,
     ) -> anyhow::Result<Self> {
+        Self::init_with_event_bus(config, event_bus).await
+    }
+
+    /// Internal initialization helper to avoid code duplication.
+    async fn init_with_event_bus(
+        config: Config,
+        event_bus: broadcast::Sender<NotificationEvent>,
+    ) -> anyhow::Result<Self> {
         let store = Store::new(&config.general.database_path).await?;
         store.initialize_quality_system(&config).await?;
 
-        let nyaa = Arc::new(NyaaClient::new());
+        let nyaa = Arc::new(NyaaClient::with_timeout(std::time::Duration::from_secs(
+            config.nyaa.request_timeout_seconds as u64,
+        )));
         let seadex = Arc::new(SeaDexClient::new());
 
         let qbit = if config.qbittorrent.enabled {
@@ -134,7 +99,6 @@ impl SharedState {
         let search_service = Arc::new(SearchService::new(
             store.clone(),
             (*nyaa).clone(),
-            (*seadex).clone(),
             download_decisions.clone(),
             config.clone(),
         ));

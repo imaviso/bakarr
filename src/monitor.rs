@@ -123,7 +123,7 @@ impl Monitor {
         for torrent in torrents {
             // Handle stalled or errored torrents
             if self
-                .handle_problematic_torrent(&client, &store, &torrent)
+                .handle_problematic_torrent(&client, &store, &torrent, &config)
                 .await?
             {
                 continue;
@@ -149,6 +149,7 @@ impl Monitor {
         client: &crate::clients::qbittorrent::QBitClient,
         store: &crate::db::Store,
         torrent: &crate::clients::qbittorrent::TorrentInfo,
+        config: &crate::config::Config,
     ) -> anyhow::Result<bool> {
         let is_stalled = matches!(
             torrent.state,
@@ -162,14 +163,14 @@ impl Monitor {
                 | crate::clients::qbittorrent::TorrentState::MissingFiles
         );
 
-        const STALLED_DURATION_THRESHOLD: i64 = 900; // 15 minutes
+        let stalled_threshold = config.qbittorrent.stalled_timeout_seconds as i64;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs() as i64;
         let duration_since_added = now - torrent.added_on;
 
-        if !(is_error || is_stalled && duration_since_added > STALLED_DURATION_THRESHOLD) {
+        if !(is_error || is_stalled && duration_since_added > stalled_threshold) {
             return Ok(false);
         }
 
@@ -295,7 +296,7 @@ impl Monitor {
     ) -> anyhow::Result<usize> {
         let filename = source_path
             .file_name()
-            .unwrap()
+            .ok_or_else(|| anyhow::anyhow!("Invalid source path: no filename"))?
             .to_string_lossy()
             .to_string();
 
@@ -345,9 +346,13 @@ impl Monitor {
         library.import_file(source_path, &dest_path).await?;
         info!("Imported to {:?}", dest_path);
 
-        let seadex_groups = {
+        // Combine state reads to avoid race conditions
+        let (seadex_groups, store) = {
             let state = self.state.read().await;
-            state.get_seadex_groups_cached(anime.id).await
+            (
+                state.get_seadex_groups_cached(anime.id).await,
+                state.store.clone(),
+            )
         };
 
         let is_seadex = {
@@ -361,24 +366,20 @@ impl Monitor {
             .map(|m| m.len() as i64)
             .ok();
 
+        if let Err(e) = store
+            .mark_episode_downloaded(
+                anime.id,
+                episode_number,
+                season.unwrap_or(1),
+                quality.id,
+                is_seadex,
+                dest_path.to_str().unwrap_or(""),
+                file_size,
+                media_info.as_ref(),
+            )
+            .await
         {
-            let state = self.state.read().await;
-            if let Err(e) = state
-                .store
-                .mark_episode_downloaded(
-                    anime.id,
-                    episode_number,
-                    season.unwrap_or(1),
-                    quality.id,
-                    is_seadex,
-                    dest_path.to_str().unwrap_or(""),
-                    file_size,
-                    media_info.as_ref(),
-                )
-                .await
-            {
-                warn!("Failed to update episode status: {}", e);
-            }
+            warn!("Failed to update episode status: {}", e);
         }
 
         Ok(1)
@@ -456,9 +457,13 @@ impl Monitor {
                     info!("Imported {} -> {:?}", filename, dest_path);
                     imported += 1;
 
-                    let seadex_groups = {
+                    // Combine state reads to avoid race conditions
+                    let (seadex_groups, store) = {
                         let state = self.state.read().await;
-                        state.get_seadex_groups_cached(anime.id).await
+                        (
+                            state.get_seadex_groups_cached(anime.id).await,
+                            state.store.clone(),
+                        )
                     };
 
                     let is_seadex = {
@@ -472,24 +477,20 @@ impl Monitor {
                         .map(|m| m.len() as i64)
                         .ok();
 
+                    if let Err(e) = store
+                        .mark_episode_downloaded(
+                            anime.id,
+                            episode_number,
+                            season.unwrap_or(1),
+                            quality.id,
+                            is_seadex,
+                            dest_path.to_str().unwrap_or(""),
+                            file_size,
+                            media_info.as_ref(),
+                        )
+                        .await
                     {
-                        let state = self.state.read().await;
-                        if let Err(e) = state
-                            .store
-                            .mark_episode_downloaded(
-                                anime.id,
-                                episode_number,
-                                season.unwrap_or(1),
-                                quality.id,
-                                is_seadex,
-                                dest_path.to_str().unwrap_or(""),
-                                file_size,
-                                media_info.as_ref(),
-                            )
-                            .await
-                        {
-                            warn!("Failed to update episode status: {}", e);
-                        }
+                        warn!("Failed to update episode status: {}", e);
                     }
                 }
                 Err(e) => {

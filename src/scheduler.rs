@@ -93,12 +93,13 @@ impl Scheduler {
     async fn run_with_interval(&self) -> Result<()> {
         let interval_mins = self.config.check_interval_minutes;
         let delay_secs = self.config.check_delay_seconds;
+        let refresh_hours = self.config.metadata_refresh_hours;
 
         info!("Scheduler running every {} minutes", interval_mins);
 
         let mut check_interval = interval(Duration::from_secs(interval_mins as u64 * 60));
 
-        let mut metadata_interval = interval(Duration::from_secs(12 * 60 * 60));
+        let mut metadata_interval = interval(Duration::from_secs(refresh_hours as u64 * 60 * 60));
 
         loop {
             tokio::select! {
@@ -294,11 +295,19 @@ async fn process_rss_torrent(
         return Ok(());
     }
 
-    let (episode_number, group) = if let Some(parsed) = parse_filename(&torrent.title) {
-        (parsed.episode_number, parsed.group)
-    } else {
-        (0.0, None)
+    let parsed = parse_filename(&torrent.title);
+
+    // Skip torrents that can't be parsed - avoids using episode 0.0 as fallback
+    let Some(release) = parsed else {
+        debug!(
+            "Could not parse episode number from RSS item: {}",
+            torrent.title
+        );
+        return Ok(());
     };
+
+    let episode_number = release.episode_number;
+    let group = release.group;
 
     info!(
         "[RSS] New release: {} - Episode {} [{}]",

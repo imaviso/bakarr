@@ -2,7 +2,6 @@ use anyhow::Result;
 use tracing::{debug, info};
 
 use crate::clients::nyaa::{NyaaCategory, NyaaClient, NyaaFilter, NyaaTorrent};
-use crate::clients::seadex::SeaDexClient;
 use crate::config::Config;
 use crate::db::Store;
 use crate::quality::parse_quality_from_filename;
@@ -35,7 +34,6 @@ impl SearchService {
     pub fn new(
         store: Store,
         nyaa: NyaaClient,
-        _seadex: SeaDexClient,
         download_decisions: DownloadDecisionService,
         config: Config,
     ) -> Self {

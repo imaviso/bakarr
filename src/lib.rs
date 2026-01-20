@@ -165,7 +165,7 @@ pub async fn run() -> anyhow::Result<()> {
             let port = config.server.port;
             info!("Starting Web API on port {}", port);
 
-            let app = api::router(api_state);
+            let app = api::router(api_state).await;
             let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
             axum::serve(listener, app).await?;
             Ok(())
@@ -211,7 +211,7 @@ async fn run_daemon(
         let port = config.server.port;
         info!("Starting Web API on port {}", port);
 
-        let app = api::router(api_state);
+        let app = api::router(api_state).await;
         let addr = format!("0.0.0.0:{}", port);
         let listener = tokio::net::TcpListener::bind(&addr).await?;
 

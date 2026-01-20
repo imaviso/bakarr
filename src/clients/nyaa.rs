@@ -35,11 +35,19 @@ impl NyaaTorrent {
 }
 
 fn extract_tag(xml: &str, tag: &str) -> String {
+    // Maximum number of cached regexes to prevent unbounded memory growth
+    const MAX_CACHE_SIZE: usize = 32;
+
     static CACHE: OnceLock<std::sync::Mutex<std::collections::HashMap<String, Regex>>> =
         OnceLock::new();
 
     let cache = CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
     let mut cache = cache.lock().unwrap();
+
+    // If cache is full and tag not present, clear it to prevent unbounded growth
+    if cache.len() >= MAX_CACHE_SIZE && !cache.contains_key(tag) {
+        cache.clear();
+    }
 
     let re = cache.entry(tag.to_string()).or_insert_with(|| {
         Regex::new(&format!(
@@ -198,8 +206,15 @@ impl Default for NyaaClient {
 
 impl NyaaClient {
     pub fn new() -> Self {
+        Self::with_timeout(std::time::Duration::from_secs(30))
+    }
+
+    pub fn with_timeout(timeout: std::time::Duration) -> Self {
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .timeout(timeout)
+                .build()
+                .expect("Failed to build HTTP client"),
         }
     }
 
