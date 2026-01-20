@@ -1,6 +1,8 @@
 use anyhow::Result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
+use url::Url;
 
 const SEADEX_API: &str = "https://releases.moe/api/collections";
 
@@ -72,17 +74,23 @@ impl Default for SeaDexClient {
 impl SeaDexClient {
     pub fn new() -> Self {
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .user_agent("Bakarr/1.0")
+                .build()
+                .unwrap_or_else(|_| Client::new()),
         }
     }
 
     pub async fn get_best_releases(&self, anilist_id: i32) -> Result<Option<SeaDexEntry>> {
-        let url = format!(
-            "{}/entries/records?filter=(alID={})",
-            SEADEX_API, anilist_id
-        );
+        let base_url = format!("{}/entries/records", SEADEX_API);
+        let mut url = Url::parse(&base_url)?;
+        let filter = format!("(alID={})", anilist_id);
 
-        let response: SeaDexResponse = self.client.get(&url).send().await?.json().await?;
+        url.query_pairs_mut().append_pair("filter", &filter);
+
+        debug!("Fetching SeaDex entry for AniList ID: {}", anilist_id);
+
+        let response: SeaDexResponse = self.client.get(url).send().await?.json().await?;
 
         Ok(response.items.into_iter().next())
     }
@@ -97,10 +105,18 @@ impl SeaDexClient {
             .map(|id| format!("id='{}'", id))
             .collect::<Vec<_>>()
             .join("||");
+        let filter = format!("({})", filter);
 
-        let url = format!("{}/torrents/records?filter=({})", SEADEX_API, filter);
+        let base_url = format!("{}/torrents/records", SEADEX_API);
+        let mut url = Url::parse(&base_url)?;
 
-        let response: ReleaseResponse = self.client.get(&url).send().await?.json().await?;
+        url.query_pairs_mut()
+            .append_pair("filter", &filter)
+            .append_pair("perPage", "100");
+
+        debug!("Fetching SeaDex release details for {} IDs", tr_ids.len());
+
+        let response: ReleaseResponse = self.client.get(url).send().await?.json().await?;
 
         Ok(response.items)
     }

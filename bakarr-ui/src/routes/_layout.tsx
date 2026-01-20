@@ -10,7 +10,7 @@ import {
 import { useAuth } from "~/lib/auth";
 
 export const Route = createFileRoute("/_layout")({
-	beforeLoad: ({ location, navigate }) => {
+	beforeLoad: ({ location }) => {
 		const { auth } = useAuth();
 		if (!auth().isAuthenticated) {
 			throw redirect({

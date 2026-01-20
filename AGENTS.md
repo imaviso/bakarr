@@ -27,12 +27,23 @@ Located in `bakarr-ui/`.
 
 - **`/src`**: Rust backend source.
   - `main.rs`: Entry point wrapper.
-  - `lib.rs`: Core application logic and CLI command handlers.
-  - `api/`: Axum web server routes.
-  - `clients/`: External API clients (AniList, Nyaa, etc.).
-  - `db/`: Database interactions (SQLx).
-  - `services/`: Business logic (Downloader, Library, etc.).
-  - `models/`: Data structures.
+  - `lib.rs`: Core application logic.
+  - `config.rs`, `constants.rs`: Configuration.
+  - `state.rs`: Shared application state initialization.
+  - `scheduler.rs`: Background task scheduler.
+  - `monitor.rs`: Download monitoring and importing logic.
+  - `api/`: Axum web server routes (handlers, middleware, error types).
+  - `cli/`: CLI command implementations.
+  - `clients/`: External API clients (AniList, Nyaa, SeaDex, qBittorrent, etc.).
+  - `db/`: Database interactions.
+    - `repositories/`: Data access layer for various entities.
+    - `migrator/`: SeaORM migrations.
+  - `entities/`: SeaORM entity definitions.
+  - `services/`: Business logic (Downloader, Library, RSS, Image, etc.).
+  - `models/`: Domain models and data structures.
+  - `parser/`: Filename parsing logic.
+  - `quality/`: Quality profile and definition logic.
+  - `library/`: Library management and recycle bin logic.
 - **`/bakarr-ui`**: Frontend source.
   - `src/routes/`: File-based routing (TanStack Router).
   - `src/components/`: Reusable UI components.
@@ -52,7 +63,7 @@ Located in `bakarr-ui/`.
   - Use `anyhow::Result` for application code/controllers.
   - Use `thiserror` for library/module-level errors.
   - Context: Use `.context("...")` to provide helpful error messages.
-- **Database**: Use `sqlx` with compile-time checked queries where possible.
+- **Database**: Use `sea-orm` entities and ActiveModels. Prefer strongly typed queries over raw SQL.
 - **Imports**: Group imports logically:
   1. `std`
   2. External crates (`tokio`, `tracing`, `anyhow`)

@@ -91,25 +91,25 @@ export function RenameDialog(props: RenameDialogProps) {
 							when={!result()}
 							fallback={
 								<div class="space-y-4">
-									<Show when={result()!.failed > 0}>
+									<Show when={(result()?.failed ?? 0) > 0}>
 										<Alert variant="destructive">
 											<IconAlertTriangle class="h-4 w-4" />
 											<AlertTitle>Errors Occurred</AlertTitle>
 											<AlertDescription>
 												<ul class="list-disc pl-4 mt-2">
-													<For each={result()!.failures}>
+													<For each={result()?.failures}>
 														{(f) => <li>{f}</li>}
 													</For>
 												</ul>
 											</AlertDescription>
 										</Alert>
 									</Show>
-									<Show when={result()!.renamed > 0}>
+									<Show when={(result()?.renamed ?? 0) > 0}>
 										<div class="flex flex-col items-center justify-center py-8 text-center">
 											<IconCheck class="h-16 w-16 text-green-500 mb-4" />
 											<h3 class="text-xl font-semibold">Rename Complete</h3>
 											<p class="text-muted-foreground">
-												Successfully renamed {result()!.renamed} files.
+												Successfully renamed {result()?.renamed} files.
 											</p>
 										</div>
 									</Show>

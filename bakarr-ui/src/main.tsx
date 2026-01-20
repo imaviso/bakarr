@@ -25,9 +25,9 @@ declare module "@tanstack/solid-router" {
 		router: typeof router;
 	}
 }
-const rootElement = document.getElementById("app")!;
+const rootElement = document.getElementById("app");
 
-if (!rootElement.innerHTML) {
+if (rootElement && !rootElement.innerHTML) {
 	render(
 		() => (
 			<QueryClientProvider client={queryClient}>

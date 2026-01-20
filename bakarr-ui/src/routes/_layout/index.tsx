@@ -4,10 +4,9 @@ import {
 	IconClock,
 	IconCloudDownload,
 	IconDeviceTv,
-	IconExclamationCircle,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, Link } from "@tanstack/solid-router";
-import { For, Show, Suspense } from "solid-js";
+import { For, Show } from "solid-js";
 import { GeneralError } from "~/components/general-error";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -132,7 +131,7 @@ function DashboardPage() {
 				<CardHeader class="pb-3">
 					<div class="flex items-center justify-between">
 						<CardTitle class="text-base">Recent Activity</CardTitle>
-						<Show when={activityQuery.data && activityQuery.data!.length > 5}>
+						<Show when={activityQuery.data && activityQuery.data?.length > 5}>
 							<Link to="/downloads">
 								<Button variant="ghost" size="sm">
 									View All
@@ -151,7 +150,7 @@ function DashboardPage() {
 						}
 					>
 						<Show
-							when={activityQuery.data && activityQuery.data!.length > 0}
+							when={activityQuery.data && activityQuery.data?.length > 0}
 							fallback={
 								<p class="text-center text-muted-foreground py-6">
 									No recent activity

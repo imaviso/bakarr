@@ -127,6 +127,7 @@ function AnimeIndexPage() {
 					<Tooltip>
 						<TooltipTrigger>
 							<DropdownMenuTrigger
+								// biome-ignore lint/suspicious/noExplicitAny: props type from library
 								as={(props: any) => (
 									<Button {...props} variant="outline" size="icon">
 										<IconFilter class="h-4 w-4" />
@@ -365,6 +366,7 @@ function AnimeIndexPage() {
 														<TableCell class="text-right">
 															<AlertDialog>
 																<AlertDialogTrigger
+																	// biome-ignore lint/suspicious/noExplicitAny: props type from library
 																	as={(props: any) => (
 																		<Button
 																			{...props}
@@ -447,6 +449,7 @@ function AnimeIndexPage() {
 												<div class="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
 													<AlertDialog>
 														<AlertDialogTrigger
+															// biome-ignore lint/suspicious/noExplicitAny: props type from library
 															as={(props: any) => (
 																<Button
 																	{...props}

@@ -6,7 +6,7 @@ import {
 	IconVideo,
 } from "@tabler/icons-solidjs";
 import { formatDistanceToNow } from "date-fns";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";

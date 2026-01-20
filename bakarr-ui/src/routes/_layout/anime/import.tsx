@@ -3,7 +3,6 @@ import {
 	IconArrowLeft,
 	IconArrowRight,
 	IconCheck,
-	IconDeviceFloppy,
 	IconFile,
 	IconFolderOpen,
 	IconListTree,
@@ -931,8 +930,9 @@ function FileRow(props: FileRowProps) {
 									)}
 								>
 									<SelectTrigger class="h-8 text-xs flex-1">
+										{/* biome-ignore lint/suspicious/noExplicitAny: complex type */}
 										<SelectValue<any>>
-											{(state) => (
+											{(_state) => (
 												<span class="text-muted-foreground">
 													Select anime...
 												</span>
@@ -944,52 +944,51 @@ function FileRow(props: FileRowProps) {
 							</>
 						}
 					>
-						<>
-							<IconCheck class="h-4 w-4 text-green-600 shrink-0" />
-							<Select
-								value={allOptions().find(
-									(o) => o.id === (props.selectedAnimeId || matchedAnimeId()),
-								)}
-								onChange={(v) => {
-									if (v) {
-										const newId = v.id;
-										props.onAnimeChange(newId);
-										if (!props.isSelected) {
-											props.onToggle(newId);
-										}
+						<IconCheck class="h-4 w-4 text-green-600 shrink-0" />
+						<Select
+							value={allOptions().find(
+								(o) => o.id === (props.selectedAnimeId || matchedAnimeId()),
+							)}
+							onChange={(v) => {
+								if (v) {
+									const newId = v.id;
+									props.onAnimeChange(newId);
+									if (!props.isSelected) {
+										props.onToggle(newId);
 									}
-								}}
-								options={allOptions()}
-								optionValue="id"
-								optionTextValue={(opt) =>
-									opt.title.english || opt.title.romaji || "Unknown Title"
 								}
-								itemComponent={(props) => (
-									<SelectItem item={props.item}>
-										<span class="flex items-center gap-2">
-											{props.item.rawValue?.title.english ||
-												props.item.rawValue?.title.romaji}
-											<Show when={props.item.rawValue?.source === "candidate"}>
-												<Badge variant="secondary" class="h-4 px-1 text-[9px]">
-													New
-												</Badge>
-											</Show>
-										</span>
-									</SelectItem>
-								)}
-							>
-								<SelectTrigger class="h-8 text-xs flex-1">
-									<SelectValue<any>>
-										{(state) =>
-											state.selectedOption()?.title.english ||
-											state.selectedOption()?.title.romaji ||
-											`ID: ${props.selectedAnimeId || matchedAnimeId()}`
-										}
-									</SelectValue>
-								</SelectTrigger>
-								<SelectContent />
-							</Select>
-						</>
+							}}
+							options={allOptions()}
+							optionValue="id"
+							optionTextValue={(opt) =>
+								opt.title.english || opt.title.romaji || "Unknown Title"
+							}
+							itemComponent={(props) => (
+								<SelectItem item={props.item}>
+									<span class="flex items-center gap-2">
+										{props.item.rawValue?.title.english ||
+											props.item.rawValue?.title.romaji}
+										<Show when={props.item.rawValue?.source === "candidate"}>
+											<Badge variant="secondary" class="h-4 px-1 text-[9px]">
+												New
+											</Badge>
+										</Show>
+									</span>
+								</SelectItem>
+							)}
+						>
+							<SelectTrigger class="h-8 text-xs flex-1">
+								{/* biome-ignore lint/suspicious/noExplicitAny: complex type */}
+								<SelectValue<any>>
+									{(state) =>
+										state.selectedOption()?.title.english ||
+										state.selectedOption()?.title.romaji ||
+										`ID: ${props.selectedAnimeId || matchedAnimeId()}`
+									}
+								</SelectValue>
+							</SelectTrigger>
+							<SelectContent />
+						</Select>
 					</Show>
 				</div>
 			</div>

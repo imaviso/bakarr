@@ -32,7 +32,7 @@ export function useActiveDownloads() {
 			}
 		};
 
-		eventSource.onerror = (e) => {
+		eventSource.onerror = (_e) => {
 			// console.error("EventSource error", e);
 			eventSource.close();
 		};

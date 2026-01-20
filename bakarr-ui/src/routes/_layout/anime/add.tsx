@@ -15,14 +15,7 @@ import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "~/components/ui/card";
+import { Card, CardContent } from "~/components/ui/card";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
 	Dialog,
@@ -67,7 +60,7 @@ export const Route = createFileRoute("/_layout/anime/add")({
 });
 
 function AddAnimePage() {
-	const navigate = useNavigate();
+	const _navigate = useNavigate();
 	const [query, setQuery] = createSignal("");
 	const [debouncedQuery, setDebouncedQuery] = createSignal("");
 	const [selectedAnime, setSelectedAnime] =
@@ -262,6 +255,7 @@ function AddAnimePage() {
 
 			<Show when={selectedAnime()}>
 				<AddAnimeDialog
+					// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
 					anime={selectedAnime()!}
 					open={!!selectedAnime()}
 					onOpenChange={(open) => !open && setSelectedAnime(null)}

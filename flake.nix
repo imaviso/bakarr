@@ -48,22 +48,20 @@
         default = pkgs.mkShell {
           packages = with pkgs; [
             rustToolchain
-            openssl
             pkg-config
             cargo-deny
             cargo-edit
             cargo-watch
             rust-analyzer
-            ffmpeg # For ffprobe media info extraction
+            ffmpeg
             nodejs
+            bun
             sqlite
           ];
 
           env = {
             # Required by rust-analyzer
             RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
-            # OpenSSL for runtime
-            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [pkgs.openssl];
           };
         };
       }

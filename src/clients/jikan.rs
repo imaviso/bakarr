@@ -1,6 +1,7 @@
 use anyhow::Result;
 use reqwest::Client;
 use serde::Deserialize;
+use url::Url;
 
 const JIKAN_API: &str = "https://api.jikan.moe/v4";
 
@@ -99,7 +100,10 @@ impl Default for JikanClient {
 impl JikanClient {
     pub fn new() -> Self {
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .user_agent("Bakarr/1.0")
+                .build()
+                .unwrap_or_else(|_| Client::new()),
         }
     }
 
@@ -123,8 +127,11 @@ impl JikanClient {
     }
 
     pub async fn get_episodes(&self, mal_id: i32, page: u32) -> Result<Vec<MalEpisode>> {
-        let url = format!("{}/anime/{}/episodes?page={}", JIKAN_API, mal_id, page);
-        let response = self.client.get(&url).send().await?;
+        let base_url = format!("{}/anime/{}/episodes", JIKAN_API, mal_id);
+        let mut url = Url::parse(&base_url)?;
+        url.query_pairs_mut().append_pair("page", &page.to_string());
+
+        let response = self.client.get(url).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -138,12 +145,14 @@ impl JikanClient {
     }
 
     pub async fn search(&self, query: &str) -> Result<Vec<MalAnime>> {
-        let url = format!(
-            "{}/anime?q={}&limit=10",
-            JIKAN_API,
-            urlencoding::encode(query)
-        );
-        let response = self.client.get(&url).send().await?;
+        let base_url = format!("{}/anime", JIKAN_API);
+        let mut url = Url::parse(&base_url)?;
+
+        url.query_pairs_mut()
+            .append_pair("q", query)
+            .append_pair("limit", "10");
+
+        let response = self.client.get(url).send().await?;
 
         if !response.status().is_success() {
             let status = response.status();

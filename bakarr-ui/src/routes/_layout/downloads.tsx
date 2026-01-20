@@ -9,7 +9,7 @@ import {
 	IconX,
 } from "@tabler/icons-solidjs";
 import { createFileRoute } from "@tanstack/solid-router";
-import { createSignal, For, Show } from "solid-js";
+import { For, Show } from "solid-js";
 import { GeneralError } from "~/components/general-error";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -33,7 +33,6 @@ import {
 	type DownloadStatus,
 	downloadHistoryQueryOptions,
 } from "~/lib/api";
-import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout/downloads")({
 	loader: ({ context: { queryClient } }) => {
@@ -48,7 +47,7 @@ function formatSpeed(bytesPerSec: number): string {
 	const k = 1024;
 	const sizes = ["B/s", "KB/s", "MB/s", "GB/s"];
 	const i = Math.floor(Math.log(bytesPerSec) / Math.log(k));
-	return parseFloat((bytesPerSec / k ** i).toFixed(1)) + " " + sizes[i];
+	return `${parseFloat((bytesPerSec / k ** i).toFixed(1))} ${sizes[i]}`;
 }
 
 function formatEta(seconds: number): string {
@@ -332,11 +331,11 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
 					>
 						<div class="flex items-center gap-2">
 							<Progress
-								value={props.item.progress!}
+								value={props.item.progress ?? 0}
 								class="h-1.5 w-full bg-muted"
 							/>
 							<span class="text-xs font-mono text-muted-foreground w-8 text-right">
-								{Math.round(props.item.progress!)}%
+								{Math.round(props.item.progress ?? 0)}%
 							</span>
 						</div>
 					</Show>

@@ -110,7 +110,10 @@ impl Default for AnilistClient {
 impl AnilistClient {
     pub fn new() -> Self {
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .user_agent("Bakarr/1.0")
+                .build()
+                .unwrap_or_else(|_| Client::new()),
         }
     }
 

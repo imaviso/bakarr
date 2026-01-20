@@ -11,6 +11,7 @@ export function GlobalSpinner() {
 				<div class="relative flex flex-col items-center gap-4">
 					<div class="linear-spinner text-primary">
 						<svg viewBox="0 0 40 40">
+							<title>Loading</title>
 							<circle
 								class="opacity-20"
 								cx="20"

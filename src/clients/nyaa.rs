@@ -2,6 +2,7 @@ use anyhow::Result;
 use regex::Regex;
 use reqwest::Client;
 use std::sync::OnceLock;
+use url::Url;
 
 const NYAA_RSS_BASE: &str = "https://nyaa.si/?page=rss";
 
@@ -188,13 +189,13 @@ impl RssFeedConfig {
 
         let query = query_parts.join(" ");
 
-        format!(
-            "{}&q={}&c={}&f={}",
-            NYAA_RSS_BASE,
-            urlencoding::encode(&query),
-            self.category.as_str(),
-            self.filter.as_str()
-        )
+        let mut url = Url::parse(NYAA_RSS_BASE).expect("Invalid base URL");
+        url.query_pairs_mut()
+            .append_pair("q", &query)
+            .append_pair("c", self.category.as_str())
+            .append_pair("f", self.filter.as_str());
+
+        url.to_string()
     }
 }
 
@@ -213,6 +214,7 @@ impl NyaaClient {
         Self {
             client: Client::builder()
                 .timeout(timeout)
+                .user_agent("Bakarr/1.0")
                 .build()
                 .expect("Failed to build HTTP client"),
         }
@@ -224,15 +226,13 @@ impl NyaaClient {
         category: NyaaCategory,
         filter: NyaaFilter,
     ) -> Result<Vec<NyaaTorrent>> {
-        let url = format!(
-            "{}&q={}&c={}&f={}",
-            NYAA_RSS_BASE,
-            urlencoding::encode(query),
-            category.as_str(),
-            filter.as_str()
-        );
+        let mut url = Url::parse(NYAA_RSS_BASE).expect("Invalid base URL");
+        url.query_pairs_mut()
+            .append_pair("q", query)
+            .append_pair("c", category.as_str())
+            .append_pair("f", filter.as_str());
 
-        self.fetch_rss(&url).await
+        self.fetch_rss(url.as_str()).await
     }
 
     pub async fn search_anime(&self, query: &str) -> Result<Vec<NyaaTorrent>> {

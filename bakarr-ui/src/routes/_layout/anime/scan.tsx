@@ -270,10 +270,8 @@ function FolderItem(props: { folder: UnmappedFolder }) {
 									</>
 								}
 							>
-								<>
-									<IconCheck class="mr-1 h-4 w-4" />
-									Done
-								</>
+								<IconCheck class="mr-1 h-4 w-4" />
+								Done
 							</Show>
 						}
 					>

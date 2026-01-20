@@ -161,6 +161,7 @@ function SettingsPage() {
 						<Show when={editingProfile()}>
 							<div class="mb-6">
 								<ProfileForm
+									// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
 									profile={editingProfile()!}
 									onCancel={() => setEditingProfile(null)}
 									onSuccess={() => setEditingProfile(null)}
@@ -447,12 +448,13 @@ function ProfileForm(props: {
 					<form.Field name="allowed_qualities">
 						{(field) => (
 							<div class="space-y-2">
-								<label class="text-sm font-medium leading-none">
+								<div class="text-sm font-medium leading-none">
 									Allowed Qualities
-								</label>
+								</div>
 								<div class="grid grid-cols-2 md:grid-cols-3 gap-2">
 									<For each={QUALITY_OPTIONS}>
 										{(q) => (
+											// biome-ignore lint/a11y/noLabelWithoutControl: Wrapped checkbox
 											<label class="flex items-center gap-2 text-sm cursor-pointer">
 												<Checkbox
 													checked={field().state.value.includes(q)}
@@ -480,12 +482,13 @@ function ProfileForm(props: {
 							{(field) => (
 								<div class="flex items-center gap-2">
 									<Switch
+										id={field().name}
 										checked={field().state.value}
 										onChange={(checked) => field().handleChange(checked)}
 									/>
 									<label
+										for={field().name}
 										class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-										onClick={() => field().handleChange(!field().state.value)}
 									>
 										<IconArrowUp class="h-3.5 w-3.5" />
 										Allow Upgrades
@@ -498,12 +501,13 @@ function ProfileForm(props: {
 							{(field) => (
 								<div class="flex items-center gap-2">
 									<Switch
+										id={field().name}
 										checked={field().state.value}
 										onChange={(checked) => field().handleChange(checked)}
 									/>
 									<label
+										for={field().name}
 										class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-										onClick={() => field().handleChange(!field().state.value)}
 									>
 										<IconStar class="h-3.5 w-3.5" />
 										Prefer SeaDex
@@ -550,6 +554,7 @@ function GeneralSettingsForm() {
 			fallback={<Skeleton class="h-96 rounded-lg" />}
 		>
 			<SystemForm
+				// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
 				defaultValues={configQuery.data!}
 				onSubmit={async (values) => {
 					await updateConfig.mutateAsync(values);

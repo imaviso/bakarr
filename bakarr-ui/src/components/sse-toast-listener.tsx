@@ -4,6 +4,7 @@ import { toast } from "solid-sonner";
 
 interface EventPayload {
 	type: string;
+	// biome-ignore lint/suspicious/noExplicitAny: Payload varies by event type
 	payload?: any;
 }
 

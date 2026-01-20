@@ -170,7 +170,10 @@ function FeedCard(props: {
 						<Show when={props.feed.last_checked}>
 							<span class="flex items-center gap-1 shrink-0">
 								<IconClock class="h-3.5 w-3.5" />
-								{new Date(props.feed.last_checked!).toLocaleString()}
+								{
+									// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
+									new Date(props.feed.last_checked!).toLocaleString()
+								}
 							</span>
 						</Show>
 					</div>
@@ -270,7 +273,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
 									placeholder="Select anime..."
 								>
 									<SelectTrigger aria-label="Anime" class="w-full">
-										<SelectValue<any>>
+										<SelectValue<{ label: string }>>
 											{(state) => state.selectedOption().label}
 										</SelectValue>
 									</SelectTrigger>

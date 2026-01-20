@@ -82,6 +82,7 @@ database_path = "./bakarr.db"
 log_level = "info"               # Options: error, warn, info, debug, trace
 suppress_connection_errors = true # Silence noisy network/retry logs
 images_path = "images"
+event_bus_buffer_size = 100      # Size of the internal event bus buffer
 ```
 
 ### qBittorrent
@@ -91,6 +92,18 @@ url = "http://localhost:8080"
 username = "admin"
 password = "adminadmin"
 default_category = "bakarr"
+stalled_timeout_seconds = 900 # Time before considering a stalled torrent as failed (15 min)
+```
+
+### Nyaa
+```toml
+[nyaa]
+base_url = "https://nyaa.si"
+default_category = "1_2"
+filter_remakes = true
+preferred_resolution = "1080p"
+min_seeders = 1
+request_timeout_seconds = 30 # Request timeout in seconds
 ```
 
 ### Library
@@ -130,6 +143,7 @@ enabled = true
 check_interval_minutes = 15
 max_concurrent_checks = 3
 check_delay_seconds = 5
+metadata_refresh_hours = 12 # Interval for refreshing episode metadata
 ```
 
 ## Usage
@@ -222,17 +236,24 @@ Database location: `./bakarr.db`
 ```
 bakarr/
 ├── src/
-│   ├── clients/          # API clients (AniList, Nyaa, SeaDex, Jikan, etc.)
-│   ├── db/              # Database operations
-│   ├── library/         # File management and organization
-│   ├── models/          # Data models
-│   ├── parser/          # Filename parsing
-│   ├── quality/         # Quality detection and profiles
-│   ├── scheduler/       # Background task scheduling
-│   ├── services/        # Business logic services
-│   └── main.rs          # CLI and commands
-├── migrations/          # Database migrations
-└── config.toml         # Configuration file
+│   ├── api/             # Web server routes and handlers
+│   ├── cli/             # CLI command implementations
+│   ├── clients/         # API clients (AniList, Nyaa, SeaDex, qBit, etc.)
+│   ├── db/              # Database operations (SeaORM)
+│   ├── entities/        # SeaORM entity definitions
+│   ├── library/         # File management and recycle bin
+│   ├── models/          # Domain data models
+│   ├── parser/          # Filename parsing logic
+│   ├── quality/         # Quality definitions and profiles
+│   ├── services/        # Business logic (Download, Search, RSS, etc.)
+│   ├── config.rs        # Configuration structs
+│   ├── monitor.rs       # Download monitoring
+│   ├── scheduler.rs     # Background task scheduler
+│   ├── state.rs         # Shared application state
+│   └── main.rs          # Entry point
+├── bakarr-ui/           # SolidJS frontend
+├── migration/           # Database migrations
+└── config.toml          # Configuration file
 ```
 
 ### Building

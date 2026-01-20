@@ -1,6 +1,7 @@
 use anyhow::Result;
 use reqwest::Client;
 use serde::Deserialize;
+use url::Url;
 
 const KITSU_API: &str = "https://kitsu.io/api/edge";
 
@@ -39,7 +40,10 @@ impl Default for KitsuClient {
 impl KitsuClient {
     pub fn new() -> Self {
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .user_agent("Bakarr/1.0")
+                .build()
+                .unwrap_or_else(|_| Client::new()),
         }
     }
 
@@ -47,15 +51,16 @@ impl KitsuClient {
         let mut all_episodes = Vec::new();
         let mut offset = 0;
         let limit = 20;
+        let base_url = format!("{}/anime/{}/episodes", KITSU_API, kitsu_id);
 
         loop {
-            let url = format!(
-                "{}/anime/{}/episodes?page[limit]={}&page[offset]={}",
-                KITSU_API, kitsu_id, limit, offset
-            );
+            let mut url = Url::parse(&base_url)?;
+            url.query_pairs_mut()
+                .append_pair("page[limit]", &limit.to_string())
+                .append_pair("page[offset]", &offset.to_string());
 
             let response: KitsuResponse<KitsuEpisode> =
-                self.client.get(&url).send().await?.json().await?;
+                self.client.get(url).send().await?.json().await?;
 
             if response.data.is_empty() {
                 break;

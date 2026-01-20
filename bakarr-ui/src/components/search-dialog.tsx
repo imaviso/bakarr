@@ -8,13 +8,13 @@ import {
 	IconSortAscending,
 	IconSortDescending,
 	IconStarFilled,
-	IconX,
 } from "@tabler/icons-solidjs";
 import {
 	createEffect,
 	createMemo,
 	createSignal,
 	For,
+	type JSX,
 	onCleanup,
 	Show,
 	Suspense,
@@ -64,7 +64,7 @@ import {
 import { cn } from "~/lib/utils";
 
 interface SearchDialogProps {
-	trigger?: any;
+	trigger?: JSX.Element;
 	animeId: number;
 	defaultQuery: string;
 	tooltip?: string;

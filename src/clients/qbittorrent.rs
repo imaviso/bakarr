@@ -4,6 +4,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt;
 use tracing::{debug, info, warn};
+use url::Url;
 
 #[derive(Debug, Clone)]
 pub struct QBitConfig {
@@ -180,6 +181,7 @@ impl QBitClient {
         Self {
             client: Client::builder()
                 .cookie_store(true)
+                .user_agent("Bakarr/1.0")
                 .build()
                 .expect("Failed to build HTTP client"),
             config,
@@ -334,14 +336,16 @@ impl QBitClient {
     pub async fn get_torrents(&self, category: Option<&str>) -> Result<Vec<TorrentInfo>> {
         self.ensure_auth().await?;
 
-        let mut url = format!("{}/api/v2/torrents/info", self.config.base_url);
+        let base_url = format!("{}/api/v2/torrents/info", self.config.base_url);
+        let mut url = Url::parse(&base_url)?;
+
         if let Some(cat) = category {
-            url = format!("{}?category={}", url, urlencoding::encode(cat));
+            url.query_pairs_mut().append_pair("category", cat);
         }
 
         let response = self
             .client
-            .get(&url)
+            .get(url)
             .header("Referer", &self.config.base_url)
             .send()
             .await?;

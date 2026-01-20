@@ -1,9 +1,7 @@
 import {
 	IconAlertTriangle,
-	IconArrowLeft,
 	IconArrowRight,
 	IconCheck,
-	IconDeviceFloppy,
 	IconFile,
 	IconFolderOpen,
 	IconListTree,
@@ -19,6 +17,7 @@ import {
 	createMemo,
 	createSignal,
 	For,
+	type JSX,
 	onCleanup,
 	Show,
 } from "solid-js";
@@ -69,7 +68,7 @@ import {
 import { cn } from "~/lib/utils";
 
 interface ImportDialogProps {
-	trigger?: any;
+	trigger?: JSX.Element;
 	animeId?: number;
 	tooltip?: string;
 }
@@ -428,7 +427,7 @@ export function ImportDialog(props: ImportDialogProps) {
 					<div class="space-y-4 py-4 flex-1 min-h-0 flex flex-col">
 						<Tabs
 							value={inputMode()}
-							onChange={(v) => setInputMode(v as any)}
+							onChange={(v) => setInputMode(v as "browser" | "manual")}
 							class="flex-1 flex flex-col min-h-0"
 						>
 							<TabsList class="grid w-full grid-cols-2">
@@ -451,6 +450,7 @@ export function ImportDialog(props: ImportDialogProps) {
 								</div>
 							</TabsContent>
 							<TabsContent value="manual" class="mt-4 flex-1">
+								{/* biome-ignore lint/a11y/noStaticElementInteractions: dnd zone */}
 								<div
 									class={cn(
 										"border-2 border-dashed rounded-lg p-6 transition-colors h-full flex flex-col items-center justify-center",
@@ -774,7 +774,7 @@ function FileRow(props: FileRowProps) {
 				<Checkbox
 					checked={props.isSelected}
 					disabled={!hasMatch()}
-					onChange={(checked) => {
+					onChange={(_checked) => {
 						const id = matchedAnimeId();
 						if (id) props.onToggle(id);
 					}}
@@ -820,6 +820,7 @@ function FileRow(props: FileRowProps) {
 									)}
 								>
 									<SelectTrigger class="h-8 text-xs flex-1">
+										{/* biome-ignore lint/suspicious/noExplicitAny: complex type */}
 										<SelectValue<any>>{() => "Select anime..."}</SelectValue>
 									</SelectTrigger>
 									<SelectContent />
@@ -851,6 +852,7 @@ function FileRow(props: FileRowProps) {
 							)}
 						>
 							<SelectTrigger class="h-8 text-xs flex-1">
+								{/* biome-ignore lint/suspicious/noExplicitAny: complex type */}
 								<SelectValue<any>>
 									{(state) =>
 										state.selectedOption()?.title.english ||

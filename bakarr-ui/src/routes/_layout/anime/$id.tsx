@@ -26,7 +26,7 @@ import {
 	useNavigate,
 	useParams,
 } from "@tanstack/solid-router";
-import { createSignal, For, Show, Suspense } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { AnimeError } from "~/components/anime-error";
 import { ImportDialog } from "~/components/import-dialog";
@@ -63,8 +63,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { Input } from "~/components/ui/input";
-import { Skeleton } from "~/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -86,7 +84,6 @@ import {
 } from "~/components/ui/tooltip";
 import {
 	animeDetailsQueryOptions,
-	createAddAnimeMutation,
 	createBulkMapEpisodesMutation,
 	createDeleteAnimeMutation,
 	createDeleteEpisodeFileMutation,
@@ -97,7 +94,6 @@ import {
 	createSearchMissingMutation,
 	createToggleMonitorMutation,
 	createUpdateAnimePathMutation,
-	type Episode,
 	episodesQueryOptions,
 	systemConfigQueryOptions,
 } from "~/lib/api";
@@ -132,7 +128,7 @@ function AnimeDetailsPage() {
 	const toggleMonitor = createToggleMonitorMutation();
 	const deleteEpisodeFile = createDeleteEpisodeFileMutation();
 	const updatePath = createUpdateAnimePathMutation();
-	const mapEpisode = createMapEpisodeMutation();
+	const _mapEpisode = createMapEpisodeMutation();
 
 	const [renameDialogOpen, setRenameDialogOpen] = createSignal(false);
 	const [editPathOpen, setEditPathOpen] = createSignal(false);
@@ -465,7 +461,7 @@ function AnimeDetailsPage() {
 									</Card>
 								</Show>
 
-								<Show when={anime().studios && anime().studios!.length > 0}>
+								<Show when={anime().studios && (anime().studios?.length ?? 0) > 0}>
 									<div class="space-y-1.5">
 										<h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 											Studios
@@ -482,7 +478,7 @@ function AnimeDetailsPage() {
 									</div>
 								</Show>
 
-								<Show when={anime().genres && anime().genres!.length > 0}>
+								<Show when={anime().genres && (anime().genres?.length ?? 0) > 0}>
 									<div class="space-y-1.5">
 										<h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 											Genres
@@ -697,11 +693,11 @@ function AnimeDetailsPage() {
 																			>
 																				<div
 																					class="truncate"
-																					title={episode
-																						.file_path!.split("/")
+																					title={episode.file_path
+																						?.split("/")
 																						.pop()}
 																				>
-																					{episode.file_path!.split("/").pop()}
+																					{episode.file_path?.split("/").pop()}
 																				</div>
 																			</Show>
 																		</TableCell>
@@ -976,7 +972,7 @@ function BulkMappingDialog(props: {
 					props.onOpenChange(false);
 					setMappings({});
 				},
-				onError: (err: any) => {
+				onError: (err: Error) => {
 					toast.error(`Failed to map episodes: ${err.message}`);
 				},
 			},
@@ -1073,6 +1069,7 @@ function EditPathDialog(props: {
 	onOpenChange: (open: boolean) => void;
 	currentPath: string;
 	animeId: number;
+	// biome-ignore lint/suspicious/noExplicitAny: mutation type inferred
 	updateMutation: any;
 }) {
 	const [path, setPath] = createSignal(props.currentPath);
@@ -1091,7 +1088,7 @@ function EditPathDialog(props: {
 					props.onOpenChange(false);
 					toast.success("Path updated successfully");
 				},
-				onError: (err: any) => {
+				onError: (err: Error) => {
 					toast.error(`Failed to update path: ${err.message}`);
 				},
 			},
