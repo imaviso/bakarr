@@ -85,7 +85,7 @@ function AddAnimePage() {
 				<h1 class="text-xl font-semibold tracking-tight px-1">Add New Anime</h1>
 				<div class="relative max-w-xl">
 					<IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-					<TextField value={query()} onChange={setQuery} class="w-full">
+					<TextField class="w-full">
 						<TextFieldInput
 							onInput={(e) => setQuery(e.currentTarget.value)}
 							placeholder="Search for anime by title..."
@@ -302,6 +302,7 @@ function AddAnimeDialog(props: {
 				profile_name: value.profile_name,
 				root_folder: value.root_folder,
 				monitor_and_search: value.search_now,
+				monitored: value.monitor,
 			});
 			props.onSuccess();
 		},

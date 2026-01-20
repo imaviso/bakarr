@@ -206,6 +206,7 @@ function ImportPage() {
 						profile_name: profilesQuery.data?.[0]?.name || "Any",
 						root_folder: "",
 						monitor_and_search: false,
+						monitored: true,
 					});
 					toast.success(`Added ${candidate.title.romaji}`, { id: toastId });
 				} catch (err) {

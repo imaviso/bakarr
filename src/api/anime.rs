@@ -23,6 +23,12 @@ pub struct AddAnimeRequest {
     pub root_folder: Option<String>,
     #[serde(default)]
     pub monitor_and_search: bool,
+    #[serde(default = "default_true")]
+    pub monitored: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 pub async fn list_anime(
@@ -236,6 +242,7 @@ pub async fn add_anime(
     }
 
     anime.added_at = chrono::Utc::now().to_rfc3339();
+    anime.monitored = payload.monitored;
 
     state.store().add_anime(&anime).await?;
 

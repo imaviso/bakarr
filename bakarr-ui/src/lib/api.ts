@@ -347,6 +347,7 @@ export function createAddAnimeMutation() {
 			profile_name: string;
 			root_folder: string;
 			monitor_and_search: boolean;
+			monitored: boolean;
 		}) =>
 			fetchApi<Anime>(`${API_BASE}/anime`, {
 				method: "POST",

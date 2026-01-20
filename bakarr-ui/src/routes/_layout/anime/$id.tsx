@@ -461,7 +461,9 @@ function AnimeDetailsPage() {
 									</Card>
 								</Show>
 
-								<Show when={anime().studios && (anime().studios?.length ?? 0) > 0}>
+								<Show
+									when={anime().studios && (anime().studios?.length ?? 0) > 0}
+								>
 									<div class="space-y-1.5">
 										<h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 											Studios
@@ -478,7 +480,9 @@ function AnimeDetailsPage() {
 									</div>
 								</Show>
 
-								<Show when={anime().genres && (anime().genres?.length ?? 0) > 0}>
+								<Show
+									when={anime().genres && (anime().genres?.length ?? 0) > 0}
+								>
 									<div class="space-y-1.5">
 										<h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 											Genres
