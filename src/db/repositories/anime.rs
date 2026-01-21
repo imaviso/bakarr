@@ -184,6 +184,18 @@ impl AnimeRepository {
         Ok(())
     }
 
+    pub async fn update_quality_profile(&self, id: i32, profile_id: i32) -> anyhow::Result<()> {
+        MonitoredAnime::update_many()
+            .col_expr(
+                monitored_anime::Column::QualityProfileId,
+                sea_orm::sea_query::Expr::value(profile_id),
+            )
+            .filter(monitored_anime::Column::Id.eq(id))
+            .exec(&self.conn)
+            .await?;
+        Ok(())
+    }
+
     pub async fn get_using_profile(&self, profile_name: &str) -> anyhow::Result<Vec<Anime>> {
         let rows = MonitoredAnime::find()
             .join(

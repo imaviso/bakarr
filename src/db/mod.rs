@@ -122,6 +122,12 @@ impl Store {
         self.anime_repo().update_path(id, path).await
     }
 
+    pub async fn update_anime_quality_profile(&self, id: i32, profile_id: i32) -> Result<()> {
+        self.anime_repo()
+            .update_quality_profile(id, profile_id)
+            .await
+    }
+
     // ========================================================================
     // Download Operations (delegated to DownloadRepository)
     // ========================================================================

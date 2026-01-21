@@ -64,6 +64,13 @@ import {
 	DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "~/components/ui/select";
+import {
 	Table,
 	TableBody,
 	TableCell,
@@ -94,7 +101,9 @@ import {
 	createSearchMissingMutation,
 	createToggleMonitorMutation,
 	createUpdateAnimePathMutation,
+	createUpdateAnimeProfileMutation,
 	episodesQueryOptions,
+	profilesQueryOptions,
 	systemConfigQueryOptions,
 } from "~/lib/api";
 import { cn, copyToClipboard } from "~/lib/utils";
@@ -106,6 +115,7 @@ export const Route = createFileRoute("/_layout/anime/$id")({
 			queryClient.ensureQueryData(animeDetailsQueryOptions(animeId)),
 			queryClient.ensureQueryData(episodesQueryOptions(animeId)),
 			queryClient.ensureQueryData(systemConfigQueryOptions()),
+			queryClient.ensureQueryData(profilesQueryOptions()),
 		]);
 	},
 	component: AnimeDetailsPage,
@@ -120,6 +130,7 @@ function AnimeDetailsPage() {
 	const animeQuery = useQuery(() => animeDetailsQueryOptions(animeId()));
 	const episodesQuery = useQuery(() => episodesQueryOptions(animeId()));
 	const configQuery = useQuery(systemConfigQueryOptions);
+	const profilesQuery = useQuery(profilesQueryOptions);
 
 	const deleteAnime = createDeleteAnimeMutation();
 	const refreshEpisodes = createRefreshEpisodesMutation();
@@ -128,10 +139,12 @@ function AnimeDetailsPage() {
 	const toggleMonitor = createToggleMonitorMutation();
 	const deleteEpisodeFile = createDeleteEpisodeFileMutation();
 	const updatePath = createUpdateAnimePathMutation();
+	const updateProfile = createUpdateAnimeProfileMutation();
 	const _mapEpisode = createMapEpisodeMutation();
 
 	const [renameDialogOpen, setRenameDialogOpen] = createSignal(false);
 	const [editPathOpen, setEditPathOpen] = createSignal(false);
+	const [editProfileOpen, setEditProfileOpen] = createSignal(false);
 	const [searchModalState, setSearchModalState] = createSignal<{
 		open: boolean;
 		episodeNumber: number;
@@ -541,9 +554,17 @@ function AnimeDetailsPage() {
 										</CardContent>
 									</Card>
 									<Card>
-										<CardContent class="p-4 text-center">
+										<CardContent class="p-4 text-center group relative">
 											<Badge variant="secondary">{anime().profile_name}</Badge>
 											<p class="text-xs text-muted-foreground mt-1">Profile</p>
+											<Button
+												variant="ghost"
+												size="icon"
+												class="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+												onClick={() => setEditProfileOpen(true)}
+											>
+												<IconPencil class="h-3 w-3" />
+											</Button>
 										</CardContent>
 									</Card>
 								</div>
@@ -926,7 +947,102 @@ function AnimeDetailsPage() {
 				animeId={animeId()}
 				updateMutation={updatePath}
 			/>
+
+			<EditProfileDialog
+				open={editProfileOpen()}
+				onOpenChange={setEditProfileOpen}
+				currentProfile={animeQuery.data?.profile_name || ""}
+				animeId={animeId()}
+				updateMutation={updateProfile}
+				profiles={profilesQuery.data || []}
+			/>
 		</div>
+	);
+}
+
+function EditProfileDialog(props: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	currentProfile: string;
+	animeId: number;
+	// biome-ignore lint/suspicious/noExplicitAny: mutation type inferred
+	updateMutation: any;
+	// biome-ignore lint/suspicious/noExplicitAny: profile type imported
+	profiles: any[];
+}) {
+	const [profile, setProfile] = createSignal(props.currentProfile);
+
+	createSignal(() => {
+		if (props.open && props.currentProfile) setProfile(props.currentProfile);
+	});
+
+	const handleSubmit = (e: Event) => {
+		e.preventDefault();
+		props.updateMutation.mutate(
+			{ id: props.animeId, profileName: profile() },
+			{
+				onSuccess: () => {
+					props.onOpenChange(false);
+					toast.success("Profile updated successfully");
+				},
+				onError: (err: Error) => {
+					toast.error(`Failed to update profile: ${err.message}`);
+				},
+			},
+		);
+	};
+
+	return (
+		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Edit Quality Profile</DialogTitle>
+					<DialogDescription>
+						Change the quality profile for this anime.
+					</DialogDescription>
+				</DialogHeader>
+				<form onSubmit={handleSubmit} class="space-y-4">
+					<div class="space-y-2">
+						<label
+							class="text-sm font-medium leading-none"
+							for="profile-select"
+						>
+							Profile
+						</label>
+						<Select
+							value={profile()}
+							onChange={(val) => val && setProfile(val)}
+							options={props.profiles.map((p) => p.name)}
+							placeholder="Select profile..."
+							itemComponent={(props) => (
+								<SelectItem item={props.item}>
+									{props.item.rawValue}
+								</SelectItem>
+							)}
+						>
+							<SelectTrigger class="w-full">
+								<SelectValue<string>>
+									{(state) => state.selectedOption()}
+								</SelectValue>
+							</SelectTrigger>
+							<SelectContent />
+						</Select>
+					</div>
+					<DialogFooter>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => props.onOpenChange(false)}
+						>
+							Cancel
+						</Button>
+						<Button type="submit" disabled={props.updateMutation.isPending}>
+							{props.updateMutation.isPending ? "Saving..." : "Save Changes"}
+						</Button>
+					</DialogFooter>
+				</form>
+			</DialogContent>
+		</Dialog>
 	);
 }
 

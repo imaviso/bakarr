@@ -438,6 +438,26 @@ export function createUpdateAnimePathMutation() {
 	}));
 }
 
+export function createUpdateAnimeProfileMutation() {
+	const queryClient = useQueryClient();
+	return useMutation(() => ({
+		mutationFn: ({
+			id,
+			profileName,
+		}: {
+			id: number;
+			profileName: string;
+		}) =>
+			fetchApi(`${API_BASE}/anime/${id}/profile`, {
+				method: "PUT",
+				body: JSON.stringify({ profile_name: profileName }),
+			}),
+		onSuccess: (_, { id }) => {
+			queryClient.invalidateQueries({ queryKey: ["anime", id] });
+		},
+	}));
+}
+
 export function createRefreshEpisodesMutation() {
 	const queryClient = useQueryClient();
 	return useMutation(() => ({
@@ -780,6 +800,18 @@ export function profilesQueryOptions() {
 
 export function createProfilesQuery() {
 	return useQuery(profilesQueryOptions);
+}
+
+export function qualitiesQueryOptions() {
+	return queryOptions({
+		queryKey: ["profiles", "qualities"],
+		queryFn: () => fetchApi<Quality[]>(`${API_BASE}/profiles/qualities`),
+		staleTime: Infinity,
+	});
+}
+
+export function createQualitiesQuery() {
+	return useQuery(qualitiesQueryOptions);
 }
 
 export function systemConfigQueryOptions() {

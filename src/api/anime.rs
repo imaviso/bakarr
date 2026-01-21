@@ -420,6 +420,39 @@ pub async fn remove_anime(
 }
 
 #[derive(Deserialize)]
+pub struct UpdateProfileRequest {
+    pub profile_name: String,
+}
+
+pub async fn update_anime_profile(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i32>,
+    Json(payload): Json<UpdateProfileRequest>,
+) -> Result<Json<ApiResponse<()>>, ApiError> {
+    validate_anime_id(id)?;
+
+    if state.store().get_anime(id).await?.is_none() {
+        return Err(ApiError::anime_not_found(id));
+    }
+
+    let profile = state
+        .store()
+        .get_quality_profile_by_name(&payload.profile_name)
+        .await?
+        .ok_or_else(|| {
+            ApiError::validation(format!("Profile not found: {}", payload.profile_name))
+        })?;
+
+    state
+        .store()
+        .update_anime_quality_profile(id, profile.id)
+        .await?;
+
+    Ok(Json(ApiResponse::success(())))
+}
+
+
+#[derive(Deserialize)]
 pub struct MonitorToggleRequest {
     pub monitored: bool,
 }

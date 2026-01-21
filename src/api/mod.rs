@@ -191,6 +191,7 @@ pub async fn router(state: Arc<AppState>) -> Router {
         .route("/anime/{id}", delete(anime::remove_anime))
         .route("/anime/{id}/monitor", post(anime::toggle_monitor))
         .route("/anime/{id}/path", put(anime::update_anime_path))
+        .route("/anime/{id}/profile", put(anime::update_anime_profile))
         .route(
             "/anime/{id}/rename-preview",
             get(rename::get_rename_preview),
@@ -225,6 +226,7 @@ pub async fn router(state: Arc<AppState>) -> Router {
         .route("/downloads/search-missing", post(downloads::search_missing))
         .route("/calendar", get(calendar::get_calendar))
         .route("/profiles", get(profiles::list_profiles))
+        .route("/profiles/qualities", get(profiles::list_qualities))
         .route("/profiles/{name}", get(profiles::get_profile))
         .route("/profiles", post(profiles::create_profile))
         .route("/profiles/{name}", put(profiles::update_profile))
