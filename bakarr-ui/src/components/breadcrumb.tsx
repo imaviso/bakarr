@@ -5,7 +5,7 @@ export function Breadcrumb() {
 	const location = useLocation();
 
 	return (
-		<nav class="flex items-center gap-2">
+		<nav class="hidden md:flex items-center gap-2">
 			<Show when={location().pathname === "/"}>
 				<span class="text-sm font-medium">Dashboard</span>
 			</Show>

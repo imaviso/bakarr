@@ -136,6 +136,14 @@
     @apply ml-[-50px] mt-[-4px];
     content: counter(step);
   }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 @media (max-width: 640px) {

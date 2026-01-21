@@ -99,101 +99,103 @@ export function AnimeCalendar() {
 
 			<Show when={!calendarQuery.isLoading}>
 				{/* Calendar Grid */}
-				<Card class="overflow-hidden border-border/50">
-					{/* Weekday Headers */}
-					<div class="grid grid-cols-7 border-b border-border/50 bg-muted/30">
-						<For each={weekdays}>
-							{(day) => (
-								<div class="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
-									{day}
-								</div>
-							)}
-						</For>
-					</div>
+				<Card class="overflow-x-auto border-border/50">
+					<div class="min-w-[800px]">
+						{/* Weekday Headers */}
+						<div class="grid grid-cols-7 border-b border-border/50 bg-muted/30">
+							<For each={weekdays}>
+								{(day) => (
+									<div class="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
+										{day}
+									</div>
+								)}
+							</For>
+						</div>
 
-					{/* Days Grid */}
-					<div class="grid grid-cols-7">
-						<For each={days()}>
-							{(day) => {
-								const dayEvents = getEventsForDay(day);
-								const isCurrentMonth = isSameMonth(day, currentDate());
-								const isCurrentDay = isToday(day);
+						{/* Days Grid */}
+						<div class="grid grid-cols-7">
+							<For each={days()}>
+								{(day) => {
+									const dayEvents = getEventsForDay(day);
+									const isCurrentMonth = isSameMonth(day, currentDate());
+									const isCurrentDay = isToday(day);
 
-								return (
-									<div
-										class={cn(
-											"min-h-[120px] border-r border-b border-border/30 p-1.5 transition-colors",
-											"last:border-r-0 [&:nth-child(7n)]:border-r-0",
-											!isCurrentMonth && "bg-muted/20 opacity-50",
-											isCurrentDay && "bg-primary/5",
-										)}
-									>
-										{/* Day Number */}
-										<div class="flex items-center justify-between mb-1">
-											<span
-												class={cn(
-													"text-sm font-medium",
-													isCurrentDay &&
-														"bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center",
-													!isCurrentMonth && "text-muted-foreground",
-												)}
-											>
-												{format(day, "d")}
-											</span>
-										</div>
+									return (
+										<div
+											class={cn(
+												"min-h-[120px] border-r border-b border-border/30 p-1.5 transition-colors",
+												"last:border-r-0 [&:nth-child(7n)]:border-r-0",
+												!isCurrentMonth && "bg-muted/20 opacity-50",
+												isCurrentDay && "bg-primary/5",
+											)}
+										>
+											{/* Day Number */}
+											<div class="flex items-center justify-between mb-1">
+												<span
+													class={cn(
+														"text-sm font-medium",
+														isCurrentDay &&
+															"bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center",
+														!isCurrentMonth && "text-muted-foreground",
+													)}
+												>
+													{format(day, "d")}
+												</span>
+											</div>
 
-										{/* Events */}
-										<div class="space-y-1">
-											<For each={dayEvents.slice(0, 3)}>
-												{(event) => (
-													<Link
-														to="/anime/$id"
-														params={{
-															id: event.extended_props.anime_id.toString(),
-														}}
-														class="block group"
-													>
-														<div
-															class={cn(
-																"flex items-center gap-1.5 rounded px-1.5 py-1 text-xs transition-all",
-																"hover:bg-accent/80 cursor-pointer",
-																event.extended_props.downloaded
-																	? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-																	: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-															)}
+											{/* Events */}
+											<div class="space-y-1">
+												<For each={dayEvents.slice(0, 3)}>
+													{(event) => (
+														<Link
+															to="/anime/$id"
+															params={{
+																id: event.extended_props.anime_id.toString(),
+															}}
+															class="block group"
 														>
-															<div class="flex-1 min-w-0">
-																<div class="flex items-center gap-1">
-																	<Show
-																		when={event.extended_props.downloaded}
-																		fallback={
-																			<IconCircle class="h-3 w-3 flex-shrink-0" />
-																		}
-																	>
-																		<IconCheck class="h-3 w-3 flex-shrink-0" />
-																	</Show>
-																	<span class="truncate font-medium">
-																		{event.extended_props.anime_title}
+															<div
+																class={cn(
+																	"flex items-center gap-1.5 rounded px-1.5 py-1 text-xs transition-all",
+																	"hover:bg-accent/80 cursor-pointer",
+																	event.extended_props.downloaded
+																		? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+																		: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+																)}
+															>
+																<div class="flex-1 min-w-0">
+																	<div class="flex items-center gap-1">
+																		<Show
+																			when={event.extended_props.downloaded}
+																			fallback={
+																				<IconCircle class="h-3 w-3 flex-shrink-0" />
+																			}
+																		>
+																			<IconCheck class="h-3 w-3 flex-shrink-0" />
+																		</Show>
+																		<span class="truncate font-medium">
+																			{event.extended_props.anime_title}
+																		</span>
+																	</div>
+																	<span class="text-[10px] opacity-70 truncate block">
+																		Ep {event.extended_props.episode_number}
 																	</span>
 																</div>
-																<span class="text-[10px] opacity-70 truncate block">
-																	Ep {event.extended_props.episode_number}
-																</span>
 															</div>
-														</div>
-													</Link>
-												)}
-											</For>
-											<Show when={dayEvents.length > 3}>
-												<div class="text-[10px] text-muted-foreground px-1.5">
-													+{dayEvents.length - 3} more
-												</div>
-											</Show>
+														</Link>
+													)}
+												</For>
+												<Show when={dayEvents.length > 3}>
+													<div class="text-[10px] text-muted-foreground px-1.5">
+														+{dayEvents.length - 3} more
+													</div>
+												</Show>
+											</div>
 										</div>
-									</div>
-								);
-							}}
-						</For>
+									);
+								}}
+							</For>
+						</div>
 					</div>
 				</Card>
 			</Show>

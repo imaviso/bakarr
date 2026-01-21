@@ -112,7 +112,7 @@ function AnimeIndexPage() {
 
 	return (
 		<div class="space-y-6 p-6">
-			<div class="flex items-center gap-3">
+			<div class="flex flex-col sm:flex-row gap-3">
 				{/* Search and Filter */}
 				<div class="relative flex-1">
 					<IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -123,125 +123,136 @@ function AnimeIndexPage() {
 						class="pl-9"
 					/>
 				</div>
-				<DropdownMenu>
-					<Tooltip>
-						<TooltipTrigger>
-							<DropdownMenuTrigger
-								// biome-ignore lint/suspicious/noExplicitAny: props type from library
-								as={(props: any) => (
-									<Button {...props} variant="outline" size="icon">
-										<IconFilter class="h-4 w-4" />
+
+				<div class="flex items-center justify-between sm:justify-end gap-2">
+					<div class="flex items-center gap-2">
+						<DropdownMenu>
+							<Tooltip>
+								<TooltipTrigger>
+									<DropdownMenuTrigger
+										// biome-ignore lint/suspicious/noExplicitAny: props type from library
+										as={(props: any) => (
+											<Button {...props} variant="outline" size="icon">
+												<IconFilter class="h-4 w-4" />
+											</Button>
+										)}
+									/>
+								</TooltipTrigger>
+								<TooltipContent>Filter by status</TooltipContent>
+							</Tooltip>
+							<DropdownMenuContent>
+								<DropdownMenuItem onSelect={() => setMonitorFilter("all")}>
+									<Show when={monitorFilter() === "all"}>
+										<IconCheck class="mr-2 h-4 w-4" />
+									</Show>
+									<span class={monitorFilter() !== "all" ? "ml-6" : ""}>
+										All Anime
+									</span>
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onSelect={() => setMonitorFilter("monitored")}
+								>
+									<Show when={monitorFilter() === "monitored"}>
+										<IconCheck class="mr-2 h-4 w-4" />
+									</Show>
+									<span class={monitorFilter() !== "monitored" ? "ml-6" : ""}>
+										Monitored
+									</span>
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onSelect={() => setMonitorFilter("unmonitored")}
+								>
+									<Show when={monitorFilter() === "unmonitored"}>
+										<IconCheck class="mr-2 h-4 w-4" />
+									</Show>
+									<span class={monitorFilter() !== "unmonitored" ? "ml-6" : ""}>
+										Unmonitored
+									</span>
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+
+						{/* Actions */}
+						<div class="flex items-center gap-1">
+							<Tooltip>
+								<TooltipTrigger>
+									<Link to="/anime/import">
+										<Button variant="outline" size="icon">
+											<IconFolderOpen class="h-4 w-4" />
+										</Button>
+									</Link>
+								</TooltipTrigger>
+								<TooltipContent>Import from folder</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger>
+									<Link to="/anime/scan">
+										<Button variant="outline" size="icon">
+											<IconFolder class="h-4 w-4" />
+										</Button>
+									</Link>
+								</TooltipTrigger>
+								<TooltipContent>Scan Library</TooltipContent>
+							</Tooltip>
+						</div>
+					</div>
+
+					<div class="flex items-center gap-2">
+						<div class="h-6 w-px bg-border mx-1 hidden sm:block" />
+
+						<div class="hidden sm:flex items-center gap-1 bg-muted/50 p-1 rounded-md">
+							<Tooltip>
+								<TooltipTrigger>
+									<Button
+										variant="ghost"
+										size="icon"
+										class={`h-7 w-7 ${
+											viewMode() === "grid"
+												? "bg-background shadow-sm"
+												: "hover:bg-background/50"
+										}`}
+										onClick={() => setViewMode("grid")}
+									>
+										<IconGridDots class="h-4 w-4" />
 									</Button>
-								)}
-							/>
-						</TooltipTrigger>
-						<TooltipContent>Filter by status</TooltipContent>
-					</Tooltip>
-					<DropdownMenuContent>
-						<DropdownMenuItem onSelect={() => setMonitorFilter("all")}>
-							<Show when={monitorFilter() === "all"}>
-								<IconCheck class="mr-2 h-4 w-4" />
-							</Show>
-							<span class={monitorFilter() !== "all" ? "ml-6" : ""}>
-								All Anime
-							</span>
-						</DropdownMenuItem>
-						<DropdownMenuItem onSelect={() => setMonitorFilter("monitored")}>
-							<Show when={monitorFilter() === "monitored"}>
-								<IconCheck class="mr-2 h-4 w-4" />
-							</Show>
-							<span class={monitorFilter() !== "monitored" ? "ml-6" : ""}>
-								Monitored
-							</span>
-						</DropdownMenuItem>
-						<DropdownMenuItem onSelect={() => setMonitorFilter("unmonitored")}>
-							<Show when={monitorFilter() === "unmonitored"}>
-								<IconCheck class="mr-2 h-4 w-4" />
-							</Show>
-							<span class={monitorFilter() !== "unmonitored" ? "ml-6" : ""}>
-								Unmonitored
-							</span>
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
+								</TooltipTrigger>
+								<TooltipContent>Grid view</TooltipContent>
+							</Tooltip>
+							<Tooltip>
+								<TooltipTrigger>
+									<Button
+										variant="ghost"
+										size="icon"
+										class={`h-7 w-7 ${
+											viewMode() === "list"
+												? "bg-background shadow-sm"
+												: "hover:bg-background/50"
+										}`}
+										onClick={() => setViewMode("list")}
+									>
+										<IconList class="h-4 w-4" />
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent>List view</TooltipContent>
+							</Tooltip>
+						</div>
 
-				{/* Actions */}
-				<div class="flex items-center gap-1">
-					<Tooltip>
-						<TooltipTrigger>
-							<Link to="/anime/import">
-								<Button variant="outline" size="icon">
-									<IconFolderOpen class="h-4 w-4" />
-								</Button>
-							</Link>
-						</TooltipTrigger>
-						<TooltipContent>Import from folder</TooltipContent>
-					</Tooltip>
-					<Tooltip>
-						<TooltipTrigger>
-							<Link to="/anime/scan">
-								<Button variant="outline" size="icon">
-									<IconFolder class="h-4 w-4" />
-								</Button>
-							</Link>
-						</TooltipTrigger>
-						<TooltipContent>Scan Library</TooltipContent>
-					</Tooltip>
+						<Tooltip>
+							<TooltipTrigger>
+								<Link to="/anime/add">
+									<Button size="icon" class="md:hidden">
+										<IconPlus class="h-4 w-4" />
+									</Button>
+									<Button class="hidden md:flex">
+										<IconPlus class="mr-2 h-4 w-4" />
+										Add Anime
+									</Button>
+								</Link>
+							</TooltipTrigger>
+							<TooltipContent>Add new anime</TooltipContent>
+						</Tooltip>
+					</div>
 				</div>
-
-				<div class="h-6 w-px bg-border mx-1 hidden sm:block" />
-
-				<div class="hidden sm:flex items-center gap-1 bg-muted/50 p-1 rounded-md">
-					<Tooltip>
-						<TooltipTrigger>
-							<Button
-								variant="ghost"
-								size="icon"
-								class={`h-7 w-7 ${
-									viewMode() === "grid"
-										? "bg-background shadow-sm"
-										: "hover:bg-background/50"
-								}`}
-								onClick={() => setViewMode("grid")}
-							>
-								<IconGridDots class="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Grid view</TooltipContent>
-					</Tooltip>
-					<Tooltip>
-						<TooltipTrigger>
-							<Button
-								variant="ghost"
-								size="icon"
-								class={`h-7 w-7 ${
-									viewMode() === "list"
-										? "bg-background shadow-sm"
-										: "hover:bg-background/50"
-								}`}
-								onClick={() => setViewMode("list")}
-							>
-								<IconList class="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>List view</TooltipContent>
-					</Tooltip>
-				</div>
-
-				<Tooltip>
-					<TooltipTrigger>
-						<Link to="/anime/add">
-							<Button size="icon" class="md:hidden">
-								<IconPlus class="h-4 w-4" />
-							</Button>
-							<Button class="hidden md:flex">
-								<IconPlus class="mr-2 h-4 w-4" />
-								Add Anime
-							</Button>
-						</Link>
-					</TooltipTrigger>
-					<TooltipContent>Add new anime</TooltipContent>
-				</Tooltip>
 			</div>
 
 			<Show when={!animeQuery.isLoading} fallback={<AnimeListSkeleton />}>

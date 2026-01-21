@@ -605,7 +605,7 @@ function AnimeDetailsPage() {
 											</TabsContent>
 
 											<TabsContent value="table">
-												<div class="border rounded-md">
+												<div class="border rounded-md overflow-x-auto">
 													<Table>
 														<TableHeader>
 															<TableRow>
