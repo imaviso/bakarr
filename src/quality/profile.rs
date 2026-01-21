@@ -13,6 +13,7 @@ pub struct QualityProfile {
 
     pub seadex_preferred: bool,
 
+    /// Ordered list of allowed quality IDs. Index 0 is most preferred.
     pub allowed_qualities: Vec<i32>,
 }
 
@@ -34,15 +35,23 @@ impl QualityProfile {
         self.allowed_qualities.contains(&quality.id)
     }
 
+    /// Returns the rank of the quality within this profile (0 is best).
+    /// Returns None if quality is not allowed.
+    pub fn get_quality_rank(&self, quality: &Quality) -> Option<usize> {
+        self.allowed_qualities
+            .iter()
+            .position(|&id| id == quality.id)
+    }
+
     pub fn should_download(
         &self,
         release_quality: &Quality,
         is_seadex: bool,
         current: Option<&EpisodeQualityInfo>,
     ) -> DownloadDecision {
-        if !self.is_quality_allowed(release_quality) {
+        let Some(release_rank) = self.get_quality_rank(release_quality) else {
             return DownloadDecision::Reject(RejectReason::QualityNotAllowed);
-        }
+        };
 
         let Some(current) = current else {
             return DownloadDecision::Accept;
@@ -52,26 +61,67 @@ impl QualityProfile {
             return DownloadDecision::Reject(RejectReason::UpgradesDisabled);
         }
 
+        // Get cutoff rank. If cutoff quality is not in the list, assume it's met (safeguard).
+        // Or should we assume if cutoff is not allowed, we can never meet it?
+        // Logic: Cutoff defines the point where we stop upgrading.
+        // If the cutoff quality is in the list, we find its index.
+        // Any quality with index <= cutoff_index is considered "meeting cutoff".
+        let cutoff_rank = self.get_quality_rank(&self.cutoff);
+
+        let current_rank_opt = self.get_quality_rank(&current.quality);
+
+        // Calculate if current meets cutoff
+        let current_meets_cutoff = match (current_rank_opt, cutoff_rank) {
+            (Some(curr), Some(cut)) => curr <= cut,
+            (Some(_), None) => false, // Cutoff not in profile, can't meet it? Or always meet?
+            (None, _) => false, // Current quality not in profile (e.g. unknown), assume not meeting cutoff
+        };
+
         if self.seadex_preferred && is_seadex && !current.is_seadex {
             return DownloadDecision::Upgrade(UpgradeReason::SeaDexRelease);
         }
 
-        if current.quality.meets_cutoff(&self.cutoff) && current.is_seadex {
-            if is_seadex && release_quality.is_better_than(&current.quality) {
-                return DownloadDecision::Upgrade(UpgradeReason::BetterQuality);
+        if current_meets_cutoff && current.is_seadex {
+            if is_seadex {
+                // Both are seadex, check quality
+                match current_rank_opt {
+                    Some(curr) => {
+                        if release_rank < curr {
+                            return DownloadDecision::Upgrade(UpgradeReason::BetterQuality);
+                        }
+                    }
+                    None => {
+                        // Current is unknown/unwanted, release is wanted -> Upgrade
+                        return DownloadDecision::Upgrade(UpgradeReason::BetterQuality);
+                    }
+                }
             }
             return DownloadDecision::Reject(RejectReason::AlreadyAtCutoff);
         }
 
-        if current.quality.meets_cutoff(&self.cutoff) {
+        if current_meets_cutoff {
             if self.seadex_preferred && is_seadex {
                 return DownloadDecision::Upgrade(UpgradeReason::SeaDexRelease);
             }
+            // Even if we met cutoff, if we found a better quality allowed above cutoff, should we upgrade?
+            // Usually cutoff means "stop upgrading".
+            // Sonarr logic: Cutoff is the target. Once met, stop.
+            // UNLESS it's a "Proper" or "Real" (which we don't handle yet)
             return DownloadDecision::Reject(RejectReason::AlreadyAtCutoff);
         }
 
-        if release_quality.is_better_than(&current.quality) {
-            return DownloadDecision::Upgrade(UpgradeReason::BetterQuality);
+        // Current doesn't meet cutoff. Check if new release is an improvement.
+        match current_rank_opt {
+            Some(curr) => {
+                if release_rank < curr {
+                    return DownloadDecision::Upgrade(UpgradeReason::BetterQuality);
+                }
+            }
+            None => {
+                // Current file has a quality not in our profile.
+                // The new file IS in our profile. That's an upgrade.
+                return DownloadDecision::Upgrade(UpgradeReason::BetterQuality);
+            }
         }
 
         DownloadDecision::Reject(RejectReason::NoImprovement)
@@ -145,24 +195,33 @@ mod tests {
     use crate::quality::definition::*;
 
     fn default_profile() -> QualityProfile {
-        QualityProfile::default_profile()
+        QualityProfile {
+            id: 1,
+            name: "Default".to_string(),
+            cutoff: QUALITY_BLURAY_1080P.clone(),
+            upgrade_allowed: true,
+            seadex_preferred: true,
+            // Order: BluRay 1080p (3) > WEB-DL 1080p (4) > WEB-DL 720p (6)
+            allowed_qualities: vec![3, 4, 6],
+        }
     }
 
     #[test]
     fn test_accept_new_download() {
         let profile = default_profile();
-        let quality = QUALITY_WEB_1080P.clone();
+        let quality = QUALITY_WEB_DL_1080P.clone();
 
         let decision = profile.should_download(&quality, false, None);
         assert_eq!(decision, DownloadDecision::Accept);
     }
 
     #[test]
-    fn test_upgrade_better_quality() {
+    fn test_upgrade_better_quality_by_order() {
         let profile = default_profile();
+        // Profile order: BD 1080p > WEB 1080p
         let new_quality = QUALITY_BLURAY_1080P.clone();
         let current = EpisodeQualityInfo {
-            quality: QUALITY_WEB_1080P.clone(),
+            quality: QUALITY_WEB_DL_1080P.clone(),
             is_seadex: false,
         };
 
@@ -174,11 +233,30 @@ mod tests {
     }
 
     #[test]
+    fn test_reject_worse_quality_by_order() {
+        let profile = default_profile();
+        // Profile order: BD 1080p > WEB 1080p
+        let new_quality = QUALITY_WEB_DL_1080P.clone();
+        let current = EpisodeQualityInfo {
+            quality: QUALITY_BLURAY_1080P.clone(),
+            is_seadex: false,
+        };
+
+        let decision = profile.should_download(&new_quality, false, Some(&current));
+        // Current is BD (rank 0), New is WEB (rank 1).
+        // Current meets cutoff (BD <= BD).
+        assert_eq!(
+            decision,
+            DownloadDecision::Reject(RejectReason::AlreadyAtCutoff)
+        );
+    }
+
+    #[test]
     fn test_upgrade_seadex() {
         let profile = default_profile();
-        let quality = QUALITY_WEB_1080P.clone();
+        let quality = QUALITY_WEB_DL_1080P.clone();
         let current = EpisodeQualityInfo {
-            quality: QUALITY_WEB_1080P.clone(),
+            quality: QUALITY_WEB_DL_1080P.clone(),
             is_seadex: false,
         };
 
@@ -192,7 +270,8 @@ mod tests {
     #[test]
     fn test_reject_at_cutoff() {
         let profile = default_profile();
-        let quality = QUALITY_WEB_1080P.clone();
+        // Cutoff is BD 1080p (index 0)
+        let quality = QUALITY_WEB_DL_1080P.clone();
         let current = EpisodeQualityInfo {
             quality: QUALITY_BLURAY_1080P.clone(),
             is_seadex: true,
@@ -208,9 +287,9 @@ mod tests {
     #[test]
     fn test_reject_quality_not_allowed() {
         let mut profile = default_profile();
-        profile.allowed_qualities = vec![3, 4];
+        profile.allowed_qualities = vec![3]; // Only BD 1080p
 
-        let quality = QUALITY_WEB_720P.clone();
+        let quality = QUALITY_WEB_DL_1080P.clone();
         let decision = profile.should_download(&quality, false, None);
 
         assert_eq!(
@@ -222,9 +301,9 @@ mod tests {
     #[test]
     fn test_no_improvement() {
         let profile = default_profile();
-        let quality = QUALITY_WEB_720P.clone();
+        let quality = QUALITY_WEB_DL_720P.clone();
         let current = EpisodeQualityInfo {
-            quality: QUALITY_WEB_1080P.clone(),
+            quality: QUALITY_WEB_DL_1080P.clone(),
             is_seadex: false,
         };
 

@@ -8,6 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub quality_id: i32,
     pub allowed: bool,
+    pub sort_index: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -3,9 +3,26 @@ use axum::{
     extract::{Path, State},
 };
 use std::sync::Arc;
+use tracing::error;
 
-use super::{ApiError, ApiResponse, AppState, ProfileDto};
+use super::{ApiError, ApiResponse, AppState, ProfileDto, QualityDto};
 use crate::api::validation::validate_profile_name;
+
+pub async fn list_qualities() -> Result<Json<ApiResponse<Vec<QualityDto>>>, ApiError> {
+    let qualities = crate::quality::QUALITIES
+        .iter()
+        .filter(|q| q.id != 99) // Exclude Unknown
+        .map(|q| QualityDto {
+            id: q.id,
+            name: q.name.clone(),
+            source: q.source.as_str().to_string(),
+            resolution: q.resolution,
+            rank: q.rank,
+        })
+        .collect();
+
+    Ok(Json(ApiResponse::success(qualities)))
+}
 
 pub async fn list_profiles(
     State(state): State<Arc<AppState>>,
@@ -79,6 +96,10 @@ pub async fn create_profile(
         .add_profile(profile)
         .map_err(|e| ApiError::Conflict(e.to_string()))?;
 
+    if let Err(e) = state.shared.store.sync_profiles(&config.profiles).await {
+        error!("Failed to sync profiles to DB: {}", e);
+    }
+
     Ok(Json(ApiResponse::success(payload)))
 }
 
@@ -112,6 +133,10 @@ pub async fn update_profile(
     config
         .update_profile(&name, profile)
         .map_err(|e| ApiError::internal(e.to_string()))?;
+
+    if let Err(e) = state.shared.store.sync_profiles(&config.profiles).await {
+        error!("Failed to sync profiles to DB: {}", e);
+    }
 
     Ok(Json(ApiResponse::success(payload)))
 }

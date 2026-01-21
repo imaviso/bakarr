@@ -2,7 +2,10 @@ use crate::config::QualityProfileConfig;
 use crate::entities::{prelude::*, quality_definitions, quality_profile_items, quality_profiles};
 use crate::quality::{QUALITIES, definition::get_quality_by_name};
 use anyhow::Result;
-use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set, TransactionTrait};
+use sea_orm::{
+    ColumnTrait, ConnectionTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, Set,
+    TransactionTrait,
+};
 use tracing::info;
 
 /// Repository for quality definitions and profiles
@@ -34,7 +37,20 @@ impl QualityRepository {
     // ========================================================================
 
     pub async fn initialize(&self, config: &crate::config::Config) -> Result<()> {
-        // Insert quality definitions
+        // Ensure quality definitions exist
+        Self::ensure_definitions_exist(&self.conn).await?;
+
+        // Insert profiles from config
+        self.sync_profiles(&config.profiles).await?;
+
+        info!("Quality definitions and profiles initialized");
+        Ok(())
+    }
+
+    async fn ensure_definitions_exist<C>(conn: &C) -> Result<()>
+    where
+        C: ConnectionTrait,
+    {
         for q in QUALITIES.iter() {
             let active_model = quality_definitions::ActiveModel {
                 id: Set(q.id),
@@ -55,74 +71,9 @@ impl QualityRepository {
                         ])
                         .to_owned(),
                 )
-                .exec(&self.conn)
+                .exec(conn)
                 .await?;
         }
-
-        // Insert profiles from config
-        for profile_config in &config.profiles {
-            let cutoff_quality = get_quality_by_name(&profile_config.cutoff)
-                .or_else(|| get_quality_by_name("BluRay 1080p"))
-                .unwrap_or(QUALITIES[0].clone());
-
-            let active_profile = quality_profiles::ActiveModel {
-                name: Set(profile_config.name.clone()),
-                cutoff_quality_id: Set(cutoff_quality.id),
-                upgrade_allowed: Set(profile_config.upgrade_allowed),
-                seadex_preferred: Set(profile_config.seadex_preferred),
-                ..Default::default()
-            };
-
-            QualityProfiles::insert(active_profile)
-                .on_conflict(
-                    sea_orm::sea_query::OnConflict::column(quality_profiles::Column::Name)
-                        .update_columns([
-                            quality_profiles::Column::CutoffQualityId,
-                            quality_profiles::Column::UpgradeAllowed,
-                            quality_profiles::Column::SeadexPreferred,
-                        ])
-                        .to_owned(),
-                )
-                .exec(&self.conn)
-                .await?;
-
-            let profile_model = QualityProfiles::find()
-                .filter(quality_profiles::Column::Name.eq(&profile_config.name))
-                .one(&self.conn)
-                .await?
-                .ok_or_else(|| anyhow::anyhow!("Failed to save profile"))?;
-
-            let profile_id = profile_model.id;
-
-            QualityProfileItems::delete_many()
-                .filter(quality_profile_items::Column::ProfileId.eq(profile_id))
-                .exec(&self.conn)
-                .await?;
-
-            let parsed_allowed: Vec<i32> = profile_config
-                .allowed_qualities
-                .iter()
-                .filter_map(|name| get_quality_by_name(name))
-                .map(|q| q.id)
-                .collect();
-
-            if !parsed_allowed.is_empty() {
-                let items: Vec<quality_profile_items::ActiveModel> = parsed_allowed
-                    .into_iter()
-                    .map(|qid| quality_profile_items::ActiveModel {
-                        profile_id: Set(profile_id),
-                        quality_id: Set(qid),
-                        allowed: Set(true),
-                    })
-                    .collect();
-
-                QualityProfileItems::insert_many(items)
-                    .exec(&self.conn)
-                    .await?;
-            }
-        }
-
-        info!("Quality definitions and profiles initialized");
         Ok(())
     }
 
@@ -147,6 +98,7 @@ impl QualityRepository {
         let rows = QualityProfileItems::find()
             .filter(quality_profile_items::Column::ProfileId.eq(profile_id))
             .filter(quality_profile_items::Column::Allowed.eq(true))
+            .order_by_asc(quality_profile_items::Column::SortIndex)
             .all(&self.conn)
             .await?;
 
@@ -155,6 +107,9 @@ impl QualityRepository {
 
     pub async fn sync_profiles(&self, profiles: &[QualityProfileConfig]) -> Result<()> {
         let txn = self.conn.begin().await?;
+
+        // Ensure definitions exist to prevent FK errors
+        Self::ensure_definitions_exist(&txn).await?;
 
         for profile in profiles {
             let cutoff_id = match get_quality_by_name(&profile.cutoff) {
@@ -206,12 +161,13 @@ impl QualityRepository {
                 .exec(&txn)
                 .await?;
 
-            for quality_name in &profile.allowed_qualities {
+            for (index, quality_name) in profile.allowed_qualities.iter().enumerate() {
                 if let Some(quality) = get_quality_by_name(quality_name) {
                     let item = quality_profile_items::ActiveModel {
                         profile_id: Set(profile_id),
                         quality_id: Set(quality.id),
                         allowed: Set(true),
+                        sort_index: Set(index as i32),
                     };
                     QualityProfileItems::insert(item).exec(&txn).await?;
                 } else {

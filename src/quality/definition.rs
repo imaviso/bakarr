@@ -2,8 +2,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum QualitySource {
+    BluRayRemux,
     BluRay,
-    Web,
+    WebDl,
+    WebRip,
     HDTV,
     DVD,
     SDTV,
@@ -13,8 +15,10 @@ pub enum QualitySource {
 impl QualitySource {
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::BluRayRemux => "Remux",
             Self::BluRay => "BluRay",
-            Self::Web => "WEB",
+            Self::WebDl => "WEB-DL",
+            Self::WebRip => "WEBRip",
             Self::HDTV => "HDTV",
             Self::DVD => "DVD",
             Self::SDTV => "SDTV",
@@ -24,11 +28,13 @@ impl QualitySource {
 
     pub fn rank_bonus(&self) -> i32 {
         match self {
+            Self::BluRayRemux => -1, // Better than standard BluRay
             Self::BluRay => 0,
-            Self::Web => 1,
-            Self::HDTV => 2,
-            Self::DVD => 3,
-            Self::SDTV => 4,
+            Self::WebDl => 1,
+            Self::WebRip => 2,
+            Self::HDTV => 3,
+            Self::DVD => 4,
+            Self::SDTV => 5,
             Self::Unknown => 10,
         }
     }
@@ -121,20 +127,44 @@ impl std::fmt::Display for Quality {
 }
 
 lazy_static::lazy_static! {
+    pub static ref QUALITY_BLURAY_2160P_REMUX: Quality = Quality {
+        id: 11,
+        name: "BluRay 2160p Remux".to_string(),
+        source: QualitySource::BluRayRemux,
+        resolution: 2160,
+        rank: 1,
+    };
+
     pub static ref QUALITY_BLURAY_2160P: Quality = Quality {
         id: 1,
         name: "BluRay 2160p".to_string(),
         source: QualitySource::BluRay,
         resolution: 2160,
-        rank: 1,
+        rank: 2,
     };
 
-    pub static ref QUALITY_WEB_2160P: Quality = Quality {
+    pub static ref QUALITY_WEB_DL_2160P: Quality = Quality {
         id: 2,
-        name: "WEB 2160p".to_string(),
-        source: QualitySource::Web,
+        name: "WEB-DL 2160p".to_string(),
+        source: QualitySource::WebDl,
         resolution: 2160,
-        rank: 2,
+        rank: 3,
+    };
+
+    pub static ref QUALITY_WEB_RIP_2160P: Quality = Quality {
+        id: 13,
+        name: "WEBRip 2160p".to_string(),
+        source: QualitySource::WebRip,
+        resolution: 2160,
+        rank: 4,
+    };
+
+    pub static ref QUALITY_BLURAY_1080P_REMUX: Quality = Quality {
+        id: 12,
+        name: "BluRay 1080p Remux".to_string(),
+        source: QualitySource::BluRayRemux,
+        resolution: 1080,
+        rank: 5,
     };
 
     pub static ref QUALITY_BLURAY_1080P: Quality = Quality {
@@ -142,15 +172,23 @@ lazy_static::lazy_static! {
         name: "BluRay 1080p".to_string(),
         source: QualitySource::BluRay,
         resolution: 1080,
-        rank: 3,
+        rank: 6,
     };
 
-    pub static ref QUALITY_WEB_1080P: Quality = Quality {
+    pub static ref QUALITY_WEB_DL_1080P: Quality = Quality {
         id: 4,
-        name: "WEB 1080p".to_string(),
-        source: QualitySource::Web,
+        name: "WEB-DL 1080p".to_string(),
+        source: QualitySource::WebDl,
         resolution: 1080,
-        rank: 4,
+        rank: 7,
+    };
+
+    pub static ref QUALITY_WEB_RIP_1080P: Quality = Quality {
+        id: 14,
+        name: "WEBRip 1080p".to_string(),
+        source: QualitySource::WebRip,
+        resolution: 1080,
+        rank: 8,
     };
 
     pub static ref QUALITY_BLURAY_720P: Quality = Quality {
@@ -158,15 +196,23 @@ lazy_static::lazy_static! {
         name: "BluRay 720p".to_string(),
         source: QualitySource::BluRay,
         resolution: 720,
-        rank: 5,
+        rank: 9,
     };
 
-    pub static ref QUALITY_WEB_720P: Quality = Quality {
+    pub static ref QUALITY_WEB_DL_720P: Quality = Quality {
         id: 6,
-        name: "WEB 720p".to_string(),
-        source: QualitySource::Web,
+        name: "WEB-DL 720p".to_string(),
+        source: QualitySource::WebDl,
         resolution: 720,
-        rank: 6,
+        rank: 10,
+    };
+
+    pub static ref QUALITY_WEB_RIP_720P: Quality = Quality {
+        id: 15,
+        name: "WEBRip 720p".to_string(),
+        source: QualitySource::WebRip,
+        resolution: 720,
+        rank: 11,
     };
 
     pub static ref QUALITY_HDTV_1080P: Quality = Quality {
@@ -174,7 +220,7 @@ lazy_static::lazy_static! {
         name: "HDTV 1080p".to_string(),
         source: QualitySource::HDTV,
         resolution: 1080,
-        rank: 7,
+        rank: 12,
     };
 
     pub static ref QUALITY_HDTV_720P: Quality = Quality {
@@ -182,7 +228,7 @@ lazy_static::lazy_static! {
         name: "HDTV 720p".to_string(),
         source: QualitySource::HDTV,
         resolution: 720,
-        rank: 8,
+        rank: 13,
     };
 
     pub static ref QUALITY_DVD: Quality = Quality {
@@ -190,7 +236,7 @@ lazy_static::lazy_static! {
         name: "DVD 576p".to_string(),
         source: QualitySource::DVD,
         resolution: 576,
-        rank: 9,
+        rank: 14,
     };
 
     pub static ref QUALITY_SDTV: Quality = Quality {
@@ -198,7 +244,7 @@ lazy_static::lazy_static! {
         name: "SDTV 480p".to_string(),
         source: QualitySource::SDTV,
         resolution: 480,
-        rank: 10,
+        rank: 15,
     };
 
     pub static ref QUALITY_UNKNOWN: Quality = Quality {
@@ -211,12 +257,17 @@ lazy_static::lazy_static! {
 
 
     pub static ref QUALITIES: Vec<Quality> = vec![
+        QUALITY_BLURAY_2160P_REMUX.clone(),
         QUALITY_BLURAY_2160P.clone(),
-        QUALITY_WEB_2160P.clone(),
+        QUALITY_WEB_DL_2160P.clone(),
+        QUALITY_WEB_RIP_2160P.clone(),
+        QUALITY_BLURAY_1080P_REMUX.clone(),
         QUALITY_BLURAY_1080P.clone(),
-        QUALITY_WEB_1080P.clone(),
+        QUALITY_WEB_DL_1080P.clone(),
+        QUALITY_WEB_RIP_1080P.clone(),
         QUALITY_BLURAY_720P.clone(),
-        QUALITY_WEB_720P.clone(),
+        QUALITY_WEB_DL_720P.clone(),
+        QUALITY_WEB_RIP_720P.clone(),
         QUALITY_HDTV_1080P.clone(),
         QUALITY_HDTV_720P.clone(),
         QUALITY_DVD.clone(),
@@ -242,9 +293,10 @@ mod tests {
 
     #[test]
     fn test_quality_ranking() {
-        assert!(QUALITY_BLURAY_1080P.is_better_than(&QUALITY_WEB_1080P));
-        assert!(QUALITY_WEB_1080P.is_better_than(&QUALITY_WEB_720P));
+        assert!(QUALITY_BLURAY_1080P.is_better_than(&QUALITY_WEB_DL_1080P));
+        assert!(QUALITY_WEB_DL_1080P.is_better_than(&QUALITY_WEB_DL_720P));
         assert!(QUALITY_BLURAY_720P.is_better_than(&QUALITY_HDTV_1080P));
+        assert!(QUALITY_BLURAY_1080P_REMUX.is_better_than(&QUALITY_BLURAY_1080P));
     }
 
     #[test]
@@ -253,12 +305,12 @@ mod tests {
 
         assert!(QUALITY_BLURAY_2160P.meets_cutoff(cutoff));
         assert!(QUALITY_BLURAY_1080P.meets_cutoff(cutoff));
-        assert!(!QUALITY_WEB_1080P.meets_cutoff(cutoff));
+        assert!(!QUALITY_WEB_DL_1080P.meets_cutoff(cutoff));
     }
 
     #[test]
     fn test_from_source_resolution() {
-        let q = Quality::from_source_resolution(QualitySource::Web, 1080);
+        let q = Quality::from_source_resolution(QualitySource::WebDl, 1080);
         assert_eq!(q.id, 4);
         assert_eq!(q.resolution, 1080);
     }

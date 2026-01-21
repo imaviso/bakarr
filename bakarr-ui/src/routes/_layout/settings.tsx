@@ -1,12 +1,12 @@
 import {
 	IconAdjustments,
-	IconArrowUp,
 	IconEdit,
+	IconGripVertical,
 	IconPlus,
 	IconPower,
 	IconSettings,
-	IconStar,
 	IconTrash,
+	IconX,
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute } from "@tanstack/solid-router";
@@ -28,7 +28,6 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Checkbox } from "~/components/ui/checkbox";
 import {
 	Select,
 	SelectContent,
@@ -50,34 +49,25 @@ import {
 	createCreateProfileMutation,
 	createDeleteProfileMutation,
 	createProfilesQuery,
+	createQualitiesQuery,
 	createSystemConfigQuery,
 	createUpdateProfileMutation,
 	createUpdateSystemConfigMutation,
 	profilesQueryOptions,
 	type QualityProfile,
+	qualitiesQueryOptions,
 	systemConfigQueryOptions,
 } from "~/lib/api";
 
 export const Route = createFileRoute("/_layout/settings")({
 	loader: ({ context: { queryClient } }) => {
 		queryClient.ensureQueryData(profilesQueryOptions());
+		queryClient.ensureQueryData(qualitiesQueryOptions());
 		queryClient.ensureQueryData(systemConfigQueryOptions());
 	},
 	component: SettingsPage,
 	errorComponent: GeneralError,
 });
-
-const QUALITY_OPTIONS = [
-	"BluRay 2160p",
-	"WEB 2160p",
-	"BluRay 1080p",
-	"WEB 1080p",
-	"BluRay 720p",
-	"WEB 720p",
-	"HDTV 1080p",
-	"HDTV 720p",
-	"HDTV 480p",
-];
 
 function SettingsPage() {
 	const [activeTab, setActiveTab] = createSignal("general");
@@ -132,198 +122,318 @@ function SettingsPage() {
 
 				<TabsContent value="profiles" class="mt-0">
 					<div class="animate-in fade-in duration-500 ease-out">
-						<div class="flex justify-between items-center mb-6">
-							<div>
-								<h2 class="text-lg font-medium">Quality Profiles</h2>
-								<p class="text-sm text-muted-foreground">
-									Configure quality profiles for automatic downloads
-								</p>
-							</div>
-							<Button
-								onClick={() => setIsCreating(true)}
-								disabled={isCreating()}
-								size="sm"
-							>
-								<IconPlus class="mr-2 h-4 w-4" />
-								Add Profile
-							</Button>
-						</div>
-
-						<Show when={isCreating()}>
-							<div class="mb-6">
-								<ProfileForm
-									onCancel={() => setIsCreating(false)}
-									onSuccess={() => setIsCreating(false)}
-								/>
-							</div>
-						</Show>
-
-						<Show when={editingProfile()}>
-							<div class="mb-6">
-								<ProfileForm
-									// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
-									profile={editingProfile()!}
-									onCancel={() => setEditingProfile(null)}
-									onSuccess={() => setEditingProfile(null)}
-								/>
-							</div>
-						</Show>
-
-						<Show when={profilesQuery.isLoading}>
-							<div class="space-y-4">
-								<For each={[1, 2]}>
-									{() => <Skeleton class="h-32 rounded-lg" />}
-								</For>
-							</div>
-						</Show>
-
 						<Show
-							when={
-								!profilesQuery.isLoading && profilesQuery.data?.length === 0
+							when={!isCreating() && !editingProfile()}
+							fallback={
+								<div class="mb-6">
+									<Show when={isCreating()}>
+										<ProfileForm
+											onCancel={() => setIsCreating(false)}
+											onSuccess={() => setIsCreating(false)}
+										/>
+									</Show>
+									<Show when={editingProfile()}>
+										<ProfileForm
+											// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
+											profile={editingProfile()!}
+											onCancel={() => setEditingProfile(null)}
+											onSuccess={() => setEditingProfile(null)}
+										/>
+									</Show>
+								</div>
 							}
 						>
-							<Card class="p-12 text-center border-dashed bg-transparent">
-								<div class="flex flex-col items-center gap-4">
-									<IconAdjustments class="h-12 w-12 text-muted-foreground/50" />
-									<div>
-										<h3 class="font-medium">No quality profiles</h3>
-										<p class="text-sm text-muted-foreground mt-1">
-											Create a profile to define download quality settings
-										</p>
-									</div>
-									<Button onClick={() => setIsCreating(true)}>
-										<IconPlus class="mr-2 h-4 w-4" />
-										Create Profile
-									</Button>
+							<div class="flex justify-between items-center mb-6">
+								<div>
+									<h2 class="text-lg font-medium">Quality Profiles</h2>
+									<p class="text-sm text-muted-foreground">
+										Configure quality profiles for automatic downloads
+									</p>
 								</div>
-							</Card>
-						</Show>
+								<Button
+									onClick={() => setIsCreating(true)}
+									disabled={isCreating()}
+									size="sm"
+								>
+									<IconPlus class="mr-2 h-4 w-4" />
+									Add Profile
+								</Button>
+							</div>
 
-						<Show when={profilesQuery.data && profilesQuery.data.length > 0}>
-							<div class="grid gap-4">
-								<For each={profilesQuery.data}>
-									{(profile) => (
-										<Card class="group transition-all duration-200 hover:border-primary/50">
-											<CardHeader class="pb-3">
-												<div class="flex justify-between items-start">
-													<div class="space-y-1">
-														<CardTitle class="text-base flex items-center gap-2">
-															{profile.name}
-															<Show when={profile.seadex_preferred}>
-																<Badge
-																	variant="secondary"
-																	class="text-[10px] h-5 px-1.5 font-normal text-muted-foreground"
+							<Show when={profilesQuery.isLoading}>
+								<div class="space-y-4">
+									<For each={[1, 2]}>
+										{() => <Skeleton class="h-32 rounded-lg" />}
+									</For>
+								</div>
+							</Show>
+
+							<Show
+								when={
+									!profilesQuery.isLoading && profilesQuery.data?.length === 0
+								}
+							>
+								<Card class="p-12 text-center border-dashed bg-transparent">
+									<div class="flex flex-col items-center gap-4">
+										<IconAdjustments class="h-12 w-12 text-muted-foreground/50" />
+										<div>
+											<h3 class="font-medium">No quality profiles</h3>
+											<p class="text-sm text-muted-foreground mt-1">
+												Create a profile to define download quality settings
+											</p>
+										</div>
+										<Button onClick={() => setIsCreating(true)}>
+											<IconPlus class="mr-2 h-4 w-4" />
+											Create Profile
+										</Button>
+									</div>
+								</Card>
+							</Show>
+
+							<Show when={profilesQuery.data && profilesQuery.data.length > 0}>
+								<div class="grid gap-4">
+									<For each={profilesQuery.data}>
+										{(profile) => (
+											<Card class="group transition-all duration-200 hover:border-primary/50">
+												<CardHeader class="pb-3">
+													<div class="flex justify-between items-start">
+														<div class="space-y-1">
+															<CardTitle class="text-base flex items-center gap-2">
+																{profile.name}
+																<Show when={profile.seadex_preferred}>
+																	<Badge
+																		variant="secondary"
+																		class="text-[10px] h-5 px-1.5 font-normal text-muted-foreground"
+																	>
+																		SeaDex
+																	</Badge>
+																</Show>
+															</CardTitle>
+															<div class="text-xs text-muted-foreground">
+																Cutoff:{" "}
+																<span class="font-medium text-foreground">
+																	{profile.cutoff}
+																</span>
+															</div>
+														</div>
+														<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+															<Button
+																size="icon"
+																variant="ghost"
+																class="h-8 w-8"
+																onClick={() => setEditingProfile(profile)}
+															>
+																<IconEdit class="h-4 w-4" />
+															</Button>
+															<AlertDialog>
+																<AlertDialogTrigger
+																	as={Button}
+																	variant="ghost"
+																	size="icon"
+																	class="h-8 w-8 text-muted-foreground hover:text-destructive"
 																>
-																	SeaDex
-																</Badge>
-															</Show>
-														</CardTitle>
-														<div class="text-xs text-muted-foreground">
-															Cutoff:{" "}
-															<span class="font-medium text-foreground">
-																{profile.cutoff}
-															</span>
+																	<IconTrash class="h-4 w-4" />
+																</AlertDialogTrigger>
+																<AlertDialogContent>
+																	<AlertDialogHeader>
+																		<AlertDialogTitle>
+																			Delete Profile
+																		</AlertDialogTitle>
+																		<AlertDialogDescription>
+																			Are you sure you want to delete profile "
+																			{profile.name}"? This action cannot be
+																			undone.
+																		</AlertDialogDescription>
+																	</AlertDialogHeader>
+																	<AlertDialogFooter>
+																		<AlertDialogCancel>
+																			Cancel
+																		</AlertDialogCancel>
+																		<AlertDialogAction
+																			class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+																			onClick={() =>
+																				deleteProfile.mutate(profile.name)
+																			}
+																		>
+																			Delete
+																		</AlertDialogAction>
+																	</AlertDialogFooter>
+																</AlertDialogContent>
+															</AlertDialog>
 														</div>
 													</div>
-													<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-														<Button
-															size="icon"
-															variant="ghost"
-															class="h-8 w-8"
-															onClick={() => setEditingProfile(profile)}
-														>
-															<IconEdit class="h-4 w-4" />
-														</Button>
-														<AlertDialog>
-															<AlertDialogTrigger
-																as={Button}
-																variant="ghost"
-																size="icon"
-																class="h-8 w-8 text-muted-foreground hover:text-destructive"
-															>
-																<IconTrash class="h-4 w-4" />
-															</AlertDialogTrigger>
-															<AlertDialogContent>
-																<AlertDialogHeader>
-																	<AlertDialogTitle>
-																		Delete Profile
-																	</AlertDialogTitle>
-																	<AlertDialogDescription>
-																		Are you sure you want to delete profile "
-																		{profile.name}"? This action cannot be
-																		undone.
-																	</AlertDialogDescription>
-																</AlertDialogHeader>
-																<AlertDialogFooter>
-																	<AlertDialogCancel>Cancel</AlertDialogCancel>
-																	<AlertDialogAction
-																		class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-																		onClick={() =>
-																			deleteProfile.mutate(profile.name)
-																		}
-																	>
-																		Delete
-																	</AlertDialogAction>
-																</AlertDialogFooter>
-															</AlertDialogContent>
-														</AlertDialog>
+												</CardHeader>
+												<CardContent class="pt-0">
+													<div class="flex flex-wrap gap-1.5">
+														<For each={profile.allowed_qualities}>
+															{(q) => (
+																<Badge
+																	variant="outline"
+																	class="text-xs font-normal border-transparent bg-secondary/50 text-secondary-foreground hover:bg-secondary"
+																>
+																	{q}
+																</Badge>
+															)}
+														</For>
 													</div>
-												</div>
-											</CardHeader>
-											<CardContent class="pt-0">
-												<div class="flex flex-wrap gap-1.5">
-													<For each={profile.allowed_qualities}>
-														{(q) => (
-															<Badge
-																variant="outline"
-																class="text-xs font-normal border-transparent bg-secondary/50 text-secondary-foreground hover:bg-secondary"
+													<div class="flex gap-4 mt-4 text-sm items-center text-muted-foreground">
+														<span class="flex items-center gap-2">
+															<Switch
+																checked={profile.upgrade_allowed}
+																disabled
+																class="pointer-events-none"
+															/>
+															<span
+																class={
+																	profile.upgrade_allowed
+																		? "text-foreground"
+																		: ""
+																}
 															>
-																{q}
-															</Badge>
-														)}
-													</For>
-												</div>
-												<div class="flex gap-4 mt-4 text-sm items-center text-muted-foreground">
-													<span class="flex items-center gap-2">
-														<Switch
-															checked={profile.upgrade_allowed}
-															disabled
-															class="pointer-events-none"
-														/>
-														<span
-															class={
-																profile.upgrade_allowed ? "text-foreground" : ""
-															}
-														>
-															Upgrades
+																Upgrades
+															</span>
 														</span>
-													</span>
-													<span class="flex items-center gap-2">
-														<Switch
-															checked={profile.seadex_preferred}
-															disabled
-															class="pointer-events-none"
-														/>
-														<span
-															class={
-																profile.seadex_preferred
-																	? "text-foreground"
-																	: ""
-															}
-														>
-															SeaDex
+														<span class="flex items-center gap-2">
+															<Switch
+																checked={profile.seadex_preferred}
+																disabled
+																class="pointer-events-none"
+															/>
+															<span
+																class={
+																	profile.seadex_preferred
+																		? "text-foreground"
+																		: ""
+																}
+															>
+																SeaDex
+															</span>
 														</span>
-													</span>
-												</div>
-											</CardContent>
-										</Card>
-									)}
-								</For>
-							</div>
+													</div>
+												</CardContent>
+											</Card>
+										)}
+									</For>
+								</div>
+							</Show>
 						</Show>
 					</div>
 				</TabsContent>
 			</Tabs>
+		</div>
+	);
+}
+
+function SortableQualityList(props: {
+	value: string[];
+	onChange: (value: string[]) => void;
+	availableQualities: string[];
+}) {
+	const [draggedItem, setDraggedItem] = createSignal<string | null>(null);
+
+	const handleDragStart = (e: DragEvent, item: string) => {
+		setDraggedItem(item);
+		// biome-ignore lint/style/noNonNullAssertion: DataTransfer exists
+		e.dataTransfer!.effectAllowed = "move";
+	};
+
+	const handleDragOver = (e: DragEvent, targetItem: string) => {
+		e.preventDefault();
+		const dragged = draggedItem();
+		if (!dragged || dragged === targetItem) return;
+
+		const currentList = [...props.value];
+		const fromIndex = currentList.indexOf(dragged);
+		const toIndex = currentList.indexOf(targetItem);
+
+		if (fromIndex === -1 || toIndex === -1) return;
+
+		// Move item
+		currentList.splice(fromIndex, 1);
+		currentList.splice(toIndex, 0, dragged);
+
+		props.onChange(currentList);
+	};
+
+	const handleDragEnd = () => {
+		setDraggedItem(null);
+	};
+
+	const removeQuality = (quality: string) => {
+		props.onChange(props.value.filter((q) => q !== quality));
+	};
+
+	const addQuality = (quality: string) => {
+		if (!props.value.includes(quality)) {
+			props.onChange([...props.value, quality]);
+		}
+	};
+
+	const unusedQualities = () =>
+		props.availableQualities.filter((q) => !props.value.includes(q));
+
+	return (
+		<div class="space-y-3">
+			<div class="space-y-1">
+				<div class="text-sm font-medium leading-none">Allowed Qualities</div>
+				<p class="text-[10px] text-muted-foreground">
+					Drag to reorder. Top items are preferred.
+				</p>
+			</div>
+
+			<ul class="border rounded-md divide-y bg-card overflow-hidden">
+				<For each={props.value}>
+					{(quality) => (
+						<li
+							draggable="true"
+							onDragStart={(e) => handleDragStart(e, quality)}
+							onDragOver={(e) => handleDragOver(e, quality)}
+							onDragEnd={handleDragEnd}
+							class={`flex items-center gap-3 p-2.5 text-sm group bg-card hover:bg-accent/50 transition-colors cursor-default ${
+								draggedItem() === quality ? "opacity-50" : ""
+							}`}
+						>
+							<IconGripVertical class="h-4 w-4 text-muted-foreground/50 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
+							<span class="flex-1 font-medium">{quality}</span>
+							<Button
+								variant="ghost"
+								size="icon"
+								class="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+								onClick={() => removeQuality(quality)}
+							>
+								<IconX class="h-3.5 w-3.5" />
+							</Button>
+						</li>
+					)}
+				</For>
+				<Show when={props.value.length === 0}>
+					<li class="p-4 text-center text-sm text-muted-foreground bg-muted/20">
+						No qualities selected
+					</li>
+				</Show>
+			</ul>
+
+			<Select
+				value={null}
+				onChange={(val) => val && addQuality(val)}
+				options={unusedQualities()}
+				placeholder="Add quality..."
+				itemComponent={(props) => (
+					<SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+				)}
+			>
+				<SelectTrigger class="w-full">
+					<SelectValue<string>>
+						{() => (
+							<div class="flex items-center gap-2 text-muted-foreground">
+								<IconPlus class="h-4 w-4" />
+								Add Quality...
+							</div>
+						)}
+					</SelectValue>
+				</SelectTrigger>
+				<SelectContent />
+			</Select>
 		</div>
 	);
 }
@@ -343,6 +453,7 @@ function ProfileForm(props: {
 }) {
 	const createProfile = createCreateProfileMutation();
 	const updateProfile = createUpdateProfileMutation();
+	const qualitiesQuery = createQualitiesQuery();
 	const isEditing = !!props.profile;
 
 	const form = createForm(() => ({
@@ -353,7 +464,7 @@ function ProfileForm(props: {
 			seadex_preferred: props.profile?.seadex_preferred ?? true,
 			allowed_qualities: props.profile?.allowed_qualities || [
 				"BluRay 1080p",
-				"WEB 1080p",
+				"WEB-DL 1080p",
 			],
 		},
 		validators: {
@@ -371,6 +482,8 @@ function ProfileForm(props: {
 			props.onSuccess();
 		},
 	}));
+
+	const qualityNames = () => qualitiesQuery.data?.map((q) => q.name) ?? [];
 
 	return (
 		<Card class="border-primary/20">
@@ -416,12 +529,12 @@ function ProfileForm(props: {
 								<Select
 									name={field().name}
 									value={
-										QUALITY_OPTIONS.includes(field().state.value)
+										qualityNames().includes(field().state.value)
 											? field().state.value
 											: null
 									}
 									onChange={(val) => val && field().handleChange(val)}
-									options={QUALITY_OPTIONS}
+									options={qualityNames()}
 									placeholder="Select cutoff..."
 									itemComponent={(props) => (
 										<SelectItem item={props.item}>
@@ -447,33 +560,11 @@ function ProfileForm(props: {
 
 					<form.Field name="allowed_qualities">
 						{(field) => (
-							<div class="space-y-2">
-								<div class="text-sm font-medium leading-none">
-									Allowed Qualities
-								</div>
-								<div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-									<For each={QUALITY_OPTIONS}>
-										{(q) => (
-											// biome-ignore lint/a11y/noLabelWithoutControl: Wrapped checkbox
-											<label class="flex items-center gap-2 text-sm cursor-pointer">
-												<Checkbox
-													checked={field().state.value.includes(q)}
-													onChange={(checked) => {
-														if (checked) {
-															field().handleChange([...field().state.value, q]);
-														} else {
-															field().handleChange(
-																field().state.value.filter((x) => x !== q),
-															);
-														}
-													}}
-												/>
-												{q}
-											</label>
-										)}
-									</For>
-								</div>
-							</div>
+							<SortableQualityList
+								value={field().state.value}
+								onChange={field().handleChange}
+								availableQualities={qualityNames()}
+							/>
 						)}
 					</form.Field>
 
@@ -490,7 +581,6 @@ function ProfileForm(props: {
 										for={field().name}
 										class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
 									>
-										<IconArrowUp class="h-3.5 w-3.5" />
 										Allow Upgrades
 									</label>
 								</div>
@@ -509,7 +599,6 @@ function ProfileForm(props: {
 										for={field().name}
 										class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
 									>
-										<IconStar class="h-3.5 w-3.5" />
 										Prefer SeaDex
 									</label>
 								</div>
