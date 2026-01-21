@@ -8,8 +8,11 @@ import {
 	IconCircleCheck,
 	IconCopy,
 	IconDots,
-	IconFolder,
+	IconDownload,
+	IconFileImport,
+	IconFolderSearch,
 	IconLayoutGrid,
+	IconLink,
 	IconList,
 	IconPencil,
 	IconPlayerPlay,
@@ -322,7 +325,7 @@ function AnimeDetailsPage() {
 									tooltip="Search Releases"
 									trigger={
 										<Button variant="outline" size="sm" class="shrink-0">
-											<IconSearch class="min-[1670px]:mr-2 h-4 w-4" />
+											<IconDownload class="min-[1670px]:mr-2 h-4 w-4" />
 											<span class="hidden min-[1670px]:inline">Search</span>
 										</Button>
 									}
@@ -360,7 +363,7 @@ function AnimeDetailsPage() {
 										}
 										class="shrink-0"
 									>
-										<IconFolder class="min-[1670px]:mr-2 h-4 w-4" />
+										<IconFileImport class="min-[1670px]:mr-2 h-4 w-4" />
 										<span class="hidden min-[1670px]:inline">Scan Folder</span>
 									</TooltipTrigger>
 									<TooltipContent>Scan Folder</TooltipContent>
@@ -385,7 +388,7 @@ function AnimeDetailsPage() {
 									tooltip="Import Files"
 									trigger={
 										<Button variant="outline" size="sm" class="shrink-0">
-											<IconFolder class="min-[1670px]:mr-2 h-4 w-4" />
+											<IconFolderSearch class="min-[1670px]:mr-2 h-4 w-4" />
 											<span class="hidden min-[1670px]:inline">Import</span>
 										</Button>
 									}
@@ -399,7 +402,7 @@ function AnimeDetailsPage() {
 										onClick={() => setBulkMappingOpen(true)}
 										class="shrink-0"
 									>
-										<IconList class="min-[1670px]:mr-2 h-4 w-4" />
+										<IconLink class="min-[1670px]:mr-2 h-4 w-4" />
 										<span class="hidden min-[1670px]:inline">Map Episodes</span>
 									</TooltipTrigger>
 									<TooltipContent>Manual Map Episodes</TooltipContent>
@@ -554,17 +557,16 @@ function AnimeDetailsPage() {
 										</CardContent>
 									</Card>
 									<Card>
-										<CardContent class="p-4 text-center group relative">
-											<Badge variant="secondary">{anime().profile_name}</Badge>
-											<p class="text-xs text-muted-foreground mt-1">Profile</p>
+										<CardContent class="p-4 text-center flex flex-col items-center justify-center h-full">
 											<Button
 												variant="ghost"
-												size="icon"
-												class="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
 												onClick={() => setEditProfileOpen(true)}
+												class="h-auto py-1.5 px-3 text-base font-bold gap-2 hover:bg-muted max-w-full"
 											>
-												<IconPencil class="h-3 w-3" />
+												<span class="truncate">{anime().profile_name}</span>
+												<IconPencil class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
 											</Button>
+											<p class="text-xs text-muted-foreground mt-1">Profile</p>
 										</CardContent>
 									</Card>
 								</div>
@@ -768,7 +770,7 @@ function AnimeDetailsPage() {
 																								})
 																							}
 																						>
-																							<IconFolder class="h-4 w-4 mr-2" />
+																							<IconLink class="h-4 w-4 mr-2" />
 																							Manual Map
 																						</DropdownMenuItem>
 																					</Show>
@@ -1015,9 +1017,7 @@ function EditProfileDialog(props: {
 							options={props.profiles.map((p) => p.name)}
 							placeholder="Select profile..."
 							itemComponent={(props) => (
-								<SelectItem item={props.item}>
-									{props.item.rawValue}
-								</SelectItem>
+								<SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
 							)}
 						>
 							<SelectTrigger class="w-full">
