@@ -52,6 +52,9 @@ impl QualityRepository {
         C: ConnectionTrait,
     {
         for q in QUALITIES.iter() {
+            // Explicitly try to insert or update
+            let exists = QualityDefinitions::find_by_id(q.id).one(conn).await?;
+
             let active_model = quality_definitions::ActiveModel {
                 id: Set(q.id),
                 name: Set(q.name.clone()),
@@ -60,20 +63,16 @@ impl QualityRepository {
                 rank: Set(q.rank),
             };
 
-            QualityDefinitions::insert(active_model)
-                .on_conflict(
-                    sea_orm::sea_query::OnConflict::column(quality_definitions::Column::Id)
-                        .update_columns([
-                            quality_definitions::Column::Name,
-                            quality_definitions::Column::Source,
-                            quality_definitions::Column::Resolution,
-                            quality_definitions::Column::Rank,
-                        ])
-                        .to_owned(),
-                )
-                .exec(conn)
-                .await?;
+            if exists.is_some() {
+                QualityDefinitions::update(active_model)
+                    .filter(quality_definitions::Column::Id.eq(q.id))
+                    .exec(conn)
+                    .await?;
+            } else {
+                QualityDefinitions::insert(active_model).exec(conn).await?;
+            }
         }
+
         Ok(())
     }
 
@@ -106,10 +105,10 @@ impl QualityRepository {
     }
 
     pub async fn sync_profiles(&self, profiles: &[QualityProfileConfig]) -> Result<()> {
-        let txn = self.conn.begin().await?;
-
         // Ensure definitions exist to prevent FK errors
-        Self::ensure_definitions_exist(&txn).await?;
+        Self::ensure_definitions_exist(&self.conn).await?;
+
+        let txn = self.conn.begin().await?;
 
         for profile in profiles {
             let cutoff_id = match get_quality_by_name(&profile.cutoff) {
@@ -132,7 +131,7 @@ impl QualityRepository {
                 ..Default::default()
             };
 
-            let profile_res = QualityProfiles::insert(active_model)
+            QualityProfiles::insert(active_model)
                 .on_conflict(
                     sea_orm::sea_query::OnConflict::column(quality_profiles::Column::Name)
                         .update_columns([
@@ -145,16 +144,15 @@ impl QualityRepository {
                 .exec(&txn)
                 .await?;
 
-            let profile_id = if profile_res.last_insert_id > 0 {
-                profile_res.last_insert_id as i32
-            } else {
-                QualityProfiles::find()
-                    .filter(quality_profiles::Column::Name.eq(&profile.name))
-                    .one(&txn)
-                    .await?
-                    .ok_or_else(|| anyhow::anyhow!("Failed to fetch profile"))?
-                    .id
-            };
+            // Always query for the profile ID after upsert.
+            // SQLite's last_insert_id is unreliable with ON CONFLICT DO UPDATE
+            // (returns stale value when an UPDATE occurs instead of INSERT).
+            let profile_id = QualityProfiles::find()
+                .filter(quality_profiles::Column::Name.eq(&profile.name))
+                .one(&txn)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("Failed to fetch profile '{}'", profile.name))?
+                .id;
 
             QualityProfileItems::delete_many()
                 .filter(quality_profile_items::Column::ProfileId.eq(profile_id))
