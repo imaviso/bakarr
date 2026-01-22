@@ -9,5 +9,7 @@ pub mod quality_profile_items;
 pub mod quality_profiles;
 pub mod recycle_bin;
 pub mod release_history;
+pub mod release_profile_rules;
+pub mod release_profiles;
 pub mod rss_feeds;
 pub mod seadex_cache;

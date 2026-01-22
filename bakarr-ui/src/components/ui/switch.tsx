@@ -6,7 +6,7 @@ import * as SwitchPrimitive from "@kobalte/core/switch"
 
 import { cn } from "~/lib/utils"
 
-const Switch = SwitchPrimitive.Root
+const SwitchRoot = SwitchPrimitive.Root
 const SwitchDescription = SwitchPrimitive.Description
 const SwitchErrorMessage = SwitchPrimitive.ErrorMessage
 
@@ -74,4 +74,18 @@ const SwitchLabel = <T extends ValidComponent = "label">(
   )
 }
 
-export { Switch, SwitchControl, SwitchThumb, SwitchLabel, SwitchDescription, SwitchErrorMessage }
+const Switch = <T extends ValidComponent = "div">(
+  props: PolymorphicProps<T, SwitchPrimitive.SwitchRootProps>
+) => {
+  const [local, others] = splitProps(props as SwitchPrimitive.SwitchRootProps, ["children"])
+  return (
+    <SwitchRoot {...others}>
+      <SwitchControl>
+        <SwitchThumb />
+      </SwitchControl>
+      {local.children as JSX.Element}
+    </SwitchRoot>
+  )
+}
+
+export { Switch, SwitchRoot, SwitchControl, SwitchThumb, SwitchLabel, SwitchDescription, SwitchErrorMessage }

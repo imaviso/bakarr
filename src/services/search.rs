@@ -143,6 +143,9 @@ impl SearchService {
             .get_quality_profile_for_anime(anime_id)
             .await?;
 
+        // Fetch release rules
+        let rules = self.store.get_enabled_release_rules().await?;
+
         let episode_statuses = self.store.get_episode_statuses(anime_id).await?;
         let status_map: std::collections::HashMap<i32, crate::db::EpisodeStatusRow> =
             episode_statuses
@@ -224,6 +227,7 @@ impl SearchService {
 
             let action = self.download_decisions.decide_download(
                 &profile,
+                &rules,
                 status,
                 &torrent.title,
                 is_seadex,

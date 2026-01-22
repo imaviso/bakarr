@@ -17,7 +17,7 @@ async fn spawn_app() -> Router {
     let state = bakarr::api::create_app_state_from_config(config, None)
         .await
         .expect("Failed to create app state");
-    bakarr::api::router(state)
+    bakarr::api::router(state).await
 }
 
 #[tokio::test]
@@ -137,10 +137,10 @@ async fn test_profiles_crud() {
 
     let new_profile = serde_json::json!({
         "name": "IntegrationTestProfile",
-        "cutoff": "WEB 1080p",
+        "cutoff": "WEB-DL 1080p",
         "upgrade_allowed": true,
         "seadex_preferred": false,
-        "allowed_qualities": ["WEB 1080p", "WEB 720p"]
+        "allowed_qualities": ["WEB-DL 1080p", "WEB-DL 720p"]
     });
 
     let response = app

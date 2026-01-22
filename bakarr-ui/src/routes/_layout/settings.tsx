@@ -2,6 +2,7 @@ import {
 	IconAdjustments,
 	IconEdit,
 	IconGripVertical,
+	IconListCheck,
 	IconPlus,
 	IconPower,
 	IconSettings,
@@ -10,7 +11,7 @@ import {
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute } from "@tanstack/solid-router";
-import { createSignal, For, Show } from "solid-js";
+import { createSignal, For, Index, Show } from "solid-js";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { SystemStatus } from "~/components/system-status";
@@ -47,15 +48,21 @@ import {
 import {
 	type Config,
 	createCreateProfileMutation,
+	createCreateReleaseProfileMutation,
 	createDeleteProfileMutation,
+	createDeleteReleaseProfileMutation,
 	createProfilesQuery,
 	createQualitiesQuery,
+	createReleaseProfilesQuery,
 	createSystemConfigQuery,
 	createUpdateProfileMutation,
+	createUpdateReleaseProfileMutation,
 	createUpdateSystemConfigMutation,
 	profilesQueryOptions,
 	type QualityProfile,
 	qualitiesQueryOptions,
+	type ReleaseProfile,
+	releaseProfilesQueryOptions,
 	systemConfigQueryOptions,
 } from "~/lib/api";
 
@@ -64,6 +71,7 @@ export const Route = createFileRoute("/_layout/settings")({
 		queryClient.ensureQueryData(profilesQueryOptions());
 		queryClient.ensureQueryData(qualitiesQueryOptions());
 		queryClient.ensureQueryData(systemConfigQueryOptions());
+		queryClient.ensureQueryData(releaseProfilesQueryOptions());
 	},
 	component: SettingsPage,
 	errorComponent: GeneralError,
@@ -73,10 +81,16 @@ function SettingsPage() {
 	const [activeTab, setActiveTab] = createSignal("general");
 	const [editingProfile, setEditingProfile] =
 		createSignal<QualityProfile | null>(null);
+	const [editingReleaseProfile, setEditingReleaseProfile] =
+		createSignal<ReleaseProfile | null>(null);
 	const [isCreating, setIsCreating] = createSignal(false);
+	const [isCreatingReleaseProfile, setIsCreatingReleaseProfile] =
+		createSignal(false);
 
 	const profilesQuery = createProfilesQuery();
 	const deleteProfile = createDeleteProfileMutation();
+	const releaseProfilesQuery = createReleaseProfilesQuery();
+	const deleteReleaseProfile = createDeleteReleaseProfileMutation();
 
 	return (
 		<div class="space-y-6">
@@ -105,6 +119,13 @@ function SettingsPage() {
 					>
 						<IconAdjustments class="mr-2 h-4 w-4" />
 						Quality Profiles
+					</TabsTrigger>
+					<TabsTrigger
+						value="release-profiles"
+						class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
+					>
+						<IconListCheck class="mr-2 h-4 w-4" />
+						Release Profiles
 					</TabsTrigger>
 				</TabsList>
 
@@ -309,6 +330,196 @@ function SettingsPage() {
 																SeaDex
 															</span>
 														</span>
+													</div>
+												</CardContent>
+											</Card>
+										)}
+									</For>
+								</div>
+							</Show>
+						</Show>
+					</div>
+				</TabsContent>
+
+				<TabsContent value="release-profiles" class="mt-0">
+					<div class="animate-in fade-in duration-500 ease-out">
+						<Show
+							when={!isCreatingReleaseProfile() && !editingReleaseProfile()}
+							fallback={
+								<div class="mb-6">
+									<Show when={isCreatingReleaseProfile()}>
+										<ReleaseProfileForm
+											onCancel={() => setIsCreatingReleaseProfile(false)}
+											onSuccess={() => setIsCreatingReleaseProfile(false)}
+										/>
+									</Show>
+									<Show when={editingReleaseProfile()}>
+										<ReleaseProfileForm
+											// biome-ignore lint/style/noNonNullAssertion: Guarded
+											profile={editingReleaseProfile()!}
+											onCancel={() => setEditingReleaseProfile(null)}
+											onSuccess={() => setEditingReleaseProfile(null)}
+										/>
+									</Show>
+								</div>
+							}
+						>
+							<div class="flex justify-between items-center mb-6">
+								<div>
+									<h2 class="text-lg font-medium">Release Profiles</h2>
+									<p class="text-sm text-muted-foreground">
+										Global scoring and filtering rules for releases (Groups,
+										Tags)
+									</p>
+								</div>
+								<Button
+									onClick={() => setIsCreatingReleaseProfile(true)}
+									disabled={isCreatingReleaseProfile()}
+									size="sm"
+								>
+									<IconPlus class="mr-2 h-4 w-4" />
+									Add Profile
+								</Button>
+							</div>
+
+							<Show when={releaseProfilesQuery.isLoading}>
+								<div class="space-y-4">
+									<For each={[1, 2]}>
+										{() => <Skeleton class="h-32 rounded-lg" />}
+									</For>
+								</div>
+							</Show>
+
+							<Show
+								when={
+									!releaseProfilesQuery.isLoading &&
+									releaseProfilesQuery.data?.length === 0
+								}
+							>
+								<Card class="p-12 text-center border-dashed bg-transparent">
+									<div class="flex flex-col items-center gap-4">
+										<IconListCheck class="h-12 w-12 text-muted-foreground/50" />
+										<div>
+											<h3 class="font-medium">No release profiles</h3>
+											<p class="text-sm text-muted-foreground mt-1">
+												Create a profile to prefer certain groups or filter
+												releases
+											</p>
+										</div>
+										<Button onClick={() => setIsCreatingReleaseProfile(true)}>
+											<IconPlus class="mr-2 h-4 w-4" />
+											Create Profile
+										</Button>
+									</div>
+								</Card>
+							</Show>
+
+							<Show
+								when={
+									releaseProfilesQuery.data &&
+									releaseProfilesQuery.data.length > 0
+								}
+							>
+								<div class="grid gap-4">
+									<For each={releaseProfilesQuery.data}>
+										{(profile) => (
+											<Card class="group transition-all duration-200 hover:border-primary/50">
+												<CardHeader class="pb-3">
+													<div class="flex justify-between items-start">
+														<div class="space-y-1">
+															<CardTitle class="text-base flex items-center gap-2">
+																{profile.name}
+																<Show when={!profile.enabled}>
+																	<Badge variant="outline" class="text-xs">
+																		Disabled
+																	</Badge>
+																</Show>
+															</CardTitle>
+															<div class="text-xs text-muted-foreground">
+																{profile.rules.length} Rules
+															</div>
+														</div>
+														<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+															<Button
+																size="icon"
+																variant="ghost"
+																class="h-8 w-8"
+																onClick={() =>
+																	setEditingReleaseProfile(profile)
+																}
+															>
+																<IconEdit class="h-4 w-4" />
+															</Button>
+															<AlertDialog>
+																<AlertDialogTrigger
+																	as={Button}
+																	variant="ghost"
+																	size="icon"
+																	class="h-8 w-8 text-muted-foreground hover:text-destructive"
+																>
+																	<IconTrash class="h-4 w-4" />
+																</AlertDialogTrigger>
+																<AlertDialogContent>
+																	<AlertDialogHeader>
+																		<AlertDialogTitle>
+																			Delete Profile
+																		</AlertDialogTitle>
+																		<AlertDialogDescription>
+																			Are you sure you want to delete profile "
+																			{profile.name}"? This action cannot be
+																			undone.
+																		</AlertDialogDescription>
+																	</AlertDialogHeader>
+																	<AlertDialogFooter>
+																		<AlertDialogCancel>
+																			Cancel
+																		</AlertDialogCancel>
+																		<AlertDialogAction
+																			class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+																			onClick={() =>
+																				deleteReleaseProfile.mutate(profile.id)
+																			}
+																		>
+																			Delete
+																		</AlertDialogAction>
+																	</AlertDialogFooter>
+																</AlertDialogContent>
+															</AlertDialog>
+														</div>
+													</div>
+												</CardHeader>
+												<CardContent class="pt-0">
+													<div class="flex flex-wrap gap-2">
+														<For each={profile.rules.slice(0, 5)}>
+															{(rule) => (
+																<Badge
+																	variant={
+																		rule.rule_type === "must_not"
+																			? "error"
+																			: "secondary"
+																	}
+																	class="text-xs font-normal"
+																>
+																	<Show
+																		when={rule.rule_type === "preferred"}
+																		fallback={
+																			rule.rule_type === "must"
+																				? "Must: "
+																				: "Block: "
+																		}
+																	>
+																		{rule.score > 0 ? "+" : ""}
+																		{rule.score}{" "}
+																	</Show>
+																	{rule.term}
+																</Badge>
+															)}
+														</For>
+														<Show when={profile.rules.length > 5}>
+															<Badge variant="outline" class="text-xs">
+																+{profile.rules.length - 5} more
+															</Badge>
+														</Show>
 													</div>
 												</CardContent>
 											</Card>
@@ -607,6 +818,259 @@ function ProfileForm(props: {
 					</div>
 
 					<div class="flex gap-2 justify-end pt-2">
+						<Button type="button" variant="ghost" onClick={props.onCancel}>
+							Cancel
+						</Button>
+						<form.Subscribe
+							selector={(state) => [state.canSubmit, state.isSubmitting]}
+						>
+							{(state) => (
+								<Button
+									type="submit"
+									disabled={
+										!state()[0] ||
+										createProfile.isPending ||
+										updateProfile.isPending
+									}
+								>
+									{state()[1] ? "Saving..." : isEditing ? "Update" : "Create"}
+								</Button>
+							)}
+						</form.Subscribe>
+					</div>
+				</form>
+			</CardContent>
+		</Card>
+	);
+}
+
+const ReleaseProfileSchema = v.object({
+	name: v.pipe(v.string(), v.minLength(1, "Name is required")),
+	enabled: v.boolean(),
+	rules: v.array(
+		v.object({
+			term: v.pipe(v.string(), v.minLength(1, "Term is required")),
+			rule_type: v.picklist(["preferred", "must", "must_not"]),
+			score: v.number(),
+		}),
+	),
+});
+
+function ReleaseProfileForm(props: {
+	profile?: ReleaseProfile;
+	onCancel: () => void;
+	onSuccess: () => void;
+}) {
+	const createProfile = createCreateReleaseProfileMutation();
+	const updateProfile = createUpdateReleaseProfileMutation();
+	const isEditing = !!props.profile;
+
+	const form = createForm(() => ({
+		defaultValues: {
+			name: props.profile?.name || "",
+			enabled: props.profile?.enabled ?? true,
+			rules: props.profile?.rules || [],
+		},
+		validators: {
+			onChange: ReleaseProfileSchema,
+		},
+		onSubmit: async ({ value }) => {
+			if (isEditing && props.profile) {
+				await updateProfile.mutateAsync({
+					id: props.profile.id,
+					data: value,
+				});
+			} else {
+				await createProfile.mutateAsync(value);
+			}
+			props.onSuccess();
+		},
+	}));
+
+	return (
+		<Card class="border-primary/20">
+			<CardHeader class="pb-4">
+				<CardTitle class="text-base">
+					{isEditing ? "Edit Profile" : "Create Profile"}
+				</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+					class="space-y-4"
+				>
+					<div class="flex items-start gap-4">
+						<form.Field name="name">
+							{(field) => (
+								<TextField
+									class="flex-1"
+									value={field().state.value}
+									onChange={field().handleChange}
+								>
+									<TextFieldLabel>Profile Name</TextFieldLabel>
+									<TextFieldInput placeholder="e.g., Preferred Groups" />
+									<TextFieldErrorMessage>
+										{field().state.meta.errors[0]?.message}
+									</TextFieldErrorMessage>
+								</TextField>
+							)}
+						</form.Field>
+
+						<form.Field name="enabled">
+							{(field) => (
+								<div class="flex flex-col gap-3 pt-8">
+									<div class="flex items-center gap-2">
+										<Switch
+											id={field().name}
+											checked={field().state.value}
+											onChange={(checked) => field().handleChange(checked)}
+										/>
+										<label
+											for={field().name}
+											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+										>
+											Enabled
+										</label>
+									</div>
+								</div>
+							)}
+						</form.Field>
+					</div>
+
+					<div class="space-y-3">
+						<div class="flex items-center justify-between">
+							<div class="space-y-1">
+								<h4 class="text-sm font-medium">Rules</h4>
+								<p class="text-xs text-muted-foreground">
+									Define terms to prefer or require/block
+								</p>
+							</div>
+							<form.Field name="rules" mode="array">
+								{(field) => (
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										onClick={() =>
+											field().pushValue({
+												term: "",
+												rule_type: "preferred",
+												score: 10,
+											})
+										}
+									>
+										<IconPlus class="mr-2 h-3.5 w-3.5" />
+										Add Rule
+									</Button>
+								)}
+							</form.Field>
+						</div>
+
+						<form.Field name="rules" mode="array">
+							{(field) => (
+								<div class="space-y-2">
+									<Index each={field().state.value}>
+										{(_, index) => (
+											<div class="flex gap-2 items-start">
+												<form.Field name={`rules[${index}].term`}>
+													{(termField) => (
+														<div class="flex-1">
+															<TextField
+																value={termField().state.value}
+																onChange={termField().handleChange}
+															>
+																<TextFieldInput placeholder="Term (e.g. SubsPlease)" />
+															</TextField>
+														</div>
+													)}
+												</form.Field>
+
+												<form.Field name={`rules[${index}].rule_type`}>
+													{(typeField) => (
+														<div class="w-[140px]">
+															<Select
+																value={typeField().state.value}
+																onChange={(val) =>
+																	val && typeField().handleChange(val)
+																}
+																options={["preferred", "must", "must_not"]}
+																itemComponent={(props) => (
+																	<SelectItem item={props.item}>
+																		{props.item.rawValue === "preferred"
+																			? "Preferred"
+																			: props.item.rawValue === "must"
+																				? "Must Contain"
+																				: "Must Not Contain"}
+																	</SelectItem>
+																)}
+															>
+																<SelectTrigger>
+																	<SelectValue<string>>
+																		{(state) =>
+																			state.selectedOption() === "preferred"
+																				? "Preferred"
+																				: state.selectedOption() === "must"
+																					? "Must Contain"
+																					: "Must Not Contain"
+																		}
+																	</SelectValue>
+																</SelectTrigger>
+																<SelectContent />
+															</Select>
+														</div>
+													)}
+												</form.Field>
+
+												<form.Field name={`rules[${index}].score`}>
+													{(scoreField) => (
+														<div class="w-[100px]">
+															<TextField
+																value={scoreField().state.value.toString()}
+																onChange={(v) =>
+																	scoreField().handleChange(Number(v))
+																}
+																disabled={
+																	form.getFieldValue(
+																		`rules[${index}].rule_type`,
+																	) !== "preferred"
+																}
+															>
+																<TextFieldInput
+																	type="number"
+																	placeholder="Score"
+																/>
+															</TextField>
+														</div>
+													)}
+												</form.Field>
+
+												<Button
+													type="button"
+													variant="ghost"
+													size="icon"
+													class="mt-0.5 text-muted-foreground hover:text-destructive"
+													onClick={() => field().removeValue(index)}
+												>
+													<IconTrash class="h-4 w-4" />
+												</Button>
+											</div>
+										)}
+									</Index>
+									<Show when={field().state.value.length === 0}>
+										<div class="text-sm text-muted-foreground text-center py-8 border border-dashed rounded-lg bg-muted/20">
+											No rules defined. Add a rule to start scoring releases.
+										</div>
+									</Show>
+								</div>
+							)}
+						</form.Field>
+					</div>
+
+					<div class="flex gap-2 justify-end pt-4">
 						<Button type="button" variant="ghost" onClick={props.onCancel}>
 							Cancel
 						</Button>

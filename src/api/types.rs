@@ -143,3 +143,12 @@ pub struct EpisodeMapping {
     pub episode_number: i32,
     pub file_path: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QualityDto {
+    pub id: i32,
+    pub name: String,
+    pub source: String,
+    pub resolution: u16,
+    pub rank: i32,
+}

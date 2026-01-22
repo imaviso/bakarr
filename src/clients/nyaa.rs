@@ -331,7 +331,8 @@ mod tests {
             .with_resolution("1080p");
 
         let url = config.build_url();
-        assert!(url.contains("Solo%20Leveling"));
+        // url crate uses + for spaces in query parameters
+        assert!(url.contains("Solo+Leveling") || url.contains("Solo%20Leveling"));
         assert!(url.contains("EMBER"));
         assert!(url.contains("1080p"));
     }

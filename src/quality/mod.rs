@@ -1,7 +1,7 @@
 pub mod definition;
 pub mod profile;
 
-pub use definition::{get_quality_by_id, get_quality_by_name, Quality, QualitySource, QUALITIES};
+pub use definition::{QUALITIES, Quality, QualitySource, get_quality_by_id, get_quality_by_name};
 pub use profile::{DownloadDecision, QualityProfile};
 
 use crate::models::release::Release;

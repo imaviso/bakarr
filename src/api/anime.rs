@@ -263,6 +263,7 @@ pub async fn add_anime(
                         if let crate::services::download::DownloadAction::Accept {
                             quality: _,
                             is_seadex: _,
+                            ..
                         } = &result.download_action
                             && let Some(qbit) = &qbit
                         {
@@ -450,7 +451,6 @@ pub async fn update_anime_profile(
 
     Ok(Json(ApiResponse::success(())))
 }
-
 
 #[derive(Deserialize)]
 pub struct MonitorToggleRequest {

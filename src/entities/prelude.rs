@@ -7,5 +7,7 @@ pub use super::quality_profile_items::Entity as QualityProfileItems;
 pub use super::quality_profiles::Entity as QualityProfiles;
 pub use super::recycle_bin::Entity as RecycleBin;
 pub use super::release_history::Entity as ReleaseHistory;
+pub use super::release_profile_rules::Entity as ReleaseProfileRules;
+pub use super::release_profiles::Entity as ReleaseProfiles;
 pub use super::rss_feeds::Entity as RssFeeds;
 pub use super::seadex_cache::Entity as SeadexCache;

@@ -28,8 +28,12 @@ impl DownloadDecisionService {
 
         let profile = self.get_quality_profile_for_anime(anime_id).await?;
 
+        // Fetch enabled release rules (Global Scoring)
+        let rules = self.store.get_enabled_release_rules().await?;
+
         Ok(self.decide_download(
             &profile,
+            &rules,
             current_status.as_ref(),
             release_title,
             is_seadex_group,
@@ -39,58 +43,166 @@ impl DownloadDecisionService {
     pub fn decide_download(
         &self,
         profile: &QualityProfile,
+        rules: &[crate::entities::release_profile_rules::Model],
         current_status: Option<&EpisodeStatusRow>,
         release_title: &str,
         is_seadex_group: bool,
     ) -> DownloadAction {
         let release_quality = parse_quality_from_filename(release_title);
+        let release_score = self.calculate_score(release_title, rules);
+
         debug!(
-            "Release quality for '{}': {} (rank {})",
-            release_title, release_quality, release_quality.rank
+            "Release '{}': Quality={} Rank={} Score={}",
+            release_title, release_quality, release_quality.rank, release_score
         );
 
-        let Some(current) = current_status else {
-            return DownloadAction::Accept {
-                quality: release_quality,
-                is_seadex: is_seadex_group,
-            };
-        };
+        // 1. Check constraints (Must Contain / Must Not Contain)
+        if let Err(reason) = self.check_constraints(release_title, rules) {
+            return DownloadAction::Reject { reason };
+        }
 
+        // 2. Check Quality Profile Allowed
         if !profile.allowed_qualities.contains(&release_quality.id) {
             return DownloadAction::Reject {
                 reason: "Quality not allowed in profile".to_string(),
             };
         }
 
+        let Some(current) = current_status else {
+            return DownloadAction::Accept {
+                quality: release_quality,
+                is_seadex: is_seadex_group,
+                score: release_score,
+            };
+        };
+
+        // 3. Compare with Current
         let current_quality = current
             .quality_id
             .and_then(crate::quality::definition::get_quality_by_id)
             .unwrap_or_else(Quality::unknown);
+
+        // We need to calculate the score of the *current* file to compare properly
+        // If file_path is full path, extract filename. If just filename, use it.
+        let current_filename = current
+            .file_path
+            .as_deref()
+            .map(|p| {
+                std::path::Path::new(p)
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+            })
+            .unwrap_or_default();
+        let current_score = self.calculate_score(&current_filename, rules);
 
         let current_info = EpisodeQualityInfo {
             quality: current_quality.clone(),
             is_seadex: current.is_seadex,
         };
 
+        // Check standard Quality Profile decision
         let decision =
             profile.should_download(&release_quality, is_seadex_group, Some(&current_info));
 
         match decision {
-            crate::quality::DownloadDecision::Accept => DownloadAction::Accept {
-                quality: release_quality,
-                is_seadex: is_seadex_group,
-            },
-            crate::quality::DownloadDecision::Upgrade(reason) => DownloadAction::Upgrade {
-                quality: release_quality,
-                is_seadex: is_seadex_group,
-                reason: reason.to_string(),
-                old_file_path: current.file_path.clone(),
-                old_quality: current_quality,
-            },
-            crate::quality::DownloadDecision::Reject(reason) => DownloadAction::Reject {
-                reason: reason.to_string(),
-            },
+            crate::quality::DownloadDecision::Accept => {
+                // This shouldn't happen when current exists, but if it does:
+                DownloadAction::Accept {
+                    quality: release_quality,
+                    is_seadex: is_seadex_group,
+                    score: release_score,
+                }
+            }
+            crate::quality::DownloadDecision::Upgrade(reason) => {
+                // Quality wants to upgrade.
+                // Check if Score prevents it? (e.g. downgrading score significantly?)
+                // Usually Quality Upgrade trumps Score, UNLESS we define otherwise.
+                // Let's assume Quality Upgrade is always desired.
+                DownloadAction::Upgrade {
+                    quality: release_quality,
+                    is_seadex: is_seadex_group,
+                    score: release_score,
+                    reason: reason.to_string(),
+                    old_file_path: current.file_path.clone(),
+                    old_quality: current_quality,
+                    old_score: current_score,
+                }
+            }
+            crate::quality::DownloadDecision::Reject(reason) => {
+                // Quality rejected (e.g. AlreadyAtCutoff or NoImprovement).
+                // Check if Score justifies an upgrade anyway!
+                // Logic: If Quality is SAME (or better?), and Score is HIGHER, upgrade.
+                // Note: QualityProfile logic already rejects "NoImprovement".
+
+                // If Quality is EQUAL (or acceptable within cutoff), check Score.
+                if let Some(release_rank) = profile.get_quality_rank(&release_quality)
+                    && let Some(current_rank) = profile.get_quality_rank(&current_quality)
+                {
+                    // If same quality tier, check score
+                    if release_rank == current_rank && release_score > current_score {
+                        return DownloadAction::Upgrade {
+                            quality: release_quality,
+                            is_seadex: is_seadex_group,
+                            score: release_score,
+                            reason: format!(
+                                "Score upgrade (+{} vs +{})",
+                                release_score, current_score
+                            ),
+                            old_file_path: current.file_path.clone(),
+                            old_quality: current_quality,
+                            old_score: current_score,
+                        };
+                    }
+                }
+
+                DownloadAction::Reject {
+                    reason: reason.to_string(),
+                }
+            }
         }
+    }
+
+    fn calculate_score(
+        &self,
+        title: &str,
+        rules: &[crate::entities::release_profile_rules::Model],
+    ) -> i32 {
+        let mut score = 0;
+        let title_lower = title.to_lowercase();
+
+        for rule in rules {
+            if rule.rule_type == "preferred" && title_lower.contains(&rule.term.to_lowercase()) {
+                score += rule.score;
+            }
+        }
+        score
+    }
+
+    fn check_constraints(
+        &self,
+        title: &str,
+        rules: &[crate::entities::release_profile_rules::Model],
+    ) -> Result<(), String> {
+        let title_lower = title.to_lowercase();
+
+        for rule in rules {
+            let term_lower = rule.term.to_lowercase();
+            match rule.rule_type.as_str() {
+                "must" => {
+                    if !title_lower.contains(&term_lower) {
+                        return Err(format!("Missing required term: {}", rule.term));
+                    }
+                }
+                "must_not" => {
+                    if title_lower.contains(&term_lower) {
+                        return Err(format!("Contains forbidden term: {}", rule.term));
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 
     pub async fn get_quality_profile_for_anime(&self, anime_id: i32) -> Result<QualityProfile> {
@@ -128,14 +240,17 @@ pub enum DownloadAction {
     Accept {
         quality: Quality,
         is_seadex: bool,
+        score: i32,
     },
 
     Upgrade {
         quality: Quality,
         is_seadex: bool,
+        score: i32,
         reason: String,
         old_file_path: Option<String>,
         old_quality: Quality,
+        old_score: i32,
     },
 
     Reject {

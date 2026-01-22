@@ -447,7 +447,9 @@ async fn process_search_result(
     let episode_number = result.episode_number as i32;
 
     match &result.download_action {
-        crate::services::download::DownloadAction::Accept { quality, is_seadex } => {
+        crate::services::download::DownloadAction::Accept {
+            quality, is_seadex, ..
+        } => {
             info!(
                 "New release: {} - Episode {} [{}, {}{}]",
                 anime.title.romaji,
@@ -465,6 +467,7 @@ async fn process_search_result(
             reason,
             old_file_path,
             old_quality,
+            ..
         } => {
             info!(
                 "Upgrading {} - Episode {} [{} -> {}, {}]",

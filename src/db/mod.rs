@@ -78,6 +78,10 @@ impl Store {
         repositories::quality::QualityRepository::new(self.conn.clone())
     }
 
+    fn release_profile_repo(&self) -> repositories::release_profile::ReleaseProfileRepository {
+        repositories::release_profile::ReleaseProfileRepository::new(self.conn.clone())
+    }
+
     // ========================================================================
     // Quality System (delegated to QualityRepository)
     // ========================================================================
@@ -456,5 +460,53 @@ impl Store {
 
     pub async fn sync_profiles(&self, profiles: &[QualityProfileConfig]) -> Result<()> {
         self.quality_repo().sync_profiles(profiles).await
+    }
+
+    // ========================================================================
+    // Release Profile Operations (delegated to ReleaseProfileRepository)
+    // ========================================================================
+
+    pub async fn list_release_profiles(
+        &self,
+    ) -> Result<
+        Vec<(
+            crate::entities::release_profiles::Model,
+            Vec<crate::entities::release_profile_rules::Model>,
+        )>,
+    > {
+        self.release_profile_repo().list_profiles().await
+    }
+
+    pub async fn get_enabled_release_rules(
+        &self,
+    ) -> Result<Vec<crate::entities::release_profile_rules::Model>> {
+        self.release_profile_repo().get_enabled_rules().await
+    }
+
+    pub async fn create_release_profile(
+        &self,
+        name: String,
+        enabled: bool,
+        rules: Vec<repositories::release_profile::ReleaseProfileRuleDto>,
+    ) -> Result<crate::entities::release_profiles::Model> {
+        self.release_profile_repo()
+            .create_profile(name, enabled, rules)
+            .await
+    }
+
+    pub async fn update_release_profile(
+        &self,
+        id: i32,
+        name: String,
+        enabled: bool,
+        rules: Vec<repositories::release_profile::ReleaseProfileRuleDto>,
+    ) -> Result<()> {
+        self.release_profile_repo()
+            .update_profile(id, name, enabled, rules)
+            .await
+    }
+
+    pub async fn delete_release_profile(&self, id: i32) -> Result<()> {
+        self.release_profile_repo().delete_profile(id).await
     }
 }

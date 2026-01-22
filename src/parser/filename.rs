@@ -312,7 +312,8 @@ fn extract_source(s: &str) -> Option<String> {
 
         match src.to_uppercase().as_str() {
             "BLURAY" | "BLU-RAY" => "BD".to_string(),
-            "WEBRIP" | "WEB-RIP" | "WEBDL" | "WEB-DL" | "WEB" => "WEB".to_string(),
+            "WEBRIP" | "WEB-RIP" => "WEBRIP".to_string(),
+            "WEBDL" | "WEB-DL" | "WEB" => "WEB".to_string(),
             _ => src.to_string(),
         }
     })
@@ -596,7 +597,7 @@ mod tests {
     #[test]
     fn test_extract_source() {
         assert_eq!(extract_source("1080p BD x265"), Some("BD".to_string()));
-        assert_eq!(extract_source("WEBRip 720p"), Some("WEB".to_string()));
+        assert_eq!(extract_source("WEBRip 720p"), Some("WEBRIP".to_string()));
         assert_eq!(extract_source("BluRay"), Some("BD".to_string()));
     }
 

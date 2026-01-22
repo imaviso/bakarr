@@ -441,18 +441,26 @@ export function createUpdateAnimePathMutation() {
 export function createUpdateAnimeProfileMutation() {
 	const queryClient = useQueryClient();
 	return useMutation(() => ({
-		mutationFn: ({
-			id,
-			profileName,
-		}: {
-			id: number;
-			profileName: string;
-		}) =>
+		mutationFn: ({ id, profileName }: { id: number; profileName: string }) =>
 			fetchApi(`${API_BASE}/anime/${id}/profile`, {
 				method: "PUT",
 				body: JSON.stringify({ profile_name: profileName }),
 			}),
-		onSuccess: (_, { id }) => {
+		onMutate: async ({ id, profileName }) => {
+			await queryClient.cancelQueries({ queryKey: ["anime", id] });
+			const previousAnime = queryClient.getQueryData<Anime>(["anime", id]);
+			queryClient.setQueryData<Anime>(["anime", id], (old) => {
+				if (!old) return old;
+				return { ...old, profile_name: profileName };
+			});
+			return { previousAnime };
+		},
+		onError: (_err, { id }, context) => {
+			if (context?.previousAnime) {
+				queryClient.setQueryData(["anime", id], context.previousAnime);
+			}
+		},
+		onSettled: (_data, _error, { id }) => {
 			queryClient.invalidateQueries({ queryKey: ["anime", id] });
 		},
 	}));
@@ -602,13 +610,15 @@ export interface NyaaSearchResult {
 }
 
 export interface DownloadAction {
-	Accept?: { quality: Quality; is_seadex: boolean };
+	Accept?: { quality: Quality; is_seadex: boolean; score: number };
 	Upgrade?: {
 		quality: Quality;
 		is_seadex: boolean;
+		score: number;
 		reason: string;
 		old_file_path?: string;
 		old_quality: Quality;
+		old_score?: number;
 	};
 	Reject?: { reason: string };
 }
@@ -881,6 +891,79 @@ export function createDeleteProfileMutation() {
 			fetchApi(`${API_BASE}/profiles/${name}`, { method: "DELETE" }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["profiles"] });
+		},
+	}));
+}
+
+// ==================== Release Profile Types ====================
+
+export interface ReleaseProfileRule {
+	term: string;
+	score: number;
+	rule_type: "preferred" | "must" | "must_not";
+}
+
+export interface ReleaseProfile {
+	id: number;
+	name: string;
+	enabled: boolean;
+	rules: ReleaseProfileRule[];
+}
+
+// ==================== Release Profile Hooks ====================
+
+export function releaseProfilesQueryOptions() {
+	return queryOptions({
+		queryKey: ["release-profiles"],
+		queryFn: () => fetchApi<ReleaseProfile[]>(`${API_BASE}/release-profiles`),
+	});
+}
+
+export function createReleaseProfilesQuery() {
+	return useQuery(releaseProfilesQueryOptions);
+}
+
+export function createCreateReleaseProfileMutation() {
+	const queryClient = useQueryClient();
+	return useMutation(() => ({
+		mutationFn: (data: { name: string; rules: ReleaseProfileRule[] }) =>
+			fetchApi<ReleaseProfile>(`${API_BASE}/release-profiles`, {
+				method: "POST",
+				body: JSON.stringify(data),
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["release-profiles"] });
+		},
+	}));
+}
+
+export function createUpdateReleaseProfileMutation() {
+	const queryClient = useQueryClient();
+	return useMutation(() => ({
+		mutationFn: ({
+			id,
+			data,
+		}: {
+			id: number;
+			data: { name: string; enabled: boolean; rules: ReleaseProfileRule[] };
+		}) =>
+			fetchApi(`${API_BASE}/release-profiles/${id}`, {
+				method: "PUT",
+				body: JSON.stringify(data),
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["release-profiles"] });
+		},
+	}));
+}
+
+export function createDeleteReleaseProfileMutation() {
+	const queryClient = useQueryClient();
+	return useMutation(() => ({
+		mutationFn: (id: number) =>
+			fetchApi(`${API_BASE}/release-profiles/${id}`, { method: "DELETE" }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["release-profiles"] });
 		},
 	}));
 }
