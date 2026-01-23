@@ -14,6 +14,7 @@ import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutRssRouteImport } from './routes/_layout/rss'
+import { Route as LayoutLogsRouteImport } from './routes/_layout/logs'
 import { Route as LayoutDownloadsRouteImport } from './routes/_layout/downloads'
 import { Route as LayoutCalendarRouteImport } from './routes/_layout/calendar'
 import { Route as LayoutAnimeIndexRouteImport } from './routes/_layout/anime/index'
@@ -44,6 +45,11 @@ const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
 const LayoutRssRoute = LayoutRssRouteImport.update({
   id: '/rss',
   path: '/rss',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutLogsRoute = LayoutLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutDownloadsRoute = LayoutDownloadsRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/calendar': typeof LayoutCalendarRoute
   '/downloads': typeof LayoutDownloadsRoute
+  '/logs': typeof LayoutLogsRoute
   '/rss': typeof LayoutRssRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/calendar': typeof LayoutCalendarRoute
   '/downloads': typeof LayoutDownloadsRoute
+  '/logs': typeof LayoutLogsRoute
   '/rss': typeof LayoutRssRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_layout/calendar': typeof LayoutCalendarRoute
   '/_layout/downloads': typeof LayoutDownloadsRoute
+  '/_layout/logs': typeof LayoutLogsRoute
   '/_layout/rss': typeof LayoutRssRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/calendar'
     | '/downloads'
+    | '/logs'
     | '/rss'
     | '/settings'
     | '/'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/calendar'
     | '/downloads'
+    | '/logs'
     | '/rss'
     | '/settings'
     | '/'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_layout/calendar'
     | '/_layout/downloads'
+    | '/_layout/logs'
     | '/_layout/rss'
     | '/_layout/settings'
     | '/_layout/'
@@ -206,6 +218,13 @@ declare module '@tanstack/solid-router' {
       path: '/rss'
       fullPath: '/rss'
       preLoaderRoute: typeof LayoutRssRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/logs': {
+      id: '/_layout/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LayoutLogsRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/downloads': {
@@ -263,6 +282,7 @@ declare module '@tanstack/solid-router' {
 interface LayoutRouteChildren {
   LayoutCalendarRoute: typeof LayoutCalendarRoute
   LayoutDownloadsRoute: typeof LayoutDownloadsRoute
+  LayoutLogsRoute: typeof LayoutLogsRoute
   LayoutRssRoute: typeof LayoutRssRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
@@ -276,6 +296,7 @@ interface LayoutRouteChildren {
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutCalendarRoute: LayoutCalendarRoute,
   LayoutDownloadsRoute: LayoutDownloadsRoute,
+  LayoutLogsRoute: LayoutLogsRoute,
   LayoutRssRoute: LayoutRssRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,

@@ -77,6 +77,12 @@ export default {
 					border: "hsl(var(--sidebar-border))",
 					ring: "hsl(var(--sidebar-ring))",
 				},
+				anime: {
+					pink: "hsl(var(--anime-pink))",
+					blue: "hsl(var(--anime-blue))",
+					purple: "hsl(var(--anime-purple))",
+					cyan: "hsl(var(--anime-cyan))",
+				},
 			},
 			borderRadius: {
 				xl: "calc(var(--radius) + 4px)",

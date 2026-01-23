@@ -4,6 +4,7 @@ import {
 	IconDeviceTv,
 	IconDownload,
 	IconHome,
+	IconList,
 	IconLogout,
 	IconRss,
 	IconSearch,
@@ -11,7 +12,6 @@ import {
 } from "@tabler/icons-solidjs";
 import { Link, useLocation } from "@tanstack/solid-router";
 import { For, Show } from "solid-js";
-import { Button } from "~/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
@@ -60,6 +60,11 @@ const mainItems = [
 ];
 
 const settingsItems = [
+	{
+		title: "System Logs",
+		url: "/logs",
+		icon: IconList,
+	},
 	{
 		title: "Settings",
 		url: "/settings",
@@ -183,17 +188,18 @@ export function AppSidebar() {
 			{/* Footer */}
 			<SidebarFooter class="p-2 group-data-[collapsible=icon]:p-1">
 				<SidebarSeparator class="mb-2 mx-0 group-data-[collapsible=icon]:mx-0" />
-				<div class="flex items-center justify-between px-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => logout()}
-						title="Sign out"
-						class="h-7 w-7 text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
-					>
-						<IconLogout class="h-4 w-4" />
-					</Button>
-				</div>
+				<SidebarMenu class="gap-0.5 group-data-[collapsible=icon]:items-center">
+					<SidebarMenuItem>
+						<SidebarMenuButton
+							onClick={() => logout()}
+							tooltip="Sign out"
+							class="h-8 rounded-md transition-colors"
+						>
+							<IconLogout class="h-4 w-4 shrink-0" />
+							<span>Sign out</span>
+						</SidebarMenuButton>
+					</SidebarMenuItem>
+				</SidebarMenu>
 			</SidebarFooter>
 		</Sidebar>
 	);

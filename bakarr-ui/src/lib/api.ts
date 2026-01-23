@@ -1156,7 +1156,90 @@ export function createImportUnmappedFolderMutation() {
 	}));
 }
 
-// ==================== Import Hooks ====================
+// ==================== System Logs Hooks ====================
+
+export interface SystemLog {
+	id: number;
+	event_type: string;
+	level: "info" | "warn" | "error" | "success";
+	message: string;
+	details?: string;
+	created_at: string;
+}
+
+export interface SystemLogsResponse {
+	logs: SystemLog[];
+	total_pages: number;
+}
+
+export function systemLogsQueryOptions(
+	page = 1,
+	level?: string,
+	eventType?: string,
+	startDate?: string,
+	endDate?: string,
+) {
+	return queryOptions({
+		queryKey: ["system", "logs", page, level, eventType, startDate, endDate],
+		queryFn: () => {
+			const params = new URLSearchParams();
+			params.append("page", page.toString());
+			if (level) params.append("level", level);
+			if (eventType) params.append("event_type", eventType);
+			if (startDate) params.append("start_date", startDate);
+			if (endDate) params.append("end_date", endDate);
+			return fetchApi<SystemLogsResponse>(
+				`${API_BASE}/system/logs?${params.toString()}`,
+			);
+		},
+		placeholderData: keepPreviousData,
+	});
+}
+
+export function createSystemLogsQuery(
+	page: () => number,
+	level: () => string | undefined,
+	eventType: () => string | undefined,
+	startDate: () => string | undefined,
+	endDate: () => string | undefined,
+) {
+	return useQuery(() => ({
+		...systemLogsQueryOptions(
+			page(),
+			level(),
+			eventType(),
+			startDate(),
+			endDate(),
+		),
+	}));
+}
+
+export function getExportLogsUrl(
+	level?: string,
+	eventType?: string,
+	startDate?: string,
+	endDate?: string,
+	format: "json" | "csv" = "json",
+) {
+	const params = new URLSearchParams();
+	if (level) params.append("level", level);
+	if (eventType) params.append("event_type", eventType);
+	if (startDate) params.append("start_date", startDate);
+	if (endDate) params.append("end_date", endDate);
+	params.append("format", format);
+	return `${API_BASE}/system/logs/export?${params.toString()}`;
+}
+
+export function createClearLogsMutation() {
+	const queryClient = useQueryClient();
+	return useMutation(() => ({
+		mutationFn: () =>
+			fetchApi<boolean>(`${API_BASE}/system/logs`, { method: "DELETE" }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["system", "logs"] });
+		},
+	}));
+}
 
 export interface BrowseEntry {
 	name: string;
