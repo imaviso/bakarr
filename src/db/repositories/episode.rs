@@ -350,6 +350,34 @@ impl EpisodeRepository {
         file_size: Option<i64>,
         media_info: Option<&MediaInfo>,
     ) -> Result<()> {
+        // Ensure this file is not mapped to any other episode of this anime
+        EpisodeStatus::update_many()
+            .col_expr(
+                episode_status::Column::FilePath,
+                sea_orm::sea_query::Expr::value(Option::<String>::None),
+            )
+            .col_expr(
+                episode_status::Column::FileSize,
+                sea_orm::sea_query::Expr::value(Option::<i64>::None),
+            )
+            .col_expr(
+                episode_status::Column::DownloadedAt,
+                sea_orm::sea_query::Expr::value(Option::<String>::None),
+            )
+            .col_expr(
+                episode_status::Column::QualityId,
+                sea_orm::sea_query::Expr::value(Option::<i32>::None),
+            )
+            .col_expr(
+                episode_status::Column::IsSeadex,
+                sea_orm::sea_query::Expr::value(false),
+            )
+            .filter(episode_status::Column::AnimeId.eq(anime_id))
+            .filter(episode_status::Column::FilePath.eq(file_path))
+            .filter(episode_status::Column::EpisodeNumber.ne(episode_number))
+            .exec(&self.conn)
+            .await?;
+
         let now = chrono::Utc::now().to_rfc3339();
 
         let status = EpisodeStatusInput {
