@@ -722,4 +722,11 @@ mod tests {
         assert_eq!(r2.episode_number, 5.0);
         assert_eq!(r2.source.as_deref(), Some("WEB"));
     }
+
+    #[test]
+    fn test_extract_group_complex_from_issue() {
+        let filename = "Chitose.Is.in.the.Ramune.Bottle.S01E01.The.Hazy.Spring.Moon.Above.1080p.CR.WEB-DL.AAC2.0.H.264-VARYG.mkv";
+        let r = parse_filename(filename).unwrap();
+        assert_eq!(r.group.as_deref(), Some("VARYG"));
+    }
 }
