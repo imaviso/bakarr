@@ -42,7 +42,7 @@ pub struct AddRssFeedRequest {
 pub async fn list_feeds(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<RssFeedDto>>>, ApiError> {
-    let feeds = state.store().get_enabled_rss_feeds().await?;
+    let feeds = state.store().list_rss_feeds().await?;
     let dtos: Vec<RssFeedDto> = feeds.into_iter().map(RssFeedDto::from).collect();
     Ok(Json(ApiResponse::success(dtos)))
 }

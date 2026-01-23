@@ -75,6 +75,15 @@ impl RssRepository {
         Ok(rows.into_iter().map(Self::map_feed_model).collect())
     }
 
+    pub async fn list_all(&self) -> Result<Vec<RssFeed>> {
+        let rows = RssFeeds::find()
+            .order_by_asc(rss_feeds::Column::CreatedAt)
+            .all(&self.conn)
+            .await?;
+
+        Ok(rows.into_iter().map(Self::map_feed_model).collect())
+    }
+
     pub async fn update_checked(&self, feed_id: i64, last_item_hash: Option<&str>) -> Result<()> {
         let mut update = RssFeeds::update_many()
             .col_expr(

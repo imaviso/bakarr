@@ -23,7 +23,7 @@ request_timeout_seconds = 30
 
 [scheduler]
 enabled = true
-check_interval_minutes = 15
+check_interval_minutes = 999
 max_concurrent_checks = 3
 check_delay_seconds = 5
 metadata_refresh_hours = 12
@@ -64,16 +64,6 @@ allowed_qualities = [
     "WEBRip 720p",
     "HDTV 1080p",
     "HDTV 720p",
-]
-
-[[profiles]]
-name = "Heyy"
-cutoff = "BluRay 1080p"
-upgrade_allowed = true
-seadex_preferred = true
-allowed_qualities = [
-    "BluRay 1080p",
-    "WEB-DL 1080p",
 ]
 
 [auth]
