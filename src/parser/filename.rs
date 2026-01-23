@@ -329,18 +329,54 @@ fn extract_bracket_group(s: &str) -> Option<String> {
 
 fn extract_group_from_rest(s: &str) -> Option<String> {
     if let Some(pos) = s.rfind('-') {
-        let group = &s[pos + 1..].trim();
+        let rest = &s[pos + 1..].trim();
+        let path = std::path::Path::new(rest);
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(rest);
 
-        let group = group.split('.').next().unwrap_or(group);
-        if !group.is_empty()
-            && !group.starts_with('[') // Don't accept [Tags] as group
-            && !["x264", "x265", "HEVC", "AV1", "AAC", "FLAC"]
-                .contains(&group.to_uppercase().as_str())
+        // Check for brackets
+        if stem.contains('[') && stem.contains(']') {
+            static RE_BRACKETS: OnceLock<Regex> = OnceLock::new();
+            let re = RE_BRACKETS.get_or_init(|| Regex::new(r"\[([^\]]+)\]").unwrap());
+
+            let matches: Vec<_> = re
+                .captures_iter(stem)
+                .map(|c| c.get(1).unwrap().as_str().trim())
+                .collect();
+
+            for val in matches.iter().rev() {
+                // If it looks like nested bracket artifact (starts with [), ignore or clean
+                let clean_val = val.trim_start_matches('[');
+                
+                if !is_metadata(clean_val) {
+                    return Some(clean_val.to_string());
+                }
+            }
+        }
+
+        // No brackets, or fallback
+        if !stem.is_empty() 
+            && !stem.starts_with('[') // Still ignore if it looks like a tag soup but regex failed?
+            && !is_metadata(stem) 
         {
-            return Some(group.to_string());
+            return Some(stem.to_string());
         }
     }
     None
+}
+
+fn is_metadata(s: &str) -> bool {
+    if extract_resolution(s).is_some() {
+        return true;
+    }
+    if extract_source(s).is_some() {
+        return true;
+    }
+    let upper = s.to_uppercase();
+    [
+        "X264", "X265", "HEVC", "AV1", "AAC", "FLAC", "AC3", "EAC3", "DTS", "TRUEHD", "OPUS",
+        "H.264", "H.265", "10BIT", "HDR", "REMUX", "DV",
+    ]
+    .contains(&upper.as_str())
 }
 
 fn extract_title_before_episode(filename: &str, episode_str: &str) -> Option<String> {
