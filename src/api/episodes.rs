@@ -525,6 +525,21 @@ pub async fn bulk_map_episodes(
             continue;
         }
 
+        if mapping.file_path.is_empty() {
+            if let Err(e) = state
+                .store()
+                .clear_episode_download(id, mapping.episode_number)
+                .await
+            {
+                tracing::error!(
+                    "Failed to unmap episode {} in bulk op: {}",
+                    mapping.episode_number,
+                    e
+                );
+            }
+            continue;
+        }
+
         let path = std::path::Path::new(&mapping.file_path);
         if !path.exists() {
             tracing::warn!(

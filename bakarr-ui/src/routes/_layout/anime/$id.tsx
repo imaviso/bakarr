@@ -1063,11 +1063,7 @@ function BulkMappingDialog(props: {
 	const handleMap = (episodeNumber: number, filePath: string) => {
 		setMappings((prev) => {
 			const next = { ...prev };
-			if (filePath === "") {
-				delete next[episodeNumber];
-			} else {
-				next[episodeNumber] = filePath;
-			}
+			next[episodeNumber] = filePath;
 			return next;
 		});
 	};
