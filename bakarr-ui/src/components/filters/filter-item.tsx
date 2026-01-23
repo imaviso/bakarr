@@ -1,5 +1,5 @@
 import { IconX } from "@tabler/icons-solidjs";
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, Show } from "solid-js";
 import { Button } from "~/components/ui/button";
 import {
 	Select,
@@ -28,31 +28,43 @@ export function FilterItem(props: FilterItemProps) {
 		const col = column();
 		if (!col) return [];
 
+		let options: { value: FilterOperator; label: string }[] = [];
+
 		switch (col.type) {
 			case "text":
-				return [
+				options = [
 					{ value: "contains", label: "contains" },
 					{ value: "does_not_contain", label: "does not contain" },
 				];
+				break;
 			case "select":
-				return [
+				options = [
 					{ value: "is", label: "is" },
 					{ value: "is_not", label: "is not" },
 				];
+				break;
 			case "multiSelect":
-				return [
+				options = [
 					{ value: "is_any_of", label: "is any of" },
 					{ value: "is_none_of", label: "is none of" },
 				];
+				break;
 			case "date":
-				return [
+				options = [
 					{ value: "is", label: "is" },
 					{ value: "is_before", label: "is before" },
 					{ value: "is_after", label: "is after" },
 				];
+				break;
 			default:
-				return [];
+				options = [];
 		}
+
+		if (col.operators && col.operators.length > 0) {
+			return options.filter((o) => col.operators?.includes(o.value));
+		}
+
+		return options;
 	});
 
 	const handleOperatorChange = (operator: FilterOperator | null) => {
@@ -68,8 +80,8 @@ export function FilterItem(props: FilterItemProps) {
 	};
 
 	return (
-		<div class="flex items-center gap-2 bg-muted/50 rounded-md p-2">
-			<div class="text-sm font-medium text-muted-foreground min-w-[80px]">
+		<div class="flex items-center gap-1.5 bg-muted/50 rounded-md p-1 pr-2">
+			<div class="text-sm font-medium text-muted-foreground px-2">
 				{column()?.label}
 			</div>
 
@@ -87,7 +99,7 @@ export function FilterItem(props: FilterItemProps) {
 					</SelectItem>
 				)}
 			>
-				<SelectTrigger class="w-[160px] h-8">
+				<SelectTrigger class="w-[140px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
 					<SelectValue<string>>
 						{(state) =>
 							operatorOptions().find((o) => o.value === state.selectedOption())
@@ -125,7 +137,7 @@ export function FilterItem(props: FilterItemProps) {
 							);
 						}}
 					>
-						<SelectTrigger class="w-[160px] h-8">
+						<SelectTrigger class="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
 							<SelectValue<string>>
 								{(state) => {
 									const option = column()?.options?.find(
@@ -158,7 +170,7 @@ export function FilterItem(props: FilterItemProps) {
 						}
 						onInput={(e) => handleValueChange(e.currentTarget.value)}
 						placeholder={column()?.placeholder || "Enter value"}
-						class="h-8 w-[160px]"
+						class="h-8 w-[160px] px-2 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 border-muted-foreground/20"
 					/>
 				</TextField>
 			</Show>
@@ -166,10 +178,10 @@ export function FilterItem(props: FilterItemProps) {
 			<Button
 				variant="ghost"
 				size="icon"
-				class="h-8 w-8"
+				class="h-6 w-6 ml-1 text-muted-foreground hover:text-foreground"
 				onClick={() => ctx.removeFilter(props.index)}
 			>
-				<IconX class="h-4 w-4" />
+				<IconX class="h-3 w-3" />
 			</Button>
 		</div>
 	);

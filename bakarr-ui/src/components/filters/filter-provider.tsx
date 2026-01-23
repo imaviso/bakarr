@@ -1,9 +1,10 @@
 import type { JSX } from "solid-js";
-import { createMemo, createSignal } from "solid-js";
+import { createMemo } from "solid-js";
 import { FilterContext } from "./filter-context";
 import type {
 	FilterColumnConfig,
 	FilterContextValue,
+	FilterOperator,
 	FilterState,
 } from "./types";
 
@@ -21,12 +22,18 @@ export function FilterProvider(props: FilterProviderProps) {
 		const column = props.columns.find((c) => c.id === columnId);
 		if (!column) return;
 
-		const defaultOperator =
+		let defaultOperator: FilterOperator =
 			column.type === "text"
 				? "contains"
-				: column.type === "date"
+				: column.type === "date" || column.type === "select"
 					? "is"
 					: "is_any_of";
+
+		if (column.operators && column.operators.length > 0) {
+			if (!column.operators.includes(defaultOperator)) {
+				defaultOperator = column.operators[0];
+			}
+		}
 
 		const newFilter: FilterState = {
 			columnId,

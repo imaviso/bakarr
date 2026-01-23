@@ -27,6 +27,7 @@ export interface FilterColumnConfig {
 	icon?: JSX.Element;
 	options?: FilterOption[];
 	placeholder?: string;
+	operators?: FilterOperator[];
 }
 
 export interface FilterState {

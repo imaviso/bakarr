@@ -91,6 +91,7 @@ function LogsPage() {
 			label: "Level",
 			type: "select",
 			icon: <IconFilter class="h-4 w-4" />,
+			operators: ["is"],
 			options: [
 				{
 					value: "info",
@@ -119,6 +120,7 @@ function LogsPage() {
 			label: "Event Type",
 			type: "select",
 			icon: <IconTag class="h-4 w-4" />,
+			operators: ["is"],
 			options: [
 				{ value: "Scan", label: "Scan" },
 				{ value: "Download", label: "Download" },
@@ -132,12 +134,14 @@ function LogsPage() {
 			label: "Start Date",
 			type: "date",
 			icon: <IconCalendar class="h-4 w-4" />,
+			operators: ["is_after"],
 		},
 		{
 			id: "endDate",
 			label: "End Date",
 			type: "date",
 			icon: <IconCalendar class="h-4 w-4" />,
+			operators: ["is_before"],
 		},
 	];
 
@@ -150,7 +154,15 @@ function LogsPage() {
 				? filter.value[0]
 				: filter.value;
 			if (value) {
-				params[filter.columnId] = value;
+				if (filter.columnId === "endDate") {
+					// Append end of day time to ensure inclusive filtering
+					params[filter.columnId] = `${value} 23:59:59`;
+				} else if (filter.columnId === "startDate") {
+					// Append start of day time for consistency
+					params[filter.columnId] = `${value} 00:00:00`;
+				} else {
+					params[filter.columnId] = value;
+				}
 			}
 		}
 
