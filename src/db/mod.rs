@@ -14,6 +14,7 @@ pub mod migrator;
 pub mod repositories;
 
 // Re-export types from repositories for backward compatibility
+pub use crate::entities::system_logs::Model as SystemLog;
 pub use repositories::cache::SeaDexCache;
 pub use repositories::download::{DownloadEntry, RecycleBinEntry};
 pub use repositories::episode::CalendarEventRow;
@@ -68,6 +69,10 @@ impl Store {
 
     fn rss_repo(&self) -> repositories::rss::RssRepository {
         repositories::rss::RssRepository::new(self.conn.clone())
+    }
+
+    fn logs_repo(&self) -> repositories::logs::LogRepository {
+        repositories::logs::LogRepository::new(self.conn.clone())
     }
 
     fn cache_repo(&self) -> repositories::cache::CacheRepository {
@@ -239,6 +244,10 @@ impl Store {
         self.rss_repo().get_enabled().await
     }
 
+    pub async fn list_rss_feeds(&self) -> Result<Vec<RssFeed>> {
+        self.rss_repo().list_all().await
+    }
+
     pub async fn update_rss_feed_checked(
         &self,
         feed_id: i64,
@@ -259,6 +268,63 @@ impl Store {
 
     pub async fn rss_feed_count(&self, anime_id: i32) -> Result<i32> {
         self.rss_repo().count_for_anime(anime_id).await
+    }
+
+    // ========================================================================
+    // System Log Operations (delegated to LogRepository)
+    // ========================================================================
+
+    pub async fn add_log(
+        &self,
+        event_type: &str,
+        level: &str,
+        message: &str,
+        details: Option<String>,
+    ) -> Result<()> {
+        self.logs_repo()
+            .add(event_type, level, message, details)
+            .await
+    }
+
+    pub async fn get_logs(
+        &self,
+        page: u64,
+        page_size: u64,
+        level_filter: Option<String>,
+        event_type_filter: Option<String>,
+        start_date: Option<String>,
+        end_date: Option<String>,
+    ) -> Result<(Vec<SystemLog>, u64)> {
+        self.logs_repo()
+            .get_logs(
+                page,
+                page_size,
+                level_filter,
+                event_type_filter,
+                start_date,
+                end_date,
+            )
+            .await
+    }
+
+    pub async fn get_all_logs(
+        &self,
+        level_filter: Option<String>,
+        event_type_filter: Option<String>,
+        start_date: Option<String>,
+        end_date: Option<String>,
+    ) -> Result<Vec<SystemLog>> {
+        self.logs_repo()
+            .get_all_logs(level_filter, event_type_filter, start_date, end_date)
+            .await
+    }
+
+    pub async fn clear_logs(&self) -> Result<()> {
+        self.logs_repo().clear_logs().await
+    }
+
+    pub async fn prune_logs(&self, older_than_days: i64) -> Result<u64> {
+        self.logs_repo().prune_logs(older_than_days).await
     }
 
     // ========================================================================

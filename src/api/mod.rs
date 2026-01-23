@@ -272,6 +272,9 @@ pub async fn router(state: Arc<AppState>) -> Router {
         .route("/system/config", put(system::update_config))
         .route("/system/tasks/scan", post(tasks::trigger_scan))
         .route("/system/tasks/rss", post(tasks::trigger_rss_check))
+        .route("/system/logs", get(system::get_logs))
+        .route("/system/logs/export", get(system::logs::export_logs))
+        .route("/system/logs", delete(system::clear_logs))
         .route("/metrics", get(observability::get_metrics))
         .merge(events::router())
         .route_layer(middleware::from_fn_with_state(

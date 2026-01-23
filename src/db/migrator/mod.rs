@@ -4,6 +4,7 @@ mod m20240101_initial;
 mod m20260118_remove_metadata_fk;
 mod m20260121_add_sort_index;
 mod m20260122_add_release_profiles;
+mod m20260124_add_system_logs;
 
 pub struct Migrator;
 
@@ -15,6 +16,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260118_remove_metadata_fk::Migration),
             Box::new(m20260121_add_sort_index::Migration),
             Box::new(m20260122_add_release_profiles::Migration),
+            Box::new(m20260124_add_system_logs::Migration),
         ]
     }
 }

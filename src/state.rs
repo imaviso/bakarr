@@ -16,7 +16,8 @@ use crate::config::Config;
 use crate::db::Store;
 use crate::library::RecycleBin;
 use crate::services::{
-    AutoDownloadService, DownloadDecisionService, EpisodeService, RssService, SearchService,
+    AutoDownloadService, DownloadDecisionService, EpisodeService, LogService, RssService,
+    SearchService,
 };
 
 /// Shared application state containing services used by both API and Scheduler.
@@ -45,6 +46,9 @@ pub struct SharedState {
 
     /// RSS Feed service
     pub rss_service: Arc<RssService>,
+
+    /// System Log service
+    pub log_service: Arc<LogService>,
 
     /// Auto-downloader service
     pub auto_downloader: Arc<AutoDownloadService>,
@@ -118,6 +122,9 @@ impl SharedState {
             event_bus.clone(),
         ));
 
+        let log_service = Arc::new(LogService::new(store.clone(), event_bus.clone()));
+        log_service.clone().start_listener();
+
         let recycle_bin = RecycleBin::new(
             &config.library.recycle_path,
             config.library.recycle_cleanup_days,
@@ -142,6 +149,7 @@ impl SharedState {
             qbit,
             search_service,
             rss_service,
+            log_service,
             auto_downloader,
             episodes,
             download_decisions,

@@ -4,6 +4,9 @@ use std::sync::Arc;
 use super::{ApiError, ApiResponse, AppState, SystemStatus};
 use crate::config::Config;
 
+pub mod logs;
+pub use logs::{clear_logs, get_logs};
+
 const MASK: &str = "********";
 
 pub async fn get_status(

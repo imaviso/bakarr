@@ -2,6 +2,7 @@ pub mod anime;
 pub mod cache;
 pub mod download;
 pub mod episode;
+pub mod logs;
 pub mod quality;
 pub mod release_profile;
 pub mod rss;
