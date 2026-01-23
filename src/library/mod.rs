@@ -120,7 +120,7 @@ impl LibraryService {
             .and_then(|m| m.audio_codecs.first().cloned())
             .unwrap_or_default();
 
-        format
+        let path_str = format
             .replace("{Series Title}", &safe_series)
             .replace("{Season}", &season.to_string())
             .replace("{Episode}", &episode.to_string())
@@ -134,7 +134,37 @@ impl LibraryService {
             .replace("{Resolution}", &resolution_str)
             .replace("{Codec}", &codec_str)
             .replace("{Duration}", &duration_str)
-            .replace("{Audio}", &audio_str)
+            .replace("{Audio}", &audio_str);
+
+        self.cleanup_path(path_str)
+    }
+
+    fn cleanup_path(&self, path: String) -> String {
+        let mut p = path;
+        let mut prev_len = 0;
+
+        while p.len() != prev_len {
+            prev_len = p.len();
+            p = p
+                .replace("[]", "")
+                .replace("()", "")
+                .replace("  ", " ")
+                .replace(" - - ", " - ")
+                .replace(" .", ".");
+        }
+
+        // Handle cases where we might have "Title - - S01" due to empty group/quality
+        // and trimming
+        p = p.replace(" - - ", " - ");
+
+        // Trim specific separators from ends
+        let p = p.trim();
+        let p = p.trim_end_matches(" - ");
+        let p = p.trim_end_matches('-');
+        let p = p.trim_start_matches(" - ");
+        let p = p.trim_start_matches('-');
+
+        p.trim().to_string()
     }
 
     pub async fn import_file(&self, source: &Path, destination: &Path) -> Result<()> {

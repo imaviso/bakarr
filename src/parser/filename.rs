@@ -329,10 +329,11 @@ fn extract_bracket_group(s: &str) -> Option<String> {
 
 fn extract_group_from_rest(s: &str) -> Option<String> {
     if let Some(pos) = s.rfind('-') {
-        let group = &s[pos + 1..];
+        let group = &s[pos + 1..].trim();
 
         let group = group.split('.').next().unwrap_or(group);
         if !group.is_empty()
+            && !group.starts_with('[') // Don't accept [Tags] as group
             && !["x264", "x265", "HEVC", "AV1", "AAC", "FLAC"]
                 .contains(&group.to_uppercase().as_str())
         {
