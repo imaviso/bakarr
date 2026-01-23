@@ -34,7 +34,7 @@ impl RssService {
         }
     }
 
-    pub async fn check_feeds(&self) -> anyhow::Result<RssCheckStats> {
+    pub async fn check_feeds(&self, delay_secs: u64) -> anyhow::Result<RssCheckStats> {
         let feeds = self.store.get_enabled_rss_feeds().await?;
         let monitored = self.store.list_monitored().await?;
         let total_feeds = feeds.len() as i32;
@@ -109,6 +109,10 @@ impl RssService {
                     warn!("Error checking RSS feed '{}': {}", name, e);
                 }
             }
+
+            if delay_secs > 0 {
+                tokio::time::sleep(tokio::time::Duration::from_secs(delay_secs)).await;
+            }
         }
 
         if let Err(e) = self
@@ -136,11 +140,16 @@ impl RssService {
             return Ok(false);
         }
 
-        let (episode_number, group) = if let Some(parsed) = parse_filename(&torrent.title) {
-            (parsed.episode_number, parsed.group)
-        } else {
-            (0.0, None)
+        let Some(release) = parse_filename(&torrent.title) else {
+            debug!(
+                "Could not parse episode number from RSS item: {}",
+                torrent.title
+            );
+            return Ok(false);
         };
+
+        let episode_number = release.episode_number;
+        let group = release.group;
 
         info!(
             "[RSS] New release: {} - Episode {} [{}]",

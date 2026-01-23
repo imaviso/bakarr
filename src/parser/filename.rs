@@ -346,18 +346,14 @@ fn extract_group_from_rest(s: &str) -> Option<String> {
             for val in matches.iter().rev() {
                 // If it looks like nested bracket artifact (starts with [), ignore or clean
                 let clean_val = val.trim_start_matches('[');
-                
+
                 if !is_metadata(clean_val) {
                     return Some(clean_val.to_string());
                 }
             }
         }
 
-        // No brackets, or fallback
-        if !stem.is_empty() 
-            && !stem.starts_with('[') // Still ignore if it looks like a tag soup but regex failed?
-            && !is_metadata(stem) 
-        {
+        if !stem.is_empty() && !stem.starts_with('[') && !is_metadata(stem) {
             return Some(stem.to_string());
         }
     }

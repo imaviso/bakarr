@@ -19,7 +19,8 @@ pub async fn trigger_rss_check(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<String>>, ApiError> {
     tokio::spawn(async move {
-        if let Err(e) = state.rss_service.check_feeds().await {
+        let delay = state.config().read().await.scheduler.check_delay_seconds as u64;
+        if let Err(e) = state.rss_service.check_feeds(delay).await {
             tracing::error!("RSS check failed: {}", e);
         }
     });

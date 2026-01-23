@@ -284,6 +284,32 @@ impl EpisodeService {
         self.store.clear_episode_cache(anilist_id).await?;
         self.fetch_and_cache_episodes(anilist_id).await
     }
+
+    pub async fn refresh_metadata_for_active_anime(&self) -> Result<()> {
+        info!("Refreshing metadata for airing anime...");
+
+        let monitored = self.store.list_monitored().await?;
+        let releasing: Vec<_> = monitored
+            .into_iter()
+            .filter(|a| a.status == "RELEASING" || a.status == "NOT_YET_RELEASED")
+            .collect();
+
+        info!("Found {} anime to refresh metadata for", releasing.len());
+
+        for anime in releasing {
+            if let Err(e) = self.fetch_and_cache_episodes(anime.id).await {
+                warn!(
+                    "Failed to refresh metadata for {}: {}",
+                    anime.title.romaji, e
+                );
+            }
+
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
+
+        info!("Metadata refresh complete");
+        Ok(())
+    }
 }
 
 #[cfg(test)]

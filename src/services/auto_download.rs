@@ -1,0 +1,371 @@
+use crate::clients::qbittorrent::{AddTorrentOptions, QBitClient};
+use crate::clients::seadex::{SeaDexClient, SeaDexRelease};
+use crate::config::Config;
+use crate::db::Store;
+use crate::library::RecycleBin;
+use crate::models::anime::Anime;
+use crate::services::search::{SearchResult, SearchService};
+use anyhow::Result;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use tracing::{debug, info, warn};
+
+pub struct AutoDownloadService {
+    store: Store,
+    config: Arc<RwLock<Config>>,
+    search_service: Arc<SearchService>,
+    seadex: Arc<SeaDexClient>,
+    qbit: Option<Arc<QBitClient>>,
+    recycle_bin: RecycleBin,
+}
+
+impl AutoDownloadService {
+    pub fn new(
+        store: Store,
+        config: Arc<RwLock<Config>>,
+        search_service: Arc<SearchService>,
+        seadex: Arc<SeaDexClient>,
+        qbit: Option<Arc<QBitClient>>,
+        recycle_bin: RecycleBin,
+    ) -> Self {
+        Self {
+            store,
+            config,
+            search_service,
+            seadex,
+            qbit,
+            recycle_bin,
+        }
+    }
+
+    pub async fn check_all_anime(&self, delay_secs: u32) -> Result<()> {
+        let monitored = self.store.list_monitored().await?;
+        info!(
+            "Checking {} monitored anime via Nyaa search",
+            monitored.len()
+        );
+
+        for anime in monitored {
+            if !anime.monitored {
+                continue;
+            }
+
+            if let Err(e) = self.check_anime_releases(&anime).await {
+                warn!("Error checking {}: {}", anime.title.romaji, e);
+            }
+
+            if delay_secs > 0 {
+                tokio::time::sleep(tokio::time::Duration::from_secs(delay_secs as u64)).await;
+            }
+        }
+
+        info!("Anime search check complete");
+        Ok(())
+    }
+
+    async fn check_anime_releases(&self, anime: &Anime) -> Result<()> {
+        debug!("Checking: {}", anime.title.romaji);
+
+        // For finished anime, try to find SeaDex batch releases first
+        if anime.status == "FINISHED"
+            && let Ok(true) = self.check_finished_anime_seadex(anime).await
+        {
+            info!(
+                "Found and queued Seadex batch for {}, skipping individual episode search",
+                anime.title.romaji
+            );
+            return Ok(());
+        }
+
+        let results = self.search_service.search_anime(anime.id).await?;
+
+        if results.is_empty() {
+            debug!("No matching releases for {}", anime.title.romaji);
+            return Ok(());
+        }
+
+        for result in results.iter().take(10) {
+            if self.store.is_downloaded(&result.title).await? {
+                debug!("Already downloaded exact file: {}", result.title);
+                continue;
+            }
+
+            self.process_search_result(anime, result).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn process_search_result(&self, anime: &Anime, result: &SearchResult) -> Result<()> {
+        let episode_number = result.episode_number as i32;
+
+        match &result.download_action {
+            crate::services::download::DownloadAction::Accept {
+                quality, is_seadex, ..
+            } => {
+                info!(
+                    "New release: {} - Episode {} [{}, {}{}]",
+                    anime.title.romaji,
+                    episode_number,
+                    quality,
+                    result.group.as_deref().unwrap_or("Unknown"),
+                    if *is_seadex { ", SeaDex" } else { "" }
+                );
+
+                self.queue_download_from_result(anime, result, quality, *is_seadex)
+                    .await?;
+            }
+            crate::services::download::DownloadAction::Upgrade {
+                quality,
+                is_seadex,
+                reason,
+                old_file_path,
+                old_quality,
+                ..
+            } => {
+                info!(
+                    "Upgrading {} - Episode {} [{} -> {}, {}]",
+                    anime.title.romaji, episode_number, old_quality, quality, reason
+                );
+
+                self.handle_upgrade_recycle(anime.id, episode_number, old_file_path, old_quality)
+                    .await;
+
+                self.queue_download_from_result(anime, result, quality, *is_seadex)
+                    .await?;
+            }
+            crate::services::download::DownloadAction::Reject { reason } => {
+                debug!(
+                    "Skipping {} - Episode {}: {}",
+                    anime.title.romaji, episode_number, reason
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn queue_download_from_result(
+        &self,
+        anime: &Anime,
+        result: &SearchResult,
+        quality: &crate::quality::Quality,
+        is_seadex: bool,
+    ) -> Result<()> {
+        let Some(qbit) = &self.qbit else {
+            info!("Would download (qBit not available): {}", result.title);
+            return Ok(());
+        };
+
+        let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
+        let _ = qbit.create_category(&category, None).await;
+
+        let options = AddTorrentOptions {
+            category: Some(category.clone()),
+            save_path: None,
+            ..Default::default()
+        };
+
+        match qbit.add_torrent_url(&result.link, Some(options)).await {
+            Ok(_) => {
+                info!(
+                    "✓ Queued: {} [{}{}]",
+                    result.title,
+                    quality,
+                    if is_seadex { ", SeaDex" } else { "" }
+                );
+
+                self.store
+                    .record_download(
+                        anime.id,
+                        &result.title,
+                        result.episode_number,
+                        result.group.as_deref(),
+                        Some(&result.info_hash),
+                    )
+                    .await?;
+            }
+            Err(e) => {
+                warn!("Failed to queue torrent: {}", e);
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn handle_upgrade_recycle(
+        &self,
+        anime_id: i32,
+        episode_number: i32,
+        old_file_path: &Option<String>,
+        old_quality: &crate::quality::Quality,
+    ) {
+        let Some(old_path) = old_file_path else {
+            return;
+        };
+
+        let path = std::path::Path::new(old_path);
+        if !path.exists() {
+            return;
+        }
+
+        match self.recycle_bin.recycle(path, "upgrade").await {
+            Ok(recycled) => {
+                let _ = self
+                    .store
+                    .add_to_recycle_bin(
+                        old_path,
+                        recycled.recycled_path.to_str(),
+                        anime_id,
+                        episode_number,
+                        Some(old_quality.id),
+                        recycled.file_size,
+                        "upgrade",
+                    )
+                    .await;
+                info!("Moved old file to recycle bin: {:?}", old_path);
+            }
+            Err(e) => {
+                warn!("Failed to recycle old file: {}", e);
+            }
+        }
+    }
+
+    async fn check_finished_anime_seadex(&self, anime: &Anime) -> Result<bool> {
+        let config = self.config.read().await;
+        if !config.downloads.use_seadex {
+            return Ok(false);
+        }
+        drop(config);
+
+        let releases = self.get_seadex_releases_cached(anime.id).await;
+        if releases.is_empty() {
+            return Ok(false);
+        }
+
+        for release in releases.iter().take(3) {
+            match self.try_queue_seadex_release(anime, release).await? {
+                SeadexQueueResult::Queued => return Ok(true),
+                SeadexQueueResult::AlreadyDownloaded => return Ok(true),
+                SeadexQueueResult::Skipped => continue,
+            }
+        }
+
+        Ok(false)
+    }
+
+    async fn try_queue_seadex_release(
+        &self,
+        anime: &Anime,
+        release: &crate::clients::seadex::SeaDexRelease,
+    ) -> Result<SeadexQueueResult> {
+        let Some(hash) = &release.info_hash else {
+            return Ok(SeadexQueueResult::Skipped);
+        };
+
+        // Validate hash format (should be 40 hex characters)
+        if hash.len() != 40 {
+            return Ok(SeadexQueueResult::Skipped);
+        }
+
+        // Check if blocked
+        if self.store.is_blocked(hash).await.unwrap_or(false) {
+            return Ok(SeadexQueueResult::Skipped);
+        }
+
+        // Check if already downloaded
+        if self.store.get_download_by_hash(hash).await?.is_some() {
+            return Ok(SeadexQueueResult::AlreadyDownloaded);
+        }
+
+        // Queue the download
+        let Some(qbit) = &self.qbit else {
+            info!(
+                "Would download Seadex Batch (qBit not available): {} [{}]",
+                anime.title.romaji, release.release_group
+            );
+            return Ok(SeadexQueueResult::Queued);
+        };
+
+        let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
+        let _ = qbit.create_category(&category, None).await;
+
+        let options = AddTorrentOptions {
+            category: Some(category.clone()),
+            save_path: None,
+            ..Default::default()
+        };
+
+        match qbit.add_torrent_url(&release.url, Some(options)).await {
+            Ok(_) => {
+                info!(
+                    "✓ Queued Seadex Batch: {} [{}]",
+                    anime.title.romaji, release.release_group
+                );
+
+                self.store
+                    .record_download(
+                        anime.id,
+                        &format!("{} - {}", anime.title.romaji, release.release_group),
+                        -1.0,
+                        Some(&release.release_group),
+                        Some(hash),
+                    )
+                    .await?;
+
+                Ok(SeadexQueueResult::Queued)
+            }
+            Err(e) => {
+                warn!("Failed to queue Seadex batch: {}", e);
+                Ok(SeadexQueueResult::Skipped)
+            }
+        }
+    }
+
+    /// Re-implementation of SeaDex caching logic from SharedState
+    /// to avoid circular dependency.
+    async fn get_seadex_releases_cached(&self, anime_id: i32) -> Vec<SeaDexRelease> {
+        if let Ok(true) = self.store.is_seadex_cache_fresh(anime_id).await
+            && let Ok(Some(cache)) = self.store.get_seadex_cache(anime_id).await
+        {
+            let releases = cache.get_releases();
+            if !releases.is_empty() {
+                return releases;
+            }
+        }
+
+        let config = self.config.read().await;
+        if !config.downloads.use_seadex {
+            return vec![];
+        }
+        drop(config);
+
+        match self.seadex.get_best_for_anime(anime_id).await {
+            Ok(releases) => {
+                let groups: Vec<String> =
+                    releases.iter().map(|r| r.release_group.clone()).collect();
+                let best_release = releases.first().map(|r| r.release_group.as_str());
+
+                if let Err(e) = self
+                    .store
+                    .cache_seadex(anime_id, &groups, best_release, &releases)
+                    .await
+                {
+                    debug!("Failed to cache SeaDex releases: {}", e);
+                }
+
+                releases
+            }
+            Err(e) => {
+                debug!("SeaDex lookup failed: {}", e);
+                vec![]
+            }
+        }
+    }
+}
+
+enum SeadexQueueResult {
+    Queued,
+    AlreadyDownloaded,
+    Skipped,
+}

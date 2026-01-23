@@ -1,9 +1,13 @@
+pub mod auto_download;
+pub use auto_download::AutoDownloadService;
+
 pub mod anime;
+pub use anime::AnimeMetadataService;
+
 pub mod download;
 pub mod episodes;
 pub mod image;
 
-pub use anime::AnimeMetadataService;
 pub use download::DownloadDecisionService;
 pub use episodes::EpisodeService;
 pub use image::ImageService;

@@ -162,7 +162,9 @@ pub async fn cmd_rss_check(config: &Config) -> anyhow::Result<()> {
 
     let rss_service = crate::services::RssService::new(store, nyaa, qbit, event_bus);
 
-    let stats = rss_service.check_feeds().await?;
+    let stats = rss_service
+        .check_feeds(config.scheduler.check_delay_seconds as u64)
+        .await?;
 
     println!();
     println!(

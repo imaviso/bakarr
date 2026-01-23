@@ -15,7 +15,9 @@ use crate::clients::seadex::{SeaDexClient, SeaDexRelease};
 use crate::config::Config;
 use crate::db::Store;
 use crate::library::RecycleBin;
-use crate::services::{DownloadDecisionService, EpisodeService, SearchService};
+use crate::services::{
+    AutoDownloadService, DownloadDecisionService, EpisodeService, RssService, SearchService,
+};
 
 /// Shared application state containing services used by both API and Scheduler.
 ///
@@ -40,6 +42,12 @@ pub struct SharedState {
 
     /// Search service for finding releases
     pub search_service: Arc<SearchService>,
+
+    /// RSS Feed service
+    pub rss_service: Arc<RssService>,
+
+    /// Auto-downloader service
+    pub auto_downloader: Arc<AutoDownloadService>,
 
     /// Episode tracking service
     pub episodes: EpisodeService,
@@ -103,18 +111,38 @@ impl SharedState {
             config.clone(),
         ));
 
+        let rss_service = Arc::new(RssService::new(
+            store.clone(),
+            nyaa.clone(),
+            qbit.clone(),
+            event_bus.clone(),
+        ));
+
         let recycle_bin = RecycleBin::new(
             &config.library.recycle_path,
             config.library.recycle_cleanup_days,
         );
 
+        let config_arc = Arc::new(RwLock::new(config));
+
+        let auto_downloader = Arc::new(AutoDownloadService::new(
+            store.clone(),
+            config_arc.clone(),
+            search_service.clone(),
+            seadex.clone(),
+            qbit.clone(),
+            recycle_bin.clone(),
+        ));
+
         Ok(Self {
-            config: Arc::new(RwLock::new(config)),
+            config: config_arc,
             store,
             nyaa,
             seadex,
             qbit,
             search_service,
+            rss_service,
+            auto_downloader,
             episodes,
             download_decisions,
             recycle_bin,
