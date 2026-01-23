@@ -114,7 +114,9 @@ pub async fn get_rename_preview(
                         duration_secs: duration as f64,
                     })
                 } else {
-                    None
+                    // Fallback: Read from file if DB metadata is missing
+                    let media_service = crate::services::MediaService::new();
+                    media_service.get_media_info(current_path).ok()
                 }
             },
         };
@@ -242,7 +244,9 @@ pub async fn execute_rename(
                         duration_secs: duration as f64,
                     })
                 } else {
-                    None
+                    // Fallback: Read from file if DB metadata is missing
+                    let media_service = crate::services::MediaService::new();
+                    media_service.get_media_info(current_path).ok()
                 }
             },
         };
