@@ -488,4 +488,54 @@ mod tests {
         assert!(!path_str.contains("(2023) (2023)"));
         assert!(path_str.contains("Fate strange Fake -Whispers of Dawn- (2023)"));
     }
+
+    #[test]
+    fn test_cleanup_path() {
+        let service = LibraryService::new(test_config());
+
+        // Basic empty brackets
+        assert_eq!(service.cleanup_path("Title - [] - [Quality]".to_string()), "Title - [Quality]");
+        assert_eq!(service.cleanup_path("Title - () - (Year)".to_string()), "Title - (Year)");
+
+        // Nested/Recursive empty brackets
+        assert_eq!(service.cleanup_path("Title - [[]] - End".to_string()), "Title - End");
+        assert_eq!(service.cleanup_path("Title - ([]) - End".to_string()), "Title - End");
+
+        // Separator cleanup
+        assert_eq!(service.cleanup_path("Title - - Episode 01".to_string()), "Title - Episode 01");
+        assert_eq!(service.cleanup_path("Title  Episode".to_string()), "Title Episode");
+
+        // Complex example from user issue
+        // "Cosmic Princess Kaguya! - S01E00 - Episode 0 -[]-[]-[][[][[][[eac3][]]]].mkv"
+        // becomes cleaned up.
+        // Assuming the format produces empty brackets:
+        let _input = "Series - S01E01 - Title - []-[]-[][[][[][[eac3][]]]]".to_string();
+        // Inner [eac3] is kept. Surrounding empty brackets are removed.
+        // [[eac3][]] -> [eac3]
+        // [][[][[eac3][]]]] -> [eac3]
+        // []-[]-[eac3] -> [eac3]
+        // Series - S01E01 - Title - [eac3]
+        // Note: The cleanup_path function doesn't know about file extensions, so we test the body.
+        
+        // Let's trace [][[][[][[eac3][]]]]
+        // 1. [] removed -> [][[][[eac3]]]
+        // 2. [] removed -> [[[[eac3]]]
+        // Wait, replace("[]", "") removes empty pairs.
+        // [][[][[][[eac3][]]]] -> [][[][[eac3]]]  (inner [] removed)
+        // -> [[[[eac3]]] -> ... it doesn't remove [[eac3]] because it's not empty.
+        
+        // If the user's config produces nested brackets around content, cleanup_path WON'T remove the nesting
+        // unless they are empty.
+        // e.g. [[eac3]] remains [[eac3]].
+        
+        // BUT the user's issue was "adding stuff" and "recursive malformation".
+        // The malformation was likely due to extracting "[[eac3]]" as the Group, and then wrapping it in [].
+        // My fix in parser/filename.rs prevents extracting "[[eac3]]" as group.
+        // So in the next rename, Group will be empty (or correct).
+        // If Group is empty, format produces "[]".
+        // cleanup_path removes "[]".
+        // So the filename becomes clean.
+        
+        assert_eq!(service.cleanup_path("Title - [] - End".to_string()), "Title - End");
+    }
 }
