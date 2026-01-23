@@ -1,4 +1,5 @@
 import {
+	IconAlertTriangle,
 	IconCalendar,
 	IconCommand,
 	IconDeviceTv,
@@ -46,6 +47,11 @@ const mainItems = [
 		title: "RSS Feeds",
 		url: "/rss",
 		icon: IconRss,
+	},
+	{
+		title: "Wanted",
+		url: "/wanted",
+		icon: IconAlertTriangle,
 	},
 	{
 		title: "Calendar",

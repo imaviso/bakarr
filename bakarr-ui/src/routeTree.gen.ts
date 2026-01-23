@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
+import { Route as LayoutWantedRouteImport } from './routes/_layout/wanted'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutRssRouteImport } from './routes/_layout/rss'
 import { Route as LayoutLogsRouteImport } from './routes/_layout/logs'
@@ -35,6 +36,11 @@ const LayoutRoute = LayoutRouteImport.update({
 const LayoutIndexRoute = LayoutIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutWantedRoute = LayoutWantedRouteImport.update({
+  id: '/wanted',
+  path: '/wanted',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/logs': typeof LayoutLogsRoute
   '/rss': typeof LayoutRssRoute
   '/settings': typeof LayoutSettingsRoute
+  '/wanted': typeof LayoutWantedRoute
   '/': typeof LayoutIndexRoute
   '/anime/$id': typeof LayoutAnimeIdRoute
   '/anime/add': typeof LayoutAnimeAddRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/logs': typeof LayoutLogsRoute
   '/rss': typeof LayoutRssRoute
   '/settings': typeof LayoutSettingsRoute
+  '/wanted': typeof LayoutWantedRoute
   '/': typeof LayoutIndexRoute
   '/anime/$id': typeof LayoutAnimeIdRoute
   '/anime/add': typeof LayoutAnimeAddRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/_layout/logs': typeof LayoutLogsRoute
   '/_layout/rss': typeof LayoutRssRoute
   '/_layout/settings': typeof LayoutSettingsRoute
+  '/_layout/wanted': typeof LayoutWantedRoute
   '/_layout/': typeof LayoutIndexRoute
   '/_layout/anime/$id': typeof LayoutAnimeIdRoute
   '/_layout/anime/add': typeof LayoutAnimeAddRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/logs'
     | '/rss'
     | '/settings'
+    | '/wanted'
     | '/'
     | '/anime/$id'
     | '/anime/add'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/logs'
     | '/rss'
     | '/settings'
+    | '/wanted'
     | '/'
     | '/anime/$id'
     | '/anime/add'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/_layout/logs'
     | '/_layout/rss'
     | '/_layout/settings'
+    | '/_layout/wanted'
     | '/_layout/'
     | '/_layout/anime/$id'
     | '/_layout/anime/add'
@@ -204,6 +216,13 @@ declare module '@tanstack/solid-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof LayoutIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/wanted': {
+      id: '/_layout/wanted'
+      path: '/wanted'
+      fullPath: '/wanted'
+      preLoaderRoute: typeof LayoutWantedRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/settings': {
@@ -285,6 +304,7 @@ interface LayoutRouteChildren {
   LayoutLogsRoute: typeof LayoutLogsRoute
   LayoutRssRoute: typeof LayoutRssRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
+  LayoutWantedRoute: typeof LayoutWantedRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
   LayoutAnimeIdRoute: typeof LayoutAnimeIdRoute
   LayoutAnimeAddRoute: typeof LayoutAnimeAddRoute
@@ -299,6 +319,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutLogsRoute: LayoutLogsRoute,
   LayoutRssRoute: LayoutRssRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
+  LayoutWantedRoute: LayoutWantedRoute,
   LayoutIndexRoute: LayoutIndexRoute,
   LayoutAnimeIdRoute: LayoutAnimeIdRoute,
   LayoutAnimeAddRoute: LayoutAnimeAddRoute,

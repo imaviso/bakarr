@@ -10,6 +10,7 @@ import {
 } from "@tabler/icons-solidjs";
 import { createFileRoute } from "@tanstack/solid-router";
 import { For, Show } from "solid-js";
+import { toast } from "solid-sonner";
 import { GeneralError } from "~/components/general-error";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -75,7 +76,13 @@ function DownloadsPage() {
 				<Button
 					variant="outline"
 					size="sm"
-					onClick={() => searchMissing.mutate(undefined)}
+					onClick={() =>
+						toast.promise(searchMissing.mutateAsync(undefined), {
+							loading: "Triggering global search...",
+							success: "Global search triggered in background",
+							error: (err) => `Failed to trigger search: ${err.message}`,
+						})
+					}
 					disabled={searchMissing.isPending}
 				>
 					<IconSearch class="mr-2 h-4 w-4" />
@@ -89,7 +96,7 @@ function DownloadsPage() {
 						<TabsList class="w-full justify-start h-auto p-0 pb-px bg-transparent border-b-0 space-x-6">
 							<TabsTrigger
 								value="queue"
-								class="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent"
+								class="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
 							>
 								Queue
 								<Show when={queueCount() > 0}>
@@ -103,7 +110,7 @@ function DownloadsPage() {
 							</TabsTrigger>
 							<TabsTrigger
 								value="history"
-								class="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent"
+								class="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
 							>
 								History
 							</TabsTrigger>

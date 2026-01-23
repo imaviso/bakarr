@@ -196,7 +196,7 @@ function AnimeDetailsPage() {
 	};
 
 	return (
-		<div class="space-y-6 p-6">
+		<div class="space-y-6">
 			<Show when={animeQuery.data}>
 				{(anime) => (
 					<>

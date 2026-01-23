@@ -1094,6 +1094,29 @@ export function createSearchMissingMutation() {
 	}));
 }
 
+// ==================== Wanted Hooks ====================
+
+export interface MissingEpisode {
+	anime_id: number;
+	anime_title: string;
+	episode_number: number;
+	episode_title?: string;
+	aired?: string;
+	anime_image?: string;
+}
+
+export function wantedQueryOptions(limit = 100) {
+	return queryOptions({
+		queryKey: ["wanted", limit],
+		queryFn: () =>
+			fetchApi<MissingEpisode[]>(`${API_BASE}/wanted/missing?limit=${limit}`),
+	});
+}
+
+export function createWantedQuery(limit: () => number) {
+	return useQuery(() => wantedQueryOptions(limit()));
+}
+
 // ==================== Library Scan Hooks ====================
 
 export interface UnmappedFolder {

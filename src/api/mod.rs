@@ -36,6 +36,7 @@ mod system;
 mod tasks;
 mod types;
 mod validation;
+pub mod wanted;
 
 pub use error::ApiError;
 pub use types::*;
@@ -225,6 +226,7 @@ pub async fn router(state: Arc<AppState>) -> Router {
         .route("/downloads/history", get(downloads::get_history))
         .route("/downloads/queue", get(downloads::get_queue))
         .route("/downloads/search-missing", post(downloads::search_missing))
+        .route("/wanted/missing", get(wanted::list_missing))
         .route("/calendar", get(calendar::get_calendar))
         .route("/profiles", get(profiles::list_profiles))
         .route("/profiles/qualities", get(profiles::list_qualities))

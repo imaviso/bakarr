@@ -17,7 +17,7 @@ pub mod repositories;
 pub use crate::entities::system_logs::Model as SystemLog;
 pub use repositories::cache::SeaDexCache;
 pub use repositories::download::{DownloadEntry, RecycleBinEntry};
-pub use repositories::episode::CalendarEventRow;
+pub use repositories::episode::{CalendarEventRow, MissingEpisodeRow};
 pub use repositories::quality::QualityProfileRow;
 pub use repositories::rss::RssFeed;
 
@@ -436,6 +436,10 @@ impl Store {
         self.episode_repo()
             .get_calendar_events(start_date, end_date)
             .await
+    }
+
+    pub async fn get_all_missing_episodes(&self, limit: u64) -> Result<Vec<MissingEpisodeRow>> {
+        self.episode_repo().get_all_missing_episodes(limit).await
     }
 
     #[allow(clippy::too_many_arguments)]

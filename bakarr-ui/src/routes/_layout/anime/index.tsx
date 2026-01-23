@@ -111,7 +111,7 @@ function AnimeIndexPage() {
 	});
 
 	return (
-		<div class="space-y-6 p-6">
+		<div class="space-y-6">
 			<div class="flex flex-col sm:flex-row gap-3">
 				{/* Search and Filter */}
 				<div class="relative flex-1">

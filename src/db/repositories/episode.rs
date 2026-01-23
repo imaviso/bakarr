@@ -508,6 +508,56 @@ impl EpisodeRepository {
 
         Ok(events)
     }
+    pub async fn get_all_missing_episodes(&self, limit: u64) -> Result<Vec<MissingEpisodeRow>> {
+        let now = chrono::Utc::now().format("%Y-%m-%d").to_string();
+
+        let events = EpisodeMetadata::find()
+            .select_only()
+            .column(episode_metadata::Column::AnimeId)
+            .column(episode_metadata::Column::EpisodeNumber)
+            .column(episode_metadata::Column::Title)
+            .column(episode_metadata::Column::Aired)
+            .column_as(monitored_anime::Column::RomajiTitle, "anime_title")
+            .column_as(monitored_anime::Column::CoverImage, "anime_image")
+            .column_as(episode_metadata::Column::Title, "episode_title")
+            .join(
+                JoinType::InnerJoin,
+                episode_metadata::Relation::MonitoredAnime.def(),
+            )
+            .join(
+                JoinType::LeftJoin,
+                episode_metadata::Entity::belongs_to(episode_status::Entity)
+                    .from(episode_metadata::Column::AnimeId)
+                    .to(episode_status::Column::AnimeId)
+                    .on_condition(|_left, _right| {
+                        sea_orm::Condition::all().add(
+                            sea_orm::sea_query::Expr::col((
+                                episode_metadata::Entity,
+                                episode_metadata::Column::EpisodeNumber,
+                            ))
+                            .equals((
+                                episode_status::Entity,
+                                episode_status::Column::EpisodeNumber,
+                            )),
+                        )
+                    })
+                    .into(),
+            )
+            .filter(monitored_anime::Column::Monitored.eq(true))
+            .filter(episode_metadata::Column::Aired.lt(now))
+            .filter(
+                sea_orm::Condition::any()
+                    .add(episode_status::Column::FilePath.is_null())
+                    .add(episode_status::Column::AnimeId.is_null()), // Join failed (no status row)
+            )
+            .order_by_desc(episode_metadata::Column::Aired)
+            .limit(limit)
+            .into_model::<MissingEpisodeRow>()
+            .all(&self.conn)
+            .await?;
+
+        Ok(events)
+    }
 }
 
 /// Calendar event row for query results
@@ -519,5 +569,15 @@ pub struct CalendarEventRow {
     pub episode_title: Option<String>,
     pub aired: Option<String>,
     pub downloaded: bool,
+    pub anime_image: Option<String>,
+}
+
+#[derive(Debug, Clone, FromQueryResult)]
+pub struct MissingEpisodeRow {
+    pub anime_id: i64,
+    pub anime_title: String,
+    pub episode_number: i64,
+    pub episode_title: Option<String>,
+    pub aired: Option<String>,
     pub anime_image: Option<String>,
 }

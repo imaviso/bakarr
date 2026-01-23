@@ -206,8 +206,119 @@ pub async fn search_missing(
             "Search for missing episodes triggered".to_string(),
         )))
     } else {
+        // Global search for all missing episodes
+        let state_clone = state.clone();
+        tokio::spawn(async move {
+            tracing::info!("Starting global missing episode search");
+            let _ = state_clone
+                .event_bus()
+                .send(crate::api::NotificationEvent::Info {
+                    message: "Starting global search for missing episodes".to_string(),
+                });
+
+            // 1. Get all missing episodes (limit 1000 to be safe/sane)
+            let missing_episodes = match state_clone.store().get_all_missing_episodes(1000).await {
+                Ok(eps) => eps,
+                Err(e) => {
+                    tracing::error!("Failed to fetch missing episodes: {}", e);
+                    return;
+                }
+            };
+
+            if missing_episodes.is_empty() {
+                tracing::info!("No missing episodes found");
+                return;
+            }
+
+            // 2. Group by anime_id to avoid redundant searches (search_anime gets all missing for that anime)
+            let mut unique_anime_ids = std::collections::HashSet::new();
+            for ep in &missing_episodes {
+                unique_anime_ids.insert(ep.anime_id as i32);
+            }
+
+            tracing::info!(
+                "Found {} missing episodes across {} series",
+                missing_episodes.len(),
+                unique_anime_ids.len()
+            );
+
+            // 3. Iterate and search
+            let mut total_added = 0;
+            for (idx, anime_id) in unique_anime_ids.iter().enumerate() {
+                // Rate limiting: sleep 10s between anime to be nice to Nyaa
+                if idx > 0 {
+                    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+                }
+
+                let anime_title = match state_clone.store().get_anime(*anime_id).await {
+                    Ok(Some(a)) => a.title.romaji,
+                    _ => format!("Anime #{}", anime_id),
+                };
+
+                tracing::info!(
+                    "Searching missing for '{}' ({}/{})",
+                    anime_title,
+                    idx + 1,
+                    unique_anime_ids.len()
+                );
+
+                // Use the search_anime logic which already handles filtering/decision making
+                // and returns valid candidates
+                match state_clone.search_service().search_anime(*anime_id).await {
+                    Ok(results) => {
+                        let mut added_for_anime = 0;
+                        let category = crate::clients::qbittorrent::sanitize_category(&anime_title);
+
+                        for result in results {
+                            if result.download_action.should_download()
+                                && let Some(qbit) = &state_clone.qbit()
+                            {
+                                if let Err(e) =
+                                    qbit.add_magnet(&result.link, None, Some(&category)).await
+                                {
+                                    tracing::error!("Failed to add torrent: {}", e);
+                                    continue;
+                                }
+
+                                if let Err(e) = state_clone
+                                    .store()
+                                    .record_download(
+                                        *anime_id,
+                                        &result.title,
+                                        result.episode_number,
+                                        result.group.as_deref(),
+                                        Some(&result.info_hash),
+                                    )
+                                    .await
+                                {
+                                    tracing::error!("Failed to record download: {}", e);
+                                }
+
+                                added_for_anime += 1;
+                            }
+                        }
+                        total_added += added_for_anime;
+                        tracing::info!("Added {} torrents for '{}'", added_for_anime, anime_title);
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to search for anime {}: {}", anime_id, e);
+                    }
+                }
+            }
+
+            tracing::info!(
+                "Global search complete. Total torrents added: {}",
+                total_added
+            );
+            let _ = state_clone
+                .event_bus()
+                .send(crate::api::NotificationEvent::Info {
+                    message: format!("Global search complete. Added {} torrents.", total_added),
+                });
+        });
+
         Ok(Json(ApiResponse::success(
-            "Global search not yet implemented".to_string(),
+            "Global search triggered in background".to_string(),
         )))
     }
 }
