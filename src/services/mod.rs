@@ -7,10 +7,12 @@ pub use anime::AnimeMetadataService;
 pub mod download;
 pub mod episodes;
 pub mod image;
+pub mod logs;
 
 pub use download::DownloadDecisionService;
 pub use episodes::EpisodeService;
 pub use image::ImageService;
+pub use logs::LogService;
 pub mod search;
 pub use search::SearchService;
 
@@ -20,5 +22,11 @@ pub use rss::RssService;
 pub mod media;
 pub use media::MediaService;
 
-pub mod library;
-pub use library::LibraryScannerService;
+pub mod scanner;
+pub use scanner::LibraryScannerService;
+
+pub mod monitor;
+pub use monitor::Monitor;
+
+pub mod scheduler;
+pub use scheduler::Scheduler;

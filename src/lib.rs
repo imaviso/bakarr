@@ -7,10 +7,8 @@ pub mod db;
 pub mod entities;
 pub mod library;
 pub mod models;
-pub mod monitor;
 pub mod parser;
 pub mod quality;
-pub mod scheduler;
 pub mod services;
 pub mod state;
 
@@ -20,7 +18,7 @@ use tokio::sync::RwLock;
 
 use anyhow::Context;
 pub use config::Config;
-use scheduler::Scheduler;
+use services::scheduler::Scheduler;
 use state::SharedState;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
@@ -202,7 +200,7 @@ async fn run_daemon(
         })
     };
 
-    let monitor = crate::monitor::Monitor::new(Arc::clone(&scheduler_state));
+    let monitor = crate::services::monitor::Monitor::new(Arc::clone(&scheduler_state));
     let monitor_handle = tokio::spawn(async move {
         monitor.start().await;
     });

@@ -112,7 +112,7 @@ pub struct ImportFolderRequest {
 
 pub async fn get_unmapped_folders(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<ApiResponse<crate::services::library::ScannerState>>, ApiError> {
+) -> Result<Json<ApiResponse<crate::services::scanner::ScannerState>>, ApiError> {
     let scanner_state = state.library_scanner.get_state().await;
     Ok(Json(ApiResponse::success(scanner_state)))
 }
