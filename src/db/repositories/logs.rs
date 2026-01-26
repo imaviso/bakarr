@@ -103,15 +103,6 @@ impl LogRepository {
     }
 
     pub async fn prune_logs(&self, older_than_days: i64) -> Result<u64> {
-        // Calculate timestamp for N days ago
-        // SQLite 'datetime' function can be used or we can calculate in Rust
-        // Let's use Rust for database agnosticism (though we are using SQLite)
-        // Ideally we'd use SQL `datetime('now', '-N days')` but sea-orm expression is safer.
-        // Actually, since created_at is stored as String (ISO format likely from Default or our manual insertion?),
-        // Wait, migration said `DEFAULT CURRENT_TIMESTAMP`. SQLite stores this as "YYYY-MM-DD HH:MM:SS".
-        // Rust side we defined `created_at` as String.
-        // Let's rely on SQLite's date function for deletion to be safe with string comparison.
-
         let result = SystemLogs::delete_many()
             .filter(
                 sea_orm::Condition::all().add(
@@ -129,5 +120,15 @@ impl LogRepository {
             .await?;
 
         Ok(result.rows_affected)
+    }
+
+    pub async fn get_latest_event_time(&self, event_type: &str) -> Result<Option<String>> {
+        let item = SystemLogs::find()
+            .filter(system_logs::Column::EventType.eq(event_type))
+            .order_by_desc(system_logs::Column::CreatedAt)
+            .one(&self.conn)
+            .await?;
+
+        Ok(item.map(|m| m.created_at))
     }
 }

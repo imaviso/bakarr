@@ -5,18 +5,14 @@ import {
 	IconListCheck,
 	IconPlus,
 	IconPower,
-	IconRefresh,
-	IconSearch,
 	IconSettings,
-	IconClock,
-	IconDownload,
-	IconDatabase,
 	IconTrash,
 	IconX,
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute } from "@tanstack/solid-router";
 import { createSignal, For, Index, Show } from "solid-js";
+import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { SystemStatus } from "~/components/system-status";
@@ -60,6 +56,9 @@ import {
 	createQualitiesQuery,
 	createReleaseProfilesQuery,
 	createSystemConfigQuery,
+	createSystemStatusQuery,
+	createTriggerRssCheckMutation,
+	createTriggerScanMutation,
 	createUpdateProfileMutation,
 	createUpdateReleaseProfileMutation,
 	createUpdateSystemConfigMutation,
@@ -135,405 +134,390 @@ function SettingsPage() {
 				</TabsList>
 
 				<TabsContent value="general" class="mt-0">
-					<div class="animate-in fade-in duration-500 ease-out">
-						<div class="mb-6">
-							<h2 class="text-lg font-medium">General Settings</h2>
-							<p class="text-sm text-muted-foreground">
-								Manage your application settings and configuration
-							</p>
-						</div>
-						<GeneralSettingsForm />
+					<div class="mb-6">
+						<h2 class="text-lg font-medium">General Settings</h2>
+						<p class="text-sm text-muted-foreground">
+							Manage your application settings and configuration
+						</p>
 					</div>
+					<GeneralSettingsForm />
 				</TabsContent>
 
 				<TabsContent value="profiles" class="mt-0">
-					<div class="animate-in fade-in duration-500 ease-out">
+					<Show
+						when={!isCreating() && !editingProfile()}
+						fallback={
+							<div class="mb-6">
+								<Show when={isCreating()}>
+									<ProfileForm
+										onCancel={() => setIsCreating(false)}
+										onSuccess={() => setIsCreating(false)}
+									/>
+								</Show>
+								<Show when={editingProfile()}>
+									<ProfileForm
+										// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
+										profile={editingProfile()!}
+										onCancel={() => setEditingProfile(null)}
+										onSuccess={() => setEditingProfile(null)}
+									/>
+								</Show>
+							</div>
+						}
+					>
+						<div class="flex justify-between items-center mb-6">
+							<div>
+								<h2 class="text-lg font-medium">Quality Profiles</h2>
+								<p class="text-sm text-muted-foreground">
+									Configure quality profiles for automatic downloads
+								</p>
+							</div>
+							<Button
+								onClick={() => setIsCreating(true)}
+								disabled={isCreating()}
+								size="sm"
+							>
+								<IconPlus class="mr-2 h-4 w-4" />
+								Add Profile
+							</Button>
+						</div>
+
+						<Show when={profilesQuery.isLoading}>
+							<div class="space-y-4">
+								<For each={[1, 2]}>
+									{() => <Skeleton class="h-32 rounded-lg" />}
+								</For>
+							</div>
+						</Show>
+
 						<Show
-							when={!isCreating() && !editingProfile()}
-							fallback={
-								<div class="mb-6">
-									<Show when={isCreating()}>
-										<ProfileForm
-											onCancel={() => setIsCreating(false)}
-											onSuccess={() => setIsCreating(false)}
-										/>
-									</Show>
-									<Show when={editingProfile()}>
-										<ProfileForm
-											// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
-											profile={editingProfile()!}
-											onCancel={() => setEditingProfile(null)}
-											onSuccess={() => setEditingProfile(null)}
-										/>
-									</Show>
-								</div>
+							when={
+								!profilesQuery.isLoading && profilesQuery.data?.length === 0
 							}
 						>
-							<div class="flex justify-between items-center mb-6">
-								<div>
-									<h2 class="text-lg font-medium">Quality Profiles</h2>
-									<p class="text-sm text-muted-foreground">
-										Configure quality profiles for automatic downloads
-									</p>
-								</div>
-								<Button
-									onClick={() => setIsCreating(true)}
-									disabled={isCreating()}
-									size="sm"
-								>
-									<IconPlus class="mr-2 h-4 w-4" />
-									Add Profile
-								</Button>
-							</div>
-
-							<Show when={profilesQuery.isLoading}>
-								<div class="space-y-4">
-									<For each={[1, 2]}>
-										{() => <Skeleton class="h-32 rounded-lg" />}
-									</For>
-								</div>
-							</Show>
-
-							<Show
-								when={
-									!profilesQuery.isLoading && profilesQuery.data?.length === 0
-								}
-							>
-								<Card class="p-12 text-center border-dashed bg-transparent">
-									<div class="flex flex-col items-center gap-4">
-										<IconAdjustments class="h-12 w-12 text-muted-foreground/50" />
-										<div>
-											<h3 class="font-medium">No quality profiles</h3>
-											<p class="text-sm text-muted-foreground mt-1">
-												Create a profile to define download quality settings
-											</p>
-										</div>
-										<Button onClick={() => setIsCreating(true)}>
-											<IconPlus class="mr-2 h-4 w-4" />
-											Create Profile
-										</Button>
+							<Card class="p-12 text-center border-dashed bg-transparent">
+								<div class="flex flex-col items-center gap-4">
+									<IconAdjustments class="h-12 w-12 text-muted-foreground/50" />
+									<div>
+										<h3 class="font-medium">No quality profiles</h3>
+										<p class="text-sm text-muted-foreground mt-1">
+											Create a profile to define download quality settings
+										</p>
 									</div>
-								</Card>
-							</Show>
-
-							<Show when={profilesQuery.data && profilesQuery.data.length > 0}>
-								<div class="grid gap-4">
-									<For each={profilesQuery.data}>
-										{(profile) => (
-											<Card class="group transition-all duration-200 hover:border-primary/50">
-												<CardHeader class="pb-3">
-													<div class="flex justify-between items-start">
-														<div class="space-y-1">
-															<CardTitle class="text-base flex items-center gap-2">
-																{profile.name}
-																<Show when={profile.seadex_preferred}>
-																	<Badge
-																		variant="secondary"
-																		class="text-[10px] h-5 px-1.5 font-normal text-muted-foreground"
-																	>
-																		SeaDex
-																	</Badge>
-																</Show>
-															</CardTitle>
-															<div class="text-xs text-muted-foreground">
-																Cutoff:{" "}
-																<span class="font-medium text-foreground">
-																	{profile.cutoff}
-																</span>
-															</div>
-														</div>
-														<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-															<Button
-																size="icon"
-																variant="ghost"
-																class="h-8 w-8"
-																onClick={() => setEditingProfile(profile)}
-															>
-																<IconEdit class="h-4 w-4" />
-															</Button>
-															<AlertDialog>
-																<AlertDialogTrigger
-																	as={Button}
-																	variant="ghost"
-																	size="icon"
-																	class="h-8 w-8 text-muted-foreground hover:text-destructive"
-																>
-																	<IconTrash class="h-4 w-4" />
-																</AlertDialogTrigger>
-																<AlertDialogContent>
-																	<AlertDialogHeader>
-																		<AlertDialogTitle>
-																			Delete Profile
-																		</AlertDialogTitle>
-																		<AlertDialogDescription>
-																			Are you sure you want to delete profile "
-																			{profile.name}"? This action cannot be
-																			undone.
-																		</AlertDialogDescription>
-																	</AlertDialogHeader>
-																	<AlertDialogFooter>
-																		<AlertDialogCancel>
-																			Cancel
-																		</AlertDialogCancel>
-																		<AlertDialogAction
-																			class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-																			onClick={() =>
-																				deleteProfile.mutate(profile.name)
-																			}
-																		>
-																			Delete
-																		</AlertDialogAction>
-																	</AlertDialogFooter>
-																</AlertDialogContent>
-															</AlertDialog>
-														</div>
-													</div>
-												</CardHeader>
-												<CardContent class="pt-0">
-													<div class="flex flex-wrap gap-1.5">
-														<For each={profile.allowed_qualities}>
-															{(q) => (
-																<Badge
-																	variant="outline"
-																	class="text-xs font-normal border-transparent bg-secondary/50 text-secondary-foreground hover:bg-secondary"
-																>
-																	{q}
-																</Badge>
-															)}
-														</For>
-													</div>
-													<div class="flex gap-4 mt-4 text-sm items-center text-muted-foreground">
-														<span class="flex items-center gap-2">
-															<Switch
-																checked={profile.upgrade_allowed}
-																disabled
-																class="pointer-events-none"
-															/>
-															<span
-																class={
-																	profile.upgrade_allowed
-																		? "text-foreground"
-																		: ""
-																}
-															>
-																Upgrades
-															</span>
-														</span>
-														<span class="flex items-center gap-2">
-															<Switch
-																checked={profile.seadex_preferred}
-																disabled
-																class="pointer-events-none"
-															/>
-															<span
-																class={
-																	profile.seadex_preferred
-																		? "text-foreground"
-																		: ""
-																}
-															>
-																SeaDex
-															</span>
-														</span>
-													</div>
-												</CardContent>
-											</Card>
-										)}
-									</For>
+									<Button onClick={() => setIsCreating(true)}>
+										<IconPlus class="mr-2 h-4 w-4" />
+										Create Profile
+									</Button>
 								</div>
-							</Show>
+							</Card>
 						</Show>
-					</div>
+
+						<Show when={profilesQuery.data && profilesQuery.data.length > 0}>
+							<div class="grid gap-4">
+								<For each={profilesQuery.data}>
+									{(profile) => (
+										<Card class="group transition-all duration-200 hover:border-primary/50">
+											<CardHeader class="pb-3">
+												<div class="flex justify-between items-start">
+													<div class="space-y-1">
+														<CardTitle class="text-base flex items-center gap-2">
+															{profile.name}
+															<Show when={profile.seadex_preferred}>
+																<Badge
+																	variant="secondary"
+																	class="text-[10px] h-5 px-1.5 font-normal text-muted-foreground"
+																>
+																	SeaDex
+																</Badge>
+															</Show>
+														</CardTitle>
+														<div class="text-xs text-muted-foreground">
+															Cutoff:{" "}
+															<span class="font-medium text-foreground">
+																{profile.cutoff}
+															</span>
+														</div>
+													</div>
+													<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+														<Button
+															size="icon"
+															variant="ghost"
+															class="h-8 w-8"
+															onClick={() => setEditingProfile(profile)}
+														>
+															<IconEdit class="h-4 w-4" />
+														</Button>
+														<AlertDialog>
+															<AlertDialogTrigger
+																as={Button}
+																variant="ghost"
+																size="icon"
+																class="h-8 w-8 text-muted-foreground hover:text-destructive"
+															>
+																<IconTrash class="h-4 w-4" />
+															</AlertDialogTrigger>
+															<AlertDialogContent>
+																<AlertDialogHeader>
+																	<AlertDialogTitle>
+																		Delete Profile
+																	</AlertDialogTitle>
+																	<AlertDialogDescription>
+																		Are you sure you want to delete profile "
+																		{profile.name}"? This action cannot be
+																		undone.
+																	</AlertDialogDescription>
+																</AlertDialogHeader>
+																<AlertDialogFooter>
+																	<AlertDialogCancel>Cancel</AlertDialogCancel>
+																	<AlertDialogAction
+																		class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+																		onClick={() =>
+																			deleteProfile.mutate(profile.name)
+																		}
+																	>
+																		Delete
+																	</AlertDialogAction>
+																</AlertDialogFooter>
+															</AlertDialogContent>
+														</AlertDialog>
+													</div>
+												</div>
+											</CardHeader>
+											<CardContent class="pt-0">
+												<div class="flex flex-wrap gap-1.5">
+													<For each={profile.allowed_qualities}>
+														{(q) => (
+															<Badge
+																variant="outline"
+																class="text-xs font-normal border-transparent bg-secondary/50 text-secondary-foreground hover:bg-secondary"
+															>
+																{q}
+															</Badge>
+														)}
+													</For>
+												</div>
+												<div class="flex gap-4 mt-4 text-sm items-center text-muted-foreground">
+													<span class="flex items-center gap-2">
+														<Switch
+															checked={profile.upgrade_allowed}
+															disabled
+															class="pointer-events-none"
+														/>
+														<span
+															class={
+																profile.upgrade_allowed ? "text-foreground" : ""
+															}
+														>
+															Upgrades
+														</span>
+													</span>
+													<span class="flex items-center gap-2">
+														<Switch
+															checked={profile.seadex_preferred}
+															disabled
+															class="pointer-events-none"
+														/>
+														<span
+															class={
+																profile.seadex_preferred
+																	? "text-foreground"
+																	: ""
+															}
+														>
+															SeaDex
+														</span>
+													</span>
+												</div>
+											</CardContent>
+										</Card>
+									)}
+								</For>
+							</div>
+						</Show>
+					</Show>
 				</TabsContent>
 
 				<TabsContent value="release-profiles" class="mt-0">
-					<div class="animate-in fade-in duration-500 ease-out">
+					<Show
+						when={!isCreatingReleaseProfile() && !editingReleaseProfile()}
+						fallback={
+							<div class="mb-6">
+								<Show when={isCreatingReleaseProfile()}>
+									<ReleaseProfileForm
+										onCancel={() => setIsCreatingReleaseProfile(false)}
+										onSuccess={() => setIsCreatingReleaseProfile(false)}
+									/>
+								</Show>
+								<Show when={editingReleaseProfile()}>
+									<ReleaseProfileForm
+										// biome-ignore lint/style/noNonNullAssertion: Guarded
+										profile={editingReleaseProfile()!}
+										onCancel={() => setEditingReleaseProfile(null)}
+										onSuccess={() => setEditingReleaseProfile(null)}
+									/>
+								</Show>
+							</div>
+						}
+					>
+						<div class="flex justify-between items-center mb-6">
+							<div>
+								<h2 class="text-lg font-medium">Release Profiles</h2>
+								<p class="text-sm text-muted-foreground">
+									Global scoring and filtering rules for releases (Groups, Tags)
+								</p>
+							</div>
+							<Button
+								onClick={() => setIsCreatingReleaseProfile(true)}
+								disabled={isCreatingReleaseProfile()}
+								size="sm"
+							>
+								<IconPlus class="mr-2 h-4 w-4" />
+								Add Profile
+							</Button>
+						</div>
+
+						<Show when={releaseProfilesQuery.isLoading}>
+							<div class="space-y-4">
+								<For each={[1, 2]}>
+									{() => <Skeleton class="h-32 rounded-lg" />}
+								</For>
+							</div>
+						</Show>
+
 						<Show
-							when={!isCreatingReleaseProfile() && !editingReleaseProfile()}
-							fallback={
-								<div class="mb-6">
-									<Show when={isCreatingReleaseProfile()}>
-										<ReleaseProfileForm
-											onCancel={() => setIsCreatingReleaseProfile(false)}
-											onSuccess={() => setIsCreatingReleaseProfile(false)}
-										/>
-									</Show>
-									<Show when={editingReleaseProfile()}>
-										<ReleaseProfileForm
-											// biome-ignore lint/style/noNonNullAssertion: Guarded
-											profile={editingReleaseProfile()!}
-											onCancel={() => setEditingReleaseProfile(null)}
-											onSuccess={() => setEditingReleaseProfile(null)}
-										/>
-									</Show>
-								</div>
+							when={
+								!releaseProfilesQuery.isLoading &&
+								releaseProfilesQuery.data?.length === 0
 							}
 						>
-							<div class="flex justify-between items-center mb-6">
-								<div>
-									<h2 class="text-lg font-medium">Release Profiles</h2>
-									<p class="text-sm text-muted-foreground">
-										Global scoring and filtering rules for releases (Groups,
-										Tags)
-									</p>
-								</div>
-								<Button
-									onClick={() => setIsCreatingReleaseProfile(true)}
-									disabled={isCreatingReleaseProfile()}
-									size="sm"
-								>
-									<IconPlus class="mr-2 h-4 w-4" />
-									Add Profile
-								</Button>
-							</div>
-
-							<Show when={releaseProfilesQuery.isLoading}>
-								<div class="space-y-4">
-									<For each={[1, 2]}>
-										{() => <Skeleton class="h-32 rounded-lg" />}
-									</For>
-								</div>
-							</Show>
-
-							<Show
-								when={
-									!releaseProfilesQuery.isLoading &&
-									releaseProfilesQuery.data?.length === 0
-								}
-							>
-								<Card class="p-12 text-center border-dashed bg-transparent">
-									<div class="flex flex-col items-center gap-4">
-										<IconListCheck class="h-12 w-12 text-muted-foreground/50" />
-										<div>
-											<h3 class="font-medium">No release profiles</h3>
-											<p class="text-sm text-muted-foreground mt-1">
-												Create a profile to prefer certain groups or filter
-												releases
-											</p>
-										</div>
-										<Button onClick={() => setIsCreatingReleaseProfile(true)}>
-											<IconPlus class="mr-2 h-4 w-4" />
-											Create Profile
-										</Button>
+							<Card class="p-12 text-center border-dashed bg-transparent">
+								<div class="flex flex-col items-center gap-4">
+									<IconListCheck class="h-12 w-12 text-muted-foreground/50" />
+									<div>
+										<h3 class="font-medium">No release profiles</h3>
+										<p class="text-sm text-muted-foreground mt-1">
+											Create a profile to prefer certain groups or filter
+											releases
+										</p>
 									</div>
-								</Card>
-							</Show>
+									<Button onClick={() => setIsCreatingReleaseProfile(true)}>
+										<IconPlus class="mr-2 h-4 w-4" />
+										Create Profile
+									</Button>
+								</div>
+							</Card>
+						</Show>
 
-							<Show
-								when={
-									releaseProfilesQuery.data &&
-									releaseProfilesQuery.data.length > 0
-								}
-							>
-								<div class="grid gap-4">
-									<For each={releaseProfilesQuery.data}>
-										{(profile) => (
-											<Card class="group transition-all duration-200 hover:border-primary/50">
-												<CardHeader class="pb-3">
-													<div class="flex justify-between items-start">
-														<div class="space-y-1">
-															<CardTitle class="text-base flex items-center gap-2">
-																{profile.name}
-																<Show when={!profile.enabled}>
-																	<Badge variant="outline" class="text-xs">
-																		Disabled
-																	</Badge>
-																</Show>
-															</CardTitle>
-															<div class="text-xs text-muted-foreground">
-																{profile.rules.length} Rules
-															</div>
-														</div>
-														<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-															<Button
-																size="icon"
-																variant="ghost"
-																class="h-8 w-8"
-																onClick={() =>
-																	setEditingReleaseProfile(profile)
-																}
-															>
-																<IconEdit class="h-4 w-4" />
-															</Button>
-															<AlertDialog>
-																<AlertDialogTrigger
-																	as={Button}
-																	variant="ghost"
-																	size="icon"
-																	class="h-8 w-8 text-muted-foreground hover:text-destructive"
-																>
-																	<IconTrash class="h-4 w-4" />
-																</AlertDialogTrigger>
-																<AlertDialogContent>
-																	<AlertDialogHeader>
-																		<AlertDialogTitle>
-																			Delete Profile
-																		</AlertDialogTitle>
-																		<AlertDialogDescription>
-																			Are you sure you want to delete profile "
-																			{profile.name}"? This action cannot be
-																			undone.
-																		</AlertDialogDescription>
-																	</AlertDialogHeader>
-																	<AlertDialogFooter>
-																		<AlertDialogCancel>
-																			Cancel
-																		</AlertDialogCancel>
-																		<AlertDialogAction
-																			class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-																			onClick={() =>
-																				deleteReleaseProfile.mutate(profile.id)
-																			}
-																		>
-																			Delete
-																		</AlertDialogAction>
-																	</AlertDialogFooter>
-																</AlertDialogContent>
-															</AlertDialog>
+						<Show
+							when={
+								releaseProfilesQuery.data &&
+								releaseProfilesQuery.data.length > 0
+							}
+						>
+							<div class="grid gap-4">
+								<For each={releaseProfilesQuery.data}>
+									{(profile) => (
+										<Card class="group transition-all duration-200 hover:border-primary/50">
+											<CardHeader class="pb-3">
+												<div class="flex justify-between items-start">
+													<div class="space-y-1">
+														<CardTitle class="text-base flex items-center gap-2">
+															{profile.name}
+															<Show when={!profile.enabled}>
+																<Badge variant="outline" class="text-xs">
+																	Disabled
+																</Badge>
+															</Show>
+														</CardTitle>
+														<div class="text-xs text-muted-foreground">
+															{profile.rules.length} Rules
 														</div>
 													</div>
-												</CardHeader>
-												<CardContent class="pt-0">
-													<div class="flex flex-wrap gap-2">
-														<For each={profile.rules.slice(0, 5)}>
-															{(rule) => (
-																<Badge
-																	variant={
-																		rule.rule_type === "must_not"
-																			? "error"
-																			: "secondary"
-																	}
-																	class="text-xs font-normal"
-																>
-																	<Show
-																		when={rule.rule_type === "preferred"}
-																		fallback={
-																			rule.rule_type === "must"
-																				? "Must: "
-																				: "Block: "
+													<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+														<Button
+															size="icon"
+															variant="ghost"
+															class="h-8 w-8"
+															onClick={() => setEditingReleaseProfile(profile)}
+														>
+															<IconEdit class="h-4 w-4" />
+														</Button>
+														<AlertDialog>
+															<AlertDialogTrigger
+																as={Button}
+																variant="ghost"
+																size="icon"
+																class="h-8 w-8 text-muted-foreground hover:text-destructive"
+															>
+																<IconTrash class="h-4 w-4" />
+															</AlertDialogTrigger>
+															<AlertDialogContent>
+																<AlertDialogHeader>
+																	<AlertDialogTitle>
+																		Delete Profile
+																	</AlertDialogTitle>
+																	<AlertDialogDescription>
+																		Are you sure you want to delete profile "
+																		{profile.name}"? This action cannot be
+																		undone.
+																	</AlertDialogDescription>
+																</AlertDialogHeader>
+																<AlertDialogFooter>
+																	<AlertDialogCancel>Cancel</AlertDialogCancel>
+																	<AlertDialogAction
+																		class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+																		onClick={() =>
+																			deleteReleaseProfile.mutate(profile.id)
 																		}
 																	>
-																		{rule.score > 0 ? "+" : ""}
-																		{rule.score}{" "}
-																	</Show>
-																	{rule.term}
-																</Badge>
-															)}
-														</For>
-														<Show when={profile.rules.length > 5}>
-															<Badge variant="outline" class="text-xs">
-																+{profile.rules.length - 5} more
-															</Badge>
-														</Show>
+																		Delete
+																	</AlertDialogAction>
+																</AlertDialogFooter>
+															</AlertDialogContent>
+														</AlertDialog>
 													</div>
-												</CardContent>
-											</Card>
-										)}
-									</For>
-								</div>
-							</Show>
+												</div>
+											</CardHeader>
+											<CardContent class="pt-0">
+												<div class="flex flex-wrap gap-2">
+													<For each={profile.rules.slice(0, 5)}>
+														{(rule) => (
+															<Badge
+																variant={
+																	rule.rule_type === "must_not"
+																		? "error"
+																		: "secondary"
+																}
+																class="text-xs font-normal"
+															>
+																<Show
+																	when={rule.rule_type === "preferred"}
+																	fallback={
+																		rule.rule_type === "must"
+																			? "Must: "
+																			: "Block: "
+																	}
+																>
+																	{rule.score > 0 ? "+" : ""}
+																	{rule.score}{" "}
+																</Show>
+																{rule.term}
+															</Badge>
+														)}
+													</For>
+													<Show when={profile.rules.length > 5}>
+														<Badge variant="outline" class="text-xs">
+															+{profile.rules.length - 5} more
+														</Badge>
+													</Show>
+												</div>
+											</CardContent>
+										</Card>
+									)}
+								</For>
+							</div>
 						</Show>
-					</div>
+					</Show>
 				</TabsContent>
 			</Tabs>
 		</div>
@@ -1102,22 +1086,94 @@ function ReleaseProfileForm(props: {
 	);
 }
 
+const ConfigSchema = v.object({
+	general: v.object({
+		database_path: v.string(),
+		log_level: v.string(),
+		images_path: v.string(),
+		suppress_connection_errors: v.boolean(),
+	}),
+	qbittorrent: v.object({
+		enabled: v.boolean(),
+		url: v.string(),
+		username: v.string(),
+		password: v.nullish(v.string()),
+		default_category: v.string(),
+	}),
+	nyaa: v.object({
+		base_url: v.string(),
+		default_category: v.string(),
+		filter_remakes: v.boolean(),
+		preferred_resolution: v.nullish(v.string()),
+		min_seeders: v.number(),
+	}),
+	scheduler: v.object({
+		enabled: v.boolean(),
+		check_interval_minutes: v.number(),
+		cron_expression: v.nullish(v.string()),
+		max_concurrent_checks: v.number(),
+		check_delay_seconds: v.number(),
+	}),
+	downloads: v.object({
+		root_path: v.string(),
+		create_anime_folders: v.boolean(),
+		preferred_groups: v.array(v.string()),
+		use_seadex: v.boolean(),
+		prefer_dual_audio: v.boolean(),
+		preferred_codec: v.nullish(v.string()),
+		max_size_gb: v.number(),
+		remote_path_mappings: v.array(v.array(v.string())),
+	}),
+	library: v.object({
+		library_path: v.string(),
+		recycle_path: v.string(),
+		recycle_cleanup_days: v.number(),
+		naming_format: v.string(),
+		import_mode: v.string(),
+		movie_naming_format: v.string(),
+	}),
+	profiles: v.array(
+		v.object({
+			name: v.string(),
+			cutoff: v.string(),
+			upgrade_allowed: v.boolean(),
+			seadex_preferred: v.boolean(),
+			allowed_qualities: v.array(v.string()),
+		}),
+	),
+	auth: v.object({
+		username: v.string(),
+		password: v.nullish(v.string()),
+		api_key: v.nullish(v.string()),
+	}),
+});
+
 function GeneralSettingsForm() {
 	const configQuery = createSystemConfigQuery();
 	const updateConfig = createUpdateSystemConfigMutation();
 
+	// Use a signal to track if we've ever loaded data to prevent skeleton flicker after first load
+	const [hasLoaded, setHasLoaded] = createSignal(false);
+
 	return (
 		<Show
-			when={configQuery.data}
+			when={configQuery.data || hasLoaded()}
 			fallback={<Skeleton class="h-96 rounded-lg" />}
 		>
-			<SystemForm
-				// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
-				defaultValues={configQuery.data!}
-				onSubmit={async (values) => {
-					await updateConfig.mutateAsync(values);
+			<div
+				ref={() => {
+					if (configQuery.data) setHasLoaded(true);
 				}}
-			/>
+			>
+				<SystemForm
+					// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
+					defaultValues={configQuery.data!}
+					onSubmit={async (values) => {
+						await updateConfig.mutateAsync(values);
+					}}
+					isSaving={updateConfig.isPending}
+				/>
+			</div>
 		</Show>
 	);
 }
@@ -1125,14 +1181,56 @@ function GeneralSettingsForm() {
 function SystemForm(props: {
 	defaultValues: Config;
 	onSubmit: (values: Config) => Promise<void>;
+	isSaving?: boolean;
 }) {
 	const form = createForm(() => ({
 		defaultValues: props.defaultValues,
+		validators: {
+			onChange: ConfigSchema,
+		},
 		onSubmit: async ({ value, formApi }) => {
-			await props.onSubmit(value);
-			formApi.reset(value);
+			try {
+				await props.onSubmit(value);
+				formApi.reset(value);
+				toast.success("Settings saved successfully");
+			} catch (e) {
+				toast.error(e instanceof Error ? e.message : "Failed to save settings");
+			}
 		},
 	}));
+
+	const systemStatus = createSystemStatusQuery();
+	const triggerScan = createTriggerScanMutation();
+	const triggerRss = createTriggerRssCheckMutation();
+
+	const handleTriggerScan = async () => {
+		try {
+			await triggerScan.mutateAsync();
+			toast.success("Library scan started");
+		} catch (_e) {
+			toast.error("Failed to start scan");
+		}
+	};
+
+	const handleTriggerRss = async () => {
+		try {
+			await triggerRss.mutateAsync();
+			toast.success("RSS check started");
+		} catch (_e) {
+			toast.error("Failed to start RSS check");
+		}
+	};
+
+	const formatLastRun = (dateStr?: string | null) => {
+		if (!dateStr) return "Never";
+		try {
+			// SQLite stores as "YYYY-MM-DD HH:MM:SS" in UTC
+			const date = new Date(`${dateStr.replace(" ", "T")}Z`);
+			return date.toLocaleString();
+		} catch (_e) {
+			return dateStr;
+		}
+	};
 
 	return (
 		<form
@@ -1399,9 +1497,7 @@ function SystemForm(props: {
 			<section class="space-y-6">
 				<div class="mb-4 pb-2 border-b flex justify-between items-center">
 					<div>
-						<h3 class="text-base font-medium text-foreground">
-							Scheduler
-						</h3>
+						<h3 class="text-base font-medium text-foreground">Scheduler</h3>
 						<p class="text-sm text-muted-foreground mt-1">
 							Configure background tasks and check intervals
 						</p>
@@ -1421,54 +1517,106 @@ function SystemForm(props: {
 						)}
 					</form.Field>
 				</div>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-					<form.Field name="scheduler.check_interval_minutes">
-						{(field) => (
-							<TextField
-								value={field().state.value.toString()}
-								onChange={(v) => field().handleChange(Number(v))}
-							>
-								<TextFieldLabel>Check Interval (Minutes)</TextFieldLabel>
-								<TextFieldInput type="number" />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="scheduler.max_concurrent_checks">
-						{(field) => (
-							<TextField
-								value={field().state.value.toString()}
-								onChange={(v) => field().handleChange(Number(v))}
-							>
-								<TextFieldLabel>Max Concurrent Checks</TextFieldLabel>
-								<TextFieldInput type="number" />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="scheduler.check_delay_seconds">
-						{(field) => (
-							<TextField
-								value={field().state.value.toString()}
-								onChange={(v) => field().handleChange(Number(v))}
-							>
-								<TextFieldLabel>Check Delay (Seconds)</TextFieldLabel>
-								<TextFieldInput type="number" />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="scheduler.cron_expression">
-						{(field) => (
-							<TextField
-								value={field().state.value || ""}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel>Cron Expression (Optional)</TextFieldLabel>
-								<TextFieldInput placeholder="0 */6 * * *" />
-								<p class="text-xs text-muted-foreground mt-1">
-									Overrides interval if set
-								</p>
-							</TextField>
-						)}
-					</form.Field>
+
+				<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-5xl">
+					<div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+						<form.Field name="scheduler.check_interval_minutes">
+							{(field) => (
+								<TextField
+									value={field().state.value.toString()}
+									onChange={(v) => field().handleChange(Number(v))}
+								>
+									<TextFieldLabel>Check Interval (Minutes)</TextFieldLabel>
+									<TextFieldInput type="number" />
+								</TextField>
+							)}
+						</form.Field>
+						<form.Field name="scheduler.max_concurrent_checks">
+							{(field) => (
+								<TextField
+									value={field().state.value.toString()}
+									onChange={(v) => field().handleChange(Number(v))}
+								>
+									<TextFieldLabel>Max Concurrent Checks</TextFieldLabel>
+									<TextFieldInput type="number" />
+								</TextField>
+							)}
+						</form.Field>
+						<form.Field name="scheduler.check_delay_seconds">
+							{(field) => (
+								<TextField
+									value={field().state.value.toString()}
+									onChange={(v) => field().handleChange(Number(v))}
+								>
+									<TextFieldLabel>Check Delay (Seconds)</TextFieldLabel>
+									<TextFieldInput type="number" />
+								</TextField>
+							)}
+						</form.Field>
+						<form.Field name="scheduler.cron_expression">
+							{(field) => (
+								<TextField
+									value={field().state.value || ""}
+									onChange={field().handleChange}
+								>
+									<TextFieldLabel>Cron Expression (Optional)</TextFieldLabel>
+									<TextFieldInput placeholder="0 */6 * * *" />
+									<p class="text-xs text-muted-foreground mt-1">
+										Overrides interval if set
+									</p>
+								</TextField>
+							)}
+						</form.Field>
+					</div>
+
+					<div class="space-y-4">
+						<h4 class="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+							Task Status
+						</h4>
+						<div class="space-y-3">
+							<div class="p-3 border rounded-lg bg-secondary/20 flex flex-col gap-2">
+								<div class="flex items-center justify-between">
+									<span class="text-sm font-medium">Library Scan</span>
+									<Button
+										variant="outline"
+										size="sm"
+										class="h-7 text-[10px] px-2"
+										onClick={handleTriggerScan}
+										disabled={triggerScan.isPending}
+									>
+										Run Now
+									</Button>
+								</div>
+								<div class="text-[11px] text-muted-foreground flex justify-between">
+									<span>Last Run:</span>
+									<span class="text-foreground font-mono">
+										{formatLastRun(systemStatus.data?.last_scan)}
+									</span>
+								</div>
+							</div>
+
+							<div class="p-3 border rounded-lg bg-secondary/20 flex flex-col gap-2">
+								<div class="flex items-center justify-between">
+									<span class="text-sm font-medium">RSS Check</span>
+									<Button
+										variant="outline"
+										size="sm"
+										class="h-7 text-[10px] px-2"
+										onClick={handleTriggerRss}
+										disabled={triggerRss.isPending}
+									>
+										Run Now
+									</Button>
+								</div>
+								<div class="text-[11px] text-muted-foreground flex justify-between">
+									<span>Last Run:</span>
+									<span class="text-foreground font-mono">
+										{formatLastRun(systemStatus.data?.last_rss)}
+									</span>
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 			</section>
 
@@ -1511,9 +1659,7 @@ function SystemForm(props: {
 									onChange={(checked) => field().handleChange(checked)}
 								/>
 								<div>
-									<span class="text-sm font-medium block">
-										Filter Remakes
-									</span>
+									<span class="text-sm font-medium block">Filter Remakes</span>
 									<span class="text-xs text-muted-foreground">
 										Exclude remakes from search results
 									</span>
@@ -1581,9 +1727,7 @@ function SystemForm(props: {
 									onChange={(checked) => field().handleChange(checked)}
 								/>
 								<div>
-									<span class="text-sm font-medium block">
-										Use SeaDex
-									</span>
+									<span class="text-sm font-medium block">Use SeaDex</span>
 									<span class="text-xs text-muted-foreground">
 										Use SeaDex for release scoring and best release selection
 									</span>
@@ -1603,8 +1747,12 @@ function SystemForm(props: {
 					]}
 				>
 					{(state) => (
-						<Button type="submit" disabled={!state()[0] || !state()[2]}>
-							{state()[1] ? "Saving..." : "Save Changes"}
+						<Button
+							type="submit"
+							disabled={!state()[0] || props.isSaving}
+							title={!state()[0] ? "Form validation failed" : ""}
+						>
+							{props.isSaving ? "Saving..." : "Save Changes"}
 						</Button>
 					)}
 				</form.Subscribe>

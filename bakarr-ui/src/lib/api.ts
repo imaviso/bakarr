@@ -754,20 +754,20 @@ export interface Config {
 		enabled: boolean;
 		url: string;
 		username: string;
-		password?: string;
+		password?: string | null;
 		default_category: string;
 	};
 	nyaa: {
 		base_url: string;
 		default_category: string;
 		filter_remakes: boolean;
-		preferred_resolution?: string;
+		preferred_resolution?: string | null;
 		min_seeders: number;
 	};
 	scheduler: {
 		enabled: boolean;
 		check_interval_minutes: number;
-		cron_expression?: string;
+		cron_expression?: string | null;
 		max_concurrent_checks: number;
 		check_delay_seconds: number;
 	};
@@ -777,7 +777,7 @@ export interface Config {
 		preferred_groups: string[];
 		use_seadex: boolean;
 		prefer_dual_audio: boolean;
-		preferred_codec?: string;
+		preferred_codec?: string | null;
 		max_size_gb: number;
 		remote_path_mappings: string[][];
 	};
@@ -793,8 +793,8 @@ export interface Config {
 	profiles: QualityProfile[];
 	auth: {
 		username: string;
-		password?: string;
-		api_key?: string;
+		password?: string | null;
+		api_key?: string | null;
 	};
 }
 
@@ -829,6 +829,7 @@ export function systemConfigQueryOptions() {
 		queryKey: ["system", "config"],
 		queryFn: () => fetchApi<Config>(`${API_BASE}/system/config`),
 		staleTime: Infinity,
+		placeholderData: keepPreviousData,
 	});
 }
 
@@ -840,12 +841,12 @@ export function createUpdateSystemConfigMutation() {
 	const queryClient = useQueryClient();
 	return useMutation(() => ({
 		mutationFn: (data: Config) =>
-			fetchApi<Config>(`${API_BASE}/system/config`, {
+			fetchApi<void>(`${API_BASE}/system/config`, {
 				method: "PUT",
 				body: JSON.stringify(data),
 			}),
-		onSuccess: (newConfig) => {
-			queryClient.setQueryData(["system", "config"], newConfig);
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["system", "config"] });
 		},
 	}));
 }
@@ -1383,6 +1384,8 @@ export interface SystemStatus {
 		free: number;
 		total: number;
 	};
+	last_scan?: string | null;
+	last_rss?: string | null;
 }
 
 export function systemStatusQueryOptions() {

@@ -13,7 +13,8 @@ const router = createRouter({
 	routeTree,
 	defaultPreload: "intent",
 	scrollRestoration: true,
-	defaultViewTransition: true,
+	defaultStructuralSharing: true,
+	defaultViewTransition: false,
 	defaultPreloadStaleTime: 0,
 	context: {
 		queryClient,

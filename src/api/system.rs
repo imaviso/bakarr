@@ -44,6 +44,17 @@ pub async fn get_status(
     let path = &config.library.library_path;
     let (free_space, total_space) = get_disk_space(path).unwrap_or((0, 0));
 
+    let last_scan = state
+        .store()
+        .get_latest_log_time("ScanFinished")
+        .await
+        .unwrap_or(None);
+    let last_rss = state
+        .store()
+        .get_latest_log_time("RssCheckFinished")
+        .await
+        .unwrap_or(None);
+
     let status = SystemStatus {
         version: env!("CARGO_PKG_VERSION").to_string(),
         uptime: state.start_time.elapsed().as_secs(),
@@ -56,6 +67,8 @@ pub async fn get_status(
             free: free_space,
             total: total_space,
         },
+        last_scan,
+        last_rss,
     };
 
     Ok(Json(ApiResponse::success(status)))

@@ -112,6 +112,8 @@ pub struct SystemStatus {
     pub active_torrents: i64,
     pub pending_downloads: i64,
     pub disk_space: DiskSpaceDto,
+    pub last_scan: Option<String>,
+    pub last_rss: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

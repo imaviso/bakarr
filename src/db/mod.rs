@@ -327,6 +327,10 @@ impl Store {
         self.logs_repo().prune_logs(older_than_days).await
     }
 
+    pub async fn get_latest_log_time(&self, event_type: &str) -> Result<Option<String>> {
+        self.logs_repo().get_latest_event_time(event_type).await
+    }
+
     // ========================================================================
     // Episode Operations (delegated to EpisodeRepository)
     // ========================================================================

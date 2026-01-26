@@ -84,18 +84,12 @@ impl LogService {
                     return Ok(()); // Skip empty imports
                 }
             }
-            NotificationEvent::RssCheckFinished { new_items, .. } => {
-                if *new_items > 0 {
-                    (
-                        "RssCheckFinished".to_string(),
-                        "info",
-                        format!("RSS Check finished: {} new items", new_items),
-                        Some(serde_json::to_string(&event)?),
-                    )
-                } else {
-                    return Ok(()); // Skip if no new items
-                }
-            }
+            NotificationEvent::RssCheckFinished { new_items, .. } => (
+                "RssCheckFinished".to_string(),
+                "info",
+                format!("RSS Check finished: {} new items", new_items),
+                Some(serde_json::to_string(&event)?),
+            ),
             // Skip high-frequency progress events to avoid spamming the DB
             NotificationEvent::ScanProgress { .. }
             | NotificationEvent::LibraryScanProgress { .. }
