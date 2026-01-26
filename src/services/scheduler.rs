@@ -49,8 +49,9 @@ impl Scheduler {
         let running = Arc::clone(&self.running);
         let delay_secs = self.config.check_delay_seconds;
 
+        let state_for_job = Arc::clone(&state);
         let job = Job::new_async(cron_expr, move |_uuid, _lock| {
-            let state = Arc::clone(&state);
+            let state = Arc::clone(&state_for_job);
             let running = Arc::clone(&running);
             Box::pin(async move {
                 if !*running.read().await {
@@ -78,12 +79,41 @@ impl Scheduler {
             })
         })?;
 
+        let state_for_metadata = Arc::clone(&state);
         let metadata_job = Job::new_async("0 0 */12 * * *", move |_uuid, _lock| {
-            Box::pin(async move {})
+            let state = Arc::clone(&state_for_metadata);
+            Box::pin(async move {
+                if let Err(e) = state
+                    .read()
+                    .await
+                    .episodes
+                    .refresh_metadata_for_active_anime()
+                    .await
+                {
+                    error!("Scheduled metadata refresh failed: {}", e);
+                }
+            })
+        })?;
+
+        let state_for_scan = Arc::clone(&state);
+        let scan_job = Job::new_async("0 0 */12 * * *", move |_uuid, _lock| {
+            let state = Arc::clone(&state_for_scan);
+            Box::pin(async move {
+                if let Err(e) = state
+                    .read()
+                    .await
+                    .library_scanner
+                    .scan_library_files()
+                    .await
+                {
+                    error!("Scheduled library scan failed: {}", e);
+                }
+            })
         })?;
 
         sched.add(job).await?;
         sched.add(metadata_job).await?;
+        sched.add(scan_job).await?;
         sched.start().await?;
 
         info!("Scheduler running with cron: {}", cron_expr);
@@ -103,12 +133,18 @@ impl Scheduler {
         let interval_mins = self.config.check_interval_minutes;
         let delay_secs = self.config.check_delay_seconds;
         let refresh_hours = self.config.metadata_refresh_hours;
+        let scan_hours = {
+            let shared = self.state.read().await;
+            shared.config.read().await.library.auto_scan_interval_hours
+        };
 
         info!("Scheduler running every {} minutes", interval_mins);
 
         let mut check_interval = interval(Duration::from_secs(interval_mins as u64 * 60));
 
         let mut metadata_interval = interval(Duration::from_secs(refresh_hours as u64 * 60 * 60));
+
+        let mut scan_interval = interval(Duration::from_secs(scan_hours as u64 * 60 * 60));
 
         loop {
             tokio::select! {
@@ -130,6 +166,15 @@ impl Scheduler {
                     }
                     if let Err(e) = self.refresh_metadata().await {
                         error!("Scheduled metadata refresh failed: {}", e);
+                    }
+                }
+                _ = scan_interval.tick() => {
+                    if !*self.running.read().await {
+                        break;
+                    }
+                    info!("Running scheduled library scan...");
+                    if let Err(e) = self.state.read().await.library_scanner.scan_library_files().await {
+                        error!("Scheduled library scan failed: {}", e);
                     }
                 }
             }

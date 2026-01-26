@@ -182,6 +182,8 @@ pub struct LibraryConfig {
 
     pub recycle_cleanup_days: u32,
 
+    pub auto_scan_interval_hours: u32,
+
     pub naming_format: String,
 
     pub import_mode: String,
@@ -195,6 +197,7 @@ impl Default for LibraryConfig {
             library_path: "./library".to_string(),
             recycle_path: "./recycle".to_string(),
             recycle_cleanup_days: 7,
+            auto_scan_interval_hours: 12,
             naming_format:
                 "{Series Title}/Season {Season}/{Series Title} - S{Season:02}E{Episode:02} - {Title}"
                     .to_string(),

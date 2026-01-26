@@ -1115,7 +1115,13 @@ const ConfigSchema = v.object({
 		check_delay_seconds: v.number(),
 	}),
 	downloads: v.object({
-		root_path: v.string(),
+		root_path: v.pipe(
+			v.string(),
+			v.check(
+				(s) => s.startsWith("/") || s.startsWith("\\") || s.includes(":\\"),
+				"Must be an absolute path",
+			),
+		),
 		create_anime_folders: v.boolean(),
 		preferred_groups: v.array(v.string()),
 		use_seadex: v.boolean(),
@@ -1125,12 +1131,25 @@ const ConfigSchema = v.object({
 		remote_path_mappings: v.array(v.array(v.string())),
 	}),
 	library: v.object({
-		library_path: v.string(),
-		recycle_path: v.string(),
+		library_path: v.pipe(
+			v.string(),
+			v.check(
+				(s) => s.startsWith("/") || s.startsWith("\\") || s.includes(":\\"),
+				"Must be an absolute path",
+			),
+		),
+		recycle_path: v.pipe(
+			v.string(),
+			v.check(
+				(s) => s.startsWith("/") || s.startsWith("\\") || s.includes(":\\"),
+				"Must be an absolute path",
+			),
+		),
 		recycle_cleanup_days: v.number(),
 		naming_format: v.string(),
 		import_mode: v.string(),
 		movie_naming_format: v.string(),
+		auto_scan_interval_hours: v.number(),
 	}),
 	profiles: v.array(
 		v.object({
@@ -1413,6 +1432,17 @@ function SystemForm(props: {
 										<SelectContent />
 									</Select>
 								</div>
+							)}
+						</form.Field>
+						<form.Field name="library.auto_scan_interval_hours">
+							{(field) => (
+								<TextField
+									value={field().state.value.toString()}
+									onChange={(v) => field().handleChange(Number(v))}
+								>
+									<TextFieldLabel>Auto Scan Interval (Hours)</TextFieldLabel>
+									<TextFieldInput type="number" />
+								</TextField>
 							)}
 						</form.Field>
 					</div>

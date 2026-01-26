@@ -140,11 +140,7 @@ pub async fn create_app_state(
 
     let metadata_service = Arc::new(AnimeMetadataService::new(offline_db.clone()));
 
-    let library_scanner = Arc::new(LibraryScannerService::new(
-        shared.store.clone(),
-        shared.config.clone(),
-        shared.event_bus.clone(),
-    ));
+    let library_scanner = shared.library_scanner.clone();
 
     let rss_service = Arc::new(RssService::new(
         shared.store.clone(),
