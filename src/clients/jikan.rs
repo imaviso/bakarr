@@ -51,6 +51,7 @@ pub struct AiredDate {
 }
 
 impl MalAnime {
+    #[must_use]
     pub fn get_start_year(&self) -> Option<i32> {
         if let Some(year) = self.year {
             return Some(year);
@@ -98,6 +99,7 @@ impl Default for JikanClient {
 }
 
 impl JikanClient {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             client: Client::builder()
@@ -108,7 +110,7 @@ impl JikanClient {
     }
 
     pub async fn get_anime(&self, mal_id: i32) -> Result<Option<MalAnime>> {
-        let url = format!("{}/anime/{}", JIKAN_API, mal_id);
+        let url = format!("{JIKAN_API}/anime/{mal_id}");
         let response = self.client.get(&url).send().await?;
 
         if response.status() == reqwest::StatusCode::NOT_FOUND {
@@ -118,7 +120,7 @@ impl JikanClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!("Jikan API error: {} - {}", status, body));
+            return Err(anyhow::anyhow!("Jikan API error: {status} - {body}"));
         }
 
         let response: JikanResponse<MalAnime> = response.json().await?;
@@ -127,7 +129,7 @@ impl JikanClient {
     }
 
     pub async fn get_episodes(&self, mal_id: i32, page: u32) -> Result<Vec<MalEpisode>> {
-        let base_url = format!("{}/anime/{}/episodes", JIKAN_API, mal_id);
+        let base_url = format!("{JIKAN_API}/anime/{mal_id}/episodes");
         let mut url = Url::parse(&base_url)?;
         url.query_pairs_mut().append_pair("page", &page.to_string());
 
@@ -136,7 +138,7 @@ impl JikanClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!("Jikan API error: {} - {}", status, body));
+            return Err(anyhow::anyhow!("Jikan API error: {status} - {body}"));
         }
 
         let response: JikanResponse<Vec<MalEpisode>> = response.json().await?;
@@ -145,7 +147,7 @@ impl JikanClient {
     }
 
     pub async fn search(&self, query: &str) -> Result<Vec<MalAnime>> {
-        let base_url = format!("{}/anime", JIKAN_API);
+        let base_url = format!("{JIKAN_API}/anime");
         let mut url = Url::parse(&base_url)?;
 
         url.query_pairs_mut()
@@ -157,7 +159,7 @@ impl JikanClient {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!("Jikan API error: {} - {}", status, body));
+            return Err(anyhow::anyhow!("Jikan API error: {status} - {body}"));
         }
 
         let response: JikanResponse<Vec<MalAnime>> = response.json().await?;

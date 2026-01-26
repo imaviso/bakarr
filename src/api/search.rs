@@ -39,6 +39,7 @@ pub struct SearchResults {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct NyaaSearchResult {
     pub title: String,
     pub magnet: String,
@@ -67,7 +68,6 @@ pub async fn search_releases(
     Query(request): Query<SearchRequest>,
 ) -> Result<Json<ApiResponse<SearchResults>>, ApiError> {
     let category = match request.category.as_deref() {
-        Some("anime_english") => NyaaCategory::AnimeEnglish,
         Some("anime_raw") => NyaaCategory::AnimeRaw,
         Some("anime_non_english") => NyaaCategory::AnimeNonEnglish,
         Some("all_anime") => NyaaCategory::AllAnime,
@@ -75,8 +75,6 @@ pub async fn search_releases(
     };
 
     let filter = match request.filter.as_deref() {
-        Some("no_filter") => NyaaFilter::NoFilter,
-        Some("no_remakes") => NyaaFilter::NoRemakes,
         Some("trusted_only") => NyaaFilter::TrustedOnly,
         _ => NyaaFilter::NoRemakes,
     };
@@ -85,7 +83,7 @@ pub async fn search_releases(
         .nyaa()
         .search(&request.query, category, filter)
         .await
-        .map_err(|e| ApiError::internal(format!("Nyaa search failed: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Nyaa search failed: {e}")))?;
 
     let mut seadex_groups = Vec::new();
     let mut best_release_group = None;
@@ -107,13 +105,11 @@ pub async fn search_releases(
             let parsed_group = parsed.as_ref().and_then(|p| p.group.clone());
             let is_seadex = parsed_group
                 .as_ref()
-                .map(|g| seadex_groups.contains(g))
-                .unwrap_or(false);
+                .is_some_and(|g| seadex_groups.contains(g));
 
             let is_seadex_best = parsed_group
                 .as_ref()
-                .map(|g| Some(g) == best_release_group.as_ref())
-                .unwrap_or(false);
+                .is_some_and(|g| Some(g) == best_release_group.as_ref());
 
             NyaaSearchResult {
                 magnet: t.magnet_link(),
@@ -152,7 +148,7 @@ pub async fn search_episode(
         .search_service()
         .search_episode(anime_id, episode_number)
         .await
-        .map_err(|e| ApiError::internal(format!("Search failed: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Search failed: {e}")))?;
 
     Ok(Json(ApiResponse::success(results)))
 }
@@ -183,7 +179,7 @@ pub async fn download_release(
 
     qbit.add_torrent_url(&request.magnet, Some(options))
         .await
-        .map_err(|e| ApiError::internal(format!("Failed to add torrent: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Failed to add torrent: {e}")))?;
 
     let episode_number = if request.is_batch == Some(true) {
         0.0
@@ -201,7 +197,7 @@ pub async fn download_release(
             request.info_hash.as_deref(),
         )
         .await
-        .map_err(|e| ApiError::internal(format!("Failed to record download: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Failed to record download: {e}")))?;
 
     info!(
         "Manually queued download for {}: {} (Ep {})",

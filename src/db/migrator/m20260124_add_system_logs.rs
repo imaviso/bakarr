@@ -32,7 +32,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Index on created_at for sorting/filtering
         manager
             .create_index(
                 Index::create()

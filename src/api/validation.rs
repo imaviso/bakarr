@@ -3,8 +3,7 @@ use super::ApiError;
 pub fn validate_anime_id(id: i32) -> Result<i32, ApiError> {
     if id <= 0 {
         return Err(ApiError::validation(format!(
-            "Invalid anime ID: {}. ID must be a positive integer",
-            id
+            "Invalid anime ID: {id}. ID must be a positive integer"
         )));
     }
     Ok(id)
@@ -13,8 +12,7 @@ pub fn validate_anime_id(id: i32) -> Result<i32, ApiError> {
 pub fn validate_episode_number(episode: i32) -> Result<i32, ApiError> {
     if episode <= 0 {
         return Err(ApiError::validation(format!(
-            "Invalid episode number: {}. Episode must be a positive integer",
-            episode
+            "Invalid episode number: {episode}. Episode must be a positive integer"
         )));
     }
     Ok(episode)
@@ -26,8 +24,7 @@ pub fn validate_limit(limit: usize) -> Result<usize, ApiError> {
 
     if !(MIN_LIMIT..=MAX_LIMIT).contains(&limit) {
         return Err(ApiError::validation(format!(
-            "Invalid limit: {}. Limit must be between {} and {}",
-            limit, MIN_LIMIT, MAX_LIMIT
+            "Invalid limit: {limit}. Limit must be between {MIN_LIMIT} and {MAX_LIMIT}"
         )));
     }
     Ok(limit)

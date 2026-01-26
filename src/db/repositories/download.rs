@@ -5,23 +5,19 @@ use sea_orm::{
     QueryOrder, QuerySelect, Set,
 };
 
-/// Repository for download history, blocklist, and recycle bin operations
 pub struct DownloadRepository {
     conn: DatabaseConnection,
 }
 
 impl DownloadRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
+    #[must_use]
+    pub const fn new(conn: DatabaseConnection) -> Self {
         Self { conn }
     }
 
-    // ========================================================================
-    // Model Conversion Helpers
-    // ========================================================================
-
     fn map_release_model(r: release_history::Model) -> DownloadEntry {
         DownloadEntry {
-            id: r.id as i64,
+            id: i64::from(r.id),
             anime_id: r.anime_id,
             filename: r.filename,
             episode_number: r.episode_number,
@@ -31,10 +27,6 @@ impl DownloadRepository {
             imported: r.imported,
         }
     }
-
-    // ========================================================================
-    // Release History Operations
-    // ========================================================================
 
     pub async fn record(
         &self,
@@ -48,8 +40,8 @@ impl DownloadRepository {
             anime_id: Set(anime_id),
             filename: Set(filename.to_string()),
             episode_number: Set(episode),
-            group_name: Set(group.map(|s| s.to_string())),
-            info_hash: Set(info_hash.map(|s| s.to_string())),
+            group_name: Set(group.map(std::string::ToString::to_string)),
+            info_hash: Set(info_hash.map(std::string::ToString::to_string)),
             download_date: Set(Some(chrono::Utc::now().to_rfc3339())),
             imported: Set(false),
             ..Default::default()
@@ -73,7 +65,7 @@ impl DownloadRepository {
                 release_history::Column::Imported,
                 sea_orm::sea_query::Expr::value(imported),
             )
-            .filter(release_history::Column::Id.eq(download_id as i32))
+            .filter(release_history::Column::Id.eq(i32::try_from(download_id).unwrap_or(i32::MAX)))
             .exec(&self.conn)
             .await?;
         Ok(())
@@ -116,22 +108,18 @@ impl DownloadRepository {
             .count(&self.conn)
             .await?;
 
-        Ok(count as i32)
+        Ok(i32::try_from(count).unwrap_or(i32::MAX))
     }
 
     pub async fn recent(&self, limit: i32) -> Result<Vec<DownloadEntry>> {
         let rows = ReleaseHistory::find()
             .order_by_desc(release_history::Column::DownloadDate)
-            .limit(limit as u64)
+            .limit(u64::try_from(limit).unwrap_or(u64::MAX))
             .all(&self.conn)
             .await?;
 
         Ok(rows.into_iter().map(Self::map_release_model).collect())
     }
-
-    // ========================================================================
-    // Blocklist Operations
-    // ========================================================================
 
     pub async fn add_to_blocklist(&self, info_hash: &str, reason: &str) -> Result<()> {
         let active_model = blocklist::ActiveModel {
@@ -162,10 +150,6 @@ impl DownloadRepository {
         Ok(count > 0)
     }
 
-    // ========================================================================
-    // Recycle Bin Operations
-    // ========================================================================
-
     #[allow(clippy::too_many_arguments)]
     pub async fn add_to_recycle_bin(
         &self,
@@ -179,7 +163,7 @@ impl DownloadRepository {
     ) -> Result<i64> {
         let active_model = recycle_bin::ActiveModel {
             original_path: Set(original_path.to_string()),
-            recycled_path: Set(recycled_path.map(|s| s.to_string())),
+            recycled_path: Set(recycled_path.map(std::string::ToString::to_string)),
             anime_id: Set(anime_id),
             episode_number: Set(episode_number),
             quality_id: Set(quality_id),
@@ -190,7 +174,7 @@ impl DownloadRepository {
         };
 
         let result = RecycleBin::insert(active_model).exec(&self.conn).await?;
-        Ok(result.last_insert_id as i64)
+        Ok(i64::from(result.last_insert_id))
     }
 
     pub async fn get_old_recycle_entries(&self, older_than: &str) -> Result<Vec<RecycleBinEntry>> {
@@ -204,14 +188,12 @@ impl DownloadRepository {
     }
 
     pub async fn remove_from_recycle_bin(&self, id: i64) -> Result<()> {
-        RecycleBin::delete_by_id(id as i32).exec(&self.conn).await?;
+        RecycleBin::delete_by_id(i32::try_from(id).unwrap_or(i32::MAX))
+            .exec(&self.conn)
+            .await?;
         Ok(())
     }
 }
-
-// ============================================================================
-// Data Types
-// ============================================================================
 
 #[derive(Debug, Clone)]
 pub struct DownloadEntry {

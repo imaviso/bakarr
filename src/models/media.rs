@@ -10,10 +10,12 @@ pub struct MediaInfo {
 }
 
 impl MediaInfo {
+    #[must_use]
     pub fn resolution_str(&self) -> String {
         format!("{}x{}", self.resolution_width, self.resolution_height)
     }
 
+    #[must_use]
     pub fn quality_str(&self) -> String {
         let h = self.resolution_height;
         if h >= 2100 {

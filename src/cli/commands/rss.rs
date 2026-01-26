@@ -1,5 +1,3 @@
-//! RSS command handlers
-
 use crate::clients::nyaa::NyaaClient;
 use crate::config::Config;
 use crate::db::Store;
@@ -12,21 +10,17 @@ pub async fn cmd_rss_add(
 ) -> anyhow::Result<()> {
     let store = Store::new(&config.general.database_path).await?;
 
-    let anime_id: i32 = match anime_id_str.parse() {
-        Ok(id) => id,
-        Err(_) => {
-            println!("Invalid anime ID: {}", anime_id_str);
-            return Ok(());
-        }
+    let anime_id: i32 = if let Ok(id) = anime_id_str.parse() {
+        id
+    } else {
+        println!("Invalid anime ID: {anime_id_str}");
+        return Ok(());
     };
 
-    let anime = match store.get_anime(anime_id).await? {
-        Some(a) => a,
-        None => {
-            println!("Anime with ID {} not found in monitored list.", anime_id);
-            println!("Add it first with: bakarr add \"<anime name>\"");
-            return Ok(());
-        }
+    let Some(anime) = store.get_anime(anime_id).await? else {
+        println!("Anime with ID {anime_id} not found in monitored list.");
+        println!("Add it first with: bakarr add \"<anime name>\"");
+        return Ok(());
     };
 
     let url = NyaaClient::generate_rss_url(&anime.title.romaji, group, resolution);
@@ -45,9 +39,9 @@ pub async fn cmd_rss_add(
 
     let feed_id = store.add_rss_feed(anime_id, &url, Some(&name)).await?;
 
-    println!("✓ Added RSS feed #{}", feed_id);
-    println!("  Name: {}", name);
-    println!("  URL: {}", url);
+    println!("✓ Added RSS feed #{feed_id}");
+    println!("  Name: {name}");
+    println!("  URL: {url}");
     println!();
     println!("The scheduler will check this feed automatically.");
     println!("Or run 'bakarr rss check' to check now.");
@@ -59,12 +53,11 @@ pub async fn cmd_rss_list(config: &Config, anime_id_filter: Option<&str>) -> any
     let store = Store::new(&config.general.database_path).await?;
 
     let feeds = if let Some(id_str) = anime_id_filter {
-        let anime_id: i32 = match id_str.parse() {
-            Ok(id) => id,
-            Err(_) => {
-                println!("Invalid anime ID: {}", id_str);
-                return Ok(());
-            }
+        let anime_id: i32 = if let Ok(id) = id_str.parse() {
+            id
+        } else {
+            println!("Invalid anime ID: {id_str}");
+            return Ok(());
         };
         store.get_rss_feeds_for_anime(anime_id).await?
     } else {
@@ -83,8 +76,7 @@ pub async fn cmd_rss_list(config: &Config, anime_id_filter: Option<&str>) -> any
         monitored
             .iter()
             .find(|a| a.id == id)
-            .map(|a| a.title.romaji.clone())
-            .unwrap_or_else(|| format!("Unknown ({})", id))
+            .map_or_else(|| format!("Unknown ({id})"), |a| a.title.romaji.clone())
     };
 
     println!("RSS Feeds ({} total)", feeds.len());
@@ -99,7 +91,7 @@ pub async fn cmd_rss_list(config: &Config, anime_id_filter: Option<&str>) -> any
         println!("{} Feed #{}: {}", status, feed.id, name);
         println!("  Anime: {} (ID: {})", anime_title, feed.anime_id);
         println!("  URL: {}...", &feed.url[..feed.url.len().min(60)]);
-        println!("  Last checked: {}", last_check);
+        println!("  Last checked: {last_check}");
         println!();
     }
 
@@ -111,12 +103,11 @@ pub async fn cmd_rss_list(config: &Config, anime_id_filter: Option<&str>) -> any
 pub async fn cmd_rss_remove(config: &Config, feed_id_str: &str) -> anyhow::Result<()> {
     let store = Store::new(&config.general.database_path).await?;
 
-    let feed_id: i64 = match feed_id_str.parse() {
-        Ok(id) => id,
-        Err(_) => {
-            println!("Invalid feed ID: {}", feed_id_str);
-            return Ok(());
-        }
+    let feed_id: i64 = if let Ok(id) = feed_id_str.parse() {
+        id
+    } else {
+        println!("Invalid feed ID: {feed_id_str}");
+        return Ok(());
     };
 
     if let Some(feed) = store.get_rss_feed(feed_id).await? {
@@ -129,7 +120,7 @@ pub async fn cmd_rss_remove(config: &Config, feed_id_str: &str) -> anyhow::Resul
 
         if input.trim().eq_ignore_ascii_case("y") {
             if store.remove_rss_feed(feed_id).await? {
-                println!("✓ Removed RSS feed #{}", feed_id);
+                println!("✓ Removed RSS feed #{feed_id}");
             } else {
                 println!("Failed to remove feed.");
             }
@@ -137,7 +128,7 @@ pub async fn cmd_rss_remove(config: &Config, feed_id_str: &str) -> anyhow::Resul
             println!("Cancelled.");
         }
     } else {
-        println!("RSS feed #{} not found.", feed_id);
+        println!("RSS feed #{feed_id} not found.");
     }
 
     Ok(())
@@ -163,7 +154,7 @@ pub async fn cmd_rss_check(config: &Config) -> anyhow::Result<()> {
     let rss_service = crate::services::RssService::new(store, nyaa, qbit, event_bus);
 
     let stats = rss_service
-        .check_feeds(config.scheduler.check_delay_seconds as u64)
+        .check_feeds(u64::from(config.scheduler.check_delay_seconds))
         .await?;
 
     println!();

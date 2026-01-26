@@ -1,5 +1,6 @@
-use crate::api::SearchResultDto;
-use crate::api::TitleDto;
+use crate::api::{SearchResultDto, TitleDto};
+use crate::parser::filename::parse_filename;
+use crate::quality::determine_quality_id;
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -12,6 +13,13 @@ pub struct LibraryScanStats {
     pub scanned: i32,
     pub matched: i32,
     pub updated: i32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FileScanResult {
+    NoMatch,
+    Matched,
+    Updated,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -76,24 +84,22 @@ impl LibraryScannerService {
             if let Err(e) =
                 Self::perform_scan(state.clone(), store, config, event_bus.clone()).await
             {
-                eprintln!("Scan failed: {:?}", e);
+                eprintln!("Scan failed: {e}");
                 let _ = event_bus.send(crate::api::NotificationEvent::Error {
-                    message: format!("Scan failed: {}", e),
+                    message: format!("Scan failed: {e}"),
                 });
             }
 
             let mut guard = state.write().await;
             guard.is_scanning = false;
             guard.last_updated = Some(Utc::now());
+            drop(guard);
 
             let _ = event_bus.send(crate::api::NotificationEvent::ScanFinished);
         });
     }
 
     pub async fn scan_library_files(&self) -> anyhow::Result<LibraryScanStats> {
-        use crate::parser::filename::parse_filename;
-        use crate::quality::determine_quality_id;
-
         let library_path = {
             let cfg = self.config.read().await;
             PathBuf::from(&cfg.library.library_path)
@@ -111,28 +117,17 @@ impl LibraryScannerService {
             .send(crate::api::NotificationEvent::LibraryScanStarted);
         info!("Scanning library: {}", library_path.display());
 
-        let monitored = self.store.list_monitored().await?;
-
-        let mut title_map: std::collections::HashMap<String, crate::models::anime::Anime> =
-            std::collections::HashMap::new();
-        for anime in &monitored {
-            title_map.insert(anime.title.romaji.to_lowercase(), anime.clone());
-            if let Some(ref en) = anime.title.english {
-                title_map.insert(en.to_lowercase(), anime.clone());
-            }
-        }
-
+        let title_map = self.build_monitored_title_map().await?;
         let video_extensions = crate::constants::VIDEO_EXTENSIONS;
         let mut stats = LibraryScanStats::default();
 
         let walker = walkdir::WalkDir::new(&library_path)
             .follow_links(true)
             .into_iter()
-            .filter_map(|e| e.ok());
+            .filter_map(std::result::Result::ok);
 
         for entry in walker {
             let path = entry.path();
-
             if !path.is_file() {
                 continue;
             }
@@ -140,7 +135,7 @@ impl LibraryScannerService {
             let extension = path
                 .extension()
                 .and_then(|e| e.to_str())
-                .map(|e| e.to_lowercase())
+                .map(str::to_lowercase)
                 .unwrap_or_default();
 
             if !video_extensions.contains(&extension.as_str()) {
@@ -156,65 +151,18 @@ impl LibraryScannerService {
                     });
             }
 
-            let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            let release = match parse_filename(filename) {
-                Some(r) => r,
-                None => {
-                    continue;
-                }
-            };
-
-            let (anime, _) =
-                self.match_file_to_anime(path, &release, &title_map, Some(&library_path));
-
-            let anime = match anime {
-                Some(a) => a,
-                None => continue,
-            };
-
-            stats.matched += 1;
-
-            let file_size = tokio::fs::metadata(path).await.map(|m| m.len() as i64).ok();
-            let episode_number = release.episode_number as i32;
-            let season = release.season.unwrap_or(1);
-
-            let quality_id = determine_quality_id(&release);
-
-            let existing = self
-                .store
-                .get_episode_status(anime.id, episode_number)
-                .await?;
-
-            if existing.is_some() {
-                continue;
-            }
-
-            let media_service = crate::services::MediaService::new();
-            let media_info = media_service.get_media_info(path).ok();
-
-            if let Err(e) = self
-                .store
-                .mark_episode_downloaded(
-                    anime.id,
-                    episode_number,
-                    season,
-                    quality_id,
-                    false,
-                    path.to_str().unwrap_or(""),
-                    file_size,
-                    media_info.as_ref(),
-                )
+            match self
+                .process_single_library_file(path, &library_path, &title_map)
                 .await
             {
-                warn!("Failed to mark episode downloaded: {}", e);
-                continue;
+                Ok(FileScanResult::Matched) => stats.matched += 1,
+                Ok(FileScanResult::Updated) => {
+                    stats.matched += 1;
+                    stats.updated += 1;
+                }
+                Ok(FileScanResult::NoMatch) => {}
+                Err(e) => warn!("Failed to process library file {}: {}", path.display(), e),
             }
-
-            stats.updated += 1;
-            info!(
-                "  Found: {} - Episode {} ({})",
-                anime.title.romaji, episode_number, filename
-            );
         }
 
         let _ = self
@@ -228,6 +176,80 @@ impl LibraryScannerService {
         Ok(stats)
     }
 
+    async fn build_monitored_title_map(
+        &self,
+    ) -> anyhow::Result<std::collections::HashMap<String, crate::models::anime::Anime>> {
+        let monitored = self.store.list_monitored().await?;
+        let mut title_map = std::collections::HashMap::new();
+        for anime in monitored {
+            title_map.insert(anime.title.romaji.to_lowercase(), anime.clone());
+            if let Some(ref en) = anime.title.english {
+                title_map.insert(en.to_lowercase(), anime.clone());
+            }
+        }
+        Ok(title_map)
+    }
+
+    async fn process_single_library_file(
+        &self,
+        path: &Path,
+        library_path: &Path,
+        title_map: &std::collections::HashMap<String, crate::models::anime::Anime>,
+    ) -> anyhow::Result<FileScanResult> {
+        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let Some(release) = parse_filename(filename) else {
+            return Ok(FileScanResult::NoMatch);
+        };
+
+        let (anime, _) = self.match_file_to_anime(path, &release, title_map, Some(library_path));
+        let Some(anime) = anime else {
+            return Ok(FileScanResult::NoMatch);
+        };
+
+        let file_size = tokio::fs::metadata(path)
+            .await
+            .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
+            .ok();
+
+        #[allow(clippy::cast_possible_truncation)]
+        let episode_number = release.episode_number as i32;
+        let season = release.season.unwrap_or(1);
+        let quality_id = determine_quality_id(&release);
+
+        let existing = self
+            .store
+            .get_episode_status(anime.id, episode_number)
+            .await?;
+
+        if existing.is_some() {
+            return Ok(FileScanResult::Matched);
+        }
+
+        let media_service = crate::services::MediaService::new();
+        let media_info = media_service.get_media_info(path).ok();
+
+        self.store
+            .mark_episode_downloaded(
+                anime.id,
+                episode_number,
+                season,
+                quality_id,
+                false,
+                path.to_str().unwrap_or(""),
+                file_size,
+                media_info.as_ref(),
+            )
+            .await?;
+
+        info!(
+            "  Found: {} - Episode {} ({})",
+            anime.title.romaji, episode_number, filename
+        );
+
+        Ok(FileScanResult::Updated)
+    }
+
+    #[must_use]
     pub fn match_file_to_anime(
         &self,
         file_path: &Path,
@@ -235,23 +257,61 @@ impl LibraryScannerService {
         title_map: &std::collections::HashMap<String, crate::models::anime::Anime>,
         import_root: Option<&Path>,
     ) -> (Option<crate::models::anime::Anime>, Option<String>) {
-        use crate::parser::filename::clean_title;
+        use crate::parser::filename::{clean_title, detect_season_from_title};
 
-        let mut matched = title_map.get(&release.title.to_lowercase()).cloned();
-
-        if matched.is_none() {
-            for (title, a) in title_map {
-                if release.title.to_lowercase().contains(title)
-                    || title.contains(&release.title.to_lowercase())
-                {
-                    matched = Some(a.clone());
-                    break;
-                }
-            }
-        }
+        let matched = title_map.get(&release.title.to_lowercase()).cloned();
 
         if matched.is_some() {
             return (matched, None);
+        }
+
+        let release_title_lower = release.title.to_lowercase();
+        let file_season = release.season.unwrap_or(1);
+
+        let mut candidates: Vec<(i32, &crate::models::anime::Anime)> = Vec::new();
+
+        for (title, anime) in title_map {
+            let is_match =
+                release_title_lower.contains(title) || title.contains(&release_title_lower);
+            if !is_match {
+                continue;
+            }
+
+            let mut score: i32 = 0;
+
+            #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+            let len_diff = (title.len() as i32 - release_title_lower.len() as i32).abs();
+            score += 100 - len_diff.min(100);
+
+            if title == &release_title_lower {
+                score += 500;
+            }
+
+            let anime_season = detect_season_from_title(&anime.title.romaji).or_else(|| {
+                anime
+                    .title
+                    .english
+                    .as_ref()
+                    .and_then(|t| detect_season_from_title(t))
+            });
+
+            if let Some(anime_s) = anime_season {
+                if anime_s == file_season {
+                    score += 200;
+                } else {
+                    score -= 200;
+                }
+            } else if file_season == 1 {
+                score += 100;
+            } else {
+                score -= 50;
+            }
+
+            candidates.push((score, anime));
+        }
+
+        if let Some((_, best_anime)) = candidates.into_iter().max_by_key(|(score, _)| *score) {
+            return (Some(best_anime.clone()), None);
         }
 
         let mut current_dir = file_path.parent();
@@ -268,7 +328,7 @@ impl LibraryScannerService {
                 let lower = name.to_lowercase();
 
                 let is_generic = lower.starts_with("season")
-                    || (lower.starts_with("s")
+                    || (lower.starts_with('s')
                         && lower.len() > 1
                         && lower.chars().nth(1).is_some_and(|c| c.is_ascii_digit()))
                     || lower == "specials"
@@ -333,29 +393,24 @@ impl LibraryScannerService {
             return Err(anyhow::anyhow!("Library path does not exist"));
         }
 
-        // Build sets of existing anime data for matching
         let existing_anime = store.list_all_anime().await?;
         let (existing_ids, known_paths, known_titles) =
             build_existing_anime_sets(&existing_anime).await;
 
-        // Collect unmapped folders from library
         let initial_folders =
             collect_unmapped_folders(&library_path, &known_paths, &known_titles).await?;
 
-        // Update state with initial folders
         {
             let mut guard = state.write().await;
-            guard.folders = initial_folders.clone();
+            guard.folders.clone_from(&initial_folders);
         }
 
-        // Search AniList for matches
         search_and_update_matches(state, &initial_folders, &existing_ids, &event_bus).await;
 
         Ok(())
     }
 }
 
-/// Build sets of existing anime IDs, paths, and titles for efficient lookup.
 async fn build_existing_anime_sets(
     existing_anime: &[crate::models::anime::Anime],
 ) -> (
@@ -393,7 +448,6 @@ async fn build_existing_anime_sets(
     (existing_ids, known_paths, known_titles)
 }
 
-/// Collect folders in library that aren't mapped to any anime.
 async fn collect_unmapped_folders(
     library_path: &Path,
     known_paths: &std::collections::HashSet<PathBuf>,
@@ -408,19 +462,14 @@ async fn collect_unmapped_folders(
             continue;
         }
 
-        let canon_path = match tokio::fs::canonicalize(&path).await {
-            Ok(p) => p,
-            Err(_) => path.clone(),
-        };
+        let canon_path = (tokio::fs::canonicalize(&path).await).unwrap_or_else(|_| path.clone());
 
-        // Skip if path is already known
         if known_paths.contains(&canon_path) {
             continue;
         }
 
         let folder_name = entry.file_name().to_string_lossy().to_string();
 
-        // Skip if folder name matches a known path
         if known_paths.iter().any(|p| {
             p.file_name().map(|n| n.to_string_lossy())
                 == Some(std::borrow::Cow::Borrowed(&folder_name))
@@ -428,7 +477,6 @@ async fn collect_unmapped_folders(
             continue;
         }
 
-        // Skip if folder name matches a known title
         let clean_name = crate::parser::filename::clean_title(&folder_name).to_lowercase();
         if !clean_name.is_empty() && known_titles.contains(&clean_name) {
             tracing::debug!(
@@ -450,7 +498,6 @@ async fn collect_unmapped_folders(
     Ok(folders)
 }
 
-/// Search AniList for each folder and update the scanner state with matches.
 async fn search_and_update_matches(
     state: Arc<RwLock<ScannerState>>,
     folders: &[UnmappedFolder],
@@ -471,7 +518,6 @@ async fn search_and_update_matches(
             continue;
         }
 
-        // Rate limit AniList API calls
         tokio::time::sleep(tokio::time::Duration::from_millis(600)).await;
 
         let Ok(results) = client.search_anime(&clean_name).await else {
@@ -500,7 +546,6 @@ async fn search_and_update_matches(
     }
 }
 
-/// Update a folder's matches in the scanner state, removing if match is already in library.
 async fn update_folder_matches(
     state: &Arc<RwLock<ScannerState>>,
     folder_name: &str,
@@ -508,18 +553,15 @@ async fn update_folder_matches(
     existing_ids: &std::collections::HashSet<i32>,
 ) {
     let mut guard = state.write().await;
-
     let first_match = matches.first();
-    let should_remove = first_match
-        .map(|m| existing_ids.contains(&m.id))
-        .unwrap_or(false);
 
-    if should_remove {
-        let match_id = first_match.unwrap().id;
+    if let Some(m) = first_match
+        && existing_ids.contains(&m.id)
+    {
         tracing::debug!(
             "Filtering out unmapped folder '{}' because match ID {} is already in library",
             folder_name,
-            match_id
+            m.id
         );
 
         if let Some(pos) = guard.folders.iter().position(|f| f.name == folder_name) {
@@ -533,4 +575,5 @@ async fn update_folder_matches(
         );
         f.suggested_matches = matches;
     }
+    drop(guard);
 }

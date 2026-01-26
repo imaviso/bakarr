@@ -1,7 +1,7 @@
 use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
 #[sea_orm(table_name = "release_profile_rules")]
 pub struct Model {
     #[sea_orm(primary_key)]
@@ -9,7 +9,7 @@ pub struct Model {
     pub profile_id: i32,
     pub term: String,
     pub score: i32,
-    pub rule_type: String, // "preferred", "must", "must_not"
+    pub rule_type: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

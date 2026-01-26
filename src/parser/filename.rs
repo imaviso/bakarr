@@ -2,6 +2,7 @@ use crate::models::release::Release;
 use regex::Regex;
 use std::sync::OnceLock;
 
+#[must_use]
 pub fn parse_filename(filename: &str) -> Option<Release> {
     parse_standard_bracket(filename)
         .or_else(|| parse_sxxexx_bracket(filename))
@@ -98,7 +99,7 @@ fn parse_simple_sxxexx(filename: &str) -> Option<Release> {
         && title
             .chars()
             .nth(title.len().saturating_sub(2))
-            .is_some_and(|c| c.is_numeric())
+            .is_some_and(char::is_numeric)
     {
         return None;
     }
@@ -170,7 +171,7 @@ fn parse_dot_separated(filename: &str) -> Option<Release> {
     let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
     let episode_str = caps.name("episode").map(|m| m.as_str())?;
     let episode_number = episode_str.parse::<f32>().ok()?;
-    let rest = caps.name("rest").map(|m| m.as_str()).unwrap_or("");
+    let rest = caps.name("rest").map_or("", |m| m.as_str());
 
     let resolution = extract_resolution(rest);
     let source = extract_source(rest);
@@ -222,12 +223,10 @@ fn parse_group_at_end(filename: &str) -> Option<Release> {
 }
 
 fn parse_fallback(filename: &str) -> Option<Release> {
-    let name = filename
-        .rsplit_once('.')
-        .map(|(name, _)| name)
-        .unwrap_or(filename);
-
     static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+
+    let name = filename.rsplit_once('.').map_or(filename, |(name, _)| name);
+
     let patterns = PATTERNS.get_or_init(|| {
         vec![
             Regex::new(
@@ -243,7 +242,7 @@ fn parse_fallback(filename: &str) -> Option<Release> {
         ]
     });
 
-    for pattern in patterns.iter() {
+    for pattern in patterns {
         let mut last_match = None;
         for caps in pattern.captures_iter(name) {
             last_match = Some(caps);
@@ -253,6 +252,7 @@ fn parse_fallback(filename: &str) -> Option<Release> {
             let episode_str = caps.name("episode").map(|m| m.as_str())?;
             let episode_number = episode_str.parse::<f32>().ok()?;
 
+            #[allow(clippy::cast_possible_truncation)]
             let ep_int = episode_number as i32;
             if (1990..=2099).contains(&ep_int) || [720, 1080, 2160, 480].contains(&ep_int) {
                 continue;
@@ -333,7 +333,6 @@ fn extract_group_from_rest(s: &str) -> Option<String> {
         let path = std::path::Path::new(rest);
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(rest);
 
-        // Check for brackets
         if stem.contains('[') && stem.contains(']') {
             static RE_BRACKETS: OnceLock<Regex> = OnceLock::new();
             let re = RE_BRACKETS.get_or_init(|| Regex::new(r"\[([^\]]+)\]").unwrap());
@@ -344,7 +343,6 @@ fn extract_group_from_rest(s: &str) -> Option<String> {
                 .collect();
 
             for val in matches.iter().rev() {
-                // If it looks like nested bracket artifact (starts with [), ignore or clean
                 let clean_val = val.trim_start_matches('[');
 
                 if !is_metadata(clean_val) {
@@ -382,11 +380,7 @@ fn extract_title_before_episode(filename: &str, episode_str: &str) -> Option<Str
     let title = before.trim_end_matches(|c: char| c == '-' || c == '_' || c.is_whitespace());
 
     let title = if title.starts_with('[') {
-        if let Some(end) = title.find(']') {
-            title[end + 1..].trim()
-        } else {
-            title
-        }
+        title.find(']').map_or(title, |end| title[end + 1..].trim())
     } else {
         title
     };
@@ -410,7 +404,7 @@ pub fn detect_season_from_title(title: &str) -> Option<i32> {
         ]
     });
 
-    for pattern in patterns.iter() {
+    for pattern in patterns {
         if let Some(caps) = pattern.captures(title)
             && let Some(m) = caps.get(1)
         {
@@ -446,11 +440,12 @@ fn roman_to_int(s: &str) -> Option<i32> {
     }
 }
 
+#[must_use]
 pub fn clean_title(title: &str) -> String {
     let title = title.trim().trim_end_matches(['-', '_']).trim();
 
-    let title = if let Some(idx) = title.rfind('(') {
-        if let Some(end) = title.rfind(')') {
+    let title = title.rfind('(').map_or(title, |idx| {
+        title.rfind(')').map_or(title, |end| {
             if end > idx {
                 let inside = &title[idx + 1..end];
                 if inside.len() == 4 && inside.chars().all(|c| c.is_ascii_digit()) {
@@ -461,12 +456,8 @@ pub fn clean_title(title: &str) -> String {
             } else {
                 title
             }
-        } else {
-            title
-        }
-    } else {
-        title
-    };
+        })
+    });
 
     let title = title.replace('_', " ");
 
@@ -488,9 +479,10 @@ pub fn clean_title(title: &str) -> String {
 }
 
 pub fn normalize_title(title: &str) -> String {
+    static NORMALIZE_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+
     let title = clean_title(title);
 
-    static NORMALIZE_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
     let patterns = NORMALIZE_PATTERNS.get_or_init(|| {
         vec![
             Regex::new(r"(?i)\s*\d+(?:st|nd|rd|th)\s+Season\s*$").unwrap(),
@@ -504,7 +496,7 @@ pub fn normalize_title(title: &str) -> String {
     });
 
     let mut result = title;
-    for pattern in patterns.iter() {
+    for pattern in patterns {
         result = pattern.replace_all(&result, "").to_string();
     }
 
@@ -525,6 +517,7 @@ pub fn normalize_title(title: &str) -> String {
     cleaned.trim().to_string()
 }
 
+#[must_use]
 pub fn normalize_for_matching(title: &str) -> String {
     let normalized = normalize_title(title).to_lowercase();
 
@@ -545,7 +538,7 @@ mod tests {
     fn test_standard_format() {
         let r = parse_filename("[SubsPlease] Frieren - 01 [1080p].mkv").unwrap();
         assert_eq!(r.title, "Frieren");
-        assert_eq!(r.episode_number, 1.0);
+        assert!((r.episode_number - 1.0).abs() < f32::EPSILON);
         assert_eq!(r.group.as_deref(), Some("SubsPlease"));
         assert_eq!(r.resolution.as_deref(), Some("1080p"));
         assert_eq!(r.season, None);
@@ -555,7 +548,7 @@ mod tests {
     fn test_standard_with_version() {
         let r = parse_filename("[Erai-raws] Oshi no Ko - 05v2 [1080p].mkv").unwrap();
         assert_eq!(r.title, "Oshi no Ko");
-        assert_eq!(r.episode_number, 5.0);
+        assert!((r.episode_number - 5.0).abs() < f32::EPSILON);
         assert_eq!(r.version, Some(2));
         assert!(r.is_revised());
     }
@@ -563,7 +556,7 @@ mod tests {
     #[test]
     fn test_decimal_episode() {
         let r = parse_filename("[Group] Anime - 6.5 [1080p].mkv").unwrap();
-        assert_eq!(r.episode_number, 6.5);
+        assert!((r.episode_number - 6.5).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -571,7 +564,7 @@ mod tests {
         let r = parse_filename("[Group] My Hero Academia - S05E10 [1080p].mkv").unwrap();
         assert_eq!(r.title, "My Hero Academia");
         assert_eq!(r.season, Some(5));
-        assert_eq!(r.episode_number, 10.0);
+        assert!((r.episode_number - 10.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -579,7 +572,7 @@ mod tests {
         let r = parse_filename("Attack.on.Titan.S04E28.1080p.WEB.x264-SENPAI.mkv").unwrap();
         assert_eq!(r.title, "Attack on Titan");
         assert_eq!(r.season, Some(4));
-        assert_eq!(r.episode_number, 28.0);
+        assert!((r.episode_number - 28.0).abs() < f32::EPSILON);
         assert_eq!(r.resolution.as_deref(), Some("1080p"));
         assert_eq!(r.source.as_deref(), Some("WEB"));
         assert_eq!(r.group.as_deref(), Some("SENPAI"));
@@ -589,7 +582,7 @@ mod tests {
     fn test_group_at_end() {
         let r = parse_filename("Demon Slayer - 05 (1080p BD) [Cool-Group].mkv").unwrap();
         assert_eq!(r.title, "Demon Slayer");
-        assert_eq!(r.episode_number, 5.0);
+        assert!((r.episode_number - 5.0).abs() < f32::EPSILON);
         assert_eq!(r.group.as_deref(), Some("Cool-Group"));
         assert_eq!(r.resolution.as_deref(), Some("1080p"));
         assert_eq!(r.source.as_deref(), Some("BD"));
@@ -599,7 +592,7 @@ mod tests {
     fn test_season_in_title() {
         let r = parse_filename("[Group] Mob Psycho 100 Season 2 - 08 [1080p].mkv").unwrap();
         assert_eq!(r.season, Some(2));
-        assert_eq!(r.episode_number, 8.0);
+        assert!((r.episode_number - 8.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -637,18 +630,18 @@ mod tests {
     #[test]
     fn test_fallback_parser() {
         let r = parse_filename("Some Anime - 15.mkv").unwrap();
-        assert_eq!(r.episode_number, 15.0);
+        assert!((r.episode_number - 15.0).abs() < f32::EPSILON);
         assert_eq!(r.title, "Some Anime");
 
         let r2 = parse_filename("Anime Title E05.mkv").unwrap();
-        assert_eq!(r2.episode_number, 5.0);
+        assert!((r2.episode_number - 5.0).abs() < f32::EPSILON);
     }
 
     #[test]
     fn test_underscores() {
         let r = parse_filename("[Group]_Anime_Title_-_05_[1080p].mkv").unwrap();
         assert_eq!(r.title, "Anime Title");
-        assert_eq!(r.episode_number, 5.0);
+        assert!((r.episode_number - 5.0).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -705,7 +698,7 @@ mod tests {
         .unwrap();
         assert_eq!(r.title, "The Apothecary Diaries");
         assert_eq!(r.season, Some(1));
-        assert_eq!(r.episode_number, 1.0);
+        assert!((r.episode_number - 1.0).abs() < f32::EPSILON);
         assert_eq!(r.resolution.as_deref(), Some("1080p"));
         assert_eq!(r.source.as_deref(), Some("BD"));
         assert_eq!(r.group.as_deref(), Some("MTBB"));
@@ -715,7 +708,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(r2.season, Some(2));
-        assert_eq!(r2.episode_number, 5.0);
+        assert!((r2.episode_number - 5.0).abs() < f32::EPSILON);
         assert_eq!(r2.source.as_deref(), Some("WEB"));
     }
 

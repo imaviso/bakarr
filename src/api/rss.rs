@@ -71,10 +71,10 @@ pub async fn add_feed(
         .await?;
 
     let feed = state.store().get_rss_feed(feed_id).await?;
-    match feed {
-        Some(f) => Ok(Json(ApiResponse::success(RssFeedDto::from(f)))),
-        None => Err(ApiError::internal("Failed to create RSS feed")),
-    }
+    feed.map_or_else(
+        || Err(ApiError::internal("Failed to create RSS feed")),
+        |f| Ok(Json(ApiResponse::success(RssFeedDto::from(f)))),
+    )
 }
 
 pub async fn delete_feed(

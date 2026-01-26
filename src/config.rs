@@ -352,7 +352,7 @@ impl Config {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
 
-        let config: Config = toml::from_str(&content)
+        let config: Self = toml::from_str(&content)
             .with_context(|| format!("Failed to parse config file: {}", path.display()))?;
 
         Ok(config)
@@ -396,13 +396,13 @@ impl Config {
 
     pub fn create_default_if_missing() -> Result<bool> {
         let path = Self::default_config_path();
-        if !path.exists() {
+        if path.exists() {
+            Ok(false)
+        } else {
             let config = Self::default();
             config.save_to_path(&path)?;
             info!("Created default config file: {}", path.display());
             Ok(true)
-        } else {
-            Ok(false)
         }
     }
 
@@ -421,6 +421,7 @@ impl Config {
         Ok(())
     }
 
+    #[must_use]
     pub fn find_profile(&self, name: &str) -> Option<&QualityProfileConfig> {
         self.profiles.iter().find(|p| p.name == name)
     }
@@ -442,7 +443,7 @@ impl Config {
     pub fn update_profile(&mut self, name: &str, profile: QualityProfileConfig) -> Result<()> {
         let existing = self
             .find_profile_mut(name)
-            .ok_or_else(|| anyhow::anyhow!("Profile '{}' not found", name))?;
+            .ok_or_else(|| anyhow::anyhow!("Profile '{name}' not found"))?;
 
         *existing = profile;
         self.save()?;
@@ -454,7 +455,7 @@ impl Config {
             .profiles
             .iter()
             .position(|p| p.name == name)
-            .ok_or_else(|| anyhow::anyhow!("Profile '{}' not found", name))?;
+            .ok_or_else(|| anyhow::anyhow!("Profile '{name}' not found"))?;
 
         if self.profiles.len() == 1 {
             anyhow::bail!("Cannot delete the last quality profile");
@@ -465,6 +466,7 @@ impl Config {
         Ok(())
     }
 
+    #[must_use]
     pub fn default_profile(&self) -> Option<&QualityProfileConfig> {
         self.profiles.first()
     }

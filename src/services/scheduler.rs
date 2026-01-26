@@ -8,7 +8,6 @@ use tracing::{error, info};
 use crate::config::SchedulerConfig;
 use crate::state::SharedState;
 
-/// Type alias for scheduler state - uses SharedState wrapped in Arc<RwLock> for thread-safety.
 pub type SchedulerState = Arc<RwLock<SharedState>>;
 
 pub struct Scheduler {
@@ -71,7 +70,7 @@ impl Scheduler {
                     .read()
                     .await
                     .rss_service
-                    .check_feeds(delay_secs as u64)
+                    .check_feeds(u64::from(delay_secs))
                     .await
                 {
                     error!("Scheduled RSS check failed: {}", e);
@@ -140,11 +139,12 @@ impl Scheduler {
 
         info!("Scheduler running every {} minutes", interval_mins);
 
-        let mut check_interval = interval(Duration::from_secs(interval_mins as u64 * 60));
+        let mut check_interval = interval(Duration::from_secs(u64::from(interval_mins) * 60));
 
-        let mut metadata_interval = interval(Duration::from_secs(refresh_hours as u64 * 60 * 60));
+        let mut metadata_interval =
+            interval(Duration::from_secs(u64::from(refresh_hours) * 60 * 60));
 
-        let mut scan_interval = interval(Duration::from_secs(scan_hours as u64 * 60 * 60));
+        let mut scan_interval = interval(Duration::from_secs(u64::from(scan_hours) * 60 * 60));
 
         loop {
             tokio::select! {
@@ -156,7 +156,7 @@ impl Scheduler {
                     if let Err(e) = self.state.read().await.auto_downloader.check_all_anime(delay_secs).await {
                         error!("Scheduled anime check failed: {}", e);
                     }
-                    if let Err(e) = self.state.read().await.rss_service.check_feeds(delay_secs as u64).await {
+                    if let Err(e) = self.state.read().await.rss_service.check_feeds(u64::from(delay_secs)).await {
                         error!("Scheduled RSS check failed: {}", e);
                     }
                 }
@@ -206,7 +206,7 @@ impl Scheduler {
             .read()
             .await
             .rss_service
-            .check_feeds(self.config.check_delay_seconds as u64)
+            .check_feeds(u64::from(self.config.check_delay_seconds))
             .await?;
 
         self.refresh_metadata().await?;

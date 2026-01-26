@@ -26,23 +26,25 @@ pub async fn get_status(
 
     for anime in &monitored {
         if let Some(count) = anime.episode_count {
-            total_episodes += count as i64;
+            total_episodes += i64::from(count);
             let downloaded = downloaded_map.get(&anime.id).copied().unwrap_or(0);
-            missing_episodes += (count as i64) - (downloaded as i64);
+            missing_episodes += i64::from(count) - i64::from(downloaded);
         }
     }
 
     let (active_torrents, pending_downloads) = if let Some(qbit) = state.qbit() {
-        let active = qbit.get_torrent_count().await.unwrap_or(0) as i64;
-        let pending = qbit.get_downloading_count().await.unwrap_or(0) as i64;
+        let active = i64::try_from(qbit.get_torrent_count().await.unwrap_or(0)).unwrap_or(i64::MAX);
+        let pending =
+            i64::try_from(qbit.get_downloading_count().await.unwrap_or(0)).unwrap_or(i64::MAX);
         (active, pending)
     } else {
         (0, 0)
     };
 
-    let config = state.config().read().await;
-    let path = &config.library.library_path;
-    let (free_space, total_space) = get_disk_space(path).unwrap_or((0, 0));
+    let (free_space, total_space) = {
+        let config = state.config().read().await;
+        get_disk_space(&config.library.library_path).unwrap_or((0, 0))
+    };
 
     let last_scan = state
         .store()
@@ -100,8 +102,7 @@ fn get_disk_space(path: &str) -> Option<(i64, i64)> {
 pub async fn get_config(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Config>>, ApiError> {
-    let config = state.config().read().await;
-    let mut safe_config = config.clone();
+    let mut safe_config = state.config().read().await.clone();
 
     if !safe_config.qbittorrent.password.is_empty() {
         safe_config.qbittorrent.password = MASK.to_string();
@@ -120,20 +121,24 @@ pub async fn update_config(
     let mut config = state.config().write().await;
 
     if new_config.qbittorrent.password == MASK {
-        new_config.qbittorrent.password = config.qbittorrent.password.clone();
+        new_config
+            .qbittorrent
+            .password
+            .clone_from(&config.qbittorrent.password);
     }
     if new_config.auth.password == MASK {
-        new_config.auth.password = config.auth.password.clone();
+        new_config.auth.password.clone_from(&config.auth.password);
     }
     if new_config.auth.api_key == MASK {
-        new_config.auth.api_key = config.auth.api_key.clone();
+        new_config.auth.api_key.clone_from(&config.auth.api_key);
     }
 
     *config = new_config;
 
-    config
-        .save()
-        .map_err(|e| ApiError::internal(e.to_string()))?;
+    let res = config.save().map_err(|e| ApiError::internal(e.to_string()));
+
+    drop(config);
+    res?;
 
     Ok(Json(ApiResponse::success(())))
 }

@@ -30,7 +30,7 @@ pub async fn get_stats(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<LibraryStats>>, ApiError> {
     let anime_list = state.store().list_monitored().await?;
-    let total_anime = anime_list.len() as i32;
+    let total_anime = i32::try_from(anime_list.len()).unwrap_or(i32::MAX);
     let anime_ids: Vec<i32> = anime_list.iter().map(|a| a.id).collect();
 
     let download_counts = state
@@ -72,8 +72,8 @@ pub async fn get_stats(
         total_episodes,
         downloaded_episodes,
         missing_episodes,
-        rss_feeds: feeds.len() as i32,
-        recent_downloads: recent.len() as i32,
+        rss_feeds: i32::try_from(feeds.len()).unwrap_or(i32::MAX),
+        recent_downloads: i32::try_from(recent.len()).unwrap_or(i32::MAX),
     })))
 }
 
@@ -85,9 +85,10 @@ pub async fn get_activity(
     let mut activities = Vec::new();
     for download in downloads {
         let anime = state.store().get_anime(download.anime_id).await?;
-        let anime_title = anime
-            .map(|a| a.title.english.unwrap_or(a.title.romaji))
-            .unwrap_or_else(|| format!("Anime #{}", download.anime_id));
+        let anime_title = anime.map_or_else(
+            || format!("Anime #{}", download.anime_id),
+            |a| a.title.english.unwrap_or(a.title.romaji),
+        );
 
         activities.push(ActivityItem {
             id: download.id,
@@ -95,7 +96,7 @@ pub async fn get_activity(
             anime_id: download.anime_id,
             anime_title,
             episode_number: Some(download.episode_number),
-            description: format!("Downloaded episode {}", download.episode_number as i32),
+            description: format!("Downloaded episode {}", download.episode_number),
             timestamp: download.download_date,
         });
     }
@@ -132,7 +133,7 @@ pub async fn import_folder(
     let mut anime = client
         .get_by_id(request.anime_id)
         .await
-        .map_err(|e| ApiError::anilist_error(format!("Failed to fetch anime details: {}", e)))?
+        .map_err(|e| ApiError::anilist_error(format!("Failed to fetch anime details: {e}")))?
         .ok_or_else(|| ApiError::anime_not_found(request.anime_id))?;
 
     let config = state.config().read().await;
@@ -153,22 +154,8 @@ pub async fn import_folder(
     anime.path = Some(full_path.to_string_lossy().to_string());
     tracing::info!("Setting anime path to: {:?}", anime.path);
 
-    if let Some(profile_name) = &request.profile_name {
-        if let Some(profile) = state
-            .store()
-            .get_quality_profile_by_name(profile_name)
-            .await?
-        {
-            anime.quality_profile_id = Some(profile.id);
-        }
-    } else if let Some(first_profile) = config.profiles.first()
-        && let Some(profile) = state
-            .store()
-            .get_quality_profile_by_name(&first_profile.name)
-            .await?
-    {
-        anime.quality_profile_id = Some(profile.id);
-    }
+    anime.quality_profile_id =
+        resolve_quality_profile(&state, request.profile_name.as_ref(), &config).await?;
     drop(config);
 
     if state.store().get_anime(anime.id).await?.is_some() {
@@ -183,8 +170,37 @@ pub async fn import_folder(
 
     state.store().add_anime(&anime).await?;
 
+    spawn_post_import_tasks(&state, &anime, full_path);
+
+    Ok(Json(ApiResponse::success(())))
+}
+
+async fn resolve_quality_profile(
+    state: &AppState,
+    profile_name: Option<&String>,
+    config: &crate::config::Config,
+) -> Result<Option<i32>, ApiError> {
+    if let Some(name) = profile_name {
+        if let Some(profile) = state.store().get_quality_profile_by_name(name).await? {
+            return Ok(Some(profile.id));
+        }
+    } else if let Some(first_profile) = config.profiles.first()
+        && let Some(profile) = state
+            .store()
+            .get_quality_profile_by_name(&first_profile.name)
+            .await?
+    {
+        return Ok(Some(profile.id));
+    }
+    Ok(None)
+}
+
+fn spawn_post_import_tasks(
+    state: &AppState,
+    anime: &crate::models::anime::Anime,
+    folder_path: std::path::PathBuf,
+) {
     let anime_id = anime.id;
-    let folder_path = full_path.clone();
     let store = state.store().clone();
     let event_bus = state.event_bus().clone();
 
@@ -209,8 +225,6 @@ pub async fn import_folder(
                 .await;
         }
     });
-
-    Ok(Json(ApiResponse::success(())))
 }
 
 pub async fn scan_folder_for_episodes(
@@ -219,13 +233,9 @@ pub async fn scan_folder_for_episodes(
     anime_id: i32,
     folder_path: &Path,
 ) -> anyhow::Result<()> {
-    use crate::constants::VIDEO_EXTENSIONS;
-    use crate::parser::filename::parse_filename;
-    use crate::quality::parse_quality_from_filename;
-
     let anime_title = match store.get_anime(anime_id).await? {
         Some(a) => a.title.romaji,
-        None => format!("Anime #{}", anime_id),
+        None => format!("Anime #{anime_id}"),
     };
 
     let _ = event_bus.send(crate::api::NotificationEvent::ScanFolderStarted {
@@ -233,84 +243,9 @@ pub async fn scan_folder_for_episodes(
         title: anime_title.clone(),
     });
 
-    tracing::info!("Scanning folder for episodes: {:?}", folder_path);
+    tracing::info!("Scanning folder for episodes: {folder_path:?}");
 
-    let mut dirs_to_visit = std::collections::VecDeque::new();
-    dirs_to_visit.push_back(folder_path.to_path_buf());
-
-    let mut found_episodes = Vec::new();
-    let mut visited_paths = std::collections::HashSet::new();
-
-    while let Some(current_dir) = dirs_to_visit.pop_front() {
-        if !visited_paths.insert(current_dir.clone()) {
-            continue;
-        }
-
-        tracing::debug!("Scanning directory: {:?}", current_dir);
-
-        let mut entries = match tokio::fs::read_dir(&current_dir).await {
-            Ok(entries) => entries,
-            Err(e) => {
-                tracing::warn!("Failed to read directory {:?}: {}", current_dir, e);
-                continue;
-            }
-        };
-
-        while let Ok(Some(entry)) = entries.next_entry().await {
-            let path = entry.path();
-
-            if path.is_dir() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str())
-                    && !name.starts_with('.')
-                {
-                    dirs_to_visit.push_back(path);
-                }
-                continue;
-            }
-
-            tracing::debug!("Checking file: {:?}", path);
-
-            if let Some(ext) = path.extension() {
-                let ext_lower = ext.to_string_lossy().to_lowercase();
-                if VIDEO_EXTENSIONS.contains(&ext_lower.as_str()) {
-                    if let Some(filename) = path.file_name() {
-                        let filename_str = filename.to_string_lossy();
-                        tracing::debug!("Parsing filename: {}", filename_str);
-
-                        if let Some(parsed) = parse_filename(&filename_str) {
-                            tracing::info!(
-                                "Parsed episode {} from: {}",
-                                parsed.episode_number,
-                                filename_str
-                            );
-                            let episode_number = parsed.episode_number as i32;
-                            let quality = parse_quality_from_filename(&filename_str);
-                            let quality_id = quality.id;
-
-                            let file_size = tokio::fs::metadata(&path)
-                                .await
-                                .map(|m| m.len() as i64)
-                                .ok();
-
-                            let season = parsed.season;
-
-                            found_episodes.push((
-                                episode_number,
-                                season,
-                                path.to_string_lossy().to_string(),
-                                quality_id,
-                                file_size,
-                            ));
-                        } else {
-                            tracing::warn!("Failed to parse episode number from: {}", filename_str);
-                        }
-                    }
-                } else {
-                    tracing::debug!("Skipping non-video extension: {:?}", ext);
-                }
-            }
-        }
-    }
+    let found_episodes = collect_and_parse_episodes(folder_path).await;
 
     for (episode_number, season, file_path, quality_id, file_size) in &found_episodes {
         if let Err(e) = store
@@ -343,8 +278,75 @@ pub async fn scan_folder_for_episodes(
     let _ = event_bus.send(crate::api::NotificationEvent::ScanFolderFinished {
         anime_id,
         title: anime_title,
-        found: found_episodes.len() as i32,
+        found: i32::try_from(found_episodes.len()).unwrap_or(i32::MAX),
     });
 
     Ok(())
+}
+
+async fn collect_and_parse_episodes(
+    folder_path: &Path,
+) -> Vec<(i32, Option<i32>, String, i32, Option<i64>)> {
+    use crate::constants::VIDEO_EXTENSIONS;
+    use crate::parser::filename::parse_filename;
+    use crate::quality::parse_quality_from_filename;
+
+    let mut dirs_to_visit = std::collections::VecDeque::new();
+    dirs_to_visit.push_back(folder_path.to_path_buf());
+
+    let mut found_episodes = Vec::new();
+    let mut visited_paths = std::collections::HashSet::new();
+
+    while let Some(current_dir) = dirs_to_visit.pop_front() {
+        if !visited_paths.insert(current_dir.clone()) {
+            continue;
+        }
+
+        let mut entries = match tokio::fs::read_dir(&current_dir).await {
+            Ok(entries) => entries,
+            Err(e) => {
+                tracing::warn!("Failed to read directory {:?}: {}", current_dir, e);
+                continue;
+            }
+        };
+
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                    && !name.starts_with('.')
+                {
+                    dirs_to_visit.push_back(path);
+                }
+                continue;
+            }
+
+            if let Some(ext) = path.extension() {
+                let ext_lower = ext.to_string_lossy().to_lowercase();
+                if VIDEO_EXTENSIONS.contains(&ext_lower.as_str())
+                    && let Some(filename) = path.file_name()
+                {
+                    let filename_str = filename.to_string_lossy();
+                    if let Some(parsed) = parse_filename(&filename_str) {
+                        #[allow(clippy::cast_possible_truncation)]
+                        let episode_number = parsed.episode_number.floor() as i32;
+                        let quality = parse_quality_from_filename(&filename_str);
+                        let file_size = tokio::fs::metadata(&path)
+                            .await
+                            .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
+                            .ok();
+
+                        found_episodes.push((
+                            episode_number,
+                            parsed.season,
+                            path.to_string_lossy().to_string(),
+                            quality.id,
+                            file_size,
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    found_episodes
 }

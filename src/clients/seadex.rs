@@ -72,6 +72,7 @@ impl Default for SeaDexClient {
 }
 
 impl SeaDexClient {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             client: Client::builder()
@@ -82,9 +83,9 @@ impl SeaDexClient {
     }
 
     pub async fn get_best_releases(&self, anilist_id: i32) -> Result<Option<SeaDexEntry>> {
-        let base_url = format!("{}/entries/records", SEADEX_API);
+        let base_url = format!("{SEADEX_API}/entries/records");
         let mut url = Url::parse(&base_url)?;
-        let filter = format!("(alID={})", anilist_id);
+        let filter = format!("(alID={anilist_id})");
 
         url.query_pairs_mut().append_pair("filter", &filter);
 
@@ -102,12 +103,12 @@ impl SeaDexClient {
 
         let filter = tr_ids
             .iter()
-            .map(|id| format!("id='{}'", id))
+            .map(|id| format!("id='{id}'"))
             .collect::<Vec<_>>()
             .join("||");
-        let filter = format!("({})", filter);
+        let filter = format!("({filter})");
 
-        let base_url = format!("{}/torrents/records", SEADEX_API);
+        let base_url = format!("{SEADEX_API}/torrents/records");
         let mut url = Url::parse(&base_url)?;
 
         url.query_pairs_mut()

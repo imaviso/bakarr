@@ -11,7 +11,7 @@ use crate::api::validation::validate_profile_name;
 pub async fn list_qualities() -> Result<Json<ApiResponse<Vec<QualityDto>>>, ApiError> {
     let qualities = crate::quality::QUALITIES
         .iter()
-        .filter(|q| q.id != 99) // Exclude Unknown
+        .filter(|q| q.id != 99)
         .map(|q| QualityDto {
             id: q.id,
             name: q.name.clone(),
@@ -27,8 +27,10 @@ pub async fn list_qualities() -> Result<Json<ApiResponse<Vec<QualityDto>>>, ApiE
 pub async fn list_profiles(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<ProfileDto>>>, ApiError> {
-    let config = state.config().read().await;
-    let profiles: Vec<ProfileDto> = config
+    let profiles: Vec<ProfileDto> = state
+        .config()
+        .read()
+        .await
         .profiles
         .iter()
         .map(|p| ProfileDto {
@@ -60,6 +62,7 @@ pub async fn get_profile(
         seadex_preferred: profile.seadex_preferred,
         allowed_qualities: profile.allowed_qualities.clone(),
     };
+    drop(config);
 
     Ok(Json(ApiResponse::success(dto)))
 }
@@ -72,31 +75,35 @@ pub async fn create_profile(
 
     if crate::quality::definition::get_quality_by_name(&payload.cutoff).is_none() {
         return Err(ApiError::validation(format!(
-            "Invalid cutoff quality: {}",
-            payload.cutoff
+            "Invalid cutoff quality: {cutoff}",
+            cutoff = payload.cutoff
         )));
     }
     for q in &payload.allowed_qualities {
         if crate::quality::definition::get_quality_by_name(q).is_none() {
-            return Err(ApiError::validation(format!("Invalid quality: {}", q)));
+            return Err(ApiError::validation(format!("Invalid quality: {q}")));
         }
     }
 
-    let mut config = state.config().write().await;
+    let profiles = {
+        let mut config = state.config().write().await;
 
-    let profile = crate::config::QualityProfileConfig {
-        name: payload.name.clone(),
-        cutoff: payload.cutoff.clone(),
-        upgrade_allowed: payload.upgrade_allowed,
-        seadex_preferred: payload.seadex_preferred,
-        allowed_qualities: payload.allowed_qualities.clone(),
+        let profile = crate::config::QualityProfileConfig {
+            name: payload.name.clone(),
+            cutoff: payload.cutoff.clone(),
+            upgrade_allowed: payload.upgrade_allowed,
+            seadex_preferred: payload.seadex_preferred,
+            allowed_qualities: payload.allowed_qualities.clone(),
+        };
+
+        config
+            .add_profile(profile)
+            .map_err(|e| ApiError::Conflict(e.to_string()))?;
+
+        config.profiles.clone()
     };
 
-    config
-        .add_profile(profile)
-        .map_err(|e| ApiError::Conflict(e.to_string()))?;
-
-    if let Err(e) = state.shared.store.sync_profiles(&config.profiles).await {
+    if let Err(e) = state.shared.store.sync_profiles(&profiles).await {
         error!("Failed to sync profiles to DB: {}", e);
     }
 
@@ -110,31 +117,35 @@ pub async fn update_profile(
 ) -> Result<Json<ApiResponse<ProfileDto>>, ApiError> {
     if crate::quality::definition::get_quality_by_name(&payload.cutoff).is_none() {
         return Err(ApiError::validation(format!(
-            "Invalid cutoff quality: {}",
-            payload.cutoff
+            "Invalid cutoff quality: {cutoff}",
+            cutoff = payload.cutoff
         )));
     }
     for q in &payload.allowed_qualities {
         if crate::quality::definition::get_quality_by_name(q).is_none() {
-            return Err(ApiError::validation(format!("Invalid quality: {}", q)));
+            return Err(ApiError::validation(format!("Invalid quality: {q}")));
         }
     }
 
-    let mut config = state.config().write().await;
+    let profiles = {
+        let mut config = state.config().write().await;
 
-    let profile = crate::config::QualityProfileConfig {
-        name: payload.name.clone(),
-        cutoff: payload.cutoff.clone(),
-        upgrade_allowed: payload.upgrade_allowed,
-        seadex_preferred: payload.seadex_preferred,
-        allowed_qualities: payload.allowed_qualities.clone(),
+        let profile = crate::config::QualityProfileConfig {
+            name: payload.name.clone(),
+            cutoff: payload.cutoff.clone(),
+            upgrade_allowed: payload.upgrade_allowed,
+            seadex_preferred: payload.seadex_preferred,
+            allowed_qualities: payload.allowed_qualities.clone(),
+        };
+
+        config
+            .update_profile(&name, profile)
+            .map_err(|e| ApiError::internal(e.to_string()))?;
+
+        config.profiles.clone()
     };
 
-    config
-        .update_profile(&name, profile)
-        .map_err(|e| ApiError::internal(e.to_string()))?;
-
-    if let Err(e) = state.shared.store.sync_profiles(&config.profiles).await {
+    if let Err(e) = state.shared.store.sync_profiles(&profiles).await {
         error!("Failed to sync profiles to DB: {}", e);
     }
 
@@ -145,11 +156,13 @@ pub async fn delete_profile(
     State(state): State<Arc<AppState>>,
     Path(name): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
-    let mut config = state.config().write().await;
+    {
+        let mut config = state.config().write().await;
 
-    config
-        .delete_profile(&name)
-        .map_err(|e| ApiError::validation(e.to_string()))?;
+        config
+            .delete_profile(&name)
+            .map_err(|e| ApiError::validation(e.to_string()))?;
+    }
 
     Ok(Json(ApiResponse::success(())))
 }

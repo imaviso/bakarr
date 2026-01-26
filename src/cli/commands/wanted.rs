@@ -1,5 +1,3 @@
-//! Wanted/missing episodes command handler
-
 use crate::config::Config;
 use crate::db::Store;
 use crate::services::episodes::EpisodeService;
@@ -9,12 +7,11 @@ pub async fn cmd_wanted(config: &Config, anime_id: Option<i32>) -> anyhow::Resul
     let episode_service = EpisodeService::new(store.clone());
 
     let anime_list = if let Some(id) = anime_id {
-        match store.get_anime(id).await? {
-            Some(a) => vec![a],
-            None => {
-                println!("Anime with ID {} not found.", id);
-                return Ok(());
-            }
+        if let Some(a) = store.get_anime(id).await? {
+            vec![a]
+        } else {
+            println!("Anime with ID {id} not found.");
+            return Ok(());
         }
     } else {
         store.list_monitored().await?
@@ -34,14 +31,11 @@ pub async fn cmd_wanted(config: &Config, anime_id: Option<i32>) -> anyhow::Resul
     println!("{:-<70}", "");
 
     for anime in &anime_list {
-        let episode_count = match anime.episode_count {
-            Some(c) => c,
-            None => {
-                println!("{} (ID: {})", anime.title.romaji, anime.id);
-                println!("  Episode count: Unknown - cannot determine missing episodes");
-                println!();
-                continue;
-            }
+        let Some(episode_count) = anime.episode_count else {
+            println!("{} (ID: {})", anime.title.romaji, anime.id);
+            println!("  Episode count: Unknown - cannot determine missing episodes");
+            println!();
+            continue;
         };
 
         let downloaded = store.get_downloaded_count(anime.id).await.unwrap_or(0);
@@ -50,7 +44,7 @@ pub async fn cmd_wanted(config: &Config, anime_id: Option<i32>) -> anyhow::Resul
         if missing_count <= 0 {
             if anime_id.is_some() {
                 println!("{} (ID: {})", anime.title.romaji, anime.id);
-                println!("  All {} episodes downloaded!", episode_count);
+                println!("  All {episode_count} episodes downloaded!");
                 println!();
             }
             continue;
@@ -62,10 +56,7 @@ pub async fn cmd_wanted(config: &Config, anime_id: Option<i32>) -> anyhow::Resul
         let missing_eps = store.get_missing_episodes(anime.id, episode_count).await?;
 
         println!("{} (ID: {})", anime.title.romaji, anime.id);
-        println!(
-            "  Progress: {}/{} episodes | Missing: {}",
-            downloaded, episode_count, missing_count
-        );
+        println!("  Progress: {downloaded}/{episode_count} episodes | Missing: {missing_count}");
 
         let status_str = match anime.status.as_str() {
             "RELEASING" => "Currently airing",
@@ -73,31 +64,28 @@ pub async fn cmd_wanted(config: &Config, anime_id: Option<i32>) -> anyhow::Resul
             "NOT_YET_RELEASED" => "Not yet released",
             _ => &anime.status,
         };
-        println!("  Status:   {}", status_str);
+        println!("  Status:   {status_str}");
 
         println!("  Missing:");
         for (idx, &ep_num) in missing_eps.iter().take(10).enumerate() {
             let title = episode_service
                 .get_episode_title(anime.id, ep_num)
                 .await
-                .unwrap_or_else(|_| format!("Episode {}", ep_num));
+                .unwrap_or_else(|_| format!("Episode {ep_num}"));
 
-            println!("    {}. {}", idx + 1, title);
+            println!("    {}. {title}", idx + 1);
         }
 
         if missing_eps.len() > 10 {
             let remaining = missing_eps.len() - 10;
-            println!("    ... and {} more episodes", remaining);
+            println!("    ... and {remaining} more episodes");
         }
         println!();
     }
 
     println!("{:-<70}", "");
     if total_missing > 0 {
-        println!(
-            "Total: {} missing episodes across {} anime",
-            total_missing, anime_with_missing
-        );
+        println!("Total: {total_missing} missing episodes across {anime_with_missing} anime");
         println!();
         println!("Run 'bakarr search-missing' to search and download missing episodes.");
     } else if anime_id.is_none() {

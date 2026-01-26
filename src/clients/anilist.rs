@@ -4,7 +4,12 @@ use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+use std::sync::LazyLock;
+
 const ANILIST_API: &str = "https://graphql.anilist.co";
+
+static EP_REGEX: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(?i)^Episode\s+(\d+)").unwrap());
 
 #[derive(Serialize)]
 struct GraphQLRequest<'a> {
@@ -107,7 +112,15 @@ impl Default for AnilistClient {
     }
 }
 
+#[derive(Deserialize)]
+struct AiringScheduleNode {
+    episode: i32,
+    #[serde(rename = "airingAt")]
+    airing_at: i64,
+}
+
 impl AnilistClient {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             client: Client::builder()
@@ -118,7 +131,7 @@ impl AnilistClient {
     }
 
     pub async fn search_anime(&self, query: &str) -> Result<Vec<Anime>> {
-        let gql_query = r#"
+        let gql_query = r"
             query ($search: String) {
                 Page(page: 1, perPage: 10) {
                     media(search: $search, type: ANIME) {
@@ -143,7 +156,7 @@ impl AnilistClient {
                     }
                 }
             }
-        "#;
+        ";
 
         let request_body = GraphQLRequest {
             query: gql_query,
@@ -165,7 +178,7 @@ impl AnilistClient {
                 d.page
                     .media
                     .into_iter()
-                    .map(|m| self.map_media_to_anime(m))
+                    .map(Self::map_media_to_anime)
                     .collect()
             })
             .unwrap_or_default();
@@ -174,7 +187,29 @@ impl AnilistClient {
     }
 
     pub async fn get_by_id(&self, id: i32) -> Result<Option<Anime>> {
-        let gql_query = r#"
+        #[derive(Serialize)]
+        struct IdVar {
+            id: i32,
+        }
+
+        #[derive(Serialize)]
+        struct IdRequest<'a> {
+            query: &'a str,
+            variables: IdVar,
+        }
+
+        #[derive(Deserialize)]
+        struct IdResponse {
+            data: Option<MediaWrapper>,
+        }
+
+        #[derive(Deserialize)]
+        struct MediaWrapper {
+            #[serde(rename = "Media")]
+            media: Option<Media>,
+        }
+
+        let gql_query = r"
             query ($id: Int) {
                 Media(id: $id, type: ANIME) {
                     id
@@ -200,29 +235,7 @@ impl AnilistClient {
                     }
                 }
             }
-        "#;
-
-        #[derive(Serialize)]
-        struct IdVar {
-            id: i32,
-        }
-
-        #[derive(Serialize)]
-        struct IdRequest<'a> {
-            query: &'a str,
-            variables: IdVar,
-        }
-
-        #[derive(Deserialize)]
-        struct IdResponse {
-            data: Option<MediaWrapper>,
-        }
-
-        #[derive(Deserialize)]
-        struct MediaWrapper {
-            #[serde(rename = "Media")]
-            media: Option<Media>,
-        }
+        ";
 
         let request_body = IdRequest {
             query: gql_query,
@@ -241,10 +254,10 @@ impl AnilistClient {
         Ok(response
             .data
             .and_then(|d| d.media)
-            .map(|m| self.map_media_to_anime(m)))
+            .map(Self::map_media_to_anime))
     }
 
-    fn map_media_to_anime(&self, m: Media) -> Anime {
+    fn map_media_to_anime(m: Media) -> Anime {
         let episode_count = m
             .episodes
             .or_else(|| m.next_airing_episode.map(|nae| nae.episode));
@@ -274,6 +287,7 @@ impl AnilistClient {
             profile_name: None,
             mal_id: None,
             description: m.description,
+            #[allow(clippy::cast_precision_loss)]
             score: m.average_score.map(|s| s as f32),
             genres: m.genres,
             studios: studios_vec,
@@ -284,25 +298,6 @@ impl AnilistClient {
     }
 
     pub async fn get_episodes(&self, id: i32) -> Result<Vec<AnilistEpisode>> {
-        let gql_query = r#"
-            query ($id: Int) {
-                Media(id: $id, type: ANIME) {
-                    streamingEpisodes {
-                        title
-                        thumbnail
-                        url
-                        site
-                    }
-                    airingSchedule(perPage: 500) {
-                        nodes {
-                            episode
-                            airingAt
-                        }
-                    }
-                }
-            }
-        "#;
-
         #[derive(Serialize)]
         struct IdVar {
             id: i32,
@@ -338,12 +333,24 @@ impl AnilistClient {
             nodes: Vec<AiringScheduleNode>,
         }
 
-        #[derive(Deserialize)]
-        struct AiringScheduleNode {
-            episode: i32,
-            #[serde(rename = "airingAt")]
-            airing_at: i64,
-        }
+        let gql_query = r"
+            query ($id: Int) {
+                Media(id: $id, type: ANIME) {
+                    streamingEpisodes {
+                        title
+                        thumbnail
+                        url
+                        site
+                    }
+                    airingSchedule(perPage: 500) {
+                        nodes {
+                            episode
+                            airingAt
+                        }
+                    }
+                }
+            }
+        ";
 
         let request_body = IdRequest {
             query: gql_query,
@@ -359,55 +366,58 @@ impl AnilistClient {
             .json()
             .await?;
 
-        let media = response.data.and_then(|d| d.media);
+        let Some(media) = response.data.and_then(|d| d.media) else {
+            return Ok(Vec::new());
+        };
 
-        if let Some(media) = media {
-            let mut episodes = media.streaming_episodes;
-            let schedule = media.airing_schedule.map(|s| s.nodes).unwrap_or_default();
+        let mut episodes = media.streaming_episodes;
+        let schedule = media.airing_schedule.map(|s| s.nodes).unwrap_or_default();
 
-            let mut air_dates = std::collections::HashMap::new();
-            for node in schedule {
-                if let Some(dt) = DateTime::<Utc>::from_timestamp(node.airing_at, 0) {
-                    air_dates.insert(node.episode, dt.to_rfc3339());
-                }
+        let air_dates = Self::process_airing_schedule(schedule);
+
+        for ep in &mut episodes {
+            if let Some(title) = &ep.title
+                && let Some(caps) = EP_REGEX.captures(title)
+                && let Ok(num) = caps[1].parse::<i32>()
+                && let Some(date) = air_dates.get(&num)
+            {
+                ep.aired = Some(date.clone());
             }
-
-            let re = regex::Regex::new(r"(?i)^Episode\s+(\d+)").unwrap();
-
-            for ep in &mut episodes {
-                if let Some(title) = &ep.title
-                    && let Some(caps) = re.captures(title)
-                    && let Ok(num) = caps[1].parse::<i32>()
-                    && let Some(date) = air_dates.get(&num)
-                {
-                    ep.aired = Some(date.clone());
-                }
-            }
-
-            let existing_nums: std::collections::HashSet<i32> = episodes
-                .iter()
-                .filter_map(|ep| {
-                    ep.title
-                        .as_ref()
-                        .and_then(|t| re.captures(t).and_then(|c| c[1].parse::<i32>().ok()))
-                })
-                .collect();
-
-            for (ep_num, date) in air_dates {
-                if !existing_nums.contains(&ep_num) {
-                    episodes.push(AnilistEpisode {
-                        title: Some(format!("Episode {}", ep_num)),
-                        thumbnail: None,
-                        url: None,
-                        site: None,
-                        aired: Some(date),
-                    });
-                }
-            }
-
-            Ok(episodes)
-        } else {
-            Ok(Vec::new())
         }
+
+        let existing_nums: std::collections::HashSet<i32> = episodes
+            .iter()
+            .filter_map(|ep| {
+                ep.title
+                    .as_ref()
+                    .and_then(|t| EP_REGEX.captures(t).and_then(|c| c[1].parse::<i32>().ok()))
+            })
+            .collect();
+
+        for (ep_num, date) in air_dates {
+            if !existing_nums.contains(&ep_num) {
+                episodes.push(AnilistEpisode {
+                    title: Some(format!("Episode {ep_num}")),
+                    thumbnail: None,
+                    url: None,
+                    site: None,
+                    aired: Some(date),
+                });
+            }
+        }
+
+        Ok(episodes)
+    }
+
+    fn process_airing_schedule(
+        nodes: Vec<AiringScheduleNode>,
+    ) -> std::collections::HashMap<i32, String> {
+        let mut air_dates = std::collections::HashMap::new();
+        for node in nodes {
+            if let Some(dt) = DateTime::<Utc>::from_timestamp(node.airing_at, 0) {
+                air_dates.insert(node.episode, dt.to_rfc3339());
+            }
+        }
+        air_dates
     }
 }

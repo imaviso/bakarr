@@ -9,7 +9,8 @@ pub struct AnimeMetadataService {
 }
 
 impl AnimeMetadataService {
-    pub fn new(offline_db: Arc<OfflineDatabase>) -> Self {
+    #[must_use]
+    pub const fn new(offline_db: Arc<OfflineDatabase>) -> Self {
         Self { offline_db }
     }
 

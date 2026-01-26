@@ -7,62 +7,46 @@ pub use profile::{DownloadDecision, QualityProfile};
 use crate::models::release::Release;
 use crate::parser::filename::parse_filename;
 
+#[must_use]
 pub fn determine_quality_id(release: &Release) -> i32 {
-    let resolution = release
-        .resolution
-        .as_ref()
-        .map(|r| {
-            r.to_lowercase()
-                .replace("p", "")
-                .parse::<u16>()
-                .unwrap_or(0)
-        })
-        .unwrap_or(0);
+    let resolution = release.resolution.as_ref().map_or(0, |r| {
+        r.to_lowercase()
+            .replace('p', "")
+            .parse::<u16>()
+            .unwrap_or(0)
+    });
 
     let source = release.source.as_ref().map(|s| s.to_uppercase());
 
-    // Check for Remux first
-    let is_remux = source
-        .as_ref()
-        .map(|s| s.contains("REMUX"))
-        .unwrap_or(false)
+    let is_remux = source.as_ref().is_some_and(|s| s.contains("REMUX"))
         || release.original_filename.to_lowercase().contains("remux");
 
     if is_remux {
         return match resolution {
-            2160 => 11, // BluRay 2160p Remux
-            1080 => 12, // BluRay 1080p Remux
-            _ => 12,    // Default to 1080p Remux
+            2160 => 11,
+            _ => 12,
         };
     }
 
     let is_bluray = source
         .as_ref()
-        .map(|s| s.contains("BD") || s.contains("BLURAY"))
-        .unwrap_or(false);
+        .is_some_and(|s| s.contains("BD") || s.contains("BLURAY"));
 
-    // Distinguish between WEB-DL and WEBRip
-    let is_webrip = source
-        .as_ref()
-        .map(|s| s.contains("WEBRIP"))
-        .unwrap_or(false);
-    let is_web = source.as_ref().map(|s| s.contains("WEB")).unwrap_or(false);
+    let is_webrip = source.as_ref().is_some_and(|s| s.contains("WEBRIP"));
+    let is_web = source.as_ref().is_some_and(|s| s.contains("WEB"));
 
     match (resolution, is_bluray, is_webrip, is_web) {
         (2160, true, _, _) => 1,
         (2160, _, true, _) => 13,
-        (2160, _, _, true) => 2,
-        (2160, _, _, _) => 2, // Default to WEB-DL 2160p
+        (2160, _, _, true | _) => 2,
 
         (1080, true, _, _) => 3,
         (1080, _, true, _) => 14,
-        (1080, _, _, true) => 4,
-        (1080, _, _, _) => 4, // Default to WEB-DL 1080p
+        (1080, _, _, true | _) => 4,
 
         (720, true, _, _) => 5,
         (720, _, true, _) => 15,
-        (720, _, _, true) => 6,
-        (720, _, _, _) => 6, // Default to WEB-DL 720p
+        (720, _, _, true | _) => 6,
 
         (576, _, _, _) => 9,
         (480, _, _, _) => 10,
@@ -70,6 +54,7 @@ pub fn determine_quality_id(release: &Release) -> i32 {
     }
 }
 
+#[must_use]
 pub fn parse_quality_from_filename(filename: &str) -> Quality {
     let parsed = parse_filename(filename);
 
@@ -81,10 +66,8 @@ pub fn parse_quality_from_filename(filename: &str) -> Quality {
     let mut source = parsed
         .as_ref()
         .and_then(|p| p.source.as_ref())
-        .map(|s| parse_source(s))
-        .unwrap_or_else(|| infer_source_from_filename(filename));
+        .map_or_else(|| infer_source_from_filename(filename), |s| parse_source(s));
 
-    // Ensure Remux is detected even if not in the source tag
     if source == QualitySource::BluRay && filename.to_lowercase().contains("remux") {
         source = QualitySource::BluRayRemux;
     }
@@ -137,7 +120,7 @@ fn infer_source_from_filename(filename: &str) -> QualitySource {
 
     if lower.contains("bluray")
         || lower.contains("blu-ray")
-        || lower.contains("bdremux") // Technically a remux, but double check
+        || lower.contains("bdremux")
         || lower.contains("bdrip")
     {
         if lower.contains("remux") {

@@ -1,5 +1,3 @@
-//! List anime command handler
-
 use crate::config::Config;
 use crate::db::Store;
 
@@ -20,14 +18,13 @@ pub async fn cmd_list_anime(config: &Config) -> anyhow::Result<()> {
     for anime in anime_list {
         let eps = anime
             .episode_count
-            .map(|e| e.to_string())
-            .unwrap_or("?".to_string());
+            .map_or_else(|| "?".to_string(), |e| e.to_string());
         let downloaded = store.downloaded_episode_count(anime.id).await.unwrap_or(0);
 
         let progress = if anime.episode_count.is_some() {
-            format!("{}/{}", downloaded, eps)
+            format!("{downloaded}/{eps}")
         } else {
-            format!("{}/? eps", downloaded)
+            format!("{downloaded}/? eps")
         };
 
         let status_indicator = match anime.status.as_str() {

@@ -1,5 +1,3 @@
-//! Profile command handlers
-
 use crate::config::Config;
 use crate::db::Store;
 
@@ -33,7 +31,7 @@ pub async fn cmd_profile_list(config: &Config) -> anyhow::Result<()> {
 pub async fn cmd_profile_show(config: &Config, name: &str) -> anyhow::Result<()> {
     let profile = config
         .find_profile(name)
-        .ok_or_else(|| anyhow::anyhow!("Profile '{}' not found", name))?;
+        .ok_or_else(|| anyhow::anyhow!("Profile '{name}' not found"))?;
 
     println!("Profile: {}", profile.name);
     println!("{:-<70}", "");
@@ -79,12 +77,12 @@ pub async fn cmd_profile_show(config: &Config, name: &str) -> anyhow::Result<()>
 }
 
 pub async fn cmd_profile_create(_config: &Config, name: &str) -> anyhow::Result<()> {
-    println!("Creating profile: {}", name);
+    println!("Creating profile: {name}");
     println!("Interactive profile creation coming soon!");
     println!();
     println!("For now, edit config.toml directly:");
     println!("  [[profiles]]");
-    println!("  name = \"{}\"", name);
+    println!("  name = \"{name}\"");
     println!("  cutoff = \"BluRay 1080p\"");
     println!("  upgrade_allowed = true");
     println!("  seadex_preferred = true");
@@ -93,7 +91,7 @@ pub async fn cmd_profile_create(_config: &Config, name: &str) -> anyhow::Result<
 }
 
 pub async fn cmd_profile_edit(_config: &Config, name: &str) -> anyhow::Result<()> {
-    println!("Editing profile: {}", name);
+    println!("Editing profile: {name}");
     println!("Interactive profile editing coming soon!");
     println!();
     println!("For now, edit config.toml directly");
@@ -101,7 +99,7 @@ pub async fn cmd_profile_edit(_config: &Config, name: &str) -> anyhow::Result<()
 }
 
 pub async fn cmd_profile_delete(_config: &Config, name: &str) -> anyhow::Result<()> {
-    println!("Deleting profile: {}", name);
+    println!("Deleting profile: {name}");
     println!("Profile deletion coming soon!");
     println!();
     println!("This will require reassigning anime to another profile.");

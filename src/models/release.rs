@@ -20,15 +20,18 @@ pub struct Release {
 }
 
 impl Release {
+    #[must_use]
     pub fn effective_season(&self) -> i32 {
         self.season.unwrap_or(1)
     }
 
+    #[must_use]
     pub fn effective_version(&self) -> i32 {
         self.version.unwrap_or(1)
     }
 
+    #[must_use]
     pub fn is_revised(&self) -> bool {
-        self.version.map(|v| v > 1).unwrap_or(false)
+        self.version.is_some_and(|v| v > 1)
     }
 }

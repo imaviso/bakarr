@@ -29,17 +29,17 @@ pub enum ApiError {
 impl fmt::Display for ApiError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ApiError::NotFound(msg) => write!(f, "Not found: {}", msg),
-            ApiError::DatabaseError(msg) => write!(f, "Database error: {}", msg),
-            ApiError::ExternalApiError { service, message } => {
-                write!(f, "{} error: {}", service, message)
+            Self::NotFound(msg) => write!(f, "Not found: {msg}"),
+            Self::DatabaseError(msg) => write!(f, "Database error: {msg}"),
+            Self::ExternalApiError { service, message } => {
+                write!(f, "{service} error: {message}")
             }
-            ApiError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
-            ApiError::NotImplemented(msg) => write!(f, "Not implemented: {}", msg),
-            ApiError::Conflict(msg) => write!(f, "Conflict: {}", msg),
+            Self::ValidationError(msg) => write!(f, "Validation error: {msg}"),
+            Self::NotImplemented(msg) => write!(f, "Not implemented: {msg}"),
+            Self::Conflict(msg) => write!(f, "Conflict: {msg}"),
 
-            ApiError::InternalError(msg) => write!(f, "Internal error: {}", msg),
-            ApiError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
+            Self::InternalError(msg) => write!(f, "Internal error: {msg}"),
+            Self::Unauthorized(msg) => write!(f, "Unauthorized: {msg}"),
         }
     }
 }
@@ -49,32 +49,32 @@ impl std::error::Error for ApiError {}
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, error_message) = match &self {
-            ApiError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
-            ApiError::DatabaseError(msg) => {
-                tracing::error!("Database error: {}", msg);
+            Self::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
+            Self::DatabaseError(msg) => {
+                tracing::error!("Database error: {msg}");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "A database error occurred".to_string(),
                 )
             }
-            ApiError::ExternalApiError { service, message } => {
-                tracing::warn!("{} API error: {}", service, message);
+            Self::ExternalApiError { service, message } => {
+                tracing::warn!("{service} API error: {message}");
                 (
                     StatusCode::BAD_GATEWAY,
-                    format!("{} service is unavailable", service),
+                    format!("{service} service is unavailable"),
                 )
             }
-            ApiError::ValidationError(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
-            ApiError::NotImplemented(msg) => (StatusCode::NOT_IMPLEMENTED, msg.clone()),
-            ApiError::Conflict(msg) => (StatusCode::CONFLICT, msg.clone()),
-            ApiError::InternalError(msg) => {
-                tracing::error!("Internal error: {}", msg);
+            Self::ValidationError(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            Self::NotImplemented(msg) => (StatusCode::NOT_IMPLEMENTED, msg.clone()),
+            Self::Conflict(msg) => (StatusCode::CONFLICT, msg.clone()),
+            Self::InternalError(msg) => {
+                tracing::error!("Internal error: {msg}");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "An internal error occurred".to_string(),
                 )
             }
-            ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
+            Self::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
         };
 
         let body = ApiResponse::<()>::error(error_message);
@@ -84,49 +84,56 @@ impl IntoResponse for ApiError {
 
 impl From<anyhow::Error> for ApiError {
     fn from(err: anyhow::Error) -> Self {
-        ApiError::InternalError(err.to_string())
+        Self::InternalError(err.to_string())
     }
 }
 
 impl ApiError {
+    #[must_use]
     pub fn not_found(resource: &str, id: impl fmt::Display) -> Self {
-        ApiError::NotFound(format!("{} {} not found", resource, id))
+        Self::NotFound(format!("{resource} {id} not found"))
     }
 
+    #[must_use]
     pub fn anime_not_found(id: i32) -> Self {
-        ApiError::NotFound(format!("Anime {} not found", id))
+        Self::NotFound(format!("Anime {id} not found"))
     }
 
+    #[must_use]
     pub fn profile_not_found(name: &str) -> Self {
-        ApiError::NotFound(format!("Profile '{}' not found", name))
+        Self::NotFound(format!("Profile '{name}' not found"))
     }
 
+    #[must_use]
     pub fn anilist_error(msg: impl Into<String>) -> Self {
-        ApiError::ExternalApiError {
+        Self::ExternalApiError {
             service: "AniList".to_string(),
             message: msg.into(),
         }
     }
 
+    #[must_use]
     pub fn qbittorrent_error(msg: impl Into<String>) -> Self {
-        ApiError::ExternalApiError {
+        Self::ExternalApiError {
             service: "qBittorrent".to_string(),
             message: msg.into(),
         }
     }
 
+    #[must_use]
     pub fn validation(msg: impl Into<String>) -> Self {
-        ApiError::ValidationError(msg.into())
+        Self::ValidationError(msg.into())
     }
 
+    #[must_use]
     pub fn not_implemented(feature: &str) -> Self {
-        ApiError::NotImplemented(format!(
-            "{} is not yet implemented. Please edit config.toml",
-            feature
+        Self::NotImplemented(format!(
+            "{feature} is not yet implemented. Please edit config.toml"
         ))
     }
 
+    #[must_use]
     pub fn internal(msg: impl Into<String>) -> Self {
-        ApiError::InternalError(msg.into())
+        Self::InternalError(msg.into())
     }
 }

@@ -1,9 +1,3 @@
-//! Shared application state used across API and Scheduler components.
-//!
-//! This module provides a unified `SharedState` struct that contains services
-//! shared between the web API and the background scheduler, eliminating
-//! duplicate initialization and reducing confusion from multiple AppState types.
-
 use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
 use tracing::debug;
@@ -20,62 +14,43 @@ use crate::services::{
     LogService, RssService, SearchService,
 };
 
-/// Shared application state containing services used by both API and Scheduler.
-///
-/// This struct is designed to be wrapped in `Arc` and shared across components.
-/// API-specific or Scheduler-specific extensions can embed this as a field.
 #[derive(Clone)]
 pub struct SharedState {
-    /// Application configuration (wrapped in RwLock for runtime updates)
     pub config: Arc<RwLock<Config>>,
 
-    /// Database store
     pub store: Store,
 
-    /// Nyaa.si client for torrent searches
     pub nyaa: Arc<NyaaClient>,
 
-    /// SeaDex client for quality recommendations
     pub seadex: Arc<SeaDexClient>,
 
-    /// qBittorrent client (optional, depends on config)
     pub qbit: Option<Arc<QBitClient>>,
 
-    /// Search service for finding releases
     pub search_service: Arc<SearchService>,
 
-    /// RSS Feed service
     pub rss_service: Arc<RssService>,
 
-    /// System Log service
     pub log_service: Arc<LogService>,
 
-    /// Auto-downloader service
     pub auto_downloader: Arc<AutoDownloadService>,
 
     pub library_scanner: Arc<LibraryScannerService>,
 
-    /// Episode tracking service
     pub episodes: EpisodeService,
 
-    /// Download decision service
     pub download_decisions: DownloadDecisionService,
 
-    /// Recycle bin for deleted files
     pub recycle_bin: RecycleBin,
 
-    /// Event bus for real-time notifications
     pub event_bus: broadcast::Sender<NotificationEvent>,
 }
 
 impl SharedState {
-    /// Create a new SharedState from configuration.
     pub async fn new(config: Config) -> anyhow::Result<Self> {
         let (event_bus, _) = broadcast::channel(config.general.event_bus_buffer_size);
         Self::init_with_event_bus(config, event_bus).await
     }
 
-    /// Create SharedState with an existing event bus (for sharing between components).
     pub async fn with_event_bus(
         config: Config,
         event_bus: broadcast::Sender<NotificationEvent>,
@@ -83,7 +58,6 @@ impl SharedState {
         Self::init_with_event_bus(config, event_bus).await
     }
 
-    /// Internal initialization helper to avoid code duplication.
     async fn init_with_event_bus(
         config: Config,
         event_bus: broadcast::Sender<NotificationEvent>,
@@ -92,7 +66,7 @@ impl SharedState {
         store.initialize_quality_system(&config).await?;
 
         let nyaa = Arc::new(NyaaClient::with_timeout(std::time::Duration::from_secs(
-            config.nyaa.request_timeout_seconds as u64,
+            u64::from(config.nyaa.request_timeout_seconds),
         )));
         let seadex = Arc::new(SeaDexClient::new());
 
@@ -167,18 +141,12 @@ impl SharedState {
         })
     }
 
-    /// Get a read-only snapshot of the current config.
     pub async fn config(&self) -> Config {
         self.config.read().await.clone()
     }
 
-    // ========================================================================
-    // SeaDex Cache Helpers (moved from scheduler::AppState)
-    // ========================================================================
-
-    /// Get SeaDex release groups for an anime, using cache when available.
     pub async fn get_seadex_groups_cached(&self, anime_id: i32) -> Vec<String> {
-        if let Ok(true) = self.store.is_seadex_cache_fresh(anime_id).await
+        if matches!(self.store.is_seadex_cache_fresh(anime_id).await, Ok(true))
             && let Ok(Some(cache)) = self.store.get_seadex_cache(anime_id).await
         {
             return cache.get_groups();
@@ -213,9 +181,8 @@ impl SharedState {
         }
     }
 
-    /// Get SeaDex releases for an anime, using cache when available.
     pub async fn get_seadex_releases_cached(&self, anime_id: i32) -> Vec<SeaDexRelease> {
-        if let Ok(true) = self.store.is_seadex_cache_fresh(anime_id).await
+        if matches!(self.store.is_seadex_cache_fresh(anime_id).await, Ok(true))
             && let Ok(Some(cache)) = self.store.get_seadex_cache(anime_id).await
         {
             let releases = cache.get_releases();
@@ -253,7 +220,7 @@ impl SharedState {
         }
     }
 
-    /// Check if a torrent title is from a SeaDex-recommended group.
+    #[must_use]
     pub fn is_from_seadex_group(&self, title: &str, seadex_groups: &[String]) -> bool {
         if seadex_groups.is_empty() {
             return false;

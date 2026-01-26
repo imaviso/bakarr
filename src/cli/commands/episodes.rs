@@ -1,5 +1,3 @@
-//! Episodes command handler
-
 use crate::config::Config;
 use crate::db::Store;
 use crate::services::episodes::EpisodeService;
@@ -12,7 +10,7 @@ pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyho
     let anime = store
         .get_anime(id)
         .await?
-        .ok_or_else(|| anyhow::anyhow!("Anime with ID {} not found", id))?;
+        .ok_or_else(|| anyhow::anyhow!("Anime with ID {id} not found"))?;
 
     println!("Episodes for: {}", anime.title.romaji);
     println!("{:-<70}", "");
@@ -22,15 +20,15 @@ pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyho
     if refresh {
         println!("Refreshing episode metadata from Jikan...");
         match episode_service.refresh_episode_cache(id).await {
-            Ok(count) => println!("✓ Cached {} episodes\n", count),
-            Err(e) => println!("⚠ Failed to refresh: {}\n", e),
+            Ok(count) => println!("✓ Cached {count} episodes\n"),
+            Err(e) => println!("⚠ Failed to refresh: {e}\n"),
         }
     } else if !store.has_cached_episodes(id).await? {
         println!("Fetching episode metadata from Jikan...");
         match episode_service.fetch_and_cache_episodes(id).await {
-            Ok(count) if count > 0 => println!("✓ Cached {} episodes\n", count),
+            Ok(count) if count > 0 => println!("✓ Cached {count} episodes\n"),
             Ok(_) => println!("⚠ No episode metadata available\n"),
-            Err(e) => println!("⚠ Failed to fetch: {}\n", e),
+            Err(e) => println!("⚠ Failed to fetch: {e}\n"),
         }
     }
 
@@ -51,16 +49,16 @@ pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyho
             Some(meta) => {
                 let title = meta.title.as_deref().unwrap_or("(No title)");
                 let aired = meta.aired.as_deref().unwrap_or("");
-                let aired_str = if !aired.is_empty() {
-                    format!(" - {}", aired)
-                } else {
+                let aired_str = if aired.is_empty() {
                     String::new()
+                } else {
+                    format!(" - {aired}")
                 };
 
-                println!("{} Episode {}: {}{}", status_icon, ep_num, title, aired_str);
+                println!("{status_icon} Episode {ep_num}: {title}{aired_str}");
             }
             None => {
-                println!("{} Episode {}", status_icon, ep_num);
+                println!("{status_icon} Episode {ep_num}");
             }
         }
     }

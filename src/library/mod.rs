@@ -28,10 +28,12 @@ pub struct RenamingOptions {
 }
 
 impl LibraryService {
-    pub fn new(config: LibraryConfig) -> Self {
+    #[must_use]
+    pub const fn new(config: LibraryConfig) -> Self {
         Self { config }
     }
 
+    #[must_use]
     pub fn get_destination_path(&self, options: &RenamingOptions) -> PathBuf {
         let library_root = Path::new(&self.config.library_path);
 
@@ -42,6 +44,7 @@ impl LibraryService {
             .with_extension(&options.extension)
     }
 
+    #[must_use]
     pub fn get_destination_path_with_season(
         &self,
         options: &RenamingOptions,
@@ -77,8 +80,8 @@ impl LibraryService {
             &self.config.naming_format
         };
 
-        let season_pad = format!("{:02}", season);
-        let episode_pad = format!("{:02}", episode);
+        let season_pad = format!("{season:02}");
+        let episode_pad = format!("{episode:02}");
 
         let safe_series = sanitize_filename(&series);
         let safe_title = sanitize_filename(title);
@@ -102,7 +105,7 @@ impl LibraryService {
         let resolution_str = options
             .media_info
             .as_ref()
-            .map(|m| m.resolution_str())
+            .map(super::models::media::MediaInfo::resolution_str)
             .unwrap_or_default();
         let codec_str = options
             .media_info
@@ -136,10 +139,10 @@ impl LibraryService {
             .replace("{Duration}", &duration_str)
             .replace("{Audio}", &audio_str);
 
-        self.cleanup_path(path_str)
+        Self::cleanup_path(path_str)
     }
 
-    fn cleanup_path(&self, path: String) -> String {
+    fn cleanup_path(path: String) -> String {
         let mut p = path;
         let mut prev_len = 0;
 
@@ -153,11 +156,8 @@ impl LibraryService {
                 .replace(" .", ".");
         }
 
-        // Handle cases where we might have "Title - - S01" due to empty group/quality
-        // and trimming
         p = p.replace(" - - ", " - ");
 
-        // Trim specific separators from ends
         let p = p.trim();
         let p = p.trim_end_matches(" - ");
         let p = p.trim_end_matches('-');
@@ -205,7 +205,7 @@ impl LibraryService {
 
         for (source, destination) in files {
             match self.import_file(source, destination).await {
-                Ok(_) => {
+                Ok(()) => {
                     result.imported += 1;
                     result.imported_files.push(destination.clone());
                 }
@@ -230,11 +230,13 @@ pub struct ImportResult {
 }
 
 impl ImportResult {
-    pub fn is_success(&self) -> bool {
+    #[must_use]
+    pub const fn is_success(&self) -> bool {
         self.failed == 0
     }
 
-    pub fn total(&self) -> usize {
+    #[must_use]
+    pub const fn total(&self) -> usize {
         self.imported + self.failed
     }
 }
@@ -264,15 +266,7 @@ fn detect_season_from_anime_title(anime: &Anime) -> Option<i32> {
 }
 
 fn sanitize_filename(name: &str) -> String {
-    name.replace("/", " ")
-        .replace("\\", " ")
-        .replace(":", " ")
-        .replace("*", " ")
-        .replace("?", " ")
-        .replace("\"", " ")
-        .replace("<", " ")
-        .replace(">", " ")
-        .replace("|", " ")
+    name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], " ")
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
@@ -288,7 +282,7 @@ mod tests {
             id: 1,
             title: AnimeTitle {
                 romaji: romaji.to_string(),
-                english: english.map(|s| s.to_string()),
+                english: english.map(std::string::ToString::to_string),
                 native: None,
             },
             format: "TV".to_string(),
@@ -315,6 +309,7 @@ mod tests {
             library_path: "/library".to_string(),
             recycle_path: "/recycle".to_string(),
             recycle_cleanup_days: 7,
+            auto_scan_interval_hours: 12,
             naming_format: "{Series Title}/Season {Season}/{Series Title} - S{Season:02}E{Episode:02} - {Title}".to_string(),
             import_mode: "Hardlink".to_string(),
             movie_naming_format: "{Series Title}/{Series Title}".to_string(),
@@ -327,7 +322,7 @@ mod tests {
         let anime = test_anime("Frieren", Some("Frieren: Beyond Journey's End"));
 
         let options = RenamingOptions {
-            anime: anime.clone(),
+            anime,
             episode_number: 5,
             season: None,
             episode_title: "The Hero's Party".to_string(),
@@ -354,7 +349,7 @@ mod tests {
         let anime = test_anime("Mob Psycho 100", None);
 
         let options = RenamingOptions {
-            anime: anime.clone(),
+            anime,
             episode_number: 8,
             season: None,
             episode_title: "Episode 8".to_string(),
@@ -396,7 +391,7 @@ mod tests {
         let anime = test_anime("One Piece", None);
 
         let options = RenamingOptions {
-            anime: anime.clone(),
+            anime,
             episode_number: 1000,
             season: Some(1),
             episode_title: "Episode 1000".to_string(),
@@ -424,7 +419,7 @@ mod tests {
         anime.format = "MOVIE".to_string();
 
         let options = RenamingOptions {
-            anime: anime.clone(),
+            anime,
             episode_number: 1,
             season: Some(1),
             episode_title: "Episode 1".to_string(),
@@ -439,7 +434,7 @@ mod tests {
         let path = service.get_destination_path(&options);
         let path_str = path.to_str().unwrap();
 
-        println!("Generated path: {}", path_str);
+        println!("Generated path: {path_str}");
 
         assert!(path_str.contains("Your Name"));
         assert!(!path_str.contains("Season 1"));
@@ -453,9 +448,7 @@ mod tests {
 
         assert!(
             path_str.ends_with(expected_suffix),
-            "Expected path to end with '{}', got '{}'",
-            expected_suffix,
-            path_str
+            "Expected path to end with '{expected_suffix}', got '{path_str}'"
         );
     }
 
@@ -466,7 +459,7 @@ mod tests {
         anime.path = Some("/library/Fate strange Fake -Whispers of Dawn- (2023)".to_string());
 
         let options = RenamingOptions {
-            anime: anime.clone(),
+            anime,
             episode_number: 1,
             season: Some(1),
             episode_title: "Episode 1".to_string(),
@@ -491,71 +484,39 @@ mod tests {
 
     #[test]
     fn test_cleanup_path() {
-        let service = LibraryService::new(test_config());
+        let _service = LibraryService::new(test_config());
 
-        // Basic empty brackets
         assert_eq!(
-            service.cleanup_path("Title - [] - [Quality]".to_string()),
+            LibraryService::cleanup_path("Title - [] - [Quality]".to_string()),
             "Title - [Quality]"
         );
         assert_eq!(
-            service.cleanup_path("Title - () - (Year)".to_string()),
+            LibraryService::cleanup_path("Title - () - (Year)".to_string()),
             "Title - (Year)"
         );
 
-        // Nested/Recursive empty brackets
         assert_eq!(
-            service.cleanup_path("Title - [[]] - End".to_string()),
+            LibraryService::cleanup_path("Title - [[]] - End".to_string()),
             "Title - End"
         );
         assert_eq!(
-            service.cleanup_path("Title - ([]) - End".to_string()),
+            LibraryService::cleanup_path("Title - ([]) - End".to_string()),
             "Title - End"
         );
 
-        // Separator cleanup
         assert_eq!(
-            service.cleanup_path("Title - - Episode 01".to_string()),
+            LibraryService::cleanup_path("Title - - Episode 01".to_string()),
             "Title - Episode 01"
         );
         assert_eq!(
-            service.cleanup_path("Title  Episode".to_string()),
+            LibraryService::cleanup_path("Title  Episode".to_string()),
             "Title Episode"
         );
 
-        // Complex example from user issue
-        // "Cosmic Princess Kaguya! - S01E00 - Episode 0 -[]-[]-[][[][[][[eac3][]]]].mkv"
-        // becomes cleaned up.
-        // Assuming the format produces empty brackets:
         let _input = "Series - S01E01 - Title - []-[]-[][[][[][[eac3][]]]]".to_string();
-        // Inner [eac3] is kept. Surrounding empty brackets are removed.
-        // [[eac3][]] -> [eac3]
-        // [][[][[eac3][]]]] -> [eac3]
-        // []-[]-[eac3] -> [eac3]
-        // Series - S01E01 - Title - [eac3]
-        // Note: The cleanup_path function doesn't know about file extensions, so we test the body.
-
-        // Let's trace [][[][[][[eac3][]]]]
-        // 1. [] removed -> [][[][[eac3]]]
-        // 2. [] removed -> [[[[eac3]]]
-        // Wait, replace("[]", "") removes empty pairs.
-        // [][[][[][[eac3][]]]] -> [][[][[eac3]]]  (inner [] removed)
-        // -> [[[[eac3]]] -> ... it doesn't remove [[eac3]] because it's not empty.
-
-        // If the user's config produces nested brackets around content, cleanup_path WON'T remove the nesting
-        // unless they are empty.
-        // e.g. [[eac3]] remains [[eac3]].
-
-        // BUT the user's issue was "adding stuff" and "recursive malformation".
-        // The malformation was likely due to extracting "[[eac3]]" as the Group, and then wrapping it in [].
-        // My fix in parser/filename.rs prevents extracting "[[eac3]]" as group.
-        // So in the next rename, Group will be empty (or correct).
-        // If Group is empty, format produces "[]".
-        // cleanup_path removes "[]".
-        // So the filename becomes clean.
 
         assert_eq!(
-            service.cleanup_path("Title - [] - End".to_string()),
+            LibraryService::cleanup_path("Title - [] - End".to_string()),
             "Title - End"
         );
     }

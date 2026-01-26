@@ -78,10 +78,7 @@ pub async fn login(
 
     if payload.username == config.auth.username && payload.password == config.auth.password {
         if let Err(e) = session.insert("user", &payload.username).await {
-            return Err(ApiError::internal(format!(
-                "Failed to create session: {}",
-                e
-            )));
+            return Err(ApiError::internal(format!("Failed to create session: {e}")));
         }
 
         Ok(Json(AuthResponse {

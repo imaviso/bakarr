@@ -25,7 +25,7 @@ impl Default for QBitConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum TorrentState {
     Error,
@@ -57,58 +57,53 @@ pub enum TorrentState {
 }
 
 impl TorrentState {
-    pub fn is_downloading(&self) -> bool {
+    #[must_use]
+    pub const fn is_downloading(&self) -> bool {
         matches!(
             self,
-            TorrentState::Downloading
-                | TorrentState::ForcedDL
-                | TorrentState::MetaDL
-                | TorrentState::Allocating
+            Self::Downloading | Self::ForcedDL | Self::MetaDL | Self::Allocating
         )
     }
 
-    pub fn is_completed(&self) -> bool {
+    #[must_use]
+    pub const fn is_completed(&self) -> bool {
         matches!(
             self,
-            TorrentState::Uploading
-                | TorrentState::PausedUP
-                | TorrentState::QueuedUP
-                | TorrentState::StalledUP
-                | TorrentState::ForcedUP
+            Self::Uploading | Self::PausedUP | Self::QueuedUP | Self::StalledUP | Self::ForcedUP
         )
     }
 
-    pub fn is_error(&self) -> bool {
-        matches!(self, TorrentState::Error | TorrentState::MissingFiles)
+    #[must_use]
+    pub const fn is_error(&self) -> bool {
+        matches!(self, Self::Error | Self::MissingFiles)
     }
 }
 
 impl fmt::Display for TorrentState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            TorrentState::Error => "Error",
-            TorrentState::MissingFiles => "Missing Files",
-            TorrentState::Uploading => "Seeding",
-            TorrentState::PausedUP => "Paused (Seeding)",
-            TorrentState::QueuedUP => "Queued (Seeding)",
-            TorrentState::StalledUP => "Stalled (Seeding)",
-            TorrentState::CheckingUP => "Checking",
-            TorrentState::ForcedUP => "Forced Seeding",
-            TorrentState::Allocating => "Allocating",
-            TorrentState::Downloading => "Downloading",
-            TorrentState::MetaDL => "Downloading Metadata",
-            TorrentState::PausedDL => "Paused",
-            TorrentState::QueuedDL => "Queued",
-            TorrentState::StalledDL => "Stalled",
-            TorrentState::CheckingDL => "Checking",
-            TorrentState::ForcedDL => "Forced Download",
-            TorrentState::CheckingResumeData => "Checking Resume",
-            TorrentState::Moving => "Moving",
-            TorrentState::StoppedDL => "Stopped",
-            TorrentState::StoppedUP => "Seeding Complete",
-            TorrentState::Unknown => "Unknown",
+            Self::Error => "Error",
+            Self::MissingFiles => "Missing Files",
+            Self::Uploading => "Seeding",
+            Self::PausedUP => "Paused (Seeding)",
+            Self::QueuedUP => "Queued (Seeding)",
+            Self::StalledUP => "Stalled (Seeding)",
+            Self::CheckingUP | Self::CheckingDL => "Checking",
+            Self::ForcedUP => "Forced Seeding",
+            Self::Allocating => "Allocating",
+            Self::Downloading => "Downloading",
+            Self::MetaDL => "Downloading Metadata",
+            Self::PausedDL => "Paused",
+            Self::QueuedDL => "Queued",
+            Self::StalledDL => "Stalled",
+            Self::ForcedDL => "Forced Download",
+            Self::CheckingResumeData => "Checking Resume",
+            Self::Moving => "Moving",
+            Self::StoppedDL => "Stopped",
+            Self::StoppedUP => "Seeding Complete",
+            Self::Unknown => "Unknown",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -152,6 +147,7 @@ pub struct TorrentInfo {
 }
 
 #[derive(Debug, Clone, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct AddTorrentOptions {
     pub save_path: Option<String>,
 
@@ -177,6 +173,7 @@ pub struct QBitClient {
 }
 
 impl QBitClient {
+    #[must_use]
     pub fn new(config: QBitConfig) -> Self {
         Self {
             client: Client::builder()
@@ -188,6 +185,7 @@ impl QBitClient {
         }
     }
 
+    #[must_use]
     pub fn with_defaults() -> Self {
         Self::new(QBitConfig::default())
     }
@@ -219,11 +217,7 @@ impl QBitClient {
         } else if body.contains("Fails") {
             bail!("qBittorrent authentication failed: invalid credentials")
         } else {
-            bail!(
-                "qBittorrent authentication failed: status={}, body={}",
-                status,
-                body
-            )
+            bail!("qBittorrent authentication failed: status={status}, body={body}")
         }
     }
 
@@ -315,7 +309,7 @@ impl QBitClient {
         } else if status == StatusCode::UNSUPPORTED_MEDIA_TYPE {
             bail!("Torrent file is not valid")
         } else {
-            bail!("Failed to add torrent: status={}, body={}", status, body)
+            bail!("Failed to add torrent: status={status}, body={body}")
         }
     }
 
@@ -362,9 +356,7 @@ impl QBitClient {
                     text
                 };
                 return Err(anyhow::anyhow!(
-                    "Failed to parse response: {} (content: {})",
-                    e,
-                    truncated
+                    "Failed to parse response: {e} (content: {truncated})"
                 ));
             }
         };
@@ -512,6 +504,16 @@ pub struct CategoryInfo {
     pub save_path: String,
 }
 
+#[must_use]
+pub fn sanitize_category(name: &str) -> String {
+    name.chars()
+        .map(|c| match c {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            _ => c,
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -545,13 +547,4 @@ mod tests {
         assert_eq!(sanitize_category("a/b\\c"), "a_b_c");
         assert_eq!(sanitize_category("Normal Title"), "Normal Title");
     }
-}
-
-pub fn sanitize_category(name: &str) -> String {
-    name.chars()
-        .map(|c| match c {
-            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
-            _ => c,
-        })
-        .collect()
 }

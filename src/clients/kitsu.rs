@@ -38,6 +38,7 @@ impl Default for KitsuClient {
 }
 
 impl KitsuClient {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             client: Client::builder()
@@ -51,7 +52,7 @@ impl KitsuClient {
         let mut all_episodes = Vec::new();
         let mut offset = 0;
         let limit = 20;
-        let base_url = format!("{}/anime/{}/episodes", KITSU_API, kitsu_id);
+        let base_url = format!("{KITSU_API}/anime/{kitsu_id}/episodes");
 
         loop {
             let mut url = Url::parse(&base_url)?;

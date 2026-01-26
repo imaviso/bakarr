@@ -23,7 +23,7 @@ request_timeout_seconds = 30
 
 [scheduler]
 enabled = true
-check_interval_minutes = 999
+check_interval_minutes = 15
 max_concurrent_checks = 3
 check_delay_seconds = 5
 metadata_refresh_hours = 12
@@ -41,6 +41,7 @@ remote_path_mappings = []
 library_path = "./library"
 recycle_path = "./recycle"
 recycle_cleanup_days = 7
+auto_scan_interval_hours = 12
 naming_format = "{Series Title}/Season {Season}/{Series Title} - S{Season:02}E{Episode:02} - {Title}"
 import_mode = "Copy"
 movie_naming_format = "{Series Title}/{Series Title}"

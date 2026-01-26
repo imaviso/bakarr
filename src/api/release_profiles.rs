@@ -31,7 +31,7 @@ pub struct CreateReleaseProfileRequest {
     pub rules: Vec<ReleaseProfileRuleDtoPublic>,
 }
 
-fn default_enabled() -> bool {
+const fn default_enabled() -> bool {
     true
 }
 
@@ -93,8 +93,6 @@ pub async fn create_release_profile(
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
 
-    // Refetch to get rules back? Or just return constructed DTO?
-    // Let's refetch to be safe and consistent
     let all = state
         .shared
         .store

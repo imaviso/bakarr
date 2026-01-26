@@ -11,11 +11,11 @@ pub struct AnimeRepository {
 }
 
 impl AnimeRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
+    #[must_use]
+    pub const fn new(conn: DatabaseConnection) -> Self {
         Self { conn }
     }
 
-    // Helper to map DB model to Domain model
     fn map_model_to_anime(
         model: monitored_anime::Model,
         profile: Option<quality_profiles::Model>,

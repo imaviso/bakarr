@@ -15,7 +15,7 @@ pub struct Monitor {
 }
 
 impl Monitor {
-    pub fn new(state: Arc<RwLock<SharedState>>) -> Self {
+    pub const fn new(state: Arc<RwLock<SharedState>>) -> Self {
         Self { state }
     }
 
@@ -75,15 +75,19 @@ impl Monitor {
                     && t.state != crate::clients::qbittorrent::TorrentState::StoppedUP
                     && t.progress < 1.0
             })
-            .map(|t| crate::api::events::DownloadStatus {
-                hash: t.hash,
-                name: t.name,
-                progress: t.progress as f32,
-                speed: t.dlspeed,
-                eta: t.eta,
-                state: format!("{:?}", t.state),
-                total_bytes: t.size,
-                downloaded_bytes: t.downloaded,
+            .map(|t| {
+                #[allow(clippy::cast_possible_truncation)]
+                let progress = t.progress as f32;
+                crate::api::events::DownloadStatus {
+                    hash: t.hash,
+                    name: t.name,
+                    progress,
+                    speed: t.dlspeed,
+                    eta: t.eta,
+                    state: format!("{:?}", t.state),
+                    total_bytes: t.size,
+                    downloaded_bytes: t.downloaded,
+                }
             })
             .collect();
 
@@ -121,7 +125,6 @@ impl Monitor {
         let library = LibraryService::new(config.library.clone());
 
         for torrent in torrents {
-            // Handle stalled or errored torrents
             if self
                 .handle_problematic_torrent(&client, &store, &torrent, &config)
                 .await?
@@ -129,12 +132,10 @@ impl Monitor {
                 continue;
             }
 
-            // Skip incomplete downloads
             if torrent.progress < 1.0 {
                 continue;
             }
 
-            // Process completed downloads
             self.process_completed_torrent(&store, &library, &config, &torrent)
                 .await?;
         }
@@ -142,8 +143,6 @@ impl Monitor {
         Ok(())
     }
 
-    /// Handle stalled or errored torrents by removing and blocklisting them.
-    /// Returns true if the torrent was handled (removed), false otherwise.
     async fn handle_problematic_torrent(
         &self,
         client: &crate::clients::qbittorrent::QBitClient,
@@ -163,11 +162,13 @@ impl Monitor {
                 | crate::clients::qbittorrent::TorrentState::MissingFiles
         );
 
-        let stalled_threshold = config.qbittorrent.stalled_timeout_seconds as i64;
+        let stalled_threshold = i64::from(config.qbittorrent.stalled_timeout_seconds);
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_secs() as i64;
+            .as_secs();
+        #[allow(clippy::cast_possible_wrap)]
+        let now = now as i64;
         let duration_since_added = now - torrent.added_on;
 
         if !(is_error || is_stalled && duration_since_added > stalled_threshold) {
@@ -197,7 +198,6 @@ impl Monitor {
         Ok(true)
     }
 
-    /// Process a completed torrent download for import.
     async fn process_completed_torrent(
         &self,
         store: &crate::db::Store,
@@ -308,11 +308,14 @@ impl Monitor {
             .to_string_lossy()
             .to_string();
 
-        let episode_number = if let Some(ref p) = parsed {
-            p.episode_number as i32
-        } else {
-            entry.episode_number as i32
-        };
+        #[allow(clippy::cast_possible_truncation)]
+        let default_episode_number = entry.episode_number as i32;
+
+        let episode_number = parsed.as_ref().map_or(default_episode_number, |p| {
+            #[allow(clippy::cast_possible_truncation)]
+            let ep_num = p.episode_number as i32;
+            ep_num
+        });
 
         let season = parsed.as_ref().and_then(|p| p.season);
 
@@ -322,7 +325,7 @@ impl Monitor {
                 .episodes
                 .get_episode_title(anime.id, episode_number)
                 .await
-                .unwrap_or_else(|_| format!("Episode {}", episode_number))
+                .unwrap_or_else(|_| format!("Episode {episode_number}"))
         };
 
         let media_service = crate::services::MediaService::new();
@@ -346,7 +349,6 @@ impl Monitor {
         library.import_file(source_path, &dest_path).await?;
         info!("Imported to {:?}", dest_path);
 
-        // Combine state reads to avoid race conditions
         let (seadex_groups, store) = {
             let state = self.state.read().await;
             (
@@ -363,7 +365,7 @@ impl Monitor {
         let quality = parse_quality_from_filename(&filename);
         let file_size = tokio::fs::metadata(&dest_path)
             .await
-            .map(|m| m.len() as i64)
+            .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
             .ok();
 
         if let Err(e) = store
@@ -416,7 +418,9 @@ impl Monitor {
             let quality = parse_quality_from_filename(filename).to_string();
 
             let episode_number = if let Some(ref p) = parsed {
-                p.episode_number as i32
+                #[allow(clippy::cast_possible_truncation)]
+                let ep = p.episode_number as i32;
+                ep
             } else {
                 warn!(
                     "Could not detect episode number for {:?}, skipping",
@@ -440,9 +444,9 @@ impl Monitor {
                         .episodes
                         .get_episode_title(anime.id, episode_number)
                         .await
-                        .unwrap_or_else(|_| format!("Episode {}", episode_number))
+                        .unwrap_or_else(|_| format!("Episode {episode_number}"))
                 },
-                quality: Some(quality.to_string()),
+                quality: Some(quality.clone()),
                 group: crate::parser::filename::parse_filename(filename).and_then(|r| r.group),
                 original_filename: Some(filename.to_string()),
                 extension: video_ext.to_string(),
@@ -453,11 +457,10 @@ impl Monitor {
             let dest_path = library.get_destination_path(&options);
 
             match library.import_file(&file_path, &dest_path).await {
-                Ok(_) => {
+                Ok(()) => {
                     info!("Imported {} -> {:?}", filename, dest_path);
                     imported += 1;
 
-                    // Combine state reads to avoid race conditions
                     let (seadex_groups, store) = {
                         let state = self.state.read().await;
                         (
@@ -474,7 +477,7 @@ impl Monitor {
                     let quality = parse_quality_from_filename(filename);
                     let file_size = tokio::fs::metadata(&dest_path)
                         .await
-                        .map(|m| m.len() as i64)
+                        .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
                         .ok();
 
                     if let Err(e) = store
@@ -503,7 +506,6 @@ impl Monitor {
     }
 }
 
-/// Apply remote path mappings to convert a remote path to a local path.
 fn apply_path_mappings(path: &str, mappings: &[(String, String)]) -> String {
     let mut result = path.to_string();
     for (remote, local) in mappings {

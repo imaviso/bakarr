@@ -1,5 +1,3 @@
-//! Scan library command handler
-
 use crate::config::Config;
 use crate::db::Store;
 use std::sync::Arc;

@@ -45,24 +45,26 @@ pub async fn get_calendar(
     let dtos: Vec<CalendarEventDto> = events
         .into_iter()
         .map(|e| {
-            let title = if let Some(t) = &e.episode_title {
-                format!("{} - {}", e.episode_number, t)
-            } else {
-                format!("Episode {}", e.episode_number)
-            };
+            let ep_num = e.episode_number;
+            let anime_id = e.anime_id;
+
+            let title = e.episode_title.as_ref().map_or_else(
+                || format!("Episode {ep_num}"),
+                |t| format!("{ep_num} - {t}"),
+            );
 
             let date = e.aired.unwrap_or_default();
 
             CalendarEventDto {
-                id: format!("{}-{}", e.anime_id, e.episode_number),
+                id: format!("{anime_id}-{ep_num}"),
                 title,
                 start: date.clone(),
                 end: date,
                 all_day: true,
                 extended_props: CalendarEventProps {
-                    anime_id: e.anime_id as i32,
+                    anime_id: i32::try_from(anime_id).unwrap_or_default(),
                     anime_title: e.anime_title,
-                    episode_number: e.episode_number as i32,
+                    episode_number: i32::try_from(ep_num).unwrap_or_default(),
                     downloaded: e.downloaded,
                     anime_image: e.anime_image,
                 },

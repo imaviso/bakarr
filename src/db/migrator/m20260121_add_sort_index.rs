@@ -6,7 +6,6 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Robust way: Try to add column, ignore "duplicate column" error.
         let result = manager
             .alter_table(
                 Table::alter()
@@ -22,7 +21,7 @@ impl MigrationTrait for Migration {
             .await;
 
         match result {
-            Ok(_) => Ok(()),
+            Ok(()) => Ok(()),
             Err(e) => {
                 let msg = e.to_string();
                 if msg.contains("duplicate column") {

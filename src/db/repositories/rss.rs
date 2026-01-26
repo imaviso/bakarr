@@ -5,23 +5,19 @@ use sea_orm::{
 };
 use tracing::info;
 
-/// Repository for RSS feed operations
 pub struct RssRepository {
     conn: DatabaseConnection,
 }
 
 impl RssRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
+    #[must_use]
+    pub const fn new(conn: DatabaseConnection) -> Self {
         Self { conn }
     }
 
-    // ========================================================================
-    // Model Conversion Helpers
-    // ========================================================================
-
     fn map_feed_model(r: rss_feeds::Model) -> RssFeed {
         RssFeed {
-            id: r.id as i64,
+            id: i64::from(r.id),
             anime_id: r.anime_id,
             url: r.url,
             name: r.name,
@@ -32,26 +28,24 @@ impl RssRepository {
         }
     }
 
-    // ========================================================================
-    // RSS Feed Operations
-    // ========================================================================
-
     pub async fn add(&self, anime_id: i32, url: &str, name: Option<&str>) -> Result<i64> {
         let active_model = rss_feeds::ActiveModel {
             anime_id: Set(anime_id),
             url: Set(url.to_string()),
-            name: Set(name.map(|s| s.to_string())),
+            name: Set(name.map(std::string::ToString::to_string)),
             enabled: Set(true),
             ..Default::default()
         };
 
         let res = RssFeeds::insert(active_model).exec(&self.conn).await?;
         info!("Added RSS feed for anime {}: {}", anime_id, url);
-        Ok(res.last_insert_id as i64)
+        Ok(i64::from(res.last_insert_id))
     }
 
     pub async fn get(&self, id: i64) -> Result<Option<RssFeed>> {
-        let result = RssFeeds::find_by_id(id as i32).one(&self.conn).await?;
+        let result = RssFeeds::find_by_id(i32::try_from(id).unwrap_or(i32::MAX))
+            .one(&self.conn)
+            .await?;
         Ok(result.map(Self::map_feed_model))
     }
 
@@ -90,7 +84,7 @@ impl RssRepository {
                 rss_feeds::Column::LastChecked,
                 sea_orm::sea_query::Expr::current_timestamp().into(),
             )
-            .filter(rss_feeds::Column::Id.eq(feed_id as i32));
+            .filter(rss_feeds::Column::Id.eq(i32::try_from(feed_id).unwrap_or(i32::MAX)));
 
         if let Some(hash) = last_item_hash {
             update = update.col_expr(
@@ -109,7 +103,7 @@ impl RssRepository {
                 rss_feeds::Column::Enabled,
                 sea_orm::sea_query::Expr::value(enabled),
             )
-            .filter(rss_feeds::Column::Id.eq(feed_id as i32))
+            .filter(rss_feeds::Column::Id.eq(i32::try_from(feed_id).unwrap_or(i32::MAX)))
             .exec(&self.conn)
             .await?;
 
@@ -117,7 +111,7 @@ impl RssRepository {
     }
 
     pub async fn remove(&self, feed_id: i64) -> Result<bool> {
-        let result = RssFeeds::delete_by_id(feed_id as i32)
+        let result = RssFeeds::delete_by_id(i32::try_from(feed_id).unwrap_or(i32::MAX))
             .exec(&self.conn)
             .await?;
         Ok(result.rows_affected > 0)
@@ -129,13 +123,9 @@ impl RssRepository {
             .count(&self.conn)
             .await?;
 
-        Ok(count as i32)
+        Ok(i32::try_from(count).unwrap_or(i32::MAX))
     }
 }
-
-// ============================================================================
-// Data Types
-// ============================================================================
 
 #[derive(Debug, Clone)]
 pub struct RssFeed {

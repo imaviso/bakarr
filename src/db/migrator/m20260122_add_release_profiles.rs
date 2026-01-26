@@ -6,7 +6,6 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Create release_profiles table
         manager
             .create_table(
                 Table::create()
@@ -35,7 +34,6 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-        // Create release_profile_rules table
         manager
             .create_table(
                 Table::create()
@@ -67,7 +65,7 @@ impl MigrationTrait for Migration {
                     .col(
                         ColumnDef::new(ReleaseProfileRules::RuleType)
                             .string()
-                            .not_null(), // "preferred", "must", "must_not"
+                            .not_null(),
                     )
                     .foreign_key(
                         ForeignKey::create()

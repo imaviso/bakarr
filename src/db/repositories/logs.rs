@@ -9,7 +9,8 @@ pub struct LogRepository {
 }
 
 impl LogRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
+    #[must_use]
+    pub const fn new(conn: DatabaseConnection) -> Self {
         Self { conn }
     }
 
@@ -56,8 +57,6 @@ impl LogRepository {
         }
 
         if let Some(end) = end_date {
-            // Append 23:59:59 if only date is provided, or just assume the caller handles it.
-            // Let's assume caller provides a comparable string.
             query = query.filter(system_logs::Column::CreatedAt.lte(end));
         }
 
@@ -110,8 +109,7 @@ impl LogRepository {
                         sea_orm::sea_query::Func::cust("datetime")
                             .arg(sea_orm::sea_query::Expr::val("now"))
                             .arg(sea_orm::sea_query::Expr::val(format!(
-                                "-{} days",
-                                older_than_days
+                                "-{older_than_days} days"
                             ))),
                     ),
                 ),

@@ -23,7 +23,7 @@ pub struct Anime {
     pub monitored: bool,
 }
 
-fn default_true() -> bool {
+const fn default_true() -> bool {
     true
 }
 

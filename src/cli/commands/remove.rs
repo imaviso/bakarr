@@ -1,18 +1,13 @@
-//! Remove anime command handler
-
 use crate::config::Config;
 use crate::db::Store;
 
 pub async fn cmd_remove_anime(config: &Config, id_str: &str) -> anyhow::Result<()> {
     let store = Store::new(&config.general.database_path).await?;
 
-    let id: i32 = match id_str.parse() {
-        Ok(id) => id,
-        Err(_) => {
-            println!("Invalid anime ID: {}", id_str);
-            println!("Use 'bakarr list' to see anime IDs.");
-            return Ok(());
-        }
+    let Ok(id) = id_str.parse::<i32>() else {
+        println!("Invalid anime ID: {id_str}");
+        println!("Use 'bakarr list' to see anime IDs.");
+        return Ok(());
     };
 
     if let Some(anime) = store.get_anime(id).await? {
@@ -35,7 +30,7 @@ pub async fn cmd_remove_anime(config: &Config, id_str: &str) -> anyhow::Result<(
             println!("Cancelled.");
         }
     } else {
-        println!("Anime with ID {} not found in monitored list.", id);
+        println!("Anime with ID {id} not found in monitored list.");
     }
 
     Ok(())

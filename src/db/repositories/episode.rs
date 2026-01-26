@@ -8,21 +8,16 @@ use sea_orm::{
 };
 use std::collections::{HashMap, HashSet};
 
-/// Repository for episode metadata and status operations
 pub struct EpisodeRepository {
     conn: DatabaseConnection,
 }
 
 impl EpisodeRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
+    #[must_use]
+    pub const fn new(conn: DatabaseConnection) -> Self {
         Self { conn }
     }
 
-    // ========================================================================
-    // Model Conversion Helpers
-    // ========================================================================
-
-    /// Convert episode_status::Model to domain EpisodeStatusRow
     fn map_status_model(m: episode_status::Model) -> EpisodeStatusRow {
         EpisodeStatusRow {
             anime_id: m.anime_id,
@@ -43,10 +38,6 @@ impl EpisodeRepository {
             duration_secs: m.duration_secs,
         }
     }
-
-    // ========================================================================
-    // Episode Metadata Operations
-    // ========================================================================
 
     pub async fn get_title(&self, anime_id: i32, episode_number: i32) -> Result<Option<String>> {
         let result = EpisodeMetadata::find()
@@ -174,10 +165,6 @@ impl EpisodeRepository {
         Ok(())
     }
 
-    // ========================================================================
-    // Episode Status Operations
-    // ========================================================================
-
     pub async fn get_status(
         &self,
         anime_id: i32,
@@ -209,11 +196,11 @@ impl EpisodeRepository {
             .count(&self.conn)
             .await?;
 
-        Ok(count as i32)
+        Ok(i32::try_from(count).unwrap_or(i32::MAX))
     }
 
+    #[allow(clippy::unused_async)]
     pub async fn get_download_queue_count(&self) -> Result<i64> {
-        // Placeholder - queue count logic
         Ok(0)
     }
 
@@ -238,7 +225,7 @@ impl EpisodeRepository {
 
         let mut map = HashMap::new();
         for (id, count) in results {
-            map.insert(id, count as i32);
+            map.insert(id, i32::try_from(count).unwrap_or(i32::MAX));
         }
 
         Ok(map)
@@ -266,7 +253,7 @@ impl EpisodeRepository {
 
         let mut map = HashMap::new();
         for (id, count) in results {
-            map.insert(id, count as i32);
+            map.insert(id, i32::try_from(count).unwrap_or(i32::MAX));
         }
 
         Ok(map)
@@ -282,7 +269,6 @@ impl EpisodeRepository {
             .all(&self.conn)
             .await?;
 
-        // Use HashSet for O(1) lookups instead of O(n) Vec::contains
         let downloaded_set: HashSet<i32> = downloaded.into_iter().collect();
 
         let missing: Vec<i32> = (1..=total_episodes)
@@ -303,10 +289,15 @@ impl EpisodeRepository {
             file_path: Set(status.file_path.clone()),
             file_size: Set(status.file_size),
             downloaded_at: Set(status.downloaded_at.clone()),
-            resolution_width: Set(status.resolution_width.map(|v| v as i32)),
-            resolution_height: Set(status.resolution_height.map(|v| v as i32)),
+            resolution_width: Set(status
+                .resolution_width
+                .map(|v| i32::try_from(v).unwrap_or(i32::MAX))),
+            resolution_height: Set(status
+                .resolution_height
+                .map(|v| i32::try_from(v).unwrap_or(i32::MAX))),
             video_codec: Set(status.video_codec.clone()),
             audio_codecs: Set(status.audio_codecs.clone()),
+            #[allow(clippy::cast_possible_truncation)]
             duration_secs: Set(status.duration_secs.map(|v| v as f32)),
         };
 
@@ -350,7 +341,6 @@ impl EpisodeRepository {
         file_size: Option<i64>,
         media_info: Option<&MediaInfo>,
     ) -> Result<()> {
-        // Ensure this file is not mapped to any other episode of this anime
         EpisodeStatus::update_many()
             .col_expr(
                 episode_status::Column::FilePath,
@@ -450,10 +440,6 @@ impl EpisodeRepository {
         Ok(())
     }
 
-    // ========================================================================
-    // Calendar Events (uses episode metadata + status)
-    // ========================================================================
-
     pub async fn get_calendar_events(
         &self,
         start_date: &str,
@@ -548,7 +534,7 @@ impl EpisodeRepository {
             .filter(
                 sea_orm::Condition::any()
                     .add(episode_status::Column::FilePath.is_null())
-                    .add(episode_status::Column::AnimeId.is_null()), // Join failed (no status row)
+                    .add(episode_status::Column::AnimeId.is_null()),
             )
             .order_by_desc(episode_metadata::Column::Aired)
             .limit(limit)
@@ -560,7 +546,6 @@ impl EpisodeRepository {
     }
 }
 
-/// Calendar event row for query results
 #[derive(Debug, Clone, FromQueryResult)]
 pub struct CalendarEventRow {
     pub anime_id: i64,

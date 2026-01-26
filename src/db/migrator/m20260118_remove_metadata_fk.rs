@@ -11,7 +11,7 @@ impl MigrationTrait for Migration {
             .execute_unprepared("ALTER TABLE episode_metadata RENAME TO episode_metadata_old")
             .await?;
 
-        manager.get_connection().execute_unprepared(r#"
+        manager.get_connection().execute_unprepared(r"
             CREATE TABLE episode_metadata (
                 anime_id INTEGER NOT NULL,
                 episode_number INTEGER NOT NULL,
@@ -24,19 +24,19 @@ impl MigrationTrait for Migration {
                 PRIMARY KEY (anime_id, episode_number),
                 FOREIGN KEY (anime_id) REFERENCES monitored_anime (id) ON DELETE CASCADE ON UPDATE NO ACTION
             )
-        "#).await?;
+        ").await?;
 
         manager
             .get_connection()
             .execute_unprepared(
-                r#"
+                r"
             INSERT INTO episode_metadata (
                 anime_id, episode_number, title, title_japanese, aired, filler, recap, fetched_at
             )
             SELECT 
                 anime_id, episode_number, title, title_japanese, aired, filler, recap, fetched_at
             FROM episode_metadata_old
-        "#,
+        ",
             )
             .await?;
 

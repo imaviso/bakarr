@@ -18,6 +18,7 @@ impl RecycleBin {
         }
     }
 
+    #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -38,7 +39,10 @@ impl RecycleBin {
         let recycled_name = format!("{}_{}", timestamp, filename.to_string_lossy());
         let recycled_path = self.path.join(&recycled_name);
 
-        let file_size = fs::metadata(file_path).await.ok().map(|m| m.len() as i64);
+        let file_size = fs::metadata(file_path)
+            .await
+            .ok()
+            .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX));
 
         fs::rename(file_path, &recycled_path).await?;
 
@@ -73,7 +77,7 @@ impl RecycleBin {
             return Ok(stats);
         }
 
-        let cutoff = chrono::Utc::now() - chrono::Duration::days(self.retention_days as i64);
+        let cutoff = chrono::Utc::now() - chrono::Duration::days(i64::from(self.retention_days));
         let mut entries = fs::read_dir(&self.path).await?;
 
         while let Some(entry) = entries.next_entry().await? {
@@ -92,7 +96,7 @@ impl RecycleBin {
                     let size = metadata.len();
 
                     match fs::remove_file(&path).await {
-                        Ok(_) => {
+                        Ok(()) => {
                             debug!("Cleaned up old file: {:?}", path);
                             stats.files_deleted += 1;
                             stats.bytes_freed += size;
@@ -172,7 +176,7 @@ impl RecycleBin {
                 let size = metadata.len();
 
                 match fs::remove_file(&path).await {
-                    Ok(_) => {
+                    Ok(()) => {
                         stats.files_deleted += 1;
                         stats.bytes_freed += size;
                     }
@@ -209,6 +213,7 @@ pub struct CleanupStats {
 }
 
 impl CleanupStats {
+    #[must_use]
     pub fn bytes_freed_human(&self) -> String {
         format_bytes(self.bytes_freed)
     }
@@ -219,6 +224,7 @@ fn format_bytes(bytes: u64) -> String {
     const MB: u64 = KB * 1024;
     const GB: u64 = MB * 1024;
 
+    #[allow(clippy::cast_precision_loss)]
     if bytes >= GB {
         format!("{:.2} GB", bytes as f64 / GB as f64)
     } else if bytes >= MB {
@@ -226,7 +232,7 @@ fn format_bytes(bytes: u64) -> String {
     } else if bytes >= KB {
         format!("{:.2} KB", bytes as f64 / KB as f64)
     } else {
-        format!("{} bytes", bytes)
+        format!("{bytes} bytes")
     }
 }
 
@@ -239,7 +245,7 @@ mod tests {
         assert_eq!(format_bytes(500), "500 bytes");
         assert_eq!(format_bytes(1024), "1.00 KB");
         assert_eq!(format_bytes(1536), "1.50 KB");
-        assert_eq!(format_bytes(1048576), "1.00 MB");
-        assert_eq!(format_bytes(1073741824), "1.00 GB");
+        assert_eq!(format_bytes(1_048_576), "1.00 MB");
+        assert_eq!(format_bytes(1_073_741_824), "1.00 GB");
     }
 }

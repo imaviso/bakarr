@@ -1,7 +1,3 @@
-//! CLI command implementations
-//!
-//! Each submodule contains the handler for a specific CLI command.
-
 mod add;
 mod episodes;
 mod history;

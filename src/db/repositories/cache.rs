@@ -3,19 +3,15 @@ use crate::entities::{prelude::*, seadex_cache};
 use anyhow::Result;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, Set};
 
-/// Repository for SeaDex cache operations
 pub struct CacheRepository {
     conn: DatabaseConnection,
 }
 
 impl CacheRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
+    #[must_use]
+    pub const fn new(conn: DatabaseConnection) -> Self {
         Self { conn }
     }
-
-    // ========================================================================
-    // SeaDex Cache Operations
-    // ========================================================================
 
     pub async fn get_seadex(&self, anime_id: i32) -> Result<Option<SeaDexCache>> {
         let row = SeadexCache::find_by_id(anime_id).one(&self.conn).await?;
@@ -42,7 +38,7 @@ impl CacheRepository {
         let active_model = seadex_cache::ActiveModel {
             anime_id: Set(anime_id),
             groups: Set(groups_json),
-            best_release: Set(best_release.map(|s| s.to_string())),
+            best_release: Set(best_release.map(std::string::ToString::to_string)),
             releases: Set(releases_json),
             fetched_at: Set(chrono::Utc::now().to_rfc3339()),
         };
@@ -65,24 +61,19 @@ impl CacheRepository {
     }
 
     pub async fn is_seadex_fresh(&self, anime_id: i32) -> Result<bool> {
+        let threshold = chrono::Utc::now()
+            .checked_sub_signed(chrono::Duration::hours(24))
+            .map_or_else(|| "1970-01-01T00:00:00Z".to_string(), |t| t.to_rfc3339());
+
         let count = SeadexCache::find()
             .filter(seadex_cache::Column::AnimeId.eq(anime_id))
-            .filter(
-                seadex_cache::Column::FetchedAt.gt(chrono::Utc::now()
-                    .checked_sub_signed(chrono::Duration::hours(24))
-                    .unwrap()
-                    .to_rfc3339()),
-            )
+            .filter(seadex_cache::Column::FetchedAt.gt(threshold))
             .count(&self.conn)
             .await?;
 
         Ok(count > 0)
     }
 }
-
-// ============================================================================
-// Data Types
-// ============================================================================
 
 #[derive(Debug, Clone)]
 pub struct SeaDexCache {
@@ -94,15 +85,15 @@ pub struct SeaDexCache {
 }
 
 impl SeaDexCache {
+    #[must_use]
     pub fn get_groups(&self) -> Vec<String> {
         serde_json::from_str(&self.groups).unwrap_or_default()
     }
 
+    #[must_use]
     pub fn get_releases(&self) -> Vec<SeaDexRelease> {
-        if let Some(json) = &self.releases {
+        self.releases.as_ref().map_or_else(Vec::new, |json| {
             serde_json::from_str(json).unwrap_or_default()
-        } else {
-            Vec::new()
-        }
+        })
     }
 }

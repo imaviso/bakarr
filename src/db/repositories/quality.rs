@@ -8,19 +8,15 @@ use sea_orm::{
 };
 use tracing::info;
 
-/// Repository for quality definitions and profiles
 pub struct QualityRepository {
     conn: DatabaseConnection,
 }
 
 impl QualityRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
+    #[must_use]
+    pub const fn new(conn: DatabaseConnection) -> Self {
         Self { conn }
     }
-
-    // ========================================================================
-    // Model Conversion Helpers
-    // ========================================================================
 
     fn map_profile_model(m: quality_profiles::Model) -> QualityProfileRow {
         QualityProfileRow {
@@ -32,15 +28,9 @@ impl QualityRepository {
         }
     }
 
-    // ========================================================================
-    // Initialization
-    // ========================================================================
-
     pub async fn initialize(&self, config: &crate::config::Config) -> Result<()> {
-        // Ensure quality definitions exist
         Self::ensure_definitions_exist(&self.conn).await?;
 
-        // Insert profiles from config
         self.sync_profiles(&config.profiles).await?;
 
         info!("Quality definitions and profiles initialized");
@@ -52,14 +42,13 @@ impl QualityRepository {
         C: ConnectionTrait,
     {
         for q in QUALITIES.iter() {
-            // Explicitly try to insert or update
             let exists = QualityDefinitions::find_by_id(q.id).one(conn).await?;
 
             let active_model = quality_definitions::ActiveModel {
                 id: Set(q.id),
                 name: Set(q.name.clone()),
                 source: Set(q.source.as_str().to_string()),
-                resolution: Set(q.resolution as i32),
+                resolution: Set(i32::from(q.resolution)),
                 rank: Set(q.rank),
             };
 
@@ -75,10 +64,6 @@ impl QualityRepository {
 
         Ok(())
     }
-
-    // ========================================================================
-    // Profile Operations
-    // ========================================================================
 
     pub async fn get_profile(&self, id: i32) -> Result<Option<QualityProfileRow>> {
         let row = QualityProfiles::find_by_id(id).one(&self.conn).await?;
@@ -105,22 +90,20 @@ impl QualityRepository {
     }
 
     pub async fn sync_profiles(&self, profiles: &[QualityProfileConfig]) -> Result<()> {
-        // Ensure definitions exist to prevent FK errors
         Self::ensure_definitions_exist(&self.conn).await?;
 
         let txn = self.conn.begin().await?;
 
         for profile in profiles {
-            let cutoff_id = match get_quality_by_name(&profile.cutoff) {
-                Some(q) => q.id,
-                None => {
-                    tracing::warn!(
-                        "Unknown cutoff quality '{}' for profile '{}', skipping",
-                        profile.cutoff,
-                        profile.name
-                    );
-                    continue;
-                }
+            let cutoff_id = if let Some(q) = get_quality_by_name(&profile.cutoff) {
+                q.id
+            } else {
+                tracing::warn!(
+                    "Unknown cutoff quality '{}' for profile '{}', skipping",
+                    profile.cutoff,
+                    profile.name
+                );
+                continue;
             };
 
             let active_model = quality_profiles::ActiveModel {
@@ -144,9 +127,6 @@ impl QualityRepository {
                 .exec(&txn)
                 .await?;
 
-            // Always query for the profile ID after upsert.
-            // SQLite's last_insert_id is unreliable with ON CONFLICT DO UPDATE
-            // (returns stale value when an UPDATE occurs instead of INSERT).
             let profile_id = QualityProfiles::find()
                 .filter(quality_profiles::Column::Name.eq(&profile.name))
                 .one(&txn)
@@ -165,7 +145,7 @@ impl QualityRepository {
                         profile_id: Set(profile_id),
                         quality_id: Set(quality.id),
                         allowed: Set(true),
-                        sort_index: Set(index as i32),
+                        sort_index: Set(i32::try_from(index).unwrap_or(i32::MAX)),
                     };
                     QualityProfileItems::insert(item).exec(&txn).await?;
                 } else {
@@ -182,10 +162,6 @@ impl QualityRepository {
         Ok(())
     }
 }
-
-// ============================================================================
-// Data Types
-// ============================================================================
 
 #[derive(Debug, Clone)]
 pub struct QualityProfileRow {

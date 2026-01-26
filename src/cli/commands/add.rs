@@ -1,5 +1,3 @@
-//! Add anime command handler
-
 use crate::clients::anilist::AnilistClient;
 use crate::clients::seadex::SeaDexClient;
 use crate::config::Config;
@@ -7,13 +5,13 @@ use crate::db::Store;
 use crate::services::image::{ImageService, ImageType};
 
 pub async fn cmd_add_anime(config: &Config, query: &str) -> anyhow::Result<()> {
-    println!("Searching for: {}", query);
+    println!("Searching for: {query}");
 
     let anilist = AnilistClient::new();
     let results = anilist.search_anime(query).await?;
 
     if results.is_empty() {
-        println!("No anime found matching '{}'", query);
+        println!("No anime found matching '{query}'");
         return Ok(());
     }
 
@@ -24,14 +22,13 @@ pub async fn cmd_add_anime(config: &Config, query: &str) -> anyhow::Result<()> {
     for (i, anime) in results.iter().enumerate().take(10) {
         let eps = anime
             .episode_count
-            .map(|e| format!("{} eps", e))
-            .unwrap_or_else(|| "? eps".to_string());
+            .map_or_else(|| "? eps".to_string(), |e| format!("{e} eps"));
         let status = &anime.status;
         let title_en = anime.title.english.as_deref().unwrap_or("");
 
         println!("[{}] {} ({})", i + 1, anime.title.romaji, eps);
         if !title_en.is_empty() && title_en != anime.title.romaji {
-            println!("    EN: {}", title_en);
+            println!("    EN: {title_en}");
         }
         println!("    Status: {} | ID: {}", status, anime.id);
         println!();
@@ -52,7 +49,7 @@ pub async fn cmd_add_anime(config: &Config, query: &str) -> anyhow::Result<()> {
     }
 
     let index: usize = match input.parse::<usize>() {
-        Ok(n) if n >= 1 && n <= results.len().min(10) => n - 1,
+        Ok(n) if (1..=results.len().min(10)).contains(&n) => n - 1,
         _ => {
             println!("Invalid selection.");
             return Ok(());
@@ -69,7 +66,7 @@ pub async fn cmd_add_anime(config: &Config, query: &str) -> anyhow::Result<()> {
             .await
         {
             Ok(path) => anime.cover_image = Some(path),
-            Err(e) => println!("Warning: Failed to download cover image: {}", e),
+            Err(e) => println!("Warning: Failed to download cover image: {e}"),
         }
     }
 
@@ -79,7 +76,7 @@ pub async fn cmd_add_anime(config: &Config, query: &str) -> anyhow::Result<()> {
             .await
         {
             Ok(path) => anime.banner_image = Some(path),
-            Err(e) => println!("Warning: Failed to download banner image: {}", e),
+            Err(e) => println!("Warning: Failed to download banner image: {e}"),
         }
     }
 
@@ -93,8 +90,7 @@ pub async fn cmd_add_anime(config: &Config, query: &str) -> anyhow::Result<()> {
         "  Episodes: {}",
         anime
             .episode_count
-            .map(|e| e.to_string())
-            .unwrap_or("?".to_string())
+            .map_or_else(|| "?".to_string(), |e| e.to_string())
     );
     println!("  Status: {}", anime.status);
 

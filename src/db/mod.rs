@@ -13,7 +13,6 @@ use crate::entities::episode_metadata;
 pub mod migrator;
 pub mod repositories;
 
-// Re-export types from repositories for backward compatibility
 pub use crate::entities::system_logs::Model as SystemLog;
 pub use repositories::cache::SeaDexCache;
 pub use repositories::download::{DownloadEntry, RecycleBinEntry};
@@ -21,7 +20,6 @@ pub use repositories::episode::{CalendarEventRow, MissingEpisodeRow};
 pub use repositories::quality::QualityProfileRow;
 pub use repositories::rss::RssFeed;
 
-// Re-export episode types that other modules depend on from db
 pub use crate::models::episode::EpisodeStatusRow;
 
 #[derive(Clone)]
@@ -31,6 +29,8 @@ pub struct Store {
 
 impl Store {
     pub async fn new(db_url: &str) -> Result<Self> {
+        use sea_orm_migration::MigratorTrait;
+
         if !db_url.starts_with(":memory:") {
             let path_str = db_url.trim_start_matches("sqlite:");
             if let Some(parent) = Path::new(path_str).parent() {
@@ -43,17 +43,12 @@ impl Store {
 
         let conn = Database::connect(db_url).await?;
 
-        use sea_orm_migration::MigratorTrait;
         migrator::Migrator::up(&conn, None).await?;
 
         info!("Database connected & migrations applied");
 
         Ok(Self { conn })
     }
-
-    // ========================================================================
-    // Repository Helpers
-    // ========================================================================
 
     fn anime_repo(&self) -> repositories::anime::AnimeRepository {
         repositories::anime::AnimeRepository::new(self.conn.clone())
@@ -87,17 +82,9 @@ impl Store {
         repositories::release_profile::ReleaseProfileRepository::new(self.conn.clone())
     }
 
-    // ========================================================================
-    // Quality System (delegated to QualityRepository)
-    // ========================================================================
-
     pub async fn initialize_quality_system(&self, config: &crate::config::Config) -> Result<()> {
         self.quality_repo().initialize(config).await
     }
-
-    // ========================================================================
-    // Anime Operations (delegated to AnimeRepository)
-    // ========================================================================
 
     pub async fn add_anime(&self, anime: &Anime) -> Result<()> {
         self.anime_repo().add(anime).await
@@ -136,10 +123,6 @@ impl Store {
             .update_quality_profile(id, profile_id)
             .await
     }
-
-    // ========================================================================
-    // Download Operations (delegated to DownloadRepository)
-    // ========================================================================
 
     pub async fn record_download(
         &self,
@@ -224,10 +207,6 @@ impl Store {
         self.download_repo().remove_from_recycle_bin(id).await
     }
 
-    // ========================================================================
-    // RSS Feed Operations (delegated to RssRepository)
-    // ========================================================================
-
     pub async fn add_rss_feed(&self, anime_id: i32, url: &str, name: Option<&str>) -> Result<i64> {
         self.rss_repo().add(anime_id, url, name).await
     }
@@ -269,10 +248,6 @@ impl Store {
     pub async fn rss_feed_count(&self, anime_id: i32) -> Result<i32> {
         self.rss_repo().count_for_anime(anime_id).await
     }
-
-    // ========================================================================
-    // System Log Operations (delegated to LogRepository)
-    // ========================================================================
 
     pub async fn add_log(
         &self,
@@ -330,10 +305,6 @@ impl Store {
     pub async fn get_latest_log_time(&self, event_type: &str) -> Result<Option<String>> {
         self.logs_repo().get_latest_event_time(event_type).await
     }
-
-    // ========================================================================
-    // Episode Operations (delegated to EpisodeRepository)
-    // ========================================================================
 
     pub async fn get_episode_title(
         &self,
@@ -489,10 +460,6 @@ impl Store {
             .await
     }
 
-    // ========================================================================
-    // Cache Operations (delegated to CacheRepository)
-    // ========================================================================
-
     pub async fn get_seadex_cache(&self, anime_id: i32) -> Result<Option<SeaDexCache>> {
         self.cache_repo().get_seadex(anime_id).await
     }
@@ -513,10 +480,6 @@ impl Store {
         self.cache_repo().is_seadex_fresh(anime_id).await
     }
 
-    // ========================================================================
-    // Quality Profile Operations (delegated to QualityRepository)
-    // ========================================================================
-
     pub async fn get_quality_profile(&self, id: i32) -> Result<Option<QualityProfileRow>> {
         self.quality_repo().get_profile(id).await
     }
@@ -535,10 +498,6 @@ impl Store {
     pub async fn sync_profiles(&self, profiles: &[QualityProfileConfig]) -> Result<()> {
         self.quality_repo().sync_profiles(profiles).await
     }
-
-    // ========================================================================
-    // Release Profile Operations (delegated to ReleaseProfileRepository)
-    // ========================================================================
 
     pub async fn list_release_profiles(
         &self,

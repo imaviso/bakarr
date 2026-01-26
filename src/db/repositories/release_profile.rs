@@ -9,7 +9,8 @@ pub struct ReleaseProfileRepository {
 }
 
 impl ReleaseProfileRepository {
-    pub fn new(conn: DatabaseConnection) -> Self {
+    #[must_use]
+    pub const fn new(conn: DatabaseConnection) -> Self {
         Self { conn }
     }
 
@@ -23,15 +24,12 @@ impl ReleaseProfileRepository {
     }
 
     pub async fn get_enabled_rules(&self) -> Result<Vec<release_profile_rules::Model>> {
-        // We only want rules from enabled profiles
-        // Join rules -> profiles where profile.enabled = true
         let rules = ReleaseProfileRules::find()
             .find_also_related(ReleaseProfiles)
             .filter(release_profiles::Column::Enabled.eq(true))
             .all(&self.conn)
             .await?;
 
-        // Extract just the rules (the join returns (rule, Some(profile)))
         Ok(rules.into_iter().map(|(r, _)| r).collect())
     }
 
@@ -95,7 +93,6 @@ impl ReleaseProfileRepository {
         .exec(&txn)
         .await?;
 
-        // Replace rules
         ReleaseProfileRules::delete_many()
             .filter(release_profile_rules::Column::ProfileId.eq(id))
             .exec(&txn)

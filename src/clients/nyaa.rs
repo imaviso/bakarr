@@ -22,6 +22,7 @@ pub struct NyaaTorrent {
 }
 
 impl NyaaTorrent {
+    #[must_use]
     pub fn magnet_link(&self) -> String {
         format!(
             "magnet:?xt=urn:btih:{}&dn={}",
@@ -30,6 +31,7 @@ impl NyaaTorrent {
         )
     }
 
+    #[must_use]
     pub fn content_hash(&self) -> &str {
         &self.info_hash
     }
@@ -42,22 +44,26 @@ fn extract_tag(xml: &str, tag: &str) -> String {
     static CACHE: OnceLock<std::sync::Mutex<std::collections::HashMap<String, Regex>>> =
         OnceLock::new();
 
-    let cache = CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
-    let mut cache = cache.lock().unwrap();
+    let cache_lock = CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    let mut cache = cache_lock.lock().unwrap();
 
     // If cache is full and tag not present, clear it to prevent unbounded growth
     if cache.len() >= MAX_CACHE_SIZE && !cache.contains_key(tag) {
         cache.clear();
     }
 
-    let re = cache.entry(tag.to_string()).or_insert_with(|| {
-        Regex::new(&format!(
-            r"<{}>([^<]*)</{}>",
-            regex::escape(tag),
-            regex::escape(tag)
-        ))
-        .unwrap()
-    });
+    let re = cache
+        .entry(tag.to_string())
+        .or_insert_with(|| {
+            Regex::new(&format!(
+                r"<{}>([^<]*)</{}>",
+                regex::escape(tag),
+                regex::escape(tag)
+            ))
+            .unwrap()
+        })
+        .clone();
+    drop(cache);
 
     re.captures(xml)
         .and_then(|c| c.get(1))
@@ -107,7 +113,7 @@ pub enum NyaaCategory {
 }
 
 impl NyaaCategory {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(self) -> &'static str {
         match self {
             Self::AnimeEnglish => "1_2",
             Self::AnimeNonEnglish => "1_3",
@@ -126,7 +132,7 @@ pub enum NyaaFilter {
 }
 
 impl NyaaFilter {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(self) -> &'static str {
         match self {
             Self::NoFilter => "0",
             Self::NoRemakes => "1",
@@ -149,6 +155,7 @@ pub struct RssFeedConfig {
 }
 
 impl RssFeedConfig {
+    #[must_use]
     pub fn for_anime(anime_name: &str) -> Self {
         Self {
             query: anime_name.to_string(),
@@ -156,31 +163,36 @@ impl RssFeedConfig {
         }
     }
 
+    #[must_use]
     pub fn with_group(mut self, group: &str) -> Self {
         self.group = Some(group.to_string());
         self
     }
 
+    #[must_use]
     pub fn with_resolution(mut self, resolution: &str) -> Self {
         self.resolution = Some(resolution.to_string());
         self
     }
 
-    pub fn with_category(mut self, category: NyaaCategory) -> Self {
+    #[must_use]
+    pub const fn with_category(mut self, category: NyaaCategory) -> Self {
         self.category = category;
         self
     }
 
-    pub fn with_filter(mut self, filter: NyaaFilter) -> Self {
+    #[must_use]
+    pub const fn with_filter(mut self, filter: NyaaFilter) -> Self {
         self.filter = filter;
         self
     }
 
+    #[must_use]
     pub fn build_url(&self) -> String {
         let mut query_parts = vec![self.query.clone()];
 
         if let Some(ref group) = self.group {
-            query_parts.push(format!("[{}]", group));
+            query_parts.push(format!("[{group}]"));
         }
 
         if let Some(ref resolution) = self.resolution {
@@ -206,10 +218,12 @@ impl Default for NyaaClient {
 }
 
 impl NyaaClient {
+    #[must_use]
     pub fn new() -> Self {
         Self::with_timeout(std::time::Duration::from_secs(30))
     }
 
+    #[must_use]
     pub fn with_timeout(timeout: std::time::Duration) -> Self {
         Self {
             client: Client::builder()
@@ -250,6 +264,7 @@ impl NyaaClient {
         self.fetch_rss(&url).await
     }
 
+    #[must_use]
     pub fn generate_rss_url(
         anime_name: &str,
         group: Option<&str>,
@@ -268,6 +283,7 @@ impl NyaaClient {
         config.build_url()
     }
 
+    #[must_use]
     pub fn generate_rss_feeds_for_anime(
         anime_name: &str,
         groups: &[String],
@@ -277,12 +293,12 @@ impl NyaaClient {
 
         if groups.is_empty() {
             let url = Self::generate_rss_url(anime_name, None, resolution);
-            let name = format!("{} - All Groups", anime_name);
+            let name = format!("{anime_name} - All Groups");
             feeds.push((name, url));
         } else {
             for group in groups {
                 let url = Self::generate_rss_url(anime_name, Some(group), resolution);
-                let name = format!("{} - {}", anime_name, group);
+                let name = format!("{anime_name} - {group}");
                 feeds.push((name, url));
             }
         }

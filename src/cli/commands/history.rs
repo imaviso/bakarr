@@ -1,5 +1,3 @@
-//! History command handler
-
 use crate::config::Config;
 use crate::db::Store;
 
@@ -20,8 +18,7 @@ pub async fn cmd_history(config: &Config, limit: i32) -> anyhow::Result<()> {
         monitored
             .iter()
             .find(|a| a.id == id)
-            .map(|a| a.title.romaji.clone())
-            .unwrap_or_else(|| format!("Unknown (ID: {})", id))
+            .map_or_else(|| format!("Unknown (ID: {id})"), |a| a.title.romaji.clone())
     };
 
     for dl in downloads {

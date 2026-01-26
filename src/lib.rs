@@ -12,35 +12,47 @@ pub mod quality;
 pub mod services;
 pub mod state;
 
+use anyhow::Context;
+use clap::Parser;
+use cli::{Cli, Commands, ProfileCommands, RssCommands};
 use std::sync::Arc;
 use tokio::signal;
 use tokio::sync::RwLock;
+use tracing::{error, info};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
-use anyhow::Context;
 pub use config::Config;
 use services::scheduler::Scheduler;
 use state::SharedState;
-use tracing::{error, info};
-use tracing_subscriber::EnvFilter;
 
 pub async fn run() -> anyhow::Result<()> {
     let config = Config::load()?;
     config.validate()?;
 
-    let prometheus_handle = if config.observability.metrics_enabled {
+    let prometheus_handle = init_prometheus(&config)?;
+    init_logging(&config)?;
+
+    let cli = Cli::parse();
+    execute_command(cli, config, prometheus_handle).await
+}
+
+fn init_prometheus(
+    config: &Config,
+) -> anyhow::Result<Option<metrics_exporter_prometheus::PrometheusHandle>> {
+    if config.observability.metrics_enabled {
         use metrics_exporter_prometheus::PrometheusBuilder;
         let builder = PrometheusBuilder::new();
         let handle = builder
             .install_recorder()
             .context("Failed to install Prometheus recorder")?;
         info!("Prometheus metrics recorder initialized");
-        Some(handle)
+        Ok(Some(handle))
     } else {
-        None
-    };
+        Ok(None)
+    }
+}
 
-    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
+fn init_logging(config: &Config) -> anyhow::Result<()> {
     let mut log_level = config.general.log_level.clone();
     if config.general.suppress_connection_errors {
         log_level.push_str(",reqwest::retry=off,hyper_util=off");
@@ -50,7 +62,6 @@ pub async fn run() -> anyhow::Result<()> {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&log_level));
 
     let fmt_layer = tracing_subscriber::fmt::layer();
-
     let registry = tracing_subscriber::registry()
         .with(env_filter)
         .with(fmt_layer);
@@ -64,7 +75,6 @@ pub async fn run() -> anyhow::Result<()> {
             .build_url(url)?;
 
         tokio::spawn(task);
-
         registry.with(layer).init();
         info!(
             "Loki logging initialized at {}",
@@ -73,16 +83,16 @@ pub async fn run() -> anyhow::Result<()> {
     } else {
         registry.init();
     }
+    Ok(())
+}
 
-    // Use clap for CLI parsing
-    use clap::Parser;
-    use cli::{Cli, Commands, ProfileCommands, RssCommands};
-
-    let cli = Cli::parse();
-
+async fn execute_command(
+    cli: Cli,
+    config: Config,
+    prometheus_handle: Option<metrics_exporter_prometheus::PrometheusHandle>,
+) -> anyhow::Result<()> {
     match cli.command {
         None => {
-            // No subcommand - show help
             use clap::CommandFactory;
             Cli::command().print_help()?;
             println!();
@@ -156,7 +166,6 @@ pub async fn run() -> anyhow::Result<()> {
         Some(Commands::Episodes { id, refresh }) => cli::cmd_episodes(&config, &id, refresh).await,
 
         Some(Commands::Web) => {
-            // Start web server only (no scheduler/monitor)
             info!("Starting web server only mode...");
             let api_state =
                 api::create_app_state_from_config(config.clone(), prometheus_handle).await?;
@@ -164,7 +173,7 @@ pub async fn run() -> anyhow::Result<()> {
             info!("Starting Web API on port {}", port);
 
             let app = api::router(api_state).await;
-            let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port)).await?;
+            let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
             axum::serve(listener, app).await?;
             Ok(())
         }
@@ -180,13 +189,10 @@ async fn run_daemon(
         env!("CARGO_PKG_VERSION")
     );
 
-    // Create shared state once for all components
     let shared = Arc::new(SharedState::new(config.clone()).await?);
 
-    // Create API state (wraps shared state + API-specific services)
     let api_state = api::create_app_state(Arc::clone(&shared), prometheus_handle).await?;
 
-    // Create scheduler state (uses shared state directly)
     let scheduler_state = Arc::new(RwLock::new((*shared).clone()));
 
     let scheduler = Scheduler::new(Arc::clone(&scheduler_state), config.scheduler.clone());
@@ -210,7 +216,7 @@ async fn run_daemon(
         info!("Starting Web API on port {}", port);
 
         let app = api::router(api_state).await;
-        let addr = format!("0.0.0.0:{}", port);
+        let addr = format!("0.0.0.0:{port}");
         let listener = tokio::net::TcpListener::bind(&addr).await?;
 
         Some(tokio::spawn(async move {

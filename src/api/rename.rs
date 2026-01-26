@@ -64,65 +64,10 @@ pub async fn get_rename_preview(
             continue;
         }
 
-        let title = episode_service
-            .get_episode_title(id, ep_num)
-            .await
-            .unwrap_or_else(|_| format!("Episode {}", ep_num));
-
-        let extension = current_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("mkv")
-            .to_string();
-
-        let options = RenamingOptions {
-            anime: anime.clone(),
-            episode_number: ep_num,
-            season: Some(status.season),
-            episode_title: title,
-            quality: status
-                .quality_id
-                .and_then(crate::quality::definition::get_quality_by_id)
-                .map(|q| q.name),
-            group: current_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .and_then(crate::parser::filename::parse_filename)
-                .and_then(|r| r.group),
-            original_filename: current_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.to_string()),
-            extension,
-            year: anime.start_year,
-            media_info: {
-                if let (Some(w), Some(h), Some(codec), Some(duration)) = (
-                    status.resolution_width,
-                    status.resolution_height,
-                    status.video_codec.clone(),
-                    status.duration_secs,
-                ) {
-                    Some(crate::models::media::MediaInfo {
-                        resolution_width: w as i64,
-                        resolution_height: h as i64,
-                        video_codec: codec,
-                        audio_codecs: status
-                            .audio_codecs
-                            .as_ref()
-                            .and_then(|ac| serde_json::from_str(ac).ok())
-                            .unwrap_or_default(),
-                        duration_secs: duration as f64,
-                    })
-                } else {
-                    // Fallback: Read from file if DB metadata is missing
-                    let media_service = crate::services::MediaService::new();
-                    media_service.get_media_info(current_path).ok()
-                }
-            },
-        };
+        let options =
+            build_renaming_options(id, &anime, &status, current_path, episode_service).await;
 
         let new_path = library_service.get_destination_path(&options);
-
         let new_path_str = new_path.to_string_lossy().to_string();
 
         if current_path_str != &new_path_str {
@@ -194,62 +139,8 @@ pub async fn execute_rename(
             continue;
         }
 
-        let title = episode_service
-            .get_episode_title(id, ep_num)
-            .await
-            .unwrap_or_else(|_| format!("Episode {}", ep_num));
-
-        let extension = current_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("mkv")
-            .to_string();
-
-        let options = RenamingOptions {
-            anime: anime.clone(),
-            episode_number: ep_num,
-            season: Some(status.season),
-            episode_title: title,
-            quality: status
-                .quality_id
-                .and_then(crate::quality::definition::get_quality_by_id)
-                .map(|q| q.name),
-            group: current_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .and_then(crate::parser::filename::parse_filename)
-                .and_then(|r| r.group),
-            original_filename: current_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .map(|s| s.to_string()),
-            extension,
-            year: anime.start_year,
-            media_info: {
-                if let (Some(w), Some(h), Some(codec), Some(duration)) = (
-                    status.resolution_width,
-                    status.resolution_height,
-                    status.video_codec.clone(),
-                    status.duration_secs,
-                ) {
-                    Some(crate::models::media::MediaInfo {
-                        resolution_width: w as i64,
-                        resolution_height: h as i64,
-                        video_codec: codec,
-                        audio_codecs: status
-                            .audio_codecs
-                            .as_ref()
-                            .and_then(|ac| serde_json::from_str(ac).ok())
-                            .unwrap_or_default(),
-                        duration_secs: duration as f64,
-                    })
-                } else {
-                    // Fallback: Read from file if DB metadata is missing
-                    let media_service = crate::services::MediaService::new();
-                    media_service.get_media_info(current_path).ok()
-                }
-            },
-        };
+        let options =
+            build_renaming_options(id, &anime, &status, current_path, episode_service).await;
 
         let new_path = library_service.get_destination_path(&options);
 
@@ -261,53 +152,22 @@ pub async fn execute_rename(
             && let Err(e) = tokio::fs::create_dir_all(parent).await
         {
             failed_count += 1;
-            failures.push(format!("Ep {}: Failed to create dir: {}", ep_num, e));
+            failures.push(format!("Ep {ep_num}: Failed to create dir: {e}"));
             continue;
         }
 
-        match tokio::fs::rename(&current_path, &new_path).await {
-            Ok(_) => {
-                if let Err(e) = state
-                    .store()
-                    .update_episode_path(id, ep_num, new_path.to_str().unwrap_or_default())
-                    .await
+        match tokio::fs::rename(current_path, &new_path).await {
+            Ok(()) => {
+                renamed_count += 1;
+                if let Err(e) =
+                    update_db_after_rename(&state, id, ep_num, current_path, &new_path).await
                 {
-                    tracing::error!(
-                        "DB update failed for ep {}: {}. Attempting rollback...",
-                        ep_num,
-                        e
-                    );
-
-                    if let Err(rollback_err) = tokio::fs::rename(&new_path, &current_path).await {
-                        tracing::error!(
-                            "CRITICAL: Rollback failed for ep {}! File is at {:?} but DB thinks it is at {:?}. Error: {}",
-                            ep_num,
-                            new_path,
-                            current_path,
-                            rollback_err
-                        );
-
-                        renamed_count += 1;
-                        failures.push(format!("Ep {}: CRITICAL ERROR - File renamed but DB not updated and rollback failed!", ep_num));
-                    } else {
-                        tracing::info!(
-                            "Rollback successful for ep {}. File restored to {:?}",
-                            ep_num,
-                            current_path
-                        );
-                        failed_count += 1;
-                        failures.push(format!(
-                            "Ep {}: Rename failed (DB error, rolled back): {}",
-                            ep_num, e
-                        ));
-                    }
-                } else {
-                    renamed_count += 1;
+                    failures.push(e.to_string());
                 }
             }
             Err(e) => {
                 failed_count += 1;
-                failures.push(format!("Ep {}: Rename failed: {}", ep_num, e));
+                failures.push(format!("Ep {ep_num}: Rename failed: {e}"));
             }
         }
     }
@@ -325,4 +185,109 @@ pub async fn execute_rename(
         failed: failed_count,
         failures,
     })))
+}
+
+async fn update_db_after_rename(
+    state: &AppState,
+    anime_id: i32,
+    episode_number: i32,
+    old_path: &StdPath,
+    new_path: &StdPath,
+) -> anyhow::Result<()> {
+    if let Err(e) = state
+        .store()
+        .update_episode_path(
+            anime_id,
+            episode_number,
+            new_path.to_str().unwrap_or_default(),
+        )
+        .await
+    {
+        tracing::error!("DB update failed for ep {episode_number}: {e}. Attempting rollback...");
+
+        if let Err(rollback_err) = tokio::fs::rename(new_path, old_path).await {
+            tracing::error!(
+                "CRITICAL: Rollback failed for ep {episode_number}! File is at {new_path:?} but DB thinks it is at {old_path:?}. Error: {rollback_err}"
+            );
+            anyhow::bail!(
+                "Ep {episode_number}: CRITICAL ERROR - File renamed but DB not updated and rollback failed!"
+            );
+        }
+
+        tracing::info!(
+            "Rollback successful for ep {episode_number}. File restored to {old_path:?}"
+        );
+        anyhow::bail!("Ep {episode_number}: Rename failed (DB error, rolled back): {e}");
+    }
+    Ok(())
+}
+
+async fn build_renaming_options(
+    anime_id: i32,
+    anime: &crate::models::anime::Anime,
+    status: &crate::models::episode::EpisodeStatusRow,
+    current_path: &StdPath,
+    episode_service: &crate::services::EpisodeService,
+) -> RenamingOptions {
+    let ep_num = status.episode_number;
+    let title = episode_service
+        .get_episode_title(anime_id, ep_num)
+        .await
+        .unwrap_or_else(|_| format!("Episode {ep_num}"));
+
+    let extension = current_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("mkv")
+        .to_string();
+
+    RenamingOptions {
+        anime: anime.clone(),
+        episode_number: ep_num,
+        season: Some(status.season),
+        episode_title: title,
+        quality: status
+            .quality_id
+            .and_then(crate::quality::definition::get_quality_by_id)
+            .map(|q| q.name),
+        group: current_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(crate::parser::filename::parse_filename)
+            .and_then(|r| r.group),
+        original_filename: current_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(std::string::ToString::to_string),
+        extension,
+        year: anime.start_year,
+        media_info: build_media_info(status, current_path),
+    }
+}
+
+fn build_media_info(
+    status: &crate::models::episode::EpisodeStatusRow,
+    current_path: &StdPath,
+) -> Option<crate::models::media::MediaInfo> {
+    if let (Some(w), Some(h), Some(codec), Some(duration)) = (
+        status.resolution_width,
+        status.resolution_height,
+        status.video_codec.clone(),
+        status.duration_secs,
+    ) {
+        Some(crate::models::media::MediaInfo {
+            resolution_width: i64::from(w),
+            resolution_height: i64::from(h),
+            video_codec: codec,
+            audio_codecs: status
+                .audio_codecs
+                .as_ref()
+                .and_then(|ac| serde_json::from_str(ac).ok())
+                .unwrap_or_default(),
+            duration_secs: f64::from(duration),
+        })
+    } else {
+        let media_service = crate::services::MediaService::new();
+        media_service.get_media_info(current_path).ok()
+    }
 }

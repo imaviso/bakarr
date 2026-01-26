@@ -41,6 +41,7 @@ pub struct IdMapping {
 }
 
 impl AnimeEntry {
+    #[must_use]
     pub fn get_id_mapping(&self) -> IdMapping {
         let mut mapping = IdMapping {
             anilist_id: None,
@@ -64,6 +65,7 @@ impl AnimeEntry {
         mapping
     }
 
+    #[must_use]
     pub fn get_start_year(&self) -> Option<i32> {
         self.anime_season.as_ref().and_then(|s| s.year)
     }
@@ -73,7 +75,7 @@ fn extract_id(url: &str, prefix: &str) -> Option<i32> {
     url.find(prefix)
         .map(|pos| &url[pos + prefix.len()..])
         .and_then(|s| {
-            let num_str: String = s.chars().take_while(|c| c.is_ascii_digit()).collect();
+            let num_str: String = s.chars().take_while(char::is_ascii_digit).collect();
             num_str.parse().ok()
         })
 }
@@ -130,29 +132,35 @@ impl OfflineDatabase {
         })
     }
 
+    #[must_use]
     pub fn get_by_anilist_id(&self, id: i32) -> Option<&AnimeEntry> {
         self.anilist_index.get(&id).map(|&idx| &self.entries[idx])
     }
 
+    #[must_use]
     pub fn get_by_mal_id(&self, id: i32) -> Option<&AnimeEntry> {
         self.mal_index.get(&id).map(|&idx| &self.entries[idx])
     }
 
+    #[must_use]
     pub fn anilist_to_mal(&self, anilist_id: i32) -> Option<i32> {
         self.get_by_anilist_id(anilist_id)
             .and_then(|e| e.get_id_mapping().mal_id)
     }
 
+    #[must_use]
     pub fn anilist_to_kitsu(&self, anilist_id: i32) -> Option<i32> {
         self.get_by_anilist_id(anilist_id)
             .and_then(|e| e.get_id_mapping().kitsu_id)
     }
 
+    #[must_use]
     pub fn mal_to_anilist(&self, mal_id: i32) -> Option<i32> {
         self.get_by_mal_id(mal_id)
             .and_then(|e| e.get_id_mapping().anilist_id)
     }
 
+    #[must_use]
     pub fn get_synonyms(&self, anilist_id: i32) -> Vec<String> {
         self.get_by_anilist_id(anilist_id)
             .map(|e| {

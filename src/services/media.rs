@@ -13,13 +13,14 @@ impl Default for MediaService {
 }
 
 impl MediaService {
-    pub fn new() -> Self {
+    #[must_use]
+    pub const fn new() -> Self {
         Self
     }
 
     pub fn get_media_info(&self, path: &Path) -> Result<MediaInfo> {
         let output = ffprobe::ffprobe(path)
-            .with_context(|| format!("Failed to run ffprobe on {:?}", path))?;
+            .with_context(|| format!("Failed to run ffprobe on {}", path.display()))?;
 
         let video_stream = output
             .streams

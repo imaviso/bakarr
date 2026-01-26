@@ -25,6 +25,7 @@ pub struct EpisodeService {
 }
 
 impl EpisodeService {
+    #[must_use]
     pub fn new(store: Store) -> Self {
         Self {
             jikan: JikanClient::new(),
@@ -41,6 +42,7 @@ impl EpisodeService {
         if db.is_none() {
             *db = Some(OfflineDatabase::load().await?);
         }
+        drop(db);
         Ok(())
     }
 
@@ -86,7 +88,7 @@ impl EpisodeService {
             return Ok(title);
         }
 
-        Ok(format!("Episode {}", episode_number))
+        Ok(format!("Episode {episode_number}"))
     }
 
     pub async fn get_episode_metadata(
@@ -128,97 +130,117 @@ impl EpisodeService {
             guard.insert(anilist_id, Instant::now());
         }
 
-        info!("Fetching episodes from AniList for ID {}", anilist_id);
-        match self.anilist.get_episodes(anilist_id).await {
-            Ok(anilist_eps) if !anilist_eps.is_empty() => {
-                let mut all_episodes = Vec::new();
-                let re = Regex::new(r"(?i)^Episode\s+(\d+)(?:\s*-\s*(.+))?$").unwrap();
-                let mut seen_episodes = HashSet::new();
-
-                for ep in anilist_eps {
-                    if let Some(title) = ep.title
-                        && let Some(caps) = re.captures(&title)
-                    {
-                        let number = caps[1].parse::<i32>().unwrap_or(0);
-                        let real_title = caps.get(2).map(|t| t.as_str().to_string());
-
-                        if number > 0 && !seen_episodes.contains(&number) {
-                            seen_episodes.insert(number);
-                            all_episodes.push(EpisodeInput {
-                                episode_number: number,
-                                title: real_title,
-                                title_japanese: None,
-                                aired: ep.aired.clone(),
-                                filler: false,
-                                recap: false,
-                            });
-                        }
-                    }
-                }
-
-                if !all_episodes.is_empty() {
-                    let count = all_episodes.len();
-                    self.store.cache_episodes(anilist_id, &all_episodes).await?;
-                    info!(
-                        "Cached {} episodes from AniList for anime {}",
-                        count, anilist_id
-                    );
-                    return Ok(count);
-                }
+        // Try AniList first
+        match self.fetch_from_anilist(anilist_id).await {
+            Ok(eps) if !eps.is_empty() => {
+                let count = eps.len();
+                self.store.cache_episodes(anilist_id, &eps).await?;
+                info!(
+                    "Cached {} episodes from AniList for ID {}",
+                    count, anilist_id
+                );
+                return Ok(count);
             }
-            Ok(_) => debug!("AniList returned 0 episodes"),
-            Err(e) => warn!("Failed to fetch from AniList: {}", e),
+            Ok(_) => debug!("AniList returned 0 episodes for ID {}", anilist_id),
+            Err(e) => warn!("Failed to fetch from AniList for ID {}: {}", anilist_id, e),
         }
 
-        if let Some(kitsu_id) = self.get_kitsu_id(anilist_id).await {
-            info!("Fetching episodes from Kitsu for ID {}", kitsu_id);
-            match self.kitsu.get_episodes(kitsu_id).await {
-                Ok(kitsu_eps) if !kitsu_eps.is_empty() => {
-                    let mut all_episodes = Vec::new();
-                    let mut seen_episodes = HashSet::new();
-
-                    for ep in kitsu_eps {
-                        if let Some(num) = ep.attributes.number
-                            && num > 0
-                            && !seen_episodes.contains(&num)
-                        {
-                            seen_episodes.insert(num);
-                            all_episodes.push(EpisodeInput {
-                                episode_number: num,
-                                title: ep.attributes.canonical_title,
-                                title_japanese: None,
-                                aired: ep.attributes.airdate,
-                                filler: false,
-                                recap: false,
-                            });
-                        }
-                    }
-
-                    if !all_episodes.is_empty() {
-                        let count = all_episodes.len();
-                        self.store.cache_episodes(anilist_id, &all_episodes).await?;
-                        info!(
-                            "Cached {} episodes from Kitsu for anime {}",
-                            count, anilist_id
-                        );
-                        return Ok(count);
-                    }
-                }
-                Ok(_) => debug!("Kitsu returned 0 episodes"),
-                Err(e) => warn!("Failed to fetch from Kitsu: {}", e),
+        // Try Kitsu second
+        match self.fetch_from_kitsu(anilist_id).await {
+            Ok(eps) if !eps.is_empty() => {
+                let count = eps.len();
+                self.store.cache_episodes(anilist_id, &eps).await?;
+                info!("Cached {} episodes from Kitsu for ID {}", count, anilist_id);
+                return Ok(count);
             }
-        } else {
-            debug!("No Kitsu ID found for AniList ID {}", anilist_id);
+            Ok(_) => debug!("Kitsu returned 0 episodes for ID {}", anilist_id),
+            Err(e) => warn!("Failed to fetch from Kitsu for ID {}: {}", anilist_id, e),
         }
 
-        debug!("Falling back to Jikan for episodes...");
+        // Try Jikan last
+        match self.fetch_from_jikan(anilist_id).await {
+            Ok(eps) if !eps.is_empty() => {
+                let count = eps.len();
+                self.store.cache_episodes(anilist_id, &eps).await?;
+                info!("Cached {} episodes from Jikan for ID {}", count, anilist_id);
+                return Ok(count);
+            }
+            Ok(_) => debug!("Jikan returned 0 episodes for ID {}", anilist_id),
+            Err(e) => warn!("Failed to fetch from Jikan for ID {}: {}", anilist_id, e),
+        }
 
-        let Some(mal_id) = self.get_mal_id(anilist_id).await else {
-            debug!("No MAL ID found for AniList ID {}", anilist_id);
-            return Ok(0);
+        Ok(0)
+    }
+
+    async fn fetch_from_anilist(&self, anilist_id: i32) -> Result<Vec<EpisodeInput>> {
+        let anilist_eps = self.anilist.get_episodes(anilist_id).await?;
+        if anilist_eps.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut all_episodes = Vec::new();
+        let re = Regex::new(r"(?i)^Episode\s+(\d+)(?:\s*-\s*(.+))?$").unwrap();
+        let mut seen_episodes = HashSet::new();
+
+        for ep in anilist_eps {
+            if let Some(title) = ep.title
+                && let Some(caps) = re.captures(&title)
+            {
+                let number = caps[1].parse::<i32>().unwrap_or(0);
+                let real_title = caps.get(2).map(|t| t.as_str().to_string());
+
+                if number > 0 && !seen_episodes.contains(&number) {
+                    seen_episodes.insert(number);
+                    all_episodes.push(EpisodeInput {
+                        episode_number: number,
+                        title: real_title,
+                        title_japanese: None,
+                        aired: ep.aired.clone(),
+                        filler: false,
+                        recap: false,
+                    });
+                }
+            }
+        }
+        Ok(all_episodes)
+    }
+
+    async fn fetch_from_kitsu(&self, anilist_id: i32) -> Result<Vec<EpisodeInput>> {
+        let Some(kitsu_id) = self.get_kitsu_id(anilist_id).await else {
+            return Ok(Vec::new());
         };
 
-        info!("Fetching episodes from Jikan for MAL ID {}", mal_id);
+        let kitsu_eps = self.kitsu.get_episodes(kitsu_id).await?;
+        if kitsu_eps.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut all_episodes = Vec::new();
+        let mut seen_episodes = HashSet::new();
+
+        for ep in kitsu_eps {
+            if let Some(num) = ep.attributes.number
+                && num > 0
+                && !seen_episodes.contains(&num)
+            {
+                seen_episodes.insert(num);
+                all_episodes.push(EpisodeInput {
+                    episode_number: num,
+                    title: ep.attributes.canonical_title,
+                    title_japanese: None,
+                    aired: ep.attributes.airdate,
+                    filler: false,
+                    recap: false,
+                });
+            }
+        }
+        Ok(all_episodes)
+    }
+
+    async fn fetch_from_jikan(&self, anilist_id: i32) -> Result<Vec<EpisodeInput>> {
+        let Some(mal_id) = self.get_mal_id(anilist_id).await else {
+            return Ok(Vec::new());
+        };
 
         let mut all_episodes = Vec::new();
         let mut page = 1;
@@ -265,16 +287,7 @@ impl EpisodeService {
                 }
             }
         }
-
-        let count = all_episodes.len();
-        if count > 0 {
-            self.store.cache_episodes(anilist_id, &all_episodes).await?;
-            info!("Cached {} episodes for anime {}", count, anilist_id);
-        } else {
-            debug!("No episodes found for anime {} from any source", anilist_id);
-        }
-
-        Ok(count)
+        Ok(all_episodes)
     }
 
     pub async fn refresh_episode_cache(&self, anilist_id: i32) -> Result<usize> {

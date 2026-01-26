@@ -27,7 +27,7 @@ pub struct AddAnimeRequest {
     pub monitored: bool,
 }
 
-fn default_true() -> bool {
+const fn default_true() -> bool {
     true
 }
 
@@ -63,10 +63,10 @@ pub async fn list_anime(
                 native: anime.title.native.clone(),
             },
             format: anime.format,
-            episode_count: anime.episode_count.map(|c| c as i64),
+            episode_count: anime.episode_count.map(i64::from),
             status: anime.status,
-            cover_image: anime.cover_image.map(|p| format!("/images/{}", p)),
-            banner_image: anime.banner_image.map(|p| format!("/images/{}", p)),
+            cover_image: anime.cover_image.map(|p| format!("/images/{p}")),
+            banner_image: anime.banner_image.map(|p| format!("/images/{p}")),
             profile_name: anime
                 .profile_name
                 .clone()
@@ -92,8 +92,8 @@ pub async fn list_anime(
             genres: anime.genres.clone().unwrap_or_default(),
             studios: anime.studios.clone().unwrap_or_default(),
             progress: EpisodeProgress {
-                downloaded: downloaded as i64,
-                total: anime.episode_count.map(|c| c as i64),
+                downloaded: i64::from(downloaded),
+                total: anime.episode_count.map(i64::from),
                 missing,
             },
         });
@@ -137,6 +137,114 @@ pub async fn search_anime(
     Ok(Json(ApiResponse::success(dtos)))
 }
 
+async fn resolve_anime_path(
+    state: &AppState,
+    anime: &crate::models::anime::Anime,
+    custom_root: Option<&str>,
+) -> String {
+    let library_config = state.config().read().await.library.clone();
+    let library_service = crate::library::LibraryService::new(library_config);
+
+    let dummy_options = crate::library::RenamingOptions {
+        anime: anime.clone(),
+        episode_number: 1,
+        season: Some(1),
+        episode_title: "Dummy".to_string(),
+        quality: None,
+        group: None,
+        original_filename: None,
+        extension: "mkv".to_string(),
+        year: anime.start_year,
+        media_info: None,
+    };
+
+    let formatted_path = library_service.format_path(&dummy_options);
+    let path_buf = std::path::PathBuf::from(&formatted_path);
+
+    let folder_name = path_buf.components().next().map_or_else(
+        || {
+            anime.start_year.map_or_else(
+                || anime.title.romaji.clone(),
+                |year| format!("{} ({})", anime.title.romaji, year),
+            )
+        },
+        |component| component.as_os_str().to_string_lossy().to_string(),
+    );
+
+    let sanitized_name = crate::clients::qbittorrent::sanitize_category(&folder_name);
+
+    custom_root.map_or_else(
+        || {
+            let library_base = state
+                .config()
+                .try_read()
+                .map(|c| c.library.library_path.clone())
+                .unwrap_or_default();
+
+            std::path::Path::new(&library_base)
+                .join(&sanitized_name)
+                .to_string_lossy()
+                .to_string()
+        },
+        |base| {
+            std::path::Path::new(base)
+                .join(&sanitized_name)
+                .to_string_lossy()
+                .to_string()
+        },
+    )
+}
+
+fn spawn_initial_search(state: &AppState, anime_id: i32, title: &str) {
+    let search_service = state.search_service().clone();
+    let store = state.store().clone();
+    let qbit = state.qbit().clone();
+    let title = title.to_string();
+
+    tokio::spawn(async move {
+        tracing::info!("Starting initial search for anime: {}", anime_id);
+
+        match search_service.search_anime(anime_id).await {
+            Ok(results) => {
+                for result in results.iter().take(10) {
+                    if let crate::services::download::DownloadAction::Accept { .. } =
+                        &result.download_action
+                        && let Some(qbit) = &qbit
+                    {
+                        let category = crate::clients::qbittorrent::sanitize_category(&title);
+                        let _ = qbit.create_category(&category, None).await;
+
+                        let options = crate::clients::qbittorrent::AddTorrentOptions {
+                            category: Some(category.clone()),
+                            save_path: None,
+                            ..Default::default()
+                        };
+
+                        if qbit
+                            .add_torrent_url(&result.link, Some(options))
+                            .await
+                            .is_ok()
+                        {
+                            tracing::info!("✓ [Auto-Search] Queued: {}", result.title);
+
+                            let _ = store
+                                .record_download(
+                                    anime_id,
+                                    &result.title,
+                                    result.episode_number,
+                                    result.group.as_deref(),
+                                    Some(&result.info_hash),
+                                )
+                                .await;
+                        }
+                    }
+                }
+            }
+            Err(e) => tracing::error!("Initial search failed: {}", e),
+        }
+    });
+}
+
 pub async fn add_anime(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<AddAnimeRequest>,
@@ -161,52 +269,7 @@ pub async fn add_anime(
         }
     }
 
-    let library_config = state.config().read().await.library.clone();
-    let library_service = crate::library::LibraryService::new(library_config);
-
-    let dummy_options = crate::library::RenamingOptions {
-        anime: anime.clone(),
-        episode_number: 1,
-        season: Some(1),
-        episode_title: "Dummy".to_string(),
-        quality: None,
-        group: None,
-        original_filename: None,
-        extension: "mkv".to_string(),
-        year: anime.start_year,
-        media_info: None,
-    };
-
-    let formatted_path = library_service.format_path(&dummy_options);
-    let path_buf = std::path::PathBuf::from(&formatted_path);
-
-    let folder_name = if let Some(component) = path_buf.components().next() {
-        component.as_os_str().to_string_lossy().to_string()
-    } else if let Some(year) = anime.start_year {
-        format!("{} ({})", anime.title.romaji, year)
-    } else {
-        anime.title.romaji.clone()
-    };
-
-    let sanitized_name = crate::clients::qbittorrent::sanitize_category(&folder_name);
-
-    let root_path = if let Some(base) = &payload.root_folder {
-        std::path::Path::new(base)
-            .join(&sanitized_name)
-            .to_string_lossy()
-            .to_string()
-    } else {
-        let library_base = state
-            .config()
-            .try_read()
-            .map(|c| c.library.library_path.clone())
-            .unwrap_or_default();
-
-        std::path::Path::new(&library_base)
-            .join(&sanitized_name)
-            .to_string_lossy()
-            .to_string()
-    };
+    let root_path = resolve_anime_path(&state, &anime, payload.root_folder.as_deref()).await;
 
     if let Err(e) = std::fs::create_dir_all(&root_path) {
         tracing::error!("Failed to create anime directory: {}", e);
@@ -219,26 +282,22 @@ pub async fn add_anime(
         .enrich_anime_metadata(&mut anime)
         .await;
 
-    if let Some(url) = &anime.cover_image {
-        match state
+    if let Some(url) = &anime.cover_image
+        && let Ok(path) = state
             .image_service
             .save_image(url, anime.id, crate::services::image::ImageType::Cover)
             .await
-        {
-            Ok(path) => anime.cover_image = Some(path),
-            Err(e) => tracing::warn!("Failed to save cover image: {}", e),
-        }
+    {
+        anime.cover_image = Some(path);
     }
 
-    if let Some(url) = &anime.banner_image {
-        match state
+    if let Some(url) = &anime.banner_image
+        && let Ok(path) = state
             .image_service
             .save_image(url, anime.id, crate::services::image::ImageType::Banner)
             .await
-        {
-            Ok(path) => anime.banner_image = Some(path),
-            Err(e) => tracing::warn!("Failed to save banner image: {}", e),
-        }
+    {
+        anime.banner_image = Some(path);
     }
 
     anime.added_at = chrono::Utc::now().to_rfc3339();
@@ -247,59 +306,7 @@ pub async fn add_anime(
     state.store().add_anime(&anime).await?;
 
     if payload.monitor_and_search {
-        let search_service = state.search_service().clone();
-        let anime_id = anime.id;
-        let store = state.store().clone();
-        let qbit = state.qbit().clone();
-
-        let anime_title_romaji = anime.title.romaji.clone();
-
-        tokio::spawn(async move {
-            tracing::info!("Starting initial search for anime: {}", anime_id);
-
-            match search_service.search_anime(anime_id).await {
-                Ok(results) => {
-                    for result in results.iter().take(10) {
-                        if let crate::services::download::DownloadAction::Accept {
-                            quality: _,
-                            is_seadex: _,
-                            ..
-                        } = &result.download_action
-                            && let Some(qbit) = &qbit
-                        {
-                            let category =
-                                crate::clients::qbittorrent::sanitize_category(&anime_title_romaji);
-                            let _ = qbit.create_category(&category, None).await;
-
-                            let options = crate::clients::qbittorrent::AddTorrentOptions {
-                                category: Some(category.clone()),
-                                save_path: None,
-                                ..Default::default()
-                            };
-
-                            if qbit
-                                .add_torrent_url(&result.link, Some(options))
-                                .await
-                                .is_ok()
-                            {
-                                tracing::info!("✓ [Auto-Search] Queued: {}", result.title);
-
-                                let _ = store
-                                    .record_download(
-                                        anime_id,
-                                        &result.title,
-                                        result.episode_number,
-                                        result.group.as_deref(),
-                                        Some(&result.info_hash),
-                                    )
-                                    .await;
-                            }
-                        }
-                    }
-                }
-                Err(e) => tracing::error!("Initial search failed: {}", e),
-            }
-        });
+        spawn_initial_search(&state, anime.id, &anime.title.romaji);
     }
 
     let dto = AnimeDto {
@@ -310,9 +317,9 @@ pub async fn add_anime(
             native: anime.title.native.clone(),
         },
         format: anime.format,
-        episode_count: anime.episode_count.map(|c| c as i64),
-        cover_image: anime.cover_image.map(|p| format!("/images/{}", p)),
-        banner_image: anime.banner_image.map(|p| format!("/images/{}", p)),
+        episode_count: anime.episode_count.map(i64::from),
+        cover_image: anime.cover_image.map(|p| format!("/images/{p}")),
+        banner_image: anime.banner_image.map(|p| format!("/images/{p}")),
         status: anime.status.clone(),
         profile_name: payload
             .profile_name
@@ -327,8 +334,8 @@ pub async fn add_anime(
         genres: anime.genres.clone().unwrap_or_default(),
         studios: anime.studios.clone().unwrap_or_default(),
         progress: EpisodeProgress {
-            downloaded: 0i64,
-            total: anime.episode_count.map(|c| c as i64),
+            downloaded: 0_i64,
+            total: anime.episode_count.map(i64::from),
             missing: Vec::new(),
         },
     };
@@ -380,10 +387,10 @@ pub async fn get_anime(
             native: anime.title.native.clone(),
         },
         format: anime.format,
-        episode_count: anime.episode_count.map(|c| c as i64),
+        episode_count: anime.episode_count.map(i64::from),
         status: anime.status,
-        cover_image: anime.cover_image.map(|p| format!("/images/{}", p)),
-        banner_image: anime.banner_image.map(|p| format!("/images/{}", p)),
+        cover_image: anime.cover_image.map(|p| format!("/images/{p}")),
+        banner_image: anime.banner_image.map(|p| format!("/images/{p}")),
         profile_name: anime
             .profile_name
             .clone()
@@ -397,8 +404,8 @@ pub async fn get_anime(
         genres: anime.genres.clone().unwrap_or_default(),
         studios: anime.studios.clone().unwrap_or_default(),
         progress: EpisodeProgress {
-            downloaded: downloaded as i64,
-            total: anime.episode_count.map(|c| c as i64),
+            downloaded: i64::from(downloaded),
+            total: anime.episode_count.map(i64::from),
             missing,
         },
     };

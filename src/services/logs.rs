@@ -10,13 +10,14 @@ pub struct LogService {
 }
 
 impl LogService {
-    pub fn new(store: Store, event_bus: broadcast::Sender<NotificationEvent>) -> Self {
+    #[must_use]
+    pub const fn new(store: Store, event_bus: broadcast::Sender<NotificationEvent>) -> Self {
         Self { store, event_bus }
     }
 
     pub fn start_listener(self: Arc<Self>) {
         let mut rx = self.event_bus.subscribe();
-        let service = self.clone();
+        let service = self;
 
         tokio::spawn(async move {
             loop {
@@ -55,13 +56,13 @@ impl LogService {
             NotificationEvent::DownloadStarted { title } => (
                 "DownloadStarted".to_string(),
                 "info",
-                format!("Started download: {}", title),
+                format!("Started download: {title}"),
                 None,
             ),
             NotificationEvent::DownloadFinished { title } => (
                 "DownloadFinished".to_string(),
                 "success",
-                format!("Finished download: {}", title),
+                format!("Finished download: {title}"),
                 None,
             ),
             NotificationEvent::Error { message } => {
@@ -77,33 +78,32 @@ impl LogService {
                     (
                         "ImportFinished".to_string(),
                         if *failed > 0 { "warn" } else { "success" },
-                        format!("Import finished: {} imported, {} failed", imported, failed),
+                        format!("Import finished: {imported} imported, {failed} failed"),
                         Some(serde_json::to_string(&event)?),
                     )
                 } else {
-                    return Ok(()); // Skip empty imports
+                    return Ok(());
                 }
             }
             NotificationEvent::RssCheckFinished { new_items, .. } => (
                 "RssCheckFinished".to_string(),
                 "info",
-                format!("RSS Check finished: {} new items", new_items),
+                format!("RSS Check finished: {new_items} new items"),
                 Some(serde_json::to_string(&event)?),
             ),
-            // Skip high-frequency progress events to avoid spamming the DB
+
             NotificationEvent::ScanProgress { .. }
             | NotificationEvent::LibraryScanProgress { .. }
             | NotificationEvent::RssCheckProgress { .. }
             | NotificationEvent::DownloadProgress { .. } => return Ok(()),
 
-            // Default handling for other events
             _ => {
-                let type_name = format!("{:?}", event)
+                let type_name = format!("{event:?}")
                     .split_whitespace()
                     .next()
                     .unwrap_or("Unknown")
                     .to_string();
-                // Clean up the debug string to just get the variant name roughly
+
                 let variant_name = type_name
                     .split('{')
                     .next()
@@ -114,16 +114,11 @@ impl LogService {
                 (
                     variant_name.clone(),
                     "info",
-                    format!("Event: {}", variant_name),
+                    format!("Event: {variant_name}"),
                     Some(serde_json::to_string(&event)?),
                 )
             }
         };
-
-        // Normalize level for frontend badges
-        // "success" isn't a standard log level, but useful for UI.
-        // We can map it to "info" for storage if we want strict levels, or keep it.
-        // Let's keep it as string in DB.
 
         self.store
             .add_log(&event_type, level, &message, details)

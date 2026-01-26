@@ -1,9 +1,11 @@
 use axum::{
     Json,
     extract::{Query, State},
+    http::header,
     response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt::Write;
 use std::sync::Arc;
 
 use crate::api::{ApiError, ApiResponse, AppState};
@@ -23,7 +25,7 @@ pub struct LogsQuery {
     pub format: ExportFormat,
 }
 
-#[derive(Debug, Deserialize, Default, PartialEq)]
+#[derive(Debug, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ExportFormat {
     #[default]
@@ -31,11 +33,11 @@ pub enum ExportFormat {
     Csv,
 }
 
-fn default_page() -> u64 {
+const fn default_page() -> u64 {
     1
 }
 
-fn default_page_size() -> u64 {
+const fn default_page_size() -> u64 {
     50
 }
 
@@ -111,18 +113,17 @@ pub async fn export_logs(
     if query.format == ExportFormat::Csv {
         let mut csv = String::from("id,created_at,level,event_type,message,details\n");
         for log in dtos {
-            csv.push_str(&format!(
-                "{},{},{},{},\"{}\",\"{}\"\n",
+            let _ = writeln!(
+                csv,
+                "{},{},{},{},\"{}\",\"{}\"",
                 log.id,
                 log.created_at,
                 log.level,
                 log.event_type,
                 log.message.replace('"', "\"\""),
                 log.details.unwrap_or_default().replace('"', "\"\"")
-            ));
+            );
         }
-
-        use axum::http::header;
 
         return Ok((
             [
@@ -137,8 +138,6 @@ pub async fn export_logs(
             .into_response());
     }
 
-    // Default to JSON
-    use axum::http::header;
     let json =
         serde_json::to_string_pretty(&dtos).map_err(|e| ApiError::internal(e.to_string()))?;
 

@@ -20,7 +20,7 @@ pub struct AutoDownloadService {
 }
 
 impl AutoDownloadService {
-    pub fn new(
+    pub const fn new(
         store: Store,
         config: Arc<RwLock<Config>>,
         search_service: Arc<SearchService>,
@@ -55,7 +55,7 @@ impl AutoDownloadService {
             }
 
             if delay_secs > 0 {
-                tokio::time::sleep(tokio::time::Duration::from_secs(delay_secs as u64)).await;
+                tokio::time::sleep(tokio::time::Duration::from_secs(u64::from(delay_secs))).await;
             }
         }
 
@@ -66,9 +66,8 @@ impl AutoDownloadService {
     async fn check_anime_releases(&self, anime: &Anime) -> Result<()> {
         debug!("Checking: {}", anime.title.romaji);
 
-        // For finished anime, try to find SeaDex batch releases first
         if anime.status == "FINISHED"
-            && let Ok(true) = self.check_finished_anime_seadex(anime).await
+            && matches!(self.check_finished_anime_seadex(anime).await, Ok(true))
         {
             info!(
                 "Found and queued Seadex batch for {}, skipping individual episode search",
@@ -97,6 +96,7 @@ impl AutoDownloadService {
     }
 
     async fn process_search_result(&self, anime: &Anime, result: &SearchResult) -> Result<()> {
+        #[allow(clippy::cast_possible_truncation)]
         let episode_number = result.episode_number as i32;
 
         match &result.download_action {
@@ -128,8 +128,13 @@ impl AutoDownloadService {
                     anime.title.romaji, episode_number, old_quality, quality, reason
                 );
 
-                self.handle_upgrade_recycle(anime.id, episode_number, old_file_path, old_quality)
-                    .await;
+                self.handle_upgrade_recycle(
+                    anime.id,
+                    episode_number,
+                    old_file_path.as_ref(),
+                    old_quality,
+                )
+                .await;
 
                 self.queue_download_from_result(anime, result, quality, *is_seadex)
                     .await?;
@@ -167,7 +172,7 @@ impl AutoDownloadService {
         };
 
         match qbit.add_torrent_url(&result.link, Some(options)).await {
-            Ok(_) => {
+            Ok(()) => {
                 info!(
                     "✓ Queued: {} [{}{}]",
                     result.title,
@@ -197,7 +202,7 @@ impl AutoDownloadService {
         &self,
         anime_id: i32,
         episode_number: i32,
-        old_file_path: &Option<String>,
+        old_file_path: Option<&String>,
         old_quality: &crate::quality::Quality,
     ) {
         let Some(old_path) = old_file_path else {
@@ -245,9 +250,10 @@ impl AutoDownloadService {
 
         for release in releases.iter().take(3) {
             match self.try_queue_seadex_release(anime, release).await? {
-                SeadexQueueResult::Queued => return Ok(true),
-                SeadexQueueResult::AlreadyDownloaded => return Ok(true),
-                SeadexQueueResult::Skipped => continue,
+                SeadexQueueResult::Queued | SeadexQueueResult::AlreadyDownloaded => {
+                    return Ok(true);
+                }
+                SeadexQueueResult::Skipped => {}
             }
         }
 
@@ -263,22 +269,18 @@ impl AutoDownloadService {
             return Ok(SeadexQueueResult::Skipped);
         };
 
-        // Validate hash format (should be 40 hex characters)
         if hash.len() != 40 {
             return Ok(SeadexQueueResult::Skipped);
         }
 
-        // Check if blocked
         if self.store.is_blocked(hash).await.unwrap_or(false) {
             return Ok(SeadexQueueResult::Skipped);
         }
 
-        // Check if already downloaded
         if self.store.get_download_by_hash(hash).await?.is_some() {
             return Ok(SeadexQueueResult::AlreadyDownloaded);
         }
 
-        // Queue the download
         let Some(qbit) = &self.qbit else {
             info!(
                 "Would download Seadex Batch (qBit not available): {} [{}]",
@@ -297,7 +299,7 @@ impl AutoDownloadService {
         };
 
         match qbit.add_torrent_url(&release.url, Some(options)).await {
-            Ok(_) => {
+            Ok(()) => {
                 info!(
                     "✓ Queued Seadex Batch: {} [{}]",
                     anime.title.romaji, release.release_group
@@ -322,10 +324,8 @@ impl AutoDownloadService {
         }
     }
 
-    /// Re-implementation of SeaDex caching logic from SharedState
-    /// to avoid circular dependency.
     async fn get_seadex_releases_cached(&self, anime_id: i32) -> Vec<SeaDexRelease> {
-        if let Ok(true) = self.store.is_seadex_cache_fresh(anime_id).await
+        if matches!(self.store.is_seadex_cache_fresh(anime_id).await, Ok(true))
             && let Ok(Some(cache)) = self.store.get_seadex_cache(anime_id).await
         {
             let releases = cache.get_releases();

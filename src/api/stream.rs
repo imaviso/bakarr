@@ -28,11 +28,7 @@ pub async fn stream_episode(
     if let Ok(Some(_user)) = session.get::<String>("user").await {
         drop(config);
     } else {
-        let is_valid = if let Some(token) = &params.token {
-            token == &auth.api_key
-        } else {
-            false
-        };
+        let is_valid = params.token.as_ref() == Some(&auth.api_key);
 
         drop(config);
 
@@ -69,10 +65,10 @@ pub async fn stream_episode(
     let req = axum::http::Request::builder()
         .header("range", range_header)
         .body(axum::body::Body::empty())
-        .map_err(|e| ApiError::internal(format!("Failed to build request: {}", e)))?;
+        .map_err(|e| ApiError::internal(format!("Failed to build request: {e}")))?;
 
     match ServeFile::new(path).try_call(req).await {
         Ok(res) => Ok(res),
-        Err(e) => Err(ApiError::internal(format!("Streaming error: {}", e))),
+        Err(e) => Err(ApiError::internal(format!("Streaming error: {e}"))),
     }
 }

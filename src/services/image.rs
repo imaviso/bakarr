@@ -14,16 +14,17 @@ pub enum ImageType {
 }
 
 impl ImageType {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(&self) -> &'static str {
         match self {
-            ImageType::Cover => "cover",
-            ImageType::Banner => "banner",
+            Self::Cover => "cover",
+            Self::Banner => "banner",
         }
     }
 }
 
 impl ImageService {
-    pub fn new(config: Config) -> Self {
+    #[must_use]
+    pub const fn new(config: Config) -> Self {
         Self { config }
     }
 
@@ -40,21 +41,21 @@ impl ImageService {
 
         let filename = format!("{}_{}.{}", anime_id, image_type.as_str(), extension);
 
-        let images_dir = DataDir::get_images_dir(&self.config.general.images_path)?;
+        let images_dir = DataDir::get_images_dir(&self.config.general.images_path);
         if !images_dir.exists() {
             fs::create_dir_all(&images_dir).await?;
         }
 
         let file_path = images_dir.join(&filename);
 
-        info!("Downloading image from {} to {:?}", url, file_path);
+        info!("Downloading image from {} to {}", url, file_path.display());
 
         let response = reqwest::get(url).await?;
         let bytes = response.bytes().await?;
 
         fs::write(&file_path, bytes)
             .await
-            .with_context(|| format!("Failed to write image to {:?}", file_path))?;
+            .with_context(|| format!("Failed to write image to {}", file_path.display()))?;
 
         Ok(filename)
     }
@@ -63,7 +64,7 @@ impl ImageService {
 struct DataDir;
 
 impl DataDir {
-    fn get_images_dir(configured_path: &str) -> Result<PathBuf> {
-        Ok(PathBuf::from(configured_path))
+    fn get_images_dir(configured_path: &str) -> PathBuf {
+        PathBuf::from(configured_path)
     }
 }

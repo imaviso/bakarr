@@ -20,7 +20,8 @@ pub struct RssCheckStats {
 }
 
 impl RssService {
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         store: Store,
         nyaa: Arc<NyaaClient>,
         qbit: Option<Arc<QBitClient>>,
@@ -37,7 +38,7 @@ impl RssService {
     pub async fn check_feeds(&self, delay_secs: u64) -> anyhow::Result<RssCheckStats> {
         let feeds = self.store.get_enabled_rss_feeds().await?;
         let monitored = self.store.list_monitored().await?;
-        let total_feeds = feeds.len() as i32;
+        let total_feeds = i32::try_from(feeds.len()).unwrap_or(i32::MAX);
         let mut stats = RssCheckStats {
             total_feeds,
             ..Default::default()
@@ -58,7 +59,7 @@ impl RssService {
             if let Err(e) = self
                 .event_bus
                 .send(crate::api::NotificationEvent::RssCheckProgress {
-                    current: (i + 1) as i32,
+                    current: i32::try_from(i + 1).unwrap_or(i32::MAX),
                     total: total_feeds,
                     feed_name: name.to_string(),
                 })
@@ -66,15 +67,13 @@ impl RssService {
                 debug!("Failed to send RssCheckProgress event: {}", e);
             }
 
-            let anime = monitored.iter().find(|a| a.id == feed.anime_id);
-            if anime.is_none() {
+            let Some(anime) = monitored.iter().find(|a| a.id == feed.anime_id) else {
                 warn!(
                     "RSS feed {} references unknown anime {}",
                     feed.id, feed.anime_id
                 );
                 continue;
-            }
-            let anime = anime.unwrap();
+            };
 
             match self
                 .nyaa
@@ -82,7 +81,7 @@ impl RssService {
                 .await
             {
                 Ok((new_items, new_hash)) => {
-                    let count = new_items.len() as i32;
+                    let count = i32::try_from(new_items.len()).unwrap_or(i32::MAX);
                     stats.new_items += count;
 
                     if let Err(e) = self
@@ -171,7 +170,7 @@ impl RssService {
             };
 
             match qbit.add_torrent_url(&magnet, Some(options)).await {
-                Ok(_) => {
+                Ok(()) => {
                     info!("✓ [RSS] Queued: {} in category {}", torrent.title, category);
 
                     self.store
