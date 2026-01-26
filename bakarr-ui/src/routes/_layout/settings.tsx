@@ -5,7 +5,12 @@ import {
 	IconListCheck,
 	IconPlus,
 	IconPower,
+	IconRefresh,
+	IconSearch,
 	IconSettings,
+	IconClock,
+	IconDownload,
+	IconDatabase,
 	IconTrash,
 	IconX,
 } from "@tabler/icons-solidjs";
@@ -1385,6 +1390,205 @@ function SystemForm(props: {
 								<TextFieldLabel>Password</TextFieldLabel>
 								<TextFieldInput type="password" autocomplete="off" />
 							</TextField>
+						)}
+					</form.Field>
+				</div>
+			</section>
+
+			{/* Scheduler Section */}
+			<section class="space-y-6">
+				<div class="mb-4 pb-2 border-b flex justify-between items-center">
+					<div>
+						<h3 class="text-base font-medium text-foreground">
+							Scheduler
+						</h3>
+						<p class="text-sm text-muted-foreground mt-1">
+							Configure background tasks and check intervals
+						</p>
+					</div>
+					<form.Field name="scheduler.enabled">
+						{(field) => (
+							<div class="flex items-center gap-3">
+								<span class="text-sm font-medium text-muted-foreground flex items-center gap-2">
+									<IconPower class="h-3.5 w-3.5" />
+									Enabled
+								</span>
+								<Switch
+									checked={field().state.value}
+									onChange={(checked) => field().handleChange(checked)}
+								/>
+							</div>
+						)}
+					</form.Field>
+				</div>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+					<form.Field name="scheduler.check_interval_minutes">
+						{(field) => (
+							<TextField
+								value={field().state.value.toString()}
+								onChange={(v) => field().handleChange(Number(v))}
+							>
+								<TextFieldLabel>Check Interval (Minutes)</TextFieldLabel>
+								<TextFieldInput type="number" />
+							</TextField>
+						)}
+					</form.Field>
+					<form.Field name="scheduler.max_concurrent_checks">
+						{(field) => (
+							<TextField
+								value={field().state.value.toString()}
+								onChange={(v) => field().handleChange(Number(v))}
+							>
+								<TextFieldLabel>Max Concurrent Checks</TextFieldLabel>
+								<TextFieldInput type="number" />
+							</TextField>
+						)}
+					</form.Field>
+					<form.Field name="scheduler.check_delay_seconds">
+						{(field) => (
+							<TextField
+								value={field().state.value.toString()}
+								onChange={(v) => field().handleChange(Number(v))}
+							>
+								<TextFieldLabel>Check Delay (Seconds)</TextFieldLabel>
+								<TextFieldInput type="number" />
+							</TextField>
+						)}
+					</form.Field>
+					<form.Field name="scheduler.cron_expression">
+						{(field) => (
+							<TextField
+								value={field().state.value || ""}
+								onChange={field().handleChange}
+							>
+								<TextFieldLabel>Cron Expression (Optional)</TextFieldLabel>
+								<TextFieldInput placeholder="0 */6 * * *" />
+								<p class="text-xs text-muted-foreground mt-1">
+									Overrides interval if set
+								</p>
+							</TextField>
+						)}
+					</form.Field>
+				</div>
+			</section>
+
+			{/* Indexer Section */}
+			<section class="space-y-6">
+				<div class="mb-4 pb-2 border-b">
+					<h3 class="text-base font-medium text-foreground">Indexer</h3>
+					<p class="text-sm text-muted-foreground mt-1">
+						Nyaa.si configuration
+					</p>
+				</div>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+					<form.Field name="nyaa.base_url">
+						{(field) => (
+							<TextField
+								value={field().state.value}
+								onChange={field().handleChange}
+							>
+								<TextFieldLabel>Base URL</TextFieldLabel>
+								<TextFieldInput placeholder="https://nyaa.si" />
+							</TextField>
+						)}
+					</form.Field>
+					<form.Field name="nyaa.min_seeders">
+						{(field) => (
+							<TextField
+								value={field().state.value.toString()}
+								onChange={(v) => field().handleChange(Number(v))}
+							>
+								<TextFieldLabel>Minimum Seeders</TextFieldLabel>
+								<TextFieldInput type="number" />
+							</TextField>
+						)}
+					</form.Field>
+					<form.Field name="nyaa.filter_remakes">
+						{(field) => (
+							<div class="flex items-center gap-3 pt-6">
+								<Switch
+									checked={field().state.value}
+									onChange={(checked) => field().handleChange(checked)}
+								/>
+								<div>
+									<span class="text-sm font-medium block">
+										Filter Remakes
+									</span>
+									<span class="text-xs text-muted-foreground">
+										Exclude remakes from search results
+									</span>
+								</div>
+							</div>
+						)}
+					</form.Field>
+				</div>
+			</section>
+
+			{/* Downloads Section */}
+			<section class="space-y-6">
+				<div class="mb-4 pb-2 border-b">
+					<h3 class="text-base font-medium text-foreground">Downloads</h3>
+					<p class="text-sm text-muted-foreground mt-1">
+						Global download and folder settings
+					</p>
+				</div>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+					<form.Field name="downloads.root_path">
+						{(field) => (
+							<TextField
+								value={field().state.value}
+								onChange={field().handleChange}
+							>
+								<TextFieldLabel>Download Root Path</TextFieldLabel>
+								<TextFieldInput />
+							</TextField>
+						)}
+					</form.Field>
+					<form.Field name="downloads.max_size_gb">
+						{(field) => (
+							<TextField
+								value={field().state.value.toString()}
+								onChange={(v) => field().handleChange(Number(v))}
+							>
+								<TextFieldLabel>Max Size (GB)</TextFieldLabel>
+								<TextFieldInput type="number" />
+							</TextField>
+						)}
+					</form.Field>
+					<form.Field name="downloads.create_anime_folders">
+						{(field) => (
+							<div class="flex items-center gap-3 pt-6">
+								<Switch
+									checked={field().state.value}
+									onChange={(checked) => field().handleChange(checked)}
+								/>
+								<div>
+									<span class="text-sm font-medium block">
+										Create Anime Folders
+									</span>
+									<span class="text-xs text-muted-foreground">
+										Create a separate folder for each anime
+									</span>
+								</div>
+							</div>
+						)}
+					</form.Field>
+					<form.Field name="downloads.use_seadex">
+						{(field) => (
+							<div class="flex items-center gap-3 pt-6">
+								<Switch
+									checked={field().state.value}
+									onChange={(checked) => field().handleChange(checked)}
+								/>
+								<div>
+									<span class="text-sm font-medium block">
+										Use SeaDex
+									</span>
+									<span class="text-xs text-muted-foreground">
+										Use SeaDex for release scoring and best release selection
+									</span>
+								</div>
+							</div>
 						)}
 					</form.Field>
 				</div>
