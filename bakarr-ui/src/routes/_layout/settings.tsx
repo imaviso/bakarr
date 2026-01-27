@@ -1120,6 +1120,9 @@ const ConfigSchema = v.object({
 		log_level: v.string(),
 		images_path: v.string(),
 		suppress_connection_errors: v.boolean(),
+		worker_threads: v.number(),
+		max_db_connections: v.number(),
+		min_db_connections: v.number(),
 	}),
 	qbittorrent: v.object({
 		enabled: v.boolean(),
@@ -1141,6 +1144,7 @@ const ConfigSchema = v.object({
 		cron_expression: v.nullish(v.string()),
 		max_concurrent_checks: v.number(),
 		check_delay_seconds: v.number(),
+		metadata_refresh_hours: v.number(),
 	}),
 	downloads: v.object({
 		root_path: v.pipe(
@@ -1337,6 +1341,46 @@ function SystemForm(props: {
 							</TextField>
 						)}
 					</form.Field>
+
+					<form.Field name="general.worker_threads">
+						{(field) => (
+							<TextField
+								value={field().state.value?.toString() ?? "2"}
+								onChange={(v) => field().handleChange(Number(v))}
+							>
+								<TextFieldLabel>Worker Threads</TextFieldLabel>
+								<TextFieldInput type="number" min="0" placeholder="2" />
+								<p class="text-xs text-muted-foreground mt-1">
+									Set to 0 to use all CPU cores
+								</p>
+							</TextField>
+						)}
+					</form.Field>
+
+					<form.Field name="general.max_db_connections">
+						{(field) => (
+							<TextField
+								value={field().state.value?.toString() ?? "5"}
+								onChange={(v) => field().handleChange(Number(v))}
+							>
+								<TextFieldLabel>Max DB Connections</TextFieldLabel>
+								<TextFieldInput type="number" min="1" placeholder="5" />
+							</TextField>
+						)}
+					</form.Field>
+
+					<form.Field name="general.min_db_connections">
+						{(field) => (
+							<TextField
+								value={field().state.value?.toString() ?? "1"}
+								onChange={(v) => field().handleChange(Number(v))}
+							>
+								<TextFieldLabel>Min DB Connections</TextFieldLabel>
+								<TextFieldInput type="number" min="0" placeholder="1" />
+							</TextField>
+						)}
+					</form.Field>
+
 					<form.Field name="general.suppress_connection_errors">
 						{(field) => (
 							<div class="flex items-center gap-3 pt-6">
@@ -1602,6 +1646,17 @@ function SystemForm(props: {
 									onChange={(v) => field().handleChange(Number(v))}
 								>
 									<TextFieldLabel>Check Delay (Seconds)</TextFieldLabel>
+									<TextFieldInput type="number" />
+								</TextField>
+							)}
+						</form.Field>
+						<form.Field name="scheduler.metadata_refresh_hours">
+							{(field) => (
+								<TextField
+									value={field().state.value.toString()}
+									onChange={(v) => field().handleChange(Number(v))}
+								>
+									<TextFieldLabel>Metadata Refresh (Hours)</TextFieldLabel>
 									<TextFieldInput type="number" />
 								</TextField>
 							)}

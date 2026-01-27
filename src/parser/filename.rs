@@ -310,11 +310,17 @@ fn extract_source(s: &str) -> Option<String> {
     re.find(s).map(|m| {
         let src = m.as_str();
 
-        match src.to_uppercase().as_str() {
-            "BLURAY" | "BLU-RAY" => "BD".to_string(),
-            "WEBRIP" | "WEB-RIP" => "WEBRIP".to_string(),
-            "WEBDL" | "WEB-DL" | "WEB" => "WEB".to_string(),
-            _ => src.to_string(),
+        if src.eq_ignore_ascii_case("BluRay") || src.eq_ignore_ascii_case("Blu-Ray") {
+            "BD".to_string()
+        } else if src.eq_ignore_ascii_case("WEBRip") || src.eq_ignore_ascii_case("WEB-Rip") {
+            "WEBRIP".to_string()
+        } else if src.eq_ignore_ascii_case("WEBDL")
+            || src.eq_ignore_ascii_case("WEB-DL")
+            || src.eq_ignore_ascii_case("WEB")
+        {
+            "WEB".to_string()
+        } else {
+            src.to_string()
         }
     })
 }

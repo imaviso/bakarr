@@ -62,7 +62,12 @@ impl SharedState {
         config: Config,
         event_bus: broadcast::Sender<NotificationEvent>,
     ) -> anyhow::Result<Self> {
-        let store = Store::new(&config.general.database_path).await?;
+        let store = Store::with_pool_options(
+            &config.general.database_path,
+            config.general.max_db_connections,
+            config.general.min_db_connections,
+        )
+        .await?;
         store.initialize_quality_system(&config).await?;
 
         let nyaa = Arc::new(NyaaClient::with_timeout(std::time::Duration::from_secs(

@@ -112,6 +112,23 @@ impl AnimeRepository {
         Ok(result.map(|(anime, profile)| Self::map_model_to_anime(anime, profile)))
     }
 
+    pub async fn get_by_ids(&self, ids: &[i32]) -> anyhow::Result<Vec<Anime>> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let rows = MonitoredAnime::find()
+            .filter(monitored_anime::Column::Id.is_in(ids.to_vec()))
+            .find_also_related(quality_profiles::Entity)
+            .all(&self.conn)
+            .await?;
+
+        Ok(rows
+            .into_iter()
+            .map(|(anime, profile)| Self::map_model_to_anime(anime, profile))
+            .collect())
+    }
+
     pub async fn list_monitored(&self) -> anyhow::Result<Vec<Anime>> {
         let rows = MonitoredAnime::find()
             .filter(monitored_anime::Column::Monitored.eq(true))

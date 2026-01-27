@@ -66,7 +66,7 @@ pub async fn get_queue(
 
     let qbit = QBitClient::new(qbit_config);
 
-    match qbit.get_torrents(None).await {
+    match qbit.get_torrents(None, None).await {
         Ok(torrents) => {
             let active_torrents: Vec<_> = torrents
                 .into_iter()

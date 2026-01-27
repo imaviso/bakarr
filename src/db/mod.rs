@@ -4,8 +4,9 @@ use crate::models::anime::Anime;
 use crate::models::episode::{EpisodeInput, EpisodeStatusInput};
 use crate::models::media::MediaInfo;
 use anyhow::Result;
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::path::Path;
+use std::time::Duration;
 use tracing::info;
 
 use crate::entities::episode_metadata;
@@ -29,6 +30,14 @@ pub struct Store {
 
 impl Store {
     pub async fn new(db_url: &str) -> Result<Self> {
+        Self::with_pool_options(db_url, 5, 1).await
+    }
+
+    pub async fn with_pool_options(
+        db_url: &str,
+        max_connections: u32,
+        min_connections: u32,
+    ) -> Result<Self> {
         use sea_orm_migration::MigratorTrait;
 
         if !db_url.starts_with(":memory:") {
@@ -41,11 +50,23 @@ impl Store {
             }
         }
 
-        let conn = Database::connect(db_url).await?;
+        let mut opt = ConnectOptions::new(db_url.to_string());
+        opt.max_connections(max_connections)
+            .min_connections(min_connections)
+            .connect_timeout(Duration::from_secs(10))
+            .acquire_timeout(Duration::from_secs(10))
+            .idle_timeout(Duration::from_secs(300))
+            .max_lifetime(Duration::from_secs(600))
+            .sqlx_logging(false);
+
+        let conn = Database::connect(opt).await?;
 
         migrator::Migrator::up(&conn, None).await?;
 
-        info!("Database connected & migrations applied");
+        info!(
+            "Database connected & migrations applied (pool: {}-{})",
+            min_connections, max_connections
+        );
 
         Ok(Self { conn })
     }
@@ -92,6 +113,10 @@ impl Store {
 
     pub async fn get_anime(&self, id: i32) -> Result<Option<Anime>> {
         self.anime_repo().get(id).await
+    }
+
+    pub async fn get_animes_by_ids(&self, ids: &[i32]) -> Result<Vec<Anime>> {
+        self.anime_repo().get_by_ids(ids).await
     }
 
     pub async fn list_monitored(&self) -> Result<Vec<Anime>> {
@@ -145,6 +170,10 @@ impl Store {
 
     pub async fn get_download_by_hash(&self, hash: &str) -> Result<Option<DownloadEntry>> {
         self.download_repo().get_by_hash(hash).await
+    }
+
+    pub async fn get_downloads_by_hashes(&self, hashes: &[String]) -> Result<Vec<DownloadEntry>> {
+        self.download_repo().get_by_hashes(hashes).await
     }
 
     pub async fn is_downloaded(&self, filename: &str) -> Result<bool> {

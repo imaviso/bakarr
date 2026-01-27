@@ -80,6 +80,19 @@ impl DownloadRepository {
         Ok(result.map(Self::map_release_model))
     }
 
+    pub async fn get_by_hashes(&self, hashes: &[String]) -> Result<Vec<DownloadEntry>> {
+        if hashes.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let rows = ReleaseHistory::find()
+            .filter(release_history::Column::InfoHash.is_in(hashes))
+            .all(&self.conn)
+            .await?;
+
+        Ok(rows.into_iter().map(Self::map_release_model).collect())
+    }
+
     pub async fn is_downloaded(&self, filename: &str) -> Result<bool> {
         let count = ReleaseHistory::find()
             .filter(release_history::Column::Filename.eq(filename))

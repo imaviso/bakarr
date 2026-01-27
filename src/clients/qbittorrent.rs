@@ -327,14 +327,24 @@ impl QBitClient {
         self.add_torrent_url(magnet, Some(options)).await
     }
 
-    pub async fn get_torrents(&self, category: Option<&str>) -> Result<Vec<TorrentInfo>> {
+    pub async fn get_torrents(
+        &self,
+        filter: Option<&str>,
+        category: Option<&str>,
+    ) -> Result<Vec<TorrentInfo>> {
         self.ensure_auth().await?;
 
         let base_url = format!("{}/api/v2/torrents/info", self.config.base_url);
         let mut url = Url::parse(&base_url)?;
 
-        if let Some(cat) = category {
-            url.query_pairs_mut().append_pair("category", cat);
+        {
+            let mut pairs = url.query_pairs_mut();
+            if let Some(f) = filter {
+                pairs.append_pair("filter", f);
+            }
+            if let Some(cat) = category {
+                pairs.append_pair("category", cat);
+            }
         }
 
         let response = self
@@ -364,20 +374,18 @@ impl QBitClient {
     }
 
     pub async fn get_torrent_count(&self) -> Result<usize> {
-        let torrents = self.get_torrents(None).await?;
+        let torrents = self.get_torrents(None, None).await?;
         Ok(torrents.len())
     }
 
     pub async fn get_downloading_count(&self) -> Result<usize> {
-        let torrents = self.get_torrents(None).await?;
-        Ok(torrents
-            .into_iter()
-            .filter(|t| !t.state.is_completed())
-            .count())
+        // filter="downloading" handles: downloading, metaDL, stalledDL, checkingDL, pausedDL, queuedDL
+        let torrents = self.get_torrents(Some("downloading"), None).await?;
+        Ok(torrents.len())
     }
 
     pub async fn get_torrent(&self, hash: &str) -> Result<Option<TorrentInfo>> {
-        let torrents = self.get_torrents(None).await?;
+        let torrents = self.get_torrents(None, None).await?;
         Ok(torrents
             .into_iter()
             .find(|t| t.hash.eq_ignore_ascii_case(hash)))

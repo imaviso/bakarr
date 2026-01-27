@@ -27,6 +27,10 @@ use state::SharedState;
 
 pub async fn run() -> anyhow::Result<()> {
     let config = Config::load()?;
+    run_with_config(config).await
+}
+
+pub async fn run_with_config(config: Config) -> anyhow::Result<()> {
     config.validate()?;
 
     let prometheus_handle = init_prometheus(&config)?;

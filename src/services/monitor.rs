@@ -66,15 +66,12 @@ impl Monitor {
 
         let Some(client) = qbit else { return Ok(()) };
 
-        let torrents = client.get_torrents(None).await?;
+        // Optimization: Filter by "downloading" on the server side
+        // This dramatically reduces the payload size every 2 seconds
+        let torrents = client.get_torrents(Some("downloading"), None).await?;
 
         let downloads: Vec<crate::api::events::DownloadStatus> = torrents
             .into_iter()
-            .filter(|t| {
-                !t.state.is_completed()
-                    && t.state != crate::clients::qbittorrent::TorrentState::StoppedUP
-                    && t.progress < 1.0
-            })
             .map(|t| {
                 #[allow(clippy::cast_possible_truncation)]
                 let progress = t.progress as f32;
@@ -111,7 +108,15 @@ impl Monitor {
 
         let Some(client) = qbit else { return Ok(()) };
 
-        let torrents = match client.get_torrents(None).await {
+        // Optimization & Safety: Filter by default category (e.g. "bakarr")
+        // This prevents touching/deleting non-bakarr torrents and reduces processing
+        let category_filter = if config.qbittorrent.default_category.is_empty() {
+            None
+        } else {
+            Some(config.qbittorrent.default_category.as_str())
+        };
+
+        let torrents = match client.get_torrents(None, category_filter).await {
             Ok(t) => {
                 debug!("Fetched {} torrents from qBittorrent", t.len());
                 t
@@ -123,6 +128,9 @@ impl Monitor {
         };
 
         let library = LibraryService::new(config.library.clone());
+
+        let mut completed_hashes = Vec::new();
+        let mut completed_torrents = Vec::new();
 
         for torrent in torrents {
             if self
@@ -136,7 +144,34 @@ impl Monitor {
                 continue;
             }
 
-            self.process_completed_torrent(&store, &library, &config, &torrent)
+            completed_hashes.push(torrent.hash.clone());
+            completed_torrents.push(torrent);
+        }
+
+        if completed_hashes.is_empty() {
+            return Ok(());
+        }
+
+        let entries = store.get_downloads_by_hashes(&completed_hashes).await?;
+
+        let mut anime_ids: Vec<i32> = entries.iter().map(|e| e.anime_id).collect();
+        anime_ids.sort_unstable();
+        anime_ids.dedup();
+
+        let animes = store.get_animes_by_ids(&anime_ids).await?;
+        let anime_map: std::collections::HashMap<i32, crate::models::anime::Anime> =
+            animes.into_iter().map(|a| (a.id, a)).collect();
+
+        let entries_map: std::collections::HashMap<String, crate::db::DownloadEntry> = entries
+            .into_iter()
+            .filter_map(|e| e.info_hash.clone().map(|h| (h, e)))
+            .collect();
+
+        for torrent in completed_torrents {
+            let entry = entries_map.get(&torrent.hash);
+            let anime = entry.and_then(|e| anime_map.get(&e.anime_id));
+
+            self.process_completed_torrent(&store, &library, &config, &torrent, entry, anime)
                 .await?;
         }
 
@@ -204,10 +239,10 @@ impl Monitor {
         library: &LibraryService,
         config: &crate::config::Config,
         torrent: &crate::clients::qbittorrent::TorrentInfo,
+        entry: Option<&crate::db::DownloadEntry>,
+        anime: Option<&crate::models::anime::Anime>,
     ) -> anyhow::Result<()> {
-        let entry = store.get_download_by_hash(&torrent.hash).await?;
-
-        if let Some(entry) = &entry {
+        if let Some(entry) = entry {
             if entry.imported {
                 debug!(
                     "Skipping already imported download: {} ({})",
@@ -229,7 +264,7 @@ impl Monitor {
         }
 
         let entry = entry.unwrap();
-        let Some(anime) = store.get_anime(entry.anime_id).await? else {
+        let Some(anime) = anime else {
             warn!(
                 "Anime {} not found for download {}",
                 entry.anime_id, entry.id
@@ -257,11 +292,11 @@ impl Monitor {
 
         let import_result = if source_path.is_file() {
             debug!("Source is a single file");
-            self.import_single_file(library, &anime, source_path, &entry)
+            self.import_single_file(library, anime, source_path, entry)
                 .await
         } else if source_path.is_dir() {
             debug!("Source is a directory");
-            self.import_directory(library, &anime, source_path).await
+            self.import_directory(library, anime, source_path).await
         } else {
             warn!("Unknown path type for {}: {:?}", torrent.name, source_path);
             return Ok(());

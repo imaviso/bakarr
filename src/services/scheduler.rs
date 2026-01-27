@@ -48,6 +48,7 @@ impl Scheduler {
         let running = Arc::clone(&self.running);
         let delay_secs = self.config.check_delay_seconds;
 
+        // Main anime/rss check job
         let state_for_job = Arc::clone(&state);
         let job = Job::new_async(cron_expr, move |_uuid, _lock| {
             let state = Arc::clone(&state_for_job);
@@ -56,55 +57,64 @@ impl Scheduler {
                 if !*running.read().await {
                     return;
                 }
-                if let Err(e) = state
-                    .read()
-                    .await
-                    .auto_downloader
-                    .check_all_anime(delay_secs)
-                    .await
-                {
+
+                let auto_downloader = state.read().await.auto_downloader.clone();
+                if let Err(e) = auto_downloader.check_all_anime(delay_secs).await {
                     error!("Scheduled anime check failed: {}", e);
                 }
 
-                if let Err(e) = state
-                    .read()
-                    .await
-                    .rss_service
-                    .check_feeds(u64::from(delay_secs))
-                    .await
-                {
+                let rss_service = state.read().await.rss_service.clone();
+                if let Err(e) = rss_service.check_feeds(u64::from(delay_secs)).await {
                     error!("Scheduled RSS check failed: {}", e);
                 }
             })
         })?;
 
+        // Metadata refresh job
+        let refresh_hours = self.config.metadata_refresh_hours.max(1);
+        let refresh_cron = if refresh_hours >= 24 {
+            // Run once a day at midnight if >= 24 hours
+            "0 0 0 * * *".to_string()
+        } else {
+            format!("0 0 */{refresh_hours} * * *")
+        };
+
         let state_for_metadata = Arc::clone(&state);
-        let metadata_job = Job::new_async("0 0 */12 * * *", move |_uuid, _lock| {
+        let metadata_job = Job::new_async(&refresh_cron, move |_uuid, _lock| {
             let state = Arc::clone(&state_for_metadata);
             Box::pin(async move {
-                if let Err(e) = state
-                    .read()
-                    .await
-                    .episodes
-                    .refresh_metadata_for_active_anime()
-                    .await
-                {
+                let episodes = state.read().await.episodes.clone();
+                if let Err(e) = episodes.refresh_metadata_for_active_anime().await {
                     error!("Scheduled metadata refresh failed: {}", e);
                 }
             })
         })?;
 
+        // Library scan job
+        let scan_hours = {
+            let shared = self.state.read().await;
+            shared
+                .config
+                .read()
+                .await
+                .library
+                .auto_scan_interval_hours
+                .max(1)
+        };
+
+        let scan_cron = if scan_hours >= 24 {
+            // Run once a day at midnight if >= 24 hours
+            "0 0 0 * * *".to_string()
+        } else {
+            format!("0 0 */{scan_hours} * * *")
+        };
+
         let state_for_scan = Arc::clone(&state);
-        let scan_job = Job::new_async("0 0 */12 * * *", move |_uuid, _lock| {
+        let scan_job = Job::new_async(&scan_cron, move |_uuid, _lock| {
             let state = Arc::clone(&state_for_scan);
             Box::pin(async move {
-                if let Err(e) = state
-                    .read()
-                    .await
-                    .library_scanner
-                    .scan_library_files()
-                    .await
-                {
+                let scanner = state.read().await.library_scanner.clone();
+                if let Err(e) = scanner.scan_library_files().await {
                     error!("Scheduled library scan failed: {}", e);
                 }
             })
@@ -116,6 +126,8 @@ impl Scheduler {
         sched.start().await?;
 
         info!("Scheduler running with cron: {}", cron_expr);
+        info!("Metadata refresh scheduled: {}", refresh_cron);
+        info!("Library scan scheduled: {}", scan_cron);
 
         loop {
             if !*self.running.read().await {
@@ -129,15 +141,24 @@ impl Scheduler {
     }
 
     async fn run_with_interval(&self) -> Result<()> {
-        let interval_mins = self.config.check_interval_minutes;
+        let interval_mins = self.config.check_interval_minutes.max(1);
         let delay_secs = self.config.check_delay_seconds;
-        let refresh_hours = self.config.metadata_refresh_hours;
+        let refresh_hours = self.config.metadata_refresh_hours.max(1);
         let scan_hours = {
             let shared = self.state.read().await;
-            shared.config.read().await.library.auto_scan_interval_hours
+            shared
+                .config
+                .read()
+                .await
+                .library
+                .auto_scan_interval_hours
+                .max(1)
         };
 
-        info!("Scheduler running every {} minutes", interval_mins);
+        info!(
+            "Scheduler running: Check every {}m, Metadata every {}h, Scan every {}h",
+            interval_mins, refresh_hours, scan_hours
+        );
 
         let mut check_interval = interval(Duration::from_secs(u64::from(interval_mins) * 60));
 
@@ -153,10 +174,14 @@ impl Scheduler {
                         break;
                     }
                     info!("Running scheduled checks...");
-                    if let Err(e) = self.state.read().await.auto_downloader.check_all_anime(delay_secs).await {
+
+                    let auto_downloader = self.state.read().await.auto_downloader.clone();
+                    if let Err(e) = auto_downloader.check_all_anime(delay_secs).await {
                         error!("Scheduled anime check failed: {}", e);
                     }
-                    if let Err(e) = self.state.read().await.rss_service.check_feeds(u64::from(delay_secs)).await {
+
+                    let rss_service = self.state.read().await.rss_service.clone();
+                    if let Err(e) = rss_service.check_feeds(u64::from(delay_secs)).await {
                         error!("Scheduled RSS check failed: {}", e);
                     }
                 }
@@ -173,7 +198,8 @@ impl Scheduler {
                         break;
                     }
                     info!("Running scheduled library scan...");
-                    if let Err(e) = self.state.read().await.library_scanner.scan_library_files().await {
+                    let scanner = self.state.read().await.library_scanner.clone();
+                    if let Err(e) = scanner.scan_library_files().await {
                         error!("Scheduled library scan failed: {}", e);
                     }
                 }
@@ -195,17 +221,13 @@ impl Scheduler {
     pub async fn run_once(&self) -> Result<()> {
         info!("Running manual check...");
 
-        self.state
-            .read()
-            .await
-            .auto_downloader
+        let auto_downloader = self.state.read().await.auto_downloader.clone();
+        auto_downloader
             .check_all_anime(self.config.check_delay_seconds)
             .await?;
 
-        self.state
-            .read()
-            .await
-            .rss_service
+        let rss_service = self.state.read().await.rss_service.clone();
+        rss_service
             .check_feeds(u64::from(self.config.check_delay_seconds))
             .await?;
 
@@ -215,11 +237,7 @@ impl Scheduler {
     }
 
     async fn refresh_metadata(&self) -> Result<()> {
-        self.state
-            .read()
-            .await
-            .episodes
-            .refresh_metadata_for_active_anime()
-            .await
+        let episodes = self.state.read().await.episodes.clone();
+        episodes.refresh_metadata_for_active_anime().await
     }
 }

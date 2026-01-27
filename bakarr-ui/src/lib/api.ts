@@ -749,6 +749,9 @@ export interface Config {
 		log_level: string;
 		images_path: string;
 		suppress_connection_errors: boolean;
+		worker_threads: number;
+		max_db_connections: number;
+		min_db_connections: number;
 	};
 	qbittorrent: {
 		enabled: boolean;
@@ -770,6 +773,7 @@ export interface Config {
 		cron_expression?: string | null;
 		max_concurrent_checks: number;
 		check_delay_seconds: number;
+		metadata_refresh_hours: number;
 	};
 	downloads: {
 		root_path: string;

@@ -105,6 +105,16 @@ pub struct GeneralConfig {
 
     /// Event bus buffer size (default: 100)
     pub event_bus_buffer_size: usize,
+
+    /// Number of tokio worker threads (default: 2)
+    /// Set to 0 to use the number of CPU cores
+    pub worker_threads: usize,
+
+    /// Maximum database connections (default: 5)
+    pub max_db_connections: u32,
+
+    /// Minimum database connections (default: 1)
+    pub min_db_connections: u32,
 }
 
 impl Default for GeneralConfig {
@@ -115,6 +125,9 @@ impl Default for GeneralConfig {
             images_path: "images".to_string(),
             suppress_connection_errors: false,
             event_bus_buffer_size: 100,
+            worker_threads: 2,
+            max_db_connections: 5,
+            min_db_connections: 1,
         }
     }
 }
