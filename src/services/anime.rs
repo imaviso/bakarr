@@ -15,7 +15,7 @@ impl AnimeMetadataService {
     }
 
     pub async fn enrich_anime_metadata(&self, anime: &mut Anime) {
-        if let Some(mal_id) = self.offline_db.anilist_to_mal(anime.id) {
+        if let Ok(Some(mal_id)) = self.offline_db.anilist_to_mal(anime.id).await {
             anime.mal_id = Some(mal_id);
             let jikan_client = JikanClient::new();
             match jikan_client.get_anime(mal_id).await {

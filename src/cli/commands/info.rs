@@ -54,7 +54,7 @@ pub async fn cmd_anime_info(
     );
     println!("Status:   {}", anime.status);
 
-    display_external_mappings(id).await;
+    display_external_mappings(&store, id).await;
 
     let downloads = store.get_downloads_for_anime(id).await?;
     display_download_history(&downloads);
@@ -69,26 +69,21 @@ pub async fn cmd_anime_info(
     Ok(())
 }
 
-async fn display_external_mappings(id: i32) {
-    let offline_db = match OfflineDatabase::load().await {
-        Ok(db) => Some(db),
-        Err(e) => {
-            warn!("Failed to load offline database: {}", e);
-            None
-        }
-    };
+async fn display_external_mappings(store: &Store, id: i32) {
+    let offline_db = OfflineDatabase::new(store.clone());
 
-    if let Some(db) = offline_db
-        && let Some(mapping) = db
-            .get_by_anilist_id(id)
-            .map(crate::clients::offline_db::AnimeEntry::get_id_mapping)
-    {
+    if let Err(e) = offline_db.initialize().await {
+        warn!("Failed to initialize offline database: {}", e);
+        return;
+    }
+
+    if let Ok(Some(mapping)) = offline_db.get_by_anilist_id(id).await {
         println!("Mappings: Anilist: {id}");
         if let Some(mal_id) = mapping.mal_id {
             print!(" | MAL: {mal_id}");
         }
-        if let Some(ids) = mapping.kitsu_id {
-            print!(" | Kitsu: {ids}");
+        if let Some(kitsu_id) = mapping.kitsu_id {
+            print!(" | Kitsu: {kitsu_id}");
         }
         println!();
 

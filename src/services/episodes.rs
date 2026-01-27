@@ -10,7 +10,6 @@ use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 #[derive(Clone)]
@@ -18,7 +17,7 @@ pub struct EpisodeService {
     jikan: JikanClient,
     anilist: AnilistClient,
     kitsu: KitsuClient,
-    offline_db: Arc<RwLock<Option<OfflineDatabase>>>,
+    offline_db: OfflineDatabase,
     store: Store,
 
     recent_fetches: Arc<std::sync::RwLock<HashMap<i32, Instant>>>,
@@ -31,39 +30,24 @@ impl EpisodeService {
             jikan: JikanClient::new(),
             anilist: AnilistClient::new(),
             kitsu: KitsuClient::new(),
-            offline_db: Arc::new(RwLock::new(None)),
+            offline_db: OfflineDatabase::new(store.clone()),
             store,
             recent_fetches: Arc::new(std::sync::RwLock::new(HashMap::new())),
         }
     }
 
-    async fn ensure_offline_db(&self) -> Result<()> {
-        let mut db = self.offline_db.write().await;
-        if db.is_none() {
-            *db = Some(OfflineDatabase::load().await?);
-        }
-        drop(db);
-        Ok(())
-    }
-
     async fn get_mal_id(&self, anilist_id: i32) -> Option<i32> {
-        if let Err(e) = self.ensure_offline_db().await {
-            warn!("Failed to load offline database: {}", e);
-            return None;
-        }
-
-        let db = self.offline_db.read().await;
-        db.as_ref().and_then(|d| d.anilist_to_mal(anilist_id))
+        self.offline_db
+            .anilist_to_mal(anilist_id)
+            .await
+            .unwrap_or(None)
     }
 
     async fn get_kitsu_id(&self, anilist_id: i32) -> Option<i32> {
-        if let Err(e) = self.ensure_offline_db().await {
-            warn!("Failed to load offline database: {}", e);
-            return None;
-        }
-
-        let db = self.offline_db.read().await;
-        db.as_ref().and_then(|d| d.anilist_to_kitsu(anilist_id))
+        self.offline_db
+            .anilist_to_kitsu(anilist_id)
+            .await
+            .unwrap_or(None)
     }
 
     pub async fn get_episode_title(&self, anilist_id: i32, episode_number: i32) -> Result<String> {

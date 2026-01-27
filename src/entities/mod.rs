@@ -1,5 +1,6 @@
 pub mod prelude;
 
+pub mod anime_metadata;
 pub mod blocklist;
 pub mod episode_metadata;
 pub mod episode_status;

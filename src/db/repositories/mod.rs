@@ -1,4 +1,5 @@
 pub mod anime;
+pub mod anime_metadata;
 pub mod cache;
 pub mod download;
 pub mod episode;

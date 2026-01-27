@@ -115,11 +115,11 @@ pub async fn create_app_state(
 
     let image_service = Arc::new(ImageService::new(config.clone()));
 
-    let offline_db = Arc::new(
-        OfflineDatabase::load()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to load offline db: {e}"))?,
-    );
+    let offline_db = Arc::new(OfflineDatabase::new(shared.store.clone()));
+    offline_db
+        .initialize()
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to initialize offline db: {e}"))?;
 
     let metadata_service = Arc::new(AnimeMetadataService::new(offline_db.clone()));
 

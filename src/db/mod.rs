@@ -75,6 +75,10 @@ impl Store {
         repositories::anime::AnimeRepository::new(self.conn.clone())
     }
 
+    fn anime_metadata_repo(&self) -> repositories::anime_metadata::AnimeMetadataRepository {
+        repositories::anime_metadata::AnimeMetadataRepository::new(self.conn.clone())
+    }
+
     fn episode_repo(&self) -> repositories::episode::EpisodeRepository {
         repositories::episode::EpisodeRepository::new(self.conn.clone())
     }
@@ -570,6 +574,39 @@ impl Store {
 
     pub async fn delete_release_profile(&self, id: i32) -> Result<()> {
         self.release_profile_repo().delete_profile(id).await
+    }
+
+    // ========== Anime Metadata Repository Methods ==========
+
+    pub async fn is_anime_metadata_empty(&self) -> Result<bool> {
+        self.anime_metadata_repo().is_empty().await
+    }
+
+    pub async fn batch_insert_anime_metadata(
+        &self,
+        entries: Vec<crate::entities::anime_metadata::ActiveModel>,
+    ) -> Result<()> {
+        self.anime_metadata_repo().batch_insert(entries).await
+    }
+
+    pub async fn get_anime_metadata_by_anilist_id(
+        &self,
+        anilist_id: i32,
+    ) -> Result<Option<crate::entities::anime_metadata::Model>> {
+        self.anime_metadata_repo()
+            .get_by_anilist_id(anilist_id)
+            .await
+    }
+
+    pub async fn get_anime_metadata_by_mal_id(
+        &self,
+        mal_id: i32,
+    ) -> Result<Option<crate::entities::anime_metadata::Model>> {
+        self.anime_metadata_repo().get_by_mal_id(mal_id).await
+    }
+
+    pub async fn clear_anime_metadata(&self) -> Result<()> {
+        self.anime_metadata_repo().clear().await
     }
 
     // ========== User Repository Methods ==========
