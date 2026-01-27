@@ -107,8 +107,8 @@ import {
 	createUpdateAnimeProfileMutation,
 	episodesQueryOptions,
 	profilesQueryOptions,
-	systemConfigQueryOptions,
 } from "~/lib/api";
+import { useAuth } from "~/lib/auth";
 import { cn, copyToClipboard } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout/anime/$id")({
@@ -117,7 +117,6 @@ export const Route = createFileRoute("/_layout/anime/$id")({
 		await Promise.all([
 			queryClient.ensureQueryData(animeDetailsQueryOptions(animeId)),
 			queryClient.ensureQueryData(episodesQueryOptions(animeId)),
-			queryClient.ensureQueryData(systemConfigQueryOptions()),
 			queryClient.ensureQueryData(profilesQueryOptions()),
 		]);
 	},
@@ -129,10 +128,10 @@ function AnimeDetailsPage() {
 	const params = useParams({ from: "/_layout/anime/$id" });
 	const animeId = () => parseInt(params().id, 10);
 	const navigate = useNavigate();
+	const { auth } = useAuth();
 
 	const animeQuery = useQuery(() => animeDetailsQueryOptions(animeId()));
 	const episodesQuery = useQuery(() => episodesQueryOptions(animeId()));
-	const configQuery = useQuery(systemConfigQueryOptions);
 	const profilesQuery = useQuery(profilesQueryOptions);
 
 	const deleteAnime = createDeleteAnimeMutation();
@@ -181,7 +180,7 @@ function AnimeDetailsPage() {
 	const isMonitored = () => animeQuery.data?.monitored ?? true;
 
 	const handlePlayInMpv = (episodeNumber: number) => {
-		const apiKey = configQuery.data?.auth.api_key || "";
+		const apiKey = auth().apiKey || "";
 
 		const origin = window.location.origin;
 		const streamUrl = `${origin}/api/stream/${animeId()}/${episodeNumber}?token=${apiKey}`;
@@ -189,7 +188,7 @@ function AnimeDetailsPage() {
 	};
 
 	const handleCopyStreamLink = async (episodeNumber: number) => {
-		const apiKey = configQuery.data?.auth.api_key || "";
+		const apiKey = auth().apiKey || "";
 		const origin = window.location.origin;
 		const streamUrl = `${origin}/api/stream/${animeId()}/${episodeNumber}?token=${apiKey}`;
 		await copyToClipboard(streamUrl, "Stream URL");

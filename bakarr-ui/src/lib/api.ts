@@ -792,11 +792,6 @@ export interface Config {
 	};
 	// profiles are handled separately but present in full config
 	profiles: QualityProfile[];
-	auth: {
-		username: string;
-		password?: string | null;
-		api_key?: string | null;
-	};
 }
 
 // ==================== Profile & Config Hooks ====================
@@ -1412,5 +1407,65 @@ export function createTriggerRssCheckMutation() {
 	return useMutation(() => ({
 		mutationFn: () =>
 			fetchApi(`${API_BASE}/system/tasks/rss`, { method: "POST" }),
+	}));
+}
+
+// ==================== Auth API ====================
+
+export interface AuthUser {
+	id: number;
+	username: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface ApiKeyResponse {
+	api_key: string;
+}
+
+export function authMeQueryOptions() {
+	return queryOptions({
+		queryKey: ["auth", "me"],
+		queryFn: () => fetchApi<AuthUser>(`${API_BASE}/auth/me`),
+		staleTime: Infinity,
+	});
+}
+
+export function createAuthMeQuery() {
+	return useQuery(authMeQueryOptions);
+}
+
+export function authApiKeyQueryOptions() {
+	return queryOptions({
+		queryKey: ["auth", "api-key"],
+		queryFn: () => fetchApi<ApiKeyResponse>(`${API_BASE}/auth/api-key`),
+		staleTime: Infinity,
+	});
+}
+
+export function createAuthApiKeyQuery() {
+	return useQuery(authApiKeyQueryOptions);
+}
+
+export function createChangePasswordMutation() {
+	return useMutation(() => ({
+		mutationFn: (data: { current_password: string; new_password: string }) =>
+			fetchApi<void>(`${API_BASE}/auth/password`, {
+				method: "PUT",
+				body: JSON.stringify(data),
+			}),
+	}));
+}
+
+export function createRegenerateApiKeyMutation() {
+	const queryClient = useQueryClient();
+	return useMutation(() => ({
+		mutationFn: () =>
+			fetchApi<ApiKeyResponse>(`${API_BASE}/auth/api-key/regenerate`, {
+				method: "POST",
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["auth", "api-key"] });
+		},
 	}));
 }

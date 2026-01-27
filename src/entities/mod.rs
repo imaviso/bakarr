@@ -14,3 +14,4 @@ pub mod release_profiles;
 pub mod rss_feeds;
 pub mod seadex_cache;
 pub mod system_logs;
+pub mod users;

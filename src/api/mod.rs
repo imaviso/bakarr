@@ -173,6 +173,10 @@ pub async fn router(state: Arc<AppState>) -> Router {
         .merge(protected_routes)
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
+        .route("/auth/me", get(auth::get_current_user))
+        .route("/auth/password", put(auth::change_password))
+        .route("/auth/api-key", get(auth::get_api_key))
+        .route("/auth/api-key/regenerate", post(auth::regenerate_api_key))
         .route("/stream/{id}/{number}", get(stream::stream_episode))
         .layer(session_layer)
         .with_state(state.clone());

@@ -67,11 +67,6 @@ allowed_qualities = [
     "HDTV 720p",
 ]
 
-[auth]
-username = "admin"
-password = "password"
-api_key = "test-api-key"
-
 [server]
 enabled = true
 port = 6789

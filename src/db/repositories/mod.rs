@@ -6,3 +6,4 @@ pub mod logs;
 pub mod quality;
 pub mod release_profile;
 pub mod rss;
+pub mod user;

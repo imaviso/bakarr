@@ -70,7 +70,10 @@ function LoginPage() {
 			});
 
 			if (res.ok) {
-				loginSuccess(username());
+				const data = await res.json();
+				// Extract API key from response (format: { data: { api_key: "..." } })
+				const apiKey = data?.data?.api_key || data?.api_key;
+				loginSuccess(username(), apiKey);
 				navigate({ to: "/" });
 			} else if (res.status === 401) {
 				setError("Invalid username or password");

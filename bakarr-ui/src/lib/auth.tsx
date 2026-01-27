@@ -37,9 +37,10 @@ function saveAuth(state: AuthState) {
 }
 
 export function useAuth() {
-	const loginSuccess = (username: string) => {
+	const loginSuccess = (username: string, apiKey?: string) => {
 		saveAuth({
 			username,
+			apiKey,
 			isAuthenticated: true,
 		});
 	};

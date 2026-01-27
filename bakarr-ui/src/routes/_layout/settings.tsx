@@ -1,10 +1,16 @@
 import {
 	IconAdjustments,
+	IconCopy,
 	IconEdit,
+	IconEye,
+	IconEyeOff,
 	IconGripVertical,
+	IconKey,
 	IconListCheck,
+	IconLock,
 	IconPlus,
 	IconPower,
+	IconRefresh,
 	IconSettings,
 	IconTrash,
 	IconX,
@@ -30,6 +36,7 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Input } from "~/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -48,12 +55,15 @@ import {
 } from "~/components/ui/text-field";
 import {
 	type Config,
+	createAuthApiKeyQuery,
+	createChangePasswordMutation,
 	createCreateProfileMutation,
 	createCreateReleaseProfileMutation,
 	createDeleteProfileMutation,
 	createDeleteReleaseProfileMutation,
 	createProfilesQuery,
 	createQualitiesQuery,
+	createRegenerateApiKeyMutation,
 	createReleaseProfilesQuery,
 	createSystemConfigQuery,
 	createSystemStatusQuery,
@@ -69,6 +79,7 @@ import {
 	releaseProfilesQueryOptions,
 	systemConfigQueryOptions,
 } from "~/lib/api";
+import { useAuth } from "~/lib/auth";
 
 export const Route = createFileRoute("/_layout/settings")({
 	loader: ({ context: { queryClient } }) => {
@@ -130,6 +141,13 @@ function SettingsPage() {
 					>
 						<IconListCheck class="mr-2 h-4 w-4" />
 						Release Profiles
+					</TabsTrigger>
+					<TabsTrigger
+						value="security"
+						class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
+					>
+						<IconLock class="mr-2 h-4 w-4" />
+						Security
 					</TabsTrigger>
 				</TabsList>
 
@@ -518,6 +536,16 @@ function SettingsPage() {
 							</div>
 						</Show>
 					</Show>
+				</TabsContent>
+
+				<TabsContent value="security" class="mt-0">
+					<div class="mb-6">
+						<h2 class="text-lg font-medium">Security</h2>
+						<p class="text-sm text-muted-foreground">
+							Manage your password and API access
+						</p>
+					</div>
+					<SecuritySettingsForm />
 				</TabsContent>
 			</Tabs>
 		</div>
@@ -1160,11 +1188,6 @@ const ConfigSchema = v.object({
 			allowed_qualities: v.array(v.string()),
 		}),
 	),
-	auth: v.object({
-		username: v.string(),
-		password: v.nullish(v.string()),
-		api_key: v.nullish(v.string()),
-	}),
 });
 
 function GeneralSettingsForm() {
@@ -1788,5 +1811,271 @@ function SystemForm(props: {
 				</form.Subscribe>
 			</div>
 		</form>
+	);
+}
+
+function SecuritySettingsForm() {
+	const { auth } = useAuth();
+	const apiKeyQuery = createAuthApiKeyQuery();
+	const changePassword = createChangePasswordMutation();
+	const regenerateApiKey = createRegenerateApiKeyMutation();
+
+	const [currentPassword, setCurrentPassword] = createSignal("");
+	const [newPassword, setNewPassword] = createSignal("");
+	const [confirmPassword, setConfirmPassword] = createSignal("");
+	const [passwordError, setPasswordError] = createSignal<string | null>(null);
+	const [showCurrentPassword, setShowCurrentPassword] = createSignal(false);
+	const [showNewPassword, setShowNewPassword] = createSignal(false);
+	const [showApiKey, setShowApiKey] = createSignal(false);
+
+	const handleChangePassword = async (e: Event) => {
+		e.preventDefault();
+		setPasswordError(null);
+
+		if (newPassword().length < 8) {
+			setPasswordError("Password must be at least 8 characters");
+			return;
+		}
+
+		if (newPassword() !== confirmPassword()) {
+			setPasswordError("Passwords do not match");
+			return;
+		}
+
+		try {
+			await changePassword.mutateAsync({
+				current_password: currentPassword(),
+				new_password: newPassword(),
+			});
+			toast.success("Password changed successfully");
+			setCurrentPassword("");
+			setNewPassword("");
+			setConfirmPassword("");
+		} catch (err) {
+			setPasswordError(
+				err instanceof Error ? err.message : "Failed to change password",
+			);
+		}
+	};
+
+	const handleRegenerateApiKey = async () => {
+		try {
+			const result = await regenerateApiKey.mutateAsync();
+			// Update the stored API key in auth state
+			const currentAuth = auth();
+			if (currentAuth.isAuthenticated && result.api_key) {
+				localStorage.setItem(
+					"bakarr_auth",
+					JSON.stringify({
+						...currentAuth,
+						apiKey: result.api_key,
+					}),
+				);
+			}
+			toast.success("API key regenerated successfully");
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Failed to regenerate API key",
+			);
+		}
+	};
+
+	const copyApiKey = async () => {
+		const key = apiKeyQuery.data?.api_key;
+		if (key) {
+			await navigator.clipboard.writeText(key);
+			toast.success("API key copied to clipboard");
+		}
+	};
+
+	return (
+		<div class="space-y-8">
+			{/* Change Password Section */}
+			<Card>
+				<CardHeader>
+					<CardTitle class="text-base flex items-center gap-2">
+						<IconLock class="h-4 w-4" />
+						Change Password
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<form onSubmit={handleChangePassword} class="space-y-4 max-w-md">
+						<TextField>
+							<TextFieldLabel>Current Password</TextFieldLabel>
+							<div class="relative">
+								<TextFieldInput
+									type={showCurrentPassword() ? "text" : "password"}
+									value={currentPassword()}
+									onInput={(e) => setCurrentPassword(e.currentTarget.value)}
+									autocomplete="current-password"
+								/>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+									onClick={() => setShowCurrentPassword(!showCurrentPassword())}
+								>
+									<Show
+										when={showCurrentPassword()}
+										fallback={
+											<IconEyeOff class="h-4 w-4 text-muted-foreground" />
+										}
+									>
+										<IconEye class="h-4 w-4 text-muted-foreground" />
+									</Show>
+								</Button>
+							</div>
+						</TextField>
+
+						<TextField>
+							<TextFieldLabel>New Password</TextFieldLabel>
+							<div class="relative">
+								<TextFieldInput
+									type={showNewPassword() ? "text" : "password"}
+									value={newPassword()}
+									onInput={(e) => setNewPassword(e.currentTarget.value)}
+									autocomplete="new-password"
+								/>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+									onClick={() => setShowNewPassword(!showNewPassword())}
+								>
+									<Show
+										when={showNewPassword()}
+										fallback={
+											<IconEyeOff class="h-4 w-4 text-muted-foreground" />
+										}
+									>
+										<IconEye class="h-4 w-4 text-muted-foreground" />
+									</Show>
+								</Button>
+							</div>
+							<p class="text-xs text-muted-foreground mt-1">
+								Minimum 8 characters
+							</p>
+						</TextField>
+
+						<TextField>
+							<TextFieldLabel>Confirm New Password</TextFieldLabel>
+							<TextFieldInput
+								type="password"
+								value={confirmPassword()}
+								onInput={(e) => setConfirmPassword(e.currentTarget.value)}
+								autocomplete="new-password"
+							/>
+						</TextField>
+
+						<Show when={passwordError()}>
+							<p class="text-sm text-destructive">{passwordError()}</p>
+						</Show>
+
+						<Button
+							type="submit"
+							disabled={
+								changePassword.isPending ||
+								!currentPassword() ||
+								!newPassword() ||
+								!confirmPassword()
+							}
+						>
+							{changePassword.isPending ? "Changing..." : "Change Password"}
+						</Button>
+					</form>
+				</CardContent>
+			</Card>
+
+			{/* API Key Section */}
+			<Card>
+				<CardHeader>
+					<CardTitle class="text-base flex items-center gap-2">
+						<IconKey class="h-4 w-4" />
+						API Key
+					</CardTitle>
+				</CardHeader>
+				<CardContent class="space-y-4">
+					<p class="text-sm text-muted-foreground">
+						Use this API key to authenticate external applications and streaming
+						clients.
+					</p>
+
+					<div class="flex items-center gap-2 max-w-xl">
+						<div class="flex-1 relative">
+							<Input
+								type={showApiKey() ? "text" : "password"}
+								value={apiKeyQuery.data?.api_key || ""}
+								readOnly
+								class="pr-20 font-mono text-sm"
+							/>
+							<div class="absolute right-0 top-0 h-full flex items-center gap-1 pr-1">
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									class="h-7 w-7"
+									onClick={() => setShowApiKey(!showApiKey())}
+									title={showApiKey() ? "Hide API key" : "Show API key"}
+								>
+									<Show
+										when={showApiKey()}
+										fallback={
+											<IconEyeOff class="h-4 w-4 text-muted-foreground" />
+										}
+									>
+										<IconEye class="h-4 w-4 text-muted-foreground" />
+									</Show>
+								</Button>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									class="h-7 w-7"
+									onClick={copyApiKey}
+									title="Copy API key"
+								>
+									<IconCopy class="h-4 w-4 text-muted-foreground" />
+								</Button>
+							</div>
+						</div>
+					</div>
+
+					<AlertDialog>
+						<AlertDialogTrigger
+							as={(props: { onClick: () => void }) => (
+								<Button
+									variant="outline"
+									onClick={props.onClick}
+									disabled={regenerateApiKey.isPending}
+								>
+									<IconRefresh class="mr-2 h-4 w-4" />
+									{regenerateApiKey.isPending
+										? "Regenerating..."
+										: "Regenerate API Key"}
+								</Button>
+							)}
+						/>
+						<AlertDialogContent>
+							<AlertDialogHeader>
+								<AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
+								<AlertDialogDescription>
+									This will invalidate your current API key. Any applications or
+									services using the old key will need to be updated with the
+									new one.
+								</AlertDialogDescription>
+							</AlertDialogHeader>
+							<AlertDialogFooter>
+								<AlertDialogCancel>Cancel</AlertDialogCancel>
+								<AlertDialogAction onClick={handleRegenerateApiKey}>
+									Regenerate
+								</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
+				</CardContent>
+			</Card>
+		</div>
 	);
 }

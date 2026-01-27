@@ -21,8 +21,10 @@ pub struct Config {
     #[serde(default)]
     pub profiles: Vec<QualityProfileConfig>,
 
-    #[serde(default)]
-    pub auth: AuthConfig,
+    /// DEPRECATED: Auth credentials are now stored in the database.
+    /// This field is kept for backward compatibility and will be ignored.
+    #[serde(default, skip_serializing)]
+    pub auth: Option<serde_json::Value>,
 
     #[serde(default)]
     pub server: ServerConfig,
@@ -90,25 +92,6 @@ pub struct QualityProfileConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthConfig {
-    pub username: String,
-
-    pub password: String,
-
-    pub api_key: String,
-}
-
-impl Default for AuthConfig {
-    fn default() -> Self {
-        Self {
-            username: "admin".to_string(),
-            password: "password".to_string(),
-            api_key: "bakarr_api_key".to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct GeneralConfig {
     pub database_path: String,
@@ -166,7 +149,7 @@ impl Default for Config {
                     "HDTV 720p".to_string(),
                 ],
             }],
-            auth: AuthConfig::default(),
+            auth: None, // Deprecated: auth is now in database
             server: ServerConfig::default(),
             observability: ObservabilityConfig::default(),
         }

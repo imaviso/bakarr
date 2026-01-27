@@ -107,9 +107,6 @@ pub async fn get_config(
     if !safe_config.qbittorrent.password.is_empty() {
         safe_config.qbittorrent.password = MASK.to_string();
     }
-    if !safe_config.auth.password.is_empty() {
-        safe_config.auth.password = MASK.to_string();
-    }
 
     Ok(Json(ApiResponse::success(safe_config)))
 }
@@ -125,12 +122,6 @@ pub async fn update_config(
             .qbittorrent
             .password
             .clone_from(&config.qbittorrent.password);
-    }
-    if new_config.auth.password == MASK {
-        new_config.auth.password.clone_from(&config.auth.password);
-    }
-    if new_config.auth.api_key == MASK {
-        new_config.auth.api_key.clone_from(&config.auth.api_key);
     }
 
     *config = new_config;

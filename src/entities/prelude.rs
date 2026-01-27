@@ -12,3 +12,4 @@ pub use super::release_profiles::Entity as ReleaseProfiles;
 pub use super::rss_feeds::Entity as RssFeeds;
 pub use super::seadex_cache::Entity as SeadexCache;
 pub use super::system_logs::Entity as SystemLogs;
+pub use super::users::Entity as Users;

@@ -542,4 +542,39 @@ impl Store {
     pub async fn delete_release_profile(&self, id: i32) -> Result<()> {
         self.release_profile_repo().delete_profile(id).await
     }
+
+    // ========== User Repository Methods ==========
+
+    fn user_repo(&self) -> repositories::user::UserRepository {
+        repositories::user::UserRepository::new(self.conn.clone())
+    }
+
+    pub async fn get_user_by_username(
+        &self,
+        username: &str,
+    ) -> Result<Option<repositories::user::User>> {
+        self.user_repo().get_by_username(username).await
+    }
+
+    pub async fn verify_user_password(&self, username: &str, password: &str) -> Result<bool> {
+        self.user_repo().verify_password(username, password).await
+    }
+
+    pub async fn update_user_password(&self, username: &str, new_password: &str) -> Result<()> {
+        self.user_repo()
+            .update_password(username, new_password)
+            .await
+    }
+
+    pub async fn verify_api_key(&self, api_key: &str) -> Result<Option<repositories::user::User>> {
+        self.user_repo().verify_api_key(api_key).await
+    }
+
+    pub async fn get_user_api_key(&self, username: &str) -> Result<Option<String>> {
+        self.user_repo().get_api_key(username).await
+    }
+
+    pub async fn regenerate_user_api_key(&self, username: &str) -> Result<String> {
+        self.user_repo().regenerate_api_key(username).await
+    }
 }

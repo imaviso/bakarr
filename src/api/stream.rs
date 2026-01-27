@@ -22,21 +22,25 @@ pub async fn stream_episode(
     headers: axum::http::HeaderMap,
     session: tower_sessions::Session,
 ) -> Result<impl IntoResponse, ApiError> {
-    let config = state.config().read().await;
-    let auth = &config.auth;
-
-    if let Ok(Some(_user)) = session.get::<String>("user").await {
-        drop(config);
+    // Check session first
+    let is_authenticated = if let Ok(Some(_user)) = session.get::<String>("user").await {
+        true
+    } else if let Some(token) = &params.token {
+        // Verify token against database
+        state
+            .store()
+            .verify_api_key(token)
+            .await
+            .map(|u| u.is_some())
+            .unwrap_or(false)
     } else {
-        let is_valid = params.token.as_ref() == Some(&auth.api_key);
+        false
+    };
 
-        drop(config);
-
-        if !is_valid {
-            return Err(ApiError::Unauthorized(
-                "Invalid or missing token".to_string(),
-            ));
-        }
+    if !is_authenticated {
+        return Err(ApiError::Unauthorized(
+            "Invalid or missing token".to_string(),
+        ));
     }
 
     validate_anime_id(id)?;
