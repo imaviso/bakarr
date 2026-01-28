@@ -9,7 +9,6 @@ import {
 	IconListCheck,
 	IconLock,
 	IconPlus,
-	IconPower,
 	IconRefresh,
 	IconSettings,
 	IconTrash,
@@ -17,7 +16,7 @@ import {
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute } from "@tanstack/solid-router";
-import { createSignal, For, Index, Show } from "solid-js";
+import { createSignal, For, Index, type JSX, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
@@ -1225,6 +1224,42 @@ function GeneralSettingsForm() {
 	);
 }
 
+// Inline setting row component for Linear-style settings
+function SettingRow(props: {
+	label: string;
+	description?: string;
+	children: JSX.Element;
+	class?: string;
+}) {
+	return (
+		<div
+			class={`flex items-center justify-between py-3 gap-8 ${props.class ?? ""}`}
+		>
+			<div class="flex-1 min-w-0">
+				<div class="text-sm font-medium text-foreground">{props.label}</div>
+				<Show when={props.description}>
+					<div class="text-xs text-muted-foreground mt-0.5">
+						{props.description}
+					</div>
+				</Show>
+			</div>
+			<div class="shrink-0">{props.children}</div>
+		</div>
+	);
+}
+
+// Section header for Linear-style grouping
+function SettingSection(props: { title: string; children: JSX.Element }) {
+	return (
+		<div class="space-y-1">
+			<div class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-0.5 mb-3">
+				{props.title}
+			</div>
+			<div class="divide-y divide-border/50">{props.children}</div>
+		</div>
+	);
+}
+
 function SystemForm(props: {
 	defaultValues: Config;
 	onSubmit: (values: Config) => Promise<void>;
@@ -1271,7 +1306,6 @@ function SystemForm(props: {
 	const formatLastRun = (dateStr?: string | null) => {
 		if (!dateStr) return "Never";
 		try {
-			// SQLite stores as "YYYY-MM-DD HH:MM:SS" in UTC
 			const date = new Date(`${dateStr.replace(" ", "T")}Z`);
 			return date.toLocaleString();
 		} catch (_e) {
@@ -1287,612 +1321,571 @@ function SystemForm(props: {
 				e.stopPropagation();
 				form.handleSubmit();
 			}}
-			class="space-y-12 pb-24"
+			class="space-y-8 pb-24 max-w-3xl"
 		>
 			<input type="password" style={{ display: "none" }} />
 
-			{/* General Section */}
-			<section class="space-y-6">
-				<div class="mb-4 pb-2 border-b">
-					<h3 class="text-base font-medium text-foreground">Application</h3>
-					<p class="text-sm text-muted-foreground mt-1">
-						Basic application configuration
-					</p>
-				</div>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-					<form.Field name="general.log_level">
-						{(field) => (
-							<div class="flex flex-col gap-1">
-								<label
-									class="text-sm font-medium leading-none"
-									for={field().name}
-								>
-									Log Level
-								</label>
-								<Select
-									name={field().name}
-									value={field().state.value}
-									onChange={(val) => val && field().handleChange(val)}
-									options={["error", "warn", "info", "debug", "trace"]}
-									placeholder="Select log level..."
-									itemComponent={(props) => (
-										<SelectItem item={props.item}>
-											{props.item.rawValue}
-										</SelectItem>
-									)}
-								>
-									<SelectTrigger class="w-full">
-										<SelectValue<string>>
-											{(state) => state.selectedOption()}
-										</SelectValue>
-									</SelectTrigger>
-									<SelectContent />
-								</Select>
-							</div>
-						)}
-					</form.Field>
-					<form.Field name="general.images_path">
-						{(field) => (
-							<TextField
+			{/* Application Section */}
+			<SettingSection title="Application">
+				<form.Field name="general.log_level">
+					{(field) => (
+						<SettingRow
+							label="Log Level"
+							description="Control verbosity of application logs"
+						>
+							<Select
+								name={field().name}
 								value={field().state.value}
-								onChange={field().handleChange}
+								onChange={(val) => val && field().handleChange(val)}
+								options={["error", "warn", "info", "debug", "trace"]}
+								placeholder="Select..."
+								itemComponent={(itemProps) => (
+									<SelectItem item={itemProps.item}>
+										{itemProps.item.rawValue}
+									</SelectItem>
+								)}
 							>
-								<TextFieldLabel>Images Path</TextFieldLabel>
-								<TextFieldInput />
-							</TextField>
-						)}
-					</form.Field>
+								<SelectTrigger class="w-32">
+									<SelectValue<string>>
+										{(state) => state.selectedOption()}
+									</SelectValue>
+								</SelectTrigger>
+								<SelectContent />
+							</Select>
+						</SettingRow>
+					)}
+				</form.Field>
 
-					<form.Field name="general.worker_threads">
-						{(field) => (
-							<TextField
+				<form.Field name="general.images_path">
+					{(field) => (
+						<SettingRow
+							label="Images Path"
+							description="Local cache for cover art and images"
+						>
+							<Input
+								value={field().state.value}
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								class="w-64"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="general.worker_threads">
+					{(field) => (
+						<SettingRow
+							label="Worker Threads"
+							description="Number of threads for background tasks (0 = auto)"
+						>
+							<Input
+								type="number"
+								min="0"
 								value={field().state.value?.toString() ?? "2"}
-								onChange={(v) => field().handleChange(Number(v))}
-							>
-								<TextFieldLabel>Worker Threads</TextFieldLabel>
-								<TextFieldInput type="number" min="0" placeholder="2" />
-								<p class="text-xs text-muted-foreground mt-1">
-									Set to 0 to use all CPU cores
-								</p>
-							</TextField>
-						)}
-					</form.Field>
+								onInput={(e) =>
+									field().handleChange(Number(e.currentTarget.value))
+								}
+								class="w-24"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
 
-					<form.Field name="general.max_db_connections">
-						{(field) => (
-							<TextField
-								value={field().state.value?.toString() ?? "5"}
-								onChange={(v) => field().handleChange(Number(v))}
-							>
-								<TextFieldLabel>Max DB Connections</TextFieldLabel>
-								<TextFieldInput type="number" min="1" placeholder="5" />
-							</TextField>
-						)}
-					</form.Field>
-
-					<form.Field name="general.min_db_connections">
-						{(field) => (
-							<TextField
-								value={field().state.value?.toString() ?? "1"}
-								onChange={(v) => field().handleChange(Number(v))}
-							>
-								<TextFieldLabel>Min DB Connections</TextFieldLabel>
-								<TextFieldInput type="number" min="0" placeholder="1" />
-							</TextField>
-						)}
-					</form.Field>
-
-					<form.Field name="general.suppress_connection_errors">
-						{(field) => (
-							<div class="flex items-center gap-3 pt-6">
-								<Switch
-									checked={field().state.value}
-									onChange={(checked) => field().handleChange(checked)}
-								/>
-								<div>
-									<span class="text-sm font-medium block">
-										Suppress Connection Errors
-									</span>
-									<span class="text-xs text-muted-foreground">
-										Hide noisy retry logs from qBittorrent/Network
-									</span>
-								</div>
-							</div>
-						)}
-					</form.Field>
-				</div>
-			</section>
+				<form.Field name="general.suppress_connection_errors">
+					{(field) => (
+						<SettingRow
+							label="Suppress Connection Errors"
+							description="Hide noisy retry logs from qBittorrent/Network"
+						>
+							<Switch
+								checked={field().state.value}
+								onChange={(checked) => field().handleChange(checked)}
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+			</SettingSection>
 
 			{/* Library Section */}
-			<section class="space-y-6">
-				<div class="mb-4 pb-2 border-b">
-					<h3 class="text-base font-medium text-foreground">Library</h3>
-					<p class="text-sm text-muted-foreground mt-1">
-						Media library paths and organization
-					</p>
-				</div>
-				<div class="space-y-6 max-w-4xl">
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-						<form.Field name="library.library_path">
-							{(field) => (
-								<TextField
-									value={field().state.value}
-									onChange={field().handleChange}
-								>
-									<TextFieldLabel>Library Root Path</TextFieldLabel>
-									<TextFieldInput />
-								</TextField>
-							)}
-						</form.Field>
-						<form.Field name="library.recycle_path">
-							{(field) => (
-								<TextField
-									value={field().state.value}
-									onChange={field().handleChange}
-								>
-									<TextFieldLabel>Recycle Bin Path</TextFieldLabel>
-									<TextFieldInput />
-								</TextField>
-							)}
-						</form.Field>
-					</div>
+			<SettingSection title="Library">
+				<form.Field name="library.library_path">
+					{(field) => (
+						<SettingRow
+							label="Library Path"
+							description="Root folder for your anime library"
+						>
+							<Input
+								value={field().state.value}
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								class="w-64"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="library.recycle_path">
+					{(field) => (
+						<SettingRow
+							label="Recycle Bin Path"
+							description="Deleted files are moved here before permanent deletion"
+						>
+							<Input
+								value={field().state.value}
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								class="w-64"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="library.import_mode">
+					{(field) => (
+						<SettingRow
+							label="Import Mode"
+							description="How files are moved from downloads to library"
+						>
+							<Select
+								name={field().name}
+								value={field().state.value}
+								onChange={(val) => val && field().handleChange(val)}
+								options={["Copy", "Move", "Hardlink"]}
+								placeholder="Select..."
+								itemComponent={(itemProps) => (
+									<SelectItem item={itemProps.item}>
+										{itemProps.item.rawValue}
+									</SelectItem>
+								)}
+							>
+								<SelectTrigger class="w-32">
+									<SelectValue<string>>
+										{(state) => state.selectedOption()}
+									</SelectValue>
+								</SelectTrigger>
+								<SelectContent />
+							</Select>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="library.preferred_title">
+					{(field) => (
+						<SettingRow
+							label="Preferred Title"
+							description="Title language for folder and file naming"
+						>
+							<Select
+								name={field().name}
+								value={field().state.value}
+								onChange={(val) => val && field().handleChange(val)}
+								options={["stored", "english", "romaji"]}
+								placeholder="Select..."
+								itemComponent={(itemProps) => (
+									<SelectItem item={itemProps.item}>
+										{itemProps.item.rawValue === "stored"
+											? "Existing"
+											: itemProps.item.rawValue === "english"
+												? "English"
+												: "Romaji"}
+									</SelectItem>
+								)}
+							>
+								<SelectTrigger class="w-32">
+									<SelectValue<string>>
+										{(state) =>
+											state.selectedOption() === "stored"
+												? "Existing"
+												: state.selectedOption() === "english"
+													? "English"
+													: "Romaji"
+										}
+									</SelectValue>
+								</SelectTrigger>
+								<SelectContent />
+							</Select>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="library.auto_scan_interval_hours">
+					{(field) => (
+						<SettingRow
+							label="Auto Scan Interval"
+							description="Hours between automatic library scans"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-20"
+								/>
+								<span class="text-xs text-muted-foreground">hours</span>
+							</div>
+						</SettingRow>
+					)}
+				</form.Field>
+			</SettingSection>
+
+			{/* Naming Formats */}
+			<SettingSection title="Naming Formats">
+				<div class="py-3 space-y-4">
 					<form.Field name="library.naming_format">
 						{(field) => (
-							<TextField
-								value={field().state.value}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel>Naming Format (TV)</TextFieldLabel>
-								<TextFieldInput placeholder="{Series Title} - S{Season:02}E{Episode:02} - {Title}" />
-								<p class="text-xs text-muted-foreground mt-1">
-									Available:{" "}
+							<div class="space-y-2">
+								<div class="text-sm font-medium text-foreground">
+									TV Episodes
+								</div>
+								<Input
+									value={field().state.value}
+									onInput={(e) => field().handleChange(e.currentTarget.value)}
+									placeholder="{Series Title} - S{Season:02}E{Episode:02} - {Title}"
+									class="font-mono text-xs"
+								/>
+								<div class="text-[10px] text-muted-foreground">
 									{
-										"{Series Title}, {Season}, {Episode}, {Title}, {Year}, {Resolution}, {Codec}, {Duration}, {Audio}, {Group}"
+										"{Series Title}, {Season}, {Episode}, {Title}, {Year}, {Resolution}, {Codec}, {Group}"
 									}
-								</p>
-							</TextField>
+								</div>
+							</div>
 						)}
 					</form.Field>
+
 					<form.Field name="library.movie_naming_format">
 						{(field) => (
-							<TextField
-								value={field().state.value}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel>Naming Format (Movies)</TextFieldLabel>
-								<TextFieldInput placeholder="{Series Title}/{Series Title}" />
-								<p class="text-xs text-muted-foreground mt-1">
-									Available:{" "}
+							<div class="space-y-2">
+								<div class="text-sm font-medium text-foreground">Movies</div>
+								<Input
+									value={field().state.value}
+									onInput={(e) => field().handleChange(e.currentTarget.value)}
+									placeholder="{Series Title}/{Series Title}"
+									class="font-mono text-xs"
+								/>
+								<div class="text-[10px] text-muted-foreground">
 									{
-										"{Series Title}, {Title}, {Year}, {Resolution}, {Codec}, {Duration}, {Audio}, {Group}"
+										"{Series Title}, {Title}, {Year}, {Resolution}, {Codec}, {Group}"
 									}
-								</p>
-							</TextField>
+								</div>
+							</div>
 						)}
 					</form.Field>
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-						<form.Field name="library.import_mode">
-							{(field) => (
-								<div class="flex flex-col gap-1">
-									<label
-										class="text-sm font-medium leading-none"
-										for={field().name}
-									>
-										Import Mode
-									</label>
-									<Select
-										name={field().name}
-										value={field().state.value}
-										onChange={(val) => val && field().handleChange(val)}
-										options={["Copy", "Move", "Hardlink"]}
-										placeholder="Select mode..."
-										itemComponent={(props) => (
-											<SelectItem item={props.item}>
-												{props.item.rawValue}
-											</SelectItem>
-										)}
-									>
-										<SelectTrigger class="w-full">
-											<SelectValue<string>>
-												{(state) => state.selectedOption()}
-											</SelectValue>
-										</SelectTrigger>
-										<SelectContent />
-									</Select>
-								</div>
-							)}
-						</form.Field>
-						<form.Field name="library.auto_scan_interval_hours">
-							{(field) => (
-								<TextField
-									value={field().state.value.toString()}
-									onChange={(v) => field().handleChange(Number(v))}
-								>
-									<TextFieldLabel>Auto Scan Interval (Hours)</TextFieldLabel>
-									<TextFieldInput type="number" />
-								</TextField>
-							)}
-						</form.Field>
-						<form.Field name="library.preferred_title">
-							{(field) => (
-								<div class="flex flex-col gap-1">
-									<label
-										class="text-sm font-medium leading-none"
-										for={field().name}
-									>
-										Preferred Title
-									</label>
-									<Select
-										name={field().name}
-										value={field().state.value}
-										onChange={(val) => val && field().handleChange(val)}
-										options={["stored", "english", "romaji"]}
-										placeholder="Select title preference..."
-										itemComponent={(props) => (
-											<SelectItem item={props.item}>
-												{props.item.rawValue === "stored"
-													? "Use Existing Folder"
-													: props.item.rawValue === "english"
-														? "English Title"
-														: "Romaji Title"}
-											</SelectItem>
-										)}
-									>
-										<SelectTrigger class="w-full">
-											<SelectValue<string>>
-												{(state) =>
-													state.selectedOption() === "stored"
-														? "Use Existing Folder"
-														: state.selectedOption() === "english"
-															? "English Title"
-															: "Romaji Title"
-												}
-											</SelectValue>
-										</SelectTrigger>
-										<SelectContent />
-									</Select>
-									<p class="text-xs text-muted-foreground">
-										Use existing folder maintains consistency with already
-										imported episodes
-									</p>
-								</div>
-							)}
-						</form.Field>
-					</div>
 				</div>
-			</section>
+			</SettingSection>
 
 			{/* Download Client Section */}
-			<section class="space-y-6">
-				<div class="mb-4 pb-2 border-b flex justify-between items-center">
-					<div>
-						<h3 class="text-base font-medium text-foreground">
-							Download Client
-						</h3>
-						<p class="text-sm text-muted-foreground mt-1">
-							Connection settings for qBittorrent
-						</p>
-					</div>
-					<form.Field name="qbittorrent.enabled">
-						{(field) => (
-							<div class="flex items-center gap-3">
-								<span class="text-sm font-medium text-muted-foreground flex items-center gap-2">
-									<IconPower class="h-3.5 w-3.5" />
-									Enabled
-								</span>
-								<Switch
-									checked={field().state.value}
-									onChange={(checked) => field().handleChange(checked)}
-								/>
-							</div>
-						)}
-					</form.Field>
-				</div>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-					<form.Field name="qbittorrent.url">
-						{(field) => (
-							<TextField
+			<SettingSection title="Download Client">
+				<form.Field name="qbittorrent.enabled">
+					{(field) => (
+						<SettingRow
+							label="Enable qBittorrent"
+							description="Connect to qBittorrent for downloading"
+						>
+							<Switch
+								checked={field().state.value}
+								onChange={(checked) => field().handleChange(checked)}
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="qbittorrent.url">
+					{(field) => (
+						<SettingRow label="URL" description="qBittorrent Web UI address">
+							<Input
 								value={field().state.value}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel>URL</TextFieldLabel>
-								<TextFieldInput placeholder="http://localhost:8080" />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="qbittorrent.default_category">
-						{(field) => (
-							<TextField
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								placeholder="http://localhost:8080"
+								class="w-56"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="qbittorrent.username">
+					{(field) => (
+						<SettingRow label="Username">
+							<Input
 								value={field().state.value}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel>Category</TextFieldLabel>
-								<TextFieldInput placeholder="bakarr" />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="qbittorrent.username">
-						{(field) => (
-							<TextField
-								value={field().state.value}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel>Username</TextFieldLabel>
-								<TextFieldInput autocomplete="off" />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="qbittorrent.password">
-						{(field) => (
-							<TextField
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								autocomplete="off"
+								class="w-40"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="qbittorrent.password">
+					{(field) => (
+						<SettingRow label="Password">
+							<Input
+								type="password"
 								value={field().state.value || ""}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel>Password</TextFieldLabel>
-								<TextFieldInput type="password" autocomplete="off" />
-							</TextField>
-						)}
-					</form.Field>
-				</div>
-			</section>
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								autocomplete="off"
+								class="w-40"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="qbittorrent.default_category">
+					{(field) => (
+						<SettingRow
+							label="Category"
+							description="qBittorrent category for downloads"
+						>
+							<Input
+								value={field().state.value}
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								placeholder="bakarr"
+								class="w-32"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+			</SettingSection>
 
 			{/* Scheduler Section */}
-			<section class="space-y-6">
-				<div class="mb-4 pb-2 border-b flex justify-between items-center">
-					<div>
-						<h3 class="text-base font-medium text-foreground">Scheduler</h3>
-						<p class="text-sm text-muted-foreground mt-1">
-							Configure background tasks and check intervals
-						</p>
-					</div>
-					<form.Field name="scheduler.enabled">
-						{(field) => (
-							<div class="flex items-center gap-3">
-								<span class="text-sm font-medium text-muted-foreground flex items-center gap-2">
-									<IconPower class="h-3.5 w-3.5" />
-									Enabled
-								</span>
-								<Switch
-									checked={field().state.value}
-									onChange={(checked) => field().handleChange(checked)}
+			<SettingSection title="Scheduler">
+				<form.Field name="scheduler.enabled">
+					{(field) => (
+						<SettingRow
+							label="Enable Scheduler"
+							description="Run automated background tasks"
+						>
+							<Switch
+								checked={field().state.value}
+								onChange={(checked) => field().handleChange(checked)}
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="scheduler.check_interval_minutes">
+					{(field) => (
+						<SettingRow
+							label="Check Interval"
+							description="Minutes between RSS checks"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-20"
 								/>
+								<span class="text-xs text-muted-foreground">min</span>
 							</div>
-						)}
-					</form.Field>
-				</div>
+						</SettingRow>
+					)}
+				</form.Field>
 
-				<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-5xl">
-					<div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-						<form.Field name="scheduler.check_interval_minutes">
-							{(field) => (
-								<TextField
-									value={field().state.value.toString()}
-									onChange={(v) => field().handleChange(Number(v))}
-								>
-									<TextFieldLabel>Check Interval (Minutes)</TextFieldLabel>
-									<TextFieldInput type="number" />
-								</TextField>
-							)}
-						</form.Field>
-						<form.Field name="scheduler.max_concurrent_checks">
-							{(field) => (
-								<TextField
-									value={field().state.value.toString()}
-									onChange={(v) => field().handleChange(Number(v))}
-								>
-									<TextFieldLabel>Max Concurrent Checks</TextFieldLabel>
-									<TextFieldInput type="number" />
-								</TextField>
-							)}
-						</form.Field>
-						<form.Field name="scheduler.check_delay_seconds">
-							{(field) => (
-								<TextField
-									value={field().state.value.toString()}
-									onChange={(v) => field().handleChange(Number(v))}
-								>
-									<TextFieldLabel>Check Delay (Seconds)</TextFieldLabel>
-									<TextFieldInput type="number" />
-								</TextField>
-							)}
-						</form.Field>
-						<form.Field name="scheduler.metadata_refresh_hours">
-							{(field) => (
-								<TextField
-									value={field().state.value.toString()}
-									onChange={(v) => field().handleChange(Number(v))}
-								>
-									<TextFieldLabel>Metadata Refresh (Hours)</TextFieldLabel>
-									<TextFieldInput type="number" />
-								</TextField>
-							)}
-						</form.Field>
-						<form.Field name="scheduler.cron_expression">
-							{(field) => (
-								<TextField
-									value={field().state.value || ""}
-									onChange={field().handleChange}
-								>
-									<TextFieldLabel>Cron Expression (Optional)</TextFieldLabel>
-									<TextFieldInput placeholder="0 */6 * * *" />
-									<p class="text-xs text-muted-foreground mt-1">
-										Overrides interval if set
-									</p>
-								</TextField>
-							)}
-						</form.Field>
-					</div>
+				<form.Field name="scheduler.max_concurrent_checks">
+					{(field) => (
+						<SettingRow
+							label="Max Concurrent Checks"
+							description="Parallel anime checks"
+						>
+							<Input
+								type="number"
+								value={field().state.value.toString()}
+								onInput={(e) =>
+									field().handleChange(Number(e.currentTarget.value))
+								}
+								class="w-20"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
 
-					<div class="space-y-4">
-						<h4 class="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-							Task Status
-						</h4>
-						<div class="space-y-3">
-							<div class="p-3 border rounded-lg bg-secondary/20 flex flex-col gap-2">
-								<div class="flex items-center justify-between">
-									<span class="text-sm font-medium">Library Scan</span>
-									<Button
-										variant="outline"
-										size="sm"
-										class="h-7 text-[10px] px-2"
-										onClick={handleTriggerScan}
-										disabled={triggerScan.isPending}
-									>
-										Run Now
-									</Button>
-								</div>
-								<div class="text-[11px] text-muted-foreground flex justify-between">
-									<span>Last Run:</span>
-									<span class="text-foreground font-mono">
-										{formatLastRun(systemStatus.data?.last_scan)}
-									</span>
-								</div>
+				<form.Field name="scheduler.metadata_refresh_hours">
+					{(field) => (
+						<SettingRow
+							label="Metadata Refresh"
+							description="Hours between metadata updates"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-20"
+								/>
+								<span class="text-xs text-muted-foreground">hours</span>
 							</div>
+						</SettingRow>
+					)}
+				</form.Field>
 
-							<div class="p-3 border rounded-lg bg-secondary/20 flex flex-col gap-2">
-								<div class="flex items-center justify-between">
-									<span class="text-sm font-medium">RSS Check</span>
-									<Button
-										variant="outline"
-										size="sm"
-										class="h-7 text-[10px] px-2"
-										onClick={handleTriggerRss}
-										disabled={triggerRss.isPending}
-									>
-										Run Now
-									</Button>
-								</div>
-								<div class="text-[11px] text-muted-foreground flex justify-between">
-									<span>Last Run:</span>
-									<span class="text-foreground font-mono">
-										{formatLastRun(systemStatus.data?.last_rss)}
-									</span>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-			</section>
+				<form.Field name="scheduler.cron_expression">
+					{(field) => (
+						<SettingRow
+							label="Cron Expression"
+							description="Custom schedule (overrides interval)"
+						>
+							<Input
+								value={field().state.value || ""}
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								placeholder="0 */6 * * *"
+								class="w-36 font-mono text-xs"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+			</SettingSection>
+
+			{/* Tasks */}
+			<SettingSection title="Tasks">
+				<SettingRow
+					label="Library Scan"
+					description={`Last run: ${formatLastRun(systemStatus.data?.last_scan)}`}
+				>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleTriggerScan}
+						disabled={triggerScan.isPending}
+					>
+						{triggerScan.isPending ? "Running..." : "Run Now"}
+					</Button>
+				</SettingRow>
+
+				<SettingRow
+					label="RSS Check"
+					description={`Last run: ${formatLastRun(systemStatus.data?.last_rss)}`}
+				>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleTriggerRss}
+						disabled={triggerRss.isPending}
+					>
+						{triggerRss.isPending ? "Running..." : "Run Now"}
+					</Button>
+				</SettingRow>
+			</SettingSection>
 
 			{/* Indexer Section */}
-			<section class="space-y-6">
-				<div class="mb-4 pb-2 border-b">
-					<h3 class="text-base font-medium text-foreground">Indexer</h3>
-					<p class="text-sm text-muted-foreground mt-1">
-						Nyaa.si configuration
-					</p>
-				</div>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-					<form.Field name="nyaa.base_url">
-						{(field) => (
-							<TextField
+			<SettingSection title="Indexer">
+				<form.Field name="nyaa.base_url">
+					{(field) => (
+						<SettingRow label="Nyaa URL" description="Base URL for Nyaa.si">
+							<Input
 								value={field().state.value}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel>Base URL</TextFieldLabel>
-								<TextFieldInput placeholder="https://nyaa.si" />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="nyaa.min_seeders">
-						{(field) => (
-							<TextField
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								placeholder="https://nyaa.si"
+								class="w-48"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="nyaa.min_seeders">
+					{(field) => (
+						<SettingRow
+							label="Minimum Seeders"
+							description="Skip releases with fewer seeders"
+						>
+							<Input
+								type="number"
 								value={field().state.value.toString()}
-								onChange={(v) => field().handleChange(Number(v))}
-							>
-								<TextFieldLabel>Minimum Seeders</TextFieldLabel>
-								<TextFieldInput type="number" />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="nyaa.filter_remakes">
-						{(field) => (
-							<div class="flex items-center gap-3 pt-6">
-								<Switch
-									checked={field().state.value}
-									onChange={(checked) => field().handleChange(checked)}
-								/>
-								<div>
-									<span class="text-sm font-medium block">Filter Remakes</span>
-									<span class="text-xs text-muted-foreground">
-										Exclude remakes from search results
-									</span>
-								</div>
-							</div>
-						)}
-					</form.Field>
-				</div>
-			</section>
+								onInput={(e) =>
+									field().handleChange(Number(e.currentTarget.value))
+								}
+								class="w-20"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="nyaa.filter_remakes">
+					{(field) => (
+						<SettingRow
+							label="Filter Remakes"
+							description="Exclude remakes from search results"
+						>
+							<Switch
+								checked={field().state.value}
+								onChange={(checked) => field().handleChange(checked)}
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+			</SettingSection>
 
 			{/* Downloads Section */}
-			<section class="space-y-6">
-				<div class="mb-4 pb-2 border-b">
-					<h3 class="text-base font-medium text-foreground">Downloads</h3>
-					<p class="text-sm text-muted-foreground mt-1">
-						Global download and folder settings
-					</p>
-				</div>
-				<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
-					<form.Field name="downloads.root_path">
-						{(field) => (
-							<TextField
+			<SettingSection title="Downloads">
+				<form.Field name="downloads.root_path">
+					{(field) => (
+						<SettingRow
+							label="Download Path"
+							description="Where downloaded files are saved"
+						>
+							<Input
 								value={field().state.value}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel>Download Root Path</TextFieldLabel>
-								<TextFieldInput />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="downloads.max_size_gb">
-						{(field) => (
-							<TextField
-								value={field().state.value.toString()}
-								onChange={(v) => field().handleChange(Number(v))}
-							>
-								<TextFieldLabel>Max Size (GB)</TextFieldLabel>
-								<TextFieldInput type="number" />
-							</TextField>
-						)}
-					</form.Field>
-					<form.Field name="downloads.create_anime_folders">
-						{(field) => (
-							<div class="flex items-center gap-3 pt-6">
-								<Switch
-									checked={field().state.value}
-									onChange={(checked) => field().handleChange(checked)}
-								/>
-								<div>
-									<span class="text-sm font-medium block">
-										Create Anime Folders
-									</span>
-									<span class="text-xs text-muted-foreground">
-										Create a separate folder for each anime
-									</span>
-								</div>
-							</div>
-						)}
-					</form.Field>
-					<form.Field name="downloads.use_seadex">
-						{(field) => (
-							<div class="flex items-center gap-3 pt-6">
-								<Switch
-									checked={field().state.value}
-									onChange={(checked) => field().handleChange(checked)}
-								/>
-								<div>
-									<span class="text-sm font-medium block">Use SeaDex</span>
-									<span class="text-xs text-muted-foreground">
-										Use SeaDex for release scoring and best release selection
-									</span>
-								</div>
-							</div>
-						)}
-					</form.Field>
-				</div>
-			</section>
+								onInput={(e) => field().handleChange(e.currentTarget.value)}
+								class="w-64"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
 
-			<div class="flex gap-2 justify-end pt-2">
+				<form.Field name="downloads.max_size_gb">
+					{(field) => (
+						<SettingRow
+							label="Max Size"
+							description="Maximum file size for downloads"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-20"
+								/>
+								<span class="text-xs text-muted-foreground">GB</span>
+							</div>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="downloads.create_anime_folders">
+					{(field) => (
+						<SettingRow
+							label="Create Anime Folders"
+							description="Organize downloads by anime title"
+						>
+							<Switch
+								checked={field().state.value}
+								onChange={(checked) => field().handleChange(checked)}
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="downloads.use_seadex">
+					{(field) => (
+						<SettingRow
+							label="Use SeaDex"
+							description="Prefer SeaDex best releases for scoring"
+						>
+							<Switch
+								checked={field().state.value}
+								onChange={(checked) => field().handleChange(checked)}
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+			</SettingSection>
+
+			{/* Save Button - Sticky at bottom */}
+			<div class="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-1 px-1">
 				<form.Subscribe
 					selector={(state) => [
 						state.canSubmit,
@@ -1904,7 +1897,7 @@ function SystemForm(props: {
 						<Button
 							type="submit"
 							disabled={!state()[0] || props.isSaving}
-							title={!state()[0] ? "Form validation failed" : ""}
+							class="w-full sm:w-auto"
 						>
 							{props.isSaving ? "Saving..." : "Save Changes"}
 						</Button>
