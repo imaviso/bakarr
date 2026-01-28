@@ -53,7 +53,7 @@ impl DownloadRepository {
                     .do_nothing()
                     .to_owned(),
             )
-            .exec(&self.conn)
+            .exec_without_returning(&self.conn)
             .await?;
 
         Ok(())
@@ -148,7 +148,7 @@ impl DownloadRepository {
                     .do_nothing()
                     .to_owned(),
             )
-            .exec(&self.conn)
+            .exec_without_returning(&self.conn)
             .await?;
 
         Ok(())

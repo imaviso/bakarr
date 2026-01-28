@@ -128,15 +128,17 @@ pub async fn get_queue(
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 pub struct SearchMissingRequest {
     pub anime_id: Option<i32>,
 }
 
 pub async fn search_missing(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<SearchMissingRequest>,
+    body: Option<Json<SearchMissingRequest>>,
 ) -> Result<Json<ApiResponse<String>>, ApiError> {
+    let payload = body.map(|j| j.0).unwrap_or_default();
+    
     if let Some(anime_id) = payload.anime_id {
         validate_anime_id(anime_id)?;
 
