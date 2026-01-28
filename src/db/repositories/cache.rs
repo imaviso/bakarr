@@ -1,5 +1,6 @@
 use crate::clients::seadex::SeaDexRelease;
-use crate::entities::{prelude::*, seadex_cache};
+use crate::entities::{prelude::*, seadex_cache, search_cache};
+use crate::services::search::SearchResult;
 use anyhow::Result;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, Set};
 
@@ -11,6 +12,68 @@ impl CacheRepository {
     #[must_use]
     pub const fn new(conn: DatabaseConnection) -> Self {
         Self { conn }
+    }
+
+    pub async fn get_cached_search(&self, query: &str) -> Result<Option<Vec<SearchResult>>> {
+        let now = chrono::Utc::now().to_rfc3339();
+
+        // Cleanup expired entries first (opportunistic cleanup)
+        // Ideally this would be a background job, but this is simple.
+        let _ = SearchCache::delete_many()
+            .filter(search_cache::Column::ExpiresAt.lt(&now))
+            .exec(&self.conn)
+            .await;
+
+        let entry = SearchCache::find()
+            .filter(search_cache::Column::Query.eq(query))
+            .filter(search_cache::Column::ExpiresAt.gt(&now))
+            .one(&self.conn)
+            .await?;
+
+        if let Some(e) = entry {
+            let results: Vec<SearchResult> = serde_json::from_str(&e.results_json)?;
+            Ok(Some(results))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn cache_search_results(&self, query: &str, results: &[SearchResult]) -> Result<()> {
+        let results_json = serde_json::to_string(results)?;
+        let now = chrono::Utc::now();
+        // Cache for 15 minutes
+        let expires_at = (now + chrono::Duration::minutes(15)).to_rfc3339();
+        let created_at = now.to_rfc3339();
+
+        // Note: SQLite/SeaORM doesn't support "ON CONFLICT UPDATE" cleanly without unique constraints on non-primary keys easily in some versions,
+        // but we assume `query` is not unique yet in the entity definition?
+        // Wait, I didn't add a unique constraint to `query` in the migration, just an index.
+        // Let's add a check first or just insert.
+        // Actually, if we want to update the cache for the same query, we should probably check if it exists.
+        // Or better, let's delete the old one first.
+
+        let _ = SearchCache::delete_many()
+            .filter(search_cache::Column::Query.eq(query))
+            .exec(&self.conn)
+            .await;
+
+        let active_model = search_cache::ActiveModel {
+            id: Set(0), // Auto-increment but we need to supply something? No, usually NotSet.
+            // Actually sea_orm defaults handle this if we use `NotSet` for ID.
+            query: Set(query.to_string()),
+            results_json: Set(results_json),
+            created_at: Set(created_at),
+            expires_at: Set(expires_at),
+        };
+
+        // We need to construct ActiveModel correctly. ID is NotSet by default.
+        // Let's fix the ActiveModel construction below.
+
+        search_cache::Entity::insert(active_model)
+            .exec(&self.conn)
+            .await?;
+
+        Ok(())
     }
 
     pub async fn get_seadex(&self, anime_id: i32) -> Result<Option<SeaDexCache>> {

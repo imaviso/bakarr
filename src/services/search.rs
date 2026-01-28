@@ -7,7 +7,7 @@ use crate::db::Store;
 use crate::quality::parse_quality_from_filename;
 use crate::services::download::{DownloadAction, DownloadDecisionService};
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SearchResult {
     pub title: String,
     pub indexer: String,
@@ -46,6 +46,7 @@ impl SearchService {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub async fn search_episode(
         &self,
         anime_id: i32,
@@ -68,6 +69,18 @@ impl SearchService {
             "Searching for episode"
         );
 
+        if let Ok(Some(cached)) = self.store.get_cached_search(&query).await {
+            info!(
+                event = "search_cache_hit",
+                anime_id = anime_id,
+                episode_number = episode_number,
+                query = %query,
+                results_count = cached.len(),
+                "Returning cached search results"
+            );
+            return Ok(cached);
+        }
+
         let seadex_groups = self.get_seadex_groups_cached(anime_id).await;
 
         let filter = if self.config.nyaa.filter_remakes {
@@ -84,15 +97,15 @@ impl SearchService {
         let torrents = match torrents_result {
             Ok(t) => t,
             Err(e) => {
-                 use tracing::error;
-                 error!(
-                    event = "search_failed",
-                    anime_id = anime_id,
-                    episode_number = episode_number,
-                    error = %e,
-                    "Search failed"
-                 );
-                 return Err(e);
+                use tracing::error;
+                error!(
+                   event = "search_failed",
+                   anime_id = anime_id,
+                   episode_number = episode_number,
+                   error = %e,
+                   "Search failed"
+                );
+                return Err(e);
             }
         };
 
@@ -158,6 +171,10 @@ impl SearchService {
             "Search finished"
         );
 
+        if let Err(e) = self.store.cache_search_results(&query, &results).await {
+            tracing::warn!(error = %e, "Failed to cache search results");
+        }
+
         Ok(results)
     }
 
@@ -176,6 +193,18 @@ impl SearchService {
             "Searching for all episodes"
         );
 
+        let query_str = anime.title.romaji.clone();
+        if let Ok(Some(cached)) = self.store.get_cached_search(&query_str).await {
+            info!(
+                event = "search_cache_hit",
+                anime_id = anime_id,
+                query = %query_str,
+                results_count = cached.len(),
+                "Returning cached search results"
+            );
+            return Ok(cached);
+        }
+
         // We wrap the logic in a block or closure if we want to catch errors easily,
         // but since this function has multiple '?' operators, it's easier to just match on the result if we want to log failure.
         // Or simply log success at the end and rely on the caller/middleware to log the error.
@@ -189,9 +218,9 @@ impl SearchService {
         let (profile, rules, status_map, seadex_groups) = match context_res {
             Ok(ctx) => ctx,
             Err(e) => {
-                 use tracing::error;
-                 error!(event = "search_failed", anime_id = anime_id, error = %e, "Failed to get search context");
-                 return Err(e);
+                use tracing::error;
+                error!(event = "search_failed", anime_id = anime_id, error = %e, "Failed to get search context");
+                return Err(e);
             }
         };
 
@@ -199,9 +228,9 @@ impl SearchService {
         let torrents = match torrents_res {
             Ok(t) => t,
             Err(e) => {
-                 use tracing::error;
-                 error!(event = "search_failed", anime_id = anime_id, error = %e, "Failed to fetch torrents");
-                 return Err(e);
+                use tracing::error;
+                error!(event = "search_failed", anime_id = anime_id, error = %e, "Failed to fetch torrents");
+                return Err(e);
             }
         };
 
@@ -249,6 +278,10 @@ impl SearchService {
             duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
             "Search finished"
         );
+
+        if let Err(e) = self.store.cache_search_results(&query_str, &results).await {
+            tracing::warn!(error = %e, "Failed to cache search results");
+        }
 
         Ok(results)
     }

@@ -3,6 +3,7 @@ use crate::config::QualityProfileConfig;
 use crate::models::anime::Anime;
 use crate::models::episode::{EpisodeInput, EpisodeStatusInput};
 use crate::models::media::MediaInfo;
+use crate::services::search::SearchResult;
 use anyhow::Result;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::path::Path;
@@ -511,6 +512,14 @@ impl Store {
 
     pub async fn is_seadex_cache_fresh(&self, anime_id: i32) -> Result<bool> {
         self.cache_repo().is_seadex_fresh(anime_id).await
+    }
+
+    pub async fn get_cached_search(&self, query: &str) -> Result<Option<Vec<SearchResult>>> {
+        self.cache_repo().get_cached_search(query).await
+    }
+
+    pub async fn cache_search_results(&self, query: &str, results: &[SearchResult]) -> Result<()> {
+        self.cache_repo().cache_search_results(query, results).await
     }
 
     pub async fn get_quality_profile(&self, id: i32) -> Result<Option<QualityProfileRow>> {

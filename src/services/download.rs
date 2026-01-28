@@ -210,7 +210,7 @@ impl DownloadDecisionService {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum DownloadAction {
     Accept {
         quality: Quality,
