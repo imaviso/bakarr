@@ -1,7 +1,10 @@
-use crate::entities::{prelude::*, release_profile_rules, release_profiles, anime_release_profiles};
+use crate::entities::{
+    anime_release_profiles, prelude::*, release_profile_rules, release_profiles,
+};
 use anyhow::Result;
 use sea_orm::{
-    ColumnTrait, Condition, DatabaseConnection, EntityTrait, LoaderTrait, QueryFilter, QuerySelect, RelationTrait, Set, TransactionTrait,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, LoaderTrait, QueryFilter, QuerySelect,
+    RelationTrait, Set, TransactionTrait,
 };
 
 pub struct ReleaseProfileRepository {

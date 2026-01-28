@@ -319,9 +319,9 @@ pub async fn add_anime(
             .store()
             .assign_release_profiles_to_anime(anime.id, &payload.release_profile_ids)
             .await
-        {
-            tracing::error!("Failed to assign release profiles: {}", e);
-        }
+    {
+        tracing::error!("Failed to assign release profiles: {}", e);
+    }
 
     if payload.monitor_and_search {
         spawn_initial_search(&state, anime.id, &anime.title.romaji);
@@ -455,7 +455,7 @@ pub async fn remove_anime(
 
 #[derive(Deserialize)]
 pub struct UpdateReleaseProfilesRequest {
-    pub profile_ids: Vec<i32>,
+    pub release_profile_ids: Vec<i32>,
 }
 
 pub async fn update_anime_release_profiles(
@@ -471,7 +471,7 @@ pub async fn update_anime_release_profiles(
 
     state
         .store()
-        .assign_release_profiles_to_anime(id, &payload.profile_ids)
+        .assign_release_profiles_to_anime(id, &payload.release_profile_ids)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
 

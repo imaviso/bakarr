@@ -54,10 +54,7 @@ impl MigrationTrait for Migration {
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk_anime_release_profiles_profile_id")
-                            .from(
-                                AnimeReleaseProfiles::Table,
-                                AnimeReleaseProfiles::ProfileId,
-                            )
+                            .from(AnimeReleaseProfiles::Table, AnimeReleaseProfiles::ProfileId)
                             .to(ReleaseProfiles::Table, ReleaseProfiles::Id)
                             .on_delete(ForeignKeyAction::Cascade)
                             .on_update(ForeignKeyAction::Cascade),

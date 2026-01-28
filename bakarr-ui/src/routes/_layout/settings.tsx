@@ -440,11 +440,31 @@ function SettingsPage() {
 													<div class="space-y-1">
 														<CardTitle class="text-base flex items-center gap-2">
 															{profile.name}
-															<Show when={!profile.enabled}>
-																<Badge variant="outline" class="text-xs">
-																	Disabled
-																</Badge>
-															</Show>
+															<div class="flex items-center gap-1.5">
+																<Show
+																	when={profile.enabled}
+																	fallback={
+																		<Badge
+																			variant="outline"
+																			class="text-[10px] h-5 px-1.5 text-muted-foreground"
+																		>
+																			Disabled
+																		</Badge>
+																	}
+																>
+																	<Badge class="text-[10px] h-5 px-1.5 bg-green-500/10 text-green-600 border-green-500/20 font-medium">
+																		Enabled
+																	</Badge>
+																</Show>
+																<Show when={profile.is_global}>
+																	<Badge
+																		variant="secondary"
+																		class="text-[10px] h-5 px-1.5 font-normal"
+																	>
+																		Global
+																	</Badge>
+																</Show>
+															</div>
 														</CardTitle>
 														<div class="text-xs text-muted-foreground">
 															{profile.rules.length} Rules
