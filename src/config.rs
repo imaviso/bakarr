@@ -185,6 +185,10 @@ pub struct LibraryConfig {
     pub import_mode: String,
 
     pub movie_naming_format: String,
+
+    /// Preferred title format for naming: "stored" (use existing folder), "english", or "romaji"
+    /// Default is "stored" to maintain consistency with existing library folders
+    pub preferred_title: String,
 }
 
 impl Default for LibraryConfig {
@@ -199,6 +203,7 @@ impl Default for LibraryConfig {
                     .to_string(),
             import_mode: "Copy".to_string(),
             movie_naming_format: "{Series Title}/{Series Title}".to_string(),
+            preferred_title: "stored".to_string(),
         }
     }
 }

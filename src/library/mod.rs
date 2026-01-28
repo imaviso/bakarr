@@ -65,8 +65,13 @@ impl LibraryService {
         self.get_destination_path(&opts)
     }
 
+    /// Get series title based on the configured preference setting
+    fn get_series_title(&self, anime: &Anime) -> String {
+        get_series_title_with_preference(anime, &self.config.preferred_title)
+    }
+
     pub fn format_path(&self, options: &RenamingOptions) -> String {
-        let series = get_series_title(&options.anime);
+        let series = self.get_series_title(&options.anime);
         let season = options
             .season
             .or_else(|| detect_season_from_anime_title(&options.anime))
@@ -241,14 +246,57 @@ impl ImportResult {
     }
 }
 
-fn get_series_title(anime: &Anime) -> String {
-    anime
-        .title
-        .english
-        .as_ref()
-        .filter(|s| !s.is_empty())
-        .unwrap_or(&anime.title.romaji)
-        .clone()
+/// Get series title based on preference setting
+/// - "stored": Use existing folder name from anime.path if available
+/// - "english": Prefer English title, fallback to Romaji
+/// - "romaji": Always use Romaji title
+fn get_series_title_with_preference(anime: &Anime, preference: &str) -> String {
+    match preference {
+        "stored" => {
+            // If anime has an existing path, extract the folder name from it
+            // to maintain consistency with previously imported episodes
+            if let Some(ref path) = anime.path
+                && let Some(folder_name) = extract_folder_name_from_path(path)
+            {
+                return folder_name;
+            }
+            // Fallback to english > romaji for new anime without a path
+            get_series_title_with_preference(anime, "english")
+        }
+        "romaji" => anime.title.romaji.clone(),
+        _ => {
+            // "english" or any other value: prefer English > Romaji
+            anime
+                .title
+                .english
+                .as_ref()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(&anime.title.romaji)
+                .clone()
+        }
+    }
+}
+
+/// Extract the series folder name from the anime's stored path
+/// Strips year suffix like "(2026)" since the naming format may re-add it
+fn extract_folder_name_from_path(path: &str) -> Option<String> {
+    let path_obj = std::path::Path::new(path);
+
+    // Get the last component of the path (the series folder)
+    let folder_name = path_obj.file_name()?.to_str()?;
+    let name = folder_name.trim();
+
+    // Strip year suffix like " (2026)" if present
+    if let Some(stripped) = name.strip_suffix(')')
+        && let Some(paren_pos) = stripped.rfind(" (")
+    {
+        let potential_year = &stripped[paren_pos + 2..];
+        if potential_year.len() == 4 && potential_year.chars().all(|c| c.is_ascii_digit()) {
+            return Some(stripped[..paren_pos].to_string());
+        }
+    }
+
+    Some(name.to_string())
 }
 
 fn detect_season_from_anime_title(anime: &Anime) -> Option<i32> {
@@ -313,6 +361,7 @@ mod tests {
             naming_format: "{Series Title}/Season {Season}/{Series Title} - S{Season:02}E{Episode:02} - {Title}".to_string(),
             import_mode: "Hardlink".to_string(),
             movie_naming_format: "{Series Title}/{Series Title}".to_string(),
+            preferred_title: "english".to_string(),
         }
     }
 

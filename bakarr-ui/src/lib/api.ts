@@ -793,6 +793,7 @@ export interface Config {
 		import_mode: string;
 		movie_naming_format: string;
 		auto_scan_interval_hours: number;
+		preferred_title: string;
 	};
 	// profiles are handled separately but present in full config
 	profiles: QualityProfile[];

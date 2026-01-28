@@ -1182,6 +1182,7 @@ const ConfigSchema = v.object({
 		import_mode: v.string(),
 		movie_naming_format: v.string(),
 		auto_scan_interval_hours: v.number(),
+		preferred_title: v.string(),
 	}),
 	profiles: v.array(
 		v.object({
@@ -1510,6 +1511,51 @@ function SystemForm(props: {
 									<TextFieldLabel>Auto Scan Interval (Hours)</TextFieldLabel>
 									<TextFieldInput type="number" />
 								</TextField>
+							)}
+						</form.Field>
+						<form.Field name="library.preferred_title">
+							{(field) => (
+								<div class="flex flex-col gap-1">
+									<label
+										class="text-sm font-medium leading-none"
+										for={field().name}
+									>
+										Preferred Title
+									</label>
+									<Select
+										name={field().name}
+										value={field().state.value}
+										onChange={(val) => val && field().handleChange(val)}
+										options={["stored", "english", "romaji"]}
+										placeholder="Select title preference..."
+										itemComponent={(props) => (
+											<SelectItem item={props.item}>
+												{props.item.rawValue === "stored"
+													? "Use Existing Folder"
+													: props.item.rawValue === "english"
+														? "English Title"
+														: "Romaji Title"}
+											</SelectItem>
+										)}
+									>
+										<SelectTrigger class="w-full">
+											<SelectValue<string>>
+												{(state) =>
+													state.selectedOption() === "stored"
+														? "Use Existing Folder"
+														: state.selectedOption() === "english"
+															? "English Title"
+															: "Romaji Title"
+												}
+											</SelectValue>
+										</SelectTrigger>
+										<SelectContent />
+									</Select>
+									<p class="text-xs text-muted-foreground">
+										Use existing folder maintains consistency with already
+										imported episodes
+									</p>
+								</div>
 							)}
 						</form.Field>
 					</div>
