@@ -104,7 +104,7 @@ pub async fn create_profile(
     };
 
     if let Err(e) = state.shared.store.sync_profiles(&profiles).await {
-        error!("Failed to sync profiles to DB: {}", e);
+        error!(error = %e, "Failed to sync profiles to DB");
     }
 
     Ok(Json(ApiResponse::success(payload)))
@@ -146,7 +146,7 @@ pub async fn update_profile(
     };
 
     if let Err(e) = state.shared.store.sync_profiles(&profiles).await {
-        error!("Failed to sync profiles to DB: {}", e);
+        error!(error = %e, "Failed to sync profiles to DB");
     }
 
     Ok(Json(ApiResponse::success(payload)))

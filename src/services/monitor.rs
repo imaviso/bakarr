@@ -122,7 +122,7 @@ impl Monitor {
                 t
             }
             Err(e) => {
-                warn!("Failed to fetch torrents: {}", e);
+                error!("Failed to fetch torrents: {}", e);
                 return Ok(());
             }
         };

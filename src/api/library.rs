@@ -141,10 +141,10 @@ pub async fn import_folder(
     let full_path = library_path.join(&request.folder_name);
 
     tracing::info!(
-        "Importing folder: library_path={:?}, folder_name={:?}, full_path={:?}",
-        library_path,
-        request.folder_name,
-        full_path
+        library_path = ?library_path,
+        folder_name = request.folder_name,
+        full_path = ?full_path,
+        "Importing folder"
     );
 
     if !full_path.exists() {
@@ -152,7 +152,7 @@ pub async fn import_folder(
     }
 
     anime.path = Some(full_path.to_string_lossy().to_string());
-    tracing::info!("Setting anime path to: {:?}", anime.path);
+    tracing::debug!(path = ?anime.path, "Setting anime path");
 
     anime.quality_profile_id =
         resolve_quality_profile(&state, request.profile_name.as_ref(), &config).await?;
@@ -206,7 +206,7 @@ fn spawn_post_import_tasks(
 
     tokio::spawn(async move {
         if let Err(e) = scan_folder_for_episodes(&store, &event_bus, anime_id, &folder_path).await {
-            tracing::warn!("Failed to scan folder for episodes: {}", e);
+            tracing::warn!(error = %e, "Failed to scan folder for episodes");
         }
     });
 
@@ -233,6 +233,7 @@ pub async fn scan_folder_for_episodes(
     anime_id: i32,
     folder_path: &Path,
 ) -> anyhow::Result<()> {
+    let start = std::time::Instant::now();
     let anime_title = match store.get_anime(anime_id).await? {
         Some(a) => a.title.romaji,
         None => format!("Anime #{anime_id}"),
@@ -243,7 +244,7 @@ pub async fn scan_folder_for_episodes(
         title: anime_title.clone(),
     });
 
-    tracing::info!("Scanning folder for episodes: {folder_path:?}");
+    tracing::debug!(path = ?folder_path, "Scanning folder for episodes");
 
     let found_episodes = collect_and_parse_episodes(folder_path).await;
 
@@ -262,23 +263,32 @@ pub async fn scan_folder_for_episodes(
             .await
         {
             tracing::warn!(
-                "Failed to mark episode {} as downloaded: {}",
-                episode_number,
-                e
+                episode = episode_number,
+                error = %e,
+                "Failed to mark episode as downloaded"
             );
         } else {
-            tracing::info!(
-                "Detected episode {} from folder scan: {}",
-                episode_number,
-                file_path
+            tracing::debug!(
+                episode = episode_number,
+                path = %file_path,
+                "Detected episode from folder scan"
             );
         }
     }
 
+    let count = found_episodes.len();
+    tracing::info!(
+        event = "folder_scan_finished",
+        anime_id = anime_id,
+        found_episodes = count,
+        duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+        "Folder scan finished"
+    );
+
     let _ = event_bus.send(crate::api::NotificationEvent::ScanFolderFinished {
         anime_id,
         title: anime_title,
-        found: i32::try_from(found_episodes.len()).unwrap_or(i32::MAX),
+        found: i32::try_from(count).unwrap_or(i32::MAX),
     });
 
     Ok(())
@@ -305,7 +315,7 @@ async fn collect_and_parse_episodes(
         let mut entries = match tokio::fs::read_dir(&current_dir).await {
             Ok(entries) => entries,
             Err(e) => {
-                tracing::warn!("Failed to read directory {:?}: {}", current_dir, e);
+                tracing::warn!(path = ?current_dir, error = %e, "Failed to read directory");
                 continue;
             }
         };

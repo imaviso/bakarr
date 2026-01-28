@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{info, warn};
+use tracing::{error, debug, info, warn};
 
 #[derive(Debug, Default)]
 pub struct LibraryScanStats {
@@ -79,12 +79,14 @@ impl LibraryScannerService {
         }
 
         tokio::spawn(async move {
+            let start = std::time::Instant::now();
             let _ = event_bus.send(crate::api::NotificationEvent::ScanStarted);
+            info!(event = "discovery_scan_started", "Starting unmapped folder discovery");
 
             if let Err(e) =
                 Self::perform_scan(state.clone(), store, config, event_bus.clone()).await
             {
-                eprintln!("Scan failed: {e}");
+                error!(event = "discovery_scan_failed", error = %e, "Scan failed");
                 let _ = event_bus.send(crate::api::NotificationEvent::Error {
                     message: format!("Scan failed: {e}"),
                 });
@@ -93,9 +95,16 @@ impl LibraryScannerService {
             let mut guard = state.write().await;
             guard.is_scanning = false;
             guard.last_updated = Some(Utc::now());
+            let folder_count = guard.folders.len();
             drop(guard);
 
             let _ = event_bus.send(crate::api::NotificationEvent::ScanFinished);
+            info!(
+                event = "discovery_scan_finished",
+                folders_found = folder_count,
+                duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+                "Unmapped folder discovery finished"
+            );
         });
     }
 
@@ -116,7 +125,7 @@ impl LibraryScannerService {
         let _ = self
             .event_bus
             .send(crate::api::NotificationEvent::LibraryScanStarted);
-        info!("Scanning library: {}", library_path.display());
+        info!(path = %library_path.display(), "Scanning library");
 
         let title_map = self.build_monitored_title_map().await?;
         let video_extensions = crate::constants::VIDEO_EXTENSIONS;
@@ -162,7 +171,7 @@ impl LibraryScannerService {
                     stats.updated += 1;
                 }
                 Ok(FileScanResult::NoMatch) => {}
-                Err(e) => warn!("Failed to process library file {}: {}", path.display(), e),
+                Err(e) => warn!(path = %path.display(), error = %e, "Failed to process library file"),
             }
         }
 
@@ -492,9 +501,10 @@ async fn collect_unmapped_folders(
 
         let clean_name = crate::parser::filename::clean_title(&folder_name).to_lowercase();
         if !clean_name.is_empty() && known_titles.contains(&clean_name) {
-            tracing::debug!(
-                "Skipping folder '{}' because it matches a library title locally",
-                folder_name
+            debug!(
+                folder = %folder_name,
+                reason = "matches_local_title",
+                "Skipping folder"
             );
             continue;
         }
@@ -571,20 +581,21 @@ async fn update_folder_matches(
     if let Some(m) = first_match
         && existing_ids.contains(&m.id)
     {
-        tracing::debug!(
-            "Filtering out unmapped folder '{}' because match ID {} is already in library",
-            folder_name,
-            m.id
+        debug!(
+            folder = %folder_name,
+            match_id = m.id,
+            reason = "already_in_library",
+            "Filtering out unmapped folder"
         );
 
         if let Some(pos) = guard.folders.iter().position(|f| f.name == folder_name) {
             guard.folders.remove(pos);
         }
     } else if let Some(f) = guard.folders.iter_mut().find(|f| f.name == folder_name) {
-        tracing::debug!(
-            "Keeping unmapped folder '{}'. Top match ID {:?}",
-            folder_name,
-            first_match.map(|m| m.id)
+        debug!(
+            folder = %folder_name,
+            match_id = ?first_match.map(|m| m.id),
+            "Keeping unmapped folder"
         );
         f.suggested_matches = matches;
     }

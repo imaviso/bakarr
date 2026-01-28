@@ -2,7 +2,7 @@ use crate::api::NotificationEvent;
 use crate::db::Store;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::{debug, error};
+use tracing::error;
 
 pub struct LogService {
     store: Store,
@@ -24,14 +24,14 @@ impl LogService {
                 match rx.recv().await {
                     Ok(event) => {
                         if let Err(e) = service.handle_event(event).await {
-                            error!("Failed to save log: {}", e);
+                            error!(error = %e, "Failed to save log");
                         }
                     }
                     Err(broadcast::error::RecvError::Lagged(count)) => {
-                        debug!("Log listener lagged by {} messages", count);
+                        error!(count, "Log listener lagged");
                     }
                     Err(broadcast::error::RecvError::Closed) => {
-                        debug!("Log listener event bus closed");
+                        error!("Log listener event bus closed");
                         break;
                     }
                 }

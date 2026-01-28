@@ -211,7 +211,7 @@ impl QBitClient {
         let body = response.text().await?;
 
         if status == StatusCode::OK && body.contains("Ok") {
-            info!("Successfully authenticated with qBittorrent");
+            debug!("Successfully authenticated with qBittorrent");
 
             Ok(())
         } else if body.contains("Fails") {
@@ -231,7 +231,7 @@ impl QBitClient {
             .await?;
 
         if response.status() == StatusCode::FORBIDDEN {
-            debug!("Session expired or not authenticated, logging in...");
+            debug!(reason = "session_expired", "Logging in...");
             self.login().await?;
         }
 
@@ -304,7 +304,7 @@ impl QBitClient {
         let body = response.text().await?;
 
         if status == StatusCode::OK {
-            info!("Torrent added successfully");
+            debug!("Torrent added successfully");
             Ok(())
         } else if status == StatusCode::UNSUPPORTED_MEDIA_TYPE {
             bail!("Torrent file is not valid")
@@ -359,14 +359,14 @@ impl QBitClient {
         let torrents: Vec<TorrentInfo> = match serde_json::from_str(&text) {
             Ok(t) => t,
             Err(e) => {
-                debug!("Failed to parse qBittorrent response: {}", text);
                 let truncated = if text.len() > 1000 {
                     format!("{}...", &text[..1000])
                 } else {
                     text
                 };
+                debug!(error = %e, response = %truncated, "Failed to parse qBittorrent response");
                 return Err(anyhow::anyhow!(
-                    "Failed to parse response: {e} (content: {truncated})"
+                    "Failed to parse response: {e}"
                 ));
             }
         };
@@ -439,7 +439,7 @@ impl QBitClient {
             .send()
             .await?;
 
-        info!("Deleted torrent: {}", hash);
+        info!(hash = %hash, "Deleted torrent");
         Ok(())
     }
 
@@ -475,7 +475,7 @@ impl QBitClient {
             .send()
             .await?;
 
-        info!("Created category: {}", category);
+        info!(category = %category, "Created category");
         Ok(())
     }
 
@@ -498,7 +498,7 @@ impl QBitClient {
         match self.get_version().await {
             Ok(_) => true,
             Err(e) => {
-                warn!("qBittorrent not available: {}", e);
+                warn!(error = %e, "qBittorrent not available");
                 false
             }
         }

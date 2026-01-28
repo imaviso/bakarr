@@ -203,11 +203,19 @@ async fn update_db_after_rename(
         )
         .await
     {
-        tracing::error!("DB update failed for ep {episode_number}: {e}. Attempting rollback...");
+        tracing::error!(
+            episode = episode_number,
+            error = %e,
+            "DB update failed, attempting rollback"
+        );
 
         if let Err(rollback_err) = tokio::fs::rename(new_path, old_path).await {
             tracing::error!(
-                "CRITICAL: Rollback failed for ep {episode_number}! File is at {new_path:?} but DB thinks it is at {old_path:?}. Error: {rollback_err}"
+                episode = episode_number,
+                error = %rollback_err,
+                new_path = ?new_path,
+                old_path = ?old_path,
+                "CRITICAL: Rollback failed! File renamed but DB not updated"
             );
             anyhow::bail!(
                 "Ep {episode_number}: CRITICAL ERROR - File renamed but DB not updated and rollback failed!"
@@ -215,7 +223,9 @@ async fn update_db_after_rename(
         }
 
         tracing::info!(
-            "Rollback successful for ep {episode_number}. File restored to {old_path:?}"
+            episode = episode_number,
+            path = ?old_path,
+            "Rollback successful"
         );
         anyhow::bail!("Ep {episode_number}: Rename failed (DB error, rolled back): {e}");
     }

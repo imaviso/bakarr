@@ -48,7 +48,7 @@ impl ImageService {
 
         let file_path = images_dir.join(&filename);
 
-        info!("Downloading image from {} to {}", url, file_path.display());
+        info!(url = %url, path = %file_path.display(), "Downloading image");
 
         let response = reqwest::get(url).await?;
         let bytes = response.bytes().await?;

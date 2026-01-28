@@ -34,8 +34,8 @@ impl AnimeMetadataService {
                         anime.studios = Some(studio_names);
                     }
                 }
-                Ok(None) => tracing::warn!("Details not found on Jikan for MAL ID: {}", mal_id),
-                Err(e) => tracing::warn!("Failed to fetch details from Jikan: {}", e),
+                Ok(None) => tracing::warn!(mal_id, "Details not found on Jikan"),
+                Err(e) => tracing::warn!(error = %e, "Failed to fetch details from Jikan"),
             }
         }
     }

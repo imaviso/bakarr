@@ -55,8 +55,12 @@ impl MediaService {
             .collect();
 
         debug!(
-            "Analyzed media {:?}: {}x{} ({}), {}s",
-            path, resolution_width, resolution_height, video_codec, duration_secs
+            path = ?path,
+            width = resolution_width,
+            height = resolution_height,
+            codec = %video_codec,
+            duration = duration_secs,
+            "Media analyzed"
         );
 
         Ok(MediaInfo {

@@ -90,17 +90,20 @@ impl OfflineDatabase {
 
     pub async fn initialize(&self) -> Result<()> {
         if !self.store.is_anime_metadata_empty().await? {
-            info!("Anime metadata database is already populated");
+            tracing::debug!("Anime metadata database is already populated");
             return Ok(());
         }
+
+        let start = std::time::Instant::now();
+        info!(event = "offline_db_import_started", "Initializing anime offline database...");
 
         let cache_path = Path::new("data/anime-offline-database.json");
 
         let json_data = if cache_path.exists() {
-            info!("Loading cached anime-offline-database");
+            tracing::debug!("Loading cached anime-offline-database");
             std::fs::read_to_string(cache_path)?
         } else {
-            info!("Downloading anime-offline-database...");
+            tracing::debug!("Downloading anime-offline-database...");
             let client = reqwest::Client::new();
             let compressed = client.get(DATABASE_URL).send().await?.bytes().await?;
 
@@ -110,15 +113,15 @@ impl OfflineDatabase {
 
             tokio::fs::create_dir_all("data").await?;
             tokio::fs::write(cache_path, &json_data).await?;
-            info!("Cached database to {:?}", cache_path);
+            tracing::debug!(path = ?cache_path, "Cached database");
 
             json_data
         };
 
         let root: DatabaseRoot = serde_json::from_str(&json_data)?;
-        info!(
-            "Loaded {} anime entries from JSON, importing to DB...",
-            root.data.len()
+        tracing::debug!(
+            entries = root.data.len(),
+            "Loaded anime entries from JSON"
         );
 
         let mut batch = Vec::new();
@@ -151,9 +154,16 @@ impl OfflineDatabase {
             batch.push(model);
         }
 
-        info!("Inserting {} entries into SQLite...", batch.len());
+        let count = batch.len();
+        tracing::debug!(count, "Inserting entries into SQLite...");
         self.store.batch_insert_anime_metadata(batch).await?;
-        info!("Anime metadata import complete");
+
+        info!(
+            event = "offline_db_import_finished",
+            count = count,
+            duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+            "Anime metadata import complete"
+        );
 
         // Optional: Remove JSON file to save disk space?
         // For now, keep it as cache to avoid re-downloading if DB is wiped.

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::clients::nyaa::{NyaaCategory, NyaaClient, NyaaFilter, NyaaTorrent};
 use crate::config::Config;
@@ -59,7 +59,14 @@ impl SearchService {
 
         let query = format!("{} {:02}", anime.title.romaji, episode_number);
 
-        info!("Searching for '{}'", query);
+        let start = std::time::Instant::now();
+        info!(
+            event = "search_started",
+            anime_id = anime_id,
+            episode_number = episode_number,
+            query = %query,
+            "Searching for episode"
+        );
 
         let seadex_groups = self.get_seadex_groups_cached(anime_id).await;
 
@@ -69,10 +76,25 @@ impl SearchService {
             NyaaFilter::NoFilter
         };
 
-        let torrents = self
+        let torrents_result = self
             .nyaa
             .search(&anime.title.romaji, NyaaCategory::AnimeEnglish, filter)
-            .await?;
+            .await;
+
+        let torrents = match torrents_result {
+            Ok(t) => t,
+            Err(e) => {
+                 use tracing::error;
+                 error!(
+                    event = "search_failed",
+                    anime_id = anime_id,
+                    episode_number = episode_number,
+                    error = %e,
+                    "Search failed"
+                 );
+                 return Err(e);
+            }
+        };
 
         let mut results = Vec::new();
 
@@ -127,6 +149,15 @@ impl SearchService {
             b.seeders.cmp(&a.seeders)
         });
 
+        info!(
+            event = "search_finished",
+            anime_id = anime_id,
+            episode_number = episode_number,
+            results_count = results.len(),
+            duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+            "Search finished"
+        );
+
         Ok(results)
     }
 
@@ -137,10 +168,42 @@ impl SearchService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Anime not found"))?;
 
-        debug!("Searching for all episodes of '{}'", anime.title.romaji);
+        let start = std::time::Instant::now();
+        info!(
+            event = "search_started",
+            anime_id = anime_id,
+            query = %anime.title.romaji,
+            "Searching for all episodes"
+        );
 
-        let (profile, rules, status_map, seadex_groups) = self.get_search_context(anime_id).await?;
-        let torrents = self.fetch_torrents_for_search(&anime.title.romaji).await?;
+        // We wrap the logic in a block or closure if we want to catch errors easily,
+        // but since this function has multiple '?' operators, it's easier to just match on the result if we want to log failure.
+        // Or simply log success at the end and rely on the caller/middleware to log the error.
+        // However, for consistency with 'search_episode', let's try to capture errors specifically for the 'search_failed' event if possible.
+        // But here the logic is a bit more complex. Let's stick to the happy path instrumentation for now,
+        // as errors will bubble up. Actually, if I want 'search_failed', I should use a helper or modify the flow slightly.
+        // I will instrument the start and success paths. Errors from Nyaa will be logged by the caller usually,
+        // but adding specific context here is better.
+
+        let context_res = self.get_search_context(anime_id).await;
+        let (profile, rules, status_map, seadex_groups) = match context_res {
+            Ok(ctx) => ctx,
+            Err(e) => {
+                 use tracing::error;
+                 error!(event = "search_failed", anime_id = anime_id, error = %e, "Failed to get search context");
+                 return Err(e);
+            }
+        };
+
+        let torrents_res = self.fetch_torrents_for_search(&anime.title.romaji).await;
+        let torrents = match torrents_res {
+            Ok(t) => t,
+            Err(e) => {
+                 use tracing::error;
+                 error!(event = "search_failed", anime_id = anime_id, error = %e, "Failed to fetch torrents");
+                 return Err(e);
+            }
+        };
 
         let candidates = self.filter_and_sort_candidates(&torrents, &seadex_groups);
         let best_candidates = self.deduplicate_episodes(candidates).await;
@@ -178,6 +241,14 @@ impl SearchService {
                 episode_number: parsed.episode_number,
             });
         }
+
+        info!(
+            event = "search_finished",
+            anime_id = anime_id,
+            results_count = results.len(),
+            duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+            "Search finished"
+        );
 
         Ok(results)
     }

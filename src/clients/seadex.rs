@@ -89,7 +89,7 @@ impl SeaDexClient {
 
         url.query_pairs_mut().append_pair("filter", &filter);
 
-        debug!("Fetching SeaDex entry for AniList ID: {}", anilist_id);
+        debug!(anilist_id, "Fetching SeaDex entry");
 
         let response: SeaDexResponse = self.client.get(url).send().await?.json().await?;
 
@@ -115,7 +115,7 @@ impl SeaDexClient {
             .append_pair("filter", &filter)
             .append_pair("perPage", "100");
 
-        debug!("Fetching SeaDex release details for {} IDs", tr_ids.len());
+        debug!(count = tr_ids.len(), "Fetching SeaDex release details");
 
         let response: ReleaseResponse = self.client.get(url).send().await?.json().await?;
 

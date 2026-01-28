@@ -49,7 +49,7 @@ impl RssService {
             .event_bus
             .send(crate::api::NotificationEvent::RssCheckStarted)
         {
-            debug!("Failed to send RssCheckStarted event: {}", e);
+            warn!("Failed to send RssCheckStarted event: {}", e);
         }
 
         info!("Checking {} RSS feeds...", total_feeds);
@@ -65,7 +65,7 @@ impl RssService {
                     feed_name: name.to_string(),
                 })
             {
-                debug!("Failed to send RssCheckProgress event: {}", e);
+                warn!("Failed to send RssCheckProgress event: {}", e);
             }
 
             let Some(anime) = monitored.iter().find(|a| a.id == feed.anime_id) else {

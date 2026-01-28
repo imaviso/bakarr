@@ -82,9 +82,9 @@ pub async fn list_episodes(
             } else {
                 // File is missing from disk - mark as stale
                 tracing::warn!(
-                    "Episode {} file missing from disk: {}",
-                    ep_num_i32,
-                    path_str
+                    episode = ep_num_i32,
+                    path = %path_str,
+                    "File missing from disk"
                 );
                 stale_episodes.push(ep_num_i32);
                 (false, None)
@@ -109,7 +109,7 @@ pub async fn list_episodes(
         tokio::spawn(async move {
             for ep_num in stale_episodes {
                 if let Err(e) = store.clear_episode_download(anime_id, ep_num).await {
-                    tracing::error!("Failed to clear stale episode {}: {}", ep_num, e);
+                    tracing::error!(episode = ep_num, error = %e, "Failed to clear stale episode");
                 }
             }
         });
@@ -307,7 +307,7 @@ pub async fn scan_folder(
         )));
     }
 
-    tracing::info!("Scanning folder for anime {id}: {path:?}");
+    tracing::info!(anime_id = id, path = ?path, "Scanning folder");
 
     let before_count = state.store().get_downloaded_count(id).await.unwrap_or(0);
 
@@ -322,9 +322,10 @@ pub async fn scan_folder(
     let found = (after_count - before_count).max(0);
 
     tracing::info!(
-        "Folder scan complete: found {} new episodes (total: {})",
-        found,
-        after_count
+        event = "folder_scan_finished",
+        found = found,
+        total = after_count,
+        "Folder scan complete"
     );
 
     Ok(Json(ApiResponse::success(ScanFolderResult {
@@ -357,13 +358,13 @@ pub async fn list_files(
 
     let path = std::path::Path::new(&folder_path);
     if !path.exists() {
-        tracing::error!("list_files: Folder does not exist: {folder_path}");
+        tracing::error!(path = %folder_path, "Folder does not exist");
         return Err(ApiError::validation(format!(
             "Folder does not exist: {folder_path}"
         )));
     }
 
-    tracing::info!("list_files: Scanning root {folder_path}");
+    tracing::debug!(path = %folder_path, "Scanning root for files");
 
     let statuses = state.store().get_episode_statuses(id).await?;
     let mapped_paths: std::collections::HashMap<String, i32> = statuses
@@ -384,10 +385,7 @@ pub async fn list_files(
         if !scanned_paths.contains(path_str) {
             let path = std::path::Path::new(path_str);
             if path.exists() {
-                tracing::info!(
-                    "list_files: Adding missing mapped file from DB: {}",
-                    path_str
-                );
+                tracing::debug!(path = %path_str, "Adding missing mapped file");
                 let name = path
                     .file_name()
                     .unwrap_or_default()
@@ -405,12 +403,12 @@ pub async fn list_files(
                     episode_number: Some(*ep_num),
                 });
             } else {
-                tracing::warn!("list_files: Mapped file missing from disk: {}", path_str);
+                tracing::warn!(path = %path_str, "Mapped file missing from disk");
             }
         }
     }
 
-    tracing::info!("list_files: Found {} files", files.len());
+    tracing::debug!(count = files.len(), "Found files");
     files.sort_by(|a, b| a.name.cmp(&b.name));
 
     Ok(Json(ApiResponse::success(files)))
@@ -432,7 +430,7 @@ async fn collect_video_files(root: &std::path::Path) -> Vec<VideoFileDto> {
         let mut entries = match tokio::fs::read_dir(&current_dir).await {
             Ok(e) => e,
             Err(e) => {
-                tracing::warn!("list_files: Failed to read dir {current_dir:?}: {e}");
+                tracing::warn!(path = ?current_dir, error = %e, "Failed to read dir");
                 continue;
             }
         };
@@ -480,7 +478,7 @@ async fn save_anime_images(state: &AppState, anime: &mut crate::models::anime::A
             .await
         {
             Ok(path) => anime.cover_image = Some(path),
-            Err(e) => tracing::warn!("Failed to save cover image: {}", e),
+            Err(e) => tracing::warn!(error = %e, "Failed to save cover image"),
         }
     }
 
@@ -491,7 +489,7 @@ async fn save_anime_images(state: &AppState, anime: &mut crate::models::anime::A
             .await
         {
             Ok(path) => anime.banner_image = Some(path),
-            Err(e) => tracing::warn!("Failed to save banner image: {}", e),
+            Err(e) => tracing::warn!(error = %e, "Failed to save banner image"),
         }
     }
 }
@@ -527,7 +525,7 @@ async fn recycle_episode_file(
                 .await?;
         }
         Err(e) => {
-            tracing::error!("Failed to recycle file: {}", e);
+            tracing::error!(error = %e, "Failed to recycle file");
             if let Err(e) = tokio::fs::remove_file(path).await {
                 return Err(ApiError::internal(format!("Failed to delete file: {e}")));
             }
@@ -566,7 +564,7 @@ pub async fn bulk_map_episodes(
 
     for mapping in request.mappings {
         if let Err(e) = map_single_episode(&state, id, mapping, &media_service).await {
-            tracing::error!("Failed to map episode: {}", e);
+            tracing::error!(error = %e, "Failed to map episode");
         }
     }
 
@@ -594,9 +592,9 @@ async fn map_single_episode(
     let path = std::path::Path::new(&mapping.file_path);
     if !path.exists() {
         tracing::warn!(
-            "Skipping map for ep {}: file not found {:?}",
-            mapping.episode_number,
-            path
+            episode = mapping.episode_number,
+            path = ?path,
+            "Skipping map: file not found"
         );
         return Ok(());
     }

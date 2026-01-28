@@ -61,7 +61,7 @@ impl EpisodeService {
         }
 
         if let Err(e) = self.fetch_and_cache_episodes(anilist_id).await {
-            debug!("Failed to fetch episodes from Jikan: {}", e);
+            warn!(error = %e, "Failed to fetch episodes from external providers");
         }
 
         if let Some(title) = self
@@ -89,7 +89,7 @@ impl EpisodeService {
         }
 
         if let Err(e) = self.fetch_and_cache_episodes(anilist_id).await {
-            debug!("Failed to fetch episodes from Jikan: {}", e);
+            warn!(error = %e, "Failed to fetch episodes from external providers");
             return Ok(None);
         }
 
@@ -126,7 +126,7 @@ impl EpisodeService {
                 return Ok(count);
             }
             Ok(_) => debug!("AniList returned 0 episodes for ID {}", anilist_id),
-            Err(e) => warn!("Failed to fetch from AniList for ID {}: {}", anilist_id, e),
+            Err(e) => warn!(anilist_id, error = %e, "Failed to fetch from AniList"),
         }
 
         // Try Kitsu second
@@ -138,7 +138,7 @@ impl EpisodeService {
                 return Ok(count);
             }
             Ok(_) => debug!("Kitsu returned 0 episodes for ID {}", anilist_id),
-            Err(e) => warn!("Failed to fetch from Kitsu for ID {}: {}", anilist_id, e),
+            Err(e) => warn!(anilist_id, error = %e, "Failed to fetch from Kitsu"),
         }
 
         // Try Jikan last
@@ -150,7 +150,7 @@ impl EpisodeService {
                 return Ok(count);
             }
             Ok(_) => debug!("Jikan returned 0 episodes for ID {}", anilist_id),
-            Err(e) => warn!("Failed to fetch from Jikan for ID {}: {}", anilist_id, e),
+            Err(e) => warn!(anilist_id, error = %e, "Failed to fetch from Jikan"),
         }
 
         Ok(0)
@@ -258,14 +258,16 @@ impl EpisodeService {
                     page += 1;
 
                     if page > 10 {
-                        warn!("Reached episode fetch limit for anime {}", anilist_id);
+                        warn!(anilist_id, "Reached episode fetch limit for anime");
                         break;
                     }
                 }
                 Err(e) => {
                     warn!(
-                        "Failed to fetch episodes page {} for MAL {}: {}",
-                        page, mal_id, e
+                        page,
+                        mal_id,
+                        error = %e,
+                        "Failed to fetch episodes page"
                     );
                     break;
                 }
@@ -283,7 +285,8 @@ impl EpisodeService {
     }
 
     pub async fn refresh_metadata_for_active_anime(&self) -> Result<()> {
-        info!("Refreshing metadata for airing anime...");
+        let start = std::time::Instant::now();
+        info!(event = "metadata_refresh_started", "Refreshing metadata for airing anime...");
 
         let monitored = self.store.list_monitored().await?;
         let releasing: Vec<_> = monitored
@@ -291,20 +294,30 @@ impl EpisodeService {
             .filter(|a| a.status == "RELEASING" || a.status == "NOT_YET_RELEASED")
             .collect();
 
-        info!("Found {} anime to refresh metadata for", releasing.len());
+        let count = releasing.len();
+        info!(count, "Found anime to refresh metadata for");
 
+        let mut errors = 0;
         for anime in releasing {
             if let Err(e) = self.fetch_and_cache_episodes(anime.id).await {
                 warn!(
-                    "Failed to refresh metadata for {}: {}",
-                    anime.title.romaji, e
+                    anime = %anime.title.romaji,
+                    error = %e,
+                    "Failed to refresh metadata"
                 );
+                errors += 1;
             }
 
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
 
-        info!("Metadata refresh complete");
+        info!(
+            event = "metadata_refresh_finished",
+            processed = count,
+            errors = errors,
+            duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+            "Metadata refresh complete"
+        );
         Ok(())
     }
 }

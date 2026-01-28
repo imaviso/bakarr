@@ -57,16 +57,25 @@ impl Scheduler {
                 if !*running.read().await {
                     return;
                 }
+                let start = std::time::Instant::now();
+                info!(event = "job_started", job_name = "check_releases", "Starting scheduled release check");
 
                 let auto_downloader = state.read().await.auto_downloader.clone();
                 if let Err(e) = auto_downloader.check_all_anime(delay_secs).await {
-                    error!("Scheduled anime check failed: {}", e);
+                    error!(event = "job_failed", job_name = "check_releases", error = %e, "Scheduled anime check failed");
                 }
 
                 let rss_service = state.read().await.rss_service.clone();
                 if let Err(e) = rss_service.check_feeds(u64::from(delay_secs)).await {
-                    error!("Scheduled RSS check failed: {}", e);
+                    error!(event = "job_failed", job_name = "check_rss", error = %e, "Scheduled RSS check failed");
                 }
+
+                info!(
+                    event = "job_finished",
+                    job_name = "check_releases",
+                    duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+                    "Scheduled release check finished"
+                );
             })
         })?;
 
@@ -173,35 +182,63 @@ impl Scheduler {
                     if !*self.running.read().await {
                         break;
                     }
-                    info!("Running scheduled checks...");
+                    let start = std::time::Instant::now();
+                    info!(event = "job_started", job_name = "check_releases", "Starting scheduled release check");
 
                     let auto_downloader = self.state.read().await.auto_downloader.clone();
                     if let Err(e) = auto_downloader.check_all_anime(delay_secs).await {
-                        error!("Scheduled anime check failed: {}", e);
+                         error!(event = "job_failed", job_name = "check_releases", error = %e, "Scheduled anime check failed");
                     }
 
                     let rss_service = self.state.read().await.rss_service.clone();
                     if let Err(e) = rss_service.check_feeds(u64::from(delay_secs)).await {
-                        error!("Scheduled RSS check failed: {}", e);
+                         error!(event = "job_failed", job_name = "check_rss", error = %e, "Scheduled RSS check failed");
                     }
+
+                    info!(
+                        event = "job_finished",
+                        job_name = "check_releases",
+                        duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+                        "Scheduled release check finished"
+                    );
                 }
                 _ = metadata_interval.tick() => {
                     if !*self.running.read().await {
                         break;
                     }
+
+                    let start = std::time::Instant::now();
+                    info!(event = "job_started", job_name = "refresh_metadata", "Starting scheduled metadata refresh");
+
                     if let Err(e) = self.refresh_metadata().await {
-                        error!("Scheduled metadata refresh failed: {}", e);
+                        error!(event = "job_failed", job_name = "refresh_metadata", error = %e, "Scheduled metadata refresh failed");
                     }
+
+                    info!(
+                        event = "job_finished",
+                        job_name = "refresh_metadata",
+                        duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+                        "Scheduled metadata refresh finished"
+                    );
                 }
                 _ = scan_interval.tick() => {
                     if !*self.running.read().await {
                         break;
                     }
-                    info!("Running scheduled library scan...");
+                    let start = std::time::Instant::now();
+                    info!(event = "job_started", job_name = "scan_library", "Starting scheduled library scan");
+
                     let scanner = self.state.read().await.library_scanner.clone();
                     if let Err(e) = scanner.scan_library_files().await {
-                        error!("Scheduled library scan failed: {}", e);
+                        error!(event = "job_failed", job_name = "scan_library", error = %e, "Scheduled library scan failed");
                     }
+
+                    info!(
+                        event = "job_finished",
+                        job_name = "scan_library",
+                        duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+                        "Scheduled library scan finished"
+                    );
                 }
             }
         }

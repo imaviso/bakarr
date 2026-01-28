@@ -193,7 +193,8 @@ pub async fn search_missing(
 }
 
 async fn perform_global_search(state: &AppState) {
-    tracing::info!("Starting global missing episode search");
+    let start = std::time::Instant::now();
+    tracing::info!(event = "global_search_started", "Starting global missing episode search");
     let _ = state.event_bus().send(crate::api::NotificationEvent::Info {
         message: "Starting global search for missing episodes".to_string(),
     });
@@ -201,13 +202,13 @@ async fn perform_global_search(state: &AppState) {
     let missing_episodes = match state.store().get_all_missing_episodes(1000).await {
         Ok(eps) => eps,
         Err(e) => {
-            tracing::error!("Failed to fetch missing episodes: {}", e);
+            tracing::error!(event = "global_search_failed", error = %e, "Failed to fetch missing episodes");
             return;
         }
     };
 
     if missing_episodes.is_empty() {
-        tracing::info!("No missing episodes found");
+        tracing::info!(event = "global_search_finished", episodes_found = 0, duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX), "No missing episodes found");
         return;
     }
 
@@ -216,10 +217,10 @@ async fn perform_global_search(state: &AppState) {
         unique_anime_ids.insert(i32::try_from(ep.anime_id).unwrap_or(i32::MAX));
     }
 
-    tracing::info!(
-        "Found {} missing episodes across {} series",
-        missing_episodes.len(),
-        unique_anime_ids.len()
+    tracing::debug!(
+        episodes_found = missing_episodes.len(),
+        series_count = unique_anime_ids.len(),
+        "Found missing episodes"
     );
 
     let mut total_added = 0;
@@ -233,25 +234,34 @@ async fn perform_global_search(state: &AppState) {
             _ => format!("Anime #{anime_id}"),
         };
 
-        tracing::info!(
-            "Searching missing for '{anime_title}' ({}/{})",
-            idx + 1,
-            unique_anime_ids.len()
+        tracing::debug!(
+            anime_id = anime_id,
+            anime_title = %anime_title,
+            progress = format!("{}/{}", idx + 1, unique_anime_ids.len()),
+            "Searching missing episodes for series"
         );
 
         let category = crate::clients::qbittorrent::sanitize_category(&anime_title);
         match perform_search_and_download(state, *anime_id, &category).await {
             Ok(count) => {
                 total_added += i32::try_from(count).unwrap_or(i32::MAX);
-                tracing::info!("Added {count} torrents for '{anime_title}'");
+                tracing::debug!(anime_title = %anime_title, count = count, "Added torrents");
             }
             Err(e) => {
-                tracing::error!("Failed to search for anime {anime_id}: {e}");
+                tracing::error!(anime_id = anime_id, error = %e, "Failed to search for anime");
             }
         }
     }
 
-    tracing::info!("Global search complete. Total torrents added: {total_added}");
+    tracing::info!(
+        event = "global_search_finished",
+        episodes_found = missing_episodes.len(),
+        series_processed = unique_anime_ids.len(),
+        torrents_added = total_added,
+        duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+        "Global search complete"
+    );
+
     let _ = state.event_bus().send(crate::api::NotificationEvent::Info {
         message: format!("Global search complete. Added {total_added} torrents."),
     });
@@ -270,7 +280,7 @@ async fn perform_search_and_download(
             && let Some(qbit) = &state.qbit()
         {
             if let Err(e) = qbit.add_magnet(&result.link, None, Some(category)).await {
-                tracing::error!("Failed to add torrent: {e}");
+                tracing::error!(anime_id = anime_id, error = %e, link = %result.link, "Failed to add torrent");
                 continue;
             }
 
@@ -285,7 +295,7 @@ async fn perform_search_and_download(
                 )
                 .await
             {
-                tracing::error!("Failed to record download: {e}");
+                tracing::error!(anime_id = anime_id, error = %e, "Failed to record download");
             }
 
             count += 1;

@@ -51,8 +51,11 @@ impl DownloadDecisionService {
         let release_score = Self::calculate_score(release_title, rules);
 
         debug!(
-            "Release '{}': Quality={} Rank={} Score={}",
-            release_title, release_quality, release_quality.rank, release_score
+            release_title = %release_title,
+            quality = %release_quality,
+            rank = release_quality.rank,
+            score = release_score,
+            "Release analyzed"
         );
 
         if let Err(reason) = Self::check_constraints(release_title, rules) {

@@ -56,7 +56,7 @@ impl AutoDownloadService {
             }
 
             if let Err(e) = self.check_anime_releases(&anime).await {
-                warn!("Error checking {}: {}", anime.title.romaji, e);
+                warn!(anime = %anime.title.romaji, error = %e, "Error checking anime");
                 errors += 1;
             } else {
                 processed += 1;
@@ -264,7 +264,7 @@ impl AutoDownloadService {
                 info!("Moved old file to recycle bin: {:?}", old_path);
             }
             Err(e) => {
-                warn!("Failed to recycle old file: {}", e);
+                warn!(error = %e, "Failed to recycle old file");
             }
         }
     }
@@ -351,7 +351,7 @@ impl AutoDownloadService {
                 Ok(SeadexQueueResult::Queued)
             }
             Err(e) => {
-                warn!("Failed to queue Seadex batch: {}", e);
+                warn!(error = %e, "Failed to queue Seadex batch");
                 Ok(SeadexQueueResult::Skipped)
             }
         }
@@ -390,7 +390,7 @@ impl AutoDownloadService {
                 releases
             }
             Err(e) => {
-                debug!("SeaDex lookup failed: {}", e);
+                warn!(error = %e, "SeaDex lookup failed");
                 vec![]
             }
         }
