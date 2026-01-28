@@ -266,6 +266,7 @@ export function ImportDialog(props: ImportDialogProps) {
 						root_folder: "",
 						monitor_and_search: false,
 						monitored: true,
+						release_profile_ids: [],
 					});
 					toast.success(`Added ${candidate.title.romaji}`, { id: toastId });
 				} catch (err) {

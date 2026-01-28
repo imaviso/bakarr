@@ -29,7 +29,7 @@ import {
 	useNavigate,
 	useParams,
 } from "@tanstack/solid-router";
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { AnimeError } from "~/components/anime-error";
 import { ImportDialog } from "~/components/import-dialog";
