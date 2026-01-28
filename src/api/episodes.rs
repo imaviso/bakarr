@@ -52,6 +52,9 @@ pub async fn list_episodes(
         .map(|m| (m.episode_number, m))
         .collect();
 
+    // Collect episode numbers with stale file_path entries (file doesn't exist on disk)
+    let mut stale_episodes: Vec<i32> = Vec::new();
+
     for ep_num in start_ep..=total_eps {
         let ep_num_i32 = ep_num;
 
@@ -69,12 +72,46 @@ pub async fn list_episodes(
             .iter()
             .find(|s| s.episode_number == ep_num_i32);
 
+        // Check if file actually exists on disk
+        let (downloaded, file_path) = if let Some(s) = status
+            && let Some(ref path_str) = s.file_path
+        {
+            let path = std::path::Path::new(path_str);
+            if path.exists() {
+                (true, Some(path_str.clone()))
+            } else {
+                // File is missing from disk - mark as stale
+                tracing::warn!(
+                    "Episode {} file missing from disk: {}",
+                    ep_num_i32,
+                    path_str
+                );
+                stale_episodes.push(ep_num_i32);
+                (false, None)
+            }
+        } else {
+            (false, None)
+        };
+
         episodes.push(EpisodeDto {
             number: ep_num_i32,
             title: metadata.as_ref().and_then(|m| m.title.clone()),
             aired: metadata.as_ref().and_then(|m| m.aired.clone()),
-            downloaded: status.is_some_and(|s| s.file_path.is_some()),
-            file_path: status.and_then(|s| s.file_path.clone()),
+            downloaded,
+            file_path,
+        });
+    }
+
+    // Clear stale episode entries in the background
+    if !stale_episodes.is_empty() {
+        let store = state.store().clone();
+        let anime_id = id;
+        tokio::spawn(async move {
+            for ep_num in stale_episodes {
+                if let Err(e) = store.clear_episode_download(anime_id, ep_num).await {
+                    tracing::error!("Failed to clear stale episode {}: {}", ep_num, e);
+                }
+            }
         });
     }
 
@@ -129,12 +166,33 @@ pub async fn get_episode(
         .into_iter()
         .find(|s| s.episode_number == number);
 
+    // Check if file actually exists on disk
+    let (downloaded, file_path) = if let Some(ref s) = status
+        && let Some(ref path_str) = s.file_path
+    {
+        let path = std::path::Path::new(path_str);
+        if path.exists() {
+            (true, Some(path_str.clone()))
+        } else {
+            // File is missing - clear stale entry in background
+            let store = state.store().clone();
+            let anime_id = id;
+            let ep_num = number;
+            tokio::spawn(async move {
+                let _ = store.clear_episode_download(anime_id, ep_num).await;
+            });
+            (false, None)
+        }
+    } else {
+        (false, None)
+    };
+
     let dto = EpisodeDto {
         number,
         title: metadata.as_ref().and_then(|m| m.title.clone()),
         aired: metadata.as_ref().and_then(|m| m.aired.clone()),
-        downloaded: status.as_ref().is_some_and(|s| s.file_path.is_some()),
-        file_path: status.and_then(|s| s.file_path),
+        downloaded,
+        file_path,
     };
 
     Ok(Json(ApiResponse::success(dto)))
