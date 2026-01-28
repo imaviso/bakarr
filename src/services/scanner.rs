@@ -100,6 +100,7 @@ impl LibraryScannerService {
     }
 
     pub async fn scan_library_files(&self) -> anyhow::Result<LibraryScanStats> {
+        let start = std::time::Instant::now();
         let library_path = {
             let cfg = self.config.read().await;
             PathBuf::from(&cfg.library.library_path)
@@ -173,6 +174,15 @@ impl LibraryScannerService {
                 updated: stats.updated,
             });
 
+        info!(
+            event = "library_scan_finished",
+            scanned = stats.scanned,
+            matched = stats.matched,
+            updated = stats.updated,
+            duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+            "Library scan completed"
+        );
+
         Ok(stats)
     }
 
@@ -242,8 +252,11 @@ impl LibraryScannerService {
             .await?;
 
         info!(
-            "  Found: {} - Episode {} ({})",
-            anime.title.romaji, episode_number, filename
+            event = "library_file_matched",
+            anime_title = %anime.title.romaji,
+            episode = episode_number,
+            filename = %filename,
+            "Found episode in library"
         );
 
         Ok(FileScanResult::Updated)

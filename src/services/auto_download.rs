@@ -39,11 +39,16 @@ impl AutoDownloadService {
     }
 
     pub async fn check_all_anime(&self, delay_secs: u32) -> Result<()> {
+        let start = std::time::Instant::now();
         let monitored = self.store.list_monitored().await?;
+        let count = monitored.len();
         info!(
             "Checking {} monitored anime via Nyaa search",
-            monitored.len()
+            count
         );
+
+        let mut processed = 0;
+        let mut errors = 0;
 
         for anime in monitored {
             if !anime.monitored {
@@ -52,6 +57,9 @@ impl AutoDownloadService {
 
             if let Err(e) = self.check_anime_releases(&anime).await {
                 warn!("Error checking {}: {}", anime.title.romaji, e);
+                errors += 1;
+            } else {
+                processed += 1;
             }
 
             if delay_secs > 0 {
@@ -59,7 +67,14 @@ impl AutoDownloadService {
             }
         }
 
-        info!("Anime search check complete");
+        info!(
+            event = "auto_download_check_finished",
+            total_monitored = count,
+            processed = processed,
+            errors = errors,
+            duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+            "Anime search check complete"
+        );
         Ok(())
     }
 
@@ -104,12 +119,14 @@ impl AutoDownloadService {
                 quality, is_seadex, ..
             } => {
                 info!(
-                    "New release: {} - Episode {} [{}, {}{}]",
-                    anime.title.romaji,
-                    episode_number,
-                    quality,
-                    result.group.as_deref().unwrap_or("Unknown"),
-                    if *is_seadex { ", SeaDex" } else { "" }
+                    event = "download_decision",
+                    decision = "accept",
+                    anime_title = %anime.title.romaji,
+                    episode = episode_number,
+                    quality = %quality,
+                    group = %result.group.as_deref().unwrap_or("Unknown"),
+                    is_seadex = is_seadex,
+                    "New release accepted"
                 );
 
                 self.queue_download_from_result(anime, result, quality, *is_seadex)
@@ -124,8 +141,14 @@ impl AutoDownloadService {
                 ..
             } => {
                 info!(
-                    "Upgrading {} - Episode {} [{} -> {}, {}]",
-                    anime.title.romaji, episode_number, old_quality, quality, reason
+                    event = "download_decision",
+                    decision = "upgrade",
+                    anime_title = %anime.title.romaji,
+                    episode = episode_number,
+                    old_quality = %old_quality,
+                    new_quality = %quality,
+                    reason = %reason,
+                    "Upgrade decision made"
                 );
 
                 self.handle_upgrade_recycle(
@@ -141,8 +164,12 @@ impl AutoDownloadService {
             }
             crate::services::download::DownloadAction::Reject { reason } => {
                 debug!(
-                    "Skipping {} - Episode {}: {}",
-                    anime.title.romaji, episode_number, reason
+                    event = "download_decision",
+                    decision = "reject",
+                    anime_title = %anime.title.romaji,
+                    episode = episode_number,
+                    reason = %reason,
+                    "Release rejected"
                 );
             }
         }
@@ -174,10 +201,11 @@ impl AutoDownloadService {
         match qbit.add_torrent_url(&result.link, Some(options)).await {
             Ok(()) => {
                 info!(
-                    "✓ Queued: {} [{}{}]",
-                    result.title,
-                    quality,
-                    if is_seadex { ", SeaDex" } else { "" }
+                    event = "download_queued",
+                    title = %result.title,
+                    quality = %quality,
+                    is_seadex = is_seadex,
+                    "Torrent queued successfully"
                 );
 
                 self.store
@@ -191,7 +219,12 @@ impl AutoDownloadService {
                     .await?;
             }
             Err(e) => {
-                warn!("Failed to queue torrent: {}", e);
+                warn!(
+                    event = "queue_failed",
+                    error = %e,
+                    title = %result.title,
+                    "Failed to queue torrent"
+                );
             }
         }
 

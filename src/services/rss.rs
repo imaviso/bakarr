@@ -36,6 +36,7 @@ impl RssService {
     }
 
     pub async fn check_feeds(&self, delay_secs: u64) -> anyhow::Result<RssCheckStats> {
+        let start = std::time::Instant::now();
         let feeds = self.store.get_enabled_rss_feeds().await?;
         let monitored = self.store.list_monitored().await?;
         let total_feeds = i32::try_from(feeds.len()).unwrap_or(i32::MAX);
@@ -93,7 +94,12 @@ impl RssService {
                     }
 
                     if count > 0 {
-                        info!("RSS feed '{}': found {} new items", name, count);
+                        info!(
+                            event = "rss_feed_checked",
+                            feed_name = %name,
+                            new_items = count,
+                            "RSS feed check complete"
+                        );
 
                         for torrent in new_items {
                             if let Ok(queued) = self.process_new_item(anime, &torrent).await
@@ -124,6 +130,15 @@ impl RssService {
             debug!("Failed to send RssCheckFinished event: {}", e);
         }
 
+        info!(
+            event = "rss_check_finished",
+            total_feeds = stats.total_feeds,
+            new_items = stats.new_items,
+            queued = stats.queued,
+            duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+            "RSS check cycle completed"
+        );
+
         Ok(stats)
     }
 
@@ -151,10 +166,11 @@ impl RssService {
         let group = release.group;
 
         info!(
-            "[RSS] New release: {} - Episode {} [{}]",
-            anime.title.romaji,
-            episode_number,
-            group.as_deref().unwrap_or("Unknown")
+            event = "rss_item_found",
+            anime_title = %anime.title.romaji,
+            episode = episode_number,
+            group = %group.as_deref().unwrap_or("Unknown"),
+            "New release found"
         );
 
         if let Some(qbit) = &self.qbit {
@@ -171,7 +187,12 @@ impl RssService {
 
             match qbit.add_torrent_url(&magnet, Some(options)).await {
                 Ok(()) => {
-                    info!("✓ [RSS] Queued: {} in category {}", torrent.title, category);
+                    info!(
+                        event = "rss_download_queued",
+                        title = %torrent.title,
+                        category = %category,
+                        "Torrent queued successfully"
+                    );
 
                     self.store
                         .record_download(
@@ -186,13 +207,20 @@ impl RssService {
                     return Ok(true);
                 }
                 Err(e) => {
-                    warn!("Failed to queue RSS torrent: {}", e);
+                    warn!(
+                        event = "rss_queue_failed",
+                        error = %e,
+                        title = %torrent.title,
+                        "Failed to queue torrent"
+                    );
                 }
             }
         } else {
             info!(
-                "[RSS] Would download (qBit not available): {}",
-                torrent.title
+                event = "rss_download_skipped",
+                reason = "qbit_not_available",
+                title = %torrent.title,
+                "Would download (qBit not available)"
             );
         }
 
