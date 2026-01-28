@@ -6,7 +6,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug, Default)]
 pub struct LibraryScanStats {
@@ -81,7 +81,10 @@ impl LibraryScannerService {
         tokio::spawn(async move {
             let start = std::time::Instant::now();
             let _ = event_bus.send(crate::api::NotificationEvent::ScanStarted);
-            info!(event = "discovery_scan_started", "Starting unmapped folder discovery");
+            info!(
+                event = "discovery_scan_started",
+                "Starting unmapped folder discovery"
+            );
 
             if let Err(e) =
                 Self::perform_scan(state.clone(), store, config, event_bus.clone()).await
@@ -171,7 +174,9 @@ impl LibraryScannerService {
                     stats.updated += 1;
                 }
                 Ok(FileScanResult::NoMatch) => {}
-                Err(e) => warn!(path = %path.display(), error = %e, "Failed to process library file"),
+                Err(e) => {
+                    warn!(path = %path.display(), error = %e, "Failed to process library file");
+                }
             }
         }
 

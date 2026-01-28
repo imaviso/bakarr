@@ -194,7 +194,10 @@ pub async fn search_missing(
 
 async fn perform_global_search(state: &AppState) {
     let start = std::time::Instant::now();
-    tracing::info!(event = "global_search_started", "Starting global missing episode search");
+    tracing::info!(
+        event = "global_search_started",
+        "Starting global missing episode search"
+    );
     let _ = state.event_bus().send(crate::api::NotificationEvent::Info {
         message: "Starting global search for missing episodes".to_string(),
     });
@@ -208,7 +211,12 @@ async fn perform_global_search(state: &AppState) {
     };
 
     if missing_episodes.is_empty() {
-        tracing::info!(event = "global_search_finished", episodes_found = 0, duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX), "No missing episodes found");
+        tracing::info!(
+            event = "global_search_finished",
+            episodes_found = 0,
+            duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+            "No missing episodes found"
+        );
         return;
     }
 

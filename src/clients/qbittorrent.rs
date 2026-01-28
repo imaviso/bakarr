@@ -365,9 +365,7 @@ impl QBitClient {
                     text
                 };
                 debug!(error = %e, response = %truncated, "Failed to parse qBittorrent response");
-                return Err(anyhow::anyhow!(
-                    "Failed to parse response: {e}"
-                ));
+                return Err(anyhow::anyhow!("Failed to parse response: {e}"));
             }
         };
         Ok(torrents)

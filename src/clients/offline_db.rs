@@ -95,7 +95,10 @@ impl OfflineDatabase {
         }
 
         let start = std::time::Instant::now();
-        info!(event = "offline_db_import_started", "Initializing anime offline database...");
+        info!(
+            event = "offline_db_import_started",
+            "Initializing anime offline database..."
+        );
 
         let cache_path = Path::new("data/anime-offline-database.json");
 
@@ -119,10 +122,7 @@ impl OfflineDatabase {
         };
 
         let root: DatabaseRoot = serde_json::from_str(&json_data)?;
-        tracing::debug!(
-            entries = root.data.len(),
-            "Loaded anime entries from JSON"
-        );
+        tracing::debug!(entries = root.data.len(), "Loaded anime entries from JSON");
 
         let mut batch = Vec::new();
         for entry in root.data {
