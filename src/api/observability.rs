@@ -11,31 +11,77 @@ pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoRespons
 
 use axum::{extract::Request, middleware::Next, response::Response};
 use std::time::Instant;
+use tracing::{info, info_span, Instrument};
+use uuid::Uuid;
 
-pub async fn track_metrics(req: Request, next: Next) -> Response {
+pub async fn logging_middleware(req: Request, next: Next) -> Response {
     let start = Instant::now();
-    let path = req
+    let request_id = Uuid::new_v4().to_string();
+
+    let method = req.method().to_string();
+    let uri = req.uri().path().to_string();
+    
+    let matched_path = req
         .extensions()
         .get::<axum::extract::MatchedPath>()
-        .map_or_else(
-            || req.uri().path().to_string(),
-            |mp| mp.as_str().to_string(),
+        .map(|mp| mp.as_str().to_string());
+
+    let user_agent = req.headers()
+        .get("user-agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
+
+    let matched_path_span = matched_path.clone();
+
+    let span = info_span!(
+        "request",
+        request_id = %request_id,
+        method = %method,
+        path = %uri,
+        route = matched_path_span,
+        user_id = tracing::field::Empty,
+    );
+
+    async move {
+        let response = next.run(req).await;
+
+        let duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
+        let status = response.status().as_u16();
+
+        let outcome = if status >= 500 {
+            "error"
+        } else if status >= 400 {
+            "client_error"
+        } else {
+            "success"
+        };
+
+        // Metrics
+        // Use matched_path if available to avoid cardinality explosion
+        let metrics_path = matched_path.as_deref().unwrap_or(&uri);
+        
+        let labels = [
+            ("method", method.clone()),
+            ("path", metrics_path.to_string()),
+            ("status", status.to_string()),
+        ];
+
+        metrics::counter!("http_requests_total", &labels).increment(1);
+        metrics::histogram!("http_request_duration_seconds", &labels).record(start.elapsed().as_secs_f64());
+
+        // Wide Event
+        info!(
+            event = "http_request_finished",
+            duration_ms = duration_ms,
+            status_code = status,
+            user_agent = %user_agent,
+            outcome = %outcome,
+            "Request finished"
         );
-    let method = req.method().clone();
 
-    let response = next.run(req).await;
-
-    let latency = start.elapsed().as_secs_f64();
-    let status = response.status().as_u16().to_string();
-
-    let labels = [
-        ("method", method.to_string()),
-        ("path", path),
-        ("status", status),
-    ];
-
-    metrics::counter!("http_requests_total", &labels).increment(1);
-    metrics::histogram!("http_request_duration_seconds", &labels).record(latency);
-
-    response
+        response
+    }
+    .instrument(span)
+    .await
 }

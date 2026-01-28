@@ -73,7 +73,8 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Result<impl IntoResponse, ApiError> {
     // Check session first (fastest path for web UI)
-    if let Ok(Some(_user)) = session.get::<String>("user").await {
+    if let Ok(Some(user)) = session.get::<String>("user").await {
+        tracing::Span::current().record("user_id", &user);
         return Ok(next.run(request).await);
     }
 
@@ -82,7 +83,8 @@ pub async fn auth_middleware(
 
     if let Some(key) = api_key {
         // Verify API key against database
-        if let Ok(Some(_user)) = state.store().verify_api_key(&key).await {
+        if let Ok(Some(user)) = state.store().verify_api_key(&key).await {
+            tracing::Span::current().record("user_id", &user.username);
             return Ok(next.run(request).await);
         }
     }

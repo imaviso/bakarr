@@ -65,27 +65,39 @@ fn init_logging(config: &Config) -> anyhow::Result<()> {
     let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&log_level));
 
-    let fmt_layer = tracing_subscriber::fmt::layer();
-    let registry = tracing_subscriber::registry()
-        .with(env_filter)
-        .with(fmt_layer);
+    let registry = tracing_subscriber::registry().with(env_filter);
 
-    if config.observability.loki_enabled {
-        let url = url::Url::parse(&config.observability.loki_url).context("Invalid Loki URL")?;
+    let use_json =
+        config.observability.loki_enabled || std::env::var("LOG_FORMAT").unwrap_or_default() == "json";
 
-        let (layer, task) = tracing_loki::builder()
-            .label("app", "bakarr")?
-            .extra_field("env", "production")?
-            .build_url(url)?;
+    if use_json {
+        let fmt_layer = tracing_subscriber::fmt::layer()
+            .json()
+            .flatten_event(true)
+            .with_current_span(true)
+            .with_span_list(false);
 
-        tokio::spawn(task);
-        registry.with(layer).init();
-        info!(
-            "Loki logging initialized at {}",
-            config.observability.loki_url
-        );
+        if config.observability.loki_enabled {
+            let url = url::Url::parse(&config.observability.loki_url).context("Invalid Loki URL")?;
+
+            let (loki_layer, task) = tracing_loki::builder()
+                .label("app", "bakarr")?
+                .extra_field("env", "production")?
+                .extra_field("version", env!("CARGO_PKG_VERSION"))?
+                .build_url(url)?;
+
+            tokio::spawn(task);
+            registry.with(fmt_layer).with(loki_layer).init();
+            info!(
+                "Loki logging initialized at {}",
+                config.observability.loki_url
+            );
+        } else {
+            registry.with(fmt_layer).init();
+        }
     } else {
-        registry.init();
+        let fmt_layer = tracing_subscriber::fmt::layer().pretty();
+        registry.with(fmt_layer).init();
     }
     Ok(())
 }

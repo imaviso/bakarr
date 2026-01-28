@@ -242,6 +242,7 @@ impl Monitor {
         entry: Option<&crate::db::DownloadEntry>,
         anime: Option<&crate::models::anime::Anime>,
     ) -> anyhow::Result<()> {
+        let start = std::time::Instant::now();
         if let Some(entry) = entry {
             if entry.imported {
                 debug!(
@@ -305,17 +306,32 @@ impl Monitor {
         match import_result {
             Ok(count) => {
                 if count > 0 {
-                    info!(
-                        "Successfully imported {} file(s) from {}",
-                        count, torrent.name
-                    );
                     store.set_imported(entry.id, true).await?;
+                    info!(
+                        event = "import_success",
+                        anime_id = anime.id,
+                        anime_title = %anime.title.romaji,
+                        torrent_name = %torrent.name,
+                        files_imported = count,
+                        duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+                        "Successfully imported files"
+                    );
                 } else {
-                    warn!("No video files found in {}", torrent.name);
+                    warn!(
+                        event = "import_warn",
+                        reason = "no_files_found",
+                        torrent_name = %torrent.name,
+                        "No video files found"
+                    );
                 }
             }
             Err(e) => {
-                error!("Failed to import {}: {}", torrent.name, e);
+                error!(
+                    event = "import_error",
+                    error = %e,
+                    torrent_name = %torrent.name,
+                    "Failed to import"
+                );
             }
         }
 

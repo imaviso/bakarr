@@ -195,7 +195,7 @@ pub async fn router(state: Arc<AppState>) -> Router {
         .fallback(assets::serve_asset)
         .layer(cors_layer.allow_methods(Any).allow_headers(Any))
         .layer(TraceLayer::new_for_http())
-        .layer(middleware::from_fn(observability::track_metrics))
+        .layer(middleware::from_fn(observability::logging_middleware))
 }
 
 fn create_protected_router(state: Arc<AppState>) -> Router<Arc<AppState>> {
