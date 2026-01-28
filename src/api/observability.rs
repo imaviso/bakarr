@@ -11,7 +11,7 @@ pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoRespons
 
 use axum::{extract::Request, middleware::Next, response::Response};
 use std::time::Instant;
-use tracing::{info, info_span, Instrument};
+use tracing::{Instrument, info, info_span};
 use uuid::Uuid;
 
 pub async fn logging_middleware(req: Request, next: Next) -> Response {
@@ -20,13 +20,14 @@ pub async fn logging_middleware(req: Request, next: Next) -> Response {
 
     let method = req.method().to_string();
     let uri = req.uri().path().to_string();
-    
+
     let matched_path = req
         .extensions()
         .get::<axum::extract::MatchedPath>()
         .map(|mp| mp.as_str().to_string());
 
-    let user_agent = req.headers()
+    let user_agent = req
+        .headers()
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
         .unwrap_or("unknown")
@@ -60,7 +61,7 @@ pub async fn logging_middleware(req: Request, next: Next) -> Response {
         // Metrics
         // Use matched_path if available to avoid cardinality explosion
         let metrics_path = matched_path.as_deref().unwrap_or(&uri);
-        
+
         let labels = [
             ("method", method.clone()),
             ("path", metrics_path.to_string()),
@@ -68,7 +69,8 @@ pub async fn logging_middleware(req: Request, next: Next) -> Response {
         ];
 
         metrics::counter!("http_requests_total", &labels).increment(1);
-        metrics::histogram!("http_request_duration_seconds", &labels).record(start.elapsed().as_secs_f64());
+        metrics::histogram!("http_request_duration_seconds", &labels)
+            .record(start.elapsed().as_secs_f64());
 
         // Wide Event
         info!(

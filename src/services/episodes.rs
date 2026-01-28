@@ -286,7 +286,10 @@ impl EpisodeService {
 
     pub async fn refresh_metadata_for_active_anime(&self) -> Result<()> {
         let start = std::time::Instant::now();
-        info!(event = "metadata_refresh_started", "Refreshing metadata for airing anime...");
+        info!(
+            event = "metadata_refresh_started",
+            "Refreshing metadata for airing anime..."
+        );
 
         let monitored = self.store.list_monitored().await?;
         let releasing: Vec<_> = monitored

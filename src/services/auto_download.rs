@@ -42,10 +42,7 @@ impl AutoDownloadService {
         let start = std::time::Instant::now();
         let monitored = self.store.list_monitored().await?;
         let count = monitored.len();
-        info!(
-            "Checking {} monitored anime via Nyaa search",
-            count
-        );
+        info!("Checking {} monitored anime via Nyaa search", count);
 
         let mut processed = 0;
         let mut errors = 0;

@@ -138,7 +138,7 @@ pub async fn search_anime(
             format: anime.format,
             episode_count: anime.episode_count,
             status: anime.status,
-            cover_image: None,
+            cover_image: anime.cover_image,
             already_in_library: monitored_ids.contains(&anime.id),
         })
         .collect();

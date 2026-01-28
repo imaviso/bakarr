@@ -58,7 +58,11 @@ impl Scheduler {
                     return;
                 }
                 let start = std::time::Instant::now();
-                info!(event = "job_started", job_name = "check_releases", "Starting scheduled release check");
+                info!(
+                    event = "job_started",
+                    job_name = "check_releases",
+                    "Starting scheduled release check"
+                );
 
                 let auto_downloader = state.read().await.auto_downloader.clone();
                 if let Err(e) = auto_downloader.check_all_anime(delay_secs).await {

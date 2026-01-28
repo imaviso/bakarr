@@ -67,8 +67,8 @@ fn init_logging(config: &Config) -> anyhow::Result<()> {
 
     let registry = tracing_subscriber::registry().with(env_filter);
 
-    let use_json =
-        config.observability.loki_enabled || std::env::var("LOG_FORMAT").unwrap_or_default() == "json";
+    let use_json = config.observability.loki_enabled
+        || std::env::var("LOG_FORMAT").unwrap_or_default() == "json";
 
     if use_json {
         let fmt_layer = tracing_subscriber::fmt::layer()
@@ -78,7 +78,8 @@ fn init_logging(config: &Config) -> anyhow::Result<()> {
             .with_span_list(false);
 
         if config.observability.loki_enabled {
-            let url = url::Url::parse(&config.observability.loki_url).context("Invalid Loki URL")?;
+            let url =
+                url::Url::parse(&config.observability.loki_url).context("Invalid Loki URL")?;
 
             let (loki_layer, task) = tracing_loki::builder()
                 .label("app", "bakarr")?
