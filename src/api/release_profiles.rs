@@ -13,6 +13,7 @@ pub struct ReleaseProfileDto {
     pub id: i32,
     pub name: String,
     pub enabled: bool,
+    pub is_global: bool,
     pub rules: Vec<ReleaseProfileRuleDtoPublic>,
 }
 
@@ -28,6 +29,8 @@ pub struct CreateReleaseProfileRequest {
     pub name: String,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
+    #[serde(default = "default_is_global")]
+    pub is_global: bool,
     pub rules: Vec<ReleaseProfileRuleDtoPublic>,
 }
 
@@ -35,10 +38,15 @@ const fn default_enabled() -> bool {
     true
 }
 
+const fn default_is_global() -> bool {
+    true
+}
+
 #[derive(Debug, Deserialize)]
 pub struct UpdateReleaseProfileRequest {
     pub name: String,
     pub enabled: bool,
+    pub is_global: bool,
     pub rules: Vec<ReleaseProfileRuleDtoPublic>,
 }
 
@@ -58,6 +66,7 @@ pub async fn list_release_profiles(
             id: p.id,
             name: p.name,
             enabled: p.enabled,
+            is_global: p.is_global,
             rules: rules
                 .into_iter()
                 .map(|r| ReleaseProfileRuleDtoPublic {
@@ -89,7 +98,7 @@ pub async fn create_release_profile(
     let profile = state
         .shared
         .store
-        .create_release_profile(payload.name, payload.enabled, rules)
+        .create_release_profile(payload.name, payload.enabled, payload.is_global, rules)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
 
@@ -108,6 +117,7 @@ pub async fn create_release_profile(
         id: p.id,
         name: p.name,
         enabled: p.enabled,
+        is_global: p.is_global,
         rules: r
             .into_iter()
             .map(|rule| ReleaseProfileRuleDtoPublic {
@@ -139,7 +149,7 @@ pub async fn update_release_profile(
     state
         .shared
         .store
-        .update_release_profile(id, payload.name, payload.enabled, rules)
+        .update_release_profile(id, payload.name, payload.enabled, payload.is_global, rules)
         .await
         .map_err(|e| ApiError::internal(e.to_string()))?;
 

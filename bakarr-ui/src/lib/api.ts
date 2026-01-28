@@ -80,6 +80,7 @@ export interface Anime {
 	root_folder: string;
 	added_at: string;
 	monitored: boolean;
+	release_profile_ids: number[];
 	progress: EpisodeProgress; // Added
 }
 
@@ -348,6 +349,7 @@ export function createAddAnimeMutation() {
 			root_folder: string;
 			monitor_and_search: boolean;
 			monitored: boolean;
+			release_profile_ids: number[];
 		}) =>
 			fetchApi<Anime>(`${API_BASE}/anime`, {
 				method: "POST",
@@ -452,6 +454,40 @@ export function createUpdateAnimeProfileMutation() {
 			queryClient.setQueryData<Anime>(["anime", id], (old) => {
 				if (!old) return old;
 				return { ...old, profile_name: profileName };
+			});
+			return { previousAnime };
+		},
+		onError: (_err, { id }, context) => {
+			if (context?.previousAnime) {
+				queryClient.setQueryData(["anime", id], context.previousAnime);
+			}
+		},
+		onSettled: (_data, _error, { id }) => {
+			queryClient.invalidateQueries({ queryKey: ["anime", id] });
+		},
+	}));
+}
+
+export function createUpdateAnimeReleaseProfilesMutation() {
+	const queryClient = useQueryClient();
+	return useMutation(() => ({
+		mutationFn: ({
+			id,
+			releaseProfileIds,
+		}: {
+			id: number;
+			releaseProfileIds: number[];
+		}) =>
+			fetchApi(`${API_BASE}/anime/${id}/release-profiles`, {
+				method: "PUT",
+				body: JSON.stringify({ release_profile_ids: releaseProfileIds }),
+			}),
+		onMutate: async ({ id, releaseProfileIds }) => {
+			await queryClient.cancelQueries({ queryKey: ["anime", id] });
+			const previousAnime = queryClient.getQueryData<Anime>(["anime", id]);
+			queryClient.setQueryData<Anime>(["anime", id], (old) => {
+				if (!old) return old;
+				return { ...old, release_profile_ids: releaseProfileIds };
 			});
 			return { previousAnime };
 		},
@@ -909,6 +945,7 @@ export interface ReleaseProfile {
 	id: number;
 	name: string;
 	enabled: boolean;
+	is_global: boolean;
 	rules: ReleaseProfileRule[];
 }
 
@@ -928,7 +965,11 @@ export function createReleaseProfilesQuery() {
 export function createCreateReleaseProfileMutation() {
 	const queryClient = useQueryClient();
 	return useMutation(() => ({
-		mutationFn: (data: { name: string; rules: ReleaseProfileRule[] }) =>
+		mutationFn: (data: {
+			name: string;
+			rules: ReleaseProfileRule[];
+			is_global: boolean;
+		}) =>
 			fetchApi<ReleaseProfile>(`${API_BASE}/release-profiles`, {
 				method: "POST",
 				body: JSON.stringify(data),
@@ -947,7 +988,12 @@ export function createUpdateReleaseProfileMutation() {
 			data,
 		}: {
 			id: number;
-			data: { name: string; enabled: boolean; rules: ReleaseProfileRule[] };
+			data: {
+				name: string;
+				enabled: boolean;
+				is_global: boolean;
+				rules: ReleaseProfileRule[];
+			};
 		}) =>
 			fetchApi(`${API_BASE}/release-profiles/${id}`, {
 				method: "PUT",

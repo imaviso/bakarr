@@ -1,9 +1,12 @@
 [general]
-database_path = "sqlite:data/bakarr.db"
+database_path = "sqlite::memory:"
 log_level = "info"
 images_path = "images"
 suppress_connection_errors = false
 event_bus_buffer_size = 100
+worker_threads = 2
+max_db_connections = 5
+min_db_connections = 1
 
 [qbittorrent]
 enabled = true
@@ -45,6 +48,7 @@ auto_scan_interval_hours = 12
 naming_format = "{Series Title}/Season {Season}/{Series Title} - S{Season:02}E{Episode:02} - {Title}"
 import_mode = "Copy"
 movie_naming_format = "{Series Title}/{Series Title}"
+preferred_title = "stored"
 
 [[profiles]]
 name = "Default"

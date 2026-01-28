@@ -1,7 +1,7 @@
-use crate::entities::{prelude::*, release_profile_rules, release_profiles};
+use crate::entities::{prelude::*, release_profile_rules, release_profiles, anime_release_profiles};
 use anyhow::Result;
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, LoaderTrait, QueryFilter, Set, TransactionTrait,
+    ColumnTrait, Condition, DatabaseConnection, EntityTrait, LoaderTrait, QueryFilter, QuerySelect, RelationTrait, Set, TransactionTrait,
 };
 
 pub struct ReleaseProfileRepository {
@@ -26,17 +26,88 @@ impl ReleaseProfileRepository {
     pub async fn get_enabled_rules(&self) -> Result<Vec<release_profile_rules::Model>> {
         let rules = ReleaseProfileRules::find()
             .find_also_related(ReleaseProfiles)
-            .filter(release_profiles::Column::Enabled.eq(true))
+            .filter(
+                Condition::all()
+                    .add(release_profiles::Column::Enabled.eq(true))
+                    .add(release_profiles::Column::IsGlobal.eq(true)),
+            )
             .all(&self.conn)
             .await?;
 
         Ok(rules.into_iter().map(|(r, _)| r).collect())
     }
 
+    pub async fn get_rules_for_anime(
+        &self,
+        anime_id: i32,
+    ) -> Result<Vec<release_profile_rules::Model>> {
+        let mut rules = self.get_enabled_rules().await?;
+
+        let assigned_profiles: Vec<release_profiles::Model> = ReleaseProfiles::find()
+            .join(
+                sea_orm::JoinType::InnerJoin,
+                anime_release_profiles::Relation::ReleaseProfile.def().rev(),
+            )
+            .filter(
+                Condition::all()
+                    .add(release_profiles::Column::Enabled.eq(true))
+                    .add(anime_release_profiles::Column::AnimeId.eq(anime_id)),
+            )
+            .all(&self.conn)
+            .await?;
+
+        if !assigned_profiles.is_empty() {
+            let assigned_rules = assigned_profiles
+                .load_many(ReleaseProfileRules, &self.conn)
+                .await?;
+            for rule_list in assigned_rules {
+                rules.extend(rule_list);
+            }
+        }
+
+        Ok(rules)
+    }
+
+    pub async fn assign_profiles_to_anime(&self, anime_id: i32, profile_ids: &[i32]) -> Result<()> {
+        let txn = self.conn.begin().await?;
+
+        AnimeReleaseProfiles::delete_many()
+            .filter(anime_release_profiles::Column::AnimeId.eq(anime_id))
+            .exec(&txn)
+            .await?;
+
+        if !profile_ids.is_empty() {
+            let associations: Vec<anime_release_profiles::ActiveModel> = profile_ids
+                .iter()
+                .map(|&pid| anime_release_profiles::ActiveModel {
+                    anime_id: Set(anime_id),
+                    profile_id: Set(pid),
+                })
+                .collect();
+
+            AnimeReleaseProfiles::insert_many(associations)
+                .exec(&txn)
+                .await?;
+        }
+
+        txn.commit().await?;
+        Ok(())
+    }
+
+    pub async fn get_assigned_profile_ids(&self, anime_id: i32) -> Result<Vec<i32>> {
+        let assigned = AnimeReleaseProfiles::find()
+            .filter(anime_release_profiles::Column::AnimeId.eq(anime_id))
+            .all(&self.conn)
+            .await?;
+
+        Ok(assigned.into_iter().map(|a| a.profile_id).collect())
+    }
+
     pub async fn create_profile(
         &self,
         name: String,
         enabled: bool,
+        is_global: bool,
         rules: Vec<ReleaseProfileRuleDto>,
     ) -> Result<release_profiles::Model> {
         let txn = self.conn.begin().await?;
@@ -44,6 +115,7 @@ impl ReleaseProfileRepository {
         let profile = ReleaseProfiles::insert(release_profiles::ActiveModel {
             name: Set(name),
             enabled: Set(enabled),
+            is_global: Set(is_global),
             ..Default::default()
         })
         .exec(&txn)
@@ -81,6 +153,7 @@ impl ReleaseProfileRepository {
         id: i32,
         name: String,
         enabled: bool,
+        is_global: bool,
         rules: Vec<ReleaseProfileRuleDto>,
     ) -> Result<()> {
         let txn = self.conn.begin().await?;
@@ -89,6 +162,7 @@ impl ReleaseProfileRepository {
             id: Set(id),
             name: Set(name),
             enabled: Set(enabled),
+            is_global: Set(is_global),
         })
         .exec(&txn)
         .await?;

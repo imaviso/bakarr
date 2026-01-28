@@ -44,8 +44,10 @@ import {
 	createAnimeListQuery,
 	createAnimeSearchQuery,
 	createProfilesQuery,
+	createReleaseProfilesQuery,
 	createSystemConfigQuery,
 	profilesQueryOptions,
+	releaseProfilesQueryOptions,
 	systemConfigQueryOptions,
 } from "~/lib/api";
 import { cn } from "~/lib/utils";
@@ -53,6 +55,7 @@ import { cn } from "~/lib/utils";
 export const Route = createFileRoute("/_layout/anime/add")({
 	loader: ({ context: { queryClient } }) => {
 		queryClient.ensureQueryData(profilesQueryOptions());
+		queryClient.ensureQueryData(releaseProfilesQueryOptions());
 		queryClient.ensureQueryData(systemConfigQueryOptions());
 	},
 	component: AddAnimePage,
@@ -274,6 +277,7 @@ const AddAnimeSchema = v.object({
 	profile_name: v.pipe(v.string(), v.minLength(1, "Profile is required")),
 	monitor: v.boolean(),
 	search_now: v.boolean(),
+	release_profile_ids: v.array(v.number()),
 });
 
 function AddAnimeDialog(props: {
@@ -283,6 +287,7 @@ function AddAnimeDialog(props: {
 	onSuccess: () => void;
 }) {
 	const profilesQuery = createProfilesQuery();
+	const releaseProfilesQuery = createReleaseProfilesQuery();
 	const configQuery = createSystemConfigQuery();
 	const addAnimeMutation = createAddAnimeMutation();
 
@@ -292,6 +297,7 @@ function AddAnimeDialog(props: {
 			profile_name: profilesQuery.data?.[0]?.name || "",
 			monitor: true,
 			search_now: true,
+			release_profile_ids: [] as number[],
 		},
 		validators: {
 			onChange: AddAnimeSchema,
@@ -303,6 +309,7 @@ function AddAnimeDialog(props: {
 				root_folder: value.root_folder,
 				monitor_and_search: value.search_now,
 				monitored: value.monitor,
+				release_profile_ids: value.release_profile_ids,
 			});
 			props.onSuccess();
 		},
@@ -400,6 +407,78 @@ function AddAnimeDialog(props: {
 										{field().state.meta.errors[0]?.message}
 									</p>
 								</Show>
+							</div>
+						)}
+					</form.Field>
+
+					<form.Field name="release_profile_ids" mode="array">
+						{(field) => (
+							<div class="space-y-2">
+								<div class="text-sm font-medium leading-none">
+									Release Profiles (Optional)
+								</div>
+								<div class="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
+									<Show
+										when={
+											releaseProfilesQuery.data &&
+											releaseProfilesQuery.data.length > 0
+										}
+										fallback={
+											<div class="text-sm text-muted-foreground text-center py-2">
+												No release profiles available
+											</div>
+										}
+									>
+										<For each={releaseProfilesQuery.data}>
+											{(profile) => (
+												<div class="flex items-center space-x-2">
+													<Checkbox
+														id={`rp-${profile.id}`}
+														checked={field().state.value.includes(profile.id)}
+														onChange={(checked) => {
+															if (checked) {
+																field().pushValue(profile.id);
+															} else {
+																const idx = field().state.value.indexOf(
+																	profile.id,
+																);
+																if (idx !== -1) field().removeValue(idx);
+															}
+														}}
+													/>
+													<label
+														for={`rp-${profile.id}`}
+														class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 flex items-center justify-between"
+													>
+														<span>{profile.name}</span>
+														<div class="flex gap-2">
+															<Show when={profile.is_global}>
+																<Badge
+																	variant="outline"
+																	class="text-[10px] h-4 px-1"
+																>
+																	Global
+																</Badge>
+															</Show>
+															<Show when={!profile.enabled}>
+																<Badge
+																	variant="outline"
+																	class="text-[10px] h-4 px-1 text-muted-foreground"
+																>
+																	Disabled
+																</Badge>
+															</Show>
+														</div>
+													</label>
+												</div>
+											)}
+										</For>
+									</Show>
+								</div>
+								<p class="text-[10px] text-muted-foreground">
+									Global profiles are applied automatically unless disabled.
+									Select specific profiles to apply them to this series.
+								</p>
 							</div>
 						)}
 					</form.Field>

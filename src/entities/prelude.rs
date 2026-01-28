@@ -1,3 +1,5 @@
+pub use super::anime_metadata::Entity as AnimeMetadata;
+pub use super::anime_release_profiles::Entity as AnimeReleaseProfiles;
 pub use super::blocklist::Entity as Blocklist;
 pub use super::episode_metadata::Entity as EpisodeMetadata;
 pub use super::episode_status::Entity as EpisodeStatus;

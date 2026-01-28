@@ -56,6 +56,19 @@ impl Related<super::quality_profiles::Entity> for Entity {
     }
 }
 
+impl Related<super::release_profiles::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::anime_release_profiles::Relation::ReleaseProfile.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::anime_release_profiles::Relation::MonitoredAnime
+                .def()
+                .rev(),
+        )
+    }
+}
+
 impl Related<super::release_history::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ReleaseHistory.def()

@@ -209,6 +209,10 @@ fn create_protected_router(state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/anime/{id}/path", put(anime::update_anime_path))
         .route("/anime/{id}/profile", put(anime::update_anime_profile))
         .route(
+            "/anime/{id}/release-profiles",
+            put(anime::update_anime_release_profiles),
+        )
+        .route(
             "/anime/{id}/rename-preview",
             get(rename::get_rename_preview),
         )

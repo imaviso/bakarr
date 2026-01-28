@@ -8,6 +8,7 @@ pub struct Model {
     #[sea_orm(unique)]
     pub name: String,
     pub enabled: bool,
+    pub is_global: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -19,6 +20,19 @@ pub enum Relation {
 impl Related<super::release_profile_rules::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Rules.def()
+    }
+}
+
+impl Related<super::monitored_anime::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::anime_release_profiles::Relation::MonitoredAnime.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::anime_release_profiles::Relation::ReleaseProfile
+                .def()
+                .rev(),
+        )
     }
 }
 

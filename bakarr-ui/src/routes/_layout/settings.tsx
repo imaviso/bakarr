@@ -863,6 +863,7 @@ function ProfileForm(props: {
 const ReleaseProfileSchema = v.object({
 	name: v.pipe(v.string(), v.minLength(1, "Name is required")),
 	enabled: v.boolean(),
+	is_global: v.boolean(),
 	rules: v.array(
 		v.object({
 			term: v.pipe(v.string(), v.minLength(1, "Term is required")),
@@ -885,6 +886,7 @@ function ReleaseProfileForm(props: {
 		defaultValues: {
 			name: props.profile?.name || "",
 			enabled: props.profile?.enabled ?? true,
+			is_global: props.profile?.is_global ?? true,
 			rules: props.profile?.rules || [],
 		},
 		validators: {
@@ -950,6 +952,26 @@ function ReleaseProfileForm(props: {
 											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
 										>
 											Enabled
+										</label>
+									</div>
+								</div>
+							)}
+						</form.Field>
+
+						<form.Field name="is_global">
+							{(field) => (
+								<div class="flex flex-col gap-3 pt-8">
+									<div class="flex items-center gap-2">
+										<Switch
+											id={field().name}
+											checked={field().state.value}
+											onChange={(checked) => field().handleChange(checked)}
+										/>
+										<label
+											for={field().name}
+											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+										>
+											Global
 										</label>
 									</div>
 								</div>

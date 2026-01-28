@@ -25,6 +25,8 @@ pub struct AddAnimeRequest {
     pub monitor_and_search: bool,
     #[serde(default = "default_true")]
     pub monitored: bool,
+    #[serde(default)]
+    pub release_profile_ids: Vec<i32>,
 }
 
 const fn default_true() -> bool {
@@ -54,6 +56,12 @@ pub async fn list_anime(
         } else {
             Vec::new()
         };
+
+        let release_profile_ids = state
+            .store()
+            .get_assigned_release_profile_ids(anime.id)
+            .await
+            .unwrap_or_default();
 
         results.push(AnimeDto {
             id: anime.id,
@@ -96,6 +104,7 @@ pub async fn list_anime(
                 total: anime.episode_count.map(i64::from),
                 missing,
             },
+            release_profile_ids,
         });
     }
 
@@ -305,6 +314,15 @@ pub async fn add_anime(
 
     state.store().add_anime(&anime).await?;
 
+    if !payload.release_profile_ids.is_empty()
+        && let Err(e) = state
+            .store()
+            .assign_release_profiles_to_anime(anime.id, &payload.release_profile_ids)
+            .await
+        {
+            tracing::error!("Failed to assign release profiles: {}", e);
+        }
+
     if payload.monitor_and_search {
         spawn_initial_search(&state, anime.id, &anime.title.romaji);
     }
@@ -338,6 +356,7 @@ pub async fn add_anime(
             total: anime.episode_count.map(i64::from),
             missing: Vec::new(),
         },
+        release_profile_ids: payload.release_profile_ids,
     };
 
     Ok(Json(ApiResponse::success(dto)))
@@ -369,6 +388,12 @@ pub async fn get_anime(
     } else {
         Vec::new()
     };
+
+    let release_profile_ids = state
+        .store()
+        .get_assigned_release_profile_ids(anime.id)
+        .await
+        .unwrap_or_default();
 
     let root_folder = if let Some(path) = &anime.path {
         path.clone()
@@ -408,6 +433,7 @@ pub async fn get_anime(
             total: anime.episode_count.map(i64::from),
             missing,
         },
+        release_profile_ids,
     };
 
     Ok(Json(ApiResponse::success(dto)))
@@ -423,6 +449,31 @@ pub async fn remove_anime(
         return Err(ApiError::anime_not_found(id));
     }
     state.store().remove_anime(id).await?;
+
+    Ok(Json(ApiResponse::success(())))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateReleaseProfilesRequest {
+    pub profile_ids: Vec<i32>,
+}
+
+pub async fn update_anime_release_profiles(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i32>,
+    Json(payload): Json<UpdateReleaseProfilesRequest>,
+) -> Result<Json<ApiResponse<()>>, ApiError> {
+    validate_anime_id(id)?;
+
+    if state.store().get_anime(id).await?.is_none() {
+        return Err(ApiError::anime_not_found(id));
+    }
+
+    state
+        .store()
+        .assign_release_profiles_to_anime(id, &payload.profile_ids)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
 
     Ok(Json(ApiResponse::success(())))
 }

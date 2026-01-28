@@ -549,14 +549,40 @@ impl Store {
         self.release_profile_repo().get_enabled_rules().await
     }
 
+    pub async fn get_release_rules_for_anime(
+        &self,
+        anime_id: i32,
+    ) -> Result<Vec<crate::entities::release_profile_rules::Model>> {
+        self.release_profile_repo()
+            .get_rules_for_anime(anime_id)
+            .await
+    }
+
+    pub async fn assign_release_profiles_to_anime(
+        &self,
+        anime_id: i32,
+        profile_ids: &[i32],
+    ) -> Result<()> {
+        self.release_profile_repo()
+            .assign_profiles_to_anime(anime_id, profile_ids)
+            .await
+    }
+
+    pub async fn get_assigned_release_profile_ids(&self, anime_id: i32) -> Result<Vec<i32>> {
+        self.release_profile_repo()
+            .get_assigned_profile_ids(anime_id)
+            .await
+    }
+
     pub async fn create_release_profile(
         &self,
         name: String,
         enabled: bool,
+        is_global: bool,
         rules: Vec<repositories::release_profile::ReleaseProfileRuleDto>,
     ) -> Result<crate::entities::release_profiles::Model> {
         self.release_profile_repo()
-            .create_profile(name, enabled, rules)
+            .create_profile(name, enabled, is_global, rules)
             .await
     }
 
@@ -565,10 +591,11 @@ impl Store {
         id: i32,
         name: String,
         enabled: bool,
+        is_global: bool,
         rules: Vec<repositories::release_profile::ReleaseProfileRuleDto>,
     ) -> Result<()> {
         self.release_profile_repo()
-            .update_profile(id, name, enabled, rules)
+            .update_profile(id, name, enabled, is_global, rules)
             .await
     }
 

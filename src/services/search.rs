@@ -196,7 +196,7 @@ impl SearchService {
             .get_quality_profile_for_anime(anime_id)
             .await?;
 
-        let rules = self.store.get_enabled_release_rules().await?;
+        let rules = self.store.get_release_rules_for_anime(anime_id).await?;
 
         let episode_statuses = self.store.get_episode_statuses(anime_id).await?;
         let status_map: std::collections::HashMap<i32, crate::db::EpisodeStatusRow> =

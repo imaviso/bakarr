@@ -29,7 +29,7 @@ impl DownloadDecisionService {
 
         let profile = self.get_quality_profile_for_anime(anime_id).await?;
 
-        let rules = self.store.get_enabled_release_rules().await?;
+        let rules = self.store.get_release_rules_for_anime(anime_id).await?;
 
         Ok(Self::decide_download(
             &profile,

@@ -46,6 +46,7 @@ pub struct AnimeDto {
     pub genres: Vec<String>,
     pub studios: Vec<String>,
     pub progress: EpisodeProgress,
+    pub release_profile_ids: Vec<i32>,
 }
 
 #[derive(Debug, Serialize, Clone)]

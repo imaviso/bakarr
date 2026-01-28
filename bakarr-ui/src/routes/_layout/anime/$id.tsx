@@ -105,8 +105,10 @@ import {
 	createToggleMonitorMutation,
 	createUpdateAnimePathMutation,
 	createUpdateAnimeProfileMutation,
+	createUpdateAnimeReleaseProfilesMutation,
 	episodesQueryOptions,
 	profilesQueryOptions,
+	releaseProfilesQueryOptions,
 } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 import { cn, copyToClipboard } from "~/lib/utils";
@@ -118,6 +120,7 @@ export const Route = createFileRoute("/_layout/anime/$id")({
 			queryClient.ensureQueryData(animeDetailsQueryOptions(animeId)),
 			queryClient.ensureQueryData(episodesQueryOptions(animeId)),
 			queryClient.ensureQueryData(profilesQueryOptions()),
+			queryClient.ensureQueryData(releaseProfilesQueryOptions()),
 		]);
 	},
 	component: AnimeDetailsPage,
@@ -133,6 +136,7 @@ function AnimeDetailsPage() {
 	const animeQuery = useQuery(() => animeDetailsQueryOptions(animeId()));
 	const episodesQuery = useQuery(() => episodesQueryOptions(animeId()));
 	const profilesQuery = useQuery(profilesQueryOptions);
+	const releaseProfilesQuery = useQuery(releaseProfilesQueryOptions);
 
 	const deleteAnime = createDeleteAnimeMutation();
 	const refreshEpisodes = createRefreshEpisodesMutation();
@@ -142,6 +146,7 @@ function AnimeDetailsPage() {
 	const deleteEpisodeFile = createDeleteEpisodeFileMutation();
 	const updatePath = createUpdateAnimePathMutation();
 	const updateProfile = createUpdateAnimeProfileMutation();
+	const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
 	const _mapEpisode = createMapEpisodeMutation();
 
 	const [renameDialogOpen, setRenameDialogOpen] = createSignal(false);
@@ -953,9 +958,12 @@ function AnimeDetailsPage() {
 				open={editProfileOpen()}
 				onOpenChange={setEditProfileOpen}
 				currentProfile={animeQuery.data?.profile_name || ""}
+				currentReleaseProfileIds={animeQuery.data?.release_profile_ids || []}
 				animeId={animeId()}
 				updateMutation={updateProfile}
+				updateReleaseProfilesMutation={updateReleaseProfiles}
 				profiles={profilesQuery.data || []}
+				releaseProfiles={releaseProfilesQuery.data || []}
 			/>
 		</div>
 	);
@@ -965,50 +973,85 @@ function EditProfileDialog(props: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	currentProfile: string;
+	currentReleaseProfileIds: number[];
 	animeId: number;
 	// biome-ignore lint/suspicious/noExplicitAny: mutation type inferred
 	updateMutation: any;
+	// biome-ignore lint/suspicious/noExplicitAny: mutation type inferred
+	updateReleaseProfilesMutation: any;
 	// biome-ignore lint/suspicious/noExplicitAny: profile type imported
 	profiles: any[];
+	// biome-ignore lint/suspicious/noExplicitAny: profile type imported
+	releaseProfiles: any[];
 }) {
 	const [profile, setProfile] = createSignal(props.currentProfile);
+	const [releaseProfileIds, setReleaseProfileIds] = createSignal<number[]>(
+		props.currentReleaseProfileIds,
+	);
 
-	createSignal(() => {
-		if (props.open && props.currentProfile) setProfile(props.currentProfile);
+	createEffect(() => {
+		if (props.open) {
+			if (props.currentProfile) setProfile(props.currentProfile);
+			if (props.currentReleaseProfileIds)
+				setReleaseProfileIds(props.currentReleaseProfileIds);
+		}
 	});
 
 	const handleSubmit = (e: Event) => {
 		e.preventDefault();
-		props.updateMutation.mutate(
-			{ id: props.animeId, profileName: profile() },
-			{
-				onSuccess: () => {
-					props.onOpenChange(false);
-					toast.success("Profile updated successfully");
-				},
-				onError: (err: Error) => {
-					toast.error(`Failed to update profile: ${err.message}`);
-				},
-			},
-		);
+		const promises = [];
+
+		if (profile() !== props.currentProfile) {
+			promises.push(
+				props.updateMutation.mutateAsync({
+					id: props.animeId,
+					profileName: profile(),
+				}),
+			);
+		}
+
+		// Check if release profiles changed (simple array comparison)
+		const currentIds = props.currentReleaseProfileIds.slice().sort();
+		const newIds = releaseProfileIds().slice().sort();
+		const changed =
+			currentIds.length !== newIds.length ||
+			currentIds.some((id, i) => id !== newIds[i]);
+
+		if (changed) {
+			promises.push(
+				props.updateReleaseProfilesMutation.mutateAsync({
+					id: props.animeId,
+					releaseProfileIds: releaseProfileIds(),
+				}),
+			);
+		}
+
+		Promise.all(promises)
+			.then(() => {
+				props.onOpenChange(false);
+				toast.success("Settings updated successfully");
+			})
+			.catch((err) => {
+				toast.error(`Failed to update settings: ${err.message}`);
+			});
 	};
 
 	return (
 		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Edit Quality Profile</DialogTitle>
+					<DialogTitle>Edit Profiles</DialogTitle>
 					<DialogDescription>
-						Change the quality profile for this anime.
+						Change the quality and release profiles for this anime.
 					</DialogDescription>
 				</DialogHeader>
-				<form onSubmit={handleSubmit} class="space-y-4">
+				<form onSubmit={handleSubmit} class="space-y-6">
 					<div class="space-y-2">
 						<label
 							class="text-sm font-medium leading-none"
 							for="profile-select"
 						>
-							Profile
+							Quality Profile
 						</label>
 						<Select
 							value={profile()}
@@ -1027,6 +1070,71 @@ function EditProfileDialog(props: {
 							<SelectContent />
 						</Select>
 					</div>
+
+					<div class="space-y-2">
+						<div class="text-sm font-medium leading-none">
+							Release Profiles (Optional)
+						</div>
+						<div class="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
+							<Show
+								when={props.releaseProfiles && props.releaseProfiles.length > 0}
+								fallback={
+									<div class="text-sm text-muted-foreground text-center py-2">
+										No release profiles available
+									</div>
+								}
+							>
+								<For each={props.releaseProfiles}>
+									{(rp) => (
+										<div class="flex items-center space-x-2">
+											<Checkbox
+												id={`rp-edit-${rp.id}`}
+												checked={releaseProfileIds().includes(rp.id)}
+												onChange={(checked) => {
+													if (checked) {
+														setReleaseProfileIds((prev) => [...prev, rp.id]);
+													} else {
+														setReleaseProfileIds((prev) =>
+															prev.filter((id) => id !== rp.id),
+														);
+													}
+												}}
+											/>
+											<label
+												for={`rp-edit-${rp.id}`}
+												class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 flex items-center justify-between"
+											>
+												<span>{rp.name}</span>
+												<div class="flex gap-2">
+													<Show when={rp.is_global}>
+														<Badge
+															variant="outline"
+															class="text-[10px] h-4 px-1"
+														>
+															Global
+														</Badge>
+													</Show>
+													<Show when={!rp.enabled}>
+														<Badge
+															variant="outline"
+															class="text-[10px] h-4 px-1 text-muted-foreground"
+														>
+															Disabled
+														</Badge>
+													</Show>
+												</div>
+											</label>
+										</div>
+									)}
+								</For>
+							</Show>
+						</div>
+						<p class="text-[10px] text-muted-foreground">
+							Global profiles are applied automatically. Select specific
+							profiles to apply them to this series.
+						</p>
+					</div>
+
 					<DialogFooter>
 						<Button
 							type="button"
@@ -1035,8 +1143,17 @@ function EditProfileDialog(props: {
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={props.updateMutation.isPending}>
-							{props.updateMutation.isPending ? "Saving..." : "Save Changes"}
+						<Button
+							type="submit"
+							disabled={
+								props.updateMutation.isPending ||
+								props.updateReleaseProfilesMutation.isPending
+							}
+						>
+							{props.updateMutation.isPending ||
+							props.updateReleaseProfilesMutation.isPending
+								? "Saving..."
+								: "Save Changes"}
 						</Button>
 					</DialogFooter>
 				</form>
