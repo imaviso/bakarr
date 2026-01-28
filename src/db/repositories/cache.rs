@@ -58,12 +58,11 @@ impl CacheRepository {
             .await;
 
         let active_model = search_cache::ActiveModel {
-            id: Set(0), // Auto-increment but we need to supply something? No, usually NotSet.
-            // Actually sea_orm defaults handle this if we use `NotSet` for ID.
             query: Set(query.to_string()),
             results_json: Set(results_json),
             created_at: Set(created_at),
             expires_at: Set(expires_at),
+            ..Default::default()
         };
 
         // We need to construct ActiveModel correctly. ID is NotSet by default.
