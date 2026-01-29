@@ -15,13 +15,6 @@ pub struct LibraryScanStats {
     pub updated: i32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum FileScanResult {
-    NoMatch,
-    Matched,
-    Updated,
-}
-
 #[derive(Debug, Clone, Serialize)]
 pub struct UnmappedFolder {
     pub name: String,
@@ -111,6 +104,7 @@ impl LibraryScannerService {
         });
     }
 
+    #[allow(clippy::too_many_lines)]
     pub async fn scan_library_files(&self) -> anyhow::Result<LibraryScanStats> {
         let start = std::time::Instant::now();
         let library_path = {
@@ -134,17 +128,33 @@ impl LibraryScannerService {
         let video_extensions = crate::constants::VIDEO_EXTENSIONS;
         let mut stats = LibraryScanStats::default();
 
-        let walker = walkdir::WalkDir::new(&library_path)
-            .follow_links(true)
-            .into_iter()
-            .filter_map(std::result::Result::ok);
+        // Cache: AnimeID -> Set of EpisodeNumbers that exist in DB
+        let mut anime_episode_cache: std::collections::HashMap<
+            i32,
+            std::collections::HashSet<i32>,
+        > = std::collections::HashMap::new();
 
-        for entry in walker {
-            let path = entry.path();
-            if !path.is_file() {
-                continue;
+        let (tx, mut rx) = tokio::sync::mpsc::channel(100);
+        let scan_path = library_path.clone();
+
+        // Offload blocking I/O to a dedicated thread
+        tokio::task::spawn_blocking(move || {
+            let walker = walkdir::WalkDir::new(&scan_path)
+                .follow_links(true)
+                .into_iter()
+                .filter_map(std::result::Result::ok);
+
+            for entry in walker {
+                if entry.path().is_file()
+                    && let Some(path_str) = entry.path().to_str()
+                {
+                    let _ = tx.blocking_send(path_str.to_string());
+                }
             }
+        });
 
+        while let Some(path_str) = rx.recv().await {
+            let path = PathBuf::from(&path_str);
             let extension = path
                 .extension()
                 .and_then(|e| e.to_str())
@@ -164,16 +174,56 @@ impl LibraryScannerService {
                     });
             }
 
-            match self
-                .process_single_library_file(path, &library_path, &title_map)
-                .await
+            let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            let Some(release) = parse_filename(filename) else {
+                continue;
+            };
+
+            let (anime_opt, _) =
+                self.match_file_to_anime(&path, &release, &title_map, Some(&library_path));
+            let Some(anime) = anime_opt else {
+                continue;
+            };
+
+            #[allow(clippy::cast_possible_truncation)]
+            let episode_number = release.episode_number as i32;
+
+            // N+1 Optimization: Check cache first
+            if let std::collections::hash_map::Entry::Vacant(e) =
+                anime_episode_cache.entry(anime.id)
             {
-                Ok(FileScanResult::Matched) => stats.matched += 1,
-                Ok(FileScanResult::Updated) => {
+                match self.store.get_episode_statuses(anime.id).await {
+                    Ok(statuses) => {
+                        let set: std::collections::HashSet<i32> =
+                            statuses.into_iter().map(|s| s.episode_number).collect();
+                        e.insert(set);
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to fetch episode statuses for anime {}: {}",
+                            anime.id, e
+                        );
+                        continue;
+                    }
+                }
+            }
+
+            if let Some(set) = anime_episode_cache.get(&anime.id)
+                && set.contains(&episode_number)
+            {
+                stats.matched += 1;
+                continue;
+            }
+
+            // New file found - process and update DB
+            match self.process_new_library_file(&path, &anime, &release).await {
+                Ok(()) => {
                     stats.matched += 1;
                     stats.updated += 1;
+                    if let Some(set) = anime_episode_cache.get_mut(&anime.id) {
+                        set.insert(episode_number);
+                    }
                 }
-                Ok(FileScanResult::NoMatch) => {}
                 Err(e) => {
                     warn!(path = %path.display(), error = %e, "Failed to process library file");
                 }
@@ -214,22 +264,13 @@ impl LibraryScannerService {
         Ok(title_map)
     }
 
-    async fn process_single_library_file(
+    async fn process_new_library_file(
         &self,
         path: &Path,
-        library_path: &Path,
-        title_map: &std::collections::HashMap<String, crate::models::anime::Anime>,
-    ) -> anyhow::Result<FileScanResult> {
+        anime: &crate::models::anime::Anime,
+        release: &crate::models::release::Release,
+    ) -> anyhow::Result<()> {
         let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-        let Some(release) = parse_filename(filename) else {
-            return Ok(FileScanResult::NoMatch);
-        };
-
-        let (anime, _) = self.match_file_to_anime(path, &release, title_map, Some(library_path));
-        let Some(anime) = anime else {
-            return Ok(FileScanResult::NoMatch);
-        };
-
         let file_size = tokio::fs::metadata(path)
             .await
             .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
@@ -238,16 +279,7 @@ impl LibraryScannerService {
         #[allow(clippy::cast_possible_truncation)]
         let episode_number = release.episode_number as i32;
         let season = release.season.unwrap_or(1);
-        let quality_id = determine_quality_id(&release);
-
-        let existing = self
-            .store
-            .get_episode_status(anime.id, episode_number)
-            .await?;
-
-        if existing.is_some() {
-            return Ok(FileScanResult::Matched);
-        }
+        let quality_id = determine_quality_id(release);
 
         let media_service = crate::services::MediaService::new();
         let media_info = media_service.get_media_info(path).await.ok();
@@ -273,7 +305,7 @@ impl LibraryScannerService {
             "Found episode in library"
         );
 
-        Ok(FileScanResult::Updated)
+        Ok(())
     }
 
     #[must_use]

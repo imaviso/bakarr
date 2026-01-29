@@ -46,6 +46,10 @@ impl AnimeRepository {
         }
     }
 
+    fn base_query() -> sea_orm::SelectTwo<monitored_anime::Entity, quality_profiles::Entity> {
+        MonitoredAnime::find().find_also_related(quality_profiles::Entity)
+    }
+
     pub async fn add(&self, anime: &Anime) -> anyhow::Result<()> {
         let active_model = monitored_anime::ActiveModel {
             id: Set(anime.id),
@@ -66,11 +70,15 @@ impl AnimeRepository {
             genres: Set(anime
                 .genres
                 .as_ref()
-                .and_then(|g| serde_json::to_string(g).ok())),
+                .map(serde_json::to_string)
+                .transpose()
+                .map_err(|e| anyhow::anyhow!("Failed to serialize genres: {e}"))?),
             studios: Set(anime
                 .studios
                 .as_ref()
-                .and_then(|g| serde_json::to_string(g).ok())),
+                .map(serde_json::to_string)
+                .transpose()
+                .map_err(|e| anyhow::anyhow!("Failed to serialize studios: {e}"))?),
             start_year: Set(anime.start_year),
             monitored: Set(anime.monitored),
             ..Default::default()
@@ -104,8 +112,8 @@ impl AnimeRepository {
     }
 
     pub async fn get(&self, id: i32) -> anyhow::Result<Option<Anime>> {
-        let result = MonitoredAnime::find_by_id(id)
-            .find_also_related(quality_profiles::Entity)
+        let result = Self::base_query()
+            .filter(monitored_anime::Column::Id.eq(id))
             .one(&self.conn)
             .await?;
 
@@ -117,9 +125,8 @@ impl AnimeRepository {
             return Ok(Vec::new());
         }
 
-        let rows = MonitoredAnime::find()
-            .filter(monitored_anime::Column::Id.is_in(ids.to_vec()))
-            .find_also_related(quality_profiles::Entity)
+        let rows = Self::base_query()
+            .filter(monitored_anime::Column::Id.is_in(ids.iter().copied()))
             .all(&self.conn)
             .await?;
 
@@ -130,10 +137,9 @@ impl AnimeRepository {
     }
 
     pub async fn list_monitored(&self) -> anyhow::Result<Vec<Anime>> {
-        let rows = MonitoredAnime::find()
+        let rows = Self::base_query()
             .filter(monitored_anime::Column::Monitored.eq(true))
             .order_by_asc(monitored_anime::Column::RomajiTitle)
-            .find_also_related(quality_profiles::Entity)
             .all(&self.conn)
             .await?;
 
@@ -144,9 +150,8 @@ impl AnimeRepository {
     }
 
     pub async fn list_all(&self) -> anyhow::Result<Vec<Anime>> {
-        let rows = MonitoredAnime::find()
+        let rows = Self::base_query()
             .order_by_asc(monitored_anime::Column::RomajiTitle)
-            .find_also_related(quality_profiles::Entity)
             .all(&self.conn)
             .await?;
 

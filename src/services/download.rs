@@ -48,7 +48,8 @@ impl DownloadDecisionService {
         is_seadex_group: bool,
     ) -> DownloadAction {
         let release_quality = parse_quality_from_filename(release_title);
-        let release_score = Self::calculate_score(release_title, rules);
+        let release_title_lower = release_title.to_lowercase();
+        let release_score = Self::calculate_score(&release_title_lower, rules);
 
         debug!(
             release_title = %release_title,
@@ -58,7 +59,7 @@ impl DownloadDecisionService {
             "Release analyzed"
         );
 
-        if let Err(reason) = Self::check_constraints(release_title, rules) {
+        if let Err(reason) = Self::check_constraints(&release_title_lower, rules) {
             return DownloadAction::Reject { reason };
         }
 
@@ -91,7 +92,8 @@ impl DownloadDecisionService {
                     .to_string_lossy()
             })
             .unwrap_or_default();
-        let current_score = Self::calculate_score(&current_filename, rules);
+        let current_filename_lower = current_filename.to_lowercase();
+        let current_score = Self::calculate_score(&current_filename_lower, rules);
 
         let current_info = EpisodeQualityInfo {
             quality: current_quality.clone(),
@@ -141,26 +143,22 @@ impl DownloadDecisionService {
     }
 
     fn calculate_score(
-        title: &str,
+        title_lower: &str,
         rules: &[crate::entities::release_profile_rules::Model],
     ) -> i32 {
-        let mut score = 0;
-        let title_lower = title.to_lowercase();
-
-        for rule in rules {
-            if rule.rule_type == "preferred" && title_lower.contains(&rule.term.to_lowercase()) {
-                score += rule.score;
-            }
-        }
-        score
+        rules
+            .iter()
+            .filter(|rule| {
+                rule.rule_type == "preferred" && title_lower.contains(&rule.term.to_lowercase())
+            })
+            .map(|rule| rule.score)
+            .sum()
     }
 
     fn check_constraints(
-        title: &str,
+        title_lower: &str,
         rules: &[crate::entities::release_profile_rules::Model],
     ) -> Result<(), String> {
-        let title_lower = title.to_lowercase();
-
         for rule in rules {
             let term_lower = rule.term.to_lowercase();
             match rule.rule_type.as_str() {

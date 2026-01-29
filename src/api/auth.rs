@@ -16,9 +16,7 @@ use super::{ApiError, ApiResponse, AppState};
 // ============================================================================
 
 #[derive(Deserialize)]
-pub struct AuthQuery {
-    pub api_key: Option<String>,
-}
+pub struct AuthQuery {}
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
@@ -94,12 +92,7 @@ pub async fn auth_middleware(
 }
 
 /// Extract API key from query params or headers
-fn extract_api_key(query: &AuthQuery, headers: &HeaderMap) -> Option<String> {
-    // Check query parameter
-    if let Some(key) = &query.api_key {
-        return Some(key.clone());
-    }
-
+fn extract_api_key(_query: &AuthQuery, headers: &HeaderMap) -> Option<String> {
     // Check X-Api-Key header
     if let Some(api_key) = headers.get("X-Api-Key")
         && let Ok(key_str) = api_key.to_str()
