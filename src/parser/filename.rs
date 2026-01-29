@@ -15,8 +15,8 @@ pub fn parse_filename(filename: &str) -> Option<Release> {
 
 #[must_use]
 pub fn parse_episode_title(title: &str) -> Option<(i32, Option<String>)> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    let re = get_regex(&RE, r"(?i)^Episode\s+(\d+)(?:\s*-\s*(.+))?$");
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
+    let re = get_regex(&RE, r"(?i)^Episode\s+(\d+)(?:\s*-\s*(.+))?$")?;
 
     let caps = re.captures(title)?;
     let number = caps.get(1)?.as_str().parse().ok()?;
@@ -46,38 +46,38 @@ pub fn is_generic_media_folder(name: &str) -> bool {
     )
 }
 
-fn get_regex(re: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
-    re.get_or_init(|| Regex::new(pattern).expect("Invalid regex pattern defined in code"))
+fn get_regex(re: &'static OnceLock<Option<Regex>>, pattern: &str) -> Option<&'static Regex> {
+    re.get_or_init(|| Regex::new(pattern).ok()).as_ref()
 }
 
 fn parse_standard_bracket(filename: &str) -> Option<Release> {
-    static RE: OnceLock<Regex> = OnceLock::new();
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
     let re = get_regex(
         &RE,
         r"^\[(?P<group>[^\]]+)\]\s*(?P<title>.+?)\s*-\s*(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:(?:\[(?P<tags>[^\]]*)\])|(?:\((?P<tags_paren>[^)]*)\)))?.*$",
-    );
+    )?;
 
     let caps = re.captures(filename)?;
     extract_common_fields(&caps, filename, true)
 }
 
 fn parse_sxxexx_bracket(filename: &str) -> Option<Release> {
-    static RE: OnceLock<Regex> = OnceLock::new();
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
     let re = get_regex(
         &RE,
         r"^\[(?P<group>[^\]]+)\]\s*(?P<title>.+?)\s*-?\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:\[(?P<tags>[^\]]*)\])?.*$",
-    );
+    )?;
 
     let caps = re.captures(filename)?;
     extract_common_fields(&caps, filename, true)
 }
 
 fn parse_simple_sxxexx(filename: &str) -> Option<Release> {
-    static RE: OnceLock<Regex> = OnceLock::new();
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
     let re = get_regex(
         &RE,
         r"^(?P<title>.+?)\s*-\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)(?:\s*-\s*.+)?.*$",
-    );
+    )?;
 
     let caps = re.captures(filename)?;
     let title = caps.name("title")?.as_str().trim();
@@ -101,11 +101,11 @@ fn parse_simple_sxxexx(filename: &str) -> Option<Release> {
 }
 
 fn parse_plex_format(filename: &str) -> Option<Release> {
-    static RE: OnceLock<Regex> = OnceLock::new();
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
     let re = get_regex(
         &RE,
         r"^(?P<title>.+?)\s*(?:\(\d{4}\))?\s*-\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\s*(?:-\s*.+?)?\s*(?:\[(?P<tags>[^\]]*)\])*.*$",
-    );
+    )?;
 
     let caps = re.captures(filename)?;
 
@@ -118,11 +118,11 @@ fn parse_plex_format(filename: &str) -> Option<Release> {
 }
 
 fn parse_dot_separated(filename: &str) -> Option<Release> {
-    static RE: OnceLock<Regex> = OnceLock::new();
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
     let re = get_regex(
         &RE,
         r"^(?P<title>.+?)\.S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\.(?P<rest>.+)$",
-    );
+    )?;
 
     let caps = re.captures(filename)?;
 
@@ -147,34 +147,35 @@ fn parse_dot_separated(filename: &str) -> Option<Release> {
 }
 
 fn parse_group_at_end(filename: &str) -> Option<Release> {
-    static RE: OnceLock<Regex> = OnceLock::new();
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
     let re = get_regex(
         &RE,
         r"^(?P<title>.+?)\s*-\s*(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:\((?P<tags>[^)]*)\))?\s*\[(?P<group>[^\]]+)\].*$",
-    );
+    )?;
 
     let caps = re.captures(filename)?;
     extract_common_fields(&caps, filename, true)
 }
 
 fn parse_fallback(filename: &str) -> Option<Release> {
-    static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static PATTERNS: OnceLock<Option<Vec<Regex>>> = OnceLock::new();
     let name = filename.rsplit_once('.').map_or(filename, |(name, _)| name);
 
     let patterns = PATTERNS.get_or_init(|| {
-        vec![
+        Some(vec![
             Regex::new(
                 r"-\s*(?P<episode>\d{1,4}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?(?:\s|$|\[|\()",
             )
-            .expect("Invalid Regex"),
+            .ok()?,
             Regex::new(
                 r"[Ee](?:p(?:isode)?)?\s*(?P<episode>\d{1,4}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?",
             )
-            .expect("Invalid Regex"),
+            .ok()?,
             Regex::new(r"[_\s](?P<episode>\d{1,3}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?[_\s\[\(]")
-                .expect("Invalid Regex"),
-        ]
+                .ok()?,
+        ])
     });
+    let patterns = patterns.as_ref()?;
 
     for pattern in patterns {
         if let Some(caps) = pattern.captures_iter(name).last() {
@@ -250,8 +251,8 @@ fn extract_common_fields(
 }
 
 fn extract_resolution(s: &str) -> Option<String> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    let re = get_regex(&RE, r"(?i)(4K|2160p|1080p|720p|480p|576p)");
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
+    let re = get_regex(&RE, r"(?i)(4K|2160p|1080p|720p|480p|576p)")?;
 
     re.find(s).map(|m| {
         let res = m.as_str();
@@ -264,11 +265,11 @@ fn extract_resolution(s: &str) -> Option<String> {
 }
 
 fn extract_source(s: &str) -> Option<String> {
-    static RE: OnceLock<Regex> = OnceLock::new();
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
     let re = get_regex(
         &RE,
         r"(?i)(BD|Blu-?Ray|WEB-?(?:Rip|DL)?|HDTV|DVDRip|BDRip|WEBRip|AMZN|CR|DSNP|NF|HMAX)",
-    );
+    )?;
 
     re.find(s).map(|m| {
         let src = m.as_str();
@@ -288,8 +289,8 @@ fn extract_source(s: &str) -> Option<String> {
 }
 
 fn extract_bracket_group(s: &str) -> Option<String> {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    let re = get_regex(&RE, r"^\[([^\]]+)\]");
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
+    let re = get_regex(&RE, r"^\[([^\]]+)\]")?;
 
     re.captures(s)
         .and_then(|c| c.get(1).map(|m| m.as_str().trim().to_string()))
@@ -302,8 +303,8 @@ fn extract_group_from_rest(s: &str) -> Option<String> {
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or(rest);
 
         if stem.contains('[') && stem.contains(']') {
-            static RE_BRACKETS: OnceLock<Regex> = OnceLock::new();
-            let re = get_regex(&RE_BRACKETS, r"\[([^\]]+)\]");
+            static RE_BRACKETS: OnceLock<Option<Regex>> = OnceLock::new();
+            let re = get_regex(&RE_BRACKETS, r"\[([^\]]+)\]")?;
 
             let matches: Vec<_> = re
                 .captures_iter(stem)
@@ -360,16 +361,17 @@ fn extract_title_before_episode(filename: &str, episode_str: &str) -> Option<Str
 }
 
 pub fn detect_season_from_title(title: &str) -> Option<i32> {
-    static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static PATTERNS: OnceLock<Option<Vec<Regex>>> = OnceLock::new();
     let patterns = PATTERNS.get_or_init(|| {
-        vec![
-            Regex::new(r"(?i)\b(?:Season|S)\s*(\d+)\b").expect("Invalid Regex"),
-            Regex::new(r"(?i)\b(\d+)(?:st|nd|rd|th)\s+Season\b").expect("Invalid Regex"),
-            Regex::new(r"(?i)\bPart\s+(\d+|I{1,3}V?|VI{0,3})\b").expect("Invalid Regex"),
-            Regex::new(r"(?i)\bCour\s+(\d+)\b").expect("Invalid Regex"),
-            Regex::new(r"\b(I{2,3}V?|VI{0,3})\s*$").expect("Invalid Regex"),
-        ]
+        Some(vec![
+            Regex::new(r"(?i)\b(?:Season|S)\s*(\d+)\b").ok()?,
+            Regex::new(r"(?i)\b(\d+)(?:st|nd|rd|th)\s+Season\b").ok()?,
+            Regex::new(r"(?i)\bPart\s+(\d+|I{1,3}V?|VI{0,3})\b").ok()?,
+            Regex::new(r"(?i)\bCour\s+(\d+)\b").ok()?,
+            Regex::new(r"\b(I{2,3}V?|VI{0,3})\s*$").ok()?,
+        ])
     });
+    let patterns = patterns.as_ref()?;
 
     for pattern in patterns {
         if let Some(caps) = pattern.captures(title)
@@ -444,25 +446,27 @@ pub fn clean_title(title: &str) -> String {
 }
 
 pub fn normalize_title(title: &str) -> String {
-    static NORMALIZE_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    static NORMALIZE_PATTERNS: OnceLock<Option<Vec<Regex>>> = OnceLock::new();
 
     let title = clean_title(title);
 
     let patterns = NORMALIZE_PATTERNS.get_or_init(|| {
-        vec![
-            Regex::new(r"(?i)\s*\d+(?:st|nd|rd|th)\s+Season\s*$").expect("Invalid Regex"),
-            Regex::new(r"(?i)\s*(?:Season|S)\s*\d+\s*$").expect("Invalid Regex"),
-            Regex::new(r"(?i)\s*Part\s+(?:\d+|I{1,3}V?|VI{0,3})\s*$").expect("Invalid Regex"),
-            Regex::new(r"(?i)\s*Cour\s+\d+\s*$").expect("Invalid Regex"),
-            Regex::new(r"\s+(?:I{2,3}V?|VI{0,3})\s*$").expect("Invalid Regex"),
-            Regex::new(r"\s*\(\d{4}\)\s*$").expect("Invalid Regex"),
-            Regex::new(r"\s*[:–—-]\s*$").expect("Invalid Regex"),
-        ]
+        Some(vec![
+            Regex::new(r"(?i)\s*\d+(?:st|nd|rd|th)\s+Season\s*$").ok()?,
+            Regex::new(r"(?i)\s*(?:Season|S)\s*\d+\s*$").ok()?,
+            Regex::new(r"(?i)\s*Part\s+(?:\d+|I{1,3}V?|VI{0,3})\s*$").ok()?,
+            Regex::new(r"(?i)\s*Cour\s+\d+\s*$").ok()?,
+            Regex::new(r"\s+(?:I{2,3}V?|VI{0,3})\s*$").ok()?,
+            Regex::new(r"\s*\(\d{4}\)\s*$").ok()?,
+            Regex::new(r"\s*[:–—-]\s*$").ok()?,
+        ])
     });
 
     let mut result = title;
-    for pattern in patterns {
-        result = pattern.replace_all(&result, "").to_string();
+    if let Some(patterns) = patterns {
+        for pattern in patterns {
+            result = pattern.replace_all(&result, "").to_string();
+        }
     }
 
     let mut cleaned = String::with_capacity(result.len());

@@ -16,6 +16,18 @@ use crate::services::{
     LogService, RssService, SearchService,
 };
 
+/// Build a shared HTTP client with reasonable defaults for API calls.
+/// This client should be reused across all HTTP-based services to enable
+/// connection pooling and avoid socket exhaustion.
+fn build_shared_http_client(timeout_seconds: u64) -> anyhow::Result<reqwest::Client> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(timeout_seconds))
+        .user_agent("Bakarr/1.0")
+        .pool_max_idle_per_host(10)
+        .build()
+        .map_err(|e| anyhow::anyhow!("Failed to build shared HTTP client: {e}"))
+}
+
 #[derive(Clone)]
 pub struct SharedState {
     pub config: Arc<RwLock<Config>>,
@@ -76,10 +88,12 @@ impl SharedState {
         .await?;
         store.initialize_quality_system(&config).await?;
 
-        let nyaa = Arc::new(NyaaClient::with_timeout(std::time::Duration::from_secs(
-            u64::from(config.nyaa.request_timeout_seconds),
-        )));
-        let anilist = Arc::new(AnilistClient::new());
+        // Create a shared HTTP client for all services that need HTTP capabilities.
+        // This enables connection pooling and avoids socket exhaustion.
+        let http_client = build_shared_http_client(config.nyaa.request_timeout_seconds.into())?;
+
+        let nyaa = Arc::new(NyaaClient::with_shared_client(http_client.clone()));
+        let anilist = Arc::new(AnilistClient::with_shared_client(http_client));
         let jikan = Arc::new(JikanClient::new());
         let seadex_client = Arc::new(SeaDexClient::new());
 

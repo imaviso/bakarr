@@ -37,7 +37,7 @@ impl NyaaTorrent {
     }
 }
 
-/// Consolidates regexes for XML parsing to avoid per-call overhead and unsafe unwraps.
+/// Consolidates regexes for XML parsing to avoid per-call overhead.
 struct NyaaRegex {
     title: Regex,
     link: Regex,
@@ -54,24 +54,26 @@ struct NyaaRegex {
 }
 
 impl NyaaRegex {
-    fn get() -> &'static Self {
-        static INSTANCE: OnceLock<NyaaRegex> = OnceLock::new();
-        INSTANCE.get_or_init(|| Self {
-            title: Regex::new(r"<title>([^<]*)</title>").expect("Invalid Regex"),
-            link: Regex::new(r"<link>([^<]*)</link>").expect("Invalid Regex"),
-            guid: Regex::new(r"<guid>([^<]*)</guid>").expect("Invalid Regex"),
-            pub_date: Regex::new(r"<pubDate>([^<]*)</pubDate>").expect("Invalid Regex"),
-            seeders: Regex::new(r"<nyaa:seeders>([^<]*)</nyaa:seeders>").expect("Invalid Regex"),
-            leechers: Regex::new(r"<nyaa:leechers>([^<]*)</nyaa:leechers>").expect("Invalid Regex"),
-            downloads: Regex::new(r"<nyaa:downloads>([^<]*)</nyaa:downloads>")
-                .expect("Invalid Regex"),
-            info_hash: Regex::new(r"<nyaa:infoHash>([^<]*)</nyaa:infoHash>")
-                .expect("Invalid Regex"),
-            size: Regex::new(r"<nyaa:size>([^<]*)</nyaa:size>").expect("Invalid Regex"),
-            trusted: Regex::new(r"<nyaa:trusted>([^<]*)</nyaa:trusted>").expect("Invalid Regex"),
-            remake: Regex::new(r"<nyaa:remake>([^<]*)</nyaa:remake>").expect("Invalid Regex"),
-            item: Regex::new(r"(?s)<item>(.*?)</item>").expect("Invalid Regex"),
-        })
+    fn get() -> Option<&'static Self> {
+        static INSTANCE: OnceLock<Option<NyaaRegex>> = OnceLock::new();
+        INSTANCE
+            .get_or_init(|| {
+                Some(Self {
+                    title: Regex::new(r"<title>([^<]*)</title>").ok()?,
+                    link: Regex::new(r"<link>([^<]*)</link>").ok()?,
+                    guid: Regex::new(r"<guid>([^<]*)</guid>").ok()?,
+                    pub_date: Regex::new(r"<pubDate>([^<]*)</pubDate>").ok()?,
+                    seeders: Regex::new(r"<nyaa:seeders>([^<]*)</nyaa:seeders>").ok()?,
+                    leechers: Regex::new(r"<nyaa:leechers>([^<]*)</nyaa:leechers>").ok()?,
+                    downloads: Regex::new(r"<nyaa:downloads>([^<]*)</nyaa:downloads>").ok()?,
+                    info_hash: Regex::new(r"<nyaa:infoHash>([^<]*)</nyaa:infoHash>").ok()?,
+                    size: Regex::new(r"<nyaa:size>([^<]*)</nyaa:size>").ok()?,
+                    trusted: Regex::new(r"<nyaa:trusted>([^<]*)</nyaa:trusted>").ok()?,
+                    remake: Regex::new(r"<nyaa:remake>([^<]*)</nyaa:remake>").ok()?,
+                    item: Regex::new(r"(?s)<item>(.*?)</item>").ok()?,
+                })
+            })
+            .as_ref()
     }
 }
 
@@ -82,9 +84,9 @@ fn extract_tag(xml: &str, re: &Regex) -> String {
         .unwrap_or_default()
 }
 
-fn parse_item(item_xml: &str) -> NyaaTorrent {
-    let re = NyaaRegex::get();
-    NyaaTorrent {
+fn parse_item(item_xml: &str) -> Option<NyaaTorrent> {
+    let re = NyaaRegex::get()?;
+    Some(NyaaTorrent {
         title: html_escape::decode_html_entities(&extract_tag(item_xml, &re.title)).to_string(),
         torrent_url: extract_tag(item_xml, &re.link),
         view_url: extract_tag(item_xml, &re.guid),
@@ -96,15 +98,17 @@ fn parse_item(item_xml: &str) -> NyaaTorrent {
         size: extract_tag(item_xml, &re.size),
         trusted: extract_tag(item_xml, &re.trusted).eq_ignore_ascii_case("yes"),
         remake: extract_tag(item_xml, &re.remake).eq_ignore_ascii_case("yes"),
-    }
+    })
 }
 
 fn parse_rss_items(xml: &str) -> Vec<NyaaTorrent> {
-    let re = NyaaRegex::get();
+    let Some(re) = NyaaRegex::get() else {
+        return Vec::new();
+    };
     re.item
         .captures_iter(xml)
         .filter_map(|c| c.get(1))
-        .map(|m| parse_item(m.as_str()))
+        .filter_map(|m| parse_item(m.as_str()))
         .collect()
 }
 
@@ -207,7 +211,13 @@ impl RssFeedConfig {
 
         let query = query_parts.join(" ");
 
-        let mut url = Url::parse(NYAA_RSS_BASE).expect("Invalid base URL");
+        // NYAA_RSS_BASE is a compile-time constant, so this should never fail.
+        // Using unwrap_or_default as a safe fallback.
+        let mut url = Url::parse(NYAA_RSS_BASE).unwrap_or_else(|_| {
+            // This is a critical error - log it and return a minimal URL
+            eprintln!("CRITICAL: Invalid NYAA_RSS_BASE constant: {NYAA_RSS_BASE}");
+            Url::parse("https://nyaa.si").expect("Hardcoded URL should be valid")
+        });
         url.query_pairs_mut()
             .append_pair("q", &query)
             .append_pair("c", self.category.as_str())
@@ -224,20 +234,38 @@ impl Default for NyaaClient {
 }
 
 impl NyaaClient {
+    /// Creates a new `NyaaClient` with a 30-second timeout.
+    ///
+    /// # Panics
+    /// Panics if the HTTP client cannot be built (e.g., due to system TLS configuration issues).
+    /// This is a programming error or critical system issue that should not be caught.
     #[must_use]
     pub fn new() -> Self {
         Self::with_timeout(std::time::Duration::from_secs(30))
+            .expect("Failed to create NyaaClient with default timeout")
     }
 
+    /// Creates a new `NyaaClient` with a custom timeout.
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP client cannot be built.
+    pub fn with_timeout(timeout: std::time::Duration) -> anyhow::Result<Self> {
+        let client = Client::builder()
+            .timeout(timeout)
+            .user_agent("Bakarr/1.0")
+            .build()
+            .map_err(|e| anyhow::anyhow!("Failed to build HTTP client: {e}"))?;
+
+        Ok(Self { client })
+    }
+
+    /// Creates a new `NyaaClient` using a shared HTTP client.
+    ///
+    /// This is the preferred constructor when using `SharedState` as it allows
+    /// connection pooling and reuse across multiple clients.
     #[must_use]
-    pub fn with_timeout(timeout: std::time::Duration) -> Self {
-        Self {
-            client: Client::builder()
-                .timeout(timeout)
-                .user_agent("Bakarr/1.0")
-                .build()
-                .expect("Failed to build HTTP client"),
-        }
+    pub const fn with_shared_client(client: Client) -> Self {
+        Self { client }
     }
 
     pub async fn search(
@@ -246,7 +274,8 @@ impl NyaaClient {
         category: NyaaCategory,
         filter: NyaaFilter,
     ) -> Result<Vec<NyaaTorrent>> {
-        let mut url = Url::parse(NYAA_RSS_BASE).expect("Invalid base URL");
+        let mut url = Url::parse(NYAA_RSS_BASE)
+            .map_err(|e| anyhow::anyhow!("Failed to parse NYAA base URL: {e}"))?;
         url.query_pairs_mut()
             .append_pair("q", query)
             .append_pair("c", category.as_str())

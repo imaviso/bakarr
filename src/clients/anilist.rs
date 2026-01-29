@@ -125,6 +125,14 @@ impl AnilistClient {
         }
     }
 
+    /// Creates a new `AnilistClient` using a shared HTTP client.
+    ///
+    /// This enables connection pooling when using multiple API clients.
+    #[must_use]
+    pub const fn with_shared_client(client: Client) -> Self {
+        Self { client }
+    }
+
     pub async fn search_anime(&self, query: &str) -> Result<Vec<Anime>> {
         let gql_query = r"
             query ($search: String) {

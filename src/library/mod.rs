@@ -174,9 +174,11 @@ impl LibraryService {
 
     pub async fn import_file(&self, source: &Path, destination: &Path) -> Result<()> {
         let destination = if destination.is_relative() {
-            tokio::task::spawn_blocking(std::env::current_dir)
-                .await??
-                .join(destination)
+            // Get current directory in a blocking task (to avoid blocking the async runtime)
+            let current_dir = tokio::task::spawn_blocking(std::env::current_dir)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to join blocking task: {e}"))??;
+            current_dir.join(destination)
         } else {
             destination.to_path_buf()
         };
@@ -225,6 +227,45 @@ impl LibraryService {
         }
 
         Ok(result)
+    }
+
+    /// Builds the root folder path for an anime.
+    ///
+    /// This centralizes the path building logic that was previously duplicated
+    /// across api/anime.rs and other modules.
+    ///
+    /// # Arguments
+    /// * `anime` - The anime to build the path for
+    /// * `custom_root` - Optional custom root folder (uses `library_path` if None)
+    ///
+    /// # Returns
+    /// The full path to the anime's root folder
+    #[must_use]
+    pub fn build_anime_root_path(
+        &self,
+        anime: &Anime,
+        custom_root: Option<&std::path::Path>,
+    ) -> PathBuf {
+        let folder_name = anime.path.as_ref().map_or_else(
+            || {
+                // Generate folder name from title
+                let base_name = anime.start_year.map_or_else(
+                    || anime.title.romaji.clone(),
+                    |year| format!("{} ({})", anime.title.romaji, year),
+                );
+                crate::clients::qbittorrent::sanitize_category(&base_name)
+            },
+            |existing_path| {
+                // Use existing folder name if available
+                std::path::Path::new(existing_path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map_or_else(|| self.get_series_title(anime), String::from)
+            },
+        );
+
+        let root = custom_root.unwrap_or_else(|| std::path::Path::new(&self.config.library_path));
+        root.join(folder_name)
     }
 }
 
