@@ -4,6 +4,7 @@ use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use tokio::task;
 
 use crate::entities::users;
 
@@ -61,6 +62,8 @@ impl UserRepository {
     }
 
     /// Verify password for a user
+    /// Note: This uses `spawn_blocking` because Argon2 hashing is CPU-intensive
+    /// and would block the async runtime if run directly.
     pub async fn verify_password(&self, username: &str, password: &str) -> Result<bool> {
         let user = users::Entity::find()
             .filter(users::Column::Username.eq(username))
@@ -72,13 +75,25 @@ impl UserRepository {
             return Ok(false);
         };
 
-        let parsed_hash = PasswordHash::new(&user.password_hash)
-            .map_err(|e| anyhow::anyhow!("Invalid password hash format: {e}"))?;
+        let password_hash = user.password_hash;
+        let password = password.to_string();
 
-        let argon2 = Argon2::default();
-        Ok(argon2
-            .verify_password(password.as_bytes(), &parsed_hash)
-            .is_ok())
+        // Run CPU-intensive password verification in a blocking task
+        let is_valid = task::spawn_blocking(move || {
+            let parsed_hash = PasswordHash::new(&password_hash)
+                .map_err(|e| anyhow::anyhow!("Invalid password hash format: {e}"))?;
+
+            let argon2 = Argon2::default();
+            Ok::<bool, anyhow::Error>(
+                argon2
+                    .verify_password(password.as_bytes(), &parsed_hash)
+                    .is_ok(),
+            )
+        })
+        .await
+        .context("Password verification task panicked")??;
+
+        Ok(is_valid)
     }
 
     /// Update password for a user (hashes the new password)

@@ -9,8 +9,6 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
 
-use time;
-
 use crate::clients::offline_db::OfflineDatabase;
 use crate::config::Config;
 use crate::state::SharedState;
