@@ -30,8 +30,6 @@ Located in `bakarr-ui/`.
   - `lib.rs`: Core application logic.
   - `config.rs`, `constants.rs`: Configuration.
   - `state.rs`: Shared application state initialization.
-  - `scheduler.rs`: Background task scheduler.
-  - `monitor.rs`: Download monitoring and importing logic.
   - `api/`: Axum web server routes (handlers, middleware, error types).
   - `cli/`: CLI command implementations.
   - `clients/`: External API clients (AniList, Nyaa, SeaDex, qBittorrent, etc.).
@@ -39,7 +37,11 @@ Located in `bakarr-ui/`.
     - `repositories/`: Data access layer for various entities.
     - `migrator/`: SeaORM migrations.
   - `entities/`: SeaORM entity definitions.
-  - `services/`: Business logic (Downloader, Library, RSS, Image, etc.).
+  - `services/`: Business logic.
+    - `scheduler.rs`: Background task scheduler.
+    - `monitor.rs`: Download monitoring and importing logic.
+    - `search.rs`: Search logic and caching.
+    - `downloader.rs`, `library.rs`, `rss.rs`, etc.
   - `models/`: Domain models and data structures.
   - `parser/`: Filename parsing logic.
   - `quality/`: Quality profile and definition logic.

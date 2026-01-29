@@ -19,12 +19,14 @@ A **Sonarr**-like anime download manager built specifically for anime, with inte
 
 ### Advanced Features
 - **Batch Release Support**: Prioritize SeaDex batch releases for completed anime
+- **Search Caching**: Database-backed caching for Nyaa and SeaDex results to reduce API usage
 - **RSS Feed Monitoring**: Track specific groups and resolutions
 - **Manual Import**: Import existing anime files with intelligent matching
 - **qBittorrent Integration**: Automatic torrent download management
 - **Scheduler**: Background daemon with configurable check intervals
 - **Quality Upgrades**: Automatically upgrade to better quality releases
 - **Episode Tracking**: Track downloaded, missing, and wanted episodes
+- **Observability**: Structured JSON logging and optional Loki integration for debugging
 
 ## Installation
 
