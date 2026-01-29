@@ -250,7 +250,7 @@ impl LibraryScannerService {
         }
 
         let media_service = crate::services::MediaService::new();
-        let media_info = media_service.get_media_info(path).ok();
+        let media_info = media_service.get_media_info(path).await.ok();
 
         self.store
             .mark_episode_downloaded(

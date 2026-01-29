@@ -132,7 +132,13 @@ pub async fn scan_path(
 
     let mut scanned_files =
         collect_scanned_files(&state, import_path, &title_map, target_anime.as_ref());
-    let candidates = find_candidates(&scanned_files, import_path, &monitored_ids).await;
+    let candidates = find_candidates(
+        &scanned_files,
+        import_path,
+        &monitored_ids,
+        &state.shared.anilist,
+    )
+    .await;
     suggest_candidates(&mut scanned_files, &candidates);
 
     Ok(Json(ApiResponse::success(ScanResult {
@@ -244,9 +250,9 @@ async fn find_candidates(
     scanned_files: &[ScannedFile],
     import_path: &Path,
     monitored_ids: &std::collections::HashSet<i32>,
+    client: &crate::clients::anilist::AnilistClient,
 ) -> Vec<SearchResultDto> {
     let mut candidates_map = std::collections::HashMap::new();
-    let client = crate::clients::anilist::AnilistClient::new();
     let mut search_queries = Vec::new();
 
     if let Some(folder_name) = import_path.file_name().and_then(|n| n.to_str()) {
@@ -309,8 +315,12 @@ async fn find_candidates(
     candidates
 }
 
+use std::sync::LazyLock;
+
+static SEASON_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?:season\s+(\d+)|(\d+)(?:nd|rd|th)\s+season)").unwrap());
+
 fn suggest_candidates(scanned_files: &mut [ScannedFile], candidates: &[SearchResultDto]) {
-    let season_regex = Regex::new(r"(?i)(?:season\s+(\d+)|(\d+)(?:nd|rd|th)\s+season)").unwrap();
     let mut candidate_seasons = std::collections::HashMap::new();
 
     for candidate in candidates {
@@ -322,7 +332,7 @@ fn suggest_candidates(scanned_files: &mut [ScannedFile], candidates: &[SearchRes
             .unwrap_or("")
             .to_lowercase();
 
-        if let Some(caps) = season_regex.captures(&title_lower)
+        if let Some(caps) = SEASON_REGEX.captures(&title_lower)
             && let Some(n) = caps.get(1).or_else(|| caps.get(2))
             && let Ok(s) = n.as_str().parse::<i32>()
         {
@@ -437,7 +447,7 @@ async fn import_single_file(
         .to_string();
 
     let media_service = crate::services::MediaService::new();
-    let media_info = media_service.get_media_info(source_path).ok();
+    let media_info = media_service.get_media_info(source_path).await.ok();
     let parsed_filename = crate::parser::filename::parse_filename(filename);
     let group = parsed_filename.as_ref().and_then(|r| r.group.clone());
 
@@ -511,7 +521,7 @@ async fn resolve_anime_for_import(
         return Ok(a);
     }
 
-    let client = crate::clients::anilist::AnilistClient::new();
+    let client = &state.shared.anilist;
     let mut fetched_anime = client
         .get_by_id(anime_id)
         .await?
@@ -604,18 +614,22 @@ pub async fn browse_path(
     let mut entries = Vec::new();
     let video_extensions = crate::constants::VIDEO_EXTENSIONS;
 
-    let mut dir_entries: Vec<_> = std::fs::read_dir(browse_path)
-        .map_err(|e| ApiError::validation(format!("Cannot read directory: {e}")))?
-        .filter_map(std::result::Result::ok)
-        .collect();
+    let mut dir_entries = tokio::fs::read_dir(browse_path)
+        .await
+        .map_err(|e| ApiError::validation(format!("Cannot read directory: {e}")))?;
 
-    dir_entries.sort_by(|a, b| match (a.path().is_dir(), b.path().is_dir()) {
+    let mut all_entries = Vec::new();
+    while let Ok(Some(entry)) = dir_entries.next_entry().await {
+        all_entries.push(entry);
+    }
+
+    all_entries.sort_by(|a, b| match (a.path().is_dir(), b.path().is_dir()) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
         _ => a.file_name().cmp(&b.file_name()),
     });
 
-    for entry in dir_entries {
+    for entry in all_entries {
         let entry_path = entry.path();
         let name = entry.file_name().to_string_lossy().to_string();
 
@@ -643,7 +657,7 @@ pub async fn browse_path(
             size: if is_directory {
                 None
             } else {
-                entry.metadata().ok().map(|m| m.len())
+                entry.metadata().await.ok().map(|m| m.len())
             },
         });
     }

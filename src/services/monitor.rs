@@ -554,7 +554,7 @@ impl Monitor {
         };
 
         let media_service = crate::services::MediaService::new();
-        let media_info = media_service.get_media_info(source_path).ok();
+        let media_info = media_service.get_media_info(source_path).await.ok();
 
         let options = crate::library::RenamingOptions {
             anime: anime.clone(),
@@ -696,7 +696,7 @@ impl Monitor {
             let season = parsed.as_ref().and_then(|p| p.season);
 
             let media_service = crate::services::MediaService::new();
-            let media_info = media_service.get_media_info(&file_path).ok();
+            let media_info = media_service.get_media_info(&file_path).await.ok();
 
             let options = crate::library::RenamingOptions {
                 anime: anime.clone(),

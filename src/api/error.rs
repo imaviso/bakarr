@@ -84,7 +84,8 @@ impl IntoResponse for ApiError {
 
 impl From<anyhow::Error> for ApiError {
     fn from(err: anyhow::Error) -> Self {
-        Self::InternalError(err.to_string())
+        tracing::error!(error = ?err, "Internal Server Error");
+        Self::InternalError("An unexpected internal error occurred".to_string())
     }
 }
 

@@ -1,7 +1,10 @@
+use crate::clients::anilist::AnilistClient;
+use crate::clients::jikan::JikanClient;
 use crate::config::Config;
 use crate::db::Store;
 use crate::services::episodes::EpisodeService;
 use anyhow::Context;
+use std::sync::Arc;
 
 pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyhow::Result<()> {
     let id: i32 = id_str.parse().context("Invalid anime ID")?;
@@ -15,7 +18,9 @@ pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyho
     println!("Episodes for: {}", anime.title.romaji);
     println!("{:-<70}", "");
 
-    let episode_service = EpisodeService::new(store.clone());
+    let jikan = Arc::new(JikanClient::new());
+    let anilist = Arc::new(AnilistClient::new());
+    let episode_service = EpisodeService::new(store.clone(), jikan, anilist, None);
 
     if refresh {
         println!("Refreshing episode metadata from Jikan...");

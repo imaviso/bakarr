@@ -14,22 +14,32 @@ use tracing::{debug, info, warn};
 
 #[derive(Clone)]
 pub struct EpisodeService {
-    jikan: JikanClient,
-    anilist: AnilistClient,
-    kitsu: KitsuClient,
+    jikan: Arc<JikanClient>,
+    anilist: Arc<AnilistClient>,
+    kitsu: Arc<KitsuClient>,
     offline_db: OfflineDatabase,
     store: Store,
 
     recent_fetches: Arc<std::sync::RwLock<HashMap<i32, Instant>>>,
 }
 
+use std::sync::LazyLock;
+
+static EPISODE_TITLE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)^Episode\s+(\d+)(?:\s*-\s*(.+))?$").unwrap());
+
 impl EpisodeService {
     #[must_use]
-    pub fn new(store: Store) -> Self {
+    pub fn new(
+        store: Store,
+        jikan: Arc<JikanClient>,
+        anilist: Arc<AnilistClient>,
+        kitsu: Option<Arc<KitsuClient>>,
+    ) -> Self {
         Self {
-            jikan: JikanClient::new(),
-            anilist: AnilistClient::new(),
-            kitsu: KitsuClient::new(),
+            jikan,
+            anilist,
+            kitsu: kitsu.unwrap_or_else(|| Arc::new(KitsuClient::new())),
             offline_db: OfflineDatabase::new(store.clone()),
             store,
             recent_fetches: Arc::new(std::sync::RwLock::new(HashMap::new())),
@@ -163,12 +173,11 @@ impl EpisodeService {
         }
 
         let mut all_episodes = Vec::new();
-        let re = Regex::new(r"(?i)^Episode\s+(\d+)(?:\s*-\s*(.+))?$").unwrap();
         let mut seen_episodes = HashSet::new();
 
         for ep in anilist_eps {
             if let Some(title) = ep.title
-                && let Some(caps) = re.captures(&title)
+                && let Some(caps) = EPISODE_TITLE_REGEX.captures(&title)
             {
                 let number = caps[1].parse::<i32>().unwrap_or(0);
                 let real_title = caps.get(2).map(|t| t.as_str().to_string());

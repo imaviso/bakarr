@@ -9,7 +9,6 @@ use super::{
     VideoFileDto,
 };
 use crate::api::validation::{validate_anime_id, validate_episode_number};
-use crate::clients::anilist::AnilistClient;
 use crate::services::image::ImageType;
 
 pub async fn list_episodes(
@@ -24,7 +23,6 @@ pub async fn list_episodes(
         .ok_or_else(|| ApiError::anime_not_found(id))?;
 
     let episode_count = anime.episode_count.unwrap_or(1);
-    let episode_service = &state.shared.episodes;
 
     let downloaded_eps = state.store().get_episode_statuses(id).await?;
 
@@ -47,6 +45,18 @@ pub async fn list_episodes(
     let mut episodes = Vec::new();
 
     let metadata_list = state.store().get_episodes_for_anime(id).await?;
+
+    // Check if we need to sync metadata for airing anime before moving the list
+    if metadata_list.is_empty() && anime.status == "RELEASING" {
+        let svc = state.shared.episodes.clone();
+        let anime_id = id;
+        tokio::spawn(async move {
+            if let Err(e) = svc.fetch_and_cache_episodes(anime_id).await {
+                tracing::warn!(error = %e, "Background metadata sync failed");
+            }
+        });
+    }
+
     let metadata_map: std::collections::HashMap<_, _> = metadata_list
         .into_iter()
         .map(|m| (m.episode_number, m))
@@ -58,15 +68,7 @@ pub async fn list_episodes(
     for ep_num in start_ep..=total_eps {
         let ep_num_i32 = ep_num;
 
-        let metadata = if let Some(meta) = metadata_map.get(&ep_num_i32) {
-            Some(meta.clone())
-        } else {
-            episode_service
-                .get_episode_metadata(id, ep_num_i32)
-                .await
-                .ok()
-                .flatten()
-        };
+        let metadata = metadata_map.get(&ep_num_i32).cloned();
 
         let status = downloaded_eps
             .iter()
@@ -217,7 +219,7 @@ pub async fn refresh_metadata(
             title: initial_title,
         });
 
-    let client = AnilistClient::new();
+    let client = &state.shared.anilist;
     if let Some(mut anime) = client
         .get_by_id(id)
         .await
@@ -604,7 +606,7 @@ async fn map_single_episode(
         .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
         .ok();
 
-    let media_info = media_service.get_media_info(path).ok();
+    let media_info = media_service.get_media_info(path).await.ok();
 
     let filename = path.file_name().unwrap_or_default().to_string_lossy();
     let quality = crate::quality::parse_quality_from_filename(&filename);

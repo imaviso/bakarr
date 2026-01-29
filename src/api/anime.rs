@@ -9,7 +9,6 @@ use super::{
     AnimeDto, ApiError, ApiResponse, AppState, EpisodeProgress, SearchResultDto, TitleDto,
 };
 use crate::api::validation::{validate_anime_id, validate_search_query};
-use crate::clients::anilist::AnilistClient;
 
 #[derive(Deserialize)]
 pub struct SearchQuery {
@@ -39,28 +38,44 @@ pub async fn list_anime(
     let anime_list = state.store().list_all_anime().await?;
     let library_path = state.config().read().await.library.library_path.clone();
 
-    let mut results = Vec::new();
+    let anime_ids: Vec<i32> = anime_list.iter().map(|a| a.id).collect();
+
+    let download_counts = state
+        .store()
+        .get_download_counts_for_anime_ids(&anime_ids)
+        .await?;
+
+    let downloaded_episodes_map = state
+        .store()
+        .get_downloaded_episodes_for_anime_ids(&anime_ids)
+        .await?;
+
+    let release_profiles_map = state
+        .store()
+        .get_assigned_release_profiles_for_anime_ids(&anime_ids)
+        .await?;
+
+    let mut results = Vec::with_capacity(anime_list.len());
     for anime in anime_list {
-        let downloaded = state
-            .store()
-            .get_downloaded_count(anime.id)
-            .await
-            .unwrap_or(0);
+        let downloaded = *download_counts.get(&anime.id).unwrap_or(&0);
 
         let missing = if let Some(total) = anime.episode_count {
-            state
-                .store()
-                .get_missing_episodes(anime.id, total)
-                .await
-                .unwrap_or_default()
+            let downloaded_eps = downloaded_episodes_map
+                .get(&anime.id)
+                .map_or(&[] as &[i32], Vec::as_slice);
+
+            let downloaded_set: std::collections::HashSet<i32> =
+                downloaded_eps.iter().copied().collect();
+            (1..=total)
+                .filter(|ep| !downloaded_set.contains(ep))
+                .collect()
         } else {
             Vec::new()
         };
 
-        let release_profile_ids = state
-            .store()
-            .get_assigned_release_profile_ids(anime.id)
-            .await
+        let release_profile_ids = release_profiles_map
+            .get(&anime.id)
+            .cloned()
             .unwrap_or_default();
 
         results.push(AnimeDto {
@@ -116,7 +131,7 @@ pub async fn search_anime(
     Query(params): Query<SearchQuery>,
 ) -> Result<Json<ApiResponse<Vec<SearchResultDto>>>, ApiError> {
     validate_search_query(&params.q)?;
-    let client = AnilistClient::new();
+    let client = &state.shared.anilist;
 
     let monitored = state.store().list_monitored().await?;
     let monitored_ids: std::collections::HashSet<i32> = monitored.iter().map(|a| a.id).collect();
@@ -259,7 +274,7 @@ pub async fn add_anime(
     Json(payload): Json<AddAnimeRequest>,
 ) -> Result<Json<ApiResponse<AnimeDto>>, ApiError> {
     validate_anime_id(payload.id)?;
-    let client = AnilistClient::new();
+    let client = &state.shared.anilist;
 
     let mut anime = client
         .get_by_id(payload.id)
@@ -280,7 +295,7 @@ pub async fn add_anime(
 
     let root_path = resolve_anime_path(&state, &anime, payload.root_folder.as_deref()).await;
 
-    if let Err(e) = std::fs::create_dir_all(&root_path) {
+    if let Err(e) = tokio::fs::create_dir_all(&root_path).await {
         tracing::error!("Failed to create anime directory: {}", e);
     }
 

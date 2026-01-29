@@ -129,7 +129,7 @@ pub async fn import_folder(
     State(state): State<Arc<AppState>>,
     Json(request): Json<ImportFolderRequest>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
-    let client = crate::clients::anilist::AnilistClient::new();
+    let client = &state.shared.anilist;
     let mut anime = client
         .get_by_id(request.anime_id)
         .await

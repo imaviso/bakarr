@@ -106,6 +106,27 @@ impl ReleaseProfileRepository {
         Ok(assigned.into_iter().map(|a| a.profile_id).collect())
     }
 
+    pub async fn get_assigned_profiles_for_anime_ids(
+        &self,
+        anime_ids: &[i32],
+    ) -> Result<std::collections::HashMap<i32, Vec<i32>>> {
+        if anime_ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        let assigned = AnimeReleaseProfiles::find()
+            .filter(anime_release_profiles::Column::AnimeId.is_in(anime_ids.to_vec()))
+            .all(&self.conn)
+            .await?;
+
+        let mut map: std::collections::HashMap<i32, Vec<i32>> = std::collections::HashMap::new();
+        for a in assigned {
+            map.entry(a.anime_id).or_default().push(a.profile_id);
+        }
+
+        Ok(map)
+    }
+
     pub async fn create_profile(
         &self,
         name: String,

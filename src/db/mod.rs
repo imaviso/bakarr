@@ -414,6 +414,15 @@ impl Store {
             .await
     }
 
+    pub async fn get_downloaded_episodes_for_anime_ids(
+        &self,
+        anime_ids: &[i32],
+    ) -> Result<std::collections::HashMap<i32, Vec<i32>>> {
+        self.episode_repo()
+            .get_downloaded_episodes_for_anime_ids(anime_ids)
+            .await
+    }
+
     pub async fn get_main_episode_download_counts(
         &self,
         anime_ids: &[i32],
@@ -580,6 +589,15 @@ impl Store {
     pub async fn get_assigned_release_profile_ids(&self, anime_id: i32) -> Result<Vec<i32>> {
         self.release_profile_repo()
             .get_assigned_profile_ids(anime_id)
+            .await
+    }
+
+    pub async fn get_assigned_release_profiles_for_anime_ids(
+        &self,
+        anime_ids: &[i32],
+    ) -> Result<std::collections::HashMap<i32, Vec<i32>>> {
+        self.release_profile_repo()
+            .get_assigned_profiles_for_anime_ids(anime_ids)
             .await
     }
 

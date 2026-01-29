@@ -57,7 +57,9 @@ pub async fn get_rename_preview(
 
     for status in episodes_with_files {
         let ep_num = status.episode_number;
-        let current_path_str = status.file_path.as_ref().unwrap();
+        let Some(current_path_str) = status.file_path.as_ref() else {
+            continue;
+        };
         let current_path = StdPath::new(current_path_str);
 
         if !current_path.exists() {
@@ -132,7 +134,9 @@ pub async fn execute_rename(
 
     for status in episodes_with_files {
         let ep_num = status.episode_number;
-        let current_path_str = status.file_path.as_ref().unwrap();
+        let Some(current_path_str) = status.file_path.as_ref() else {
+            continue;
+        };
         let current_path = StdPath::new(current_path_str);
 
         if !current_path.exists() {
@@ -271,11 +275,11 @@ async fn build_renaming_options(
             .map(std::string::ToString::to_string),
         extension,
         year: anime.start_year,
-        media_info: build_media_info(status, current_path),
+        media_info: build_media_info(status, current_path).await,
     }
 }
 
-fn build_media_info(
+async fn build_media_info(
     status: &crate::models::episode::EpisodeStatusRow,
     current_path: &StdPath,
 ) -> Option<crate::models::media::MediaInfo> {
@@ -298,6 +302,6 @@ fn build_media_info(
         })
     } else {
         let media_service = crate::services::MediaService::new();
-        media_service.get_media_info(current_path).ok()
+        media_service.get_media_info(current_path).await.ok()
     }
 }

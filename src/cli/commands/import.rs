@@ -37,7 +37,8 @@ pub async fn cmd_import(
         Arc::new(RwLock::new(config.clone())),
         tx,
     );
-    let anilist = AnilistClient::new();
+    let anilist = Arc::new(AnilistClient::new());
+    let jikan = Arc::new(crate::clients::jikan::JikanClient::new());
 
     let target_anime = if let Some(id) = anime_id {
         let Some(a) = store.get_anime(id).await? else {
@@ -70,7 +71,7 @@ pub async fn cmd_import(
         return Ok(());
     }
 
-    let episode_service = EpisodeService::new(store.clone());
+    let episode_service = EpisodeService::new(store.clone(), jikan, anilist, None);
 
     display_import_plan(&files_to_import, &library, &episode_service).await;
 
@@ -253,7 +254,7 @@ async fn execute_import(
         let quality = crate::quality::parse_quality_from_filename(&height).to_string();
 
         let media_service = crate::services::MediaService::new();
-        let media_info = media_service.get_media_info(file_path).ok();
+        let media_info = media_service.get_media_info(file_path).await.ok();
 
         let options = crate::library::RenamingOptions {
             anime: anime.clone(),

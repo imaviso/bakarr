@@ -278,6 +278,32 @@ impl EpisodeRepository {
         Ok(missing)
     }
 
+    pub async fn get_downloaded_episodes_for_anime_ids(
+        &self,
+        anime_ids: &[i32],
+    ) -> Result<HashMap<i32, Vec<i32>>> {
+        if anime_ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let results: Vec<(i32, i32)> = EpisodeStatus::find()
+            .select_only()
+            .column(episode_status::Column::AnimeId)
+            .column(episode_status::Column::EpisodeNumber)
+            .filter(episode_status::Column::AnimeId.is_in(anime_ids.to_vec()))
+            .filter(episode_status::Column::FilePath.is_not_null())
+            .into_tuple()
+            .all(&self.conn)
+            .await?;
+
+        let mut map: HashMap<i32, Vec<i32>> = HashMap::new();
+        for (anime_id, episode_number) in results {
+            map.entry(anime_id).or_default().push(episode_number);
+        }
+
+        Ok(map)
+    }
+
     pub async fn upsert_status(&self, status: &EpisodeStatusInput) -> Result<()> {
         let active_model = episode_status::ActiveModel {
             anime_id: Set(status.anime_id),

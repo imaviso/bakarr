@@ -1,10 +1,15 @@
+use crate::clients::anilist::AnilistClient;
+use crate::clients::jikan::JikanClient;
 use crate::config::Config;
 use crate::db::Store;
 use crate::services::episodes::EpisodeService;
+use std::sync::Arc;
 
 pub async fn cmd_wanted(config: &Config, anime_id: Option<i32>) -> anyhow::Result<()> {
     let store = Store::new(&config.general.database_path).await?;
-    let episode_service = EpisodeService::new(store.clone());
+    let jikan = Arc::new(JikanClient::new());
+    let anilist = Arc::new(AnilistClient::new());
+    let episode_service = EpisodeService::new(store.clone(), jikan, anilist, None);
 
     let anime_list = if let Some(id) = anime_id {
         if let Some(a) = store.get_anime(id).await? {

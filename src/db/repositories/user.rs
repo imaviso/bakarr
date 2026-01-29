@@ -105,7 +105,11 @@ impl UserRepository {
             .context("Failed to query user for password update")?
             .ok_or_else(|| anyhow::anyhow!("User not found: {username}"))?;
 
-        let new_hash = hash_password(new_password)?;
+        let password = new_password.to_string();
+        let new_hash = task::spawn_blocking(move || hash_password(&password))
+            .await
+            .context("Password hashing task panicked")??;
+
         let now = chrono::Utc::now().to_rfc3339();
 
         let mut active: users::ActiveModel = user.into();

@@ -43,7 +43,9 @@ pub async fn get_status(
 
     let (free_space, total_space) = {
         let config = state.config().read().await;
-        get_disk_space(&config.library.library_path).unwrap_or((0, 0))
+        get_disk_space(&config.library.library_path)
+            .await
+            .unwrap_or((0, 0))
     };
 
     let last_scan = state
@@ -76,10 +78,13 @@ pub async fn get_status(
     Ok(Json(ApiResponse::success(status)))
 }
 
-fn get_disk_space(path: &str) -> Option<(i64, i64)> {
-    use std::process::Command;
-
-    let output = Command::new("df").arg("-B1").arg(path).output().ok()?;
+async fn get_disk_space(path: &str) -> Option<(i64, i64)> {
+    let output = tokio::process::Command::new("df")
+        .arg("-B1")
+        .arg(path)
+        .output()
+        .await
+        .ok()?;
 
     if !output.status.success() {
         return None;

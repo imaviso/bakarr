@@ -2,6 +2,8 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
 
 use crate::api::NotificationEvent;
+use crate::clients::anilist::AnilistClient;
+use crate::clients::jikan::JikanClient;
 use crate::clients::nyaa::NyaaClient;
 use crate::clients::qbittorrent::{QBitClient, QBitConfig};
 use crate::clients::seadex::{SeaDexClient, SeaDexRelease};
@@ -21,6 +23,10 @@ pub struct SharedState {
     pub store: Store,
 
     pub nyaa: Arc<NyaaClient>,
+
+    pub anilist: Arc<AnilistClient>,
+
+    pub jikan: Arc<JikanClient>,
 
     pub seadex_service: Arc<SeaDexService>,
 
@@ -73,6 +79,8 @@ impl SharedState {
         let nyaa = Arc::new(NyaaClient::with_timeout(std::time::Duration::from_secs(
             u64::from(config.nyaa.request_timeout_seconds),
         )));
+        let anilist = Arc::new(AnilistClient::new());
+        let jikan = Arc::new(JikanClient::new());
         let seadex_client = Arc::new(SeaDexClient::new());
 
         let qbit = if config.qbittorrent.enabled {
@@ -86,7 +94,7 @@ impl SharedState {
             None
         };
 
-        let episodes = EpisodeService::new(store.clone());
+        let episodes = EpisodeService::new(store.clone(), jikan.clone(), anilist.clone(), None);
         let download_decisions = DownloadDecisionService::new(store.clone());
 
         let search_service = Arc::new(SearchService::new(
@@ -138,6 +146,8 @@ impl SharedState {
             config: config_arc,
             store,
             nyaa,
+            anilist,
+            jikan,
             seadex_service,
             qbit,
             search_service,
