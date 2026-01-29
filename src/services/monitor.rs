@@ -409,8 +409,8 @@ impl Monitor {
             .add_log(
                 "import",
                 "info",
-                &format!("Imported episode: {}", filename),
-                Some(format!("Destination: {:?}", dest_path)),
+                &format!("Imported episode: {filename}"),
+                Some(format!("Destination: {}", dest_path.display())),
             )
             .await
         {
@@ -455,6 +455,7 @@ impl Monitor {
         Ok(1)
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn import_directory(
         &self,
         library: &LibraryService,
@@ -538,8 +539,8 @@ impl Monitor {
                         .add_log(
                             "import",
                             "info",
-                            &format!("Imported episode: {}", filename),
-                            Some(format!("Destination: {:?}", dest_path)),
+                            &format!("Imported episode: {filename}"),
+                            Some(format!("Destination: {}", dest_path.display())),
                         )
                         .await
                     {
@@ -591,7 +592,7 @@ impl Monitor {
                         .add_log(
                             "import",
                             "error",
-                            &format!("Failed to import: {}", filename),
+                            &format!("Failed to import: {filename}"),
                             Some(e.to_string()),
                         )
                         .await
