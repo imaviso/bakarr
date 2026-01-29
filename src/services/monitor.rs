@@ -400,6 +400,23 @@ impl Monitor {
         library.import_file(source_path, &dest_path).await?;
         info!("Imported to {:?}", dest_path);
 
+        // Persistent log for UI
+        if let Err(e) = self
+            .state
+            .read()
+            .await
+            .store
+            .add_log(
+                "import",
+                "info",
+                &format!("Imported episode: {}", filename),
+                Some(format!("Destination: {:?}", dest_path)),
+            )
+            .await
+        {
+            warn!("Failed to save import log: {}", e);
+        }
+
         let (seadex_groups, store) = {
             let state = self.state.read().await;
             (
@@ -512,6 +529,23 @@ impl Monitor {
                     info!("Imported {} -> {:?}", filename, dest_path);
                     imported += 1;
 
+                    // Persistent log for UI
+                    if let Err(e) = self
+                        .state
+                        .read()
+                        .await
+                        .store
+                        .add_log(
+                            "import",
+                            "info",
+                            &format!("Imported episode: {}", filename),
+                            Some(format!("Destination: {:?}", dest_path)),
+                        )
+                        .await
+                    {
+                        warn!("Failed to save import log: {}", e);
+                    }
+
                     let (seadex_groups, store) = {
                         let state = self.state.read().await;
                         (
@@ -549,6 +583,21 @@ impl Monitor {
                 }
                 Err(e) => {
                     error!("Failed to import {}: {}", filename, e);
+                    if let Err(log_err) = self
+                        .state
+                        .read()
+                        .await
+                        .store
+                        .add_log(
+                            "import",
+                            "error",
+                            &format!("Failed to import: {}", filename),
+                            Some(e.to_string()),
+                        )
+                        .await
+                    {
+                        warn!("Failed to save error log: {}", log_err);
+                    }
                 }
             }
         }
