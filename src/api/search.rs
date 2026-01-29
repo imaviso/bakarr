@@ -5,6 +5,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
+use url::Url;
 
 use crate::clients::nyaa::{NyaaCategory, NyaaFilter};
 use crate::clients::qbittorrent::AddTorrentOptions;
@@ -187,6 +188,11 @@ pub async fn download_release(
         request.episode_number
     };
 
+    let info_hash = request
+        .info_hash
+        .clone()
+        .or_else(|| extract_hash_from_magnet(&request.magnet));
+
     state
         .store()
         .record_download(
@@ -194,7 +200,7 @@ pub async fn download_release(
             &request.title,
             episode_number,
             request.group.as_deref(),
-            request.info_hash.as_deref(),
+            info_hash.as_deref(),
         )
         .await
         .map_err(|e| ApiError::internal(format!("Failed to record download: {e}")))?;
@@ -211,4 +217,31 @@ pub async fn download_release(
         });
 
     Ok(Json(ApiResponse::success(())))
+}
+
+fn extract_hash_from_magnet(magnet: &str) -> Option<String> {
+    let url = Url::parse(magnet).ok()?;
+    url.query_pairs()
+        .find(|(k, _)| k == "xt")
+        .and_then(|(_, v)| v.strip_prefix("urn:btih:").map(ToString::to_string))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_hash_from_magnet() {
+        let magnet = "magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a&dn=Test.File&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969%2Fannounce";
+        assert_eq!(
+            extract_hash_from_magnet(magnet),
+            Some("c12fe1c06bba254a9dc9f519b335aa7c1367a88a".to_string())
+        );
+
+        let magnet_no_hash = "magnet:?dn=Test.File";
+        assert_eq!(extract_hash_from_magnet(magnet_no_hash), None);
+
+        let invalid_url = "not a magnet link";
+        assert_eq!(extract_hash_from_magnet(invalid_url), None);
+    }
 }
