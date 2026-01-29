@@ -151,6 +151,7 @@ impl SearchService {
                 current_status.as_ref(),
                 &torrent.title,
                 is_seadex,
+                Some(crate::parser::size::parse_size(&torrent.size).unwrap_or(0)),
             );
 
             results.push(SearchResult {
@@ -158,7 +159,7 @@ impl SearchService {
                 indexer: "Nyaa".to_string(),
                 link: torrent.magnet_link(),
                 info_hash: torrent.info_hash.to_lowercase(),
-                size: 0,
+                size: crate::parser::size::parse_size(&torrent.size).unwrap_or(0) as u64,
                 seeders: torrent.seeders,
                 leechers: torrent.leechers,
                 publish_date: torrent.pub_date.clone(),
@@ -256,7 +257,8 @@ impl SearchService {
         };
 
         let expected_season = detect_season_from_title(&anime.title.romaji);
-        let candidates = self.filter_and_sort_candidates(&torrents, &seadex_groups, expected_season);
+        let candidates =
+            self.filter_and_sort_candidates(&torrents, &seadex_groups, expected_season);
         let best_candidates = self.deduplicate_episodes(candidates).await;
 
         let mut results = Vec::new();
@@ -275,6 +277,7 @@ impl SearchService {
                 status,
                 &torrent.title,
                 is_seadex,
+                Some(crate::parser::size::parse_size(&torrent.size).unwrap_or(0)),
             );
 
             results.push(SearchResult {
@@ -282,7 +285,7 @@ impl SearchService {
                 indexer: "Nyaa".to_string(),
                 link: torrent.magnet_link(),
                 info_hash: torrent.info_hash.to_lowercase(),
-                size: 0,
+                size: crate::parser::size::parse_size(&torrent.size).unwrap_or(0) as u64,
                 seeders: torrent.seeders,
                 leechers: torrent.leechers,
                 publish_date: torrent.pub_date.clone(),

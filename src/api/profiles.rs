@@ -39,6 +39,8 @@ pub async fn list_profiles(
             upgrade_allowed: p.upgrade_allowed,
             seadex_preferred: p.seadex_preferred,
             allowed_qualities: p.allowed_qualities.clone(),
+            min_size: p.min_size.clone(),
+            max_size: p.max_size.clone(),
         })
         .collect();
 
@@ -61,6 +63,8 @@ pub async fn get_profile(
         upgrade_allowed: profile.upgrade_allowed,
         seadex_preferred: profile.seadex_preferred,
         allowed_qualities: profile.allowed_qualities.clone(),
+        min_size: profile.min_size.clone(),
+        max_size: profile.max_size.clone(),
     };
     drop(config);
 
@@ -94,6 +98,8 @@ pub async fn create_profile(
             upgrade_allowed: payload.upgrade_allowed,
             seadex_preferred: payload.seadex_preferred,
             allowed_qualities: payload.allowed_qualities.clone(),
+            min_size: payload.min_size.clone(),
+            max_size: payload.max_size.clone(),
         };
 
         config
@@ -136,6 +142,8 @@ pub async fn update_profile(
             upgrade_allowed: payload.upgrade_allowed,
             seadex_preferred: payload.seadex_preferred,
             allowed_qualities: payload.allowed_qualities.clone(),
+            min_size: payload.min_size.clone(),
+            max_size: payload.max_size.clone(),
         };
 
         config

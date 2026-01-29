@@ -25,6 +25,8 @@ impl QualityRepository {
             cutoff_quality_id: m.cutoff_quality_id,
             upgrade_allowed: m.upgrade_allowed,
             seadex_preferred: m.seadex_preferred,
+            min_size: m.min_size,
+            max_size: m.max_size,
         }
     }
 
@@ -111,6 +113,14 @@ impl QualityRepository {
                 cutoff_quality_id: Set(cutoff_id),
                 upgrade_allowed: Set(profile.upgrade_allowed),
                 seadex_preferred: Set(profile.seadex_preferred),
+                min_size: Set(profile
+                    .min_size
+                    .as_deref()
+                    .and_then(crate::parser::size::parse_size)),
+                max_size: Set(profile
+                    .max_size
+                    .as_deref()
+                    .and_then(crate::parser::size::parse_size)),
                 ..Default::default()
             };
 
@@ -121,6 +131,8 @@ impl QualityRepository {
                             quality_profiles::Column::CutoffQualityId,
                             quality_profiles::Column::UpgradeAllowed,
                             quality_profiles::Column::SeadexPreferred,
+                            quality_profiles::Column::MinSize,
+                            quality_profiles::Column::MaxSize,
                         ])
                         .to_owned(),
                 )
@@ -170,4 +182,6 @@ pub struct QualityProfileRow {
     pub cutoff_quality_id: i32,
     pub upgrade_allowed: bool,
     pub seadex_preferred: bool,
+    pub min_size: Option<i64>,
+    pub max_size: Option<i64>,
 }

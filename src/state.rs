@@ -108,6 +108,7 @@ impl SharedState {
             store.clone(),
             nyaa.clone(),
             qbit.clone(),
+            download_decisions.clone(),
             event_bus.clone(),
         ));
 

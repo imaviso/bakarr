@@ -10,6 +10,8 @@ pub struct Model {
     pub cutoff_quality_id: i32,
     pub upgrade_allowed: bool,
     pub seadex_preferred: bool,
+    pub min_size: Option<i64>,
+    pub max_size: Option<i64>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

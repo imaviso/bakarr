@@ -9,6 +9,7 @@ pub struct RssService {
     store: Store,
     nyaa: Arc<NyaaClient>,
     qbit: Option<Arc<QBitClient>>,
+    download_decisions: crate::services::download::DownloadDecisionService,
     event_bus: broadcast::Sender<crate::api::NotificationEvent>,
 }
 
@@ -25,12 +26,14 @@ impl RssService {
         store: Store,
         nyaa: Arc<NyaaClient>,
         qbit: Option<Arc<QBitClient>>,
+        download_decisions: crate::services::download::DownloadDecisionService,
         event_bus: broadcast::Sender<crate::api::NotificationEvent>,
     ) -> Self {
         Self {
             store,
             nyaa,
             qbit,
+            download_decisions,
             event_bus,
         }
     }
@@ -163,7 +166,8 @@ impl RssService {
         };
 
         if let Some(season) = release.season
-            && let Some(expected) = crate::parser::filename::detect_season_from_title(&anime.title.romaji)
+            && let Some(expected) =
+                crate::parser::filename::detect_season_from_title(&anime.title.romaji)
             && season != expected
         {
             debug!(
@@ -185,6 +189,53 @@ impl RssService {
         );
 
         if let Some(qbit) = &self.qbit {
+            // Check download decision logic before queueing
+            let profile = self
+                .download_decisions
+                .get_quality_profile_for_anime(anime.id)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to get profile: {e}"))?;
+
+            let rules = self
+                .store
+                .get_release_rules_for_anime(anime.id)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to get rules: {e}"))?;
+
+            // We don't have episode status easily accessible here without a DB call per item,
+            // but we can check if it's already downloaded via the `is_downloaded` check above.
+            // For upgrades, we would need the current status.
+            // For now, let's assume if it's not in history, we want it, subject to quality profile rules.
+            // This mirrors the previous logic but now enforces size limits.
+
+            let action = crate::services::download::DownloadDecisionService::decide_download(
+                &profile,
+                &rules,
+                None, // Assuming new download since we passed is_downloaded check
+                &torrent.title,
+                false, // RSS doesn't easily tell us if it's a seadex group without extra logic, defaulting to false
+                Some(crate::parser::size::parse_size(&torrent.size).unwrap_or(0)),
+            );
+
+            if !action.should_download() {
+                debug!("Skipping RSS item due to profile rules: {}", torrent.title);
+                return Ok(false);
+            }
+
+            let action = crate::services::download::DownloadDecisionService::decide_download(
+                &profile,
+                &rules,
+                None, // Assuming new download since we passed is_downloaded check
+                &torrent.title,
+                false, // RSS doesn't easily tell us if it's a seadex group without extra logic, defaulting to false
+                Some(crate::parser::size::parse_size(&torrent.size).unwrap_or(0)),
+            );
+
+            if !action.should_download() {
+                debug!("Skipping RSS item due to profile rules: {}", torrent.title);
+                return Ok(false);
+            }
+
             let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
 
             let _ = qbit.create_category(&category, None).await;

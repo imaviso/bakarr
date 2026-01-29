@@ -89,6 +89,8 @@ pub struct QualityProfileConfig {
     pub upgrade_allowed: bool,
     pub seadex_preferred: bool,
     pub allowed_qualities: Vec<String>,
+    pub min_size: Option<String>,
+    pub max_size: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,6 +163,8 @@ impl Default for Config {
                     "HDTV 1080p".to_string(),
                     "HDTV 720p".to_string(),
                 ],
+                min_size: None,
+                max_size: None,
             }],
             auth: None, // Deprecated: auth is now in database
             server: ServerConfig::default(),

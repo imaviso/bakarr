@@ -127,6 +127,7 @@ pub async fn create_app_state(
         shared.store.clone(),
         shared.nyaa.clone(),
         shared.qbit.clone(),
+        shared.download_decisions.clone(),
         shared.event_bus.clone(),
     ));
 

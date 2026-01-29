@@ -9,6 +9,7 @@ mod m20260127_add_users;
 mod m20260128_add_anime_metadata;
 mod m20260128_add_search_cache;
 mod m20260128_link_anime_release_profiles;
+mod m20260129_add_profile_size_limits;
 
 pub struct Migrator;
 
@@ -25,6 +26,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260128_add_anime_metadata::Migration),
             Box::new(m20260128_link_anime_release_profiles::Migration),
             Box::new(m20260128_add_search_cache::Migration),
+            Box::new(m20260129_add_profile_size_limits::Migration),
         ]
     }
 }

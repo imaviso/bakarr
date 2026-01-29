@@ -14,6 +14,10 @@ pub struct QualityProfile {
     pub seadex_preferred: bool,
 
     pub allowed_qualities: Vec<i32>,
+
+    pub min_size: Option<i64>,
+
+    pub max_size: Option<i64>,
 }
 
 impl QualityProfile {
@@ -28,6 +32,8 @@ impl QualityProfile {
             upgrade_allowed: true,
             seadex_preferred: true,
             allowed_qualities: vec![1, 2, 3, 4, 5, 6, 7, 8],
+            min_size: None,
+            max_size: None,
         }
     }
 
@@ -49,7 +55,21 @@ impl QualityProfile {
         release_quality: &Quality,
         is_seadex: bool,
         current: Option<&EpisodeQualityInfo>,
+        size: Option<i64>,
     ) -> DownloadDecision {
+        if let Some(size) = size {
+            if let Some(min) = self.min_size {
+                if size < min {
+                    return DownloadDecision::Reject(RejectReason::TooSmall);
+                }
+            }
+            if let Some(max) = self.max_size {
+                if size > max {
+                    return DownloadDecision::Reject(RejectReason::TooBig);
+                }
+            }
+        }
+
         let Some(release_rank) = self.get_quality_rank(release_quality) else {
             return DownloadDecision::Reject(RejectReason::QualityNotAllowed);
         };
@@ -163,6 +183,8 @@ pub enum RejectReason {
     AlreadyAtCutoff,
     NoImprovement,
     AlreadyDownloaded,
+    TooSmall,
+    TooBig,
 }
 
 impl std::fmt::Display for RejectReason {
@@ -173,6 +195,8 @@ impl std::fmt::Display for RejectReason {
             Self::AlreadyAtCutoff => write!(f, "already at quality cutoff"),
             Self::NoImprovement => write!(f, "no quality improvement"),
             Self::AlreadyDownloaded => write!(f, "already downloaded"),
+            Self::TooSmall => write!(f, "size too small"),
+            Self::TooBig => write!(f, "size too big"),
         }
     }
 }
@@ -191,6 +215,8 @@ mod tests {
             seadex_preferred: true,
 
             allowed_qualities: vec![3, 4, 6],
+            min_size: None,
+            max_size: None,
         }
     }
 
@@ -199,7 +225,7 @@ mod tests {
         let profile = default_profile();
         let quality = QUALITY_WEB_DL_1080P.clone();
 
-        let decision = profile.should_download(&quality, false, None);
+        let decision = profile.should_download(&quality, false, None, None);
         assert_eq!(decision, DownloadDecision::Accept);
     }
 
@@ -213,7 +239,7 @@ mod tests {
             is_seadex: false,
         };
 
-        let decision = profile.should_download(&new_quality, false, Some(&current));
+        let decision = profile.should_download(&new_quality, false, Some(&current), None);
         assert_eq!(
             decision,
             DownloadDecision::Upgrade(UpgradeReason::BetterQuality)
@@ -230,7 +256,7 @@ mod tests {
             is_seadex: false,
         };
 
-        let decision = profile.should_download(&new_quality, false, Some(&current));
+        let decision = profile.should_download(&new_quality, false, Some(&current), None);
 
         assert_eq!(
             decision,
@@ -247,7 +273,7 @@ mod tests {
             is_seadex: false,
         };
 
-        let decision = profile.should_download(&quality, true, Some(&current));
+        let decision = profile.should_download(&quality, true, Some(&current), None);
         assert_eq!(
             decision,
             DownloadDecision::Upgrade(UpgradeReason::SeaDexRelease)
@@ -264,7 +290,7 @@ mod tests {
             is_seadex: true,
         };
 
-        let decision = profile.should_download(&quality, false, Some(&current));
+        let decision = profile.should_download(&quality, false, Some(&current), None);
         assert_eq!(
             decision,
             DownloadDecision::Reject(RejectReason::AlreadyAtCutoff)
@@ -277,7 +303,7 @@ mod tests {
         profile.allowed_qualities = vec![3];
 
         let quality = QUALITY_WEB_DL_1080P.clone();
-        let decision = profile.should_download(&quality, false, None);
+        let decision = profile.should_download(&quality, false, None, None);
 
         assert_eq!(
             decision,
@@ -294,7 +320,7 @@ mod tests {
             is_seadex: false,
         };
 
-        let decision = profile.should_download(&quality, false, Some(&current));
+        let decision = profile.should_download(&quality, false, Some(&current), None);
         assert_eq!(
             decision,
             DownloadDecision::Reject(RejectReason::NoImprovement)

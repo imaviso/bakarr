@@ -21,6 +21,7 @@ impl DownloadDecisionService {
         episode_number: i32,
         release_title: &str,
         is_seadex_group: bool,
+        size: Option<i64>,
     ) -> Result<DownloadAction> {
         let current_status = self
             .store
@@ -37,6 +38,7 @@ impl DownloadDecisionService {
             current_status.as_ref(),
             release_title,
             is_seadex_group,
+            size,
         ))
     }
 
@@ -46,6 +48,7 @@ impl DownloadDecisionService {
         current_status: Option<&EpisodeStatusRow>,
         release_title: &str,
         is_seadex_group: bool,
+        size: Option<i64>,
     ) -> DownloadAction {
         let release_quality = parse_quality_from_filename(release_title);
         let release_title_lower = release_title.to_lowercase();
@@ -69,7 +72,34 @@ impl DownloadDecisionService {
             };
         }
 
+        // Check size limits for initial validation
+        if let Some(size) = size {
+            if let Some(min) = profile.min_size {
+                if size < min {
+                    return DownloadAction::Reject {
+                        reason: "File size too small".to_string(),
+                    };
+                }
+            }
+            if let Some(max) = profile.max_size {
+                if size > max {
+                    return DownloadAction::Reject {
+                        reason: "File size too large".to_string(),
+                    };
+                }
+            }
+        }
+
         let Some(current) = current_status else {
+            // Check size limits for initial download
+            if let crate::quality::DownloadDecision::Reject(reason) =
+                profile.should_download(&release_quality, is_seadex_group, None, size)
+            {
+                return DownloadAction::Reject {
+                    reason: reason.to_string(),
+                };
+            }
+
             return DownloadAction::Accept {
                 quality: release_quality,
                 is_seadex: is_seadex_group,
@@ -101,7 +131,7 @@ impl DownloadDecisionService {
         };
 
         let decision =
-            profile.should_download(&release_quality, is_seadex_group, Some(&current_info));
+            profile.should_download(&release_quality, is_seadex_group, Some(&current_info), size);
 
         match decision {
             crate::quality::DownloadDecision::Accept => DownloadAction::Accept {
@@ -199,6 +229,8 @@ impl DownloadDecisionService {
                 upgrade_allowed: row.upgrade_allowed,
                 seadex_preferred: row.seadex_preferred,
                 allowed_qualities,
+                min_size: row.min_size,
+                max_size: row.max_size,
             }
         } else {
             QualityProfile::default_profile()

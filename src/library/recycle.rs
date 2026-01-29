@@ -215,37 +215,9 @@ pub struct CleanupStats {
 impl CleanupStats {
     #[must_use]
     pub fn bytes_freed_human(&self) -> String {
-        format_bytes(self.bytes_freed)
-    }
-}
-
-fn format_bytes(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
-
-    #[allow(clippy::cast_precision_loss)]
-    if bytes >= GB {
-        format!("{:.2} GB", bytes as f64 / GB as f64)
-    } else if bytes >= MB {
-        format!("{:.2} MB", bytes as f64 / MB as f64)
-    } else if bytes >= KB {
-        format!("{:.2} KB", bytes as f64 / KB as f64)
-    } else {
-        format!("{bytes} bytes")
+        crate::parser::size::format_size(i64::try_from(self.bytes_freed).unwrap_or(i64::MAX))
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_format_bytes() {
-        assert_eq!(format_bytes(500), "500 bytes");
-        assert_eq!(format_bytes(1024), "1.00 KB");
-        assert_eq!(format_bytes(1536), "1.50 KB");
-        assert_eq!(format_bytes(1_048_576), "1.00 MB");
-        assert_eq!(format_bytes(1_073_741_824), "1.00 GB");
-    }
-}
+mod tests {}

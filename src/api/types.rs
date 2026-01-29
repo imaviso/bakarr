@@ -90,6 +90,8 @@ pub struct ProfileDto {
     pub upgrade_allowed: bool,
     pub seadex_preferred: bool,
     pub allowed_qualities: Vec<String>,
+    pub min_size: Option<String>,
+    pub max_size: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
