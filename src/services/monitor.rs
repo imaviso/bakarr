@@ -280,6 +280,13 @@ impl Monitor {
         debug!("Resolved source path (Local): {:?}", source_path);
 
         if !source_path.exists() {
+            if self
+                .attempt_recovery_import(store, library, anime, entry, source_path)
+                .await?
+            {
+                return Ok(());
+            }
+
             warn!(
                 "Source path does not exist for {}: {:?}",
                 torrent.name, source_path
@@ -332,6 +339,68 @@ impl Monitor {
         }
 
         Ok(())
+    }
+
+    async fn attempt_recovery_import(
+        &self,
+        store: &crate::db::Store,
+        library: &LibraryService,
+        anime: &crate::models::anime::Anime,
+        entry: &crate::db::DownloadEntry,
+        source_path: &Path,
+    ) -> anyhow::Result<bool> {
+        let filename = source_path
+            .file_name()
+            .map_or_else(|| entry.filename.clone(), |s| s.to_string_lossy().to_string());
+
+        let parsed = parse_filename(&filename);
+        #[allow(clippy::cast_possible_truncation)]
+        let episode_number = parsed.as_ref().map_or(entry.episode_number as i32, |p| {
+            #[allow(clippy::cast_possible_truncation)]
+            let ep = p.episode_number as i32;
+            ep
+        });
+        let season = parsed.as_ref().and_then(|p| p.season);
+
+        let episode_title = {
+            let state = self.state.read().await;
+            state
+                .episodes
+                .get_episode_title(anime.id, episode_number)
+                .await
+                .unwrap_or_else(|_| format!("Episode {episode_number}"))
+        };
+
+        let quality_str = parse_quality_from_filename(&filename).to_string();
+        let extension = source_path
+            .extension()
+            .map_or_else(|| "mkv".to_string(), |s| s.to_string_lossy().to_string());
+
+        let options = crate::library::RenamingOptions {
+            anime: anime.clone(),
+            episode_number,
+            season,
+            episode_title,
+            quality: Some(quality_str),
+            group: entry.group_name.clone(),
+            original_filename: Some(filename.clone()),
+            extension,
+            year: anime.start_year,
+            media_info: None,
+        };
+
+        let dest_path = library.get_destination_path(&options);
+
+        if dest_path.exists() {
+            info!(
+                "Source missing but destination exists. Marking as imported: {:?}",
+                dest_path
+            );
+            store.set_imported(entry.id, true).await?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     async fn import_single_file(
