@@ -16,7 +16,14 @@ import {
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute } from "@tanstack/solid-router";
-import { createSignal, For, Index, type JSX, Show } from "solid-js";
+import {
+	createEffect,
+	createSignal,
+	For,
+	Index,
+	type JSX,
+	Show,
+} from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
@@ -695,6 +702,90 @@ function SortableQualityList(props: {
 	);
 }
 
+function SizeInput(props: {
+	label: string;
+	value: string;
+	onChange: (value: string | undefined) => void;
+	error?: string;
+}) {
+	const [amount, setAmount] = createSignal<string>("");
+	const [unit, setUnit] = createSignal<"MB" | "GB">("MB");
+
+	// Parse initial value
+	createEffect(() => {
+		if (props.value) {
+			const match = props.value.match(/^(\d+(?:\.\d+)?)\s*(MB|GB)$/i);
+			if (match) {
+				setAmount(match[1]);
+				setUnit(match[2].toUpperCase() as "MB" | "GB");
+			}
+		}
+	});
+
+	// Update parent when amount or unit changes
+	const updateValue = () => {
+		const amt = amount();
+		if (amt && !Number.isNaN(Number(amt)) && Number(amt) > 0) {
+			props.onChange(`${amt} ${unit()}`);
+		} else {
+			props.onChange(undefined);
+		}
+	};
+
+	const inputId = `size-input-${props.label.toLowerCase().replace(/\s+/g, "-")}`;
+
+	return (
+		<div class="flex flex-col gap-1.5">
+			<label
+				for={inputId}
+				class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+			>
+				{props.label}
+			</label>
+			<div class="flex gap-2">
+				<Input
+					id={inputId}
+					type="number"
+					min="0"
+					step="0.1"
+					value={amount()}
+					onInput={(e) => {
+						setAmount(e.currentTarget.value);
+						updateValue();
+					}}
+					placeholder="0"
+					class="flex-1"
+				/>
+				<Select
+					value={unit()}
+					onChange={(val) => {
+						if (val) {
+							setUnit(val);
+							updateValue();
+						}
+					}}
+					options={["MB", "GB"]}
+					itemComponent={(itemProps) => (
+						<SelectItem item={itemProps.item}>
+							{itemProps.item.rawValue}
+						</SelectItem>
+					)}
+				>
+					<SelectTrigger class="w-20">
+						<SelectValue<string>>
+							{(state) => state.selectedOption()}
+						</SelectValue>
+					</SelectTrigger>
+					<SelectContent />
+				</Select>
+			</div>
+			{props.error && (
+				<div class="text-[0.8rem] text-destructive">{props.error}</div>
+			)}
+		</div>
+	);
+}
+
 const ProfileSchema = v.object({
 	name: v.pipe(v.string(), v.minLength(1, "Name is required")),
 	cutoff: v.pipe(v.string(), v.minLength(1, "Cutoff is required")),
@@ -830,33 +921,51 @@ function ProfileForm(props: {
 					</form.Field>
 
 					<div class="grid grid-cols-2 gap-4">
-						<form.Field name="min_size">
+						<form.Field
+							name="min_size"
+							validators={{
+								onChange: v.optional(
+									v.pipe(
+										v.string(),
+										v.regex(
+											/^\d+(\.\d+)?\s*(MB|GB)$/i,
+											"Must be format like '500 MB' or '2.5 GB'",
+										),
+									),
+								),
+							}}
+						>
 							{(field) => (
-								<TextField
+								<SizeInput
+									label="Minimum Size"
 									value={field().state.value || ""}
 									onChange={field().handleChange}
-								>
-									<TextFieldLabel>Minimum Size</TextFieldLabel>
-									<TextFieldInput placeholder="e.g., 500 MB" />
-									<TextFieldErrorMessage>
-										{field().state.meta.errors[0]?.message}
-									</TextFieldErrorMessage>
-								</TextField>
+									error={field().state.meta.errors[0]?.message}
+								/>
 							)}
 						</form.Field>
 
-						<form.Field name="max_size">
+						<form.Field
+							name="max_size"
+							validators={{
+								onChange: v.optional(
+									v.pipe(
+										v.string(),
+										v.regex(
+											/^\d+(\.\d+)?\s*(MB|GB)$/i,
+											"Must be format like '500 MB' or '2.5 GB'",
+										),
+									),
+								),
+							}}
+						>
 							{(field) => (
-								<TextField
+								<SizeInput
+									label="Maximum Size"
 									value={field().state.value || ""}
 									onChange={field().handleChange}
-								>
-									<TextFieldLabel>Maximum Size</TextFieldLabel>
-									<TextFieldInput placeholder="e.g., 2 GB" />
-									<TextFieldErrorMessage>
-										{field().state.meta.errors[0]?.message}
-									</TextFieldErrorMessage>
-								</TextField>
+									error={field().state.meta.errors[0]?.message}
+								/>
 							)}
 						</form.Field>
 					</div>
