@@ -145,6 +145,7 @@ impl Monitor {
             }
 
             completed_hashes.push(torrent.hash.to_lowercase());
+            completed_hashes.push(torrent.hash.to_uppercase());
             completed_torrents.push(torrent);
         }
 

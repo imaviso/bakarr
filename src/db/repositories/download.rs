@@ -41,7 +41,7 @@ impl DownloadRepository {
             filename: Set(filename.to_string()),
             episode_number: Set(episode),
             group_name: Set(group.map(std::string::ToString::to_string)),
-            info_hash: Set(info_hash.map(std::string::ToString::to_string)),
+            info_hash: Set(info_hash.map(str::to_lowercase)),
             download_date: Set(Some(chrono::Utc::now().to_rfc3339())),
             imported: Set(false),
             ..Default::default()

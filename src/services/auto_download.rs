@@ -320,7 +320,6 @@ impl AutoDownloadService {
             return Ok(SeadexQueueResult::Queued);
         };
 
-
         let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
         let _ = qbit.create_category(&category, None).await;
 
