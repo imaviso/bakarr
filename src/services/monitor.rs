@@ -428,6 +428,15 @@ impl Monitor {
                     }
                 }
 
+        // DB State Recovery: Check if episode is already marked as downloaded
+        if let Ok(Some(status)) = store.get_episode_status(anime.id, episode_number).await {
+            if status.downloaded_at.is_some() {
+                info!("Episode already marked as downloaded in DB. Marking download as imported.");
+                store.set_imported(entry.id, true).await?;
+                return Ok(true);
+            }
+        }
+
         warn!(
             "Recovery check failed: Filename='{}', Ep={}, Dest='{:?}' (Missing), AnimePath='{:?}'",
             filename, episode_number, dest_path, anime.path
