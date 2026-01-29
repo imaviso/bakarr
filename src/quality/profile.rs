@@ -58,15 +58,15 @@ impl QualityProfile {
         size: Option<i64>,
     ) -> DownloadDecision {
         if let Some(size) = size {
-            if let Some(min) = self.min_size {
-                if size < min {
-                    return DownloadDecision::Reject(RejectReason::TooSmall);
-                }
+            if let Some(min) = self.min_size
+                && size < min
+            {
+                return DownloadDecision::Reject(RejectReason::TooSmall);
             }
-            if let Some(max) = self.max_size {
-                if size > max {
-                    return DownloadDecision::Reject(RejectReason::TooBig);
-                }
+            if let Some(max) = self.max_size
+                && size > max
+            {
+                return DownloadDecision::Reject(RejectReason::TooBig);
             }
         }
 

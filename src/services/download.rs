@@ -42,6 +42,7 @@ impl DownloadDecisionService {
         ))
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn decide_download(
         profile: &QualityProfile,
         rules: &[crate::entities::release_profile_rules::Model],
@@ -74,19 +75,19 @@ impl DownloadDecisionService {
 
         // Check size limits for initial validation
         if let Some(size) = size {
-            if let Some(min) = profile.min_size {
-                if size < min {
-                    return DownloadAction::Reject {
-                        reason: "File size too small".to_string(),
-                    };
-                }
+            if let Some(min) = profile.min_size
+                && size < min
+            {
+                return DownloadAction::Reject {
+                    reason: "File size too small".to_string(),
+                };
             }
-            if let Some(max) = profile.max_size {
-                if size > max {
-                    return DownloadAction::Reject {
-                        reason: "File size too large".to_string(),
-                    };
-                }
+            if let Some(max) = profile.max_size
+                && size > max
+            {
+                return DownloadAction::Reject {
+                    reason: "File size too large".to_string(),
+                };
             }
         }
 

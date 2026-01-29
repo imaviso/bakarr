@@ -145,6 +145,7 @@ impl RssService {
         Ok(stats)
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn process_new_item(
         &self,
         anime: &crate::models::anime::Anime,

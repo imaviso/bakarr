@@ -159,7 +159,9 @@ impl SearchService {
                 indexer: "Nyaa".to_string(),
                 link: torrent.magnet_link(),
                 info_hash: torrent.info_hash.to_lowercase(),
-                size: crate::parser::size::parse_size(&torrent.size).unwrap_or(0) as u64,
+                size: crate::parser::size::parse_size(&torrent.size)
+                    .unwrap_or(0)
+                    .cast_unsigned(),
                 seeders: torrent.seeders,
                 leechers: torrent.leechers,
                 publish_date: torrent.pub_date.clone(),
@@ -285,7 +287,9 @@ impl SearchService {
                 indexer: "Nyaa".to_string(),
                 link: torrent.magnet_link(),
                 info_hash: torrent.info_hash.to_lowercase(),
-                size: crate::parser::size::parse_size(&torrent.size).unwrap_or(0) as u64,
+                size: crate::parser::size::parse_size(&torrent.size)
+                    .unwrap_or(0)
+                    .cast_unsigned(),
                 seeders: torrent.seeders,
                 leechers: torrent.leechers,
                 publish_date: torrent.pub_date.clone(),

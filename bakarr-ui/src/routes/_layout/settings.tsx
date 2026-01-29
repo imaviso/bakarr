@@ -254,6 +254,16 @@ function SettingsPage() {
 																{profile.cutoff}
 															</span>
 														</div>
+														<Show when={profile.min_size || profile.max_size}>
+															<div class="text-[10px] text-muted-foreground flex gap-2">
+																<Show when={profile.min_size}>
+																	<span>Min: {profile.min_size}</span>
+																</Show>
+																<Show when={profile.max_size}>
+																	<span>Max: {profile.max_size}</span>
+																</Show>
+															</div>
+														</Show>
 													</div>
 													<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 														<Button
@@ -691,6 +701,8 @@ const ProfileSchema = v.object({
 	upgrade_allowed: v.boolean(),
 	seadex_preferred: v.boolean(),
 	allowed_qualities: v.array(v.string()),
+	min_size: v.union([v.string(), v.undefined()]),
+	max_size: v.union([v.string(), v.undefined()]),
 });
 
 function ProfileForm(props: {
@@ -713,6 +725,8 @@ function ProfileForm(props: {
 				"BluRay 1080p",
 				"WEB-DL 1080p",
 			],
+			min_size: props.profile?.min_size || undefined,
+			max_size: props.profile?.max_size || undefined,
 		},
 		validators: {
 			onChange: ProfileSchema,
@@ -814,6 +828,38 @@ function ProfileForm(props: {
 							/>
 						)}
 					</form.Field>
+
+					<div class="grid grid-cols-2 gap-4">
+						<form.Field name="min_size">
+							{(field) => (
+								<TextField
+									value={field().state.value || ""}
+									onChange={field().handleChange}
+								>
+									<TextFieldLabel>Minimum Size</TextFieldLabel>
+									<TextFieldInput placeholder="e.g., 500 MB" />
+									<TextFieldErrorMessage>
+										{field().state.meta.errors[0]?.message}
+									</TextFieldErrorMessage>
+								</TextField>
+							)}
+						</form.Field>
+
+						<form.Field name="max_size">
+							{(field) => (
+								<TextField
+									value={field().state.value || ""}
+									onChange={field().handleChange}
+								>
+									<TextFieldLabel>Maximum Size</TextFieldLabel>
+									<TextFieldInput placeholder="e.g., 2 GB" />
+									<TextFieldErrorMessage>
+										{field().state.meta.errors[0]?.message}
+									</TextFieldErrorMessage>
+								</TextField>
+							)}
+						</form.Field>
+					</div>
 
 					<div class="flex gap-6 pt-2">
 						<form.Field name="upgrade_allowed">
@@ -1232,6 +1278,8 @@ const ConfigSchema = v.object({
 			upgrade_allowed: v.boolean(),
 			seadex_preferred: v.boolean(),
 			allowed_qualities: v.array(v.string()),
+			min_size: v.nullish(v.string()),
+			max_size: v.nullish(v.string()),
 		}),
 	),
 });

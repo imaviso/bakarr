@@ -776,7 +776,9 @@ export interface QualityProfile {
 	upgrade_allowed: boolean;
 	seadex_preferred: boolean;
 	allowed_qualities: string[];
-	name: string; // Added this as it was missing in my previous reconstruction but used in add.tsx
+	name: string;
+	min_size?: string | null;
+	max_size?: string | null;
 }
 
 export interface Config {
