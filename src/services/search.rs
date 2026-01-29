@@ -81,6 +81,16 @@ impl SearchService {
             return Ok(cached);
         }
 
+        // Optimization: Fetch decision context once before the loop to avoid N+1 queries
+        let profile = self
+            .download_decisions
+            .get_quality_profile_for_anime(anime_id)
+            .await?;
+        let rules = self.store.get_release_rules_for_anime(anime_id).await?;
+        let current_status = self
+            .store
+            .get_episode_status(anime_id, episode_number)
+            .await?;
         let seadex_groups = self.get_seadex_groups_cached(anime_id).await;
 
         let filter = if self.config.nyaa.filter_remakes {
@@ -124,13 +134,14 @@ impl SearchService {
             let is_seadex = Self::is_from_seadex_group(&torrent.title, &seadex_groups);
             let release_quality = parse_quality_from_filename(&torrent.title);
 
-            let action = self
-                .download_decisions
-                .should_download(anime_id, episode_number, &torrent.title, is_seadex)
-                .await
-                .unwrap_or_else(|_| DownloadAction::Reject {
-                    reason: "Failed to determine decision".to_string(),
-                });
+            // Use the pure function version to avoid DB lookups in loop
+            let action = DownloadDecisionService::decide_download(
+                &profile,
+                &rules,
+                current_status.as_ref(),
+                &torrent.title,
+                is_seadex,
+            );
 
             results.push(SearchResult {
                 title: torrent.title.clone(),

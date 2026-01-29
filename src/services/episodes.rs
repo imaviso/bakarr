@@ -6,7 +6,6 @@ use crate::db::Store;
 use crate::entities::episode_metadata::Model as EpisodeMetadata;
 use crate::models::episode::EpisodeInput;
 use anyhow::Result;
-use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -22,11 +21,6 @@ pub struct EpisodeService {
 
     recent_fetches: Arc<std::sync::RwLock<HashMap<i32, Instant>>>,
 }
-
-use std::sync::LazyLock;
-
-static EPISODE_TITLE_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)^Episode\s+(\d+)(?:\s*-\s*(.+))?$").unwrap());
 
 impl EpisodeService {
     #[must_use]
@@ -177,22 +171,20 @@ impl EpisodeService {
 
         for ep in anilist_eps {
             if let Some(title) = ep.title
-                && let Some(caps) = EPISODE_TITLE_REGEX.captures(&title)
+                && let Some((number, real_title)) =
+                    crate::parser::filename::parse_episode_title(&title)
+                && number > 0
+                && !seen_episodes.contains(&number)
             {
-                let number = caps[1].parse::<i32>().unwrap_or(0);
-                let real_title = caps.get(2).map(|t| t.as_str().to_string());
-
-                if number > 0 && !seen_episodes.contains(&number) {
-                    seen_episodes.insert(number);
-                    all_episodes.push(EpisodeInput {
-                        episode_number: number,
-                        title: real_title,
-                        title_japanese: None,
-                        aired: ep.aired.clone(),
-                        filler: false,
-                        recap: false,
-                    });
-                }
+                seen_episodes.insert(number);
+                all_episodes.push(EpisodeInput {
+                    episode_number: number,
+                    title: real_title,
+                    title_japanese: None,
+                    aired: ep.aired.clone(),
+                    filler: false,
+                    recap: false,
+                });
             }
         }
         Ok(all_episodes)

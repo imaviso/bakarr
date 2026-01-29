@@ -45,10 +45,15 @@ pub async fn list_anime(
         .get_download_counts_for_anime_ids(&anime_ids)
         .await?;
 
-    let downloaded_episodes_map = state
+    let mut downloaded_episodes_map = state
         .store()
         .get_downloaded_episodes_for_anime_ids(&anime_ids)
         .await?;
+
+    // Pre-sort all downloaded episodes lists to allow O(N) missing checking without HashSet allocation
+    for episodes in downloaded_episodes_map.values_mut() {
+        episodes.sort_unstable();
+    }
 
     let release_profiles_map = state
         .store()
@@ -64,11 +69,22 @@ pub async fn list_anime(
                 .get(&anime.id)
                 .map_or(&[] as &[i32], Vec::as_slice);
 
-            let downloaded_set: std::collections::HashSet<i32> =
-                downloaded_eps.iter().copied().collect();
-            (1..=total)
-                .filter(|ep| !downloaded_set.contains(ep))
-                .collect()
+            // Efficiently find missing episodes since downloaded_eps is sorted
+            let mut missing_vec = Vec::new();
+            let mut down_idx = 0;
+            let total_i32 = total;
+
+            for ep in 1..=total_i32 {
+                while down_idx < downloaded_eps.len() && downloaded_eps[down_idx] < ep {
+                    down_idx += 1;
+                }
+
+                if down_idx < downloaded_eps.len() && downloaded_eps[down_idx] == ep {
+                    continue; // Downloaded
+                }
+                missing_vec.push(ep);
+            }
+            missing_vec
         } else {
             Vec::new()
         };
@@ -269,6 +285,7 @@ fn spawn_initial_search(state: &AppState, anime_id: i32, title: &str) {
     });
 }
 
+#[allow(clippy::too_many_lines)]
 pub async fn add_anime(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<AddAnimeRequest>,
@@ -301,26 +318,45 @@ pub async fn add_anime(
 
     anime.path = Some(root_path.clone());
 
-    state
-        .metadata_service
-        .enrich_anime_metadata(&mut anime)
-        .await;
+    // Parallelize metadata enrichment and image downloading
+    let image_service = state.image_service.clone();
+    let cover_url = anime.cover_image.clone();
+    let banner_url = anime.banner_image.clone();
+    let anime_id = anime.id;
 
-    if let Some(url) = &anime.cover_image
-        && let Ok(path) = state
-            .image_service
-            .save_image(url, anime.id, crate::services::image::ImageType::Cover)
-            .await
-    {
+    let cover_future = async move {
+        if let Some(url) = cover_url {
+            image_service
+                .save_image(&url, anime_id, crate::services::image::ImageType::Cover)
+                .await
+                .ok()
+        } else {
+            None
+        }
+    };
+
+    let image_service_banner = state.image_service.clone();
+    let banner_future = async move {
+        if let Some(url) = banner_url {
+            image_service_banner
+                .save_image(&url, anime_id, crate::services::image::ImageType::Banner)
+                .await
+                .ok()
+        } else {
+            None
+        }
+    };
+
+    let (cover_path, banner_path, ()) = tokio::join!(
+        cover_future,
+        banner_future,
+        state.metadata_service.enrich_anime_metadata(&mut anime)
+    );
+
+    if let Some(path) = cover_path {
         anime.cover_image = Some(path);
     }
-
-    if let Some(url) = &anime.banner_image
-        && let Ok(path) = state
-            .image_service
-            .save_image(url, anime.id, crate::services::image::ImageType::Banner)
-            .await
-    {
+    if let Some(path) = banner_path {
         anime.banner_image = Some(path);
     }
 
@@ -565,7 +601,7 @@ pub async fn update_anime_path(
     }
 
     let path = std::path::Path::new(&payload.path);
-    if !path.exists() {
+    if !tokio::fs::try_exists(path).await.unwrap_or(false) {
         return Err(ApiError::validation(format!(
             "Path does not exist: {}",
             payload.path

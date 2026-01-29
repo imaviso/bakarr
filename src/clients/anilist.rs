@@ -4,12 +4,7 @@ use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
-use std::sync::LazyLock;
-
 const ANILIST_API: &str = "https://graphql.anilist.co";
-
-static EP_REGEX: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?i)^Episode\s+(\d+)").unwrap());
 
 #[derive(Serialize)]
 struct GraphQLRequest<'a> {
@@ -377,8 +372,7 @@ impl AnilistClient {
 
         for ep in &mut episodes {
             if let Some(title) = &ep.title
-                && let Some(caps) = EP_REGEX.captures(title)
-                && let Ok(num) = caps[1].parse::<i32>()
+                && let Some((num, _)) = crate::parser::filename::parse_episode_title(title)
                 && let Some(date) = air_dates.get(&num)
             {
                 ep.aired = Some(date.clone());
@@ -390,7 +384,7 @@ impl AnilistClient {
             .filter_map(|ep| {
                 ep.title
                     .as_ref()
-                    .and_then(|t| EP_REGEX.captures(t).and_then(|c| c[1].parse::<i32>().ok()))
+                    .and_then(|t| crate::parser::filename::parse_episode_title(t).map(|(n, _)| n))
             })
             .collect();
 

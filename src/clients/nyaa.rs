@@ -37,34 +37,45 @@ impl NyaaTorrent {
     }
 }
 
-fn extract_tag(xml: &str, tag: &str) -> String {
-    // Maximum number of cached regexes to prevent unbounded memory growth
-    const MAX_CACHE_SIZE: usize = 32;
+/// Consolidates regexes for XML parsing to avoid per-call overhead and unsafe unwraps.
+struct NyaaRegex {
+    title: Regex,
+    link: Regex,
+    guid: Regex,
+    pub_date: Regex,
+    seeders: Regex,
+    leechers: Regex,
+    downloads: Regex,
+    info_hash: Regex,
+    size: Regex,
+    trusted: Regex,
+    remake: Regex,
+    item: Regex,
+}
 
-    static CACHE: OnceLock<std::sync::Mutex<std::collections::HashMap<String, Regex>>> =
-        OnceLock::new();
-
-    let cache_lock = CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
-    let mut cache = cache_lock.lock().unwrap();
-
-    // If cache is full and tag not present, clear it to prevent unbounded growth
-    if cache.len() >= MAX_CACHE_SIZE && !cache.contains_key(tag) {
-        cache.clear();
-    }
-
-    let re = cache
-        .entry(tag.to_string())
-        .or_insert_with(|| {
-            Regex::new(&format!(
-                r"<{}>([^<]*)</{}>",
-                regex::escape(tag),
-                regex::escape(tag)
-            ))
-            .unwrap()
+impl NyaaRegex {
+    fn get() -> &'static Self {
+        static INSTANCE: OnceLock<NyaaRegex> = OnceLock::new();
+        INSTANCE.get_or_init(|| Self {
+            title: Regex::new(r"<title>([^<]*)</title>").expect("Invalid Regex"),
+            link: Regex::new(r"<link>([^<]*)</link>").expect("Invalid Regex"),
+            guid: Regex::new(r"<guid>([^<]*)</guid>").expect("Invalid Regex"),
+            pub_date: Regex::new(r"<pubDate>([^<]*)</pubDate>").expect("Invalid Regex"),
+            seeders: Regex::new(r"<nyaa:seeders>([^<]*)</nyaa:seeders>").expect("Invalid Regex"),
+            leechers: Regex::new(r"<nyaa:leechers>([^<]*)</nyaa:leechers>").expect("Invalid Regex"),
+            downloads: Regex::new(r"<nyaa:downloads>([^<]*)</nyaa:downloads>")
+                .expect("Invalid Regex"),
+            info_hash: Regex::new(r"<nyaa:infoHash>([^<]*)</nyaa:infoHash>")
+                .expect("Invalid Regex"),
+            size: Regex::new(r"<nyaa:size>([^<]*)</nyaa:size>").expect("Invalid Regex"),
+            trusted: Regex::new(r"<nyaa:trusted>([^<]*)</nyaa:trusted>").expect("Invalid Regex"),
+            remake: Regex::new(r"<nyaa:remake>([^<]*)</nyaa:remake>").expect("Invalid Regex"),
+            item: Regex::new(r"(?s)<item>(.*?)</item>").expect("Invalid Regex"),
         })
-        .clone();
-    drop(cache);
+    }
+}
 
+fn extract_tag(xml: &str, re: &Regex) -> String {
     re.captures(xml)
         .and_then(|c| c.get(1))
         .map(|m| m.as_str().to_string())
@@ -72,26 +83,25 @@ fn extract_tag(xml: &str, tag: &str) -> String {
 }
 
 fn parse_item(item_xml: &str) -> NyaaTorrent {
+    let re = NyaaRegex::get();
     NyaaTorrent {
-        title: html_escape::decode_html_entities(&extract_tag(item_xml, "title")).to_string(),
-        torrent_url: extract_tag(item_xml, "link"),
-        view_url: extract_tag(item_xml, "guid"),
-        pub_date: extract_tag(item_xml, "pubDate"),
-        seeders: extract_tag(item_xml, "nyaa:seeders").parse().unwrap_or(0),
-        leechers: extract_tag(item_xml, "nyaa:leechers").parse().unwrap_or(0),
-        downloads: extract_tag(item_xml, "nyaa:downloads").parse().unwrap_or(0),
-        info_hash: extract_tag(item_xml, "nyaa:infoHash"),
-        size: extract_tag(item_xml, "nyaa:size"),
-        trusted: extract_tag(item_xml, "nyaa:trusted").eq_ignore_ascii_case("yes"),
-        remake: extract_tag(item_xml, "nyaa:remake").eq_ignore_ascii_case("yes"),
+        title: html_escape::decode_html_entities(&extract_tag(item_xml, &re.title)).to_string(),
+        torrent_url: extract_tag(item_xml, &re.link),
+        view_url: extract_tag(item_xml, &re.guid),
+        pub_date: extract_tag(item_xml, &re.pub_date),
+        seeders: extract_tag(item_xml, &re.seeders).parse().unwrap_or(0),
+        leechers: extract_tag(item_xml, &re.leechers).parse().unwrap_or(0),
+        downloads: extract_tag(item_xml, &re.downloads).parse().unwrap_or(0),
+        info_hash: extract_tag(item_xml, &re.info_hash),
+        size: extract_tag(item_xml, &re.size),
+        trusted: extract_tag(item_xml, &re.trusted).eq_ignore_ascii_case("yes"),
+        remake: extract_tag(item_xml, &re.remake).eq_ignore_ascii_case("yes"),
     }
 }
 
 fn parse_rss_items(xml: &str) -> Vec<NyaaTorrent> {
-    static ITEM_RE: OnceLock<Regex> = OnceLock::new();
-    let item_re = ITEM_RE.get_or_init(|| Regex::new(r"(?s)<item>(.*?)</item>").unwrap());
-
-    item_re
+    let re = NyaaRegex::get();
+    re.item
         .captures_iter(xml)
         .filter_map(|c| c.get(1))
         .map(|m| parse_item(m.as_str()))
@@ -144,13 +154,9 @@ impl NyaaFilter {
 #[derive(Debug, Clone, Default)]
 pub struct RssFeedConfig {
     pub query: String,
-
     pub group: Option<String>,
-
     pub resolution: Option<String>,
-
     pub category: NyaaCategory,
-
     pub filter: NyaaFilter,
 }
 
@@ -347,7 +353,6 @@ mod tests {
             .with_resolution("1080p");
 
         let url = config.build_url();
-        // url crate uses + for spaces in query parameters
         assert!(url.contains("Solo+Leveling") || url.contains("Solo%20Leveling"));
         assert!(url.contains("EMBER"));
         assert!(url.contains("1080p"));

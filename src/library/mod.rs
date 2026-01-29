@@ -174,7 +174,9 @@ impl LibraryService {
 
     pub async fn import_file(&self, source: &Path, destination: &Path) -> Result<()> {
         let destination = if destination.is_relative() {
-            std::env::current_dir()?.join(destination)
+            tokio::task::spawn_blocking(std::env::current_dir)
+                .await??
+                .join(destination)
         } else {
             destination.to_path_buf()
         };

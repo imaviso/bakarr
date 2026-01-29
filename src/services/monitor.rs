@@ -97,20 +97,18 @@ impl Monitor {
     }
 
     async fn check_downloads(&self) -> anyhow::Result<()> {
-        let (qbit, config, store) = {
+        let (qbit, config_arc, store) = {
             let state = self.state.read().await;
             (
                 state.qbit.clone(),
-                state.config.read().await.clone(),
+                state.config.clone(),
                 state.store.clone(),
             )
         };
 
         let Some(client) = qbit else { return Ok(()) };
+        let config = config_arc.read().await;
 
-        // Optimization removed: We cannot filter by default_category because
-        // auto_download.rs creates per-anime categories (e.g. "One Piece").
-        // We must fetch all torrents and rely on DB hash lookup to identify ours.
         let torrents = match client.get_torrents(None, None).await {
             Ok(t) => {
                 debug!("Fetched {} torrents from qBittorrent", t.len());
@@ -123,13 +121,26 @@ impl Monitor {
         };
 
         let library = LibraryService::new(config.library.clone());
+        drop(config); // Release config lock before potentially long DB/IO operations
 
         let mut completed_hashes = Vec::new();
         let mut completed_torrents = Vec::new();
 
+        let stalled_threshold = {
+            let config = config_arc.read().await;
+            i64::from(config.qbittorrent.stalled_timeout_seconds)
+        };
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        #[allow(clippy::cast_possible_wrap)]
+        let now = now as i64;
+
         for torrent in torrents {
             if self
-                .handle_problematic_torrent(&client, &store, &torrent, &config)
+                .handle_problematic_torrent(&client, &store, &torrent, stalled_threshold, now)
                 .await?
             {
                 continue;
@@ -167,6 +178,7 @@ impl Monitor {
             let entry = entries_map.get(&torrent.hash.to_lowercase());
             let anime = entry.and_then(|e| anime_map.get(&e.anime_id));
 
+            let config = config_arc.read().await;
             self.process_completed_torrent(&store, &library, &config, &torrent, entry, anime)
                 .await?;
         }
@@ -179,7 +191,8 @@ impl Monitor {
         client: &crate::clients::qbittorrent::QBitClient,
         store: &crate::db::Store,
         torrent: &crate::clients::qbittorrent::TorrentInfo,
-        config: &crate::config::Config,
+        stalled_threshold: i64,
+        now: i64,
     ) -> anyhow::Result<bool> {
         let is_stalled = matches!(
             torrent.state,
@@ -193,13 +206,6 @@ impl Monitor {
                 | crate::clients::qbittorrent::TorrentState::MissingFiles
         );
 
-        let stalled_threshold = i64::from(config.qbittorrent.stalled_timeout_seconds);
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        #[allow(clippy::cast_possible_wrap)]
-        let now = now as i64;
         let duration_since_added = now - torrent.added_on;
 
         if !(is_error || is_stalled && duration_since_added > stalled_threshold) {

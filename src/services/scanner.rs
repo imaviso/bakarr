@@ -354,15 +354,7 @@ impl LibraryScannerService {
             if let Some(name) = dir.file_name().and_then(|n| n.to_str()) {
                 let lower = name.to_lowercase();
 
-                let is_generic = lower.starts_with("season")
-                    || (lower.starts_with('s')
-                        && lower.len() > 1
-                        && lower.chars().nth(1).is_some_and(|c| c.is_ascii_digit()))
-                    || lower == "specials"
-                    || lower == "ova"
-                    || lower == "ona"
-                    || lower == "extras"
-                    || lower == "nc";
+                let is_generic = crate::parser::filename::is_generic_media_folder(&lower);
 
                 if !is_generic {
                     let clean = clean_title(name);

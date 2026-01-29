@@ -1,5 +1,4 @@
 use axum::{Json, extract::Query, extract::State};
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -315,11 +314,6 @@ async fn find_candidates(
     candidates
 }
 
-use std::sync::LazyLock;
-
-static SEASON_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?:season\s+(\d+)|(\d+)(?:nd|rd|th)\s+season)").unwrap());
-
 fn suggest_candidates(scanned_files: &mut [ScannedFile], candidates: &[SearchResultDto]) {
     let mut candidate_seasons = std::collections::HashMap::new();
 
@@ -332,10 +326,7 @@ fn suggest_candidates(scanned_files: &mut [ScannedFile], candidates: &[SearchRes
             .unwrap_or("")
             .to_lowercase();
 
-        if let Some(caps) = SEASON_REGEX.captures(&title_lower)
-            && let Some(n) = caps.get(1).or_else(|| caps.get(2))
-            && let Ok(s) = n.as_str().parse::<i32>()
-        {
+        if let Some(s) = crate::parser::filename::detect_season_from_title(&title_lower) {
             candidate_seasons.insert(candidate.id, s);
         }
         candidate_seasons.entry(candidate.id).or_insert(1);

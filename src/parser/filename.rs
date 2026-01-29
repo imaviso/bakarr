@@ -13,6 +13,39 @@ pub fn parse_filename(filename: &str) -> Option<Release> {
         .or_else(|| parse_fallback(filename))
 }
 
+#[must_use]
+pub fn parse_episode_title(title: &str) -> Option<(i32, Option<String>)> {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = get_regex(&RE, r"(?i)^Episode\s+(\d+)(?:\s*-\s*(.+))?$");
+
+    let caps = re.captures(title)?;
+    let number = caps.get(1)?.as_str().parse().ok()?;
+    let title_part = caps.get(2).map(|m| m.as_str().trim().to_string());
+
+    Some((number, title_part))
+}
+
+#[must_use]
+pub fn is_generic_media_folder(name: &str) -> bool {
+    let lower = name.to_lowercase();
+
+    if lower.starts_with("season") {
+        return true;
+    }
+
+    if lower.starts_with('s')
+        && lower.len() > 1
+        && lower.chars().nth(1).is_some_and(|c| c.is_ascii_digit())
+    {
+        return true;
+    }
+
+    matches!(
+        lower.as_str(),
+        "specials" | "ova" | "ona" | "extras" | "nc" | "bonus"
+    )
+}
+
 fn get_regex(re: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
     re.get_or_init(|| Regex::new(pattern).expect("Invalid regex pattern defined in code"))
 }
