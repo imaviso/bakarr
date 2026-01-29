@@ -349,9 +349,10 @@ impl Monitor {
         entry: &crate::db::DownloadEntry,
         source_path: &Path,
     ) -> anyhow::Result<bool> {
-        let filename = source_path
-            .file_name()
-            .map_or_else(|| entry.filename.clone(), |s| s.to_string_lossy().to_string());
+        let filename = source_path.file_name().map_or_else(
+            || entry.filename.clone(),
+            |s| s.to_string_lossy().to_string(),
+        );
 
         let parsed = parse_filename(&filename);
         #[allow(clippy::cast_possible_truncation)]
@@ -397,10 +398,41 @@ impl Monitor {
                 dest_path
             );
             store.set_imported(entry.id, true).await?;
-            Ok(true)
-        } else {
-            Ok(false)
+            return Ok(true);
         }
+
+        // Fuzzy Recovery: Check parent dir for matching episode number
+        // This handles cases where file was renamed (e.g. metadata/title update)
+        if let Some(parent) = dest_path.parent()
+            && parent.exists()
+                && let Ok(mut entries) = tokio::fs::read_dir(parent).await {
+                    while let Ok(Some(file_entry)) = entries.next_entry().await {
+                        let path = file_entry.path();
+                        if path.is_file() {
+                            let name = path.file_name().unwrap_or_default().to_string_lossy();
+                            if let Some(p) = parse_filename(&name) {
+                                #[allow(clippy::cast_possible_truncation)]
+                                if p.episode_number as i32 == episode_number {
+                                    // Verify season if available
+                                    if let Some(s) = season
+                                        && p.season.is_some() && p.season != Some(s) {
+                                            continue;
+                                        }
+
+                                    info!("Found renamed file for recovery: {:?}", path);
+                                    store.set_imported(entry.id, true).await?;
+                                    return Ok(true);
+                                }
+                            }
+                        }
+                    }
+                }
+
+        warn!(
+            "Recovery check failed: Filename='{}', Ep={}, Dest='{:?}' (Missing), AnimePath='{:?}'",
+            filename, episode_number, dest_path, anime.path
+        );
+        Ok(false)
     }
 
     async fn import_single_file(
