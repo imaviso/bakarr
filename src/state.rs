@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
-use tracing::debug;
 
 use crate::api::NotificationEvent;
 use crate::clients::nyaa::NyaaClient;
@@ -9,6 +8,7 @@ use crate::clients::seadex::{SeaDexClient, SeaDexRelease};
 use crate::config::Config;
 use crate::db::Store;
 use crate::library::RecycleBin;
+use crate::services::SeaDexService;
 use crate::services::{
     AutoDownloadService, DownloadDecisionService, EpisodeService, LibraryScannerService,
     LogService, RssService, SearchService,
@@ -22,7 +22,7 @@ pub struct SharedState {
 
     pub nyaa: Arc<NyaaClient>,
 
-    pub seadex: Arc<SeaDexClient>,
+    pub seadex_service: Arc<SeaDexService>,
 
     pub qbit: Option<Arc<QBitClient>>,
 
@@ -73,7 +73,7 @@ impl SharedState {
         let nyaa = Arc::new(NyaaClient::with_timeout(std::time::Duration::from_secs(
             u64::from(config.nyaa.request_timeout_seconds),
         )));
-        let seadex = Arc::new(SeaDexClient::new());
+        let seadex_client = Arc::new(SeaDexClient::new());
 
         let qbit = if config.qbittorrent.enabled {
             let qbit_config = QBitConfig {
@@ -113,11 +113,17 @@ impl SharedState {
 
         let config_arc = Arc::new(RwLock::new(config));
 
+        let seadex_service = Arc::new(SeaDexService::new(
+            store.clone(),
+            config_arc.clone(),
+            seadex_client,
+        ));
+
         let auto_downloader = Arc::new(AutoDownloadService::new(
             store.clone(),
             config_arc.clone(),
             search_service.clone(),
-            seadex.clone(),
+            seadex_service.clone(),
             qbit.clone(),
             recycle_bin.clone(),
         ));
@@ -132,7 +138,7 @@ impl SharedState {
             config: config_arc,
             store,
             nyaa,
-            seadex,
+            seadex_service,
             qbit,
             search_service,
             rss_service,
@@ -150,89 +156,19 @@ impl SharedState {
         self.config.read().await.clone()
     }
 
+    /// Delegates to `SeaDexService` for cached groups lookup.
     pub async fn get_seadex_groups_cached(&self, anime_id: i32) -> Vec<String> {
-        if matches!(self.store.is_seadex_cache_fresh(anime_id).await, Ok(true))
-            && let Ok(Some(cache)) = self.store.get_seadex_cache(anime_id).await
-        {
-            return cache.get_groups();
-        }
-
-        let config = self.config.read().await;
-        if !config.downloads.use_seadex {
-            return config.downloads.preferred_groups.clone();
-        }
-        drop(config);
-
-        match self.seadex.get_best_for_anime(anime_id).await {
-            Ok(releases) => {
-                let groups: Vec<String> =
-                    releases.iter().map(|r| r.release_group.clone()).collect();
-                let best_release = releases.first().map(|r| r.release_group.as_str());
-
-                if let Err(e) = self
-                    .store
-                    .cache_seadex(anime_id, &groups, best_release, &releases)
-                    .await
-                {
-                    debug!("Failed to cache SeaDex results: {}", e);
-                }
-
-                groups
-            }
-            Err(e) => {
-                debug!("SeaDex lookup failed: {}", e);
-                self.config.read().await.downloads.preferred_groups.clone()
-            }
-        }
+        self.seadex_service.get_groups(anime_id).await
     }
 
+    /// Delegates to `SeaDexService` for cached releases lookup.
     pub async fn get_seadex_releases_cached(&self, anime_id: i32) -> Vec<SeaDexRelease> {
-        if matches!(self.store.is_seadex_cache_fresh(anime_id).await, Ok(true))
-            && let Ok(Some(cache)) = self.store.get_seadex_cache(anime_id).await
-        {
-            let releases = cache.get_releases();
-            if !releases.is_empty() {
-                return releases;
-            }
-        }
-
-        let config = self.config.read().await;
-        if !config.downloads.use_seadex {
-            return vec![];
-        }
-        drop(config);
-
-        match self.seadex.get_best_for_anime(anime_id).await {
-            Ok(releases) => {
-                let groups: Vec<String> =
-                    releases.iter().map(|r| r.release_group.clone()).collect();
-                let best_release = releases.first().map(|r| r.release_group.as_str());
-
-                if let Err(e) = self
-                    .store
-                    .cache_seadex(anime_id, &groups, best_release, &releases)
-                    .await
-                {
-                    debug!("Failed to cache SeaDex releases: {}", e);
-                }
-
-                releases
-            }
-            Err(e) => {
-                debug!("SeaDex lookup failed: {}", e);
-                vec![]
-            }
-        }
+        self.seadex_service.get_releases(anime_id).await
     }
 
+    /// Delegates to `SeaDexService` for checking if a title is from a `SeaDex` group.
     #[must_use]
     pub fn is_from_seadex_group(&self, title: &str, seadex_groups: &[String]) -> bool {
-        if seadex_groups.is_empty() {
-            return false;
-        }
-        let title_lower = title.to_lowercase();
-        seadex_groups
-            .iter()
-            .any(|g| title_lower.contains(&g.to_lowercase()))
+        self.seadex_service.is_seadex_release(title, seadex_groups)
     }
 }

@@ -30,3 +30,6 @@ pub use monitor::Monitor;
 
 pub mod scheduler;
 pub use scheduler::Scheduler;
+
+pub mod seadex;
+pub use seadex::SeaDexService;

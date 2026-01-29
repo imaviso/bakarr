@@ -1,9 +1,9 @@
 use crate::clients::qbittorrent::{AddTorrentOptions, QBitClient};
-use crate::clients::seadex::{SeaDexClient, SeaDexRelease};
 use crate::config::Config;
 use crate::db::Store;
 use crate::library::RecycleBin;
 use crate::models::anime::Anime;
+use crate::services::SeaDexService;
 use crate::services::search::{SearchResult, SearchService};
 use anyhow::Result;
 use std::sync::Arc;
@@ -14,7 +14,7 @@ pub struct AutoDownloadService {
     store: Store,
     config: Arc<RwLock<Config>>,
     search_service: Arc<SearchService>,
-    seadex: Arc<SeaDexClient>,
+    seadex_service: Arc<SeaDexService>,
     qbit: Option<Arc<QBitClient>>,
     recycle_bin: RecycleBin,
 }
@@ -24,7 +24,7 @@ impl AutoDownloadService {
         store: Store,
         config: Arc<RwLock<Config>>,
         search_service: Arc<SearchService>,
-        seadex: Arc<SeaDexClient>,
+        seadex_service: Arc<SeaDexService>,
         qbit: Option<Arc<QBitClient>>,
         recycle_bin: RecycleBin,
     ) -> Self {
@@ -32,7 +32,7 @@ impl AutoDownloadService {
             store,
             config,
             search_service,
-            seadex,
+            seadex_service,
             qbit,
             recycle_bin,
         }
@@ -273,7 +273,7 @@ impl AutoDownloadService {
         }
         drop(config);
 
-        let releases = self.get_seadex_releases_cached(anime.id).await;
+        let releases = self.seadex_service.get_releases(anime.id).await;
         if releases.is_empty() {
             return Ok(false);
         }
@@ -351,45 +351,6 @@ impl AutoDownloadService {
             Err(e) => {
                 warn!(error = %e, "Failed to queue Seadex batch");
                 Ok(SeadexQueueResult::Skipped)
-            }
-        }
-    }
-
-    async fn get_seadex_releases_cached(&self, anime_id: i32) -> Vec<SeaDexRelease> {
-        if matches!(self.store.is_seadex_cache_fresh(anime_id).await, Ok(true))
-            && let Ok(Some(cache)) = self.store.get_seadex_cache(anime_id).await
-        {
-            let releases = cache.get_releases();
-            if !releases.is_empty() {
-                return releases;
-            }
-        }
-
-        let config = self.config.read().await;
-        if !config.downloads.use_seadex {
-            return vec![];
-        }
-        drop(config);
-
-        match self.seadex.get_best_for_anime(anime_id).await {
-            Ok(releases) => {
-                let groups: Vec<String> =
-                    releases.iter().map(|r| r.release_group.clone()).collect();
-                let best_release = releases.first().map(|r| r.release_group.as_str());
-
-                if let Err(e) = self
-                    .store
-                    .cache_seadex(anime_id, &groups, best_release, &releases)
-                    .await
-                {
-                    debug!("Failed to cache SeaDex releases: {}", e);
-                }
-
-                releases
-            }
-            Err(e) => {
-                warn!(error = %e, "SeaDex lookup failed");
-                vec![]
             }
         }
     }

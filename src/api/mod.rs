@@ -97,8 +97,8 @@ impl AppState {
     }
 
     #[must_use]
-    pub fn seadex(&self) -> &Arc<crate::clients::seadex::SeaDexClient> {
-        &self.shared.seadex
+    pub fn seadex(&self) -> &Arc<crate::services::SeaDexService> {
+        &self.shared.seadex_service
     }
 
     #[must_use]

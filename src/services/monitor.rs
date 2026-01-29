@@ -229,6 +229,12 @@ impl Monitor {
         Ok(true)
     }
 
+    /// High-level flow for processing a completed torrent:
+    /// 1. Validate Entry
+    /// 2. Resolve Path
+    /// 3. Recover (if missing)
+    /// 4. Execute Import
+    /// 5. Finalize
     async fn process_completed_torrent(
         &self,
         store: &crate::db::Store,
@@ -239,28 +245,12 @@ impl Monitor {
         anime: Option<&crate::models::anime::Anime>,
     ) -> anyhow::Result<()> {
         let start = std::time::Instant::now();
-        if let Some(entry) = entry {
-            if entry.imported {
-                debug!(
-                    "Skipping already imported download: {} ({})",
-                    torrent.name, torrent.hash
-                );
-                return Ok(());
-            }
 
-            info!(
-                "Found completed download (Not imported): {} ({})",
-                torrent.name, torrent.hash
-            );
-        } else {
-            debug!(
-                "Torrent not found in DB (External download?): {} ({})",
-                torrent.name, torrent.hash
-            );
+        // Step 1: Validate Entry
+        let Some(entry) = self.validate_entry(torrent, entry) else {
             return Ok(());
-        }
+        };
 
-        let entry = entry.unwrap();
         let Some(anime) = anime else {
             warn!(
                 "Anime {} not found for download {}",
@@ -271,17 +261,14 @@ impl Monitor {
 
         debug!("Processing import for anime: {}", anime.title.romaji);
 
-        let source_path_str = apply_path_mappings(
-            &torrent.content_path,
-            &config.downloads.remote_path_mappings,
-        );
-        let source_path = Path::new(&source_path_str);
-
+        // Step 2: Resolve Path
+        let source_path = self.resolve_source_path(torrent, config);
         debug!("Resolved source path (Local): {:?}", source_path);
 
+        // Step 3: Recover (if missing)
         if !source_path.exists() {
             if self
-                .attempt_recovery_import(store, library, anime, entry, source_path)
+                .attempt_recovery_import(store, library, anime, entry, &source_path)
                 .await?
             {
                 return Ok(());
@@ -294,7 +281,72 @@ impl Monitor {
             return Ok(());
         }
 
-        let import_result = if source_path.is_file() {
+        // Step 4: Execute Import
+        let import_result = self
+            .execute_import(library, anime, &source_path, entry)
+            .await;
+
+        // Step 5: Finalize
+        self.finalize_import_result(import_result, store, entry, anime, torrent, start.elapsed())
+            .await;
+
+        Ok(())
+    }
+
+    /// Validates the entry and returns true if import should proceed.
+    /// Logs appropriate messages based on entry state.
+    #[allow(clippy::unused_self)]
+    fn validate_entry<'a>(
+        &self,
+        torrent: &crate::clients::qbittorrent::TorrentInfo,
+        entry: Option<&'a crate::db::DownloadEntry>,
+    ) -> Option<&'a crate::db::DownloadEntry> {
+        if let Some(entry) = entry {
+            if entry.imported {
+                debug!(
+                    "Skipping already imported download: {} ({})",
+                    torrent.name, torrent.hash
+                );
+                return None;
+            }
+
+            info!(
+                "Found completed download (Not imported): {} ({})",
+                torrent.name, torrent.hash
+            );
+            Some(entry)
+        } else {
+            debug!(
+                "Torrent not found in DB (External download?): {} ({})",
+                torrent.name, torrent.hash
+            );
+            None
+        }
+    }
+
+    /// Resolves the source path by applying path mappings.
+    #[allow(clippy::unused_self)]
+    fn resolve_source_path(
+        &self,
+        torrent: &crate::clients::qbittorrent::TorrentInfo,
+        config: &crate::config::Config,
+    ) -> PathBuf {
+        let source_path_str = apply_path_mappings(
+            &torrent.content_path,
+            &config.downloads.remote_path_mappings,
+        );
+        PathBuf::from(source_path_str)
+    }
+
+    /// Executes the import operation (single file or directory).
+    async fn execute_import(
+        &self,
+        library: &LibraryService,
+        anime: &crate::models::anime::Anime,
+        source_path: &Path,
+        entry: &crate::db::DownloadEntry,
+    ) -> anyhow::Result<usize> {
+        if source_path.is_file() {
             debug!("Source is a single file");
             self.import_single_file(library, anime, source_path, entry)
                 .await
@@ -302,21 +354,36 @@ impl Monitor {
             debug!("Source is a directory");
             self.import_directory(library, anime, source_path).await
         } else {
-            warn!("Unknown path type for {}: {:?}", torrent.name, source_path);
-            return Ok(());
-        };
+            Err(anyhow::anyhow!(
+                "Unknown path type: {}",
+                source_path.display()
+            ))
+        }
+    }
 
-        match import_result {
+    /// Finalizes the import result: logs outcome, marks as imported, and updates DB.
+    async fn finalize_import_result(
+        &self,
+        result: anyhow::Result<usize>,
+        store: &crate::db::Store,
+        entry: &crate::db::DownloadEntry,
+        anime: &crate::models::anime::Anime,
+        torrent: &crate::clients::qbittorrent::TorrentInfo,
+        duration: std::time::Duration,
+    ) {
+        match result {
             Ok(count) => {
                 if count > 0 {
-                    store.set_imported(entry.id, true).await?;
+                    if let Err(e) = store.set_imported(entry.id, true).await {
+                        warn!("Failed to mark download as imported: {}", e);
+                    }
                     info!(
                         event = "import_success",
                         anime_id = anime.id,
                         anime_title = %anime.title.romaji,
                         torrent_name = %torrent.name,
                         files_imported = count,
-                        duration_ms = u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
+                        duration_ms = u64::try_from(duration.as_millis()).unwrap_or(u64::MAX),
                         "Successfully imported files"
                     );
                 } else {
@@ -337,8 +404,6 @@ impl Monitor {
                 );
             }
         }
-
-        Ok(())
     }
 
     async fn attempt_recovery_import(
@@ -526,6 +591,29 @@ impl Monitor {
             warn!("Failed to save import log: {}", e);
         }
 
+        self.finalize_single_import(
+            anime,
+            &filename,
+            &dest_path,
+            episode_number,
+            season,
+            media_info,
+        )
+        .await;
+
+        Ok(1)
+    }
+
+    /// Common finalization logic for a single file import.
+    async fn finalize_single_import(
+        &self,
+        anime: &crate::models::anime::Anime,
+        filename: &str,
+        dest_path: &Path,
+        episode_number: i32,
+        season: Option<i32>,
+        media_info: Option<crate::models::media::MediaInfo>,
+    ) {
         let (seadex_groups, store) = {
             let state = self.state.read().await;
             (
@@ -536,11 +624,11 @@ impl Monitor {
 
         let is_seadex = {
             let state = self.state.read().await;
-            state.is_from_seadex_group(&filename, &seadex_groups)
+            state.is_from_seadex_group(filename, &seadex_groups)
         };
 
-        let quality = parse_quality_from_filename(&filename);
-        let file_size = tokio::fs::metadata(&dest_path)
+        let quality = parse_quality_from_filename(filename);
+        let file_size = tokio::fs::metadata(dest_path)
             .await
             .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
             .ok();
@@ -560,8 +648,6 @@ impl Monitor {
         {
             warn!("Failed to update episode status: {}", e);
         }
-
-        Ok(1)
     }
 
     #[allow(clippy::too_many_lines)]
@@ -656,40 +742,15 @@ impl Monitor {
                         warn!("Failed to save import log: {}", e);
                     }
 
-                    let (seadex_groups, store) = {
-                        let state = self.state.read().await;
-                        (
-                            state.get_seadex_groups_cached(anime.id).await,
-                            state.store.clone(),
-                        )
-                    };
-
-                    let is_seadex = {
-                        let state = self.state.read().await;
-                        state.is_from_seadex_group(filename, &seadex_groups)
-                    };
-
-                    let quality = parse_quality_from_filename(filename);
-                    let file_size = tokio::fs::metadata(&dest_path)
-                        .await
-                        .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
-                        .ok();
-
-                    if let Err(e) = store
-                        .mark_episode_downloaded(
-                            anime.id,
-                            episode_number,
-                            season.unwrap_or(1),
-                            quality.id,
-                            is_seadex,
-                            dest_path.to_str().unwrap_or(""),
-                            file_size,
-                            media_info.as_ref(),
-                        )
-                        .await
-                    {
-                        warn!("Failed to update episode status: {}", e);
-                    }
+                    self.finalize_single_import(
+                        anime,
+                        filename,
+                        &dest_path,
+                        episode_number,
+                        season,
+                        media_info,
+                    )
+                    .await;
                 }
                 Err(e) => {
                     error!("Failed to import {}: {}", filename, e);
