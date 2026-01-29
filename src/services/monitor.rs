@@ -108,15 +108,10 @@ impl Monitor {
 
         let Some(client) = qbit else { return Ok(()) };
 
-        // Optimization & Safety: Filter by default category (e.g. "bakarr")
-        // This prevents touching/deleting non-bakarr torrents and reduces processing
-        let category_filter = if config.qbittorrent.default_category.is_empty() {
-            None
-        } else {
-            Some(config.qbittorrent.default_category.as_str())
-        };
-
-        let torrents = match client.get_torrents(None, category_filter).await {
+        // Optimization removed: We cannot filter by default_category because
+        // auto_download.rs creates per-anime categories (e.g. "One Piece").
+        // We must fetch all torrents and rely on DB hash lookup to identify ours.
+        let torrents = match client.get_torrents(None, None).await {
             Ok(t) => {
                 debug!("Fetched {} torrents from qBittorrent", t.len());
                 t
