@@ -1,5 +1,5 @@
 use crate::models::release::Release;
-use regex::Regex;
+use regex::{Captures, Regex};
 use std::sync::OnceLock;
 
 #[must_use]
@@ -13,87 +13,41 @@ pub fn parse_filename(filename: &str) -> Option<Release> {
         .or_else(|| parse_fallback(filename))
 }
 
+fn get_regex(re: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
+    re.get_or_init(|| Regex::new(pattern).expect("Invalid regex pattern defined in code"))
+}
+
 fn parse_standard_bracket(filename: &str) -> Option<Release> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        Regex::new(
-            r"^\[(?P<group>[^\]]+)\]\s*(?P<title>.+?)\s*-\s*(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:(?:\[(?P<tags>[^\]]*)\])|(?:\((?P<tags_paren>[^)]*)\)))?.*$"
-        ).unwrap()
-    });
+    let re = get_regex(
+        &RE,
+        r"^\[(?P<group>[^\]]+)\]\s*(?P<title>.+?)\s*-\s*(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:(?:\[(?P<tags>[^\]]*)\])|(?:\((?P<tags_paren>[^)]*)\)))?.*$",
+    );
 
     let caps = re.captures(filename)?;
-
-    let group = caps.name("group").map(|m| m.as_str().trim().to_string());
-    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
-    let episode_str = caps.name("episode").map(|m| m.as_str())?;
-    let episode_number = episode_str.parse::<f32>().ok()?;
-    let version = caps.name("version").and_then(|m| m.as_str().parse().ok());
-    let tags = caps
-        .name("tags")
-        .map(|m| m.as_str())
-        .or_else(|| caps.name("tags_paren").map(|m| m.as_str()));
-
-    let resolution = tags.and_then(extract_resolution);
-    let source = tags.and_then(extract_source);
-    let season = detect_season_from_title(&title);
-
-    Some(Release {
-        original_filename: filename.to_string(),
-        title: clean_title(&title),
-        episode_number,
-        season,
-        group,
-        resolution,
-        source,
-        version,
-    })
+    extract_common_fields(&caps, filename, true)
 }
 
 fn parse_sxxexx_bracket(filename: &str) -> Option<Release> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        Regex::new(
-            r"^\[(?P<group>[^\]]+)\]\s*(?P<title>.+?)\s*-?\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:\[(?P<tags>[^\]]*)\])?.*$"
-        ).unwrap()
-    });
+    let re = get_regex(
+        &RE,
+        r"^\[(?P<group>[^\]]+)\]\s*(?P<title>.+?)\s*-?\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:\[(?P<tags>[^\]]*)\])?.*$",
+    );
 
     let caps = re.captures(filename)?;
-
-    let group = caps.name("group").map(|m| m.as_str().trim().to_string());
-    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
-    let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
-    let episode_str = caps.name("episode").map(|m| m.as_str())?;
-    let episode_number = episode_str.parse::<f32>().ok()?;
-    let version = caps.name("version").and_then(|m| m.as_str().parse().ok());
-    let tags = caps.name("tags").map(|m| m.as_str());
-
-    let resolution = tags.and_then(extract_resolution);
-    let source = tags.and_then(extract_source);
-
-    Some(Release {
-        original_filename: filename.to_string(),
-        title: clean_title(&title),
-        episode_number,
-        season,
-        group,
-        resolution,
-        source,
-        version,
-    })
+    extract_common_fields(&caps, filename, true)
 }
 
 fn parse_simple_sxxexx(filename: &str) -> Option<Release> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        Regex::new(
-            r"^(?P<title>.+?)\s*-\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)(?:\s*-\s*.+)?.*$",
-        )
-        .unwrap()
-    });
+    let re = get_regex(
+        &RE,
+        r"^(?P<title>.+?)\s*-\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)(?:\s*-\s*.+)?.*$",
+    );
 
     let caps = re.captures(filename)?;
-
-    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
+    let title = caps.name("title")?.as_str().trim();
 
     if title.ends_with(')')
         && title
@@ -104,111 +58,151 @@ fn parse_simple_sxxexx(filename: &str) -> Option<Release> {
         return None;
     }
 
-    let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
-    let episode_str = caps.name("episode").map(|m| m.as_str())?;
-    let episode_number = episode_str.parse::<f32>().ok()?;
+    let mut release = extract_common_fields(&caps, filename, false)?;
+    // Overwrite specific fields that differ from common extraction
+    release.resolution = extract_resolution(filename);
+    release.source = extract_source(filename);
+    release.group = extract_group_from_rest(filename);
 
-    let resolution = extract_resolution(filename);
-    let source = extract_source(filename);
-    let group = extract_group_from_rest(filename);
-
-    Some(Release {
-        original_filename: filename.to_string(),
-        title: clean_title(&title),
-        episode_number,
-        season,
-        group,
-        resolution,
-        source,
-        version: None,
-    })
+    Some(release)
 }
 
 fn parse_plex_format(filename: &str) -> Option<Release> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        Regex::new(
-            r"^(?P<title>.+?)\s*(?:\(\d{4}\))?\s*-\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\s*(?:-\s*.+?)?\s*(?:\[(?P<tags>[^\]]*)\])*.*$"
-        ).unwrap()
-    });
+    let re = get_regex(
+        &RE,
+        r"^(?P<title>.+?)\s*(?:\(\d{4}\))?\s*-\s*S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\s*(?:-\s*.+?)?\s*(?:\[(?P<tags>[^\]]*)\])*.*$",
+    );
 
     let caps = re.captures(filename)?;
 
-    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
-    let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
-    let episode_str = caps.name("episode").map(|m| m.as_str())?;
-    let episode_number = episode_str.parse::<f32>().ok()?;
+    let mut release = extract_common_fields(&caps, filename, false)?;
+    release.resolution = extract_resolution(filename);
+    release.source = extract_source(filename);
+    release.group = extract_group_from_rest(filename);
 
-    let resolution = extract_resolution(filename);
-    let source = extract_source(filename);
-
-    let group = extract_group_from_rest(filename);
-
-    Some(Release {
-        original_filename: filename.to_string(),
-        title: clean_title(&title),
-        episode_number,
-        season,
-        group,
-        resolution,
-        source,
-        version: None,
-    })
+    Some(release)
 }
 
 fn parse_dot_separated(filename: &str) -> Option<Release> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        Regex::new(r"^(?P<title>.+?)\.S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\.(?P<rest>.+)$")
-            .unwrap()
-    });
+    let re = get_regex(
+        &RE,
+        r"^(?P<title>.+?)\.S(?P<season>\d+)E(?P<episode>\d+(?:\.\d+)?)\.(?P<rest>.+)$",
+    );
 
     let caps = re.captures(filename)?;
 
-    let title = caps
-        .name("title")
-        .map(|m| m.as_str().replace('.', " ").trim().to_string())?;
-    let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
-    let episode_str = caps.name("episode").map(|m| m.as_str())?;
-    let episode_number = episode_str.parse::<f32>().ok()?;
-    let rest = caps.name("rest").map_or("", |m| m.as_str());
+    // Title needs specific handling for dot replacement
+    let title_raw = caps.name("title")?.as_str();
+    let title_clean = title_raw.replace('.', " ");
 
-    let resolution = extract_resolution(rest);
-    let source = extract_source(rest);
-    let group = extract_group_from_rest(rest);
+    let episode_number = caps.name("episode")?.as_str().parse::<f32>().ok()?;
+    let season = caps.name("season").and_then(|m| m.as_str().parse().ok());
+    let rest = caps.name("rest").map_or("", |m| m.as_str());
 
     Some(Release {
         original_filename: filename.to_string(),
-        title: clean_title(&title),
+        title: clean_title(&title_clean),
         episode_number,
         season,
-        group,
-        resolution,
-        source,
+        group: extract_group_from_rest(rest),
+        resolution: extract_resolution(rest),
+        source: extract_source(rest),
         version: None,
     })
 }
 
 fn parse_group_at_end(filename: &str) -> Option<Release> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        Regex::new(
-            r"^(?P<title>.+?)\s*-\s*(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:\((?P<tags>[^)]*)\))?\s*\[(?P<group>[^\]]+)\].*$"
-        ).unwrap()
-    });
+    let re = get_regex(
+        &RE,
+        r"^(?P<title>.+?)\s*-\s*(?P<episode>\d+(?:\.\d+)?)\s*(?:v(?P<version>\d+))?\s*(?:\((?P<tags>[^)]*)\))?\s*\[(?P<group>[^\]]+)\].*$",
+    );
 
     let caps = re.captures(filename)?;
+    extract_common_fields(&caps, filename, true)
+}
 
-    let title = caps.name("title").map(|m| m.as_str().trim().to_string())?;
-    let episode_str = caps.name("episode").map(|m| m.as_str())?;
-    let episode_number = episode_str.parse::<f32>().ok()?;
+fn parse_fallback(filename: &str) -> Option<Release> {
+    static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    let name = filename.rsplit_once('.').map_or(filename, |(name, _)| name);
+
+    let patterns = PATTERNS.get_or_init(|| {
+        vec![
+            Regex::new(
+                r"-\s*(?P<episode>\d{1,4}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?(?:\s|$|\[|\()",
+            )
+            .expect("Invalid Regex"),
+            Regex::new(
+                r"[Ee](?:p(?:isode)?)?\s*(?P<episode>\d{1,4}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?",
+            )
+            .expect("Invalid Regex"),
+            Regex::new(r"[_\s](?P<episode>\d{1,3}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?[_\s\[\(]")
+                .expect("Invalid Regex"),
+        ]
+    });
+
+    for pattern in patterns {
+        if let Some(caps) = pattern.captures_iter(name).last() {
+            let episode_str = caps.name("episode")?.as_str();
+            let episode_number = episode_str.parse::<f32>().ok()?;
+
+            #[allow(clippy::cast_possible_truncation)]
+            let ep_int = episode_number as i32;
+            if (1990..=2099).contains(&ep_int) || [720, 1080, 2160, 480].contains(&ep_int) {
+                continue;
+            }
+
+            let version = caps.name("version").and_then(|m| m.as_str().parse().ok());
+
+            let title = extract_title_before_episode(name, episode_str)
+                .unwrap_or_else(|| "Unknown".to_string());
+
+            return Some(Release {
+                original_filename: filename.to_string(),
+                title: clean_title(&title),
+                episode_number,
+                season: detect_season_from_title(&title),
+                group: extract_bracket_group(filename),
+                resolution: extract_resolution(filename),
+                source: extract_source(filename),
+                version,
+            });
+        }
+    }
+    None
+}
+
+// Helper to consolidate common extraction logic
+fn extract_common_fields(
+    caps: &Captures,
+    filename: &str,
+    has_group_in_caps: bool,
+) -> Option<Release> {
+    let title = caps.name("title")?.as_str().trim().to_string();
+    let episode_number = caps.name("episode")?.as_str().parse::<f32>().ok()?;
+
+    let group = if has_group_in_caps {
+        caps.name("group").map(|m| m.as_str().trim().to_string())
+    } else {
+        None
+    };
+
+    let season = caps
+        .name("season")
+        .and_then(|m| m.as_str().parse().ok())
+        .or_else(|| detect_season_from_title(&title));
+
     let version = caps.name("version").and_then(|m| m.as_str().parse().ok());
-    let group = caps.name("group").map(|m| m.as_str().trim().to_string());
-    let tags = caps.name("tags").map(|m| m.as_str());
+
+    let tags = caps
+        .name("tags")
+        .map(|m| m.as_str())
+        .or_else(|| caps.name("tags_paren").map(|m| m.as_str()));
 
     let resolution = tags.and_then(extract_resolution);
     let source = tags.and_then(extract_source);
-    let season = detect_season_from_title(&title);
 
     Some(Release {
         original_filename: filename.to_string(),
@@ -222,71 +216,9 @@ fn parse_group_at_end(filename: &str) -> Option<Release> {
     })
 }
 
-fn parse_fallback(filename: &str) -> Option<Release> {
-    static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
-
-    let name = filename.rsplit_once('.').map_or(filename, |(name, _)| name);
-
-    let patterns = PATTERNS.get_or_init(|| {
-        vec![
-            Regex::new(
-                r"-\s*(?P<episode>\d{1,4}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?(?:\s|$|\[|\()",
-            )
-            .unwrap(),
-            Regex::new(
-                r"[Ee](?:p(?:isode)?)?\s*(?P<episode>\d{1,4}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?",
-            )
-            .unwrap(),
-            Regex::new(r"[_\s](?P<episode>\d{1,3}(?:\.\d+)?)\s*(?:v(?P<version>\d+))?[_\s\[\(]")
-                .unwrap(),
-        ]
-    });
-
-    for pattern in patterns {
-        let mut last_match = None;
-        for caps in pattern.captures_iter(name) {
-            last_match = Some(caps);
-        }
-
-        if let Some(caps) = last_match {
-            let episode_str = caps.name("episode").map(|m| m.as_str())?;
-            let episode_number = episode_str.parse::<f32>().ok()?;
-
-            #[allow(clippy::cast_possible_truncation)]
-            let ep_int = episode_number as i32;
-            if (1990..=2099).contains(&ep_int) || [720, 1080, 2160, 480].contains(&ep_int) {
-                continue;
-            }
-
-            let version = caps.name("version").and_then(|m| m.as_str().parse().ok());
-
-            let group = extract_bracket_group(filename);
-            let resolution = extract_resolution(filename);
-            let source = extract_source(filename);
-
-            let title = extract_title_before_episode(name, episode_str)
-                .unwrap_or_else(|| "Unknown".to_string());
-            let season = detect_season_from_title(&title);
-
-            return Some(Release {
-                original_filename: filename.to_string(),
-                title: clean_title(&title),
-                episode_number,
-                season,
-                group,
-                resolution,
-                source,
-                version,
-            });
-        }
-    }
-
-    None
-}
-
 fn extract_resolution(s: &str) -> Option<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r"(?i)(4K|2160p|1080p|720p|480p|576p)").unwrap());
+    let re = get_regex(&RE, r"(?i)(4K|2160p|1080p|720p|480p|576p)");
 
     re.find(s).map(|m| {
         let res = m.as_str();
@@ -300,16 +232,13 @@ fn extract_resolution(s: &str) -> Option<String> {
 
 fn extract_source(s: &str) -> Option<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| {
-        Regex::new(
-            r"(?i)(BD|Blu-?Ray|WEB-?(?:Rip|DL)?|HDTV|DVDRip|BDRip|WEBRip|AMZN|CR|DSNP|NF|HMAX)",
-        )
-        .unwrap()
-    });
+    let re = get_regex(
+        &RE,
+        r"(?i)(BD|Blu-?Ray|WEB-?(?:Rip|DL)?|HDTV|DVDRip|BDRip|WEBRip|AMZN|CR|DSNP|NF|HMAX)",
+    );
 
     re.find(s).map(|m| {
         let src = m.as_str();
-
         if src.eq_ignore_ascii_case("BluRay") || src.eq_ignore_ascii_case("Blu-Ray") {
             "BD".to_string()
         } else if src.eq_ignore_ascii_case("WEBRip") || src.eq_ignore_ascii_case("WEB-Rip") {
@@ -327,10 +256,10 @@ fn extract_source(s: &str) -> Option<String> {
 
 fn extract_bracket_group(s: &str) -> Option<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r"^\[([^\]]+)\]").unwrap());
+    let re = get_regex(&RE, r"^\[([^\]]+)\]");
 
     re.captures(s)
-        .map(|c| c.get(1).unwrap().as_str().trim().to_string())
+        .and_then(|c| c.get(1).map(|m| m.as_str().trim().to_string()))
 }
 
 fn extract_group_from_rest(s: &str) -> Option<String> {
@@ -341,16 +270,15 @@ fn extract_group_from_rest(s: &str) -> Option<String> {
 
         if stem.contains('[') && stem.contains(']') {
             static RE_BRACKETS: OnceLock<Regex> = OnceLock::new();
-            let re = RE_BRACKETS.get_or_init(|| Regex::new(r"\[([^\]]+)\]").unwrap());
+            let re = get_regex(&RE_BRACKETS, r"\[([^\]]+)\]");
 
             let matches: Vec<_> = re
                 .captures_iter(stem)
-                .map(|c| c.get(1).unwrap().as_str().trim())
+                .filter_map(|c| c.get(1).map(|m| m.as_str().trim()))
                 .collect();
 
             for val in matches.iter().rev() {
                 let clean_val = val.trim_start_matches('[');
-
                 if !is_metadata(clean_val) {
                     return Some(clean_val.to_string());
                 }
@@ -402,11 +330,11 @@ pub fn detect_season_from_title(title: &str) -> Option<i32> {
     static PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
     let patterns = PATTERNS.get_or_init(|| {
         vec![
-            Regex::new(r"(?i)\b(?:Season|S)\s*(\d+)\b").unwrap(),
-            Regex::new(r"(?i)\b(\d+)(?:st|nd|rd|th)\s+Season\b").unwrap(),
-            Regex::new(r"(?i)\bPart\s+(\d+|I{1,3}V?|VI{0,3})\b").unwrap(),
-            Regex::new(r"(?i)\bCour\s+(\d+)\b").unwrap(),
-            Regex::new(r"\b(I{2,3}V?|VI{0,3})\s*$").unwrap(),
+            Regex::new(r"(?i)\b(?:Season|S)\s*(\d+)\b").expect("Invalid Regex"),
+            Regex::new(r"(?i)\b(\d+)(?:st|nd|rd|th)\s+Season\b").expect("Invalid Regex"),
+            Regex::new(r"(?i)\bPart\s+(\d+|I{1,3}V?|VI{0,3})\b").expect("Invalid Regex"),
+            Regex::new(r"(?i)\bCour\s+(\d+)\b").expect("Invalid Regex"),
+            Regex::new(r"\b(I{2,3}V?|VI{0,3})\s*$").expect("Invalid Regex"),
         ]
     });
 
@@ -448,29 +376,23 @@ fn roman_to_int(s: &str) -> Option<i32> {
 
 #[must_use]
 pub fn clean_title(title: &str) -> String {
-    let title = title.trim().trim_end_matches(['-', '_']).trim();
+    let mut title = title.trim().trim_end_matches(['-', '_']).trim();
 
-    let title = title.rfind('(').map_or(title, |idx| {
-        title.rfind(')').map_or(title, |end| {
-            if end > idx {
-                let inside = &title[idx + 1..end];
-                if inside.len() == 4 && inside.chars().all(|c| c.is_ascii_digit()) {
-                    title[..idx].trim()
-                } else {
-                    title
-                }
-            } else {
-                title
-            }
-        })
-    });
-
-    let title = title.replace('_', " ");
+    if let Some(idx) = title.rfind('(')
+        && let Some(end) = title.rfind(')')
+        && end > idx
+    {
+        let inside = &title[idx + 1..end];
+        if inside.len() == 4 && inside.chars().all(|c| c.is_ascii_digit()) {
+            title = title[..idx].trim();
+        }
+    }
 
     let mut result = String::with_capacity(title.len());
-    let mut last_was_space = false;
+    let mut last_was_space = true;
     for c in title.chars() {
-        if c.is_whitespace() {
+        let is_sep = c.is_whitespace() || c == '_';
+        if is_sep {
             if !last_was_space {
                 result.push(' ');
                 last_was_space = true;
@@ -481,7 +403,11 @@ pub fn clean_title(title: &str) -> String {
         }
     }
 
-    result.trim().to_string()
+    if result.ends_with(' ') {
+        result.pop();
+    }
+
+    result
 }
 
 pub fn normalize_title(title: &str) -> String {
@@ -491,13 +417,13 @@ pub fn normalize_title(title: &str) -> String {
 
     let patterns = NORMALIZE_PATTERNS.get_or_init(|| {
         vec![
-            Regex::new(r"(?i)\s*\d+(?:st|nd|rd|th)\s+Season\s*$").unwrap(),
-            Regex::new(r"(?i)\s*(?:Season|S)\s*\d+\s*$").unwrap(),
-            Regex::new(r"(?i)\s*Part\s+(?:\d+|I{1,3}V?|VI{0,3})\s*$").unwrap(),
-            Regex::new(r"(?i)\s*Cour\s+\d+\s*$").unwrap(),
-            Regex::new(r"\s+(?:I{2,3}V?|VI{0,3})\s*$").unwrap(),
-            Regex::new(r"\s*\(\d{4}\)\s*$").unwrap(),
-            Regex::new(r"\s*[:–—-]\s*$").unwrap(),
+            Regex::new(r"(?i)\s*\d+(?:st|nd|rd|th)\s+Season\s*$").expect("Invalid Regex"),
+            Regex::new(r"(?i)\s*(?:Season|S)\s*\d+\s*$").expect("Invalid Regex"),
+            Regex::new(r"(?i)\s*Part\s+(?:\d+|I{1,3}V?|VI{0,3})\s*$").expect("Invalid Regex"),
+            Regex::new(r"(?i)\s*Cour\s+\d+\s*$").expect("Invalid Regex"),
+            Regex::new(r"\s+(?:I{2,3}V?|VI{0,3})\s*$").expect("Invalid Regex"),
+            Regex::new(r"\s*\(\d{4}\)\s*$").expect("Invalid Regex"),
+            Regex::new(r"\s*[:–—-]\s*$").expect("Invalid Regex"),
         ]
     });
 
@@ -525,9 +451,8 @@ pub fn normalize_title(title: &str) -> String {
 
 #[must_use]
 pub fn normalize_for_matching(title: &str) -> String {
-    let normalized = normalize_title(title).to_lowercase();
-
-    normalized
+    normalize_title(title)
+        .to_lowercase()
         .chars()
         .filter(|c| c.is_alphanumeric() || c.is_whitespace())
         .collect::<String>()
