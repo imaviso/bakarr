@@ -88,9 +88,8 @@ function AddAnimePage() {
 				<h1 class="text-xl font-semibold tracking-tight px-1">Add New Anime</h1>
 				<div class="relative max-w-xl">
 					<IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-					<TextField class="w-full">
+					<TextField class="w-full" value={query()} onChange={setQuery}>
 						<TextFieldInput
-							onInput={(e) => setQuery(e.currentTarget.value)}
 							placeholder="Search for anime by title..."
 							class="pl-9 h-11"
 							autofocus

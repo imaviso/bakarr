@@ -1134,7 +1134,7 @@ export function createSearchMissingMutation() {
 		mutationFn: (animeId?: number) =>
 			fetchApi(`${API_BASE}/downloads/search-missing`, {
 				method: "POST",
-				body: animeId ? JSON.stringify({ anime_id: animeId }) : undefined,
+				body: JSON.stringify({ anime_id: animeId }),
 			}),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["downloads"] });
