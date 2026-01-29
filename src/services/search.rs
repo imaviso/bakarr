@@ -4,6 +4,7 @@ use tracing::info;
 use crate::clients::nyaa::{NyaaCategory, NyaaClient, NyaaFilter, NyaaTorrent};
 use crate::config::Config;
 use crate::db::Store;
+use crate::parser::filename::detect_season_from_title;
 use crate::quality::parse_quality_from_filename;
 use crate::services::download::{DownloadAction, DownloadDecisionService};
 
@@ -93,6 +94,8 @@ impl SearchService {
             .await?;
         let seadex_groups = self.get_seadex_groups_cached(anime_id).await;
 
+        let expected_season = detect_season_from_title(&anime.title.romaji);
+
         let filter = if self.config.nyaa.filter_remakes {
             NyaaFilter::NoRemakes
         } else {
@@ -125,6 +128,13 @@ impl SearchService {
             let Some(parsed) = crate::parser::filename::parse_filename(&torrent.title) else {
                 continue;
             };
+
+            if let Some(season) = parsed.season
+                && let Some(expected) = expected_season
+                && season != expected
+            {
+                continue;
+            }
 
             #[allow(clippy::cast_precision_loss)]
             if (parsed.episode_number - episode_number as f32).abs() > 0.1 {
@@ -245,7 +255,8 @@ impl SearchService {
             }
         };
 
-        let candidates = self.filter_and_sort_candidates(&torrents, &seadex_groups);
+        let expected_season = detect_season_from_title(&anime.title.romaji);
+        let candidates = self.filter_and_sort_candidates(&torrents, &seadex_groups, expected_season);
         let best_candidates = self.deduplicate_episodes(candidates).await;
 
         let mut results = Vec::new();
@@ -340,6 +351,7 @@ impl SearchService {
         &self,
         torrents: &'a [NyaaTorrent],
         seadex_groups: &[String],
+        expected_season: Option<i32>,
     ) -> Vec<(&'a NyaaTorrent, crate::models::release::Release)> {
         let mut candidates: Vec<_> = torrents
             .iter()
@@ -356,6 +368,15 @@ impl SearchService {
                 true
             })
             .filter_map(|t| crate::parser::filename::parse_filename(&t.title).map(|r| (t, r)))
+            .filter(|(_, r)| {
+                if let Some(season) = r.season
+                    && let Some(expected) = expected_season
+                    && season != expected
+                {
+                    return false;
+                }
+                true
+            })
             .collect();
 
         candidates.sort_by(|(a_torrent, _), (b_torrent, _)| {

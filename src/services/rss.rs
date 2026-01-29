@@ -162,6 +162,17 @@ impl RssService {
             return Ok(false);
         };
 
+        if let Some(season) = release.season
+            && let Some(expected) = crate::parser::filename::detect_season_from_title(&anime.title.romaji)
+            && season != expected
+        {
+            debug!(
+                "Skipping RSS item due to season mismatch: {} (Expected S{}, got S{})",
+                torrent.title, expected, season
+            );
+            return Ok(false);
+        }
+
         let episode_number = release.episode_number;
         let group = release.group;
 
