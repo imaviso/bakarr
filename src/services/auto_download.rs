@@ -295,19 +295,20 @@ impl AutoDownloadService {
         anime: &Anime,
         release: &crate::clients::seadex::SeaDexRelease,
     ) -> Result<SeadexQueueResult> {
-        let Some(hash) = &release.info_hash else {
+        let Some(hash_raw) = &release.info_hash else {
             return Ok(SeadexQueueResult::Skipped);
         };
+        let hash = hash_raw.to_lowercase();
 
         if hash.len() != 40 {
             return Ok(SeadexQueueResult::Skipped);
         }
 
-        if self.store.is_blocked(hash).await.unwrap_or(false) {
+        if self.store.is_blocked(&hash).await.unwrap_or(false) {
             return Ok(SeadexQueueResult::Skipped);
         }
 
-        if self.store.get_download_by_hash(hash).await?.is_some() {
+        if self.store.get_download_by_hash(&hash).await?.is_some() {
             return Ok(SeadexQueueResult::AlreadyDownloaded);
         }
 
@@ -318,6 +319,7 @@ impl AutoDownloadService {
             );
             return Ok(SeadexQueueResult::Queued);
         };
+
 
         let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
         let _ = qbit.create_category(&category, None).await;
@@ -341,7 +343,7 @@ impl AutoDownloadService {
                         &format!("{} - {}", anime.title.romaji, release.release_group),
                         -1.0,
                         Some(&release.release_group),
-                        Some(hash),
+                        Some(&hash),
                     )
                     .await?;
 

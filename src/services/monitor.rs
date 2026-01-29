@@ -144,7 +144,7 @@ impl Monitor {
                 continue;
             }
 
-            completed_hashes.push(torrent.hash.clone());
+            completed_hashes.push(torrent.hash.to_lowercase());
             completed_torrents.push(torrent);
         }
 
@@ -164,11 +164,11 @@ impl Monitor {
 
         let entries_map: std::collections::HashMap<String, crate::db::DownloadEntry> = entries
             .into_iter()
-            .filter_map(|e| e.info_hash.clone().map(|h| (h, e)))
+            .filter_map(|e| e.info_hash.clone().map(|h| (h.to_lowercase(), e)))
             .collect();
 
         for torrent in completed_torrents {
-            let entry = entries_map.get(&torrent.hash);
+            let entry = entries_map.get(&torrent.hash.to_lowercase());
             let anime = entry.and_then(|e| anime_map.get(&e.anime_id));
 
             self.process_completed_torrent(&store, &library, &config, &torrent, entry, anime)
