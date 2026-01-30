@@ -23,14 +23,10 @@ import {
 	IconX,
 } from "@tabler/icons-solidjs";
 import { useQuery } from "@tanstack/solid-query";
-import {
-	createFileRoute,
-	Link,
-	useNavigate,
-	useParams,
-} from "@tanstack/solid-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
 import { createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
+import * as v from "valibot";
 import { AnimeError } from "~/components/anime-error";
 import { ImportDialog } from "~/components/import-dialog";
 import { RenameDialog } from "~/components/rename-dialog";
@@ -113,9 +109,15 @@ import {
 import { useAuth } from "~/lib/auth";
 import { cn, copyToClipboard } from "~/lib/utils";
 
+const IdParamSchema = v.pipe(
+	v.string(),
+	v.check((s) => !Number.isNaN(Number(s)), "ID must be a number"),
+	v.transform(Number),
+);
+
 export const Route = createFileRoute("/_layout/anime/$id")({
 	loader: async ({ context: { queryClient }, params }) => {
-		const animeId = parseInt(params.id, 10);
+		const animeId = v.parse(IdParamSchema, params.id);
 		await Promise.all([
 			queryClient.ensureQueryData(animeDetailsQueryOptions(animeId)),
 			queryClient.ensureQueryData(episodesQueryOptions(animeId)),
@@ -128,8 +130,8 @@ export const Route = createFileRoute("/_layout/anime/$id")({
 });
 
 function AnimeDetailsPage() {
-	const params = useParams({ from: "/_layout/anime/$id" });
-	const animeId = () => parseInt(params().id, 10);
+	const params = Route.useParams();
+	const animeId = () => v.parse(IdParamSchema, params().id);
 	const navigate = useNavigate();
 	const { auth } = useAuth();
 
