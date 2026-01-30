@@ -47,12 +47,16 @@ export function CommandPalette() {
 	const animeList = createAnimeListQuery();
 
 	// Fetch AniList search for adding new anime
-	const debouncedSearch = createMemo(() => {
-		const s = search();
-		return s.length >= 3 ? s : "";
-	});
+	const anilistSearch = createAnimeSearchQuery(() => search());
 
-	const anilistSearch = createAnimeSearchQuery(() => debouncedSearch());
+	// Debug logging
+	createEffect(() => {
+		console.log("Search value:", search());
+		console.log("AniList query enabled:", search().length >= 3);
+		console.log("AniList data:", anilistSearch.data);
+		console.log("AniList isLoading:", anilistSearch.isLoading);
+		console.log("AniList error:", anilistSearch.error);
+	});
 
 	// Filter library anime based on search
 	const filteredLibrary = createMemo(() => {
