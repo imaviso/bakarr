@@ -32,7 +32,8 @@ import {
 
 export function CommandPalette() {
 	const [open, setOpen] = createSignal(false);
-	const [search, setSearch] = createSignal("");
+	const [inputValue, setInputValue] = createSignal("");
+	const [debouncedSearch, setDebouncedSearch] = createSignal("");
 	const [selectedAnimeForAdd, setSelectedAnimeForAdd] =
 		createSignal<AnimeSearchResult | null>(null);
 	const navigate = useNavigate();
@@ -50,19 +51,28 @@ export function CommandPalette() {
 		onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
 	});
 
+	// Debounce search input to prevent excessive re-renders
+	createEffect(() => {
+		const value = inputValue();
+		const timeout = setTimeout(() => {
+			setDebouncedSearch(value);
+		}, 150);
+		return () => clearTimeout(timeout);
+	});
+
 	// Fetch library anime
 	const animeList = createAnimeListQuery();
 
-	// Fetch AniList search for adding new anime
-	const anilistSearch = createAnimeSearchQuery(() => search());
+	// Fetch AniList search for adding new anime - uses debounced value
+	const anilistSearch = createAnimeSearchQuery(() => debouncedSearch());
 
-	// Filter library anime based on search
+	// Filter library anime based on search - uses input value for instant feedback
 	const filteredLibrary = createMemo(() => {
-		const query = search().toLowerCase().trim();
+		const query = inputValue().toLowerCase().trim();
 		const data = animeList.data;
 
 		if (!data) return [];
-		if (!query) return data;
+		if (!query) return data.slice(0, 10);
 
 		return data.filter((anime) => {
 			const title = anime.title.romaji?.toLowerCase() || "";
@@ -73,7 +83,7 @@ export function CommandPalette() {
 				english.includes(query) ||
 				native.includes(query)
 			);
-		});
+		}).slice(0, 10);
 	});
 
 	const handleSelect = (path: string) => {
@@ -109,8 +119,8 @@ export function CommandPalette() {
 				<Command shouldFilter={false}>
 					<CommandInput
 						placeholder="Search library or add anime..."
-						value={search()}
-						onValueChange={setSearch}
+						value={inputValue()}
+						onValueChange={setInputValue}
 						class="focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-0"
 					/>
 					<CommandList>
@@ -122,10 +132,10 @@ export function CommandPalette() {
 						{/* Show no results when library is empty */}
 						<Show when={!animeList.isLoading && filteredLibrary().length === 0}>
 							<CommandEmpty>
-								<Show when={search().length >= 3 && !anilistSearch.isLoading}>
+								<Show when={debouncedSearch().length >= 3 && !anilistSearch.isLoading}>
 									No results in library. Check AniList results below.
 								</Show>
-								<Show when={search().length < 3}>
+								<Show when={debouncedSearch().length < 3}>
 									No anime found in library.
 								</Show>
 								<Show when={anilistSearch.isLoading}>Searching AniList...</Show>
@@ -135,10 +145,10 @@ export function CommandPalette() {
 						{/* Library Section */}
 						<Show when={!animeList.isLoading && filteredLibrary().length > 0}>
 							<CommandGroup heading="Library">
-								<For each={filteredLibrary().slice(0, 10)}>
+								<For each={filteredLibrary()}>
 									{(anime) => (
 										<CommandItem
-											value={`library-${anime.id}-${anime.title.romaji}`}
+											value={`library-${anime.id}`}
 											onSelect={() => handleSelect(`/anime/${anime.id}`)}
 										>
 											<Show when={anime.cover_image}>
@@ -171,7 +181,7 @@ export function CommandPalette() {
 						{/* AniList Search Section - for adding new anime */}
 						<Show
 							when={
-								search().length >= 3 &&
+								debouncedSearch().length >= 3 &&
 								anilistSearch.data &&
 								anilistSearch.data.length > 0
 							}
@@ -185,7 +195,7 @@ export function CommandPalette() {
 								>
 									{(anime) => (
 										<CommandItem
-											value={`anilist-${anime.id}-${anime.title.romaji}`}
+											value={`anilist-${anime.id}`}
 											onSelect={() => handleAddAnime(anime)}
 										>
 											<Show when={anime.cover_image}>
