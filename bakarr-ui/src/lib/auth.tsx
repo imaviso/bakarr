@@ -31,6 +31,51 @@ function getStoredAuth(): AuthState {
 	return { isAuthenticated: false };
 }
 
+// Global Auth State
+const [auth, setAuth] = createSignal<AuthState>(getStoredAuth());
+
+function saveAuth(state: AuthState) {
+	if (state.isAuthenticated) {
+		localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
+	} else {
+		localStorage.removeItem(AUTH_STORAGE_KEY);
+	}
+	setAuth(state);
+}
+
+export const loginSuccess = (username: string, apiKey?: string) => {
+	saveAuth({
+		username,
+		apiKey,
+		isAuthenticated: true,
+	});
+};
+
+export const loginApiKey = (apiKey: string) => {
+	saveAuth({
+		apiKey,
+		isAuthenticated: true,
+	});
+};
+
+export const logout = async () => {
+	try {
+		await fetch("/api/auth/logout", { method: "POST" });
+	} catch (e) {
+		console.error("Logout failed", e);
+	}
+	saveAuth({ isAuthenticated: false });
+	window.location.href = "/login";
+};
+
+export const getAuthHeaders = (): HeadersInit => {
+	const state = auth();
+	if (state.apiKey) {
+		return { "X-Api-Key": state.apiKey };
+	}
+	return {};
+};
+
 // Create the auth context
 interface AuthContextValue {
 	auth: Accessor<AuthState>;
@@ -43,50 +88,6 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue>();
 
 export function AuthProvider(props: { children: JSX.Element }) {
-	const [auth, setAuth] = createSignal<AuthState>(getStoredAuth());
-
-	function saveAuth(state: AuthState) {
-		if (state.isAuthenticated) {
-			localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
-		} else {
-			localStorage.removeItem(AUTH_STORAGE_KEY);
-		}
-		setAuth(state);
-	}
-
-	const loginSuccess = (username: string, apiKey?: string) => {
-		saveAuth({
-			username,
-			apiKey,
-			isAuthenticated: true,
-		});
-	};
-
-	const loginApiKey = (apiKey: string) => {
-		saveAuth({
-			apiKey,
-			isAuthenticated: true,
-		});
-	};
-
-	const logout = async () => {
-		try {
-			await fetch("/api/auth/logout", { method: "POST" });
-		} catch (e) {
-			console.error("Logout failed", e);
-		}
-		saveAuth({ isAuthenticated: false });
-		window.location.href = "/login";
-	};
-
-	const getAuthHeaders = (): HeadersInit => {
-		const state = auth();
-		if (state.apiKey) {
-			return { "X-Api-Key": state.apiKey };
-		}
-		return {};
-	};
-
 	const value: AuthContextValue = {
 		auth,
 		loginSuccess,
@@ -100,7 +101,7 @@ export function AuthProvider(props: { children: JSX.Element }) {
 	);
 }
 
-// Hook to use auth context
+// Hook to use auth context in components
 export function useAuth() {
 	const context = useContext(AuthContext);
 	if (!context) {
@@ -110,8 +111,4 @@ export function useAuth() {
 }
 
 // Getter function that works outside of Solid components (e.g., in router loaders)
-// This maintains the singleton pattern for non-component usage
-const [globalAuth] = createSignal<AuthState>(getStoredAuth());
-export function getAuthState(): AuthState {
-	return globalAuth();
-}
+export { auth as getAuthState };

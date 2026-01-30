@@ -5,7 +5,7 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/solid-query";
-import { useAuth } from "~/lib/auth";
+import { getAuthHeaders, logout } from "~/lib/auth";
 
 // ==================== API Client ====================
 
@@ -15,8 +15,6 @@ async function fetchApi<T>(
 	endpoint: string,
 	options?: RequestInit,
 ): Promise<T> {
-	const { getAuthHeaders, logout } = useAuth();
-
 	const res = await fetch(endpoint, {
 		...options,
 		headers: {
