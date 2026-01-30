@@ -98,11 +98,11 @@ export function CommandPalette() {
 			</button>
 
 			<CommandDialog open={open()} onOpenChange={setOpen}>
-				<Command value={search()} onValueChange={(val) => setSearch(val)}>
+				<Command shouldFilter={false}>
 					<CommandInput
 						placeholder="Search library or add anime..."
 						value={search()}
-						onValueChange={(val) => setSearch(val)}
+						onInput={(e) => setSearch(e.currentTarget.value)}
 					/>
 					<CommandList>
 						<CommandEmpty>
