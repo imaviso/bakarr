@@ -108,9 +108,9 @@ export function CommandPalette() {
 					<CommandInput
 						placeholder="Search library or add anime..."
 						value={search()}
-						onInput={(e) => {
-							console.log("Input changed:", e.currentTarget.value);
-							setSearch(e.currentTarget.value);
+						onValueChange={(val) => {
+							console.log("Input changed:", val);
+							setSearch(val);
 						}}
 					/>
 					<CommandList>
