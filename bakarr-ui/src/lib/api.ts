@@ -1234,7 +1234,10 @@ export function calendarQueryOptions(start: Date, end: Date) {
 }
 
 export function createCalendarQuery(start: () => Date, end: () => Date) {
-	return useQuery(() => ({ ...calendarQueryOptions(start(), end()) }));
+	return useQuery(() => ({
+		...calendarQueryOptions(start(), end()),
+		suspense: true,
+	}));
 }
 
 export function downloadQueueQueryOptions() {

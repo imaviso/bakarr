@@ -12,7 +12,7 @@ import {
 } from "@tabler/icons-solidjs";
 import { useQuery } from "@tanstack/solid-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
-import { createMemo, For, Show } from "solid-js";
+import { createEffect, createMemo, For, Show } from "solid-js";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { GeneralError } from "~/components/general-error";
@@ -67,7 +67,18 @@ const AnimeSearchSchema = v.object({
 });
 
 export const Route = createFileRoute("/_layout/anime/")({
-	validateSearch: (search) => v.parse(AnimeSearchSchema, search),
+	validateSearch: (search) => {
+		const stored = (() => {
+			if (typeof window === "undefined") return {};
+			try {
+				const item = localStorage.getItem("bakarr_anime_search");
+				return item ? JSON.parse(item) : {};
+			} catch {
+				return {};
+			}
+		})();
+		return v.parse(AnimeSearchSchema, { ...stored, ...search });
+	},
 	loader: ({ context: { queryClient } }) => {
 		queryClient.ensureQueryData(animeListQueryOptions());
 	},
@@ -80,6 +91,11 @@ function AnimeIndexPage() {
 	const deleteAnime = createDeleteAnimeMutation();
 	const search = Route.useSearch();
 	const navigate = useNavigate();
+
+	createEffect(() => {
+		const currentSearch = search();
+		localStorage.setItem("bakarr_anime_search", JSON.stringify(currentSearch));
+	});
 
 	const filteredList = createMemo(() => {
 		const list = animeQuery.data;
@@ -105,19 +121,22 @@ function AnimeIndexPage() {
 
 	const updateSearch = (q: string) =>
 		navigate({
+			to: ".",
 			search: (prev) => ({ ...prev, q }),
 			replace: true,
-		} as Parameters<typeof navigate>[0]);
+		});
 	const updateFilter = (filter: "all" | "monitored" | "unmonitored") =>
 		navigate({
+			to: ".",
 			search: (prev) => ({ ...prev, filter }),
 			replace: true,
-		} as Parameters<typeof navigate>[0]);
+		});
 	const updateView = (view: "grid" | "list") =>
 		navigate({
+			to: ".",
 			search: (prev) => ({ ...prev, view }),
 			replace: true,
-		} as Parameters<typeof navigate>[0]);
+		});
 
 	return (
 		<div class="space-y-6">
