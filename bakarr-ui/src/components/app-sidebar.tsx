@@ -1,14 +1,12 @@
 import {
 	IconAlertTriangle,
 	IconCalendar,
-	IconCommand,
 	IconDeviceTv,
 	IconDownload,
 	IconHome,
 	IconList,
 	IconLogout,
 	IconRss,
-	IconSearch,
 	IconSettings,
 } from "@tabler/icons-solidjs";
 import { Link, useLocation } from "@tanstack/solid-router";
@@ -107,22 +105,6 @@ export function AppSidebar() {
 					</DropdownMenuTrigger>
 				</DropdownMenu>
 			</SidebarHeader>
-
-			{/* Search Button */}
-			<Show when={!isCollapsed()}>
-				<div class="px-3 pb-2">
-					<button
-						type="button"
-						class="flex items-center gap-2 w-full rounded-md px-2 py-1.5 text-sm text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-					>
-						<IconSearch class="h-4 w-4" />
-						<span class="flex-1 text-left">Search...</span>
-						<kbd class="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-sidebar-border bg-sidebar px-1.5 font-mono text-[10px] font-medium text-sidebar-muted">
-							<IconCommand class="h-2.5 w-2.5" />K
-						</kbd>
-					</button>
-				</div>
-			</Show>
 
 			<SidebarContent class="px-2 group-data-[collapsible=icon]:px-0">
 				{/* Main Navigation */}

@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/solid-router";
 import { AppSidebar } from "~/components/app-sidebar";
 import { Breadcrumb } from "~/components/breadcrumb";
+import { CommandPalette } from "~/components/command-palette";
 import { ModeToggle } from "~/components/mode-toggle";
 import {
 	SidebarInset,
@@ -33,7 +34,10 @@ function LayoutComponent() {
 					<SidebarTrigger class="-ml-1" />
 					<div class="h-4 w-px bg-border/50 mx-1 hidden md:block" />
 					<Breadcrumb />
-					<div class="ml-auto px-3">
+					<div class="flex-1" />
+					<div class="flex items-center gap-2">
+						<CommandPalette />
+						<div class="h-4 w-px bg-border/50 mx-1" />
 						<ModeToggle />
 					</div>
 				</header>
