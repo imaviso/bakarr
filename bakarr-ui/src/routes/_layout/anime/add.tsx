@@ -52,7 +52,12 @@ import {
 } from "~/lib/api";
 import { cn } from "~/lib/utils";
 
+const searchSchema = v.object({
+	id: v.optional(v.string()),
+});
+
 export const Route = createFileRoute("/_layout/anime/add")({
+	validateSearch: searchSchema,
 	loader: ({ context: { queryClient } }) => {
 		queryClient.ensureQueryData(profilesQueryOptions());
 		queryClient.ensureQueryData(releaseProfilesQueryOptions());
@@ -64,10 +69,25 @@ export const Route = createFileRoute("/_layout/anime/add")({
 
 function AddAnimePage() {
 	const _navigate = useNavigate();
+	const search = Route.useSearch();
 	const [query, setQuery] = createSignal("");
 	const [debouncedQuery, setDebouncedQuery] = createSignal("");
 	const [selectedAnime, setSelectedAnime] =
 		createSignal<AnimeSearchResult | null>(null);
+
+	// Auto-select anime if id is provided in search params
+	createEffect(() => {
+		const searchParams = search();
+		const id = searchParams.id;
+		if (id) {
+			const idNum = Number.parseInt(id, 10);
+			if (!Number.isNaN(idNum)) {
+				// Set query to trigger search
+				setQuery(id);
+				setDebouncedQuery(id);
+			}
+		}
+	});
 
 	createEffect(() => {
 		const q = query();
@@ -77,6 +97,19 @@ function AddAnimePage() {
 
 	const searchQuery = createAnimeSearchQuery(debouncedQuery);
 	const animeListQuery = createAnimeListQuery();
+
+	// Auto-select anime when search results include the id from URL
+	createEffect(() => {
+		const searchParams = search();
+		const id = searchParams.id;
+		if (id && searchQuery.data && !selectedAnime()) {
+			const idNum = Number.parseInt(id, 10);
+			const found = searchQuery.data.find((a) => a.id === idNum);
+			if (found) {
+				setSelectedAnime(found);
+			}
+		}
+	});
 
 	const isAlreadyAdded = (id: number) => {
 		return animeListQuery.data?.some((a) => a.id === id);

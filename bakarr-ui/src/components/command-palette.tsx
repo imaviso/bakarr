@@ -1,4 +1,5 @@
 import {
+	IconChevronRight,
 	IconCommand,
 	IconExternalLink,
 	IconSearch,
@@ -21,7 +22,6 @@ import {
 	CommandItem,
 	CommandList,
 	CommandSeparator,
-	CommandShortcut,
 } from "~/components/ui/command";
 import { createAnimeListQuery, createAnimeSearchQuery } from "~/lib/api";
 
@@ -48,15 +48,6 @@ export function CommandPalette() {
 
 	// Fetch AniList search for adding new anime
 	const anilistSearch = createAnimeSearchQuery(() => search());
-
-	// Debug logging
-	createEffect(() => {
-		console.log("Search value:", search());
-		console.log("AniList query enabled:", search().length >= 3);
-		console.log("AniList data:", anilistSearch.data);
-		console.log("AniList isLoading:", anilistSearch.isLoading);
-		console.log("AniList error:", anilistSearch.error);
-	});
 
 	// Filter library anime based on search
 	const filteredLibrary = createMemo(() => {
@@ -108,10 +99,8 @@ export function CommandPalette() {
 					<CommandInput
 						placeholder="Search library or add anime..."
 						value={search()}
-						onValueChange={(val) => {
-							console.log("Input changed:", val);
-							setSearch(val);
-						}}
+						onValueChange={setSearch}
+						class="focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-0"
 					/>
 					<CommandList>
 						{/* Show loading state */}
@@ -161,7 +150,7 @@ export function CommandPalette() {
 													</span>
 												</Show>
 											</div>
-											<CommandShortcut>Open</CommandShortcut>
+											<IconChevronRight class="ml-auto h-4 w-4 text-muted-foreground" />
 										</CommandItem>
 									)}
 								</For>
