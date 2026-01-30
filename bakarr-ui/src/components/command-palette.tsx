@@ -1,14 +1,7 @@
 import {
-	IconDeviceTv,
-	IconHome,
-	IconSearch,
-	IconSettings,
-	IconCalendar,
-	IconDownload,
-	IconList,
-	IconRss,
 	IconCommand,
 	IconExternalLink,
+	IconSearch,
 } from "@tabler/icons-solidjs";
 import { useNavigate } from "@tanstack/solid-router";
 import {
@@ -31,59 +24,6 @@ import {
 	CommandShortcut,
 } from "~/components/ui/command";
 import { createAnimeListQuery, createAnimeSearchQuery } from "~/lib/api";
-
-interface RouteItem {
-	name: string;
-	path: string;
-	icon: typeof IconHome;
-	keywords: string[];
-}
-
-const routes: RouteItem[] = [
-	{ name: "Dashboard", path: "/", icon: IconHome, keywords: ["home", "main"] },
-	{
-		name: "Anime Library",
-		path: "/anime",
-		icon: IconDeviceTv,
-		keywords: ["library", "series", "shows"],
-	},
-	{
-		name: "RSS Feeds",
-		path: "/rss",
-		icon: IconRss,
-		keywords: ["feeds", "subscriptions"],
-	},
-	{
-		name: "Wanted",
-		path: "/wanted",
-		icon: IconList,
-		keywords: ["missing", "queue"],
-	},
-	{
-		name: "Calendar",
-		path: "/calendar",
-		icon: IconCalendar,
-		keywords: ["schedule", "upcoming"],
-	},
-	{
-		name: "Downloads",
-		path: "/downloads",
-		icon: IconDownload,
-		keywords: ["queue", "active"],
-	},
-	{
-		name: "Settings",
-		path: "/settings",
-		icon: IconSettings,
-		keywords: ["config", "preferences"],
-	},
-	{
-		name: "System Logs",
-		path: "/logs",
-		icon: IconList,
-		keywords: ["logs", "debug"],
-	},
-];
 
 export function CommandPalette() {
 	const [open, setOpen] = createSignal(false);
@@ -132,18 +72,6 @@ export function CommandPalette() {
 		});
 	});
 
-	// Filter routes based on search
-	const filteredRoutes = createMemo(() => {
-		const query = search().toLowerCase();
-		if (!query) return routes;
-
-		return routes.filter((route) => {
-			const nameMatch = route.name.toLowerCase().includes(query);
-			const keywordMatch = route.keywords.some((k) => k.includes(query));
-			return nameMatch || keywordMatch;
-		});
-	});
-
 	const handleSelect = (path: string) => {
 		setOpen(false);
 		navigate({ to: path });
@@ -172,7 +100,7 @@ export function CommandPalette() {
 			<CommandDialog open={open()} onOpenChange={setOpen}>
 				<Command value={search()} onValueChange={(val) => setSearch(val)}>
 					<CommandInput
-						placeholder="Search library, routes, or add anime..."
+						placeholder="Search library or add anime..."
 						value={search()}
 						onValueChange={(val) => setSearch(val)}
 					/>
@@ -189,24 +117,6 @@ export function CommandPalette() {
 								No results in library. Check AniList results below.
 							</Show>
 						</CommandEmpty>
-
-						{/* Routes Section */}
-						<Show when={filteredRoutes().length > 0}>
-							<CommandGroup heading="Navigation">
-								<For each={filteredRoutes()}>
-									{(route) => (
-										<CommandItem
-											value={`route-${route.path}`}
-											onSelect={() => handleSelect(route.path)}
-										>
-											<route.icon class="mr-2 h-4 w-4" />
-											<span>{route.name}</span>
-											<CommandShortcut>Go</CommandShortcut>
-										</CommandItem>
-									)}
-								</For>
-							</CommandGroup>
-						</Show>
 
 						{/* Library Section */}
 						<Show when={filteredLibrary().length > 0}>
