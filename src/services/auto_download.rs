@@ -88,6 +88,21 @@ impl AutoDownloadService {
             return Ok(());
         }
 
+        // Get missing episodes for this anime
+        let missing_episodes = self.get_missing_episode_numbers(anime.id).await?;
+        if missing_episodes.is_empty() {
+            debug!("No missing episodes for {}", anime.title.romaji);
+            return Ok(());
+        }
+
+        let total_missing = missing_episodes.len();
+        info!(
+            anime = %anime.title.romaji,
+            missing_count = total_missing,
+            missing_episodes = ?missing_episodes,
+            "Checking for missing episodes"
+        );
+
         let results = self.search_service.search_anime(anime.id).await?;
 
         if results.is_empty() {
@@ -95,19 +110,102 @@ impl AutoDownloadService {
             return Ok(());
         }
 
-        for result in results.iter().take(10) {
+        // Track which episodes we've found good releases for
+        let mut covered_episodes = std::collections::HashSet::new();
+        let mut processed_count = 0;
+
+        // Process ALL results but stop early if all episodes are covered
+        for result in results {
+            // Safety limit: don't process more than 50 results to avoid overwhelming qBit
+            processed_count += 1;
+            if processed_count > 50 {
+                info!(
+                    anime = %anime.title.romaji,
+                    "Reached safety limit of 50 results, stopping"
+                );
+                break;
+            }
+
             if self.store.is_downloaded(&result.title).await? {
                 debug!("Already downloaded exact file: {}", result.title);
                 continue;
             }
 
-            self.process_search_result(anime, result).await?;
+            let episode_num = result.episode_number as i32;
+
+            // Skip if this episode isn't in our missing list
+            if !missing_episodes.contains(&episode_num) {
+                continue;
+            }
+
+            // Skip if we already found a good release for this episode
+            if covered_episodes.contains(&episode_num) {
+                continue;
+            }
+
+            match self.process_search_result(anime, &result).await {
+                Ok(true) => {
+                    // Successfully queued
+                    covered_episodes.insert(episode_num);
+                    info!(
+                        anime = %anime.title.romaji,
+                        episode = episode_num,
+                        covered = covered_episodes.len(),
+                        total = total_missing,
+                        "Found release for episode"
+                    );
+
+                    // SMART LIMIT: Stop if all missing episodes are covered
+                    if covered_episodes.len() >= total_missing {
+                        info!(
+                            anime = %anime.title.romaji,
+                            total_episodes = total_missing,
+                            "All missing episodes now have releases queued, stopping early"
+                        );
+                        break;
+                    }
+                }
+                Ok(false) => {
+                    // Processed but rejected/upgrade not needed
+                }
+                Err(e) => {
+                    warn!(error = %e, "Error processing search result");
+                }
+            }
+        }
+
+        if covered_episodes.len() < total_missing {
+            let remaining: Vec<_> = missing_episodes
+                .into_iter()
+                .filter(|ep| !covered_episodes.contains(ep))
+                .collect();
+            info!(
+                anime = %anime.title.romaji,
+                remaining_episodes = ?remaining,
+                "Could not find releases for all missing episodes"
+            );
         }
 
         Ok(())
     }
 
-    async fn process_search_result(&self, anime: &Anime, result: &SearchResult) -> Result<()> {
+    /// Get list of missing episode numbers for an anime
+    /// A episode is missing if: monitored AND file_path is None
+    async fn get_missing_episode_numbers(&self, anime_id: i32) -> Result<Vec<i32>> {
+        let statuses = self.store.get_episode_statuses(anime_id).await?;
+
+        let missing: Vec<i32> = statuses
+            .into_iter()
+            .filter(|status| status.monitored && status.file_path.is_none())
+            .map(|status| status.episode_number)
+            .collect();
+
+        Ok(missing)
+    }
+
+    /// Process a search result and queue download if accepted
+    /// Returns Ok(true) if a download was queued, Ok(false) otherwise
+    async fn process_search_result(&self, anime: &Anime, result: &SearchResult) -> Result<bool> {
         #[allow(clippy::cast_possible_truncation)]
         let episode_number = result.episode_number as i32;
 
@@ -128,6 +226,7 @@ impl AutoDownloadService {
 
                 self.queue_download_from_result(anime, result, quality, *is_seadex)
                     .await?;
+                Ok(true)
             }
             crate::services::download::DownloadAction::Upgrade {
                 quality,
@@ -158,6 +257,7 @@ impl AutoDownloadService {
 
                 self.queue_download_from_result(anime, result, quality, *is_seadex)
                     .await?;
+                Ok(true)
             }
             crate::services::download::DownloadAction::Reject { reason } => {
                 debug!(
@@ -168,10 +268,9 @@ impl AutoDownloadService {
                     reason = %reason,
                     "Release rejected"
                 );
+                Ok(false)
             }
         }
-
-        Ok(())
     }
 
     async fn queue_download_from_result(

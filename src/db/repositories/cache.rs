@@ -41,8 +41,8 @@ impl CacheRepository {
     pub async fn cache_search_results(&self, query: &str, results: &[SearchResult]) -> Result<()> {
         let results_json = serde_json::to_string(results)?;
         let now = chrono::Utc::now();
-        // Cache for 15 minutes
-        let expires_at = (now + chrono::Duration::minutes(15)).to_rfc3339();
+        // Cache for 5 minutes - frequent enough to catch new releases without hammering Nyaa
+        let expires_at = (now + chrono::Duration::minutes(5)).to_rfc3339();
         let created_at = now.to_rfc3339();
 
         // Note: SQLite/SeaORM doesn't support "ON CONFLICT UPDATE" cleanly without unique constraints on non-primary keys easily in some versions,
