@@ -49,7 +49,6 @@ export function CommandPalette() {
 	// Fetch AniList search for adding new anime
 	const debouncedSearch = createMemo(() => {
 		const s = search();
-		// Only search AniList if user is looking for something not in library
 		return s.length >= 3 ? s : "";
 	});
 
@@ -57,10 +56,13 @@ export function CommandPalette() {
 
 	// Filter library anime based on search
 	const filteredLibrary = createMemo(() => {
-		const query = search().toLowerCase();
-		if (!query) return animeList.data || [];
+		const query = search().toLowerCase().trim();
+		const data = animeList.data;
+		
+		if (!data) return [];
+		if (!query) return data;
 
-		return (animeList.data || []).filter((anime) => {
+		return data.filter((anime) => {
 			const title = anime.title.romaji?.toLowerCase() || "";
 			const english = anime.title.english?.toLowerCase() || "";
 			const native = anime.title.native?.toLowerCase() || "";
@@ -102,24 +104,32 @@ export function CommandPalette() {
 					<CommandInput
 						placeholder="Search library or add anime..."
 						value={search()}
-						onInput={(e) => setSearch(e.currentTarget.value)}
+						onInput={(e) => {
+							console.log("Input changed:", e.currentTarget.value);
+							setSearch(e.currentTarget.value);
+						}}
 					/>
 					<CommandList>
-						<CommandEmpty>
-							<Show
-								when={search().length >= 3 && !anilistSearch.isLoading}
-								fallback={
-									<Show when={!anilistSearch.isLoading} fallback="Searching...">
-										No results found.
-									</Show>
-								}
-							>
-								No results in library. Check AniList results below.
-							</Show>
-						</CommandEmpty>
+						{/* Show loading state */}
+						<Show when={animeList.isLoading}>
+							<CommandEmpty>Loading library...</CommandEmpty>
+						</Show>
+
+						{/* Show no results when library is empty */}
+						<Show when={!animeList.isLoading && filteredLibrary().length === 0}>
+							<CommandEmpty>
+								<Show when={search().length >= 3 && !anilistSearch.isLoading}>
+									No results in library. Check AniList results below.
+								</Show>
+								<Show when={search().length < 3}>
+									No anime found in library.
+								</Show>
+								<Show when={anilistSearch.isLoading}>Searching AniList...</Show>
+							</CommandEmpty>
+						</Show>
 
 						{/* Library Section */}
-						<Show when={filteredLibrary().length > 0}>
+						<Show when={!animeList.isLoading && filteredLibrary().length > 0}>
 							<CommandGroup heading="Library">
 								<For each={filteredLibrary().slice(0, 10)}>
 									{(anime) => (
