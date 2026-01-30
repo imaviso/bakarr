@@ -25,7 +25,7 @@ impl From<crate::db::MissingEpisodeRow> for MissingEpisodeDto {
             episode_number: row.episode_number,
             episode_title: row.episode_title,
             aired: row.aired,
-            anime_image: row.anime_image,
+            anime_image: row.anime_image.map(|p| format!("/images/{p}")),
         }
     }
 }

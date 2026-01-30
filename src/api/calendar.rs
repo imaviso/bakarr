@@ -66,7 +66,7 @@ pub async fn get_calendar(
                     anime_title: e.anime_title,
                     episode_number: i32::try_from(ep_num).unwrap_or_default(),
                     downloaded: e.downloaded,
-                    anime_image: e.anime_image,
+                    anime_image: e.anime_image.map(|p| format!("/images/{p}")),
                 },
             }
         })
