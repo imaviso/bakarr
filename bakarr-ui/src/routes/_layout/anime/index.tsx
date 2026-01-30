@@ -231,11 +231,12 @@ function AnimeIndexPage() {
 									<Button
 										variant="ghost"
 										size="icon"
-										class={`h-7 w-7 ${
+										class={cn(
+											"h-7 w-7",
 											search().view === "grid"
 												? "bg-background shadow-sm"
-												: "hover:bg-background/50"
-										}`}
+												: "hover:bg-background/50",
+										)}
 										onClick={() => updateView("grid")}
 									>
 										<IconGridDots class="h-4 w-4" />
@@ -248,11 +249,12 @@ function AnimeIndexPage() {
 									<Button
 										variant="ghost"
 										size="icon"
-										class={`h-7 w-7 ${
+										class={cn(
+											"h-7 w-7",
 											search().view === "list"
 												? "bg-background shadow-sm"
-												: "hover:bg-background/50"
-										}`}
+												: "hover:bg-background/50",
+										)}
 										onClick={() => updateView("list")}
 									>
 										<IconList class="h-4 w-4" />

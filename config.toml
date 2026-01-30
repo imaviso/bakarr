@@ -1,5 +1,5 @@
 [general]
-database_path = "sqlite:data/bakarr.db:"
+database_path = "sqlite::memory:"
 log_level = "info"
 images_path = "images"
 suppress_connection_errors = false

@@ -220,54 +220,12 @@ async fn resolve_anime_path(
     let library_config = state.config().read().await.library.clone();
     let library_service = crate::library::LibraryService::new(library_config);
 
-    let dummy_options = crate::library::RenamingOptions {
-        anime: anime.clone(),
-        episode_number: 1,
-        season: Some(1),
-        episode_title: "Dummy".to_string(),
-        quality: None,
-        group: None,
-        original_filename: None,
-        extension: "mkv".to_string(),
-        year: anime.start_year,
-        media_info: None,
-    };
+    let custom_root_path = custom_root.map(std::path::Path::new);
 
-    let formatted_path = library_service.format_path(&dummy_options);
-    let path_buf = std::path::PathBuf::from(&formatted_path);
-
-    let folder_name = path_buf.components().next().map_or_else(
-        || {
-            anime.start_year.map_or_else(
-                || anime.title.romaji.clone(),
-                |year| format!("{} ({})", anime.title.romaji, year),
-            )
-        },
-        |component| component.as_os_str().to_string_lossy().to_string(),
-    );
-
-    let sanitized_name = crate::clients::qbittorrent::sanitize_category(&folder_name);
-
-    custom_root.map_or_else(
-        || {
-            let library_base = state
-                .config()
-                .try_read()
-                .map(|c| c.library.library_path.clone())
-                .unwrap_or_default();
-
-            std::path::Path::new(&library_base)
-                .join(&sanitized_name)
-                .to_string_lossy()
-                .to_string()
-        },
-        |base| {
-            std::path::Path::new(base)
-                .join(&sanitized_name)
-                .to_string_lossy()
-                .to_string()
-        },
-    )
+    library_service
+        .build_anime_root_path(anime, custom_root_path)
+        .to_string_lossy()
+        .to_string()
 }
 
 fn spawn_initial_search(state: &AppState, anime_id: i32, title: &str) {

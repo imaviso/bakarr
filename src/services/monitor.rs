@@ -6,16 +6,30 @@ use crate::state::SharedState;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
 #[derive(Clone)]
 pub struct Monitor {
-    state: Arc<RwLock<SharedState>>,
+    state: Arc<SharedState>,
+}
+
+/// Context for importing a single video file, extracted to eliminate DRY violations
+/// between `import_single_file` and `import_directory`.
+struct ImportContext<'a> {
+    anime: &'a crate::models::anime::Anime,
+    file_path: &'a Path,
+    filename: &'a str,
+    episode_number: i32,
+    season: Option<i32>,
+    quality: String,
+    extension: String,
+    group: Option<String>,
+    media_info: Option<crate::models::media::MediaInfo>,
 }
 
 impl Monitor {
-    pub const fn new(state: Arc<RwLock<SharedState>>) -> Self {
+    #[must_use]
+    pub const fn new(state: Arc<SharedState>) -> Self {
         Self { state }
     }
 
@@ -59,10 +73,7 @@ impl Monitor {
     }
 
     async fn broadcast_progress(&self) -> anyhow::Result<()> {
-        let (qbit, event_bus) = {
-            let state = self.state.read().await;
-            (state.qbit.clone(), state.event_bus.clone())
-        };
+        let (qbit, event_bus) = (self.state.qbit.clone(), self.state.event_bus.clone());
 
         let Some(client) = qbit else { return Ok(()) };
 
@@ -97,14 +108,11 @@ impl Monitor {
     }
 
     async fn check_downloads(&self) -> anyhow::Result<()> {
-        let (qbit, config_arc, store) = {
-            let state = self.state.read().await;
-            (
-                state.qbit.clone(),
-                state.config.clone(),
-                state.store.clone(),
-            )
-        };
+        let (qbit, config_arc, store) = (
+            self.state.qbit.clone(),
+            self.state.config.clone(),
+            self.state.store.clone(),
+        );
 
         let Some(client) = qbit else { return Ok(()) };
         let config = config_arc.read().await;
@@ -426,22 +434,20 @@ impl Monitor {
         );
 
         let parsed = parse_filename(&filename);
-        #[allow(clippy::cast_possible_truncation)]
-        let episode_number = parsed.as_ref().map_or(entry.episode_number as i32, |p| {
-            #[allow(clippy::cast_possible_truncation)]
-            let ep = p.episode_number as i32;
-            ep
-        });
+        // Use truncation for episode numbers to match database storage format
+        // Partial episodes (e.g., 6.5) are stored as their integer base (6)
+        let episode_number = parsed.as_ref().map_or_else(
+            || entry.episode_number_truncated(),
+            crate::models::release::Release::episode_number_truncated,
+        );
         let season = parsed.as_ref().and_then(|p| p.season);
 
-        let episode_title = {
-            let state = self.state.read().await;
-            state
-                .episodes
-                .get_episode_title(anime.id, episode_number)
-                .await
-                .unwrap_or_else(|_| format!("Episode {episode_number}"))
-        };
+        let episode_title = self
+            .state
+            .episodes
+            .get_episode_title(anime.id, episode_number)
+            .await
+            .unwrap_or_else(|_| format!("Episode {episode_number}"));
 
         let quality_str = parse_quality_from_filename(&filename).to_string();
         let extension = source_path
@@ -485,21 +491,20 @@ impl Monitor {
                 let path = file_entry.path();
                 if path.is_file() {
                     let name = path.file_name().unwrap_or_default().to_string_lossy();
-                    if let Some(p) = parse_filename(&name) {
-                        #[allow(clippy::cast_possible_truncation)]
-                        if p.episode_number as i32 == episode_number {
-                            // Verify season if available
-                            if let Some(s) = season
-                                && p.season.is_some()
-                                && p.season != Some(s)
-                            {
-                                continue;
-                            }
-
-                            info!("Found renamed file for recovery: {:?}", path);
-                            store.set_imported(entry.id, true).await?;
-                            return Ok(true);
+                    if let Some(p) = parse_filename(&name)
+                        && p.episode_number_truncated() == episode_number
+                    {
+                        // Verify season if available
+                        if let Some(s) = season
+                            && p.season.is_some()
+                            && p.season != Some(s)
+                        {
+                            continue;
                         }
+
+                        info!("Found renamed file for recovery: {:?}", path);
+                        store.set_imported(entry.id, true).await?;
+                        return Ok(true);
                     }
                 }
             }
@@ -535,84 +540,42 @@ impl Monitor {
             .to_string();
 
         let parsed = parse_filename(&filename);
-        let quality_str = parse_quality_from_filename(&filename).to_string();
+        let quality = parse_quality_from_filename(&filename).to_string();
         let extension = source_path
             .extension()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
 
-        #[allow(clippy::cast_possible_truncation)]
-        let default_episode_number = entry.episode_number as i32;
-
-        let episode_number = parsed.as_ref().map_or(default_episode_number, |p| {
-            #[allow(clippy::cast_possible_truncation)]
-            let ep_num = p.episode_number as i32;
-            ep_num
-        });
+        // Truncate episode numbers to match database storage format
+        let episode_number = parsed.as_ref().map_or_else(
+            || entry.episode_number_truncated(),
+            crate::models::release::Release::episode_number_truncated,
+        );
 
         let season = parsed.as_ref().and_then(|p| p.season);
-
-        let episode_title = {
-            let state = self.state.read().await;
-            state
-                .episodes
-                .get_episode_title(anime.id, episode_number)
-                .await
-                .unwrap_or_else(|_| format!("Episode {episode_number}"))
-        };
 
         let media_service = crate::services::MediaService::new();
         let media_info = media_service.get_media_info(source_path).await.ok();
 
-        let options = crate::library::RenamingOptions {
-            anime: anime.clone(),
+        let group = entry
+            .group_name
+            .clone()
+            .or_else(|| parsed.as_ref().and_then(|p| p.group.clone()));
+
+        let ctx = ImportContext {
+            anime,
+            file_path: source_path,
+            filename: &filename,
             episode_number,
             season,
-            episode_title,
-            quality: Some(quality_str),
-            group: entry
-                .group_name
-                .clone()
-                .or_else(|| parsed.as_ref().and_then(|p| p.group.clone())),
-            original_filename: Some(filename.clone()),
+            quality,
             extension,
-            year: anime.start_year,
-            media_info: media_info.clone(),
+            group,
+            media_info,
         };
 
-        let dest_path = library.get_destination_path(&options);
-
-        library.import_file(source_path, &dest_path).await?;
-        info!("Imported to {:?}", dest_path);
-
-        // Persistent log for UI
-        if let Err(e) = self
-            .state
-            .read()
-            .await
-            .store
-            .add_log(
-                "import",
-                "info",
-                &format!("Imported episode: {filename}"),
-                Some(format!("Destination: {}", dest_path.display())),
-            )
-            .await
-        {
-            warn!("Failed to save import log: {}", e);
-        }
-
-        self.finalize_single_import(
-            anime,
-            &filename,
-            &dest_path,
-            episode_number,
-            season,
-            media_info,
-        )
-        .await;
-
+        self.execute_single_import(library, ctx).await?;
         Ok(1)
     }
 
@@ -626,18 +589,9 @@ impl Monitor {
         season: Option<i32>,
         media_info: Option<crate::models::media::MediaInfo>,
     ) {
-        let (seadex_groups, store) = {
-            let state = self.state.read().await;
-            (
-                state.get_seadex_groups_cached(anime.id).await,
-                state.store.clone(),
-            )
-        };
-
-        let is_seadex = {
-            let state = self.state.read().await;
-            state.is_from_seadex_group(filename, &seadex_groups)
-        };
+        let seadex_groups = self.state.get_seadex_groups_cached(anime.id).await;
+        let store = self.state.store.clone();
+        let is_seadex = self.state.is_from_seadex_group(filename, &seadex_groups);
 
         let quality = parse_quality_from_filename(filename);
         let file_size = tokio::fs::metadata(dest_path)
@@ -659,6 +613,84 @@ impl Monitor {
             .await
         {
             warn!("Failed to update episode status: {}", e);
+        }
+    }
+
+    /// Executes the import for a single file using pre-built context.
+    /// This consolidates the common logic between `import_single_file` and `import_directory`.
+    async fn execute_single_import(
+        &self,
+        library: &LibraryService,
+        ctx: ImportContext<'_>,
+    ) -> anyhow::Result<()> {
+        let episode_title = self
+            .state
+            .episodes
+            .get_episode_title(ctx.anime.id, ctx.episode_number)
+            .await
+            .unwrap_or_else(|_| format!("Episode {}", ctx.episode_number));
+
+        let options = crate::library::RenamingOptions {
+            anime: ctx.anime.clone(),
+            episode_number: ctx.episode_number,
+            season: ctx.season,
+            episode_title,
+            quality: Some(ctx.quality.clone()),
+            group: ctx.group.clone(),
+            original_filename: Some(ctx.filename.to_string()),
+            extension: ctx.extension.clone(),
+            year: ctx.anime.start_year,
+            media_info: ctx.media_info.clone(),
+        };
+
+        let dest_path = library.get_destination_path(&options);
+
+        library.import_file(ctx.file_path, &dest_path).await?;
+        info!("Imported to {:?}", dest_path);
+
+        // Persistent log for UI
+        if let Err(e) = self
+            .state
+            .store
+            .add_log(
+                "import",
+                "info",
+                &format!("Imported episode: {}", ctx.filename),
+                Some(format!("Destination: {}", dest_path.display())),
+            )
+            .await
+        {
+            warn!("Failed to save import log: {}", e);
+        }
+
+        self.finalize_single_import(
+            ctx.anime,
+            ctx.filename,
+            &dest_path,
+            ctx.episode_number,
+            ctx.season,
+            ctx.media_info,
+        )
+        .await;
+
+        Ok(())
+    }
+
+    /// Logs an import error and persists it to the store.
+    async fn log_import_error(&self, filename: &str, error: &anyhow::Error) {
+        error!("Failed to import {}: {}", filename, error);
+        if let Err(log_err) = self
+            .state
+            .store
+            .add_log(
+                "import",
+                "error",
+                &format!("Failed to import: {filename}"),
+                Some(error.to_string()),
+            )
+            .await
+        {
+            warn!("Failed to save error log: {}", log_err);
         }
     }
 
@@ -694,9 +726,7 @@ impl Monitor {
             let quality = parse_quality_from_filename(filename).to_string();
 
             let episode_number = if let Some(ref p) = parsed {
-                #[allow(clippy::cast_possible_truncation)]
-                let ep = p.episode_number as i32;
-                ep
+                p.episode_number_truncated()
             } else {
                 warn!(
                     "Could not detect episode number for {:?}, skipping",
@@ -710,77 +740,26 @@ impl Monitor {
             let media_service = crate::services::MediaService::new();
             let media_info = media_service.get_media_info(&file_path).await.ok();
 
-            let options = crate::library::RenamingOptions {
-                anime: anime.clone(),
+            let group = parsed.as_ref().and_then(|p| p.group.clone());
+
+            let ctx = ImportContext {
+                anime,
+                file_path: &file_path,
+                filename,
                 episode_number,
                 season,
-                episode_title: {
-                    let state = self.state.read().await;
-                    state
-                        .episodes
-                        .get_episode_title(anime.id, episode_number)
-                        .await
-                        .unwrap_or_else(|_| format!("Episode {episode_number}"))
-                },
-                quality: Some(quality.clone()),
-                group: parsed.as_ref().and_then(|r| r.group.clone()),
-                original_filename: Some(filename.to_string()),
+                quality,
                 extension: video_ext.to_string(),
-                year: anime.start_year,
-                media_info: media_info.clone(),
+                group,
+                media_info,
             };
 
-            let dest_path = library.get_destination_path(&options);
-
-            match library.import_file(&file_path, &dest_path).await {
+            match self.execute_single_import(library, ctx).await {
                 Ok(()) => {
-                    info!("Imported {} -> {:?}", filename, dest_path);
                     imported += 1;
-
-                    // Persistent log for UI
-                    if let Err(e) = self
-                        .state
-                        .read()
-                        .await
-                        .store
-                        .add_log(
-                            "import",
-                            "info",
-                            &format!("Imported episode: {filename}"),
-                            Some(format!("Destination: {}", dest_path.display())),
-                        )
-                        .await
-                    {
-                        warn!("Failed to save import log: {}", e);
-                    }
-
-                    self.finalize_single_import(
-                        anime,
-                        filename,
-                        &dest_path,
-                        episode_number,
-                        season,
-                        media_info,
-                    )
-                    .await;
                 }
                 Err(e) => {
-                    error!("Failed to import {}: {}", filename, e);
-                    if let Err(log_err) = self
-                        .state
-                        .read()
-                        .await
-                        .store
-                        .add_log(
-                            "import",
-                            "error",
-                            &format!("Failed to import: {filename}"),
-                            Some(e.to_string()),
-                        )
-                        .await
-                    {
-                        warn!("Failed to save error log: {}", log_err);
-                    }
+                    self.log_import_error(filename, &e).await;
                 }
             }
         }
@@ -828,14 +807,19 @@ async fn find_video_files_recursive(dir: &Path) -> anyhow::Result<Vec<PathBuf>> 
         }
     }
 
-    video_files.sort_by(|a, b| {
-        a.file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .cmp(b.file_name().and_then(|n| n.to_str()).unwrap_or(""))
-    });
+    // Sorting can be CPU-intensive with many files; offload to blocking thread
+    let sorted_files = tokio::task::spawn_blocking(move || {
+        video_files.sort_by(|a, b| {
+            a.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .cmp(b.file_name().and_then(|n| n.to_str()).unwrap_or(""))
+        });
+        video_files
+    })
+    .await?;
 
-    Ok(video_files)
+    Ok(sorted_files)
 }
 
 #[cfg(test)]

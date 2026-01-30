@@ -220,6 +220,22 @@ pub struct DownloadEntry {
     pub imported: bool,
 }
 
+impl DownloadEntry {
+    /// Returns the episode number as an integer by truncating the fractional part.
+    /// Partial episodes (e.g., 6.5) become their integer base (6).
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
+    pub const fn episode_number_truncated(&self) -> i32 {
+        self.episode_number as i32
+    }
+
+    /// Returns true if this is a partial episode (has a fractional component).
+    #[must_use]
+    pub fn is_partial_episode(&self) -> bool {
+        self.episode_number.fract() != 0.0
+    }
+}
+
 #[derive(Debug, Clone, FromQueryResult)]
 pub struct RecycleBinEntry {
     pub id: i64,

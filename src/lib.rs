@@ -17,7 +17,6 @@ use clap::Parser;
 use cli::{Cli, Commands, ProfileCommands, RssCommands};
 use std::sync::Arc;
 use tokio::signal;
-use tokio::sync::RwLock;
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -210,9 +209,7 @@ async fn run_daemon(
 
     let api_state = api::create_app_state(Arc::clone(&shared), prometheus_handle).await?;
 
-    let scheduler_state = Arc::new(RwLock::new((*shared).clone()));
-
-    let scheduler = Scheduler::new(Arc::clone(&scheduler_state), config.scheduler.clone());
+    let scheduler = Scheduler::new(Arc::clone(&shared), config.scheduler.clone());
 
     let scheduler_handle = {
         let sched = scheduler;
@@ -223,7 +220,7 @@ async fn run_daemon(
         })
     };
 
-    let monitor = crate::services::monitor::Monitor::new(Arc::clone(&scheduler_state));
+    let monitor = crate::services::monitor::Monitor::new(Arc::clone(&shared));
     let monitor_handle = tokio::spawn(async move {
         monitor.start().await;
     });
@@ -270,9 +267,8 @@ async fn run_daemon(
 async fn run_single_check(config: Config) -> anyhow::Result<()> {
     info!("Running single check...");
 
-    let shared = SharedState::new(config.clone()).await?;
-    let state = Arc::new(RwLock::new(shared));
-    let scheduler = Scheduler::new(Arc::clone(&state), config.scheduler.clone());
+    let shared = Arc::new(SharedState::new(config.clone()).await?);
+    let scheduler = Scheduler::new(Arc::clone(&shared), config.scheduler.clone());
 
     scheduler.run_once().await?;
 

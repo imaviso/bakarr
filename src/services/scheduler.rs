@@ -8,7 +8,7 @@ use tracing::{error, info};
 use crate::config::SchedulerConfig;
 use crate::state::SharedState;
 
-pub type SchedulerState = Arc<RwLock<SharedState>>;
+pub type SchedulerState = Arc<SharedState>;
 
 pub struct Scheduler {
     state: SchedulerState,
@@ -17,6 +17,7 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
+    #[must_use]
     pub fn new(state: SchedulerState, config: SchedulerConfig) -> Self {
         Self {
             state,
@@ -64,12 +65,12 @@ impl Scheduler {
                     "Starting scheduled release check"
                 );
 
-                let auto_downloader = state.read().await.auto_downloader.clone();
+                let auto_downloader = state.auto_downloader.clone();
                 if let Err(e) = auto_downloader.check_all_anime(delay_secs).await {
                     error!(event = "job_failed", job_name = "check_releases", error = %e, "Scheduled anime check failed");
                 }
 
-                let rss_service = state.read().await.rss_service.clone();
+                let rss_service = state.rss_service.clone();
                 if let Err(e) = rss_service.check_feeds(u64::from(delay_secs)).await {
                     error!(event = "job_failed", job_name = "check_rss", error = %e, "Scheduled RSS check failed");
                 }
@@ -96,7 +97,7 @@ impl Scheduler {
         let metadata_job = Job::new_async(&refresh_cron, move |_uuid, _lock| {
             let state = Arc::clone(&state_for_metadata);
             Box::pin(async move {
-                let episodes = state.read().await.episodes.clone();
+                let episodes = state.episodes.clone();
                 if let Err(e) = episodes.refresh_metadata_for_active_anime().await {
                     error!("Scheduled metadata refresh failed: {}", e);
                 }
@@ -105,14 +106,8 @@ impl Scheduler {
 
         // Library scan job
         let scan_hours = {
-            let shared = self.state.read().await;
-            shared
-                .config
-                .read()
-                .await
-                .library
-                .auto_scan_interval_hours
-                .max(1)
+            let config = self.state.config.read().await;
+            config.library.auto_scan_interval_hours.max(1)
         };
 
         let scan_cron = if scan_hours >= 24 {
@@ -126,7 +121,7 @@ impl Scheduler {
         let scan_job = Job::new_async(&scan_cron, move |_uuid, _lock| {
             let state = Arc::clone(&state_for_scan);
             Box::pin(async move {
-                let scanner = state.read().await.library_scanner.clone();
+                let scanner = state.library_scanner.clone();
                 if let Err(e) = scanner.scan_library_files().await {
                     error!("Scheduled library scan failed: {}", e);
                 }
@@ -158,14 +153,8 @@ impl Scheduler {
         let delay_secs = self.config.check_delay_seconds;
         let refresh_hours = self.config.metadata_refresh_hours.max(1);
         let scan_hours = {
-            let shared = self.state.read().await;
-            shared
-                .config
-                .read()
-                .await
-                .library
-                .auto_scan_interval_hours
-                .max(1)
+            let config = self.state.config.read().await;
+            config.library.auto_scan_interval_hours.max(1)
         };
 
         info!(
@@ -189,12 +178,12 @@ impl Scheduler {
                     let start = std::time::Instant::now();
                     info!(event = "job_started", job_name = "check_releases", "Starting scheduled release check");
 
-                    let auto_downloader = self.state.read().await.auto_downloader.clone();
+                    let auto_downloader = self.state.auto_downloader.clone();
                     if let Err(e) = auto_downloader.check_all_anime(delay_secs).await {
                          error!(event = "job_failed", job_name = "check_releases", error = %e, "Scheduled anime check failed");
                     }
 
-                    let rss_service = self.state.read().await.rss_service.clone();
+                    let rss_service = self.state.rss_service.clone();
                     if let Err(e) = rss_service.check_feeds(u64::from(delay_secs)).await {
                          error!(event = "job_failed", job_name = "check_rss", error = %e, "Scheduled RSS check failed");
                     }
@@ -232,7 +221,7 @@ impl Scheduler {
                     let start = std::time::Instant::now();
                     info!(event = "job_started", job_name = "scan_library", "Starting scheduled library scan");
 
-                    let scanner = self.state.read().await.library_scanner.clone();
+                    let scanner = self.state.library_scanner.clone();
                     if let Err(e) = scanner.scan_library_files().await {
                         error!(event = "job_failed", job_name = "scan_library", error = %e, "Scheduled library scan failed");
                     }
@@ -262,12 +251,12 @@ impl Scheduler {
     pub async fn run_once(&self) -> Result<()> {
         info!("Running manual check...");
 
-        let auto_downloader = self.state.read().await.auto_downloader.clone();
+        let auto_downloader = self.state.auto_downloader.clone();
         auto_downloader
             .check_all_anime(self.config.check_delay_seconds)
             .await?;
 
-        let rss_service = self.state.read().await.rss_service.clone();
+        let rss_service = self.state.rss_service.clone();
         rss_service
             .check_feeds(u64::from(self.config.check_delay_seconds))
             .await?;
@@ -278,7 +267,7 @@ impl Scheduler {
     }
 
     async fn refresh_metadata(&self) -> Result<()> {
-        let episodes = self.state.read().await.episodes.clone();
+        let episodes = self.state.episodes.clone();
         episodes.refresh_metadata_for_active_anime().await
     }
 }
