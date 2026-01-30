@@ -206,10 +206,10 @@ pub async fn get_anime_by_anilist_id(
         already_in_library: monitored_ids.contains(&a.id),
     });
 
-    match dto {
-        Some(d) => Ok(Json(ApiResponse::success(d))),
-        None => Err(ApiError::anime_not_found(id)),
-    }
+    dto.map_or_else(
+        || Err(ApiError::anime_not_found(id)),
+        |d| Ok(Json(ApiResponse::success(d))),
+    )
 }
 
 async fn resolve_anime_path(
