@@ -10,9 +10,11 @@ import { GlobalSpinner } from "~/components/global-spinner";
 import { NotFound } from "~/components/not-found";
 import { SseToastListener } from "~/components/sse-toast-listener";
 import { Toaster } from "~/components/ui/sonner";
+import type { AuthState } from "~/lib/auth";
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
+	getAuthState: () => AuthState;
 }>()({
 	component: RootComponent,
 	notFoundComponent: NotFound,

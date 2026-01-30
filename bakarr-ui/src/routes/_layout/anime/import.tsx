@@ -219,7 +219,7 @@ function ImportPage() {
 			}
 		}
 
-		navigate({ to: "/anime" });
+		navigate({ to: "/anime", search: { q: "", filter: "all", view: "grid" } });
 
 		importMutation.mutateAsync(files).catch((err) => {
 			console.error("Import failed request", err);
@@ -392,7 +392,7 @@ function ImportPage() {
 				<div class="flex items-center justify-between">
 					{/* Left: Back + Title */}
 					<div class="flex items-center gap-4">
-						<Link to="/anime">
+						<Link to="/anime" search={{ q: "", filter: "all", view: "grid" }}>
 							<Button variant="ghost" size="icon" class="h-8 w-8">
 								<IconArrowLeft class="h-4 w-4" />
 							</Button>

@@ -84,7 +84,12 @@ function LibraryScanPage() {
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={() => navigate({ to: "/anime" })}
+								onClick={() =>
+									navigate({
+										to: "/anime",
+										search: { q: "", filter: "all", view: "grid" },
+									})
+								}
 							>
 								Back
 							</Button>

@@ -11,8 +11,9 @@ import {
 	IconTrash,
 } from "@tabler/icons-solidjs";
 import { useQuery } from "@tanstack/solid-query";
-import { createFileRoute, Link } from "@tanstack/solid-router";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
+import { createMemo, For, Show } from "solid-js";
+import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { GeneralError } from "~/components/general-error";
 import {
@@ -51,7 +52,21 @@ import {
 } from "~/components/ui/tooltip";
 import { animeListQueryOptions, createDeleteAnimeMutation } from "~/lib/api";
 
+const MonitorFilterSchema = v.fallback(
+	v.picklist(["all", "monitored", "unmonitored"]),
+	"all",
+);
+
+const ViewModeSchema = v.fallback(v.picklist(["grid", "list"]), "grid");
+
+const AnimeSearchSchema = v.object({
+	q: v.optional(v.string(), ""),
+	filter: v.optional(MonitorFilterSchema, "all"),
+	view: v.optional(ViewModeSchema, "grid"),
+});
+
 export const Route = createFileRoute("/_layout/anime/")({
+	validateSearch: (search) => v.parse(AnimeSearchSchema, search),
 	loader: ({ context: { queryClient } }) => {
 		queryClient.ensureQueryData(animeListQueryOptions());
 	},
@@ -59,47 +74,24 @@ export const Route = createFileRoute("/_layout/anime/")({
 	errorComponent: GeneralError,
 });
 
-type MonitorFilter = "all" | "monitored" | "unmonitored";
-type ViewMode = "grid" | "list";
-
-function useLocalStorage<T>(key: string, initialValue: T) {
-	const stored = localStorage.getItem(key);
-	const [value, setValue] = createSignal<T>(
-		stored ? (JSON.parse(stored) as T) : initialValue,
-	);
-
-	createEffect(() => {
-		localStorage.setItem(key, JSON.stringify(value()));
-	});
-
-	return [value, setValue] as const;
-}
-
 function AnimeIndexPage() {
 	const animeQuery = useQuery(animeListQueryOptions);
 	const deleteAnime = createDeleteAnimeMutation();
-	const [searchFilter, setSearchFilter] = createSignal("");
-	const [monitorFilter, setMonitorFilter] = useLocalStorage<MonitorFilter>(
-		"anime.filters.monitor",
-		"all",
-	);
-	const [viewMode, setViewMode] = useLocalStorage<ViewMode>(
-		"anime.view.mode",
-		"grid",
-	);
+	const search = Route.useSearch();
+	const navigate = useNavigate();
 
 	const filteredList = createMemo(() => {
 		const list = animeQuery.data;
 		if (!list) return [];
 
-		const search = searchFilter().toLowerCase();
-		const filter = monitorFilter();
+		const searchQuery = search().q.toLowerCase();
+		const filter = search().filter;
 
 		return list.filter((anime) => {
 			const matchesSearch =
-				anime.title.romaji.toLowerCase().includes(search) ||
-				anime.title.english?.toLowerCase().includes(search) ||
-				anime.title.native?.toLowerCase().includes(search);
+				anime.title.romaji.toLowerCase().includes(searchQuery) ||
+				anime.title.english?.toLowerCase().includes(searchQuery) ||
+				anime.title.native?.toLowerCase().includes(searchQuery);
 
 			const matchesMonitor =
 				filter === "all" ||
@@ -110,6 +102,22 @@ function AnimeIndexPage() {
 		});
 	});
 
+	const updateSearch = (q: string) =>
+		navigate({
+			search: (prev) => ({ ...prev, q }),
+			replace: true,
+		} as Parameters<typeof navigate>[0]);
+	const updateFilter = (filter: "all" | "monitored" | "unmonitored") =>
+		navigate({
+			search: (prev) => ({ ...prev, filter }),
+			replace: true,
+		} as Parameters<typeof navigate>[0]);
+	const updateView = (view: "grid" | "list") =>
+		navigate({
+			search: (prev) => ({ ...prev, view }),
+			replace: true,
+		} as Parameters<typeof navigate>[0]);
+
 	return (
 		<div class="space-y-6">
 			<div class="flex flex-col sm:flex-row gap-3">
@@ -118,8 +126,8 @@ function AnimeIndexPage() {
 					<IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 					<Input
 						placeholder="Filter anime..."
-						value={searchFilter()}
-						onInput={(e) => setSearchFilter(e.currentTarget.value)}
+						value={search().q}
+						onInput={(e) => updateSearch(e.currentTarget.value)}
 						class="pl-9"
 					/>
 				</div>
@@ -140,31 +148,27 @@ function AnimeIndexPage() {
 								<TooltipContent>Filter by status</TooltipContent>
 							</Tooltip>
 							<DropdownMenuContent>
-								<DropdownMenuItem onSelect={() => setMonitorFilter("all")}>
-									<Show when={monitorFilter() === "all"}>
+								<DropdownMenuItem onSelect={() => updateFilter("all")}>
+									<Show when={search().filter === "all"}>
 										<IconCheck class="mr-2 h-4 w-4" />
 									</Show>
-									<span class={monitorFilter() !== "all" ? "ml-6" : ""}>
+									<span class={search().filter !== "all" ? "ml-6" : ""}>
 										All Anime
 									</span>
 								</DropdownMenuItem>
-								<DropdownMenuItem
-									onSelect={() => setMonitorFilter("monitored")}
-								>
-									<Show when={monitorFilter() === "monitored"}>
+								<DropdownMenuItem onSelect={() => updateFilter("monitored")}>
+									<Show when={search().filter === "monitored"}>
 										<IconCheck class="mr-2 h-4 w-4" />
 									</Show>
-									<span class={monitorFilter() !== "monitored" ? "ml-6" : ""}>
+									<span class={search().filter !== "monitored" ? "ml-6" : ""}>
 										Monitored
 									</span>
 								</DropdownMenuItem>
-								<DropdownMenuItem
-									onSelect={() => setMonitorFilter("unmonitored")}
-								>
-									<Show when={monitorFilter() === "unmonitored"}>
+								<DropdownMenuItem onSelect={() => updateFilter("unmonitored")}>
+									<Show when={search().filter === "unmonitored"}>
 										<IconCheck class="mr-2 h-4 w-4" />
 									</Show>
-									<span class={monitorFilter() !== "unmonitored" ? "ml-6" : ""}>
+									<span class={search().filter !== "unmonitored" ? "ml-6" : ""}>
 										Unmonitored
 									</span>
 								</DropdownMenuItem>
@@ -208,11 +212,11 @@ function AnimeIndexPage() {
 										variant="ghost"
 										size="icon"
 										class={`h-7 w-7 ${
-											viewMode() === "grid"
+											search().view === "grid"
 												? "bg-background shadow-sm"
 												: "hover:bg-background/50"
 										}`}
-										onClick={() => setViewMode("grid")}
+										onClick={() => updateView("grid")}
 									>
 										<IconGridDots class="h-4 w-4" />
 									</Button>
@@ -225,11 +229,11 @@ function AnimeIndexPage() {
 										variant="ghost"
 										size="icon"
 										class={`h-7 w-7 ${
-											viewMode() === "list"
+											search().view === "list"
 												? "bg-background shadow-sm"
 												: "hover:bg-background/50"
 										}`}
-										onClick={() => setViewMode("list")}
+										onClick={() => updateView("list")}
 									>
 										<IconList class="h-4 w-4" />
 									</Button>
@@ -286,10 +290,10 @@ function AnimeIndexPage() {
 						when={filteredList().length > 0}
 						fallback={
 							<Show
-								when={!searchFilter()}
+								when={!search().q}
 								fallback={
 									<p class="text-center text-muted-foreground py-8">
-										No anime matching "{searchFilter()}"
+										No anime matching "{search().q}"
 									</p>
 								}
 							>
@@ -312,7 +316,7 @@ function AnimeIndexPage() {
 						}
 					>
 						<Show
-							when={viewMode() === "grid"}
+							when={search().view === "grid"}
 							fallback={
 								<div class="rounded-md border">
 									<Table>

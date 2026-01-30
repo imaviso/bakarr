@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 
-interface AuthState {
+export interface AuthState {
 	username?: string;
 	apiKey?: string;
 	isAuthenticated: boolean;
@@ -34,6 +34,11 @@ function saveAuth(state: AuthState) {
 		localStorage.removeItem(AUTH_STORAGE_KEY);
 	}
 	setAuth(state);
+}
+
+// Getter function that works outside of Solid components (e.g., in router loaders)
+export function getAuthState(): AuthState {
+	return auth();
 }
 
 export function useAuth() {

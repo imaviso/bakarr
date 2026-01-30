@@ -22,9 +22,10 @@ import {
 	IconTypography,
 	IconX,
 } from "@tabler/icons-solidjs";
+import { createForm } from "@tanstack/solid-form";
 import { useQuery } from "@tanstack/solid-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
-import { createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show, Suspense } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { AnimeError } from "~/components/anime-error";
@@ -178,12 +179,16 @@ function AnimeDetailsPage() {
 	});
 	const [bulkMappingOpen, setBulkMappingOpen] = createSignal(false);
 
-	const missingCount = () =>
-		episodesQuery.data?.filter((e) => !e.downloaded).length || 0;
-	const availableCount = () =>
-		episodesQuery.data?.filter((e) => e.downloaded).length || 0;
-	const totalEpisodes = () =>
-		episodesQuery.data?.length || animeQuery.data?.episode_count || 0;
+	const episodesData = createMemo(() => episodesQuery.data ?? []);
+	const missingCount = createMemo(
+		() => episodesData().filter((e) => !e.downloaded).length,
+	);
+	const availableCount = createMemo(
+		() => episodesData().filter((e) => e.downloaded).length,
+	);
+	const totalEpisodes = createMemo(
+		() => episodesData().length || animeQuery.data?.episode_count || 0,
+	);
 	const isMonitored = () => animeQuery.data?.monitored ?? true;
 
 	const handlePlayInMpv = (episodeNumber: number) => {
@@ -223,6 +228,7 @@ function AnimeDetailsPage() {
 							<div class="flex items-center gap-4 flex-1 min-w-0">
 								<Link
 									to="/anime"
+									search={{ q: "", filter: "all", view: "grid" }}
 									class={buttonVariants({
 										variant: "ghost",
 										size: "icon",
@@ -445,7 +451,11 @@ function AnimeDetailsPage() {
 											<AlertDialogAction
 												onClick={() => {
 													deleteAnime.mutate(animeId(), {
-														onSuccess: () => navigate({ to: "/anime" }),
+														onSuccess: () =>
+															navigate({
+																to: "/anime",
+																search: { q: "", filter: "all", view: "grid" },
+															}),
 													});
 												}}
 												class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -600,235 +610,259 @@ function AnimeDetailsPage() {
 										</CardHeader>
 										<CardContent>
 											<TabsContent value="grid">
-												<Show when={episodesQuery.data?.length === 0}>
-													<div class="text-center py-8">
-														<p class="text-sm text-muted-foreground">
-															No episodes found.
-														</p>
-														<Button
-															variant="link"
-															onClick={() => refreshEpisodes.mutate(animeId())}
-															class="mt-2"
-														>
-															Refresh metadata
-														</Button>
-													</div>
-												</Show>
-												<Show
-													when={
-														episodesQuery.data && episodesQuery.data.length > 0
+												<Suspense
+													fallback={
+														<div class="text-center py-8">
+															<p class="text-sm text-muted-foreground">
+																Loading episodes...
+															</p>
+														</div>
 													}
 												>
-													<div class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1.5">
-														<For each={episodesQuery.data}>
-															{(episode) => (
-																<div
-																	class={`aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-all ${
-																		episode.downloaded
-																			? "bg-green-500/20 text-green-500 border border-green-500/30"
-																			: "bg-muted/50 text-muted-foreground border border-transparent"
-																	}`}
-																	title={`Episode ${episode.number}: ${episode.downloaded ? "Downloaded" : "Missing"}`}
-																>
-																	{episode.number}
-																</div>
-															)}
-														</For>
-													</div>
-												</Show>
+													<Show when={episodesData().length === 0}>
+														<div class="text-center py-8">
+															<p class="text-sm text-muted-foreground">
+																No episodes found.
+															</p>
+															<Button
+																variant="link"
+																onClick={() =>
+																	refreshEpisodes.mutate(animeId())
+																}
+																class="mt-2"
+															>
+																Refresh metadata
+															</Button>
+														</div>
+													</Show>
+													<Show when={episodesData().length > 0}>
+														<div class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1.5">
+															<For each={episodesData()}>
+																{(episode) => (
+																	<div
+																		class={`aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-all ${
+																			episode.downloaded
+																				? "bg-green-500/20 text-green-500 border border-green-500/30"
+																				: "bg-muted/50 text-muted-foreground border border-transparent"
+																		}`}
+																		title={`Episode ${episode.number}: ${episode.downloaded ? "Downloaded" : "Missing"}`}
+																	>
+																		{episode.number}
+																	</div>
+																)}
+															</For>
+														</div>
+													</Show>
+												</Suspense>
 											</TabsContent>
 
 											<TabsContent value="table">
-												<div class="border rounded-md overflow-x-auto">
-													<Table>
-														<TableHeader>
-															<TableRow>
-																<TableHead class="w-[60px] text-center">
-																	#
-																</TableHead>
-																<TableHead>Title</TableHead>
-																<TableHead class="hidden sm:table-cell w-[120px]">
-																	Aired
-																</TableHead>
-																<TableHead class="w-[80px] text-right">
-																	Status
-																</TableHead>
-																<TableHead class="hidden md:table-cell">
-																	Filename
-																</TableHead>
-																<TableHead class="w-[50px]"></TableHead>
-															</TableRow>
-														</TableHeader>
-														<TableBody>
-															<Show when={episodesQuery.data?.length === 0}>
+												<Suspense
+													fallback={
+														<div class="text-center py-8">
+															<p class="text-sm text-muted-foreground">
+																Loading episodes...
+															</p>
+														</div>
+													}
+												>
+													<div class="border rounded-md overflow-x-auto">
+														<Table>
+															<TableHeader>
 																<TableRow>
-																	<TableCell
-																		colSpan={6}
-																		class="h-24 text-center"
-																	>
-																		No episodes found.
-																	</TableCell>
+																	<TableHead class="w-[60px] text-center">
+																		#
+																	</TableHead>
+																	<TableHead>Title</TableHead>
+																	<TableHead class="hidden sm:table-cell w-[120px]">
+																		Aired
+																	</TableHead>
+																	<TableHead class="w-[80px] text-right">
+																		Status
+																	</TableHead>
+																	<TableHead class="hidden md:table-cell">
+																		Filename
+																	</TableHead>
+																	<TableHead class="w-[50px]"></TableHead>
 																</TableRow>
-															</Show>
-															<For each={episodesQuery.data}>
-																{(episode) => (
-																	<TableRow class="group cursor-default">
-																		<TableCell class="font-medium text-center text-muted-foreground group-hover:text-foreground">
-																			{episode.number}
+															</TableHeader>
+															<TableBody>
+																<Show when={episodesData().length === 0}>
+																	<TableRow>
+																		<TableCell
+																			colSpan={6}
+																			class="h-24 text-center"
+																		>
+																			No episodes found.
 																		</TableCell>
-																		<TableCell class="font-medium max-w-[150px] sm:max-w-[250px] md:max-w-[350px]">
-																			<div
-																				class="truncate"
-																				title={
-																					episode.title ||
-																					`Episode ${episode.number}`
-																				}
-																			>
-																				{episode.title ||
-																					`Episode ${episode.number}`}
-																			</div>
-																		</TableCell>
-																		<TableCell class="hidden sm:table-cell text-muted-foreground text-sm">
-																			{episode.aired
-																				? new Date(
-																						episode.aired,
-																					).toLocaleDateString()
-																				: "-"}
-																		</TableCell>
-																		<TableCell class="text-right">
-																			<div class="flex justify-end pr-2">
-																				<Show
-																					when={episode.downloaded}
-																					fallback={
-																						<Tooltip>
-																							<TooltipTrigger>
-																								<IconX class="h-4 w-4 text-muted-foreground/30" />
-																							</TooltipTrigger>
-																							<TooltipContent>
-																								Missing
-																							</TooltipContent>
-																						</Tooltip>
-																					}
-																				>
-																					<Tooltip>
-																						<TooltipTrigger>
-																							<IconCircleCheck class="h-4 w-4 text-green-500" />
-																						</TooltipTrigger>
-																						<TooltipContent>
-																							Downloaded -{" "}
-																							{episode.file_path
-																								?.split("/")
-																								.pop()}
-																						</TooltipContent>
-																					</Tooltip>
-																				</Show>
-																			</div>
-																		</TableCell>
-																		<TableCell class="hidden md:table-cell text-sm text-muted-foreground font-mono truncate max-w-[200px]">
-																			<Show
-																				when={episode.file_path}
-																				fallback="-"
-																			>
+																	</TableRow>
+																</Show>
+																<For each={episodesData()}>
+																	{(episode) => (
+																		<TableRow class="group cursor-default">
+																			<TableCell class="font-medium text-center text-muted-foreground group-hover:text-foreground">
+																				{episode.number}
+																			</TableCell>
+																			<TableCell class="font-medium max-w-[150px] sm:max-w-[250px] md:max-w-[350px]">
 																				<div
 																					class="truncate"
-																					title={episode.file_path
-																						?.split("/")
-																						.pop()}
+																					title={
+																						episode.title ||
+																						`Episode ${episode.number}`
+																					}
 																				>
-																					{episode.file_path?.split("/").pop()}
+																					{episode.title ||
+																						`Episode ${episode.number}`}
 																				</div>
-																			</Show>
-																		</TableCell>
-																		<TableCell>
-																			<DropdownMenu>
-																				<DropdownMenuTrigger
-																					as={Button}
-																					variant="ghost"
-																					size="icon"
-																					class="h-8 w-8 text-muted-foreground hover:text-foreground"
-																				>
-																					<IconDots class="h-4 w-4" />
-																				</DropdownMenuTrigger>
-																				<DropdownMenuContent>
-																					<DropdownMenuItem
-																						onClick={() =>
-																							setSearchModalState({
-																								open: true,
-																								episodeNumber: episode.number,
-																								episodeTitle: episode.title,
-																							})
+																			</TableCell>
+																			<TableCell class="hidden sm:table-cell text-muted-foreground text-sm">
+																				{episode.aired
+																					? new Date(
+																							episode.aired,
+																						).toLocaleDateString()
+																					: "-"}
+																			</TableCell>
+																			<TableCell class="text-right">
+																				<div class="flex justify-end pr-2">
+																					<Show
+																						when={episode.downloaded}
+																						fallback={
+																							<Tooltip>
+																								<TooltipTrigger>
+																									<IconX class="h-4 w-4 text-muted-foreground/30" />
+																								</TooltipTrigger>
+																								<TooltipContent>
+																									Missing
+																								</TooltipContent>
+																							</Tooltip>
 																						}
 																					>
-																						<Show
-																							when={episode.downloaded}
-																							fallback={
-																								<>
-																									<IconSearch class="h-4 w-4 mr-2" />
-																									Search
-																								</>
-																							}
-																						>
-																							<IconRefresh class="h-4 w-4 mr-2" />
-																							Replace
-																						</Show>
-																					</DropdownMenuItem>
-																					<Show when={!episode.downloaded}>
+																						<Tooltip>
+																							<TooltipTrigger>
+																								<IconCircleCheck class="h-4 w-4 text-green-500" />
+																							</TooltipTrigger>
+																							<TooltipContent>
+																								Downloaded -{" "}
+																								{episode.file_path
+																									?.split("/")
+																									.pop()}
+																							</TooltipContent>
+																						</Tooltip>
+																					</Show>
+																				</div>
+																			</TableCell>
+																			<TableCell class="hidden md:table-cell text-sm text-muted-foreground font-mono truncate max-w-[200px]">
+																				<Show
+																					when={episode.file_path}
+																					fallback="-"
+																				>
+																					<div
+																						class="truncate"
+																						title={episode.file_path
+																							?.split("/")
+																							.pop()}
+																					>
+																						{episode.file_path
+																							?.split("/")
+																							.pop()}
+																					</div>
+																				</Show>
+																			</TableCell>
+																			<TableCell>
+																				<DropdownMenu>
+																					<DropdownMenuTrigger
+																						as={Button}
+																						variant="ghost"
+																						size="icon"
+																						class="h-8 w-8 text-muted-foreground hover:text-foreground"
+																					>
+																						<IconDots class="h-4 w-4" />
+																					</DropdownMenuTrigger>
+																					<DropdownMenuContent>
 																						<DropdownMenuItem
 																							onClick={() =>
-																								setMappingDialogState({
+																								setSearchModalState({
 																									open: true,
 																									episodeNumber: episode.number,
+																									episodeTitle: episode.title,
 																								})
 																							}
 																						>
-																							<IconLink class="h-4 w-4 mr-2" />
-																							Manual Map
+																							<Show
+																								when={episode.downloaded}
+																								fallback={
+																									<>
+																										<IconSearch class="h-4 w-4 mr-2" />
+																										Search
+																									</>
+																								}
+																							>
+																								<IconRefresh class="h-4 w-4 mr-2" />
+																								Replace
+																							</Show>
 																						</DropdownMenuItem>
-																					</Show>
-																					<Show when={episode.downloaded}>
-																						<DropdownMenuSeparator />
-																						<DropdownMenuItem
-																							class="text-destructive focus:text-destructive"
-																							onClick={(e) => {
-																								e.stopPropagation();
-																								setDeleteEpisodeState({
-																									open: true,
-																									episodeNumber: episode.number,
-																								});
-																							}}
-																						>
-																							<IconTrash class="h-4 w-4 mr-2" />
-																							Delete File
-																						</DropdownMenuItem>
-																						<DropdownMenuSeparator />
-																						<DropdownMenuItem
-																							onClick={() =>
-																								handlePlayInMpv(episode.number)
-																							}
-																						>
-																							<IconPlayerPlay class="h-4 w-4 mr-2" />
-																							Play in MPV
-																						</DropdownMenuItem>
-																						<DropdownMenuItem
-																							onClick={() =>
-																								handleCopyStreamLink(
-																									episode.number,
-																								)
-																							}
-																						>
-																							<IconCopy class="h-4 w-4 mr-2" />
-																							Copy Stream Link
-																						</DropdownMenuItem>
-																					</Show>
-																				</DropdownMenuContent>
-																			</DropdownMenu>
-																		</TableCell>
-																	</TableRow>
-																)}
-															</For>
-														</TableBody>
-													</Table>
-												</div>
+																						<Show when={!episode.downloaded}>
+																							<DropdownMenuItem
+																								onClick={() =>
+																									setMappingDialogState({
+																										open: true,
+																										episodeNumber:
+																											episode.number,
+																									})
+																								}
+																							>
+																								<IconLink class="h-4 w-4 mr-2" />
+																								Manual Map
+																							</DropdownMenuItem>
+																						</Show>
+																						<Show when={episode.downloaded}>
+																							<DropdownMenuSeparator />
+																							<DropdownMenuItem
+																								class="text-destructive focus:text-destructive"
+																								onClick={(e) => {
+																									e.stopPropagation();
+																									setDeleteEpisodeState({
+																										open: true,
+																										episodeNumber:
+																											episode.number,
+																									});
+																								}}
+																							>
+																								<IconTrash class="h-4 w-4 mr-2" />
+																								Delete File
+																							</DropdownMenuItem>
+																							<DropdownMenuSeparator />
+																							<DropdownMenuItem
+																								onClick={() =>
+																									handlePlayInMpv(
+																										episode.number,
+																									)
+																								}
+																							>
+																								<IconPlayerPlay class="h-4 w-4 mr-2" />
+																								Play in MPV
+																							</DropdownMenuItem>
+																							<DropdownMenuItem
+																								onClick={() =>
+																									handleCopyStreamLink(
+																										episode.number,
+																									)
+																								}
+																							>
+																								<IconCopy class="h-4 w-4 mr-2" />
+																								Copy Stream Link
+																							</DropdownMenuItem>
+																						</Show>
+																					</DropdownMenuContent>
+																				</DropdownMenu>
+																			</TableCell>
+																		</TableRow>
+																	)}
+																</For>
+															</TableBody>
+														</Table>
+													</div>
+												</Suspense>
 											</TabsContent>
 										</CardContent>
 									</Card>
@@ -976,6 +1010,14 @@ function AnimeDetailsPage() {
 	);
 }
 
+// Valibot schema for EditProfile form
+const EditProfileSchema = v.object({
+	profile: v.string(),
+	releaseProfileIds: v.array(v.number()),
+});
+
+type EditProfileFormData = v.InferOutput<typeof EditProfileSchema>;
+
 function EditProfileDialog(props: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -993,7 +1035,6 @@ function EditProfileDialog(props: {
 }) {
 	return (
 		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
-			{/* Wrap content in Show so component re-mounts when dialog opens, re-initializing state from props */}
 			<Show when={props.open}>
 				<EditProfileDialogContent {...props} />
 			</Show>
@@ -1016,50 +1057,49 @@ function EditProfileDialogContent(props: {
 	// biome-ignore lint/suspicious/noExplicitAny: profile type imported
 	releaseProfiles: any[];
 }) {
-	// Initialize state synchronously from props - no createEffect needed
-	const [profile, setProfile] = createSignal(props.currentProfile);
-	const [releaseProfileIds, setReleaseProfileIds] = createSignal<number[]>(
-		props.currentReleaseProfileIds,
-	);
+	const form = createForm(() => ({
+		defaultValues: {
+			profile: props.currentProfile,
+			releaseProfileIds: props.currentReleaseProfileIds,
+		} as EditProfileFormData,
+		onSubmit: async ({ value }) => {
+			const promises = [];
 
-	const handleSubmit = (e: Event) => {
-		e.preventDefault();
-		const promises = [];
+			if (value.profile !== props.currentProfile) {
+				promises.push(
+					props.updateMutation.mutateAsync({
+						id: props.animeId,
+						profileName: value.profile,
+					}),
+				);
+			}
 
-		if (profile() !== props.currentProfile) {
-			promises.push(
-				props.updateMutation.mutateAsync({
-					id: props.animeId,
-					profileName: profile(),
-				}),
-			);
-		}
+			// Check if release profiles changed
+			const currentIds = props.currentReleaseProfileIds.slice().sort();
+			const newIds = value.releaseProfileIds.slice().sort();
+			const changed =
+				currentIds.length !== newIds.length ||
+				currentIds.some((id, i) => id !== newIds[i]);
 
-		// Check if release profiles changed (simple array comparison)
-		const currentIds = props.currentReleaseProfileIds.slice().sort();
-		const newIds = releaseProfileIds().slice().sort();
-		const changed =
-			currentIds.length !== newIds.length ||
-			currentIds.some((id, i) => id !== newIds[i]);
+			if (changed) {
+				promises.push(
+					props.updateReleaseProfilesMutation.mutateAsync({
+						id: props.animeId,
+						releaseProfileIds: value.releaseProfileIds,
+					}),
+				);
+			}
 
-		if (changed) {
-			promises.push(
-				props.updateReleaseProfilesMutation.mutateAsync({
-					id: props.animeId,
-					releaseProfileIds: releaseProfileIds(),
-				}),
-			);
-		}
-
-		Promise.all(promises)
-			.then(() => {
+			try {
+				await Promise.all(promises);
 				props.onOpenChange(false);
 				toast.success("Settings updated successfully");
-			})
-			.catch((err) => {
-				toast.error(`Failed to update settings: ${err.message}`);
-			});
-	};
+			} catch (err) {
+				const message = err instanceof Error ? err.message : "Unknown error";
+				toast.error(`Failed to update settings: ${message}`);
+			}
+		},
+	}));
 
 	return (
 		<DialogContent>
@@ -1069,84 +1109,112 @@ function EditProfileDialogContent(props: {
 					Change the quality and release profiles for this anime.
 				</DialogDescription>
 			</DialogHeader>
-			<form onSubmit={handleSubmit} class="space-y-6">
-				<div class="space-y-2">
-					<label class="text-sm font-medium leading-none" for="profile-select">
-						Quality Profile
-					</label>
-					<Select
-						value={profile()}
-						onChange={(val) => val && setProfile(val)}
-						options={props.profiles.map((p) => p.name)}
-						placeholder="Select profile..."
-						itemComponent={(props) => (
-							<SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
-						)}
-					>
-						<SelectTrigger class="w-full">
-							<SelectValue<string>>
-								{(state) => state.selectedOption()}
-							</SelectValue>
-						</SelectTrigger>
-						<SelectContent />
-					</Select>
-				</div>
+			<form
+				onSubmit={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					form.handleSubmit();
+				}}
+				class="space-y-6"
+			>
+				<form.Field
+					name="profile"
+					children={(field) => (
+						<div class="space-y-2">
+							<label
+								class="text-sm font-medium leading-none"
+								for="profile-select"
+							>
+								Quality Profile
+							</label>
+							<Select
+								value={field().state.value}
+								onChange={(val) => val && field().handleChange(val)}
+								options={props.profiles.map((p) => p.name)}
+								placeholder="Select profile..."
+								itemComponent={(selectProps) => (
+									<SelectItem item={selectProps.item}>
+										{selectProps.item.rawValue}
+									</SelectItem>
+								)}
+							>
+								<SelectTrigger class="w-full">
+									<SelectValue<string>>
+										{(state) => state.selectedOption()}
+									</SelectValue>
+								</SelectTrigger>
+								<SelectContent />
+							</Select>
+						</div>
+					)}
+				/>
 
 				<div class="space-y-2">
 					<div class="text-sm font-medium leading-none">
 						Release Profiles (Optional)
 					</div>
-					<div class="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
-						<Show
-							when={props.releaseProfiles && props.releaseProfiles.length > 0}
-							fallback={
-								<div class="text-sm text-muted-foreground text-center py-2">
-									No release profiles available
-								</div>
-							}
-						>
-							<For each={props.releaseProfiles}>
-								{(rp) => (
-									<div class="flex items-center space-x-2">
-										<Checkbox
-											id={`rp-edit-${rp.id}`}
-											checked={releaseProfileIds().includes(rp.id)}
-											onChange={(checked) => {
-												if (checked) {
-													setReleaseProfileIds((prev) => [...prev, rp.id]);
-												} else {
-													setReleaseProfileIds((prev) =>
-														prev.filter((id) => id !== rp.id),
-													);
-												}
-											}}
-										/>
-										<label
-											for={`rp-edit-${rp.id}`}
-											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 flex items-center justify-between"
-										>
-											<span>{rp.name}</span>
-											<div class="flex gap-2">
-												<Show when={rp.is_global}>
-													<Badge variant="outline" class="text-[10px] h-4 px-1">
-														Global
-													</Badge>
-												</Show>
-												<Show when={!rp.enabled}>
-													<Badge
-														variant="outline"
-														class="text-[10px] h-4 px-1 text-muted-foreground"
-													>
-														Disabled
-													</Badge>
-												</Show>
+					<form.Field
+						name="releaseProfileIds"
+						children={(field) => (
+							<div class="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
+								<Show
+									when={
+										props.releaseProfiles && props.releaseProfiles.length > 0
+									}
+									fallback={
+										<div class="text-sm text-muted-foreground text-center py-2">
+											No release profiles available
+										</div>
+									}
+								>
+									<For each={props.releaseProfiles}>
+										{(rp) => (
+											<div class="flex items-center space-x-2">
+												<Checkbox
+													id={`rp-edit-${rp.id}`}
+													checked={field().state.value.includes(rp.id)}
+													onChange={(checked) => {
+														const currentIds = field().state.value;
+														if (checked) {
+															field().handleChange([...currentIds, rp.id]);
+														} else {
+															field().handleChange(
+																currentIds.filter((id) => id !== rp.id),
+															);
+														}
+													}}
+												/>
+												<label
+													for={`rp-edit-${rp.id}`}
+													class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 flex items-center justify-between"
+												>
+													<span>{rp.name}</span>
+													<div class="flex gap-2">
+														<Show when={rp.is_global}>
+															<Badge
+																variant="outline"
+																class="text-[10px] h-4 px-1"
+															>
+																Global
+															</Badge>
+														</Show>
+														<Show when={!rp.enabled}>
+															<Badge
+																variant="outline"
+																class="text-[10px] h-4 px-1 text-muted-foreground"
+															>
+																Disabled
+															</Badge>
+														</Show>
+													</div>
+												</label>
 											</div>
-										</label>
-									</div>
-								)}
-							</For>
-						</Show>
-					</div>
+										)}
+									</For>
+								</Show>
+							</div>
+						)}
+					/>
 					<p class="text-[10px] text-muted-foreground">
 						Global profiles are applied automatically. Select specific profiles
 						to apply them to this series.
@@ -1161,18 +1229,27 @@ function EditProfileDialogContent(props: {
 					>
 						Cancel
 					</Button>
-					<Button
-						type="submit"
-						disabled={
-							props.updateMutation.isPending ||
-							props.updateReleaseProfilesMutation.isPending
-						}
-					>
-						{props.updateMutation.isPending ||
-						props.updateReleaseProfilesMutation.isPending
-							? "Saving..."
-							: "Save Changes"}
-					</Button>
+					<form.Subscribe
+						selector={(state) => ({
+							isSubmitting: state.isSubmitting,
+						})}
+						children={(state) => (
+							<Button
+								type="submit"
+								disabled={
+									state().isSubmitting ||
+									props.updateMutation.isPending ||
+									props.updateReleaseProfilesMutation.isPending
+								}
+							>
+								{state().isSubmitting ||
+								props.updateMutation.isPending ||
+								props.updateReleaseProfilesMutation.isPending
+									? "Saving..."
+									: "Save Changes"}
+							</Button>
+						)}
+					/>
 				</DialogFooter>
 			</form>
 		</DialogContent>

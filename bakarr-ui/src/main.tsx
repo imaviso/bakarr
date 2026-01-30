@@ -5,6 +5,7 @@ import { createRouter, RouterProvider } from "@tanstack/solid-router";
 import { routeTree } from "./routeTree.gen";
 import "@fontsource-variable/geist";
 import "./styles.css";
+import { getAuthState } from "~/lib/auth";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ const router = createRouter({
 	defaultPreloadStaleTime: 0,
 	context: {
 		queryClient,
+		getAuthState,
 	},
 });
 declare module "@tanstack/solid-router" {

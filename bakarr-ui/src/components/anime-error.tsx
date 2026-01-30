@@ -32,7 +32,7 @@ export function AnimeError() {
 
 				{/* Actions */}
 				<div class="flex items-center gap-4">
-					<Link to="/anime">
+					<Link to="/anime" search={{ q: "", filter: "all", view: "grid" }}>
 						<Button variant="outline" class="group">
 							<IconArrowLeft class="mr-2 h-4 w-4 group-hover:-translate-x-1 transition-transform" />
 							Back to Library

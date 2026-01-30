@@ -8,12 +8,11 @@ import {
 	SidebarProvider,
 	SidebarTrigger,
 } from "~/components/ui/sidebar";
-import { useAuth } from "~/lib/auth";
 
 export const Route = createFileRoute("/_layout")({
-	beforeLoad: ({ location }) => {
-		const { auth } = useAuth();
-		if (!auth().isAuthenticated) {
+	beforeLoad: ({ context, location }) => {
+		const authState = context.getAuthState();
+		if (!authState.isAuthenticated) {
 			throw redirect({
 				to: "/login",
 				search: {
