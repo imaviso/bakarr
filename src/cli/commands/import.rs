@@ -208,7 +208,7 @@ async fn display_import_plan(
             season: Some(season),
             episode_title,
             quality: Some(quality),
-            group: None,
+            group: release.group.clone(),
             original_filename: Some(height),
             extension: file_path
                 .extension()

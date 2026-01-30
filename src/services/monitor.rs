@@ -454,7 +454,10 @@ impl Monitor {
             season,
             episode_title,
             quality: Some(quality_str),
-            group: entry.group_name.clone(),
+            group: entry
+                .group_name
+                .clone()
+                .or_else(|| parsed.as_ref().and_then(|p| p.group.clone())),
             original_filename: Some(filename.clone()),
             extension,
             year: anime.start_year,
@@ -568,7 +571,10 @@ impl Monitor {
             season,
             episode_title,
             quality: Some(quality_str),
-            group: entry.group_name.clone(),
+            group: entry
+                .group_name
+                .clone()
+                .or_else(|| parsed.as_ref().and_then(|p| p.group.clone())),
             original_filename: Some(filename.clone()),
             extension,
             year: anime.start_year,
@@ -717,7 +723,7 @@ impl Monitor {
                         .unwrap_or_else(|_| format!("Episode {episode_number}"))
                 },
                 quality: Some(quality.clone()),
-                group: crate::parser::filename::parse_filename(filename).and_then(|r| r.group),
+                group: parsed.as_ref().and_then(|r| r.group.clone()),
                 original_filename: Some(filename.to_string()),
                 extension: video_ext.to_string(),
                 year: anime.start_year,
