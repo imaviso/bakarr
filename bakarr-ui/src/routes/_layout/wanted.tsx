@@ -2,6 +2,7 @@ import { IconDots, IconSearch } from "@tabler/icons-solidjs";
 import { createFileRoute, Link } from "@tanstack/solid-router";
 import { createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
+import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { SearchModal } from "~/components/search-modal";
 import { Badge } from "~/components/ui/badge";
@@ -27,7 +28,12 @@ import {
 	type MissingEpisode,
 } from "~/lib/api";
 
+const WantedSearchSchema = v.object({
+	q: v.optional(v.string(), ""),
+});
+
 export const Route = createFileRoute("/_layout/wanted")({
+	validateSearch: (search) => v.parse(WantedSearchSchema, search),
 	component: WantedPage,
 	errorComponent: GeneralError,
 });

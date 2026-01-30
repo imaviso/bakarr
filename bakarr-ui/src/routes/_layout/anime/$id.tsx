@@ -106,6 +106,7 @@ import {
 	episodesQueryOptions,
 	profilesQueryOptions,
 	releaseProfilesQueryOptions,
+	type VideoFile,
 } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 import { cn, copyToClipboard } from "~/lib/utils";
@@ -593,32 +594,32 @@ function AnimeDetailsPage() {
 								</div>
 
 								{/* Episodes */}
-								<Tabs defaultValue="grid" class="w-full">
-									<Card>
-										<CardHeader class="pb-3 flex flex-row items-center justify-between space-y-0">
-											<CardTitle class="text-base">Episodes</CardTitle>
-											<TabsList>
-												<TabsTrigger value="grid">
-													<IconLayoutGrid class="h-4 w-4 mr-2" />
-													Grid
-												</TabsTrigger>
-												<TabsTrigger value="table">
-													<IconList class="h-4 w-4 mr-2" />
-													Table
-												</TabsTrigger>
-											</TabsList>
-										</CardHeader>
-										<CardContent>
-											<TabsContent value="grid">
-												<Suspense
-													fallback={
-														<div class="text-center py-8">
-															<p class="text-sm text-muted-foreground">
-																Loading episodes...
-															</p>
-														</div>
-													}
-												>
+								<Suspense
+									fallback={
+										<div class="text-center py-8">
+											<p class="text-sm text-muted-foreground">
+												Loading episodes...
+											</p>
+										</div>
+									}
+								>
+									<Tabs defaultValue="grid" class="w-full">
+										<Card>
+											<CardHeader class="pb-3 flex flex-row items-center justify-between space-y-0">
+												<CardTitle class="text-base">Episodes</CardTitle>
+												<TabsList>
+													<TabsTrigger value="grid">
+														<IconLayoutGrid class="h-4 w-4 mr-2" />
+														Grid
+													</TabsTrigger>
+													<TabsTrigger value="table">
+														<IconList class="h-4 w-4 mr-2" />
+														Table
+													</TabsTrigger>
+												</TabsList>
+											</CardHeader>
+											<CardContent>
+												<TabsContent value="grid">
 													<Show when={episodesData().length === 0}>
 														<div class="text-center py-8">
 															<p class="text-sm text-muted-foreground">
@@ -640,11 +641,12 @@ function AnimeDetailsPage() {
 															<For each={episodesData()}>
 																{(episode) => (
 																	<div
-																		class={`aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-all ${
+																		class={cn(
+																			"aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-all",
 																			episode.downloaded
 																				? "bg-green-500/20 text-green-500 border border-green-500/30"
-																				: "bg-muted/50 text-muted-foreground border border-transparent"
-																		}`}
+																				: "bg-muted/50 text-muted-foreground border border-transparent",
+																		)}
 																		title={`Episode ${episode.number}: ${episode.downloaded ? "Downloaded" : "Missing"}`}
 																	>
 																		{episode.number}
@@ -653,19 +655,9 @@ function AnimeDetailsPage() {
 															</For>
 														</div>
 													</Show>
-												</Suspense>
-											</TabsContent>
+												</TabsContent>
 
-											<TabsContent value="table">
-												<Suspense
-													fallback={
-														<div class="text-center py-8">
-															<p class="text-sm text-muted-foreground">
-																Loading episodes...
-															</p>
-														</div>
-													}
-												>
+												<TabsContent value="table">
 													<div class="border rounded-md overflow-x-auto">
 														<Table>
 															<TableHeader>
@@ -862,11 +854,11 @@ function AnimeDetailsPage() {
 															</TableBody>
 														</Table>
 													</div>
-												</Suspense>
-											</TabsContent>
-										</CardContent>
-									</Card>
-								</Tabs>
+												</TabsContent>
+											</CardContent>
+										</Card>
+									</Tabs>
+								</Suspense>
 
 								{/* Info */}
 								<Card>
@@ -1270,6 +1262,8 @@ function BulkMappingDialog(props: {
 	const files = () => filesQuery.data || [];
 	const allEpisodes = () => episodesQuery.data || [];
 
+	type MappingOption = { path: string; name: string } | VideoFile;
+
 	const handleMap = (episodeNumber: number, filePath: string) => {
 		setMappings((prev) => {
 			const next = { ...prev };
@@ -1339,30 +1333,53 @@ function BulkMappingDialog(props: {
 												Ep {episode.number}
 											</TableCell>
 											<TableCell>
-												<select
-													class="w-full bg-background border rounded-md px-2 py-1 text-sm"
+												<Select
+													options={[
+														{ path: "", name: "(Unmap / No File)" },
+														...(files() || []),
+													]}
+													optionValue="path"
+													optionTextValue="name"
 													value={
-														mappings()[episode.number] ??
-														episode.file_path ??
-														""
+														files().find(
+															(f) =>
+																f.path ===
+																(mappings()[episode.number] ??
+																	episode.file_path),
+														) || { path: "", name: "(Unmap / No File)" }
 													}
-													onChange={(e) =>
-														handleMap(episode.number, e.currentTarget.value)
+													onChange={(v) =>
+														handleMap(episode.number, v?.path || "")
 													}
+													placeholder="Select file..."
+													itemComponent={(props) => {
+														const item = props.item.rawValue as MappingOption;
+														return (
+															<SelectItem item={props.item}>
+																{item.name}
+																<Show when={"size" in item}>
+																	{" ("}
+																	{(
+																		(item as VideoFile).size /
+																		1024 /
+																		1024
+																	).toFixed(1)}{" "}
+																	MB)
+																</Show>
+																<Show when={"episode_number" in item}>
+																	{` [Ep ${(item as VideoFile).episode_number}]`}
+																</Show>
+															</SelectItem>
+														);
+													}}
 												>
-													<option value="">(Unmap / No File)</option>
-													<For each={files()}>
-														{(file) => (
-															<option value={file.path}>
-																{file.name} (
-																{(file.size / 1024 / 1024).toFixed(1)} MB)
-																{file.episode_number
-																	? ` [Ep ${file.episode_number}]`
-																	: ""}
-															</option>
-														)}
-													</For>
-												</select>
+													<SelectTrigger class="w-full text-xs h-8">
+														<SelectValue<MappingOption>>
+															{(state) => state.selectedOption()?.name}
+														</SelectValue>
+													</SelectTrigger>
+													<SelectContent />
+												</Select>
 											</TableCell>
 										</TableRow>
 									)}
@@ -1538,10 +1555,17 @@ function ManualMappingDialog(props: {
 											{(file) => (
 												<TableRow
 													class={cn(
-														"cursor-pointer hover:bg-muted/50",
+														"cursor-pointer hover:bg-muted/50 focus:bg-muted focus:outline-none",
 														selectedFile() === file.path && "bg-muted",
 													)}
 													onClick={() => setSelectedFile(file.path)}
+													tabIndex={0}
+													onKeyDown={(e) => {
+														if (e.key === "Enter" || e.key === " ") {
+															e.preventDefault();
+															setSelectedFile(file.path);
+														}
+													}}
 												>
 													<TableCell>
 														<div

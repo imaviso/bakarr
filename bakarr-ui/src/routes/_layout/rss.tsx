@@ -47,6 +47,7 @@ import {
 } from "~/lib/api";
 
 export const Route = createFileRoute("/_layout/rss")({
+	validateSearch: (search) => v.parse(v.object({}), search),
 	loader: ({ context: { queryClient } }) => {
 		queryClient.ensureQueryData(rssFeedsQueryOptions());
 		queryClient.ensureQueryData(animeListQueryOptions());

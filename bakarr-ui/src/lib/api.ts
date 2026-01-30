@@ -551,7 +551,7 @@ export const animeKeys = {
 				{ page, level, eventType, startDate, endDate },
 			] as const,
 	},
-} as const;
+} as const satisfies Record<string, unknown>;
 
 // ==================== Library Hooks ====================
 

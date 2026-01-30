@@ -11,6 +11,7 @@ import {
 import { createFileRoute } from "@tanstack/solid-router";
 import { For, Show } from "solid-js";
 import { toast } from "solid-sonner";
+import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -36,6 +37,7 @@ import {
 } from "~/lib/api";
 
 export const Route = createFileRoute("/_layout/downloads")({
+	validateSearch: (search) => v.parse(v.object({}), search),
 	loader: ({ context: { queryClient } }) => {
 		queryClient.ensureQueryData(downloadHistoryQueryOptions());
 	},

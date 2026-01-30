@@ -6,7 +6,7 @@ import {
 	IconDeviceTv,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, Link } from "@tanstack/solid-router";
-import { For, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { GeneralError } from "~/components/general-error";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -19,9 +19,11 @@ import {
 } from "~/lib/api";
 
 export const Route = createFileRoute("/_layout/")({
-	loader: ({ context: { queryClient } }) => {
-		queryClient.ensureQueryData(libraryStatsQueryOptions());
-		queryClient.ensureQueryData(activityQueryOptions());
+	loader: async ({ context: { queryClient } }) => {
+		await Promise.all([
+			queryClient.ensureQueryData(libraryStatsQueryOptions()),
+			queryClient.ensureQueryData(activityQueryOptions()),
+		]);
 	},
 	component: DashboardPage,
 	errorComponent: GeneralError,
@@ -30,6 +32,10 @@ export const Route = createFileRoute("/_layout/")({
 function DashboardPage() {
 	const statsQuery = createLibraryStatsQuery();
 	const activityQuery = createActivityQuery();
+
+	const recentActivity = createMemo(
+		() => activityQuery.data?.slice(0, 5) ?? [],
+	);
 
 	return (
 		<div class="space-y-6">
@@ -158,7 +164,7 @@ function DashboardPage() {
 							}
 						>
 							<div class="space-y-2">
-								<For each={activityQuery.data?.slice(0, 5)}>
+								<For each={recentActivity()}>
 									{(item) => <ActivityRow item={item} />}
 								</For>
 							</div>

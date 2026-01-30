@@ -51,6 +51,7 @@ import {
 	TooltipTrigger,
 } from "~/components/ui/tooltip";
 import { animeListQueryOptions, createDeleteAnimeMutation } from "~/lib/api";
+import { cn } from "~/lib/utils";
 
 const MonitorFilterSchema = v.fallback(
 	v.picklist(["all", "monitored", "unmonitored"]),
@@ -515,14 +516,19 @@ function AnimeIndexPage() {
 													</Badge>
 
 													<Tooltip>
-														<TooltipTrigger>
-															<div class="flex items-center gap-1.5 p-1 -mr-1 rounded-full hover:bg-muted/50 transition-colors">
+														<TooltipTrigger
+															as={Button}
+															variant="ghost"
+															class="p-1 -mr-1 h-auto hover:bg-muted/50 transition-colors rounded-full"
+														>
+															<div class="flex items-center gap-1.5">
 																<div
-																	class={`h-1.5 w-1.5 rounded-full ${
+																	class={cn(
+																		"h-1.5 w-1.5 rounded-full",
 																		anime.monitored
 																			? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]"
-																			: "bg-muted-foreground/40"
-																	}`}
+																			: "bg-muted-foreground/40",
+																	)}
 																/>
 															</div>
 														</TooltipTrigger>

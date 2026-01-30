@@ -713,7 +713,7 @@ function ImportPage() {
 														</div>
 														<div class="flex-1 min-w-0">
 															<Tooltip>
-																<TooltipTrigger>
+																<TooltipTrigger as="span">
 																	<span class="font-medium text-sm line-clamp-2 leading-tight block">
 																		{candidate.title.romaji}
 																	</span>

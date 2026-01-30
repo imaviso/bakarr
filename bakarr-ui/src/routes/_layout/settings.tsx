@@ -2107,49 +2107,69 @@ function SystemForm(props: {
 	);
 }
 
+const ChangePasswordSchema = v.object({
+	currentPassword: v.pipe(
+		v.string(),
+		v.minLength(1, "Current password is required"),
+	),
+	newPassword: v.pipe(
+		v.string(),
+		v.minLength(8, "Password must be at least 8 characters"),
+	),
+	confirmPassword: v.pipe(
+		v.string(),
+		v.minLength(1, "Please confirm your password"),
+	),
+});
+
+type ChangePasswordFormData = v.InferOutput<typeof ChangePasswordSchema>;
+
 function SecuritySettingsForm() {
 	const { auth } = useAuth();
 	const apiKeyQuery = createAuthApiKeyQuery();
 	const changePassword = createChangePasswordMutation();
 	const regenerateApiKey = createRegenerateApiKeyMutation();
 
-	const [currentPassword, setCurrentPassword] = createSignal("");
-	const [newPassword, setNewPassword] = createSignal("");
-	const [confirmPassword, setConfirmPassword] = createSignal("");
-	const [passwordError, setPasswordError] = createSignal<string | null>(null);
 	const [showCurrentPassword, setShowCurrentPassword] = createSignal(false);
 	const [showNewPassword, setShowNewPassword] = createSignal(false);
 	const [showApiKey, setShowApiKey] = createSignal(false);
 
-	const handleChangePassword = async (e: Event) => {
-		e.preventDefault();
-		setPasswordError(null);
+	const passwordForm = createForm(() => ({
+		defaultValues: {
+			currentPassword: "",
+			newPassword: "",
+			confirmPassword: "",
+		} as ChangePasswordFormData,
+		validators: {
+			onChange: ChangePasswordSchema,
+			onChangeListenTo: ["confirmPassword"],
+		},
+		onSubmit: async ({ value, formApi }) => {
+			if (value.newPassword !== value.confirmPassword) {
+				formApi.setFieldMeta("confirmPassword", (prev) => ({
+					...prev,
+					errors: [{ message: "Passwords do not match" }],
+				}));
+				return;
+			}
 
-		if (newPassword().length < 8) {
-			setPasswordError("Password must be at least 8 characters");
-			return;
-		}
-
-		if (newPassword() !== confirmPassword()) {
-			setPasswordError("Passwords do not match");
-			return;
-		}
-
-		try {
-			await changePassword.mutateAsync({
-				current_password: currentPassword(),
-				new_password: newPassword(),
-			});
-			toast.success("Password changed successfully");
-			setCurrentPassword("");
-			setNewPassword("");
-			setConfirmPassword("");
-		} catch (err) {
-			setPasswordError(
-				err instanceof Error ? err.message : "Failed to change password",
-			);
-		}
-	};
+			try {
+				await changePassword.mutateAsync({
+					current_password: value.currentPassword,
+					new_password: value.newPassword,
+				});
+				toast.success("Password changed successfully");
+				formApi.reset();
+			} catch (err) {
+				const message =
+					err instanceof Error ? err.message : "Failed to change password";
+				formApi.setFieldMeta("currentPassword", (prev) => ({
+					...prev,
+					errors: [{ message }],
+				}));
+			}
+		},
+	}));
 
 	const handleRegenerateApiKey = async () => {
 		try {
@@ -2192,91 +2212,117 @@ function SecuritySettingsForm() {
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<form onSubmit={handleChangePassword} class="space-y-4 max-w-md">
-						<TextField>
-							<TextFieldLabel>Current Password</TextFieldLabel>
-							<div class="relative">
-								<TextFieldInput
-									type={showCurrentPassword() ? "text" : "password"}
-									value={currentPassword()}
-									onInput={(e) => setCurrentPassword(e.currentTarget.value)}
-									autocomplete="current-password"
-								/>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-									onClick={() => setShowCurrentPassword(!showCurrentPassword())}
+					<form
+						onSubmit={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							passwordForm.handleSubmit();
+						}}
+						class="space-y-4 max-w-md"
+					>
+						<passwordForm.Field name="currentPassword">
+							{(field) => (
+								<TextField
+									value={field().state.value}
+									onChange={field().handleChange}
 								>
-									<Show
-										when={showCurrentPassword()}
-										fallback={
-											<IconEyeOff class="h-4 w-4 text-muted-foreground" />
-										}
-									>
-										<IconEye class="h-4 w-4 text-muted-foreground" />
-									</Show>
-								</Button>
-							</div>
-						</TextField>
+									<TextFieldLabel>Current Password</TextFieldLabel>
+									<div class="relative">
+										<TextFieldInput
+											type={showCurrentPassword() ? "text" : "password"}
+											autocomplete="current-password"
+										/>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+											onClick={() =>
+												setShowCurrentPassword(!showCurrentPassword())
+											}
+										>
+											<Show
+												when={showCurrentPassword()}
+												fallback={
+													<IconEyeOff class="h-4 w-4 text-muted-foreground" />
+												}
+											>
+												<IconEye class="h-4 w-4 text-muted-foreground" />
+											</Show>
+										</Button>
+									</div>
+									<TextFieldErrorMessage>
+										{field().state.meta.errors[0]?.message}
+									</TextFieldErrorMessage>
+								</TextField>
+							)}
+						</passwordForm.Field>
 
-						<TextField>
-							<TextFieldLabel>New Password</TextFieldLabel>
-							<div class="relative">
-								<TextFieldInput
-									type={showNewPassword() ? "text" : "password"}
-									value={newPassword()}
-									onInput={(e) => setNewPassword(e.currentTarget.value)}
-									autocomplete="new-password"
-								/>
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon"
-									class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-									onClick={() => setShowNewPassword(!showNewPassword())}
+						<passwordForm.Field name="newPassword">
+							{(field) => (
+								<TextField
+									value={field().state.value}
+									onChange={field().handleChange}
 								>
-									<Show
-										when={showNewPassword()}
-										fallback={
-											<IconEyeOff class="h-4 w-4 text-muted-foreground" />
-										}
-									>
-										<IconEye class="h-4 w-4 text-muted-foreground" />
-									</Show>
-								</Button>
-							</div>
-							<p class="text-xs text-muted-foreground mt-1">
-								Minimum 8 characters
-							</p>
-						</TextField>
+									<TextFieldLabel>New Password</TextFieldLabel>
+									<div class="relative">
+										<TextFieldInput
+											type={showNewPassword() ? "text" : "password"}
+											autocomplete="new-password"
+										/>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+											onClick={() => setShowNewPassword(!showNewPassword())}
+										>
+											<Show
+												when={showNewPassword()}
+												fallback={
+													<IconEyeOff class="h-4 w-4 text-muted-foreground" />
+												}
+											>
+												<IconEye class="h-4 w-4 text-muted-foreground" />
+											</Show>
+										</Button>
+									</div>
+									<TextFieldErrorMessage>
+										{field().state.meta.errors[0]?.message}
+									</TextFieldErrorMessage>
+								</TextField>
+							)}
+						</passwordForm.Field>
 
-						<TextField>
-							<TextFieldLabel>Confirm New Password</TextFieldLabel>
-							<TextFieldInput
-								type="password"
-								value={confirmPassword()}
-								onInput={(e) => setConfirmPassword(e.currentTarget.value)}
-								autocomplete="new-password"
-							/>
-						</TextField>
+						<passwordForm.Field name="confirmPassword">
+							{(field) => (
+								<TextField
+									value={field().state.value}
+									onChange={field().handleChange}
+								>
+									<TextFieldLabel>Confirm New Password</TextFieldLabel>
+									<TextFieldInput type="password" autocomplete="new-password" />
+									<TextFieldErrorMessage>
+										{field().state.meta.errors[0]?.message}
+									</TextFieldErrorMessage>
+								</TextField>
+							)}
+						</passwordForm.Field>
 
-						<Show when={passwordError()}>
-							<p class="text-sm text-destructive">{passwordError()}</p>
-						</Show>
-
-						<Button
-							type="submit"
-							disabled={
-								changePassword.isPending ||
-								!currentPassword() ||
-								!newPassword() ||
-								!confirmPassword()
-							}
+						<passwordForm.Subscribe
+							selector={(state) => [state.canSubmit, state.isSubmitting]}
 						>
-							{changePassword.isPending ? "Changing..." : "Change Password"}
-						</Button>
+							{(state) => (
+								<Button
+									type="submit"
+									disabled={!state()[0] || changePassword.isPending}
+								>
+									{state()[1] || changePassword.isPending
+										? "Changing..."
+										: "Change Password"}
+								</Button>
+							)}
+						</passwordForm.Subscribe>
 					</form>
 				</CardContent>
 			</Card>
