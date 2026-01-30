@@ -340,6 +340,22 @@ export function createAnimeSearchQuery(query: () => string) {
 	}));
 }
 
+export function animeByAnilistIdQueryOptions(id: number) {
+	return queryOptions({
+		queryKey: ["anime", "anilist", id],
+		queryFn: () =>
+			fetchApi<AnimeSearchResult>(`${API_BASE}/anime/anilist/${id}`),
+		staleTime: 1000 * 60 * 60, // 1 hour
+	});
+}
+
+export function createAnimeByAnilistIdQuery(id: () => number | null) {
+	return useQuery(() => ({
+		...animeByAnilistIdQueryOptions(id()!),
+		enabled: !!id(),
+	}));
+}
+
 export function createAddAnimeMutation() {
 	const queryClient = useQueryClient();
 	return useMutation(() => ({

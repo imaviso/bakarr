@@ -201,6 +201,7 @@ fn create_protected_router(state: Arc<AppState>) -> Router<Arc<AppState>> {
     Router::new()
         .route("/anime", get(anime::list_anime))
         .route("/anime/search", get(anime::search_anime))
+        .route("/anime/anilist/{id}", get(anime::get_anime_by_anilist_id))
         .route("/anime", post(anime::add_anime))
         .route("/anime/{id}", get(anime::get_anime))
         .route("/anime/{id}", delete(anime::remove_anime))

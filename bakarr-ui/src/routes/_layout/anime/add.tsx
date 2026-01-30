@@ -41,6 +41,7 @@ import {
 import {
 	type AnimeSearchResult,
 	createAddAnimeMutation,
+	createAnimeByAnilistIdQuery,
 	createAnimeListQuery,
 	createAnimeSearchQuery,
 	createProfilesQuery,
@@ -75,20 +76,30 @@ function AddAnimePage() {
 	const [selectedAnime, setSelectedAnime] =
 		createSignal<AnimeSearchResult | null>(null);
 
-	// Auto-select anime if id is provided in search params
-	createEffect(() => {
+	// Get ID from search params
+	const anilistId = () => {
 		const searchParams = search();
 		const id = searchParams.id;
 		if (id) {
 			const idNum = Number.parseInt(id, 10);
 			if (!Number.isNaN(idNum)) {
-				// Set query to trigger search
-				setQuery(id);
-				setDebouncedQuery(id);
+				return idNum;
 			}
+		}
+		return null;
+	};
+
+	// Fetch anime by ID if provided in URL
+	const anilistIdQuery = createAnimeByAnilistIdQuery(anilistId);
+
+	// Auto-select anime when fetched by ID
+	createEffect(() => {
+		if (anilistIdQuery.data && !selectedAnime()) {
+			setSelectedAnime(anilistIdQuery.data);
 		}
 	});
 
+	// Regular search functionality
 	createEffect(() => {
 		const q = query();
 		const timeout = setTimeout(() => setDebouncedQuery(q), 500);
@@ -97,19 +108,6 @@ function AddAnimePage() {
 
 	const searchQuery = createAnimeSearchQuery(debouncedQuery);
 	const animeListQuery = createAnimeListQuery();
-
-	// Auto-select anime when search results include the id from URL
-	createEffect(() => {
-		const searchParams = search();
-		const id = searchParams.id;
-		if (id && searchQuery.data && !selectedAnime()) {
-			const idNum = Number.parseInt(id, 10);
-			const found = searchQuery.data.find((a) => a.id === idNum);
-			if (found) {
-				setSelectedAnime(found);
-			}
-		}
-	});
 
 	const isAlreadyAdded = (id: number) => {
 		return animeListQuery.data?.some((a) => a.id === id);

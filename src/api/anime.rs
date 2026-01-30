@@ -177,6 +177,41 @@ pub async fn search_anime(
     Ok(Json(ApiResponse::success(dtos)))
 }
 
+pub async fn get_anime_by_anilist_id(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<i32>,
+) -> Result<Json<ApiResponse<SearchResultDto>>, ApiError> {
+    validate_anime_id(id)?;
+    let client = &state.shared.anilist;
+
+    let monitored = state.store().list_monitored().await?;
+    let monitored_ids: std::collections::HashSet<i32> = monitored.iter().map(|a| a.id).collect();
+
+    let anime = client
+        .get_by_id(id)
+        .await
+        .map_err(|e| ApiError::anilist_error(e.to_string()))?;
+
+    let dto = anime.map(|a| SearchResultDto {
+        id: a.id,
+        title: TitleDto {
+            romaji: a.title.romaji,
+            english: a.title.english,
+            native: a.title.native,
+        },
+        format: a.format,
+        episode_count: a.episode_count,
+        status: a.status,
+        cover_image: a.cover_image,
+        already_in_library: monitored_ids.contains(&a.id),
+    });
+
+    match dto {
+        Some(d) => Ok(Json(ApiResponse::success(d))),
+        None => Err(ApiError::anime_not_found(id)),
+    }
+}
+
 async fn resolve_anime_path(
     state: &AppState,
     anime: &crate::models::anime::Anime,
