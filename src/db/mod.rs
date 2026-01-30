@@ -350,6 +350,13 @@ impl Store {
             .await
     }
 
+    pub async fn get_episode_titles_batch(
+        &self,
+        pairs: &[(i32, i32)],
+    ) -> Result<std::collections::HashMap<(i32, i32), String>> {
+        self.episode_repo().get_titles_batch(pairs).await
+    }
+
     pub async fn get_episode_metadata(
         &self,
         anime_id: i32,
@@ -391,6 +398,13 @@ impl Store {
         self.episode_repo()
             .get_status(anime_id, episode_number)
             .await
+    }
+
+    pub async fn get_episode_statuses_batch(
+        &self,
+        pairs: &[(i32, i32)],
+    ) -> Result<std::collections::HashMap<(i32, i32), EpisodeStatusRow>> {
+        self.episode_repo().get_statuses_batch(pairs).await
     }
 
     pub async fn get_episode_statuses(&self, anime_id: i32) -> Result<Vec<EpisodeStatusRow>> {

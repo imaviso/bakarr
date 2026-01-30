@@ -49,6 +49,42 @@ impl EpisodeRepository {
         Ok(result.and_then(|m| m.title))
     }
 
+    pub async fn get_titles_batch(
+        &self,
+        pairs: &[(i32, i32)],
+    ) -> Result<HashMap<(i32, i32), String>> {
+        if pairs.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut results = HashMap::new();
+
+        // Chunking to avoid "too many SQL variables" error
+        for chunk in pairs.chunks(100) {
+            let mut condition = sea_orm::Condition::any();
+            for (anime_id, episode_number) in chunk {
+                condition = condition.add(
+                    episode_metadata::Column::AnimeId
+                        .eq(*anime_id)
+                        .and(episode_metadata::Column::EpisodeNumber.eq(*episode_number)),
+                );
+            }
+
+            let rows = EpisodeMetadata::find()
+                .filter(condition)
+                .all(&self.conn)
+                .await?;
+
+            for row in rows {
+                if let Some(title) = row.title {
+                    results.insert((row.anime_id, row.episode_number), title);
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
     pub async fn get_metadata(
         &self,
         anime_id: i32,
@@ -177,6 +213,40 @@ impl EpisodeRepository {
             .await?;
 
         Ok(row.map(Self::map_status_model))
+    }
+
+    pub async fn get_statuses_batch(
+        &self,
+        pairs: &[(i32, i32)],
+    ) -> Result<HashMap<(i32, i32), EpisodeStatusRow>> {
+        if pairs.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let mut results = HashMap::new();
+
+        for chunk in pairs.chunks(100) {
+            let mut condition = sea_orm::Condition::any();
+            for (anime_id, episode_number) in chunk {
+                condition = condition.add(
+                    episode_status::Column::AnimeId
+                        .eq(*anime_id)
+                        .and(episode_status::Column::EpisodeNumber.eq(*episode_number)),
+                );
+            }
+
+            let rows = EpisodeStatus::find()
+                .filter(condition)
+                .all(&self.conn)
+                .await?;
+
+            for row in rows {
+                let status = Self::map_status_model(row);
+                results.insert((status.anime_id, status.episode_number), status);
+            }
+        }
+
+        Ok(results)
     }
 
     pub async fn get_statuses(&self, anime_id: i32) -> Result<Vec<EpisodeStatusRow>> {

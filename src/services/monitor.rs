@@ -25,6 +25,7 @@ struct ImportContext<'a> {
     extension: String,
     group: Option<String>,
     media_info: Option<crate::models::media::MediaInfo>,
+    episode_title: String,
 }
 
 impl Monitor {
@@ -169,6 +170,17 @@ impl Monitor {
 
         let entries = store.get_downloads_by_hashes(&completed_hashes).await?;
 
+        // Batch Fetch Logic
+        let mut pairs = Vec::new();
+        for entry in &entries {
+            pairs.push((entry.anime_id, entry.episode_number_truncated()));
+        }
+        pairs.sort_unstable();
+        pairs.dedup();
+
+        let titles_map = self.state.episodes.get_episode_titles_batch(&pairs).await?;
+        let statuses_map = store.get_episode_statuses_batch(&pairs).await?;
+
         let mut anime_ids: Vec<i32> = entries.iter().map(|e| e.anime_id).collect();
         anime_ids.sort_unstable();
         anime_ids.dedup();
@@ -186,9 +198,27 @@ impl Monitor {
             let entry = entries_map.get(&torrent.hash.to_lowercase());
             let anime = entry.and_then(|e| anime_map.get(&e.anime_id));
 
+            // Lookup preloaded data
+            let (preloaded_title, preloaded_status) = entry.map_or((None, None), |e| {
+                let key = (e.anime_id, e.episode_number_truncated());
+                (
+                    titles_map.get(&key).cloned(),
+                    statuses_map.get(&key).cloned(),
+                )
+            });
+
             let config = config_arc.read().await;
-            self.process_completed_torrent(&store, &library, &config, &torrent, entry, anime)
-                .await?;
+            self.process_completed_torrent(
+                &store,
+                &library,
+                &config,
+                &torrent,
+                entry,
+                anime,
+                preloaded_title,
+                preloaded_status,
+            )
+            .await?;
         }
 
         Ok(())
@@ -249,6 +279,7 @@ impl Monitor {
     /// 3. Recover (if missing)
     /// 4. Execute Import
     /// 5. Finalize
+    #[allow(clippy::too_many_arguments)]
     async fn process_completed_torrent(
         &self,
         store: &crate::db::Store,
@@ -257,6 +288,8 @@ impl Monitor {
         torrent: &crate::clients::qbittorrent::TorrentInfo,
         entry: Option<&crate::db::DownloadEntry>,
         anime: Option<&crate::models::anime::Anime>,
+        preloaded_title: Option<String>,
+        preloaded_status: Option<crate::models::episode::EpisodeStatusRow>,
     ) -> anyhow::Result<()> {
         let start = std::time::Instant::now();
 
@@ -282,7 +315,15 @@ impl Monitor {
         // Step 3: Recover (if missing)
         if !source_path.exists() {
             if self
-                .attempt_recovery_import(store, library, anime, entry, &source_path)
+                .attempt_recovery_import(
+                    store,
+                    library,
+                    anime,
+                    entry,
+                    &source_path,
+                    preloaded_title.clone(),
+                    preloaded_status,
+                )
                 .await?
             {
                 return Ok(());
@@ -297,7 +338,7 @@ impl Monitor {
 
         // Step 4: Execute Import
         let import_result = self
-            .execute_import(library, anime, &source_path, entry)
+            .execute_import(library, anime, &source_path, entry, preloaded_title)
             .await;
 
         // Step 5: Finalize
@@ -359,10 +400,11 @@ impl Monitor {
         anime: &crate::models::anime::Anime,
         source_path: &Path,
         entry: &crate::db::DownloadEntry,
+        preloaded_title: Option<String>,
     ) -> anyhow::Result<usize> {
         if source_path.is_file() {
             debug!("Source is a single file");
-            self.import_single_file(library, anime, source_path, entry)
+            self.import_single_file(library, anime, source_path, entry, preloaded_title)
                 .await
         } else if source_path.is_dir() {
             debug!("Source is a directory");
@@ -420,6 +462,7 @@ impl Monitor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn attempt_recovery_import(
         &self,
         store: &crate::db::Store,
@@ -427,6 +470,8 @@ impl Monitor {
         anime: &crate::models::anime::Anime,
         entry: &crate::db::DownloadEntry,
         source_path: &Path,
+        preloaded_title: Option<String>,
+        preloaded_status: Option<crate::models::episode::EpisodeStatusRow>,
     ) -> anyhow::Result<bool> {
         let filename = source_path.file_name().map_or_else(
             || entry.filename.clone(),
@@ -442,12 +487,17 @@ impl Monitor {
         );
         let season = parsed.as_ref().and_then(|p| p.season);
 
-        let episode_title = self
-            .state
-            .episodes
-            .get_episode_title(anime.id, episode_number)
-            .await
-            .unwrap_or_else(|_| format!("Episode {episode_number}"));
+        let use_preloaded = episode_number == entry.episode_number_truncated();
+
+        let episode_title = match (use_preloaded, preloaded_title) {
+            (true, Some(title)) => title,
+            _ => self
+                .state
+                .episodes
+                .get_episode_title(anime.id, episode_number)
+                .await
+                .unwrap_or_else(|_| format!("Episode {episode_number}")),
+        };
 
         let quality_str = parse_quality_from_filename(&filename).to_string();
         let extension = source_path
@@ -492,32 +542,36 @@ impl Monitor {
                 if path.is_file() {
                     let name = path.file_name().unwrap_or_default().to_string_lossy();
                     if let Some(p) = parse_filename(&name)
-                        && p.episode_number_truncated() == episode_number
-                    {
-                        // Verify season if available
-                        if let Some(s) = season
-                            && p.season.is_some()
-                            && p.season != Some(s)
-                        {
-                            continue;
-                        }
+                        && p.episode_number_truncated() == episode_number {
+                            // Verify season if available
+                            if let Some(s) = season
+                                && p.season.is_some()
+                                && p.season != Some(s)
+                            {
+                                continue;
+                            }
 
-                        info!("Found renamed file for recovery: {:?}", path);
-                        store.set_imported(entry.id, true).await?;
-                        return Ok(true);
-                    }
+                            info!("Found renamed file for recovery: {:?}", path);
+                            store.set_imported(entry.id, true).await?;
+                            return Ok(true);
+                        }
                 }
             }
         }
 
         // DB State Recovery: Check if episode is already marked as downloaded
-        if let Ok(Some(status)) = store.get_episode_status(anime.id, episode_number).await
-            && status.downloaded_at.is_some()
-        {
-            info!("Episode already marked as downloaded in DB. Marking download as imported.");
-            store.set_imported(entry.id, true).await?;
-            return Ok(true);
-        }
+        let status_check = if use_preloaded && preloaded_status.is_some() {
+            preloaded_status
+        } else {
+            store.get_episode_status(anime.id, episode_number).await?
+        };
+
+        if let Some(status) = status_check
+            && status.downloaded_at.is_some() {
+                info!("Episode already marked as downloaded in DB. Marking download as imported.");
+                store.set_imported(entry.id, true).await?;
+                return Ok(true);
+            }
 
         warn!(
             "Recovery check failed: Filename='{}', Ep={}, Dest='{:?}' (Missing), AnimePath='{:?}'",
@@ -532,6 +586,7 @@ impl Monitor {
         anime: &crate::models::anime::Anime,
         source_path: &Path,
         entry: &crate::db::DownloadEntry,
+        preloaded_title: Option<String>,
     ) -> anyhow::Result<usize> {
         let filename = source_path
             .file_name()
@@ -555,6 +610,20 @@ impl Monitor {
 
         let season = parsed.as_ref().and_then(|p| p.season);
 
+        // Use preloaded title if episode number matches entry
+        let episode_title = match (
+            episode_number == entry.episode_number_truncated(),
+            preloaded_title,
+        ) {
+            (true, Some(title)) => title,
+            _ => self
+                .state
+                .episodes
+                .get_episode_title(anime.id, episode_number)
+                .await
+                .unwrap_or_else(|_| format!("Episode {episode_number}")),
+        };
+
         let media_service = crate::services::MediaService::new();
         let media_info = media_service.get_media_info(source_path).await.ok();
 
@@ -573,6 +642,7 @@ impl Monitor {
             extension,
             group,
             media_info,
+            episode_title,
         };
 
         self.execute_single_import(library, ctx).await?;
@@ -623,18 +693,11 @@ impl Monitor {
         library: &LibraryService,
         ctx: ImportContext<'_>,
     ) -> anyhow::Result<()> {
-        let episode_title = self
-            .state
-            .episodes
-            .get_episode_title(ctx.anime.id, ctx.episode_number)
-            .await
-            .unwrap_or_else(|_| format!("Episode {}", ctx.episode_number));
-
         let options = crate::library::RenamingOptions {
             anime: ctx.anime.clone(),
             episode_number: ctx.episode_number,
             season: ctx.season,
-            episode_title,
+            episode_title: ctx.episode_title.clone(),
             quality: Some(ctx.quality.clone()),
             group: ctx.group.clone(),
             original_filename: Some(ctx.filename.to_string()),
@@ -713,8 +776,26 @@ impl Monitor {
             dir_path
         );
 
+        // Pass 1: Parse and collect needed episodes for batch fetching
+        let mut episode_numbers = Vec::new();
+        for file_path in &video_files {
+            let filename = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if let Some(parsed) = parse_filename(filename) {
+                episode_numbers.push((anime.id, parsed.episode_number_truncated()));
+            }
+        }
+        episode_numbers.sort_unstable();
+        episode_numbers.dedup();
+
+        let titles_map = self
+            .state
+            .episodes
+            .get_episode_titles_batch(&episode_numbers)
+            .await?;
+
         let mut imported = 0;
 
+        // Pass 2: Process files using cached titles
         for file_path in video_files {
             let filename = file_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             let video_ext = file_path
@@ -742,6 +823,11 @@ impl Monitor {
 
             let group = parsed.as_ref().and_then(|p| p.group.clone());
 
+            let episode_title = titles_map
+                .get(&(anime.id, episode_number))
+                .cloned()
+                .unwrap_or_else(|| format!("Episode {episode_number}"));
+
             let ctx = ImportContext {
                 anime,
                 file_path: &file_path,
@@ -752,6 +838,7 @@ impl Monitor {
                 extension: video_ext.to_string(),
                 group,
                 media_info,
+                episode_title,
             };
 
             match self.execute_single_import(library, ctx).await {

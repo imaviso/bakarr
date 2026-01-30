@@ -79,6 +79,59 @@ impl EpisodeService {
         Ok(format!("Episode {episode_number}"))
     }
 
+    pub async fn get_episode_titles_batch(
+        &self,
+        pairs: &[(i32, i32)],
+    ) -> Result<HashMap<(i32, i32), String>> {
+        // 1. Initial Cache Check
+        let mut titles_map = self.store.get_episode_titles_batch(pairs).await?;
+
+        // 2. Identify missing pairs
+        let mut missing_by_anime: HashMap<i32, Vec<i32>> = HashMap::new();
+        for (anime_id, episode_number) in pairs {
+            if !titles_map.contains_key(&(*anime_id, *episode_number)) {
+                missing_by_anime
+                    .entry(*anime_id)
+                    .or_default()
+                    .push(*episode_number);
+            }
+        }
+
+        if missing_by_anime.is_empty() {
+            return Ok(titles_map);
+        }
+
+        // 3. Fetch missing data (grouped by anime_id)
+        let mut fetch_futures = Vec::new();
+        for anime_id in missing_by_anime.keys() {
+            fetch_futures.push(self.fetch_and_cache_episodes(*anime_id));
+        }
+
+        // Wait for all fetches to complete (ignoring errors to proceed with partial data)
+        let _results = futures::future::join_all(fetch_futures).await;
+
+        // 4. Re-query cache for the missing ones
+        let remaining_pairs: Vec<(i32, i32)> = missing_by_anime
+            .into_iter()
+            .flat_map(|(aid, eps)| eps.into_iter().map(move |ep| (aid, ep)))
+            .collect();
+
+        let new_titles = self
+            .store
+            .get_episode_titles_batch(&remaining_pairs)
+            .await?;
+        titles_map.extend(new_titles);
+
+        // 5. Fill remaining gaps with defaults
+        for (anime_id, episode_number) in pairs {
+            titles_map
+                .entry((*anime_id, *episode_number))
+                .or_insert_with(|| format!("Episode {episode_number}"));
+        }
+
+        Ok(titles_map)
+    }
+
     pub async fn get_episode_metadata(
         &self,
         anilist_id: i32,
