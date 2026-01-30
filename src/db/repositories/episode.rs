@@ -466,6 +466,50 @@ impl EpisodeRepository {
         Ok(())
     }
 
+    /// Updates only the media metadata fields without touching `downloaded_at` or other fields.
+    /// Used for lazy backfilling of media info during rename preview operations.
+    pub async fn update_media_info(
+        &self,
+        anime_id: i32,
+        episode_number: i32,
+        media_info: &MediaInfo,
+    ) -> Result<()> {
+        #[allow(clippy::cast_possible_truncation)]
+        EpisodeStatus::update_many()
+            .col_expr(
+                episode_status::Column::ResolutionWidth,
+                sea_orm::sea_query::Expr::value(
+                    i32::try_from(media_info.resolution_width).unwrap_or(i32::MAX),
+                ),
+            )
+            .col_expr(
+                episode_status::Column::ResolutionHeight,
+                sea_orm::sea_query::Expr::value(
+                    i32::try_from(media_info.resolution_height).unwrap_or(i32::MAX),
+                ),
+            )
+            .col_expr(
+                episode_status::Column::VideoCodec,
+                sea_orm::sea_query::Expr::value(media_info.video_codec.clone()),
+            )
+            .col_expr(
+                episode_status::Column::AudioCodecs,
+                sea_orm::sea_query::Expr::value(
+                    serde_json::to_string(&media_info.audio_codecs).unwrap_or_default(),
+                ),
+            )
+            .col_expr(
+                episode_status::Column::DurationSecs,
+                sea_orm::sea_query::Expr::value(media_info.duration_secs as f32),
+            )
+            .filter(episode_status::Column::AnimeId.eq(anime_id))
+            .filter(episode_status::Column::EpisodeNumber.eq(episode_number))
+            .exec(&self.conn)
+            .await?;
+
+        Ok(())
+    }
+
     pub async fn get_calendar_events(
         &self,
         start_date: &str,

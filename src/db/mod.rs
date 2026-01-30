@@ -503,6 +503,17 @@ impl Store {
             .await
     }
 
+    pub async fn update_episode_media_info(
+        &self,
+        anime_id: i32,
+        episode_number: i32,
+        media_info: &MediaInfo,
+    ) -> Result<()> {
+        self.episode_repo()
+            .update_media_info(anime_id, episode_number, media_info)
+            .await
+    }
+
     pub async fn get_seadex_cache(&self, anime_id: i32) -> Result<Option<SeaDexCache>> {
         self.cache_repo().get_seadex(anime_id).await
     }
