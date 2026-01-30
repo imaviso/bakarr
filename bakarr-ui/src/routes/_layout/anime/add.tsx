@@ -9,7 +9,14 @@ import {
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import {
+	createEffect,
+	createMemo,
+	createSignal,
+	For,
+	Show,
+	Suspense,
+} from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
@@ -54,7 +61,7 @@ import {
 import { cn } from "~/lib/utils";
 
 const searchSchema = v.object({
-	id: v.optional(v.string()),
+	id: v.optional(v.pipe(v.string(), v.transform(Number), v.integer())),
 });
 
 export const Route = createFileRoute("/_layout/anime/add")({
@@ -76,17 +83,10 @@ function AddAnimePage() {
 	const [selectedAnime, setSelectedAnime] =
 		createSignal<AnimeSearchResult | null>(null);
 
-	// Get ID from search params
+	// Get ID from search params (now properly typed via Valibot transform)
 	const anilistId = () => {
 		const searchParams = search();
-		const id = searchParams.id;
-		if (id) {
-			const idNum = Number.parseInt(id, 10);
-			if (!Number.isNaN(idNum)) {
-				return idNum;
-			}
-		}
-		return null;
+		return searchParams.id ?? null;
 	};
 
 	// Fetch anime by ID if provided in URL
@@ -287,16 +287,26 @@ function AddAnimePage() {
 			</Show>
 
 			<Show when={selectedAnime()}>
-				<AddAnimeDialog
-					// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
-					anime={selectedAnime()!}
-					open={!!selectedAnime()}
-					onOpenChange={(open) => !open && setSelectedAnime(null)}
-					onSuccess={() => {
-						setSelectedAnime(null);
-						toast.success(`Added ${selectedAnime()?.title.romaji} to library`);
-					}}
-				/>
+				<Suspense
+					fallback={
+						<div class="flex items-center justify-center p-8">
+							<IconLoader2 class="h-8 w-8 animate-spin text-muted-foreground" />
+						</div>
+					}
+				>
+					<AddAnimeDialog
+						// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
+						anime={selectedAnime()!}
+						open={!!selectedAnime()}
+						onOpenChange={(open) => !open && setSelectedAnime(null)}
+						onSuccess={() => {
+							setSelectedAnime(null);
+							toast.success(
+								`Added ${selectedAnime()?.title.romaji} to library`,
+							);
+						}}
+					/>
+				</Suspense>
 			</Show>
 		</div>
 	);
@@ -321,14 +331,17 @@ function AddAnimeDialog(props: {
 	const configQuery = createSystemConfigQuery();
 	const addAnimeMutation = createAddAnimeMutation();
 
+	// Memoize default values to prevent race conditions and re-initializations
+	const defaultValues = createMemo(() => ({
+		root_folder: configQuery.data?.library.library_path ?? "",
+		profile_name: profilesQuery.data?.[0]?.name ?? "",
+		monitor: true,
+		search_now: true,
+		release_profile_ids: [] as number[],
+	}));
+
 	const form = createForm(() => ({
-		defaultValues: {
-			root_folder: configQuery.data?.library.library_path || "",
-			profile_name: profilesQuery.data?.[0]?.name || "",
-			monitor: true,
-			search_now: true,
-			release_profile_ids: [] as number[],
-		},
+		defaultValues: defaultValues(),
 		validators: {
 			onChange: AddAnimeSchema,
 		},
@@ -344,18 +357,6 @@ function AddAnimeDialog(props: {
 			props.onSuccess();
 		},
 	}));
-
-	createEffect(() => {
-		if (
-			configQuery.data?.library.library_path &&
-			!form.getFieldValue("root_folder")
-		) {
-			form.setFieldValue("root_folder", configQuery.data.library.library_path);
-		}
-		if (profilesQuery.data?.[0]?.name && !form.getFieldValue("profile_name")) {
-			form.setFieldValue("profile_name", profilesQuery.data[0].name);
-		}
-	});
 
 	return (
 		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
