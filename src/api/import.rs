@@ -242,6 +242,15 @@ fn collect_scanned_files(
             suggested_candidate_id: None,
         });
     }
+
+    scanned_files.sort_by(|a, b| {
+        let season_a = a.season.unwrap_or(0);
+        let season_b = b.season.unwrap_or(0);
+        season_a
+            .cmp(&season_b)
+            .then_with(|| a.episode_number.total_cmp(&b.episode_number))
+    });
+
     scanned_files
 }
 

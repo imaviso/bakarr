@@ -1,5 +1,7 @@
+import { createForm } from "@tanstack/solid-form";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { createSignal } from "solid-js";
+import { Show } from "solid-js";
+import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { Button } from "~/components/ui/button";
 import {
@@ -12,6 +14,7 @@ import {
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { createLoginMutation } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 
 export const Route = createFileRoute("/login")({
@@ -23,69 +26,29 @@ const LoginSchema = v.object({
 	password: v.pipe(v.string(), v.minLength(1, "Password is required")),
 });
 
-function LoginPage() {
-	const [username, setUsername] = createSignal("");
-	const [password, setPassword] = createSignal("");
-	const [error, setError] = createSignal<string | null>(null);
-	const [isSubmitting, setIsSubmitting] = createSignal(false);
-	const [validationErrors, setValidationErrors] = createSignal<{
-		username?: string;
-		password?: string;
-	}>({});
+type LoginFormData = v.InferOutput<typeof LoginSchema>;
 
+function LoginPage() {
 	const { loginSuccess } = useAuth();
 	const navigate = useNavigate();
+	const loginMutation = createLoginMutation();
 
-	const handleSubmit = async (e: Event) => {
-		e.preventDefault();
-		setError(null);
-		setValidationErrors({});
-
-		const result = v.safeParse(LoginSchema, {
-			username: username(),
-			password: password(),
-		});
-
-		if (!result.success) {
-			const errors: { username?: string; password?: string } = {};
-			for (const issue of result.issues) {
-				if (issue.path?.[0].key === "username") errors.username = issue.message;
-				if (issue.path?.[0].key === "password") errors.password = issue.message;
-			}
-			setValidationErrors(errors);
-			return;
-		}
-
-		setIsSubmitting(true);
-		try {
-			const res = await fetch("/api/auth/login", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					username: username(),
-					password: password(),
-				}),
-			});
-
-			if (res.ok) {
-				const data = await res.json();
-				// Extract API key from response (format: { data: { api_key: "..." } })
-				const apiKey = data?.data?.api_key || data?.api_key;
-				loginSuccess(username(), apiKey);
+	const form = createForm(() => ({
+		defaultValues: {
+			username: "",
+			password: "",
+		} as LoginFormData,
+		onSubmit: async ({ value }) => {
+			try {
+				const data = await loginMutation.mutateAsync(value);
+				loginSuccess(value.username, data.api_key);
 				navigate({ to: "/" });
-			} else if (res.status === 401) {
-				setError("Invalid username or password");
-			} else {
-				setError(`Server error: ${res.status}`);
+			} catch (err) {
+				const message = err instanceof Error ? err.message : "Login failed";
+				toast.error(message);
 			}
-		} catch {
-			setError("Failed to connect to server");
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
+		},
+	}));
 
 	return (
 		<div class="flex items-center justify-center min-h-[100dvh] bg-background p-4">
@@ -94,49 +57,82 @@ function LoginPage() {
 					<CardTitle class="text-xl">Bakarr</CardTitle>
 					<CardDescription>Enter your credentials to continue</CardDescription>
 				</CardHeader>
-				<form onSubmit={handleSubmit}>
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						form.handleSubmit();
+					}}
+				>
 					<CardContent class="space-y-4">
-						<div class="space-y-2">
-							<Label for="username">Username</Label>
-							<Input
-								id="username"
-								type="text"
-								value={username()}
-								onInput={(e) => setUsername(e.currentTarget.value)}
-								placeholder="admin"
-								autocomplete="username"
-							/>
-							{validationErrors().username && (
-								<p class="text-xs text-destructive">
-									{validationErrors().username}
-								</p>
+						<form.Field
+							name="username"
+							validators={{
+								onChange: LoginSchema.entries.username,
+							}}
+							children={(field) => (
+								<div class="space-y-2">
+									<Label for="username">Username</Label>
+									<Input
+										id="username"
+										type="text"
+										value={field().state.value}
+										onInput={(e) => field().handleChange(e.currentTarget.value)}
+										onBlur={field().handleBlur}
+										placeholder="admin"
+										autocomplete="username"
+									/>
+									<Show when={field().state.meta.errors.length > 0}>
+										<p class="text-xs text-destructive">
+											{field().state.meta.errors.join(", ")}
+										</p>
+									</Show>
+								</div>
 							)}
-						</div>
-						<div class="space-y-2">
-							<Label for="password">Password</Label>
-							<Input
-								id="password"
-								type="password"
-								value={password()}
-								onInput={(e) => setPassword(e.currentTarget.value)}
-								autocomplete="current-password"
-							/>
-							{validationErrors().password && (
-								<p class="text-xs text-destructive">
-									{validationErrors().password}
-								</p>
+						/>
+						<form.Field
+							name="password"
+							validators={{
+								onChange: LoginSchema.entries.password,
+							}}
+							children={(field) => (
+								<div class="space-y-2">
+									<Label for="password">Password</Label>
+									<Input
+										id="password"
+										type="password"
+										value={field().state.value}
+										onInput={(e) => field().handleChange(e.currentTarget.value)}
+										onBlur={field().handleBlur}
+										autocomplete="current-password"
+									/>
+									<Show when={field().state.meta.errors.length > 0}>
+										<p class="text-xs text-destructive">
+											{field().state.meta.errors.join(", ")}
+										</p>
+									</Show>
+								</div>
 							)}
-						</div>
-						{error() && (
-							<p class="text-sm text-destructive text-center" role="alert">
-								{error()}
-							</p>
-						)}
+						/>
 					</CardContent>
 					<CardFooter class="pt-4">
-						<Button type="submit" class="w-full" disabled={isSubmitting()}>
-							{isSubmitting() ? "Signing in..." : "Sign in"}
-						</Button>
+						<form.Subscribe
+							selector={(state) => ({
+								isSubmitting: state.isSubmitting,
+								canSubmit: state.canSubmit,
+							})}
+							children={(state) => (
+								<Button
+									type="submit"
+									class="w-full"
+									disabled={!state().canSubmit || loginMutation.isPending}
+								>
+									{state().isSubmitting || loginMutation.isPending
+										? "Signing in..."
+										: "Sign in"}
+								</Button>
+							)}
+						/>
 					</CardFooter>
 				</form>
 			</Card>

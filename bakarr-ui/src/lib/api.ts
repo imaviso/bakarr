@@ -437,6 +437,15 @@ export interface ChangePasswordRequest {
 	new_password: string;
 }
 
+export interface LoginRequest {
+	username: string;
+	password: string;
+}
+
+export interface LoginResponse {
+	api_key: string;
+}
+
 export interface DownloadAction {
 	Accept?: { quality: Quality; is_seadex: boolean; score: number };
 	Upgrade?: {
@@ -1459,6 +1468,16 @@ export function authApiKeyQueryOptions() {
 
 export function createAuthApiKeyQuery() {
 	return useQuery(authApiKeyQueryOptions);
+}
+
+export function createLoginMutation() {
+	return useMutation(() => ({
+		mutationFn: (data: LoginRequest) =>
+			fetchApi<LoginResponse>(`${API_BASE}/auth/login`, {
+				method: "POST",
+				body: JSON.stringify(data),
+			}),
+	}));
 }
 
 export function createChangePasswordMutation() {

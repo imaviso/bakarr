@@ -1,5 +1,4 @@
 import {
-	IconAlertTriangle,
 	IconArrowLeft,
 	IconArrowRight,
 	IconCheck,
@@ -14,21 +13,14 @@ import {
 	IconX,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
-import {
-	createEffect,
-	createMemo,
-	createSignal,
-	For,
-	Show,
-	Suspense,
-} from "solid-js";
+import { createMemo, createSignal, For, Show, Suspense } from "solid-js";
 import { toast } from "solid-sonner";
-import { EditMappingPopover } from "~/components/edit-mapping-popover";
 import { FileBrowser } from "~/components/file-browser";
 import { GeneralError } from "~/components/general-error";
+import { FileRow, ManualSearch } from "~/components/import";
+import type { Step } from "~/components/import/types";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -37,13 +29,6 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "~/components/ui/dialog";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "~/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import {
 	TextField,
@@ -60,7 +45,6 @@ import {
 	animeListQueryOptions,
 	createAddAnimeMutation,
 	createAnimeListQuery,
-	createAnimeSearchQuery,
 	createImportFilesMutation,
 	createProfilesQuery,
 	createScanImportPathMutation,
@@ -78,8 +62,6 @@ export const Route = createFileRoute("/_layout/anime/import")({
 	component: ImportPage,
 	errorComponent: GeneralError,
 });
-
-type Step = "scan" | "review";
 
 const steps: { id: Step; label: string; description: string }[] = [
 	{ id: "scan", label: "Select Path", description: "Choose a folder to scan" },
@@ -108,15 +90,7 @@ function ImportPage() {
 	const animeListQuery = createAnimeListQuery();
 	const profilesQuery = createProfilesQuery();
 
-	const scannedFiles = createMemo(() => {
-		const files = scanMutation.data?.files || [];
-		return [...files].sort((a, b) => {
-			const seasonA = a.season || 0;
-			const seasonB = b.season || 0;
-			if (seasonA !== seasonB) return seasonA - seasonB;
-			return a.episode_number - b.episode_number;
-		});
-	});
+	const scannedFiles = createMemo(() => scanMutation.data?.files || []);
 
 	const skippedFiles = createMemo(() => scanMutation.data?.skipped || []);
 
@@ -520,8 +494,8 @@ function ImportPage() {
 									value="manual"
 									class="flex-1 mt-6 min-h-0 overflow-auto"
 								>
-									{/* biome-ignore lint/a11y/noStaticElementInteractions: dnd */}
-									<div
+									<section
+										aria-label="Drop zone for folder import"
 										class={cn(
 											"h-full min-h-[300px] border-2 border-dashed rounded-lg p-8 transition-colors flex flex-col items-center justify-center",
 											isDragOver()
@@ -545,15 +519,20 @@ function ImportPage() {
 											<TextField value={path()} onChange={setPath}>
 												<TextFieldLabel>Folder Path</TextFieldLabel>
 												<TextFieldInput
+													id="folder-path-input"
 													placeholder="/path/to/videos"
 													class="font-mono text-sm"
+													aria-describedby="folder-formats-help"
 												/>
 											</TextField>
-											<p class="text-xs text-muted-foreground">
+											<p
+												id="folder-formats-help"
+												class="text-xs text-muted-foreground"
+											>
 												Supported formats: mkv, mp4, avi, webm, m4v
 											</p>
 										</div>
-									</div>
+									</section>
 								</TabsContent>
 							</Tabs>
 						</div>
@@ -753,7 +732,7 @@ function ImportPage() {
 							</div>
 
 							{/* File List */}
-							<div class="divide-y">
+							<ul class="divide-y" aria-label="Scanned files for import">
 								<For each={scannedFiles()}>
 									{(file) => (
 										<FileRow
@@ -776,7 +755,7 @@ function ImportPage() {
 										/>
 									)}
 								</For>
-							</div>
+							</ul>
 						</div>
 
 						{/* Footer */}
@@ -809,291 +788,6 @@ function ImportPage() {
 							</div>
 						</div>
 					</div>
-				</Show>
-			</div>
-		</div>
-	);
-}
-
-interface FileRowProps {
-	file: ScannedFile;
-	animeList: { id: number; title: { romaji: string; english?: string } }[];
-	candidates: AnimeSearchResult[];
-	isSelected: boolean;
-	selectedAnimeId?: number;
-	currentEpisode?: number;
-	currentSeason?: number | null;
-	onToggle: (animeId: number) => void;
-	onAnimeChange: (animeId: number) => void;
-	onMappingChange: (season: number, episode: number) => void;
-}
-
-function FileRow(props: FileRowProps) {
-	const matchedAnimeId = () =>
-		props.file.matched_anime?.id || props.selectedAnimeId;
-	const hasMatch = () => !!matchedAnimeId();
-
-	const displayEpisode = () =>
-		props.currentEpisode !== undefined
-			? props.currentEpisode
-			: Math.floor(props.file.episode_number);
-	const displaySeason = () =>
-		props.currentSeason !== undefined ? props.currentSeason : props.file.season;
-
-	const allOptions = createMemo(() => {
-		return [
-			...props.animeList.map((a) => ({ ...a, source: "library" as const })),
-			...props.candidates
-				.filter((c) => !props.animeList.some((a) => a.id === c.id))
-				.map((c) => ({ ...c, source: "candidate" as const })),
-		].sort((a, b) => {
-			const titleA = a.title.english || a.title.romaji || "";
-			const titleB = b.title.english || b.title.romaji || "";
-			return titleA.localeCompare(titleB);
-		});
-	});
-
-	return (
-		<div
-			class={cn(
-				"px-8 py-3 transition-colors",
-				props.isSelected ? "bg-primary/5" : "hover:bg-muted/50",
-			)}
-		>
-			<div class="flex items-center gap-4 min-w-0">
-				<Checkbox
-					checked={props.isSelected}
-					disabled={!hasMatch()}
-					onChange={(checked) => {
-						const id = matchedAnimeId();
-						if (checked && id) {
-							props.onToggle(id);
-						} else if (!checked && id) {
-							props.onToggle(id);
-						}
-					}}
-					class="shrink-0"
-				/>
-				<IconFile class="h-4 w-4 text-muted-foreground shrink-0" />
-				<div class="flex-1 min-w-0 overflow-hidden">
-					<span class="text-sm font-medium truncate block">
-						{props.file.filename}
-					</span>
-				</div>
-				<div class="flex items-center gap-1.5 shrink-0">
-					<EditMappingPopover
-						episode={displayEpisode()}
-						season={displaySeason()}
-						onSave={props.onMappingChange}
-					/>
-					<Show when={props.file.resolution}>
-						<Badge variant="secondary" class="text-xs">
-							{props.file.resolution}
-						</Badge>
-					</Show>
-				</div>
-				<div class="flex items-center gap-2 shrink-0 w-64">
-					<Show
-						when={hasMatch()}
-						fallback={
-							<>
-								<IconAlertTriangle class="h-4 w-4 text-yellow-600 shrink-0" />
-								<Select
-									value={null}
-									onChange={(v) => {
-										if (v) {
-											const newId = v.id;
-											props.onToggle(newId);
-										}
-									}}
-									options={allOptions()}
-									optionValue="id"
-									optionTextValue={(opt) =>
-										opt.title.english || opt.title.romaji || "Unknown Title"
-									}
-									placeholder="Select anime..."
-									itemComponent={(props) => (
-										<SelectItem item={props.item}>
-											<span class="flex items-center gap-2">
-												{props.item.rawValue?.title.english ||
-													props.item.rawValue?.title.romaji}
-												<Show
-													when={props.item.rawValue?.source === "candidate"}
-												>
-													<Badge
-														variant="secondary"
-														class="h-4 px-1 text-[9px]"
-													>
-														New
-													</Badge>
-												</Show>
-											</span>
-										</SelectItem>
-									)}
-								>
-									<SelectTrigger class="h-8 text-xs flex-1">
-										{/* biome-ignore lint/suspicious/noExplicitAny: complex type */}
-										<SelectValue<any>>
-											{(_state) => (
-												<span class="text-muted-foreground">
-													Select anime...
-												</span>
-											)}
-										</SelectValue>
-									</SelectTrigger>
-									<SelectContent />
-								</Select>
-							</>
-						}
-					>
-						<IconCheck class="h-4 w-4 text-green-600 shrink-0" />
-						<Select
-							value={allOptions().find(
-								(o) => o.id === (props.selectedAnimeId || matchedAnimeId()),
-							)}
-							onChange={(v) => {
-								if (v) {
-									const newId = v.id;
-									props.onAnimeChange(newId);
-									if (!props.isSelected) {
-										props.onToggle(newId);
-									}
-								}
-							}}
-							options={allOptions()}
-							optionValue="id"
-							optionTextValue={(opt) =>
-								opt.title.english || opt.title.romaji || "Unknown Title"
-							}
-							itemComponent={(props) => (
-								<SelectItem item={props.item}>
-									<span class="flex items-center gap-2">
-										{props.item.rawValue?.title.english ||
-											props.item.rawValue?.title.romaji}
-										<Show when={props.item.rawValue?.source === "candidate"}>
-											<Badge variant="secondary" class="h-4 px-1 text-[9px]">
-												New
-											</Badge>
-										</Show>
-									</span>
-								</SelectItem>
-							)}
-						>
-							<SelectTrigger class="h-8 text-xs flex-1">
-								{/* biome-ignore lint/suspicious/noExplicitAny: complex type */}
-								<SelectValue<any>>
-									{(state) =>
-										state.selectedOption()?.title.english ||
-										state.selectedOption()?.title.romaji ||
-										`ID: ${props.selectedAnimeId || matchedAnimeId()}`
-									}
-								</SelectValue>
-							</SelectTrigger>
-							<SelectContent />
-						</Select>
-					</Show>
-				</div>
-			</div>
-		</div>
-	);
-}
-
-function ManualSearch(props: {
-	onSelect: (candidate: AnimeSearchResult) => void;
-	existingIds: Set<number>;
-}) {
-	const [query, setQuery] = createSignal("");
-
-	const [debouncedQuery, setDebouncedQuery] = createSignal("");
-	createEffect(() => {
-		const timeout = setTimeout(() => setDebouncedQuery(query()), 500);
-		return () => clearTimeout(timeout);
-	});
-
-	const search = createAnimeSearchQuery(debouncedQuery);
-
-	return (
-		<div class="space-y-4">
-			<div class="relative">
-				<IconSearch class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-				<TextField value={query()} onChange={setQuery}>
-					<TextFieldInput
-						placeholder="Search for anime..."
-						class="pl-9"
-						autofocus
-					/>
-				</TextField>
-				<Show when={search.isFetching}>
-					<IconLoader2 class="absolute right-3 top-3 h-3 w-3 animate-spin text-muted-foreground" />
-				</Show>
-			</div>
-
-			<div class="h-[300px] border rounded-md overflow-y-auto">
-				<Show
-					when={debouncedQuery()}
-					fallback={
-						<div class="h-full flex flex-col items-center justify-center text-muted-foreground">
-							<IconSearch class="h-8 w-8 mb-2 opacity-20" />
-							<p class="text-sm">Type to search for anime</p>
-						</div>
-					}
-				>
-					<Show
-						when={search.data?.length !== 0}
-						fallback={
-							<div class="h-full flex flex-col items-center justify-center text-muted-foreground">
-								<IconAlertTriangle class="h-8 w-8 mb-2 opacity-20" />
-								<p class="text-sm">No results found</p>
-							</div>
-						}
-					>
-						<div class="divide-y">
-							<For each={search.data}>
-								{(anime) => {
-									const isAdded = () => props.existingIds.has(anime.id);
-									return (
-										<button
-											type="button"
-											disabled={isAdded()}
-											onClick={() => props.onSelect(anime)}
-											class={cn(
-												"w-full flex items-center gap-3 p-3 text-left transition-colors",
-												isAdded()
-													? "opacity-50 cursor-not-allowed bg-muted/20"
-													: "hover:bg-muted/50",
-											)}
-										>
-											<div class="h-10 w-10 shrink-0 rounded bg-muted overflow-hidden">
-												<Show when={anime.cover_image}>
-													<img
-														src={anime.cover_image}
-														alt=""
-														class="h-full w-full object-cover"
-													/>
-												</Show>
-											</div>
-											<div class="flex-1 min-w-0">
-												<p class="text-sm font-medium truncate">
-													{anime.title.romaji}
-												</p>
-												<p class="text-xs text-muted-foreground truncate">
-													{anime.title.english}
-												</p>
-											</div>
-											<Show
-												when={isAdded()}
-												fallback={
-													<IconPlus class="h-4 w-4 text-muted-foreground" />
-												}
-											>
-												<span class="text-xs text-muted-foreground">Added</span>
-											</Show>
-										</button>
-									);
-								}}
-							</For>
-						</div>
-					</Show>
 				</Show>
 			</div>
 		</div>

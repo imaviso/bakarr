@@ -10,7 +10,7 @@ import { GlobalSpinner } from "~/components/global-spinner";
 import { NotFound } from "~/components/not-found";
 import { SseToastListener } from "~/components/sse-toast-listener";
 import { Toaster } from "~/components/ui/sonner";
-import type { AuthState } from "~/lib/auth";
+import { AuthProvider, type AuthState } from "~/lib/auth";
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
@@ -23,7 +23,7 @@ export const Route = createRootRouteWithContext<{
 function RootComponent() {
 	const storageManager = createLocalStorageManager("bakarr-ui-theme");
 	return (
-		<>
+		<AuthProvider>
 			<ColorModeScript storageType={storageManager.type} />
 			<ColorModeProvider storageManager={storageManager}>
 				<GlobalSpinner />
@@ -32,6 +32,6 @@ function RootComponent() {
 				<SseToastListener />
 				<Toaster />
 			</ColorModeProvider>
-		</>
+		</AuthProvider>
 	);
 }

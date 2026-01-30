@@ -1,4 +1,10 @@
-import { createSignal } from "solid-js";
+import {
+	type Accessor,
+	createContext,
+	createSignal,
+	type JSX,
+	useContext,
+} from "solid-js";
 
 export interface AuthState {
 	username?: string;
@@ -25,23 +31,29 @@ function getStoredAuth(): AuthState {
 	return { isAuthenticated: false };
 }
 
-const [auth, setAuth] = createSignal<AuthState>(getStoredAuth());
+// Create the auth context
+interface AuthContextValue {
+	auth: Accessor<AuthState>;
+	loginSuccess: (username: string, apiKey?: string) => void;
+	loginApiKey: (apiKey: string) => void;
+	logout: () => Promise<void>;
+	getAuthHeaders: () => HeadersInit;
+}
 
-function saveAuth(state: AuthState) {
-	if (state.isAuthenticated) {
-		localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
-	} else {
-		localStorage.removeItem(AUTH_STORAGE_KEY);
+const AuthContext = createContext<AuthContextValue>();
+
+export function AuthProvider(props: { children: JSX.Element }) {
+	const [auth, setAuth] = createSignal<AuthState>(getStoredAuth());
+
+	function saveAuth(state: AuthState) {
+		if (state.isAuthenticated) {
+			localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
+		} else {
+			localStorage.removeItem(AUTH_STORAGE_KEY);
+		}
+		setAuth(state);
 	}
-	setAuth(state);
-}
 
-// Getter function that works outside of Solid components (e.g., in router loaders)
-export function getAuthState(): AuthState {
-	return auth();
-}
-
-export function useAuth() {
 	const loginSuccess = (username: string, apiKey?: string) => {
 		saveAuth({
 			username,
@@ -64,7 +76,6 @@ export function useAuth() {
 			console.error("Logout failed", e);
 		}
 		saveAuth({ isAuthenticated: false });
-
 		window.location.href = "/login";
 	};
 
@@ -76,11 +87,31 @@ export function useAuth() {
 		return {};
 	};
 
-	return {
+	const value: AuthContextValue = {
 		auth,
 		loginSuccess,
 		loginApiKey,
 		logout,
 		getAuthHeaders,
 	};
+
+	return (
+		<AuthContext.Provider value={value}>{props.children}</AuthContext.Provider>
+	);
+}
+
+// Hook to use auth context
+export function useAuth() {
+	const context = useContext(AuthContext);
+	if (!context) {
+		throw new Error("useAuth must be used within an AuthProvider");
+	}
+	return context;
+}
+
+// Getter function that works outside of Solid components (e.g., in router loaders)
+// This maintains the singleton pattern for non-component usage
+const [globalAuth] = createSignal<AuthState>(getStoredAuth());
+export function getAuthState(): AuthState {
+	return globalAuth();
 }
