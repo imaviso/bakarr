@@ -1,9 +1,14 @@
-import { IconCheck, IconDeviceTv, IconFolder, IconLoader2, IconPlus } from "@tabler/icons-solidjs";
+import {
+	IconCheck,
+	IconDeviceTv,
+	IconFolder,
+	IconLoader2,
+	IconPlus,
+} from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createEffect, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -157,7 +162,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 					<form.Field name="profile_name">
 						{(field) => (
 							<div class="space-y-2">
-								<label class="text-sm font-medium">Quality Profile</label>
+								<div class="text-sm font-medium">Quality Profile</div>
 								<Show
 									when={!profilesQuery.isLoading}
 									fallback={<Skeleton class="h-10 w-full" />}
@@ -188,31 +193,32 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 						<form.Field name="release_profile_ids" mode="array">
 							{(field) => (
 								<div class="space-y-2">
-									<label class="text-sm font-medium">Release Profiles</label>
+									<div class="text-sm font-medium">Release Profiles</div>
 									<div class="flex flex-wrap gap-2">
 										<For each={releaseProfilesQuery.data}>
 											{(profile) => {
 												const isSelected = () =>
 													field().state.value.includes(profile.id);
+												const checkboxId = `release-profile-${profile.id}`;
 												return (
 													<label
+														for={checkboxId}
 														class={cn(
 															"flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-colors",
 															isSelected()
 																? "bg-primary/10 border-primary/30"
-																: "hover:bg-accent"
+																: "hover:bg-accent",
 														)}
 													>
 														<Checkbox
+															id={checkboxId}
 															checked={isSelected()}
 															onChange={(checked) => {
 																if (checked) {
 																	field().pushValue(profile.id);
 																} else {
 																	field().removeValue(
-																		field().state.value.indexOf(
-																			profile.id
-																		)
+																		field().state.value.indexOf(profile.id),
 																	);
 																}
 															}}
@@ -231,8 +237,12 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 					<div class="flex items-center gap-6">
 						<form.Field name="monitor">
 							{(field) => (
-								<label class="flex items-center gap-2 cursor-pointer">
+								<label
+									for="monitor-checkbox"
+									class="flex items-center gap-2 cursor-pointer"
+								>
 									<Checkbox
+										id="monitor-checkbox"
 										checked={field().state.value}
 										onChange={field().handleChange}
 									/>
@@ -243,8 +253,12 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 
 						<form.Field name="search_now">
 							{(field) => (
-								<label class="flex items-center gap-2 cursor-pointer">
+								<label
+									for="search-now-checkbox"
+									class="flex items-center gap-2 cursor-pointer"
+								>
 									<Checkbox
+										id="search-now-checkbox"
 										checked={field().state.value}
 										onChange={field().handleChange}
 									/>
@@ -257,9 +271,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 					<Show when={props.anime.already_in_library}>
 						<div class="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-md text-yellow-600">
 							<IconCheck class="h-4 w-4" />
-							<span class="text-sm">
-								This anime is already in your library
-							</span>
+							<span class="text-sm">This anime is already in your library</span>
 						</div>
 					</Show>
 

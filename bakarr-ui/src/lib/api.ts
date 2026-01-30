@@ -350,10 +350,20 @@ export function animeByAnilistIdQueryOptions(id: number) {
 }
 
 export function createAnimeByAnilistIdQuery(id: () => number | null) {
-	return useQuery(() => ({
-		...animeByAnilistIdQueryOptions(id()!),
-		enabled: !!id(),
-	}));
+	return useQuery(() => {
+		const currentId = id();
+		if (!currentId) {
+			return {
+				queryKey: ["anime", "anilist", "none"],
+				queryFn: () => Promise.resolve({} as AnimeSearchResult),
+				enabled: false,
+			};
+		}
+		return {
+			...animeByAnilistIdQueryOptions(currentId),
+			enabled: true,
+		};
+	});
 }
 
 export function createAddAnimeMutation() {

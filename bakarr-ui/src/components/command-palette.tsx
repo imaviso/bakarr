@@ -49,16 +49,18 @@ function SearchResults(props: {
 		if (!data) return [];
 		if (!query) return data.slice(0, 10);
 
-		return data.filter((anime) => {
-			const title = anime.title.romaji?.toLowerCase() || "";
-			const english = anime.title.english?.toLowerCase() || "";
-			const native = anime.title.native?.toLowerCase() || "";
-			return (
-				title.includes(query) ||
-				english.includes(query) ||
-				native.includes(query)
-			);
-		}).slice(0, 10);
+		return data
+			.filter((anime) => {
+				const title = anime.title.romaji?.toLowerCase() || "";
+				const english = anime.title.english?.toLowerCase() || "";
+				const native = anime.title.native?.toLowerCase() || "";
+				return (
+					title.includes(query) ||
+					english.includes(query) ||
+					native.includes(query)
+				);
+			})
+			.slice(0, 10);
 	});
 
 	return (
@@ -79,9 +81,7 @@ function SearchResults(props: {
 
 				{/* Show no results when library is empty */}
 				<Show
-					when={
-						!props.animeList.isLoading && filteredLibrary().length === 0
-					}
+					when={!props.animeList.isLoading && filteredLibrary().length === 0}
 				>
 					<CommandEmpty>
 						<Show
@@ -102,11 +102,7 @@ function SearchResults(props: {
 				</Show>
 
 				{/* Library Section */}
-				<Show
-					when={
-						!props.animeList.isLoading && filteredLibrary().length > 0
-					}
-				>
+				<Show when={!props.animeList.isLoading && filteredLibrary().length > 0}>
 					<CommandGroup heading="Library">
 						<For each={filteredLibrary()}>
 							{(anime) => (
@@ -122,14 +118,11 @@ function SearchResults(props: {
 										/>
 									</Show>
 									<div class="flex flex-col">
-										<span class="font-medium">
-											{anime.title.romaji}
-										</span>
+										<span class="font-medium">{anime.title.romaji}</span>
 										<Show
 											when={
 												anime.title.english &&
-												anime.title.english !==
-													anime.title.romaji
+												anime.title.english !== anime.title.romaji
 											}
 										>
 											<span class="text-xs text-muted-foreground">
@@ -172,14 +165,11 @@ function SearchResults(props: {
 										/>
 									</Show>
 									<div class="flex flex-col">
-										<span class="font-medium">
-											{anime.title.romaji}
-										</span>
+										<span class="font-medium">{anime.title.romaji}</span>
 										<Show
 											when={
 												anime.title.english &&
-												anime.title.english !==
-													anime.title.romaji
+												anime.title.english !== anime.title.romaji
 											}
 										>
 											<span class="text-xs text-muted-foreground">
