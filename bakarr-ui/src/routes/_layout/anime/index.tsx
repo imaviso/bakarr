@@ -27,7 +27,7 @@ import {
 	AlertDialogTrigger,
 } from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import {
 	DropdownMenu,
@@ -130,13 +130,12 @@ function AnimeIndexPage() {
 							<Tooltip>
 								<TooltipTrigger>
 									<DropdownMenuTrigger
-										// biome-ignore lint/suspicious/noExplicitAny: props type from library
-										as={(props: any) => (
-											<Button {...props} variant="outline" size="icon">
-												<IconFilter class="h-4 w-4" />
-											</Button>
-										)}
-									/>
+										as={Button}
+										variant="outline"
+										size="icon"
+									>
+										<IconFilter class="h-4 w-4" />
+									</DropdownMenuTrigger>
 								</TooltipTrigger>
 								<TooltipContent>Filter by status</TooltipContent>
 							</Tooltip>
@@ -176,20 +175,22 @@ function AnimeIndexPage() {
 						<div class="flex items-center gap-1">
 							<Tooltip>
 								<TooltipTrigger>
-									<Link to="/anime/import">
-										<Button variant="outline" size="icon">
-											<IconFolderOpen class="h-4 w-4" />
-										</Button>
+									<Link
+										to="/anime/import"
+										class={buttonVariants({ variant: "outline", size: "icon" })}
+									>
+										<IconFolderOpen class="h-4 w-4" />
 									</Link>
 								</TooltipTrigger>
 								<TooltipContent>Import from folder</TooltipContent>
 							</Tooltip>
 							<Tooltip>
 								<TooltipTrigger>
-									<Link to="/anime/scan">
-										<Button variant="outline" size="icon">
-											<IconFolder class="h-4 w-4" />
-										</Button>
+									<Link
+										to="/anime/scan"
+										class={buttonVariants({ variant: "outline", size: "icon" })}
+									>
+										<IconFolder class="h-4 w-4" />
 									</Link>
 								</TooltipTrigger>
 								<TooltipContent>Scan Library</TooltipContent>
@@ -239,14 +240,23 @@ function AnimeIndexPage() {
 
 						<Tooltip>
 							<TooltipTrigger>
-								<Link to="/anime/add">
-									<Button size="icon" class="md:hidden">
-										<IconPlus class="h-4 w-4" />
-									</Button>
-									<Button class="hidden md:flex">
-										<IconPlus class="mr-2 h-4 w-4" />
-										Add Anime
-									</Button>
+								<Link
+									to="/anime/add"
+									class={buttonVariants({ size: "icon", class: "md:hidden" })}
+								>
+									<IconPlus class="h-4 w-4" />
+								</Link>
+							</TooltipTrigger>
+							<TooltipContent>Add new anime</TooltipContent>
+						</Tooltip>
+						<Tooltip>
+							<TooltipTrigger>
+								<Link
+									to="/anime/add"
+									class={buttonVariants({ class: "hidden md:flex" })}
+								>
+									<IconPlus class="mr-2 h-4 w-4" />
+									Add Anime
 								</Link>
 							</TooltipTrigger>
 							<TooltipContent>Add new anime</TooltipContent>
@@ -292,11 +302,9 @@ function AnimeIndexPage() {
 												Add your first anime to start monitoring
 											</p>
 										</div>
-										<Link to="/anime/add">
-											<Button>
-												<IconPlus class="mr-2 h-4 w-4" />
-												Add Anime
-											</Button>
+										<Link to="/anime/add" class={buttonVariants()}>
+											<IconPlus class="mr-2 h-4 w-4" />
+											Add Anime
 										</Link>
 									</div>
 								</Card>
@@ -377,21 +385,14 @@ function AnimeIndexPage() {
 														<TableCell class="text-right">
 															<AlertDialog>
 																<AlertDialogTrigger
-																	// biome-ignore lint/suspicious/noExplicitAny: props type from library
-																	as={(props: any) => (
-																		<Button
-																			{...props}
-																			variant="ghost"
-																			size="icon"
-																			class="h-8 w-8 text-muted-foreground hover:text-destructive"
-																			onClick={(e: Event) =>
-																				e.stopPropagation()
-																			}
-																		>
-																			<IconTrash class="h-4 w-4" />
-																		</Button>
-																	)}
-																/>
+																	as={Button}
+																	variant="ghost"
+																	size="icon"
+																	class="h-8 w-8 text-muted-foreground hover:text-destructive"
+																	onClick={(e: Event) => e.stopPropagation()}
+																>
+																	<IconTrash class="h-4 w-4" />
+																</AlertDialogTrigger>
 																<AlertDialogContent>
 																	<AlertDialogHeader>
 																		<AlertDialogTitle>
@@ -460,18 +461,13 @@ function AnimeIndexPage() {
 												<div class="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
 													<AlertDialog>
 														<AlertDialogTrigger
-															// biome-ignore lint/suspicious/noExplicitAny: props type from library
-															as={(props: any) => (
-																<Button
-																	{...props}
-																	size="icon"
-																	variant="secondary"
-																	class="h-7 w-7 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
-																>
-																	<IconTrash class="h-3.5 w-3.5" />
-																</Button>
-															)}
-														/>
+															as={Button}
+															size="icon"
+															variant="secondary"
+															class="h-7 w-7 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
+														>
+															<IconTrash class="h-3.5 w-3.5" />
+														</AlertDialogTrigger>
 														<AlertDialogContent>
 															<AlertDialogHeader>
 																<AlertDialogTitle>

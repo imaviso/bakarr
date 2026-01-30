@@ -873,8 +873,11 @@ export function profilesQueryOptions() {
 	});
 }
 
-export function createProfilesQuery() {
-	return useQuery(profilesQueryOptions);
+export function createProfilesQuery(enabled: () => boolean = () => true) {
+	return useQuery(() => ({
+		...profilesQueryOptions(),
+		enabled: enabled(),
+	}));
 }
 
 export function qualitiesQueryOptions() {
@@ -898,8 +901,11 @@ export function systemConfigQueryOptions() {
 	});
 }
 
-export function createSystemConfigQuery() {
-	return useQuery(systemConfigQueryOptions);
+export function createSystemConfigQuery(enabled: () => boolean = () => true) {
+	return useQuery(() => ({
+		...systemConfigQueryOptions(),
+		enabled: enabled(),
+	}));
 }
 
 export function createUpdateSystemConfigMutation() {
@@ -986,8 +992,13 @@ export function releaseProfilesQueryOptions() {
 	});
 }
 
-export function createReleaseProfilesQuery() {
-	return useQuery(releaseProfilesQueryOptions);
+export function createReleaseProfilesQuery(
+	enabled: () => boolean = () => true,
+) {
+	return useQuery(() => ({
+		...releaseProfilesQueryOptions(),
+		enabled: enabled(),
+	}));
 }
 
 export function createCreateReleaseProfileMutation() {

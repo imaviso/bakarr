@@ -11,7 +11,6 @@ import {
 	endOfMonth,
 	endOfWeek,
 	format,
-	isSameDay,
 	isSameMonth,
 	isToday,
 	startOfMonth,
@@ -46,13 +45,25 @@ export function AnimeCalendar() {
 
 	const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+	// Optimized: Create a memoized map of events by date for O(1) lookup
+	const eventsByDate = createMemo(() => {
+		const events = calendarQuery.data || [];
+		const map: Record<string, typeof events> = {};
+
+		for (const event of events) {
+			const dateKey = format(new Date(event.start), "yyyy-MM-dd");
+			if (!map[dateKey]) {
+				map[dateKey] = [];
+			}
+			map[dateKey].push(event);
+		}
+
+		return map;
+	});
+
 	const getEventsForDay = (day: Date) => {
-		return (
-			calendarQuery.data?.filter((event) => {
-				const eventDate = new Date(event.start);
-				return isSameDay(day, eventDate);
-			}) || []
-		);
+		const dateKey = format(day, "yyyy-MM-dd");
+		return eventsByDate()[dateKey] || [];
 	};
 
 	const handlePrevMonth = () => setCurrentDate((d) => subMonths(d, 1));

@@ -6,7 +6,7 @@ import {
 	IconPlus,
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
-import { createEffect, For, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { Button } from "~/components/ui/button";
@@ -26,7 +26,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "~/components/ui/select";
-import { Skeleton } from "~/components/ui/skeleton";
 import {
 	TextField,
 	TextFieldInput,
@@ -57,51 +56,18 @@ export interface AddAnimeDialogProps {
 }
 
 export function AddAnimeDialog(props: AddAnimeDialogProps) {
-	const profilesQuery = createProfilesQuery();
-	const releaseProfilesQuery = createReleaseProfilesQuery();
-	const configQuery = createSystemConfigQuery();
-	const addAnimeMutation = createAddAnimeMutation();
+	// Only fetch when dialog is open to prevent eager fetching
+	const profilesQuery = createProfilesQuery(() => props.open);
+	const releaseProfilesQuery = createReleaseProfilesQuery(() => props.open);
+	const configQuery = createSystemConfigQuery(() => props.open);
 
-	const form = createForm(() => ({
-		defaultValues: {
-			root_folder: configQuery.data?.library.library_path || "",
-			profile_name: profilesQuery.data?.[0]?.name || "",
-			monitor: true,
-			search_now: true,
-			release_profile_ids: [] as number[],
-		},
-		validators: {
-			onChange: AddAnimeSchema,
-		},
-		onSubmit: async ({ value }) => {
-			await addAnimeMutation.mutateAsync({
-				id: props.anime.id,
-				profile_name: value.profile_name,
-				root_folder: value.root_folder,
-				monitor_and_search: value.search_now,
-				monitored: value.monitor,
-				release_profile_ids: value.release_profile_ids,
-			});
-			props.onSuccess?.();
-			props.onOpenChange(false);
-			toast.success(`Added ${props.anime.title.romaji} to library`);
-		},
-	}));
-
-	createEffect(() => {
-		if (
-			configQuery.data?.library.library_path &&
-			!form.getFieldValue("root_folder")
-		) {
-			form.setFieldValue("root_folder", configQuery.data.library.library_path);
-		}
-	});
-
-	createEffect(() => {
-		if (profilesQuery.data?.[0]?.name && !form.getFieldValue("profile_name")) {
-			form.setFieldValue("profile_name", profilesQuery.data[0].name);
-		}
-	});
+	// 1. Derive readiness state
+	const isReady = createMemo(
+		() =>
+			profilesQuery.isSuccess &&
+			configQuery.isSuccess &&
+			releaseProfilesQuery.isSuccess,
+	);
 
 	return (
 		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -136,183 +102,242 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 					</DialogDescription>
 				</DialogHeader>
 
-				<form
-					onSubmit={(e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						form.handleSubmit();
-					}}
-					class="space-y-5 py-4"
-				>
-					<form.Field name="root_folder">
-						{(field) => (
-							<TextField
-								value={field().state.value}
-								onChange={field().handleChange}
-							>
-								<TextFieldLabel class="flex items-center gap-2">
-									<IconFolder class="h-4 w-4" />
-									Root Folder
-								</TextFieldLabel>
-								<TextFieldInput placeholder="/path/to/library" />
-							</TextField>
-						)}
-					</form.Field>
-
-					<form.Field name="profile_name">
-						{(field) => (
-							<div class="space-y-2">
-								<div class="text-sm font-medium">Quality Profile</div>
-								<Show
-									when={!profilesQuery.isLoading}
-									fallback={<Skeleton class="h-10 w-full" />}
-								>
-									<Select
-										value={field().state.value}
-										onChange={(val) => val && field().handleChange(val)}
-										options={profilesQuery.data?.map((p) => p.name) || []}
-										itemComponent={(props) => (
-											<SelectItem item={props.item}>
-												{props.item.rawValue}
-											</SelectItem>
-										)}
-									>
-										<SelectTrigger>
-											<SelectValue<string>>
-												{(state) => state.selectedOption()}
-											</SelectValue>
-										</SelectTrigger>
-										<SelectContent />
-									</Select>
-								</Show>
-							</div>
-						)}
-					</form.Field>
-
-					<Show when={releaseProfilesQuery.data?.length}>
-						<form.Field name="release_profile_ids" mode="array">
-							{(field) => (
-								<div class="space-y-2">
-									<div class="text-sm font-medium">Release Profiles</div>
-									<div class="flex flex-wrap gap-2">
-										<For each={releaseProfilesQuery.data}>
-											{(profile) => {
-												const isSelected = () =>
-													field().state.value.includes(profile.id);
-												const checkboxId = `release-profile-${profile.id}`;
-												return (
-													<label
-														for={checkboxId}
-														class={cn(
-															"flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-colors",
-															isSelected()
-																? "bg-primary/10 border-primary/30"
-																: "hover:bg-accent",
-														)}
-													>
-														<Checkbox
-															id={checkboxId}
-															checked={isSelected()}
-															onChange={(checked) => {
-																if (checked) {
-																	field().pushValue(profile.id);
-																} else {
-																	field().removeValue(
-																		field().state.value.indexOf(profile.id),
-																	);
-																}
-															}}
-														/>
-														<span class="text-sm">{profile.name}</span>
-													</label>
-												);
-											}}
-										</For>
-									</div>
-								</div>
-							)}
-						</form.Field>
-					</Show>
-
-					<div class="flex items-center gap-6">
-						<form.Field name="monitor">
-							{(field) => (
-								<label
-									for="monitor-checkbox"
-									class="flex items-center gap-2 cursor-pointer"
-								>
-									<Checkbox
-										id="monitor-checkbox"
-										checked={field().state.value}
-										onChange={field().handleChange}
-									/>
-									<span class="text-sm">Monitor for new episodes</span>
-								</label>
-							)}
-						</form.Field>
-
-						<form.Field name="search_now">
-							{(field) => (
-								<label
-									for="search-now-checkbox"
-									class="flex items-center gap-2 cursor-pointer"
-								>
-									<Checkbox
-										id="search-now-checkbox"
-										checked={field().state.value}
-										onChange={field().handleChange}
-									/>
-									<span class="text-sm">Search for episodes now</span>
-								</label>
-							)}
-						</form.Field>
-					</div>
-
-					<Show when={props.anime.already_in_library}>
-						<div class="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-md text-yellow-600">
-							<IconCheck class="h-4 w-4" />
-							<span class="text-sm">This anime is already in your library</span>
+				{/* 2. Only render form when dependencies are loaded */}
+				{/* This avoids "Effect syncing" and ensures defaultValues are correct immediately */}
+				<Show
+					when={isReady()}
+					fallback={
+						<div class="h-64 flex items-center justify-center">
+							<IconLoader2 class="h-8 w-8 animate-spin text-muted-foreground" />
 						</div>
-					</Show>
-
-					<DialogFooter>
-						<Button
-							type="button"
-							variant="ghost"
-							onClick={() => props.onOpenChange(false)}
-						>
-							Cancel
-						</Button>
-						<form.Subscribe
-							selector={(state) => [state.canSubmit, state.isSubmitting]}
-						>
-							{(state) => (
-								<Button
-									type="submit"
-									disabled={
-										!state()[0] ||
-										addAnimeMutation.isPending ||
-										props.anime.already_in_library
-									}
-								>
-									<Show
-										when={!addAnimeMutation.isPending}
-										fallback={
-											<>
-												<IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
-												Adding...
-											</>
-										}
-									>
-										<IconPlus class="mr-2 h-4 w-4" />
-										Add to Library
-									</Show>
-								</Button>
-							)}
-						</form.Subscribe>
-					</DialogFooter>
-				</form>
+					}
+				>
+					<AddAnimeForm
+						anime={props.anime}
+						rootFolder={configQuery.data?.library.library_path ?? ""}
+						defaultProfile={profilesQuery.data?.[0]?.name || ""}
+						releaseProfiles={releaseProfilesQuery.data || []}
+						profiles={profilesQuery.data || []}
+						onSuccess={() => {
+							props.onSuccess?.();
+							props.onOpenChange(false);
+						}}
+						onCancel={() => props.onOpenChange(false)}
+					/>
+				</Show>
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+// 3. Extracted Form Component to isolate state
+// The form now initializes synchronously with guaranteed data props
+interface AddAnimeFormProps {
+	anime: AnimeSearchResult;
+	rootFolder: string;
+	defaultProfile: string;
+	// biome-ignore lint/suspicious/noExplicitAny: profile type from API
+	releaseProfiles: any[];
+	// biome-ignore lint/suspicious/noExplicitAny: profile type from API
+	profiles: any[];
+	onSuccess: () => void;
+	onCancel: () => void;
+}
+
+function AddAnimeForm(props: AddAnimeFormProps) {
+	const addAnimeMutation = createAddAnimeMutation();
+
+	const form = createForm(() => ({
+		// No effects needed. Data is passed as stable props.
+		defaultValues: {
+			root_folder: props.rootFolder,
+			profile_name: props.defaultProfile,
+			monitor: true,
+			search_now: true,
+			release_profile_ids: [] as number[],
+		},
+		validators: {
+			onChange: AddAnimeSchema,
+		},
+		onSubmit: async ({ value }) => {
+			await addAnimeMutation.mutateAsync({
+				id: props.anime.id,
+				profile_name: value.profile_name,
+				root_folder: value.root_folder,
+				monitor_and_search: value.search_now,
+				monitored: value.monitor,
+				release_profile_ids: value.release_profile_ids,
+			});
+			toast.success(`Added ${props.anime.title.romaji} to library`);
+			props.onSuccess();
+		},
+	}));
+
+	return (
+		<form
+			onSubmit={(e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				form.handleSubmit();
+			}}
+			class="space-y-5 py-4"
+		>
+			<form.Field name="root_folder">
+				{(field) => (
+					<TextField
+						value={field().state.value}
+						onChange={field().handleChange}
+					>
+						<TextFieldLabel class="flex items-center gap-2">
+							<IconFolder class="h-4 w-4" />
+							Root Folder
+						</TextFieldLabel>
+						<TextFieldInput placeholder="/path/to/library" />
+					</TextField>
+				)}
+			</form.Field>
+
+			<form.Field name="profile_name">
+				{(field) => (
+					<div class="space-y-2">
+						<div class="text-sm font-medium">Quality Profile</div>
+						<Select
+							value={field().state.value}
+							onChange={(val) => val && field().handleChange(val)}
+							options={props.profiles.map((p) => p.name)}
+							itemComponent={(props) => (
+								<SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+							)}
+						>
+							<SelectTrigger>
+								<SelectValue<string>>
+									{(state) => state.selectedOption()}
+								</SelectValue>
+							</SelectTrigger>
+							<SelectContent />
+						</Select>
+					</div>
+				)}
+			</form.Field>
+
+			<Show when={props.releaseProfiles.length > 0}>
+				<form.Field name="release_profile_ids" mode="array">
+					{(field) => (
+						<div class="space-y-2">
+							<div class="text-sm font-medium">Release Profiles</div>
+							<div class="flex flex-wrap gap-2">
+								<For each={props.releaseProfiles}>
+									{(profile) => {
+										const isSelected = () =>
+											field().state.value.includes(profile.id);
+										const checkboxId = `release-profile-${profile.id}`;
+										return (
+											<label
+												for={checkboxId}
+												class={cn(
+													"flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-colors",
+													isSelected()
+														? "bg-primary/10 border-primary/30"
+														: "hover:bg-accent",
+												)}
+											>
+												<Checkbox
+													id={checkboxId}
+													checked={isSelected()}
+													onChange={(checked) => {
+														if (checked) {
+															field().pushValue(profile.id);
+														} else {
+															field().removeValue(
+																field().state.value.indexOf(profile.id),
+															);
+														}
+													}}
+												/>
+												<span class="text-sm">{profile.name}</span>
+											</label>
+										);
+									}}
+								</For>
+							</div>
+						</div>
+					)}
+				</form.Field>
+			</Show>
+
+			<div class="flex items-center gap-6">
+				<form.Field name="monitor">
+					{(field) => (
+						<label
+							for="monitor-checkbox"
+							class="flex items-center gap-2 cursor-pointer"
+						>
+							<Checkbox
+								id="monitor-checkbox"
+								checked={field().state.value}
+								onChange={field().handleChange}
+							/>
+							<span class="text-sm">Monitor for new episodes</span>
+						</label>
+					)}
+				</form.Field>
+
+				<form.Field name="search_now">
+					{(field) => (
+						<label
+							for="search-now-checkbox"
+							class="flex items-center gap-2 cursor-pointer"
+						>
+							<Checkbox
+								id="search-now-checkbox"
+								checked={field().state.value}
+								onChange={field().handleChange}
+							/>
+							<span class="text-sm">Search for episodes now</span>
+						</label>
+					)}
+				</form.Field>
+			</div>
+
+			<Show when={props.anime.already_in_library}>
+				<div class="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-md text-yellow-600">
+					<IconCheck class="h-4 w-4" />
+					<span class="text-sm">This anime is already in your library</span>
+				</div>
+			</Show>
+
+			<DialogFooter>
+				<Button type="button" variant="ghost" onClick={props.onCancel}>
+					Cancel
+				</Button>
+				<form.Subscribe
+					selector={(state) => [state.canSubmit, state.isSubmitting]}
+				>
+					{(state) => (
+						<Button
+							type="submit"
+							disabled={
+								!state()[0] ||
+								addAnimeMutation.isPending ||
+								props.anime.already_in_library
+							}
+						>
+							<Show
+								when={!addAnimeMutation.isPending}
+								fallback={
+									<>
+										<IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
+										Adding...
+									</>
+								}
+							>
+								<IconPlus class="mr-2 h-4 w-4" />
+								Add to Library
+							</Show>
+						</Button>
+					)}
+				</form.Subscribe>
+			</DialogFooter>
+		</form>
 	);
 }

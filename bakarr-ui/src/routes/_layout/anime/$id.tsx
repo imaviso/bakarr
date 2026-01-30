@@ -29,7 +29,7 @@ import {
 	useNavigate,
 	useParams,
 } from "@tanstack/solid-router";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { AnimeError } from "~/components/anime-error";
 import { ImportDialog } from "~/components/import-dialog";
@@ -48,7 +48,7 @@ import {
 	AlertDialogTrigger,
 } from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -219,10 +219,15 @@ function AnimeDetailsPage() {
 						{/* Header */}
 						<div class="flex flex-col md:flex-row md:items-center gap-4 relative">
 							<div class="flex items-center gap-4 flex-1 min-w-0">
-								<Link to="/anime">
-									<Button variant="ghost" size="icon" class="shrink-0">
-										<IconArrowLeft class="h-4 w-4" />
-									</Button>
+								<Link
+									to="/anime"
+									class={buttonVariants({
+										variant: "ghost",
+										size: "icon",
+										class: "shrink-0",
+									})}
+								>
+									<IconArrowLeft class="h-4 w-4" />
 								</Link>
 								<div class="flex-1 min-w-0">
 									<h1 class="text-xl font-semibold tracking-tight overflow-hidden flex items-center gap-3 min-w-0">
@@ -984,18 +989,36 @@ function EditProfileDialog(props: {
 	// biome-ignore lint/suspicious/noExplicitAny: profile type imported
 	releaseProfiles: any[];
 }) {
+	return (
+		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
+			{/* Wrap content in Show so component re-mounts when dialog opens, re-initializing state from props */}
+			<Show when={props.open}>
+				<EditProfileDialogContent {...props} />
+			</Show>
+		</Dialog>
+	);
+}
+
+function EditProfileDialogContent(props: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	currentProfile: string;
+	currentReleaseProfileIds: number[];
+	animeId: number;
+	// biome-ignore lint/suspicious/noExplicitAny: mutation type inferred
+	updateMutation: any;
+	// biome-ignore lint/suspicious/noExplicitAny: mutation type inferred
+	updateReleaseProfilesMutation: any;
+	// biome-ignore lint/suspicious/noExplicitAny: profile type imported
+	profiles: any[];
+	// biome-ignore lint/suspicious/noExplicitAny: profile type imported
+	releaseProfiles: any[];
+}) {
+	// Initialize state synchronously from props - no createEffect needed
 	const [profile, setProfile] = createSignal(props.currentProfile);
 	const [releaseProfileIds, setReleaseProfileIds] = createSignal<number[]>(
 		props.currentReleaseProfileIds,
 	);
-
-	createEffect(() => {
-		if (props.open) {
-			if (props.currentProfile) setProfile(props.currentProfile);
-			if (props.currentReleaseProfileIds)
-				setReleaseProfileIds(props.currentReleaseProfileIds);
-		}
-	});
 
 	const handleSubmit = (e: Event) => {
 		e.preventDefault();
@@ -1037,128 +1060,120 @@ function EditProfileDialog(props: {
 	};
 
 	return (
-		<Dialog open={props.open} onOpenChange={props.onOpenChange}>
-			<DialogContent>
-				<DialogHeader>
-					<DialogTitle>Edit Profiles</DialogTitle>
-					<DialogDescription>
-						Change the quality and release profiles for this anime.
-					</DialogDescription>
-				</DialogHeader>
-				<form onSubmit={handleSubmit} class="space-y-6">
-					<div class="space-y-2">
-						<label
-							class="text-sm font-medium leading-none"
-							for="profile-select"
-						>
-							Quality Profile
-						</label>
-						<Select
-							value={profile()}
-							onChange={(val) => val && setProfile(val)}
-							options={props.profiles.map((p) => p.name)}
-							placeholder="Select profile..."
-							itemComponent={(props) => (
-								<SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
-							)}
-						>
-							<SelectTrigger class="w-full">
-								<SelectValue<string>>
-									{(state) => state.selectedOption()}
-								</SelectValue>
-							</SelectTrigger>
-							<SelectContent />
-						</Select>
-					</div>
+		<DialogContent>
+			<DialogHeader>
+				<DialogTitle>Edit Profiles</DialogTitle>
+				<DialogDescription>
+					Change the quality and release profiles for this anime.
+				</DialogDescription>
+			</DialogHeader>
+			<form onSubmit={handleSubmit} class="space-y-6">
+				<div class="space-y-2">
+					<label class="text-sm font-medium leading-none" for="profile-select">
+						Quality Profile
+					</label>
+					<Select
+						value={profile()}
+						onChange={(val) => val && setProfile(val)}
+						options={props.profiles.map((p) => p.name)}
+						placeholder="Select profile..."
+						itemComponent={(props) => (
+							<SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+						)}
+					>
+						<SelectTrigger class="w-full">
+							<SelectValue<string>>
+								{(state) => state.selectedOption()}
+							</SelectValue>
+						</SelectTrigger>
+						<SelectContent />
+					</Select>
+				</div>
 
-					<div class="space-y-2">
-						<div class="text-sm font-medium leading-none">
-							Release Profiles (Optional)
-						</div>
-						<div class="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
-							<Show
-								when={props.releaseProfiles && props.releaseProfiles.length > 0}
-								fallback={
-									<div class="text-sm text-muted-foreground text-center py-2">
-										No release profiles available
-									</div>
-								}
-							>
-								<For each={props.releaseProfiles}>
-									{(rp) => (
-										<div class="flex items-center space-x-2">
-											<Checkbox
-												id={`rp-edit-${rp.id}`}
-												checked={releaseProfileIds().includes(rp.id)}
-												onChange={(checked) => {
-													if (checked) {
-														setReleaseProfileIds((prev) => [...prev, rp.id]);
-													} else {
-														setReleaseProfileIds((prev) =>
-															prev.filter((id) => id !== rp.id),
-														);
-													}
-												}}
-											/>
-											<label
-												for={`rp-edit-${rp.id}`}
-												class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 flex items-center justify-between"
-											>
-												<span>{rp.name}</span>
-												<div class="flex gap-2">
-													<Show when={rp.is_global}>
-														<Badge
-															variant="outline"
-															class="text-[10px] h-4 px-1"
-														>
-															Global
-														</Badge>
-													</Show>
-													<Show when={!rp.enabled}>
-														<Badge
-															variant="outline"
-															class="text-[10px] h-4 px-1 text-muted-foreground"
-														>
-															Disabled
-														</Badge>
-													</Show>
-												</div>
-											</label>
-										</div>
-									)}
-								</For>
-							</Show>
-						</div>
-						<p class="text-[10px] text-muted-foreground">
-							Global profiles are applied automatically. Select specific
-							profiles to apply them to this series.
-						</p>
+				<div class="space-y-2">
+					<div class="text-sm font-medium leading-none">
+						Release Profiles (Optional)
 					</div>
-
-					<DialogFooter>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => props.onOpenChange(false)}
-						>
-							Cancel
-						</Button>
-						<Button
-							type="submit"
-							disabled={
-								props.updateMutation.isPending ||
-								props.updateReleaseProfilesMutation.isPending
+					<div class="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
+						<Show
+							when={props.releaseProfiles && props.releaseProfiles.length > 0}
+							fallback={
+								<div class="text-sm text-muted-foreground text-center py-2">
+									No release profiles available
+								</div>
 							}
 						>
-							{props.updateMutation.isPending ||
+							<For each={props.releaseProfiles}>
+								{(rp) => (
+									<div class="flex items-center space-x-2">
+										<Checkbox
+											id={`rp-edit-${rp.id}`}
+											checked={releaseProfileIds().includes(rp.id)}
+											onChange={(checked) => {
+												if (checked) {
+													setReleaseProfileIds((prev) => [...prev, rp.id]);
+												} else {
+													setReleaseProfileIds((prev) =>
+														prev.filter((id) => id !== rp.id),
+													);
+												}
+											}}
+										/>
+										<label
+											for={`rp-edit-${rp.id}`}
+											class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 flex items-center justify-between"
+										>
+											<span>{rp.name}</span>
+											<div class="flex gap-2">
+												<Show when={rp.is_global}>
+													<Badge variant="outline" class="text-[10px] h-4 px-1">
+														Global
+													</Badge>
+												</Show>
+												<Show when={!rp.enabled}>
+													<Badge
+														variant="outline"
+														class="text-[10px] h-4 px-1 text-muted-foreground"
+													>
+														Disabled
+													</Badge>
+												</Show>
+											</div>
+										</label>
+									</div>
+								)}
+							</For>
+						</Show>
+					</div>
+					<p class="text-[10px] text-muted-foreground">
+						Global profiles are applied automatically. Select specific profiles
+						to apply them to this series.
+					</p>
+				</div>
+
+				<DialogFooter>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => props.onOpenChange(false)}
+					>
+						Cancel
+					</Button>
+					<Button
+						type="submit"
+						disabled={
+							props.updateMutation.isPending ||
 							props.updateReleaseProfilesMutation.isPending
-								? "Saving..."
-								: "Save Changes"}
-						</Button>
-					</DialogFooter>
-				</form>
-			</DialogContent>
-		</Dialog>
+						}
+					>
+						{props.updateMutation.isPending ||
+						props.updateReleaseProfilesMutation.isPending
+							? "Saving..."
+							: "Save Changes"}
+					</Button>
+				</DialogFooter>
+			</form>
+		</DialogContent>
 	);
 }
 
