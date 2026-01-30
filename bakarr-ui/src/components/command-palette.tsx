@@ -12,6 +12,7 @@ import {
 	For,
 	onCleanup,
 	Show,
+	Suspense,
 } from "solid-js";
 import { AddAnimeDialog } from "~/components/add-anime-dialog";
 import {
@@ -24,11 +25,178 @@ import {
 	CommandList,
 	CommandSeparator,
 } from "~/components/ui/command";
+import { Skeleton } from "~/components/ui/skeleton";
 import {
 	type AnimeSearchResult,
 	createAnimeListQuery,
 	createAnimeSearchQuery,
 } from "~/lib/api";
+
+// Separate component for the search results to isolate re-renders
+function SearchResults(props: {
+	inputValue: () => string;
+	debouncedSearch: () => string;
+	animeList: ReturnType<typeof createAnimeListQuery>;
+	anilistSearch: ReturnType<typeof createAnimeSearchQuery>;
+	onSelect: (path: string) => void;
+	onAddAnime: (anime: AnimeSearchResult) => void;
+}) {
+	// Filter library anime based on search - uses input value for instant feedback
+	const filteredLibrary = createMemo(() => {
+		const query = props.inputValue().toLowerCase().trim();
+		const data = props.animeList.data;
+
+		if (!data) return [];
+		if (!query) return data.slice(0, 10);
+
+		return data.filter((anime) => {
+			const title = anime.title.romaji?.toLowerCase() || "";
+			const english = anime.title.english?.toLowerCase() || "";
+			const native = anime.title.native?.toLowerCase() || "";
+			return (
+				title.includes(query) ||
+				english.includes(query) ||
+				native.includes(query)
+			);
+		}).slice(0, 10);
+	});
+
+	return (
+		<CommandList>
+			<Suspense
+				fallback={
+					<CommandEmpty>
+						<div class="flex items-center justify-center py-4">
+							<Skeleton class="h-4 w-32" />
+						</div>
+					</CommandEmpty>
+				}
+			>
+				{/* Show loading state */}
+				<Show when={props.animeList.isLoading}>
+					<CommandEmpty>Loading library...</CommandEmpty>
+				</Show>
+
+				{/* Show no results when library is empty */}
+				<Show
+					when={
+						!props.animeList.isLoading && filteredLibrary().length === 0
+					}
+				>
+					<CommandEmpty>
+						<Show
+							when={
+								props.debouncedSearch().length >= 3 &&
+								!props.anilistSearch.isLoading
+							}
+						>
+							No results in library. Check AniList results below.
+						</Show>
+						<Show when={props.debouncedSearch().length < 3}>
+							No anime found in library.
+						</Show>
+						<Show when={props.anilistSearch.isLoading}>
+							Searching AniList...
+						</Show>
+					</CommandEmpty>
+				</Show>
+
+				{/* Library Section */}
+				<Show
+					when={
+						!props.animeList.isLoading && filteredLibrary().length > 0
+					}
+				>
+					<CommandGroup heading="Library">
+						<For each={filteredLibrary()}>
+							{(anime) => (
+								<CommandItem
+									value={`library-${anime.id}`}
+									onSelect={() => props.onSelect(`/anime/${anime.id}`)}
+								>
+									<Show when={anime.cover_image}>
+										<img
+											src={anime.cover_image}
+											alt=""
+											class="mr-2 h-8 w-6 object-cover rounded"
+										/>
+									</Show>
+									<div class="flex flex-col">
+										<span class="font-medium">
+											{anime.title.romaji}
+										</span>
+										<Show
+											when={
+												anime.title.english &&
+												anime.title.english !==
+													anime.title.romaji
+											}
+										>
+											<span class="text-xs text-muted-foreground">
+												{anime.title.english}
+											</span>
+										</Show>
+									</div>
+									<IconChevronRight class="ml-auto h-4 w-4 text-muted-foreground" />
+								</CommandItem>
+							)}
+						</For>
+					</CommandGroup>
+				</Show>
+
+				{/* AniList Search Section - for adding new anime */}
+				<Show
+					when={
+						props.debouncedSearch().length >= 3 &&
+						props.anilistSearch.data &&
+						props.anilistSearch.data.length > 0
+					}
+				>
+					<CommandSeparator />
+					<CommandGroup heading="AniList - Add New Anime">
+						<For
+							each={props.anilistSearch.data
+								?.filter((a) => !a.already_in_library)
+								.slice(0, 5)}
+						>
+							{(anime) => (
+								<CommandItem
+									value={`anilist-${anime.id}`}
+									onSelect={() => props.onAddAnime(anime)}
+								>
+									<Show when={anime.cover_image}>
+										<img
+											src={anime.cover_image}
+											alt=""
+											class="mr-2 h-8 w-6 object-cover rounded"
+										/>
+									</Show>
+									<div class="flex flex-col">
+										<span class="font-medium">
+											{anime.title.romaji}
+										</span>
+										<Show
+											when={
+												anime.title.english &&
+												anime.title.english !==
+													anime.title.romaji
+											}
+										>
+											<span class="text-xs text-muted-foreground">
+												{anime.title.english}
+											</span>
+										</Show>
+									</div>
+									<IconExternalLink class="ml-auto h-4 w-4 text-muted-foreground" />
+								</CommandItem>
+							)}
+						</For>
+					</CommandGroup>
+				</Show>
+			</Suspense>
+		</CommandList>
+	);
+}
 
 export function CommandPalette() {
 	const [open, setOpen] = createSignal(false);
@@ -60,31 +228,11 @@ export function CommandPalette() {
 		return () => clearTimeout(timeout);
 	});
 
-	// Fetch library anime
+	// Fetch library anime - fetch once and don't track updates while dialog is open
 	const animeList = createAnimeListQuery();
 
 	// Fetch AniList search for adding new anime - uses debounced value
 	const anilistSearch = createAnimeSearchQuery(() => debouncedSearch());
-
-	// Filter library anime based on search - uses input value for instant feedback
-	const filteredLibrary = createMemo(() => {
-		const query = inputValue().toLowerCase().trim();
-		const data = animeList.data;
-
-		if (!data) return [];
-		if (!query) return data.slice(0, 10);
-
-		return data.filter((anime) => {
-			const title = anime.title.romaji?.toLowerCase() || "";
-			const english = anime.title.english?.toLowerCase() || "";
-			const native = anime.title.native?.toLowerCase() || "";
-			return (
-				title.includes(query) ||
-				english.includes(query) ||
-				native.includes(query)
-			);
-		}).slice(0, 10);
-	});
 
 	const handleSelect = (path: string) => {
 		setOpen(false);
@@ -102,7 +250,7 @@ export function CommandPalette() {
 
 	return (
 		<>
-			{/* Search Button in Header */}
+			{/* Search Button in Header - Static, never re-renders */}
 			<button
 				type="button"
 				onClick={() => setOpen(true)}
@@ -115,6 +263,7 @@ export function CommandPalette() {
 				</kbd>
 			</button>
 
+			{/* Dialog with isolated rendering */}
 			<CommandDialog open={open()} onOpenChange={setOpen}>
 				<Command shouldFilter={false}>
 					<CommandInput
@@ -123,108 +272,14 @@ export function CommandPalette() {
 						onValueChange={setInputValue}
 						class="focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-0"
 					/>
-					<CommandList>
-						{/* Show loading state */}
-						<Show when={animeList.isLoading}>
-							<CommandEmpty>Loading library...</CommandEmpty>
-						</Show>
-
-						{/* Show no results when library is empty */}
-						<Show when={!animeList.isLoading && filteredLibrary().length === 0}>
-							<CommandEmpty>
-								<Show when={debouncedSearch().length >= 3 && !anilistSearch.isLoading}>
-									No results in library. Check AniList results below.
-								</Show>
-								<Show when={debouncedSearch().length < 3}>
-									No anime found in library.
-								</Show>
-								<Show when={anilistSearch.isLoading}>Searching AniList...</Show>
-							</CommandEmpty>
-						</Show>
-
-						{/* Library Section */}
-						<Show when={!animeList.isLoading && filteredLibrary().length > 0}>
-							<CommandGroup heading="Library">
-								<For each={filteredLibrary()}>
-									{(anime) => (
-										<CommandItem
-											value={`library-${anime.id}`}
-											onSelect={() => handleSelect(`/anime/${anime.id}`)}
-										>
-											<Show when={anime.cover_image}>
-												<img
-													src={anime.cover_image}
-													alt=""
-													class="mr-2 h-8 w-6 object-cover rounded"
-												/>
-											</Show>
-											<div class="flex flex-col">
-												<span class="font-medium">{anime.title.romaji}</span>
-												<Show
-													when={
-														anime.title.english &&
-														anime.title.english !== anime.title.romaji
-													}
-												>
-													<span class="text-xs text-muted-foreground">
-														{anime.title.english}
-													</span>
-												</Show>
-											</div>
-											<IconChevronRight class="ml-auto h-4 w-4 text-muted-foreground" />
-										</CommandItem>
-									)}
-								</For>
-							</CommandGroup>
-						</Show>
-
-						{/* AniList Search Section - for adding new anime */}
-						<Show
-							when={
-								debouncedSearch().length >= 3 &&
-								anilistSearch.data &&
-								anilistSearch.data.length > 0
-							}
-						>
-							<CommandSeparator />
-							<CommandGroup heading="AniList - Add New Anime">
-								<For
-									each={anilistSearch.data
-										?.filter((a) => !a.already_in_library)
-										.slice(0, 5)}
-								>
-									{(anime) => (
-										<CommandItem
-											value={`anilist-${anime.id}`}
-											onSelect={() => handleAddAnime(anime)}
-										>
-											<Show when={anime.cover_image}>
-												<img
-													src={anime.cover_image}
-													alt=""
-													class="mr-2 h-8 w-6 object-cover rounded"
-												/>
-											</Show>
-											<div class="flex flex-col">
-												<span class="font-medium">{anime.title.romaji}</span>
-												<Show
-													when={
-														anime.title.english &&
-														anime.title.english !== anime.title.romaji
-													}
-												>
-													<span class="text-xs text-muted-foreground">
-														{anime.title.english}
-													</span>
-												</Show>
-											</div>
-											<IconExternalLink class="ml-auto h-4 w-4 text-muted-foreground" />
-										</CommandItem>
-									)}
-								</For>
-							</CommandGroup>
-						</Show>
-					</CommandList>
+					<SearchResults
+						inputValue={inputValue}
+						debouncedSearch={debouncedSearch}
+						animeList={animeList}
+						anilistSearch={anilistSearch}
+						onSelect={handleSelect}
+						onAddAnime={handleAddAnime}
+					/>
 				</Command>
 			</CommandDialog>
 
