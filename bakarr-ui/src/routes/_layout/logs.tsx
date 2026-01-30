@@ -404,7 +404,10 @@ function LogsPage() {
 								{(log) => (
 									<TableRow class="group">
 										<TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
-											{format(new Date(log.created_at + "Z"), "yyyy-MM-dd HH:mm:ss")}
+											{format(
+												new Date(`${log.created_at}Z`),
+												"yyyy-MM-dd HH:mm:ss",
+											)}
 										</TableCell>
 										<TableCell>
 											<Badge
@@ -491,7 +494,7 @@ function LogsPage() {
 						<DialogDescription>
 							{selectedLog() &&
 								format(
-									new Date((selectedLog()?.created_at || "") + "Z"),
+									new Date(`${selectedLog()?.created_at || ""}Z`),
 									"yyyy-MM-dd HH:mm:ss",
 								)}
 						</DialogDescription>
