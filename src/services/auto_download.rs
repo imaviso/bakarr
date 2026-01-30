@@ -131,6 +131,7 @@ impl AutoDownloadService {
                 continue;
             }
 
+            #[allow(clippy::cast_possible_truncation)]
             let episode_num = result.episode_number as i32;
 
             // Skip if this episode isn't in our missing list
@@ -190,7 +191,7 @@ impl AutoDownloadService {
     }
 
     /// Get list of missing episode numbers for an anime
-    /// A episode is missing if: monitored AND file_path is None
+    /// A episode is missing if: monitored AND `file_path` is None
     async fn get_missing_episode_numbers(&self, anime_id: i32) -> Result<Vec<i32>> {
         let statuses = self.store.get_episode_statuses(anime_id).await?;
 
