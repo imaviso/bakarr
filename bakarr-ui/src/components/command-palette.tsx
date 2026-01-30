@@ -13,6 +13,7 @@ import {
 	onCleanup,
 	Show,
 } from "solid-js";
+import { AddAnimeDialog } from "~/components/add-anime-dialog";
 import {
 	Command,
 	CommandDialog,
@@ -23,11 +24,17 @@ import {
 	CommandList,
 	CommandSeparator,
 } from "~/components/ui/command";
-import { createAnimeListQuery, createAnimeSearchQuery } from "~/lib/api";
+import {
+	type AnimeSearchResult,
+	createAnimeListQuery,
+	createAnimeSearchQuery,
+} from "~/lib/api";
 
 export function CommandPalette() {
 	const [open, setOpen] = createSignal(false);
 	const [search, setSearch] = createSignal("");
+	const [selectedAnimeForAdd, setSelectedAnimeForAdd] =
+		createSignal<AnimeSearchResult | null>(null);
 	const navigate = useNavigate();
 
 	// Keyboard shortcut to open command palette
@@ -53,7 +60,7 @@ export function CommandPalette() {
 	const filteredLibrary = createMemo(() => {
 		const query = search().toLowerCase().trim();
 		const data = animeList.data;
-		
+
 		if (!data) return [];
 		if (!query) return data;
 
@@ -74,9 +81,13 @@ export function CommandPalette() {
 		navigate({ to: path });
 	};
 
-	const handleAddAnime = (id: number) => {
+	const handleAddAnime = (anime: AnimeSearchResult) => {
+		setSelectedAnimeForAdd(anime);
+	};
+
+	const handleAddSuccess = () => {
+		setSelectedAnimeForAdd(null);
 		setOpen(false);
-		navigate({ to: "/anime/add", search: { id: id.toString() } });
 	};
 
 	return (
@@ -175,7 +186,7 @@ export function CommandPalette() {
 									{(anime) => (
 										<CommandItem
 											value={`anilist-${anime.id}-${anime.title.romaji}`}
-											onSelect={() => handleAddAnime(anime.id)}
+											onSelect={() => handleAddAnime(anime)}
 										>
 											<Show when={anime.cover_image}>
 												<img
@@ -206,6 +217,17 @@ export function CommandPalette() {
 					</CommandList>
 				</Command>
 			</CommandDialog>
+
+			{/* Add Anime Dialog - opens inline without navigating */}
+			<Show when={selectedAnimeForAdd()}>
+				<AddAnimeDialog
+					// biome-ignore lint/style/noNonNullAssertion: Guarded by Show
+					anime={selectedAnimeForAdd()!}
+					open={!!selectedAnimeForAdd()}
+					onOpenChange={(open) => !open && setSelectedAnimeForAdd(null)}
+					onSuccess={handleAddSuccess}
+				/>
+			</Show>
 		</>
 	);
 }
