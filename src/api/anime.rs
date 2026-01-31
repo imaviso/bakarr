@@ -6,7 +6,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 
 use super::{
-    AnimeDto, ApiError, ApiResponse, AppState, EpisodeProgress, SearchResultDto, TitleDto,
+    AnimeDto, ApiError, ApiResponse, AppState, SearchResultDto, TitleDto,
 };
 use crate::api::validation::{validate_anime_id, validate_search_query};
 use crate::services::AnimeService;
@@ -33,113 +33,20 @@ const fn default_true() -> bool {
     true
 }
 
+/// Lists all anime in the library.
+///
+/// Delegates to `AnimeService::list_all_anime` which handles:
+/// - Parallel fetching of download counts, missing episodes, and release profiles
+/// - O(N) missing episode calculation
+/// - DTO conversion with root folder path generation
+///
+/// # Errors
+///
+/// Returns `500 Internal Server Error` on database failures.
 pub async fn list_anime(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<AnimeDto>>>, ApiError> {
-    let anime_list = state.store().list_all_anime().await?;
-    let library_path = state.config().read().await.library.library_path.clone();
-
-    let anime_ids: Vec<i32> = anime_list.iter().map(|a| a.id).collect();
-
-    let download_counts = state
-        .store()
-        .get_download_counts_for_anime_ids(&anime_ids)
-        .await?;
-
-    let mut downloaded_episodes_map = state
-        .store()
-        .get_downloaded_episodes_for_anime_ids(&anime_ids)
-        .await?;
-
-    // Pre-sort all downloaded episodes lists to allow O(N) missing checking without HashSet allocation
-    for episodes in downloaded_episodes_map.values_mut() {
-        episodes.sort_unstable();
-    }
-
-    let release_profiles_map = state
-        .store()
-        .get_assigned_release_profiles_for_anime_ids(&anime_ids)
-        .await?;
-
-    let mut results = Vec::with_capacity(anime_list.len());
-    for anime in anime_list {
-        let downloaded = *download_counts.get(&anime.id).unwrap_or(&0);
-
-        let missing = if let Some(total) = anime.episode_count {
-            let downloaded_eps = downloaded_episodes_map
-                .get(&anime.id)
-                .map_or(&[] as &[i32], Vec::as_slice);
-
-            // Efficiently find missing episodes since downloaded_eps is sorted
-            let mut missing_vec = Vec::new();
-            let mut down_idx = 0;
-            let total_i32 = total;
-
-            for ep in 1..=total_i32 {
-                while down_idx < downloaded_eps.len() && downloaded_eps[down_idx] < ep {
-                    down_idx += 1;
-                }
-
-                if down_idx < downloaded_eps.len() && downloaded_eps[down_idx] == ep {
-                    continue; // Downloaded
-                }
-                missing_vec.push(ep);
-            }
-            missing_vec
-        } else {
-            Vec::new()
-        };
-
-        let release_profile_ids = release_profiles_map
-            .get(&anime.id)
-            .cloned()
-            .unwrap_or_default();
-
-        results.push(AnimeDto {
-            id: anime.id,
-            title: TitleDto {
-                romaji: anime.title.romaji.clone(),
-                english: anime.title.english.clone(),
-                native: anime.title.native.clone(),
-            },
-            format: anime.format,
-            episode_count: anime.episode_count.map(i64::from),
-            status: anime.status,
-            cover_image: anime.cover_image.map(|p| format!("/images/{p}")),
-            banner_image: anime.banner_image.map(|p| format!("/images/{p}")),
-            profile_name: anime
-                .profile_name
-                .clone()
-                .unwrap_or_else(|| "Unknown".to_string()),
-            root_folder: anime.path.clone().unwrap_or_else(|| {
-                let folder_name = if let Some(year) = anime.start_year {
-                    format!("{} ({})", anime.title.romaji, year)
-                } else {
-                    anime.title.romaji.clone()
-                };
-                let sanitized = crate::clients::qbittorrent::sanitize_category(&folder_name);
-
-                std::path::Path::new(&library_path)
-                    .join(sanitized)
-                    .to_string_lossy()
-                    .to_string()
-            }),
-            monitored: anime.monitored,
-            added_at: anime.added_at,
-            mal_id: anime.mal_id,
-            description: anime.description,
-            score: anime.score,
-            genres: anime.genres.clone().unwrap_or_default(),
-            studios: anime.studios.clone().unwrap_or_default(),
-            progress: EpisodeProgress {
-                downloaded: i64::from(downloaded),
-                total: anime.episode_count.map(i64::from),
-                missing,
-            },
-            release_profile_ids,
-        });
-    }
-
+    let results = state.anime_service().list_all_anime().await?;
     Ok(Json(ApiResponse::success(results)))
 }
 
@@ -333,17 +240,24 @@ pub async fn get_anime(
     Ok(Json(ApiResponse::success(anime_dto)))
 }
 
+/// Removes an anime from the library.
+///
+/// Delegates to `AnimeService::remove_anime` for domain validation and deletion.
+///
+/// # Errors
+///
+/// - Returns `404 Not Found` if anime does not exist
+/// - Returns `500 Internal Server Error` on database failures
 pub async fn remove_anime(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
+    use crate::domain::AnimeId;
+
     validate_anime_id(id)?;
+    let anime_id = AnimeId::new(id);
 
-    if state.store().get_anime(id).await?.is_none() {
-        return Err(ApiError::anime_not_found(id));
-    }
-    state.store().remove_anime(id).await?;
-
+    state.anime_service().remove_anime(anime_id).await?;
     Ok(Json(ApiResponse::success(())))
 }
 
@@ -352,22 +266,28 @@ pub struct UpdateReleaseProfilesRequest {
     pub release_profile_ids: Vec<i32>,
 }
 
+/// Updates the release profiles assigned to an anime.
+///
+/// Delegates to `AnimeService::assign_release_profiles` for domain validation and update.
+///
+/// # Errors
+///
+/// - Returns `404 Not Found` if anime does not exist
+/// - Returns `500 Internal Server Error` on database failures
 pub async fn update_anime_release_profiles(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
     Json(payload): Json<UpdateReleaseProfilesRequest>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
-    validate_anime_id(id)?;
+    use crate::domain::AnimeId;
 
-    if state.store().get_anime(id).await?.is_none() {
-        return Err(ApiError::anime_not_found(id));
-    }
+    validate_anime_id(id)?;
+    let anime_id = AnimeId::new(id);
 
     state
-        .store()
-        .assign_release_profiles_to_anime(id, &payload.release_profile_ids)
-        .await
-        .map_err(|e| ApiError::internal(e.to_string()))?;
+        .anime_service()
+        .assign_release_profiles(anime_id, payload.release_profile_ids)
+        .await?;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -377,28 +297,27 @@ pub struct UpdateProfileRequest {
     pub profile_name: String,
 }
 
+/// Updates the quality profile for an anime.
+///
+/// Delegates to `AnimeService::update_quality_profile` for domain validation and update.
+///
+/// # Errors
+///
+/// - Returns `404 Not Found` if anime or profile does not exist
+/// - Returns `500 Internal Server Error` on database failures
 pub async fn update_anime_profile(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
     Json(payload): Json<UpdateProfileRequest>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
+    use crate::domain::AnimeId;
+
     validate_anime_id(id)?;
-
-    if state.store().get_anime(id).await?.is_none() {
-        return Err(ApiError::anime_not_found(id));
-    }
-
-    let profile = state
-        .store()
-        .get_quality_profile_by_name(&payload.profile_name)
-        .await?
-        .ok_or_else(|| {
-            ApiError::validation(format!("Profile not found: {}", payload.profile_name))
-        })?;
+    let anime_id = AnimeId::new(id);
 
     state
-        .store()
-        .update_anime_quality_profile(id, profile.id)
+        .anime_service()
+        .update_quality_profile(anime_id, payload.profile_name)
         .await?;
 
     Ok(Json(ApiResponse::success(())))
@@ -409,18 +328,28 @@ pub struct MonitorToggleRequest {
     pub monitored: bool,
 }
 
+/// Toggles the monitoring status of an anime.
+///
+/// Delegates to `AnimeService::toggle_monitor` for domain validation and update.
+///
+/// # Errors
+///
+/// - Returns `404 Not Found` if anime does not exist
+/// - Returns `500 Internal Server Error` on database failures
 pub async fn toggle_monitor(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
     Json(payload): Json<MonitorToggleRequest>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
+    use crate::domain::AnimeId;
+
     validate_anime_id(id)?;
+    let anime_id = AnimeId::new(id);
 
-    if state.store().get_anime(id).await?.is_none() {
-        return Err(ApiError::anime_not_found(id));
-    }
-
-    state.store().toggle_monitor(id, payload.monitored).await?;
+    state
+        .anime_service()
+        .toggle_monitor(anime_id, payload.monitored)
+        .await?;
 
     Ok(Json(ApiResponse::success(())))
 }
@@ -432,31 +361,35 @@ pub struct UpdatePathRequest {
     pub rescan: bool,
 }
 
+/// Updates the file system path for an anime.
+///
+/// Delegates to `AnimeService::update_anime_path` for path validation and database update.
+/// Spawns a background task to rescan episodes if `rescan` is true.
+///
+/// # Errors
+///
+/// - Returns `404 Not Found` if anime does not exist
+/// - Returns `400 Bad Request` if path does not exist
+/// - Returns `500 Internal Server Error` on database failures
 pub async fn update_anime_path(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
     Json(payload): Json<UpdatePathRequest>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
+    use crate::domain::AnimeId;
+
     validate_anime_id(id)?;
+    let anime_id = AnimeId::new(id);
 
-    if state.store().get_anime(id).await?.is_none() {
-        return Err(ApiError::anime_not_found(id));
-    }
-
-    let path = std::path::Path::new(&payload.path);
-    if !tokio::fs::try_exists(path).await.unwrap_or(false) {
-        return Err(ApiError::validation(format!(
-            "Path does not exist: {}",
-            payload.path
-        )));
-    }
-
-    state.store().update_anime_path(id, &payload.path).await?;
+    state
+        .anime_service()
+        .update_anime_path(anime_id, payload.path.clone())
+        .await?;
 
     if payload.rescan {
         let store = state.store().clone();
         let event_bus = state.event_bus().clone();
-        let folder_path = path.to_path_buf();
+        let folder_path = std::path::PathBuf::from(&payload.path);
         let anime_id = id;
 
         tokio::spawn(async move {

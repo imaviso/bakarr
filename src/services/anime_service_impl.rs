@@ -416,6 +416,41 @@ impl AnimeService for SeaOrmAnimeService {
 
         Ok(())
     }
+
+    async fn update_anime_path(
+        &self,
+        id: AnimeId,
+        path: String,
+    ) -> Result<(), AnimeError> {
+        use std::path::Path;
+
+        // Check existence
+        if self
+            .store
+            .get_anime(id.value())
+            .await
+            .map_err(|e| AnimeError::Database(e.to_string()))?
+            .is_none()
+        {
+            return Err(AnimeError::NotFound(id));
+        }
+
+        // Validate path exists
+        let path_obj = Path::new(&path);
+        if !path_obj.exists() {
+            return Err(AnimeError::InvalidData(format!(
+                "Path does not exist: {path}"
+            )));
+        }
+
+        // Update the database
+        self.store
+            .update_anime_path(id.value(), &path)
+            .await
+            .map_err(|e| AnimeError::Database(e.to_string()))?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

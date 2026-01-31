@@ -141,6 +141,23 @@ pub trait AnimeService: Send + Sync {
         id: AnimeId,
         profile_ids: Vec<i32>,
     ) -> Result<(), AnimeError>;
+
+    /// Updates the file system path for an anime.
+    ///
+    /// This method validates the path exists and updates the database record.
+    /// Note: The actual folder scanning/rescanning is the responsibility of
+    /// the caller (handler) as it involves background task spawning.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`AnimeError::NotFound`] if anime does not exist
+    /// - Returns [`AnimeError::InvalidData`] if path does not exist or is invalid
+    /// - Returns [`AnimeError::Database`] on connection failures
+    async fn update_anime_path(
+        &self,
+        id: AnimeId,
+        path: String,
+    ) -> Result<(), AnimeError>;
 }
 
 /// Pure domain function to calculate missing episodes.
