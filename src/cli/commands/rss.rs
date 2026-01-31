@@ -146,7 +146,7 @@ pub async fn cmd_rss_check(config: &Config) -> anyhow::Result<()> {
             username: config.qbittorrent.username.clone(),
             password: config.qbittorrent.password.clone(),
         };
-        Some(std::sync::Arc::new(QBitClient::new(qcfg)))
+        Some(std::sync::Arc::new(QBitClient::new(qcfg)?))
     } else {
         None
     };

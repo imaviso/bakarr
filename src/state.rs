@@ -119,7 +119,7 @@ impl SharedState {
                 username: config.qbittorrent.username.clone(),
                 password: config.qbittorrent.password.clone(),
             };
-            Some(Arc::new(QBitClient::new(qbit_config)))
+            Some(Arc::new(QBitClient::new(qbit_config)?))
         } else {
             None
         };

@@ -58,7 +58,9 @@ impl SeaOrmDownloadService {
             password: config.qbittorrent.password.clone(),
         };
         drop(config);
-        Ok(Some(QBitClient::new(qbit_config)))
+        QBitClient::new(qbit_config).map(Some).map_err(|e| {
+            DownloadError::Internal(format!("Failed to create qBittorrent client: {e}"))
+        })
     }
 }
 
@@ -318,7 +320,7 @@ async fn perform_search_and_download(
                 base_url: config.qbittorrent.url.clone(),
                 username: config.qbittorrent.username.clone(),
                 password: config.qbittorrent.password.clone(),
-            }))
+            })?)
         } else {
             None
         }

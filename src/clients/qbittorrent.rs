@@ -173,20 +173,28 @@ pub struct QBitClient {
 }
 
 impl QBitClient {
-    #[must_use]
-    pub fn new(config: QBitConfig) -> Self {
-        Self {
-            client: Client::builder()
-                .cookie_store(true)
-                .user_agent("Bakarr/1.0")
-                .build()
-                .expect("Failed to build HTTP client"),
-            config,
-        }
+    /// Creates a new qBittorrent client with the given configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP client fails to initialize (e.g., due to
+    /// invalid TLS configuration or other builder errors).
+    pub fn new(config: QBitConfig) -> Result<Self> {
+        let client = Client::builder()
+            .cookie_store(true)
+            .user_agent("Bakarr/1.0")
+            .build()
+            .context("Failed to build HTTP client for qBittorrent")?;
+
+        Ok(Self { client, config })
     }
 
-    #[must_use]
-    pub fn with_defaults() -> Self {
+    /// Creates a new qBittorrent client with default configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTTP client fails to initialize.
+    pub fn with_defaults() -> Result<Self> {
         Self::new(QBitConfig::default())
     }
 
