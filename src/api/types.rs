@@ -83,6 +83,24 @@ pub struct DownloadDto {
     pub download_date: String,
 }
 
+/// Represents an item in the download queue.
+#[derive(Debug, Serialize)]
+pub struct QueueItemDto {
+    pub id: i64,
+    pub anime_id: i32,
+    pub anime_title: String,
+    pub episode_number: f64,
+    pub torrent_name: String,
+    pub status: String,
+    pub progress: f64,
+    pub added_at: String,
+    pub hash: String,
+    pub size: i64,
+    pub downloaded: i64,
+    pub dlspeed: i64,
+    pub eta: i64,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProfileDto {
     pub name: String,

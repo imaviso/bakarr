@@ -15,8 +15,8 @@ use crate::services::SeaDexService;
 use crate::services::episodes::EpisodeService as OldEpisodeService;
 use crate::services::{
     AnimeMetadataService, AnimeService, AutoDownloadService, DownloadDecisionService,
-    EpisodeService, ImageService, LibraryScannerService, LogService, RssService,
-    SeaOrmAnimeService, SeaOrmEpisodeService, SearchService,
+    DownloadService, EpisodeService, ImageService, LibraryScannerService, LogService,
+    RssService, SeaOrmAnimeService, SeaOrmDownloadService, SeaOrmEpisodeService, SearchService,
 };
 
 /// Build a shared HTTP client with reasonable defaults for API calls.
@@ -60,6 +60,8 @@ pub struct SharedState {
     pub episodes: OldEpisodeService,
 
     pub episode_service: Arc<dyn EpisodeService>,
+
+    pub download_service: Arc<dyn DownloadService>,
 
     pub download_decisions: DownloadDecisionService,
 
@@ -193,7 +195,7 @@ impl SharedState {
 
         // Create the new EpisodeService
         let episode_service = Arc::new(SeaOrmEpisodeService::new(
-            store_arc,
+            store_arc.clone(),
             anilist.clone(),
             jikan.clone(),
             None, // kitsu - optional
@@ -201,6 +203,14 @@ impl SharedState {
             config_arc.clone(),
             event_bus.clone(),
         )) as Arc<dyn EpisodeService + Send + Sync + 'static>;
+
+        // Create the DownloadService
+        let download_service = Arc::new(SeaOrmDownloadService::new(
+            store.clone(),
+            config_arc.clone(),
+            search_service.clone(),
+            event_bus.clone(),
+        )) as Arc<dyn DownloadService + Send + Sync + 'static>;
 
         Ok(Self {
             config: config_arc,
@@ -217,6 +227,7 @@ impl SharedState {
             library_scanner,
             episodes,
             episode_service,
+            download_service,
             download_decisions,
             recycle_bin,
             event_bus,

@@ -1,7 +1,7 @@
 use axum::{
-    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
+    Json,
 };
 use std::fmt;
 
@@ -123,6 +123,30 @@ impl From<crate::services::EpisodeError> for ApiError {
             crate::services::EpisodeError::Validation(msg) => Self::ValidationError(msg),
             crate::services::EpisodeError::ExternalApi { service, message } => {
                 Self::ExternalApiError { service, message }
+            }
+        }
+    }
+}
+
+impl From<crate::services::DownloadError> for ApiError {
+    fn from(err: crate::services::DownloadError) -> Self {
+        match err {
+            crate::services::DownloadError::Database(err) => {
+                tracing::error!(error = %err, "Database error in download service");
+                Self::DatabaseError(err.to_string())
+            }
+            crate::services::DownloadError::QBit(msg) => {
+                tracing::error!(error = %msg, "QBittorrent error");
+                Self::ExternalApiError {
+                    service: "qBittorrent".to_string(),
+                    message: msg,
+                }
+            }
+            crate::services::DownloadError::AnimeNotFound(id) => Self::anime_not_found(id.value()),
+            crate::services::DownloadError::Validation(msg) => Self::ValidationError(msg),
+            crate::services::DownloadError::Internal(msg) => {
+                tracing::error!(error = %msg, "Internal download error");
+                Self::InternalError(msg)
             }
         }
     }

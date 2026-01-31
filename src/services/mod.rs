@@ -11,6 +11,8 @@ pub mod anime_service_impl;
 pub use anime_service_impl::SeaOrmAnimeService;
 
 pub mod download;
+pub mod download_service;
+pub mod download_service_impl;
 pub mod episode_service;
 pub mod episode_service_impl;
 pub mod episodes;
@@ -18,6 +20,8 @@ pub mod image;
 pub mod logs;
 
 pub use download::DownloadDecisionService;
+pub use download_service::{DownloadError, DownloadService};
+pub use download_service_impl::SeaOrmDownloadService;
 pub use episode_service::{EpisodeError, EpisodeService};
 pub use episode_service_impl::SeaOrmEpisodeService;
 pub use episodes::EpisodeService as OldEpisodeService;

@@ -113,6 +113,11 @@ impl AppState {
     pub fn episode_service(&self) -> &Arc<dyn crate::services::EpisodeService> {
         &self.shared.episode_service
     }
+
+    #[must_use]
+    pub fn download_service(&self) -> &Arc<dyn crate::services::DownloadService> {
+        &self.shared.download_service
+    }
 }
 
 pub fn create_app_state(
