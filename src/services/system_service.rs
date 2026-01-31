@@ -4,6 +4,7 @@
 
 use crate::api::types::{LogResponse, SystemStatus};
 use crate::config::Config;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// Errors specific to system operations.
@@ -164,4 +165,21 @@ pub trait SystemService: Send + Sync {
     ///
     /// Returns [`SystemError::Database`] on connection failures.
     async fn clear_logs(&self) -> Result<bool, SystemError>;
+
+    /// Starts a background task that broadcasts system status updates.
+    ///
+    /// This method spawns a task that periodically fetches system status
+    /// and broadcasts it via the event bus for real-time updates.
+    ///
+    /// # Arguments
+    ///
+    /// * `event_bus` - The broadcast channel sender for notification events.
+    /// * `uptime_secs` - A function that returns the current uptime in seconds.
+    /// * `version` - The application version string.
+    fn start_status_broadcaster(
+        self: Arc<Self>,
+        event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
+        uptime_secs: Arc<dyn Fn() -> u64 + Send + Sync>,
+        version: String,
+    );
 }

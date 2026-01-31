@@ -101,6 +101,8 @@ pub enum NotificationEvent {
     DownloadProgress {
         downloads: Vec<DownloadStatus>,
     },
+
+    SystemStatus(crate::api::types::SystemStatus),
 }
 
 /// Status of an active download.

@@ -275,11 +275,23 @@ impl SharedState {
             as Arc<dyn ProfileService + Send + Sync + 'static>;
 
         // Create the SystemService
-        let system_service = Arc::new(SeaOrmSystemService::new(
+        let system_service: Arc<SeaOrmSystemService> = Arc::new(SeaOrmSystemService::new(
             store.clone(),
             config_arc.clone(),
             qbit.clone(),
-        )) as Arc<dyn SystemService + Send + Sync + 'static>;
+        ));
+
+        // Start the system status broadcaster
+        let system_service_clone = system_service.clone();
+        let start_time = std::time::Instant::now();
+        let uptime_fn = Arc::new(move || start_time.elapsed().as_secs());
+        system_service_clone.start_status_broadcaster(
+            event_bus.clone(),
+            uptime_fn,
+            env!("CARGO_PKG_VERSION").to_string(),
+        );
+
+        let system_service = system_service as Arc<dyn SystemService + Send + Sync + 'static>;
 
         Ok(Self {
             config: config_arc,

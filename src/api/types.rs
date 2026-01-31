@@ -123,7 +123,7 @@ pub struct SearchResultDto {
     pub already_in_library: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct SystemStatus {
     pub version: String,
     pub uptime: u64,
@@ -137,7 +137,7 @@ pub struct SystemStatus {
     pub last_rss: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct DiskSpaceDto {
     pub free: i64,
     pub total: i64,

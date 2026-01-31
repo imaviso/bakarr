@@ -4,11 +4,13 @@ use crate::api::types::{DiskSpaceDto, LogDto, LogResponse, SystemStatus};
 use crate::clients::qbittorrent::QBitClient;
 use crate::config::Config;
 use crate::db::Store;
+use crate::domain::events::NotificationEvent;
 use crate::services::system_service::{ExportFormat, SystemError, SystemService};
 use async_trait::async_trait;
 use std::fmt::Write;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, broadcast};
+use tokio::time::{Duration, interval};
 
 const PASSWORD_MASK: &str = "********";
 
@@ -245,6 +247,29 @@ impl SystemService for SeaOrmSystemService {
     async fn clear_logs(&self) -> Result<bool, SystemError> {
         self.store.clear_logs().await?;
         Ok(true)
+    }
+
+    fn start_status_broadcaster(
+        self: Arc<Self>,
+        event_bus: broadcast::Sender<NotificationEvent>,
+        uptime_secs: Arc<dyn Fn() -> u64 + Send + Sync>,
+        version: String,
+    ) {
+        tokio::spawn(async move {
+            let mut ticker = interval(Duration::from_secs(5));
+            loop {
+                ticker.tick().await;
+                let uptime = uptime_secs();
+                match self.get_status(uptime, &version).await {
+                    Ok(status) => {
+                        let _ = event_bus.send(NotificationEvent::SystemStatus(status));
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to get system status: {}", e);
+                    }
+                }
+            }
+        });
     }
 }
 
