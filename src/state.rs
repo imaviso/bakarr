@@ -14,11 +14,11 @@ use crate::library::RecycleBin;
 use crate::services::SeaDexService;
 use crate::services::episodes::EpisodeService as OldEpisodeService;
 use crate::services::{
-    AnimeMetadataService, AnimeService, AutoDownloadService, DefaultImportService,
+    AnimeMetadataService, AnimeService, AuthService, AutoDownloadService, DefaultImportService,
     DownloadDecisionService, DownloadService, EpisodeService, ImageService, ImportService,
     LibraryScannerService, LibraryService, LogService, RenameService, RssService,
-    SeaOrmAnimeService, SeaOrmDownloadService, SeaOrmEpisodeService, SeaOrmLibraryService,
-    SeaOrmRenameService, SearchService,
+    SeaOrmAnimeService, SeaOrmAuthService, SeaOrmDownloadService, SeaOrmEpisodeService,
+    SeaOrmLibraryService, SeaOrmRenameService, SearchService,
 };
 
 /// Build a shared HTTP client with reasonable defaults for API calls.
@@ -84,6 +84,8 @@ pub struct SharedState {
     pub import_service: Arc<dyn ImportService>,
 
     pub rename_service: Arc<dyn RenameService>,
+
+    pub auth_service: Arc<dyn AuthService>,
 }
 
 impl SharedState {
@@ -258,6 +260,10 @@ impl SharedState {
             event_bus.clone(),
         )) as Arc<dyn RenameService + Send + Sync + 'static>;
 
+        // Create the AuthService
+        let auth_service = Arc::new(SeaOrmAuthService::new(store.clone()))
+            as Arc<dyn AuthService + Send + Sync + 'static>;
+
         Ok(Self {
             config: config_arc,
             store,
@@ -284,6 +290,7 @@ impl SharedState {
             library_service,
             import_service,
             rename_service,
+            auth_service,
         })
     }
 

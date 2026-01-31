@@ -5,9 +5,11 @@ use crate::db::Store;
 use crate::domain::{AnimeId, EpisodeNumber};
 use crate::library::{LibraryService as PathFormatter, RenamingOptions};
 use crate::models::episode::EpisodeStatusRow;
-use crate::services::episodes::EpisodeService as OldEpisodeService;
-use crate::services::rename_service::{RenameError, RenamePreviewItem, RenameResult, RenameService};
 use crate::services::MediaService;
+use crate::services::episodes::EpisodeService as OldEpisodeService;
+use crate::services::rename_service::{
+    RenameError, RenamePreviewItem, RenameResult, RenameService,
+};
 use async_trait::async_trait;
 use futures::stream::{self, StreamExt};
 use std::path::Path as StdPath;
@@ -26,7 +28,7 @@ pub struct SeaOrmRenameService {
 
 impl SeaOrmRenameService {
     #[must_use]
-    pub fn new(
+    pub const fn new(
         store: Store,
         config: Arc<RwLock<Config>>,
         episodes_service: Arc<OldEpisodeService>,
@@ -257,7 +259,12 @@ impl RenameService for SeaOrmRenameService {
                 }
 
                 let options = self_ref
-                    .build_renaming_options_with_backfill(anime_id, anime_ref, &status, current_path)
+                    .build_renaming_options_with_backfill(
+                        anime_id,
+                        anime_ref,
+                        &status,
+                        current_path,
+                    )
                     .await;
 
                 let new_path = path_formatter_ref.get_destination_path(&options);
@@ -283,7 +290,11 @@ impl RenameService for SeaOrmRenameService {
             .await;
 
         let mut preview_items = preview_items;
-        preview_items.sort_by(|a, b| a.episode_number.value().total_cmp(&b.episode_number.value()));
+        preview_items.sort_by(|a, b| {
+            a.episode_number
+                .value()
+                .total_cmp(&b.episode_number.value())
+        });
 
         Ok(preview_items)
     }
@@ -352,8 +363,9 @@ impl RenameService for SeaOrmRenameService {
             match tokio::fs::rename(current_path, &new_path).await {
                 Ok(()) => {
                     renamed_count += 1;
-                    if let Err(e) =
-                        self.update_db_after_rename(anime_id, ep_num, current_path, &new_path).await
+                    if let Err(e) = self
+                        .update_db_after_rename(anime_id, ep_num, current_path, &new_path)
+                        .await
                     {
                         failures.push(e.to_string());
                     }

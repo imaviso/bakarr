@@ -133,6 +133,11 @@ impl AppState {
     pub fn rename_service(&self) -> &Arc<dyn crate::services::RenameService> {
         &self.shared.rename_service
     }
+
+    #[must_use]
+    pub fn auth_service(&self) -> &Arc<dyn crate::services::AuthService> {
+        &self.shared.auth_service
+    }
 }
 
 pub fn create_app_state(

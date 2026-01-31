@@ -46,7 +46,7 @@ pub async fn get_rename_preview(
 /// Delegates to `RenameService::execute_rename` which handles:
 /// - Transactional rename operations (with rollback support)
 /// - Database synchronization
-/// - Progress notifications via EventBus
+/// - Progress notifications via `EventBus`
 ///
 /// # Errors
 ///

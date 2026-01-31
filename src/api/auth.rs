@@ -24,18 +24,7 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-#[derive(Serialize)]
-pub struct LoginResponse {
-    pub username: String,
-    pub api_key: String,
-}
-
-#[derive(Serialize)]
-pub struct UserInfoResponse {
-    pub username: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
+pub use crate::services::auth_service::{LoginResult as LoginResponse, UserInfo as UserInfoResponse};
 
 #[derive(Deserialize)]
 pub struct ChangePasswordRequest {
@@ -80,9 +69,9 @@ pub async fn auth_middleware(
     let api_key = extract_api_key(&query, &headers);
 
     if let Some(key) = api_key {
-        // Verify API key against database
-        if let Ok(Some(user)) = state.store().verify_api_key(&key).await {
-            tracing::Span::current().record("user_id", &user.username);
+        // Verify API key against service
+        if let Ok(Some(username)) = state.auth_service().verify_api_key(&key).await {
+            tracing::Span::current().record("user_id", &username);
             return Ok(next.run(request).await);
         }
     }
@@ -130,34 +119,27 @@ pub async fn login(
         return Err(ApiError::validation("Password is required"));
     }
 
-    // Verify credentials against database
-    let is_valid = state
-        .store()
-        .verify_user_password(&payload.username, &payload.password)
+    // Delegate to auth service
+    let result = state
+        .auth_service()
+        .login(&payload.username, &payload.password)
         .await
-        .map_err(|e| ApiError::internal(format!("Authentication error: {e}")))?;
-
-    if !is_valid {
-        return Err(ApiError::Unauthorized("Invalid credentials".to_string()));
-    }
-
-    // Get user info for response
-    let user = state
-        .store()
-        .get_user_by_username(&payload.username)
-        .await
-        .map_err(|e| ApiError::internal(format!("Failed to get user: {e}")))?
-        .ok_or_else(|| ApiError::Unauthorized("User not found".to_string()))?;
+        .map_err(|e| match e {
+            crate::services::auth_service::AuthError::InvalidCredentials => {
+                ApiError::Unauthorized("Invalid credentials".to_string())
+            }
+            crate::services::auth_service::AuthError::UserNotFound => {
+                ApiError::Unauthorized("User not found".to_string())
+            }
+            _ => ApiError::internal(format!("Authentication error: {e}")),
+        })?;
 
     // Create session
-    if let Err(e) = session.insert("user", &payload.username).await {
+    if let Err(e) = session.insert("user", &result.username).await {
         return Err(ApiError::internal(format!("Failed to create session: {e}")));
     }
 
-    Ok(Json(ApiResponse::success(LoginResponse {
-        username: user.username,
-        api_key: user.api_key,
-    })))
+    Ok(Json(ApiResponse::success(result)))
 }
 
 /// POST /auth/logout
@@ -175,18 +157,18 @@ pub async fn get_current_user(
 ) -> Result<Json<ApiResponse<UserInfoResponse>>, ApiError> {
     let username = get_session_username(&session).await?;
 
-    let user = state
-        .store()
-        .get_user_by_username(&username)
+    let user_info = state
+        .auth_service()
+        .get_user_info(&username)
         .await
-        .map_err(|e| ApiError::internal(format!("Failed to get user: {e}")))?
-        .ok_or_else(|| ApiError::Unauthorized("User not found".to_string()))?;
+        .map_err(|e| match e {
+            crate::services::auth_service::AuthError::UserNotFound => {
+                ApiError::Unauthorized("User not found".to_string())
+            }
+            _ => ApiError::internal(format!("Failed to get user info: {e}")),
+        })?;
 
-    Ok(Json(ApiResponse::success(UserInfoResponse {
-        username: user.username,
-        created_at: user.created_at,
-        updated_at: user.updated_at,
-    })))
+    Ok(Json(ApiResponse::success(user_info)))
 }
 
 /// PUT /auth/password
@@ -198,36 +180,18 @@ pub async fn change_password(
 ) -> Result<Json<ApiResponse<MessageResponse>>, ApiError> {
     let username = get_session_username(&session).await?;
 
-    // Validate new password
-    if payload.new_password.len() < 8 {
-        return Err(ApiError::validation(
-            "New password must be at least 8 characters",
-        ));
-    }
-
-    if payload.current_password == payload.new_password {
-        return Err(ApiError::validation(
-            "New password must be different from current password",
-        ));
-    }
-
-    // Verify current password
-    let is_valid = state
-        .store()
-        .verify_user_password(&username, &payload.current_password)
-        .await
-        .map_err(|e| ApiError::internal(format!("Password verification error: {e}")))?;
-
-    if !is_valid {
-        return Err(ApiError::validation("Current password is incorrect"));
-    }
-
-    // Update password
     state
-        .store()
-        .update_user_password(&username, &payload.new_password)
+        .auth_service()
+        .change_password(
+            &username,
+            &payload.current_password,
+            &payload.new_password,
+        )
         .await
-        .map_err(|e| ApiError::internal(format!("Failed to update password: {e}")))?;
+        .map_err(|e| match e {
+            crate::services::auth_service::AuthError::Validation(msg) => ApiError::validation(msg),
+            _ => ApiError::internal(format!("Failed to update password: {e}")),
+        })?;
 
     tracing::info!("Password changed for user: {username}");
 
@@ -245,11 +209,10 @@ pub async fn get_api_key(
     let username = get_session_username(&session).await?;
 
     let api_key = state
-        .store()
-        .get_user_api_key(&username)
+        .auth_service()
+        .get_api_key(&username)
         .await
-        .map_err(|e| ApiError::internal(format!("Failed to get API key: {e}")))?
-        .ok_or_else(|| ApiError::internal("API key not found"))?;
+        .map_err(|e| ApiError::internal(format!("Failed to get API key: {e}")))?;
 
     Ok(Json(ApiResponse::success(ApiKeyResponse { api_key })))
 }
@@ -263,8 +226,8 @@ pub async fn regenerate_api_key(
     let username = get_session_username(&session).await?;
 
     let new_api_key = state
-        .store()
-        .regenerate_user_api_key(&username)
+        .auth_service()
+        .regenerate_api_key(&username)
         .await
         .map_err(|e| ApiError::internal(format!("Failed to regenerate API key: {e}")))?;
 

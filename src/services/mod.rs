@@ -67,3 +67,8 @@ pub mod rename_service;
 pub mod rename_service_impl;
 pub use rename_service::{RenameError, RenamePreviewItem, RenameResult, RenameService};
 pub use rename_service_impl::SeaOrmRenameService;
+
+pub mod auth_service;
+pub mod auth_service_impl;
+pub use auth_service::{AuthError, AuthService, LoginResult, UserInfo};
+pub use auth_service_impl::SeaOrmAuthService;
