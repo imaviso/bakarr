@@ -118,6 +118,11 @@ impl AppState {
     pub fn download_service(&self) -> &Arc<dyn crate::services::DownloadService> {
         &self.shared.download_service
     }
+
+    #[must_use]
+    pub fn library_service(&self) -> &Arc<dyn crate::services::LibraryService> {
+        &self.shared.library_service
+    }
 }
 
 pub fn create_app_state(

@@ -393,7 +393,7 @@ pub async fn update_anime_path(
         let anime_id = id;
 
         tokio::spawn(async move {
-            if let Err(e) = crate::api::library::scan_folder_for_episodes(
+            if let Err(e) = crate::services::scan_folder_for_episodes(
                 &store,
                 &event_bus,
                 anime_id,
