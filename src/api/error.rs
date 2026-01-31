@@ -89,6 +89,45 @@ impl From<anyhow::Error> for ApiError {
     }
 }
 
+impl From<crate::services::AnimeError> for ApiError {
+    fn from(err: crate::services::AnimeError) -> Self {
+        match err {
+            crate::services::AnimeError::NotFound(id) => Self::anime_not_found(id.value()),
+            crate::services::AnimeError::Database(msg) => {
+                tracing::error!(error = %msg, "Database error in anime service");
+                Self::DatabaseError(msg)
+            }
+            crate::services::AnimeError::InvalidData(msg) => Self::ValidationError(msg),
+            crate::services::AnimeError::ExternalApi { service, message } => {
+                Self::ExternalApiError { service, message }
+            }
+        }
+    }
+}
+
+impl From<crate::services::EpisodeError> for ApiError {
+    fn from(err: crate::services::EpisodeError) -> Self {
+        match err {
+            crate::services::EpisodeError::AnimeNotFound(id) => Self::anime_not_found(id.value()),
+            crate::services::EpisodeError::NotFound(num) => {
+                Self::NotFound(format!("Episode {num} not found"))
+            }
+            crate::services::EpisodeError::Database(msg) => {
+                tracing::error!(error = %msg, "Database error in episode service");
+                Self::DatabaseError(msg)
+            }
+            crate::services::EpisodeError::FileSystem(e) => {
+                tracing::error!(error = %e, "File system error");
+                Self::InternalError(format!("File system error: {e}"))
+            }
+            crate::services::EpisodeError::Validation(msg) => Self::ValidationError(msg),
+            crate::services::EpisodeError::ExternalApi { service, message } => {
+                Self::ExternalApiError { service, message }
+            }
+        }
+    }
+}
+
 impl ApiError {
     #[must_use]
     pub fn not_found(resource: &str, id: impl fmt::Display) -> Self {

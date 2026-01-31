@@ -9,6 +9,7 @@ use super::{
     AnimeDto, ApiError, ApiResponse, AppState, EpisodeProgress, SearchResultDto, TitleDto,
 };
 use crate::api::validation::{validate_anime_id, validate_search_query};
+use crate::services::AnimeService;
 
 #[derive(Deserialize)]
 pub struct SearchQuery {
@@ -212,22 +213,6 @@ pub async fn get_anime_by_anilist_id(
     )
 }
 
-async fn resolve_anime_path(
-    state: &AppState,
-    anime: &crate::models::anime::Anime,
-    custom_root: Option<&str>,
-) -> String {
-    let library_config = state.config().read().await.library.clone();
-    let library_service = crate::library::LibraryService::new(library_config);
-
-    let custom_root_path = custom_root.map(std::path::Path::new);
-
-    library_service
-        .build_anime_root_path(anime, custom_root_path)
-        .to_string_lossy()
-        .to_string()
-}
-
 fn spawn_initial_search(state: &AppState, anime_id: i32, title: &str) {
     let search_service = state.search_service().clone();
     let store = state.store().clone();
@@ -278,209 +263,74 @@ fn spawn_initial_search(state: &AppState, anime_id: i32, title: &str) {
     });
 }
 
-#[allow(clippy::too_many_lines)]
 pub async fn add_anime(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<AddAnimeRequest>,
 ) -> Result<Json<ApiResponse<AnimeDto>>, ApiError> {
+    use crate::domain::AnimeId;
+
+    // Validate and convert to strong type
     validate_anime_id(payload.id)?;
-    let client = &state.shared.anilist;
+    let anime_id = AnimeId::new(payload.id);
 
-    let mut anime = client
-        .get_by_id(payload.id)
-        .await
-        .map_err(|e| ApiError::anilist_error(e.to_string()))?
-        .ok_or_else(|| ApiError::anime_not_found(payload.id))?;
+    // Delegate to domain service - handles all logic including:
+    // - Fetching from AniList
+    // - Setting quality profile
+    // - Resolving and creating root folder path
+    // - Downloading and caching images
+    // - Enriching metadata
+    // - Database operations
+    let anime_dto = AnimeService::add_anime(
+        state.anime_service().as_ref(),
+        anime_id,
+        payload.profile_name,
+        payload.root_folder,
+        payload.monitored,
+        &payload.release_profile_ids,
+    )
+    .await?;
 
-    if let Some(profile_name) = &payload.profile_name {
-        let profile = state
-            .store()
-            .get_quality_profile_by_name(profile_name)
-            .await?;
-
-        if let Some(profile) = profile {
-            anime.quality_profile_id = Some(profile.id);
-        }
-    }
-
-    let root_path = resolve_anime_path(&state, &anime, payload.root_folder.as_deref()).await;
-
-    if let Err(e) = tokio::fs::create_dir_all(&root_path).await {
-        tracing::error!("Failed to create anime directory: {}", e);
-    }
-
-    anime.path = Some(root_path.clone());
-
-    // Parallelize metadata enrichment and image downloading
-    let image_service = state.image_service.clone();
-    let cover_url = anime.cover_image.clone();
-    let banner_url = anime.banner_image.clone();
-    let anime_id = anime.id;
-
-    let cover_future = async move {
-        if let Some(url) = cover_url {
-            image_service
-                .save_image(&url, anime_id, crate::services::image::ImageType::Cover)
-                .await
-                .ok()
-        } else {
-            None
-        }
-    };
-
-    let image_service_banner = state.image_service.clone();
-    let banner_future = async move {
-        if let Some(url) = banner_url {
-            image_service_banner
-                .save_image(&url, anime_id, crate::services::image::ImageType::Banner)
-                .await
-                .ok()
-        } else {
-            None
-        }
-    };
-
-    let (cover_path, banner_path, ()) = tokio::join!(
-        cover_future,
-        banner_future,
-        state.metadata_service.enrich_anime_metadata(&mut anime)
-    );
-
-    if let Some(path) = cover_path {
-        anime.cover_image = Some(path);
-    }
-    if let Some(path) = banner_path {
-        anime.banner_image = Some(path);
-    }
-
-    anime.added_at = chrono::Utc::now().to_rfc3339();
-    anime.monitored = payload.monitored;
-
-    state.store().add_anime(&anime).await?;
-
-    if !payload.release_profile_ids.is_empty()
-        && let Err(e) = state
-            .store()
-            .assign_release_profiles_to_anime(anime.id, &payload.release_profile_ids)
-            .await
-    {
-        tracing::error!("Failed to assign release profiles: {}", e);
-    }
-
+    // Spawn initial search if requested (fire-and-forget, stays in handler)
     if payload.monitor_and_search {
-        spawn_initial_search(&state, anime.id, &anime.title.romaji);
+        spawn_initial_search(&state, anime_dto.id, &anime_dto.title.romaji);
     }
 
-    let dto = AnimeDto {
-        id: anime.id,
-        title: TitleDto {
-            romaji: anime.title.romaji.clone(),
-            english: anime.title.english.clone(),
-            native: anime.title.native.clone(),
-        },
-        format: anime.format,
-        episode_count: anime.episode_count.map(i64::from),
-        cover_image: anime.cover_image.map(|p| format!("/images/{p}")),
-        banner_image: anime.banner_image.map(|p| format!("/images/{p}")),
-        status: anime.status.clone(),
-        profile_name: payload
-            .profile_name
-            .clone()
-            .unwrap_or_else(|| "Unknown".to_string()),
-        root_folder: root_path,
-        monitored: anime.monitored,
-        added_at: anime.added_at,
-        mal_id: anime.mal_id,
-        description: anime.description,
-        score: anime.score,
-        genres: anime.genres.clone().unwrap_or_default(),
-        studios: anime.studios.clone().unwrap_or_default(),
-        progress: EpisodeProgress {
-            downloaded: 0_i64,
-            total: anime.episode_count.map(i64::from),
-            missing: Vec::new(),
-        },
-        release_profile_ids: payload.release_profile_ids,
-    };
-
-    Ok(Json(ApiResponse::success(dto)))
+    Ok(Json(ApiResponse::success(anime_dto)))
 }
 
+/// Retrieves detailed information for a specific anime.
+///
+/// # Errors
+///
+/// - Returns `404 Not Found` if the anime does not exist
+/// - Returns `500 Internal Server Error` on database failures
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use axum::extract::{Path, State};
+/// use std::sync::Arc;
+///
+/// async fn example(State(state): State<Arc<AppState>>) -> Result<Json<ApiResponse<AnimeDto>>, ApiError> {
+///     get_anime(State(state), Path(1)).await
+/// }
+/// ```
 pub async fn get_anime(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
 ) -> Result<Json<ApiResponse<AnimeDto>>, ApiError> {
+    use crate::domain::AnimeId;
+
+    // Validate and convert to strong type (C-NEWTYPE)
     validate_anime_id(id)?;
-    let anime = state
-        .store()
-        .get_anime(id)
-        .await?
-        .ok_or_else(|| ApiError::anime_not_found(id))?;
+    let anime_id = AnimeId::new(id);
 
-    let downloaded = state
-        .store()
-        .get_downloaded_count(anime.id)
-        .await
-        .unwrap_or(0);
+    // Delegate to domain service (Separation of Concerns, Testability)
+    // All database queries are parallelized within the service
+    let anime_dto =
+        AnimeService::get_anime_details(state.anime_service().as_ref(), anime_id).await?;
 
-    let missing = if let Some(total) = anime.episode_count {
-        state
-            .store()
-            .get_missing_episodes(anime.id, total)
-            .await
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-
-    let release_profile_ids = state
-        .store()
-        .get_assigned_release_profile_ids(anime.id)
-        .await
-        .unwrap_or_default();
-
-    let root_folder = if let Some(path) = &anime.path {
-        path.clone()
-    } else {
-        std::path::Path::new(&state.config().read().await.library.library_path)
-            .join(&anime.title.romaji)
-            .to_string_lossy()
-            .to_string()
-    };
-
-    let dto = AnimeDto {
-        id: anime.id,
-        title: TitleDto {
-            romaji: anime.title.romaji.clone(),
-            english: anime.title.english.clone(),
-            native: anime.title.native.clone(),
-        },
-        format: anime.format,
-        episode_count: anime.episode_count.map(i64::from),
-        status: anime.status,
-        cover_image: anime.cover_image.map(|p| format!("/images/{p}")),
-        banner_image: anime.banner_image.map(|p| format!("/images/{p}")),
-        profile_name: anime
-            .profile_name
-            .clone()
-            .unwrap_or_else(|| "Unknown".to_string()),
-        root_folder,
-        monitored: anime.monitored,
-        added_at: anime.added_at,
-        mal_id: anime.mal_id,
-        description: anime.description,
-        score: anime.score,
-        genres: anime.genres.clone().unwrap_or_default(),
-        studios: anime.studios.clone().unwrap_or_default(),
-        progress: EpisodeProgress {
-            downloaded: i64::from(downloaded),
-            total: anime.episode_count.map(i64::from),
-            missing,
-        },
-        release_profile_ids,
-    };
-
-    Ok(Json(ApiResponse::success(dto)))
+    Ok(Json(ApiResponse::success(anime_dto)))
 }
 
 pub async fn remove_anime(

@@ -5,15 +5,18 @@ use crate::api::NotificationEvent;
 use crate::clients::anilist::AnilistClient;
 use crate::clients::jikan::JikanClient;
 use crate::clients::nyaa::NyaaClient;
+use crate::clients::offline_db::OfflineDatabase;
 use crate::clients::qbittorrent::{QBitClient, QBitConfig};
 use crate::clients::seadex::{SeaDexClient, SeaDexRelease};
 use crate::config::Config;
 use crate::db::Store;
 use crate::library::RecycleBin;
 use crate::services::SeaDexService;
+use crate::services::episodes::EpisodeService as OldEpisodeService;
 use crate::services::{
-    AutoDownloadService, DownloadDecisionService, EpisodeService, LibraryScannerService,
-    LogService, RssService, SearchService,
+    AnimeMetadataService, AnimeService, AutoDownloadService, DownloadDecisionService,
+    EpisodeService, ImageService, LibraryScannerService, LogService, RssService,
+    SeaOrmAnimeService, SeaOrmEpisodeService, SearchService,
 };
 
 /// Build a shared HTTP client with reasonable defaults for API calls.
@@ -54,13 +57,23 @@ pub struct SharedState {
 
     pub library_scanner: Arc<LibraryScannerService>,
 
-    pub episodes: EpisodeService,
+    pub episodes: OldEpisodeService,
+
+    pub episode_service: Arc<dyn EpisodeService>,
 
     pub download_decisions: DownloadDecisionService,
 
     pub recycle_bin: RecycleBin,
 
     pub event_bus: broadcast::Sender<NotificationEvent>,
+
+    pub anime_service: Arc<dyn AnimeService>,
+
+    pub image_service: Arc<ImageService>,
+
+    pub offline_db: Arc<OfflineDatabase>,
+
+    pub metadata_service: Arc<AnimeMetadataService>,
 }
 
 impl SharedState {
@@ -76,6 +89,7 @@ impl SharedState {
         Self::init_with_event_bus(config, event_bus).await
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn init_with_event_bus(
         config: Config,
         event_bus: broadcast::Sender<NotificationEvent>,
@@ -108,7 +122,7 @@ impl SharedState {
             None
         };
 
-        let episodes = EpisodeService::new(store.clone(), jikan.clone(), anilist.clone(), None);
+        let episodes = OldEpisodeService::new(store.clone(), jikan.clone(), anilist.clone(), None);
         let download_decisions = DownloadDecisionService::new(store.clone());
 
         let search_service = Arc::new(SearchService::new(
@@ -134,6 +148,8 @@ impl SharedState {
             config.library.recycle_cleanup_days,
         );
 
+        // Clone config before moving it into the RwLock for services that need it
+        let image_service_config = config.clone();
         let config_arc = Arc::new(RwLock::new(config));
 
         let seadex_service = Arc::new(SeaDexService::new(
@@ -157,6 +173,35 @@ impl SharedState {
             event_bus.clone(),
         ));
 
+        // Create services needed by AnimeService
+        let image_service = Arc::new(ImageService::new(image_service_config));
+        let offline_db = Arc::new(OfflineDatabase::new(store.clone()));
+        offline_db
+            .initialize()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to initialize offline db: {e}"))?;
+        let metadata_service = Arc::new(AnimeMetadataService::new(offline_db.clone()));
+
+        let store_arc = Arc::new(store.clone());
+        let anime_service = Arc::new(SeaOrmAnimeService::new(
+            store_arc.clone(),
+            anilist.clone(),
+            image_service.clone(),
+            metadata_service.clone(),
+            config_arc.clone(),
+        )) as Arc<dyn AnimeService + Send + Sync + 'static>;
+
+        // Create the new EpisodeService
+        let episode_service = Arc::new(SeaOrmEpisodeService::new(
+            store_arc,
+            anilist.clone(),
+            jikan.clone(),
+            None, // kitsu - optional
+            image_service.clone(),
+            config_arc.clone(),
+            event_bus.clone(),
+        )) as Arc<dyn EpisodeService + Send + Sync + 'static>;
+
         Ok(Self {
             config: config_arc,
             store,
@@ -171,9 +216,14 @@ impl SharedState {
             auto_downloader,
             library_scanner,
             episodes,
+            episode_service,
             download_decisions,
             recycle_bin,
             event_bus,
+            anime_service,
+            image_service,
+            offline_db,
+            metadata_service,
         })
     }
 

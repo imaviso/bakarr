@@ -32,7 +32,7 @@ mod search;
 mod stream;
 mod system;
 mod tasks;
-mod types;
+pub mod types;
 mod validation;
 pub mod wanted;
 
@@ -103,24 +103,26 @@ impl AppState {
     pub fn qbit(&self) -> &Option<Arc<crate::clients::qbittorrent::QBitClient>> {
         &self.shared.qbit
     }
+
+    #[must_use]
+    pub fn anime_service(&self) -> &Arc<dyn crate::services::AnimeService> {
+        &self.shared.anime_service
+    }
+
+    #[must_use]
+    pub fn episode_service(&self) -> &Arc<dyn crate::services::EpisodeService> {
+        &self.shared.episode_service
+    }
 }
 
-pub async fn create_app_state(
+pub fn create_app_state(
     shared: Arc<SharedState>,
     prometheus_handle: Option<PrometheusHandle>,
 ) -> anyhow::Result<Arc<AppState>> {
-    let config = shared.config.read().await.clone();
-
-    let image_service = Arc::new(ImageService::new(config.clone()));
-
-    let offline_db = Arc::new(OfflineDatabase::new(shared.store.clone()));
-    offline_db
-        .initialize()
-        .await
-        .map_err(|e| anyhow::anyhow!("Failed to initialize offline db: {e}"))?;
-
-    let metadata_service = Arc::new(AnimeMetadataService::new(offline_db.clone()));
-
+    // Services are now created in SharedState, just clone references
+    let image_service = shared.image_service.clone();
+    let offline_db = shared.offline_db.clone();
+    let metadata_service = shared.metadata_service.clone();
     let library_scanner = shared.library_scanner.clone();
 
     let rss_service = Arc::new(RssService::new(
@@ -148,7 +150,7 @@ pub async fn create_app_state_from_config(
     prometheus_handle: Option<PrometheusHandle>,
 ) -> anyhow::Result<Arc<AppState>> {
     let shared = Arc::new(SharedState::new(config).await?);
-    create_app_state(shared, prometheus_handle).await
+    create_app_state(shared, prometheus_handle)
 }
 
 pub async fn router(state: Arc<AppState>) -> Router {

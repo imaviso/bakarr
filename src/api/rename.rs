@@ -269,7 +269,7 @@ async fn build_renaming_options_with_backfill(
     anime: &crate::models::anime::Anime,
     status: &EpisodeStatusRow,
     current_path: &StdPath,
-    episode_service: &crate::services::EpisodeService,
+    episode_service: &crate::services::episodes::EpisodeService,
     state: &AppState,
 ) -> RenamingOptions {
     let ep_num = status.episode_number;

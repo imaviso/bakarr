@@ -542,19 +542,20 @@ impl Monitor {
                 if path.is_file() {
                     let name = path.file_name().unwrap_or_default().to_string_lossy();
                     if let Some(p) = parse_filename(&name)
-                        && p.episode_number_truncated() == episode_number {
-                            // Verify season if available
-                            if let Some(s) = season
-                                && p.season.is_some()
-                                && p.season != Some(s)
-                            {
-                                continue;
-                            }
-
-                            info!("Found renamed file for recovery: {:?}", path);
-                            store.set_imported(entry.id, true).await?;
-                            return Ok(true);
+                        && p.episode_number_truncated() == episode_number
+                    {
+                        // Verify season if available
+                        if let Some(s) = season
+                            && p.season.is_some()
+                            && p.season != Some(s)
+                        {
+                            continue;
                         }
+
+                        info!("Found renamed file for recovery: {:?}", path);
+                        store.set_imported(entry.id, true).await?;
+                        return Ok(true);
+                    }
                 }
             }
         }
@@ -567,11 +568,12 @@ impl Monitor {
         };
 
         if let Some(status) = status_check
-            && status.downloaded_at.is_some() {
-                info!("Episode already marked as downloaded in DB. Marking download as imported.");
-                store.set_imported(entry.id, true).await?;
-                return Ok(true);
-            }
+            && status.downloaded_at.is_some()
+        {
+            info!("Episode already marked as downloaded in DB. Marking download as imported.");
+            store.set_imported(entry.id, true).await?;
+            return Ok(true);
+        }
 
         warn!(
             "Recovery check failed: Filename='{}', Ep={}, Dest='{:?}' (Missing), AnimePath='{:?}'",

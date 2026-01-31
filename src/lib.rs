@@ -4,6 +4,7 @@ pub mod clients;
 pub mod config;
 pub mod constants;
 pub mod db;
+pub mod domain;
 pub mod entities;
 pub mod library;
 pub mod models;
@@ -207,7 +208,7 @@ async fn run_daemon(
 
     let shared = Arc::new(SharedState::new(config.clone()).await?);
 
-    let api_state = api::create_app_state(Arc::clone(&shared), prometheus_handle).await?;
+    let api_state = api::create_app_state(Arc::clone(&shared), prometheus_handle)?;
 
     let scheduler = Scheduler::new(Arc::clone(&shared), config.scheduler.clone());
 

@@ -157,3 +157,10 @@ pub struct QualityDto {
     pub resolution: u16,
     pub rank: i32,
 }
+
+/// Result of scanning a folder for episodes.
+#[derive(Debug, Serialize)]
+pub struct ScanFolderResult {
+    pub found: i32,
+    pub total: i32,
+}

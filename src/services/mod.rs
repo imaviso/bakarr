@@ -4,13 +4,23 @@ pub use auto_download::AutoDownloadService;
 pub mod anime;
 pub use anime::AnimeMetadataService;
 
+pub mod anime_service;
+pub use anime_service::{AnimeError, AnimeService};
+
+pub mod anime_service_impl;
+pub use anime_service_impl::SeaOrmAnimeService;
+
 pub mod download;
+pub mod episode_service;
+pub mod episode_service_impl;
 pub mod episodes;
 pub mod image;
 pub mod logs;
 
 pub use download::DownloadDecisionService;
-pub use episodes::EpisodeService;
+pub use episode_service::{EpisodeError, EpisodeService};
+pub use episode_service_impl::SeaOrmEpisodeService;
+pub use episodes::EpisodeService as OldEpisodeService;
 pub use image::ImageService;
 pub use logs::LogService;
 pub mod search;
