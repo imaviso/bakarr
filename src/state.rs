@@ -16,8 +16,9 @@ use crate::services::episodes::EpisodeService as OldEpisodeService;
 use crate::services::{
     AnimeMetadataService, AnimeService, AutoDownloadService, DefaultImportService,
     DownloadDecisionService, DownloadService, EpisodeService, ImageService, ImportService,
-    LibraryScannerService, LibraryService, LogService, RssService, SeaOrmAnimeService,
-    SeaOrmDownloadService, SeaOrmEpisodeService, SeaOrmLibraryService, SearchService,
+    LibraryScannerService, LibraryService, LogService, RenameService, RssService,
+    SeaOrmAnimeService, SeaOrmDownloadService, SeaOrmEpisodeService, SeaOrmLibraryService,
+    SeaOrmRenameService, SearchService,
 };
 
 /// Build a shared HTTP client with reasonable defaults for API calls.
@@ -81,6 +82,8 @@ pub struct SharedState {
     pub library_service: Arc<dyn LibraryService>,
 
     pub import_service: Arc<dyn ImportService>,
+
+    pub rename_service: Arc<dyn RenameService>,
 }
 
 impl SharedState {
@@ -247,6 +250,14 @@ impl SharedState {
             episodes.clone(),
         )) as Arc<dyn ImportService + Send + Sync + 'static>;
 
+        // Create the RenameService
+        let rename_service = Arc::new(SeaOrmRenameService::new(
+            store.clone(),
+            config_arc.clone(),
+            episodes.clone(),
+            event_bus.clone(),
+        )) as Arc<dyn RenameService + Send + Sync + 'static>;
+
         Ok(Self {
             config: config_arc,
             store,
@@ -272,6 +283,7 @@ impl SharedState {
             metadata_service,
             library_service,
             import_service,
+            rename_service,
         })
     }
 

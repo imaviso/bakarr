@@ -128,6 +128,11 @@ impl AppState {
     pub fn import_service(&self) -> &Arc<dyn crate::services::ImportService> {
         &self.shared.import_service
     }
+
+    #[must_use]
+    pub fn rename_service(&self) -> &Arc<dyn crate::services::RenameService> {
+        &self.shared.rename_service
+    }
 }
 
 pub fn create_app_state(

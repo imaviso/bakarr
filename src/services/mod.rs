@@ -62,3 +62,8 @@ pub mod import_service;
 pub mod import_service_impl;
 pub use import_service::{ImportError, ImportService};
 pub use import_service_impl::DefaultImportService;
+
+pub mod rename_service;
+pub mod rename_service_impl;
+pub use rename_service::{RenameError, RenamePreviewItem, RenameResult, RenameService};
+pub use rename_service_impl::SeaOrmRenameService;
