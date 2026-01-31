@@ -25,8 +25,8 @@ use crate::library::RecycleBin;
 use crate::models::episode::EpisodeInput;
 use crate::parser::filename::parse_filename;
 use crate::quality::parse_quality_from_filename;
-use crate::services::episode_service::{EpisodeError, EpisodeService};
 use crate::services::MediaService;
+use crate::services::episode_service::{EpisodeError, EpisodeService};
 
 use crate::services::image::{ImageService, ImageType};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -51,7 +51,7 @@ pub struct SeaOrmEpisodeService {
     offline_db: OfflineDatabase,
     image_service: Arc<ImageService>,
     config: Arc<RwLock<Config>>,
-    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     recent_fetches: Arc<std::sync::RwLock<HashMap<i32, Instant>>>,
 }
 
@@ -65,7 +65,7 @@ impl SeaOrmEpisodeService {
         kitsu: Option<Arc<KitsuClient>>,
         image_service: Arc<ImageService>,
         config: Arc<RwLock<Config>>,
-        event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+        event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     ) -> Self {
         Self {
             store: store.clone(),
@@ -868,7 +868,7 @@ impl EpisodeService for SeaOrmEpisodeService {
         // Send refresh started event
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::RefreshStarted {
+            .send(crate::domain::events::NotificationEvent::RefreshStarted {
                 anime_id: id,
                 title: initial_title,
             });
@@ -902,7 +902,7 @@ impl EpisodeService for SeaOrmEpisodeService {
             // Send refresh finished event
             let _ = self
                 .event_bus
-                .send(crate::api::NotificationEvent::RefreshFinished {
+                .send(crate::domain::events::NotificationEvent::RefreshFinished {
                     anime_id: id,
                     title: anime.title.romaji,
                 });

@@ -142,6 +142,11 @@ impl AppState {
     pub fn profile_service(&self) -> &Arc<dyn crate::services::ProfileService> {
         &self.shared.profile_service
     }
+
+    #[must_use]
+    pub fn system_service(&self) -> &Arc<dyn crate::services::SystemService> {
+        &self.shared.system_service
+    }
 }
 
 pub fn create_app_state(

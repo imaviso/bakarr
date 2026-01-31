@@ -1,4 +1,4 @@
-use crate::api::NotificationEvent;
+use crate::domain::events::NotificationEvent;
 use crate::db::Store;
 use std::sync::Arc;
 use tokio::sync::broadcast;

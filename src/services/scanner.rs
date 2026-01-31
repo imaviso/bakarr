@@ -34,14 +34,14 @@ pub struct LibraryScannerService {
     state: Arc<RwLock<ScannerState>>,
     store: crate::db::Store,
     config: Arc<RwLock<crate::config::Config>>,
-    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
 }
 
 impl LibraryScannerService {
     pub fn new(
         store: crate::db::Store,
         config: Arc<RwLock<crate::config::Config>>,
-        event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+        event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     ) -> Self {
         Self {
             state: Arc::new(RwLock::new(ScannerState::default())),
@@ -89,7 +89,7 @@ impl LibraryScannerService {
 
         tokio::spawn(async move {
             let start = std::time::Instant::now();
-            let _ = event_bus.send(crate::api::NotificationEvent::ScanStarted);
+            let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanStarted);
             info!(
                 event = "discovery_scan_started",
                 "Starting unmapped folder discovery"
@@ -99,7 +99,7 @@ impl LibraryScannerService {
                 Self::perform_scan(state.clone(), store, config, event_bus.clone()).await
             {
                 error!(event = "discovery_scan_failed", error = %e, "Scan failed");
-                let _ = event_bus.send(crate::api::NotificationEvent::Error {
+                let _ = event_bus.send(crate::domain::events::NotificationEvent::Error {
                     message: format!("Scan failed: {e}"),
                 });
             }
@@ -110,7 +110,7 @@ impl LibraryScannerService {
             let folder_count = guard.folders.len();
             drop(guard);
 
-            let _ = event_bus.send(crate::api::NotificationEvent::ScanFinished);
+            let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanFinished);
             info!(
                 event = "discovery_scan_finished",
                 folders_found = folder_count,
@@ -137,7 +137,7 @@ impl LibraryScannerService {
 
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::LibraryScanStarted);
+            .send(crate::domain::events::NotificationEvent::LibraryScanStarted);
         info!(path = %library_path.display(), "Scanning library");
 
         let title_map = self.build_monitored_title_map().await?;
@@ -185,7 +185,7 @@ impl LibraryScannerService {
             if stats.scanned % 100 == 0 {
                 let _ = self
                     .event_bus
-                    .send(crate::api::NotificationEvent::LibraryScanProgress {
+                    .send(crate::domain::events::NotificationEvent::LibraryScanProgress {
                         scanned: stats.scanned,
                     });
             }
@@ -248,7 +248,7 @@ impl LibraryScannerService {
 
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::LibraryScanFinished {
+            .send(crate::domain::events::NotificationEvent::LibraryScanFinished {
                 scanned: stats.scanned,
                 matched: stats.matched,
                 updated: stats.updated,
@@ -449,7 +449,7 @@ impl LibraryScannerService {
         state: Arc<RwLock<ScannerState>>,
         store: crate::db::Store,
         config: Arc<RwLock<crate::config::Config>>,
-        event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+        event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     ) -> anyhow::Result<()> {
         let library_path = {
             let cfg = config.read().await;
@@ -570,13 +570,13 @@ async fn search_and_update_matches(
     state: Arc<RwLock<ScannerState>>,
     folders: &[UnmappedFolder],
     existing_ids: &std::collections::HashSet<i32>,
-    event_bus: &tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: &tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
 ) {
     let client = crate::clients::anilist::AnilistClient::new();
     let total = folders.len();
 
     for (i, folder) in folders.iter().enumerate() {
-        let _ = event_bus.send(crate::api::NotificationEvent::ScanProgress {
+        let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanProgress {
             current: i + 1,
             total,
         });

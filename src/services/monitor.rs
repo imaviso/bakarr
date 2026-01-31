@@ -82,12 +82,12 @@ impl Monitor {
         // This dramatically reduces the payload size every 2 seconds
         let torrents = client.get_torrents(Some("downloading"), None).await?;
 
-        let downloads: Vec<crate::api::events::DownloadStatus> = torrents
+        let downloads: Vec<crate::domain::events::DownloadStatus> = torrents
             .into_iter()
             .map(|t| {
                 #[allow(clippy::cast_possible_truncation)]
                 let progress = t.progress as f32;
-                crate::api::events::DownloadStatus {
+                crate::domain::events::DownloadStatus {
                     hash: t.hash,
                     name: t.name,
                     progress,
@@ -102,7 +102,7 @@ impl Monitor {
 
         if !downloads.is_empty() {
             let _ = event_bus
-                .send(crate::api::events::NotificationEvent::DownloadProgress { downloads });
+                .send(crate::domain::events::NotificationEvent::DownloadProgress { downloads });
         }
 
         Ok(())

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
 
-use crate::api::NotificationEvent;
+use crate::domain::events::NotificationEvent;
 use crate::clients::anilist::AnilistClient;
 use crate::clients::jikan::JikanClient;
 use crate::clients::nyaa::NyaaClient;
@@ -19,7 +19,7 @@ use crate::services::{
     ImportService, LibraryScannerService, LibraryService, LogService, ProfileService,
     RenameService, RssService, SeaOrmAnimeService, SeaOrmAuthService, SeaOrmDownloadService,
     SeaOrmEpisodeService, SeaOrmLibraryService, SeaOrmProfileService, SeaOrmRenameService,
-    SearchService,
+    SeaOrmSystemService, SearchService, SystemService,
 };
 
 /// Build a shared HTTP client with reasonable defaults for API calls.
@@ -89,6 +89,8 @@ pub struct SharedState {
     pub auth_service: Arc<dyn AuthService>,
 
     pub profile_service: Arc<dyn ProfileService>,
+
+    pub system_service: Arc<dyn SystemService>,
 }
 
 impl SharedState {
@@ -272,6 +274,13 @@ impl SharedState {
         let profile_service = Arc::new(SeaOrmProfileService::new(store.clone(), config_arc.clone()))
             as Arc<dyn ProfileService + Send + Sync + 'static>;
 
+        // Create the SystemService
+        let system_service = Arc::new(SeaOrmSystemService::new(
+            store.clone(),
+            config_arc.clone(),
+            qbit.clone(),
+        )) as Arc<dyn SystemService + Send + Sync + 'static>;
+
         Ok(Self {
             config: config_arc,
             store,
@@ -300,6 +309,7 @@ impl SharedState {
             rename_service,
             auth_service,
             profile_service,
+            system_service,
         })
     }
 

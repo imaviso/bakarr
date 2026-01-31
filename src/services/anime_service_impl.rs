@@ -27,7 +27,7 @@ pub struct SeaOrmAnimeService {
     image_service: Arc<ImageService>,
     metadata_service: Arc<AnimeMetadataService>,
     config: Arc<RwLock<Config>>,
-    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
 }
 
 impl SeaOrmAnimeService {
@@ -39,7 +39,7 @@ impl SeaOrmAnimeService {
         image_service: Arc<ImageService>,
         metadata_service: Arc<AnimeMetadataService>,
         config: Arc<RwLock<Config>>,
-        event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+        event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     ) -> Self {
         Self {
             store,

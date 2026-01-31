@@ -33,7 +33,7 @@ pub struct SeaOrmLibraryService {
     library_scanner: Arc<LibraryScannerService>,
     metadata_service: Arc<AnimeMetadataService>,
     image_service: Arc<ImageService>,
-    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
 }
 
 impl SeaOrmLibraryService {
@@ -56,7 +56,7 @@ impl SeaOrmLibraryService {
         library_scanner: Arc<LibraryScannerService>,
         metadata_service: Arc<AnimeMetadataService>,
         image_service: Arc<ImageService>,
-        event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+        event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     ) -> Self {
         Self {
             store,
@@ -330,7 +330,7 @@ impl LibraryService for SeaOrmLibraryService {
 /// Returns `anyhow::Error` on I/O failures or database errors.
 pub async fn scan_folder_for_episodes(
     store: &Store,
-    event_bus: &tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: &tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     anime_id: i32,
     folder_path: &Path,
 ) -> anyhow::Result<i32> {
@@ -343,7 +343,7 @@ pub async fn scan_folder_for_episodes(
     };
 
     // Send start event
-    let _ = event_bus.send(crate::api::NotificationEvent::ScanFolderStarted {
+    let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanFolderStarted {
         anime_id,
         title: anime_title.clone(),
     });
@@ -393,7 +393,7 @@ pub async fn scan_folder_for_episodes(
     );
 
     // Send completion event
-    let _ = event_bus.send(crate::api::NotificationEvent::ScanFolderFinished {
+    let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanFolderFinished {
         anime_id,
         title: anime_title,
         found: count_i32,

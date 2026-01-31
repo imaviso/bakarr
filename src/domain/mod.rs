@@ -3,6 +3,8 @@
 //! This module provides type-safe wrappers and domain primitives for the anime
 //! management subsystem. It follows the Newtype pattern to prevent ID mixing.
 
+pub mod events;
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

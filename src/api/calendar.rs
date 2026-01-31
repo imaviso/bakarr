@@ -4,8 +4,8 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::api::{ApiError, ApiResponse, AppState};
 pub use crate::api::types::CalendarEventDto;
+use crate::api::{ApiError, ApiResponse, AppState};
 
 #[derive(serde::Deserialize)]
 pub struct CalendarQuery {

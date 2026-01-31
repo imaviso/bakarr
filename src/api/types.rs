@@ -211,3 +211,19 @@ pub struct CalendarEventProps {
     pub downloaded: bool,
     pub anime_image: Option<String>,
 }
+
+#[derive(Debug, Serialize)]
+pub struct LogDto {
+    pub id: i64,
+    pub event_type: String,
+    pub level: String,
+    pub message: String,
+    pub details: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LogResponse {
+    pub logs: Vec<LogDto>,
+    pub total_pages: u64,
+}

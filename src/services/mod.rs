@@ -77,3 +77,8 @@ pub mod profile_service;
 pub mod profile_service_impl;
 pub use profile_service::{ProfileError, ProfileService};
 pub use profile_service_impl::SeaOrmProfileService;
+
+pub mod system_service;
+pub mod system_service_impl;
+pub use system_service::{ExportFormat, SystemError, SystemService};
+pub use system_service_impl::SeaOrmSystemService;

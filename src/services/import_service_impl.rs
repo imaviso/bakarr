@@ -24,7 +24,7 @@ pub struct DefaultImportService {
     anilist: Arc<crate::clients::anilist::AnilistClient>,
     image_service: Arc<crate::services::ImageService>,
     metadata_service: Arc<crate::services::AnimeMetadataService>,
-    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     episodes_service: Arc<crate::services::episodes::EpisodeService>,
 }
 
@@ -37,7 +37,7 @@ impl DefaultImportService {
         anilist: Arc<crate::clients::anilist::AnilistClient>,
         image_service: Arc<crate::services::ImageService>,
         metadata_service: Arc<crate::services::AnimeMetadataService>,
-        event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+        event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
         episodes_service: Arc<crate::services::episodes::EpisodeService>,
     ) -> Self {
         Self {
@@ -512,7 +512,7 @@ impl ImportService for DefaultImportService {
 
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::ImportStarted { count: total_count });
+            .send(crate::domain::events::NotificationEvent::ImportStarted { count: total_count });
 
         for file_request in requests {
             let source_path = file_request.source_path.clone();
@@ -533,7 +533,7 @@ impl ImportService for DefaultImportService {
 
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::ImportFinished {
+            .send(crate::domain::events::NotificationEvent::ImportFinished {
                 count: total_count,
                 imported: i32::try_from(result.imported).unwrap_or(i32::MAX),
                 failed: i32::try_from(result.failed).unwrap_or(i32::MAX),

@@ -23,7 +23,7 @@ pub struct SeaOrmRenameService {
     store: Store,
     config: Arc<RwLock<Config>>,
     episodes_service: Arc<OldEpisodeService>,
-    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
 }
 
 impl SeaOrmRenameService {
@@ -32,7 +32,7 @@ impl SeaOrmRenameService {
         store: Store,
         config: Arc<RwLock<Config>>,
         episodes_service: Arc<OldEpisodeService>,
-        event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+        event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     ) -> Self {
         Self {
             store,
@@ -308,7 +308,7 @@ impl RenameService for SeaOrmRenameService {
 
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::RenameStarted {
+            .send(crate::domain::events::NotificationEvent::RenameStarted {
                 anime_id: anime_id.value(),
                 title: anime.title.romaji.clone(),
             });
@@ -379,7 +379,7 @@ impl RenameService for SeaOrmRenameService {
 
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::RenameFinished {
+            .send(crate::domain::events::NotificationEvent::RenameFinished {
                 anime_id: anime_id.value(),
                 title: anime.title.romaji,
                 count: renamed_count,

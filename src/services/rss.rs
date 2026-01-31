@@ -106,7 +106,7 @@ pub struct DefaultRssService {
     nyaa: Arc<NyaaClient>,
     qbit: Option<Arc<QBitClient>>,
     download_decisions: crate::services::download::DownloadDecisionService,
-    event_bus: broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: broadcast::Sender<crate::domain::events::NotificationEvent>,
 }
 
 impl DefaultRssService {
@@ -116,7 +116,7 @@ impl DefaultRssService {
         nyaa: Arc<NyaaClient>,
         qbit: Option<Arc<QBitClient>>,
         download_decisions: crate::services::download::DownloadDecisionService,
-        event_bus: broadcast::Sender<crate::api::NotificationEvent>,
+        event_bus: broadcast::Sender<crate::domain::events::NotificationEvent>,
     ) -> Self {
         Self {
             store,
@@ -303,7 +303,7 @@ impl RssService for DefaultRssService {
 
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::RssCheckStarted);
+            .send(crate::domain::events::NotificationEvent::RssCheckStarted);
         info!("Checking {} RSS feeds...", total_feeds);
 
         for (i, feed) in feeds.iter().enumerate() {
@@ -311,7 +311,7 @@ impl RssService for DefaultRssService {
 
             let _ = self
                 .event_bus
-                .send(crate::api::NotificationEvent::RssCheckProgress {
+                .send(crate::domain::events::NotificationEvent::RssCheckProgress {
                     current: i32::try_from(i + 1).unwrap_or(i32::MAX),
                     total: total_feeds,
                     feed_name: name.to_string(),
@@ -371,7 +371,7 @@ impl RssService for DefaultRssService {
 
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::RssCheckFinished {
+            .send(crate::domain::events::NotificationEvent::RssCheckFinished {
                 total_feeds: stats.total_feeds,
                 new_items: stats.new_items,
             });

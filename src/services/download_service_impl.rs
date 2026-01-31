@@ -26,7 +26,7 @@ pub struct SeaOrmDownloadService {
     store: Store,
     config: Arc<RwLock<Config>>,
     search_service: Arc<SearchService>,
-    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
 }
 
 impl SeaOrmDownloadService {
@@ -36,7 +36,7 @@ impl SeaOrmDownloadService {
         store: Store,
         config: Arc<RwLock<Config>>,
         search_service: Arc<SearchService>,
-        event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+        event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     ) -> Self {
         Self {
             store,
@@ -233,7 +233,7 @@ impl DownloadService for SeaOrmDownloadService {
             // Send notification
             let _ = self
                 .event_bus
-                .send(crate::api::NotificationEvent::SearchMissingStarted {
+                .send(crate::domain::events::NotificationEvent::SearchMissingStarted {
                     anime_id: id.value(),
                     title: anime.title.romaji.clone(),
                 });
@@ -261,14 +261,14 @@ impl DownloadService for SeaOrmDownloadService {
                 {
                     Ok(count) => {
                         let _ =
-                            event_bus.send(crate::api::NotificationEvent::SearchMissingFinished {
+                            event_bus.send(crate::domain::events::NotificationEvent::SearchMissingFinished {
                                 anime_id: anime_id_val,
                                 title: anime_title,
                                 count: i32::try_from(count).unwrap_or(i32::MAX),
                             });
                     }
                     Err(e) => {
-                        let _ = event_bus.send(crate::api::NotificationEvent::Error {
+                        let _ = event_bus.send(crate::domain::events::NotificationEvent::Error {
                             message: format!("Search failed: {e}"),
                         });
                     }
@@ -359,7 +359,7 @@ impl DownloadService for SeaOrmDownloadService {
         // Send notification
         let _ = self
             .event_bus
-            .send(crate::api::NotificationEvent::DownloadStarted { title });
+            .send(crate::domain::events::NotificationEvent::DownloadStarted { title });
 
         Ok(())
     }
@@ -381,7 +381,7 @@ async fn perform_search_and_download(
     search_service: Arc<SearchService>,
     store: Store,
     config: Arc<RwLock<Config>>,
-    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     anime_id: i32,
     category: &str,
     anime_title: &str,
@@ -391,7 +391,7 @@ async fn perform_search_and_download(
         category, anime_title, "Performing search and download"
     );
 
-    let _ = event_bus.send(crate::api::NotificationEvent::Info {
+    let _ = event_bus.send(crate::domain::events::NotificationEvent::Info {
         message: format!("Search started for {anime_title}"),
     });
 
@@ -459,7 +459,7 @@ async fn perform_global_search(
     search_service: Arc<SearchService>,
     store: Store,
     config: Arc<RwLock<Config>>,
-    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
+    event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
 ) {
     let start = std::time::Instant::now();
     info!(
@@ -467,7 +467,7 @@ async fn perform_global_search(
         "Starting global missing episode search"
     );
 
-    let _ = event_bus.send(crate::api::NotificationEvent::Info {
+    let _ = event_bus.send(crate::domain::events::NotificationEvent::Info {
         message: "Starting global search for missing episodes".to_string(),
     });
 
@@ -564,7 +564,7 @@ async fn perform_global_search(
         "Global search complete"
     );
 
-    let _ = event_bus.send(crate::api::NotificationEvent::Info {
+    let _ = event_bus.send(crate::domain::events::NotificationEvent::Info {
         message: format!("Global search complete. Added {total_added} torrents."),
     });
 }
