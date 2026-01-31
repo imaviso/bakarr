@@ -57,3 +57,8 @@ pub mod library_service_impl;
 pub use library_service_impl::{
     SeaOrmLibraryService, collect_and_parse_episodes, scan_folder_for_episodes,
 };
+
+pub mod import_service;
+pub mod import_service_impl;
+pub use import_service::{ImportError, ImportService};
+pub use import_service_impl::DefaultImportService;

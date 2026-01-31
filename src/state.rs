@@ -14,10 +14,10 @@ use crate::library::RecycleBin;
 use crate::services::SeaDexService;
 use crate::services::episodes::EpisodeService as OldEpisodeService;
 use crate::services::{
-    AnimeMetadataService, AnimeService, AutoDownloadService, DownloadDecisionService,
-    DownloadService, EpisodeService, ImageService, LibraryScannerService, LibraryService,
-    LogService, RssService, SeaOrmAnimeService, SeaOrmDownloadService, SeaOrmEpisodeService,
-    SeaOrmLibraryService, SearchService,
+    AnimeMetadataService, AnimeService, AutoDownloadService, DefaultImportService,
+    DownloadDecisionService, DownloadService, EpisodeService, ImageService, ImportService,
+    LibraryScannerService, LibraryService, LogService, RssService, SeaOrmAnimeService,
+    SeaOrmDownloadService, SeaOrmEpisodeService, SeaOrmLibraryService, SearchService,
 };
 
 /// Build a shared HTTP client with reasonable defaults for API calls.
@@ -58,7 +58,7 @@ pub struct SharedState {
 
     pub library_scanner: Arc<LibraryScannerService>,
 
-    pub episodes: OldEpisodeService,
+    pub episodes: Arc<OldEpisodeService>,
 
     pub episode_service: Arc<dyn EpisodeService>,
 
@@ -79,6 +79,8 @@ pub struct SharedState {
     pub metadata_service: Arc<AnimeMetadataService>,
 
     pub library_service: Arc<dyn LibraryService>,
+
+    pub import_service: Arc<dyn ImportService>,
 }
 
 impl SharedState {
@@ -131,7 +133,12 @@ impl SharedState {
         let image_service_config = config.clone();
         let config_arc = Arc::new(RwLock::new(config));
 
-        let episodes = OldEpisodeService::new(store.clone(), jikan.clone(), anilist.clone(), None);
+        let episodes = Arc::new(OldEpisodeService::new(
+            store.clone(),
+            jikan.clone(),
+            anilist.clone(),
+            None,
+        ));
         let download_decisions = DownloadDecisionService::new(store.clone());
 
         // Create seadex_service first since search_service depends on it
@@ -228,6 +235,18 @@ impl SharedState {
             event_bus.clone(),
         )) as Arc<dyn LibraryService + Send + Sync + 'static>;
 
+        // Create the ImportService
+        let import_service = Arc::new(DefaultImportService::new(
+            store.clone(),
+            config_arc.clone(),
+            library_scanner.clone(),
+            anilist.clone(),
+            image_service.clone(),
+            metadata_service.clone(),
+            event_bus.clone(),
+            episodes.clone(),
+        )) as Arc<dyn ImportService + Send + Sync + 'static>;
+
         Ok(Self {
             config: config_arc,
             store,
@@ -252,6 +271,7 @@ impl SharedState {
             offline_db,
             metadata_service,
             library_service,
+            import_service,
         })
     }
 

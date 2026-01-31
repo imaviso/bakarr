@@ -85,6 +85,33 @@ impl SearchService {
         }
     }
 
+    /// Searches for a specific episode across configured indexers.
+    ///
+    /// This method performs a targeted search for a single episode, applying
+    /// quality profiles, release rules, and `SeaDex` preferences to filter results.
+    /// Results are cached to avoid redundant searches.
+    ///
+    /// # Arguments
+    ///
+    /// * `anime_id` - The unique identifier of the anime to search for
+    /// * `episode_number` - The specific episode number to find
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Vec<SearchResult>)` containing matching releases sorted by
+    /// download action priority (downloads first) and seeders (descending).
+    ///
+    /// # Errors
+    ///
+    /// - Returns `Err` if the anime is not found in the database
+    /// - Returns `Err` if the Nyaa API request fails
+    /// - Returns `Err` if database queries for rules/profiles fail
+    ///
+    /// # Performance
+    ///
+    /// This method implements N+1 query prevention by fetching all decision
+    /// context (profile, rules, status) before the result filtering loop.
+    /// Results are cached using the search query string as the cache key.
     #[allow(clippy::too_many_lines)]
     pub async fn search_episode(
         &self,
@@ -240,6 +267,35 @@ impl SearchService {
         Ok(results)
     }
 
+    /// Searches for all available episodes of an anime across configured indexers.
+    ///
+    /// This method performs a comprehensive search for all releases matching the
+    /// anime title, then deduplicates episodes to find the best candidate for each.
+    /// It applies quality profiles, release rules, and `SeaDex` preferences.
+    ///
+    /// # Arguments
+    ///
+    /// * `anime_id` - The unique identifier of the anime to search for
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Vec<SearchResult>)` containing the best release for each
+    /// episode, sorted by download action priority and seeders.
+    ///
+    /// # Errors
+    ///
+    /// - Returns `Err` if the anime is not found in the database
+    /// - Returns `Err` if the Nyaa API request fails
+    /// - Returns `Err` if database queries for context fail
+    ///
+    /// # Algorithm
+    ///
+    /// 1. Fetches search context (profile, rules, episode statuses, `SeaDex` groups)
+    /// 2. Searches Nyaa for the anime title
+    /// 3. Filters candidates by season and minimum seeders
+    /// 4. Sorts by `SeaDex` status and seed count
+    /// 5. Deduplicates to get best candidate per episode
+    /// 6. Applies download decision logic to each candidate
     pub async fn search_anime(&self, anime_id: i32) -> Result<Vec<SearchResult>> {
         let anime = self
             .store

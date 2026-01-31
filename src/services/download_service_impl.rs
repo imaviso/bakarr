@@ -502,6 +502,17 @@ async fn perform_global_search(
         "Found missing episodes"
     );
 
+    // Eager load: Batch fetch all anime titles in a single query to prevent N+1
+    let anime_ids_vec: Vec<i32> = unique_anime_ids.iter().copied().collect();
+    let anime_titles_map: std::collections::HashMap<i32, String> =
+        match store.get_animes_by_ids(&anime_ids_vec).await {
+            Ok(animes) => animes.into_iter().map(|a| (a.id, a.title.romaji)).collect(),
+            Err(e) => {
+                error!(event = "global_search_failed", error = %e, "Failed to fetch anime titles");
+                return;
+            }
+        };
+
     let mut total_added = 0;
 
     for (idx, anime_id) in unique_anime_ids.iter().enumerate() {
@@ -509,10 +520,10 @@ async fn perform_global_search(
             tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
         }
 
-        let anime_title = match store.get_anime(*anime_id).await {
-            Ok(Some(a)) => a.title.romaji,
-            _ => format!("Anime #{anime_id}"),
-        };
+        let anime_title = anime_titles_map
+            .get(anime_id)
+            .cloned()
+            .unwrap_or_else(|| format!("Anime #{anime_id}"));
 
         debug!(
             anime_id = anime_id,

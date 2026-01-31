@@ -123,6 +123,11 @@ impl AppState {
     pub fn library_service(&self) -> &Arc<dyn crate::services::LibraryService> {
         &self.shared.library_service
     }
+
+    #[must_use]
+    pub fn import_service(&self) -> &Arc<dyn crate::services::ImportService> {
+        &self.shared.import_service
+    }
 }
 
 pub fn create_app_state(
