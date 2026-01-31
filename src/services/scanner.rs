@@ -183,11 +183,11 @@ impl LibraryScannerService {
 
             stats.scanned += 1;
             if stats.scanned % 100 == 0 {
-                let _ = self
-                    .event_bus
-                    .send(crate::domain::events::NotificationEvent::LibraryScanProgress {
+                let _ = self.event_bus.send(
+                    crate::domain::events::NotificationEvent::LibraryScanProgress {
                         scanned: stats.scanned,
-                    });
+                    },
+                );
             }
 
             let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -246,13 +246,13 @@ impl LibraryScannerService {
             }
         }
 
-        let _ = self
-            .event_bus
-            .send(crate::domain::events::NotificationEvent::LibraryScanFinished {
+        let _ = self.event_bus.send(
+            crate::domain::events::NotificationEvent::LibraryScanFinished {
                 scanned: stats.scanned,
                 matched: stats.matched,
                 updated: stats.updated,
-            });
+            },
+        );
 
         info!(
             event = "library_scan_finished",

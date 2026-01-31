@@ -900,12 +900,12 @@ impl EpisodeService for SeaOrmEpisodeService {
                 .map_err(EpisodeError::from)?;
 
             // Send refresh finished event
-            let _ = self
-                .event_bus
-                .send(crate::domain::events::NotificationEvent::RefreshFinished {
-                    anime_id: id,
-                    title: anime.title.romaji,
-                });
+            let _ =
+                self.event_bus
+                    .send(crate::domain::events::NotificationEvent::RefreshFinished {
+                        anime_id: id,
+                        title: anime.title.romaji,
+                    });
         }
 
         // Clear cache and refetch episodes

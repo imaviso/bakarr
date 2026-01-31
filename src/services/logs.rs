@@ -1,5 +1,5 @@
-use crate::domain::events::NotificationEvent;
 use crate::db::Store;
+use crate::domain::events::NotificationEvent;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::error;

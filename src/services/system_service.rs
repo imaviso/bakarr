@@ -67,7 +67,8 @@ pub trait SystemService: Send + Sync {
     ///
     /// Returns [`SystemError::Database`] on connection failures.
     /// Returns [`SystemError::ExternalService`] if qBittorrent query fails.
-    async fn get_status(&self,
+    async fn get_status(
+        &self,
         uptime_secs: u64,
         version: &str,
     ) -> Result<SystemStatus, SystemError>;
@@ -90,7 +91,8 @@ pub trait SystemService: Send + Sync {
     ///
     /// Returns [`SystemError::Validation`] if config is invalid.
     /// Returns [`SystemError::Internal`] if save fails.
-    async fn update_config(&self,
+    async fn update_config(
+        &self,
         new_config: Config,
         password_mask: &str,
     ) -> Result<(), SystemError>;
@@ -103,9 +105,7 @@ pub trait SystemService: Send + Sync {
     /// # Returns
     ///
     /// Returns `Some((free_bytes, total_bytes))` on success, `None` on failure.
-    async fn get_disk_space(&self,
-        path: &str,
-    ) -> Result<Option<(i64, i64)>, SystemError>;
+    async fn get_disk_space(&self, path: &str) -> Result<Option<(i64, i64)>, SystemError>;
 
     /// Retrieves paginated system logs.
     ///
@@ -163,6 +163,5 @@ pub trait SystemService: Send + Sync {
     /// # Errors
     ///
     /// Returns [`SystemError::Database`] on connection failures.
-    async fn clear_logs(&self,
-    ) -> Result<bool, SystemError>;
+    async fn clear_logs(&self) -> Result<bool, SystemError>;
 }

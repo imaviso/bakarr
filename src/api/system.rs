@@ -20,7 +20,9 @@ impl From<SystemError> for ApiError {
         match err {
             SystemError::Config(msg) | SystemError::Validation(msg) => Self::validation(msg),
             SystemError::Database(msg) | SystemError::Internal(msg) => Self::internal(msg),
-            SystemError::ExternalService { service, message } => Self::ExternalApiError { service, message },
+            SystemError::ExternalService { service, message } => {
+                Self::ExternalApiError { service, message }
+            }
         }
     }
 }
@@ -71,6 +73,9 @@ pub async fn update_config(
     Json(new_config): Json<Config>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
     const MASK: &str = "********";
-    state.system_service().update_config(new_config, MASK).await?;
+    state
+        .system_service()
+        .update_config(new_config, MASK)
+        .await?;
     Ok(Json(ApiResponse::success(())))
 }

@@ -231,12 +231,12 @@ impl DownloadService for SeaOrmDownloadService {
             let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
 
             // Send notification
-            let _ = self
-                .event_bus
-                .send(crate::domain::events::NotificationEvent::SearchMissingStarted {
+            let _ = self.event_bus.send(
+                crate::domain::events::NotificationEvent::SearchMissingStarted {
                     anime_id: id.value(),
                     title: anime.title.romaji.clone(),
-                });
+                },
+            );
 
             // Clone necessary data for background task
             let store = self.store.clone();
@@ -260,12 +260,13 @@ impl DownloadService for SeaOrmDownloadService {
                 .await
                 {
                     Ok(count) => {
-                        let _ =
-                            event_bus.send(crate::domain::events::NotificationEvent::SearchMissingFinished {
+                        let _ = event_bus.send(
+                            crate::domain::events::NotificationEvent::SearchMissingFinished {
                                 anime_id: anime_id_val,
                                 title: anime_title,
                                 count: i32::try_from(count).unwrap_or(i32::MAX),
-                            });
+                            },
+                        );
                     }
                     Err(e) => {
                         let _ = event_bus.send(crate::domain::events::NotificationEvent::Error {

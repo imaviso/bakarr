@@ -309,13 +309,13 @@ impl RssService for DefaultRssService {
         for (i, feed) in feeds.iter().enumerate() {
             let name = feed.name.as_deref().unwrap_or("Unnamed");
 
-            let _ = self
-                .event_bus
-                .send(crate::domain::events::NotificationEvent::RssCheckProgress {
-                    current: i32::try_from(i + 1).unwrap_or(i32::MAX),
-                    total: total_feeds,
-                    feed_name: name.to_string(),
-                });
+            let _ =
+                self.event_bus
+                    .send(crate::domain::events::NotificationEvent::RssCheckProgress {
+                        current: i32::try_from(i + 1).unwrap_or(i32::MAX),
+                        total: total_feeds,
+                        feed_name: name.to_string(),
+                    });
 
             let Some(anime) = monitored.iter().find(|a| a.id == feed.anime_id) else {
                 warn!(

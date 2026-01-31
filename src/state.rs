@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::{RwLock, broadcast};
 
-use crate::domain::events::NotificationEvent;
 use crate::clients::anilist::AnilistClient;
 use crate::clients::jikan::JikanClient;
 use crate::clients::nyaa::NyaaClient;
@@ -10,6 +9,7 @@ use crate::clients::qbittorrent::{QBitClient, QBitConfig};
 use crate::clients::seadex::{SeaDexClient, SeaDexRelease};
 use crate::config::Config;
 use crate::db::Store;
+use crate::domain::events::NotificationEvent;
 use crate::library::RecycleBin;
 use crate::services::SeaDexService;
 use crate::services::episodes::EpisodeService as OldEpisodeService;

@@ -343,10 +343,12 @@ pub async fn scan_folder_for_episodes(
     };
 
     // Send start event
-    let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanFolderStarted {
-        anime_id,
-        title: anime_title.clone(),
-    });
+    let _ = event_bus.send(
+        crate::domain::events::NotificationEvent::ScanFolderStarted {
+            anime_id,
+            title: anime_title.clone(),
+        },
+    );
 
     tracing::debug!(path = %folder_path.display(), "Scanning folder for episodes");
 
@@ -393,11 +395,13 @@ pub async fn scan_folder_for_episodes(
     );
 
     // Send completion event
-    let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanFolderFinished {
-        anime_id,
-        title: anime_title,
-        found: count_i32,
-    });
+    let _ = event_bus.send(
+        crate::domain::events::NotificationEvent::ScanFolderFinished {
+            anime_id,
+            title: anime_title,
+            found: count_i32,
+        },
+    );
 
     Ok(count_i32)
 }

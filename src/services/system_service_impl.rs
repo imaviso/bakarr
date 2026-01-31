@@ -79,11 +79,10 @@ impl SystemService for SeaOrmSystemService {
         }
 
         let (active_torrents, pending_downloads) = if let Some(ref qbit) = self.qbit {
-            let active = i64::try_from(qbit.get_torrent_count().await.unwrap_or(0))
-                .unwrap_or(i64::MAX);
+            let active =
+                i64::try_from(qbit.get_torrent_count().await.unwrap_or(0)).unwrap_or(i64::MAX);
             let pending =
-                i64::try_from(qbit.get_downloading_count().await.unwrap_or(0))
-                    .unwrap_or(i64::MAX);
+                i64::try_from(qbit.get_downloading_count().await.unwrap_or(0)).unwrap_or(i64::MAX);
             (active, pending)
         } else {
             (0, 0)
@@ -150,16 +149,15 @@ impl SystemService for SeaOrmSystemService {
 
         *config = new_config;
 
-        config.save().map_err(|e| SystemError::Internal(e.to_string()))?;
+        config
+            .save()
+            .map_err(|e| SystemError::Internal(e.to_string()))?;
         drop(config);
 
         Ok(())
     }
 
-    async fn get_disk_space(
-        &self,
-        path: &str,
-    ) -> Result<Option<(i64, i64)>, SystemError> {
+    async fn get_disk_space(&self, path: &str) -> Result<Option<(i64, i64)>, SystemError> {
         // CPU-intensive operation - run in blocking task
         let path = path.to_string();
         let result = tokio::task::spawn_blocking(move || {
@@ -238,15 +236,13 @@ impl SystemService for SeaOrmSystemService {
         let content = if format == ExportFormat::Csv {
             Self::format_logs_as_csv(dtos)
         } else {
-            serde_json::to_string_pretty(&dtos)
-                .map_err(|e| SystemError::Internal(e.to_string()))?
+            serde_json::to_string_pretty(&dtos).map_err(|e| SystemError::Internal(e.to_string()))?
         };
 
         Ok((format, content))
     }
 
-    async fn clear_logs(&self,
-    ) -> Result<bool, SystemError> {
+    async fn clear_logs(&self) -> Result<bool, SystemError> {
         self.store.clear_logs().await?;
         Ok(true)
     }
@@ -257,11 +253,7 @@ impl SeaOrmSystemService {
     fn get_disk_space_blocking(path: &str) -> Option<(i64, i64)> {
         use std::process::Command;
 
-        let output = Command::new("df")
-            .arg("-B1")
-            .arg(path)
-            .output()
-            .ok()?;
+        let output = Command::new("df").arg("-B1").arg(path).output().ok()?;
 
         if !output.status.success() {
             return None;
