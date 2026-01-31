@@ -60,23 +60,23 @@ impl SystemService for SeaOrmSystemService {
         uptime_secs: u64,
         version: &str,
     ) -> Result<SystemStatus, SystemError> {
-        let monitored = self.store.list_monitored().await?;
+        let monitored_stats = self.store.list_monitored_stats().await?;
 
         let mut total_episodes = 0i64;
         let mut missing_episodes = 0i64;
 
-        let anime_ids: Vec<i32> = monitored.iter().map(|a| a.id).collect();
+        let anime_ids: Vec<i32> = monitored_stats.iter().map(|(id, _)| *id).collect();
         let downloaded_map = self
             .store
             .get_download_counts_for_anime_ids(&anime_ids)
             .await
             .unwrap_or_default();
 
-        for anime in &monitored {
-            if let Some(count) = anime.episode_count {
-                total_episodes += i64::from(count);
-                let downloaded = downloaded_map.get(&anime.id).copied().unwrap_or(0);
-                missing_episodes += i64::from(count) - i64::from(downloaded);
+        for (id, episode_count) in &monitored_stats {
+            if let Some(count) = episode_count {
+                total_episodes += i64::from(*count);
+                let downloaded = downloaded_map.get(id).copied().unwrap_or(0);
+                missing_episodes += i64::from(*count) - i64::from(downloaded);
             }
         }
 
@@ -111,7 +111,7 @@ impl SystemService for SeaOrmSystemService {
         Ok(SystemStatus {
             version: version.to_string(),
             uptime: uptime_secs,
-            monitored_anime: monitored.len(),
+            monitored_anime: monitored_stats.len(),
             total_episodes,
             missing_episodes,
             active_torrents,

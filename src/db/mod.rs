@@ -128,6 +128,10 @@ impl Store {
         self.anime_repo().list_monitored().await
     }
 
+    pub async fn list_monitored_stats(&self) -> Result<Vec<(i32, Option<i32>)>> {
+        self.anime_repo().list_monitored_stats().await
+    }
+
     pub async fn list_all_anime(&self) -> Result<Vec<Anime>> {
         self.anime_repo().list_all().await
     }

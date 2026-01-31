@@ -149,6 +149,19 @@ impl AnimeRepository {
             .collect())
     }
 
+    pub async fn list_monitored_stats(&self) -> anyhow::Result<Vec<(i32, Option<i32>)>> {
+        let rows: Vec<(i32, Option<i32>)> = MonitoredAnime::find()
+            .select_only()
+            .column(monitored_anime::Column::Id)
+            .column(monitored_anime::Column::EpisodeCount)
+            .filter(monitored_anime::Column::Monitored.eq(true))
+            .into_tuple()
+            .all(&self.conn)
+            .await?;
+
+        Ok(rows)
+    }
+
     pub async fn list_all(&self) -> anyhow::Result<Vec<Anime>> {
         let rows = Self::base_query()
             .order_by_asc(monitored_anime::Column::RomajiTitle)
