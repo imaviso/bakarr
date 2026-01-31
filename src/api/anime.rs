@@ -289,28 +289,8 @@ pub async fn update_anime_path(
 
     state
         .anime_service()
-        .update_anime_path(anime_id, payload.path.clone())
+        .update_anime_path(anime_id, payload.path, payload.rescan)
         .await?;
-
-    if payload.rescan {
-        let store = state.store().clone();
-        let event_bus = state.event_bus().clone();
-        let folder_path = std::path::PathBuf::from(&payload.path);
-        let anime_id = id;
-
-        tokio::spawn(async move {
-            if let Err(e) = crate::services::scan_folder_for_episodes(
-                &store,
-                &event_bus,
-                anime_id,
-                &folder_path,
-            )
-            .await
-            {
-                tracing::warn!("Failed to scan folder for episodes: {}", e);
-            }
-        });
-    }
 
     Ok(Json(ApiResponse::success(())))
 }

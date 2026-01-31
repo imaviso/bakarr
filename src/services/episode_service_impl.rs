@@ -9,7 +9,10 @@
 //! - **N+1 Prevention**: Batch operations preferred over individual queries
 //! - **Error Mapping**: `SeaORM` errors mapped to domain errors
 
-use crate::api::types::{EpisodeDto, ScanFolderResult, VideoFileDto};
+use crate::api::types::{
+    CalendarEventDto, CalendarEventProps, EpisodeDto, MissingEpisodeDto, ScanFolderResult,
+    VideoFileDto,
+};
 use crate::clients::anilist::AnilistClient;
 use crate::clients::jikan::JikanClient;
 use crate::clients::kitsu::KitsuClient;
@@ -22,8 +25,9 @@ use crate::library::RecycleBin;
 use crate::models::episode::EpisodeInput;
 use crate::parser::filename::parse_filename;
 use crate::quality::parse_quality_from_filename;
-use crate::services::MediaService;
 use crate::services::episode_service::{EpisodeError, EpisodeService};
+use crate::services::MediaService;
+
 use crate::services::image::{ImageService, ImageType};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
@@ -964,6 +968,72 @@ impl EpisodeService for SeaOrmEpisodeService {
         );
 
         Ok(())
+    }
+
+    async fn list_all_missing(&self, limit: u64) -> Result<Vec<MissingEpisodeDto>, EpisodeError> {
+        let missing = self
+            .store
+            .get_all_missing_episodes(limit)
+            .await
+            .map_err(EpisodeError::from)?;
+
+        let dtos = missing
+            .into_iter()
+            .map(|row| MissingEpisodeDto {
+                anime_id: row.anime_id,
+                anime_title: row.anime_title,
+                episode_number: row.episode_number,
+                episode_title: row.episode_title,
+                aired: row.aired,
+                anime_image: row.anime_image.map(|p| format!("/images/{p}")),
+            })
+            .collect();
+
+        Ok(dtos)
+    }
+
+    async fn get_calendar(
+        &self,
+        start: &str,
+        end: &str,
+    ) -> Result<Vec<CalendarEventDto>, EpisodeError> {
+        let events = self
+            .store
+            .get_calendar_events(start, end)
+            .await
+            .map_err(EpisodeError::from)?;
+
+        let dtos = events
+            .into_iter()
+            .map(|e| {
+                let ep_num = e.episode_number;
+                let anime_id = e.anime_id;
+
+                let title = e.episode_title.as_ref().map_or_else(
+                    || format!("Episode {ep_num}"),
+                    |t| format!("{ep_num} - {t}"),
+                );
+
+                let date = e.aired.unwrap_or_default();
+
+                CalendarEventDto {
+                    id: format!("{anime_id}-{ep_num}"),
+                    title,
+                    start: date.clone(),
+                    end: date,
+                    all_day: true,
+                    extended_props: CalendarEventProps {
+                        anime_id: i32::try_from(anime_id).unwrap_or_default(),
+                        anime_title: e.anime_title,
+                        episode_number: i32::try_from(ep_num).unwrap_or_default(),
+                        downloaded: e.downloaded,
+                        anime_image: e.anime_image.map(|p| format!("/images/{p}")),
+                    },
+                }
+            })
+            .collect();
+
+        Ok(dtos)
     }
 }
 

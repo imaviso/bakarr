@@ -3,7 +3,9 @@
 //! This module provides the [`EpisodeService`] trait, abstracting episode logic
 //! including metadata fetching, file management, and status tracking.
 
-use crate::api::types::{EpisodeDto, ScanFolderResult, VideoFileDto};
+use crate::api::types::{
+    CalendarEventDto, EpisodeDto, MissingEpisodeDto, ScanFolderResult, VideoFileDto,
+};
 use crate::domain::{AnimeId, EpisodeNumber};
 use thiserror::Error;
 
@@ -157,4 +159,22 @@ pub trait EpisodeService: Send + Sync {
     ///
     /// Errors for individual anime are logged; partial success is allowed.
     async fn refresh_all_active_metadata(&self) -> Result<(), EpisodeError>;
+
+    /// Lists all missing episodes across all monitored anime.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EpisodeError::Database`] on connection failures.
+    async fn list_all_missing(&self, limit: u64) -> Result<Vec<MissingEpisodeDto>, EpisodeError>;
+
+    /// Gets calendar events for episodes within a date range.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EpisodeError::Database`] on connection failures.
+    async fn get_calendar(
+        &self,
+        start: &str,
+        end: &str,
+    ) -> Result<Vec<CalendarEventDto>, EpisodeError>;
 }

@@ -145,15 +145,19 @@ pub trait AnimeService: Send + Sync {
     /// Updates the file system path for an anime.
     ///
     /// This method validates the path exists and updates the database record.
-    /// Note: The actual folder scanning/rescanning is the responsibility of
-    /// the caller (handler) as it involves background task spawning.
+    /// If `rescan` is true, it spawns a background task to scan for episodes.
     ///
     /// # Errors
     ///
     /// - Returns [`AnimeError::NotFound`] if anime does not exist
     /// - Returns [`AnimeError::InvalidData`] if path does not exist or is invalid
     /// - Returns [`AnimeError::Database`] on connection failures
-    async fn update_anime_path(&self, id: AnimeId, path: String) -> Result<(), AnimeError>;
+    async fn update_anime_path(
+        &self,
+        id: AnimeId,
+        path: String,
+        rescan: bool,
+    ) -> Result<(), AnimeError>;
 
     /// Searches for anime on external provider (`AniList`).
     ///

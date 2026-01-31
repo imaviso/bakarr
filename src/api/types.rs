@@ -182,3 +182,32 @@ pub struct ScanFolderResult {
     pub found: i32,
     pub total: i32,
 }
+
+#[derive(Debug, Serialize, Clone)]
+pub struct MissingEpisodeDto {
+    pub anime_id: i64,
+    pub anime_title: String,
+    pub episode_number: i64,
+    pub episode_title: Option<String>,
+    pub aired: Option<String>,
+    pub anime_image: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct CalendarEventDto {
+    pub id: String,
+    pub title: String,
+    pub start: String,
+    pub end: String,
+    pub all_day: bool,
+    pub extended_props: CalendarEventProps,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct CalendarEventProps {
+    pub anime_id: i32,
+    pub anime_title: String,
+    pub episode_number: i32,
+    pub downloaded: bool,
+    pub anime_image: Option<String>,
+}

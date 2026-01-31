@@ -211,6 +211,7 @@ impl SharedState {
             image_service.clone(),
             metadata_service.clone(),
             config_arc.clone(),
+            event_bus.clone(),
         )) as Arc<dyn AnimeService + Send + Sync + 'static>;
 
         // Create the new EpisodeService

@@ -27,6 +27,7 @@ pub struct SeaOrmAnimeService {
     image_service: Arc<ImageService>,
     metadata_service: Arc<AnimeMetadataService>,
     config: Arc<RwLock<Config>>,
+    event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
 }
 
 impl SeaOrmAnimeService {
@@ -38,6 +39,7 @@ impl SeaOrmAnimeService {
         image_service: Arc<ImageService>,
         metadata_service: Arc<AnimeMetadataService>,
         config: Arc<RwLock<Config>>,
+        event_bus: tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
     ) -> Self {
         Self {
             store,
@@ -45,6 +47,7 @@ impl SeaOrmAnimeService {
             image_service,
             metadata_service,
             config,
+            event_bus,
         }
     }
 
@@ -417,7 +420,12 @@ impl AnimeService for SeaOrmAnimeService {
         Ok(())
     }
 
-    async fn update_anime_path(&self, id: AnimeId, path: String) -> Result<(), AnimeError> {
+    async fn update_anime_path(
+        &self,
+        id: AnimeId,
+        path: String,
+        rescan: bool,
+    ) -> Result<(), AnimeError> {
         use std::path::Path;
 
         // Check existence
@@ -431,7 +439,6 @@ impl AnimeService for SeaOrmAnimeService {
             return Err(AnimeError::NotFound(id));
         }
 
-        // Validate path exists
         let path_obj = Path::new(&path);
         if !path_obj.exists() {
             return Err(AnimeError::InvalidData(format!(
@@ -439,11 +446,30 @@ impl AnimeService for SeaOrmAnimeService {
             )));
         }
 
-        // Update the database
         self.store
             .update_anime_path(id.value(), &path)
             .await
             .map_err(|e| AnimeError::Database(e.to_string()))?;
+
+        if rescan {
+            let store = self.store.clone();
+            let event_bus = self.event_bus.clone();
+            let folder_path = std::path::PathBuf::from(&path);
+            let anime_id = id.value();
+
+            tokio::spawn(async move {
+                if let Err(e) = crate::services::scan_folder_for_episodes(
+                    &store,
+                    &event_bus,
+                    anime_id,
+                    &folder_path,
+                )
+                .await
+                {
+                    tracing::warn!("Failed to scan folder for episodes: {}", e);
+                }
+            });
+        }
 
         Ok(())
     }
