@@ -3,6 +3,11 @@
 //! This module provides the concrete implementation of [`EpisodeService`] using
 //! `SeaORM` for database access. It handles metadata fetching, file scanning,
 //! and episode management operations.
+//!
+//! # Principal Notes
+//! - **DRY Compliance**: File scanning logic delegated to shared helpers in `library_service_impl`
+//! - **N+1 Prevention**: Batch operations preferred over individual queries
+//! - **Error Mapping**: `SeaORM` errors mapped to domain errors
 
 use crate::api::types::{EpisodeDto, ScanFolderResult, VideoFileDto};
 use crate::clients::anilist::AnilistClient;
@@ -26,10 +31,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
-
-/// Type alias for parsed video file information.
-/// Contains: (`episode_number`, `season`, `file_path`, `quality_id`, `file_size`)
-type ParsedVideoFile = (i32, Option<i32>, String, i32, Option<i64>);
 
 /// SeaORM-based implementation of [`EpisodeService`].
 ///
@@ -273,7 +274,10 @@ impl SeaOrmEpisodeService {
         Ok(0)
     }
 
-    /// Collects and parses video files from a folder.
+    /// Collects all video files from a folder (for listing purposes).
+    ///
+    /// Unlike `collect_and_parse_episodes`, this returns ALL video files
+    /// regardless of whether they can be parsed.
     async fn collect_video_files(
         &self,
         folder_path: &Path,
@@ -330,31 +334,6 @@ impl SeaOrmEpisodeService {
             }
         }
         Ok(files)
-    }
-
-    /// Parses video files and extracts episode information.
-    #[allow(clippy::unused_self)]
-    fn parse_video_files(&self, files: &[VideoFileDto]) -> Vec<ParsedVideoFile> {
-        let mut results = Vec::new();
-
-        for file in files {
-            if let Some(parsed) = parse_filename(&file.name) {
-                #[allow(clippy::cast_possible_truncation)]
-                let episode_number = parsed.episode_number.floor() as i32;
-                let quality = parse_quality_from_filename(&file.name);
-                let file_size = if file.size > 0 { Some(file.size) } else { None };
-
-                results.push((
-                    episode_number,
-                    parsed.season,
-                    file.path.clone(),
-                    quality.id,
-                    file_size,
-                ));
-            }
-        }
-
-        results
     }
 
     /// Saves anime images (cover and banner).
@@ -587,7 +566,6 @@ impl EpisodeService for SeaOrmEpisodeService {
 
     async fn scan_folder(&self, anime_id: AnimeId) -> Result<ScanFolderResult, EpisodeError> {
         let id = anime_id.value();
-        let _start = Instant::now();
 
         // Get anime info
         let anime = self
@@ -610,60 +588,18 @@ impl EpisodeService for SeaOrmEpisodeService {
 
         info!(anime_id = id, path = ?path, "Scanning folder");
 
-        let before_count = self
-            .store
-            .get_downloaded_count(id)
-            .await
-            .map_err(EpisodeError::from)?;
+        // Delegate to shared scanner (DRY: avoids code duplication)
+        // This helper handles file discovery, parsing, marking downloads, and events
+        let found =
+            crate::services::scan_folder_for_episodes(&self.store, &self.event_bus, id, path)
+                .await?;
 
-        // Send scan started event
-        let _ = self
-            .event_bus
-            .send(crate::api::NotificationEvent::ScanFolderStarted {
-                anime_id: id,
-                title: anime.title.romaji.clone(),
-            });
-
-        // Collect and parse video files
-        let files = self.collect_video_files(path).await?;
-        let parsed = self.parse_video_files(&files);
-
-        // Import found episodes
-        for (episode_number, season, file_path, quality_id, file_size) in &parsed {
-            if let Err(e) = self
-                .store
-                .mark_episode_downloaded(
-                    id,
-                    *episode_number,
-                    season.unwrap_or(1),
-                    *quality_id,
-                    false,
-                    file_path,
-                    *file_size,
-                    None,
-                )
-                .await
-            {
-                warn!(
-                    episode = episode_number,
-                    error = %e,
-                    "Failed to mark episode as downloaded"
-                );
-            } else {
-                debug!(
-                    episode = episode_number,
-                    path = %file_path,
-                    "Detected episode from folder scan"
-                );
-            }
-        }
-
+        // Get total count after scanning
         let after_count = self
             .store
             .get_downloaded_count(id)
             .await
             .map_err(EpisodeError::from)?;
-        let found = (after_count - before_count).max(0);
 
         info!(
             event = "folder_scan_finished",
@@ -671,15 +607,6 @@ impl EpisodeService for SeaOrmEpisodeService {
             total = after_count,
             "Folder scan complete"
         );
-
-        // Send scan finished event
-        let _ = self
-            .event_bus
-            .send(crate::api::NotificationEvent::ScanFolderFinished {
-                anime_id: id,
-                title: anime.title.romaji,
-                found,
-            });
 
         Ok(ScanFolderResult {
             found,
@@ -961,10 +888,6 @@ impl EpisodeService for SeaOrmEpisodeService {
 
             // Save images
             self.save_anime_images(&mut anime).await;
-
-            // Enrich metadata
-            // Note: This would need metadata_service integration
-            // For now, we skip this step
 
             // Save updated anime
             self.store

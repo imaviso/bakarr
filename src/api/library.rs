@@ -14,11 +14,9 @@ use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::api::{ApiError, ApiResponse, AppState};
-use crate::services::library_service::{
-    ActivityItem, ImportFolderRequest, LibraryStats,
-};
-use crate::services::scanner::ScannerState;
 use crate::services::LibraryError;
+use crate::services::library_service::{ActivityItem, ImportFolderRequest, LibraryStats};
+use crate::services::scanner::ScannerState;
 
 /// Query parameters for activity feed endpoint.
 #[derive(Debug, Deserialize)]
@@ -37,10 +35,9 @@ impl From<LibraryError> for ApiError {
             LibraryError::NotFound(id) => Self::anime_not_found(id.value()),
             LibraryError::Validation(msg) => Self::validation(msg),
             LibraryError::Database(msg) => Self::internal(msg),
-            LibraryError::ExternalApi { service, message } => Self::ExternalApiError {
-                service,
-                message,
-            },
+            LibraryError::ExternalApi { service, message } => {
+                Self::ExternalApiError { service, message }
+            }
         }
     }
 }
@@ -79,7 +76,10 @@ pub async fn get_activity(
     State(app_state): State<Arc<AppState>>,
     axum::extract::Query(query): axum::extract::Query<ActivityQuery>,
 ) -> Result<Json<ApiResponse<Vec<ActivityItem>>>, ApiError> {
-    let activity = app_state.library_service().get_activity(query.limit).await?;
+    let activity = app_state
+        .library_service()
+        .get_activity(query.limit)
+        .await?;
     Ok(Json(ApiResponse::success(activity)))
 }
 

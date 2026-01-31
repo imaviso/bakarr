@@ -49,7 +49,11 @@ pub mod seadex;
 pub use seadex::SeaDexService;
 
 pub mod library_service;
-pub use library_service::{LibraryError, LibraryService, LibraryStats, ActivityItem, ImportFolderRequest};
+pub use library_service::{
+    ActivityItem, ImportFolderRequest, LibraryError, LibraryService, LibraryStats,
+};
 
 pub mod library_service_impl;
-pub use library_service_impl::{SeaOrmLibraryService, scan_folder_for_episodes, collect_and_parse_episodes};
+pub use library_service_impl::{
+    SeaOrmLibraryService, collect_and_parse_episodes, scan_folder_for_episodes,
+};

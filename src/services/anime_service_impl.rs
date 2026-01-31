@@ -417,11 +417,7 @@ impl AnimeService for SeaOrmAnimeService {
         Ok(())
     }
 
-    async fn update_anime_path(
-        &self,
-        id: AnimeId,
-        path: String,
-    ) -> Result<(), AnimeError> {
+    async fn update_anime_path(&self, id: AnimeId, path: String) -> Result<(), AnimeError> {
         use std::path::Path;
 
         // Check existence

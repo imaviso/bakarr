@@ -5,9 +5,7 @@ use axum::{
 use serde::Deserialize;
 use std::sync::Arc;
 
-use super::{
-    AnimeDto, ApiError, ApiResponse, AppState, SearchResultDto, TitleDto,
-};
+use super::{AnimeDto, ApiError, ApiResponse, AppState, SearchResultDto, TitleDto};
 use crate::api::validation::{validate_anime_id, validate_search_query};
 use crate::services::AnimeService;
 

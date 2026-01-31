@@ -19,11 +19,11 @@ use tokio::sync::RwLock;
 use crate::config::Config;
 use crate::db::Store;
 use crate::domain::AnimeId;
+use crate::services::library_service::{ActivityItem, ImportFolderRequest, LibraryStats};
+use crate::services::scanner::ScannerState;
 use crate::services::{
     AnimeMetadataService, ImageService, LibraryError, LibraryScannerService, LibraryService,
 };
-use crate::services::library_service::{ActivityItem, ImportFolderRequest, LibraryStats};
-use crate::services::scanner::ScannerState;
 
 /// SeaORM-based implementation of the `LibraryService` trait.
 pub struct SeaOrmLibraryService {
@@ -82,25 +82,25 @@ impl SeaOrmLibraryService {
                 .get_quality_profile_by_name(name)
                 .await
                 .map_err(|e| LibraryError::Database(e.to_string()))?
-            {
-                return Ok(Some(profile.id));
-            }
+        {
+            return Ok(Some(profile.id));
+        }
 
         // Read config briefly to get default profile name, then release lock
         let default_profile_name = {
             let config = self.config.read().await;
             config.profiles.first().map(|p| p.name.clone())
         };
-        
+
         if let Some(name) = default_profile_name
             && let Some(profile) = self
                 .store
                 .get_quality_profile_by_name(&name)
                 .await
                 .map_err(|e| LibraryError::Database(e.to_string()))?
-            {
-                return Ok(Some(profile.id));
-            }
+        {
+            return Ok(Some(profile.id));
+        }
 
         Ok(None)
     }
@@ -146,11 +146,7 @@ impl LibraryService for SeaOrmLibraryService {
         }
 
         // Fetch RSS and recent download counts
-        let feeds = self
-            .store
-            .get_enabled_rss_feeds()
-            .await
-            .unwrap_or_default();
+        let feeds = self.store.get_enabled_rss_feeds().await.unwrap_or_default();
         let recent = self.store.recent_downloads(7i32).await.unwrap_or_default();
 
         Ok(LibraryStats {
@@ -240,7 +236,9 @@ impl LibraryService for SeaOrmLibraryService {
         }
 
         // 3. Resolve quality profile
-        let profile_id = self.resolve_quality_profile(request.profile_name.as_ref()).await?;
+        let profile_id = self
+            .resolve_quality_profile(request.profile_name.as_ref())
+            .await?;
 
         // 4. Check for duplicates
         if self.store.get_anime(anime.id).await?.is_some() {
@@ -254,7 +252,9 @@ impl LibraryService for SeaOrmLibraryService {
         anime.quality_profile_id = profile_id;
 
         // Enrich metadata and set timestamp
-        self.metadata_service.enrich_anime_metadata(&mut anime).await;
+        self.metadata_service
+            .enrich_anime_metadata(&mut anime)
+            .await;
         anime.added_at = chrono::Utc::now().to_rfc3339();
 
         self.store.add_anime(&anime).await?;
@@ -328,13 +328,12 @@ impl LibraryService for SeaOrmLibraryService {
 /// # Errors
 ///
 /// Returns `anyhow::Error` on I/O failures or database errors.
-    pub async fn scan_folder_for_episodes(
+pub async fn scan_folder_for_episodes(
     store: &Store,
     event_bus: &tokio::sync::broadcast::Sender<crate::api::NotificationEvent>,
     anime_id: i32,
     folder_path: &Path,
-) -> anyhow::Result<()> {
-
+) -> anyhow::Result<i32> {
     let start = std::time::Instant::now();
 
     // Get anime title for events
@@ -384,6 +383,7 @@ impl LibraryService for SeaOrmLibraryService {
     }
 
     let count = found_episodes.len();
+    let count_i32 = count as i32;
     tracing::info!(
         event = "folder_scan_finished",
         anime_id = anime_id,
@@ -396,10 +396,10 @@ impl LibraryService for SeaOrmLibraryService {
     let _ = event_bus.send(crate::api::NotificationEvent::ScanFolderFinished {
         anime_id,
         title: anime_title,
-        found: count as i32,
+        found: count_i32,
     });
 
-    Ok(())
+    Ok(count_i32)
 }
 
 /// Recursively collects and parses video files in a directory.
@@ -452,9 +452,10 @@ pub async fn collect_and_parse_episodes(
             // Handle directories (skip hidden)
             if path.is_dir() {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str())
-                    && !name.starts_with('.') {
-                        dirs_to_visit.push_back(path);
-                    }
+                    && !name.starts_with('.')
+                {
+                    dirs_to_visit.push_back(path);
+                }
                 continue;
             }
 
@@ -462,30 +463,31 @@ pub async fn collect_and_parse_episodes(
             if let Some(ext) = path.extension() {
                 let ext_lower = ext.to_string_lossy().to_lowercase();
                 if VIDEO_EXTENSIONS.contains(&ext_lower.as_str())
-                    && let Some(filename) = path.file_name() {
-                        let filename_str = filename.to_string_lossy();
+                    && let Some(filename) = path.file_name()
+                {
+                    let filename_str = filename.to_string_lossy();
 
-                        // Parse filename for episode info
-                        if let Some(parsed) = parse_filename(&filename_str) {
-                            #[allow(clippy::cast_possible_truncation)]
-                            let episode_number = parsed.episode_number.floor() as i32;
-                            let quality = parse_quality_from_filename(&filename_str);
+                    // Parse filename for episode info
+                    if let Some(parsed) = parse_filename(&filename_str) {
+                        #[allow(clippy::cast_possible_truncation)]
+                        let episode_number = parsed.episode_number.floor() as i32;
+                        let quality = parse_quality_from_filename(&filename_str);
 
-                            // Get file size
-                            let file_size = tokio::fs::metadata(&path)
-                                .await
-                                .map(|m| m.len() as i64)
-                                .ok();
+                        // Get file size
+                        let file_size = tokio::fs::metadata(&path)
+                            .await
+                            .map(|m| m.len() as i64)
+                            .ok();
 
-                            found_episodes.push((
-                                episode_number,
-                                parsed.season,
-                                path.to_string_lossy().to_string(),
-                                quality.id,
-                                file_size,
-                            ));
-                        }
+                        found_episodes.push((
+                            episode_number,
+                            parsed.season,
+                            path.to_string_lossy().to_string(),
+                            quality.id,
+                            file_size,
+                        ));
                     }
+                }
             }
         }
     }

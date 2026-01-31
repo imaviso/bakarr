@@ -153,11 +153,7 @@ pub trait AnimeService: Send + Sync {
     /// - Returns [`AnimeError::NotFound`] if anime does not exist
     /// - Returns [`AnimeError::InvalidData`] if path does not exist or is invalid
     /// - Returns [`AnimeError::Database`] on connection failures
-    async fn update_anime_path(
-        &self,
-        id: AnimeId,
-        path: String,
-    ) -> Result<(), AnimeError>;
+    async fn update_anime_path(&self, id: AnimeId, path: String) -> Result<(), AnimeError>;
 }
 
 /// Pure domain function to calculate missing episodes.
