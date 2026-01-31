@@ -154,13 +154,8 @@ pub async fn cmd_rss_check(config: &Config) -> anyhow::Result<()> {
 
     let download_decisions = crate::services::DownloadDecisionService::new(store.clone());
 
-    let rss_service = crate::services::DefaultRssService::new(
-        store,
-        nyaa,
-        qbit,
-        download_decisions,
-        event_bus,
-    );
+    let rss_service =
+        crate::services::DefaultRssService::new(store, nyaa, qbit, download_decisions, event_bus);
 
     let stats = rss_service
         .check_feeds(u64::from(config.scheduler.check_delay_seconds))

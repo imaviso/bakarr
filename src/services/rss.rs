@@ -301,17 +301,21 @@ impl RssService for DefaultRssService {
             ..Default::default()
         };
 
-        let _ = self.event_bus.send(crate::api::NotificationEvent::RssCheckStarted);
+        let _ = self
+            .event_bus
+            .send(crate::api::NotificationEvent::RssCheckStarted);
         info!("Checking {} RSS feeds...", total_feeds);
 
         for (i, feed) in feeds.iter().enumerate() {
             let name = feed.name.as_deref().unwrap_or("Unnamed");
 
-            let _ = self.event_bus.send(crate::api::NotificationEvent::RssCheckProgress {
-                current: i32::try_from(i + 1).unwrap_or(i32::MAX),
-                total: total_feeds,
-                feed_name: name.to_string(),
-            });
+            let _ = self
+                .event_bus
+                .send(crate::api::NotificationEvent::RssCheckProgress {
+                    current: i32::try_from(i + 1).unwrap_or(i32::MAX),
+                    total: total_feeds,
+                    feed_name: name.to_string(),
+                });
 
             let Some(anime) = monitored.iter().find(|a| a.id == feed.anime_id) else {
                 warn!(
@@ -321,12 +325,20 @@ impl RssService for DefaultRssService {
                 continue;
             };
 
-            match self.nyaa.check_feed_for_new(&feed.url, feed.last_item_hash.as_deref()).await {
+            match self
+                .nyaa
+                .check_feed_for_new(&feed.url, feed.last_item_hash.as_deref())
+                .await
+            {
                 Ok((new_items, new_hash)) => {
                     let count = i32::try_from(new_items.len()).unwrap_or(i32::MAX);
                     stats.new_items += count;
 
-                    if let Err(e) = self.store.update_rss_feed_checked(feed.id, new_hash.as_deref()).await {
+                    if let Err(e) = self
+                        .store
+                        .update_rss_feed_checked(feed.id, new_hash.as_deref())
+                        .await
+                    {
                         warn!("Failed to update RSS feed {}: {}", feed.id, e);
                     }
 
@@ -357,10 +369,12 @@ impl RssService for DefaultRssService {
             }
         }
 
-        let _ = self.event_bus.send(crate::api::NotificationEvent::RssCheckFinished {
-            total_feeds: stats.total_feeds,
-            new_items: stats.new_items,
-        });
+        let _ = self
+            .event_bus
+            .send(crate::api::NotificationEvent::RssCheckFinished {
+                total_feeds: stats.total_feeds,
+                new_items: stats.new_items,
+            });
 
         info!(
             event = "rss_check_finished",
@@ -382,13 +396,7 @@ impl RssService for DefaultRssService {
         let event_bus = self.event_bus.clone();
 
         tokio::spawn(async move {
-            let service = DefaultRssService::new(
-                store,
-                nyaa,
-                qbit,
-                download_decisions,
-                event_bus,
-            );
+            let service = Self::new(store, nyaa, qbit, download_decisions, event_bus);
             // Default delay from 0 for manual triggers? Or fetch from DB?
             // The original logic used config.
             if let Err(e) = service.check_feeds(0).await {

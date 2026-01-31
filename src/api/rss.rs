@@ -59,7 +59,9 @@ pub async fn add_feed(
         )
         .await
         .map_err(|e| match e {
-            crate::services::rss::RssError::AnimeNotFound(_) => ApiError::anime_not_found(payload.anime_id),
+            crate::services::rss::RssError::AnimeNotFound(_) => {
+                ApiError::anime_not_found(payload.anime_id)
+            }
             _ => ApiError::internal(e.to_string()),
         })?;
 

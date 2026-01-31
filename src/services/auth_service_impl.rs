@@ -19,16 +19,15 @@ impl SeaOrmAuthService {
 impl AuthService for SeaOrmAuthService {
     async fn login(&self, username: &str, password: &str) -> Result<LoginResult, AuthError> {
         // Verify credentials against database
-        let is_valid = self.store
-            .verify_user_password(username, password)
-            .await?;
+        let is_valid = self.store.verify_user_password(username, password).await?;
 
         if !is_valid {
             return Err(AuthError::InvalidCredentials);
         }
 
         // Get user info for response
-        let user = self.store
+        let user = self
+            .store
             .get_user_by_username(username)
             .await?
             .ok_or(AuthError::UserNotFound)?;
@@ -45,7 +44,8 @@ impl AuthService for SeaOrmAuthService {
     }
 
     async fn get_user_info(&self, username: &str) -> Result<UserInfo, AuthError> {
-        let user = self.store
+        let user = self
+            .store
             .get_user_by_username(username)
             .await?
             .ok_or(AuthError::UserNotFound)?;
@@ -77,12 +77,15 @@ impl AuthService for SeaOrmAuthService {
         }
 
         // Verify current password
-        let is_valid = self.store
+        let is_valid = self
+            .store
             .verify_user_password(username, current_password)
             .await?;
 
         if !is_valid {
-            return Err(AuthError::Validation("Current password is incorrect".to_string()));
+            return Err(AuthError::Validation(
+                "Current password is incorrect".to_string(),
+            ));
         }
 
         // Update password
@@ -94,7 +97,8 @@ impl AuthService for SeaOrmAuthService {
     }
 
     async fn get_api_key(&self, username: &str) -> Result<String, AuthError> {
-        let api_key = self.store
+        let api_key = self
+            .store
             .get_user_api_key(username)
             .await?
             .ok_or_else(|| AuthError::Internal("API key not found".to_string()))?;
@@ -103,9 +107,7 @@ impl AuthService for SeaOrmAuthService {
     }
 
     async fn regenerate_api_key(&self, username: &str) -> Result<String, AuthError> {
-        let new_api_key = self.store
-            .regenerate_user_api_key(username)
-            .await?;
+        let new_api_key = self.store.regenerate_user_api_key(username).await?;
 
         Ok(new_api_key)
     }

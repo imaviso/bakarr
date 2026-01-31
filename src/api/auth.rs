@@ -24,7 +24,9 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-pub use crate::services::auth_service::{LoginResult as LoginResponse, UserInfo as UserInfoResponse};
+pub use crate::services::auth_service::{
+    LoginResult as LoginResponse, UserInfo as UserInfoResponse,
+};
 
 #[derive(Deserialize)]
 pub struct ChangePasswordRequest {
@@ -182,11 +184,7 @@ pub async fn change_password(
 
     state
         .auth_service()
-        .change_password(
-            &username,
-            &payload.current_password,
-            &payload.new_password,
-        )
+        .change_password(&username, &payload.current_password, &payload.new_password)
         .await
         .map_err(|e| match e {
             crate::services::auth_service::AuthError::Validation(msg) => ApiError::validation(msg),

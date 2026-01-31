@@ -16,9 +16,10 @@ use crate::services::episodes::EpisodeService as OldEpisodeService;
 use crate::services::{
     AnimeMetadataService, AnimeService, AuthService, AutoDownloadService, DefaultImportService,
     DefaultRssService, DownloadDecisionService, DownloadService, EpisodeService, ImageService,
-    ImportService, LibraryScannerService, LibraryService, LogService, ProfileService, RenameService,
-    RssService, SeaOrmAnimeService, SeaOrmAuthService, SeaOrmDownloadService, SeaOrmEpisodeService,
-    SeaOrmLibraryService, SeaOrmProfileService, SeaOrmRenameService, SearchService,
+    ImportService, LibraryScannerService, LibraryService, LogService, ProfileService,
+    RenameService, RssService, SeaOrmAnimeService, SeaOrmAuthService, SeaOrmDownloadService,
+    SeaOrmEpisodeService, SeaOrmLibraryService, SeaOrmProfileService, SeaOrmRenameService,
+    SearchService,
 };
 
 /// Build a shared HTTP client with reasonable defaults for API calls.

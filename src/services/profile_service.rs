@@ -74,7 +74,8 @@ pub trait ProfileService: Send + Sync {
     async fn get_quality_profile(&self, name: &str) -> Result<ProfileDto, ProfileError>;
 
     /// Creates a new quality profile.
-    async fn create_quality_profile(&self, profile: ProfileDto) -> Result<ProfileDto, ProfileError>;
+    async fn create_quality_profile(&self, profile: ProfileDto)
+    -> Result<ProfileDto, ProfileError>;
 
     /// Updates an existing quality profile.
     async fn update_quality_profile(
