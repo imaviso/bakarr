@@ -32,10 +32,7 @@ pub async fn get_history(
     validate_limit(params.limit)?;
 
     // Delegate to download service (uses optimized eager loading)
-    let downloads = state
-        .download_service()
-        .get_history(params.limit)
-        .await?;
+    let downloads = state.download_service().get_history(params.limit).await?;
 
     Ok(Json(ApiResponse::success(downloads)))
 }
@@ -83,10 +80,7 @@ pub async fn search_missing(
     let anime_id = payload.anime_id.map(AnimeId::new);
 
     // Delegate to download service (handles background spawning internally)
-    state
-        .download_service()
-        .search_missing(anime_id)
-        .await?;
+    state.download_service().search_missing(anime_id).await?;
 
     let message = if payload.anime_id.is_some() {
         "Search for missing episodes triggered"

@@ -15,8 +15,8 @@ use crate::services::SeaDexService;
 use crate::services::episodes::EpisodeService as OldEpisodeService;
 use crate::services::{
     AnimeMetadataService, AnimeService, AutoDownloadService, DownloadDecisionService,
-    DownloadService, EpisodeService, ImageService, LibraryScannerService, LogService,
-    RssService, SeaOrmAnimeService, SeaOrmDownloadService, SeaOrmEpisodeService, SearchService,
+    DownloadService, EpisodeService, ImageService, LibraryScannerService, LogService, RssService,
+    SeaOrmAnimeService, SeaOrmDownloadService, SeaOrmEpisodeService, SearchService,
 };
 
 /// Build a shared HTTP client with reasonable defaults for API calls.
@@ -195,7 +195,7 @@ impl SharedState {
 
         // Create the new EpisodeService
         let episode_service = Arc::new(SeaOrmEpisodeService::new(
-            store_arc.clone(),
+            store_arc,
             anilist.clone(),
             jikan.clone(),
             None, // kitsu - optional

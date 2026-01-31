@@ -32,7 +32,7 @@ pub struct SeaOrmDownloadService {
 impl SeaOrmDownloadService {
     /// Creates a new instance of the service.
     #[must_use]
-    pub fn new(
+    pub const fn new(
         store: Store,
         config: Arc<RwLock<Config>>,
         search_service: Arc<SearchService>,
@@ -57,28 +57,14 @@ impl SeaOrmDownloadService {
             username: config.qbittorrent.username.clone(),
             password: config.qbittorrent.password.clone(),
         };
+        drop(config);
         Ok(Some(QBitClient::new(qbit_config)))
-    }
-
-    /// Gets anime title from cache or database.
-    async fn get_anime_title(&self, anime_id: i32) -> Result<String, DownloadError> {
-        match self.store.get_anime(anime_id).await {
-            Ok(Some(anime)) => Ok(anime.title.romaji),
-            Ok(None) => Ok(format!("Anime #{anime_id}")),
-            Err(e) => {
-                warn!(anime_id, error = %e, "Failed to fetch anime title");
-                Ok(format!("Anime #{anime_id}"))
-            }
-        }
     }
 }
 
 #[async_trait::async_trait]
 impl DownloadService for SeaOrmDownloadService {
-    async fn get_history(
-        &self,
-        limit: usize,
-    ) -> Result<Vec<DownloadDto>, DownloadError> {
+    async fn get_history(&self, limit: usize) -> Result<Vec<DownloadDto>, DownloadError> {
         // Eager load: Fetch release_history with monitored_anime in one query
         // This eliminates the N+1 query problem from the original implementation
         let limit_u64 = u64::try_from(limit).unwrap_or(u64::MAX);
@@ -96,15 +82,12 @@ impl DownloadService for SeaOrmDownloadService {
         let rows: Vec<DownloadHistoryRow> = rows;
 
         for (history, anime_opt) in rows {
-            let anime_title: String = anime_opt
-                .as_ref()
-                .map(|a| a.romaji_title.clone())
-                .unwrap_or_else(|| format!("Anime #{})", history.anime_id));
+            let anime_title: String = anime_opt.as_ref().map_or_else(
+                || format!("Anime #{})", history.anime_id),
+                |a| a.romaji_title.clone(),
+            );
 
-            let download_date = history
-                .download_date
-                .unwrap_or_default()
-                .replace(' ', "T");
+            let download_date = history.download_date.unwrap_or_default().replace(' ', "T");
 
             dtos.push(DownloadDto {
                 id: i64::from(history.id),
@@ -120,11 +103,9 @@ impl DownloadService for SeaOrmDownloadService {
         Ok(dtos)
     }
 
-    async fn get_queue(&self,
-    ) -> Result<Vec<QueueItemDto>, DownloadError> {
-        let qbit = match self.create_qbit_client().await? {
-            Some(client) => client,
-            None => return Ok(Vec::new()),
+    async fn get_queue(&self) -> Result<Vec<QueueItemDto>, DownloadError> {
+        let Some(qbit) = self.create_qbit_client().await? else {
+            return Ok(Vec::new());
         };
 
         // Fetch active torrents from qBittorrent
@@ -154,26 +135,28 @@ impl DownloadService for SeaOrmDownloadService {
             return Ok(Vec::new());
         }
 
-        // Batch fetch: Get all download entries for these torrents in one query
-        let _hashes: Vec<String> = active_torrents.iter().map(|t| t.hash.clone()).collect();
+        // Step 1: Collect all info_hashes from active torrents
+        let hashes: Vec<String> = active_torrents.iter().map(|t| t.hash.clone()).collect();
 
-        // Build a hash map for quick lookup
+        // Step 2: Fetch all matching release_history entries in a single query
+        let downloads = self
+            .store
+            .get_downloads_by_hashes(&hashes)
+            .await
+            .map_err(|e| DownloadError::Internal(e.to_string()))?;
+
+        // Build a hash map for quick lookup: hash -> (id, anime_id, episode_number)
         let mut download_map: HashMap<String, (i64, i32, f32)> = HashMap::new();
-
-        // Fetch all matching download entries in batches
-        // Since we can't do "WHERE hash IN (...)" easily with SeaORM's high-level API,
-        // we'll fetch individually but this is still better than the original N+1
-        // because we're not fetching anime titles individually
-        for torrent in &active_torrents {
-            if let Ok(Some(entry)) = self.store.get_download_by_hash(&torrent.hash).await {
+        for entry in downloads {
+            if let Some(ref hash) = entry.info_hash {
                 download_map.insert(
-                    torrent.hash.clone(),
+                    hash.clone(),
                     (entry.id, entry.anime_id, entry.episode_number),
                 );
             }
         }
 
-        // Collect unique anime IDs for batch fetching
+        // Step 3: Collect all unique anime_ids from these entries
         let anime_ids: Vec<i32> = download_map
             .values()
             .map(|(_, id, _)| *id)
@@ -181,15 +164,20 @@ impl DownloadService for SeaOrmDownloadService {
             .into_iter()
             .collect();
 
-        // Batch fetch all anime titles
+        // Step 4: Fetch all matching monitored_anime entries in a single query
+        let anime_list = self
+            .store
+            .get_animes_by_ids(&anime_ids)
+            .await
+            .map_err(|e| DownloadError::Internal(e.to_string()))?;
+
+        // Build a hash map for quick lookup: anime_id -> title
         let mut anime_titles: HashMap<i32, String> = HashMap::new();
-        for anime_id in anime_ids {
-            if let Ok(title) = self.get_anime_title(anime_id).await {
-                anime_titles.insert(anime_id, title);
-            }
+        for anime in anime_list {
+            anime_titles.insert(anime.id, anime.title.romaji);
         }
 
-        // Build DTOs
+        // Step 5: Map the results in memory to build the QueueItemDto list
         let mut results = Vec::with_capacity(active_torrents.len());
 
         for torrent in active_torrents {
@@ -229,86 +217,77 @@ impl DownloadService for SeaOrmDownloadService {
     }
 
     async fn search_missing(&self, anime_id: Option<AnimeId>) -> Result<(), DownloadError> {
-        match anime_id {
-            Some(id) => {
-                // Validate anime exists
-                let anime = self
-                    .store
-                    .get_anime(id.value())
-                    .await
-                    .map_err(|e| DownloadError::Internal(e.to_string()))?
-                    .ok_or(DownloadError::AnimeNotFound(id))?;
+        if let Some(id) = anime_id {
+            // Validate anime exists
+            let anime = self
+                .store
+                .get_anime(id.value())
+                .await
+                .map_err(|e| DownloadError::Internal(e.to_string()))?
+                .ok_or(DownloadError::AnimeNotFound(id))?;
 
-                let category =
-                    crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
+            let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
 
-                // Send notification
-                let _ = self
-                    .event_bus
-                    .send(crate::api::NotificationEvent::SearchMissingStarted {
-                        anime_id: id.value(),
-                        title: anime.title.romaji.clone(),
-                    });
+            // Send notification
+            let _ = self
+                .event_bus
+                .send(crate::api::NotificationEvent::SearchMissingStarted {
+                    anime_id: id.value(),
+                    title: anime.title.romaji.clone(),
+                });
 
-                // Clone necessary data for background task
-                let store = self.store.clone();
-                let config = self.config.clone();
-                let search_service = self.search_service.clone();
-                let event_bus = self.event_bus.clone();
-                let anime_id_val = id.value();
-                let anime_title = anime.title.romaji.clone();
+            // Clone necessary data for background task
+            let store = self.store.clone();
+            let config = self.config.clone();
+            let search_service = self.search_service.clone();
+            let event_bus = self.event_bus.clone();
+            let anime_id_val = id.value();
+            let anime_title = anime.title.romaji;
 
-                // Spawn background search
-                tokio::spawn(async move {
-                    match perform_search_and_download(
-                        search_service,
-                        store,
-                        config,
-                        event_bus.clone(),
-                        anime_id_val,
-                        &category,
-                        &anime_title,
-                    )
-                    .await
-                    {
-                        Ok(count) => {
-                            let _ = event_bus.send(
-                                crate::api::NotificationEvent::SearchMissingFinished {
-                                    anime_id: anime_id_val,
-                                    title: anime_title,
-                                    count: i32::try_from(count).unwrap_or(i32::MAX),
-                                },
-                            );
-                        }
-                        Err(e) => {
-                            let _ = event_bus
-                                .send(crate::api::NotificationEvent::Error {
-                                    message: format!("Search failed: {e}"),
-                                });
-                        }
+            // Spawn background search
+            tokio::spawn(async move {
+                match perform_search_and_download(
+                    search_service,
+                    store,
+                    config,
+                    event_bus.clone(),
+                    anime_id_val,
+                    &category,
+                    &anime_title,
+                )
+                .await
+                {
+                    Ok(count) => {
+                        let _ =
+                            event_bus.send(crate::api::NotificationEvent::SearchMissingFinished {
+                                anime_id: anime_id_val,
+                                title: anime_title,
+                                count: i32::try_from(count).unwrap_or(i32::MAX),
+                            });
                     }
-                });
+                    Err(e) => {
+                        let _ = event_bus.send(crate::api::NotificationEvent::Error {
+                            message: format!("Search failed: {e}"),
+                        });
+                    }
+                }
+            });
+        } else {
+            // Global search
+            let store = self.store.clone();
+            let config = self.config.clone();
+            let event_bus = self.event_bus.clone();
 
-                Ok(())
-            }
-            None => {
-                // Global search
-                let store = self.store.clone();
-                let config = self.config.clone();
-                let event_bus = self.event_bus.clone();
-
-                let search_service = self.search_service.clone();
-                tokio::spawn(async move {
-                    perform_global_search(search_service, store, config, event_bus).await;
-                });
-
-                Ok(())
-            }
+            let search_service = self.search_service.clone();
+            tokio::spawn(async move {
+                perform_global_search(search_service, store, config, event_bus).await;
+            });
         }
+
+        Ok(())
     }
 }
 
-/// Performs search and download for a single anime.
 /// Performs search and download for a single anime.
 ///
 /// This function coordinates with `SearchService` to find missing episodes
@@ -324,9 +303,7 @@ async fn perform_search_and_download(
 ) -> anyhow::Result<usize> {
     debug!(
         anime_id,
-        category,
-        anime_title,
-        "Performing search and download"
+        category, anime_title, "Performing search and download"
     );
 
     let _ = event_bus.send(crate::api::NotificationEvent::Info {
@@ -354,12 +331,11 @@ async fn perform_search_and_download(
     for result in results {
         if result.download_action.should_download() {
             if let Some(qbit) = &qbit {
-                let _ = qbit.create_category(category, None).await;
+                if let Err(e) = qbit.create_category(category, None).await {
+                    debug!(category, error = %e, "Failed to create category (may already exist)");
+                }
 
-                if let Err(e) = qbit
-                    .add_magnet(&result.link, None, Some(category))
-                    .await
-                {
+                if let Err(e) = qbit.add_magnet(&result.link, None, Some(category)).await {
                     error!(
                         anime_id,
                         error = %e,
@@ -382,7 +358,10 @@ async fn perform_search_and_download(
 
                 count += 1;
             } else {
-                warn!("qBittorrent not configured, skipping download: {}", result.title);
+                warn!(
+                    "qBittorrent not configured, skipping download: {}",
+                    result.title
+                );
             }
         }
     }
