@@ -288,6 +288,89 @@ impl DownloadService for SeaOrmDownloadService {
 
         Ok(())
     }
+
+    async fn download_release(
+        &self,
+        anime_id: AnimeId,
+        magnet: String,
+        episode_number: f32,
+        title: String,
+        group: Option<String>,
+        info_hash: Option<String>,
+        is_batch: bool,
+    ) -> Result<(), DownloadError> {
+        // Validate anime exists
+        let anime = self
+            .store
+            .get_anime(anime_id.value())
+            .await
+            .map_err(|e| DownloadError::Internal(e.to_string()))?
+            .ok_or(DownloadError::AnimeNotFound(anime_id))?;
+
+        // Create qBittorrent client
+        let Some(qbit) = self.create_qbit_client().await? else {
+            return Err(DownloadError::Validation(
+                "Download client is not enabled".to_string(),
+            ));
+        };
+
+        let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
+
+        // Create category (ignoring errors if it already exists)
+        if let Err(e) = qbit.create_category(&category, None).await {
+            tracing::debug!(category, error = %e, "Failed to create category (may already exist)");
+        }
+
+        // Add torrent
+        let options = crate::clients::qbittorrent::AddTorrentOptions {
+            category: Some(category.clone()),
+            ..Default::default()
+        };
+
+        qbit.add_torrent_url(&magnet, Some(options))
+            .await
+            .map_err(|e| DownloadError::QBit(format!("Failed to add torrent: {e}")))?;
+
+        // Determine episode number for recording
+        let record_episode_number = if is_batch { 0.0 } else { episode_number };
+
+        // Extract info hash from magnet if not provided
+        let final_info_hash = info_hash.or_else(|| extract_hash_from_magnet(&magnet));
+
+        // Record the download
+        self.store
+            .record_download(
+                anime.id,
+                &title,
+                record_episode_number,
+                group.as_deref(),
+                final_info_hash.as_deref(),
+            )
+            .await
+            .map_err(|e| DownloadError::Internal(e.to_string()))?;
+
+        tracing::info!(
+            "Manually queued download for {}: {} (Ep {})",
+            anime.title.romaji,
+            title,
+            record_episode_number
+        );
+
+        // Send notification
+        let _ = self
+            .event_bus
+            .send(crate::api::NotificationEvent::DownloadStarted { title });
+
+        Ok(())
+    }
+}
+
+/// Extracts the info hash from a magnet link.
+fn extract_hash_from_magnet(magnet: &str) -> Option<String> {
+    let url = url::Url::parse(magnet).ok()?;
+    url.query_pairs()
+        .find(|(k, _)| k == "xt")
+        .and_then(|(_, v)| v.strip_prefix("urn:btih:").map(ToString::to_string))
 }
 
 /// Performs search and download for a single anime.

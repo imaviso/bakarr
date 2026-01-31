@@ -127,14 +127,26 @@ impl SharedState {
             None
         };
 
+        // Clone config before moving it into the RwLock for services that need it
+        let image_service_config = config.clone();
+        let config_arc = Arc::new(RwLock::new(config));
+
         let episodes = OldEpisodeService::new(store.clone(), jikan.clone(), anilist.clone(), None);
         let download_decisions = DownloadDecisionService::new(store.clone());
+
+        // Create seadex_service first since search_service depends on it
+        let seadex_service = Arc::new(SeaDexService::new(
+            store.clone(),
+            config_arc.clone(),
+            seadex_client,
+        ));
 
         let search_service = Arc::new(SearchService::new(
             store.clone(),
             (*nyaa).clone(),
             download_decisions.clone(),
-            config.clone(),
+            config_arc.read().await.clone(),
+            seadex_service.clone(),
         ));
 
         let rss_service = Arc::new(RssService::new(
@@ -149,19 +161,9 @@ impl SharedState {
         log_service.clone().start_listener();
 
         let recycle_bin = RecycleBin::new(
-            &config.library.recycle_path,
-            config.library.recycle_cleanup_days,
+            &config_arc.read().await.library.recycle_path,
+            config_arc.read().await.library.recycle_cleanup_days,
         );
-
-        // Clone config before moving it into the RwLock for services that need it
-        let image_service_config = config.clone();
-        let config_arc = Arc::new(RwLock::new(config));
-
-        let seadex_service = Arc::new(SeaDexService::new(
-            store.clone(),
-            config_arc.clone(),
-            seadex_client,
-        ));
 
         let auto_downloader = Arc::new(AutoDownloadService::new(
             store.clone(),

@@ -3,7 +3,7 @@
 //! This module provides a clean domain layer abstraction over data access,
 //! enabling testability and separation of concerns per Principal Rust standards.
 
-use crate::api::types::{AnimeDto, EpisodeProgress, TitleDto};
+use crate::api::types::{AnimeDto, EpisodeProgress, SearchResultDto, TitleDto};
 use crate::domain::AnimeId;
 use crate::models::anime::Anime;
 use thiserror::Error;
@@ -154,6 +154,29 @@ pub trait AnimeService: Send + Sync {
     /// - Returns [`AnimeError::InvalidData`] if path does not exist or is invalid
     /// - Returns [`AnimeError::Database`] on connection failures
     async fn update_anime_path(&self, id: AnimeId, path: String) -> Result<(), AnimeError>;
+
+    /// Searches for anime on external provider (`AniList`).
+    ///
+    /// This method searches `AniList` for anime matching the query string.
+    /// Results include metadata about whether the anime is already in the
+    /// local library.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`AnimeError::ExternalApi`] if fetching from `AniList` fails
+    async fn search_remote_anime(&self, query: &str) -> Result<Vec<SearchResultDto>, AnimeError>;
+
+    /// Gets details of a specific anime from external provider (`AniList`).
+    ///
+    /// This method fetches a single anime by ID from `AniList`.
+    /// Results include metadata about whether the anime is already in the
+    /// local library.
+    ///
+    /// # Errors
+    ///
+    /// - Returns [`AnimeError::NotFound`] if anime does not exist in `AniList`
+    /// - Returns [`AnimeError::ExternalApi`] if fetching from `AniList` fails
+    async fn get_remote_anime(&self, id: AnimeId) -> Result<SearchResultDto, AnimeError>;
 }
 
 /// Pure domain function to calculate missing episodes.

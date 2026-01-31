@@ -75,6 +75,59 @@ impl AutoDownloadService {
         Ok(())
     }
 
+    /// Triggers an immediate search for a specific anime in the background.
+    ///
+    /// This is used when a new anime is added with "monitor & search" enabled.
+    /// Spawns a detached task to search and queue downloads without blocking.
+    pub fn trigger_initial_search(&self, anime_id: i32, title: String) {
+        let search_service = self.search_service.clone();
+        let store = self.store.clone();
+        let qbit = self.qbit.clone();
+
+        tokio::spawn(async move {
+            tracing::info!("Starting initial search for anime: {}", anime_id);
+
+            match search_service.search_anime(anime_id).await {
+                Ok(results) => {
+                    for result in results.iter().take(10) {
+                        if let crate::services::download::DownloadAction::Accept { .. } =
+                            &result.download_action
+                            && let Some(qbit) = &qbit
+                        {
+                            let category = crate::clients::qbittorrent::sanitize_category(&title);
+                            let _ = qbit.create_category(&category, None).await;
+
+                            let options = crate::clients::qbittorrent::AddTorrentOptions {
+                                category: Some(category.clone()),
+                                save_path: None,
+                                ..Default::default()
+                            };
+
+                            if qbit
+                                .add_torrent_url(&result.link, Some(options))
+                                .await
+                                .is_ok()
+                            {
+                                tracing::info!("✓ [Auto-Search] Queued: {}", result.title);
+
+                                let _ = store
+                                    .record_download(
+                                        anime_id,
+                                        &result.title,
+                                        result.episode_number,
+                                        result.group.as_deref(),
+                                        Some(&result.info_hash),
+                                    )
+                                    .await;
+                            }
+                        }
+                    }
+                }
+                Err(e) => tracing::error!("Initial search failed: {}", e),
+            }
+        });
+    }
+
     async fn check_anime_releases(&self, anime: &Anime) -> Result<()> {
         debug!("Checking: {}", anime.title.romaji);
 

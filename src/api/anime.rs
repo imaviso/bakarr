@@ -5,7 +5,7 @@ use axum::{
 use serde::Deserialize;
 use std::sync::Arc;
 
-use super::{AnimeDto, ApiError, ApiResponse, AppState, SearchResultDto, TitleDto};
+use super::{AnimeDto, ApiError, ApiResponse, AppState, SearchResultDto};
 use crate::api::validation::{validate_anime_id, validate_search_query};
 use crate::services::AnimeService;
 
@@ -53,119 +53,24 @@ pub async fn search_anime(
     Query(params): Query<SearchQuery>,
 ) -> Result<Json<ApiResponse<Vec<SearchResultDto>>>, ApiError> {
     validate_search_query(&params.q)?;
-    let client = &state.shared.anilist;
 
-    let monitored = state.store().list_monitored().await?;
-    let monitored_ids: std::collections::HashSet<i32> = monitored.iter().map(|a| a.id).collect();
+    let results = state.anime_service().search_remote_anime(&params.q).await?;
 
-    let results = client
-        .search_anime(&params.q)
-        .await
-        .map_err(|e| ApiError::anilist_error(e.to_string()))?;
-
-    let dtos: Vec<SearchResultDto> = results
-        .into_iter()
-        .map(|anime| SearchResultDto {
-            id: anime.id,
-            title: TitleDto {
-                romaji: anime.title.romaji,
-                english: anime.title.english,
-                native: anime.title.native,
-            },
-            format: anime.format,
-            episode_count: anime.episode_count,
-            status: anime.status,
-            cover_image: anime.cover_image,
-            already_in_library: monitored_ids.contains(&anime.id),
-        })
-        .collect();
-
-    Ok(Json(ApiResponse::success(dtos)))
+    Ok(Json(ApiResponse::success(results)))
 }
 
 pub async fn get_anime_by_anilist_id(
     State(state): State<Arc<AppState>>,
     Path(id): Path<i32>,
 ) -> Result<Json<ApiResponse<SearchResultDto>>, ApiError> {
+    use crate::domain::AnimeId;
+
     validate_anime_id(id)?;
-    let client = &state.shared.anilist;
+    let anime_id = AnimeId::new(id);
 
-    let monitored = state.store().list_monitored().await?;
-    let monitored_ids: std::collections::HashSet<i32> = monitored.iter().map(|a| a.id).collect();
+    let dto = state.anime_service().get_remote_anime(anime_id).await?;
 
-    let anime = client
-        .get_by_id(id)
-        .await
-        .map_err(|e| ApiError::anilist_error(e.to_string()))?;
-
-    let dto = anime.map(|a| SearchResultDto {
-        id: a.id,
-        title: TitleDto {
-            romaji: a.title.romaji,
-            english: a.title.english,
-            native: a.title.native,
-        },
-        format: a.format,
-        episode_count: a.episode_count,
-        status: a.status,
-        cover_image: a.cover_image,
-        already_in_library: monitored_ids.contains(&a.id),
-    });
-
-    dto.map_or_else(
-        || Err(ApiError::anime_not_found(id)),
-        |d| Ok(Json(ApiResponse::success(d))),
-    )
-}
-
-fn spawn_initial_search(state: &AppState, anime_id: i32, title: &str) {
-    let search_service = state.search_service().clone();
-    let store = state.store().clone();
-    let qbit = state.qbit().clone();
-    let title = title.to_string();
-
-    tokio::spawn(async move {
-        tracing::info!("Starting initial search for anime: {}", anime_id);
-
-        match search_service.search_anime(anime_id).await {
-            Ok(results) => {
-                for result in results.iter().take(10) {
-                    if let crate::services::download::DownloadAction::Accept { .. } =
-                        &result.download_action
-                        && let Some(qbit) = &qbit
-                    {
-                        let category = crate::clients::qbittorrent::sanitize_category(&title);
-                        let _ = qbit.create_category(&category, None).await;
-
-                        let options = crate::clients::qbittorrent::AddTorrentOptions {
-                            category: Some(category.clone()),
-                            save_path: None,
-                            ..Default::default()
-                        };
-
-                        if qbit
-                            .add_torrent_url(&result.link, Some(options))
-                            .await
-                            .is_ok()
-                        {
-                            tracing::info!("✓ [Auto-Search] Queued: {}", result.title);
-
-                            let _ = store
-                                .record_download(
-                                    anime_id,
-                                    &result.title,
-                                    result.episode_number,
-                                    result.group.as_deref(),
-                                    Some(&result.info_hash),
-                                )
-                                .await;
-                        }
-                    }
-                }
-            }
-            Err(e) => tracing::error!("Initial search failed: {}", e),
-        }
-    });
+    Ok(Json(ApiResponse::success(dto)))
 }
 
 pub async fn add_anime(
@@ -197,7 +102,10 @@ pub async fn add_anime(
 
     // Spawn initial search if requested (fire-and-forget, stays in handler)
     if payload.monitor_and_search {
-        spawn_initial_search(&state, anime_dto.id, &anime_dto.title.romaji);
+        state
+            .shared
+            .auto_downloader
+            .trigger_initial_search(anime_dto.id, anime_dto.title.romaji.clone());
     }
 
     Ok(Json(ApiResponse::success(anime_dto)))

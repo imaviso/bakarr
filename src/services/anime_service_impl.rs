@@ -3,7 +3,7 @@
 //! This module provides the concrete implementation of [`AnimeService`] using
 //! `SeaORM` for database access. It parallelizes auxiliary queries for performance.
 
-use crate::api::types::AnimeDto;
+use crate::api::types::{AnimeDto, SearchResultDto, TitleDto};
 use crate::clients::anilist::AnilistClient;
 use crate::config::Config;
 use crate::db::Store;
@@ -446,6 +446,78 @@ impl AnimeService for SeaOrmAnimeService {
             .map_err(|e| AnimeError::Database(e.to_string()))?;
 
         Ok(())
+    }
+
+    async fn search_remote_anime(&self, query: &str) -> Result<Vec<SearchResultDto>, AnimeError> {
+        // Fetch monitored list
+        let monitored = self
+            .store
+            .list_monitored()
+            .await
+            .map_err(|e| AnimeError::Database(e.to_string()))?;
+        let monitored_ids: std::collections::HashSet<i32> =
+            monitored.iter().map(|a| a.id).collect();
+
+        // Search AniList
+        let results = self
+            .anilist
+            .search_anime(query)
+            .await
+            .map_err(|e| AnimeError::anilist_error(e.to_string()))?;
+
+        // Map to SearchResultDto
+        let dtos: Vec<SearchResultDto> = results
+            .into_iter()
+            .map(|anime| SearchResultDto {
+                id: anime.id,
+                title: TitleDto {
+                    romaji: anime.title.romaji,
+                    english: anime.title.english,
+                    native: anime.title.native,
+                },
+                format: anime.format,
+                episode_count: anime.episode_count,
+                status: anime.status,
+                cover_image: anime.cover_image,
+                already_in_library: monitored_ids.contains(&anime.id),
+            })
+            .collect();
+
+        Ok(dtos)
+    }
+
+    async fn get_remote_anime(&self, id: AnimeId) -> Result<SearchResultDto, AnimeError> {
+        // Fetch monitored list
+        let monitored = self
+            .store
+            .list_monitored()
+            .await
+            .map_err(|e| AnimeError::Database(e.to_string()))?;
+        let monitored_ids: std::collections::HashSet<i32> =
+            monitored.iter().map(|a| a.id).collect();
+
+        // Get from AniList
+        let anime = self
+            .anilist
+            .get_by_id(id.value())
+            .await
+            .map_err(|e| AnimeError::anilist_error(e.to_string()))?;
+
+        anime
+            .map(|a| SearchResultDto {
+                id: a.id,
+                title: TitleDto {
+                    romaji: a.title.romaji,
+                    english: a.title.english,
+                    native: a.title.native,
+                },
+                format: a.format,
+                episode_count: a.episode_count,
+                status: a.status,
+                cover_image: a.cover_image,
+                already_in_library: monitored_ids.contains(&a.id),
+            })
+            .ok_or(AnimeError::NotFound(id))
     }
 }
 

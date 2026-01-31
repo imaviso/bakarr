@@ -1,12 +1,16 @@
-use anyhow::Result;
+use std::sync::Arc;
+
+use anyhow::{Context, Result};
 use tracing::info;
 
 use crate::clients::nyaa::{NyaaCategory, NyaaClient, NyaaFilter, NyaaTorrent};
+use crate::clients::seadex::SeaDexRelease;
 use crate::config::Config;
 use crate::db::Store;
 use crate::parser::filename::detect_season_from_title;
 use crate::quality::parse_quality_from_filename;
 use crate::services::download::{DownloadAction, DownloadDecisionService};
+use crate::services::seadex::SeaDexService;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SearchResult {
@@ -24,11 +28,43 @@ pub struct SearchResult {
     pub episode_number: f32,
 }
 
+/// Result item for manual search operations.
+#[derive(Debug, Clone, serde::Serialize)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct ManualSearchResult {
+    pub title: String,
+    pub magnet: String,
+    pub torrent_url: String,
+    pub view_url: String,
+    pub size: String,
+    pub seeders: u32,
+    pub leechers: u32,
+    pub downloads: u32,
+    pub pub_date: String,
+    pub info_hash: String,
+    pub trusted: bool,
+    pub remake: bool,
+    pub parsed_title: String,
+    pub parsed_episode: Option<f32>,
+    pub parsed_group: Option<String>,
+    pub parsed_resolution: Option<String>,
+    pub is_seadex: bool,
+    pub is_seadex_best: bool,
+}
+
+/// Results container for manual search operations.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ManualSearchResults {
+    pub results: Vec<ManualSearchResult>,
+    pub seadex_groups: Vec<String>,
+}
+
 pub struct SearchService {
     store: Store,
     nyaa: NyaaClient,
     download_decisions: DownloadDecisionService,
     config: Config,
+    seadex_service: Arc<SeaDexService>,
 }
 
 impl SearchService {
@@ -38,12 +74,14 @@ impl SearchService {
         nyaa: NyaaClient,
         download_decisions: DownloadDecisionService,
         config: Config,
+        seadex_service: Arc<SeaDexService>,
     ) -> Self {
         Self {
             store,
             nyaa,
             download_decisions,
             config,
+            seadex_service,
         }
     }
 
@@ -228,15 +266,6 @@ impl SearchService {
             );
             return Ok(cached);
         }
-
-        // We wrap the logic in a block or closure if we want to catch errors easily,
-        // but since this function has multiple '?' operators, it's easier to just match on the result if we want to log failure.
-        // Or simply log success at the end and rely on the caller/middleware to log the error.
-        // However, for consistency with 'search_episode', let's try to capture errors specifically for the 'search_failed' event if possible.
-        // But here the logic is a bit more complex. Let's stick to the happy path instrumentation for now,
-        // as errors will bubble up. Actually, if I want 'search_failed', I should use a helper or modify the flow slightly.
-        // I will instrument the start and success paths. Errors from Nyaa will be logged by the caller usually,
-        // but adding specific context here is better.
 
         let context_res = self.get_search_context(anime_id).await;
         let (profile, rules, status_map, seadex_groups) = match context_res {
@@ -443,5 +472,105 @@ impl SearchService {
         seadex_groups
             .iter()
             .any(|g| title_lower.contains(&g.to_lowercase()))
+    }
+
+    /// Performs a manual search for releases.
+    ///
+    /// This is used by the manual search UI to find releases on Nyaa
+    /// with optional `SeaDex` integration.
+    ///
+    /// # Arguments
+    ///
+    /// * `query` - The search query string
+    /// * `category_opt` - Optional category filter ("`anime_raw`", "`anime_non_english`", "`all_anime`")
+    /// * `filter_opt` - Optional filter ("`trusted_only`")
+    /// * `anime_id` - Optional anime ID for `SeaDex` integration
+    pub async fn search_releases(
+        &self,
+        query: &str,
+        category_opt: Option<&str>,
+        filter_opt: Option<&str>,
+        anime_id: Option<i32>,
+    ) -> Result<ManualSearchResults> {
+        // Map category string to NyaaCategory
+        let category = match category_opt {
+            Some("anime_raw") => NyaaCategory::AnimeRaw,
+            Some("anime_non_english") => NyaaCategory::AnimeNonEnglish,
+            Some("all_anime") => NyaaCategory::AllAnime,
+            _ => NyaaCategory::AnimeEnglish,
+        };
+
+        // Map filter string to NyaaFilter
+        let filter = match filter_opt {
+            Some("trusted_only") => NyaaFilter::TrustedOnly,
+            _ => NyaaFilter::NoRemakes,
+        };
+
+        // Search on Nyaa
+        let torrents = self
+            .nyaa
+            .search(query, category, filter)
+            .await
+            .context("Nyaa search failed")?;
+
+        // Fetch SeaDex data if anime_id is provided
+        let mut seadex_groups = Vec::new();
+        let mut best_release_group = None;
+
+        if let Some(id) = anime_id {
+            let releases = self.seadex_service.get_releases(id).await;
+            if !releases.is_empty() {
+                seadex_groups = releases.iter().map(|r| r.release_group.clone()).collect();
+                best_release_group = releases.first().map(|r| r.release_group.clone());
+            }
+        }
+
+        // Map torrents to search results
+        let results: Vec<ManualSearchResult> = torrents
+            .into_iter()
+            .map(|t| {
+                let parsed = crate::parser::filename::parse_filename(&t.title);
+                let parsed_group = parsed.as_ref().and_then(|p| p.group.clone());
+                let is_seadex = parsed_group
+                    .as_ref()
+                    .is_some_and(|g| seadex_groups.contains(g));
+
+                let is_seadex_best = parsed_group
+                    .as_ref()
+                    .is_some_and(|g| Some(g) == best_release_group.as_ref());
+
+                ManualSearchResult {
+                    magnet: t.magnet_link(),
+                    title: t.title,
+                    torrent_url: t.torrent_url,
+                    view_url: t.view_url,
+                    size: t.size,
+                    seeders: t.seeders,
+                    leechers: t.leechers,
+                    downloads: t.downloads,
+                    pub_date: t.pub_date,
+                    info_hash: t.info_hash,
+                    trusted: t.trusted,
+                    remake: t.remake,
+                    parsed_title: parsed.as_ref().map(|p| p.title.clone()).unwrap_or_default(),
+                    parsed_episode: parsed.as_ref().map(|p| p.episode_number),
+                    parsed_group,
+                    parsed_resolution: parsed.as_ref().and_then(|p| p.resolution.clone()),
+                    is_seadex,
+                    is_seadex_best,
+                }
+            })
+            .collect();
+
+        Ok(ManualSearchResults {
+            results,
+            seadex_groups,
+        })
+    }
+
+    /// Fetches `SeaDex` releases using the `seadex_service`.
+    /// This delegates to `SeaDexService` which handles caching.
+    async fn _get_seadex_releases(&self, anime_id: i32) -> Vec<SeaDexRelease> {
+        self.seadex_service.get_releases(anime_id).await
     }
 }
