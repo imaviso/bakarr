@@ -66,7 +66,7 @@ impl LibraryScannerService {
 
         tokio::spawn(async move {
             if let Err(e) = self_clone.scan_library_files().await {
-                tracing::error!("Library scan failed: {}", e);
+                tracing::error!(error = %e, "Library scan failed");
             }
         });
     }

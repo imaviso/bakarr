@@ -400,7 +400,7 @@ impl RssService for DefaultRssService {
             // Default delay from 0 for manual triggers? Or fetch from DB?
             // The original logic used config.
             if let Err(e) = service.check_feeds(0).await {
-                tracing::error!("Background RSS check failed: {}", e);
+                tracing::error!(error = %e, "Background RSS check failed");
             }
         });
     }

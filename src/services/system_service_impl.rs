@@ -265,7 +265,7 @@ impl SystemService for SeaOrmSystemService {
                         let _ = event_bus.send(NotificationEvent::SystemStatus(status));
                     }
                     Err(e) => {
-                        tracing::error!("Failed to get system status: {}", e);
+                        tracing::error!(error = %e, "Failed to get system status");
                     }
                 }
             }

@@ -85,7 +85,7 @@ impl AutoDownloadService {
         let qbit = self.qbit.clone();
 
         tokio::spawn(async move {
-            tracing::info!("Starting initial search for anime: {}", anime_id);
+            tracing::info!(anime_id = anime_id, "Starting initial search for anime");
 
             match search_service.search_anime(anime_id).await {
                 Ok(results) => {
@@ -108,7 +108,7 @@ impl AutoDownloadService {
                                 .await
                                 .is_ok()
                             {
-                                tracing::info!("✓ [Auto-Search] Queued: {}", result.title);
+                                tracing::info!(title = %result.title, "[Auto-Search] Queued torrent");
 
                                 let _ = store
                                     .record_download(
@@ -123,7 +123,7 @@ impl AutoDownloadService {
                         }
                     }
                 }
-                Err(e) => tracing::error!("Initial search failed: {}", e),
+                Err(e) => tracing::error!(error = %e, "Initial search failed"),
             }
         });
     }

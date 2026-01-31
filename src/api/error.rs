@@ -51,14 +51,14 @@ impl IntoResponse for ApiError {
         let (status, error_message) = match &self {
             Self::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             Self::DatabaseError(msg) => {
-                tracing::error!("Database error: {msg}");
+                tracing::error!(error = %msg, "Database error");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "A database error occurred".to_string(),
                 )
             }
             Self::ExternalApiError { service, message } => {
-                tracing::warn!("{service} API error: {message}");
+                tracing::warn!(service = %service, error = %message, "External API error");
                 (
                     StatusCode::BAD_GATEWAY,
                     format!("{service} service is unavailable"),
@@ -68,7 +68,7 @@ impl IntoResponse for ApiError {
             Self::NotImplemented(msg) => (StatusCode::NOT_IMPLEMENTED, msg.clone()),
             Self::Conflict(msg) => (StatusCode::CONFLICT, msg.clone()),
             Self::InternalError(msg) => {
-                tracing::error!("Internal error: {msg}");
+                tracing::error!(error = %msg, "Internal error");
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "An internal error occurred".to_string(),

@@ -191,7 +191,7 @@ pub async fn change_password(
             _ => ApiError::internal(format!("Failed to update password: {e}")),
         })?;
 
-    tracing::info!("Password changed for user: {username}");
+    tracing::info!(username = %username, "Password changed for user");
 
     Ok(Json(ApiResponse::success(MessageResponse {
         message: "Password updated successfully".to_string(),
@@ -229,7 +229,7 @@ pub async fn regenerate_api_key(
         .await
         .map_err(|e| ApiError::internal(format!("Failed to regenerate API key: {e}")))?;
 
-    tracing::info!("API key regenerated for user: {username}");
+    tracing::info!(username = %username, "API key regenerated for user");
 
     Ok(Json(ApiResponse::success(ApiKeyResponse {
         api_key: new_api_key,

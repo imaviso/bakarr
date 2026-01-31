@@ -254,7 +254,7 @@ impl AnimeService for SeaOrmAnimeService {
             .map_err(|e| AnimeError::InvalidData(format!("Failed to resolve anime path: {e}")))?;
 
         if let Err(e) = tokio::fs::create_dir_all(&root_path).await {
-            tracing::error!("Failed to create anime directory: {}", e);
+            tracing::error!(error = %e, path = %root_path.display(), "Failed to create anime directory");
         }
 
         anime.path = Some(root_path.to_string_lossy().to_string());
@@ -317,7 +317,7 @@ impl AnimeService for SeaOrmAnimeService {
                 .assign_release_profiles_to_anime(anime.id, release_profile_ids)
                 .await
         {
-            tracing::error!("Failed to assign release profiles: {}", e);
+            tracing::error!(error = %e, anime_id = anime.id, "Failed to assign release profiles");
         }
 
         // Return the newly added anime
@@ -466,7 +466,7 @@ impl AnimeService for SeaOrmAnimeService {
                 )
                 .await
                 {
-                    tracing::warn!("Failed to scan folder for episodes: {}", e);
+                    tracing::warn!(error = %e, "Failed to scan folder for episodes");
                 }
             });
         }

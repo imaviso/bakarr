@@ -213,9 +213,9 @@ impl RssFeedConfig {
 
         // NYAA_RSS_BASE is a compile-time constant, so this should never fail.
         // Using unwrap_or_default as a safe fallback.
-        let mut url = Url::parse(NYAA_RSS_BASE).unwrap_or_else(|_| {
+        let mut url = Url::parse(NYAA_RSS_BASE).unwrap_or_else(|e| {
             // This is a critical error - log it and return a minimal URL
-            eprintln!("CRITICAL: Invalid NYAA_RSS_BASE constant: {NYAA_RSS_BASE}");
+            tracing::error!(error = %e, base_url = %NYAA_RSS_BASE, "CRITICAL: Invalid NYAA_RSS_BASE constant");
             Url::parse("https://nyaa.si").expect("Hardcoded URL should be valid")
         });
         url.query_pairs_mut()
