@@ -31,7 +31,7 @@ pub mod search;
 pub use search::SearchService;
 
 pub mod rss;
-pub use rss::RssService;
+pub use rss::{DefaultRssService, RssService};
 
 pub mod media;
 pub use media::MediaService;
@@ -72,3 +72,8 @@ pub mod auth_service;
 pub mod auth_service_impl;
 pub use auth_service::{AuthError, AuthService, LoginResult, UserInfo};
 pub use auth_service_impl::SeaOrmAuthService;
+
+pub mod profile_service;
+pub mod profile_service_impl;
+pub use profile_service::{ProfileError, ProfileService};
+pub use profile_service_impl::SeaOrmProfileService;

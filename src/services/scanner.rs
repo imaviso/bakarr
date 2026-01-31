@@ -55,6 +55,22 @@ impl LibraryScannerService {
         self.state.read().await.clone()
     }
 
+    /// Triggers a library file scan in the background.
+    pub fn trigger_library_scan(&self) {
+        let self_clone = Arc::new(Self {
+            state: self.state.clone(),
+            store: self.store.clone(),
+            config: self.config.clone(),
+            event_bus: self.event_bus.clone(),
+        });
+
+        tokio::spawn(async move {
+            if let Err(e) = self_clone.scan_library_files().await {
+                tracing::error!("Library scan failed: {}", e);
+            }
+        });
+    }
+
     pub async fn start_scan(&self) {
         let state = self.state.clone();
         let store = self.store.clone();

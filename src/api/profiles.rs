@@ -3,23 +3,18 @@ use axum::{
     extract::{Path, State},
 };
 use std::sync::Arc;
-use tracing::error;
 
 use super::{ApiError, ApiResponse, AppState, ProfileDto, QualityDto};
 use crate::api::validation::validate_profile_name;
 
-pub async fn list_qualities() -> Result<Json<ApiResponse<Vec<QualityDto>>>, ApiError> {
-    let qualities = crate::quality::QUALITIES
-        .iter()
-        .filter(|q| q.id != 99)
-        .map(|q| QualityDto {
-            id: q.id,
-            name: q.name.clone(),
-            source: q.source.as_str().to_string(),
-            resolution: q.resolution,
-            rank: q.rank,
-        })
-        .collect();
+pub async fn list_qualities(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<ApiResponse<Vec<QualityDto>>>, ApiError> {
+    let qualities = state
+        .profile_service()
+        .list_qualities()
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
 
     Ok(Json(ApiResponse::success(qualities)))
 }
@@ -27,22 +22,11 @@ pub async fn list_qualities() -> Result<Json<ApiResponse<Vec<QualityDto>>>, ApiE
 pub async fn list_profiles(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<Vec<ProfileDto>>>, ApiError> {
-    let profiles: Vec<ProfileDto> = state
-        .config()
-        .read()
+    let profiles = state
+        .profile_service()
+        .list_quality_profiles()
         .await
-        .profiles
-        .iter()
-        .map(|p| ProfileDto {
-            name: p.name.clone(),
-            cutoff: p.cutoff.clone(),
-            upgrade_allowed: p.upgrade_allowed,
-            seadex_preferred: p.seadex_preferred,
-            allowed_qualities: p.allowed_qualities.clone(),
-            min_size: p.min_size.clone(),
-            max_size: p.max_size.clone(),
-        })
-        .collect();
+        .map_err(|e| ApiError::internal(e.to_string()))?;
 
     Ok(Json(ApiResponse::success(profiles)))
 }
@@ -52,23 +36,19 @@ pub async fn get_profile(
     Path(name): Path<String>,
 ) -> Result<Json<ApiResponse<ProfileDto>>, ApiError> {
     validate_profile_name(&name)?;
-    let config = state.config().read().await;
-    let profile = config
-        .find_profile(&name)
-        .ok_or_else(|| ApiError::profile_not_found(&name))?;
 
-    let dto = ProfileDto {
-        name: profile.name.clone(),
-        cutoff: profile.cutoff.clone(),
-        upgrade_allowed: profile.upgrade_allowed,
-        seadex_preferred: profile.seadex_preferred,
-        allowed_qualities: profile.allowed_qualities.clone(),
-        min_size: profile.min_size.clone(),
-        max_size: profile.max_size.clone(),
-    };
-    drop(config);
+    let profile = state
+        .profile_service()
+        .get_quality_profile(&name)
+        .await
+        .map_err(|e| match e {
+            crate::services::profile_service::ProfileError::NotFound(_) => {
+                ApiError::profile_not_found(&name)
+            }
+            _ => ApiError::internal(e.to_string()),
+        })?;
 
-    Ok(Json(ApiResponse::success(dto)))
+    Ok(Json(ApiResponse::success(profile)))
 }
 
 pub async fn create_profile(
@@ -77,43 +57,21 @@ pub async fn create_profile(
 ) -> Result<Json<ApiResponse<ProfileDto>>, ApiError> {
     validate_profile_name(&payload.name)?;
 
-    if crate::quality::definition::get_quality_by_name(&payload.cutoff).is_none() {
-        return Err(ApiError::validation(format!(
-            "Invalid cutoff quality: {cutoff}",
-            cutoff = payload.cutoff
-        )));
-    }
-    for q in &payload.allowed_qualities {
-        if crate::quality::definition::get_quality_by_name(q).is_none() {
-            return Err(ApiError::validation(format!("Invalid quality: {q}")));
-        }
-    }
+    let profile = state
+        .profile_service()
+        .create_quality_profile(payload)
+        .await
+        .map_err(|e| match e {
+            crate::services::profile_service::ProfileError::Validation(msg) => {
+                ApiError::validation(msg)
+            }
+            crate::services::profile_service::ProfileError::Conflict(msg) => {
+                ApiError::Conflict(msg)
+            }
+            _ => ApiError::internal(e.to_string()),
+        })?;
 
-    let profiles = {
-        let mut config = state.config().write().await;
-
-        let profile = crate::config::QualityProfileConfig {
-            name: payload.name.clone(),
-            cutoff: payload.cutoff.clone(),
-            upgrade_allowed: payload.upgrade_allowed,
-            seadex_preferred: payload.seadex_preferred,
-            allowed_qualities: payload.allowed_qualities.clone(),
-            min_size: payload.min_size.clone(),
-            max_size: payload.max_size.clone(),
-        };
-
-        config
-            .add_profile(profile)
-            .map_err(|e| ApiError::Conflict(e.to_string()))?;
-
-        config.profiles.clone()
-    };
-
-    if let Err(e) = state.shared.store.sync_profiles(&profiles).await {
-        error!(error = %e, "Failed to sync profiles to DB");
-    }
-
-    Ok(Json(ApiResponse::success(payload)))
+    Ok(Json(ApiResponse::success(profile)))
 }
 
 pub async fn update_profile(
@@ -121,56 +79,37 @@ pub async fn update_profile(
     Path(name): Path<String>,
     Json(payload): Json<ProfileDto>,
 ) -> Result<Json<ApiResponse<ProfileDto>>, ApiError> {
-    if crate::quality::definition::get_quality_by_name(&payload.cutoff).is_none() {
-        return Err(ApiError::validation(format!(
-            "Invalid cutoff quality: {cutoff}",
-            cutoff = payload.cutoff
-        )));
-    }
-    for q in &payload.allowed_qualities {
-        if crate::quality::definition::get_quality_by_name(q).is_none() {
-            return Err(ApiError::validation(format!("Invalid quality: {q}")));
-        }
-    }
+    let profile = state
+        .profile_service()
+        .update_quality_profile(&name, payload)
+        .await
+        .map_err(|e| match e {
+            crate::services::profile_service::ProfileError::Validation(msg) => {
+                ApiError::validation(msg)
+            }
+            crate::services::profile_service::ProfileError::NotFound(_) => {
+                ApiError::profile_not_found(&name)
+            }
+            _ => ApiError::internal(e.to_string()),
+        })?;
 
-    let profiles = {
-        let mut config = state.config().write().await;
-
-        let profile = crate::config::QualityProfileConfig {
-            name: payload.name.clone(),
-            cutoff: payload.cutoff.clone(),
-            upgrade_allowed: payload.upgrade_allowed,
-            seadex_preferred: payload.seadex_preferred,
-            allowed_qualities: payload.allowed_qualities.clone(),
-            min_size: payload.min_size.clone(),
-            max_size: payload.max_size.clone(),
-        };
-
-        config
-            .update_profile(&name, profile)
-            .map_err(|e| ApiError::internal(e.to_string()))?;
-
-        config.profiles.clone()
-    };
-
-    if let Err(e) = state.shared.store.sync_profiles(&profiles).await {
-        error!(error = %e, "Failed to sync profiles to DB");
-    }
-
-    Ok(Json(ApiResponse::success(payload)))
+    Ok(Json(ApiResponse::success(profile)))
 }
 
 pub async fn delete_profile(
     State(state): State<Arc<AppState>>,
     Path(name): Path<String>,
 ) -> Result<Json<ApiResponse<()>>, ApiError> {
-    {
-        let mut config = state.config().write().await;
-
-        config
-            .delete_profile(&name)
-            .map_err(|e| ApiError::validation(e.to_string()))?;
-    }
+    state
+        .profile_service()
+        .delete_quality_profile(&name)
+        .await
+        .map_err(|e| match e {
+            crate::services::profile_service::ProfileError::Validation(msg) => {
+                ApiError::validation(msg)
+            }
+            _ => ApiError::internal(e.to_string()),
+        })?;
 
     Ok(Json(ApiResponse::success(())))
 }

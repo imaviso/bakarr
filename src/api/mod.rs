@@ -25,7 +25,7 @@ mod import;
 mod library;
 mod observability;
 mod profiles;
-mod release_profiles;
+pub mod release_profiles;
 mod rename;
 mod rss;
 mod search;
@@ -46,7 +46,6 @@ pub use events::NotificationEvent;
 use crate::services::AnimeMetadataService;
 use crate::services::ImageService;
 use crate::services::LibraryScannerService;
-use crate::services::RssService;
 use metrics_exporter_prometheus::PrometheusHandle;
 
 #[derive(Clone)]
@@ -59,7 +58,7 @@ pub struct AppState {
 
     pub metadata_service: Arc<AnimeMetadataService>,
 
-    pub rss_service: Arc<RssService>,
+    pub rss_service: Arc<dyn crate::services::RssService>,
 
     pub library_scanner: Arc<LibraryScannerService>,
 
@@ -138,6 +137,11 @@ impl AppState {
     pub fn auth_service(&self) -> &Arc<dyn crate::services::AuthService> {
         &self.shared.auth_service
     }
+
+    #[must_use]
+    pub fn profile_service(&self) -> &Arc<dyn crate::services::ProfileService> {
+        &self.shared.profile_service
+    }
 }
 
 pub fn create_app_state(
@@ -149,14 +153,7 @@ pub fn create_app_state(
     let offline_db = shared.offline_db.clone();
     let metadata_service = shared.metadata_service.clone();
     let library_scanner = shared.library_scanner.clone();
-
-    let rss_service = Arc::new(RssService::new(
-        shared.store.clone(),
-        shared.nyaa.clone(),
-        shared.qbit.clone(),
-        shared.download_decisions.clone(),
-        shared.event_bus.clone(),
-    ));
+    let rss_service = shared.rss_service.clone();
 
     Ok(Arc::new(AppState {
         shared,

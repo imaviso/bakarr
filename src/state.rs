@@ -15,10 +15,10 @@ use crate::services::SeaDexService;
 use crate::services::episodes::EpisodeService as OldEpisodeService;
 use crate::services::{
     AnimeMetadataService, AnimeService, AuthService, AutoDownloadService, DefaultImportService,
-    DownloadDecisionService, DownloadService, EpisodeService, ImageService, ImportService,
-    LibraryScannerService, LibraryService, LogService, RenameService, RssService,
-    SeaOrmAnimeService, SeaOrmAuthService, SeaOrmDownloadService, SeaOrmEpisodeService,
-    SeaOrmLibraryService, SeaOrmRenameService, SearchService,
+    DefaultRssService, DownloadDecisionService, DownloadService, EpisodeService, ImageService,
+    ImportService, LibraryScannerService, LibraryService, LogService, ProfileService, RenameService,
+    RssService, SeaOrmAnimeService, SeaOrmAuthService, SeaOrmDownloadService, SeaOrmEpisodeService,
+    SeaOrmLibraryService, SeaOrmProfileService, SeaOrmRenameService, SearchService,
 };
 
 /// Build a shared HTTP client with reasonable defaults for API calls.
@@ -51,7 +51,7 @@ pub struct SharedState {
 
     pub search_service: Arc<SearchService>,
 
-    pub rss_service: Arc<RssService>,
+    pub rss_service: Arc<dyn RssService>,
 
     pub log_service: Arc<LogService>,
 
@@ -86,6 +86,8 @@ pub struct SharedState {
     pub rename_service: Arc<dyn RenameService>,
 
     pub auth_service: Arc<dyn AuthService>,
+
+    pub profile_service: Arc<dyn ProfileService>,
 }
 
 impl SharedState {
@@ -161,13 +163,13 @@ impl SharedState {
             seadex_service.clone(),
         ));
 
-        let rss_service = Arc::new(RssService::new(
+        let rss_service = Arc::new(DefaultRssService::new(
             store.clone(),
             nyaa.clone(),
             qbit.clone(),
             download_decisions.clone(),
             event_bus.clone(),
-        ));
+        )) as Arc<dyn RssService + Send + Sync + 'static>;
 
         let log_service = Arc::new(LogService::new(store.clone(), event_bus.clone()));
         log_service.clone().start_listener();
@@ -264,6 +266,10 @@ impl SharedState {
         let auth_service = Arc::new(SeaOrmAuthService::new(store.clone()))
             as Arc<dyn AuthService + Send + Sync + 'static>;
 
+        // Create the ProfileService
+        let profile_service = Arc::new(SeaOrmProfileService::new(store.clone(), config_arc.clone()))
+            as Arc<dyn ProfileService + Send + Sync + 'static>;
+
         Ok(Self {
             config: config_arc,
             store,
@@ -291,6 +297,7 @@ impl SharedState {
             import_service,
             rename_service,
             auth_service,
+            profile_service,
         })
     }
 
