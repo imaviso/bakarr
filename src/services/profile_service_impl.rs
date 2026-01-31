@@ -21,7 +21,7 @@ impl SeaOrmProfileService {
         Self { store, config }
     }
 
-    fn validate_quality_dto(&self, payload: &ProfileDto) -> Result<(), ProfileError> {
+    fn validate_quality_dto(payload: &ProfileDto) -> Result<(), ProfileError> {
         if crate::quality::definition::get_quality_by_name(&payload.cutoff).is_none() {
             return Err(ProfileError::Validation(format!(
                 "Invalid cutoff quality: {}",
@@ -56,7 +56,12 @@ impl ProfileService for SeaOrmProfileService {
     }
 
     async fn list_quality_profiles(&self) -> Result<Vec<ProfileDto>, ProfileError> {
-        let profiles = self.config.read().await.profiles.iter()
+        let profiles = self
+            .config
+            .read()
+            .await
+            .profiles
+            .iter()
             .map(|p| ProfileDto {
                 name: p.name.clone(),
                 cutoff: p.cutoff.clone(),
@@ -72,24 +77,30 @@ impl ProfileService for SeaOrmProfileService {
     }
 
     async fn get_quality_profile(&self, name: &str) -> Result<ProfileDto, ProfileError> {
-        let config = self.config.read().await;
-        let profile = config
-            .find_profile(name)
-            .ok_or_else(|| ProfileError::NotFound(name.to_string()))?;
+        let profile = {
+            let config = self.config.read().await;
+            config
+                .find_profile(name)
+                .cloned()
+                .ok_or_else(|| ProfileError::NotFound(name.to_string()))?
+        };
 
         Ok(ProfileDto {
-            name: profile.name.clone(),
-            cutoff: profile.cutoff.clone(),
+            name: profile.name,
+            cutoff: profile.cutoff,
             upgrade_allowed: profile.upgrade_allowed,
             seadex_preferred: profile.seadex_preferred,
-            allowed_qualities: profile.allowed_qualities.clone(),
-            min_size: profile.min_size.clone(),
-            max_size: profile.max_size.clone(),
+            allowed_qualities: profile.allowed_qualities,
+            min_size: profile.min_size,
+            max_size: profile.max_size,
         })
     }
 
-    async fn create_quality_profile(&self, payload: ProfileDto) -> Result<ProfileDto, ProfileError> {
-        self.validate_quality_dto(&payload)?;
+    async fn create_quality_profile(
+        &self,
+        payload: ProfileDto,
+    ) -> Result<ProfileDto, ProfileError> {
+        Self::validate_quality_dto(&payload)?;
 
         let profiles = {
             let mut config = self.config.write().await;
@@ -122,7 +133,7 @@ impl ProfileService for SeaOrmProfileService {
         name: &str,
         payload: ProfileDto,
     ) -> Result<ProfileDto, ProfileError> {
-        self.validate_quality_dto(&payload)?;
+        Self::validate_quality_dto(&payload)?;
 
         let profiles = {
             let mut config = self.config.write().await;
@@ -151,8 +162,9 @@ impl ProfileService for SeaOrmProfileService {
     }
 
     async fn delete_quality_profile(&self, name: &str) -> Result<(), ProfileError> {
-        let mut config = self.config.write().await;
-        config
+        self.config
+            .write()
+            .await
             .delete_profile(name)
             .map_err(|e| ProfileError::Validation(e.to_string()))?;
 
@@ -192,14 +204,17 @@ impl ProfileService for SeaOrmProfileService {
     ) -> Result<ReleaseProfileDto, ProfileError> {
         let rule_dtos: Vec<crate::db::repositories::release_profile::ReleaseProfileRuleDto> = rules
             .into_iter()
-            .map(|r| crate::db::repositories::release_profile::ReleaseProfileRuleDto {
-                term: r.term,
-                score: r.score,
-                rule_type: r.rule_type,
-            })
+            .map(
+                |r| crate::db::repositories::release_profile::ReleaseProfileRuleDto {
+                    term: r.term,
+                    score: r.score,
+                    rule_type: r.rule_type,
+                },
+            )
             .collect();
 
-        let profile = self.store
+        let profile = self
+            .store
             .create_release_profile(name, enabled, is_global, rule_dtos)
             .await?;
 
@@ -236,11 +251,13 @@ impl ProfileService for SeaOrmProfileService {
     ) -> Result<(), ProfileError> {
         let rule_dtos: Vec<crate::db::repositories::release_profile::ReleaseProfileRuleDto> = rules
             .into_iter()
-            .map(|r| crate::db::repositories::release_profile::ReleaseProfileRuleDto {
-                term: r.term,
-                score: r.score,
-                rule_type: r.rule_type,
-            })
+            .map(
+                |r| crate::db::repositories::release_profile::ReleaseProfileRuleDto {
+                    term: r.term,
+                    score: r.score,
+                    rule_type: r.rule_type,
+                },
+            )
             .collect();
 
         self.store
