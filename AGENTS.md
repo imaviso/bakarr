@@ -86,18 +86,22 @@ Located in `bakarr-ui/`.
   - Place `type Props` or `interface Props` immediately above the component.
 - **Styling**: 
   - Use **Tailwind CSS**.
-  - Use `cn()` utility for class merging.
+  - Use `cn()` utility for class merging (`clsx` + `tailwind-merge`).
   - Use **SolidUI** (Shadcn port) components from `@/components/ui`.
   - Use **Tabler Icons**.
+  - Use **Ark UI** / **Kobalte** for headless primitives when creating new components.
+  - Use `class-variance-authority` (CVA) for component variants.
 - **State Management**:
   - Use **TanStack Query** (`createQuery`, `createMutation`) for server state.
+  - Use **TanStack Form** for complex forms.
+  - Use **TanStack Table** for data tables.
   - Use generic SolidJS signals (`createSignal`) and stores (`createStore`) for local state.
 - **Routing**:
   - Use **TanStack Router**.
   - Define routes in `src/routes`.
   - Use `createFileRoute` for type-safe routing.
 - **Imports**:
-  - Use absolute imports with `@/` for packacges and `~/` for internal components/libs.
+  - Use absolute imports with `@/` for packages and `~/` for internal components/libs.
   - Sort imports: External packages first, then internal components/libs.
 
 ## 🤖 AI Assistant Tips
