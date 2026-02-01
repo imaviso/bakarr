@@ -260,9 +260,11 @@ impl KitsuClient {
         let anime = response.data;
 
         // Parse score from string "82.24" to f32 (percentage 0-100)
-        let score = anime.attributes.average_rating.and_then(|rating| {
-            rating.parse::<f32>().ok().map(|pct| pct / 10.0) // Convert percentage to 0-10 scale
-        });
+        // Note: Kitsu average_rating is already 0-100, keep it consistent with AniList scale
+        let score = anime
+            .attributes
+            .average_rating
+            .and_then(|rating| rating.parse::<f32>().ok());
 
         // Get best available poster image
         let poster_image = anime.attributes.poster_image.and_then(|img| {

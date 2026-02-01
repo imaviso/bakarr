@@ -23,13 +23,13 @@ pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyho
     let episode_service = EpisodeService::new(store.clone(), jikan, anilist, None);
 
     if refresh {
-        println!("Refreshing episode metadata from Jikan...");
+        println!("Refreshing episode metadata (AniList -> Kitsu -> Jikan)...");
         match episode_service.refresh_episode_cache(id).await {
             Ok(count) => println!("✓ Cached {count} episodes\n"),
             Err(e) => println!("⚠ Failed to refresh: {e}\n"),
         }
     } else if !store.has_cached_episodes(id).await? {
-        println!("Fetching episode metadata from Jikan...");
+        println!("Fetching episode metadata (AniList -> Kitsu -> Jikan)...");
         match episode_service.fetch_and_cache_episodes(id).await {
             Ok(count) if count > 0 => println!("✓ Cached {count} episodes\n"),
             Ok(_) => println!("⚠ No episode metadata available\n"),

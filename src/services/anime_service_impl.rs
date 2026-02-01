@@ -259,7 +259,14 @@ impl AnimeService for SeaOrmAnimeService {
 
         anime.path = Some(root_path.to_string_lossy().to_string());
 
-        // Parallelize image downloading (metadata enrichment happens after images)
+        // Enrich metadata before downloading images (AniList -> Kitsu -> Jikan)
+        let (_, provenance_json) = self
+            .metadata_service
+            .enrich_anime_metadata(&mut anime)
+            .await;
+        anime.metadata_provenance = provenance_json;
+
+        // Parallelize image downloading after enrichment
         let cover_url = anime.cover_image.clone();
         let banner_url = anime.banner_image.clone();
         let anime_id_val = anime.id;
@@ -296,13 +303,6 @@ impl AnimeService for SeaOrmAnimeService {
         if let Some(path) = banner_path {
             anime.banner_image = Some(path);
         }
-
-        // Enrich metadata after images are downloaded and track provenance
-        let (_, provenance_json) = self
-            .metadata_service
-            .enrich_anime_metadata(&mut anime)
-            .await;
-        anime.metadata_provenance = provenance_json;
 
         anime.added_at = chrono::Utc::now().to_rfc3339();
         anime.monitored = monitored;

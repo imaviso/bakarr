@@ -34,3 +34,6 @@ pnpm-debug.log*
 .DS_Store
 *.swp
 *.swo
+
+# SQLite artifacts
+:memory:

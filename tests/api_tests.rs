@@ -7,7 +7,7 @@ use bakarr::config::Config;
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
-/// Default API key seeded by migration (must match m20260127_add_users.rs)
+/// Default API key seeded by migration (must match `m20260127_add_users.rs`)
 const DEFAULT_API_KEY: &str = "bakarr_default_api_key_please_regenerate";
 
 async fn spawn_app() -> Router {

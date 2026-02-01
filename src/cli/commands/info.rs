@@ -29,7 +29,7 @@ pub async fn cmd_anime_info(
     };
 
     if refresh_episodes {
-        println!("Refreshing episode metadata from Jikan...");
+        println!("Refreshing episode metadata (AniList -> Kitsu -> Jikan)...");
         let jikan = Arc::new(JikanClient::new());
         let anilist = Arc::new(AnilistClient::new());
         let episode_service = EpisodeService::new(store.clone(), jikan, anilist, None);
