@@ -208,8 +208,11 @@ impl SharedState {
             .initialize()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to initialize offline db: {e}"))?;
-        let metadata_service =
-            Arc::new(AnimeMetadataService::new(offline_db.clone(), kitsu.clone()));
+        let metadata_service = Arc::new(AnimeMetadataService::new(
+            offline_db.clone(),
+            kitsu.clone(),
+            jikan.clone(),
+        ));
 
         let store_arc = Arc::new(store.clone());
         let anime_service = Arc::new(SeaOrmAnimeService::new(

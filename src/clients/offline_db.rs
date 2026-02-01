@@ -12,7 +12,9 @@
 //! 3. **Import** (blocking): Parses JSON and inserts into database in chunks
 
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer};
+use std::fmt;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info, instrument};
@@ -24,12 +26,6 @@ const DATABASE_URL: &str = "https://github.com/manami-project/anime-offline-data
 const CACHE_FILENAME: &str = "anime-offline-database.json";
 const DEFAULT_DATA_DIR: &str = "data";
 const INSERT_CHUNK_SIZE: usize = 1000;
-
-/// Root structure for the offline database JSON.
-#[derive(Debug, Deserialize)]
-struct DatabaseRoot {
-    data: Vec<AnimeEntry>,
-}
 
 /// Single anime entry from the offline database.
 #[derive(Debug, Clone, Deserialize)]
@@ -371,127 +367,177 @@ fn decompress_to_file(compressed: &[u8], output_path: &Path) -> Result<()> {
 ///
 /// # Performance
 ///
-/// This function reads the file in chunks and processes entries in batches
-/// without keeping the entire dataset in memory. JSON is parsed efficiently
-/// and data is inserted in chunks to avoid massive transactions.
+/// This function streams the JSON file to minimize memory usage and
+/// inserts data in chunks to avoid massive transactions.
 ///
 /// # Errors
 ///
 /// Returns an error if file reading, JSON parsing, or database insertion fails.
 fn import_from_file_blocking(store: &Store, cache_path: &Path) -> Result<usize> {
     use std::fs::File;
-    use std::io::{BufReader, Read};
+    use std::io::BufReader;
 
     debug!(path = ?cache_path, "Reading JSON file...");
 
     let file = File::open(cache_path)
         .with_context(|| format!("Failed to open cache file: {}", cache_path.display()))?;
 
-    // Read file in memory-efficient way - the file is already decompressed
-    // and typically around 100-200MB, which is manageable
-    let mut reader = BufReader::new(file);
-    let mut contents = String::new();
-    reader
-        .read_to_string(&mut contents)
-        .context("Failed to read cache file")?;
+    let reader = BufReader::new(file);
+    let mut deserializer = serde_json::Deserializer::from_reader(reader);
+    let mut total_count = 0;
 
-    debug!(
-        size_mb = contents.len() / 1024 / 1024,
-        "Loaded file contents"
-    );
+    let visitor = AnimeDataImporter {
+        store,
+        count: &mut total_count,
+    };
 
-    // Parse JSON once - we need the root structure to access the data array
-    let root: DatabaseRoot =
-        serde_json::from_str(&contents).context("Failed to parse JSON database")?;
-
-    // Drop the string contents early to free memory before processing
-    drop(contents);
-
-    let total_entries = root.data.len();
-    debug!(entries = total_entries, "Processing anime entries");
-
-    // Process in streaming fashion using iterator
-    let mut batch: Vec<anime_metadata::ActiveModel> = Vec::with_capacity(INSERT_CHUNK_SIZE);
-    let mut total_count = 0usize;
-    let mut chunk_idx = 0usize;
-
-    for entry in root.data {
-        let mapping = entry.get_id_mapping();
-
-        // Skip entries without useful IDs
-        if mapping.anilist_id.is_none() && mapping.mal_id.is_none() {
-            continue;
-        }
-
-        // Serialize synonyms to JSON string
-        let synonyms_json =
-            serde_json::to_string(&entry.synonyms).unwrap_or_else(|_| "[]".to_string());
-
-        let model = anime_metadata::ActiveModel {
-            id: sea_orm::ActiveValue::NotSet,
-            anilist_id: sea_orm::ActiveValue::Set(mapping.anilist_id),
-            mal_id: sea_orm::ActiveValue::Set(mapping.mal_id),
-            anidb_id: sea_orm::ActiveValue::Set(mapping.anidb_id),
-            kitsu_id: sea_orm::ActiveValue::Set(mapping.kitsu_id),
-            title: sea_orm::ActiveValue::Set(entry.title),
-            synonyms: sea_orm::ActiveValue::Set(Some(synonyms_json)),
-            r#type: sea_orm::ActiveValue::Set(Some(entry.anime_type)),
-            status: sea_orm::ActiveValue::Set(Some(entry.status)),
-            season: sea_orm::ActiveValue::Set(
-                entry.anime_season.as_ref().and_then(|s| s.season.clone()),
-            ),
-            year: sea_orm::ActiveValue::Set(entry.anime_season.as_ref().and_then(|s| s.year)),
-        };
-
-        batch.push(model);
-        total_count += 1;
-
-        // Insert batch when it reaches chunk size
-        if batch.len() >= INSERT_CHUNK_SIZE {
-            chunk_idx += 1;
-            let batch_to_insert = std::mem::take(&mut batch);
-            batch = Vec::with_capacity(INSERT_CHUNK_SIZE);
-
-            let runtime = tokio::runtime::Handle::current();
-            runtime.block_on(async {
-                store
-                    .batch_insert_anime_metadata(batch_to_insert)
-                    .await
-                    .with_context(|| format!("Failed to insert chunk {chunk_idx}"))
-            })?;
-
-            // Log progress every 10 chunks
-            if chunk_idx.is_multiple_of(10) {
-                let progress_pct = if total_entries > 0 {
-                    (total_count * 100) / total_entries
-                } else {
-                    0
-                };
-                debug!(
-                    chunk = chunk_idx,
-                    total = total_count,
-                    progress = format!("{}%", progress_pct),
-                    "Insert progress"
-                );
-            }
-        }
-    }
-
-    // Insert remaining entries
-    if !batch.is_empty() {
-        chunk_idx += 1;
-        let runtime = tokio::runtime::Handle::current();
-        runtime.block_on(async {
-            store
-                .batch_insert_anime_metadata(batch)
-                .await
-                .with_context(|| format!("Failed to insert final chunk {chunk_idx}"))
-        })?;
-    }
-
-    info!(total = total_count, chunks = chunk_idx, "Import complete");
+    deserializer
+        .deserialize_map(visitor)
+        .context("Failed to parse JSON database")?;
 
     Ok(total_count)
+}
+
+struct AnimeDataImporter<'a> {
+    store: &'a Store,
+    count: &'a mut usize,
+}
+
+impl<'de> Visitor<'de> for AnimeDataImporter<'_> {
+    type Value = ();
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a JSON object containing a 'data' array")
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        while let Some(key) = map.next_key::<String>()? {
+            if key == "data" {
+                map.next_value_seed(AnimeDataSeqSeed {
+                    store: self.store,
+                    count: self.count,
+                })?;
+            } else {
+                map.next_value::<de::IgnoredAny>()?;
+            }
+        }
+        Ok(())
+    }
+}
+
+struct AnimeDataSeqSeed<'a> {
+    store: &'a Store,
+    count: &'a mut usize,
+}
+
+impl<'de> DeserializeSeed<'de> for AnimeDataSeqSeed<'_> {
+    type Value = ();
+
+    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_seq(AnimeDataSeqVisitor {
+            store: self.store,
+            count: self.count,
+        })
+    }
+}
+
+struct AnimeDataSeqVisitor<'a> {
+    store: &'a Store,
+    count: &'a mut usize,
+}
+
+impl<'de> Visitor<'de> for AnimeDataSeqVisitor<'_> {
+    type Value = ();
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("an array of anime entries")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut batch: Vec<anime_metadata::ActiveModel> = Vec::with_capacity(INSERT_CHUNK_SIZE);
+        let mut chunk_idx = 0usize;
+
+        while let Some(entry) = seq.next_element::<AnimeEntry>()? {
+            let mapping = entry.get_id_mapping();
+
+            // Skip entries without useful IDs
+            if mapping.anilist_id.is_none() && mapping.mal_id.is_none() {
+                continue;
+            }
+
+            // Serialize synonyms to JSON string
+            let synonyms_json =
+                serde_json::to_string(&entry.synonyms).unwrap_or_else(|_| "[]".to_string());
+
+            let model = anime_metadata::ActiveModel {
+                id: sea_orm::ActiveValue::NotSet,
+                anilist_id: sea_orm::ActiveValue::Set(mapping.anilist_id),
+                mal_id: sea_orm::ActiveValue::Set(mapping.mal_id),
+                anidb_id: sea_orm::ActiveValue::Set(mapping.anidb_id),
+                kitsu_id: sea_orm::ActiveValue::Set(mapping.kitsu_id),
+                title: sea_orm::ActiveValue::Set(entry.title),
+                synonyms: sea_orm::ActiveValue::Set(Some(synonyms_json)),
+                r#type: sea_orm::ActiveValue::Set(Some(entry.anime_type)),
+                status: sea_orm::ActiveValue::Set(Some(entry.status)),
+                season: sea_orm::ActiveValue::Set(
+                    entry.anime_season.as_ref().and_then(|s| s.season.clone()),
+                ),
+                year: sea_orm::ActiveValue::Set(entry.anime_season.as_ref().and_then(|s| s.year)),
+            };
+
+            batch.push(model);
+            *self.count += 1;
+
+            // Insert batch when it reaches chunk size
+            if batch.len() >= INSERT_CHUNK_SIZE {
+                chunk_idx += 1;
+                let batch_to_insert = std::mem::take(&mut batch);
+                batch = Vec::with_capacity(INSERT_CHUNK_SIZE);
+
+                let runtime = tokio::runtime::Handle::current();
+                runtime
+                    .block_on(async {
+                        self.store
+                            .batch_insert_anime_metadata(batch_to_insert)
+                            .await
+                            .with_context(|| format!("Failed to insert chunk {chunk_idx}"))
+                    })
+                    .map_err(de::Error::custom)?;
+
+                // Log progress every 10 chunks
+                if chunk_idx.is_multiple_of(10) {
+                    debug!(chunk = chunk_idx, total = *self.count, "Insert progress");
+                }
+            }
+        }
+
+        // Insert remaining entries
+        if !batch.is_empty() {
+            chunk_idx += 1;
+            let runtime = tokio::runtime::Handle::current();
+            runtime
+                .block_on(async {
+                    self.store
+                        .batch_insert_anime_metadata(batch)
+                        .await
+                        .with_context(|| format!("Failed to insert final chunk {chunk_idx}"))
+                })
+                .map_err(de::Error::custom)?;
+        }
+
+        info!(total = *self.count, chunks = chunk_idx, "Import complete");
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

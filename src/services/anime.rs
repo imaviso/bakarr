@@ -9,6 +9,7 @@ use crate::services::provenance::{AnimeProvenance, MetadataProvider};
 pub struct AnimeMetadataService {
     offline_db: Arc<OfflineDatabase>,
     kitsu: Arc<KitsuClient>,
+    jikan: Arc<JikanClient>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,8 +41,16 @@ impl JikanNeeds {
 
 impl AnimeMetadataService {
     #[must_use]
-    pub const fn new(offline_db: Arc<OfflineDatabase>, kitsu: Arc<KitsuClient>) -> Self {
-        Self { offline_db, kitsu }
+    pub const fn new(
+        offline_db: Arc<OfflineDatabase>,
+        kitsu: Arc<KitsuClient>,
+        jikan: Arc<JikanClient>,
+    ) -> Self {
+        Self {
+            offline_db,
+            kitsu,
+            jikan,
+        }
     }
 
     /// Enriches anime metadata from external providers and tracks provenance.
@@ -235,8 +244,7 @@ impl AnimeMetadataService {
     ) -> bool {
         let mut was_modified = false;
 
-        let jikan_client = JikanClient::new();
-        match jikan_client.get_anime(mal_id).await {
+        match self.jikan.get_anime(mal_id).await {
             Ok(Some(mal_anime)) => {
                 // Fill description if still missing
                 if needs.contains(JikanNeeds::DESCRIPTION)
