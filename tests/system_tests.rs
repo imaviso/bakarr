@@ -16,7 +16,7 @@ const DEFAULT_API_KEY: &str = "bakarr_default_api_key_please_regenerate";
 
 async fn spawn_app() -> Router {
     let mut config = Config::default();
-    config.general.database_path = "sqlite::memory:".to_string();
+    config.general.database_path = "sqlite:data/bakarr.db:".to_string();
 
     let state = bakarr::api::create_app_state_from_config(config, None)
         .await

@@ -12,7 +12,7 @@ const DEFAULT_API_KEY: &str = "bakarr_default_api_key_please_regenerate";
 
 async fn spawn_app() -> Router {
     let mut config = Config::default();
-    config.general.database_path = "sqlite::memory:".to_string();
+    config.general.database_path = "sqlite:data/bakarr.db:".to_string();
 
     let state = bakarr::api::create_app_state_from_config(config, None)
         .await
@@ -90,7 +90,7 @@ async fn test_system_config() {
     assert!(body_json["data"]["library"]["library_path"].is_string());
 
     let mut current_config = body_json["data"].clone();
-    current_config["scheduler"]["check_interval_minutes"] = serde_json::json!(999);
+    current_config["scheduler"]["check_interval_minutes"] = serde_json::json!(15);
 
     let response = app
         .clone()
@@ -123,10 +123,7 @@ async fn test_system_config() {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     let body_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
-    assert_eq!(
-        body_json["data"]["scheduler"]["check_interval_minutes"],
-        999
-    );
+    assert_eq!(body_json["data"]["scheduler"]["check_interval_minutes"], 15);
 }
 
 #[tokio::test]
