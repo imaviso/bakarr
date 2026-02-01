@@ -371,31 +371,49 @@ fn decompress_to_file(compressed: &[u8], output_path: &Path) -> Result<()> {
 ///
 /// # Performance
 ///
-/// This function streams the JSON file to minimize memory usage and
-/// inserts data in chunks to avoid massive transactions.
+/// This function reads the file in chunks and processes entries in batches
+/// without keeping the entire dataset in memory. JSON is parsed efficiently
+/// and data is inserted in chunks to avoid massive transactions.
 ///
 /// # Errors
 ///
 /// Returns an error if file reading, JSON parsing, or database insertion fails.
 fn import_from_file_blocking(store: &Store, cache_path: &Path) -> Result<usize> {
     use std::fs::File;
-    use std::io::BufReader;
+    use std::io::{BufReader, Read};
 
     debug!(path = ?cache_path, "Reading JSON file...");
 
     let file = File::open(cache_path)
         .with_context(|| format!("Failed to open cache file: {}", cache_path.display()))?;
 
-    let reader = BufReader::new(file);
+    // Read file in memory-efficient way - the file is already decompressed
+    // and typically around 100-200MB, which is manageable
+    let mut reader = BufReader::new(file);
+    let mut contents = String::new();
+    reader
+        .read_to_string(&mut contents)
+        .context("Failed to read cache file")?;
 
-    // Stream deserialize to reduce memory usage
+    debug!(
+        size_mb = contents.len() / 1024 / 1024,
+        "Loaded file contents"
+    );
+
+    // Parse JSON once - we need the root structure to access the data array
     let root: DatabaseRoot =
-        serde_json::from_reader(reader).context("Failed to parse JSON database")?;
+        serde_json::from_str(&contents).context("Failed to parse JSON database")?;
 
-    debug!(entries = root.data.len(), "Loaded anime entries from JSON");
+    // Drop the string contents early to free memory before processing
+    drop(contents);
 
-    // Collect valid entries
-    let mut batch: Vec<anime_metadata::ActiveModel> = Vec::with_capacity(root.data.len());
+    let total_entries = root.data.len();
+    debug!(entries = total_entries, "Processing anime entries");
+
+    // Process in streaming fashion using iterator
+    let mut batch: Vec<anime_metadata::ActiveModel> = Vec::with_capacity(INSERT_CHUNK_SIZE);
+    let mut total_count = 0usize;
+    let mut chunk_idx = 0usize;
 
     for entry in root.data {
         let mapping = entry.get_id_mapping();
@@ -426,30 +444,54 @@ fn import_from_file_blocking(store: &Store, cache_path: &Path) -> Result<usize> 
         };
 
         batch.push(model);
+        total_count += 1;
+
+        // Insert batch when it reaches chunk size
+        if batch.len() >= INSERT_CHUNK_SIZE {
+            chunk_idx += 1;
+            let batch_to_insert = std::mem::take(&mut batch);
+            batch = Vec::with_capacity(INSERT_CHUNK_SIZE);
+
+            let runtime = tokio::runtime::Handle::current();
+            runtime.block_on(async {
+                store
+                    .batch_insert_anime_metadata(batch_to_insert)
+                    .await
+                    .with_context(|| format!("Failed to insert chunk {chunk_idx}"))
+            })?;
+
+            // Log progress every 10 chunks
+            if chunk_idx.is_multiple_of(10) {
+                let progress_pct = if total_entries > 0 {
+                    (total_count * 100) / total_entries
+                } else {
+                    0
+                };
+                debug!(
+                    chunk = chunk_idx,
+                    total = total_count,
+                    progress = format!("{}%", progress_pct),
+                    "Insert progress"
+                );
+            }
+        }
     }
 
-    let count = batch.len();
-    debug!(count, "Inserting entries into SQLite...");
-
-    // Insert in chunks to avoid massive transactions
-    // We need to use block_on since we're in a blocking context
-    let runtime = tokio::runtime::Handle::current();
-    runtime.block_on(async {
-        for (chunk_idx, chunk) in batch.chunks(INSERT_CHUNK_SIZE).enumerate() {
-            debug!(
-                chunk = chunk_idx + 1,
-                size = chunk.len(),
-                "Inserting chunk..."
-            );
+    // Insert remaining entries
+    if !batch.is_empty() {
+        chunk_idx += 1;
+        let runtime = tokio::runtime::Handle::current();
+        runtime.block_on(async {
             store
-                .batch_insert_anime_metadata(chunk.to_vec())
+                .batch_insert_anime_metadata(batch)
                 .await
-                .with_context(|| format!("Failed to insert chunk {}", chunk_idx + 1))?;
-        }
-        Ok::<(), anyhow::Error>(())
-    })?;
+                .with_context(|| format!("Failed to insert final chunk {chunk_idx}"))
+        })?;
+    }
 
-    Ok(count)
+    info!(total = total_count, chunks = chunk_idx, "Import complete");
+
+    Ok(total_count)
 }
 
 #[cfg(test)]

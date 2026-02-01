@@ -959,12 +959,12 @@ impl EpisodeService for SeaOrmEpisodeService {
                     });
         }
 
-        // Clear cache and refetch episodes
-        self.store
-            .clear_episode_cache(id)
-            .await
-            .map_err(EpisodeError::from)?;
+        // Remove from recent_fetches to bypass 5-minute throttle for explicit refresh
+        if let Ok(mut guard) = self.recent_fetches.write() {
+            guard.remove(&id);
+        }
 
+        // Fetch and cache episodes (upsert handles updates, no need to clear first)
         let count =
             self.fetch_and_cache_episodes(id)
                 .await

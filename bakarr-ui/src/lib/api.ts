@@ -865,6 +865,7 @@ export function createRefreshEpisodesMutation() {
 			}),
 		onSuccess: (_, animeId) => {
 			queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
+			queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
 			queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
 		},
 	}));
