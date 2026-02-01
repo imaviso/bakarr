@@ -147,7 +147,7 @@ impl AnilistClient {
                         seasonYear
                         coverImage { extraLarge large }
                         bannerImage
-                        description(asHtml: false)
+                        description(asHtml: true)
                         averageScore
                         genres
                         studios(isMain: true) {
@@ -227,7 +227,7 @@ impl AnilistClient {
                     nextAiringEpisode {
                         episode
                     }
-                    description(asHtml: false)
+                    description(asHtml: true)
                     averageScore
                     genres
                     studios(isMain: true) {
@@ -289,7 +289,9 @@ impl AnilistClient {
             added_at: String::new(),
             profile_name: None,
             mal_id: None,
-            description: m.description,
+            description: m
+                .description
+                .map(|d| html2text::from_read(d.as_bytes(), 10000).unwrap_or(d)),
             #[allow(clippy::cast_precision_loss)]
             score: m.average_score.map(|s| s as f32),
             genres: m.genres,

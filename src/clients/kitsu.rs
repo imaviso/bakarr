@@ -302,7 +302,10 @@ impl KitsuClient {
         );
 
         Ok(Some(KitsuAnimeData {
-            description: anime.attributes.synopsis,
+            description: anime
+                .attributes
+                .synopsis
+                .map(|d| html2text::from_read(d.as_bytes(), 10000).unwrap_or(d)),
             score,
             poster_image,
             cover_image,
