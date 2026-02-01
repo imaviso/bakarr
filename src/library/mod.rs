@@ -392,6 +392,7 @@ mod tests {
             path: None,
             start_year: None,
             monitored: true,
+            metadata_provenance: None,
         }
     }
 

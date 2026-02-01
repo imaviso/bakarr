@@ -27,6 +27,7 @@ use crate::parser::filename::parse_filename;
 use crate::quality::parse_quality_from_filename;
 use crate::services::MediaService;
 use crate::services::episode_service::{EpisodeError, EpisodeService};
+use crate::services::provenance::{EpisodeProvenance, MetadataProvider};
 
 use crate::services::image::{ImageService, ImageType};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -89,13 +90,28 @@ impl SeaOrmEpisodeService {
             .flatten()
     }
 
-    /// Gets the Kitsu ID from `AniList` ID using offline database.
+    /// Gets the Kitsu ID from `AniList` ID.
+    ///
+    /// First tries the offline database, then falls back to the Kitsu API
+    /// mappings endpoint if not found locally.
     async fn get_kitsu_id(&self, anilist_id: i32) -> Option<i32> {
-        self.offline_db
-            .anilist_to_kitsu(anilist_id)
-            .await
-            .ok()
-            .flatten()
+        // First try offline database
+        if let Ok(Some(kitsu_id)) = self.offline_db.anilist_to_kitsu(anilist_id).await {
+            return Some(kitsu_id);
+        }
+
+        // Fall back to Kitsu API
+        match self.kitsu.lookup_kitsu_id_by_anilist(anilist_id).await {
+            Ok(Some(kitsu_id)) => Some(kitsu_id),
+            Ok(None) => {
+                tracing::debug!(anilist_id, "Kitsu API returned no mapping");
+                None
+            }
+            Err(e) => {
+                tracing::warn!(anilist_id, error = %e, "Failed to lookup Kitsu ID via API");
+                None
+            }
+        }
     }
 
     /// Fetches episodes from `AniList`.
@@ -116,6 +132,14 @@ impl SeaOrmEpisodeService {
             {
                 let ep_num = release.episode_number_truncated();
                 seen_episodes.insert(ep_num);
+
+                // Track provenance
+                let mut provenance = EpisodeProvenance::new();
+                provenance.record_title(MetadataProvider::Anilist);
+                if ep.aired.is_some() {
+                    provenance.record_aired(MetadataProvider::Anilist);
+                }
+
                 all_episodes.push(EpisodeInput {
                     episode_number: ep_num,
                     title: Some(release.title),
@@ -123,6 +147,7 @@ impl SeaOrmEpisodeService {
                     aired: ep.aired.clone(),
                     filler: false,
                     recap: false,
+                    metadata_provenance: provenance.to_json(),
                 });
             }
         }
@@ -149,6 +174,14 @@ impl SeaOrmEpisodeService {
                 && !seen_episodes.contains(&num)
             {
                 seen_episodes.insert(num);
+
+                // Track provenance
+                let mut provenance = EpisodeProvenance::new();
+                provenance.record_title(MetadataProvider::Kitsu);
+                if ep.attributes.airdate.is_some() {
+                    provenance.record_aired(MetadataProvider::Kitsu);
+                }
+
                 all_episodes.push(EpisodeInput {
                     episode_number: num,
                     title: ep.attributes.canonical_title,
@@ -156,6 +189,7 @@ impl SeaOrmEpisodeService {
                     aired: ep.attributes.airdate,
                     filler: false,
                     recap: false,
+                    metadata_provenance: provenance.to_json(),
                 });
             }
         }
@@ -184,6 +218,22 @@ impl SeaOrmEpisodeService {
 
                     let count = episodes.len();
                     for ep in episodes {
+                        // Track provenance
+                        let mut provenance = EpisodeProvenance::new();
+                        provenance.record_title(MetadataProvider::Jikan);
+                        if ep.title_japanese.is_some() {
+                            provenance.record_title_japanese(MetadataProvider::Jikan);
+                        }
+                        if ep.aired.is_some() {
+                            provenance.record_aired(MetadataProvider::Jikan);
+                        }
+                        if ep.filler {
+                            provenance.record_filler(MetadataProvider::Jikan);
+                        }
+                        if ep.recap {
+                            provenance.record_recap(MetadataProvider::Jikan);
+                        }
+
                         all_episodes.push(EpisodeInput {
                             episode_number: ep.mal_id,
                             title: ep.title,
@@ -191,6 +241,7 @@ impl SeaOrmEpisodeService {
                             aired: ep.aired,
                             filler: ep.filler,
                             recap: ep.recap,
+                            metadata_provenance: provenance.to_json(),
                         });
                     }
 

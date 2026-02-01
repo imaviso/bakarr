@@ -21,6 +21,9 @@ pub struct Anime {
     pub start_year: Option<i32>,
     #[serde(default = "default_true")]
     pub monitored: bool,
+    /// JSON string tracking which provider filled which metadata field.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata_provenance: Option<String>,
 }
 
 const fn default_true() -> bool {

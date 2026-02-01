@@ -43,6 +43,7 @@ impl AnimeRepository {
             studios: model.studios.and_then(|s| serde_json::from_str(&s).ok()),
             start_year: model.start_year,
             monitored: model.monitored,
+            metadata_provenance: model.metadata_provenance,
         }
     }
 
@@ -81,7 +82,8 @@ impl AnimeRepository {
                 .map_err(|e| anyhow::anyhow!("Failed to serialize studios: {e}"))?),
             start_year: Set(anime.start_year),
             monitored: Set(anime.monitored),
-            ..Default::default()
+            current_episode: Set(None),
+            metadata_provenance: Set(anime.metadata_provenance.clone()),
         };
 
         MonitoredAnime::insert(active_model)
@@ -101,6 +103,7 @@ impl AnimeRepository {
                         monitored_anime::Column::Studios,
                         monitored_anime::Column::StartYear,
                         monitored_anime::Column::Monitored,
+                        monitored_anime::Column::MetadataProvenance,
                     ])
                     .to_owned(),
             )

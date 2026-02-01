@@ -8,6 +8,8 @@ pub struct EpisodeInput {
     pub aired: Option<String>,
     pub filler: bool,
     pub recap: bool,
+    /// JSON string tracking which provider filled which metadata field.
+    pub metadata_provenance: Option<String>,
 }
 
 #[derive(Debug, Clone, FromQueryResult)]

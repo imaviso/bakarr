@@ -24,6 +24,9 @@ pub struct Model {
     pub studios: Option<String>,
     pub start_year: Option<i32>,
     pub monitored: bool,
+    /// JSON object tracking which provider filled which metadata field.
+    /// Example: {"description": "jikan", "score": "kitsu", "genres": "jikan"}
+    pub metadata_provenance: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

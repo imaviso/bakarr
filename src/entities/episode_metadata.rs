@@ -13,6 +13,9 @@ pub struct Model {
     pub filler: bool,
     pub recap: bool,
     pub fetched_at: String,
+    /// JSON object tracking which provider filled which metadata field.
+    /// Example: {"title": "kitsu", "aired": "anilist"}
+    pub metadata_provenance: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -251,10 +251,12 @@ impl LibraryService for SeaOrmLibraryService {
         anime.path = Some(full_path.to_string_lossy().to_string());
         anime.quality_profile_id = profile_id;
 
-        // Enrich metadata and set timestamp
-        self.metadata_service
+        // Enrich metadata and set timestamp, tracking provenance
+        let (_, provenance_json) = self
+            .metadata_service
             .enrich_anime_metadata(&mut anime)
             .await;
+        anime.metadata_provenance = provenance_json;
         anime.added_at = chrono::Utc::now().to_rfc3339();
 
         self.store.add_anime(&anime).await?;

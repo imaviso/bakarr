@@ -128,6 +128,7 @@ impl EpisodeRepository {
             filler: Set(episode.filler),
             recap: Set(episode.recap),
             fetched_at: Set(chrono::Utc::now().to_rfc3339()),
+            metadata_provenance: Set(episode.metadata_provenance.clone()),
         };
 
         EpisodeMetadata::insert(active_model)
@@ -143,6 +144,7 @@ impl EpisodeRepository {
                     episode_metadata::Column::Filler,
                     episode_metadata::Column::Recap,
                     episode_metadata::Column::FetchedAt,
+                    episode_metadata::Column::MetadataProvenance,
                 ])
                 .to_owned(),
             )
@@ -168,6 +170,7 @@ impl EpisodeRepository {
                 filler: Set(episode.filler),
                 recap: Set(episode.recap),
                 fetched_at: Set(chrono::Utc::now().to_rfc3339()),
+                metadata_provenance: Set(episode.metadata_provenance.clone()),
             })
             .collect();
 
@@ -184,6 +187,7 @@ impl EpisodeRepository {
                     episode_metadata::Column::Filler,
                     episode_metadata::Column::Recap,
                     episode_metadata::Column::FetchedAt,
+                    episode_metadata::Column::MetadataProvenance,
                 ])
                 .to_owned(),
             )

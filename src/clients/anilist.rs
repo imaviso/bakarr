@@ -297,6 +297,7 @@ impl AnilistClient {
             path: None,
             start_year: m.season_year,
             monitored: true,
+            metadata_provenance: None, // Set by enrich_anime_metadata
         }
     }
 

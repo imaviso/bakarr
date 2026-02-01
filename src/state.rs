@@ -3,6 +3,7 @@ use tokio::sync::{RwLock, broadcast};
 
 use crate::clients::anilist::AnilistClient;
 use crate::clients::jikan::JikanClient;
+use crate::clients::kitsu::KitsuClient;
 use crate::clients::nyaa::NyaaClient;
 use crate::clients::offline_db::OfflineDatabase;
 use crate::clients::qbittorrent::{QBitClient, QBitConfig};
@@ -45,6 +46,8 @@ pub struct SharedState {
     pub anilist: Arc<AnilistClient>,
 
     pub jikan: Arc<JikanClient>,
+
+    pub kitsu: Arc<KitsuClient>,
 
     pub seadex_service: Arc<SeaDexService>,
 
@@ -124,8 +127,9 @@ impl SharedState {
         let http_client = build_shared_http_client(config.nyaa.request_timeout_seconds.into())?;
 
         let nyaa = Arc::new(NyaaClient::with_shared_client(http_client.clone()));
-        let anilist = Arc::new(AnilistClient::with_shared_client(http_client));
+        let anilist = Arc::new(AnilistClient::with_shared_client(http_client.clone()));
         let jikan = Arc::new(JikanClient::new());
+        let kitsu = Arc::new(KitsuClient::with_shared_client(http_client));
         let seadex_client = Arc::new(SeaDexClient::new());
 
         let qbit = if config.qbittorrent.enabled {
@@ -147,7 +151,7 @@ impl SharedState {
             store.clone(),
             jikan.clone(),
             anilist.clone(),
-            None,
+            Some(kitsu.clone()),
         ));
         let download_decisions = DownloadDecisionService::new(store.clone());
 
@@ -204,7 +208,8 @@ impl SharedState {
             .initialize()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to initialize offline db: {e}"))?;
-        let metadata_service = Arc::new(AnimeMetadataService::new(offline_db.clone()));
+        let metadata_service =
+            Arc::new(AnimeMetadataService::new(offline_db.clone(), kitsu.clone()));
 
         let store_arc = Arc::new(store.clone());
         let anime_service = Arc::new(SeaOrmAnimeService::new(
@@ -221,7 +226,7 @@ impl SharedState {
             store_arc,
             anilist.clone(),
             jikan.clone(),
-            None, // kitsu - optional
+            Some(kitsu.clone()),
             image_service.clone(),
             config_arc.clone(),
             event_bus.clone(),
@@ -299,6 +304,7 @@ impl SharedState {
             nyaa,
             anilist,
             jikan,
+            kitsu,
             seadex_service,
             qbit,
             search_service,

@@ -5,6 +5,7 @@ use crate::clients::offline_db::OfflineDatabase;
 use crate::db::Store;
 use crate::entities::episode_metadata::Model as EpisodeMetadata;
 use crate::models::episode::EpisodeInput;
+use crate::services::provenance::{EpisodeProvenance, MetadataProvider};
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -48,10 +49,23 @@ impl EpisodeService {
     }
 
     async fn get_kitsu_id(&self, anilist_id: i32) -> Option<i32> {
-        self.offline_db
-            .anilist_to_kitsu(anilist_id)
-            .await
-            .unwrap_or(None)
+        // First try offline database
+        if let Ok(Some(kitsu_id)) = self.offline_db.anilist_to_kitsu(anilist_id).await {
+            return Some(kitsu_id);
+        }
+
+        // Fall back to Kitsu API
+        match self.kitsu.lookup_kitsu_id_by_anilist(anilist_id).await {
+            Ok(Some(kitsu_id)) => Some(kitsu_id),
+            Ok(None) => {
+                debug!(anilist_id, "Kitsu API returned no mapping");
+                None
+            }
+            Err(e) => {
+                warn!(anilist_id, error = %e, "Failed to lookup Kitsu ID via API");
+                None
+            }
+        }
     }
 
     pub async fn get_episode_title(&self, anilist_id: i32, episode_number: i32) -> Result<String> {
@@ -60,7 +74,7 @@ impl EpisodeService {
             .get_episode_title(anilist_id, episode_number)
             .await?
         {
-            debug!("Episode title from cache: {}", title);
+            debug!(title = %title, "Episode title from cache");
             return Ok(title);
         }
 
@@ -230,6 +244,14 @@ impl EpisodeService {
                 && !seen_episodes.contains(&number)
             {
                 seen_episodes.insert(number);
+
+                // Track provenance
+                let mut provenance = EpisodeProvenance::new();
+                provenance.record_title(MetadataProvider::Anilist);
+                if ep.aired.is_some() {
+                    provenance.record_aired(MetadataProvider::Anilist);
+                }
+
                 all_episodes.push(EpisodeInput {
                     episode_number: number,
                     title: real_title,
@@ -237,6 +259,7 @@ impl EpisodeService {
                     aired: ep.aired.clone(),
                     filler: false,
                     recap: false,
+                    metadata_provenance: provenance.to_json(),
                 });
             }
         }
@@ -262,6 +285,14 @@ impl EpisodeService {
                 && !seen_episodes.contains(&num)
             {
                 seen_episodes.insert(num);
+
+                // Track provenance
+                let mut provenance = EpisodeProvenance::new();
+                provenance.record_title(MetadataProvider::Kitsu);
+                if ep.attributes.airdate.is_some() {
+                    provenance.record_aired(MetadataProvider::Kitsu);
+                }
+
                 all_episodes.push(EpisodeInput {
                     episode_number: num,
                     title: ep.attributes.canonical_title,
@@ -269,6 +300,7 @@ impl EpisodeService {
                     aired: ep.attributes.airdate,
                     filler: false,
                     recap: false,
+                    metadata_provenance: provenance.to_json(),
                 });
             }
         }
@@ -296,6 +328,22 @@ impl EpisodeService {
 
                     let count = episodes.len();
                     for ep in episodes {
+                        // Track provenance
+                        let mut provenance = EpisodeProvenance::new();
+                        provenance.record_title(MetadataProvider::Jikan);
+                        if ep.title_japanese.is_some() {
+                            provenance.record_title_japanese(MetadataProvider::Jikan);
+                        }
+                        if ep.aired.is_some() {
+                            provenance.record_aired(MetadataProvider::Jikan);
+                        }
+                        if ep.filler {
+                            provenance.record_filler(MetadataProvider::Jikan);
+                        }
+                        if ep.recap {
+                            provenance.record_recap(MetadataProvider::Jikan);
+                        }
+
                         all_episodes.push(EpisodeInput {
                             episode_number: ep.mal_id,
                             title: ep.title,
@@ -303,6 +351,7 @@ impl EpisodeService {
                             aired: ep.aired,
                             filler: ep.filler,
                             recap: ep.recap,
+                            metadata_provenance: provenance.to_json(),
                         });
                     }
 
@@ -392,6 +441,7 @@ mod tests {
             aired: None,
             filler: false,
             recap: false,
+            metadata_provenance: None,
         };
         assert_eq!(input.episode_number, 1);
         assert_eq!(input.title.as_deref(), Some("The Beginning"));

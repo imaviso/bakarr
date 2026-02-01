@@ -4,6 +4,9 @@ pub use auto_download::AutoDownloadService;
 pub mod anime;
 pub use anime::AnimeMetadataService;
 
+pub mod provenance;
+pub use provenance::{AnimeProvenance, EpisodeProvenance, MetadataProvider};
+
 pub mod anime_service;
 pub use anime_service::{AnimeError, AnimeService};
 

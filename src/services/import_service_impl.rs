@@ -231,9 +231,11 @@ impl DefaultImportService {
         fetched_anime.monitored = true;
         fetched_anime.added_at = chrono::Utc::now().to_rfc3339();
 
-        self.metadata_service
+        let (_, provenance_json) = self
+            .metadata_service
             .enrich_anime_metadata(&mut fetched_anime)
             .await;
+        fetched_anime.metadata_provenance = provenance_json;
 
         if let Some(url) = &fetched_anime.cover_image
             && let Ok(path) = self
