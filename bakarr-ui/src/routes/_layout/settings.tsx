@@ -2125,7 +2125,7 @@ const ChangePasswordSchema = v.object({
 type ChangePasswordFormData = v.InferOutput<typeof ChangePasswordSchema>;
 
 function SecuritySettingsForm() {
-	const { auth } = useAuth();
+	const { auth, loginSuccess } = useAuth();
 	const apiKeyQuery = createAuthApiKeyQuery();
 	const changePassword = createChangePasswordMutation();
 	const regenerateApiKey = createRegenerateApiKeyMutation();
