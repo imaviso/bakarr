@@ -7,7 +7,8 @@ use axum::{
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
-use tower_sessions::{Expiry, MemoryStore, SessionManagerLayer};
+use tower_sessions::{Expiry, SessionManagerLayer};
+use tower_sessions_sqlx_store::{SqliteStore, sqlx::SqlitePool};
 
 use crate::clients::offline_db::OfflineDatabase;
 use crate::config::Config;
@@ -181,17 +182,26 @@ pub async fn create_app_state_from_config(
 }
 
 pub async fn router(state: Arc<AppState>) -> Router {
-    let (images_path, cors_origins) = {
+    let (images_path, cors_origins, db_url) = {
         let config = state.config().read().await;
         (
             config.general.images_path.clone(),
             config.server.cors_allowed_origins.clone(),
+            config.general.database_path.clone(),
         )
     };
 
     let protected_routes = create_protected_router(state.clone());
 
-    let session_store = MemoryStore::default();
+    let pool = SqlitePool::connect(&db_url)
+        .await
+        .expect("Failed to connect to database for sessions");
+    let session_store = SqliteStore::new(pool);
+    session_store
+        .migrate()
+        .await
+        .expect("Failed to migrate session store");
+
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_same_site(tower_sessions::cookie::SameSite::Lax)
