@@ -16,6 +16,7 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"moduleResolution": "bundler",
+		"types": ["vite/client"],
 		"paths": {
 			"~/*": [
 				"./src/*"
