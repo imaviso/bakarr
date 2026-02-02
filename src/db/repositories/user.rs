@@ -1,11 +1,12 @@
 use anyhow::{Context, Result};
 use argon2::{
-    Argon2,
+    Algorithm, Argon2, Params, Version,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
 use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
 use tokio::task;
 
+use crate::config::SecurityConfig;
 use crate::entities::users;
 
 /// User data returned from repository (without sensitive password hash)
@@ -49,6 +50,23 @@ impl UserRepository {
             .context("Failed to query user by username")?;
 
         Ok(user.map(User::from))
+    }
+
+    /// Get user by username with password hash (for password migration)
+    pub async fn get_by_username_with_password(
+        &self,
+        username: &str,
+    ) -> Result<Option<(User, String)>> {
+        let user = users::Entity::find()
+            .filter(users::Column::Username.eq(username))
+            .one(&self.conn)
+            .await
+            .context("Failed to query user by username")?;
+
+        Ok(user.map(|u| {
+            let password_hash = u.password_hash.clone();
+            (User::from(u), password_hash)
+        }))
     }
 
     /// Get user by ID
@@ -106,7 +124,38 @@ impl UserRepository {
             .ok_or_else(|| anyhow::anyhow!("User not found: {username}"))?;
 
         let password = new_password.to_string();
-        let new_hash = task::spawn_blocking(move || hash_password(&password))
+        // Use default params for manual password updates (config will be passed in auth service)
+        let new_hash = task::spawn_blocking(move || hash_password(&password, None))
+            .await
+            .context("Password hashing task panicked")??;
+
+        let now = chrono::Utc::now().to_rfc3339();
+
+        let mut active: users::ActiveModel = user.into();
+        active.password_hash = Set(new_hash);
+        active.updated_at = Set(now);
+        active.update(&self.conn).await?;
+
+        Ok(())
+    }
+
+    /// Update password for a user with specific security config (used for auto-migration)
+    pub async fn update_password_with_config(
+        &self,
+        username: &str,
+        new_password: &str,
+        config: &SecurityConfig,
+    ) -> Result<()> {
+        let user = users::Entity::find()
+            .filter(users::Column::Username.eq(username))
+            .one(&self.conn)
+            .await
+            .context("Failed to query user for password update")?
+            .ok_or_else(|| anyhow::anyhow!("User not found: {username}"))?;
+
+        let password = new_password.to_string();
+        let config = config.clone();
+        let new_hash = task::spawn_blocking(move || hash_password(&password, Some(&config)))
             .await
             .context("Password hashing task panicked")??;
 
@@ -163,10 +212,23 @@ impl UserRepository {
     }
 }
 
-/// Hash a password using Argon2id
-pub fn hash_password(password: &str) -> Result<String> {
+/// Hash a password using Argon2id with optional custom params.
+/// If config is None, uses default (high memory) params for backwards compatibility.
+pub fn hash_password(password: &str, config: Option<&SecurityConfig>) -> Result<String> {
     let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
+
+    let argon2 = if let Some(cfg) = config {
+        let params = Params::new(
+            cfg.argon2_memory_cost_kib,
+            cfg.argon2_time_cost,
+            cfg.argon2_parallelism,
+            None, // output length (use default)
+        )
+        .map_err(|e| anyhow::anyhow!("Invalid Argon2 params: {e}"))?;
+        Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
+    } else {
+        Argon2::default()
+    };
 
     let hash = argon2
         .hash_password(password.as_bytes(), &salt)

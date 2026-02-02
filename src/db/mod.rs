@@ -694,7 +694,8 @@ impl Store {
 
     // ========== User Repository Methods ==========
 
-    fn user_repo(&self) -> repositories::user::UserRepository {
+    #[must_use]
+    pub fn user_repo(&self) -> repositories::user::UserRepository {
         repositories::user::UserRepository::new(self.conn.clone())
     }
 
@@ -705,6 +706,15 @@ impl Store {
         self.user_repo().get_by_username(username).await
     }
 
+    pub async fn get_user_by_username_with_password(
+        &self,
+        username: &str,
+    ) -> Result<Option<(repositories::user::User, String)>> {
+        self.user_repo()
+            .get_by_username_with_password(username)
+            .await
+    }
+
     pub async fn verify_user_password(&self, username: &str, password: &str) -> Result<bool> {
         self.user_repo().verify_password(username, password).await
     }
@@ -712,6 +722,17 @@ impl Store {
     pub async fn update_user_password(&self, username: &str, new_password: &str) -> Result<()> {
         self.user_repo()
             .update_password(username, new_password)
+            .await
+    }
+
+    pub async fn update_user_password_with_config(
+        &self,
+        username: &str,
+        new_password: &str,
+        config: &crate::config::SecurityConfig,
+    ) -> Result<()> {
+        self.user_repo()
+            .update_password_with_config(username, new_password, config)
             .await
     }
 

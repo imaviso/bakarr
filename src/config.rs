@@ -31,6 +31,39 @@ pub struct Config {
 
     #[serde(default)]
     pub observability: ObservabilityConfig,
+
+    #[serde(default)]
+    pub security: SecurityConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SecurityConfig {
+    /// Argon2 memory cost in KiB (default: 8192 = 8MB)
+    /// Lower values reduce memory usage but decrease GPU resistance.
+    /// Default balances memory spikes (~19MB -> ~8MB) with reasonable security.
+    pub argon2_memory_cost_kib: u32,
+
+    /// Argon2 time cost (iterations) - higher = more CPU work
+    /// Default increased to 3 to compensate for lower memory cost.
+    pub argon2_time_cost: u32,
+
+    /// Argon2 parallelism (default: 1)
+    pub argon2_parallelism: u32,
+
+    /// Whether to auto-migrate passwords to new argon2 params on login
+    pub auto_migrate_password_hashes: bool,
+}
+
+impl Default for SecurityConfig {
+    fn default() -> Self {
+        Self {
+            argon2_memory_cost_kib: 8192, // 8MB instead of 19MB
+            argon2_time_cost: 3,          // Compensate with more iterations
+            argon2_parallelism: 1,
+            auto_migrate_password_hashes: true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +202,7 @@ impl Default for Config {
             auth: None, // Deprecated: auth is now in database
             server: ServerConfig::default(),
             observability: ObservabilityConfig::default(),
+            security: SecurityConfig::default(),
         }
     }
 }

@@ -275,7 +275,7 @@ impl SharedState {
         )) as Arc<dyn RenameService + Send + Sync + 'static>;
 
         // Create the AuthService
-        let auth_service = Arc::new(SeaOrmAuthService::new(store.clone()))
+        let auth_service = Arc::new(SeaOrmAuthService::new(store.clone(), config_arc.clone()))
             as Arc<dyn AuthService + Send + Sync + 'static>;
 
         // Create the ProfileService

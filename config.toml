@@ -83,3 +83,9 @@ loki_url = "http://localhost:3100"
 
 [observability.loki_labels]
 app = "bakarr"
+
+[security]
+argon2_memory_cost_kib = 8192
+argon2_time_cost = 3
+argon2_parallelism = 1
+auto_migrate_password_hashes = true
