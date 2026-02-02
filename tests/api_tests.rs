@@ -64,6 +64,20 @@ async fn test_auth_endpoints() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+
+    // Test query parameter authentication (for SSE)
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/system/status?api_key={}", DEFAULT_API_KEY))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[tokio::test]
