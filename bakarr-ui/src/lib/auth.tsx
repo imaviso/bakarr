@@ -21,7 +21,6 @@ function getStoredAuth(): AuthState {
 			const parsed = JSON.parse(stored);
 			return {
 				username: parsed.username,
-				apiKey: parsed.apiKey,
 				isAuthenticated: Boolean(parsed.isAuthenticated),
 			};
 		}
@@ -36,7 +35,11 @@ const [auth, setAuth] = createSignal<AuthState>(getStoredAuth());
 
 function saveAuth(state: AuthState) {
 	if (state.isAuthenticated) {
-		localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state));
+		const toStore = {
+			username: state.username,
+			isAuthenticated: state.isAuthenticated,
+		};
+		localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(toStore));
 	} else {
 		localStorage.removeItem(AUTH_STORAGE_KEY);
 	}

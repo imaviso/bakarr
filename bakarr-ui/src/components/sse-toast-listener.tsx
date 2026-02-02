@@ -2,21 +2,6 @@ import { useQueryClient } from "@tanstack/solid-query";
 import { onCleanup, onMount } from "solid-js";
 import { toast } from "solid-sonner";
 
-const AUTH_STORAGE_KEY = "bakarr_auth";
-
-function getApiKeyFromStorage(): string | null {
-	try {
-		const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-		if (stored) {
-			const parsed = JSON.parse(stored);
-			return parsed.apiKey || null;
-		}
-	} catch {
-		// Ignore parse errors
-	}
-	return null;
-}
-
 interface EventPayload {
 	type: string;
 	// biome-ignore lint/suspicious/noExplicitAny: Payload varies by event type
@@ -33,11 +18,7 @@ export function SseToastListener() {
 			eventSource.close();
 		}
 
-		const apiKey = getApiKeyFromStorage();
-		const url = apiKey
-			? `/api/events?api_key=${encodeURIComponent(apiKey)}`
-			: "/api/events";
-		eventSource = new EventSource(url);
+		eventSource = new EventSource("/api/events");
 
 		eventSource.onopen = () => {
 			console.log("SSE Connected");

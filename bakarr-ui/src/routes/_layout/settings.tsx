@@ -2174,16 +2174,10 @@ function SecuritySettingsForm() {
 	const handleRegenerateApiKey = async () => {
 		try {
 			const result = await regenerateApiKey.mutateAsync();
-			// Update the stored API key in auth state
+			// Update the auth state in memory
 			const currentAuth = auth();
 			if (currentAuth.isAuthenticated && result.api_key) {
-				localStorage.setItem(
-					"bakarr_auth",
-					JSON.stringify({
-						...currentAuth,
-						apiKey: result.api_key,
-					}),
-				);
+				loginSuccess(currentAuth.username || "", result.api_key);
 			}
 			toast.success("API key regenerated successfully");
 		} catch (err) {
