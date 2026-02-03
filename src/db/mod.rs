@@ -474,6 +474,12 @@ impl Store {
             .await
     }
 
+    pub async fn get_missing_episode_numbers_for_anime(&self, anime_id: i32) -> Result<Vec<i32>> {
+        self.episode_repo()
+            .get_missing_episode_numbers_for_anime(anime_id)
+            .await
+    }
+
     pub async fn get_all_missing_episodes(&self, limit: u64) -> Result<Vec<MissingEpisodeRow>> {
         self.episode_repo().get_all_missing_episodes(limit).await
     }

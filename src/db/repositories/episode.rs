@@ -638,6 +638,55 @@ impl EpisodeRepository {
 
         Ok(events)
     }
+    pub async fn get_missing_episode_numbers_for_anime(&self, anime_id: i32) -> Result<Vec<i32>> {
+        let now = chrono::Utc::now().format("%Y-%m-%d").to_string();
+
+        let results: Vec<i32> = EpisodeMetadata::find()
+            .select_only()
+            .column(episode_metadata::Column::EpisodeNumber)
+            .join(
+                JoinType::LeftJoin,
+                episode_metadata::Entity::belongs_to(episode_status::Entity)
+                    .from(episode_metadata::Column::AnimeId)
+                    .to(episode_status::Column::AnimeId)
+                    .on_condition(|_left, _right| {
+                        sea_orm::Condition::all().add(
+                            sea_orm::sea_query::Expr::col((
+                                episode_metadata::Entity,
+                                episode_metadata::Column::EpisodeNumber,
+                            ))
+                            .equals((
+                                episode_status::Entity,
+                                episode_status::Column::EpisodeNumber,
+                            )),
+                        )
+                    })
+                    .into(),
+            )
+            .filter(episode_metadata::Column::AnimeId.eq(anime_id))
+            .filter(episode_metadata::Column::Aired.lt(now))
+            .filter(episode_metadata::Column::EpisodeNumber.gt(0))
+            .filter(
+                sea_orm::Condition::all()
+                    .add(
+                        sea_orm::Condition::any()
+                            .add(episode_status::Column::FilePath.is_null())
+                            .add(episode_status::Column::AnimeId.is_null()),
+                    )
+                    .add(
+                        sea_orm::Condition::any()
+                            .add(episode_status::Column::Monitored.eq(true))
+                            .add(episode_status::Column::Monitored.is_null()),
+                    ),
+            )
+            .order_by_asc(episode_metadata::Column::EpisodeNumber)
+            .into_tuple()
+            .all(&self.conn)
+            .await?;
+
+        Ok(results)
+    }
+
     pub async fn get_all_missing_episodes(&self, limit: u64) -> Result<Vec<MissingEpisodeRow>> {
         let now = chrono::Utc::now().format("%Y-%m-%d").to_string();
 
@@ -675,10 +724,19 @@ impl EpisodeRepository {
             )
             .filter(monitored_anime::Column::Monitored.eq(true))
             .filter(episode_metadata::Column::Aired.lt(now))
+            .filter(episode_metadata::Column::EpisodeNumber.gt(0))
             .filter(
-                sea_orm::Condition::any()
-                    .add(episode_status::Column::FilePath.is_null())
-                    .add(episode_status::Column::AnimeId.is_null()),
+                sea_orm::Condition::all()
+                    .add(
+                        sea_orm::Condition::any()
+                            .add(episode_status::Column::FilePath.is_null())
+                            .add(episode_status::Column::AnimeId.is_null()),
+                    )
+                    .add(
+                        sea_orm::Condition::any()
+                            .add(episode_status::Column::Monitored.eq(true))
+                            .add(episode_status::Column::Monitored.is_null()),
+                    ),
             )
             .order_by_desc(episode_metadata::Column::Aired)
             .limit(limit)

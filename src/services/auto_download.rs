@@ -244,17 +244,10 @@ impl AutoDownloadService {
     }
 
     /// Get list of missing episode numbers for an anime
-    /// A episode is missing if: monitored AND `file_path` is None
     async fn get_missing_episode_numbers(&self, anime_id: i32) -> Result<Vec<i32>> {
-        let statuses = self.store.get_episode_statuses(anime_id).await?;
-
-        let missing: Vec<i32> = statuses
-            .into_iter()
-            .filter(|status| status.monitored && status.file_path.is_none())
-            .map(|status| status.episode_number)
-            .collect();
-
-        Ok(missing)
+        self.store
+            .get_missing_episode_numbers_for_anime(anime_id)
+            .await
     }
 
     /// Process a search result and queue download if accepted
