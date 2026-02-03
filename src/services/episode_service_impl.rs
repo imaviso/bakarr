@@ -601,18 +601,16 @@ impl EpisodeService for SeaOrmEpisodeService {
         let id = anime_id.value();
 
         // Verify anime exists
-        let anime = self
+        let _anime = self
             .store
             .get_anime(id)
             .await
             .map_err(EpisodeError::from)?
             .ok_or(EpisodeError::AnimeNotFound(anime_id))?;
 
-        let episode_count = anime.episode_count.unwrap_or(1);
-
         let missing = self
             .store
-            .get_missing_episodes(id, episode_count)
+            .get_missing_episode_numbers_for_anime(id)
             .await
             .map_err(EpisodeError::from)?;
 

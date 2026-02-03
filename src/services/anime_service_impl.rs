@@ -75,13 +75,7 @@ impl SeaOrmAnimeService {
         // Parallelize independent queries (Performance Fix for N+1)
         let (downloaded_result, missing_result, profiles_result) = tokio::join!(
             self.store.get_downloaded_count(anime_id),
-            async {
-                if let Some(total) = anime.episode_count {
-                    self.store.get_missing_episodes(anime_id, total).await
-                } else {
-                    Ok(Vec::new())
-                }
-            },
+            self.store.get_missing_episode_numbers_for_anime(anime_id),
             self.store.get_assigned_release_profile_ids(anime_id)
         );
 
@@ -123,36 +117,21 @@ impl AnimeService for SeaOrmAnimeService {
         // Batch fetch download counts and episodes for all anime
         let anime_ids: Vec<i32> = anime_list.iter().map(|a| a.id).collect();
 
-        let (download_counts, downloaded_episodes, release_profiles) = tokio::join!(
+        let (download_counts, missing_episodes, release_profiles) = tokio::join!(
             self.store.get_download_counts_for_anime_ids(&anime_ids),
-            self.store.get_downloaded_episodes_for_anime_ids(&anime_ids),
+            self.store.get_all_missing_episode_numbers_by_anime_id(&anime_ids),
             self.store
                 .get_assigned_release_profiles_for_anime_ids(&anime_ids)
         );
 
         let download_counts = download_counts.map_err(|e| AnimeError::Database(e.to_string()))?;
-        let mut downloaded_episodes =
-            downloaded_episodes.map_err(|e| AnimeError::Database(e.to_string()))?;
+        let missing_episodes = missing_episodes.map_err(|e| AnimeError::Database(e.to_string()))?;
         let release_profiles = release_profiles.map_err(|e| AnimeError::Database(e.to_string()))?;
-
-        // Pre-sort downloaded episodes for O(N) missing calculation
-        for episodes in downloaded_episodes.values_mut() {
-            episodes.sort_unstable();
-        }
 
         let mut results = Vec::with_capacity(anime_list.len());
         for anime in anime_list {
             let downloaded = *download_counts.get(&anime.id).unwrap_or(&0);
-
-            let missing = if let Some(total) = anime.episode_count {
-                let eps = downloaded_episodes
-                    .get(&anime.id)
-                    .map_or(&[] as &[i32], Vec::as_slice);
-                crate::services::anime_service::calculate_missing_episodes(total, eps)
-            } else {
-                Vec::new()
-            };
-
+            let missing = missing_episodes.get(&anime.id).cloned().unwrap_or_default();
             let release_profile_ids = release_profiles.get(&anime.id).cloned().unwrap_or_default();
 
             results.push(anime_to_dto(

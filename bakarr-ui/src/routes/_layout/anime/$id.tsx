@@ -180,9 +180,17 @@ function AnimeDetailsPage() {
 	});
 	const [bulkMappingOpen, setBulkMappingOpen] = createSignal(false);
 
+	const isAired = (airedDate?: string) => {
+		if (!airedDate) return false;
+		const aired = new Date(airedDate);
+		const now = new Date();
+		return aired <= now;
+	};
+
 	const episodesData = createMemo(() => episodesQuery.data ?? []);
 	const missingCount = createMemo(
-		() => episodesData().filter((e) => !e.downloaded).length,
+		() =>
+			episodesData().filter((e) => !e.downloaded && isAired(e.aired)).length,
 	);
 	const availableCount = createMemo(
 		() => episodesData().filter((e) => e.downloaded).length,
@@ -645,9 +653,17 @@ function AnimeDetailsPage() {
 																			"aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-all",
 																			episode.downloaded
 																				? "bg-green-500/20 text-green-500 border border-green-500/30"
-																				: "bg-muted/50 text-muted-foreground border border-transparent",
+																				: isAired(episode.aired)
+																					? "bg-orange-500/10 text-orange-500/70 border border-orange-500/20"
+																					: "bg-muted/30 text-muted-foreground/40 border border-transparent",
 																		)}
-																		title={`Episode ${episode.number}: ${episode.downloaded ? "Downloaded" : "Missing"}`}
+																		title={`Episode ${episode.number}: ${
+																			episode.downloaded
+																				? "Downloaded"
+																				: isAired(episode.aired)
+																					? "Missing"
+																					: "Upcoming"
+																		}${episode.aired ? ` (Aired: ${episode.aired})` : ""}`}
 																	>
 																		{episode.number}
 																	</div>
@@ -721,10 +737,19 @@ function AnimeDetailsPage() {
 																						fallback={
 																							<Tooltip>
 																								<TooltipTrigger>
-																									<IconX class="h-4 w-4 text-muted-foreground/30" />
+																									<IconX
+																										class={cn(
+																											"h-4 w-4",
+																											isAired(episode.aired)
+																												? "text-orange-500/70"
+																												: "text-muted-foreground/30",
+																										)}
+																									/>
 																								</TooltipTrigger>
 																								<TooltipContent>
-																									Missing
+																									{isAired(episode.aired)
+																										? "Missing"
+																										: "Upcoming"}
 																								</TooltipContent>
 																							</Tooltip>
 																						}

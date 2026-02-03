@@ -121,15 +121,10 @@ impl LibraryService for SeaOrmLibraryService {
             .store
             .get_download_counts_for_anime_ids(&anime_ids)
             .await?;
-        let main_counts = self
-            .store
-            .get_main_episode_download_counts(&anime_ids)
-            .await?;
 
         // Calculate aggregates
         let mut total_episodes = 0i32;
         let mut downloaded_episodes = 0i32;
-        let mut missing_episodes = 0i32;
 
         for anime in &anime_list {
             let ep_count = anime.episode_count.unwrap_or(0);
@@ -137,13 +132,13 @@ impl LibraryService for SeaOrmLibraryService {
 
             let downloaded = download_counts.get(&anime.id).copied().unwrap_or(0);
             downloaded_episodes = downloaded_episodes.saturating_add(downloaded);
-
-            if ep_count > 0 {
-                let main_downloaded = main_counts.get(&anime.id).copied().unwrap_or(0);
-                let missing = (ep_count - main_downloaded).max(0);
-                missing_episodes = missing_episodes.saturating_add(missing);
-            }
         }
+
+        let missing_episodes = self
+            .store
+            .get_total_missing_episodes_count()
+            .await
+            .unwrap_or(0) as i32;
 
         // Fetch RSS and recent download counts
         let feeds = self.store.get_enabled_rss_feeds().await.unwrap_or_default();

@@ -480,6 +480,19 @@ impl Store {
             .await
     }
 
+    pub async fn get_all_missing_episode_numbers_by_anime_id(
+        &self,
+        anime_ids: &[i32],
+    ) -> Result<std::collections::HashMap<i32, Vec<i32>>> {
+        self.episode_repo()
+            .get_all_missing_episode_numbers_by_anime_id(anime_ids)
+            .await
+    }
+
+    pub async fn get_total_missing_episodes_count(&self) -> Result<i64> {
+        self.episode_repo().get_total_missing_episodes_count().await
+    }
+
     pub async fn get_all_missing_episodes(&self, limit: u64) -> Result<Vec<MissingEpisodeRow>> {
         self.episode_repo().get_all_missing_episodes(limit).await
     }
