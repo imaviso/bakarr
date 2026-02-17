@@ -16,7 +16,6 @@ use tracing::warn;
 
 use crate::api::AppState;
 
-// Re-export event types from domain layer
 pub use crate::domain::events::{DownloadStatus, NotificationEvent};
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -30,10 +29,18 @@ async fn sse_handler(
 
     let stream = stream::unfold(rx, |mut rx| async move {
         match rx.recv().await {
-            Ok(event) => {
-                let json = serde_json::to_string(&event).unwrap_or_default();
-                Some((Ok(Event::default().data(json)), rx))
-            }
+            Ok(event) => match serde_json::to_string(&event) {
+                Ok(json) => Some((Ok(Event::default().data(json)), rx)),
+                Err(e) => {
+                    warn!(error = %e, "Failed to serialize SSE event, skipping");
+                    Some((
+                        Ok(Event::default()
+                            .event("error")
+                            .data("Event serialization failed")),
+                        rx,
+                    ))
+                }
+            },
             Err(broadcast::error::RecvError::Lagged(count)) => {
                 warn!("Client lagged by {} messages", count);
 

@@ -119,7 +119,8 @@ impl AnimeService for SeaOrmAnimeService {
 
         let (download_counts, missing_episodes, release_profiles) = tokio::join!(
             self.store.get_download_counts_for_anime_ids(&anime_ids),
-            self.store.get_all_missing_episode_numbers_by_anime_id(&anime_ids),
+            self.store
+                .get_all_missing_episode_numbers_by_anime_id(&anime_ids),
             self.store
                 .get_assigned_release_profiles_for_anime_ids(&anime_ids)
         );

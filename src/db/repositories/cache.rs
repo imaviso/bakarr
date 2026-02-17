@@ -41,21 +41,8 @@ impl CacheRepository {
     pub async fn cache_search_results(&self, query: &str, results: &[SearchResult]) -> Result<()> {
         let results_json = serde_json::to_string(results)?;
         let now = chrono::Utc::now();
-        // Cache for 5 minutes - frequent enough to catch new releases without hammering Nyaa
         let expires_at = (now + chrono::Duration::minutes(5)).to_rfc3339();
         let created_at = now.to_rfc3339();
-
-        // Note: SQLite/SeaORM doesn't support "ON CONFLICT UPDATE" cleanly without unique constraints on non-primary keys easily in some versions,
-        // but we assume `query` is not unique yet in the entity definition?
-        // Wait, I didn't add a unique constraint to `query` in the migration, just an index.
-        // Let's add a check first or just insert.
-        // Actually, if we want to update the cache for the same query, we should probably check if it exists.
-        // Or better, let's delete the old one first.
-
-        let _ = SearchCache::delete_many()
-            .filter(search_cache::Column::Query.eq(query))
-            .exec(&self.conn)
-            .await;
 
         let active_model = search_cache::ActiveModel {
             query: Set(query.to_string()),
@@ -65,10 +52,16 @@ impl CacheRepository {
             ..Default::default()
         };
 
-        // We need to construct ActiveModel correctly. ID is NotSet by default.
-        // Let's fix the ActiveModel construction below.
-
         search_cache::Entity::insert(active_model)
+            .on_conflict(
+                sea_orm::sea_query::OnConflict::column(search_cache::Column::Query)
+                    .update_columns([
+                        search_cache::Column::ResultsJson,
+                        search_cache::Column::CreatedAt,
+                        search_cache::Column::ExpiresAt,
+                    ])
+                    .to_owned(),
+            )
             .exec(&self.conn)
             .await?;
 

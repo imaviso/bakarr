@@ -103,6 +103,15 @@ pub struct ServerConfig {
     pub port: u16,
 
     pub cors_allowed_origins: Vec<String>,
+
+    /// Whether to set the Secure flag on session cookies.
+    /// Default: true for production safety. Set to false for local development without HTTPS.
+    pub secure_cookies: bool,
+
+    /// Whether to allow API key authentication via query parameter (?`api_key`=).
+    /// Default: false for security. Enable only if needed for SSE or legacy clients.
+    /// WARNING: API keys in URLs can leak via browser history, logs, and referrers.
+    pub allow_api_key_in_query: bool,
 }
 
 impl Default for ServerConfig {
@@ -111,6 +120,8 @@ impl Default for ServerConfig {
             enabled: true,
             port: 6789,
             cors_allowed_origins: vec!["*".to_string()],
+            secure_cookies: true,
+            allow_api_key_in_query: false,
         }
     }
 }

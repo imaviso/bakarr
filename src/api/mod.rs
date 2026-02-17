@@ -182,12 +182,13 @@ pub async fn create_app_state_from_config(
 }
 
 pub async fn router(state: Arc<AppState>) -> Router {
-    let (images_path, cors_origins, db_url) = {
+    let (images_path, cors_origins, db_url, secure_cookies) = {
         let config = state.config().read().await;
         (
             config.general.images_path.clone(),
             config.server.cors_allowed_origins.clone(),
             config.general.database_path.clone(),
+            config.server.secure_cookies,
         )
     };
 
@@ -203,7 +204,7 @@ pub async fn router(state: Arc<AppState>) -> Router {
         .expect("Failed to migrate session store");
 
     let session_layer = SessionManagerLayer::new(session_store)
-        .with_secure(false)
+        .with_secure(secure_cookies)
         .with_same_site(tower_sessions::cookie::SameSite::Lax)
         .with_expiry(Expiry::OnInactivity(time::Duration::minutes(60)));
 

@@ -72,8 +72,9 @@ impl DownloadRepository {
     }
 
     pub async fn get_by_hash(&self, hash: &str) -> Result<Option<DownloadEntry>> {
+        let normalized_hash = hash.to_lowercase();
         let result = ReleaseHistory::find()
-            .filter(release_history::Column::InfoHash.eq(hash))
+            .filter(release_history::Column::InfoHash.eq(normalized_hash))
             .one(&self.conn)
             .await?;
 
@@ -135,8 +136,9 @@ impl DownloadRepository {
     }
 
     pub async fn add_to_blocklist(&self, info_hash: &str, reason: &str) -> Result<()> {
+        let normalized_hash = info_hash.to_lowercase();
         let active_model = blocklist::ActiveModel {
-            info_hash: Set(info_hash.to_string()),
+            info_hash: Set(normalized_hash),
             reason: Set(reason.to_string()),
             created_at: Set(Some(chrono::Utc::now().to_rfc3339())),
             ..Default::default()
@@ -155,8 +157,9 @@ impl DownloadRepository {
     }
 
     pub async fn is_blocked(&self, info_hash: &str) -> Result<bool> {
+        let normalized_hash = info_hash.to_lowercase();
         let count = Blocklist::find()
-            .filter(blocklist::Column::InfoHash.eq(info_hash))
+            .filter(blocklist::Column::InfoHash.eq(normalized_hash))
             .count(&self.conn)
             .await?;
 

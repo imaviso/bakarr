@@ -161,6 +161,7 @@ impl DefaultRssService {
         }
 
         let episode_number = release.episode_number;
+        let episode_number_truncated = release.episode_number_truncated();
         let group = release.group;
 
         info!(
@@ -172,7 +173,23 @@ impl DefaultRssService {
         );
 
         if let Some(qbit) = &self.qbit {
-            // Check download decision logic before queueing
+            let current_status = self
+                .store
+                .get_episode_status(anime.id, episode_number_truncated)
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to get episode status: {e}"))?;
+
+            if current_status.is_some()
+                && current_status
+                    .as_ref()
+                    .is_some_and(|s| s.downloaded_at.is_some())
+            {
+                debug!(
+                    "Episode {} already downloaded, checking if upgrade is possible",
+                    episode_number_truncated
+                );
+            }
+
             let profile = self
                 .download_decisions
                 .get_quality_profile_for_anime(anime.id)
@@ -188,7 +205,7 @@ impl DefaultRssService {
             let action = crate::services::download::DownloadDecisionService::decide_download(
                 &profile,
                 &rules,
-                None, // Assuming new download
+                current_status.as_ref(),
                 &torrent.title,
                 false,
                 Some(crate::parser::size::parse_size(&torrent.size).unwrap_or(0)),

@@ -11,6 +11,7 @@ mod m20260128_add_search_cache;
 mod m20260128_link_anime_release_profiles;
 mod m20260129_add_profile_size_limits;
 mod m20260201_add_provenance;
+mod m20260217_search_cache_unique_query;
 
 pub struct Migrator;
 
@@ -29,6 +30,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20260128_add_search_cache::Migration),
             Box::new(m20260129_add_profile_size_limits::Migration),
             Box::new(m20260201_add_provenance::Migration),
+            Box::new(m20260217_search_cache_unique_query::Migration),
         ]
     }
 }

@@ -28,6 +28,10 @@ impl RssRepository {
         }
     }
 
+    fn validate_id(id: i64) -> Result<i32> {
+        i32::try_from(id).map_err(|_| anyhow::anyhow!("RSS feed ID {id} is out of valid range"))
+    }
+
     pub async fn add(&self, anime_id: i32, url: &str, name: Option<&str>) -> Result<i64> {
         let active_model = rss_feeds::ActiveModel {
             anime_id: Set(anime_id),
@@ -43,9 +47,8 @@ impl RssRepository {
     }
 
     pub async fn get(&self, id: i64) -> Result<Option<RssFeed>> {
-        let result = RssFeeds::find_by_id(i32::try_from(id).unwrap_or(i32::MAX))
-            .one(&self.conn)
-            .await?;
+        let id_i32 = Self::validate_id(id)?;
+        let result = RssFeeds::find_by_id(id_i32).one(&self.conn).await?;
         Ok(result.map(Self::map_feed_model))
     }
 
@@ -79,12 +82,13 @@ impl RssRepository {
     }
 
     pub async fn update_checked(&self, feed_id: i64, last_item_hash: Option<&str>) -> Result<()> {
+        let id_i32 = Self::validate_id(feed_id)?;
         let mut update = RssFeeds::update_many()
             .col_expr(
                 rss_feeds::Column::LastChecked,
                 sea_orm::sea_query::Expr::current_timestamp().into(),
             )
-            .filter(rss_feeds::Column::Id.eq(i32::try_from(feed_id).unwrap_or(i32::MAX)));
+            .filter(rss_feeds::Column::Id.eq(id_i32));
 
         if let Some(hash) = last_item_hash {
             update = update.col_expr(
@@ -98,12 +102,13 @@ impl RssRepository {
     }
 
     pub async fn toggle(&self, feed_id: i64, enabled: bool) -> Result<bool> {
+        let id_i32 = Self::validate_id(feed_id)?;
         let result = RssFeeds::update_many()
             .col_expr(
                 rss_feeds::Column::Enabled,
                 sea_orm::sea_query::Expr::value(enabled),
             )
-            .filter(rss_feeds::Column::Id.eq(i32::try_from(feed_id).unwrap_or(i32::MAX)))
+            .filter(rss_feeds::Column::Id.eq(id_i32))
             .exec(&self.conn)
             .await?;
 
@@ -111,9 +116,8 @@ impl RssRepository {
     }
 
     pub async fn remove(&self, feed_id: i64) -> Result<bool> {
-        let result = RssFeeds::delete_by_id(i32::try_from(feed_id).unwrap_or(i32::MAX))
-            .exec(&self.conn)
-            .await?;
+        let id_i32 = Self::validate_id(feed_id)?;
+        let result = RssFeeds::delete_by_id(id_i32).exec(&self.conn).await?;
         Ok(result.rows_affected > 0)
     }
 

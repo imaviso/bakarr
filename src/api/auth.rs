@@ -54,7 +54,7 @@ pub struct MessageResponse {
 /// 1. Session cookie (from login)
 /// 2. `X-Api-Key` header
 /// 3. `Authorization: Bearer <api_key>` header
-/// 4. `?api_key=` query parameter
+/// 4. `?api_key=` query parameter (only if enabled in config)
 pub async fn auth_middleware(
     State(state): State<Arc<AppState>>,
     Query(query): Query<AuthQuery>,
@@ -70,7 +70,8 @@ pub async fn auth_middleware(
     }
 
     // Extract API key from various sources
-    let api_key = extract_api_key(&query, &headers);
+    let allow_query_auth = state.config().read().await.server.allow_api_key_in_query;
+    let api_key = extract_api_key(&query, &headers, allow_query_auth);
 
     if let Some(key) = api_key {
         // Verify API key against service
@@ -85,9 +86,13 @@ pub async fn auth_middleware(
 }
 
 /// Extract API key from query params or headers
-fn extract_api_key(query: &AuthQuery, headers: &HeaderMap) -> Option<String> {
-    // Check query parameter first (for SSE which can't set headers)
-    if let Some(ref api_key) = query.api_key {
+fn extract_api_key(
+    query: &AuthQuery,
+    headers: &HeaderMap,
+    allow_query_auth: bool,
+) -> Option<String> {
+    // Check query parameter (only if explicitly allowed)
+    if allow_query_auth && let Some(ref api_key) = query.api_key {
         return Some(api_key.clone());
     }
 

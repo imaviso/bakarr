@@ -652,6 +652,7 @@ impl Monitor {
     }
 
     /// Common finalization logic for a single file import.
+    /// Returns an error if the episode status update fails.
     async fn finalize_single_import(
         &self,
         anime: &crate::models::anime::Anime,
@@ -660,7 +661,7 @@ impl Monitor {
         episode_number: i32,
         season: Option<i32>,
         media_info: Option<crate::models::media::MediaInfo>,
-    ) {
+    ) -> anyhow::Result<()> {
         let seadex_groups = self.state.get_seadex_groups_cached(anime.id).await;
         let store = self.state.store.clone();
         let is_seadex = self.state.is_from_seadex_group(filename, &seadex_groups);
@@ -671,7 +672,7 @@ impl Monitor {
             .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
             .ok();
 
-        if let Err(e) = store
+        store
             .mark_episode_downloaded(
                 anime.id,
                 episode_number,
@@ -683,9 +684,9 @@ impl Monitor {
                 media_info.as_ref(),
             )
             .await
-        {
-            warn!("Failed to update episode status: {}", e);
-        }
+            .map_err(|e| anyhow::anyhow!("Failed to update episode status: {e}"))?;
+
+        Ok(())
     }
 
     /// Executes the import for a single file using pre-built context.
@@ -736,7 +737,7 @@ impl Monitor {
             ctx.season,
             ctx.media_info,
         )
-        .await;
+        .await?;
 
         Ok(())
     }
@@ -860,7 +861,16 @@ impl Monitor {
 fn apply_path_mappings(path: &str, mappings: &[(String, String)]) -> String {
     let mut result = path.to_string();
     for (remote, local) in mappings {
-        if result.starts_with(remote) {
+        let remote_normalized = remote.replace('\\', "/");
+        let path_normalized = result.replace('\\', "/");
+
+        let is_match = path_normalized == remote_normalized
+            || (path_normalized.starts_with(&remote_normalized)
+                && path_normalized
+                    .get(remote_normalized.len()..)
+                    .is_some_and(|rest| rest.starts_with('/')));
+
+        if is_match {
             tracing::debug!(
                 "Applying path mapping: {} -> {} for {}",
                 remote,

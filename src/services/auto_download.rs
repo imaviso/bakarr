@@ -272,8 +272,7 @@ impl AutoDownloadService {
                 );
 
                 self.queue_download_from_result(anime, result, quality, *is_seadex)
-                    .await?;
-                Ok(true)
+                    .await
             }
             crate::services::download::DownloadAction::Upgrade {
                 quality,
@@ -294,17 +293,21 @@ impl AutoDownloadService {
                     "Upgrade decision made"
                 );
 
-                self.handle_upgrade_recycle(
-                    anime.id,
-                    episode_number,
-                    old_file_path.as_ref(),
-                    old_quality,
-                )
-                .await;
-
-                self.queue_download_from_result(anime, result, quality, *is_seadex)
+                let queued = self
+                    .queue_download_from_result(anime, result, quality, *is_seadex)
                     .await?;
-                Ok(true)
+
+                if queued {
+                    self.handle_upgrade_recycle(
+                        anime.id,
+                        episode_number,
+                        old_file_path.as_ref(),
+                        old_quality,
+                    )
+                    .await;
+                }
+
+                Ok(queued)
             }
             crate::services::download::DownloadAction::Reject { reason } => {
                 debug!(
@@ -320,16 +323,18 @@ impl AutoDownloadService {
         }
     }
 
+    /// Queue a download from a search result.
+    /// Returns Ok(true) if the torrent was queued successfully, Ok(false) otherwise.
     async fn queue_download_from_result(
         &self,
         anime: &Anime,
         result: &SearchResult,
         quality: &crate::quality::Quality,
         is_seadex: bool,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let Some(qbit) = &self.qbit else {
             info!("Would download (qBit not available): {}", result.title);
-            return Ok(());
+            return Ok(false);
         };
 
         let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
@@ -360,6 +365,8 @@ impl AutoDownloadService {
                         Some(&result.info_hash),
                     )
                     .await?;
+
+                Ok(true)
             }
             Err(e) => {
                 warn!(
@@ -368,10 +375,9 @@ impl AutoDownloadService {
                     title = %result.title,
                     "Failed to queue torrent"
                 );
+                Ok(false)
             }
         }
-
-        Ok(())
     }
 
     async fn handle_upgrade_recycle(
@@ -454,8 +460,34 @@ impl AutoDownloadService {
             return Ok(SeadexQueueResult::Skipped);
         }
 
-        if self.store.get_download_by_hash(&hash).await?.is_some() {
-            return Ok(SeadexQueueResult::AlreadyDownloaded);
+        if let Some(entry) = self.store.get_download_by_hash(&hash).await? {
+            if entry.imported {
+                return Ok(SeadexQueueResult::AlreadyDownloaded);
+            }
+
+            if let Some(qbit) = &self.qbit
+                && let Ok(Some(torrent)) = qbit.get_torrent(&hash).await
+            {
+                let is_complete_or_active = matches!(
+                    torrent.state,
+                    crate::clients::qbittorrent::TorrentState::Uploading
+                        | crate::clients::qbittorrent::TorrentState::StalledUP
+                        | crate::clients::qbittorrent::TorrentState::ForcedUP
+                        | crate::clients::qbittorrent::TorrentState::Downloading
+                        | crate::clients::qbittorrent::TorrentState::StalledDL
+                        | crate::clients::qbittorrent::TorrentState::ForcedDL
+                        | crate::clients::qbittorrent::TorrentState::QueuedDL
+                        | crate::clients::qbittorrent::TorrentState::CheckingDL
+                        | crate::clients::qbittorrent::TorrentState::CheckingUP
+                        | crate::clients::qbittorrent::TorrentState::Allocating
+                        | crate::clients::qbittorrent::TorrentState::MetaDL
+                        | crate::clients::qbittorrent::TorrentState::Moving
+                        | crate::clients::qbittorrent::TorrentState::CheckingResumeData
+                );
+                if is_complete_or_active {
+                    return Ok(SeadexQueueResult::AlreadyDownloaded);
+                }
+            }
         }
 
         let Some(qbit) = &self.qbit else {

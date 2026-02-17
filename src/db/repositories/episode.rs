@@ -4,7 +4,7 @@ use crate::models::media::MediaInfo;
 use anyhow::Result;
 use sea_orm::{
     ColumnTrait, DatabaseConnection, EntityTrait, FromQueryResult, JoinType, PaginatorTrait,
-    QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set,
+    QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set, TransactionTrait,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -441,54 +441,103 @@ impl EpisodeRepository {
         file_size: Option<i64>,
         media_info: Option<&MediaInfo>,
     ) -> Result<()> {
-        EpisodeStatus::update_many()
-            .col_expr(
-                episode_status::Column::FilePath,
-                sea_orm::sea_query::Expr::value(Option::<String>::None),
-            )
-            .col_expr(
-                episode_status::Column::FileSize,
-                sea_orm::sea_query::Expr::value(Option::<i64>::None),
-            )
-            .col_expr(
-                episode_status::Column::DownloadedAt,
-                sea_orm::sea_query::Expr::value(Option::<String>::None),
-            )
-            .col_expr(
-                episode_status::Column::QualityId,
-                sea_orm::sea_query::Expr::value(Option::<i32>::None),
-            )
-            .col_expr(
-                episode_status::Column::IsSeadex,
-                sea_orm::sea_query::Expr::value(false),
-            )
-            .filter(episode_status::Column::AnimeId.eq(anime_id))
-            .filter(episode_status::Column::FilePath.eq(file_path))
-            .filter(episode_status::Column::EpisodeNumber.ne(episode_number))
-            .exec(&self.conn)
+        let file_path_owned = file_path.to_string();
+        let now = chrono::Utc::now().to_rfc3339();
+        let resolution_width = media_info.map(|m| m.resolution_width);
+        let resolution_height = media_info.map(|m| m.resolution_height);
+        let video_codec = media_info.map(|m| m.video_codec.clone());
+        let audio_codecs =
+            media_info.map(|m| serde_json::to_string(&m.audio_codecs).unwrap_or_default());
+        let duration_secs = media_info.map(|m| m.duration_secs);
+
+        self.conn
+            .transaction::<_, (), sea_orm::DbErr>(|txn| {
+                let file_path_clone = file_path_owned.clone();
+                let now_clone = now.clone();
+                let video_codec_clone = video_codec.clone();
+                let audio_codecs_clone = audio_codecs.clone();
+
+                Box::pin(async move {
+                    EpisodeStatus::update_many()
+                        .col_expr(
+                            episode_status::Column::FilePath,
+                            sea_orm::sea_query::Expr::value(Option::<String>::None),
+                        )
+                        .col_expr(
+                            episode_status::Column::FileSize,
+                            sea_orm::sea_query::Expr::value(Option::<i64>::None),
+                        )
+                        .col_expr(
+                            episode_status::Column::DownloadedAt,
+                            sea_orm::sea_query::Expr::value(Option::<String>::None),
+                        )
+                        .col_expr(
+                            episode_status::Column::QualityId,
+                            sea_orm::sea_query::Expr::value(Option::<i32>::None),
+                        )
+                        .col_expr(
+                            episode_status::Column::IsSeadex,
+                            sea_orm::sea_query::Expr::value(false),
+                        )
+                        .filter(episode_status::Column::AnimeId.eq(anime_id))
+                        .filter(episode_status::Column::FilePath.eq(file_path_clone))
+                        .filter(episode_status::Column::EpisodeNumber.ne(episode_number))
+                        .exec(txn)
+                        .await?;
+
+                    let active_model = episode_status::ActiveModel {
+                        anime_id: Set(anime_id),
+                        episode_number: Set(episode_number),
+                        season: Set(season),
+                        monitored: Set(true),
+                        quality_id: Set(Some(quality_id)),
+                        is_seadex: Set(is_seadex),
+                        file_path: Set(Some(file_path_owned)),
+                        file_size: Set(file_size),
+                        downloaded_at: Set(Some(now_clone)),
+                        resolution_width: Set(
+                            resolution_width.map(|v| i32::try_from(v).unwrap_or(i32::MAX))
+                        ),
+                        resolution_height: Set(
+                            resolution_height.map(|v| i32::try_from(v).unwrap_or(i32::MAX))
+                        ),
+                        video_codec: Set(video_codec_clone),
+                        audio_codecs: Set(audio_codecs_clone),
+                        #[allow(clippy::cast_possible_truncation)]
+                        duration_secs: Set(duration_secs.map(|v| v as f32)),
+                    };
+
+                    EpisodeStatus::insert(active_model)
+                        .on_conflict(
+                            sea_orm::sea_query::OnConflict::columns([
+                                episode_status::Column::AnimeId,
+                                episode_status::Column::EpisodeNumber,
+                            ])
+                            .update_columns([
+                                episode_status::Column::Season,
+                                episode_status::Column::Monitored,
+                                episode_status::Column::QualityId,
+                                episode_status::Column::IsSeadex,
+                                episode_status::Column::FilePath,
+                                episode_status::Column::FileSize,
+                                episode_status::Column::DownloadedAt,
+                                episode_status::Column::ResolutionWidth,
+                                episode_status::Column::ResolutionHeight,
+                                episode_status::Column::VideoCodec,
+                                episode_status::Column::AudioCodecs,
+                                episode_status::Column::DurationSecs,
+                            ])
+                            .to_owned(),
+                        )
+                        .exec(txn)
+                        .await?;
+
+                    Ok(())
+                })
+            })
             .await?;
 
-        let now = chrono::Utc::now().to_rfc3339();
-
-        let status = EpisodeStatusInput {
-            anime_id,
-            episode_number,
-            season,
-            monitored: true,
-            quality_id: Some(quality_id),
-            is_seadex,
-            file_path: Some(file_path.to_string()),
-            file_size,
-            downloaded_at: Some(now),
-            resolution_width: media_info.map(|m| m.resolution_width),
-            resolution_height: media_info.map(|m| m.resolution_height),
-            video_codec: media_info.map(|m| m.video_codec.clone()),
-            audio_codecs: media_info
-                .map(|m| serde_json::to_string(&m.audio_codecs).unwrap_or_default()),
-            duration_secs: media_info.map(|m| m.duration_secs),
-        };
-
-        self.upsert_status(&status).await
+        Ok(())
     }
 
     pub async fn clear_download(&self, anime_id: i32, episode_number: i32) -> Result<()> {
@@ -794,7 +843,7 @@ impl EpisodeRepository {
             .count(&self.conn)
             .await?;
 
-        Ok(count as i64)
+        Ok(i64::try_from(count).unwrap_or(i64::MAX))
     }
 
     pub async fn get_all_missing_episodes(&self, limit: u64) -> Result<Vec<MissingEpisodeRow>> {
