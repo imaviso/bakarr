@@ -5,9 +5,9 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import devtools from "solid-devtools/vite";
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	plugins: [
-		devtools(),
+		mode !== "production" && devtools(),
 		tanstackRouter({ target: "solid", autoCodeSplitting: true }),
 		solid(),
 	],
@@ -29,4 +29,4 @@ export default defineConfig({
 			},
 		},
 	},
-});
+}));

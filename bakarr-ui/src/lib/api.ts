@@ -508,8 +508,10 @@ export const animeKeys = {
 		query: (q: string) => ["anime", "search", q] as const,
 		episode: (animeId: number, episodeNumber: number) =>
 			["search", "episode", animeId, episodeNumber] as const,
-		releases: (query: string, animeId?: number) =>
-			["search", "releases", { query, animeId }] as const,
+		releases: (
+			query: string,
+			options?: { animeId?: number; category?: string; filter?: string },
+		) => ["search", "releases", { query, ...options }] as const,
 	},
 	anilist: (id: number) => ["anime", "anilist", id] as const,
 	library: {
@@ -691,7 +693,11 @@ export function nyaaSearchQueryOptions(
 	} = {},
 ) {
 	return queryOptions({
-		queryKey: animeKeys.search.releases(query, options.anime_id),
+		queryKey: animeKeys.search.releases(query, {
+			animeId: options.anime_id,
+			category: options.category,
+			filter: options.filter,
+		}),
 		queryFn: () => {
 			const params = new URLSearchParams();
 			params.append("query", query);

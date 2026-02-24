@@ -538,8 +538,8 @@ impl SearchService {
     /// # Arguments
     ///
     /// * `query` - The search query string
-    /// * `category_opt` - Optional category filter ("`anime_raw`", "`anime_non_english`", "`all_anime`")
-    /// * `filter_opt` - Optional filter ("`trusted_only`")
+    /// * `category_opt` - Optional category filter ("`anime_english`", "`anime_raw`", "`anime_non_english`", "`all_anime`")
+    /// * `filter_opt` - Optional filter ("`no_filter`", "`no_remakes`", "`trusted_only`")
     /// * `anime_id` - Optional anime ID for `SeaDex` integration
     pub async fn search_releases(
         &self,
@@ -550,16 +550,19 @@ impl SearchService {
     ) -> Result<ManualSearchResults> {
         // Map category string to NyaaCategory
         let category = match category_opt {
+            Some("anime_english") => NyaaCategory::AnimeEnglish,
             Some("anime_raw") => NyaaCategory::AnimeRaw,
             Some("anime_non_english") => NyaaCategory::AnimeNonEnglish,
             Some("all_anime") => NyaaCategory::AllAnime,
-            _ => NyaaCategory::AnimeEnglish,
+            _ => NyaaCategory::AllAnime,
         };
 
         // Map filter string to NyaaFilter
         let filter = match filter_opt {
+            Some("no_filter") => NyaaFilter::NoFilter,
+            Some("no_remakes") => NyaaFilter::NoRemakes,
             Some("trusted_only") => NyaaFilter::TrustedOnly,
-            _ => NyaaFilter::NoRemakes,
+            _ => NyaaFilter::NoFilter,
         };
 
         // Search on Nyaa

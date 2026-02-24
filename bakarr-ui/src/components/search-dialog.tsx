@@ -87,8 +87,8 @@ export function SearchDialog(props: SearchDialogProps) {
 	const [open, setOpen] = createSignal(false);
 	const [query, setQuery] = createSignal(props.defaultQuery);
 	const [debouncedQuery, setDebouncedQuery] = createSignal(props.defaultQuery);
-	const [category, setCategory] = createSignal<string>("anime_english");
-	const [filter, setFilter] = createSignal<string>("no_remakes");
+	const [category, setCategory] = createSignal<string>("all_anime");
+	const [filter, setFilter] = createSignal<string>("no_filter");
 
 	createEffect(() => {
 		const q = query();
@@ -224,7 +224,7 @@ function SearchResults(props: {
 	filter: string;
 	onGrab: () => void;
 }) {
-	const [sortCol, setSortCol] = createSignal<keyof NyaaSearchResult>("seeders");
+	const [sortCol, setSortCol] = createSignal<keyof NyaaSearchResult>("pub_date");
 	const [sortAsc, setSortAsc] = createSignal(false);
 
 	const searchQuery = createNyaaSearchQuery(() => props.query, {
@@ -239,6 +239,18 @@ function SearchResults(props: {
 		const list = [...results()];
 		return list.sort((a, b) => {
 			const col = sortCol();
+
+			if (col === "pub_date") {
+				const aDate = Date.parse(a.pub_date);
+				const bDate = Date.parse(b.pub_date);
+				if (Number.isNaN(aDate) || Number.isNaN(bDate)) {
+					return sortAsc()
+						? a.pub_date.localeCompare(b.pub_date)
+						: b.pub_date.localeCompare(a.pub_date);
+				}
+				return sortAsc() ? aDate - bDate : bDate - aDate;
+			}
+
 			const aVal = a[col];
 			const bVal = b[col];
 
