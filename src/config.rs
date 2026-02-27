@@ -438,6 +438,12 @@ impl Default for DownloadConfig {
 
 impl Config {
     pub fn load() -> Result<Self> {
+        if let Err(err) = dotenvy::dotenv()
+            && !matches!(err, dotenvy::Error::Io(ref io_err) if io_err.kind() == std::io::ErrorKind::NotFound)
+        {
+            tracing::warn!(error = %err, "Failed to load .env file");
+        }
+
         let paths = Self::config_paths();
 
         for path in &paths {

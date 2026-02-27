@@ -26,6 +26,11 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+#[derive(Deserialize)]
+pub struct ApiKeyLoginRequest {
+    pub api_key: String,
+}
+
 pub use crate::services::auth_service::{
     LoginResult as LoginResponse, UserInfo as UserInfoResponse,
 };
@@ -398,6 +403,42 @@ pub async fn login(
     }
 
     Ok(Json(ApiResponse::success(result)))
+}
+
+/// POST /auth/login/api-key
+/// Authenticate with API key and create session
+pub async fn login_with_api_key(
+    State(state): State<Arc<AppState>>,
+    session: Session,
+    Json(payload): Json<ApiKeyLoginRequest>,
+) -> Result<Json<ApiResponse<LoginResponse>>, ApiError> {
+    if payload.api_key.trim().is_empty() {
+        return Err(ApiError::validation("API key is required"));
+    }
+
+    let username = state
+        .auth_service()
+        .verify_api_key(payload.api_key.trim())
+        .await
+        .map_err(|e| ApiError::internal(format!("Authentication error: {e}")))?
+        .ok_or_else(|| ApiError::Unauthorized("Invalid API key".to_string()))?;
+
+    let user = state
+        .store()
+        .get_user_by_username(&username)
+        .await
+        .map_err(|e| ApiError::internal(format!("Failed to load user: {e}")))?
+        .ok_or_else(|| ApiError::Unauthorized("User not found".to_string()))?;
+
+    if let Err(e) = session.insert("user", &username).await {
+        return Err(ApiError::internal(format!("Failed to create session: {e}")));
+    }
+
+    Ok(Json(ApiResponse::success(LoginResponse {
+        username,
+        api_key: user.api_key,
+        must_change_password: user.must_change_password,
+    })))
 }
 
 /// POST /auth/logout

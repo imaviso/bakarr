@@ -11,9 +11,13 @@ import { getAuthHeaders, logout } from "~/lib/auth";
 
 const API_BASE = "/api";
 
+type ApiRequestOptions = RequestInit & {
+	skipAutoLogoutOnUnauthorized?: boolean;
+};
+
 async function fetchApi<T>(
 	endpoint: string,
-	options?: RequestInit,
+	options?: ApiRequestOptions,
 ): Promise<T> {
 	const res = await fetch(endpoint, {
 		...options,
@@ -24,7 +28,7 @@ async function fetchApi<T>(
 		},
 	});
 
-	if (res.status === 401) {
+	if (res.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
 		logout();
 		throw new Error("Session expired");
 	}
@@ -456,7 +460,12 @@ export interface LoginRequest {
 	password: string;
 }
 
+export interface ApiKeyLoginRequest {
+	api_key: string;
+}
+
 export interface LoginResponse {
+	username: string;
 	api_key: string;
 	must_change_password: boolean;
 }
@@ -1498,6 +1507,18 @@ export function createLoginMutation() {
 			fetchApi<LoginResponse>(`${API_BASE}/auth/login`, {
 				method: "POST",
 				body: JSON.stringify(data),
+				skipAutoLogoutOnUnauthorized: true,
+			}),
+	}));
+}
+
+export function createApiKeyLoginMutation() {
+	return useMutation(() => ({
+		mutationFn: (data: ApiKeyLoginRequest) =>
+			fetchApi<LoginResponse>(`${API_BASE}/auth/login/api-key`, {
+				method: "POST",
+				body: JSON.stringify(data),
+				skipAutoLogoutOnUnauthorized: true,
 			}),
 	}));
 }
@@ -1508,6 +1529,7 @@ export function createChangePasswordMutation() {
 			fetchApi(`${API_BASE}/auth/password`, {
 				method: "PUT",
 				body: JSON.stringify(data),
+				skipAutoLogoutOnUnauthorized: true,
 			}),
 	}));
 }

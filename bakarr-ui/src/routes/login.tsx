@@ -1,6 +1,6 @@
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { Button } from "~/components/ui/button";
@@ -14,7 +14,7 @@ import {
 } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
-import { createLoginMutation } from "~/lib/api";
+import { createApiKeyLoginMutation, createLoginMutation } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 
 export const Route = createFileRoute("/login")({
@@ -32,6 +32,8 @@ function LoginPage() {
 	const { loginSuccess } = useAuth();
 	const navigate = useNavigate();
 	const loginMutation = createLoginMutation();
+	const apiKeyLoginMutation = createApiKeyLoginMutation();
+	const [apiKey, setApiKey] = createSignal("");
 
 	const form = createForm(() => ({
 		defaultValues: {
@@ -140,6 +142,45 @@ function LoginPage() {
 						/>
 					</CardFooter>
 				</form>
+				<div class="px-6 pb-6 pt-1 space-y-2">
+					<Label for="api-key">Or sign in with API key</Label>
+					<Input
+						id="api-key"
+						type="password"
+						value={apiKey()}
+						onInput={(e) => setApiKey(e.currentTarget.value)}
+						placeholder="Paste API key"
+						autocomplete="off"
+					/>
+					<Button
+						type="button"
+						variant="secondary"
+						class="w-full"
+						disabled={!apiKey().trim() || apiKeyLoginMutation.isPending}
+						onClick={async () => {
+							try {
+								const data = await apiKeyLoginMutation.mutateAsync({
+									api_key: apiKey().trim(),
+								});
+								loginSuccess(data.username, data.api_key);
+								if (data.must_change_password) {
+									toast.info("Please change your password before continuing.");
+									navigate({ to: "/settings" });
+									return;
+								}
+								navigate({ to: "/" });
+							} catch (err) {
+								const message =
+									err instanceof Error ? err.message : "API key login failed";
+								toast.error(message);
+							}
+						}}
+					>
+						{apiKeyLoginMutation.isPending
+							? "Signing in..."
+							: "Sign in with API key"}
+					</Button>
+				</div>
 			</Card>
 		</div>
 	);

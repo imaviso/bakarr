@@ -3,6 +3,7 @@ import { AppSidebar } from "~/components/app-sidebar";
 import { Breadcrumb } from "~/components/breadcrumb";
 import { CommandPalette } from "~/components/command-palette";
 import { ModeToggle } from "~/components/mode-toggle";
+import { SseToastListener } from "~/components/sse-toast-listener";
 import {
 	SidebarInset,
 	SidebarProvider,
@@ -43,6 +44,7 @@ function LayoutComponent() {
 				<main class="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden">
 					<Outlet />
 				</main>
+				<SseToastListener />
 			</SidebarInset>
 		</SidebarProvider>
 	);

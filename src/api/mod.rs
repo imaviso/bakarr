@@ -216,6 +216,7 @@ pub async fn router(state: Arc<AppState>) -> Router {
         .route("/system/health/live", get(system::health_live))
         .route("/system/health/ready", get(system::health_ready))
         .route("/auth/login", post(auth::login))
+        .route("/auth/login/api-key", post(auth::login_with_api_key))
         .route("/auth/logout", post(auth::logout))
         .route("/auth/me", get(auth::get_current_user))
         .route("/auth/password", put(auth::change_password))
