@@ -1,5 +1,5 @@
 use crate::api::AppState;
-use axum::{extract::State, response::IntoResponse};
+use axum::{extract::State, http::HeaderValue, response::IntoResponse};
 use std::sync::Arc;
 
 pub async fn get_metrics(State(state): State<Arc<AppState>>) -> impl IntoResponse {
@@ -86,4 +86,27 @@ pub async fn logging_middleware(req: Request, next: Next) -> Response {
     }
     .instrument(span)
     .await
+}
+
+pub async fn security_headers_middleware(req: Request, next: Next) -> Response {
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+
+    headers.insert(
+        "x-content-type-options",
+        HeaderValue::from_static("nosniff"),
+    );
+    headers.insert("x-frame-options", HeaderValue::from_static("DENY"));
+    headers.insert(
+        "referrer-policy",
+        HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    headers.insert(
+        "content-security-policy",
+        HeaderValue::from_static(
+            "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'",
+        ),
+    );
+
+    response
 }

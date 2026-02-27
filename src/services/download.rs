@@ -291,3 +291,61 @@ impl DownloadAction {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::episode::EpisodeStatusRow;
+    use crate::quality::QualityProfile;
+
+    fn current_status(quality_id: i32) -> EpisodeStatusRow {
+        EpisodeStatusRow {
+            anime_id: 1,
+            episode_number: 1,
+            season: 1,
+            monitored: true,
+            quality_id: Some(quality_id),
+            is_seadex: false,
+            file_path: Some("/library/Test Show - 01.mkv".to_string()),
+            file_size: Some(1024),
+            downloaded_at: Some("2026-01-01T00:00:00Z".to_string()),
+            resolution_width: None,
+            resolution_height: None,
+            video_codec: None,
+            audio_codecs: None,
+            duration_secs: None,
+        }
+    }
+
+    #[test]
+    fn decide_download_rejects_when_current_quality_is_better() {
+        let profile = QualityProfile::default_profile();
+
+        let action = DownloadDecisionService::decide_download(
+            &profile,
+            &[],
+            Some(&current_status(3)),
+            "Test.Show.S01E01.720p.WEB-DL.x264",
+            false,
+            None,
+        );
+
+        assert!(matches!(action, DownloadAction::Reject { .. }));
+    }
+
+    #[test]
+    fn decide_download_upgrades_when_quality_improves() {
+        let profile = QualityProfile::default_profile();
+
+        let action = DownloadDecisionService::decide_download(
+            &profile,
+            &[],
+            Some(&current_status(6)),
+            "Test.Show.S01E01.1080p.BluRay.x264",
+            false,
+            None,
+        );
+
+        assert!(matches!(action, DownloadAction::Upgrade { .. }));
+    }
+}

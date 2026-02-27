@@ -53,6 +53,8 @@ use metrics_exporter_prometheus::PrometheusHandle;
 pub struct AppState {
     pub shared: Arc<SharedState>,
 
+    pub auth_rate_limiter: Arc<tokio::sync::Mutex<auth::AuthRateLimiter>>,
+
     pub image_service: Arc<ImageService>,
 
     pub offline_db: Arc<OfflineDatabase>,
@@ -163,6 +165,7 @@ pub fn create_app_state(
 
     Ok(Arc::new(AppState {
         shared,
+        auth_rate_limiter: Arc::new(tokio::sync::Mutex::new(auth::AuthRateLimiter::new())),
         image_service,
         offline_db,
         metadata_service,
@@ -210,6 +213,8 @@ pub async fn router(state: Arc<AppState>) -> Router {
 
     let api_router = Router::new()
         .merge(protected_routes)
+        .route("/system/health/live", get(system::health_live))
+        .route("/system/health/ready", get(system::health_ready))
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
         .route("/auth/me", get(auth::get_current_user))
@@ -234,6 +239,9 @@ pub async fn router(state: Arc<AppState>) -> Router {
         .fallback(assets::serve_asset)
         .layer(cors_layer.allow_methods(Any).allow_headers(Any))
         .layer(TraceLayer::new_for_http())
+        .layer(middleware::from_fn(
+            observability::security_headers_middleware,
+        ))
         .layer(middleware::from_fn(observability::logging_middleware))
 }
 

@@ -15,6 +15,9 @@ pub struct Model {
     /// Random API key (64-char hex string)
     pub api_key: String,
 
+    /// Forces password rotation on first login/bootstrap.
+    pub must_change_password: bool,
+
     pub created_at: String,
 
     pub updated_at: String,

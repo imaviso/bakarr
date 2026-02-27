@@ -15,6 +15,7 @@ pub struct User {
     pub id: i32,
     pub username: String,
     pub api_key: String,
+    pub must_change_password: bool,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -25,6 +26,7 @@ impl From<users::Model> for User {
             id: model.id,
             username: model.username,
             api_key: model.api_key,
+            must_change_password: model.must_change_password,
             created_at: model.created_at,
             updated_at: model.updated_at,
         }
@@ -133,6 +135,7 @@ impl UserRepository {
 
         let mut active: users::ActiveModel = user.into();
         active.password_hash = Set(new_hash);
+        active.must_change_password = Set(false);
         active.updated_at = Set(now);
         active.update(&self.conn).await?;
 

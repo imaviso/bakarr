@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tower_sessions::Session;
 
 use super::{ApiError, ApiResponse, AppState};
@@ -46,6 +46,197 @@ pub struct MessageResponse {
     pub message: String,
 }
 
+#[derive(Clone, Copy)]
+struct RateLimitPolicy {
+    max_attempts: u32,
+    window: Duration,
+    block_duration: Duration,
+    base_delay: Duration,
+    max_delay: Duration,
+}
+
+impl RateLimitPolicy {
+    fn from_login_config(config: &crate::config::AuthThrottleConfig) -> Self {
+        let base_delay_ms = config.login_base_delay_ms.max(1);
+        let max_delay_ms = config.login_max_delay_ms.max(base_delay_ms);
+
+        Self {
+            max_attempts: config.max_attempts.max(1),
+            window: Duration::from_secs(config.window_seconds.max(1)),
+            block_duration: Duration::from_secs(config.lockout_seconds.max(1)),
+            base_delay: Duration::from_millis(base_delay_ms),
+            max_delay: Duration::from_millis(max_delay_ms),
+        }
+    }
+
+    fn from_password_config(config: &crate::config::AuthThrottleConfig) -> Self {
+        let base_delay_ms = config.password_base_delay_ms.max(1);
+        let max_delay_ms = config.password_max_delay_ms.max(base_delay_ms);
+
+        Self {
+            max_attempts: config.max_attempts.max(1),
+            window: Duration::from_secs(config.window_seconds.max(1)),
+            block_duration: Duration::from_secs(config.lockout_seconds.max(1)),
+            base_delay: Duration::from_millis(base_delay_ms),
+            max_delay: Duration::from_millis(max_delay_ms),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AttemptState {
+    window_started_at: tokio::time::Instant,
+    failures: u32,
+    blocked_until: Option<tokio::time::Instant>,
+    last_seen: tokio::time::Instant,
+}
+
+impl AttemptState {
+    const fn new(now: tokio::time::Instant) -> Self {
+        Self {
+            window_started_at: now,
+            failures: 0,
+            blocked_until: None,
+            last_seen: now,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct FailureAction {
+    delay: Duration,
+    blocked_for: Option<Duration>,
+}
+
+#[derive(Default)]
+pub struct AuthRateLimiter {
+    login_attempts: HashMap<String, AttemptState>,
+    password_attempts: HashMap<String, AttemptState>,
+    operation_count: u64,
+}
+
+impl AuthRateLimiter {
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+
+    fn login_blocked_for(&mut self, key: &str, policy: RateLimitPolicy) -> Option<Duration> {
+        let now = tokio::time::Instant::now();
+        self.maybe_cleanup(now);
+        Self::blocked_for(&mut self.login_attempts, key, now, policy)
+    }
+
+    fn password_blocked_for(&mut self, key: &str, policy: RateLimitPolicy) -> Option<Duration> {
+        let now = tokio::time::Instant::now();
+        self.maybe_cleanup(now);
+        Self::blocked_for(&mut self.password_attempts, key, now, policy)
+    }
+
+    fn record_login_failure(&mut self, key: &str, policy: RateLimitPolicy) -> FailureAction {
+        let now = tokio::time::Instant::now();
+        self.maybe_cleanup(now);
+        Self::record_failure(&mut self.login_attempts, key, now, policy)
+    }
+
+    fn record_password_failure(&mut self, key: &str, policy: RateLimitPolicy) -> FailureAction {
+        let now = tokio::time::Instant::now();
+        self.maybe_cleanup(now);
+        Self::record_failure(&mut self.password_attempts, key, now, policy)
+    }
+
+    fn reset_login(&mut self, key: &str) {
+        self.login_attempts.remove(key);
+    }
+
+    fn reset_password(&mut self, key: &str) {
+        self.password_attempts.remove(key);
+    }
+
+    fn blocked_for(
+        attempts: &mut HashMap<String, AttemptState>,
+        key: &str,
+        now: tokio::time::Instant,
+        policy: RateLimitPolicy,
+    ) -> Option<Duration> {
+        let state = attempts.get_mut(key)?;
+        state.last_seen = now;
+
+        if now.duration_since(state.window_started_at) > policy.window {
+            state.window_started_at = now;
+            state.failures = 0;
+            state.blocked_until = None;
+            return None;
+        }
+
+        if let Some(until) = state.blocked_until {
+            if until > now {
+                return Some(until - now);
+            }
+
+            state.blocked_until = None;
+            state.failures = 0;
+            state.window_started_at = now;
+        }
+
+        None
+    }
+
+    fn record_failure(
+        attempts: &mut HashMap<String, AttemptState>,
+        key: &str,
+        now: tokio::time::Instant,
+        policy: RateLimitPolicy,
+    ) -> FailureAction {
+        let state = attempts
+            .entry(key.to_string())
+            .or_insert_with(|| AttemptState::new(now));
+
+        if now.duration_since(state.window_started_at) > policy.window {
+            state.window_started_at = now;
+            state.failures = 0;
+            state.blocked_until = None;
+        }
+
+        state.last_seen = now;
+        state.failures = state.failures.saturating_add(1);
+
+        let base_delay_ms = u64::try_from(policy.base_delay.as_millis()).unwrap_or(u64::MAX);
+        let max_delay_ms = u64::try_from(policy.max_delay.as_millis()).unwrap_or(u64::MAX);
+        let delay_ms = base_delay_ms
+            .saturating_mul(u64::from(state.failures.max(1)))
+            .min(max_delay_ms);
+
+        if state.failures >= policy.max_attempts {
+            state.blocked_until = Some(now + policy.block_duration);
+            state.failures = 0;
+            state.window_started_at = now;
+
+            return FailureAction {
+                delay: Duration::from_millis(delay_ms),
+                blocked_for: Some(policy.block_duration),
+            };
+        }
+
+        FailureAction {
+            delay: Duration::from_millis(delay_ms),
+            blocked_for: None,
+        }
+    }
+
+    fn maybe_cleanup(&mut self, now: tokio::time::Instant) {
+        self.operation_count = self.operation_count.wrapping_add(1);
+        if !self.operation_count.is_multiple_of(128) {
+            return;
+        }
+
+        let retention = Duration::from_secs(60 * 60);
+        self.login_attempts
+            .retain(|_, state| now.duration_since(state.last_seen) <= retention);
+        self.password_attempts
+            .retain(|_, state| now.duration_since(state.last_seen) <= retention);
+    }
+}
+
 // ============================================================================
 // Middleware
 // ============================================================================
@@ -71,7 +262,9 @@ pub async fn auth_middleware(
 
     // Extract API key from various sources
     let allow_query_auth = state.config().read().await.server.allow_api_key_in_query;
-    let api_key = extract_api_key(&query, &headers, allow_query_auth);
+    let allow_query_auth_for_request =
+        allow_query_auth && is_query_auth_path_allowed(request.uri().path());
+    let api_key = extract_api_key(&query, &headers, allow_query_auth_for_request);
 
     if let Some(key) = api_key {
         // Verify API key against service
@@ -114,6 +307,13 @@ fn extract_api_key(
     None
 }
 
+fn is_query_auth_path_allowed(path: &str) -> bool {
+    path.starts_with("/api/stream/")
+        || path.starts_with("/stream/")
+        || path == "/api/events"
+        || path == "/events"
+}
+
 // ============================================================================
 // Handlers
 // ============================================================================
@@ -123,6 +323,7 @@ fn extract_api_key(
 pub async fn login(
     State(state): State<Arc<AppState>>,
     session: Session,
+    headers: HeaderMap,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<ApiResponse<LoginResponse>>, ApiError> {
     // Validate input
@@ -133,20 +334,62 @@ pub async fn login(
         return Err(ApiError::validation("Password is required"));
     }
 
-    // Delegate to auth service
-    let result = state
+    let client_id = client_identity(&headers);
+    let rate_limit_key = format!("{client_id}:{}", payload.username.trim().to_lowercase());
+    let login_policy = {
+        let config = state.config().read().await;
+        RateLimitPolicy::from_login_config(&config.security.auth_throttle)
+    };
+
+    if let Some(remaining) = {
+        let mut limiter = state.auth_rate_limiter.lock().await;
+        limiter.login_blocked_for(&rate_limit_key, login_policy)
+    } {
+        tracing::warn!(
+            username = %payload.username,
+            client_id = %client_id,
+            wait_seconds = remaining.as_secs(),
+            "Login temporarily blocked due to repeated failures"
+        );
+        return Err(ApiError::rate_limited(
+            "Too many login attempts. Please try again shortly.",
+        ));
+    }
+
+    let result = match state
         .auth_service()
         .login(&payload.username, &payload.password)
         .await
-        .map_err(|e| match e {
-            crate::services::auth_service::AuthError::InvalidCredentials => {
-                ApiError::Unauthorized("Invalid credentials".to_string())
+    {
+        Ok(result) => {
+            let mut limiter = state.auth_rate_limiter.lock().await;
+            limiter.reset_login(&rate_limit_key);
+            result
+        }
+        Err(
+            crate::services::auth_service::AuthError::InvalidCredentials
+            | crate::services::auth_service::AuthError::UserNotFound,
+        ) => {
+            let action = {
+                let mut limiter = state.auth_rate_limiter.lock().await;
+                limiter.record_login_failure(&rate_limit_key, login_policy)
+            };
+
+            tokio::time::sleep(action.delay).await;
+
+            if let Some(blocked_for) = action.blocked_for {
+                tracing::warn!(
+                    username = %payload.username,
+                    client_id = %client_id,
+                    lockout_seconds = blocked_for.as_secs(),
+                    "Login lockout triggered"
+                );
             }
-            crate::services::auth_service::AuthError::UserNotFound => {
-                ApiError::Unauthorized("User not found".to_string())
-            }
-            _ => ApiError::internal(format!("Authentication error: {e}")),
-        })?;
+
+            return Err(ApiError::Unauthorized("Invalid credentials".to_string()));
+        }
+        Err(e) => return Err(ApiError::internal(format!("Authentication error: {e}"))),
+    };
 
     // Create session
     if let Err(e) = session.insert("user", &result.username).await {
@@ -190,18 +433,72 @@ pub async fn get_current_user(
 pub async fn change_password(
     State(state): State<Arc<AppState>>,
     session: Session,
+    headers: HeaderMap,
     Json(payload): Json<ChangePasswordRequest>,
 ) -> Result<Json<ApiResponse<MessageResponse>>, ApiError> {
     let username = get_session_username(&session).await?;
+    let client_id = client_identity(&headers);
+    let rate_limit_key = format!("{client_id}:{}", username.to_lowercase());
+    let password_policy = {
+        let config = state.config().read().await;
+        RateLimitPolicy::from_password_config(&config.security.auth_throttle)
+    };
 
-    state
+    if let Some(remaining) = {
+        let mut limiter = state.auth_rate_limiter.lock().await;
+        limiter.password_blocked_for(&rate_limit_key, password_policy)
+    } {
+        tracing::warn!(
+            username = %username,
+            client_id = %client_id,
+            wait_seconds = remaining.as_secs(),
+            "Password change temporarily blocked due to repeated failures"
+        );
+        return Err(ApiError::rate_limited(
+            "Too many password attempts. Please try again shortly.",
+        ));
+    }
+
+    match state
         .auth_service()
         .change_password(&username, &payload.current_password, &payload.new_password)
         .await
-        .map_err(|e| match e {
-            crate::services::auth_service::AuthError::Validation(msg) => ApiError::validation(msg),
-            _ => ApiError::internal(format!("Failed to update password: {e}")),
-        })?;
+    {
+        Ok(()) => {
+            let mut limiter = state.auth_rate_limiter.lock().await;
+            limiter.reset_password(&rate_limit_key);
+        }
+        Err(crate::services::auth_service::AuthError::IncorrectPassword) => {
+            let action = {
+                let mut limiter = state.auth_rate_limiter.lock().await;
+                limiter.record_password_failure(&rate_limit_key, password_policy)
+            };
+
+            tokio::time::sleep(action.delay).await;
+
+            if let Some(blocked_for) = action.blocked_for {
+                tracing::warn!(
+                    username = %username,
+                    client_id = %client_id,
+                    lockout_seconds = blocked_for.as_secs(),
+                    "Password-change lockout triggered"
+                );
+                return Err(ApiError::rate_limited(
+                    "Too many password attempts. Please try again shortly.",
+                ));
+            }
+
+            return Err(ApiError::validation("Current password is incorrect"));
+        }
+        Err(crate::services::auth_service::AuthError::Validation(msg)) => {
+            return Err(ApiError::validation(msg));
+        }
+        Err(e) => {
+            return Err(ApiError::internal(format!(
+                "Failed to update password: {e}"
+            )));
+        }
+    }
 
     tracing::info!(username = %username, "Password changed for user");
 
@@ -259,4 +556,27 @@ async fn get_session_username(session: &Session) -> Result<String, ApiError> {
         .await
         .map_err(|e| ApiError::internal(format!("Session error: {e}")))?
         .ok_or_else(|| ApiError::Unauthorized("Not authenticated".to_string()))
+}
+
+fn client_identity(headers: &HeaderMap) -> String {
+    if let Some(forwarded_for) = headers.get("x-forwarded-for")
+        && let Ok(value) = forwarded_for.to_str()
+        && let Some(first) = value.split(',').next()
+    {
+        let candidate = first.trim();
+        if !candidate.is_empty() {
+            return candidate.to_string();
+        }
+    }
+
+    if let Some(real_ip) = headers.get("x-real-ip")
+        && let Ok(value) = real_ip.to_str()
+    {
+        let candidate = value.trim();
+        if !candidate.is_empty() {
+            return candidate.to_string();
+        }
+    }
+
+    "unknown-client".to_string()
 }

@@ -7,22 +7,30 @@ use bakarr::config::Config;
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
-/// Default API key seeded by migration (must match `m20260127_add_users.rs`)
-const DEFAULT_API_KEY: &str = "bakarr_default_api_key_please_regenerate";
+async fn spawn_app() -> (Router, String) {
+    let db_path = std::env::temp_dir().join(format!("bakarr-api-test-{}.db", uuid::Uuid::new_v4()));
 
-async fn spawn_app() -> Router {
     let mut config = Config::default();
-    config.general.database_path = "sqlite:data/bakarr.db".to_string();
+    config.general.database_path = format!("sqlite:{}", db_path.display());
+    config.server.allow_api_key_in_query = true;
 
     let state = bakarr::api::create_app_state_from_config(config, None)
         .await
         .expect("Failed to create app state");
-    bakarr::api::router(state).await
+
+    let api_key = state
+        .store()
+        .get_user_api_key("admin")
+        .await
+        .expect("Failed to fetch bootstrap API key")
+        .expect("Bootstrap admin user missing API key");
+
+    (bakarr::api::router(state).await, api_key)
 }
 
 #[tokio::test]
 async fn test_auth_endpoints() {
-    let app = spawn_app().await;
+    let (app, api_key) = spawn_app().await;
 
     let response = app
         .clone()
@@ -56,7 +64,7 @@ async fn test_auth_endpoints() {
         .oneshot(
             Request::builder()
                 .uri("/api/system/status")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key.clone())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -65,12 +73,27 @@ async fn test_auth_endpoints() {
 
     assert_eq!(response.status(), StatusCode::OK);
 
-    // Test query parameter authentication (for SSE)
+    // Query auth is scoped to SSE/stream routes, not generic endpoints.
     let response = app
         .clone()
         .oneshot(
             Request::builder()
-                .uri(format!("/api/system/status?api_key={}", DEFAULT_API_KEY))
+                .uri(format!("/api/system/status?api_key={api_key}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    // SSE endpoint still supports query auth fallback.
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/events?api_key={api_key}"))
+                .header("Accept", "text/event-stream")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -81,15 +104,64 @@ async fn test_auth_endpoints() {
 }
 
 #[tokio::test]
+async fn test_login_rate_limit_lockout() {
+    let (app, _) = spawn_app().await;
+
+    for _ in 0..5 {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/auth/login")
+                    .header("Content-Type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "username": "admin",
+                            "password": "definitely-wrong-password"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    let locked_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/auth/login")
+                .header("Content-Type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "username": "admin",
+                        "password": "definitely-wrong-password"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(locked_response.status(), StatusCode::TOO_MANY_REQUESTS);
+}
+
+#[tokio::test]
 async fn test_system_config() {
-    let app = spawn_app().await;
+    let (app, api_key) = spawn_app().await;
 
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/api/system/config")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key.clone())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -112,7 +184,7 @@ async fn test_system_config() {
             Request::builder()
                 .method("PUT")
                 .uri("/api/system/config")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key.clone())
                 .header("Content-Type", "application/json")
                 .body(Body::from(serde_json::to_string(&current_config).unwrap()))
                 .unwrap(),
@@ -127,7 +199,7 @@ async fn test_system_config() {
         .oneshot(
             Request::builder()
                 .uri("/api/system/config")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -142,7 +214,7 @@ async fn test_system_config() {
 
 #[tokio::test]
 async fn test_profiles_crud() {
-    let app = spawn_app().await;
+    let (app, api_key) = spawn_app().await;
 
     let new_profile = serde_json::json!({
         "name": "IntegrationTestProfile",
@@ -158,7 +230,7 @@ async fn test_profiles_crud() {
             Request::builder()
                 .method("POST")
                 .uri("/api/profiles")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key.clone())
                 .header("Content-Type", "application/json")
                 .body(Body::from(serde_json::to_string(&new_profile).unwrap()))
                 .unwrap(),
@@ -173,7 +245,7 @@ async fn test_profiles_crud() {
         .oneshot(
             Request::builder()
                 .uri("/api/profiles/IntegrationTestProfile")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key.clone())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -188,7 +260,7 @@ async fn test_profiles_crud() {
             Request::builder()
                 .method("DELETE")
                 .uri("/api/profiles/IntegrationTestProfile")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key.clone())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -202,7 +274,7 @@ async fn test_profiles_crud() {
         .oneshot(
             Request::builder()
                 .uri("/api/profiles/IntegrationTestProfile")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key)
                 .body(Body::empty())
                 .unwrap(),
         )

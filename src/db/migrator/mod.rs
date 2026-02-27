@@ -1,36 +1,12 @@
 use sea_orm_migration::prelude::*;
 
 mod m20240101_initial;
-mod m20260118_remove_metadata_fk;
-mod m20260121_add_sort_index;
-mod m20260122_add_release_profiles;
-mod m20260124_add_system_logs;
-mod m20260127_add_users;
-mod m20260128_add_anime_metadata;
-mod m20260128_add_search_cache;
-mod m20260128_link_anime_release_profiles;
-mod m20260129_add_profile_size_limits;
-mod m20260201_add_provenance;
-mod m20260217_search_cache_unique_query;
 
 pub struct Migrator;
 
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![
-            Box::new(m20240101_initial::Migration),
-            Box::new(m20260118_remove_metadata_fk::Migration),
-            Box::new(m20260121_add_sort_index::Migration),
-            Box::new(m20260122_add_release_profiles::Migration),
-            Box::new(m20260124_add_system_logs::Migration),
-            Box::new(m20260127_add_users::Migration),
-            Box::new(m20260128_add_anime_metadata::Migration),
-            Box::new(m20260128_link_anime_release_profiles::Migration),
-            Box::new(m20260128_add_search_cache::Migration),
-            Box::new(m20260129_add_profile_size_limits::Migration),
-            Box::new(m20260201_add_provenance::Migration),
-            Box::new(m20260217_search_cache_unique_query::Migration),
-        ]
+        vec![Box::new(m20240101_initial::Migration)]
     }
 }

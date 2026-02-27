@@ -5,7 +5,7 @@ use crate::models::episode::{EpisodeInput, EpisodeStatusInput};
 use crate::models::media::MediaInfo;
 use crate::services::search::SearchResult;
 use anyhow::Result;
-use sea_orm::{ConnectOptions, Database, DatabaseConnection};
+use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, Statement};
 use std::path::Path;
 use std::time::Duration;
 use tracing::info;
@@ -70,6 +70,14 @@ impl Store {
         );
 
         Ok(Self { conn })
+    }
+
+    pub async fn ping(&self) -> Result<()> {
+        let backend = self.conn.get_database_backend();
+        self.conn
+            .query_one(Statement::from_string(backend, "SELECT 1".to_string()))
+            .await?;
+        Ok(())
     }
 
     fn anime_repo(&self) -> repositories::anime::AnimeRepository {

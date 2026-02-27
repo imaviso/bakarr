@@ -1380,6 +1380,49 @@ const ConfigSchema = v.object({
 		auto_scan_interval_hours: v.number(),
 		preferred_title: v.string(),
 	}),
+	security: v.object({
+		argon2_memory_cost_kib: v.number(),
+		argon2_time_cost: v.number(),
+		argon2_parallelism: v.number(),
+		auto_migrate_password_hashes: v.boolean(),
+		auth_throttle: v.object({
+			max_attempts: v.pipe(
+				v.number(),
+				v.integer(),
+				v.minValue(1, "Must be at least 1"),
+			),
+			window_seconds: v.pipe(
+				v.number(),
+				v.integer(),
+				v.minValue(1, "Must be at least 1 second"),
+			),
+			lockout_seconds: v.pipe(
+				v.number(),
+				v.integer(),
+				v.minValue(1, "Must be at least 1 second"),
+			),
+			login_base_delay_ms: v.pipe(
+				v.number(),
+				v.integer(),
+				v.minValue(1, "Must be at least 1 ms"),
+			),
+			login_max_delay_ms: v.pipe(
+				v.number(),
+				v.integer(),
+				v.minValue(1, "Must be at least 1 ms"),
+			),
+			password_base_delay_ms: v.pipe(
+				v.number(),
+				v.integer(),
+				v.minValue(1, "Must be at least 1 ms"),
+			),
+			password_max_delay_ms: v.pipe(
+				v.number(),
+				v.integer(),
+				v.minValue(1, "Must be at least 1 ms"),
+			),
+		}),
+	}),
 	profiles: v.array(
 		v.object({
 			name: v.string(),
@@ -1932,6 +1975,167 @@ function SystemForm(props: {
 								placeholder="0 */6 * * *"
 								class="w-36 font-mono text-xs"
 							/>
+						</SettingRow>
+					)}
+				</form.Field>
+			</SettingSection>
+
+			{/* Authentication Throttling */}
+			<SettingSection title="Authentication Throttling">
+				<form.Field name="security.auth_throttle.max_attempts">
+					{(field) => (
+						<SettingRow
+							label="Max Failed Attempts"
+							description="Failed attempts in the window before temporary lockout"
+						>
+							<Input
+								type="number"
+								min="1"
+								step="1"
+								value={field().state.value.toString()}
+								onInput={(e) =>
+									field().handleChange(Number(e.currentTarget.value))
+								}
+								class="w-20"
+							/>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="security.auth_throttle.window_seconds">
+					{(field) => (
+						<SettingRow
+							label="Failure Window"
+							description="Time window used to count failed attempts"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									min="1"
+									step="1"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-24"
+								/>
+								<span class="text-xs text-muted-foreground">sec</span>
+							</div>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="security.auth_throttle.lockout_seconds">
+					{(field) => (
+						<SettingRow
+							label="Lockout Duration"
+							description="How long login/password attempts are blocked after lockout"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									min="1"
+									step="1"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-24"
+								/>
+								<span class="text-xs text-muted-foreground">sec</span>
+							</div>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="security.auth_throttle.login_base_delay_ms">
+					{(field) => (
+						<SettingRow
+							label="Login Base Delay"
+							description="Initial delay added after each failed login attempt"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									min="1"
+									step="1"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-24"
+								/>
+								<span class="text-xs text-muted-foreground">ms</span>
+							</div>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="security.auth_throttle.login_max_delay_ms">
+					{(field) => (
+						<SettingRow
+							label="Login Max Delay"
+							description="Maximum delay cap for failed login attempts"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									min="1"
+									step="1"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-24"
+								/>
+								<span class="text-xs text-muted-foreground">ms</span>
+							</div>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="security.auth_throttle.password_base_delay_ms">
+					{(field) => (
+						<SettingRow
+							label="Password Base Delay"
+							description="Initial delay added after failed password-change attempts"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									min="1"
+									step="1"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-24"
+								/>
+								<span class="text-xs text-muted-foreground">ms</span>
+							</div>
+						</SettingRow>
+					)}
+				</form.Field>
+
+				<form.Field name="security.auth_throttle.password_max_delay_ms">
+					{(field) => (
+						<SettingRow
+							label="Password Max Delay"
+							description="Maximum delay cap for failed password-change attempts"
+						>
+							<div class="flex items-center gap-2">
+								<Input
+									type="number"
+									min="1"
+									step="1"
+									value={field().state.value.toString()}
+									onInput={(e) =>
+										field().handleChange(Number(e.currentTarget.value))
+									}
+									class="w-24"
+								/>
+								<span class="text-xs text-muted-foreground">ms</span>
+							</div>
 						</SettingRow>
 					)}
 				</form.Field>

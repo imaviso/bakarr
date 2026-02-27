@@ -553,13 +553,11 @@ impl SearchService {
             Some("anime_english") => NyaaCategory::AnimeEnglish,
             Some("anime_raw") => NyaaCategory::AnimeRaw,
             Some("anime_non_english") => NyaaCategory::AnimeNonEnglish,
-            Some("all_anime") => NyaaCategory::AllAnime,
             _ => NyaaCategory::AllAnime,
         };
 
         // Map filter string to NyaaFilter
         let filter = match filter_opt {
-            Some("no_filter") => NyaaFilter::NoFilter,
             Some("no_remakes") => NyaaFilter::NoRemakes,
             Some("trusted_only") => NyaaFilter::TrustedOnly,
             _ => NyaaFilter::NoFilter,

@@ -116,6 +116,7 @@ impl AuthService for SeaOrmAuthService {
         Ok(LoginResult {
             username: user.username,
             api_key: user.api_key,
+            must_change_password: user.must_change_password,
         })
     }
 
@@ -164,9 +165,7 @@ impl AuthService for SeaOrmAuthService {
             .await?;
 
         if !is_valid {
-            return Err(AuthError::Validation(
-                "Current password is incorrect".to_string(),
-            ));
+            return Err(AuthError::IncorrectPassword);
         }
 
         // Update password

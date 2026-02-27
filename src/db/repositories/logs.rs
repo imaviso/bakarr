@@ -21,11 +21,14 @@ impl LogRepository {
         message: &str,
         details: Option<String>,
     ) -> Result<()> {
+        let now = chrono::Utc::now().to_rfc3339();
+
         let active_model = system_logs::ActiveModel {
             event_type: Set(event_type.to_string()),
             level: Set(level.to_string()),
             message: Set(message.to_string()),
             details: Set(details),
+            created_at: Set(now),
             ..Default::default()
         };
 

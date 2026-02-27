@@ -42,6 +42,11 @@ function LoginPage() {
 			try {
 				const data = await loginMutation.mutateAsync(value);
 				loginSuccess(value.username, data.api_key);
+				if (data.must_change_password) {
+					toast.info("Please change your password before continuing.");
+					navigate({ to: "/settings" });
+					return;
+				}
 				navigate({ to: "/" });
 			} catch (err) {
 				const message = err instanceof Error ? err.message : "Login failed";

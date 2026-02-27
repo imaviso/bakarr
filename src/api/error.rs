@@ -24,6 +24,8 @@ pub enum ApiError {
     InternalError(String),
 
     Unauthorized(String),
+
+    TooManyRequests(String),
 }
 
 impl fmt::Display for ApiError {
@@ -40,6 +42,7 @@ impl fmt::Display for ApiError {
 
             Self::InternalError(msg) => write!(f, "Internal error: {msg}"),
             Self::Unauthorized(msg) => write!(f, "Unauthorized: {msg}"),
+            Self::TooManyRequests(msg) => write!(f, "Too many requests: {msg}"),
         }
     }
 }
@@ -75,6 +78,7 @@ impl IntoResponse for ApiError {
                 )
             }
             Self::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
+            Self::TooManyRequests(msg) => (StatusCode::TOO_MANY_REQUESTS, msg.clone()),
         };
 
         let body = ApiResponse::<()>::error(error_message);
@@ -199,5 +203,10 @@ impl ApiError {
     #[must_use]
     pub fn internal(msg: impl Into<String>) -> Self {
         Self::InternalError(msg.into())
+    }
+
+    #[must_use]
+    pub fn rate_limited(msg: impl Into<String>) -> Self {
+        Self::TooManyRequests(msg.into())
     }
 }

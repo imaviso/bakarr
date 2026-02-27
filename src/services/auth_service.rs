@@ -20,6 +20,9 @@ pub enum AuthError {
     #[error("Validation failed: {0}")]
     Validation(String),
 
+    #[error("Current password is incorrect")]
+    IncorrectPassword,
+
     #[error("Database error: {0}")]
     Database(String),
 
@@ -55,6 +58,7 @@ pub struct UserInfo {
 pub struct LoginResult {
     pub username: String,
     pub api_key: String,
+    pub must_change_password: bool,
 }
 
 /// Domain service trait for authentication.

@@ -53,6 +53,48 @@ pub struct SecurityConfig {
 
     /// Whether to auto-migrate passwords to new argon2 params on login
     pub auto_migrate_password_hashes: bool,
+
+    /// Login/password endpoint throttling and lockout policy.
+    pub auth_throttle: AuthThrottleConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AuthThrottleConfig {
+    /// Max failed attempts in the window before lockout.
+    pub max_attempts: u32,
+
+    /// Rolling window for counting failures.
+    pub window_seconds: u64,
+
+    /// Temporary lockout duration once max attempts is reached.
+    pub lockout_seconds: u64,
+
+    /// Base delay after failed login attempts.
+    pub login_base_delay_ms: u64,
+
+    /// Maximum delay cap for failed login attempts.
+    pub login_max_delay_ms: u64,
+
+    /// Base delay after failed password-change attempts.
+    pub password_base_delay_ms: u64,
+
+    /// Maximum delay cap for failed password-change attempts.
+    pub password_max_delay_ms: u64,
+}
+
+impl Default for AuthThrottleConfig {
+    fn default() -> Self {
+        Self {
+            max_attempts: 5,
+            window_seconds: 5 * 60,
+            lockout_seconds: 2 * 60,
+            login_base_delay_ms: 250,
+            login_max_delay_ms: 1500,
+            password_base_delay_ms: 300,
+            password_max_delay_ms: 2000,
+        }
+    }
 }
 
 impl Default for SecurityConfig {
@@ -62,6 +104,7 @@ impl Default for SecurityConfig {
             argon2_time_cost: 3,          // Compensate with more iterations
             argon2_parallelism: 1,
             auto_migrate_password_hashes: true,
+            auth_throttle: AuthThrottleConfig::default(),
         }
     }
 }
@@ -119,7 +162,10 @@ impl Default for ServerConfig {
         Self {
             enabled: true,
             port: 6789,
-            cors_allowed_origins: vec!["*".to_string()],
+            cors_allowed_origins: vec![
+                "http://localhost:6789".to_string(),
+                "http://127.0.0.1:6789".to_string(),
+            ],
             secure_cookies: true,
             allow_api_key_in_query: false,
         }
@@ -279,8 +325,8 @@ impl Default for QBittorrentConfig {
         Self {
             enabled: true,
             url: "http://localhost:8080".to_string(),
-            username: "admin".to_string(),
-            password: "adminadmin".to_string(),
+            username: "change-me".to_string(),
+            password: "change-me".to_string(),
             default_category: "anime".to_string(),
             stalled_timeout_seconds: 900,
         }
@@ -532,6 +578,8 @@ mod tests {
         assert_eq!(config.scheduler.check_interval_minutes, 15);
         assert!(config.downloads.use_seadex);
         assert_eq!(config.qbittorrent.url, "http://localhost:8080");
+        assert_eq!(config.security.auth_throttle.max_attempts, 5);
+        assert_eq!(config.security.auth_throttle.lockout_seconds, 120);
     }
 
     #[test]

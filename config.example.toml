@@ -11,8 +11,8 @@ min_db_connections = 1
 [qbittorrent]
 enabled = true
 url = "http://localhost:8080"
-username = "admin"
-password = "adminadmin"
+username = "change-me"
+password = "change-me"
 default_category = "anime"
 stalled_timeout_seconds = 900
 
@@ -74,7 +74,14 @@ allowed_qualities = [
 [server]
 enabled = true
 port = 6789
-cors_allowed_origins = ["*"]
+cors_allowed_origins = [
+    "http://localhost:6789",
+    "http://127.0.0.1:6789",
+]
+# If you run the frontend separately in dev, add your dev origin (for example: http://localhost:5173).
+secure_cookies = true
+allow_api_key_in_query = false
+# Query API keys are only accepted for /api/events and /api/stream/* when enabled.
 
 [observability]
 metrics_enabled = true
@@ -89,3 +96,12 @@ argon2_memory_cost_kib = 8192
 argon2_time_cost = 3
 argon2_parallelism = 1
 auto_migrate_password_hashes = true
+
+[security.auth_throttle]
+max_attempts = 5
+window_seconds = 300
+lockout_seconds = 120
+login_base_delay_ms = 250
+login_max_delay_ms = 1500
+password_base_delay_ms = 300
+password_max_delay_ms = 2000

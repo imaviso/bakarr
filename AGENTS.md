@@ -1,5 +1,7 @@
 # Bakarr Agent Guidelines
 
+Project status: pre-release alpha. Do not preserve backward compatibility unless explicitly requested.
+
 This document provides context, commands, and code style guidelines for agents working on the Bakarr codebase. Bakarr is a Sonarr-alternative anime download manager utilizing a Rust backend and a SolidJS (Vite) frontend.
 
 ## 🚀 Build & Test Commands

@@ -1,0 +1,11 @@
+groups:
+  - name: bakarr-alerts
+    rules:
+      - alert: BakarrReadinessDown
+        expr: up{job="bakarr"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Bakarr is not reachable"
+          description: "Prometheus cannot scrape Bakarr metrics endpoint for 2 minutes."

@@ -224,7 +224,8 @@ function SearchResults(props: {
 	filter: string;
 	onGrab: () => void;
 }) {
-	const [sortCol, setSortCol] = createSignal<keyof NyaaSearchResult>("pub_date");
+	const [sortCol, setSortCol] =
+		createSignal<keyof NyaaSearchResult>("pub_date");
 	const [sortAsc, setSortAsc] = createSignal(false);
 
 	const searchQuery = createNyaaSearchQuery(() => props.query, {

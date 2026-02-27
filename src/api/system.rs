@@ -5,7 +5,13 @@
 //! All business logic is delegated to [`SystemService`] to maintain
 //! separation of concerns and enable testability.
 
-use axum::{Json, extract::State};
+use axum::{
+    Json,
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
+use serde::Serialize;
 use std::sync::Arc;
 
 use super::{ApiError, ApiResponse, AppState};
@@ -14,6 +20,23 @@ use crate::services::system_service::SystemError;
 
 pub mod logs;
 pub use logs::{clear_logs, get_logs};
+
+#[derive(Debug, Serialize)]
+pub struct HealthLiveResponse {
+    pub status: &'static str,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HealthReadinessChecks {
+    pub database: bool,
+    pub qbittorrent: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HealthReadyResponse {
+    pub ready: bool,
+    pub checks: HealthReadinessChecks,
+}
 
 impl From<SystemError> for ApiError {
     fn from(err: SystemError) -> Self {
@@ -78,4 +101,52 @@ pub async fn update_config(
         .update_config(new_config, MASK)
         .await?;
     Ok(Json(ApiResponse::success(())))
+}
+
+/// `GET /api/system/health/live`
+///
+/// Lightweight liveness probe to indicate the API process is running.
+pub async fn health_live() -> impl IntoResponse {
+    Json(ApiResponse::success(HealthLiveResponse { status: "alive" }))
+}
+
+/// `GET /api/system/health/ready`
+///
+/// Readiness probe that checks database connectivity and qBittorrent availability.
+pub async fn health_ready(State(state): State<Arc<AppState>>) -> Response {
+    let db_ready = state.store().ping().await.is_ok();
+
+    let qbit_enabled = {
+        let config = state.config().read().await;
+        config.qbittorrent.enabled
+    };
+
+    let qbit_ready = if qbit_enabled {
+        if let Some(qbit) = state.qbit() {
+            qbit.is_available().await
+        } else {
+            false
+        }
+    } else {
+        true
+    };
+
+    let ready = db_ready && qbit_ready;
+    let status = if ready {
+        StatusCode::OK
+    } else {
+        StatusCode::SERVICE_UNAVAILABLE
+    };
+
+    (
+        status,
+        Json(ApiResponse::success(HealthReadyResponse {
+            ready,
+            checks: HealthReadinessChecks {
+                database: db_ready,
+                qbittorrent: qbit_ready,
+            },
+        })),
+    )
+        .into_response()
 }

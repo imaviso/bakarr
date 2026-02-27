@@ -11,29 +11,88 @@ use bakarr::config::Config;
 use http_body_util::BodyExt;
 use tower::ServiceExt;
 
-/// Default API key seeded by migration (must match `m20260127_add_users.rs`)
-const DEFAULT_API_KEY: &str = "bakarr_default_api_key_please_regenerate";
+async fn spawn_app() -> (Router, String) {
+    let db_path =
+        std::env::temp_dir().join(format!("bakarr-system-test-{}.db", uuid::Uuid::new_v4()));
 
-async fn spawn_app() -> Router {
     let mut config = Config::default();
-    config.general.database_path = "sqlite:data/bakarr.db:".to_string();
+    config.general.database_path = format!("sqlite:{}", db_path.display());
+    config.qbittorrent.enabled = false;
 
     let state = bakarr::api::create_app_state_from_config(config, None)
         .await
         .expect("Failed to create app state");
-    bakarr::api::router(state).await
+
+    let api_key = state
+        .store()
+        .get_user_api_key("admin")
+        .await
+        .expect("Failed to fetch bootstrap API key")
+        .expect("Bootstrap admin user missing API key");
+
+    (bakarr::api::router(state).await, api_key)
+}
+
+#[tokio::test]
+async fn test_health_live() {
+    let (app, _) = spawn_app().await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/system/health/live")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let body_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert!(body_json["success"].as_bool().unwrap_or(false));
+    assert_eq!(body_json["data"]["status"], "alive");
+}
+
+#[tokio::test]
+async fn test_health_ready() {
+    let (app, _) = spawn_app().await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/system/health/ready")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let body_json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert!(body_json["success"].as_bool().unwrap_or(false));
+    assert_eq!(body_json["data"]["ready"], true);
+    assert_eq!(body_json["data"]["checks"]["database"], true);
+    assert_eq!(body_json["data"]["checks"]["qbittorrent"], true);
 }
 
 #[tokio::test]
 async fn test_get_status() {
-    let app = spawn_app().await;
+    let (app, api_key) = spawn_app().await;
 
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/api/system/status")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -61,14 +120,14 @@ async fn test_get_status() {
 
 #[tokio::test]
 async fn test_get_logs() {
-    let app = spawn_app().await;
+    let (app, api_key) = spawn_app().await;
 
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/api/system/logs")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key.clone())
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -94,7 +153,7 @@ async fn test_get_logs() {
         .oneshot(
             Request::builder()
                 .uri("/api/system/logs?page=1&page_size=10")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -106,14 +165,14 @@ async fn test_get_logs() {
 
 #[tokio::test]
 async fn test_export_logs_json() {
-    let app = spawn_app().await;
+    let (app, api_key) = spawn_app().await;
 
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/api/system/logs/export?format=json")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -144,14 +203,14 @@ async fn test_export_logs_json() {
 
 #[tokio::test]
 async fn test_export_logs_csv() {
-    let app = spawn_app().await;
+    let (app, api_key) = spawn_app().await;
 
     let response = app
         .clone()
         .oneshot(
             Request::builder()
                 .uri("/api/system/logs/export?format=csv")
-                .header("X-Api-Key", DEFAULT_API_KEY)
+                .header("X-Api-Key", api_key)
                 .body(Body::empty())
                 .unwrap(),
         )

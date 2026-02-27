@@ -22,7 +22,7 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Config / Secrets
-# config.toml
+config.toml
 .env
 .env.*
 !.env.example

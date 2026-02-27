@@ -56,6 +56,11 @@ The binary will be available at `./target/release/bakarr`
 
 1. **Initialize Configuration**
    ```bash
+   cp config.example.toml config.toml
+   ```
+
+   Or generate one with defaults:
+   ```bash
    bakarr --init
    ```
 
@@ -70,12 +75,27 @@ The binary will be available at `./target/release/bakarr`
    bakarr daemon
    ```
 
+   On first startup, Bakarr creates a bootstrap admin user and prints generated credentials once in the logs.
+   You can provide your own bootstrap credentials via environment variables before first run:
+
+   - `BAKARR_BOOTSTRAP_ADMIN_USERNAME`
+   - `BAKARR_BOOTSTRAP_ADMIN_PASSWORD`
+   - `BAKARR_BOOTSTRAP_ADMIN_API_KEY`
+
 4. **Access the Web UI**
    Open `http://localhost:6789` to manage your library.
 
+5. **LAN Operations (optional but recommended)**
+   For `systemd` deployment, health checks, and backup/restore, see:
+   - `docs/lan-operations.md`
+   - `docs/reverse-proxy-tls.md`
+
+6. **Optional environment variables**
+   Copy `.env.example` and adjust values if you want to control bootstrap credentials via env.
+
 ## Configuration
 
-The configuration file is located at `./config.toml`
+Start from `./config.example.toml` and copy it to `./config.toml`.
 
 ### General Settings
 ```toml
@@ -91,10 +111,52 @@ event_bus_buffer_size = 100      # Size of the internal event bus buffer
 ```toml
 [qbittorrent]
 url = "http://localhost:8080"
-username = "admin"
-password = "adminadmin"
+username = "change-me"
+password = "change-me"
 default_category = "bakarr"
 stalled_timeout_seconds = 900 # Time before considering a stalled torrent as failed (15 min)
+```
+
+### Server
+```toml
+[server]
+enabled = true
+port = 6789
+cors_allowed_origins = [
+  "http://localhost:6789",
+  "http://127.0.0.1:6789",
+]
+secure_cookies = true
+allow_api_key_in_query = false
+```
+
+When `allow_api_key_in_query` is enabled, query API keys are only accepted on:
+- `GET /api/events`
+- `GET /api/stream/{id}/{number}`
+
+Health endpoints:
+- `GET /api/system/health/live`
+- `GET /api/system/health/ready`
+
+For the single-binary setup (UI and API on the same origin), you typically only need the `:6789` origins above.
+If you run a separate frontend dev server, add its origin (for example `http://localhost:5173`).
+
+### Security
+```toml
+[security]
+argon2_memory_cost_kib = 8192
+argon2_time_cost = 3
+argon2_parallelism = 1
+auto_migrate_password_hashes = true
+
+[security.auth_throttle]
+max_attempts = 5
+window_seconds = 300
+lockout_seconds = 120
+login_base_delay_ms = 250
+login_max_delay_ms = 1500
+password_base_delay_ms = 300
+password_max_delay_ms = 2000
 ```
 
 ### Nyaa
@@ -254,8 +316,9 @@ bakarr/
 │   ├── state.rs         # Shared application state
 │   └── main.rs          # Entry point
 ├── bakarr-ui/           # SolidJS frontend
-├── migration/           # Database migrations
-└── config.toml          # Configuration file
+├── src/db/migrator/     # Database migrations
+├── config.example.toml  # Configuration template
+└── config.toml          # Local configuration (gitignored)
 ```
 
 ### Building
