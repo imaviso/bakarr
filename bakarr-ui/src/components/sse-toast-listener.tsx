@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/solid-query";
-import { onCleanup, onMount } from "solid-js";
+import { createEffect, onCleanup } from "solid-js";
 import { toast } from "solid-sonner";
+import { useAuth } from "~/lib/auth";
 
 interface EventPayload {
 	type: string;
@@ -10,13 +11,23 @@ interface EventPayload {
 
 export function SseToastListener() {
 	const queryClient = useQueryClient();
+	const { auth } = useAuth();
 	let eventSource: EventSource | null = null;
 	let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	const connect = () => {
+	const disconnect = () => {
 		if (eventSource) {
 			eventSource.close();
+			eventSource = null;
 		}
+		if (retryTimeout) {
+			clearTimeout(retryTimeout);
+			retryTimeout = null;
+		}
+	};
+
+	const connect = () => {
+		disconnect();
 
 		eventSource = new EventSource("/api/events");
 
@@ -36,8 +47,9 @@ export function SseToastListener() {
 		eventSource.onerror = (err) => {
 			console.error("SSE Error", err);
 			eventSource?.close();
+			eventSource = null;
 
-			if (!retryTimeout) {
+			if (!retryTimeout && auth().isAuthenticated) {
 				retryTimeout = setTimeout(() => {
 					retryTimeout = null;
 					connect();
@@ -163,17 +175,16 @@ export function SseToastListener() {
 		}
 	};
 
-	onMount(() => {
-		connect();
+	createEffect(() => {
+		if (auth().isAuthenticated) {
+			connect();
+		} else {
+			disconnect();
+		}
 	});
 
 	onCleanup(() => {
-		if (eventSource) {
-			eventSource.close();
-		}
-		if (retryTimeout) {
-			clearTimeout(retryTimeout);
-		}
+		disconnect();
 	});
 
 	return null;

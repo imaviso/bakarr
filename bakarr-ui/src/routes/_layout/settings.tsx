@@ -1421,6 +1421,7 @@ const ConfigSchema = v.object({
 				v.integer(),
 				v.minValue(1, "Must be at least 1 ms"),
 			),
+			trusted_proxy_ips: v.array(v.string()),
 		}),
 	}),
 	profiles: v.array(

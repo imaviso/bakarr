@@ -415,6 +415,7 @@ export interface Config {
 			login_max_delay_ms: number;
 			password_base_delay_ms: number;
 			password_max_delay_ms: number;
+			trusted_proxy_ips: string[];
 		};
 	};
 	profiles: QualityProfile[];

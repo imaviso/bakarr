@@ -1,5 +1,6 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 import type { DownloadStatus } from "~/lib/api";
+import { useAuth } from "~/lib/auth";
 
 interface NotificationEvent {
 	type: string;
@@ -9,9 +10,25 @@ interface NotificationEvent {
 
 export function useActiveDownloads() {
 	const [downloads, setDownloads] = createSignal<DownloadStatus[]>([]);
+	const { auth } = useAuth();
+	let eventSource: EventSource | null = null;
 
-	onMount(() => {
-		const eventSource = new EventSource("/api/events");
+	const disconnect = () => {
+		if (eventSource) {
+			eventSource.close();
+			eventSource = null;
+		}
+	};
+
+	createEffect(() => {
+		if (!auth().isAuthenticated) {
+			disconnect();
+			setDownloads([]);
+			return;
+		}
+
+		disconnect();
+		eventSource = new EventSource("/api/events");
 
 		eventSource.onopen = () => {
 			// console.log("Connected to download stream");
@@ -32,12 +49,12 @@ export function useActiveDownloads() {
 
 		eventSource.onerror = (_e) => {
 			// console.error("EventSource error", e);
-			eventSource.close();
+			disconnect();
 		};
+	});
 
-		onCleanup(() => {
-			eventSource.close();
-		});
+	onCleanup(() => {
+		disconnect();
 	});
 
 	return downloads;

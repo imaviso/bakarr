@@ -603,10 +603,16 @@ fn client_identity(headers: &HeaderMap, trusted_proxy_ips: &[String]) -> String 
         .and_then(|v| v.to_str().ok())
         .map(str::trim)
         .filter(|v| !v.is_empty())
-        .map_or_else(
-            || "unknown-client".to_string(),
-            std::string::ToString::to_string,
-        )
+        .map(std::string::ToString::to_string)
+        .or_else(|| {
+            headers
+                .get("user-agent")
+                .and_then(|v| v.to_str().ok())
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(|ua| format!("ua:{ua}"))
+        })
+        .unwrap_or_else(|| "unknown-client".to_string())
 }
 
 #[cfg(test)]
@@ -634,5 +640,14 @@ mod tests {
 
         let id = client_identity(&headers, &["10.0.0.1".to_string()]);
         assert_eq!(id, "1.2.3.4");
+    }
+
+    #[test]
+    fn falls_back_to_user_agent_when_remote_ip_missing() {
+        let mut headers = HeaderMap::new();
+        headers.insert("user-agent", HeaderValue::from_static("BakarrUITest/1.0"));
+
+        let id = client_identity(&headers, &[]);
+        assert_eq!(id, "ua:BakarrUITest/1.0");
     }
 }
