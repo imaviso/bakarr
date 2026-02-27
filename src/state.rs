@@ -13,7 +13,6 @@ use crate::db::Store;
 use crate::domain::events::NotificationEvent;
 use crate::library::RecycleBin;
 use crate::services::SeaDexService;
-use crate::services::episodes::EpisodeService as OldEpisodeService;
 use crate::services::{
     AnimeMetadataService, AnimeService, AuthService, AutoDownloadService, DefaultImportService,
     DefaultRssService, DownloadDecisionService, DownloadService, EpisodeService, ImageService,
@@ -62,8 +61,6 @@ pub struct SharedState {
     pub auto_downloader: Arc<AutoDownloadService>,
 
     pub library_scanner: Arc<LibraryScannerService>,
-
-    pub episodes: Arc<OldEpisodeService>,
 
     pub episode_service: Arc<dyn EpisodeService>,
 
@@ -147,12 +144,6 @@ impl SharedState {
         let image_service_config = config.clone();
         let config_arc = Arc::new(RwLock::new(config));
 
-        let episodes = Arc::new(OldEpisodeService::new(
-            store.clone(),
-            jikan.clone(),
-            anilist.clone(),
-            Some(kitsu.clone()),
-        ));
         let download_decisions = DownloadDecisionService::new(store.clone());
 
         // Create seadex_service first since search_service depends on it
@@ -263,14 +254,14 @@ impl SharedState {
             image_service.clone(),
             metadata_service.clone(),
             event_bus.clone(),
-            episodes.clone(),
+            episode_service.clone(),
         )) as Arc<dyn ImportService + Send + Sync + 'static>;
 
         // Create the RenameService
         let rename_service = Arc::new(SeaOrmRenameService::new(
             store.clone(),
             config_arc.clone(),
-            episodes.clone(),
+            episode_service.clone(),
             event_bus.clone(),
         )) as Arc<dyn RenameService + Send + Sync + 'static>;
 
@@ -315,7 +306,6 @@ impl SharedState {
             log_service,
             auto_downloader,
             library_scanner,
-            episodes,
             episode_service,
             download_service,
             download_decisions,

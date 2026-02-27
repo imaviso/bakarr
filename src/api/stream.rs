@@ -22,24 +22,35 @@ pub async fn stream_episode(
     headers: axum::http::HeaderMap,
     session: tower_sessions::Session,
 ) -> Result<impl IntoResponse, ApiError> {
-    // Check session first
+    let allow_query_token = state.config().read().await.server.allow_api_key_in_query;
+
     let is_authenticated = if let Ok(Some(_user)) = session.get::<String>("user").await {
         true
-    } else if let Some(token) = &params.token {
-        // Verify token against database
+    } else if let Some(header_token) = extract_token_from_headers(&headers) {
         state
             .store()
-            .verify_api_key(token)
+            .verify_api_key(&header_token)
             .await
             .map(|u| u.is_some())
             .unwrap_or(false)
+    } else if let Some(token) = &params.token {
+        if allow_query_token {
+            state
+                .store()
+                .verify_api_key(token)
+                .await
+                .map(|u| u.is_some())
+                .unwrap_or(false)
+        } else {
+            false
+        }
     } else {
         false
     };
 
     if !is_authenticated {
         return Err(ApiError::Unauthorized(
-            "Invalid or missing token".to_string(),
+            "Invalid or missing authentication".to_string(),
         ));
     }
 
@@ -75,4 +86,21 @@ pub async fn stream_episode(
         Ok(res) => Ok(res),
         Err(e) => Err(ApiError::internal(format!("Streaming error: {e}"))),
     }
+}
+
+fn extract_token_from_headers(headers: &axum::http::HeaderMap) -> Option<String> {
+    if let Some(api_key) = headers.get("X-Api-Key")
+        && let Ok(key_str) = api_key.to_str()
+    {
+        return Some(key_str.to_string());
+    }
+
+    if let Some(auth_header) = headers.get("Authorization")
+        && let Ok(auth_str) = auth_header.to_str()
+        && let Some(token) = auth_str.strip_prefix("Bearer ")
+    {
+        return Some(token.trim().to_string());
+    }
+
+    None
 }

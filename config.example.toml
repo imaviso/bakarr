@@ -105,3 +105,4 @@ login_base_delay_ms = 250
 login_max_delay_ms = 1500
 password_base_delay_ms = 300
 password_max_delay_ms = 2000
+trusted_proxy_ips = []

@@ -7,11 +7,12 @@ use tokio::sync::RwLock;
 use crate::clients::anilist::AnilistClient;
 use crate::config::Config;
 use crate::db::Store;
+use crate::domain::{AnimeId, EpisodeNumber};
 use crate::library::LibraryService;
 use crate::models::anime::Anime;
 use crate::models::release::Release;
 use crate::parser::filename::parse_filename;
-use crate::services::episodes::EpisodeService;
+use crate::services::episode_service::EpisodeService as EpisodeServiceTrait;
 use crate::services::image::{ImageService, ImageType};
 
 pub async fn cmd_import(
@@ -38,7 +39,6 @@ pub async fn cmd_import(
         tx,
     );
     let anilist = Arc::new(AnilistClient::new());
-    let jikan = Arc::new(crate::clients::jikan::JikanClient::new());
 
     let target_anime = if let Some(id) = anime_id {
         let Some(a) = store.get_anime(id).await? else {
@@ -71,9 +71,9 @@ pub async fn cmd_import(
         return Ok(());
     }
 
-    let episode_service = EpisodeService::new(store.clone(), jikan, anilist, None);
+    let episode_service = super::build_episode_service(config, &store);
 
-    display_import_plan(&files_to_import, &library, &episode_service).await;
+    display_import_plan(&files_to_import, &library, episode_service.as_ref()).await;
 
     if dry_run {
         println!("Dry run - no files were imported.");
@@ -91,7 +91,7 @@ pub async fn cmd_import(
     }
 
     let (imported, failed) =
-        execute_import(&files_to_import, &library, &episode_service, &store).await?;
+        execute_import(&files_to_import, &library, episode_service.as_ref(), &store).await?;
 
     println!();
     println!("{:-<70}", "");
@@ -181,7 +181,7 @@ async fn collect_import_candidates(
 async fn display_import_plan(
     files_to_import: &[(std::path::PathBuf, Release, Anime)],
     library: &LibraryService,
-    episode_service: &EpisodeService,
+    episode_service: &(dyn EpisodeServiceTrait + Send + Sync),
 ) {
     println!("\nPlan:");
     println!("{:-<70}", "");
@@ -192,7 +192,7 @@ async fn display_import_plan(
         let season = release.season.unwrap_or(1);
 
         let episode_title = episode_service
-            .get_episode_title(anime.id, episode)
+            .get_episode_title(AnimeId::new(anime.id), EpisodeNumber::from(episode))
             .await
             .unwrap_or_else(|_| format!("Episode {episode}"));
 
@@ -231,7 +231,7 @@ async fn display_import_plan(
 async fn execute_import(
     files_to_import: &[(std::path::PathBuf, Release, Anime)],
     library: &LibraryService,
-    episode_service: &EpisodeService,
+    episode_service: &(dyn EpisodeServiceTrait + Send + Sync),
     store: &Store,
 ) -> anyhow::Result<(usize, usize)> {
     let mut imported = 0;
@@ -243,7 +243,7 @@ async fn execute_import(
         let season = release.season.unwrap_or(1);
 
         let episode_title = episode_service
-            .get_episode_title(anime.id, episode)
+            .get_episode_title(AnimeId::new(anime.id), EpisodeNumber::from(episode))
             .await
             .unwrap_or_else(|_| format!("Episode {episode}"));
 

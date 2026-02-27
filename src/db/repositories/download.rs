@@ -1,8 +1,8 @@
 use crate::entities::{blocklist, prelude::*, recycle_bin, release_history};
 use anyhow::Result;
 use sea_orm::{
-    ColumnTrait, DatabaseConnection, EntityTrait, FromQueryResult, PaginatorTrait, QueryFilter,
-    QueryOrder, QuerySelect, Set,
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, FromQueryResult,
+    PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set,
 };
 
 pub struct DownloadRepository {
@@ -36,25 +36,40 @@ impl DownloadRepository {
         group: Option<&str>,
         info_hash: Option<&str>,
     ) -> Result<()> {
+        let normalized_hash = info_hash.map(str::to_lowercase);
+        let now = chrono::Utc::now().to_rfc3339();
+
+        if let Some(ref hash) = normalized_hash {
+            let existing = ReleaseHistory::find()
+                .filter(release_history::Column::InfoHash.eq(hash.clone()))
+                .one(&self.conn)
+                .await?;
+
+            if let Some(model) = existing {
+                let mut active: release_history::ActiveModel = model.into();
+                active.anime_id = Set(anime_id);
+                active.filename = Set(filename.to_string());
+                active.episode_number = Set(episode);
+                active.group_name = Set(group.map(std::string::ToString::to_string));
+                active.download_date = Set(Some(now));
+                active.imported = Set(false);
+                active.update(&self.conn).await?;
+                return Ok(());
+            }
+        }
+
         let active_model = release_history::ActiveModel {
             anime_id: Set(anime_id),
             filename: Set(filename.to_string()),
             episode_number: Set(episode),
             group_name: Set(group.map(std::string::ToString::to_string)),
-            info_hash: Set(info_hash.map(str::to_lowercase)),
-            download_date: Set(Some(chrono::Utc::now().to_rfc3339())),
+            info_hash: Set(normalized_hash),
+            download_date: Set(Some(now)),
             imported: Set(false),
             ..Default::default()
         };
 
-        ReleaseHistory::insert(active_model)
-            .on_conflict(
-                sea_orm::sea_query::OnConflict::column(release_history::Column::Filename)
-                    .do_nothing()
-                    .to_owned(),
-            )
-            .exec_without_returning(&self.conn)
-            .await?;
+        active_model.insert(&self.conn).await?;
 
         Ok(())
     }
@@ -86,8 +101,10 @@ impl DownloadRepository {
             return Ok(Vec::new());
         }
 
+        let normalized: Vec<String> = hashes.iter().map(|h| h.to_lowercase()).collect();
+
         let rows = ReleaseHistory::find()
-            .filter(release_history::Column::InfoHash.is_in(hashes))
+            .filter(release_history::Column::InfoHash.is_in(normalized))
             .all(&self.conn)
             .await?;
 

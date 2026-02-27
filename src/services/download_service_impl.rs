@@ -256,6 +256,7 @@ impl DownloadService for SeaOrmDownloadService {
                     anime_id_val,
                     &category,
                     &anime_title,
+                    SearchMode::MissingOnly, // Search missing only, not upgrades
                 )
                 .await
                 {
@@ -374,10 +375,25 @@ fn extract_hash_from_magnet(magnet: &str) -> Option<String> {
         .and_then(|(_, v)| v.strip_prefix("urn:btih:").map(ToString::to_string))
 }
 
+/// Search mode for determining what to download
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchMode {
+    /// Only download episodes that are missing (not downloaded yet)
+    MissingOnly,
+    /// Download missing episodes and also upgrade existing episodes if better quality available
+    MissingAndUpgrades,
+}
+
 /// Performs search and download for a single anime.
 ///
 /// This function coordinates with `SearchService` to find missing episodes
 /// and queue them for download via qBittorrent.
+///
+/// # Arguments
+/// * `mode` - Search mode determining which downloads to queue:
+///   - `SearchMode::MissingOnly`: Only queue episodes not yet downloaded (Accept actions)
+///   - `SearchMode::MissingAndUpgrades`: Queue both missing and upgrades (Accept + Upgrade actions)
+#[allow(clippy::too_many_arguments)]
 async fn perform_search_and_download(
     search_service: Arc<SearchService>,
     store: Store,
@@ -386,6 +402,7 @@ async fn perform_search_and_download(
     anime_id: i32,
     category: &str,
     anime_title: &str,
+    mode: SearchMode,
 ) -> anyhow::Result<usize> {
     debug!(
         anime_id,
@@ -415,7 +432,21 @@ async fn perform_search_and_download(
     let mut count = 0;
 
     for result in results {
-        if result.download_action.should_download() {
+        let should_queue = match mode {
+            SearchMode::MissingOnly => {
+                // Only accept new downloads, not upgrades
+                matches!(
+                    result.download_action,
+                    crate::services::download::DownloadAction::Accept { .. }
+                )
+            }
+            SearchMode::MissingAndUpgrades => {
+                // Accept both new downloads and upgrades
+                result.download_action.should_download()
+            }
+        };
+
+        if should_queue {
             if let Some(qbit) = &qbit {
                 if let Err(e) = qbit.create_category(category, None).await {
                     debug!(category, error = %e, "Failed to create category (may already exist)");
@@ -543,6 +574,7 @@ async fn perform_global_search(
             *anime_id,
             &category,
             &anime_title,
+            SearchMode::MissingOnly, // Global search is for missing episodes only
         )
         .await
         {

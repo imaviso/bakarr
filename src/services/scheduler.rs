@@ -97,8 +97,7 @@ impl Scheduler {
         let metadata_job = Job::new_async(&refresh_cron, move |_uuid, _lock| {
             let state = Arc::clone(&state_for_metadata);
             Box::pin(async move {
-                let episodes = state.episodes.clone();
-                if let Err(e) = episodes.refresh_metadata_for_active_anime().await {
+                if let Err(e) = state.episode_service.refresh_all_active_metadata().await {
                     error!("Scheduled metadata refresh failed: {}", e);
                 }
             })
@@ -267,7 +266,10 @@ impl Scheduler {
     }
 
     async fn refresh_metadata(&self) -> Result<()> {
-        let episodes = self.state.episodes.clone();
-        episodes.refresh_metadata_for_active_anime().await
+        self.state
+            .episode_service
+            .refresh_all_active_metadata()
+            .await?;
+        Ok(())
     }
 }

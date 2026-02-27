@@ -1,4 +1,5 @@
 use crate::constants::VIDEO_EXTENSIONS;
+use crate::domain::{AnimeId, EpisodeNumber};
 use crate::library::LibraryService;
 use crate::parser::filename::parse_filename;
 use crate::quality::parse_quality_from_filename;
@@ -178,7 +179,12 @@ impl Monitor {
         pairs.sort_unstable();
         pairs.dedup();
 
-        let titles_map = self.state.episodes.get_episode_titles_batch(&pairs).await?;
+        let titles_map = self
+            .state
+            .episode_service
+            .get_episode_titles_batch(&pairs)
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to fetch episode titles: {e}"))?;
         let statuses_map = store.get_episode_statuses_batch(&pairs).await?;
 
         let mut anime_ids: Vec<i32> = entries.iter().map(|e| e.anime_id).collect();
@@ -493,8 +499,8 @@ impl Monitor {
             (true, Some(title)) => title,
             _ => self
                 .state
-                .episodes
-                .get_episode_title(anime.id, episode_number)
+                .episode_service
+                .get_episode_title(AnimeId::new(anime.id), EpisodeNumber::from(episode_number))
                 .await
                 .unwrap_or_else(|_| format!("Episode {episode_number}")),
         };
@@ -620,8 +626,8 @@ impl Monitor {
             (true, Some(title)) => title,
             _ => self
                 .state
-                .episodes
-                .get_episode_title(anime.id, episode_number)
+                .episode_service
+                .get_episode_title(AnimeId::new(anime.id), EpisodeNumber::from(episode_number))
                 .await
                 .unwrap_or_else(|_| format!("Episode {episode_number}")),
         };
@@ -792,9 +798,10 @@ impl Monitor {
 
         let titles_map = self
             .state
-            .episodes
+            .episode_service
             .get_episode_titles_batch(&episode_numbers)
-            .await?;
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to fetch episode titles: {e}"))?;
 
         let mut imported = 0;
 

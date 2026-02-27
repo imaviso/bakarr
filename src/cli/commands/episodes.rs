@@ -1,10 +1,7 @@
-use crate::clients::anilist::AnilistClient;
-use crate::clients::jikan::JikanClient;
 use crate::config::Config;
 use crate::db::Store;
-use crate::services::episodes::EpisodeService;
+use crate::domain::{AnimeId, EpisodeNumber};
 use anyhow::Context;
-use std::sync::Arc;
 
 pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyhow::Result<()> {
     let id: i32 = id_str.parse().context("Invalid anime ID")?;
@@ -18,19 +15,17 @@ pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyho
     println!("Episodes for: {}", anime.title.romaji);
     println!("{:-<70}", "");
 
-    let jikan = Arc::new(JikanClient::new());
-    let anilist = Arc::new(AnilistClient::new());
-    let episode_service = EpisodeService::new(store.clone(), jikan, anilist, None);
+    let episode_service = super::build_episode_service(config, &store);
 
     if refresh {
         println!("Refreshing episode metadata (AniList -> Kitsu -> Jikan)...");
-        match episode_service.refresh_episode_cache(id).await {
+        match episode_service.refresh_metadata(AnimeId::new(id)).await {
             Ok(count) => println!("✓ Cached {count} episodes\n"),
             Err(e) => println!("⚠ Failed to refresh: {e}\n"),
         }
     } else if !store.has_cached_episodes(id).await? {
         println!("Fetching episode metadata (AniList -> Kitsu -> Jikan)...");
-        match episode_service.fetch_and_cache_episodes(id).await {
+        match episode_service.refresh_metadata(AnimeId::new(id)).await {
             Ok(count) if count > 0 => println!("✓ Cached {count} episodes\n"),
             Ok(_) => println!("⚠ No episode metadata available\n"),
             Err(e) => println!("⚠ Failed to fetch: {e}\n"),
@@ -50,8 +45,11 @@ pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyho
         let is_downloaded = downloaded_numbers.contains(&ep_num);
         let status_icon = if is_downloaded { "✓" } else { "○" };
 
-        match episode_service.get_episode_metadata(id, ep_num).await? {
-            Some(meta) => {
+        match episode_service
+            .get_episode(AnimeId::new(id), EpisodeNumber::from(ep_num))
+            .await
+        {
+            Ok(meta) => {
                 let title = meta.title.as_deref().unwrap_or("(No title)");
                 let aired = meta.aired.as_deref().unwrap_or("");
                 let aired_str = if aired.is_empty() {
@@ -62,7 +60,7 @@ pub async fn cmd_episodes(config: &Config, id_str: &str, refresh: bool) -> anyho
 
                 println!("{status_icon} Episode {ep_num}: {title}{aired_str}");
             }
-            None => {
+            Err(_) => {
                 println!("{status_icon} Episode {ep_num}");
             }
         }

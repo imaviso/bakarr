@@ -90,6 +90,9 @@ impl AnimeRepository {
             .on_conflict(
                 sea_orm::sea_query::OnConflict::column(monitored_anime::Column::Id)
                     .update_columns([
+                        monitored_anime::Column::RomajiTitle,
+                        monitored_anime::Column::EnglishTitle,
+                        monitored_anime::Column::NativeTitle,
                         monitored_anime::Column::Status,
                         monitored_anime::Column::EpisodeCount,
                         monitored_anime::Column::QualityProfileId,

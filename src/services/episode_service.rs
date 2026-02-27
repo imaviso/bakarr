@@ -177,4 +177,30 @@ pub trait EpisodeService: Send + Sync {
         start: &str,
         end: &str,
     ) -> Result<Vec<CalendarEventDto>, EpisodeError>;
+
+    /// Gets episode titles for multiple anime/episode pairs.
+    ///
+    /// Returns a map from `anime_id` and `episode_number` to title string.
+    /// Falls back to "Episode {n}" for missing entries.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EpisodeError::Database`] on connection failures.
+    async fn get_episode_titles_batch(
+        &self,
+        pairs: &[(i32, i32)],
+    ) -> Result<std::collections::HashMap<(i32, i32), String>, EpisodeError>;
+
+    /// Gets a single episode title with fallback.
+    ///
+    /// Returns episode title if known, otherwise falls back to `Episode {n}`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EpisodeError::Database`] on connection failures.
+    async fn get_episode_title(
+        &self,
+        anime_id: AnimeId,
+        episode_number: EpisodeNumber,
+    ) -> Result<String, EpisodeError>;
 }

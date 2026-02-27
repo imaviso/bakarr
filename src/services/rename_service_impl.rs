@@ -6,7 +6,7 @@ use crate::domain::{AnimeId, EpisodeNumber};
 use crate::library::{LibraryService as PathFormatter, RenamingOptions};
 use crate::models::episode::EpisodeStatusRow;
 use crate::services::MediaService;
-use crate::services::episodes::EpisodeService as OldEpisodeService;
+use crate::services::episode_service::EpisodeService;
 use crate::services::rename_service::{
     RenameError, RenamePreviewItem, RenameResult, RenameService,
 };
@@ -22,7 +22,7 @@ const RENAME_PREVIEW_CONCURRENCY: usize = 8;
 pub struct SeaOrmRenameService {
     store: Store,
     config: Arc<RwLock<Config>>,
-    episodes_service: Arc<OldEpisodeService>,
+    episode_service: Arc<dyn EpisodeService + Send + Sync>,
     event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
 }
 
@@ -31,13 +31,13 @@ impl SeaOrmRenameService {
     pub const fn new(
         store: Store,
         config: Arc<RwLock<Config>>,
-        episodes_service: Arc<OldEpisodeService>,
+        episode_service: Arc<dyn EpisodeService + Send + Sync>,
         event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
     ) -> Self {
         Self {
             store,
             config,
-            episodes_service,
+            episode_service,
             event_bus,
         }
     }
@@ -51,8 +51,8 @@ impl SeaOrmRenameService {
     ) -> RenamingOptions {
         let ep_num = status.episode_number;
         let title = self
-            .episodes_service
-            .get_episode_title(anime_id.value(), ep_num)
+            .episode_service
+            .get_episode_title(anime_id, EpisodeNumber::from(ep_num))
             .await
             .unwrap_or_else(|_| format!("Episode {ep_num}"));
 
@@ -362,12 +362,17 @@ impl RenameService for SeaOrmRenameService {
 
             match tokio::fs::rename(current_path, &new_path).await {
                 Ok(()) => {
-                    renamed_count += 1;
-                    if let Err(e) = self
+                    match self
                         .update_db_after_rename(anime_id, ep_num, current_path, &new_path)
                         .await
                     {
-                        failures.push(e.to_string());
+                        Ok(()) => {
+                            renamed_count += 1;
+                        }
+                        Err(e) => {
+                            failed_count += 1;
+                            failures.push(format!("Ep {ep_num}: DB update failed: {e}"));
+                        }
                     }
                 }
                 Err(e) => {

@@ -12,6 +12,38 @@ mod search;
 mod search_missing;
 mod wanted;
 
+use std::sync::Arc;
+
+use crate::clients::anilist::AnilistClient;
+use crate::clients::jikan::JikanClient;
+use crate::clients::kitsu::KitsuClient;
+use crate::config::Config;
+use crate::db::Store;
+use crate::services::{EpisodeService, ImageService, SeaOrmEpisodeService};
+use tokio::sync::RwLock;
+
+fn build_episode_service(
+    config: &Config,
+    store: &Store,
+) -> Arc<dyn EpisodeService + Send + Sync + 'static> {
+    let anilist = Arc::new(AnilistClient::new());
+    let jikan = Arc::new(JikanClient::new());
+    let kitsu = Arc::new(KitsuClient::new());
+    let image_service = Arc::new(ImageService::new(config.clone()));
+    let config_arc = Arc::new(RwLock::new(config.clone()));
+    let (event_bus, _) = tokio::sync::broadcast::channel(128);
+
+    Arc::new(SeaOrmEpisodeService::new(
+        Arc::new(store.clone()),
+        anilist,
+        jikan,
+        Some(kitsu),
+        image_service,
+        config_arc,
+        event_bus,
+    )) as Arc<dyn EpisodeService + Send + Sync + 'static>
+}
+
 pub use add::cmd_add_anime;
 pub use episodes::cmd_episodes;
 pub use history::cmd_history;

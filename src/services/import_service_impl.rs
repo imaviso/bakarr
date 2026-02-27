@@ -7,6 +7,7 @@ use crate::domain::AnimeId;
 use crate::library::{LibraryService as LibraryScanner, RenamingOptions};
 use crate::parser::filename::{detect_season_from_title, parse_filename};
 use crate::services::MediaService;
+use crate::services::episode_service::EpisodeService;
 use crate::services::import_service::{
     FailedImportDto, ImportError, ImportFileRequestDto, ImportOperationResult, ImportService,
     ImportedFileDto, MatchedAnimeDto, ScanResultDto, ScannedFileDto,
@@ -25,7 +26,7 @@ pub struct DefaultImportService {
     image_service: Arc<crate::services::ImageService>,
     metadata_service: Arc<crate::services::AnimeMetadataService>,
     event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
-    episodes_service: Arc<crate::services::episodes::EpisodeService>,
+    episode_service: Arc<dyn EpisodeService + Send + Sync>,
 }
 
 impl DefaultImportService {
@@ -38,7 +39,7 @@ impl DefaultImportService {
         image_service: Arc<crate::services::ImageService>,
         metadata_service: Arc<crate::services::AnimeMetadataService>,
         event_bus: tokio::sync::broadcast::Sender<crate::domain::events::NotificationEvent>,
-        episodes_service: Arc<crate::services::episodes::EpisodeService>,
+        episode_service: Arc<dyn EpisodeService + Send + Sync>,
     ) -> Self {
         Self {
             store,
@@ -48,7 +49,7 @@ impl DefaultImportService {
             image_service,
             metadata_service,
             event_bus,
-            episodes_service,
+            episode_service,
         }
     }
 
@@ -428,8 +429,11 @@ impl ImportService for DefaultImportService {
         let season = request.season.unwrap_or(1);
 
         let episode_title = self
-            .episodes_service
-            .get_episode_title(anime.id, episode)
+            .episode_service
+            .get_episode_title(
+                AnimeId::new(anime.id),
+                crate::domain::EpisodeNumber::from(episode),
+            )
             .await
             .unwrap_or_else(|_| format!("Episode {episode}"));
 

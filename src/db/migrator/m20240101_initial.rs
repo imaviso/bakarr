@@ -264,6 +264,17 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_release_history_info_hash_unique")
+                    .table(ReleaseHistory)
+                    .col(crate::entities::release_history::Column::InfoHash)
+                    .unique()
+                    .to_owned(),
+            )
+            .await?;
+
         let creds = resolve_bootstrap_credentials();
         let now = chrono::Utc::now().to_rfc3339();
         let password_hash = hash_password(&creds.password)?;

@@ -1,12 +1,10 @@
-use crate::clients::anilist::AnilistClient;
 use crate::clients::jikan::JikanClient;
 use crate::clients::nyaa::NyaaClient;
 use crate::clients::offline_db::OfflineDatabase;
 use crate::clients::seadex::SeaDexClient;
 use crate::config::Config;
 use crate::db::Store;
-use crate::services::episodes::EpisodeService;
-use std::sync::Arc;
+use crate::domain::AnimeId;
 use tracing::warn;
 
 pub async fn cmd_anime_info(
@@ -30,10 +28,8 @@ pub async fn cmd_anime_info(
 
     if refresh_episodes {
         println!("Refreshing episode metadata (AniList -> Kitsu -> Jikan)...");
-        let jikan = Arc::new(JikanClient::new());
-        let anilist = Arc::new(AnilistClient::new());
-        let episode_service = EpisodeService::new(store.clone(), jikan, anilist, None);
-        match episode_service.refresh_episode_cache(id).await {
+        let episode_service = super::build_episode_service(config, &store);
+        match episode_service.refresh_metadata(AnimeId::new(id)).await {
             Ok(count) => println!("✓ Refreshed metadata for {count} episodes\n"),
             Err(e) => println!("⚠ Failed to refresh: {e}\n"),
         }

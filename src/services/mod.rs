@@ -27,7 +27,6 @@ pub use download_service::{DownloadError, DownloadService};
 pub use download_service_impl::SeaOrmDownloadService;
 pub use episode_service::{EpisodeError, EpisodeService};
 pub use episode_service_impl::SeaOrmEpisodeService;
-pub use episodes::EpisodeService as OldEpisodeService;
 pub use image::ImageService;
 pub use logs::LogService;
 pub mod search;

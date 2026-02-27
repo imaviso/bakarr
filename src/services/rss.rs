@@ -97,8 +97,8 @@ pub trait RssService: Send + Sync {
     /// Triggers a check of all enabled RSS feeds.
     async fn check_feeds(&self, delay_secs: u64) -> Result<RssCheckStats, RssError>;
 
-    /// Triggers an RSS check in the background.
-    fn trigger_check(&self);
+    /// Triggers an RSS check in the background with specified delay between feed checks.
+    fn trigger_check(&self, delay_secs: u64);
 }
 
 pub struct DefaultRssService {
@@ -405,7 +405,7 @@ impl RssService for DefaultRssService {
         Ok(stats)
     }
 
-    fn trigger_check(&self) {
+    fn trigger_check(&self, delay_secs: u64) {
         let store = self.store.clone();
         let nyaa = self.nyaa.clone();
         let qbit = self.qbit.clone();
@@ -414,9 +414,7 @@ impl RssService for DefaultRssService {
 
         tokio::spawn(async move {
             let service = Self::new(store, nyaa, qbit, download_decisions, event_bus);
-            // Default delay from 0 for manual triggers? Or fetch from DB?
-            // The original logic used config.
-            if let Err(e) = service.check_feeds(0).await {
+            if let Err(e) = service.check_feeds(delay_secs).await {
                 tracing::error!(error = %e, "Background RSS check failed");
             }
         });

@@ -81,6 +81,12 @@ pub struct AuthThrottleConfig {
 
     /// Maximum delay cap for failed password-change attempts.
     pub password_max_delay_ms: u64,
+
+    /// Trusted proxy IP addresses allowed to provide forwarded client IP headers.
+    ///
+    /// When empty, forwarded headers are ignored for rate-limiting identity and
+    /// the socket peer address is used.
+    pub trusted_proxy_ips: Vec<String>,
 }
 
 impl Default for AuthThrottleConfig {
@@ -93,6 +99,7 @@ impl Default for AuthThrottleConfig {
             login_max_delay_ms: 1500,
             password_base_delay_ms: 300,
             password_max_delay_ms: 2000,
+            trusted_proxy_ips: Vec::new(),
         }
     }
 }

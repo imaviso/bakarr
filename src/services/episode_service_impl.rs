@@ -23,7 +23,7 @@ use crate::db::Store;
 use crate::domain::{AnimeId, EpisodeNumber};
 use crate::library::RecycleBin;
 use crate::models::episode::EpisodeInput;
-use crate::parser::filename::parse_filename;
+use crate::parser::filename::parse_episode_title;
 use crate::quality::parse_quality_from_filename;
 use crate::services::MediaService;
 use crate::services::episode_service::{EpisodeError, EpisodeService};
@@ -126,12 +126,11 @@ impl SeaOrmEpisodeService {
 
         for ep in anilist_eps {
             if let Some(title) = ep.title
-                && let Some(release) = parse_filename(&title)
-                && release.episode_number > 0.0
-                && !seen_episodes.contains(&release.episode_number_truncated())
+                && let Some((number, real_title)) = parse_episode_title(&title)
+                && number > 0
+                && !seen_episodes.contains(&number)
             {
-                let ep_num = release.episode_number_truncated();
-                seen_episodes.insert(ep_num);
+                seen_episodes.insert(number);
 
                 // Track provenance
                 let mut provenance = EpisodeProvenance::new();
@@ -141,8 +140,8 @@ impl SeaOrmEpisodeService {
                 }
 
                 all_episodes.push(EpisodeInput {
-                    episode_number: ep_num,
-                    title: Some(release.title),
+                    episode_number: number,
+                    title: real_title,
                     title_japanese: None,
                     aired: ep.aired.clone(),
                     filler: false,
@@ -1083,6 +1082,94 @@ impl EpisodeService for SeaOrmEpisodeService {
             .collect();
 
         Ok(dtos)
+    }
+
+    async fn get_episode_titles_batch(
+        &self,
+        pairs: &[(i32, i32)],
+    ) -> Result<std::collections::HashMap<(i32, i32), String>, EpisodeError> {
+        if pairs.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        let mut titles_map = self
+            .store
+            .get_episode_titles_batch(pairs)
+            .await
+            .map_err(EpisodeError::from)?;
+
+        let mut missing_by_anime: std::collections::HashMap<i32, Vec<i32>> =
+            std::collections::HashMap::new();
+        for (anime_id, episode_number) in pairs {
+            if !titles_map.contains_key(&(*anime_id, *episode_number)) {
+                missing_by_anime
+                    .entry(*anime_id)
+                    .or_default()
+                    .push(*episode_number);
+            }
+        }
+
+        if missing_by_anime.is_empty() {
+            return Ok(titles_map);
+        }
+
+        for anime_id in missing_by_anime.keys() {
+            let _ = self.fetch_and_cache_episodes(*anime_id).await;
+        }
+
+        let remaining_pairs: Vec<(i32, i32)> = missing_by_anime
+            .into_iter()
+            .flat_map(|(aid, eps)| eps.into_iter().map(move |ep| (aid, ep)))
+            .collect();
+
+        let new_titles = self
+            .store
+            .get_episode_titles_batch(&remaining_pairs)
+            .await
+            .map_err(EpisodeError::from)?;
+        titles_map.extend(new_titles);
+
+        for (anime_id, episode_number) in pairs {
+            titles_map
+                .entry((*anime_id, *episode_number))
+                .or_insert_with(|| format!("Episode {episode_number}"));
+        }
+
+        Ok(titles_map)
+    }
+
+    async fn get_episode_title(
+        &self,
+        anime_id: AnimeId,
+        episode_number: EpisodeNumber,
+    ) -> Result<String, EpisodeError> {
+        let anime_id_val = anime_id.value();
+        let episode_num = episode_number.as_i32().ok_or_else(|| {
+            EpisodeError::Validation("Fractional episode numbers not supported".to_string())
+        })?;
+
+        if let Some(meta) = self
+            .store
+            .get_episode_metadata(anime_id_val, episode_num)
+            .await
+            .map_err(EpisodeError::from)?
+        {
+            return Ok(meta
+                .title
+                .unwrap_or_else(|| format!("Episode {episode_num}")));
+        }
+
+        let _ = self.fetch_and_cache_episodes(anime_id_val).await;
+
+        let fallback = self
+            .store
+            .get_episode_metadata(anime_id_val, episode_num)
+            .await
+            .map_err(EpisodeError::from)?
+            .and_then(|m| m.title)
+            .unwrap_or_else(|| format!("Episode {episode_num}"));
+
+        Ok(fallback)
     }
 }
 

@@ -13,6 +13,7 @@ pub async fn trigger_scan(
 pub async fn trigger_rss_check(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<ApiResponse<String>>, ApiError> {
-    state.rss_service.trigger_check();
+    let delay_secs = u64::from(state.config().read().await.scheduler.check_delay_seconds);
+    state.rss_service.trigger_check(delay_secs);
     Ok(Json(ApiResponse::success("RSS check started".to_string())))
 }

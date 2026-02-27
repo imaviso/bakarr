@@ -1,15 +1,10 @@
-use crate::clients::anilist::AnilistClient;
-use crate::clients::jikan::JikanClient;
 use crate::config::Config;
 use crate::db::Store;
-use crate::services::episodes::EpisodeService;
-use std::sync::Arc;
+use crate::domain::{AnimeId, EpisodeNumber};
 
 pub async fn cmd_wanted(config: &Config, anime_id: Option<i32>) -> anyhow::Result<()> {
     let store = Store::new(&config.general.database_path).await?;
-    let jikan = Arc::new(JikanClient::new());
-    let anilist = Arc::new(AnilistClient::new());
-    let episode_service = EpisodeService::new(store.clone(), jikan, anilist, None);
+    let episode_service = super::build_episode_service(config, &store);
 
     let anime_list = if let Some(id) = anime_id {
         if let Some(a) = store.get_anime(id).await? {
@@ -74,7 +69,7 @@ pub async fn cmd_wanted(config: &Config, anime_id: Option<i32>) -> anyhow::Resul
         println!("  Missing:");
         for (idx, &ep_num) in missing_eps.iter().take(10).enumerate() {
             let title = episode_service
-                .get_episode_title(anime.id, ep_num)
+                .get_episode_title(AnimeId::new(anime.id), EpisodeNumber::from(ep_num))
                 .await
                 .unwrap_or_else(|_| format!("Episode {ep_num}"));
 

@@ -334,12 +334,13 @@ pub async fn login(
         return Err(ApiError::validation("Password is required"));
     }
 
-    let client_id = client_identity(&headers);
-    let rate_limit_key = format!("{client_id}:{}", payload.username.trim().to_lowercase());
-    let login_policy = {
+    let throttle_config = {
         let config = state.config().read().await;
-        RateLimitPolicy::from_login_config(&config.security.auth_throttle)
+        config.security.auth_throttle.clone()
     };
+    let client_id = client_identity(&headers, &throttle_config.trusted_proxy_ips);
+    let rate_limit_key = format!("{client_id}:{}", payload.username.trim().to_lowercase());
+    let login_policy = RateLimitPolicy::from_login_config(&throttle_config);
 
     if let Some(remaining) = {
         let mut limiter = state.auth_rate_limiter.lock().await;
@@ -437,12 +438,13 @@ pub async fn change_password(
     Json(payload): Json<ChangePasswordRequest>,
 ) -> Result<Json<ApiResponse<MessageResponse>>, ApiError> {
     let username = get_session_username(&session).await?;
-    let client_id = client_identity(&headers);
-    let rate_limit_key = format!("{client_id}:{}", username.to_lowercase());
-    let password_policy = {
+    let throttle_config = {
         let config = state.config().read().await;
-        RateLimitPolicy::from_password_config(&config.security.auth_throttle)
+        config.security.auth_throttle.clone()
     };
+    let client_id = client_identity(&headers, &throttle_config.trusted_proxy_ips);
+    let rate_limit_key = format!("{client_id}:{}", username.to_lowercase());
+    let password_policy = RateLimitPolicy::from_password_config(&throttle_config);
 
     if let Some(remaining) = {
         let mut limiter = state.auth_rate_limiter.lock().await;
@@ -558,25 +560,79 @@ async fn get_session_username(session: &Session) -> Result<String, ApiError> {
         .ok_or_else(|| ApiError::Unauthorized("Not authenticated".to_string()))
 }
 
-fn client_identity(headers: &HeaderMap) -> String {
-    if let Some(forwarded_for) = headers.get("x-forwarded-for")
-        && let Ok(value) = forwarded_for.to_str()
-        && let Some(first) = value.split(',').next()
-    {
-        let candidate = first.trim();
-        if !candidate.is_empty() {
-            return candidate.to_string();
+/// Extract client identity for rate limiting.
+///
+/// WARNING: This function trusts `x-forwarded-for` and `x-real-ip` headers directly.
+/// In production behind a reverse proxy, these headers can be spoofed unless
+/// the proxy is configured to overwrite them and the proxy's IP is validated.
+///
+/// TODO(WS-M2): Add configuration option for trusted proxy IPs/networks.
+/// When trusted proxies are configured, only accept forwarded headers from those IPs.
+/// Fall back to socket peer address when no trusted proxy match.
+fn client_identity(headers: &HeaderMap, trusted_proxy_ips: &[String]) -> String {
+    let trusted_proxy = headers
+        .get("x-forwarded-by")
+        .and_then(|v| v.to_str().ok())
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .is_some_and(|proxy| trusted_proxy_ips.iter().any(|trusted| trusted == proxy));
+
+    if trusted_proxy {
+        if let Some(forwarded_for) = headers.get("x-forwarded-for")
+            && let Ok(value) = forwarded_for.to_str()
+            && let Some(first) = value.split(',').next()
+        {
+            let candidate = first.trim();
+            if !candidate.is_empty() {
+                return candidate.to_string();
+            }
+        }
+
+        if let Some(real_ip) = headers.get("x-real-ip")
+            && let Ok(value) = real_ip.to_str()
+        {
+            let candidate = value.trim();
+            if !candidate.is_empty() {
+                return candidate.to_string();
+            }
         }
     }
 
-    if let Some(real_ip) = headers.get("x-real-ip")
-        && let Ok(value) = real_ip.to_str()
-    {
-        let candidate = value.trim();
-        if !candidate.is_empty() {
-            return candidate.to_string();
-        }
+    headers
+        .get("x-remote-ip")
+        .and_then(|v| v.to_str().ok())
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map_or_else(
+            || "unknown-client".to_string(),
+            std::string::ToString::to_string,
+        )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::client_identity;
+    use axum::http::{HeaderMap, HeaderValue};
+
+    #[test]
+    fn ignores_forwarded_headers_without_trusted_proxy() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-for", HeaderValue::from_static("1.2.3.4"));
+
+        let id = client_identity(&headers, &[]);
+        assert_eq!(id, "unknown-client");
     }
 
-    "unknown-client".to_string()
+    #[test]
+    fn uses_forwarded_for_from_trusted_proxy() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-forwarded-by", HeaderValue::from_static("10.0.0.1"));
+        headers.insert(
+            "x-forwarded-for",
+            HeaderValue::from_static("1.2.3.4, 5.6.7.8"),
+        );
+
+        let id = client_identity(&headers, &["10.0.0.1".to_string()]);
+        assert_eq!(id, "1.2.3.4");
+    }
 }

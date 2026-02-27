@@ -6,7 +6,6 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub anime_id: i32,
-    #[sea_orm(unique)]
     pub filename: String,
     pub episode_number: f32,
     pub group_name: Option<String>,

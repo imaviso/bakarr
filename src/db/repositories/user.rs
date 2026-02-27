@@ -3,7 +3,10 @@ use argon2::{
     Algorithm, Argon2, Params, Version,
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
 };
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set,
+    sea_query::Expr,
+};
 use tokio::task;
 
 use crate::config::SecurityConfig;
@@ -172,6 +175,47 @@ impl UserRepository {
         Ok(())
     }
 
+    /// Compare-and-swap password hash migration.
+    /// Only updates if the current `password_hash` matches `expected_old_hash`.
+    /// Returns `Ok(true)` if migration was applied, `Ok(false)` if skipped (hash changed).
+    pub async fn migrate_password_hash_if_matching(
+        &self,
+        username: &str,
+        new_password: &str,
+        expected_old_hash: &str,
+        config: &SecurityConfig,
+    ) -> Result<bool> {
+        let user = users::Entity::find()
+            .filter(users::Column::Username.eq(username))
+            .one(&self.conn)
+            .await
+            .context("Failed to query user for password migration")?
+            .ok_or_else(|| anyhow::anyhow!("User not found: {username}"))?;
+
+        if user.password_hash != expected_old_hash {
+            return Ok(false);
+        }
+
+        let password = new_password.to_string();
+        let config = config.clone();
+        let new_hash = task::spawn_blocking(move || hash_password(&password, Some(&config)))
+            .await
+            .context("Password hashing task panicked")??;
+
+        let now = chrono::Utc::now().to_rfc3339();
+
+        let result = users::Entity::update_many()
+            .col_expr(users::Column::PasswordHash, Expr::value(new_hash))
+            .col_expr(users::Column::UpdatedAt, Expr::value(now))
+            .filter(users::Column::Username.eq(username))
+            .filter(users::Column::PasswordHash.eq(expected_old_hash))
+            .exec(&self.conn)
+            .await
+            .context("Failed to conditionally update password hash")?;
+
+        Ok(result.rows_affected > 0)
+    }
+
     /// Verify API key and return the associated user
     pub async fn verify_api_key(&self, api_key: &str) -> Result<Option<User>> {
         let user = users::Entity::find()
@@ -253,4 +297,45 @@ pub fn generate_api_key() -> String {
         let _ = write!(acc, "{b:02x}");
         acc
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::SecurityConfig;
+
+    fn test_config() -> SecurityConfig {
+        SecurityConfig {
+            argon2_memory_cost_kib: 8,
+            argon2_time_cost: 1,
+            argon2_parallelism: 1,
+            auto_migrate_password_hashes: true,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn hash_password_produces_valid_argon2id_hash() {
+        let config = test_config();
+        let hash = hash_password("test_password", Some(&config)).unwrap();
+        assert!(hash.starts_with("$argon2id$"));
+        assert!(hash.contains("m=8,"));
+        assert!(hash.contains("t=1,"));
+        assert!(hash.contains("p=1"));
+    }
+
+    #[test]
+    fn hash_password_different_salts_produce_different_hashes() {
+        let config = test_config();
+        let hash1 = hash_password("same_password", Some(&config)).unwrap();
+        let hash2 = hash_password("same_password", Some(&config)).unwrap();
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn generate_api_key_is_64_hex_chars() {
+        let key = generate_api_key();
+        assert_eq!(key.len(), 64);
+        assert!(key.chars().all(|c| c.is_ascii_hexdigit()));
+    }
 }

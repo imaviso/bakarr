@@ -90,24 +90,44 @@ impl AuthService for SeaOrmAuthService {
                 security_cfg.argon2_time_cost,
                 security_cfg.argon2_parallelism
             );
-            // Re-hash with new params in background - don't block login
             let store = self.store.clone();
             let username = username.to_string();
             let password = password.to_string();
+            let expected_old_hash = password_hash.clone();
             let security_cfg = security_cfg.clone();
             tokio::spawn(async move {
-                if let Err(e) = store
+                match store
                     .user_repo()
-                    .update_password_with_config(&username, &password, &security_cfg)
+                    .migrate_password_hash_if_matching(
+                        &username,
+                        &password,
+                        &expected_old_hash,
+                        &security_cfg,
+                    )
                     .await
                 {
-                    tracing::warn!(
-                        "Failed to auto-migrate password hash for '{}': {}",
-                        username,
-                        e
-                    );
-                } else {
-                    tracing::info!("Successfully migrated password hash for '{}'", username);
+                    Ok(true) => {
+                        tracing::info!(
+                            outcome = "applied",
+                            "Successfully migrated password hash for '{}'",
+                            username
+                        );
+                    }
+                    Ok(false) => {
+                        tracing::info!(
+                            outcome = "skipped_stale",
+                            "Password hash migration skipped for '{}' (hash changed since login)",
+                            username
+                        );
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            outcome = "failed",
+                            error = %e,
+                            "Failed to auto-migrate password hash for '{}'",
+                            username
+                        );
+                    }
                 }
             });
         }

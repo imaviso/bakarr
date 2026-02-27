@@ -13,7 +13,7 @@ The root directory contains the Rust backend.
 - **Build**: `cargo build`
 - **Test**: `cargo test`
 - **Run Single Test**: `cargo test test_name_here` (e.g., `cargo test tests::api_tests::test_health_check`)
-- **Lint**: `cargo clippy`
+- **Check/Lint**: `cargo clippy`
 - **Format**: `cargo fmt`
 
 ### Frontend (SolidJS/Vite)
