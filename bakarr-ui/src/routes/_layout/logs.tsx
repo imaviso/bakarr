@@ -70,13 +70,28 @@ import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout/logs")({
 	loader: ({ context: { queryClient } }) => {
-		queryClient.ensureQueryData(
+		return queryClient.ensureQueryData(
 			systemLogsQueryOptions(1, undefined, undefined, undefined, undefined),
 		);
 	},
 	component: LogsPage,
 	errorComponent: GeneralError,
 });
+
+function formatLogTimestamp(createdAt: string): string {
+	const normalized = createdAt.includes("T")
+		? createdAt
+		: createdAt.replace(" ", "T");
+	const hasTimezone = /([zZ]|[+-]\d{2}:\d{2})$/.test(normalized);
+	const candidate = hasTimezone ? normalized : `${normalized}Z`;
+	const date = new Date(candidate);
+
+	if (Number.isNaN(date.getTime())) {
+		return createdAt;
+	}
+
+	return format(date, "yyyy-MM-dd HH:mm:ss");
+}
 
 function LogsPage() {
 	const [page, setPage] = createSignal(1);
@@ -404,10 +419,7 @@ function LogsPage() {
 								{(log) => (
 									<TableRow class="group">
 										<TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
-											{format(
-												new Date(`${log.created_at}Z`),
-												"yyyy-MM-dd HH:mm:ss",
-											)}
+											{formatLogTimestamp(log.created_at)}
 										</TableCell>
 										<TableCell>
 											<Badge
@@ -493,10 +505,7 @@ function LogsPage() {
 						<DialogTitle>Log Details</DialogTitle>
 						<DialogDescription>
 							{selectedLog() &&
-								format(
-									new Date(`${selectedLog()?.created_at || ""}Z`),
-									"yyyy-MM-dd HH:mm:ss",
-								)}
+								formatLogTimestamp(selectedLog()?.created_at || "")}
 						</DialogDescription>
 					</DialogHeader>
 					<div class="flex-1 overflow-auto space-y-4 py-4">
