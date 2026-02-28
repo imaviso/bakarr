@@ -95,7 +95,8 @@ impl LogService {
             NotificationEvent::ScanProgress { .. }
             | NotificationEvent::LibraryScanProgress { .. }
             | NotificationEvent::RssCheckProgress { .. }
-            | NotificationEvent::DownloadProgress { .. } => return Ok(()),
+            | NotificationEvent::DownloadProgress { .. }
+            | NotificationEvent::SystemStatus(_) => return Ok(()),
 
             _ => {
                 let type_name = format!("{event:?}")
