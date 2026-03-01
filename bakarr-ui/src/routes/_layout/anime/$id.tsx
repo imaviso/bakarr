@@ -222,7 +222,7 @@ function AnimeDetailsPage() {
 					<>
 						{/* Banner */}
 						<Show when={anime().banner_image}>
-							<div class="w-full h-48 md:h-64 overflow-hidden rounded-lg relative">
+							<div class="w-full h-48 md:h-64 overflow-hidden rounded-none relative border-b border-border">
 								<img
 									src={anime().banner_image}
 									alt="Banner"

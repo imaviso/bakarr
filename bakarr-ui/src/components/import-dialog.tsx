@@ -443,7 +443,7 @@ export function ImportDialog(props: ImportDialogProps) {
 								</TabsTrigger>
 							</TabsList>
 							<TabsContent value="browser" class="mt-4 flex-1 min-h-0">
-								<div class="h-[280px] border rounded-lg overflow-hidden bg-background">
+								<div class="h-[280px] border rounded-none overflow-hidden bg-background">
 									<FileBrowser
 										onSelect={(p) => setPath(p)}
 										directoryOnly={true}
@@ -455,7 +455,7 @@ export function ImportDialog(props: ImportDialogProps) {
 								{/* biome-ignore lint/a11y/noStaticElementInteractions: dnd zone */}
 								<div
 									class={cn(
-										"border-2 border-dashed rounded-lg p-6 transition-colors h-full flex flex-col items-center justify-center",
+										"border-2 border-dashed rounded-none p-6 transition-colors h-full flex flex-col items-center justify-center",
 										isDragOver()
 											? "border-primary bg-primary/5"
 											: "border-muted-foreground/25",
@@ -465,7 +465,7 @@ export function ImportDialog(props: ImportDialogProps) {
 									onDrop={handleDrop}
 								>
 									<div class="flex flex-col items-center gap-4">
-										<div class="rounded-full bg-muted p-3">
+										<div class="rounded-none bg-muted p-3">
 											<IconUpload class="h-6 w-6 text-muted-foreground" />
 										</div>
 										<div class="text-center">
@@ -491,7 +491,7 @@ export function ImportDialog(props: ImportDialogProps) {
 						</Tabs>
 
 						<Show when={path()}>
-							<div class="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border">
+							<div class="flex items-center gap-2 p-3 rounded-none bg-muted/50 border">
 								<IconFolderOpen class="h-4 w-4 text-muted-foreground shrink-0" />
 								<span class="text-sm font-mono truncate flex-1">{path()}</span>
 								<Button
@@ -542,7 +542,7 @@ export function ImportDialog(props: ImportDialogProps) {
 
 					<div class="flex-1 min-h-0 overflow-y-auto px-1">
 						{/* Candidates */}
-						<div class="bg-muted/30 p-4 rounded-lg border mb-4">
+						<div class="bg-muted/30 p-4 rounded-none border mb-4">
 							<div class="flex items-center justify-between mb-3">
 								<h4 class="text-sm font-medium flex items-center gap-2">
 									<IconListTree class="h-4 w-4 text-primary" />
@@ -594,7 +594,7 @@ export function ImportDialog(props: ImportDialogProps) {
 						</div>
 
 						{/* File List */}
-						<div class="divide-y border rounded-lg">
+						<div class="divide-y border rounded-none">
 							<For each={scannedFiles()}>
 								{(file) => (
 									<FileRow
@@ -666,7 +666,7 @@ function CandidateCard(props: {
 		<button
 			type="button"
 			class={cn(
-				"relative group flex gap-3 p-2 rounded-lg border transition-all cursor-pointer hover:shadow-md text-left w-full",
+				"relative group flex gap-3 p-2 rounded-none border transition-all cursor-pointer hover:shadow-sm text-left w-full",
 				props.isSelected
 					? "border-primary bg-primary/5 ring-1 ring-primary/20"
 					: "border-border bg-card hover:border-primary/50",
@@ -690,7 +690,7 @@ function CandidateCard(props: {
 				</Show>
 				<Show when={props.isSelected}>
 					<div class="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[1px]">
-						<IconCheck class="h-5 w-5 text-white drop-shadow-md" />
+						<IconCheck class="h-5 w-5 text-white drop-shadow-sm" />
 					</div>
 				</Show>
 			</div>
@@ -899,7 +899,7 @@ function ManualSearch(props: {
 					<IconLoader2 class="absolute right-3 top-3 h-3 w-3 animate-spin text-muted-foreground" />
 				</Show>
 			</div>
-			<div class="h-[300px] border rounded-md overflow-y-auto">
+			<div class="h-[300px] border rounded-none overflow-y-auto">
 				<Show
 					when={debouncedQuery()}
 					fallback={

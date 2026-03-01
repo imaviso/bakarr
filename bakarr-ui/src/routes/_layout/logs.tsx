@@ -253,12 +253,14 @@ function LogsPage() {
 
 	return (
 		<div class="space-y-6">
-			<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between px-1">
+			<div class="border-b border-border pb-4 mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
 				<div>
-					<h1 class="text-xl font-semibold tracking-tight">System Logs</h1>
-					<p class="text-sm text-muted-foreground">
+					<h1 class="text-2xl font-semibold tracking-tight text-foreground">
+						System Logs
+					</h1>
+					<div class="text-sm text-muted-foreground mt-1">
 						View, filter, and export system events and errors
-					</p>
+					</div>
 				</div>
 				<div class="flex items-center gap-2">
 					<div class="flex items-center gap-2 mr-2">

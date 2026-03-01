@@ -115,8 +115,15 @@ function SettingsPage() {
 
 	return (
 		<div class="space-y-6">
-			<div class="flex flex-col gap-4">
-				<h1 class="text-xl font-semibold tracking-tight px-1">Settings</h1>
+			<div class="border-b border-border pb-4 mb-6 flex flex-col gap-4 sm:flex-row sm:items-end justify-between">
+				<div>
+					<h1 class="text-2xl font-semibold tracking-tight text-foreground">
+						Settings
+					</h1>
+					<div class="text-sm text-muted-foreground mt-1">
+						Manage your application configuration
+					</div>
+				</div>
 				<SystemStatus />
 			</div>
 

@@ -11,6 +11,8 @@
 	"dependencies": {
 		"@ark-ui/solid": "^5.30.0",
 		"@fontsource-variable/geist": "^5.2.8",
+		"@fontsource-variable/geist-mono": "^5.2.7",
+		"@fontsource/bricolage-grotesque": "^5.2.10",
 		"@kobalte/core": "^0.13.11",
 		"@tabler/icons-solidjs": "^3.36.1",
 		"@tailwindcss/postcss": "^4.1.13",

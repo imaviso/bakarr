@@ -64,22 +64,24 @@ function WantedPage() {
 
 	return (
 		<div class="space-y-6">
-			<div class="flex flex-col gap-4">
-				<div class="flex items-center justify-between px-1">
-					<h1 class="text-xl font-semibold tracking-tight">Wanted</h1>
-					<Button
-						variant="default"
-						size="sm"
-						onClick={handleSearchAll}
-						disabled={searchMissing.isPending || wantedQuery.data?.length === 0}
-					>
-						<IconSearch class="mr-2 h-4 w-4" />
-						Search All
-					</Button>
+			<div class="border-b border-border pb-4 mb-6 flex flex-col gap-4 sm:flex-row sm:items-end justify-between">
+				<div>
+					<h1 class="text-2xl font-semibold tracking-tight text-foreground">
+						Wanted
+					</h1>
+					<div class="text-sm text-muted-foreground mt-1">
+						Missing episodes that have aired but haven't been downloaded yet.
+					</div>
 				</div>
-				<p class="text-sm text-muted-foreground px-1">
-					Missing episodes that have aired but haven't been downloaded yet.
-				</p>
+				<Button
+					variant="default"
+					size="sm"
+					onClick={handleSearchAll}
+					disabled={searchMissing.isPending || wantedQuery.data?.length === 0}
+				>
+					<IconSearch class="mr-2 h-4 w-4" />
+					Search All
+				</Button>
 			</div>
 
 			<Card>

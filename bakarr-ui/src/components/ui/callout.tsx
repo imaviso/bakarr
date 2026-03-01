@@ -6,7 +6,7 @@ import { cva } from "class-variance-authority"
 
 import { cn } from "~/lib/utils"
 
-const calloutVariants = cva("rounded-md border-l-4 p-2 pl-4", {
+const calloutVariants = cva("rounded-none border-l-4 p-2 pl-4", {
   variants: {
     variant: {
       default: "border-info-foreground bg-info text-info-foreground",

@@ -64,10 +64,15 @@ function RssPage() {
 
 	return (
 		<div class="space-y-6">
-			<div class="flex items-center justify-between">
-				<p class="text-sm text-muted-foreground">
-					Manage RSS feeds for automatic episode detection
-				</p>
+			<div class="border-b border-border pb-4 mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+				<div>
+					<h1 class="text-2xl font-semibold tracking-tight text-foreground">
+						RSS Feeds
+					</h1>
+					<div class="text-sm text-muted-foreground mt-1">
+						Manage RSS feeds for automatic episode detection
+					</div>
+				</div>
 				<Button onClick={() => setIsAdding(true)} disabled={isAdding()}>
 					<IconPlus class="mr-2 h-4 w-4" />
 					Add Feed

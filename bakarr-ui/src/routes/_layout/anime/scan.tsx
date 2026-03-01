@@ -54,8 +54,10 @@ function LibraryScanPage() {
 				<div class="py-4 px-6">
 					<div class="flex items-center justify-between">
 						<div>
-							<h1 class="text-xl font-semibold">Library Scan</h1>
-							<p class="text-sm text-muted-foreground">
+							<h1 class="text-2xl font-semibold tracking-tight text-foreground">
+								Library Scan
+							</h1>
+							<p class="text-sm text-muted-foreground mt-1">
 								<Show
 									when={isScanning()}
 									fallback={

@@ -58,11 +58,15 @@ function LoginPage() {
 	}));
 
 	return (
-		<div class="flex items-center justify-center min-h-[100dvh] bg-background p-4">
-			<Card class="w-full max-w-[350px]">
-				<CardHeader class="text-center">
-					<CardTitle class="text-xl">Bakarr</CardTitle>
-					<CardDescription>Enter your credentials to continue</CardDescription>
+		<div class="relative flex items-center justify-center min-h-[100dvh] bg-background p-4 overflow-hidden">
+			<Card class="w-full max-w-[400px] relative z-10 p-2 shadow-xl bg-card/50 backdrop-blur-md">
+				<CardHeader class="text-center pb-6 mb-4">
+					<CardTitle class="text-2xl font-semibold tracking-tight text-foreground">
+						Bakarr
+					</CardTitle>
+					<CardDescription class="text-sm text-muted-foreground mt-1">
+						Sign in to your account
+					</CardDescription>
 				</CardHeader>
 				<form
 					onSubmit={(e) => {

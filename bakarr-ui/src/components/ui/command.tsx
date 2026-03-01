@@ -13,7 +13,7 @@ const Command: Component<ParentProps<CommandPrimitive.CommandRootProps>> = (prop
   return (
     <CommandPrimitive.CommandRoot
       class={cn(
-        "flex size-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground blur-none",
+        "flex size-full flex-col overflow-hidden rounded-none border border-border bg-popover text-popover-foreground blur-none shadow-sm",
         local.class
       )}
       {...others}
@@ -55,7 +55,7 @@ const CommandInput: Component<VoidProps<CommandPrimitive.CommandInputProps>> = (
       </svg>
       <CommandPrimitive.CommandInput
         class={cn(
-          "flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+          "flex h-10 w-full rounded-none bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
           local.class
         )}
         {...others}
@@ -113,7 +113,7 @@ const CommandItem: Component<ParentProps<CommandPrimitive.CommandItemProps>> = (
     <CommandPrimitive.CommandItem
       cmdk-item=""
       class={cn(
-        "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",
+        "relative flex cursor-default select-none items-center rounded-none px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",
         local.class
       )}
       {...others}

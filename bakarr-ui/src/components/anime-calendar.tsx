@@ -137,7 +137,7 @@ export function AnimeCalendar() {
 												class={cn(
 													"text-sm font-medium",
 													isCurrentDay &&
-														"bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center",
+														"bg-primary text-primary-foreground rounded-none w-6 h-6 flex items-center justify-center",
 													!isCurrentMonth && "text-muted-foreground",
 												)}
 											>

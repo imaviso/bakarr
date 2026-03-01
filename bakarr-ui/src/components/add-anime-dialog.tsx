@@ -77,7 +77,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 						<Show
 							when={props.anime.cover_image}
 							fallback={
-								<div class="w-12 h-16 bg-muted rounded flex items-center justify-center">
+								<div class="w-12 h-16 bg-muted rounded-none flex items-center justify-center">
 									<IconDeviceTv class="h-6 w-6 text-muted-foreground" />
 								</div>
 							}
@@ -85,7 +85,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 							<img
 								src={props.anime.cover_image}
 								alt={props.anime.title.romaji}
-								class="w-12 h-16 object-cover rounded"
+								class="w-12 h-16 object-cover rounded-none"
 							/>
 						</Show>
 						<div class="flex-1 min-w-0">
@@ -235,7 +235,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
 											<label
 												for={checkboxId}
 												class={cn(
-													"flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer transition-colors",
+													"flex items-center gap-2 px-3 py-2 rounded-none border cursor-pointer transition-colors",
 													isSelected()
 														? "bg-primary/10 border-primary/30"
 														: "hover:bg-accent",
@@ -300,7 +300,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
 			</div>
 
 			<Show when={props.anime.already_in_library}>
-				<div class="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-md text-yellow-600">
+				<div class="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-none text-yellow-600">
 					<IconCheck class="h-4 w-4" />
 					<span class="text-sm">This anime is already in your library</span>
 				</div>

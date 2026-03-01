@@ -93,8 +93,8 @@ export function AppSidebar() {
 			{/* Workspace Header */}
 			<SidebarHeader class="p-2 group-data-[collapsible=icon]:p-1">
 				<DropdownMenu>
-					<DropdownMenuTrigger class="flex items-center gap-2 w-full rounded-md px-2 py-1.5 hover:bg-sidebar-accent transition-colors group outline-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-						<div class="flex h-6 w-6 items-center justify-center rounded bg-gradient-to-br from-violet-500 to-purple-600 text-white font-semibold text-xs shrink-0">
+					<DropdownMenuTrigger class="flex items-center gap-2 w-full rounded-none px-2 py-1.5 hover:bg-sidebar-accent transition-colors group outline-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+						<div class="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-semibold text-xs shrink-0 rounded-none">
 							B
 						</div>
 						<Show when={!isCollapsed()}>
@@ -106,11 +106,14 @@ export function AppSidebar() {
 				</DropdownMenu>
 			</SidebarHeader>
 
-			<SidebarContent class="px-2 group-data-[collapsible=icon]:px-0">
+			<SidebarContent class="px-3 group-data-[collapsible=icon]:px-0">
 				{/* Main Navigation */}
-				<SidebarGroup class="py-0 group-data-[collapsible=icon]:px-0">
+				<SidebarGroup class="py-2 group-data-[collapsible=icon]:px-0">
+					<div class="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+						MAIN
+					</div>
 					<SidebarGroupContent>
-						<SidebarMenu class="gap-0.5 group-data-[collapsible=icon]:items-center">
+						<SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
 							<For each={mainItems}>
 								{(item) => {
 									return (
@@ -125,10 +128,10 @@ export function AppSidebar() {
 												<SidebarMenuButton
 													tooltip={item.title}
 													isActive={isActive(item.url)}
-													class="h-8 rounded-md transition-colors"
+													class="h-9 transition-all"
 												>
 													<item.icon
-														class={`h-4 w-4 shrink-0 ${isActive(item.url) ? "text-sidebar-primary" : ""}`}
+														class={`h-4 w-4 shrink-0 transition-opacity ${isActive(item.url) ? "opacity-100" : "opacity-50"}`}
 													/>
 													<span>{item.title}</span>
 												</SidebarMenuButton>
@@ -145,9 +148,12 @@ export function AppSidebar() {
 				{/* <ActiveDownloads /> */}
 
 				{/* Settings Section */}
-				<SidebarGroup class="py-0 mt-auto group-data-[collapsible=icon]:px-0">
+				<SidebarGroup class="py-2 mt-auto group-data-[collapsible=icon]:px-0">
+					<div class="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+						SYSTEM
+					</div>
 					<SidebarGroupContent>
-						<SidebarMenu class="gap-0.5 group-data-[collapsible=icon]:items-center">
+						<SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
 							<For each={settingsItems}>
 								{(item) => {
 									return (
@@ -156,10 +162,10 @@ export function AppSidebar() {
 												<SidebarMenuButton
 													tooltip={item.title}
 													isActive={isActive(item.url)}
-													class="h-8 rounded-md transition-colors"
+													class="h-9 transition-all"
 												>
 													<item.icon
-														class={`h-4 w-4 shrink-0 ${isActive(item.url) ? "text-sidebar-primary" : ""}`}
+														class={`h-4 w-4 shrink-0 transition-opacity ${isActive(item.url) ? "opacity-100" : "opacity-50"}`}
 													/>
 													<span>{item.title}</span>
 												</SidebarMenuButton>
@@ -174,16 +180,16 @@ export function AppSidebar() {
 			</SidebarContent>
 
 			{/* Footer */}
-			<SidebarFooter class="p-2 group-data-[collapsible=icon]:p-1">
-				<SidebarSeparator class="mb-2 mx-0 group-data-[collapsible=icon]:mx-0" />
-				<SidebarMenu class="gap-0.5 group-data-[collapsible=icon]:items-center">
+			<SidebarFooter class="p-3 group-data-[collapsible=icon]:p-1">
+				<SidebarSeparator class="mb-2 mx-0 group-data-[collapsible=icon]:mx-0 bg-border/50" />
+				<SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
 					<SidebarMenuItem>
 						<SidebarMenuButton
 							onClick={() => logout()}
 							tooltip="Sign out"
-							class="h-8 rounded-md transition-colors"
+							class="h-9 transition-all"
 						>
-							<IconLogout class="h-4 w-4 shrink-0" />
+							<IconLogout class="h-4 w-4 shrink-0 opacity-50" />
 							<span>Sign out</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>

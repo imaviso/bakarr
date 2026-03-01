@@ -74,7 +74,15 @@ function DownloadsPage() {
 
 	return (
 		<div class="flex flex-col h-[calc(100vh-2rem)] gap-4">
-			<div class="flex items-center justify-between px-1">
+			<div class="border-b border-border pb-4 mb-2 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+				<div>
+					<h1 class="text-2xl font-semibold tracking-tight text-foreground">
+						Downloads
+					</h1>
+					<div class="text-sm text-muted-foreground mt-1">
+						Manage active downloads and history
+					</div>
+				</div>
 				<Button
 					variant="outline"
 					size="sm"

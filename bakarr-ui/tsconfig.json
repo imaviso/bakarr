@@ -15,6 +15,7 @@
 		// Type Checking & Safety
 		"skipLibCheck": true,
 		"strict": true,
+    "noEmit": true,
 		"moduleResolution": "bundler",
 		"types": ["vite/client"],
 		"paths": {

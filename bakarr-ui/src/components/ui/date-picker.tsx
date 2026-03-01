@@ -29,7 +29,7 @@ const DatePickerInput = (props: DatePickerPrimitive.InputProps) => {
   return (
     <DatePickerPrimitive.Input
       class={cn(
-        "h-9 w-full rounded-md border border-border bg-background px-3 py-1 text-sm shadow-sm transition-shadow placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[1.5px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+        "h-9 w-full rounded-none border border-border bg-background px-3 py-1 text-sm shadow-sm transition-shadow placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-[1.5px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
         local.class
       )}
       {...others}
@@ -47,7 +47,7 @@ const DatePickerTrigger = (props: DatePickerPrimitive.TriggerProps) => {
   return (
     <DatePickerPrimitive.Trigger
       class={cn(
-        "flex min-h-9 min-w-9 items-center justify-center rounded-md border border-border bg-background transition-[box-shadow,background-color] hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[1.5px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-4",
+        "flex min-h-9 min-w-9 items-center justify-center rounded-none border border-border bg-background transition-[box-shadow,background-color] hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-[1.5px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>svg]:size-4",
         local.class
       )}
       {...others}
@@ -82,7 +82,7 @@ const DatePickerContent = (props: DatePickerPrimitive.ContentProps) => {
   return (
     <DatePickerPrimitive.Content
       class={cn(
-        "z-50 rounded-md border bg-popover p-3 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        "z-50 rounded-none border bg-popover p-3 text-popover-foreground shadow-sm outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         local.class
       )}
       {...others}

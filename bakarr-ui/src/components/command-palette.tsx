@@ -244,7 +244,7 @@ export function CommandPalette() {
 			<button
 				type="button"
 				onClick={() => setOpen(true)}
-				class="flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+				class="flex items-center gap-2 rounded-none border bg-background px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
 			>
 				<IconSearch class="h-4 w-4 shrink-0" />
 				<span class="hidden md:inline">Search...</span>

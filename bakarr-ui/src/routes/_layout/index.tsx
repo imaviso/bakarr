@@ -39,11 +39,29 @@ function DashboardPage() {
 
 	return (
 		<div class="space-y-6">
+			{/* Header */}
+			<div class="border-b border-border pb-4 mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+				<div>
+					<h1 class="text-2xl font-semibold tracking-tight text-foreground">
+						Dashboard
+					</h1>
+					<div class="text-sm text-muted-foreground mt-1">
+						Overview of your library and activity
+					</div>
+				</div>
+				<div class="text-xs font-mono text-muted-foreground uppercase flex gap-4">
+					<span class="flex items-center gap-1.5">
+						<div class="w-1.5 h-1.5 rounded-full bg-green-500"></div> System
+						Online
+					</span>
+				</div>
+			</div>
+
 			{/* Stats Grid */}
 			<Show when={statsQuery.data} fallback={<DashboardLoading />}>
 				{(stats) => (
 					<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-						<Card class="transition-all duration-150 hover:shadow-md">
+						<Card class="card-hover">
 							<CardHeader class="flex flex-row items-center justify-between pb-2">
 								<CardTitle class="text-sm font-medium text-muted-foreground">
 									Monitored Anime
@@ -55,7 +73,7 @@ function DashboardPage() {
 							</CardContent>
 						</Card>
 
-						<Card class="transition-all duration-150 hover:shadow-md">
+						<Card class="card-hover">
 							<CardHeader class="flex flex-row items-center justify-between pb-2">
 								<CardTitle class="text-sm font-medium text-muted-foreground">
 									Total Episodes
@@ -67,7 +85,7 @@ function DashboardPage() {
 							</CardContent>
 						</Card>
 
-						<Card class="transition-all duration-150 hover:shadow-md">
+						<Card class="card-hover">
 							<CardHeader class="flex flex-row items-center justify-between pb-2">
 								<CardTitle class="text-sm font-medium text-muted-foreground">
 									Downloaded
@@ -81,7 +99,7 @@ function DashboardPage() {
 							</CardContent>
 						</Card>
 
-						<Card class="transition-all duration-150 hover:shadow-md">
+						<Card class="card-hover">
 							<CardHeader class="flex flex-row items-center justify-between pb-2">
 								<CardTitle class="text-sm font-medium text-muted-foreground">
 									Missing

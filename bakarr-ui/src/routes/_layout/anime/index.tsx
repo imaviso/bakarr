@@ -140,6 +140,18 @@ function AnimeIndexPage() {
 
 	return (
 		<div class="space-y-6">
+			{/* Header */}
+			<div class="border-b border-border pb-4 mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+				<div>
+					<h1 class="text-2xl font-semibold tracking-tight text-foreground">
+						Library
+					</h1>
+					<div class="text-sm text-muted-foreground mt-1">
+						Manage your anime collection
+					</div>
+				</div>
+			</div>
+
 			<div class="flex flex-col sm:flex-row gap-3">
 				{/* Search and Filter */}
 				<div class="relative flex-1">
@@ -401,8 +413,8 @@ function AnimeGridView(props: AnimeViewProps) {
 		<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
 			<For each={props.anime}>
 				{(anime) => (
-					<Card class="group relative flex flex-col overflow-hidden border-border/60 bg-card transition-all hover:border-foreground/20 hover:shadow-sm">
-						<div class="relative aspect-[2/3] w-full overflow-hidden bg-muted">
+					<Card class="group relative flex flex-col overflow-hidden bg-card card-hover transition-colors">
+						<div class="relative aspect-[2/3] w-full overflow-hidden bg-muted border-b border-border">
 							<Link
 								to="/anime/$id"
 								params={{ id: anime.id.toString() }}

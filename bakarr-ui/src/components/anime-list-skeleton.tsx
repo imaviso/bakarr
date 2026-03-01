@@ -13,7 +13,7 @@ export function AnimeListSkeleton() {
 							<Skeleton class="h-4 w-3/4" />
 							<div class="flex items-center justify-between gap-2 mt-auto">
 								<Skeleton class="h-5 w-16" />
-								<Skeleton class="h-1.5 w-1.5 rounded-full" />
+								<Skeleton class="h-1.5 w-1.5 rounded-none" />
 							</div>
 						</div>
 					</Card>

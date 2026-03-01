@@ -80,7 +80,7 @@ export function FilterItem(props: FilterItemProps) {
 	};
 
 	return (
-		<div class="flex items-center gap-1.5 bg-muted/50 rounded-md p-1 pr-2">
+		<div class="flex items-center gap-1.5 bg-muted/50 rounded-none p-1 pr-2">
 			<div class="text-sm font-medium text-muted-foreground px-2">
 				{column()?.label}
 			</div>

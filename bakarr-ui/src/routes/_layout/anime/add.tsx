@@ -115,8 +115,15 @@ function AddAnimePage() {
 
 	return (
 		<div class="space-y-6">
-			<div class="flex flex-col gap-4">
-				<h1 class="text-xl font-semibold tracking-tight px-1">Add New Anime</h1>
+			<div class="border-b border-border pb-4 mb-6 flex flex-col gap-4">
+				<div>
+					<h1 class="text-2xl font-semibold tracking-tight text-foreground">
+						Add New Anime
+					</h1>
+					<div class="text-sm text-muted-foreground mt-1">
+						Search and add new anime to your library
+					</div>
+				</div>
 				<div class="relative max-w-xl">
 					<IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 					<TextField class="w-full" value={query()} onChange={setQuery}>

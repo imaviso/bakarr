@@ -372,7 +372,9 @@ function ImportPage() {
 							</Button>
 						</Link>
 						<div>
-							<h1 class="text-lg font-semibold tracking-tight">Import Files</h1>
+							<h1 class="text-xl font-semibold tracking-tight text-foreground">
+								Import Files
+							</h1>
 							<Show when={step() === "review" && path()}>
 								<div class="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
 									<IconFolderOpen class="h-3 w-3" />

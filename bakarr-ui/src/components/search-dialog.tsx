@@ -116,7 +116,7 @@ export function SearchDialog(props: SearchDialogProps) {
 				</DialogTrigger>
 			</Show>
 
-			<DialogContent class="sm:max-w-7xl w-full h-[85vh] flex flex-col p-0 gap-0 border-none sm:rounded-xl bg-background/95 shadow-2xl overflow-hidden">
+			<DialogContent class="sm:max-w-7xl w-full h-[85vh] flex flex-col p-0 gap-0 border-none sm:rounded-none bg-background/95 shadow-sm overflow-hidden">
 				<DialogTitle class="sr-only">Search Releases</DialogTitle>
 
 				{/* Header / Search Bar */}
@@ -144,7 +144,7 @@ export function SearchDialog(props: SearchDialogProps) {
 								</SelectItem>
 							)}
 						>
-							<SelectTrigger class="h-7 w-auto min-w-[130px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-md shadow-none px-2.5">
+							<SelectTrigger class="h-7 w-auto min-w-[130px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
 								<span class="text-muted-foreground">Category:</span>
 								<SelectValue<string>>
 									{(state) =>
@@ -166,7 +166,7 @@ export function SearchDialog(props: SearchDialogProps) {
 								</SelectItem>
 							)}
 						>
-							<SelectTrigger class="h-7 w-auto min-w-[120px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-md shadow-none px-2.5">
+							<SelectTrigger class="h-7 w-auto min-w-[120px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
 								<IconFilter class="h-3 w-3 text-muted-foreground" />
 								<SelectValue<string>>
 									{(state) =>
@@ -434,7 +434,7 @@ function SearchResultsSkeleton() {
 									<Skeleton class="h-4 w-16 ml-auto" />
 								</TableCell>
 								<TableCell>
-									<Skeleton class="h-7 w-7 rounded-md" />
+									<Skeleton class="h-7 w-7 rounded-none" />
 								</TableCell>
 							</TableRow>
 						)}
@@ -516,7 +516,7 @@ function ReleaseRow(props: {
 						<Show when={props.result.parsed_group}>
 							<Badge
 								variant="secondary"
-								class="h-4 px-1 text-[9px] font-medium text-muted-foreground bg-muted/50 border-transparent rounded-sm"
+								class="h-4 px-1 text-[9px] font-medium text-muted-foreground bg-muted/50 border-transparent rounded-none"
 							>
 								{props.result.parsed_group}
 							</Badge>
@@ -524,7 +524,7 @@ function ReleaseRow(props: {
 						<Show when={props.result.trusted}>
 							<Badge
 								variant="outline"
-								class="h-4 px-1 text-[9px] border-green-500/20 text-green-600 bg-green-500/5 rounded-sm"
+								class="h-4 px-1 text-[9px] border-green-500/20 text-green-600 bg-green-500/5 rounded-none"
 							>
 								Trusted
 							</Badge>
@@ -533,7 +533,7 @@ function ReleaseRow(props: {
 							<Badge
 								variant="outline"
 								class={cn(
-									"h-4 px-1 text-[9px] rounded-sm",
+									"h-4 px-1 text-[9px] rounded-none",
 									props.result.is_seadex_best
 										? "border-amber-500/20 text-amber-600 bg-amber-500/5"
 										: "border-blue-500/20 text-blue-600 bg-blue-500/5",
@@ -545,7 +545,7 @@ function ReleaseRow(props: {
 						<Show when={props.result.remake}>
 							<Badge
 								variant="outline"
-								class="h-4 px-1 text-[9px] border-orange-500/20 text-orange-600 bg-orange-500/5 rounded-sm"
+								class="h-4 px-1 text-[9px] border-orange-500/20 text-orange-600 bg-orange-500/5 rounded-none"
 							>
 								Remake
 							</Badge>
@@ -558,7 +558,7 @@ function ReleaseRow(props: {
 					when={props.result.parsed_episode}
 					fallback={<span class="text-muted-foreground text-xs">-</span>}
 				>
-					<span class="font-mono text-xs text-foreground bg-muted/30 px-1.5 py-0.5 rounded-sm">
+					<span class="font-mono text-xs text-foreground bg-muted/30 px-1.5 py-0.5 rounded-none">
 						{props.result.parsed_episode}
 					</span>
 				</Show>

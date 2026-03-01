@@ -16,6 +16,7 @@ export default {
 		extend: {
 			fontFamily: {
 				sans: ["Geist Variable", ...defaultTheme.fontFamily.sans],
+				mono: ["Geist Mono Variable", ...defaultTheme.fontFamily.mono],
 			},
 			colors: {
 				border: "hsl(var(--border))",
@@ -77,18 +78,12 @@ export default {
 					border: "hsl(var(--sidebar-border))",
 					ring: "hsl(var(--sidebar-ring))",
 				},
-				anime: {
-					pink: "hsl(var(--anime-pink))",
-					blue: "hsl(var(--anime-blue))",
-					purple: "hsl(var(--anime-purple))",
-					cyan: "hsl(var(--anime-cyan))",
-				},
 			},
 			borderRadius: {
-				xl: "calc(var(--radius) + 4px)",
-				lg: "var(--radius)",
-				md: "calc(var(--radius) - 2px)",
-				sm: "calc(var(--radius) - 4px)",
+				xl: "0rem",
+				lg: "0rem",
+				md: "0rem",
+				sm: "0rem",
 			},
 			keyframes: {
 				"accordion-down": {
@@ -100,12 +95,12 @@ export default {
 					to: { height: 0 },
 				},
 				"content-show": {
-					from: { opacity: 0, transform: "scale(0.96)" },
-					to: { opacity: 1, transform: "scale(1)" },
+					from: { opacity: 0, transform: "scale(0.96) translateY(2px)" },
+					to: { opacity: 1, transform: "scale(1) translateY(0)" },
 				},
 				"content-hide": {
-					from: { opacity: 1, transform: "scale(1)" },
-					to: { opacity: 0, transform: "scale(0.96)" },
+					from: { opacity: 1, transform: "scale(1) translateY(0)" },
+					to: { opacity: 0, transform: "scale(0.96) translateY(2px)" },
 				},
 				"caret-blink": {
 					"0%,70%,100%": { opacity: "1" },

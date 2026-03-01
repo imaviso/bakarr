@@ -147,7 +147,7 @@ export function SearchModal(props: SearchModalProps) {
 									</div>
 								}
 							>
-								<div class="flex-1 border rounded-md overflow-auto">
+								<div class="flex-1 border rounded-none overflow-auto">
 									<Table>
 										<TableHeader class="bg-muted/50 sticky top-0 z-10 shadow-sm">
 											<TableRow>

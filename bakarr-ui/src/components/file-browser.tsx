@@ -90,7 +90,7 @@ export function FileBrowser(props: FileBrowserProps) {
 	return (
 		<div
 			class={cn(
-				"border rounded-lg overflow-hidden bg-background",
+				"border rounded-none overflow-hidden bg-background",
 				isFullHeight() && "h-full flex flex-col",
 			)}
 		>
@@ -183,7 +183,7 @@ export function FileBrowser(props: FileBrowserProps) {
 			>
 				{/* Show spinner when fetching new data while showing old data */}
 				<Show when={browserQuery.isFetching && !browserQuery.isLoading}>
-					<div class="absolute top-2 right-2 p-1 bg-background/80 rounded-full shadow-sm z-10">
+					<div class="absolute top-2 right-2 p-1 bg-background/80 rounded-none shadow-sm z-10">
 						<IconLoader2 class="h-3 w-3 animate-spin text-primary" />
 					</div>
 				</Show>

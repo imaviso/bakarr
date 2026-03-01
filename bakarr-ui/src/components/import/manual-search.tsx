@@ -37,7 +37,7 @@ export function ManualSearch(props: ManualSearchProps) {
 				</Show>
 			</div>
 
-			<div class="h-[300px] border rounded-md overflow-y-auto">
+			<div class="h-[300px] border rounded-none overflow-y-auto">
 				<Show
 					when={debouncedQuery()}
 					fallback={
