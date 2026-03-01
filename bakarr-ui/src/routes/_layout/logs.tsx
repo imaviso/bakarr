@@ -9,6 +9,7 @@ import {
 	IconFilter,
 	IconInfoCircle,
 	IconJson,
+	IconLoader,
 	IconRefresh,
 	IconTag,
 	IconTrash,
@@ -61,17 +62,17 @@ import {
 } from "~/components/ui/table";
 import {
 	createClearLogsMutation,
-	createSystemLogsQuery,
+	createInfiniteLogsQuery,
 	getExportLogsUrl,
+	infiniteLogsQueryOptions,
 	type SystemLog,
-	systemLogsQueryOptions,
 } from "~/lib/api";
 import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout/logs")({
 	loader: ({ context: { queryClient } }) => {
-		return queryClient.ensureQueryData(
-			systemLogsQueryOptions(1, undefined, undefined, undefined, undefined),
+		return queryClient.ensureInfiniteQueryData(
+			infiniteLogsQueryOptions(undefined, undefined, undefined, undefined),
 		);
 	},
 	component: LogsPage,
@@ -94,7 +95,6 @@ function formatLogTimestamp(createdAt: string): string {
 }
 
 function LogsPage() {
-	const [page, setPage] = createSignal(1);
 	const [autoRefresh, setAutoRefresh] = createSignal(false);
 	const [selectedLog, setSelectedLog] = createSignal<SystemLog | null>(null);
 	const [filterStates, setFilterStates] = createSignal<FilterState[]>([]);
@@ -184,15 +184,19 @@ function LogsPage() {
 		return params;
 	});
 
-	// Reactively fetch logs based on page and filters
-	const logsQuery = createSystemLogsQuery(
-		() => page(),
+	// Reactively fetch logs based on filters
+	const logsQuery = createInfiniteLogsQuery(
 		() => apiParams().level,
 		() => apiParams().eventType,
 		() => apiParams().startDate,
 		() => apiParams().endDate,
 	);
 	const clearLogs = createClearLogsMutation();
+
+	// Flatten all pages of logs
+	const allLogs = createMemo(
+		() => logsQuery.data?.pages.flatMap((page) => page.logs) ?? [],
+	);
 
 	// Auto-refresh logic
 	createEffect(() => {
@@ -204,18 +208,6 @@ function LogsPage() {
 		}
 		return () => clearInterval(interval);
 	});
-
-	// Reset page when filters change
-	createEffect(() => {
-		filterStates();
-		setPage(1);
-	});
-
-	const handlePageChange = (newPage: number) => {
-		if (newPage < 1) return;
-		if (logsQuery.data && newPage > logsQuery.data.total_pages) return;
-		setPage(newPage);
-	};
 
 	const handleExport = (format: "json" | "csv") => {
 		const url = getExportLogsUrl(
@@ -404,7 +396,7 @@ function LogsPage() {
 								</TableRow>
 							</Show>
 
-							<Show when={logsQuery.data?.logs.length === 0}>
+							<Show when={allLogs().length === 0}>
 								<TableRow>
 									<TableCell
 										colSpan={5}
@@ -415,7 +407,7 @@ function LogsPage() {
 								</TableRow>
 							</Show>
 
-							<For each={logsQuery.data?.logs}>
+							<For each={allLogs()}>
 								{(log) => (
 									<TableRow class="group">
 										<TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
@@ -468,33 +460,25 @@ function LogsPage() {
 						</Show>
 					</TableBody>
 				</Table>
+				<Show when={logsQuery.hasNextPage}>
+					<div class="p-4 flex justify-center border-t">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => logsQuery.fetchNextPage()}
+							disabled={logsQuery.isFetchingNextPage}
+						>
+							<Show
+								when={logsQuery.isFetchingNextPage}
+								fallback="Load More Logs"
+							>
+								<IconLoader class="h-4 w-4 mr-2 animate-spin" />
+								Loading...
+							</Show>
+						</Button>
+					</div>
+				</Show>
 			</Card>
-
-			<Show when={logsQuery.data && logsQuery.data.total_pages > 1}>
-				<div class="flex items-center justify-between">
-					<div class="text-sm text-muted-foreground">
-						Page {page()} of {logsQuery.data?.total_pages}
-					</div>
-					<div class="flex items-center gap-2">
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={page() <= 1}
-							onClick={() => handlePageChange(page() - 1)}
-						>
-							Previous
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={page() >= (logsQuery.data?.total_pages || 1)}
-							onClick={() => handlePageChange(page() + 1)}
-						>
-							Next
-						</Button>
-					</div>
-				</div>
-			</Show>
 
 			<Dialog
 				open={!!selectedLog()}

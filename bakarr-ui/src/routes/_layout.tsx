@@ -1,4 +1,6 @@
+import { useIsFetching } from "@tanstack/solid-query";
 import { createFileRoute, Outlet, redirect } from "@tanstack/solid-router";
+import { Show } from "solid-js";
 import { AppSidebar } from "~/components/app-sidebar";
 import { Breadcrumb } from "~/components/breadcrumb";
 import { CommandPalette } from "~/components/command-palette";
@@ -26,10 +28,17 @@ export const Route = createFileRoute("/_layout")({
 });
 
 function LayoutComponent() {
+	const isFetching = useIsFetching();
+
 	return (
 		<SidebarProvider>
 			<AppSidebar />
 			<SidebarInset>
+				<div class="h-0.5 w-full bg-transparent overflow-hidden fixed top-0 left-0 z-[100] pointer-events-none">
+					<Show when={isFetching() > 0}>
+						<div class="h-full bg-primary animate-progress-indeterminate w-full origin-left" />
+					</Show>
+				</div>
 				<header class="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-sm px-4 border-b md:border-b-0">
 					<SidebarTrigger class="-ml-1" />
 					<div class="h-4 w-px bg-border/50 mx-1 hidden md:block" />

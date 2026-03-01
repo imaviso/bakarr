@@ -7,7 +7,20 @@ import "@fontsource-variable/geist";
 import "./styles.css";
 import { getAuthState } from "~/lib/auth";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+	defaultOptions: {
+		queries: {
+			staleTime: 1000 * 60 * 1, // 1 minute default
+			gcTime: 1000 * 60 * 60 * 24, // 24 hours
+			retry: 1,
+			refetchOnWindowFocus: true,
+			networkMode: "always", // Ideal for local/self-hosted apps
+		},
+		mutations: {
+			networkMode: "always",
+		},
+	},
+});
 
 // Set up a Router instance
 const router = createRouter({
