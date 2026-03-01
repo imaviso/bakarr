@@ -151,7 +151,7 @@ function AnimeDetailsPage() {
 	const updatePath = createUpdateAnimePathMutation();
 	const updateProfile = createUpdateAnimeProfileMutation();
 	const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
-	const _mapEpisode = createMapEpisodeMutation();
+	// const _mapEpisode = createMapEpisodeMutation();
 
 	const [renameDialogOpen, setRenameDialogOpen] = createSignal(false);
 	const [editPathOpen, setEditPathOpen] = createSignal(false);

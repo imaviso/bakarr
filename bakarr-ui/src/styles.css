@@ -61,8 +61,7 @@
 
   /* Defaulting to dark as the primary aesthetic */
   .dark,
-  [data-kb-theme="dark"],
-  :root {
+  [data-kb-theme="dark"] {
     --background: 0 0% 2%; /* Very deep black */
     --foreground: 0 0% 98%;
 

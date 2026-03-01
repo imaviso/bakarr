@@ -8,7 +8,7 @@ import {
 	IconSearch,
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
-import { createFileRoute, useNavigate } from "@tanstack/solid-router";
+import { createFileRoute } from "@tanstack/solid-router";
 import {
 	createEffect,
 	createMemo,
@@ -76,7 +76,7 @@ export const Route = createFileRoute("/_layout/anime/add")({
 });
 
 function AddAnimePage() {
-	const _navigate = useNavigate();
+	// const _navigate = useNavigate();
 	const search = Route.useSearch();
 	const [query, setQuery] = createSignal("");
 	const [debouncedQuery, setDebouncedQuery] = createSignal("");

@@ -95,7 +95,15 @@ function LoginPage() {
 									/>
 									<Show when={field().state.meta.errors.length > 0}>
 										<p class="text-xs text-destructive">
-											{field().state.meta.errors.join(", ")}
+											{field()
+												.state.meta.errors.map((e) =>
+													typeof e === "string"
+														? e
+														: typeof e === "object" && e && "message" in e
+															? String(e.message)
+															: String(e),
+												)
+												.join(", ")}
 										</p>
 									</Show>
 								</div>
@@ -119,7 +127,15 @@ function LoginPage() {
 									/>
 									<Show when={field().state.meta.errors.length > 0}>
 										<p class="text-xs text-destructive">
-											{field().state.meta.errors.join(", ")}
+											{field()
+												.state.meta.errors.map((e) =>
+													typeof e === "string"
+														? e
+														: typeof e === "object" && e && "message" in e
+															? String(e.message)
+															: String(e),
+												)
+												.join(", ")}
 										</p>
 									</Show>
 								</div>
