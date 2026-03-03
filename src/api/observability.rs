@@ -104,7 +104,7 @@ pub async fn security_headers_middleware(req: Request, next: Next) -> Response {
     headers.insert(
         "content-security-policy",
         HeaderValue::from_static(
-            "default-src 'self'; img-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'",
+            "default-src 'self'; img-src 'self' data: blob: https://s4.anilist.co https://img.anili.st; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'",
         ),
     );
 
