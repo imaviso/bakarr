@@ -272,3 +272,42 @@ impl ProfileService for SeaOrmProfileService {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_profile(cutoff: &str, allowed_qualities: Vec<&str>) -> ProfileDto {
+        ProfileDto {
+            name: "Test".to_string(),
+            cutoff: cutoff.to_string(),
+            upgrade_allowed: true,
+            seadex_preferred: false,
+            allowed_qualities: allowed_qualities.into_iter().map(str::to_string).collect(),
+            min_size: None,
+            max_size: None,
+        }
+    }
+
+    #[test]
+    fn validate_quality_dto_accepts_valid_profile() {
+        let payload = sample_profile("WEB-DL 1080p", vec!["WEB-DL 1080p", "WEB-DL 720p"]);
+        assert!(SeaOrmProfileService::validate_quality_dto(&payload).is_ok());
+    }
+
+    #[test]
+    fn validate_quality_dto_rejects_invalid_cutoff() {
+        let payload = sample_profile("NotAQuality", vec!["WEB-DL 1080p"]);
+        let err = SeaOrmProfileService::validate_quality_dto(&payload)
+            .expect_err("expected invalid cutoff error");
+        assert!(matches!(err, ProfileError::Validation(_)));
+    }
+
+    #[test]
+    fn validate_quality_dto_rejects_invalid_allowed_quality() {
+        let payload = sample_profile("WEB-DL 1080p", vec!["WEB-DL 1080p", "BadQuality"]);
+        let err = SeaOrmProfileService::validate_quality_dto(&payload)
+            .expect_err("expected invalid quality error");
+        assert!(matches!(err, ProfileError::Validation(_)));
+    }
+}

@@ -68,3 +68,20 @@ impl DataDir {
         PathBuf::from(configured_path)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn image_type_as_str_matches_expected_values() {
+        assert_eq!(ImageType::Cover.as_str(), "cover");
+        assert_eq!(ImageType::Banner.as_str(), "banner");
+    }
+
+    #[test]
+    fn data_dir_uses_configured_path_verbatim() {
+        let dir = DataDir::get_images_dir("/tmp/bakarr-images");
+        assert_eq!(dir, PathBuf::from("/tmp/bakarr-images"));
+    }
+}

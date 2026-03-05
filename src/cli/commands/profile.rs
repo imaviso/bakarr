@@ -76,11 +76,14 @@ pub async fn cmd_profile_show(config: &Config, name: &str) -> anyhow::Result<()>
     Ok(())
 }
 
-pub async fn cmd_profile_create(_config: &Config, name: &str) -> anyhow::Result<()> {
+pub async fn cmd_profile_create(config: &Config, name: &str) -> anyhow::Result<()> {
     println!("Creating profile: {name}");
     println!("Interactive profile creation coming soon!");
     println!();
-    println!("For now, edit config.toml directly:");
+    println!(
+        "For now, edit your config directly (db: {}):",
+        config.general.database_path
+    );
     println!("  [[profiles]]");
     println!("  name = \"{name}\"");
     println!("  cutoff = \"BluRay 1080p\"");
@@ -90,18 +93,22 @@ pub async fn cmd_profile_create(_config: &Config, name: &str) -> anyhow::Result<
     Ok(())
 }
 
-pub async fn cmd_profile_edit(_config: &Config, name: &str) -> anyhow::Result<()> {
+pub async fn cmd_profile_edit(config: &Config, name: &str) -> anyhow::Result<()> {
     println!("Editing profile: {name}");
     println!("Interactive profile editing coming soon!");
     println!();
-    println!("For now, edit config.toml directly");
+    println!(
+        "For now, edit your config directly (db: {})",
+        config.general.database_path
+    );
     Ok(())
 }
 
-pub async fn cmd_profile_delete(_config: &Config, name: &str) -> anyhow::Result<()> {
+pub async fn cmd_profile_delete(config: &Config, name: &str) -> anyhow::Result<()> {
     println!("Deleting profile: {name}");
     println!("Profile deletion coming soon!");
     println!();
+    println!("Configured database: {}", config.general.database_path);
     println!("This will require reassigning anime to another profile.");
     Ok(())
 }

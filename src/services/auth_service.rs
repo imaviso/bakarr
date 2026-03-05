@@ -95,3 +95,34 @@ pub trait AuthService: Send + Sync {
     /// Regenerates the API key for a user and returns the new one.
     async fn regenerate_api_key(&self, username: &str) -> Result<String, AuthError>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auth_error_display() {
+        let err = AuthError::InvalidCredentials;
+        assert_eq!(err.to_string(), "Invalid credentials");
+    }
+
+    #[test]
+    fn auth_error_from_db_err_maps_to_database() {
+        let err: AuthError = sea_orm::DbErr::Custom("db down".to_string()).into();
+
+        match err {
+            AuthError::Database(message) => assert_eq!(message, "Custom Error: db down"),
+            _ => panic!("expected database error"),
+        }
+    }
+
+    #[test]
+    fn auth_error_from_anyhow_maps_to_internal() {
+        let err: AuthError = anyhow::anyhow!("boom").into();
+
+        match err {
+            AuthError::Internal(message) => assert_eq!(message, "boom"),
+            _ => panic!("expected internal error"),
+        }
+    }
+}

@@ -128,3 +128,70 @@ impl LogService {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn test_service() -> LogService {
+        let db_path =
+            std::env::temp_dir().join(format!("bakarr-logs-test-{}.db", uuid::Uuid::new_v4()));
+
+        let mut config = crate::config::Config::default();
+        config.general.database_path = format!("sqlite:{}", db_path.display());
+        config.qbittorrent.enabled = false;
+
+        let state = crate::api::create_app_state_from_config(config, None)
+            .await
+            .expect("create app state");
+
+        LogService::new(state.store().clone(), state.event_bus().clone())
+    }
+
+    #[tokio::test]
+    async fn handle_event_persists_info_log() {
+        let service = test_service().await;
+        service.store.clear_logs().await.expect("clear logs");
+
+        service
+            .handle_event(NotificationEvent::Info {
+                message: "hello from test".to_string(),
+            })
+            .await
+            .expect("handle info event");
+
+        let (logs, _) = service
+            .store
+            .get_logs(1, 50, None, None, None, None)
+            .await
+            .expect("get logs");
+
+        assert!(
+            logs.iter()
+                .any(|log| log.event_type == "Info" && log.message == "hello from test")
+        );
+    }
+
+    #[tokio::test]
+    async fn handle_event_skips_empty_import_finished() {
+        let service = test_service().await;
+        service.store.clear_logs().await.expect("clear logs");
+
+        service
+            .handle_event(NotificationEvent::ImportFinished {
+                count: 1,
+                imported: 0,
+                failed: 0,
+            })
+            .await
+            .expect("handle import finished event");
+
+        let (logs, _) = service
+            .store
+            .get_logs(1, 50, None, None, None, None)
+            .await
+            .expect("get logs");
+
+        assert!(logs.is_empty());
+    }
+}

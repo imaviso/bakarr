@@ -59,7 +59,8 @@ impl From<sea_orm::DbErr> for AnimeError {
 ///
 /// async fn example(service: Arc<dyn AnimeService>) -> Result<(), AnimeError> {
 ///     let anime_id = AnimeId::new(1);
-///     let _details = service.get_anime_details(anime_id).await?;
+///     let details = service.get_anime_details(anime_id).await?;
+///     assert_eq!(details.id, anime_id.value());
 ///     Ok(())
 /// }
 /// ```

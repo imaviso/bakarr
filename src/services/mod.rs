@@ -84,3 +84,13 @@ pub mod system_service;
 pub mod system_service_impl;
 pub use system_service::{ExportFormat, SystemError, SystemService};
 pub use system_service_impl::SeaOrmSystemService;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn service_module_reexports_are_accessible() {
+        assert_eq!(ExportFormat::Json, ExportFormat::default());
+    }
+}

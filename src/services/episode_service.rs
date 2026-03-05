@@ -204,3 +204,45 @@ pub trait EpisodeService: Send + Sync {
         episode_number: EpisodeNumber,
     ) -> Result<String, EpisodeError>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn episode_error_display_external_api() {
+        let err = EpisodeError::ExternalApi {
+            service: "AniList".to_string(),
+            message: "timeout".to_string(),
+        };
+
+        assert_eq!(err.to_string(), "External API error: AniList - timeout");
+    }
+
+    #[test]
+    fn episode_error_from_db_err_maps_to_database() {
+        let err: EpisodeError = sea_orm::DbErr::Custom("db down".to_string()).into();
+
+        match err {
+            EpisodeError::Database(message) => assert_eq!(message, "Custom Error: db down"),
+            _ => panic!("expected database error"),
+        }
+    }
+
+    #[test]
+    fn episode_error_from_anyhow_maps_to_database() {
+        let err: EpisodeError = anyhow::anyhow!("boom").into();
+
+        match err {
+            EpisodeError::Database(message) => assert_eq!(message, "boom"),
+            _ => panic!("expected database error"),
+        }
+    }
+
+    #[test]
+    fn episode_error_from_io_maps_to_filesystem() {
+        let io_err = std::io::Error::other("disk error");
+        let err: EpisodeError = io_err.into();
+        assert!(matches!(err, EpisodeError::FileSystem(_)));
+    }
+}

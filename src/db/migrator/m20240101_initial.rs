@@ -34,7 +34,7 @@ fn random_hex(byte_len: usize) -> String {
 
     for _ in 0..byte_len {
         let value: u8 = rng.random();
-        let _ = write!(result, "{value:02x}");
+        write!(result, "{value:02x}").expect("writing to String should not fail");
     }
 
     result
@@ -74,7 +74,7 @@ fn hash_password(password: &str) -> Result<String, DbErr> {
         .map_err(|err| DbErr::Custom(format!("Failed to hash bootstrap password: {err}")))
 }
 
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines)]
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {

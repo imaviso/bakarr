@@ -138,7 +138,7 @@ impl EpisodeNumber {
     /// Episode numbers exceeding `i32::MAX` would be truncated, which is
     /// acceptable for this domain (anime episodes never reach that magnitude).
     #[must_use]
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation)]
     pub fn as_i32(&self) -> Option<i32> {
         if self.is_main_episode() {
             Some(self.0 as i32)
@@ -149,7 +149,7 @@ impl EpisodeNumber {
 }
 
 impl fmt::Display for EpisodeNumber {
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.is_main_episode() {
             write!(f, "{}", self.0 as i32)
@@ -172,7 +172,7 @@ impl From<i32> for EpisodeNumber {
     ///
     /// `i32` values up to 2^24 (16,777,216) can be represented exactly in `f32`.
     /// Episode numbers in anime are typically < 1000, so precision loss is not a concern.
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     fn from(num: i32) -> Self {
         Self::new(num as f32)
     }

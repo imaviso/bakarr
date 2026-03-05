@@ -23,7 +23,7 @@ pub fn parse_size(size_str: &str) -> Option<i64> {
         _ => return None,
     };
 
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation)]
     Some(bytes as i64)
 }
 
@@ -34,7 +34,7 @@ pub fn format_size(bytes: i64) -> String {
     const GB: i64 = MB * 1024;
     const TB: i64 = GB * 1024;
 
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     if bytes >= TB {
         format!("{:.2} TiB", bytes as f64 / TB as f64)
     } else if bytes >= GB {

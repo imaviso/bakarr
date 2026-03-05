@@ -1,8 +1,9 @@
 use crate::clients::anilist::AnilistClient;
 use crate::config::Config;
 
-pub async fn cmd_search_anime(_config: &Config, query: &str) -> anyhow::Result<()> {
+pub async fn cmd_search_anime(config: &Config, query: &str) -> anyhow::Result<()> {
     println!("Searching for: {query}");
+    println!("Using database: {}", config.general.database_path);
 
     let anilist = AnilistClient::new();
     let results = anilist.search_anime(query).await?;

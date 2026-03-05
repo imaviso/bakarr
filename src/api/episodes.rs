@@ -67,7 +67,7 @@ pub async fn get_episode(
 
     let anime_id = AnimeId::new(id);
     // Episode numbers are typically < 1000, well within f32 precision (2^24)
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     let episode_number = EpisodeNumber::new(number as f32);
 
     // Delegate to episode service
@@ -114,7 +114,7 @@ pub async fn delete_episode_file(
 
     let anime_id = AnimeId::new(id);
     // Episode numbers are typically < 1000, well within f32 precision (2^24)
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     let episode_number = EpisodeNumber::new(number as f32);
 
     // Delegate to episode service
@@ -183,7 +183,7 @@ pub async fn map_episode_file(
 
     let anime_id = AnimeId::new(id);
     // Episode numbers are typically < 1000, well within f32 precision (2^24)
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     let episode_number = EpisodeNumber::new(number as f32);
 
     // Delegate to episode service
@@ -211,7 +211,7 @@ pub async fn bulk_map_episodes(
 
     // Convert mappings to the format expected by the service
     // Episode numbers are typically < 1000, well within f32 precision (2^24)
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     let mappings: Vec<(EpisodeNumber, String)> = request
         .mappings
         .into_iter()

@@ -98,7 +98,7 @@ impl Scheduler {
             let state = Arc::clone(&state_for_metadata);
             Box::pin(async move {
                 if let Err(e) = state.episode_service.refresh_all_active_metadata().await {
-                    error!("Scheduled metadata refresh failed: {}", e);
+                    error!(error = %e, "Scheduled metadata refresh failed: ");
                 }
             })
         })?;
@@ -122,7 +122,7 @@ impl Scheduler {
             Box::pin(async move {
                 let scanner = state.library_scanner.clone();
                 if let Err(e) = scanner.scan_library_files().await {
-                    error!("Scheduled library scan failed: {}", e);
+                    error!(error = %e, "Scheduled library scan failed: ");
                 }
             })
         })?;
@@ -132,9 +132,9 @@ impl Scheduler {
         sched.add(scan_job).await?;
         sched.start().await?;
 
-        info!("Scheduler running with cron: {}", cron_expr);
-        info!("Metadata refresh scheduled: {}", refresh_cron);
-        info!("Library scan scheduled: {}", scan_cron);
+        info!(cron_expr = %cron_expr, "Scheduler running with cron: ");
+        info!(refresh_cron = %refresh_cron, "Metadata refresh scheduled: ");
+        info!(scan_cron = %scan_cron, "Library scan scheduled: ");
 
         loop {
             if !*self.running.read().await {
@@ -271,5 +271,50 @@ impl Scheduler {
             .refresh_all_active_metadata()
             .await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn test_state() -> SchedulerState {
+        let db_path =
+            std::env::temp_dir().join(format!("bakarr-scheduler-test-{}.db", uuid::Uuid::new_v4()));
+
+        let mut config = crate::config::Config::default();
+        config.general.database_path = format!("sqlite:{}", db_path.display());
+        config.qbittorrent.enabled = false;
+
+        let app_state = crate::api::create_app_state_from_config(config, None)
+            .await
+            .expect("create app state");
+
+        app_state.shared.clone()
+    }
+
+    #[tokio::test]
+    async fn start_returns_immediately_when_disabled() {
+        let state = test_state().await;
+        let cfg = SchedulerConfig {
+            enabled: false,
+            ..Default::default()
+        };
+
+        let scheduler = Scheduler::new(state, cfg);
+        scheduler.start().await.expect("start scheduler");
+
+        assert!(!scheduler.is_running().await);
+    }
+
+    #[tokio::test]
+    async fn stop_sets_running_flag_to_false() {
+        let state = test_state().await;
+        let scheduler = Scheduler::new(state, SchedulerConfig::default());
+
+        *scheduler.running.write().await = true;
+        scheduler.stop().await;
+
+        assert!(!scheduler.is_running().await);
     }
 }

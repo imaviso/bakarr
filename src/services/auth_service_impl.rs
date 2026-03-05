@@ -212,3 +212,33 @@ impl AuthService for SeaOrmAuthService {
         Ok(new_api_key)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn needs_migration_returns_false_for_matching_params() {
+        let security = SecurityConfig::default();
+        let hash = "$argon2id$v=19$m=8192,t=3,p=1$abc$def";
+
+        assert!(!SeaOrmAuthService::needs_migration(hash, &security));
+    }
+
+    #[test]
+    fn needs_migration_returns_true_for_mismatched_params() {
+        let security = SecurityConfig::default();
+        let hash = "$argon2id$v=19$m=4096,t=2,p=1$abc$def";
+
+        assert!(SeaOrmAuthService::needs_migration(hash, &security));
+    }
+
+    #[test]
+    fn needs_migration_returns_true_for_malformed_hash() {
+        let security = SecurityConfig::default();
+        assert!(SeaOrmAuthService::needs_migration(
+            "not-an-argon2-hash",
+            &security
+        ));
+    }
+}

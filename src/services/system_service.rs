@@ -183,3 +183,44 @@ pub trait SystemService: Send + Sync {
         version: String,
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn export_format_default_is_json() {
+        assert_eq!(ExportFormat::default(), ExportFormat::Json);
+    }
+
+    #[test]
+    fn system_error_from_db_err_maps_to_database() {
+        let err: SystemError = sea_orm::DbErr::Custom("db down".to_string()).into();
+
+        match err {
+            SystemError::Database(message) => assert_eq!(message, "Custom Error: db down"),
+            _ => panic!("expected database error"),
+        }
+    }
+
+    #[test]
+    fn system_error_from_io_err_maps_to_internal() {
+        let io_err = std::io::Error::other("disk error");
+        let err: SystemError = io_err.into();
+
+        match err {
+            SystemError::Internal(message) => assert_eq!(message, "disk error"),
+            _ => panic!("expected internal error"),
+        }
+    }
+
+    #[test]
+    fn system_error_from_anyhow_maps_to_database() {
+        let err: SystemError = anyhow::anyhow!("boom").into();
+
+        match err {
+            SystemError::Database(message) => assert_eq!(message, "boom"),
+            _ => panic!("expected database error"),
+        }
+    }
+}

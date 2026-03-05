@@ -89,7 +89,12 @@ impl LibraryScannerService {
 
         tokio::spawn(async move {
             let start = std::time::Instant::now();
-            let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanStarted);
+            if event_bus
+                .send(crate::domain::events::NotificationEvent::ScanStarted)
+                .is_err()
+            {
+                debug!("No listeners for scan-start event");
+            }
             info!(
                 event = "discovery_scan_started",
                 "Starting unmapped folder discovery"
@@ -99,9 +104,14 @@ impl LibraryScannerService {
                 Self::perform_scan(state.clone(), store, config, event_bus.clone()).await
             {
                 error!(event = "discovery_scan_failed", error = %e, "Scan failed");
-                let _ = event_bus.send(crate::domain::events::NotificationEvent::Error {
-                    message: format!("Scan failed: {e}"),
-                });
+                if event_bus
+                    .send(crate::domain::events::NotificationEvent::Error {
+                        message: format!("Scan failed: {e}"),
+                    })
+                    .is_err()
+                {
+                    debug!("No listeners for scan error event");
+                }
             }
 
             let mut guard = state.write().await;
@@ -110,7 +120,12 @@ impl LibraryScannerService {
             let folder_count = guard.folders.len();
             drop(guard);
 
-            let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanFinished);
+            if event_bus
+                .send(crate::domain::events::NotificationEvent::ScanFinished)
+                .is_err()
+            {
+                debug!("No listeners for scan-finished event");
+            }
             info!(
                 event = "discovery_scan_finished",
                 folders_found = folder_count,
@@ -120,7 +135,7 @@ impl LibraryScannerService {
         });
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     pub async fn scan_library_files(&self) -> anyhow::Result<LibraryScanStats> {
         let start = std::time::Instant::now();
         let library_path = {
@@ -135,9 +150,13 @@ impl LibraryScannerService {
             ));
         }
 
-        let _ = self
+        if self
             .event_bus
-            .send(crate::domain::events::NotificationEvent::LibraryScanStarted);
+            .send(crate::domain::events::NotificationEvent::LibraryScanStarted)
+            .is_err()
+        {
+            debug!("No listeners for library-scan start event");
+        }
         info!(path = %library_path.display(), "Scanning library");
 
         let title_map = self.build_monitored_title_map().await?;
@@ -163,8 +182,9 @@ impl LibraryScannerService {
             for entry in walker {
                 if entry.path().is_file()
                     && let Some(path_str) = entry.path().to_str()
+                    && tx.blocking_send(path_str.to_string()).is_err()
                 {
-                    let _ = tx.blocking_send(path_str.to_string());
+                    break;
                 }
             }
         });
@@ -182,12 +202,17 @@ impl LibraryScannerService {
             }
 
             stats.scanned += 1;
-            if stats.scanned % 100 == 0 {
-                let _ = self.event_bus.send(
-                    crate::domain::events::NotificationEvent::LibraryScanProgress {
-                        scanned: stats.scanned,
-                    },
-                );
+            if stats.scanned % 100 == 0
+                && self
+                    .event_bus
+                    .send(
+                        crate::domain::events::NotificationEvent::LibraryScanProgress {
+                            scanned: stats.scanned,
+                        },
+                    )
+                    .is_err()
+            {
+                debug!("No listeners for library-scan progress event");
             }
 
             let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -201,7 +226,7 @@ impl LibraryScannerService {
                 continue;
             };
 
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_possible_truncation)]
             let episode_number = release.episode_number as i32;
 
             // N+1 Optimization: Check cache first
@@ -246,13 +271,19 @@ impl LibraryScannerService {
             }
         }
 
-        let _ = self.event_bus.send(
-            crate::domain::events::NotificationEvent::LibraryScanFinished {
-                scanned: stats.scanned,
-                matched: stats.matched,
-                updated: stats.updated,
-            },
-        );
+        if self
+            .event_bus
+            .send(
+                crate::domain::events::NotificationEvent::LibraryScanFinished {
+                    scanned: stats.scanned,
+                    matched: stats.matched,
+                    updated: stats.updated,
+                },
+            )
+            .is_err()
+        {
+            debug!("No listeners for library-scan finished event");
+        }
 
         info!(
             event = "library_scan_finished",
@@ -292,7 +323,7 @@ impl LibraryScannerService {
             .map(|m| i64::try_from(m.len()).unwrap_or(i64::MAX))
             .ok();
 
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         let episode_number = release.episode_number as i32;
         let season = release.season.unwrap_or(1);
         let quality_id = determine_quality_id(release);
@@ -354,7 +385,7 @@ impl LibraryScannerService {
 
             let mut score: i32 = 0;
 
-            #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+            #[expect(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
             let len_diff = (title.len() as i32 - release_title_lower.len() as i32).abs();
             score += 100 - len_diff.min(100);
 
@@ -576,10 +607,15 @@ async fn search_and_update_matches(
     let total = folders.len();
 
     for (i, folder) in folders.iter().enumerate() {
-        let _ = event_bus.send(crate::domain::events::NotificationEvent::ScanProgress {
-            current: i + 1,
-            total,
-        });
+        if event_bus
+            .send(crate::domain::events::NotificationEvent::ScanProgress {
+                current: i + 1,
+                total,
+            })
+            .is_err()
+        {
+            debug!("No listeners for unmapped scan progress event");
+        }
 
         let clean_name = crate::parser::filename::clean_title(&folder.name);
         if clean_name.is_empty() {
@@ -645,4 +681,108 @@ async fn update_folder_matches(
         f.suggested_matches = matches;
     }
     drop(guard);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::anime::{Anime, AnimeTitle};
+    use crate::models::release::Release;
+    use std::collections::HashMap;
+
+    async fn test_service() -> LibraryScannerService {
+        let db_path =
+            std::env::temp_dir().join(format!("bakarr-scanner-test-{}.db", uuid::Uuid::new_v4()));
+
+        let mut config = crate::config::Config::default();
+        config.general.database_path = format!("sqlite:{}", db_path.display());
+        config.qbittorrent.enabled = false;
+
+        let state = crate::api::create_app_state_from_config(config, None)
+            .await
+            .expect("create app state");
+
+        LibraryScannerService::new(
+            state.store().clone(),
+            state.config().clone(),
+            state.event_bus().clone(),
+        )
+    }
+
+    fn anime(id: i32, title: &str) -> Anime {
+        Anime {
+            id,
+            title: AnimeTitle {
+                romaji: title.to_string(),
+                english: None,
+                native: None,
+            },
+            format: "TV".to_string(),
+            episode_count: Some(12),
+            status: "RELEASING".to_string(),
+            quality_profile_id: Some(1),
+            cover_image: None,
+            banner_image: None,
+            added_at: chrono::Utc::now().to_rfc3339(),
+            profile_name: Some("Default".to_string()),
+            path: Some("/library/Test Show".to_string()),
+            mal_id: None,
+            description: None,
+            score: None,
+            genres: None,
+            studios: None,
+            start_year: Some(2025),
+            monitored: true,
+            metadata_provenance: None,
+        }
+    }
+
+    fn release(title: &str) -> Release {
+        Release {
+            original_filename: format!("{title}.mkv"),
+            title: title.to_string(),
+            episode_number: 1.0,
+            season: Some(1),
+            group: Some("SubsPlease".to_string()),
+            resolution: Some("1080p".to_string()),
+            source: Some("WEB".to_string()),
+            version: Some(1),
+        }
+    }
+
+    #[tokio::test]
+    async fn match_file_to_anime_finds_exact_title_match() {
+        let service = test_service().await;
+        let mut map = HashMap::new();
+        map.insert("test show".to_string(), anime(10, "Test Show"));
+
+        let (matched, guessed) = service.match_file_to_anime(
+            std::path::Path::new("/tmp/Test Show - 01.mkv"),
+            &release("Test Show"),
+            &map,
+            None,
+        );
+
+        assert_eq!(matched.map(|a| a.id), Some(10));
+        assert!(guessed.is_none());
+    }
+
+    #[tokio::test]
+    async fn match_file_to_anime_returns_folder_guess_when_unmatched() {
+        let service = test_service().await;
+        let map = HashMap::new();
+
+        let (matched, guessed) = service.match_file_to_anime(
+            std::path::Path::new("/tmp/import/Guessed Show/video.mkv"),
+            &release("Unknown Title"),
+            &map,
+            Some(std::path::Path::new("/tmp/import")),
+        );
+
+        assert!(matched.is_none());
+        assert_eq!(
+            guessed.expect("expected folder guess").to_lowercase(),
+            "guessed show"
+        );
+    }
 }

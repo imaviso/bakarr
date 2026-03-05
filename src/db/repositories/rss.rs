@@ -42,7 +42,7 @@ impl RssRepository {
         };
 
         let res = RssFeeds::insert(active_model).exec(&self.conn).await?;
-        info!("Added RSS feed for anime {}: {}", anime_id, url);
+        info!(anime_id = %anime_id, url = %url, "Added RSS feed for anime : ");
         Ok(i64::from(res.last_insert_id))
     }
 

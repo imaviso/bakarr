@@ -187,7 +187,7 @@ async fn display_import_plan(
     println!("{:-<70}", "");
 
     for (file_path, release, anime) in files_to_import {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         let episode = release.episode_number as i32;
         let season = release.season.unwrap_or(1);
 
@@ -238,7 +238,7 @@ async fn execute_import(
     let mut failed = 0;
 
     for (file_path, release, anime) in files_to_import {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         let episode = release.episode_number as i32;
         let season = release.season.unwrap_or(1);
 
@@ -329,7 +329,7 @@ fn rebuild_map(m: &[Anime], map: &mut HashMap<String, Anime>) {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn resolve_anime_for_file(
     file_path: &Path,
     release: &Release,

@@ -448,7 +448,7 @@ impl Config {
 
         for path in &paths {
             if path.exists() {
-                info!("Loading config from: {}", path.display());
+                info!(path = %path.display(), "Loading config from: ");
                 return Self::load_from_path(path);
             }
         }
@@ -479,7 +479,7 @@ impl Config {
 
         let content = toml::to_string_pretty(self)?;
         std::fs::write(path, content)?;
-        info!("Config saved to: {}", path.display());
+        info!(path = %path.display(), "Config saved to: ");
         Ok(())
     }
 
@@ -510,7 +510,7 @@ impl Config {
         } else {
             let config = Self::default();
             config.save_to_path(&path)?;
-            info!("Created default config file: {}", path.display());
+            info!(path = %path.display(), "Created default config file: ");
             Ok(true)
         }
     }

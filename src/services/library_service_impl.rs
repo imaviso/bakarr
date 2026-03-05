@@ -5,7 +5,7 @@
 //! - Proper error mapping from `SeaORM` to domain errors
 //! - Background task spawning for post-import operations
 
-#![allow(
+#![expect(
     clippy::cast_possible_truncation,
     clippy::cast_possible_wrap,
     reason = "Domain constraints ensure values fit in target types"
@@ -286,15 +286,19 @@ impl LibraryService for SeaOrmLibraryService {
         tokio::spawn(async move {
             use crate::services::image::ImageType;
 
-            if let Some(url) = &anime_clone.cover_image {
-                let _ = image_service
+            if let Some(url) = &anime_clone.cover_image
+                && let Err(error) = image_service
                     .save_image(url, anime_clone.id, ImageType::Cover)
-                    .await;
+                    .await
+            {
+                tracing::debug!(%error, anime_id = anime_clone.id, "Failed to save cover image");
             }
-            if let Some(url) = &anime_clone.banner_image {
-                let _ = image_service
+            if let Some(url) = &anime_clone.banner_image
+                && let Err(error) = image_service
                     .save_image(url, anime_clone.id, ImageType::Banner)
-                    .await;
+                    .await
+            {
+                tracing::debug!(%error, anime_id = anime_clone.id, "Failed to save banner image");
             }
         });
 
@@ -340,12 +344,17 @@ pub async fn scan_folder_for_episodes(
     };
 
     // Send start event
-    let _ = event_bus.send(
-        crate::domain::events::NotificationEvent::ScanFolderStarted {
-            anime_id,
-            title: anime_title.clone(),
-        },
-    );
+    if event_bus
+        .send(
+            crate::domain::events::NotificationEvent::ScanFolderStarted {
+                anime_id,
+                title: anime_title.clone(),
+            },
+        )
+        .is_err()
+    {
+        tracing::debug!(anime_id, "No listeners for scan-folder start event");
+    }
 
     tracing::debug!(path = %folder_path.display(), "Scanning folder for episodes");
 
@@ -392,13 +401,18 @@ pub async fn scan_folder_for_episodes(
     );
 
     // Send completion event
-    let _ = event_bus.send(
-        crate::domain::events::NotificationEvent::ScanFolderFinished {
-            anime_id,
-            title: anime_title,
-            found: count_i32,
-        },
-    );
+    if event_bus
+        .send(
+            crate::domain::events::NotificationEvent::ScanFolderFinished {
+                anime_id,
+                title: anime_title,
+                found: count_i32,
+            },
+        )
+        .is_err()
+    {
+        tracing::debug!(anime_id, "No listeners for scan-folder finished event");
+    }
 
     Ok(count_i32)
 }
@@ -470,7 +484,7 @@ pub async fn collect_and_parse_episodes(
 
                     // Parse filename for episode info
                     if let Some(parsed) = parse_filename(&filename_str) {
-                        #[allow(clippy::cast_possible_truncation)]
+                        #[expect(clippy::cast_possible_truncation)]
                         let episode_number = parsed.episode_number.floor() as i32;
                         let quality = parse_quality_from_filename(&filename_str);
 
@@ -494,4 +508,40 @@ pub async fn collect_and_parse_episodes(
     }
 
     found_episodes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn collect_and_parse_episodes_recurses_and_skips_hidden_dirs() {
+        let root =
+            std::env::temp_dir().join(format!("bakarr-collect-episodes-{}", uuid::Uuid::new_v4()));
+        let nested = root.join("Season 1");
+        let hidden = root.join(".hidden");
+
+        tokio::fs::create_dir_all(&nested)
+            .await
+            .expect("create nested dir");
+        tokio::fs::create_dir_all(&hidden)
+            .await
+            .expect("create hidden dir");
+
+        let visible_file = nested.join("[SubsPlease] Test Show - 01 (1080p).mkv");
+        let hidden_file = hidden.join("[SubsPlease] Test Show - 02 (1080p).mkv");
+
+        tokio::fs::write(&visible_file, b"video")
+            .await
+            .expect("write visible file");
+        tokio::fs::write(&hidden_file, b"video")
+            .await
+            .expect("write hidden file");
+
+        let episodes = collect_and_parse_episodes(&root).await;
+
+        assert_eq!(episodes.len(), 1);
+        assert_eq!(episodes[0].0, 1);
+        assert_eq!(episodes[0].2, visible_file.to_string_lossy());
+    }
 }

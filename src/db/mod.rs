@@ -219,7 +219,7 @@ impl Store {
         self.download_repo().is_blocked(info_hash).await
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub async fn add_to_recycle_bin(
         &self,
         original_path: &str,
@@ -427,8 +427,8 @@ impl Store {
         self.episode_repo().get_downloaded_count(anime_id).await
     }
 
-    pub async fn get_download_queue_count(&self) -> Result<i64> {
-        self.episode_repo().get_download_queue_count().await
+    pub fn get_download_queue_count(&self) -> Result<i64> {
+        self.episode_repo().get_download_queue_count()
     }
 
     pub async fn get_download_counts_for_anime_ids(
@@ -505,7 +505,7 @@ impl Store {
         self.episode_repo().get_all_missing_episodes(limit).await
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub async fn mark_episode_downloaded(
         &self,
         anime_id: i32,

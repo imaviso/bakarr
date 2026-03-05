@@ -121,7 +121,7 @@ async fn search_and_queue_episode(
                         Ok(()) => {
                             queued = true;
 
-                            #[allow(clippy::cast_precision_loss)]
+                            #[expect(clippy::cast_precision_loss)]
                             store
                                 .record_download(
                                     anime.id,

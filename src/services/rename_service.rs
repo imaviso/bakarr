@@ -96,3 +96,42 @@ pub trait RenameService: Send + Sync {
     /// Individual episode failures are collected in the [`RenameResult`].
     async fn execute_rename(&self, anime_id: AnimeId) -> Result<RenameResult, RenameError>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rename_error_display_validation() {
+        let err = RenameError::Validation("invalid pattern".to_string());
+        assert_eq!(err.to_string(), "Validation failed: invalid pattern");
+    }
+
+    #[test]
+    fn rename_error_from_db_err_maps_to_database() {
+        let err: RenameError = sea_orm::DbErr::Custom("db down".to_string()).into();
+
+        match err {
+            RenameError::Database(message) => assert_eq!(message, "Custom Error: db down"),
+            _ => panic!("expected database error"),
+        }
+    }
+
+    #[test]
+    fn rename_error_from_anyhow_maps_to_critical() {
+        let err: RenameError = anyhow::anyhow!("boom").into();
+
+        match err {
+            RenameError::Critical(message) => assert_eq!(message, "boom"),
+            _ => panic!("expected critical error"),
+        }
+    }
+
+    #[test]
+    fn rename_result_default_is_empty() {
+        let result = RenameResult::default();
+        assert_eq!(result.renamed, 0);
+        assert_eq!(result.failed, 0);
+        assert!(result.failures.is_empty());
+    }
+}

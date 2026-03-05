@@ -63,16 +63,16 @@ pub struct Quality {
 
 impl Quality {
     #[must_use]
-    pub const fn new(
+    pub fn new(
         id: i32,
-        _name: &'static str,
+        name: impl Into<String>,
         source: QualitySource,
         resolution: u16,
         rank: i32,
     ) -> Self {
         Self {
             id,
-            name: String::new(),
+            name: name.into(),
             source,
             resolution,
             rank,

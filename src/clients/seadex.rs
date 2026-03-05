@@ -27,9 +27,9 @@ pub struct SeaDexEntry {
 struct SeaDexResponse {
     items: Vec<SeaDexEntry>,
     #[serde(default)]
-    _page: i32,
+    page: i32,
     #[serde(rename = "totalItems", default)]
-    _total_items: i32,
+    total_items: i32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -55,9 +55,9 @@ pub struct SeaDexRelease {
 struct ReleaseResponse {
     items: Vec<SeaDexRelease>,
     #[serde(default)]
-    _page: i32,
+    page: i32,
     #[serde(rename = "totalItems", default)]
-    _total_items: i32,
+    total_items: i32,
 }
 
 #[derive(Clone)]
@@ -93,6 +93,13 @@ impl SeaDexClient {
 
         let response: SeaDexResponse = self.client.get(url).send().await?.json().await?;
 
+        debug!(
+            page = response.page,
+            total_items = response.total_items,
+            returned = response.items.len(),
+            "Fetched SeaDex entry page"
+        );
+
         Ok(response.items.into_iter().next())
     }
 
@@ -118,6 +125,13 @@ impl SeaDexClient {
         debug!(count = tr_ids.len(), "Fetching SeaDex release details");
 
         let response: ReleaseResponse = self.client.get(url).send().await?.json().await?;
+
+        debug!(
+            page = response.page,
+            total_items = response.total_items,
+            returned = response.items.len(),
+            "Fetched SeaDex release page"
+        );
 
         Ok(response.items)
     }

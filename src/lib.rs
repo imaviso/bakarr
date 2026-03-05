@@ -187,7 +187,7 @@ async fn execute_command(
             let api_state =
                 api::create_app_state_from_config(config.clone(), prometheus_handle).await?;
             let port = config.server.port;
-            info!("Starting Web API on port {}", port);
+            info!(port = %port, "Starting Web API on port ");
 
             let app = api::router(api_state).await;
             let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
@@ -216,7 +216,7 @@ async fn run_daemon(
         let sched = scheduler;
         tokio::spawn(async move {
             if let Err(e) = sched.start().await {
-                error!("Scheduler error: {}", e);
+                error!(error = %e, "Scheduler error: ");
             }
         })
     };
@@ -228,16 +228,16 @@ async fn run_daemon(
 
     let server_handle: Option<tokio::task::JoinHandle<()>> = if config.server.enabled {
         let port = config.server.port;
-        info!("Starting Web API on port {}", port);
+        info!(port = %port, "Starting Web API on port ");
 
         let app = api::router(api_state).await;
         let addr = format!("0.0.0.0:{port}");
         let listener = tokio::net::TcpListener::bind(&addr).await?;
 
         Some(tokio::spawn(async move {
-            info!("🌐 Web Server running at http://0.0.0.0:{}", port);
+            info!(port = %port, "🌐 Web Server running at http://0.0.0.0:");
             if let Err(e) = axum::serve(listener, app).await {
-                error!("Web server error: {}", e);
+                error!(error = %e, "Web server error: ");
             }
         }))
     } else {
@@ -251,7 +251,7 @@ async fn run_daemon(
             info!("Shutdown signal received");
         }
         Err(e) => {
-            error!("Error listening for shutdown: {}", e);
+            error!(error = %e, "Error listening for shutdown: ");
         }
     }
 

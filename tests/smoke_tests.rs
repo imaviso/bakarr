@@ -161,6 +161,7 @@ async fn smoke_login_anime_queue_and_settings() {
 }
 
 #[tokio::test]
+#[expect(clippy::too_many_lines)]
 async fn smoke_add_anime_queue_then_import_completion_state() {
     let library_root =
         std::env::temp_dir().join(format!("bakarr-smoke-library-{}", uuid::Uuid::new_v4()));

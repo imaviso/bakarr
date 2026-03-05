@@ -49,13 +49,13 @@ impl SeaDexService {
                     .cache_seadex(anime_id, &groups, best_release, &releases)
                     .await
                 {
-                    debug!("Failed to cache SeaDex results: {}", e);
+                    debug!(error = %e, "Failed to cache SeaDex results: ");
                 }
 
                 groups
             }
             Err(e) => {
-                debug!("SeaDex lookup failed: {}", e);
+                debug!(error = %e, "SeaDex lookup failed: ");
                 self.config.read().await.downloads.preferred_groups.clone()
             }
         }
@@ -90,13 +90,13 @@ impl SeaDexService {
                     .cache_seadex(anime_id, &groups, best_release, &releases)
                     .await
                 {
-                    debug!("Failed to cache SeaDex releases: {}", e);
+                    debug!(error = %e, "Failed to cache SeaDex releases: ");
                 }
 
                 releases
             }
             Err(e) => {
-                debug!("SeaDex lookup failed: {}", e);
+                debug!(error = %e, "SeaDex lookup failed: ");
                 vec![]
             }
         }
@@ -112,5 +112,42 @@ impl SeaDexService {
         seadex_groups
             .iter()
             .any(|g| title_lower.contains(&g.to_lowercase()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn test_service() -> SeaDexService {
+        let db_path =
+            std::env::temp_dir().join(format!("bakarr-seadex-test-{}.db", uuid::Uuid::new_v4()));
+
+        let mut config = Config::default();
+        config.general.database_path = format!("sqlite:{}", db_path.display());
+        config.qbittorrent.enabled = false;
+
+        let state = crate::api::create_app_state_from_config(config, None)
+            .await
+            .expect("create app state");
+
+        SeaDexService::new(
+            state.store().clone(),
+            state.config().clone(),
+            Arc::new(SeaDexClient::new()),
+        )
+    }
+
+    #[tokio::test]
+    async fn is_seadex_release_matches_case_insensitively() {
+        let service = test_service().await;
+        let groups = vec!["SubsPlease".to_string()];
+        assert!(service.is_seadex_release("[subsplease] Example", &groups));
+    }
+
+    #[tokio::test]
+    async fn is_seadex_release_returns_false_for_empty_groups() {
+        let service = test_service().await;
+        assert!(!service.is_seadex_release("[SubsPlease] Example", &[]));
     }
 }

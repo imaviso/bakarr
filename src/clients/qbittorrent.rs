@@ -147,7 +147,7 @@ pub struct TorrentInfo {
 }
 
 #[derive(Debug, Clone, Default)]
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools)]
 pub struct AddTorrentOptions {
     pub save_path: Option<String>,
 

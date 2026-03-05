@@ -39,7 +39,7 @@ impl Release {
     /// This is the default behavior for most operations (e.g., episode 6.5 becomes 6).
     /// Use this when you need to match against database episode records.
     #[must_use]
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation)]
     pub const fn episode_number_truncated(&self) -> i32 {
         self.episode_number as i32
     }
@@ -48,7 +48,7 @@ impl Release {
     /// Use this when you want more intuitive handling of partial episodes
     /// (e.g., episode 6.5 becomes 7 instead of 6).
     #[must_use]
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation)]
     pub const fn episode_number_rounded(&self) -> i32 {
         self.episode_number.round() as i32
     }

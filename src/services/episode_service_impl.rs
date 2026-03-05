@@ -297,7 +297,7 @@ impl SeaOrmEpisodeService {
                 );
                 return Ok(count);
             }
-            Ok(_) => debug!("AniList returned 0 episodes for ID {}", anilist_id),
+            Ok(_) => debug!(anilist_id = %anilist_id, "AniList returned 0 episodes for ID "),
             Err(e) => warn!(anilist_id, error = %e, "Failed to fetch from AniList"),
         }
 
@@ -306,10 +306,10 @@ impl SeaOrmEpisodeService {
             Ok(eps) if !eps.is_empty() => {
                 let count = eps.len();
                 self.store.cache_episodes(anilist_id, &eps).await?;
-                info!("Cached {} episodes from Kitsu for ID {}", count, anilist_id);
+                info!(count = %count, anilist_id = %anilist_id, "Cached  episodes from Kitsu for ID ");
                 return Ok(count);
             }
-            Ok(_) => debug!("Kitsu returned 0 episodes for ID {}", anilist_id),
+            Ok(_) => debug!(anilist_id = %anilist_id, "Kitsu returned 0 episodes for ID "),
             Err(e) => warn!(anilist_id, error = %e, "Failed to fetch from Kitsu"),
         }
 
@@ -318,10 +318,10 @@ impl SeaOrmEpisodeService {
             Ok(eps) if !eps.is_empty() => {
                 let count = eps.len();
                 self.store.cache_episodes(anilist_id, &eps).await?;
-                info!("Cached {} episodes from Jikan for ID {}", count, anilist_id);
+                info!(count = %count, anilist_id = %anilist_id, "Cached  episodes from Jikan for ID ");
                 return Ok(count);
             }
-            Ok(_) => debug!("Jikan returned 0 episodes for ID {}", anilist_id),
+            Ok(_) => debug!(anilist_id = %anilist_id, "Jikan returned 0 episodes for ID "),
             Err(e) => warn!(anilist_id, error = %e, "Failed to fetch from Jikan"),
         }
 
@@ -542,8 +542,7 @@ impl EpisodeService for SeaOrmEpisodeService {
         })?;
 
         // Verify anime exists
-        let _anime = self
-            .store
+        self.store
             .get_anime(id)
             .await
             .map_err(EpisodeError::from)?
@@ -579,7 +578,14 @@ impl EpisodeService for SeaOrmEpisodeService {
                 let anime_id_val = id;
                 let ep_num = number;
                 tokio::spawn(async move {
-                    let _ = store.clear_episode_download(anime_id_val, ep_num).await;
+                    if let Err(error) = store.clear_episode_download(anime_id_val, ep_num).await {
+                        warn!(
+                            %error,
+                            anime_id = anime_id_val,
+                            episode_number = ep_num,
+                            "Failed to clear stale episode download entry"
+                        );
+                    }
                 });
                 (false, None)
             }
@@ -600,8 +606,7 @@ impl EpisodeService for SeaOrmEpisodeService {
         let id = anime_id.value();
 
         // Verify anime exists
-        let _anime = self
-            .store
+        self.store
             .get_anime(id)
             .await
             .map_err(EpisodeError::from)?
@@ -758,8 +763,7 @@ impl EpisodeService for SeaOrmEpisodeService {
         }
 
         // Verify anime exists
-        let _anime = self
-            .store
+        self.store
             .get_anime(id)
             .await
             .map_err(EpisodeError::from)?
@@ -835,8 +839,7 @@ impl EpisodeService for SeaOrmEpisodeService {
         })?;
 
         // Verify anime exists
-        let _anime = self
-            .store
+        self.store
             .get_anime(id)
             .await
             .map_err(EpisodeError::from)?
@@ -914,12 +917,16 @@ impl EpisodeService for SeaOrmEpisodeService {
             };
 
         // Send refresh started event
-        let _ = self
+        if self
             .event_bus
             .send(crate::domain::events::NotificationEvent::RefreshStarted {
                 anime_id: id,
                 title: initial_title,
-            });
+            })
+            .is_err()
+        {
+            debug!(anime_id = id, "No listeners for refresh-started event");
+        }
 
         // Fetch updated anime info from AniList
         if let Some(mut anime) =
@@ -948,12 +955,16 @@ impl EpisodeService for SeaOrmEpisodeService {
                 .map_err(EpisodeError::from)?;
 
             // Send refresh finished event
-            let _ =
-                self.event_bus
-                    .send(crate::domain::events::NotificationEvent::RefreshFinished {
-                        anime_id: id,
-                        title: anime.title.romaji,
-                    });
+            if self
+                .event_bus
+                .send(crate::domain::events::NotificationEvent::RefreshFinished {
+                    anime_id: id,
+                    title: anime.title.romaji,
+                })
+                .is_err()
+            {
+                debug!(anime_id = id, "No listeners for refresh-finished event");
+            }
         }
 
         // Remove from recent_fetches to bypass 5-minute throttle for explicit refresh
@@ -1114,7 +1125,9 @@ impl EpisodeService for SeaOrmEpisodeService {
         }
 
         for anime_id in missing_by_anime.keys() {
-            let _ = self.fetch_and_cache_episodes(*anime_id).await;
+            if let Err(error) = self.fetch_and_cache_episodes(*anime_id).await {
+                warn!(%error, anime_id = *anime_id, "Failed to refresh episode cache for batch title lookup");
+            }
         }
 
         let remaining_pairs: Vec<(i32, i32)> = missing_by_anime
@@ -1159,7 +1172,9 @@ impl EpisodeService for SeaOrmEpisodeService {
                 .unwrap_or_else(|| format!("Episode {episode_num}")));
         }
 
-        let _ = self.fetch_and_cache_episodes(anime_id_val).await;
+        if let Err(error) = self.fetch_and_cache_episodes(anime_id_val).await {
+            warn!(%error, anime_id = anime_id_val, "Failed to refresh episode cache for title lookup");
+        }
 
         let fallback = self
             .store
@@ -1186,5 +1201,49 @@ impl Clone for SeaOrmEpisodeService {
             event_bus: self.event_bus.clone(),
             recent_fetches: self.recent_fetches.clone(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn test_state() -> Arc<crate::api::AppState> {
+        let db_path = std::env::temp_dir().join(format!(
+            "bakarr-episode-impl-test-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+
+        let mut config = Config::default();
+        config.general.database_path = format!("sqlite:{}", db_path.display());
+        config.qbittorrent.enabled = false;
+
+        crate::api::create_app_state_from_config(config, None)
+            .await
+            .expect("create app state")
+    }
+
+    #[tokio::test]
+    async fn clone_reuses_shared_dependencies() {
+        let state = test_state().await;
+        let service = SeaOrmEpisodeService::new(
+            Arc::new(state.store().clone()),
+            state.shared.anilist.clone(),
+            state.shared.jikan.clone(),
+            Some(state.shared.kitsu.clone()),
+            state.image_service.clone(),
+            state.config().clone(),
+            state.event_bus().clone(),
+        );
+
+        let cloned = service.clone();
+
+        assert!(Arc::ptr_eq(&service.anilist, &cloned.anilist));
+        assert!(Arc::ptr_eq(&service.jikan, &cloned.jikan));
+        assert!(Arc::ptr_eq(&service.kitsu, &cloned.kitsu));
+        assert!(Arc::ptr_eq(&service.image_service, &cloned.image_service));
+        assert!(Arc::ptr_eq(&service.config, &cloned.config));
+        assert!(Arc::ptr_eq(&service.recent_fetches, &cloned.recent_fetches));
+        assert!(service.event_bus.same_channel(&cloned.event_bus));
     }
 }

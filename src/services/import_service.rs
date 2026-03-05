@@ -191,3 +191,40 @@ pub trait ImportService: Send + Sync {
     /// Returns `ImportOperationResult` with success/failure counts and details.
     async fn import_files(&self, requests: Vec<ImportFileRequestDto>) -> ImportOperationResult;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn import_error_anilist_helper_builds_external_api_error() {
+        let err = ImportError::anilist_error("rate limited");
+
+        match err {
+            ImportError::ExternalApi { service, message } => {
+                assert_eq!(service, "AniList");
+                assert_eq!(message, "rate limited");
+            }
+            _ => panic!("expected external api error"),
+        }
+    }
+
+    #[test]
+    fn import_error_from_anyhow_maps_to_internal() {
+        let err: ImportError = anyhow::anyhow!("boom").into();
+
+        match err {
+            ImportError::Internal(message) => assert_eq!(message, "boom"),
+            _ => panic!("expected internal error"),
+        }
+    }
+
+    #[test]
+    fn import_operation_result_default_is_empty() {
+        let result = ImportOperationResult::default();
+        assert_eq!(result.imported, 0);
+        assert_eq!(result.failed, 0);
+        assert!(result.imported_files.is_empty());
+        assert!(result.failed_files.is_empty());
+    }
+}

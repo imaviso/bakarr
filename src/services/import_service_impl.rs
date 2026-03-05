@@ -30,7 +30,7 @@ pub struct DefaultImportService {
 }
 
 impl DefaultImportService {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub const fn new(
         store: Store,
         config: Arc<RwLock<Config>>,
@@ -268,7 +268,7 @@ impl DefaultImportService {
     }
 }
 
-#[allow(clippy::too_many_lines)]
+#[expect(clippy::too_many_lines)]
 #[async_trait]
 impl ImportService for DefaultImportService {
     async fn scan_path(
@@ -491,8 +491,8 @@ impl ImportService for DefaultImportService {
             )
             .await?;
 
-        if let Some(rel) = parsed_filename {
-            let _ = self
+        if let Some(rel) = parsed_filename
+            && let Err(error) = self
                 .store
                 .record_download(
                     anime.id,
@@ -501,7 +501,9 @@ impl ImportService for DefaultImportService {
                     rel.group.as_deref(),
                     None,
                 )
-                .await;
+                .await
+        {
+            tracing::warn!(%error, anime_id = anime.id, "Failed to record imported download");
         }
 
         Ok(ImportedFileDto {
@@ -516,9 +518,13 @@ impl ImportService for DefaultImportService {
         let mut result = ImportOperationResult::default();
         let total_count = i32::try_from(requests.len()).unwrap_or(i32::MAX);
 
-        let _ = self
+        if self
             .event_bus
-            .send(crate::domain::events::NotificationEvent::ImportStarted { count: total_count });
+            .send(crate::domain::events::NotificationEvent::ImportStarted { count: total_count })
+            .is_err()
+        {
+            tracing::debug!("No listeners for import-started event");
+        }
 
         for file_request in requests {
             let source_path = file_request.source_path.clone();
@@ -537,14 +543,81 @@ impl ImportService for DefaultImportService {
             }
         }
 
-        let _ = self
+        if self
             .event_bus
             .send(crate::domain::events::NotificationEvent::ImportFinished {
                 count: total_count,
                 imported: i32::try_from(result.imported).unwrap_or(i32::MAX),
                 failed: i32::try_from(result.failed).unwrap_or(i32::MAX),
-            });
+            })
+            .is_err()
+        {
+            tracing::debug!("No listeners for import-finished event");
+        }
 
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn candidate(id: i32, romaji: &str, english: Option<&str>) -> SearchResultDto {
+        SearchResultDto {
+            id,
+            title: TitleDto {
+                romaji: romaji.to_string(),
+                english: english.map(str::to_string),
+                native: None,
+            },
+            format: "TV".to_string(),
+            episode_count: Some(12),
+            status: "RELEASING".to_string(),
+            cover_image: None,
+            already_in_library: false,
+        }
+    }
+
+    fn scanned_file(season: Option<i32>) -> ScannedFileDto {
+        ScannedFileDto {
+            source_path: "/tmp/file.mkv".to_string(),
+            filename: "file.mkv".to_string(),
+            parsed_title: "Test Show".to_string(),
+            episode_number: 1.0,
+            season,
+            group: None,
+            resolution: Some("1080p".to_string()),
+            matched_anime: None,
+            suggested_candidate_id: None,
+        }
+    }
+
+    #[test]
+    fn suggest_candidates_prefers_matching_season() {
+        let mut files = vec![scanned_file(Some(2))];
+        let candidates = vec![
+            candidate(10, "Test Show", None),
+            candidate(20, "Test Show Season 2", None),
+        ];
+
+        DefaultImportService::suggest_candidates(&mut files, &candidates);
+
+        assert_eq!(files[0].suggested_candidate_id, Some(20));
+    }
+
+    #[test]
+    fn suggest_candidates_keeps_existing_match_untouched() {
+        let mut file = scanned_file(Some(1));
+        file.matched_anime = Some(MatchedAnimeDto {
+            id: 99,
+            title: "Already Matched".to_string(),
+        });
+        let mut files = vec![file];
+        let candidates = vec![candidate(10, "Test Show", None)];
+
+        DefaultImportService::suggest_candidates(&mut files, &candidates);
+
+        assert!(files[0].suggested_candidate_id.is_none());
     }
 }

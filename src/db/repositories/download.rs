@@ -183,7 +183,7 @@ impl DownloadRepository {
         Ok(count > 0)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub async fn add_to_recycle_bin(
         &self,
         original_path: &str,
@@ -244,7 +244,7 @@ impl DownloadEntry {
     /// Returns the episode number as an integer by truncating the fractional part.
     /// Partial episodes (e.g., 6.5) become their integer base (6).
     #[must_use]
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation)]
     pub const fn episode_number_truncated(&self) -> i32 {
         self.episode_number as i32
     }

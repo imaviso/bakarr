@@ -30,7 +30,7 @@ pub struct SearchResult {
 
 /// Result item for manual search operations.
 #[derive(Debug, Clone, serde::Serialize)]
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools)]
 pub struct ManualSearchResult {
     pub title: String,
     pub magnet: String,
@@ -112,7 +112,7 @@ impl SearchService {
     /// This method implements N+1 query prevention by fetching all decision
     /// context (profile, rules, status) before the result filtering loop.
     /// Results are cached using the search query string as the cache key.
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     pub async fn search_episode(
         &self,
         anime_id: i32,
@@ -201,7 +201,7 @@ impl SearchService {
                 continue;
             }
 
-            #[allow(clippy::cast_precision_loss)]
+            #[expect(clippy::cast_precision_loss)]
             if (parsed.episode_number - episode_number as f32).abs() > 0.1 {
                 continue;
             }
@@ -351,7 +351,7 @@ impl SearchService {
         let mut results = Vec::new();
 
         for (torrent, parsed) in best_candidates {
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_possible_truncation)]
             let episode_number = parsed.episode_number as i32;
             let is_seadex = Self::is_from_seadex_group(&torrent.title, &seadex_groups);
             let release_quality = parse_quality_from_filename(&torrent.title);
@@ -502,7 +502,7 @@ impl SearchService {
             }
 
             let ep = candidate.1.episode_number;
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_possible_truncation)]
             let ep_key = (ep * 10.0).round() as i32;
 
             if !seen_episodes.insert(ep_key) {
@@ -629,5 +629,28 @@ impl SearchService {
     /// This delegates to `SeaDexService` which handles caching.
     async fn _get_seadex_releases(&self, anime_id: i32) -> Vec<SeaDexRelease> {
         self.seadex_service.get_releases(anime_id).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_from_seadex_group_is_case_insensitive() {
+        let groups = vec!["SubsPlease".to_string()];
+        assert!(SearchService::is_from_seadex_group(
+            "[subsplease] test show - 01",
+            &groups
+        ));
+    }
+
+    #[test]
+    fn is_from_seadex_group_returns_false_without_match() {
+        let groups = vec!["AnotherGroup".to_string()];
+        assert!(!SearchService::is_from_seadex_group(
+            "[SubsPlease] test show - 01",
+            &groups
+        ));
     }
 }

@@ -76,3 +76,18 @@ impl MediaService {
         .await?
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn get_media_info_returns_error_for_missing_file() {
+        let service = MediaService::new();
+        let missing_path =
+            std::env::temp_dir().join(format!("bakarr-missing-media-{}.mkv", uuid::Uuid::new_v4()));
+
+        let result = service.get_media_info(&missing_path).await;
+        assert!(result.is_err());
+    }
+}

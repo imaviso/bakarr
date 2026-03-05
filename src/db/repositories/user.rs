@@ -294,7 +294,7 @@ pub fn generate_api_key() -> String {
 
     bytes.iter().fold(String::with_capacity(64), |mut acc, b| {
         use std::fmt::Write;
-        let _ = write!(acc, "{b:02x}");
+        write!(acc, "{b:02x}").expect("writing to String should not fail");
         acc
     })
 }

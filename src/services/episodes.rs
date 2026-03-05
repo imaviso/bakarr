@@ -122,7 +122,7 @@ impl EpisodeService {
         }
 
         // Wait for all fetches to complete (ignoring errors to proceed with partial data)
-        let _results = futures::future::join_all(fetch_futures).await;
+        futures::future::join_all(fetch_futures).await;
 
         // 4. Re-query cache for the missing ones
         let remaining_pairs: Vec<(i32, i32)> = missing_by_anime
@@ -196,7 +196,7 @@ impl EpisodeService {
                 );
                 return Ok(count);
             }
-            Ok(_) => debug!("AniList returned 0 episodes for ID {}", anilist_id),
+            Ok(_) => debug!(anilist_id = %anilist_id, "AniList returned 0 episodes for ID "),
             Err(e) => warn!(anilist_id, error = %e, "Failed to fetch from AniList"),
         }
 
@@ -205,10 +205,10 @@ impl EpisodeService {
             Ok(eps) if !eps.is_empty() => {
                 let count = eps.len();
                 self.store.cache_episodes(anilist_id, &eps).await?;
-                info!("Cached {} episodes from Kitsu for ID {}", count, anilist_id);
+                info!(count = %count, anilist_id = %anilist_id, "Cached  episodes from Kitsu for ID ");
                 return Ok(count);
             }
-            Ok(_) => debug!("Kitsu returned 0 episodes for ID {}", anilist_id),
+            Ok(_) => debug!(anilist_id = %anilist_id, "Kitsu returned 0 episodes for ID "),
             Err(e) => warn!(anilist_id, error = %e, "Failed to fetch from Kitsu"),
         }
 
@@ -217,10 +217,10 @@ impl EpisodeService {
             Ok(eps) if !eps.is_empty() => {
                 let count = eps.len();
                 self.store.cache_episodes(anilist_id, &eps).await?;
-                info!("Cached {} episodes from Jikan for ID {}", count, anilist_id);
+                info!(count = %count, anilist_id = %anilist_id, "Cached  episodes from Jikan for ID ");
                 return Ok(count);
             }
-            Ok(_) => debug!("Jikan returned 0 episodes for ID {}", anilist_id),
+            Ok(_) => debug!(anilist_id = %anilist_id, "Jikan returned 0 episodes for ID "),
             Err(e) => warn!(anilist_id, error = %e, "Failed to fetch from Jikan"),
         }
 

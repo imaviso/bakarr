@@ -73,7 +73,7 @@ async fn display_external_mappings(store: &Store, id: i32) {
     let offline_db = OfflineDatabase::new(store.clone());
 
     if let Err(e) = offline_db.initialize().await {
-        warn!("Failed to initialize offline database: {}", e);
+        warn!(error = %e, "Failed to initialize offline database: ");
         return;
     }
 
@@ -114,7 +114,7 @@ async fn display_external_mappings(store: &Store, id: i32) {
                     }
                 }
                 Ok(None) => {}
-                Err(e) => warn!("Failed to fetch Jikan data: {}", e),
+                Err(e) => warn!(error = %e, "Failed to fetch Jikan data: "),
             }
         }
     }

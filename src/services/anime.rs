@@ -303,3 +303,27 @@ impl AnimeMetadataService {
         was_modified
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn jikan_needs_bitflags_behave_correctly() {
+        let flags = JikanNeeds::empty()
+            .insert(JikanNeeds::DESCRIPTION)
+            .insert(JikanNeeds::SCORE);
+
+        assert!(flags.any());
+        assert!(flags.contains(JikanNeeds::DESCRIPTION));
+        assert!(flags.contains(JikanNeeds::SCORE));
+        assert!(!flags.contains(JikanNeeds::GENRES));
+    }
+
+    #[test]
+    fn jikan_needs_empty_has_no_flags() {
+        let flags = JikanNeeds::empty();
+        assert!(!flags.any());
+        assert!(!flags.contains(JikanNeeds::STUDIOS));
+    }
+}

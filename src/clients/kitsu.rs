@@ -25,14 +25,12 @@ struct KitsuSingleResponse<T> {
 
 /// Anime data from Kitsu.
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct KitsuAnime {
     id: String,
     attributes: KitsuAnimeAttributes,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct KitsuAnimeAttributes {
     synopsis: Option<String>,
     #[serde(rename = "averageRating")]
@@ -98,7 +96,7 @@ pub struct KitsuEpisodeAttributes {
 #[derive(Debug, Deserialize)]
 struct KitsuMapping {
     #[serde(rename = "type")]
-    _type: String,
+    kind: String,
     relationships: KitsuMappingRelationships,
 }
 
@@ -115,7 +113,7 @@ struct KitsuRelationshipData {
 #[derive(Debug, Deserialize)]
 struct KitsuRelationshipItem {
     #[serde(rename = "type")]
-    _type: String,
+    kind: String,
     id: String,
 }
 
@@ -219,6 +217,13 @@ impl KitsuClient {
             return Ok(None);
         };
 
+        if mapping.kind != "mappings" {
+            debug!(anilist_id, mapping_type = %mapping.kind, "Unexpected Kitsu mapping type");
+        }
+        if item.kind != "anime" {
+            debug!(anilist_id, item_type = %item.kind, "Unexpected Kitsu mapping item type");
+        }
+
         // Parse the Kitsu anime ID
         match item.id.parse::<i32>() {
             Ok(kitsu_id) => {
@@ -294,6 +299,8 @@ impl KitsuClient {
 
         debug!(
             kitsu_id,
+            anime_id = %anime.id,
+            start_date = ?anime.attributes.start_date,
             has_description = anime.attributes.synopsis.is_some(),
             score = ?score,
             has_poster = poster_image.is_some(),

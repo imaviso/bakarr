@@ -113,7 +113,7 @@ impl AnimeRepository {
             .exec(&self.conn)
             .await?;
 
-        info!("Added (or updated) anime: {}", anime.title.romaji);
+        info!(title = %anime.title.romaji, "Added (or updated) anime: ");
         Ok(())
     }
 
@@ -194,7 +194,7 @@ impl AnimeRepository {
 
         let removed = result.rows_affected > 0;
         if removed {
-            info!("Removed anime with ID: {}", id);
+            info!(id = %id, "Removed anime with ID: ");
         }
         Ok(removed)
     }
@@ -209,7 +209,7 @@ impl AnimeRepository {
             .exec(&self.conn)
             .await?;
 
-        info!("Updated path for anime {}: {}", id, path);
+        info!(id = %id, path = %path, "Updated path for anime : ");
         Ok(())
     }
 

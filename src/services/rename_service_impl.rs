@@ -306,12 +306,19 @@ impl RenameService for SeaOrmRenameService {
             .await?
             .ok_or(RenameError::AnimeNotFound(anime_id))?;
 
-        let _ = self
+        if self
             .event_bus
             .send(crate::domain::events::NotificationEvent::RenameStarted {
                 anime_id: anime_id.value(),
                 title: anime.title.romaji.clone(),
-            });
+            })
+            .is_err()
+        {
+            tracing::debug!(
+                anime_id = anime_id.value(),
+                "No listeners for rename start event"
+            );
+        }
 
         let downloaded_eps = self.store.get_episode_statuses(anime_id.value()).await?;
         let episodes_with_files: Vec<_> = downloaded_eps
@@ -382,18 +389,68 @@ impl RenameService for SeaOrmRenameService {
             }
         }
 
-        let _ = self
+        if self
             .event_bus
             .send(crate::domain::events::NotificationEvent::RenameFinished {
                 anime_id: anime_id.value(),
                 title: anime.title.romaji,
                 count: renamed_count,
-            });
+            })
+            .is_err()
+        {
+            tracing::debug!(
+                anime_id = anime_id.value(),
+                "No listeners for rename finished event"
+            );
+        }
 
         Ok(RenameResult {
             renamed: renamed_count,
             failed: failed_count,
             failures,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn status_row(width: Option<i32>, height: Option<i32>) -> EpisodeStatusRow {
+        EpisodeStatusRow {
+            anime_id: 1,
+            episode_number: 2,
+            season: 1,
+            monitored: true,
+            quality_id: Some(10),
+            is_seadex: false,
+            file_path: Some("/tmp/ep2.mkv".to_string()),
+            file_size: Some(1_024),
+            downloaded_at: Some("2026-01-01T00:00:00Z".to_string()),
+            resolution_width: width,
+            resolution_height: height,
+            video_codec: Some("h264".to_string()),
+            audio_codecs: Some("[\"aac\",\"flac\"]".to_string()),
+            duration_secs: Some(1420.5),
+        }
+    }
+
+    #[test]
+    fn build_media_info_from_status_returns_none_without_resolution() {
+        let row = status_row(None, Some(1080));
+        assert!(SeaOrmRenameService::build_media_info_from_status(&row).is_none());
+    }
+
+    #[test]
+    fn build_media_info_from_status_maps_fields() {
+        let row = status_row(Some(1920), Some(1080));
+        let media = SeaOrmRenameService::build_media_info_from_status(&row)
+            .expect("expected media info from status row");
+
+        assert_eq!(media.resolution_width, 1920);
+        assert_eq!(media.resolution_height, 1080);
+        assert_eq!(media.video_codec, "h264");
+        assert_eq!(media.audio_codecs, vec!["aac", "flac"]);
+        assert!((media.duration_secs - 1420.5).abs() < f64::EPSILON);
     }
 }

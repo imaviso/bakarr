@@ -127,7 +127,7 @@ impl DefaultRssService {
         }
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     async fn process_new_item(
         &self,
         anime: &crate::models::anime::Anime,
@@ -136,7 +136,7 @@ impl DefaultRssService {
         use crate::parser::filename::parse_filename;
 
         if self.store.is_downloaded(&torrent.title).await? {
-            debug!("Already downloaded: {}", torrent.title);
+            debug!(title = %torrent.title, "Already downloaded: ");
             return Ok(false);
         }
 
@@ -212,13 +212,15 @@ impl DefaultRssService {
             );
 
             if !action.should_download() {
-                debug!("Skipping RSS item due to profile rules: {}", torrent.title);
+                debug!(title = %torrent.title, "Skipping RSS item due to profile rules: ");
                 return Ok(false);
             }
 
             let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
 
-            let _ = qbit.create_category(&category, None).await;
+            if let Err(error) = qbit.create_category(&category, None).await {
+                warn!(%error, %category, "Failed to create qBittorrent category");
+            }
 
             let magnet = torrent.magnet_link();
             let options = AddTorrentOptions {
@@ -318,21 +320,29 @@ impl RssService for DefaultRssService {
             ..Default::default()
         };
 
-        let _ = self
+        if self
             .event_bus
-            .send(crate::domain::events::NotificationEvent::RssCheckStarted);
-        info!("Checking {} RSS feeds...", total_feeds);
+            .send(crate::domain::events::NotificationEvent::RssCheckStarted)
+            .is_err()
+        {
+            debug!("No listeners for RSS start event");
+        }
+        info!(total_feeds = %total_feeds, "Checking  RSS feeds...");
 
         for (i, feed) in feeds.iter().enumerate() {
             let name = feed.name.as_deref().unwrap_or("Unnamed");
 
-            let _ =
-                self.event_bus
-                    .send(crate::domain::events::NotificationEvent::RssCheckProgress {
-                        current: i32::try_from(i + 1).unwrap_or(i32::MAX),
-                        total: total_feeds,
-                        feed_name: name.to_string(),
-                    });
+            if self
+                .event_bus
+                .send(crate::domain::events::NotificationEvent::RssCheckProgress {
+                    current: i32::try_from(i + 1).unwrap_or(i32::MAX),
+                    total: total_feeds,
+                    feed_name: name.to_string(),
+                })
+                .is_err()
+            {
+                debug!("No listeners for RSS progress event");
+            }
 
             let Some(anime) = monitored.iter().find(|a| a.id == feed.anime_id) else {
                 warn!(
@@ -356,7 +366,7 @@ impl RssService for DefaultRssService {
                         .update_rss_feed_checked(feed.id, new_hash.as_deref())
                         .await
                     {
-                        warn!("Failed to update RSS feed {}: {}", feed.id, e);
+                        warn!(id = %feed.id, error = %e, "Failed to update RSS feed : ");
                     }
 
                     if count > 0 {
@@ -377,7 +387,7 @@ impl RssService for DefaultRssService {
                     }
                 }
                 Err(e) => {
-                    warn!("Error checking RSS feed '{}': {}", name, e);
+                    warn!(name = %name, error = %e, "Error checking RSS feed '': ");
                 }
             }
 
@@ -386,12 +396,16 @@ impl RssService for DefaultRssService {
             }
         }
 
-        let _ = self
+        if self
             .event_bus
             .send(crate::domain::events::NotificationEvent::RssCheckFinished {
                 total_feeds: stats.total_feeds,
                 new_items: stats.new_items,
-            });
+            })
+            .is_err()
+        {
+            debug!("No listeners for RSS finished event");
+        }
 
         info!(
             event = "rss_check_finished",
@@ -418,5 +432,47 @@ impl RssService for DefaultRssService {
                 tracing::error!(error = %e, "Background RSS check failed");
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rss_error_conversions_map_to_expected_variants() {
+        let db_err: RssError = sea_orm::DbErr::Custom("db down".to_string()).into();
+        assert!(matches!(db_err, RssError::Database(_)));
+
+        let internal: RssError = anyhow::anyhow!("boom").into();
+        assert!(matches!(internal, RssError::Internal(_)));
+    }
+
+    #[test]
+    fn rss_feed_dto_from_feed_maps_fields() {
+        let feed = crate::db::RssFeed {
+            id: 7,
+            anime_id: 42,
+            url: "https://example.test/rss".to_string(),
+            name: Some("Test Feed".to_string()),
+            last_checked: Some("2026-01-01T00:00:00Z".to_string()),
+            last_item_hash: Some("abc".to_string()),
+            enabled: true,
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+        };
+
+        let dto = RssFeedDto::from(feed);
+        assert_eq!(dto.id, 7);
+        assert_eq!(dto.anime_id, 42);
+        assert_eq!(dto.name.as_deref(), Some("Test Feed"));
+        assert!(dto.enabled);
+    }
+
+    #[test]
+    fn rss_check_stats_default_is_zeroed() {
+        let stats = RssCheckStats::default();
+        assert_eq!(stats.total_feeds, 0);
+        assert_eq!(stats.new_items, 0);
+        assert_eq!(stats.queued, 0);
     }
 }

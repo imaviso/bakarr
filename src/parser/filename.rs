@@ -182,7 +182,7 @@ fn parse_fallback(filename: &str) -> Option<Release> {
             let episode_str = caps.name("episode")?.as_str();
             let episode_number = episode_str.parse::<f32>().ok()?;
 
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_possible_truncation)]
             let ep_int = episode_number as i32;
             if (1990..=2099).contains(&ep_int) || [720, 1080, 2160, 480].contains(&ep_int) {
                 continue;

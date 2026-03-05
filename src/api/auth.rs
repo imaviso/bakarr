@@ -8,6 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tower_sessions::Session;
+use tracing::warn;
 
 use super::{ApiError, ApiResponse, AppState};
 
@@ -444,7 +445,9 @@ pub async fn login_with_api_key(
 /// POST /auth/logout
 /// Invalidate the current session
 pub async fn logout(session: Session) -> impl IntoResponse {
-    let _ = session.flush().await;
+    if let Err(error) = session.flush().await {
+        warn!(%error, "Failed to flush session during logout");
+    }
     (StatusCode::OK, "Logged out")
 }
 

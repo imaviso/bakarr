@@ -187,7 +187,7 @@ impl LibraryService {
             tokio::fs::create_dir_all(parent).await?;
         }
 
-        info!("Importing {:?} -> {:?}", source, destination);
+        info!(source = ?source, destination = ?destination, "Importing");
 
         match self.config.import_mode.as_str() {
             "Move" => {
@@ -198,7 +198,7 @@ impl LibraryService {
             }
             _ => {
                 if let Err(e) = tokio::fs::hard_link(source, &destination).await {
-                    warn!("Hardlink failed, falling back to copy: {}", e);
+                    warn!(error = %e, "Hardlink failed, falling back to copy: ");
                     tokio::fs::copy(source, &destination).await?;
                 }
             }
@@ -219,7 +219,7 @@ impl LibraryService {
                     result.imported_files.push(destination.clone());
                 }
                 Err(e) => {
-                    warn!("Failed to import {:?}: {}", source, e);
+                    warn!(source = ?source, error = %e, "Failed to import");
                     result.failed += 1;
                     result.failed_files.push((source.clone(), e.to_string()));
                 }
@@ -577,8 +577,6 @@ mod tests {
 
     #[test]
     fn test_cleanup_path() {
-        let _service = LibraryService::new(test_config());
-
         assert_eq!(
             LibraryService::cleanup_path("Title - [] - [Quality]".to_string()),
             "Title - [Quality]"
@@ -605,8 +603,6 @@ mod tests {
             LibraryService::cleanup_path("Title  Episode".to_string()),
             "Title Episode"
         );
-
-        let _input = "Series - S01E01 - Title - []-[]-[][[][[][[eac3][]]]]".to_string();
 
         assert_eq!(
             LibraryService::cleanup_path("Title - [] - End".to_string()),

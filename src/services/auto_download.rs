@@ -42,7 +42,7 @@ impl AutoDownloadService {
         let start = std::time::Instant::now();
         let monitored = self.store.list_monitored().await?;
         let count = monitored.len();
-        info!("Checking {} monitored anime via Nyaa search", count);
+        info!(count = %count, "Checking  monitored anime via Nyaa search");
 
         let mut processed = 0;
         let mut errors = 0;
@@ -95,7 +95,9 @@ impl AutoDownloadService {
                             && let Some(qbit) = &qbit
                         {
                             let category = crate::clients::qbittorrent::sanitize_category(&title);
-                            let _ = qbit.create_category(&category, None).await;
+                            if let Err(error) = qbit.create_category(&category, None).await {
+                                warn!(%error, %category, "Failed to create qBittorrent category");
+                            }
 
                             let options = crate::clients::qbittorrent::AddTorrentOptions {
                                 category: Some(category.clone()),
@@ -110,7 +112,7 @@ impl AutoDownloadService {
                             {
                                 tracing::info!(title = %result.title, "[Auto-Search] Queued torrent");
 
-                                let _ = store
+                                if let Err(error) = store
                                     .record_download(
                                         anime_id,
                                         &result.title,
@@ -118,7 +120,15 @@ impl AutoDownloadService {
                                         result.group.as_deref(),
                                         Some(&result.info_hash),
                                     )
-                                    .await;
+                                    .await
+                                {
+                                    warn!(
+                                        %error,
+                                        anime_id,
+                                        title = %result.title,
+                                        "Failed to persist auto-search download record"
+                                    );
+                                }
                             }
                         }
                     }
@@ -129,7 +139,7 @@ impl AutoDownloadService {
     }
 
     async fn check_anime_releases(&self, anime: &Anime) -> Result<()> {
-        debug!("Checking: {}", anime.title.romaji);
+        debug!(title = %anime.title.romaji, "Checking: ");
 
         if anime.status == "FINISHED"
             && matches!(self.check_finished_anime_seadex(anime).await, Ok(true))
@@ -144,7 +154,7 @@ impl AutoDownloadService {
         // Get missing episodes for this anime
         let missing_episodes = self.get_missing_episode_numbers(anime.id).await?;
         if missing_episodes.is_empty() {
-            debug!("No missing episodes for {}", anime.title.romaji);
+            debug!(title = %anime.title.romaji, "No missing episodes for ");
             return Ok(());
         }
 
@@ -159,7 +169,7 @@ impl AutoDownloadService {
         let results = self.search_service.search_anime(anime.id).await?;
 
         if results.is_empty() {
-            debug!("No matching releases for {}", anime.title.romaji);
+            debug!(title = %anime.title.romaji, "No matching releases for ");
             return Ok(());
         }
 
@@ -180,11 +190,11 @@ impl AutoDownloadService {
             }
 
             if self.store.is_downloaded(&result.title).await? {
-                debug!("Already downloaded exact file: {}", result.title);
+                debug!(title = %result.title, "Already downloaded exact file: ");
                 continue;
             }
 
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_possible_truncation)]
             let episode_num = result.episode_number as i32;
 
             // Skip if this episode isn't in our missing list
@@ -253,7 +263,7 @@ impl AutoDownloadService {
     /// Process a search result and queue download if accepted
     /// Returns Ok(true) if a download was queued, Ok(false) otherwise
     async fn process_search_result(&self, anime: &Anime, result: &SearchResult) -> Result<bool> {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         let episode_number = result.episode_number as i32;
 
         match &result.download_action {
@@ -333,12 +343,14 @@ impl AutoDownloadService {
         is_seadex: bool,
     ) -> Result<bool> {
         let Some(qbit) = &self.qbit else {
-            info!("Would download (qBit not available): {}", result.title);
+            info!(title = %result.title, "Would download (qBit not available): ");
             return Ok(false);
         };
 
         let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
-        let _ = qbit.create_category(&category, None).await;
+        if let Err(error) = qbit.create_category(&category, None).await {
+            warn!(%error, %category, "Failed to create qBittorrent category");
+        }
 
         let options = AddTorrentOptions {
             category: Some(category.clone()),
@@ -398,7 +410,7 @@ impl AutoDownloadService {
 
         match self.recycle_bin.recycle(path, "upgrade").await {
             Ok(recycled) => {
-                let _ = self
+                if let Err(error) = self
                     .store
                     .add_to_recycle_bin(
                         old_path,
@@ -409,8 +421,16 @@ impl AutoDownloadService {
                         recycled.file_size,
                         "upgrade",
                     )
-                    .await;
-                info!("Moved old file to recycle bin: {:?}", old_path);
+                    .await
+                {
+                    warn!(
+                        %error,
+                        anime_id,
+                        episode_number,
+                        "Failed to persist recycle-bin record"
+                    );
+                }
+                info!(old_path = ?old_path, "Moved old file to recycle bin");
             }
             Err(e) => {
                 warn!(error = %e, "Failed to recycle old file");
@@ -499,7 +519,9 @@ impl AutoDownloadService {
         };
 
         let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
-        let _ = qbit.create_category(&category, None).await;
+        if let Err(error) = qbit.create_category(&category, None).await {
+            warn!(%error, %category, "Failed to create qBittorrent category");
+        }
 
         let options = AddTorrentOptions {
             category: Some(category.clone()),
@@ -538,4 +560,48 @@ enum SeadexQueueResult {
     Queued,
     AlreadyDownloaded,
     Skipped,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn test_state() -> Arc<crate::api::AppState> {
+        let db_path = std::env::temp_dir().join(format!(
+            "bakarr-auto-download-test-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+
+        let mut config = Config::default();
+        config.general.database_path = format!("sqlite:{}", db_path.display());
+        config.qbittorrent.enabled = false;
+
+        crate::api::create_app_state_from_config(config, None)
+            .await
+            .expect("create app state")
+    }
+
+    #[tokio::test]
+    async fn constructor_wires_dependencies() {
+        let state = test_state().await;
+        let search_service = state.search_service().clone();
+        let seadex_service = state.seadex().clone();
+        let recycle_bin = RecycleBin::new(
+            std::env::temp_dir().join(format!("bakarr-recycle-{}", uuid::Uuid::new_v4())),
+            7,
+        );
+
+        let service = AutoDownloadService::new(
+            state.store().clone(),
+            state.config().clone(),
+            search_service.clone(),
+            seadex_service.clone(),
+            None,
+            recycle_bin,
+        );
+
+        assert!(service.qbit.is_none());
+        assert!(Arc::ptr_eq(&service.search_service, &search_service));
+        assert!(Arc::ptr_eq(&service.seadex_service, &seadex_service));
+    }
 }

@@ -273,8 +273,7 @@ impl EpisodeRepository {
         Ok(i32::try_from(count).unwrap_or(i32::MAX))
     }
 
-    #[allow(clippy::unused_async)]
-    pub async fn get_download_queue_count(&self) -> Result<i64> {
+    pub const fn get_download_queue_count(&self) -> Result<i64> {
         Ok(0)
     }
 
@@ -397,7 +396,7 @@ impl EpisodeRepository {
                 .map(|v| i32::try_from(v).unwrap_or(i32::MAX))),
             video_codec: Set(status.video_codec.clone()),
             audio_codecs: Set(status.audio_codecs.clone()),
-            #[allow(clippy::cast_possible_truncation)]
+            #[expect(clippy::cast_possible_truncation)]
             duration_secs: Set(status.duration_secs.map(|v| v as f32)),
         };
 
@@ -429,7 +428,7 @@ impl EpisodeRepository {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub async fn mark_downloaded(
         &self,
         anime_id: i32,
@@ -503,7 +502,7 @@ impl EpisodeRepository {
                         ),
                         video_codec: Set(video_codec_clone),
                         audio_codecs: Set(audio_codecs_clone),
-                        #[allow(clippy::cast_possible_truncation)]
+                        #[expect(clippy::cast_possible_truncation)]
                         duration_secs: Set(duration_secs.map(|v| v as f32)),
                     };
 
@@ -597,7 +596,7 @@ impl EpisodeRepository {
         episode_number: i32,
         media_info: &MediaInfo,
     ) -> Result<()> {
-        #[allow(clippy::cast_possible_truncation)]
+        #[expect(clippy::cast_possible_truncation)]
         EpisodeStatus::update_many()
             .col_expr(
                 episode_status::Column::ResolutionWidth,

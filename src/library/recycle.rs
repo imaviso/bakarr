@@ -65,7 +65,7 @@ impl RecycleBin {
         }
 
         fs::rename(recycled_path, original_path).await?;
-        info!("Restored {:?} -> {:?}", recycled_path, original_path);
+        info!(recycled_path = ?recycled_path, original_path = ?original_path, "Restored");
 
         Ok(())
     }
@@ -97,12 +97,12 @@ impl RecycleBin {
 
                     match fs::remove_file(&path).await {
                         Ok(()) => {
-                            debug!("Cleaned up old file: {:?}", path);
+                            debug!(path = ?path, "Cleaned up old file");
                             stats.files_deleted += 1;
                             stats.bytes_freed += size;
                         }
                         Err(e) => {
-                            warn!("Failed to delete {:?}: {}", path, e);
+                            warn!(path = ?path, error = %e, "Failed to delete");
                             stats.errors += 1;
                         }
                     }
@@ -181,7 +181,7 @@ impl RecycleBin {
                         stats.bytes_freed += size;
                     }
                     Err(e) => {
-                        warn!("Failed to delete {:?}: {}", path, e);
+                        warn!(path = ?path, error = %e, "Failed to delete");
                         stats.errors += 1;
                     }
                 }

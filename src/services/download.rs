@@ -42,7 +42,7 @@ impl DownloadDecisionService {
         ))
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     pub fn decide_download(
         profile: &QualityProfile,
         rules: &[crate::entities::release_profile_rules::Model],

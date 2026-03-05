@@ -231,12 +231,21 @@ impl DownloadService for SeaOrmDownloadService {
             let category = crate::clients::qbittorrent::sanitize_category(&anime.title.romaji);
 
             // Send notification
-            let _ = self.event_bus.send(
-                crate::domain::events::NotificationEvent::SearchMissingStarted {
-                    anime_id: id.value(),
-                    title: anime.title.romaji.clone(),
-                },
-            );
+            if self
+                .event_bus
+                .send(
+                    crate::domain::events::NotificationEvent::SearchMissingStarted {
+                        anime_id: id.value(),
+                        title: anime.title.romaji.clone(),
+                    },
+                )
+                .is_err()
+            {
+                debug!(
+                    anime_id = id.value(),
+                    "No listeners for search-missing start event"
+                );
+            }
 
             // Clone necessary data for background task
             let store = self.store.clone();
@@ -261,18 +270,34 @@ impl DownloadService for SeaOrmDownloadService {
                 .await
                 {
                     Ok(count) => {
-                        let _ = event_bus.send(
-                            crate::domain::events::NotificationEvent::SearchMissingFinished {
-                                anime_id: anime_id_val,
-                                title: anime_title,
-                                count: i32::try_from(count).unwrap_or(i32::MAX),
-                            },
-                        );
+                        if event_bus
+                            .send(
+                                crate::domain::events::NotificationEvent::SearchMissingFinished {
+                                    anime_id: anime_id_val,
+                                    title: anime_title,
+                                    count: i32::try_from(count).unwrap_or(i32::MAX),
+                                },
+                            )
+                            .is_err()
+                        {
+                            debug!(
+                                anime_id = anime_id_val,
+                                "No listeners for search-missing finished event"
+                            );
+                        }
                     }
                     Err(e) => {
-                        let _ = event_bus.send(crate::domain::events::NotificationEvent::Error {
-                            message: format!("Search failed: {e}"),
-                        });
+                        if event_bus
+                            .send(crate::domain::events::NotificationEvent::Error {
+                                message: format!("Search failed: {e}"),
+                            })
+                            .is_err()
+                        {
+                            debug!(
+                                anime_id = anime_id_val,
+                                "No listeners for search-missing error event"
+                            );
+                        }
                     }
                 }
             });
@@ -359,9 +384,13 @@ impl DownloadService for SeaOrmDownloadService {
         );
 
         // Send notification
-        let _ = self
+        if self
             .event_bus
-            .send(crate::domain::events::NotificationEvent::DownloadStarted { title });
+            .send(crate::domain::events::NotificationEvent::DownloadStarted { title })
+            .is_err()
+        {
+            debug!("No listeners for download-started event");
+        }
 
         Ok(())
     }
@@ -393,7 +422,7 @@ pub enum SearchMode {
 /// * `mode` - Search mode determining which downloads to queue:
 ///   - `SearchMode::MissingOnly`: Only queue episodes not yet downloaded (Accept actions)
 ///   - `SearchMode::MissingAndUpgrades`: Queue both missing and upgrades (Accept + Upgrade actions)
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 async fn perform_search_and_download(
     search_service: Arc<SearchService>,
     store: Store,
@@ -409,9 +438,14 @@ async fn perform_search_and_download(
         category, anime_title, "Performing search and download"
     );
 
-    let _ = event_bus.send(crate::domain::events::NotificationEvent::Info {
-        message: format!("Search started for {anime_title}"),
-    });
+    if event_bus
+        .send(crate::domain::events::NotificationEvent::Info {
+            message: format!("Search started for {anime_title}"),
+        })
+        .is_err()
+    {
+        debug!(anime_id, "No listeners for search info event");
+    }
 
     // Create qBit client if enabled
     let qbit = {
@@ -487,6 +521,7 @@ async fn perform_search_and_download(
 }
 
 /// Performs global search for all monitored anime with missing episodes.
+#[expect(clippy::too_many_lines)]
 async fn perform_global_search(
     search_service: Arc<SearchService>,
     store: Store,
@@ -499,9 +534,14 @@ async fn perform_global_search(
         "Starting global missing episode search"
     );
 
-    let _ = event_bus.send(crate::domain::events::NotificationEvent::Info {
-        message: "Starting global search for missing episodes".to_string(),
-    });
+    if event_bus
+        .send(crate::domain::events::NotificationEvent::Info {
+            message: "Starting global search for missing episodes".to_string(),
+        })
+        .is_err()
+    {
+        debug!("No listeners for global-search start info event");
+    }
 
     // Fetch missing episodes (limited to prevent overwhelming the system)
     let missing_episodes = match store.get_all_missing_episodes(1000).await {
@@ -597,7 +637,35 @@ async fn perform_global_search(
         "Global search complete"
     );
 
-    let _ = event_bus.send(crate::domain::events::NotificationEvent::Info {
-        message: format!("Global search complete. Added {total_added} torrents."),
-    });
+    if event_bus
+        .send(crate::domain::events::NotificationEvent::Info {
+            message: format!("Global search complete. Added {total_added} torrents."),
+        })
+        .is_err()
+    {
+        debug!("No listeners for global-search completion info event");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_hash_from_magnet_returns_btih_hash() {
+        let magnet = "magnet:?xt=urn:btih:ABCDEF1234567890&dn=Example";
+        let hash = extract_hash_from_magnet(magnet);
+        assert_eq!(hash.as_deref(), Some("ABCDEF1234567890"));
+    }
+
+    #[test]
+    fn extract_hash_from_magnet_returns_none_without_xt() {
+        let magnet = "magnet:?dn=Example";
+        assert!(extract_hash_from_magnet(magnet).is_none());
+    }
+
+    #[test]
+    fn extract_hash_from_magnet_returns_none_for_invalid_url() {
+        assert!(extract_hash_from_magnet("not-a-url").is_none());
+    }
 }

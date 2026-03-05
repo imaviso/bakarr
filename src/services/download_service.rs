@@ -90,7 +90,7 @@ pub trait DownloadService: Send + Sync {
     /// - Returns [`DownloadError::QBit`] if qBittorrent operation fails
     /// - Returns [`DownloadError::Validation`] if download client is not enabled
     /// - Returns [`DownloadError::Database`] on database errors
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     async fn download_release(
         &self,
         anime_id: AnimeId,
@@ -101,4 +101,31 @@ pub trait DownloadService: Send + Sync {
         info_hash: Option<String>,
         is_batch: bool,
     ) -> Result<(), DownloadError>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn download_error_display() {
+        let err = DownloadError::AnimeNotFound(AnimeId::new(42));
+        assert_eq!(err.to_string(), "Anime not found: 42");
+    }
+
+    #[test]
+    fn download_error_from_db_err_maps_to_database() {
+        let err = DownloadError::from(sea_orm::DbErr::Custom("db down".to_string()));
+        assert!(matches!(err, DownloadError::Database(_)));
+    }
+
+    #[test]
+    fn download_error_from_anyhow_maps_to_internal() {
+        let err: DownloadError = anyhow::anyhow!("boom").into();
+
+        match err {
+            DownloadError::Internal(message) => assert_eq!(message, "boom"),
+            _ => panic!("expected internal error"),
+        }
+    }
 }

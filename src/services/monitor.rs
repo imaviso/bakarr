@@ -56,7 +56,7 @@ impl Monitor {
         loop {
             interval.tick().await;
             if let Err(e) = self.check_downloads().await {
-                error!("Monitor import check failed: {}", e);
+                error!(error = %e, "Monitor import check failed: ");
             }
         }
     }
@@ -68,7 +68,7 @@ impl Monitor {
         loop {
             interval.tick().await;
             if let Err(e) = self.broadcast_progress().await {
-                warn!("Monitor progress check failed: {}. Retrying in 30s.", e);
+                warn!(error = %e, "Monitor progress check failed: . Retrying in 30s.");
                 tokio::time::sleep(Duration::from_secs(30)).await;
             }
         }
@@ -86,7 +86,7 @@ impl Monitor {
         let downloads: Vec<crate::domain::events::DownloadStatus> = torrents
             .into_iter()
             .map(|t| {
-                #[allow(clippy::cast_possible_truncation)]
+                #[expect(clippy::cast_possible_truncation)]
                 let progress = t.progress as f32;
                 crate::domain::events::DownloadStatus {
                     hash: t.hash,
@@ -101,9 +101,12 @@ impl Monitor {
             })
             .collect();
 
-        if !downloads.is_empty() {
-            let _ = event_bus
-                .send(crate::domain::events::NotificationEvent::DownloadProgress { downloads });
+        if !downloads.is_empty()
+            && event_bus
+                .send(crate::domain::events::NotificationEvent::DownloadProgress { downloads })
+                .is_err()
+        {
+            debug!("No listeners for download-progress event");
         }
 
         Ok(())
@@ -121,11 +124,11 @@ impl Monitor {
 
         let torrents = match client.get_torrents(None, None).await {
             Ok(t) => {
-                debug!("Fetched {} torrents from qBittorrent", t.len());
+                debug!(count = %t.len(), "Fetched torrents from qBittorrent");
                 t
             }
             Err(e) => {
-                error!("Failed to fetch torrents: {}", e);
+                error!(error = %e, "Failed to fetch torrents: ");
                 return Ok(());
             }
         };
@@ -145,7 +148,7 @@ impl Monitor {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        #[allow(clippy::cast_possible_wrap)]
+        #[expect(clippy::cast_possible_wrap)]
         let now = now as i64;
 
         for torrent in torrents {
@@ -268,12 +271,12 @@ impl Monitor {
         );
 
         if let Err(e) = client.delete_torrent(&torrent.hash, true).await {
-            error!("Failed to delete stalled torrent {}: {}", torrent.hash, e);
+            error!(torrent = %torrent.hash, error = %e, "Failed to delete stalled torrent : ");
             return Ok(false);
         }
 
         if let Err(e) = store.add_to_blocklist(&torrent.hash, reason).await {
-            error!("Failed to blocklist torrent {}: {}", torrent.hash, e);
+            error!(torrent = %torrent.hash, error = %e, "Failed to blocklist torrent : ");
         }
 
         Ok(true)
@@ -285,7 +288,7 @@ impl Monitor {
     /// 3. Recover (if missing)
     /// 4. Execute Import
     /// 5. Finalize
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     async fn process_completed_torrent(
         &self,
         store: &crate::db::Store,
@@ -300,7 +303,7 @@ impl Monitor {
         let start = std::time::Instant::now();
 
         // Step 1: Validate Entry
-        let Some(entry) = self.validate_entry(torrent, entry) else {
+        let Some(entry) = Self::validate_entry(torrent, entry) else {
             return Ok(());
         };
 
@@ -312,11 +315,11 @@ impl Monitor {
             return Ok(());
         };
 
-        debug!("Processing import for anime: {}", anime.title.romaji);
+        debug!(title = %anime.title.romaji, "Processing import for anime: ");
 
         // Step 2: Resolve Path
-        let source_path = self.resolve_source_path(torrent, config);
-        debug!("Resolved source path (Local): {:?}", source_path);
+        let source_path = Self::resolve_source_path(torrent, config);
+        debug!(source_path = ?source_path, "Resolved source path (Local)");
 
         // Step 3: Recover (if missing)
         if !source_path.exists() {
@@ -356,9 +359,7 @@ impl Monitor {
 
     /// Validates the entry and returns true if import should proceed.
     /// Logs appropriate messages based on entry state.
-    #[allow(clippy::unused_self)]
     fn validate_entry<'a>(
-        &self,
         torrent: &crate::clients::qbittorrent::TorrentInfo,
         entry: Option<&'a crate::db::DownloadEntry>,
     ) -> Option<&'a crate::db::DownloadEntry> {
@@ -386,9 +387,7 @@ impl Monitor {
     }
 
     /// Resolves the source path by applying path mappings.
-    #[allow(clippy::unused_self)]
     fn resolve_source_path(
-        &self,
         torrent: &crate::clients::qbittorrent::TorrentInfo,
         config: &crate::config::Config,
     ) -> PathBuf {
@@ -437,7 +436,7 @@ impl Monitor {
             Ok(count) => {
                 if count > 0 {
                     if let Err(e) = store.set_imported(entry.id, true).await {
-                        warn!("Failed to mark download as imported: {}", e);
+                        warn!(error = %e, "Failed to mark download as imported: ");
                     }
                     info!(
                         event = "import_success",
@@ -468,7 +467,7 @@ impl Monitor {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     async fn attempt_recovery_import(
         &self,
         store: &crate::db::Store,
@@ -558,7 +557,7 @@ impl Monitor {
                             continue;
                         }
 
-                        info!("Found renamed file for recovery: {:?}", path);
+                        info!(path = ?path, "Found renamed file for recovery");
                         store.set_imported(entry.id, true).await?;
                         return Ok(true);
                     }
@@ -718,7 +717,7 @@ impl Monitor {
         let dest_path = library.get_destination_path(&options);
 
         library.import_file(ctx.file_path, &dest_path).await?;
-        info!("Imported to {:?}", dest_path);
+        info!(dest_path = ?dest_path, "Imported");
 
         // Persistent log for UI
         if let Err(e) = self
@@ -732,7 +731,7 @@ impl Monitor {
             )
             .await
         {
-            warn!("Failed to save import log: {}", e);
+            warn!(error = %e, "Failed to save import log: ");
         }
 
         self.finalize_single_import(
@@ -750,7 +749,7 @@ impl Monitor {
 
     /// Logs an import error and persists it to the store.
     async fn log_import_error(&self, filename: &str, error: &anyhow::Error) {
-        error!("Failed to import {}: {}", filename, error);
+        error!(filename = %filename, error = %error, "Failed to import : ");
         if let Err(log_err) = self
             .state
             .store
@@ -762,11 +761,10 @@ impl Monitor {
             )
             .await
         {
-            warn!("Failed to save error log: {}", log_err);
+            warn!(error = %log_err, "Failed to save error log: ");
         }
     }
 
-    #[allow(clippy::too_many_lines)]
     async fn import_directory(
         &self,
         library: &LibraryService,

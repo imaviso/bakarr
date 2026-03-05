@@ -1,5 +1,8 @@
 use bakarr::{Config, run};
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() -> anyhow::Result<()> {
     let config = Config::load()?;
     let worker_threads = config.general.worker_threads;

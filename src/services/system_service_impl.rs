@@ -38,7 +38,7 @@ impl SeaOrmSystemService {
     fn format_logs_as_csv(logs: Vec<LogDto>) -> String {
         let mut csv = String::from("id,created_at,level,event_type,message,details\n");
         for log in logs {
-            let _ = writeln!(
+            writeln!(
                 csv,
                 "{},{},{},{},\"{}\",\"{}\"",
                 log.id,
@@ -47,7 +47,8 @@ impl SeaOrmSystemService {
                 log.event_type,
                 log.message.replace('"', "\"\""),
                 log.details.unwrap_or_default().replace('"', "\"\"")
-            );
+            )
+            .expect("writing CSV to String should not fail");
         }
         csv
     }
@@ -262,7 +263,12 @@ impl SystemService for SeaOrmSystemService {
                 let uptime = uptime_secs();
                 match self.get_status(uptime, &version).await {
                     Ok(status) => {
-                        let _ = event_bus.send(NotificationEvent::SystemStatus(status));
+                        if event_bus
+                            .send(NotificationEvent::SystemStatus(status))
+                            .is_err()
+                        {
+                            tracing::debug!("No listeners for system status event");
+                        }
                     }
                     Err(e) => {
                         tracing::error!(error = %e, "Failed to get system status");
@@ -296,5 +302,37 @@ impl SeaOrmSystemService {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_logs_as_csv_escapes_quotes() {
+        let logs = vec![LogDto {
+            id: 1,
+            event_type: "Info".to_string(),
+            level: "info".to_string(),
+            message: "He said \"hello\"".to_string(),
+            details: Some("{\"ok\":true}".to_string()),
+            created_at: "2026-01-01T00:00:00Z".to_string(),
+        }];
+
+        let csv = SeaOrmSystemService::format_logs_as_csv(logs);
+        assert!(csv.starts_with("id,created_at,level,event_type,message,details\n"));
+        assert!(csv.contains("\"He said \"\"hello\"\"\""));
+    }
+
+    #[test]
+    fn get_disk_space_blocking_returns_none_for_missing_path() {
+        let missing = std::env::temp_dir().join(format!(
+            "bakarr-disk-space-missing-{}",
+            uuid::Uuid::new_v4()
+        ));
+
+        let result = SeaOrmSystemService::get_disk_space_blocking(&missing.to_string_lossy());
+        assert!(result.is_none());
     }
 }

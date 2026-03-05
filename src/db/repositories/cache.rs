@@ -3,6 +3,7 @@ use crate::entities::{prelude::*, seadex_cache, search_cache};
 use crate::services::search::SearchResult;
 use anyhow::Result;
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, PaginatorTrait, QueryFilter, Set};
+use tracing::debug;
 
 pub struct CacheRepository {
     conn: DatabaseConnection,
@@ -19,10 +20,13 @@ impl CacheRepository {
 
         // Cleanup expired entries first (opportunistic cleanup)
         // Ideally this would be a background job, but this is simple.
-        let _ = SearchCache::delete_many()
+        if let Err(error) = SearchCache::delete_many()
             .filter(search_cache::Column::ExpiresAt.lt(&now))
             .exec(&self.conn)
-            .await;
+            .await
+        {
+            debug!(%error, "Failed to opportunistically clear expired search cache entries");
+        }
 
         let entry = SearchCache::find()
             .filter(search_cache::Column::Query.eq(query))

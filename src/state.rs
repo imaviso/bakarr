@@ -106,7 +106,7 @@ impl SharedState {
         Self::init_with_event_bus(config, event_bus).await
     }
 
-    #[allow(clippy::too_many_lines)]
+    #[expect(clippy::too_many_lines)]
     async fn init_with_event_bus(
         config: Config,
         event_bus: broadcast::Sender<NotificationEvent>,

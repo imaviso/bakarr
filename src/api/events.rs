@@ -42,7 +42,7 @@ async fn sse_handler(
                 }
             },
             Err(broadcast::error::RecvError::Lagged(count)) => {
-                warn!("Client lagged by {} messages", count);
+                warn!(count = %count, "Client lagged by  messages");
 
                 Some((
                     Ok(Event::default().event("warning").data("Missed some events")),

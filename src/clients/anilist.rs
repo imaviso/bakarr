@@ -3,6 +3,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 const ANILIST_API: &str = "https://graphql.anilist.co";
 
@@ -40,7 +41,7 @@ struct Media {
     format: Option<String>,
     episodes: Option<i32>,
     status: Option<String>,
-    _synonyms: Option<Vec<String>>,
+    synonyms: Option<Vec<String>>,
     #[serde(rename = "coverImage")]
     cover_image: Option<CoverImage>,
     #[serde(rename = "bannerImage")]
@@ -261,6 +262,13 @@ impl AnilistClient {
     }
 
     fn map_media_to_anime(m: Media) -> Anime {
+        let synonyms_count = m.synonyms.as_ref().map_or(0, std::vec::Vec::len);
+
+        debug!(
+            anilist_id = m.id,
+            synonyms_count, "Mapping AniList media to anime"
+        );
+
         let episode_count = m
             .episodes
             .or_else(|| m.next_airing_episode.map(|nae| nae.episode));
@@ -292,7 +300,7 @@ impl AnilistClient {
             description: m
                 .description
                 .map(|d| html2text::from_read(d.as_bytes(), 10000).unwrap_or(d)),
-            #[allow(clippy::cast_precision_loss)]
+            #[expect(clippy::cast_precision_loss)]
             score: m.average_score.map(|s| s as f32),
             genres: m.genres,
             studios: studios_vec,

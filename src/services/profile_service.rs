@@ -114,3 +114,34 @@ pub trait ProfileService: Send + Sync {
     /// Deletes a release profile.
     async fn delete_release_profile(&self, id: i32) -> Result<(), ProfileError>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn profile_error_display_not_found() {
+        let err = ProfileError::ReleaseProfileNotFound(42);
+        assert_eq!(err.to_string(), "Release profile not found: 42");
+    }
+
+    #[test]
+    fn profile_error_from_db_err_maps_to_database() {
+        let err: ProfileError = sea_orm::DbErr::Custom("db down".to_string()).into();
+
+        match err {
+            ProfileError::Database(message) => assert_eq!(message, "Custom Error: db down"),
+            _ => panic!("expected database error"),
+        }
+    }
+
+    #[test]
+    fn profile_error_from_anyhow_maps_to_internal() {
+        let err: ProfileError = anyhow::anyhow!("boom").into();
+
+        match err {
+            ProfileError::Internal(message) => assert_eq!(message, "boom"),
+            _ => panic!("expected internal error"),
+        }
+    }
+}
