@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, appConfig, episodes, systemLogs } from "../../db/schema.ts";
 import { decodeConfigCore } from "../system/config-codec.ts";
-import { AnimeServiceError } from "./errors.ts";
+import { AnimeNotFoundError } from "./errors.ts";
 
 export async function getAnimeRowOrThrow(db: AppDatabase, animeId: number) {
   const rows = await db.select().from(anime).where(eq(anime.id, animeId)).limit(
@@ -11,7 +11,7 @@ export async function getAnimeRowOrThrow(db: AppDatabase, animeId: number) {
   );
   const row = rows[0];
   if (!row) {
-    throw new AnimeServiceError({ message: "Anime not found", status: 404 });
+    throw new AnimeNotFoundError({ message: "Anime not found" });
   }
   return row;
 }
@@ -30,7 +30,7 @@ export async function getEpisodeRowOrThrow(
   ).limit(1);
   const row = rows[0];
   if (!row) {
-    throw new AnimeServiceError({ message: "Episode not found", status: 404 });
+    throw new AnimeNotFoundError({ message: "Episode not found" });
   }
   return row;
 }

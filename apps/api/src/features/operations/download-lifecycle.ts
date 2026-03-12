@@ -6,6 +6,8 @@ import {
   encodeOptionalNumberList,
 } from "../system/config-codec.ts";
 import { parseEpisodeNumber, scanVideoFiles } from "./file-scanner.ts";
+import type { FileSystemShape } from "../../lib/filesystem.ts";
+import { Effect } from "effect";
 
 export function parseMagnetInfoHash(
   magnet: string | null | undefined,
@@ -19,11 +21,12 @@ export function parseMagnetInfoHash(
 }
 
 export async function resolveCompletedContentPath(
+  fs: FileSystemShape,
   contentPath: string,
   episodeNumber: number,
 ): Promise<string | undefined> {
   try {
-    const stat = await Deno.stat(contentPath);
+    const stat = await Effect.runPromise(fs.stat(contentPath));
 
     if (stat.isFile) {
       return contentPath;
@@ -36,10 +39,7 @@ export async function resolveCompletedContentPath(
     return undefined;
   }
 
-  const files = [];
-  for await (const file of scanVideoFiles(contentPath)) {
-    files.push(file);
-  }
+  const files = await Effect.runPromise(scanVideoFiles(fs, contentPath));
   const matching = files.find((file) =>
     parseEpisodeNumber(file.path) === episodeNumber
   );
@@ -48,10 +48,11 @@ export async function resolveCompletedContentPath(
 }
 
 export async function resolveBatchContentPaths(
+  fs: FileSystemShape,
   contentPath: string,
 ): Promise<readonly string[]> {
   try {
-    const stat = await Deno.stat(contentPath);
+    const stat = await Effect.runPromise(fs.stat(contentPath));
 
     if (stat.isFile) {
       return [contentPath];
@@ -64,10 +65,7 @@ export async function resolveBatchContentPaths(
     return [];
   }
 
-  const files = [];
-  for await (const file of scanVideoFiles(contentPath)) {
-    files.push(file);
-  }
+  const files = await Effect.runPromise(scanVideoFiles(fs, contentPath));
   return files.map((file) => file.path);
 }
 
@@ -148,6 +146,7 @@ export function inferCoveredEpisodeNumbers(input: {
 }
 
 export async function resolveAccessibleDownloadPath(
+  fs: FileSystemShape,
   contentPath: string,
   remotePathMappings: readonly string[][],
 ): Promise<string | undefined> {
@@ -158,7 +157,7 @@ export async function resolveAccessibleDownloadPath(
 
   for (const candidate of candidates) {
     try {
-      await Deno.stat(candidate);
+      await Effect.runPromise(fs.stat(candidate));
       return candidate;
     } catch {
       // try next candidate

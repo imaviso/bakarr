@@ -33,12 +33,17 @@ export class RssClient extends Context.Tag("@bakarr/api/RssClient")<
 const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
   try {
     const parsedUrl = new URL(url);
-    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "data:") {
+    if (
+      parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:" &&
+      parsedUrl.protocol !== "data:"
+    ) {
       return [];
     }
 
     if (parsedUrl.protocol !== "data:") {
-      if (parsedUrl.port && parsedUrl.port !== "80" && parsedUrl.port !== "443") {
+      if (
+        parsedUrl.port && parsedUrl.port !== "80" && parsedUrl.port !== "443"
+      ) {
         return [];
       }
 

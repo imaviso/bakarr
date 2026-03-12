@@ -92,7 +92,7 @@ const makeAuthService = Effect.gen(function* () {
       const rawApiKey = randomHex(24);
       const hashedApiKey = yield* tryDatabasePromise(
         "Failed to ensure bootstrap user",
-        () => hashToken(rawApiKey)
+        () => hashToken(rawApiKey),
       );
 
       yield* tryDatabasePromise(
@@ -176,7 +176,7 @@ const makeAuthService = Effect.gen(function* () {
   ) {
     const hashedApiKey = yield* tryAuthPromise(
       "Failed to hash API key",
-      () => hashToken(request.api_key)
+      () => hashToken(request.api_key),
     );
 
     const row = yield* tryAuthPromise(
@@ -222,7 +222,7 @@ const makeAuthService = Effect.gen(function* () {
     if (sessionToken) {
       const hashedSessionToken = yield* tryDatabasePromise(
         "Failed to hash session token",
-        () => hashToken(sessionToken)
+        () => hashToken(sessionToken),
       );
 
       const result = yield* tryDatabasePromise(
@@ -271,7 +271,7 @@ const makeAuthService = Effect.gen(function* () {
 
     const hashedApiKey = yield* tryDatabasePromise(
       "Failed to hash API key",
-      () => hashToken(apiKey)
+      () => hashToken(apiKey),
     );
 
     const row = yield* tryDatabasePromise(
@@ -291,7 +291,7 @@ const makeAuthService = Effect.gen(function* () {
 
     const hashedSessionToken = yield* tryDatabasePromise(
       "Failed to hash session token",
-      () => hashToken(sessionToken)
+      () => hashToken(sessionToken),
     );
 
     yield* tryDatabasePromise(
@@ -379,7 +379,7 @@ const makeAuthService = Effect.gen(function* () {
       const apiKey = randomHex(24);
       const hashedApiKey = yield* tryAuthPromise(
         "Failed to hash API key",
-        () => hashToken(apiKey)
+        () => hashToken(apiKey),
       );
 
       yield* tryAuthPromise("Failed to regenerate API key", () =>

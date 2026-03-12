@@ -1,4 +1,3 @@
-import "@std/dotenv/load";
 import { Effect } from "effect";
 
 import type { Config } from "../../packages/shared/src/index.ts";
@@ -44,6 +43,7 @@ export async function bootstrap(overrides: Partial<AppConfigShape> = {}) {
 }
 
 if (import.meta.main) {
+  await import("@std/dotenv/load");
   const { app, config, runtime } = await bootstrap();
   const systemConfig = await runApi(
     runtime,

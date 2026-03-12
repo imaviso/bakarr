@@ -44,7 +44,12 @@ import {
   toDownloadStatus,
   toRssFeed,
 } from "./repository.ts";
-import { OperationsError } from "./errors.ts";
+import { type OperationsError } from "./errors.ts";
+import {
+  type FileSystemShape,
+  isWithinPathRoot,
+} from "../../lib/filesystem.ts";
+import { Effect as Ef } from "effect";
 
 type TryDatabasePromise = <A>(
   message: string,
@@ -58,6 +63,7 @@ type TryOperationsPromise = <A>(
 
 export function makeCatalogOrchestration(input: {
   db: AppDatabase;
+  fs: FileSystemShape;
   eventBus: typeof EventBus.Service;
   tryDatabasePromise: TryDatabasePromise;
   tryOperationsPromise: TryOperationsPromise;
@@ -78,6 +84,7 @@ export function makeCatalogOrchestration(input: {
 }) {
   const {
     db,
+    fs,
     eventBus,
     tryDatabasePromise,
     tryOperationsPromise,
@@ -105,7 +112,7 @@ export function makeCatalogOrchestration(input: {
       for (const item of preview) {
         try {
           yield* tryOperationsPromise("Failed to rename files", async () => {
-            await Deno.rename(item.current_path, item.new_path);
+            await Ef.runPromise(fs.rename(item.current_path, item.new_path));
             await db.update(episodes).set({ filePath: item.new_path }).where(
               and(
                 eq(episodes.animeId, animeId),
@@ -148,23 +155,43 @@ export function makeCatalogOrchestration(input: {
 
     const runtimeConfig = yield* tryOperationsPromise(
       "Failed to load config",
-      () => loadRuntimeConfig(db)
+      () => loadRuntimeConfig(db),
     );
     const importMode = yield* tryDatabasePromise(
       "Failed to import files",
       () => currentImportMode(db),
     );
+    const downloadRoot = yield* fs.realPath(runtimeConfig.downloads.root_path)
+      .pipe(
+        Effect.mapError((error) =>
+          new DatabaseError({ cause: error, message: "Failed to import files" })
+        ),
+      );
+    const libraryRoot = yield* fs.realPath(runtimeConfig.library.library_path)
+      .pipe(
+        Effect.mapError((error) =>
+          new DatabaseError({ cause: error, message: "Failed to import files" })
+        ),
+      );
 
     for (const file of files) {
       try {
-        const resolvedSource = yield* tryOperationsPromise(
-          "Failed to import files",
-          () => Deno.realPath(file.source_path)
+        const resolvedSource = yield* fs.realPath(file.source_path).pipe(
+          Effect.mapError((error) =>
+            new DatabaseError({
+              cause: error,
+              message: "Failed to import files",
+            })
+          ),
         );
 
-        if (!resolvedSource.startsWith(Deno.realPathSync(runtimeConfig.downloads.root_path)) &&
-            !resolvedSource.startsWith(Deno.realPathSync(runtimeConfig.library.library_path))) {
-          throw new Error("Source path is not within allowed download or library directories");
+        if (
+          !isWithinPathRoot(resolvedSource, downloadRoot) &&
+          !isWithinPathRoot(resolvedSource, libraryRoot)
+        ) {
+          throw new Error(
+            "Source path is not within allowed download or library directories",
+          );
         }
 
         const animeRow = yield* tryOperationsPromise(
@@ -182,18 +209,19 @@ export function makeCatalogOrchestration(input: {
 
         yield* tryDatabasePromise(
           "Failed to import files",
-          () => Deno.mkdir(animeRow.rootFolder, { recursive: true }),
+          () =>
+            Ef.runPromise(fs.mkdir(animeRow.rootFolder, { recursive: true })),
         );
 
         if (importMode === "move") {
           yield* tryDatabasePromise(
             "Failed to import files",
-            () => Deno.rename(resolvedSource, destination),
+            () => Ef.runPromise(fs.rename(resolvedSource, destination)),
           );
         } else {
           yield* tryDatabasePromise(
             "Failed to import files",
-            () => Deno.copyFile(resolvedSource, destination),
+            () => Ef.runPromise(fs.copyFile(resolvedSource, destination)),
           );
         }
 
@@ -496,16 +524,24 @@ export function makeCatalogOrchestration(input: {
             "Failed to run library scan",
             async () => {
               let s = 0, m = 0;
-              for await (const file of scanVideoFiles(animeRow.rootFolder)) {
+              const files = await Ef.runPromise(
+                scanVideoFiles(fs, animeRow.rootFolder),
+              );
+              for (const file of files) {
                 s++;
                 const episodeNumber = parseEpisodeNumber(file.path);
                 if (episodeNumber) {
-                  await upsertEpisodeFile(db, animeRow.id, episodeNumber, file.path);
+                  await upsertEpisodeFile(
+                    db,
+                    animeRow.id,
+                    episodeNumber,
+                    file.path,
+                  );
                   m++;
                 }
               }
               return { scannedFiles: s, matchedFiles: m };
-            }
+            },
           );
           scanned += scannedFiles;
           matched += matchedFiles;

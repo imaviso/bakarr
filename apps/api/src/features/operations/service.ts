@@ -24,6 +24,7 @@ import { RssClient } from "./rss-client.ts";
 import { makeSearchOrchestration } from "./search-orchestration.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
 import { makeCatalogOrchestration } from "./catalog-orchestration.ts";
+import { FileSystem } from "../../lib/filesystem.ts";
 
 export {
   applyRemotePathMappings,
@@ -33,7 +34,12 @@ export {
   resolveBatchContentPaths,
   resolveCompletedContentPath,
 } from "./download-lifecycle.ts";
-import { OperationsError } from "./errors.ts";
+import {
+  DownloadConflictError,
+  DownloadNotFoundError,
+  OperationsAnimeNotFoundError,
+  type OperationsError,
+} from "./errors.ts";
 
 export interface RssServiceShape {
   readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
@@ -153,15 +159,31 @@ export interface SearchServiceShape {
   ) => Effect.Effect<EpisodeSearchResult[], OperationsError | DatabaseError>;
 }
 
-export class RssService extends Context.Tag("@bakarr/api/RssService")<RssService, RssServiceShape>() {}
-export class LibraryService extends Context.Tag("@bakarr/api/LibraryService")<LibraryService, LibraryServiceShape>() {}
-export class DownloadService extends Context.Tag("@bakarr/api/DownloadService")<DownloadService, DownloadServiceShape>() {}
-export class SearchService extends Context.Tag("@bakarr/api/SearchService")<SearchService, SearchServiceShape>() {}
-
-class InternalOperationsService extends Context.Tag("@bakarr/api/InternalOperationsService")<
-  InternalOperationsService,
-  RssServiceShape & LibraryServiceShape & DownloadServiceShape & SearchServiceShape
+export class RssService extends Context.Tag("@bakarr/api/RssService")<
+  RssService,
+  RssServiceShape
 >() {}
+export class LibraryService extends Context.Tag("@bakarr/api/LibraryService")<
+  LibraryService,
+  LibraryServiceShape
+>() {}
+export class DownloadService extends Context.Tag("@bakarr/api/DownloadService")<
+  DownloadService,
+  DownloadServiceShape
+>() {}
+export class SearchService extends Context.Tag("@bakarr/api/SearchService")<
+  SearchService,
+  SearchServiceShape
+>() {}
+
+class InternalOperationsService
+  extends Context.Tag("@bakarr/api/InternalOperationsService")<
+    InternalOperationsService,
+    & RssServiceShape
+    & LibraryServiceShape
+    & DownloadServiceShape
+    & SearchServiceShape
+  >() {}
 
 const makeOperationsService = Effect.gen(function* () {
   const { db } = yield* Database;
@@ -169,6 +191,7 @@ const makeOperationsService = Effect.gen(function* () {
   const aniList = yield* AniListClient;
   const qbitClient = yield* QBitTorrentClient;
   const rssClient = yield* RssClient;
+  const fs = yield* FileSystem;
   const maybeQBitConfig = (config: Config): QBitConfig | null => {
     if (!config.qbittorrent.enabled || !config.qbittorrent.password) {
       return null;
@@ -182,15 +205,19 @@ const makeOperationsService = Effect.gen(function* () {
     };
   };
 
+  const triggerSemaphore = yield* Effect.makeSemaphore(1);
+
   const downloadOrchestration = makeDownloadOrchestration({
     db,
     dbError,
     eventBus,
+    fs,
     maybeQBitConfig,
     qbitClient,
     tryDatabasePromise,
     tryOperationsPromise,
     wrapOperationsError,
+    triggerSemaphore,
   });
 
   const searchOrchestration = makeSearchOrchestration({
@@ -198,6 +225,7 @@ const makeOperationsService = Effect.gen(function* () {
     db,
     dbError,
     eventBus,
+    fs,
     maybeQBitConfig,
     publishDownloadProgress: downloadOrchestration.publishDownloadProgress,
     qbitClient,
@@ -232,6 +260,7 @@ const makeOperationsService = Effect.gen(function* () {
     db,
     dbError,
     eventBus,
+    fs,
     publishDownloadProgress,
     reconcileDownloadByIdEffect,
     retryDownloadById,
@@ -295,15 +324,25 @@ const makeOperationsService = Effect.gen(function* () {
     triggerSearchMissing,
     runRssCheck,
     runLibraryScan,
-  } satisfies RssServiceShape & LibraryServiceShape & DownloadServiceShape & SearchServiceShape;
+  } satisfies
+    & RssServiceShape
+    & LibraryServiceShape
+    & DownloadServiceShape
+    & SearchServiceShape;
 });
 
-const internalLayer = Layer.scoped(InternalOperationsService, makeOperationsService);
+const internalLayer = Layer.scoped(
+  InternalOperationsService,
+  makeOperationsService,
+);
 
 export const OperationsServiceLive = Layer.mergeAll(
   Layer.effect(RssService, Effect.map(InternalOperationsService, (s) => s)),
   Layer.effect(LibraryService, Effect.map(InternalOperationsService, (s) => s)),
-  Layer.effect(DownloadService, Effect.map(InternalOperationsService, (s) => s)),
+  Layer.effect(
+    DownloadService,
+    Effect.map(InternalOperationsService, (s) => s),
+  ),
   Layer.effect(SearchService, Effect.map(InternalOperationsService, (s) => s)),
 ).pipe(Layer.provide(internalLayer));
 
@@ -313,7 +352,12 @@ function dbError(message: string) {
 
 function wrapOperationsError(message: string) {
   return (cause: unknown) => {
-    if (cause instanceof OperationsError || cause instanceof DatabaseError) {
+    if (
+      cause instanceof OperationsAnimeNotFoundError ||
+      cause instanceof DownloadNotFoundError ||
+      cause instanceof DownloadConflictError ||
+      cause instanceof DatabaseError
+    ) {
       return cause;
     }
     return new DatabaseError({ cause, message });

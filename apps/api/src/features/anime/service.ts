@@ -18,8 +18,13 @@ import { EventBus } from "../events/event-bus.ts";
 import { AniListClient } from "./anilist.ts";
 import { encodeNumberList, encodeStringList } from "../system/config-codec.ts";
 import { toAnimeDto } from "./dto.ts";
-import { AnimeServiceError } from "./errors.ts";
+import {
+  AnimeConflictError,
+  AnimeNotFoundError,
+  type AnimeServiceError,
+} from "./errors.ts";
 import { collectVideoFiles, parseEpisodeNumber } from "./files.ts";
+import { FileSystem } from "../../lib/filesystem.ts";
 import {
   appendAnimeLog,
   clearEpisodeMapping,
@@ -51,10 +56,13 @@ export interface AnimeServiceShape {
   ) => Effect.Effect<AnimeSearchResult[], never>;
   readonly getAnimeByAnilistId: (
     id: number,
-  ) => Effect.Effect<AnimeSearchResult, AnimeServiceError>;
+  ) => Effect.Effect<AnimeSearchResult, AnimeNotFoundError>;
   readonly addAnime: (
     input: AddAnimeInput,
-  ) => Effect.Effect<Anime, AnimeServiceError | DatabaseError>;
+  ) => Effect.Effect<
+    Anime,
+    AnimeNotFoundError | AnimeConflictError | DatabaseError
+  >;
   readonly deleteAnime: (id: number) => Effect.Effect<void, DatabaseError>;
   readonly setMonitored: (
     id: number,
@@ -111,6 +119,7 @@ const makeAnimeService = Effect.gen(function* () {
   const { db } = yield* Database;
   const eventBus = yield* EventBus;
   const aniList = yield* AniListClient;
+  const fs = yield* FileSystem;
 
   const addAnime = Effect.fn("AnimeService.addAnime")(function* (
     input: AddAnimeInput,
@@ -123,18 +132,16 @@ const makeAnimeService = Effect.gen(function* () {
     );
 
     if (existing[0]) {
-      yield* AnimeServiceError.make({
+      yield* new AnimeConflictError({
         message: "Anime already exists",
-        status: 409,
       });
     }
 
     const metadata = yield* aniList.getAnimeMetadataById(input.id);
 
     if (!metadata) {
-      yield* AnimeServiceError.make({
+      yield* new AnimeNotFoundError({
         message: "Anime not found",
-        status: 404,
       });
     }
 
@@ -150,9 +157,10 @@ const makeAnimeService = Effect.gen(function* () {
         ),
     );
 
-    yield* tryAnimePromise(
-      "Failed to add anime",
-      () => Deno.mkdir(rootFolder, { recursive: true }),
+    yield* fs.mkdir(rootFolder, { recursive: true }).pipe(
+      Effect.mapError((error) =>
+        new DatabaseError({ cause: error, message: "Failed to add anime" })
+      ),
     );
 
     const animeRow = {
@@ -254,9 +262,13 @@ const makeAnimeService = Effect.gen(function* () {
       "Failed to scan anime folder",
       () => getAnimeRowOrThrow(db, animeId),
     );
-    const files = yield* tryAnimePromise(
-      "Failed to scan anime folder",
-      () => collectVideoFiles(animeRow.rootFolder),
+    const files = yield* collectVideoFiles(fs, animeRow.rootFolder).pipe(
+      Effect.mapError((error) =>
+        new DatabaseError({
+          cause: error,
+          message: "Failed to scan anime folder",
+        })
+      ),
     );
     let found = 0;
 
@@ -322,9 +334,13 @@ const makeAnimeService = Effect.gen(function* () {
     id: number,
     path: string,
   ) {
-    yield* tryAnimePromise(
-      "Failed to update anime path",
-      () => Deno.mkdir(path, { recursive: true }),
+    yield* fs.mkdir(path, { recursive: true }).pipe(
+      Effect.mapError((error) =>
+        new DatabaseError({
+          cause: error,
+          message: "Failed to update anime path",
+        })
+      ),
     );
     yield* tryAnimePromise(
       "Failed to update anime path",
@@ -355,13 +371,9 @@ const makeAnimeService = Effect.gen(function* () {
 
       if (episodeRow.filePath) {
         const filePath = episodeRow.filePath;
-        yield* tryAnimePromise("Failed to delete episode file", async () => {
-          try {
-            await Deno.remove(filePath);
-          } catch {
-            // Ignore missing files.
-          }
-        });
+        yield* fs.remove(filePath).pipe(
+          Effect.catchAll(() => Effect.void),
+        );
       }
 
       yield* tryAnimePromise(
@@ -443,9 +455,13 @@ const makeAnimeService = Effect.gen(function* () {
       "Failed to list video files",
       () => getAnimeRowOrThrow(db, animeId),
     );
-    const files = yield* tryAnimePromise(
-      "Failed to list video files",
-      () => collectVideoFiles(animeRow.rootFolder),
+    const files = yield* collectVideoFiles(fs, animeRow.rootFolder).pipe(
+      Effect.mapError((error) =>
+        new DatabaseError({
+          cause: error,
+          message: "Failed to list video files",
+        })
+      ),
     );
 
     return files.map((file) => ({
@@ -492,9 +508,8 @@ const makeAnimeService = Effect.gen(function* () {
       const metadata = yield* aniList.getAnimeMetadataById(id);
 
       if (!metadata) {
-        yield* AnimeServiceError.make({
+        yield* new AnimeNotFoundError({
           message: "Anime not found",
-          status: 404,
         });
       }
 
@@ -522,10 +537,9 @@ const makeAnimeService = Effect.gen(function* () {
   const getAnimeByAnilistId: AnimeServiceShape["getAnimeByAnilistId"] = (id) =>
     getAnimeByAnilistIdRaw(id).pipe(
       Effect.catchAll((error) =>
-        error instanceof AnimeServiceError ? Effect.fail(error) : Effect.fail(
-          AnimeServiceError.make({
+        error instanceof AnimeNotFoundError ? Effect.fail(error) : Effect.fail(
+          new AnimeNotFoundError({
             message: "Failed to fetch anime metadata",
-            status: 404,
           }),
         )
       ),
@@ -596,7 +610,11 @@ export const AnimeServiceLive = Layer.effect(AnimeService, makeAnimeService);
 
 function wrapAnimeError(message: string) {
   return (cause: unknown) => {
-    if (cause instanceof AnimeServiceError || cause instanceof DatabaseError) {
+    if (
+      cause instanceof AnimeNotFoundError ||
+      cause instanceof AnimeConflictError ||
+      cause instanceof DatabaseError
+    ) {
       return cause;
     }
     return new DatabaseError({ cause, message });

@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
-import { buildBackgroundSchedule } from "./background.ts";
+import { buildBackgroundSchedule } from "./background-schedule.ts";
 
 const baseConfig: Config = {
   downloads: {

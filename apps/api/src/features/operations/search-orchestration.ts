@@ -63,8 +63,9 @@ import {
   parseEpisodeFromTitle,
   parseReleaseName,
 } from "./release-ranking.ts";
-import { OperationsError } from "./errors.ts";
+import { type OperationsError } from "./errors.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
+import type { FileSystemShape } from "../../lib/filesystem.ts";
 
 type TryDatabasePromise = <A>(
   message: string,
@@ -78,6 +79,7 @@ type TryOperationsPromise = <A>(
 
 export function makeSearchOrchestration(input: {
   db: AppDatabase;
+  fs: FileSystemShape;
   aniList: typeof AniListClient.Service;
   rssClient: typeof RssClient.Service;
   qbitClient: typeof QBitTorrentClient.Service;
@@ -93,6 +95,7 @@ export function makeSearchOrchestration(input: {
 }) {
   const {
     db,
+    fs,
     aniList,
     rssClient,
     qbitClient,
@@ -671,9 +674,13 @@ export function makeSearchOrchestration(input: {
           )
             .limit(1),
       );
-      const entries = yield* tryDatabasePromise<Deno.DirEntry[]>(
-        "Failed to scan unmapped folders",
-        () => Array.fromAsync(Deno.readDir(root)),
+      const entries = yield* fs.readDir(root).pipe(
+        Effect.mapError((error) =>
+          new DatabaseError({
+            cause: error,
+            message: "Failed to scan unmapped folders",
+          })
+        ),
       );
       const folders: ScannerState["folders"] = [];
 
@@ -722,9 +729,13 @@ export function makeSearchOrchestration(input: {
           () => db.select().from(anime),
         );
         const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
-        const entries = yield* tryDatabasePromise<Deno.DirEntry[]>(
-          "Failed to scan unmapped folders",
-          () => Array.fromAsync(Deno.readDir(root)),
+        const entries = yield* fs.readDir(root).pipe(
+          Effect.mapError((error) =>
+            new DatabaseError({
+              cause: error,
+              message: "Failed to scan unmapped folders",
+            })
+          ),
         );
         const folderCount = entries.reduce((count, entry) => {
           if (!entry.isDirectory) {
@@ -785,7 +796,7 @@ export function makeSearchOrchestration(input: {
 
     yield* tryOperationsPromise(
       "Failed to import unmapped folder",
-      () => copyDirectoryContents(folderPath, animeRow.rootFolder),
+      () => copyDirectoryContents(fs, folderPath, animeRow.rootFolder),
     );
     yield* tryDatabasePromise(
       "Failed to import unmapped folder",
@@ -804,10 +815,7 @@ export function makeSearchOrchestration(input: {
       const files = yield* tryDatabasePromise(
         "Failed to scan import path",
         async () => {
-          const result = [];
-          for await (const file of scanVideoFiles(path)) {
-            result.push(file);
-          }
+          const result = await Effect.runPromise(scanVideoFiles(fs, path));
           return result.sort((a, b) => a.path.localeCompare(b.path));
         },
       );

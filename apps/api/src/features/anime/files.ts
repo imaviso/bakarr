@@ -1,19 +1,26 @@
 import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
+import type { FileSystemShape } from "../../lib/filesystem.ts";
+import { Effect } from "effect";
 
-export async function collectVideoFiles(
+export function collectVideoFiles(
+  fs: FileSystemShape,
   rootFolder: string,
-): Promise<VideoFile[]> {
-  const entries: VideoFile[] = [];
-  const stack = [rootFolder];
+) {
+  return Effect.fn("AnimeService.collectVideoFiles")(function* () {
+    const entries: VideoFile[] = [];
+    const stack = [rootFolder];
 
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) {
-      continue;
-    }
+    while (stack.length > 0) {
+      const current = stack.pop();
+      if (!current) {
+        continue;
+      }
 
-    try {
-      for await (const entry of Deno.readDir(current)) {
+      const dirEntries = yield* fs.readDir(current).pipe(
+        Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+      );
+
+      for (const entry of dirEntries) {
         const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
 
         if (entry.isDirectory) {
@@ -25,7 +32,11 @@ export async function collectVideoFiles(
           continue;
         }
 
-        const stats = await Deno.stat(fullPath);
+        const stats = yield* fs.stat(fullPath).pipe(
+          Effect.catchAll(() =>
+            Effect.succeed({ size: 0 } as { size: number })
+          ),
+        );
         entries.push({
           episode_number: parseEpisodeNumber(fullPath),
           name: entry.name,
@@ -33,12 +44,10 @@ export async function collectVideoFiles(
           size: stats.size,
         });
       }
-    } catch {
-      // Ignore inaccessible directories.
     }
-  }
 
-  return entries.sort((left, right) => left.name.localeCompare(right.name));
+    return entries.sort((left, right) => left.name.localeCompare(right.name));
+  })();
 }
 
 export function parseEpisodeNumber(path: string) {

@@ -1,15 +1,23 @@
-export async function* scanVideoFiles(path: string): AsyncGenerator<{ name: string; path: string }> {
-  const stack = [path];
+import { Effect } from "effect";
+import type { FileSystemShape } from "../../lib/filesystem.ts";
 
-  while (stack.length > 0) {
-    const current = stack.pop();
+export function scanVideoFiles(fs: FileSystemShape, path: string) {
+  return Effect.fn("Operations.scanVideoFiles")(function* () {
+    const results: { name: string; path: string }[] = [];
+    const stack = [path];
 
-    if (!current) {
-      continue;
-    }
+    while (stack.length > 0) {
+      const current = stack.pop();
 
-    try {
-      for await (const entry of Deno.readDir(current)) {
+      if (!current) {
+        continue;
+      }
+
+      const entries = yield* fs.readDir(current).pipe(
+        Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+      );
+
+      for (const entry of entries) {
         const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
 
         if (entry.isDirectory) {
@@ -18,13 +26,13 @@ export async function* scanVideoFiles(path: string): AsyncGenerator<{ name: stri
         }
 
         if (entry.isFile && isVideoFile(entry.name)) {
-          yield { name: entry.name, path: fullPath };
+          results.push({ name: entry.name, path: fullPath });
         }
       }
-    } catch {
-      // Ignore inaccessible directories
     }
-  }
+
+    return results;
+  })();
 }
 
 export function parseEpisodeNumber(path: string) {

@@ -27,38 +27,34 @@ export const tryExternal = <A>(
     function* () {
       const startedAt = performance.now();
 
-      try {
-        const result = yield* Effect.tryPromise({
-          try: (signal) => fn(signal),
-          catch: (cause) => toExternalCallError(operation, cause),
-        }).pipe(
-          Effect.timeout("10 seconds"),
-          Effect.retry(retryPolicy),
-          Effect.scoped,
-          Effect.withLogSpan(operation),
-        );
+      const result = yield* Effect.tryPromise({
+        try: (signal) => fn(signal),
+        catch: (cause) => toExternalCallError(operation, cause),
+      }).pipe(
+        Effect.timeout("10 seconds"),
+        Effect.retry(retryPolicy),
+        Effect.scoped,
+        Effect.tapBoth({
+          onSuccess: () =>
+            Effect.logInfo("external call completed").pipe(
+              Effect.annotateLogs({
+                durationMs: durationMsSince(startedAt),
+              }),
+            ),
+          onFailure: (error) =>
+            Effect.logError("external call failed").pipe(
+              Effect.annotateLogs(
+                compactLogAnnotations({
+                  durationMs: durationMsSince(startedAt),
+                  ...errorLogAnnotations(error),
+                }),
+              ),
+            ),
+        }),
+        Effect.withLogSpan(operation),
+      );
 
-        yield* Effect.logInfo("external call completed").pipe(
-          Effect.annotateLogs({
-            durationMs: durationMsSince(startedAt),
-          }),
-        );
-
-        return result;
-      } catch (error) {
-        const wrapped = toExternalCallError(operation, error);
-
-        yield* Effect.logError("external call failed").pipe(
-          Effect.annotateLogs(
-            compactLogAnnotations({
-              durationMs: durationMsSince(startedAt),
-              ...errorLogAnnotations(wrapped),
-            }),
-          ),
-        );
-
-        return yield* Effect.fail(wrapped);
-      }
+      return result;
     },
     Effect.annotateLogs({
       component: "external",

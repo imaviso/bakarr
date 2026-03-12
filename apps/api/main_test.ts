@@ -1,9 +1,22 @@
 import { assert, assertEquals, assertMatch } from "@std/assert";
 import { Redacted } from "effect";
 
-import { bootstrap } from "./main.ts";
+const integrationTestPermissions: Deno.PermissionOptions = {
+  env: true,
+  ffi: true,
+  read: true,
+  sys: true,
+  write: true,
+};
 
-Deno.test("GET /health returns ok", async () => {
+function integrationTest(
+  name: string,
+  fn: () => Promise<void>,
+) {
+  Deno.test({ fn, name, permissions: integrationTestPermissions });
+}
+
+integrationTest("GET /health returns ok", async () => {
   const ctx = await createTestContext();
 
   try {
@@ -16,67 +29,70 @@ Deno.test("GET /health returns ok", async () => {
   }
 });
 
-Deno.test("bootstrap admin can log in and read auth/session protected endpoints", async () => {
-  const ctx = await createTestContext();
+integrationTest(
+  "bootstrap admin can log in and read auth/session protected endpoints",
+  async () => {
+    const ctx = await createTestContext();
 
-  try {
-    const loginResponse = await ctx.app.request("/api/auth/login", {
-      body: JSON.stringify({ password: "admin", username: "admin" }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
 
-    assertEquals(loginResponse.status, 200);
+      assertEquals(loginResponse.status, 200);
 
-    const loginBody = await loginResponse.json();
-    const sessionCookie = loginResponse.headers.get("set-cookie");
+      const loginBody = await loginResponse.json();
+      const sessionCookie = loginResponse.headers.get("set-cookie");
 
-    assert(sessionCookie);
-    assertEquals(loginBody.username, "admin");
-    assertEquals(loginBody.must_change_password, true);
-    assertMatch(loginBody.api_key, /^\*+$/);
+      assert(sessionCookie);
+      assertEquals(loginBody.username, "admin");
+      assertEquals(loginBody.must_change_password, true);
+      assertMatch(loginBody.api_key, /^\*+$/);
 
-    const meResponse = await ctx.app.request("/api/auth/me", {
-      headers: { Cookie: sessionCookie },
-    });
+      const meResponse = await ctx.app.request("/api/auth/me", {
+        headers: { Cookie: sessionCookie },
+      });
 
-    assertEquals(meResponse.status, 200);
+      assertEquals(meResponse.status, 200);
 
-    const me = await meResponse.json();
+      const me = await meResponse.json();
 
-    assertEquals(me.username, "admin");
-    assert(typeof me.id === "number");
+      assertEquals(me.username, "admin");
+      assert(typeof me.id === "number");
 
-    const configResponse = await ctx.app.request("/api/system/config", {
-      headers: { Cookie: sessionCookie },
-    });
+      const configResponse = await ctx.app.request("/api/system/config", {
+        headers: { Cookie: sessionCookie },
+      });
 
-    assertEquals(configResponse.status, 200);
+      assertEquals(configResponse.status, 200);
 
-    const config = await configResponse.json();
+      const config = await configResponse.json();
 
-    assertEquals(config.general.database_path, ctx.databaseFile);
-    assertEquals(config.profiles.length, 1);
+      assertEquals(config.general.database_path, ctx.databaseFile);
+      assertEquals(config.profiles.length, 1);
 
-    const statsResponse = await ctx.app.request("/api/library/stats", {
-      headers: { Cookie: sessionCookie },
-    });
+      const statsResponse = await ctx.app.request("/api/library/stats", {
+        headers: { Cookie: sessionCookie },
+      });
 
-    assertEquals(statsResponse.status, 200);
-    assertEquals(await statsResponse.json(), {
-      downloaded_episodes: 0,
-      missing_episodes: 0,
-      recent_downloads: 0,
-      rss_feeds: 0,
-      total_anime: 0,
-      total_episodes: 0,
-    });
-  } finally {
-    await ctx.dispose();
-  }
-});
+      assertEquals(statsResponse.status, 200);
+      assertEquals(await statsResponse.json(), {
+        downloaded_episodes: 0,
+        missing_episodes: 0,
+        recent_downloads: 0,
+        rss_feeds: 0,
+        total_anime: 0,
+        total_episodes: 0,
+      });
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
 
-Deno.test("auth password change and logout flow works", async () => {
+integrationTest("auth password change and logout flow works", async () => {
   const ctx = await createTestContext();
 
   try {
@@ -131,7 +147,7 @@ Deno.test("auth password change and logout flow works", async () => {
   }
 });
 
-Deno.test("anime CRUD and episode scan flow works", async () => {
+integrationTest("anime CRUD and episode scan flow works", async () => {
   const ctx = await createTestContext();
 
   try {
@@ -252,641 +268,804 @@ Deno.test("anime CRUD and episode scan flow works", async () => {
   }
 });
 
-Deno.test("rss, wanted, rename, and download helper endpoints work", async () => {
-  const ctx = await createTestContext();
-
-  try {
-    const loginResponse = await ctx.app.request("/api/auth/login", {
-      body: JSON.stringify({ password: "admin", username: "admin" }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-
-    const sessionCookie = loginResponse.headers.get("set-cookie");
-    assert(sessionCookie);
-
-    const rootFolder = await Deno.makeTempDir();
-    const importFolder = await Deno.makeTempDir();
+integrationTest(
+  "rss, wanted, rename, and download helper endpoints work",
+  async () => {
+    const ctx = await createTestContext();
 
     try {
-      const currentConfigResponse = await ctx.app.request(
-        "/api/system/config",
-        { headers: { Cookie: sessionCookie } },
-      );
-      const currentConfig = await currentConfigResponse.json();
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
 
-      await ctx.app.request("/api/system/config", {
-        body: JSON.stringify({
-          ...currentConfig,
-          downloads: {
-            ...currentConfig.downloads,
-            root_path: importFolder,
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const rootFolder = await Deno.makeTempDir();
+      const importFolder = await Deno.makeTempDir();
+
+      try {
+        const currentConfigResponse = await ctx.app.request(
+          "/api/system/config",
+          { headers: { Cookie: sessionCookie } },
+        );
+        const currentConfig = await currentConfigResponse.json();
+
+        await ctx.app.request("/api/system/config", {
+          body: JSON.stringify({
+            ...currentConfig,
+            downloads: {
+              ...currentConfig.downloads,
+              root_path: importFolder,
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
           },
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "PUT",
-      });
-
-      const addAnimeResponse = await ctx.app.request("/api/anime", {
-        body: JSON.stringify({
-          id: 11061,
-          monitor_and_search: false,
-          monitored: true,
-          profile_name: "Default",
-          release_profile_ids: [],
-          root_folder: rootFolder,
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
-      const addedAnime = await addAnimeResponse.json();
-
-      await Deno.writeTextFile(
-        `${addedAnime.root_folder}/Hunter x Hunter (2011) - 001.mkv`,
-        "episode file",
-      );
-      await ctx.app.request("/api/anime/11061/episodes/scan", {
-        headers: { Cookie: sessionCookie },
-        method: "POST",
-      });
-
-      const rssAdd = await ctx.app.request("/api/rss", {
-        body: JSON.stringify({
-          anime_id: 11061,
-          name: "Primary",
-          url: "https://example.com/feed.xml",
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
-
-      assertEquals(rssAdd.status, 200);
-
-      const rssList = await ctx.app.request("/api/rss", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      const feeds = await rssList.json();
-      assertEquals(feeds.length, 1);
-      assertEquals(feeds[0].anime_id, 11061);
-
-      const wanted = await ctx.app.request("/api/wanted/missing?limit=5", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      const missing = await wanted.json();
-      assertEquals(missing.length, 5);
-      assertEquals(missing[0].anime_id, 11061);
-
-      const renamePreview = await ctx.app.request(
-        "/api/anime/11061/rename-preview",
-        {
-          headers: { Cookie: sessionCookie },
-        },
-      );
-
-      const preview = await renamePreview.json();
-      assertEquals(preview.length, 1);
-      assertMatch(preview[0].new_filename, /Hunter x Hunter/);
-
-      const renameExec = await ctx.app.request("/api/anime/11061/rename", {
-        headers: { Cookie: sessionCookie },
-        method: "POST",
-      });
-
-      assertEquals(renameExec.status, 200);
-      assertEquals((await renameExec.json()).renamed, 1);
-
-      await Deno.writeTextFile(
-        `${importFolder}/import-me-002.mkv`,
-        "video import",
-      );
-
-      const importScan = await ctx.app.request("/api/library/import/scan", {
-        body: JSON.stringify({ anime_id: 11061, path: importFolder }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
-
-      const scanBody = await importScan.json();
-      assertEquals(scanBody.files.length, 1);
-      assertEquals(scanBody.files[0].episode_number, 2);
-
-      const importExecute = await ctx.app.request("/api/library/import", {
-        body: JSON.stringify({
-          files: [{
-            anime_id: 11061,
-            episode_number: 2,
-            source_path: `${importFolder}/import-me-002.mkv`,
-          }],
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
-
-      const importBody = await importExecute.json();
-      assertEquals(importBody.imported, 1);
-
-      const releaseSearch = await ctx.app.request(
-        "/api/search/releases?query=hunter",
-        {
-          headers: { Cookie: sessionCookie },
-        },
-      );
-
-      const releaseBody = await releaseSearch.json();
-      assert(releaseBody.results.length >= 1);
-
-      const episodeSearch = await ctx.app.request(
-        "/api/search/episode/11061/2",
-        {
-          headers: { Cookie: sessionCookie },
-        },
-      );
-
-      const episodeSearchBody = await episodeSearch.json();
-      assertEquals(episodeSearchBody.length, 1);
-
-      const triggerDownload = await ctx.app.request("/api/search/download", {
-        body: JSON.stringify({
-          anime_id: 11061,
-          episode_number: 2,
-          magnet: "magnet:?xt=urn:btih:test",
-          title: "Hunter x Hunter - 02",
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
-
-      assertEquals(triggerDownload.status, 200);
-
-      const history = await ctx.app.request("/api/downloads/history", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      const historyBody = await history.json();
-      assertEquals(historyBody.length, 1);
-
-      const downloadId = historyBody[0].id;
-
-      const pauseResponse = await ctx.app.request(
-        `/api/downloads/${downloadId}/pause`,
-        {
-          headers: { Cookie: sessionCookie },
-          method: "POST",
-        },
-      );
-
-      assertEquals(pauseResponse.status, 200);
-
-      const resumeResponse = await ctx.app.request(
-        `/api/downloads/${downloadId}/resume`,
-        {
-          headers: { Cookie: sessionCookie },
-          method: "POST",
-        },
-      );
-
-      assertEquals(resumeResponse.status, 200);
-
-      const retryResponse = await ctx.app.request(
-        `/api/downloads/${downloadId}/retry`,
-        {
-          headers: { Cookie: sessionCookie },
-          method: "POST",
-        },
-      );
-
-      assertEquals(retryResponse.status, 200);
-
-      const syncResponse = await ctx.app.request("/api/downloads/sync", {
-        headers: { Cookie: sessionCookie },
-        method: "POST",
-      });
-
-      assertEquals(syncResponse.status, 200);
-
-      const reconcileResponse = await ctx.app.request(
-        `/api/downloads/${downloadId}/reconcile`,
-        {
-          headers: { Cookie: sessionCookie },
-          method: "POST",
-        },
-      );
-
-      assertEquals(reconcileResponse.status, 409);
-
-      const filteredLogs = await ctx.app.request(
-        "/api/system/logs?event_type=downloads.triggered&level=success&page=1",
-        {
-          headers: { Cookie: sessionCookie },
-        },
-      );
-
-      assertEquals(filteredLogs.status, 200);
-      const filteredLogsBody = await filteredLogs.json();
-      assert(filteredLogsBody.logs.length >= 1);
-      assertEquals(
-        filteredLogsBody.logs.every((
-          log: { event_type: string; level: string },
-        ) =>
-          log.event_type === "downloads.triggered" && log.level === "success"
-        ),
-        true,
-      );
-
-      const exportLogs = await ctx.app.request(
-        "/api/system/logs/export?event_type=downloads.triggered&format=csv",
-        {
-          headers: { Cookie: sessionCookie },
-        },
-      );
-
-      assertEquals(exportLogs.status, 200);
-      assertEquals(
-        (await exportLogs.text()).includes("downloads.triggered"),
-        true,
-      );
-
-      const jobsResponse = await ctx.app.request("/api/system/jobs", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      assertEquals(jobsResponse.status, 200);
-      assertEquals(Array.isArray(await jobsResponse.json()), true);
-
-      const eventsResponse = await ctx.app.request("/api/downloads/events", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      assertEquals(eventsResponse.status, 200);
-      const events = await eventsResponse.json();
-      assertEquals(events.length >= 1, true);
-
-      const dashboardResponse = await ctx.app.request("/api/system/dashboard", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      assertEquals(dashboardResponse.status, 200);
-      const dashboard = await dashboardResponse.json();
-      assertEquals(typeof dashboard.queued_downloads, "number");
-      assertEquals(Array.isArray(dashboard.recent_download_events), true);
-
-      const deleteResponse = await ctx.app.request(
-        `/api/downloads/${downloadId}`,
-        {
-          headers: { Cookie: sessionCookie },
-          method: "DELETE",
-        },
-      );
-
-      assertEquals(deleteResponse.status, 200);
-
-      const historyAfterDelete = await ctx.app.request(
-        "/api/downloads/history",
-        {
-          headers: { Cookie: sessionCookie },
-        },
-      );
-
-      assertEquals((await historyAfterDelete.json()).length, 0);
-
-      const calendar = await ctx.app.request(
-        `/api/calendar?start=${
-          encodeURIComponent(new Date(0).toISOString())
-        }&end=${
-          encodeURIComponent(new Date(Date.now() + 86400000).toISOString())
-        }`,
-        {
-          headers: { Cookie: sessionCookie },
-        },
-      );
-
-      assertEquals(calendar.status, 200);
-      assert((await calendar.json()).length >= 1);
-    } finally {
-      await Deno.remove(rootFolder, { recursive: true });
-      await Deno.remove(importFolder, { recursive: true });
-    }
-  } finally {
-    await ctx.dispose();
-  }
-});
-
-Deno.test("rss task and missing-search task queue downloads", async () => {
-  const ctx = await createTestContext();
-
-  try {
-    const loginResponse = await ctx.app.request("/api/auth/login", {
-      body: JSON.stringify({ password: "admin", username: "admin" }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-
-    const sessionCookie = loginResponse.headers.get("set-cookie");
-    assert(sessionCookie);
-
-    const rootFolder = await Deno.makeTempDir();
-
-    try {
-      await ctx.app.request("/api/anime", {
-        body: JSON.stringify({
-          id: 20,
-          monitor_and_search: false,
-          monitored: true,
-          profile_name: "Default",
-          release_profile_ids: [],
-          root_folder: rootFolder,
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
-
-      const rssXml =
-        `<?xml version="1.0"?><rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item><title>[SubsPlease] Naruto - 001 (1080p)</title><link>https://nyaa.si/download/1.torrent</link><pubDate>${
-          new Date().toUTCString()
-        }</pubDate><nyaa:seeders>55</nyaa:seeders><nyaa:leechers>1</nyaa:leechers><nyaa:infoHash>abcdefabcdefabcdefabcdefabcdefabcdefabcd</nyaa:infoHash><nyaa:size>1.3 GiB</nyaa:size><nyaa:trusted>Yes</nyaa:trusted><nyaa:remake>No</nyaa:remake></item></channel></rss>`;
-      const rssUrl = `data:text/xml,${encodeURIComponent(rssXml)}`;
-
-      await ctx.app.request("/api/rss", {
-        body: JSON.stringify({ anime_id: 20, url: rssUrl }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
-
-      const rssTask = await ctx.app.request("/api/system/tasks/rss", {
-        headers: { Cookie: sessionCookie },
-        method: "POST",
-      });
-
-      assertEquals(rssTask.status, 200);
-
-      const statusAfterRss = await ctx.app.request("/api/system/status", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      const statusBody = await statusAfterRss.json();
-      assertEquals(typeof statusBody.last_rss, "string");
-
-      const queueAfterRss = await ctx.app.request("/api/downloads/queue", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      const queueRssBody = await queueAfterRss.json();
-      assertEquals(queueRssBody.length, 1);
-
-      const metricsResponse = await ctx.app.request("/api/metrics", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      assertEquals(metricsResponse.status, 200);
-      const metricsText = await metricsResponse.text();
-      assertEquals(metricsText.includes("bakarr_total_anime"), true);
-      assertEquals(metricsText.includes("bakarr_active_download_items"), true);
-
-      const searchMissing = await ctx.app.request(
-        "/api/downloads/search-missing",
-        {
-          body: JSON.stringify({ anime_id: 20 }),
+          method: "PUT",
+        });
+
+        const addAnimeResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 11061,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
           headers: {
             Cookie: sessionCookie,
             "Content-Type": "application/json",
           },
           method: "POST",
-        },
-      );
+        });
+        const addedAnime = await addAnimeResponse.json();
 
-      assertEquals(searchMissing.status, 200);
-
-      const history = await ctx.app.request("/api/downloads/history", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      const historyBody = await history.json();
-      assert(historyBody.length >= 1);
-
-      const scanTask = await ctx.app.request("/api/system/tasks/scan", {
-        headers: { Cookie: sessionCookie },
-        method: "POST",
-      });
-
-      assertEquals(scanTask.status, 200);
-
-      const statusAfterScan = await ctx.app.request("/api/system/status", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      const scanStatusBody = await statusAfterScan.json();
-      assertEquals(typeof scanStatusBody.last_scan, "string");
-
-      const episodeSearch = await ctx.app.request("/api/search/episode/20/1", {
-        headers: { Cookie: sessionCookie },
-      });
-
-      const episodeSearchBody = await episodeSearch.json();
-      assertEquals(episodeSearch.status, 200);
-      assert(episodeSearchBody.length >= 1);
-      assert(
-        episodeSearchBody[0].download_action.Accept ||
-          episodeSearchBody[0].download_action.Upgrade ||
-          episodeSearchBody[0].download_action.Reject,
-      );
-    } finally {
-      await Deno.remove(rootFolder, { recursive: true });
-    }
-  } finally {
-    await ctx.dispose();
-  }
-});
-
-Deno.test("add anime without root folder falls back to configured library path", async () => {
-  const ctx = await createTestContext();
-
-  try {
-    const loginResponse = await ctx.app.request("/api/auth/login", {
-      body: JSON.stringify({ password: "admin", username: "admin" }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-    const sessionCookie = loginResponse.headers.get("set-cookie");
-    assert(sessionCookie);
-    const libraryPath = await Deno.makeTempDir();
-
-    try {
-      const currentConfigResponse = await ctx.app.request(
-        "/api/system/config",
-        {
+        await Deno.writeTextFile(
+          `${addedAnime.root_folder}/Hunter x Hunter (2011) - 001.mkv`,
+          "episode file",
+        );
+        await ctx.app.request("/api/anime/11061/episodes/scan", {
           headers: { Cookie: sessionCookie },
-        },
-      );
-      const currentConfig = await currentConfigResponse.json();
+          method: "POST",
+        });
 
-      await ctx.app.request("/api/system/config", {
-        body: JSON.stringify({
-          ...currentConfig,
-          library: {
-            ...currentConfig.library,
-            library_path: libraryPath,
+        const rssAdd = await ctx.app.request("/api/rss", {
+          body: JSON.stringify({
+            anime_id: 11061,
+            name: "Primary",
+            url: "https://example.com/feed.xml",
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
           },
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "PUT",
-      });
+          method: "POST",
+        });
 
-      const addResponse = await ctx.app.request("/api/anime", {
-        body: JSON.stringify({
-          id: 20,
-          monitor_and_search: false,
-          monitored: true,
-          profile_name: "Default",
-          release_profile_ids: [],
-          root_folder: "",
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
+        assertEquals(rssAdd.status, 200);
 
-      assertEquals(addResponse.status, 200);
-      const anime = await addResponse.json();
-      assertEquals(anime.root_folder.startsWith(libraryPath), true);
-      assertEquals(anime.root_folder, `${libraryPath}/Naruto`);
+        const rssList = await ctx.app.request("/api/rss", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        const feeds = await rssList.json();
+        assertEquals(feeds.length, 1);
+        assertEquals(feeds[0].anime_id, 11061);
+
+        const wanted = await ctx.app.request("/api/wanted/missing?limit=5", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        const missing = await wanted.json();
+        assertEquals(missing.length, 5);
+        assertEquals(missing[0].anime_id, 11061);
+
+        const renamePreview = await ctx.app.request(
+          "/api/anime/11061/rename-preview",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        const preview = await renamePreview.json();
+        assertEquals(preview.length, 1);
+        assertMatch(preview[0].new_filename, /Hunter x Hunter/);
+
+        const renameExec = await ctx.app.request("/api/anime/11061/rename", {
+          headers: { Cookie: sessionCookie },
+          method: "POST",
+        });
+
+        assertEquals(renameExec.status, 200);
+        assertEquals((await renameExec.json()).renamed, 1);
+
+        await Deno.writeTextFile(
+          `${importFolder}/import-me-002.mkv`,
+          "video import",
+        );
+
+        const importScan = await ctx.app.request("/api/library/import/scan", {
+          body: JSON.stringify({ anime_id: 11061, path: importFolder }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        const scanBody = await importScan.json();
+        assertEquals(scanBody.files.length, 1);
+        assertEquals(scanBody.files[0].episode_number, 2);
+
+        const importExecute = await ctx.app.request("/api/library/import", {
+          body: JSON.stringify({
+            files: [{
+              anime_id: 11061,
+              episode_number: 2,
+              source_path: `${importFolder}/import-me-002.mkv`,
+            }],
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        const importBody = await importExecute.json();
+        assertEquals(importBody.imported, 1);
+
+        const releaseSearch = await ctx.app.request(
+          "/api/search/releases?query=hunter",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        const releaseBody = await releaseSearch.json();
+        assert(releaseBody.results.length >= 1);
+
+        const episodeSearch = await ctx.app.request(
+          "/api/search/episode/11061/2",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        const episodeSearchBody = await episodeSearch.json();
+        assertEquals(episodeSearchBody.length, 1);
+
+        const triggerDownload = await ctx.app.request("/api/search/download", {
+          body: JSON.stringify({
+            anime_id: 11061,
+            episode_number: 2,
+            magnet: "magnet:?xt=urn:btih:test",
+            title: "Hunter x Hunter - 02",
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(triggerDownload.status, 200);
+
+        const history = await ctx.app.request("/api/downloads/history", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        const historyBody = await history.json();
+        assertEquals(historyBody.length, 1);
+
+        const downloadId = historyBody[0].id;
+
+        const pauseResponse = await ctx.app.request(
+          `/api/downloads/${downloadId}/pause`,
+          {
+            headers: { Cookie: sessionCookie },
+            method: "POST",
+          },
+        );
+
+        assertEquals(pauseResponse.status, 200);
+
+        const resumeResponse = await ctx.app.request(
+          `/api/downloads/${downloadId}/resume`,
+          {
+            headers: { Cookie: sessionCookie },
+            method: "POST",
+          },
+        );
+
+        assertEquals(resumeResponse.status, 200);
+
+        const retryResponse = await ctx.app.request(
+          `/api/downloads/${downloadId}/retry`,
+          {
+            headers: { Cookie: sessionCookie },
+            method: "POST",
+          },
+        );
+
+        assertEquals(retryResponse.status, 200);
+
+        const syncResponse = await ctx.app.request("/api/downloads/sync", {
+          headers: { Cookie: sessionCookie },
+          method: "POST",
+        });
+
+        assertEquals(syncResponse.status, 200);
+
+        const reconcileResponse = await ctx.app.request(
+          `/api/downloads/${downloadId}/reconcile`,
+          {
+            headers: { Cookie: sessionCookie },
+            method: "POST",
+          },
+        );
+
+        assertEquals(reconcileResponse.status, 409);
+
+        const filteredLogs = await ctx.app.request(
+          "/api/system/logs?event_type=downloads.triggered&level=success&page=1",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(filteredLogs.status, 200);
+        const filteredLogsBody = await filteredLogs.json();
+        assert(filteredLogsBody.logs.length >= 1);
+        assertEquals(
+          filteredLogsBody.logs.every((
+            log: { event_type: string; level: string },
+          ) =>
+            log.event_type === "downloads.triggered" && log.level === "success"
+          ),
+          true,
+        );
+
+        const exportLogs = await ctx.app.request(
+          "/api/system/logs/export?event_type=downloads.triggered&format=csv",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(exportLogs.status, 200);
+        assertEquals(
+          (await exportLogs.text()).includes("downloads.triggered"),
+          true,
+        );
+
+        const jobsResponse = await ctx.app.request("/api/system/jobs", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        assertEquals(jobsResponse.status, 200);
+        assertEquals(Array.isArray(await jobsResponse.json()), true);
+
+        const eventsResponse = await ctx.app.request("/api/downloads/events", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        assertEquals(eventsResponse.status, 200);
+        const events = await eventsResponse.json();
+        assertEquals(events.length >= 1, true);
+
+        const dashboardResponse = await ctx.app.request(
+          "/api/system/dashboard",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(dashboardResponse.status, 200);
+        const dashboard = await dashboardResponse.json();
+        assertEquals(typeof dashboard.queued_downloads, "number");
+        assertEquals(Array.isArray(dashboard.recent_download_events), true);
+
+        const deleteResponse = await ctx.app.request(
+          `/api/downloads/${downloadId}`,
+          {
+            headers: { Cookie: sessionCookie },
+            method: "DELETE",
+          },
+        );
+
+        assertEquals(deleteResponse.status, 200);
+
+        const historyAfterDelete = await ctx.app.request(
+          "/api/downloads/history",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals((await historyAfterDelete.json()).length, 0);
+
+        const calendar = await ctx.app.request(
+          `/api/calendar?start=${
+            encodeURIComponent(new Date(0).toISOString())
+          }&end=${
+            encodeURIComponent(new Date(Date.now() + 86400000).toISOString())
+          }`,
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(calendar.status, 200);
+        assert((await calendar.json()).length >= 1);
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+        await Deno.remove(importFolder, { recursive: true });
+      }
     } finally {
-      await Deno.remove(libraryPath, { recursive: true });
+      await ctx.dispose();
     }
-  } finally {
-    await ctx.dispose();
-  }
-});
+  },
+);
 
-Deno.test("add anime with explicit root folder creates anime-specific folder by default", async () => {
-  const ctx = await createTestContext();
-
-  try {
-    const loginResponse = await ctx.app.request("/api/auth/login", {
-      body: JSON.stringify({ password: "admin", username: "admin" }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-    const sessionCookie = loginResponse.headers.get("set-cookie");
-    assert(sessionCookie);
-    const rootFolder = await Deno.makeTempDir();
+integrationTest(
+  "rss task and missing-search task queue downloads",
+  async () => {
+    const ctx = await createTestContext();
 
     try {
-      const addResponse = await ctx.app.request("/api/anime", {
-        body: JSON.stringify({
-          id: 11061,
-          monitor_and_search: false,
-          monitored: true,
-          profile_name: "Default",
-          release_profile_ids: [],
-          root_folder: rootFolder,
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
         method: "POST",
       });
 
-      assertEquals(addResponse.status, 200);
-      const anime = await addResponse.json();
-      assertEquals(anime.root_folder, `${rootFolder}/Hunter x Hunter (2011)`);
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
 
-      const stats = await Deno.stat(anime.root_folder);
-      assertEquals(stats.isDirectory, true);
+      const rootFolder = await Deno.makeTempDir();
+
+      try {
+        await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        const rssXml =
+          `<?xml version="1.0"?><rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item><title>[SubsPlease] Naruto - 001 (1080p)</title><link>https://nyaa.si/download/1.torrent</link><pubDate>${
+            new Date().toUTCString()
+          }</pubDate><nyaa:seeders>55</nyaa:seeders><nyaa:leechers>1</nyaa:leechers><nyaa:infoHash>abcdefabcdefabcdefabcdefabcdefabcdefabcd</nyaa:infoHash><nyaa:size>1.3 GiB</nyaa:size><nyaa:trusted>Yes</nyaa:trusted><nyaa:remake>No</nyaa:remake></item></channel></rss>`;
+        const rssUrl = `data:text/xml,${encodeURIComponent(rssXml)}`;
+
+        await ctx.app.request("/api/rss", {
+          body: JSON.stringify({ anime_id: 20, url: rssUrl }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        const rssTask = await ctx.app.request("/api/system/tasks/rss", {
+          headers: { Cookie: sessionCookie },
+          method: "POST",
+        });
+
+        assertEquals(rssTask.status, 200);
+
+        const statusAfterRss = await ctx.app.request("/api/system/status", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        const statusBody = await statusAfterRss.json();
+        assertEquals(typeof statusBody.last_rss, "string");
+
+        const queueAfterRss = await ctx.app.request("/api/downloads/queue", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        const queueRssBody = await queueAfterRss.json();
+        assertEquals(queueRssBody.length, 1);
+
+        const metricsResponse = await ctx.app.request("/api/metrics", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        assertEquals(metricsResponse.status, 200);
+        const metricsText = await metricsResponse.text();
+        assertEquals(metricsText.includes("bakarr_total_anime"), true);
+        assertEquals(
+          metricsText.includes("bakarr_active_download_items"),
+          true,
+        );
+
+        const searchMissing = await ctx.app.request(
+          "/api/downloads/search-missing",
+          {
+            body: JSON.stringify({ anime_id: 20 }),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+
+        assertEquals(searchMissing.status, 200);
+
+        const history = await ctx.app.request("/api/downloads/history", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        const historyBody = await history.json();
+        assert(historyBody.length >= 1);
+
+        const scanTask = await ctx.app.request("/api/system/tasks/scan", {
+          headers: { Cookie: sessionCookie },
+          method: "POST",
+        });
+
+        assertEquals(scanTask.status, 200);
+
+        const statusAfterScan = await ctx.app.request("/api/system/status", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        const scanStatusBody = await statusAfterScan.json();
+        assertEquals(typeof scanStatusBody.last_scan, "string");
+
+        const episodeSearch = await ctx.app.request(
+          "/api/search/episode/20/1",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        const episodeSearchBody = await episodeSearch.json();
+        assertEquals(episodeSearch.status, 200);
+        assert(episodeSearchBody.length >= 1);
+        assert(
+          episodeSearchBody[0].download_action.Accept ||
+            episodeSearchBody[0].download_action.Upgrade ||
+            episodeSearchBody[0].download_action.Reject,
+        );
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+      }
     } finally {
-      await Deno.remove(rootFolder, { recursive: true });
+      await ctx.dispose();
     }
-  } finally {
-    await ctx.dispose();
-  }
-});
+  },
+);
 
-Deno.test("import scan matches local anime by parsed filename", async () => {
-  const ctx = await createTestContext();
+integrationTest(
+  "events endpoint streams initial state and live notifications",
+  async () => {
+    const ctx = await createTestContext();
 
-  try {
-    const loginResponse = await ctx.app.request("/api/auth/login", {
-      body: JSON.stringify({ password: "admin", username: "admin" }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-    const sessionCookie = loginResponse.headers.get("set-cookie");
-    assert(sessionCookie);
-    const narutoFolder = await Deno.makeTempDir();
-    const hxhFolder = await Deno.makeTempDir();
-    const importFolder = await Deno.makeTempDir();
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
     try {
-      await ctx.app.request("/api/anime", {
-        body: JSON.stringify({
-          id: 20,
-          monitor_and_search: false,
-          monitored: true,
-          profile_name: "Default",
-          release_profile_ids: [],
-          root_folder: narutoFolder,
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
-      await ctx.app.request("/api/anime", {
-        body: JSON.stringify({
-          id: 11061,
-          monitor_and_search: false,
-          monitored: true,
-          profile_name: "Default",
-          release_profile_ids: [],
-          root_folder: hxhFolder,
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
-      await ctx.app.request("/api/anime", {
-        body: JSON.stringify({
-          id: 140960,
-          monitor_and_search: false,
-          monitored: true,
-          profile_name: "Default",
-          release_profile_ids: [],
-          root_folder: `${hxhFolder}-spy`,
-        }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
         method: "POST",
       });
 
-      await Deno.writeTextFile(
-        `${importFolder}/[SubsPlease] Hunter x Hunter (2011) - 002 [1080p].mkv`,
-        "video",
-      );
-      await Deno.writeTextFile(
-        `${importFolder}/[SubsPlease] SPYxFAMILY Season II - 03 [1080p].mkv`,
-        "video",
-      );
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
 
-      const scanResponse = await ctx.app.request("/api/library/import/scan", {
-        body: JSON.stringify({ path: importFolder }),
-        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
-        method: "POST",
-      });
+      const rootFolder = await Deno.makeTempDir();
 
-      assertEquals(scanResponse.status, 200);
-      const scanBody = await scanResponse.json();
-      assertEquals(scanBody.files.length, 2);
-      assertEquals(scanBody.files[0].matched_anime?.id, 11061);
-      assertEquals(scanBody.files[0].suggested_candidate_id, 11061);
-      assertEquals(scanBody.files[1].suggested_candidate_id, 140960);
+      try {
+        const addAnimeResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(addAnimeResponse.status, 200);
+
+        const eventsResponse = await ctx.app.request("/api/events", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        assertEquals(eventsResponse.status, 200);
+        assertEquals(
+          eventsResponse.headers.get("content-type"),
+          "text/event-stream",
+        );
+        assert(eventsResponse.body);
+
+        reader = eventsResponse.body.getReader();
+
+        const initialChunk = await readUntilMatch(
+          reader,
+          /"type":"DownloadProgress"/,
+        );
+        assertMatch(initialChunk, /: connected/);
+        assertMatch(initialChunk, /"type":"DownloadProgress"/);
+        assertMatch(initialChunk, /"downloads":\[\]/);
+
+        const triggerDownload = await ctx.app.request("/api/search/download", {
+          body: JSON.stringify({
+            anime_id: 20,
+            episode_number: 1,
+            magnet: "magnet:?xt=urn:btih:test-events",
+            title: "Naruto - 01",
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(triggerDownload.status, 200);
+
+        const streamed = await readUntilMatch(
+          reader,
+          /"type":"DownloadStarted"|"type":"DownloadProgress"/,
+        );
+
+        assertMatch(
+          streamed,
+          /"type":"DownloadStarted"|"type":"DownloadProgress"/,
+        );
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+      }
     } finally {
-      await Deno.remove(narutoFolder, { recursive: true });
-      await Deno.remove(hxhFolder, { recursive: true });
-      await Deno.remove(`${hxhFolder}-spy`, { recursive: true }).catch(() =>
-        undefined
-      );
-      await Deno.remove(importFolder, { recursive: true });
+      await reader?.cancel().catch(() => undefined);
+      await ctx.dispose();
     }
-  } finally {
-    await ctx.dispose();
-  }
-});
+  },
+);
 
-Deno.test("bulk map accepts empty file path as unmap", async () => {
+integrationTest(
+  "add anime without root folder falls back to configured library path",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+      const libraryPath = await Deno.makeTempDir();
+
+      try {
+        const currentConfigResponse = await ctx.app.request(
+          "/api/system/config",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+        const currentConfig = await currentConfigResponse.json();
+
+        await ctx.app.request("/api/system/config", {
+          body: JSON.stringify({
+            ...currentConfig,
+            library: {
+              ...currentConfig.library,
+              library_path: libraryPath,
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        });
+
+        const addResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: "",
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(addResponse.status, 200);
+        const anime = await addResponse.json();
+        assertEquals(anime.root_folder.startsWith(libraryPath), true);
+        assertEquals(anime.root_folder, `${libraryPath}/Naruto`);
+      } finally {
+        await Deno.remove(libraryPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "add anime with explicit root folder creates anime-specific folder by default",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+      const rootFolder = await Deno.makeTempDir();
+
+      try {
+        const addResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 11061,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(addResponse.status, 200);
+        const anime = await addResponse.json();
+        assertEquals(anime.root_folder, `${rootFolder}/Hunter x Hunter (2011)`);
+
+        const stats = await Deno.stat(anime.root_folder);
+        assertEquals(stats.isDirectory, true);
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "import scan matches local anime by parsed filename",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+      const narutoFolder = await Deno.makeTempDir();
+      const hxhFolder = await Deno.makeTempDir();
+      const importFolder = await Deno.makeTempDir();
+
+      try {
+        await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: narutoFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 11061,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: hxhFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 140960,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: `${hxhFolder}-spy`,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        await Deno.writeTextFile(
+          `${importFolder}/[SubsPlease] Hunter x Hunter (2011) - 002 [1080p].mkv`,
+          "video",
+        );
+        await Deno.writeTextFile(
+          `${importFolder}/[SubsPlease] SPYxFAMILY Season II - 03 [1080p].mkv`,
+          "video",
+        );
+
+        const scanResponse = await ctx.app.request("/api/library/import/scan", {
+          body: JSON.stringify({ path: importFolder }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(scanResponse.status, 200);
+        const scanBody = await scanResponse.json();
+        assertEquals(scanBody.files.length, 2);
+        assertEquals(scanBody.files[0].matched_anime?.id, 11061);
+        assertEquals(scanBody.files[0].suggested_candidate_id, 11061);
+        assertEquals(scanBody.files[1].suggested_candidate_id, 140960);
+      } finally {
+        await Deno.remove(narutoFolder, { recursive: true });
+        await Deno.remove(hxhFolder, { recursive: true });
+        await Deno.remove(`${hxhFolder}-spy`, { recursive: true }).catch(() =>
+          undefined
+        );
+        await Deno.remove(importFolder, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest("bulk map accepts empty file path as unmap", async () => {
   const ctx = await createTestContext();
 
   try {
@@ -947,6 +1126,7 @@ Deno.test("bulk map accepts empty file path as unmap", async () => {
 });
 
 async function createTestContext() {
+  const { bootstrap } = await import("./main.ts");
   const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
   const { app, runtime } = await bootstrap({
     bootstrapPassword: Redacted.make("admin"),
@@ -963,4 +1143,51 @@ async function createTestContext() {
       await Deno.remove(databaseFile);
     },
   };
+}
+
+async function readStreamChunk(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  timeoutMs = 1000,
+) {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    const chunk = await Promise.race([
+      reader.read(),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error("Timed out waiting for stream chunk"));
+        }, timeoutMs);
+      }),
+    ]);
+
+    if (chunk.done) {
+      throw new Error("Stream ended unexpectedly");
+    }
+
+    return new TextDecoder().decode(chunk.value);
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+async function readUntilMatch(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  pattern: RegExp,
+  timeoutMs = 3000,
+) {
+  const deadline = Date.now() + timeoutMs;
+  let output = "";
+
+  while (Date.now() < deadline) {
+    output += await readStreamChunk(reader, deadline - Date.now());
+
+    if (pattern.test(output)) {
+      return output;
+    }
+  }
+
+  throw new Error(`Timed out waiting for stream output matching ${pattern}`);
 }
