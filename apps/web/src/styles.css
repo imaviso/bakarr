@@ -1,0 +1,196 @@
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 0 0% 4%;
+
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 45%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 4%;
+
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 4%;
+
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 9%;
+
+    --accent: 0 0% 95%;
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --info: 210 100% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --error: 0 84% 60%;
+    --error-foreground: 0 0% 100%;
+
+    --ring: 0 0% 4%;
+    --radius: 0rem; /* Sharp corners */
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 4%;
+    --sidebar-primary: 0 0% 9%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 0 0% 95%;
+    --sidebar-accent-foreground: 0 0% 9%;
+    --sidebar-border: 0 0% 90%;
+    --sidebar-ring: 0 0% 4%;
+  }
+
+  /* Defaulting to dark as the primary aesthetic */
+  .dark,
+  [data-kb-theme="dark"] {
+    --background: 0 0% 2%; /* Very deep black */
+    --foreground: 0 0% 98%;
+
+    --muted: 0 0% 8%; /* Dark gray */
+    --muted-foreground: 0 0% 60%; /* Medium gray */
+
+    --popover: 0 0% 3%;
+    --popover-foreground: 0 0% 98%;
+
+    --border: 0 0% 12%; /* Subtle border */
+    --input: 0 0% 12%;
+
+    --card: 0 0% 3%; /* Slightly lighter than bg */
+    --card-foreground: 0 0% 98%;
+
+    --primary: 0 0% 98%; /* White buttons */
+    --primary-foreground: 0 0% 0%; /* Black text on white */
+
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 98%;
+
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 98%;
+
+    --info: 210 100% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --error: 0 84% 65%;
+    --error-foreground: 0 0% 100%;
+
+    --ring: 0 0% 20%;
+    --radius: 0rem;
+
+    --sidebar-background: 0 0% 2%; 
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 0 0% 20%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Geist Variable", sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    /* Noise texture */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-1 ring-ring ring-offset-1 ring-offset-background;
+  }
+  
+  /* Make headings a bit lighter in weight than the brutalist ones */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .glass {
+    @apply bg-background/80 backdrop-blur-xl border-b border-border;
+  }
+
+  .glass-dark {
+    @apply bg-background/80 backdrop-blur-xl border-b border-border;
+  }
+
+  .card-hover {
+    @apply transition-colors duration-200 border border-border hover:border-muted-foreground/30;
+  }
+
+  .skeleton {
+    @apply animate-pulse bg-muted rounded-none;
+  }
+
+  .text-muted-custom {
+    @apply text-muted-foreground;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-none border-[1px] border-background bg-clip-content;
+  transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-muted-foreground/40;
+}
+
+::-webkit-scrollbar-corner {
+  @apply bg-transparent;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}

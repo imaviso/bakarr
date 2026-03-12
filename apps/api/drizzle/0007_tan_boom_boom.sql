@@ -1,0 +1,1 @@
+ALTER TABLE `downloads` ADD `covered_episodes` text;

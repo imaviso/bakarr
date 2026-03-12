@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+
+.direnv/
+
+*.tsbuildinfo
+build.log
+
+bakarr.sqlite
+bakarr.sqlite-shm
+bakarr.sqlite-wal

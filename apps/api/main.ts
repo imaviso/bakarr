@@ -1,0 +1,89 @@
+import "@std/dotenv/load";
+import { Effect } from "effect";
+
+import type { Config } from "../../packages/shared/src/index.ts";
+import { startBackgroundWorkers } from "./src/background.ts";
+import { AppConfig, type AppConfigShape } from "./src/config.ts";
+import { migrateDatabase } from "./src/db/migrate.ts";
+import { AuthService } from "./src/features/auth/service.ts";
+import { SystemService } from "./src/features/system/service.ts";
+import { createApp } from "./src/http/app.ts";
+import { createAppFetchHandler } from "./src/http/static.ts";
+import { compactLogAnnotations, setRuntimeLogLevel } from "./src/lib/logging.ts";
+import { makeApiRuntime, runApi } from "./src/runtime.ts";
+
+const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
+  yield* migrateDatabase();
+
+  const auth = yield* AuthService;
+  yield* auth.ensureBootstrapUser();
+
+  const system = yield* SystemService;
+  yield* system.ensureInitialized();
+
+  return yield* AppConfig;
+});
+
+export async function bootstrap(overrides: Partial<AppConfigShape> = {}) {
+  const runtime = makeApiRuntime(overrides);
+  const config = await runApi(
+    runtime,
+    bootstrapProgram().pipe(Effect.withSpan("api.bootstrap")),
+  );
+
+  const app = createApp((effect) => runApi(runtime, effect));
+
+  return {
+    app,
+    config,
+    runtime,
+  };
+}
+
+if (import.meta.main) {
+  const { app, config, runtime } = await bootstrap();
+  const systemConfig = await runApi(
+    runtime,
+    Effect.flatMap(SystemService, (system) => system.getConfig()),
+  ) as Config;
+  setRuntimeLogLevel(systemConfig.general.log_level);
+  const workers = await startBackgroundWorkers(runtime);
+
+  await runApi(
+    runtime,
+    Effect.logInfo("api server starting").pipe(
+      Effect.annotateLogs(
+        compactLogAnnotations({
+          appVersion: config.appVersion,
+          component: "api",
+          event: "api.server.starting",
+          port: config.port,
+        }),
+      ),
+    ),
+  );
+
+  const shutdown = async () => {
+    await runApi(
+      runtime,
+      Effect.logInfo("api server shutting down").pipe(
+        Effect.annotateLogs({
+          component: "api",
+          event: "api.server.stopping",
+        }),
+      ),
+    ).catch(() => undefined);
+    workers.stop();
+    await runtime.dispose();
+  };
+
+  Deno.addSignalListener("SIGINT", () => {
+    void shutdown().finally(() => Deno.exit(0));
+  });
+
+  Deno.addSignalListener("SIGTERM", () => {
+    void shutdown().finally(() => Deno.exit(0));
+  });
+
+  Deno.serve({ port: config.port }, createAppFetchHandler(app.fetch));
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@bakarr/api",
+  "private": true,
+  "scripts": {
+    "dev": "deno task dev",
+    "start": "deno task start",
+    "test": "deno task test",
+    "build": "deno task check",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@effect/language-service": "^0.79.0",
+    "@libsql/client": "^0.17.0",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.9"
+  }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE `downloads` ADD `is_batch` integer DEFAULT false NOT NULL;
