@@ -21,11 +21,8 @@ import {
   rssFeeds,
 } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
-import {
-  buildRenamePreview,
-  parseEpisodeNumber,
-  scanVideoFiles,
-} from "./library-import.ts";
+import { buildRenamePreview, parseEpisodeNumber } from "./library-import.ts";
+import { scanVideoFilesIterator } from "./file-scanner.ts";
 import { upsertEpisodeFile } from "./download-support.ts";
 import {
   appendLog,
@@ -524,10 +521,13 @@ export function makeCatalogOrchestration(input: {
             "Failed to run library scan",
             async () => {
               let s = 0, m = 0;
-              const files = await Ef.runPromise(
-                scanVideoFiles(fs, animeRow.rootFolder),
-              );
-              for (const file of files) {
+
+              for await (
+                const file of scanVideoFilesIterator(
+                  fs,
+                  animeRow.rootFolder,
+                )
+              ) {
                 s++;
                 const episodeNumber = parseEpisodeNumber(file.path);
                 if (episodeNumber) {

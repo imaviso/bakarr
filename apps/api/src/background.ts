@@ -64,7 +64,7 @@ export async function startBackgroundWorkers(
       );
 
       const spawnedFibers: Fiber.Fiber<void, never>[] = [
-        yield* Effect.fork(
+        yield* Effect.forkDaemon(
           repeatWorker(downloadSyncLoop, {
             intervalMs: schedule.downloadSyncMs,
           }),
@@ -73,7 +73,7 @@ export async function startBackgroundWorkers(
 
       if (schedule.rssCronExpression !== null || schedule.rssCheckMs !== null) {
         spawnedFibers.push(
-          yield* Effect.fork(
+          yield* Effect.forkDaemon(
             repeatWorker(rssLoop, {
               cronExpression: schedule.rssCronExpression,
               initialDelayMs: schedule.initialDelayMs,
@@ -85,7 +85,7 @@ export async function startBackgroundWorkers(
 
       if (schedule.libraryScanMs !== null) {
         spawnedFibers.push(
-          yield* Effect.fork(
+          yield* Effect.forkDaemon(
             repeatWorker(libraryLoop, {
               initialDelayMs: schedule.initialDelayMs,
               intervalMs: schedule.libraryScanMs,

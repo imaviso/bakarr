@@ -1,9 +1,14 @@
 import { Effect } from "effect";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 
+export interface ScannedVideoFile {
+  readonly name: string;
+  readonly path: string;
+}
+
 export function scanVideoFiles(fs: FileSystemShape, path: string) {
   return Effect.fn("Operations.scanVideoFiles")(function* () {
-    const results: { name: string; path: string }[] = [];
+    const results: ScannedVideoFile[] = [];
     const stack = [path];
 
     while (stack.length > 0) {
@@ -33,6 +38,40 @@ export function scanVideoFiles(fs: FileSystemShape, path: string) {
 
     return results;
   })();
+}
+
+export async function* scanVideoFilesIterator(
+  fs: FileSystemShape,
+  path: string,
+): AsyncGenerator<ScannedVideoFile, void, unknown> {
+  const stack = [path];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+
+    if (!current) {
+      continue;
+    }
+
+    const entries = await Effect.runPromise(
+      fs.readDir(current).pipe(
+        Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+      ),
+    );
+
+    for (const entry of entries) {
+      const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+
+      if (entry.isDirectory) {
+        stack.push(fullPath);
+        continue;
+      }
+
+      if (entry.isFile && isVideoFile(entry.name)) {
+        yield { name: entry.name, path: fullPath };
+      }
+    }
+  }
 }
 
 export function parseEpisodeNumber(path: string) {

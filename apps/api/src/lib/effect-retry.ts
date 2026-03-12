@@ -34,6 +34,7 @@ export const tryExternal = <A>(
         Effect.timeout("10 seconds"),
         Effect.retry(retryPolicy),
         Effect.scoped,
+        Effect.mapError((cause) => toExternalCallError(operation, cause)),
         Effect.tapBoth({
           onSuccess: () =>
             Effect.logInfo("external call completed").pipe(

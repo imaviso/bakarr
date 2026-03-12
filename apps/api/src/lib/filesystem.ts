@@ -72,6 +72,19 @@ const makeFileSystem: FileSystemShape = {
 export const FileSystemLive = Layer.succeed(FileSystem, makeFileSystem);
 
 export function isWithinPathRoot(path: string, root: string) {
-  const normalizedRoot = root.replace(/\/+$/, "");
-  return path === normalizedRoot || path.startsWith(`${normalizedRoot}/`);
+  const normalizedPath = normalizePathForContainment(path);
+  const normalizedRoot = normalizePathForContainment(root);
+
+  return normalizedPath === normalizedRoot ||
+    normalizedPath.startsWith(`${normalizedRoot}/`);
+}
+
+function normalizePathForContainment(path: string) {
+  const normalized = path.replace(/[\\/]+/g, "/");
+
+  if (normalized === "/" || /^[A-Za-z]:\/$/.test(normalized)) {
+    return normalized;
+  }
+
+  return normalized.replace(/\/+$/, "");
 }

@@ -20,3 +20,20 @@ Deno.test("isWithinPathRoot only matches the configured root boundary", () => {
     false,
   );
 });
+
+Deno.test("isWithinPathRoot accepts Windows-style child paths", () => {
+  assertEquals(
+    isWithinPathRoot(
+      "C:\\downloads\\show\\episode.mkv",
+      "C:\\downloads",
+    ),
+    true,
+  );
+  assertEquals(
+    isWithinPathRoot(
+      "C:\\downloads-evil\\show\\episode.mkv",
+      "C:\\downloads",
+    ),
+    false,
+  );
+});
