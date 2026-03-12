@@ -11,6 +11,7 @@ import { QBitTorrentClientLive } from "./features/operations/qbittorrent.ts";
 import { RssClientLive } from "./features/operations/rss-client.ts";
 import { OperationsServiceLive } from "./features/operations/service.ts";
 import { SystemServiceLive } from "./features/system/service.ts";
+import { FileSystemLive } from "./lib/filesystem.ts";
 import { RuntimeLoggerLayer } from "./lib/logging.ts";
 
 export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
@@ -27,6 +28,7 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
     AniListClientLive,
     QBitTorrentClientLive,
     RssClientLive,
+    FileSystemLive,
   );
   const servicesLayer = Layer.mergeAll(
     AuthServiceLive,

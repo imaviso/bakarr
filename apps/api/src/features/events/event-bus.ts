@@ -1,10 +1,23 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Queue, Ref } from "effect";
 
 import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
 
+type EventQueue = ReturnType<typeof Queue.unbounded<NotificationEvent>> extends
+  Effect.Effect<
+    infer QueueType,
+    unknown,
+    unknown
+  > ? QueueType
+  : never;
+
+export interface EventSubscription {
+  readonly close: Effect.Effect<void>;
+  readonly take: Effect.Effect<NotificationEvent, unknown>;
+}
+
 export interface EventBusShape {
   readonly publish: (event: NotificationEvent) => Effect.Effect<void>;
-  readonly stream: () => ReadableStream<Uint8Array>;
+  readonly subscribe: () => Effect.Effect<EventSubscription>;
 }
 
 export class EventBus extends Context.Tag("@bakarr/api/EventBus")<
@@ -12,61 +25,50 @@ export class EventBus extends Context.Tag("@bakarr/api/EventBus")<
   EventBusShape
 >() {}
 
-export const EventBusLive = Layer.sync(EventBus, () => {
-  const subscribers = new Set<ReadableStreamDefaultController<Uint8Array>>();
-  const intervals = new WeakMap<
-    ReadableStreamDefaultController<Uint8Array>,
-    number
-  >();
+export const EventBusLive = Layer.effect(
+  EventBus,
+  Effect.gen(function* () {
+    const subscribers = yield* Ref.make<Set<EventQueue>>(new Set());
 
-  const encoder = new TextEncoder();
+    return {
+      publish: (event: NotificationEvent) =>
+        Effect.gen(function* () {
+          const queues = yield* Ref.get(subscribers);
 
-  return {
-    publish: (event: NotificationEvent) =>
-      Effect.sync(() => {
-        const payload = encoder.encode(`data: ${JSON.stringify(event)}\n\n`);
-
-        for (const subscriber of subscribers) {
-          try {
-            subscriber.enqueue(payload);
-          } catch {
-            subscribers.delete(subscriber);
+          for (const queue of queues) {
+            yield* Queue.offer(queue, event).pipe(
+              Effect.catchAll(() =>
+                Ref.update(subscribers, (current) => {
+                  const next = new Set(current);
+                  next.delete(queue);
+                  return next;
+                })
+              ),
+            );
           }
-        }
-      }),
-    stream: () =>
-      new ReadableStream<Uint8Array>({
-        start(controller) {
-          subscribers.add(controller);
+        }).pipe(Effect.asVoid),
+      subscribe: () =>
+        Effect.gen(function* () {
+          const queue = yield* Queue.unbounded<NotificationEvent>();
 
-          const interval = setInterval(() => {
-            try {
-              controller.enqueue(
-                encoder.encode(`: keep-alive ${Date.now()}\n\n`),
-              );
-            } catch {
-              subscribers.delete(controller);
-              clearInterval(interval);
-            }
-          }, 15_000);
+          yield* Ref.update(subscribers, (current) => {
+            const next = new Set(current);
+            next.add(queue);
+            return next;
+          });
 
-          intervals.set(controller, interval);
-
-          controller.enqueue(encoder.encode(`: connected\n\n`));
-        },
-        cancel() {
-          for (const subscriber of subscribers) {
-            if (subscriber.desiredSize === null) {
-              const interval = intervals.get(subscriber);
-
-              if (interval !== undefined) {
-                clearInterval(interval);
-              }
-
-              subscribers.delete(subscriber);
-            }
-          }
-        },
-      }),
-  };
-});
+          return {
+            close: Effect.gen(function* () {
+              yield* Ref.update(subscribers, (current) => {
+                const next = new Set(current);
+                next.delete(queue);
+                return next;
+              });
+              yield* Queue.shutdown(queue);
+            }),
+            take: Queue.take(queue),
+          } satisfies EventSubscription;
+        }),
+    };
+  }),
+);

@@ -27,7 +27,7 @@ import {
   decodeQualityProfileRow,
   decodeReleaseProfileRules,
 } from "../system/config-codec.ts";
-import { OperationsError } from "./errors.ts";
+import { OperationsAnimeNotFoundError } from "./errors.ts";
 
 export interface CurrentEpisodeState {
   readonly downloaded: boolean;
@@ -40,7 +40,7 @@ export async function requireAnime(db: AppDatabase, animeId: number) {
   );
   const row = rows[0];
   if (!row) {
-    throw new OperationsError({ message: "Anime not found", status: 404 });
+    throw new OperationsAnimeNotFoundError({ message: "Anime not found" });
   }
   return row;
 }

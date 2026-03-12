@@ -1,9 +1,24 @@
 import { Schema } from "effect";
 
-export class OperationsError extends Schema.TaggedError<OperationsError>()(
-  "OperationsError",
-  {
-    message: Schema.String,
-    status: Schema.Literal(400, 404, 409),
-  },
-) {}
+export class DownloadNotFoundError
+  extends Schema.TaggedError<DownloadNotFoundError>()(
+    "DownloadNotFoundError",
+    { message: Schema.String },
+  ) {}
+
+export class OperationsAnimeNotFoundError
+  extends Schema.TaggedError<OperationsAnimeNotFoundError>()(
+    "OperationsAnimeNotFoundError",
+    { message: Schema.String },
+  ) {}
+
+export class DownloadConflictError
+  extends Schema.TaggedError<DownloadConflictError>()(
+    "DownloadConflictError",
+    { message: Schema.String },
+  ) {}
+
+export type OperationsError =
+  | DownloadNotFoundError
+  | DownloadConflictError
+  | OperationsAnimeNotFoundError;

@@ -36,18 +36,23 @@ export async function buildRenamePreview(
   });
 }
 
+import { Effect } from "effect";
+import type { FileSystemShape } from "../../lib/filesystem.ts";
+
 export async function copyDirectoryContents(
+  fs: FileSystemShape,
   source: string,
   destination: string,
 ) {
-  await Deno.mkdir(destination, { recursive: true });
-  for await (const entry of Deno.readDir(source)) {
+  await Effect.runPromise(fs.mkdir(destination, { recursive: true }));
+  const entries = await Effect.runPromise(fs.readDir(source));
+  for (const entry of entries) {
     const sourcePath = `${source.replace(/\/$/, "")}/${entry.name}`;
     const destinationPath = `${destination.replace(/\/$/, "")}/${entry.name}`;
     if (entry.isDirectory) {
-      await copyDirectoryContents(sourcePath, destinationPath);
+      await copyDirectoryContents(fs, sourcePath, destinationPath);
     } else if (entry.isFile) {
-      await Deno.copyFile(sourcePath, destinationPath);
+      await Effect.runPromise(fs.copyFile(sourcePath, destinationPath));
     }
   }
 }

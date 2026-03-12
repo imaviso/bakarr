@@ -1,10 +1,15 @@
 import { Schema } from "effect";
 
-export class SystemServiceError
-  extends Schema.TaggedError<SystemServiceError>()(
-    "SystemServiceError",
-    {
-      message: Schema.String,
-      status: Schema.Literal(400, 404, 409),
-    },
+export class ConfigValidationError
+  extends Schema.TaggedError<ConfigValidationError>()(
+    "ConfigValidationError",
+    { message: Schema.String },
   ) {}
+
+export class ProfileNotFoundError
+  extends Schema.TaggedError<ProfileNotFoundError>()(
+    "ProfileNotFoundError",
+    { message: Schema.String },
+  ) {}
+
+export type SystemServiceError = ConfigValidationError | ProfileNotFoundError;

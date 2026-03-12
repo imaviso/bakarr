@@ -36,7 +36,7 @@ import {
   makeDefaultConfig,
 } from "./defaults.ts";
 import { setRuntimeLogLevel } from "../../lib/logging.ts";
-import { SystemServiceError } from "./errors.ts";
+import { ConfigValidationError, ProfileNotFoundError } from "./errors.ts";
 import {
   type ConfigCore,
   decodeConfigCore,
@@ -65,7 +65,7 @@ export interface SystemServiceShape {
   readonly getConfig: () => Effect.Effect<Config, DatabaseError>;
   readonly updateConfig: (
     config: Config,
-  ) => Effect.Effect<Config, DatabaseError | SystemServiceError>;
+  ) => Effect.Effect<Config, DatabaseError | ConfigValidationError>;
   readonly listProfiles: () => Effect.Effect<QualityProfile[], DatabaseError>;
   readonly listQualities: () => Effect.Effect<Quality[], never>;
   readonly createProfile: (
@@ -74,7 +74,7 @@ export interface SystemServiceShape {
   readonly updateProfile: (
     name: string,
     profile: QualityProfile,
-  ) => Effect.Effect<QualityProfile, DatabaseError | SystemServiceError>;
+  ) => Effect.Effect<QualityProfile, DatabaseError | ProfileNotFoundError>;
   readonly deleteProfile: (name: string) => Effect.Effect<void, DatabaseError>;
   readonly listReleaseProfiles: () => Effect.Effect<
     ReleaseProfile[],
@@ -530,9 +530,8 @@ const makeSystemService = Effect.gen(function* () {
       const parsed = Cron.parse(cronExpression);
 
       if (Either.isLeft(parsed)) {
-        yield* SystemServiceError.make({
+        yield* new ConfigValidationError({
           message: "Invalid scheduler cron expression",
-          status: 400,
         });
       }
     }
@@ -601,9 +600,8 @@ const makeSystemService = Effect.gen(function* () {
     );
 
     if (!existing[0]) {
-      yield* SystemServiceError.make({
+      yield* new ProfileNotFoundError({
         message: "Quality profile not found",
-        status: 404,
       });
     }
 

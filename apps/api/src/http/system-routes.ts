@@ -3,7 +3,11 @@ import type { Hono } from "hono";
 
 import type { HealthStatus } from "../../../../packages/shared/src/index.ts";
 import { EventBus } from "../features/events/event-bus.ts";
-import { DownloadService, LibraryService, RssService } from "../features/operations/service.ts";
+import {
+  DownloadService,
+  LibraryService,
+  RssService,
+} from "../features/operations/service.ts";
 import { SystemService } from "../features/system/service.ts";
 import {
   ConfigSchema,
@@ -352,11 +356,11 @@ export function registerSystemRoutes(
     ));
 
   app.get("/api/events", async (_c) => {
-    const [stream, downloads] = await Promise.all([
+    const [subscription, downloads] = await Promise.all([
       runEffect(
         Effect.flatMap(
           EventBus,
-          (eventBus) => Effect.succeed(eventBus.stream()),
+          (eventBus) => eventBus.subscribe(),
         ),
       ),
       runEffect(
@@ -368,27 +372,42 @@ export function registerSystemRoutes(
     ]);
 
     const encoder = new TextEncoder();
-    const initial = encoder.encode(
+    const encodeSse = (payload: string) => encoder.encode(`${payload}\n\n`);
+    const initial = encodeSse(
       `data: ${
         JSON.stringify({ type: "DownloadProgress", payload: { downloads } })
-      }\n\n`,
+      }`,
     );
     const combined = new ReadableStream<Uint8Array>({
       async start(controller) {
-        controller.enqueue(initial);
-        const reader = stream.getReader();
+        const interval = setInterval(() => {
+          try {
+            controller.enqueue(encodeSse(`: keep-alive ${Date.now()}`));
+          } catch {
+            void Effect.runPromise(subscription.close).catch(() => undefined);
+          }
+        }, 15_000);
+
         try {
+          controller.enqueue(encodeSse(": connected"));
+          controller.enqueue(initial);
+
           while (true) {
-            const next = await reader.read();
-            if (next.done) {
-              break;
-            }
-            controller.enqueue(next.value);
+            const event = await Effect.runPromise(subscription.take);
+            controller.enqueue(encodeSse(`data: ${JSON.stringify(event)}`));
           }
         } finally {
-          reader.releaseLock();
-          controller.close();
+          clearInterval(interval);
+          await Effect.runPromise(subscription.close).catch(() => undefined);
+          try {
+            controller.close();
+          } catch {
+            // Ignore cancelled streams.
+          }
         }
+      },
+      cancel() {
+        return Effect.runPromise(subscription.close).catch(() => undefined);
       },
     });
 

@@ -39,7 +39,12 @@ import {
   recordDownloadEvent,
 } from "./job-support.ts";
 import { parseReleaseName } from "./release-ranking.ts";
-import { OperationsError } from "./errors.ts";
+import {
+  DownloadConflictError,
+  DownloadNotFoundError,
+  type OperationsError,
+} from "./errors.ts";
+import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type {
   QBitConfig,
   QBitTorrent,
@@ -56,22 +61,9 @@ type TryOperationsPromise = <A>(
   try_: () => Promise<A>,
 ) => Effect.Effect<A, OperationsError | DatabaseError>;
 
-class AsyncMutex {
-  private queue: Promise<void> = Promise.resolve();
-
-  acquire(): Promise<() => void> {
-    let release!: () => void;
-    const next = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const wait = this.queue;
-    this.queue = this.queue.then(() => next).catch(() => next);
-    return wait.then(() => release);
-  }
-}
-
 export function makeDownloadOrchestration(input: {
   db: AppDatabase;
+  fs: FileSystemShape;
   qbitClient: typeof QBitTorrentClient.Service;
   eventBus: typeof EventBus.Service;
   tryDatabasePromise: TryDatabasePromise;
@@ -81,9 +73,11 @@ export function makeDownloadOrchestration(input: {
   ) => (cause: unknown) => OperationsError | DatabaseError;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
+  triggerSemaphore: Effect.Semaphore;
 }) {
   const {
     db,
+    fs,
     qbitClient,
     eventBus,
     tryDatabasePromise,
@@ -91,9 +85,8 @@ export function makeDownloadOrchestration(input: {
     wrapOperationsError,
     dbError,
     maybeQBitConfig,
+    triggerSemaphore,
   } = input;
-
-  const triggerMutex = new AsyncMutex();
 
   const maybeCleanupImportedTorrent = Effect.fn(
     "OperationsService.maybeCleanupImportedTorrent",
@@ -113,13 +106,14 @@ export function makeDownloadOrchestration(input: {
       shouldDeleteImportedData(config),
     ).pipe(
       Effect.catchAll((cause) =>
-        Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
-          Effect.annotateLogs({
-            infoHash,
-            error: String(cause)
-          })
-        )
-      )
+        Effect.logWarning("Failed to delete imported torrent from qBittorrent")
+          .pipe(
+            Effect.annotateLogs({
+              infoHash,
+              error: String(cause),
+            }),
+          )
+      ),
     );
   });
 
@@ -158,6 +152,7 @@ export function makeDownloadOrchestration(input: {
       "Failed to reconcile completed download",
       () =>
         resolveAccessibleDownloadPath(
+          fs,
           contentPath,
           runtimeConfig.downloads.remote_path_mappings,
         ),
@@ -186,7 +181,7 @@ export function makeDownloadOrchestration(input: {
       const coveredEpisodes = parseCoveredEpisodes(row.coveredEpisodes);
       const batchPaths = yield* tryDatabasePromise(
         "Failed to reconcile completed download",
-        () => resolveBatchContentPaths(resolvedContentRoot),
+        () => resolveBatchContentPaths(fs, resolvedContentRoot),
       );
 
       if (batchPaths.length > 0) {
@@ -207,7 +202,13 @@ export function makeDownloadOrchestration(input: {
           const managedPath = yield* tryOperationsPromise(
             "Failed to reconcile completed download",
             () =>
-              importDownloadedFile(animeRow, episodeNumber, path, importMode),
+              importDownloadedFile(
+                fs,
+                animeRow,
+                episodeNumber,
+                path,
+                importMode,
+              ),
           );
           yield* tryDatabasePromise(
             "Failed to reconcile completed download",
@@ -256,7 +257,8 @@ export function makeDownloadOrchestration(input: {
 
     const resolvedPath = yield* tryDatabasePromise(
       "Failed to reconcile completed download",
-      () => resolveCompletedContentPath(resolvedContentRoot, row.episodeNumber),
+      () =>
+        resolveCompletedContentPath(fs, resolvedContentRoot, row.episodeNumber),
     );
 
     if (!resolvedPath) {
@@ -267,6 +269,7 @@ export function makeDownloadOrchestration(input: {
       "Failed to reconcile completed download",
       () =>
         importDownloadedFile(
+          fs,
           animeRow,
           row.episodeNumber,
           resolvedPath,
@@ -454,9 +457,8 @@ export function makeDownloadOrchestration(input: {
     const row = rows[0];
 
     if (!row) {
-      yield* OperationsError.make({
+      yield* new DownloadNotFoundError({
         message: "Download not found",
-        status: 404,
       });
     }
 
@@ -537,16 +539,14 @@ export function makeDownloadOrchestration(input: {
       const row = rows[0];
 
       if (!row) {
-        yield* OperationsError.make({
+        yield* new DownloadNotFoundError({
           message: "Download not found",
-          status: 404,
         });
       }
 
       if (!row!.magnet) {
-        yield* OperationsError.make({
+        yield* new DownloadConflictError({
           message: "Download cannot be retried without a magnet link",
-          status: 409,
         });
       }
 
@@ -601,18 +601,16 @@ export function makeDownloadOrchestration(input: {
     const row = rows[0];
 
     if (!row) {
-      yield* OperationsError.make({
+      yield* new DownloadNotFoundError({
         message: "Download not found",
-        status: 404,
       });
     }
 
     const contentPath = row!.contentPath ?? row!.savePath;
 
     if (!contentPath || !row!.infoHash) {
-      yield* OperationsError.make({
+      yield* new DownloadConflictError({
         message: "Download has no reconciliable content path",
-        status: 409,
       });
     }
 
@@ -632,9 +630,7 @@ export function makeDownloadOrchestration(input: {
       info_hash?: string;
       is_batch?: boolean;
     }) {
-      const releaseLock = yield* Effect.promise(() => triggerMutex.acquire());
-
-      try {
+      return yield* triggerSemaphore.withPermits(1)(Effect.gen(function* () {
         const animeRow = yield* tryOperationsPromise(
           "Failed to trigger download",
           () => requireAnime(db, input.anime_id),
@@ -723,9 +719,7 @@ export function makeDownloadOrchestration(input: {
           payload: { anime_id: animeRow.id, title: input.title },
         });
         yield* publishDownloadProgress();
-      } finally {
-        releaseLock();
-      }
+      }));
     },
   );
 

@@ -1,9 +1,15 @@
 import { Schema } from "effect";
 
-export class AnimeServiceError extends Schema.TaggedError<AnimeServiceError>()(
-  "AnimeServiceError",
-  {
-    message: Schema.String,
-    status: Schema.Literal(400, 404, 409),
-  },
-) {}
+export class AnimeNotFoundError
+  extends Schema.TaggedError<AnimeNotFoundError>()(
+    "AnimeNotFoundError",
+    { message: Schema.String },
+  ) {}
+
+export class AnimeConflictError
+  extends Schema.TaggedError<AnimeConflictError>()(
+    "AnimeConflictError",
+    { message: Schema.String },
+  ) {}
+
+export type AnimeServiceError = AnimeNotFoundError | AnimeConflictError;

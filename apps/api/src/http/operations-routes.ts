@@ -14,7 +14,13 @@ import type {
   ScanResult,
   SearchResults,
 } from "../../../../packages/shared/src/index.ts";
-import { DownloadService, LibraryService, RssService, SearchService } from "../features/operations/service.ts";
+import { FileSystem } from "../lib/filesystem.ts";
+import {
+  DownloadService,
+  LibraryService,
+  RssService,
+  SearchService,
+} from "../features/operations/service.ts";
 import {
   AddRssFeedBodySchema,
   BrowseQuerySchema,
@@ -65,10 +71,11 @@ export function registerOperationsRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(DownloadService, (service) =>
-        service.listDownloadHistory()),
-      (value: Download[]) =>
-        c.json(value),
+      Effect.flatMap(
+        DownloadService,
+        (service) => service.listDownloadHistory(),
+      ),
+      (value: Download[]) => c.json(value),
     ));
 
   app.get("/api/downloads/events", (c) =>
@@ -143,10 +150,8 @@ export function registerOperationsRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(LibraryService, (service) =>
-        service.getUnmappedFolders()),
-      (value: ScannerState) =>
-        c.json(value),
+      Effect.flatMap(LibraryService, (service) => service.getUnmappedFolders()),
+      (value: ScannerState) => c.json(value),
     ));
 
   app.get("/api/search/releases", (c) =>
@@ -176,12 +181,17 @@ export function registerOperationsRoutes(
         c.json(value),
     ));
 
-  app.get("/api/library/browse", async (c) => {
-    const query = await runEffect(
-      parseQuery(c, BrowseQuerySchema, "browse library"),
-    );
-    return c.json(await browsePath(query.path || "."));
-  });
+  app.get("/api/library/browse", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      Effect.gen(function* () {
+        const query = yield* parseQuery(c, BrowseQuerySchema, "browse library");
+        const fs = yield* FileSystem;
+        return yield* browsePath(fs, query.path || ".");
+      }),
+      (value) => c.json(value),
+    ));
 
   app.post("/api/search/download", (c) => {
     return runRoute(

@@ -4,6 +4,8 @@ import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import { anime } from "../../db/schema.ts";
+import type { FileSystemShape } from "../../lib/filesystem.ts";
+import { Effect } from "effect";
 
 export function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -18,6 +20,7 @@ export function shouldDeleteImportedData(config: Config | null | undefined) {
 }
 
 export async function importDownloadedFile(
+  fs: FileSystemShape,
   animeRow: typeof anime.$inferSelect,
   episodeNumber: number,
   sourcePath: string,
@@ -39,20 +42,22 @@ export async function importDownloadedFile(
     String(episodeNumber).padStart(2, "0")
   }${extension}`;
 
-  await Deno.mkdir(animeRow.rootFolder, { recursive: true });
+  await Effect.runPromise(fs.mkdir(animeRow.rootFolder, { recursive: true }));
 
   try {
     if (destination !== sourcePath) {
-      await Deno.remove(destination).catch(() => undefined);
+      await Effect.runPromise(
+        fs.remove(destination).pipe(Effect.catchAll(() => Effect.void)),
+      );
     }
   } catch {
     // Ignore destination cleanup failures.
   }
 
   if (importMode === "move") {
-    await Deno.rename(sourcePath, destination);
+    await Effect.runPromise(fs.rename(sourcePath, destination));
   } else {
-    await Deno.copyFile(sourcePath, destination);
+    await Effect.runPromise(fs.copyFile(sourcePath, destination));
   }
 
   return destination;

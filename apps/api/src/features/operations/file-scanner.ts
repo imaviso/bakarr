@@ -1,4 +1,49 @@
-export async function* scanVideoFiles(path: string): AsyncGenerator<{ name: string; path: string }> {
+import { Effect } from "effect";
+import type { FileSystemShape } from "../../lib/filesystem.ts";
+
+export interface ScannedVideoFile {
+  readonly name: string;
+  readonly path: string;
+}
+
+export function scanVideoFiles(fs: FileSystemShape, path: string) {
+  return Effect.fn("Operations.scanVideoFiles")(function* () {
+    const results: ScannedVideoFile[] = [];
+    const stack = [path];
+
+    while (stack.length > 0) {
+      const current = stack.pop();
+
+      if (!current) {
+        continue;
+      }
+
+      const entries = yield* fs.readDir(current).pipe(
+        Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+      );
+
+      for (const entry of entries) {
+        const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+
+        if (entry.isDirectory) {
+          stack.push(fullPath);
+          continue;
+        }
+
+        if (entry.isFile && isVideoFile(entry.name)) {
+          results.push({ name: entry.name, path: fullPath });
+        }
+      }
+    }
+
+    return results;
+  })();
+}
+
+export async function* scanVideoFilesIterator(
+  fs: FileSystemShape,
+  path: string,
+): AsyncGenerator<ScannedVideoFile, void, unknown> {
   const stack = [path];
 
   while (stack.length > 0) {
@@ -8,21 +53,23 @@ export async function* scanVideoFiles(path: string): AsyncGenerator<{ name: stri
       continue;
     }
 
-    try {
-      for await (const entry of Deno.readDir(current)) {
-        const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+    const entries = await Effect.runPromise(
+      fs.readDir(current).pipe(
+        Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+      ),
+    );
 
-        if (entry.isDirectory) {
-          stack.push(fullPath);
-          continue;
-        }
+    for (const entry of entries) {
+      const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
 
-        if (entry.isFile && isVideoFile(entry.name)) {
-          yield { name: entry.name, path: fullPath };
-        }
+      if (entry.isDirectory) {
+        stack.push(fullPath);
+        continue;
       }
-    } catch {
-      // Ignore inaccessible directories
+
+      if (entry.isFile && isVideoFile(entry.name)) {
+        yield { name: entry.name, path: fullPath };
+      }
     }
   }
 }

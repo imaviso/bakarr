@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect";
 import { setCookie } from "hono/cookie";
+import type { FileSystemShape } from "../lib/filesystem.ts";
 
 import type {
   AuthUser,
@@ -7,12 +8,8 @@ import type {
   QualityProfile,
 } from "../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../config.ts";
-import { DatabaseError } from "../db/database.ts";
 import type { AddAnimeInput } from "../features/anime/service.ts";
-import { AnimeServiceError } from "../features/anime/errors.ts";
 import { AuthError } from "../features/auth/service.ts";
-import { OperationsError } from "../features/operations/errors.ts";
-import { SystemServiceError } from "../features/system/errors.ts";
 import {
   compactLogAnnotations,
   durationMsSince,
@@ -160,15 +157,28 @@ export async function persistSession(
   });
 }
 
-export async function browsePath(path: string) {
-  try {
+export function browsePath(fs: FileSystemShape, path: string) {
+  return Effect.gen(function* () {
     const entries: Array<
       { is_directory: boolean; name: string; path: string; size?: number }
     > = [];
 
-    for await (const entry of Deno.readDir(path)) {
+    const dirEntries = yield* fs.readDir(path).pipe(
+      Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+    );
+
+    for (const entry of dirEntries) {
       const fullPath = `${path.replace(/\/$/, "")}/${entry.name}`;
-      const stats = await Deno.stat(fullPath);
+      const stats = yield* fs.stat(fullPath).pipe(
+        Effect.catchAll(() =>
+          Effect.succeed(
+            {
+              isFile: false,
+              isDirectory: entry.isDirectory,
+            } as unknown as Deno.FileInfo,
+          )
+        ),
+      );
       entries.push({
         is_directory: entry.isDirectory,
         name: entry.name,
@@ -189,13 +199,7 @@ export async function browsePath(path: string) {
         ? undefined
         : path.split("/").slice(0, -1).join("/") || "/",
     };
-  } catch {
-    return {
-      current_path: path,
-      entries: [],
-      parent_path: undefined,
-    };
-  }
+  });
 }
 
 export function escapeCsv(value: string) {
@@ -412,16 +416,29 @@ export function toConfig(
 }
 
 function mapError(error: unknown): { message: string; status: number } {
-  if (
-    error instanceof RequestValidationError || error instanceof AuthError ||
-    error instanceof SystemServiceError ||
-    error instanceof AnimeServiceError || error instanceof OperationsError
-  ) {
-    return { message: error.message, status: error.status };
-  }
+  if (typeof error === "object" && error !== null && "_tag" in error) {
+    const tagged = error as { _tag: string; message: string };
 
-  if (error instanceof DatabaseError) {
-    return { message: error.message, status: 500 };
+    switch (tagged._tag) {
+      case "RequestValidationError":
+      case "ConfigValidationError":
+        return { message: tagged.message, status: 400 };
+      case "AuthError":
+        return {
+          message: tagged.message,
+          status: error instanceof AuthError ? error.status : 500,
+        };
+      case "AnimeNotFoundError":
+      case "DownloadNotFoundError":
+      case "OperationsAnimeNotFoundError":
+      case "ProfileNotFoundError":
+        return { message: tagged.message, status: 404 };
+      case "AnimeConflictError":
+      case "DownloadConflictError":
+        return { message: tagged.message, status: 409 };
+      case "DatabaseError":
+        return { message: tagged.message, status: 500 };
+    }
   }
 
   if (error instanceof Error) {
