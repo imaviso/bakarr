@@ -1,4 +1,7 @@
-import type { Quality, QualityProfile } from "../../../../../packages/shared/src/index.ts";
+import type {
+  Quality,
+  QualityProfile,
+} from "../../../../../packages/shared/src/index.ts";
 import type { ConfigCore } from "./config-codec.ts";
 
 export const DEFAULT_QUALITIES: readonly Quality[] = [
@@ -49,7 +52,7 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
       check_delay_seconds: 5,
       check_interval_minutes: 30,
       cron_expression: null,
-      enabled: false,
+      enabled: true,
       max_concurrent_checks: 2,
       metadata_refresh_hours: 24,
     },

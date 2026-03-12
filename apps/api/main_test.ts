@@ -34,7 +34,7 @@ Deno.test("bootstrap admin can log in and read auth/session protected endpoints"
     assert(sessionCookie);
     assertEquals(loginBody.username, "admin");
     assertEquals(loginBody.must_change_password, true);
-    assertMatch(loginBody.api_key, /^[a-f0-9]{48}$/);
+    assertMatch(loginBody.api_key, /^\*+$/);
 
     const meResponse = await ctx.app.request("/api/auth/me", {
       headers: { Cookie: sessionCookie },
@@ -169,6 +169,7 @@ Deno.test("anime CRUD and episode scan flow works", async () => {
       assertEquals(anime.id, 20);
       assertEquals(anime.title.romaji, "Naruto");
       assertEquals(anime.profile_name, "Default");
+      assertEquals(anime.root_folder, `${rootFolder}/Naruto`);
 
       const listResponse = await ctx.app.request("/api/anime", {
         headers: { Cookie: sessionCookie },
@@ -197,7 +198,7 @@ Deno.test("anime CRUD and episode scan flow works", async () => {
       assertEquals(episodes[0].downloaded, false);
 
       await Deno.writeTextFile(
-        `${rootFolder}/Naruto - 001.mkv`,
+        `${anime.root_folder}/Naruto - 001.mkv`,
         "fake video data",
       );
 
@@ -268,7 +269,25 @@ Deno.test("rss, wanted, rename, and download helper endpoints work", async () =>
     const importFolder = await Deno.makeTempDir();
 
     try {
-      await ctx.app.request("/api/anime", {
+      const currentConfigResponse = await ctx.app.request(
+        "/api/system/config",
+        { headers: { Cookie: sessionCookie } },
+      );
+      const currentConfig = await currentConfigResponse.json();
+
+      await ctx.app.request("/api/system/config", {
+        body: JSON.stringify({
+          ...currentConfig,
+          downloads: {
+            ...currentConfig.downloads,
+            root_path: importFolder,
+          },
+        }),
+        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
+        method: "PUT",
+      });
+
+      const addAnimeResponse = await ctx.app.request("/api/anime", {
         body: JSON.stringify({
           id: 11061,
           monitor_and_search: false,
@@ -280,9 +299,10 @@ Deno.test("rss, wanted, rename, and download helper endpoints work", async () =>
         headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
         method: "POST",
       });
+      const addedAnime = await addAnimeResponse.json();
 
       await Deno.writeTextFile(
-        `${rootFolder}/Hunter x Hunter (2011) - 001.mkv`,
+        `${addedAnime.root_folder}/Hunter x Hunter (2011) - 001.mkv`,
         "episode file",
       );
       await ctx.app.request("/api/anime/11061/episodes/scan", {
@@ -693,9 +713,12 @@ Deno.test("add anime without root folder falls back to configured library path",
     const libraryPath = await Deno.makeTempDir();
 
     try {
-      const currentConfigResponse = await ctx.app.request("/api/system/config", {
-        headers: { Cookie: sessionCookie },
-      });
+      const currentConfigResponse = await ctx.app.request(
+        "/api/system/config",
+        {
+          headers: { Cookie: sessionCookie },
+        },
+      );
       const currentConfig = await currentConfigResponse.json();
 
       await ctx.app.request("/api/system/config", {
@@ -726,8 +749,50 @@ Deno.test("add anime without root folder falls back to configured library path",
       assertEquals(addResponse.status, 200);
       const anime = await addResponse.json();
       assertEquals(anime.root_folder.startsWith(libraryPath), true);
+      assertEquals(anime.root_folder, `${libraryPath}/Naruto`);
     } finally {
       await Deno.remove(libraryPath, { recursive: true });
+    }
+  } finally {
+    await ctx.dispose();
+  }
+});
+
+Deno.test("add anime with explicit root folder creates anime-specific folder by default", async () => {
+  const ctx = await createTestContext();
+
+  try {
+    const loginResponse = await ctx.app.request("/api/auth/login", {
+      body: JSON.stringify({ password: "admin", username: "admin" }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    const sessionCookie = loginResponse.headers.get("set-cookie");
+    assert(sessionCookie);
+    const rootFolder = await Deno.makeTempDir();
+
+    try {
+      const addResponse = await ctx.app.request("/api/anime", {
+        body: JSON.stringify({
+          id: 11061,
+          monitor_and_search: false,
+          monitored: true,
+          profile_name: "Default",
+          release_profile_ids: [],
+          root_folder: rootFolder,
+        }),
+        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      assertEquals(addResponse.status, 200);
+      const anime = await addResponse.json();
+      assertEquals(anime.root_folder, `${rootFolder}/Hunter x Hunter (2011)`);
+
+      const stats = await Deno.stat(anime.root_folder);
+      assertEquals(stats.isDirectory, true);
+    } finally {
+      await Deno.remove(rootFolder, { recursive: true });
     }
   } finally {
     await ctx.dispose();
@@ -751,23 +816,50 @@ Deno.test("import scan matches local anime by parsed filename", async () => {
 
     try {
       await ctx.app.request("/api/anime", {
-        body: JSON.stringify({ id: 20, monitor_and_search: false, monitored: true, profile_name: "Default", release_profile_ids: [], root_folder: narutoFolder }),
+        body: JSON.stringify({
+          id: 20,
+          monitor_and_search: false,
+          monitored: true,
+          profile_name: "Default",
+          release_profile_ids: [],
+          root_folder: narutoFolder,
+        }),
         headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
         method: "POST",
       });
       await ctx.app.request("/api/anime", {
-        body: JSON.stringify({ id: 11061, monitor_and_search: false, monitored: true, profile_name: "Default", release_profile_ids: [], root_folder: hxhFolder }),
+        body: JSON.stringify({
+          id: 11061,
+          monitor_and_search: false,
+          monitored: true,
+          profile_name: "Default",
+          release_profile_ids: [],
+          root_folder: hxhFolder,
+        }),
         headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
         method: "POST",
       });
       await ctx.app.request("/api/anime", {
-        body: JSON.stringify({ id: 140960, monitor_and_search: false, monitored: true, profile_name: "Default", release_profile_ids: [], root_folder: `${hxhFolder}-spy` }),
+        body: JSON.stringify({
+          id: 140960,
+          monitor_and_search: false,
+          monitored: true,
+          profile_name: "Default",
+          release_profile_ids: [],
+          root_folder: `${hxhFolder}-spy`,
+        }),
         headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
         method: "POST",
       });
 
-      await Deno.writeTextFile(`${importFolder}/[SubsPlease] Hunter x Hunter (2011) - 002 [1080p].mkv`, "video");
-      await Deno.writeTextFile(`${importFolder}/[SubsPlease] SPYxFAMILY Season II - 03 [1080p].mkv`, "video");
+      await Deno.writeTextFile(
+        `${importFolder}/[SubsPlease] Hunter x Hunter (2011) - 002 [1080p].mkv`,
+        "video",
+      );
+      await Deno.writeTextFile(
+        `${importFolder}/[SubsPlease] SPYxFAMILY Season II - 03 [1080p].mkv`,
+        "video",
+      );
 
       const scanResponse = await ctx.app.request("/api/library/import/scan", {
         body: JSON.stringify({ path: importFolder }),
@@ -784,7 +876,9 @@ Deno.test("import scan matches local anime by parsed filename", async () => {
     } finally {
       await Deno.remove(narutoFolder, { recursive: true });
       await Deno.remove(hxhFolder, { recursive: true });
-      await Deno.remove(`${hxhFolder}-spy`, { recursive: true }).catch(() => undefined);
+      await Deno.remove(`${hxhFolder}-spy`, { recursive: true }).catch(() =>
+        undefined
+      );
       await Deno.remove(importFolder, { recursive: true });
     }
   } finally {
@@ -807,7 +901,14 @@ Deno.test("bulk map accepts empty file path as unmap", async () => {
 
     try {
       await ctx.app.request("/api/anime", {
-        body: JSON.stringify({ id: 20, monitor_and_search: false, monitored: true, profile_name: "Default", release_profile_ids: [], root_folder: rootFolder }),
+        body: JSON.stringify({
+          id: 20,
+          monitor_and_search: false,
+          monitored: true,
+          profile_name: "Default",
+          release_profile_ids: [],
+          root_folder: rootFolder,
+        }),
         headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
         method: "POST",
       });
@@ -816,13 +917,17 @@ Deno.test("bulk map accepts empty file path as unmap", async () => {
       await Deno.writeTextFile(filePath, "video");
 
       await ctx.app.request("/api/anime/20/episodes/map/bulk", {
-        body: JSON.stringify({ mappings: [{ episode_number: 1, file_path: filePath }] }),
+        body: JSON.stringify({
+          mappings: [{ episode_number: 1, file_path: filePath }],
+        }),
         headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
         method: "POST",
       });
 
       await ctx.app.request("/api/anime/20/episodes/map/bulk", {
-        body: JSON.stringify({ mappings: [{ episode_number: 1, file_path: "" }] }),
+        body: JSON.stringify({
+          mappings: [{ episode_number: 1, file_path: "" }],
+        }),
         headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
         method: "POST",
       });
@@ -840,7 +945,6 @@ Deno.test("bulk map accepts empty file path as unmap", async () => {
     await ctx.dispose();
   }
 });
-
 
 async function createTestContext() {
   const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });

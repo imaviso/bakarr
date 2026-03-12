@@ -1,4 +1,4 @@
-import { Context, Either, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Either, Layer, Schema } from "effect";
 
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
 import { ExternalCallError, tryExternal } from "../../lib/effect-retry.ts";
@@ -192,7 +192,9 @@ const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(
 const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(
   function* (id: number) {
     const remote = yield* tryFetchDetail(id).pipe(
-      Effect.catchAll(() => Effect.succeed<AnimeMetadata | null | undefined>(undefined)),
+      Effect.catchAll(() =>
+        Effect.succeed<AnimeMetadata | null | undefined>(undefined)
+      ),
     );
 
     if (remote !== undefined) {
@@ -203,17 +205,22 @@ const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(
   },
 );
 
-export const AniListClientLive = Layer.succeed(AniListClient, {
-  getAnimeMetadataById,
-  searchAnimeMetadata,
-} satisfies AniListClientShape);
+export const AniListClientLive = Layer.succeed(
+  AniListClient,
+  {
+    getAnimeMetadataById,
+    searchAnimeMetadata,
+  } satisfies AniListClientShape,
+);
 
 function trySearchRemote(trimmed: string) {
   return Effect.fn("AniListClient.trySearchRemote")(function* () {
-    const response = yield* tryExternal("anilist.search", (signal) =>
-      fetch(ANILIST_URL, {
-        body: JSON.stringify({
-          query: `query ($search: String) {
+    const response = yield* tryExternal(
+      "anilist.search",
+      (signal) =>
+        fetch(ANILIST_URL, {
+          body: JSON.stringify({
+            query: `query ($search: String) {
         Page(page: 1, perPage: 10) {
           media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
             id
@@ -241,18 +248,20 @@ function trySearchRemote(trimmed: string) {
           }
         }
       }`,
-          variables: { search: trimmed },
+            variables: { search: trimmed },
+          }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+          signal,
         }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-        signal,
-      })
     )();
 
     if (!response.ok) {
       return yield* Effect.fail(
         ExternalCallError.make({
-          cause: new Error(`AniList search failed with status ${response.status}`),
+          cause: new Error(
+            `AniList search failed with status ${response.status}`,
+          ),
           message: "AniList search failed",
           operation: "anilist.search.response",
         }),
@@ -283,10 +292,12 @@ function trySearchRemote(trimmed: string) {
 
 function tryFetchDetail(id: number) {
   return Effect.fn("AniListClient.tryFetchDetail")(function* () {
-    const response = yield* tryExternal("anilist.detail", (signal) =>
-      fetch(ANILIST_URL, {
-        body: JSON.stringify({
-          query: `query ($id: Int) {
+    const response = yield* tryExternal(
+      "anilist.detail",
+      (signal) =>
+        fetch(ANILIST_URL, {
+          body: JSON.stringify({
+            query: `query ($id: Int) {
         Media(id: $id, type: ANIME) {
           id
           idMal
@@ -322,18 +333,20 @@ function tryFetchDetail(id: number) {
           }
         }
       }`,
-          variables: { id },
+            variables: { id },
+          }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+          signal,
         }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-        signal,
-      })
     )();
 
     if (!response.ok) {
       return yield* Effect.fail(
         ExternalCallError.make({
-          cause: new Error(`AniList detail failed with status ${response.status}`),
+          cause: new Error(
+            `AniList detail failed with status ${response.status}`,
+          ),
           message: "AniList detail failed",
           operation: "anilist.detail.response",
         }),
@@ -422,13 +435,17 @@ function fallbackSearch(trimmed: string) {
 }
 
 function toIsoDate(
-  date: { year?: number | null; month?: number | null; day?: number | null } | undefined,
+  date:
+    | { year?: number | null; month?: number | null; day?: number | null }
+    | undefined,
 ): string | undefined {
   if (!date?.year || !date?.month || !date?.day) {
     return undefined;
   }
 
-  return `${String(date.year).padStart(4, "0")}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+  return `${String(date.year).padStart(4, "0")}-${
+    String(date.month).padStart(2, "0")
+  }-${String(date.day).padStart(2, "0")}`;
 }
 
 function toSearchResult(entry: AnimeMetadata): AnimeSearchResult {

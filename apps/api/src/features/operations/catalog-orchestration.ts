@@ -13,12 +13,37 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
-import { anime, downloadEvents, downloads, episodes, rssFeeds } from "../../db/schema.ts";
+import {
+  anime,
+  downloadEvents,
+  downloads,
+  episodes,
+  rssFeeds,
+} from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
-import { buildRenamePreview, parseEpisodeNumber, scanVideoFiles } from "./library-import.ts";
+import {
+  buildRenamePreview,
+  parseEpisodeNumber,
+  scanVideoFiles,
+} from "./library-import.ts";
 import { upsertEpisodeFile } from "./download-support.ts";
-import { appendLog, markJobFailed, markJobStarted, markJobSucceeded, nowIso, randomHex } from "./job-support.ts";
-import { currentImportMode, requireAnime, toDownload, toDownloadEvent, toDownloadStatus, toRssFeed } from "./repository.ts";
+import {
+  appendLog,
+  markJobFailed,
+  markJobStarted,
+  markJobSucceeded,
+  nowIso,
+  randomHex,
+} from "./job-support.ts";
+import {
+  currentImportMode,
+  loadRuntimeConfig,
+  requireAnime,
+  toDownload,
+  toDownloadEvent,
+  toDownloadStatus,
+  toRssFeed,
+} from "./repository.ts";
 import { OperationsError } from "./errors.ts";
 
 type TryDatabasePromise = <A>(
@@ -42,7 +67,9 @@ export function makeCatalogOrchestration(input: {
     action: "pause" | "resume" | "delete",
     deleteFiles?: boolean,
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
-  retryDownloadById: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  retryDownloadById: (
+    id: number,
+  ) => Effect.Effect<void, OperationsError | DatabaseError>;
   reconcileDownloadByIdEffect: (
     id: number,
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
@@ -64,10 +91,14 @@ export function makeCatalogOrchestration(input: {
 
   const renameFiles = (animeId: number) =>
     Effect.fn("OperationsService.renameFiles")(function* () {
-      const animeRow = yield* tryOperationsPromise("Failed to rename files", () =>
-        requireAnime(db, animeId));
-      const preview = yield* tryOperationsPromise("Failed to rename files", () =>
-        buildRenamePreview(db, animeId));
+      const animeRow = yield* tryOperationsPromise(
+        "Failed to rename files",
+        () => requireAnime(db, animeId),
+      );
+      const preview = yield* tryOperationsPromise(
+        "Failed to rename files",
+        () => buildRenamePreview(db, animeId),
+      );
       let renamed = 0;
       const failures: string[] = [];
 
@@ -76,7 +107,10 @@ export function makeCatalogOrchestration(input: {
           yield* tryOperationsPromise("Failed to rename files", async () => {
             await Deno.rename(item.current_path, item.new_path);
             await db.update(episodes).set({ filePath: item.new_path }).where(
-              and(eq(episodes.animeId, animeId), eq(episodes.number, item.episode_number)),
+              and(
+                eq(episodes.animeId, animeId),
+                eq(episodes.number, item.episode_number),
+              ),
             );
           });
           renamed += 1;
@@ -87,10 +121,18 @@ export function makeCatalogOrchestration(input: {
 
       yield* eventBus.publish({
         type: "RenameFinished",
-        payload: { anime_id: animeId, count: renamed, title: animeRow.titleRomaji },
+        payload: {
+          anime_id: animeId,
+          count: renamed,
+          title: animeRow.titleRomaji,
+        },
       });
 
-      return { failed: failures.length, failures, renamed } satisfies RenameResult;
+      return {
+        failed: failures.length,
+        failures,
+        renamed,
+      } satisfies RenameResult;
     })();
 
   const importFilesRaw = Effect.fn("OperationsService.importFiles")(function* (
@@ -104,30 +146,67 @@ export function makeCatalogOrchestration(input: {
     const importedFiles: ImportResult["imported_files"] = [];
     const failedFiles: ImportResult["failed_files"] = [];
 
+    const runtimeConfig = yield* tryOperationsPromise(
+      "Failed to load config",
+      () => loadRuntimeConfig(db)
+    );
+    const importMode = yield* tryDatabasePromise(
+      "Failed to import files",
+      () => currentImportMode(db),
+    );
+
     for (const file of files) {
       try {
-        const animeRow = yield* tryOperationsPromise("Failed to import files", () =>
-          requireAnime(db, file.anime_id));
+        const resolvedSource = yield* tryOperationsPromise(
+          "Failed to import files",
+          () => Deno.realPath(file.source_path)
+        );
+
+        if (!resolvedSource.startsWith(Deno.realPathSync(runtimeConfig.downloads.root_path)) &&
+            !resolvedSource.startsWith(Deno.realPathSync(runtimeConfig.library.library_path))) {
+          throw new Error("Source path is not within allowed download or library directories");
+        }
+
+        const animeRow = yield* tryOperationsPromise(
+          "Failed to import files",
+          () => requireAnime(db, file.anime_id),
+        );
         const extension = file.source_path.includes(".")
           ? file.source_path.slice(file.source_path.lastIndexOf("."))
           : ".mkv";
-        const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${animeRow.titleRomaji} - ${String(file.episode_number).padStart(2, "0")}${extension}`;
-        const importMode = yield* tryDatabasePromise("Failed to import files", () =>
-          currentImportMode(db));
+        const destination = `${
+          animeRow.rootFolder.replace(/\/$/, "")
+        }/${animeRow.titleRomaji} - ${
+          String(file.episode_number).padStart(2, "0")
+        }${extension}`;
 
-        yield* tryDatabasePromise("Failed to import files", () =>
-          Deno.mkdir(animeRow.rootFolder, { recursive: true }));
+        yield* tryDatabasePromise(
+          "Failed to import files",
+          () => Deno.mkdir(animeRow.rootFolder, { recursive: true }),
+        );
 
         if (importMode === "move") {
-          yield* tryDatabasePromise("Failed to import files", () =>
-            Deno.rename(file.source_path, destination));
+          yield* tryDatabasePromise(
+            "Failed to import files",
+            () => Deno.rename(resolvedSource, destination),
+          );
         } else {
-          yield* tryDatabasePromise("Failed to import files", () =>
-            Deno.copyFile(file.source_path, destination));
+          yield* tryDatabasePromise(
+            "Failed to import files",
+            () => Deno.copyFile(resolvedSource, destination),
+          );
         }
 
-        yield* tryDatabasePromise("Failed to import files", () =>
-          upsertEpisodeFile(db, file.anime_id, file.episode_number, destination));
+        yield* tryDatabasePromise(
+          "Failed to import files",
+          () =>
+            upsertEpisodeFile(
+              db,
+              file.anime_id,
+              file.episode_number,
+              destination,
+            ),
+        );
         importedFiles.push({
           anime_id: file.anime_id,
           destination_path: destination,
@@ -159,15 +238,21 @@ export function makeCatalogOrchestration(input: {
     } satisfies ImportResult;
   });
 
-  const importFiles = (files: readonly {
-    source_path: string;
-    anime_id: number;
-    episode_number: number;
-    season?: number;
-  }[]) =>
+  const importFiles = (
+    files: readonly {
+      source_path: string;
+      anime_id: number;
+      episode_number: number;
+      season?: number;
+    }[],
+  ) =>
     importFilesRaw(files).pipe(
       Effect.catchAll((error) =>
-        Effect.fail(error instanceof DatabaseError ? error : dbError("Failed to import files")(error))
+        Effect.fail(
+          error instanceof DatabaseError
+            ? error
+            : dbError("Failed to import files")(error),
+        )
       ),
     );
 
@@ -191,21 +276,28 @@ export function makeCatalogOrchestration(input: {
 
   const listRssFeeds = () =>
     Effect.fn("OperationsService.listRssFeeds")(function* () {
-      const rows = yield* tryDatabasePromise("Failed to list RSS feeds", () =>
-        db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)));
+      const rows = yield* tryDatabasePromise(
+        "Failed to list RSS feeds",
+        () => db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),
+      );
       return rows.map(toRssFeed) as RssFeed[];
     })();
 
   const listAnimeRssFeeds = (animeId: number) =>
     Effect.fn("OperationsService.listAnimeRssFeeds")(function* () {
-      const rows = yield* tryDatabasePromise("Failed to list anime RSS feeds", () =>
-        db.select().from(rssFeeds).where(eq(rssFeeds.animeId, animeId)));
+      const rows = yield* tryDatabasePromise(
+        "Failed to list anime RSS feeds",
+        () => db.select().from(rssFeeds).where(eq(rssFeeds.animeId, animeId)),
+      );
       return rows.map(toRssFeed) as RssFeed[];
     })();
 
-  const addRssFeed = (input: { anime_id: number; url: string; name?: string }) =>
+  const addRssFeed = (
+    input: { anime_id: number; url: string; name?: string },
+  ) =>
     Effect.fn("OperationsService.addRssFeed")(function* () {
-      yield* tryOperationsPromise("Failed to add RSS feed", () => requireAnime(db, input.anime_id));
+      yield* tryOperationsPromise("Failed to add RSS feed", () =>
+        requireAnime(db, input.anime_id));
       const [row] = yield* tryOperationsPromise("Failed to add RSS feed", () =>
         db.insert(rssFeeds).values({
           animeId: input.anime_id,
@@ -216,35 +308,48 @@ export function makeCatalogOrchestration(input: {
           url: input.url,
         }).returning());
       yield* tryDatabasePromise("Failed to add RSS feed", () =>
-        appendLog(db, "rss.created", "success", `RSS feed added for anime ${input.anime_id}`));
+        appendLog(
+          db,
+          "rss.created",
+          "success",
+          `RSS feed added for anime ${input.anime_id}`,
+        ));
       return toRssFeed(row);
     })();
 
   const deleteRssFeed = (id: number) =>
     Effect.fn("OperationsService.deleteRssFeed")(function* () {
-      yield* tryDatabasePromise("Failed to delete RSS feed", () =>
-        db.delete(rssFeeds).where(eq(rssFeeds.id, id)));
+      yield* tryDatabasePromise(
+        "Failed to delete RSS feed",
+        () => db.delete(rssFeeds).where(eq(rssFeeds.id, id)),
+      );
     })();
 
   const toggleRssFeed = (id: number, enabled: boolean) =>
     Effect.fn("OperationsService.toggleRssFeed")(function* () {
-      yield* tryDatabasePromise("Failed to toggle RSS feed", () =>
-        db.update(rssFeeds).set({ enabled }).where(eq(rssFeeds.id, id)));
+      yield* tryDatabasePromise(
+        "Failed to toggle RSS feed",
+        () => db.update(rssFeeds).set({ enabled }).where(eq(rssFeeds.id, id)),
+      );
     })();
 
   const getWantedMissing = (limit: number) =>
     Effect.fn("OperationsService.getWantedMissing")(function* () {
-      const rows = yield* tryDatabasePromise("Failed to load wanted episodes", () =>
-        db.select({
-          animeId: anime.id,
-          animeTitle: anime.titleRomaji,
-          coverImage: anime.coverImage,
-          episodeNumber: episodes.number,
-          title: episodes.title,
-          aired: episodes.aired,
-        }).from(episodes).innerJoin(anime, eq(anime.id, episodes.animeId)).where(
-          eq(episodes.downloaded, false),
-        ).limit(Math.max(1, limit)));
+      const rows = yield* tryDatabasePromise(
+        "Failed to load wanted episodes",
+        () =>
+          db.select({
+            animeId: anime.id,
+            animeTitle: anime.titleRomaji,
+            coverImage: anime.coverImage,
+            episodeNumber: episodes.number,
+            title: episodes.title,
+            aired: episodes.aired,
+          }).from(episodes).innerJoin(anime, eq(anime.id, episodes.animeId))
+            .where(
+              eq(episodes.downloaded, false),
+            ).limit(Math.max(1, limit)),
+      );
 
       return rows.map((row) => ({
         aired: row.aired ?? undefined,
@@ -258,10 +363,19 @@ export function makeCatalogOrchestration(input: {
 
   const getCalendar = (start: string, end: string) =>
     Effect.fn("OperationsService.getCalendar")(function* () {
-      const rows = yield* tryDatabasePromise("Failed to load calendar events", () =>
-        db.select().from(episodes).innerJoin(anime, eq(anime.id, episodes.animeId)).where(
-          and(sql`${episodes.aired} >= ${start}`, sql`${episodes.aired} <= ${end}`),
-        ));
+      const rows = yield* tryDatabasePromise(
+        "Failed to load calendar events",
+        () =>
+          db.select().from(episodes).innerJoin(
+            anime,
+            eq(anime.id, episodes.animeId),
+          ).where(
+            and(
+              sql`${episodes.aired} >= ${start}`,
+              sql`${episodes.aired} <= ${end}`,
+            ),
+          ),
+      );
 
       return rows.map(({ anime: animeRow, episodes: episodeRow }) => ({
         all_day: true,
@@ -281,12 +395,15 @@ export function makeCatalogOrchestration(input: {
 
   const getRenamePreview = (animeId: number) =>
     Effect.fn("OperationsService.getRenamePreview")(function* () {
-      return yield* tryOperationsPromise("Failed to build rename preview", () =>
-        buildRenamePreview(db, animeId));
+      return yield* tryOperationsPromise(
+        "Failed to build rename preview",
+        () => buildRenamePreview(db, animeId),
+      );
     })();
 
   const pauseDownload = (id: number) => applyDownloadActionEffect(id, "pause");
-  const resumeDownload = (id: number) => applyDownloadActionEffect(id, "resume");
+  const resumeDownload = (id: number) =>
+    applyDownloadActionEffect(id, "resume");
   const removeDownload = (id: number, deleteFiles: boolean) =>
     applyDownloadActionEffect(id, "delete", deleteFiles);
 
@@ -300,75 +417,109 @@ export function makeCatalogOrchestration(input: {
       const limit = Math.max(1, Math.min(input.limit ?? 100, 1000));
       const conditions = [
         input.animeId ? eq(downloadEvents.animeId, input.animeId) : undefined,
-        input.downloadId ? eq(downloadEvents.downloadId, input.downloadId) : undefined,
-        input.eventType ? eq(downloadEvents.eventType, input.eventType) : undefined,
-      ].filter((value): value is Exclude<typeof value, undefined> => value !== undefined);
-      const query = db.select().from(downloadEvents).orderBy(desc(downloadEvents.id)).limit(limit);
-      const rows = yield* tryDatabasePromise("Failed to load download events", () =>
-        conditions.length > 0 ? query.where(and(...conditions)) : query);
+        input.downloadId
+          ? eq(downloadEvents.downloadId, input.downloadId)
+          : undefined,
+        input.eventType
+          ? eq(downloadEvents.eventType, input.eventType)
+          : undefined,
+      ].filter((value): value is Exclude<typeof value, undefined> =>
+        value !== undefined
+      );
+      const query = db.select().from(downloadEvents).orderBy(
+        desc(downloadEvents.id),
+      ).limit(limit);
+      const rows = yield* tryDatabasePromise(
+        "Failed to load download events",
+        () => conditions.length > 0 ? query.where(and(...conditions)) : query,
+      );
       return rows.map(toDownloadEvent) as DownloadEvent[];
     })();
 
   const listDownloadQueue = () =>
     Effect.fn("OperationsService.listDownloadQueue")(function* () {
       yield* syncDownloadState("downloads.queue");
-      const rows = yield* tryDatabasePromise("Failed to list download queue", () =>
-        db.select().from(downloads).where(
-          inArray(downloads.status, ["queued", "downloading", "paused"]),
-        ).orderBy(desc(downloads.id)));
+      const rows = yield* tryDatabasePromise(
+        "Failed to list download queue",
+        () =>
+          db.select().from(downloads).where(
+            inArray(downloads.status, ["queued", "downloading", "paused"]),
+          ).orderBy(desc(downloads.id)),
+      );
       return rows.map(toDownload) as Download[];
     })();
 
   const listDownloadHistory = () =>
     Effect.fn("OperationsService.listDownloadHistory")(function* () {
       yield* syncDownloadState("downloads.history");
-      const rows = yield* tryDatabasePromise("Failed to list download history", () =>
-        db.select().from(downloads).orderBy(desc(downloads.id)));
+      const rows = yield* tryDatabasePromise(
+        "Failed to list download history",
+        () => db.select().from(downloads).orderBy(desc(downloads.id)),
+      );
       return rows.map(toDownload) as Download[];
     })();
 
   const getDownloadProgress = () =>
     Effect.fn("OperationsService.getDownloadProgress")(function* () {
       yield* syncDownloadState("downloads.progress");
-      const rows = yield* tryDatabasePromise("Failed to build download progress snapshot", () =>
-        db.select().from(downloads).where(
-          inArray(downloads.status, ["queued", "downloading", "paused"]),
-        ).orderBy(desc(downloads.id)));
-      return rows.map((row) => toDownloadStatus(row, () => randomHex(20))) as DownloadStatus[];
+      const rows = yield* tryDatabasePromise(
+        "Failed to build download progress snapshot",
+        () =>
+          db.select().from(downloads).where(
+            inArray(downloads.status, ["queued", "downloading", "paused"]),
+          ).orderBy(desc(downloads.id)),
+      );
+      return rows.map((row) =>
+        toDownloadStatus(row, () => randomHex(20))
+      ) as DownloadStatus[];
     })();
 
   const runLibraryScan = () =>
     Effect.fn("OperationsService.runLibraryScan")(function* () {
-      yield* tryDatabasePromise("Failed to run library scan", () =>
-        markJobStarted(db, "library_scan"));
+      yield* tryDatabasePromise(
+        "Failed to run library scan",
+        () => markJobStarted(db, "library_scan"),
+      );
 
       try {
-        const animeRows = yield* tryDatabasePromise("Failed to run library scan", () =>
-          db.select().from(anime));
+        const animeRows = yield* tryDatabasePromise(
+          "Failed to run library scan",
+          () => db.select().from(anime),
+        );
         let scanned = 0;
         let matched = 0;
 
         yield* eventBus.publish({ type: "LibraryScanStarted" });
 
         for (const animeRow of animeRows) {
-          const files = yield* tryDatabasePromise("Failed to run library scan", () =>
-            scanVideoFiles(animeRow.rootFolder));
-          scanned += files.length;
-
-          for (const file of files) {
-            const episodeNumber = parseEpisodeNumber(file.path);
-            if (!episodeNumber) {
-              continue;
+          const { scannedFiles, matchedFiles } = yield* tryDatabasePromise(
+            "Failed to run library scan",
+            async () => {
+              let s = 0, m = 0;
+              for await (const file of scanVideoFiles(animeRow.rootFolder)) {
+                s++;
+                const episodeNumber = parseEpisodeNumber(file.path);
+                if (episodeNumber) {
+                  await upsertEpisodeFile(db, animeRow.id, episodeNumber, file.path);
+                  m++;
+                }
+              }
+              return { scannedFiles: s, matchedFiles: m };
             }
-
-            yield* tryDatabasePromise("Failed to run library scan", () =>
-              upsertEpisodeFile(db, animeRow.id, episodeNumber, file.path));
-            matched += 1;
-          }
+          );
+          scanned += scannedFiles;
+          matched += matchedFiles;
         }
 
-        yield* tryDatabasePromise("Failed to run library scan", () =>
-          markJobSucceeded(db, "library_scan", `Scanned ${scanned} file(s), matched ${matched}`));
+        yield* tryDatabasePromise(
+          "Failed to run library scan",
+          () =>
+            markJobSucceeded(
+              db,
+              "library_scan",
+              `Scanned ${scanned} file(s), matched ${matched}`,
+            ),
+        );
         yield* eventBus.publish({
           type: "LibraryScanFinished",
           payload: { matched, scanned },
@@ -376,8 +527,10 @@ export function makeCatalogOrchestration(input: {
 
         return { matched, scanned };
       } catch (cause) {
-        yield* tryDatabasePromise("Failed to run library scan", () =>
-          markJobFailed(db, "library_scan", cause));
+        yield* tryDatabasePromise(
+          "Failed to run library scan",
+          () => markJobFailed(db, "library_scan", cause),
+        );
         return yield* Effect.fail(dbError("Failed to run library scan")(cause));
       }
     })();

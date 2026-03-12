@@ -35,7 +35,7 @@ export {
 } from "./download-lifecycle.ts";
 import { OperationsError } from "./errors.ts";
 
-export interface OperationsServiceShape {
+export interface RssServiceShape {
   readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
   readonly listAnimeRssFeeds: (
     animeId: number,
@@ -48,6 +48,13 @@ export interface OperationsServiceShape {
     id: number,
     enabled: boolean,
   ) => Effect.Effect<void, DatabaseError>;
+  readonly runRssCheck: () => Effect.Effect<
+    { newItems: number },
+    DatabaseError
+  >;
+}
+
+export interface LibraryServiceShape {
   readonly getWantedMissing: (
     limit: number,
   ) => Effect.Effect<MissingEpisode[], DatabaseError>;
@@ -81,6 +88,13 @@ export interface OperationsServiceShape {
       season?: number;
     }[],
   ) => Effect.Effect<ImportResult, DatabaseError>;
+  readonly runLibraryScan: () => Effect.Effect<
+    { matched: number; scanned: number },
+    DatabaseError
+  >;
+}
+
+export interface DownloadServiceShape {
   readonly listDownloadQueue: () => Effect.Effect<Download[], DatabaseError>;
   readonly listDownloadHistory: () => Effect.Effect<Download[], DatabaseError>;
   readonly getDownloadProgress: () => Effect.Effect<
@@ -110,16 +124,6 @@ export interface OperationsServiceShape {
     readonly eventType?: string;
     readonly limit?: number;
   }) => Effect.Effect<DownloadEvent[], DatabaseError>;
-  readonly searchReleases: (
-    query: string,
-    animeId?: number,
-    category?: string,
-    filter?: string,
-  ) => Effect.Effect<SearchResults, DatabaseError>;
-  readonly searchEpisode: (
-    animeId: number,
-    episodeNumber: number,
-  ) => Effect.Effect<EpisodeSearchResult[], OperationsError | DatabaseError>;
   readonly triggerDownload: (
     input: {
       anime_id: number;
@@ -134,21 +138,30 @@ export interface OperationsServiceShape {
   readonly triggerSearchMissing: (
     animeId?: number,
   ) => Effect.Effect<void, DatabaseError>;
-  readonly runRssCheck: () => Effect.Effect<
-    { newItems: number },
-    DatabaseError
-  >;
-  readonly runLibraryScan: () => Effect.Effect<
-    { matched: number; scanned: number },
-    DatabaseError
-  >;
 }
 
-export class OperationsService
-  extends Context.Tag("@bakarr/api/OperationsService")<
-    OperationsService,
-    OperationsServiceShape
-  >() {}
+export interface SearchServiceShape {
+  readonly searchReleases: (
+    query: string,
+    animeId?: number,
+    category?: string,
+    filter?: string,
+  ) => Effect.Effect<SearchResults, DatabaseError>;
+  readonly searchEpisode: (
+    animeId: number,
+    episodeNumber: number,
+  ) => Effect.Effect<EpisodeSearchResult[], OperationsError | DatabaseError>;
+}
+
+export class RssService extends Context.Tag("@bakarr/api/RssService")<RssService, RssServiceShape>() {}
+export class LibraryService extends Context.Tag("@bakarr/api/LibraryService")<LibraryService, LibraryServiceShape>() {}
+export class DownloadService extends Context.Tag("@bakarr/api/DownloadService")<DownloadService, DownloadServiceShape>() {}
+export class SearchService extends Context.Tag("@bakarr/api/SearchService")<SearchService, SearchServiceShape>() {}
+
+class InternalOperationsService extends Context.Tag("@bakarr/api/InternalOperationsService")<
+  InternalOperationsService,
+  RssServiceShape & LibraryServiceShape & DownloadServiceShape & SearchServiceShape
+>() {}
 
 const makeOperationsService = Effect.gen(function* () {
   const { db } = yield* Database;
@@ -251,7 +264,6 @@ const makeOperationsService = Effect.gen(function* () {
     toggleRssFeed,
   } = catalogOrchestration;
 
-
   return {
     listRssFeeds,
     listAnimeRssFeeds,
@@ -283,13 +295,17 @@ const makeOperationsService = Effect.gen(function* () {
     triggerSearchMissing,
     runRssCheck,
     runLibraryScan,
-  } satisfies OperationsServiceShape;
+  } satisfies RssServiceShape & LibraryServiceShape & DownloadServiceShape & SearchServiceShape;
 });
 
-export const OperationsServiceLive = Layer.effect(
-  OperationsService,
-  makeOperationsService,
-);
+const internalLayer = Layer.scoped(InternalOperationsService, makeOperationsService);
+
+export const OperationsServiceLive = Layer.mergeAll(
+  Layer.effect(RssService, Effect.map(InternalOperationsService, (s) => s)),
+  Layer.effect(LibraryService, Effect.map(InternalOperationsService, (s) => s)),
+  Layer.effect(DownloadService, Effect.map(InternalOperationsService, (s) => s)),
+  Layer.effect(SearchService, Effect.map(InternalOperationsService, (s) => s)),
+).pipe(Layer.provide(internalLayer));
 
 function dbError(message: string) {
   return (cause: unknown) => new DatabaseError({ cause, message });

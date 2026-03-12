@@ -1,7 +1,7 @@
 import { Effect, Layer, ManagedRuntime } from "effect";
 
 import { AppRuntime } from "./app-runtime.ts";
-import { type AppConfigShape, AppConfig } from "./config.ts";
+import { AppConfig, type AppConfigShape } from "./config.ts";
 import { DatabaseLive } from "./db/database.ts";
 import { AniListClientLive } from "./features/anime/anilist.ts";
 import { AnimeServiceLive } from "./features/anime/service.ts";

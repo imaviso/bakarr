@@ -25,7 +25,10 @@ export function createAppFetchHandler(
   };
 }
 
-async function serveStaticAsset(pathname: string, webDistUrl: URL): Promise<Response | null> {
+async function serveStaticAsset(
+  pathname: string,
+  webDistUrl: URL,
+): Promise<Response | null> {
   const normalized = pathname === "/" ? "index.html" : pathname.slice(1);
 
   if (normalized.length === 0) {
@@ -34,12 +37,18 @@ async function serveStaticAsset(pathname: string, webDistUrl: URL): Promise<Resp
 
   const fileUrl = new URL(normalized, webDistUrl);
 
+  if (!fileUrl.pathname.startsWith(webDistUrl.pathname)) {
+    return null;
+  }
+
   try {
     const file = await Deno.readFile(fileUrl);
 
     return new Response(file, {
       headers: {
-        "Cache-Control": normalized.startsWith("assets/") ? "public, max-age=31536000, immutable" : "public, max-age=300",
+        "Cache-Control": normalized.startsWith("assets/")
+          ? "public, max-age=31536000, immutable"
+          : "public, max-age=300",
         "Content-Type": contentTypeForPath(normalized),
       },
     });

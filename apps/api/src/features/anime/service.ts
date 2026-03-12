@@ -140,11 +140,20 @@ const makeAnimeService = Effect.gen(function* () {
 
     const animeMetadata = metadata!;
 
-    const rootFolder = yield* tryAnimePromise("Failed to add anime", () =>
-      resolveAnimeRootFolder(db, input.root_folder, animeMetadata.title.romaji));
+    const rootFolder = yield* tryAnimePromise(
+      "Failed to add anime",
+      () =>
+        resolveAnimeRootFolder(
+          db,
+          input.root_folder,
+          animeMetadata.title.romaji,
+        ),
+    );
 
-    yield* tryAnimePromise("Failed to add anime", () =>
-      Deno.mkdir(rootFolder, { recursive: true }));
+    yield* tryAnimePromise(
+      "Failed to add anime",
+      () => Deno.mkdir(rootFolder, { recursive: true }),
+    );
 
     const animeRow = {
       addedAt: new Date().toISOString(),
@@ -170,8 +179,10 @@ const makeAnimeService = Effect.gen(function* () {
       titleRomaji: animeMetadata.title.romaji,
     };
 
-    yield* tryDatabasePromise("Failed to add anime", () =>
-      db.insert(anime).values(animeRow));
+    yield* tryDatabasePromise(
+      "Failed to add anime",
+      () => db.insert(anime).values(animeRow),
+    );
     yield* tryAnimePromise("Failed to add anime", () =>
       ensureEpisodes(
         db,
@@ -194,8 +205,10 @@ const makeAnimeService = Effect.gen(function* () {
       payload: { message: `Added ${animeRow.titleRomaji} to library` },
     });
 
-    const episodeRows = yield* tryDatabasePromise("Failed to add anime", () =>
-      db.select().from(episodes).where(eq(episodes.animeId, animeRow.id)));
+    const episodeRows = yield* tryDatabasePromise(
+      "Failed to add anime",
+      () => db.select().from(episodes).where(eq(episodes.animeId, animeRow.id)),
+    );
 
     return toAnimeDto(animeRow, episodeRows);
   });
@@ -203,8 +216,10 @@ const makeAnimeService = Effect.gen(function* () {
   const refreshEpisodes = Effect.fn("AnimeService.refreshEpisodes")(function* (
     animeId: number,
   ) {
-    const animeRow = yield* tryAnimePromise("Failed to refresh episodes", () =>
-      getAnimeRowOrThrow(db, animeId));
+    const animeRow = yield* tryAnimePromise(
+      "Failed to refresh episodes",
+      () => getAnimeRowOrThrow(db, animeId),
+    );
 
     yield* tryAnimePromise("Failed to refresh episodes", () =>
       ensureEpisodes(
@@ -216,13 +231,16 @@ const makeAnimeService = Effect.gen(function* () {
         animeRow.endDate ?? undefined,
         false,
       ));
-    yield* tryDatabasePromise("Failed to refresh episodes", () =>
-      appendAnimeLog(
-        db,
-        "anime.episodes.refreshed",
-        "success",
-        `Refreshed episodes for ${animeRow.titleRomaji}`,
-      ));
+    yield* tryDatabasePromise(
+      "Failed to refresh episodes",
+      () =>
+        appendAnimeLog(
+          db,
+          "anime.episodes.refreshed",
+          "success",
+          `Refreshed episodes for ${animeRow.titleRomaji}`,
+        ),
+    );
     yield* eventBus.publish({
       type: "RefreshFinished",
       payload: { anime_id: animeId, title: animeRow.titleRomaji },
@@ -232,10 +250,14 @@ const makeAnimeService = Effect.gen(function* () {
   const scanFolder = Effect.fn("AnimeService.scanFolder")(function* (
     animeId: number,
   ) {
-    const animeRow = yield* tryAnimePromise("Failed to scan anime folder", () =>
-      getAnimeRowOrThrow(db, animeId));
-    const files = yield* tryAnimePromise("Failed to scan anime folder", () =>
-      collectVideoFiles(animeRow.rootFolder));
+    const animeRow = yield* tryAnimePromise(
+      "Failed to scan anime folder",
+      () => getAnimeRowOrThrow(db, animeId),
+    );
+    const files = yield* tryAnimePromise(
+      "Failed to scan anime folder",
+      () => collectVideoFiles(animeRow.rootFolder),
+    );
     let found = 0;
 
     for (const file of files) {
@@ -245,29 +267,35 @@ const makeAnimeService = Effect.gen(function* () {
         continue;
       }
 
-      yield* tryAnimePromise("Failed to scan anime folder", () =>
-        upsertEpisode(db, animeId, episodeNumber, {
-          aired: inferAiredAt(
-            animeRow.status,
-            episodeNumber,
-            animeRow.episodeCount ?? undefined,
-            animeRow.startDate ?? undefined,
-            animeRow.endDate ?? undefined,
-          ),
-          downloaded: true,
-          filePath: file.path,
-          title: null,
-        }));
+      yield* tryAnimePromise(
+        "Failed to scan anime folder",
+        () =>
+          upsertEpisode(db, animeId, episodeNumber, {
+            aired: inferAiredAt(
+              animeRow.status,
+              episodeNumber,
+              animeRow.episodeCount ?? undefined,
+              animeRow.startDate ?? undefined,
+              animeRow.endDate ?? undefined,
+            ),
+            downloaded: true,
+            filePath: file.path,
+            title: null,
+          }),
+      );
       found += 1;
     }
 
-    yield* tryDatabasePromise("Failed to scan anime folder", () =>
-      appendAnimeLog(
-        db,
-        "anime.folder.scanned",
-        "success",
-        `Scanned ${animeRow.titleRomaji} folder and found ${found} files`,
-      ));
+    yield* tryDatabasePromise(
+      "Failed to scan anime folder",
+      () =>
+        appendAnimeLog(
+          db,
+          "anime.folder.scanned",
+          "success",
+          `Scanned ${animeRow.titleRomaji} folder and found ${found} files`,
+        ),
+    );
     yield* eventBus.publish({
       type: "ScanFolderFinished",
       payload: { anime_id: animeId, found, title: animeRow.titleRomaji },
@@ -279,29 +307,43 @@ const makeAnimeService = Effect.gen(function* () {
   const deleteAnime = Effect.fn("AnimeService.deleteAnime")(function* (
     id: number,
   ) {
-    yield* tryDatabasePromise("Failed to delete anime", () =>
-      db.delete(anime).where(eq(anime.id, id)));
-    yield* tryDatabasePromise("Failed to delete anime", () =>
-      appendAnimeLog(db, "anime.deleted", "success", `Deleted anime ${id}`));
+    yield* tryDatabasePromise(
+      "Failed to delete anime",
+      () => db.delete(anime).where(eq(anime.id, id)),
+    );
+    yield* tryDatabasePromise(
+      "Failed to delete anime",
+      () =>
+        appendAnimeLog(db, "anime.deleted", "success", `Deleted anime ${id}`),
+    );
   });
 
   const updatePath = Effect.fn("AnimeService.updatePath")(function* (
     id: number,
     path: string,
   ) {
-    yield* tryAnimePromise("Failed to update anime path", () =>
-      Deno.mkdir(path, { recursive: true }));
-    yield* tryAnimePromise("Failed to update anime path", () =>
-      requireAnimeExists(db, id));
-    yield* tryAnimePromise("Failed to update anime path", () =>
-      db.update(anime).set({ rootFolder: path }).where(eq(anime.id, id)));
-    yield* tryDatabasePromise("Failed to update anime path", () =>
-      appendAnimeLog(
-        db,
-        "anime.path.updated",
-        "success",
-        `Updated path for anime ${id}`,
-      ));
+    yield* tryAnimePromise(
+      "Failed to update anime path",
+      () => Deno.mkdir(path, { recursive: true }),
+    );
+    yield* tryAnimePromise(
+      "Failed to update anime path",
+      () => requireAnimeExists(db, id),
+    );
+    yield* tryAnimePromise(
+      "Failed to update anime path",
+      () => db.update(anime).set({ rootFolder: path }).where(eq(anime.id, id)),
+    );
+    yield* tryDatabasePromise(
+      "Failed to update anime path",
+      () =>
+        appendAnimeLog(
+          db,
+          "anime.path.updated",
+          "success",
+          `Updated path for anime ${id}`,
+        ),
+    );
   });
 
   const deleteEpisodeFile = Effect.fn("AnimeService.deleteEpisodeFile")(
@@ -322,13 +364,16 @@ const makeAnimeService = Effect.gen(function* () {
         });
       }
 
-      yield* tryAnimePromise("Failed to delete episode file", () =>
-        db.update(episodes).set({ downloaded: false, filePath: null }).where(
-          and(
-            eq(episodes.animeId, animeId),
-            eq(episodes.number, episodeNumber),
+      yield* tryAnimePromise(
+        "Failed to delete episode file",
+        () =>
+          db.update(episodes).set({ downloaded: false, filePath: null }).where(
+            and(
+              eq(episodes.animeId, animeId),
+              eq(episodes.number, episodeNumber),
+            ),
           ),
-        ));
+      );
     },
   );
 
@@ -337,20 +382,27 @@ const makeAnimeService = Effect.gen(function* () {
     episodeNumber: number,
     filePath: string,
   ) {
-    yield* tryAnimePromise("Failed to map episode file", () =>
-      getAnimeRowOrThrow(db, animeId));
+    yield* tryAnimePromise(
+      "Failed to map episode file",
+      () => getAnimeRowOrThrow(db, animeId),
+    );
 
     if (filePath.trim().length === 0) {
-      yield* tryAnimePromise("Failed to map episode file", () =>
-        clearEpisodeMapping(db, animeId, episodeNumber));
+      yield* tryAnimePromise(
+        "Failed to map episode file",
+        () => clearEpisodeMapping(db, animeId, episodeNumber),
+      );
       return;
     }
 
-    yield* tryAnimePromise("Failed to map episode file", () =>
-      upsertEpisode(db, animeId, episodeNumber, {
-        downloaded: true,
-        filePath,
-      }));
+    yield* tryAnimePromise(
+      "Failed to map episode file",
+      () =>
+        upsertEpisode(db, animeId, episodeNumber, {
+          downloaded: true,
+          filePath,
+        }),
+    );
   });
 
   const bulkMapEpisodes = Effect.fn("AnimeService.bulkMapEpisodes")(
@@ -358,21 +410,28 @@ const makeAnimeService = Effect.gen(function* () {
       animeId: number,
       mappings: readonly { episode_number: number; file_path: string }[],
     ) {
-      yield* tryAnimePromise("Failed to bulk-map episode files", () =>
-        getAnimeRowOrThrow(db, animeId));
+      yield* tryAnimePromise(
+        "Failed to bulk-map episode files",
+        () => getAnimeRowOrThrow(db, animeId),
+      );
 
       for (const mapping of mappings) {
         if (mapping.file_path.trim().length === 0) {
-          yield* tryAnimePromise("Failed to bulk-map episode files", () =>
-            clearEpisodeMapping(db, animeId, mapping.episode_number));
+          yield* tryAnimePromise(
+            "Failed to bulk-map episode files",
+            () => clearEpisodeMapping(db, animeId, mapping.episode_number),
+          );
           continue;
         }
 
-        yield* tryAnimePromise("Failed to bulk-map episode files", () =>
-          upsertEpisode(db, animeId, mapping.episode_number, {
-            downloaded: true,
-            filePath: mapping.file_path,
-          }));
+        yield* tryAnimePromise(
+          "Failed to bulk-map episode files",
+          () =>
+            upsertEpisode(db, animeId, mapping.episode_number, {
+              downloaded: true,
+              filePath: mapping.file_path,
+            }),
+        );
       }
     },
   );
@@ -380,10 +439,14 @@ const makeAnimeService = Effect.gen(function* () {
   const listFiles = Effect.fn("AnimeService.listFiles")(function* (
     animeId: number,
   ) {
-    const animeRow = yield* tryAnimePromise("Failed to list video files", () =>
-      getAnimeRowOrThrow(db, animeId));
-    const files = yield* tryAnimePromise("Failed to list video files", () =>
-      collectVideoFiles(animeRow.rootFolder));
+    const animeRow = yield* tryAnimePromise(
+      "Failed to list video files",
+      () => getAnimeRowOrThrow(db, animeId),
+    );
+    const files = yield* tryAnimePromise(
+      "Failed to list video files",
+      () => collectVideoFiles(animeRow.rootFolder),
+    );
 
     return files.map((file) => ({
       episode_number: parseEpisodeNumber(file.path),
@@ -394,10 +457,14 @@ const makeAnimeService = Effect.gen(function* () {
   });
 
   const listAnime = Effect.fn("AnimeService.listAnime")(function* () {
-    const animeRows = yield* tryDatabasePromise("Failed to list anime", () =>
-      db.select().from(anime));
-    const episodeRows = yield* tryDatabasePromise("Failed to list anime", () =>
-      db.select().from(episodes));
+    const animeRows = yield* tryDatabasePromise(
+      "Failed to list anime",
+      () => db.select().from(anime),
+    );
+    const episodeRows = yield* tryDatabasePromise(
+      "Failed to list anime",
+      () => db.select().from(episodes),
+    );
 
     return animeRows.map((row) =>
       toAnimeDto(
@@ -408,10 +475,14 @@ const makeAnimeService = Effect.gen(function* () {
   });
 
   const getAnime = Effect.fn("AnimeService.getAnime")(function* (id: number) {
-    const row = yield* tryAnimePromise("Failed to load anime", () =>
-      getAnimeRowOrThrow(db, id));
-    const episodeRows = yield* tryAnimePromise("Failed to load anime", () =>
-      db.select().from(episodes).where(eq(episodes.animeId, id)));
+    const row = yield* tryAnimePromise(
+      "Failed to load anime",
+      () => getAnimeRowOrThrow(db, id),
+    );
+    const episodeRows = yield* tryAnimePromise(
+      "Failed to load anime",
+      () => db.select().from(episodes).where(eq(episodes.animeId, id)),
+    );
 
     return toAnimeDto(row, episodeRows);
   });
@@ -431,7 +502,9 @@ const makeAnimeService = Effect.gen(function* () {
       const existing = yield* tryAnimePromise(
         "Failed to fetch anime metadata",
         () =>
-          db.select({ id: anime.id }).from(anime).where(eq(anime.id, id)).limit(1),
+          db.select({ id: anime.id }).from(anime).where(eq(anime.id, id)).limit(
+            1,
+          ),
       );
 
       return {
@@ -449,24 +522,26 @@ const makeAnimeService = Effect.gen(function* () {
   const getAnimeByAnilistId: AnimeServiceShape["getAnimeByAnilistId"] = (id) =>
     getAnimeByAnilistIdRaw(id).pipe(
       Effect.catchAll((error) =>
-        error instanceof AnimeServiceError
-          ? Effect.fail(error)
-          : Effect.fail(
-            AnimeServiceError.make({
-              message: "Failed to fetch anime metadata",
-              status: 404,
-            }),
-          )
+        error instanceof AnimeServiceError ? Effect.fail(error) : Effect.fail(
+          AnimeServiceError.make({
+            message: "Failed to fetch anime metadata",
+            status: 404,
+          }),
+        )
       ),
     );
 
   const listEpisodes = Effect.fn("AnimeService.listEpisodes")(function* (
     animeId: number,
   ) {
-    const rows = yield* tryDatabasePromise("Failed to list episodes", () =>
-      db.select().from(episodes).where(eq(episodes.animeId, animeId)));
+    const rows = yield* tryDatabasePromise(
+      "Failed to list episodes",
+      () => db.select().from(episodes).where(eq(episodes.animeId, animeId)),
+    );
 
-    return rows.sort((left, right) => left.number - right.number).map((row) => ({
+    return rows.sort((left, right) => left.number - right.number).map((
+      row,
+    ) => ({
       aired: row.aired ?? undefined,
       downloaded: row.downloaded,
       file_path: row.filePath ?? undefined,
@@ -556,12 +631,18 @@ function updateAnimeRow(
   eventBus: { publish: (event: NotificationEvent) => Effect.Effect<void> },
 ) {
   return Effect.fn("AnimeService.updateAnimeRow")(function* () {
-    yield* tryAnimePromise("Failed to update anime", () =>
-      requireAnimeExists(db, animeId));
-    yield* tryAnimePromise("Failed to update anime", () =>
-      db.update(anime).set(patch).where(eq(anime.id, animeId)));
-    yield* tryDatabasePromise("Failed to update anime", () =>
-      appendAnimeLog(db, "anime.updated", "success", message));
+    yield* tryAnimePromise(
+      "Failed to update anime",
+      () => requireAnimeExists(db, animeId),
+    );
+    yield* tryAnimePromise(
+      "Failed to update anime",
+      () => db.update(anime).set(patch).where(eq(anime.id, animeId)),
+    );
+    yield* tryDatabasePromise(
+      "Failed to update anime",
+      () => appendAnimeLog(db, "anime.updated", "success", message),
+    );
     yield* eventBus.publish({ type: "Info", payload: { message } });
   })();
 }

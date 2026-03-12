@@ -1,7 +1,10 @@
 import type { AppDatabase } from "../../db/database.ts";
 import { downloads } from "../../db/schema.ts";
 import { eq } from "drizzle-orm";
-import { decodeOptionalNumberList, encodeOptionalNumberList } from "../system/config-codec.ts";
+import {
+  decodeOptionalNumberList,
+  encodeOptionalNumberList,
+} from "../system/config-codec.ts";
 import { parseEpisodeNumber, scanVideoFiles } from "./file-scanner.ts";
 
 export function parseMagnetInfoHash(
@@ -33,8 +36,13 @@ export async function resolveCompletedContentPath(
     return undefined;
   }
 
-  const files = await scanVideoFiles(contentPath);
-  const matching = files.find((file) => parseEpisodeNumber(file.path) === episodeNumber);
+  const files = [];
+  for await (const file of scanVideoFiles(contentPath)) {
+    files.push(file);
+  }
+  const matching = files.find((file) =>
+    parseEpisodeNumber(file.path) === episodeNumber
+  );
 
   return matching?.path ?? files[0]?.path;
 }
@@ -56,15 +64,22 @@ export async function resolveBatchContentPaths(
     return [];
   }
 
-  const files = await scanVideoFiles(contentPath);
+  const files = [];
+  for await (const file of scanVideoFiles(contentPath)) {
+    files.push(file);
+  }
   return files.map((file) => file.path);
 }
 
-export function toCoveredEpisodesJson(episodes: readonly number[]): string | null {
+export function toCoveredEpisodesJson(
+  episodes: readonly number[],
+): string | null {
   return encodeOptionalNumberList(episodes);
 }
 
-export function parseCoveredEpisodes(value: string | null | undefined): number[] {
+export function parseCoveredEpisodes(
+  value: string | null | undefined,
+): number[] {
   return decodeOptionalNumberList(value);
 }
 
@@ -85,7 +100,9 @@ export async function hasOverlappingDownload(
     return false;
   }
 
-  const rows = await db.select().from(downloads).where(eq(downloads.animeId, animeId));
+  const rows = await db.select().from(downloads).where(
+    eq(downloads.animeId, animeId),
+  );
 
   return rows.some((row) => {
     const existingCovered = parseCoveredEpisodes(row.coveredEpisodes);
@@ -100,7 +117,9 @@ export function inferCoveredEpisodeNumbers(input: {
   readonly requestedEpisode: number;
 }): readonly number[] {
   if (input.explicitEpisodes.length > 0) {
-    return [...new Set(input.explicitEpisodes)].sort((left, right) => left - right);
+    return [...new Set(input.explicitEpisodes)].sort((left, right) =>
+      left - right
+    );
   }
 
   if (!input.isBatch) {

@@ -1,4 +1,4 @@
-import { LogLevel, Logger } from "effect";
+import { Logger, LogLevel } from "effect";
 
 export function compactLogAnnotations(
   annotations: Record<string, unknown>,

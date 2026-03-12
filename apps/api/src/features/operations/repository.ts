@@ -22,8 +22,8 @@ import {
 } from "../../db/schema.ts";
 import {
   decodeConfigCore,
-  decodeOptionalNumberList,
   decodeNumberList,
+  decodeOptionalNumberList,
   decodeQualityProfileRow,
   decodeReleaseProfileRules,
 } from "../system/config-codec.ts";
@@ -35,7 +35,9 @@ export interface CurrentEpisodeState {
 }
 
 export async function requireAnime(db: AppDatabase, animeId: number) {
-  const rows = await db.select().from(anime).where(eq(anime.id, animeId)).limit(1);
+  const rows = await db.select().from(anime).where(eq(anime.id, animeId)).limit(
+    1,
+  );
   const row = rows[0];
   if (!row) {
     throw new OperationsError({ message: "Anime not found", status: 404 });
@@ -142,7 +144,9 @@ export async function loadQualityProfile(
   db: AppDatabase,
   name: string,
 ): Promise<QualityProfile> {
-  const rows = await db.select().from(qualityProfiles).where(eq(qualityProfiles.name, name)).limit(1);
+  const rows = await db.select().from(qualityProfiles).where(
+    eq(qualityProfiles.name, name),
+  ).limit(1);
 
   if (!rows[0]) {
     return {

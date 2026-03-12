@@ -3,7 +3,7 @@ import type { Hono } from "hono";
 
 import type { HealthStatus } from "../../../../packages/shared/src/index.ts";
 import { EventBus } from "../features/events/event-bus.ts";
-import { OperationsService } from "../features/operations/service.ts";
+import { DownloadService, LibraryService, RssService } from "../features/operations/service.ts";
 import { SystemService } from "../features/system/service.ts";
 import {
   ConfigSchema,
@@ -113,8 +113,15 @@ export function registerSystemRoutes(
     return runRoute(
       c,
       runEffect,
-      withJsonBody(c, ConfigSchema, "system config", (body) =>
-        Effect.flatMap(SystemService, (service) => service.updateConfig(toConfig(body)))
+      withJsonBody(
+        c,
+        ConfigSchema,
+        "system config",
+        (body) =>
+          Effect.flatMap(
+            SystemService,
+            (service) => service.updateConfig(toConfig(body)),
+          ),
       ),
       () => c.json({ data: null, success: true }),
     );
@@ -146,10 +153,15 @@ export function registerSystemRoutes(
     return runRoute(
       c,
       runEffect,
-      withJsonBody(c, QualityProfileSchema, "create quality profile", (body) =>
-        Effect.flatMap(SystemService, (service) =>
-          service.createProfile(toQualityProfile(body))
-        )
+      withJsonBody(
+        c,
+        QualityProfileSchema,
+        "create quality profile",
+        (body) =>
+          Effect.flatMap(
+            SystemService,
+            (service) => service.createProfile(toQualityProfile(body)),
+          ),
       ),
       (value) => c.json(value),
     );
@@ -165,8 +177,10 @@ export function registerSystemRoutes(
         QualityProfileSchema,
         "update quality profile",
         (params, body) =>
-          Effect.flatMap(SystemService, (service) =>
-            service.updateProfile(params.name, toQualityProfile(body))
+          Effect.flatMap(
+            SystemService,
+            (service) =>
+              service.updateProfile(params.name, toQualityProfile(body)),
           ),
       ),
       (value) => c.json(value),
@@ -179,9 +193,9 @@ export function registerSystemRoutes(
       runEffect,
       withParams(c, NameParamsSchema, "delete quality profile", (params) =>
         Effect.flatMap(SystemService, (service) =>
-          service.deleteProfile(params.name))
-      ),
-      () => c.json({ data: null, success: true }),
+          service.deleteProfile(params.name))),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.get(
@@ -190,7 +204,10 @@ export function registerSystemRoutes(
       runRoute(
         c,
         runEffect,
-        Effect.flatMap(SystemService, (service) => service.listReleaseProfiles()),
+        Effect.flatMap(
+          SystemService,
+          (service) => service.listReleaseProfiles(),
+        ),
         (value) => c.json(value),
       ),
   );
@@ -199,10 +216,16 @@ export function registerSystemRoutes(
     return runRoute(
       c,
       runEffect,
-      withJsonBody(c, CreateReleaseProfileSchema, "create release profile", (body) =>
-        Effect.flatMap(SystemService, (service) =>
-          service.createReleaseProfile(toCreateReleaseProfileInput(body))
-        )
+      withJsonBody(
+        c,
+        CreateReleaseProfileSchema,
+        "create release profile",
+        (body) =>
+          Effect.flatMap(
+            SystemService,
+            (service) =>
+              service.createReleaseProfile(toCreateReleaseProfileInput(body)),
+          ),
       ),
       (value) => c.json(value),
     );
@@ -218,8 +241,13 @@ export function registerSystemRoutes(
         UpdateReleaseProfileSchema,
         "update release profile",
         (params, body) =>
-          Effect.flatMap(SystemService, (service) =>
-            service.updateReleaseProfile(params.id, toUpdateReleaseProfileInput(body))
+          Effect.flatMap(
+            SystemService,
+            (service) =>
+              service.updateReleaseProfile(
+                params.id,
+                toUpdateReleaseProfileInput(body),
+              ),
           ),
       ),
       () => c.json({ data: null, success: true }),
@@ -232,9 +260,9 @@ export function registerSystemRoutes(
       runEffect,
       withParams(c, IdParamsSchema, "delete release profile", (params) =>
         Effect.flatMap(SystemService, (service) =>
-          service.deleteReleaseProfile(params.id))
-      ),
-      () => c.json({ data: null, success: true }),
+          service.deleteReleaseProfile(params.id))),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.get("/api/system/logs", (c) =>
@@ -249,9 +277,9 @@ export function registerSystemRoutes(
             level: query.level,
             page: query.page ?? 1,
             startDate: query.start_date,
-          }))
-      ),
-      (value) => c.json(value),
+          }))),
+      (value) =>
+        c.json(value),
     ));
 
   app.delete(
@@ -311,7 +339,7 @@ export function registerSystemRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) => service.runLibraryScan()),
+      Effect.flatMap(LibraryService, (service) => service.runLibraryScan()),
       () => c.json({ data: null, success: true }),
     ));
 
@@ -319,15 +347,23 @@ export function registerSystemRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) => service.runRssCheck()),
+      Effect.flatMap(RssService, (service) => service.runRssCheck()),
       () => c.json({ data: null, success: true }),
     ));
 
   app.get("/api/events", async (_c) => {
     const [stream, downloads] = await Promise.all([
-      runEffect(Effect.flatMap(EventBus, (eventBus) => Effect.succeed(eventBus.stream()))),
       runEffect(
-        Effect.flatMap(OperationsService, (service) => service.getDownloadProgress()),
+        Effect.flatMap(
+          EventBus,
+          (eventBus) => Effect.succeed(eventBus.stream()),
+        ),
+      ),
+      runEffect(
+        Effect.flatMap(
+          DownloadService,
+          (service) => service.getDownloadProgress(),
+        ),
       ),
     ]);
 
@@ -367,10 +403,17 @@ export function registerSystemRoutes(
 
   app.get("/api/metrics", async (_c) => {
     const [status, stats, downloads] = await Promise.all([
-      runEffect(Effect.flatMap(SystemService, (service) => service.getSystemStatus())),
-      runEffect(Effect.flatMap(SystemService, (service) => service.getLibraryStats())),
       runEffect(
-        Effect.flatMap(OperationsService, (service) => service.getDownloadProgress()),
+        Effect.flatMap(SystemService, (service) => service.getSystemStatus()),
+      ),
+      runEffect(
+        Effect.flatMap(SystemService, (service) => service.getLibraryStats()),
+      ),
+      runEffect(
+        Effect.flatMap(
+          DownloadService,
+          (service) => service.getDownloadProgress(),
+        ),
       ),
     ]);
 

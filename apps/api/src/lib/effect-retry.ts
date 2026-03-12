@@ -67,11 +67,9 @@ export const tryExternal = <A>(
   );
 
 function toExternalCallError(operation: string, cause: unknown) {
-  return cause instanceof ExternalCallError
-    ? cause
-    : ExternalCallError.make({
-      cause,
-      message: `External call failed: ${operation}`,
-      operation,
-    });
+  return cause instanceof ExternalCallError ? cause : ExternalCallError.make({
+    cause,
+    message: `External call failed: ${operation}`,
+    operation,
+  });
 }

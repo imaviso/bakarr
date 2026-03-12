@@ -1,7 +1,13 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import type { AppDatabase } from "../../db/database.ts";
-import { backgroundJobs, downloadEvents, downloads, episodes, systemLogs } from "../../db/schema.ts";
+import {
+  backgroundJobs,
+  downloadEvents,
+  downloads,
+  episodes,
+  systemLogs,
+} from "../../db/schema.ts";
 
 export function nowIso() {
   return new Date().toISOString();
@@ -70,7 +76,10 @@ export async function upsertEpisodeFile(
   });
 }
 
-export async function markDownloadImported(db: AppDatabase, downloadId: number) {
+export async function markDownloadImported(
+  db: AppDatabase,
+  downloadId: number,
+) {
   await db.update(downloads).set({
     externalState: "imported",
     progress: 100,
@@ -128,7 +137,11 @@ export async function markJobSucceeded(
   });
 }
 
-export async function markJobFailed(db: AppDatabase, name: string, cause: unknown) {
+export async function markJobFailed(
+  db: AppDatabase,
+  name: string,
+  cause: unknown,
+) {
   const now = nowIso();
   const message = cause instanceof Error ? cause.message : String(cause);
 
@@ -164,5 +177,7 @@ export async function loadMissingEpisodeNumbers(
 export function randomHex(bytes: number) {
   const data = new Uint8Array(bytes);
   crypto.getRandomValues(data);
-  return Array.from(data, (value) => value.toString(16).padStart(2, "0")).join("");
+  return Array.from(data, (value) => value.toString(16).padStart(2, "0")).join(
+    "",
+  );
 }

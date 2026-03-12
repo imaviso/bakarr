@@ -24,7 +24,9 @@ export async function buildRenamePreview(
     const extension = row.filePath!.includes(".")
       ? row.filePath!.slice(row.filePath!.lastIndexOf("."))
       : ".mkv";
-    const filename = `${animeRow.titleRomaji} - ${String(row.number).padStart(2, "0")}${extension}`;
+    const filename = `${animeRow.titleRomaji} - ${
+      String(row.number).padStart(2, "0")
+    }${extension}`;
     return {
       current_path: row.filePath!,
       episode_number: row.number,
@@ -34,7 +36,10 @@ export async function buildRenamePreview(
   });
 }
 
-export async function copyDirectoryContents(source: string, destination: string) {
+export async function copyDirectoryContents(
+  source: string,
+  destination: string,
+) {
   await Deno.mkdir(destination, { recursive: true });
   for await (const entry of Deno.readDir(source)) {
     const sourcePath = `${source.replace(/\/$/, "")}/${entry.name}`;
@@ -47,17 +52,27 @@ export async function copyDirectoryContents(source: string, destination: string)
   }
 }
 
-export function analyzeScannedFile(file: { name: string; path: string }): ScannedFile {
+export function analyzeScannedFile(
+  file: { name: string; path: string },
+): ScannedFile {
   const extensionless = file.name.replace(/\.[^.]+$/, "");
   const cleaned = extensionless
     .replace(/^\[[^\]]+\]\s*/g, "")
-    .replace(/\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray)[^\]]*\]/gi, "")
-    .replace(/\b(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray|batch|complete)\b/gi, "")
+    .replace(
+      /\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray)[^\]]*\]/gi,
+      "",
+    )
+    .replace(
+      /\b(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray|batch|complete)\b/gi,
+      "",
+    )
     .replace(/(?:^|\s)[-_ ]?\d{1,3}(?:\s*[-~]\s*\d{1,3})?(?=\s|$)/g, " ")
     .replace(/s\d{1,2}e\d{1,3}(?:\s*[-~]\s*e?\d{1,3})?/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const seasonMatch = extensionless.match(/season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+season/i);
+  const seasonMatch = extensionless.match(
+    /season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+season/i,
+  );
   const groupMatch = file.name.match(/^\[(.*?)\]/);
 
   return {
@@ -71,7 +86,9 @@ export function analyzeScannedFile(file: { name: string; path: string }): Scanne
   };
 }
 
-export function toAnimeSearchCandidate(row: typeof anime.$inferSelect): AnimeSearchResult {
+export function toAnimeSearchCandidate(
+  row: typeof anime.$inferSelect,
+): AnimeSearchResult {
   return {
     already_in_library: true,
     cover_image: row.coverImage ?? undefined,
@@ -96,10 +113,16 @@ export function findBestLocalAnimeMatch(
   let bestScore = 0;
 
   for (const row of animeRows) {
-    const titles = [row.titleRomaji, row.titleEnglish ?? "", row.titleNative ?? ""]
+    const titles = [
+      row.titleRomaji,
+      row.titleEnglish ?? "",
+      row.titleNative ?? "",
+    ]
       .filter((value) => value.length > 0);
     const score = Math.max(
-      ...titles.map((title) => scoreTitleMatch(normalizedTarget, normalizeTitle(title))),
+      ...titles.map((title) =>
+        scoreTitleMatch(normalizedTarget, normalizeTitle(title))
+      ),
     );
 
     if (score > bestScore) {
@@ -117,11 +140,15 @@ export function titlesMatch(parsedTitle: string, candidate: AnimeSearchResult) {
     candidate.title.romaji,
     candidate.title.english,
     candidate.title.native,
-  ].filter((value): value is string => typeof value === "string" && value.length > 0);
-  return titles.some((title) => scoreTitleMatch(target, normalizeTitle(title)) >= 0.55);
+  ].filter((value): value is string =>
+    typeof value === "string" && value.length > 0
+  );
+  return titles.some((title) =>
+    scoreTitleMatch(target, normalizeTitle(title)) >= 0.55
+  );
 }
 
-export { scanVideoFiles, parseEpisodeNumber };
+export { parseEpisodeNumber, scanVideoFiles };
 
 function normalizeTitle(value: string) {
   return romanToArabic(
@@ -167,7 +194,8 @@ function scoreTitleMatch(left: string, right: string) {
 
   const leftTokens = new Set(left.split(" ").filter(Boolean));
   const rightTokens = new Set(right.split(" ").filter(Boolean));
-  const intersection = [...leftTokens].filter((token) => rightTokens.has(token)).length;
+  const intersection =
+    [...leftTokens].filter((token) => rightTokens.has(token)).length;
   const union = new Set([...leftTokens, ...rightTokens]).size;
 
   return union === 0 ? 0 : intersection / union;

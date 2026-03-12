@@ -58,7 +58,9 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
         const appVersion = yield* readConfigValue(
           overrides.appVersion,
           Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.appVersion)),
+            EffectConfig.orElse(() =>
+              EffectConfig.succeed(defaultAppConfig.appVersion)
+            ),
           ),
         );
         const bootstrapPassword = yield* readConfigValue(
@@ -80,13 +82,17 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
         const databaseFile = yield* readConfigValue(
           overrides.databaseFile,
           Schema.Config("DATABASE_FILE", Schema.String).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.databaseFile)),
+            EffectConfig.orElse(() =>
+              EffectConfig.succeed(defaultAppConfig.databaseFile)
+            ),
           ),
         );
         const port = yield* readConfigValue(
           overrides.port,
           Schema.Config("PORT", PortSchema).pipe(
-            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.port)),
+            EffectConfig.orElse(() =>
+              EffectConfig.succeed(defaultAppConfig.port)
+            ),
           ),
         );
         const sessionCookieName = yield* readConfigValue(
@@ -122,7 +128,10 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
 
 export const AppConfigLive = AppConfig.layer();
 
-function readConfigValue<A>(override: A | undefined, config: EffectConfig.Config<A>) {
+function readConfigValue<A>(
+  override: A | undefined,
+  config: EffectConfig.Config<A>,
+) {
   return override === undefined ? config : EffectConfig.succeed(override);
 }
 

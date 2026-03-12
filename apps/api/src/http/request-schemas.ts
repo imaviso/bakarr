@@ -193,31 +193,35 @@ export const BulkEpisodeMappingsBodySchema = Schema.Struct({
   })),
 });
 
-export const SearchDownloadBodySchema: Schema.Schema<SearchDownloadBody> = Schema.Struct({
-  anime_id: Schema.Number,
-  episode_number: Schema.Number,
-  group: Schema.optional(Schema.String),
-  info_hash: Schema.optional(Schema.String),
-  is_batch: Schema.optional(Schema.Boolean),
-  magnet: Schema.String,
-  title: Schema.String,
-});
+export const SearchDownloadBodySchema: Schema.Schema<SearchDownloadBody> =
+  Schema.Struct({
+    anime_id: Schema.Number,
+    episode_number: Schema.Number,
+    group: Schema.optional(Schema.String),
+    info_hash: Schema.optional(Schema.String),
+    is_batch: Schema.optional(Schema.Boolean),
+    magnet: Schema.String,
+    title: Schema.String,
+  });
 
 export const SearchMissingBodySchema = Schema.Struct({
   anime_id: Schema.optional(Schema.Number),
 });
 
-export const AddRssFeedBodySchema: Schema.Schema<AddRssFeedBody> = Schema.Struct({
-  anime_id: Schema.Number,
-  name: Schema.optional(Schema.String),
-  url: Schema.String,
-});
+export const AddRssFeedBodySchema: Schema.Schema<AddRssFeedBody> = Schema
+  .Struct({
+    anime_id: Schema.Number,
+    name: Schema.optional(Schema.String),
+    url: Schema.String,
+  });
 
 export const EnabledBodySchema = Schema.Struct({
   enabled: Schema.Boolean,
 });
 
-export const ImportUnmappedFolderBodySchema: Schema.Schema<ImportUnmappedFolderBody> = Schema.Struct({
+export const ImportUnmappedFolderBodySchema: Schema.Schema<
+  ImportUnmappedFolderBody
+> = Schema.Struct({
   anime_id: Schema.Number,
   folder_name: Schema.String,
   profile_name: Schema.optional(Schema.String),
