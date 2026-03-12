@@ -1,9 +1,19 @@
 import { useRouterState } from "@tanstack/solid-router";
-import { Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 
 export function GlobalSpinner() {
 	const state = useRouterState();
-	const isRouting = () => state().status === "pending";
+	const [hasCompletedInitialLoad, setHasCompletedInitialLoad] =
+		createSignal(false);
+
+	createEffect(() => {
+		if (state().status === "idle") {
+			setHasCompletedInitialLoad(true);
+		}
+	});
+
+	const isRouting = () =>
+		!hasCompletedInitialLoad() && state().status === "pending";
 
 	return (
 		<Show when={isRouting()}>
