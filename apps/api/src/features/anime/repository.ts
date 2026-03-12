@@ -6,7 +6,9 @@ import { decodeConfigCore } from "../system/config-codec.ts";
 import { AnimeServiceError } from "./errors.ts";
 
 export async function getAnimeRowOrThrow(db: AppDatabase, animeId: number) {
-  const rows = await db.select().from(anime).where(eq(anime.id, animeId)).limit(1);
+  const rows = await db.select().from(anime).where(eq(anime.id, animeId)).limit(
+    1,
+  );
   const row = rows[0];
   if (!row) {
     throw new AnimeServiceError({ message: "Anime not found", status: 404 });
@@ -46,8 +48,12 @@ export async function ensureEpisodes(
     return;
   }
 
-  const existingRows = await db.select().from(episodes).where(eq(episodes.animeId, animeId));
-  const existingByNumber = new Map(existingRows.map((row) => [row.number, row]));
+  const existingRows = await db.select().from(episodes).where(
+    eq(episodes.animeId, animeId),
+  );
+  const existingByNumber = new Map(
+    existingRows.map((row) => [row.number, row]),
+  );
   const numbers = range(1, episodeCount);
 
   for (const number of numbers) {
@@ -115,7 +121,9 @@ export async function clearEpisodeMapping(
   await db.update(episodes).set({
     downloaded: false,
     filePath: null,
-  }).where(and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)));
+  }).where(
+    and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
+  );
 }
 
 export async function resolveAnimeRootFolder(
@@ -124,15 +132,24 @@ export async function resolveAnimeRootFolder(
   title: string,
 ) {
   const trimmed = requestedRootFolder.trim();
+  const rows = await db.select().from(appConfig).where(eq(appConfig.id, 1))
+    .limit(1);
+  const settings = rows[0]
+    ? parseLibrarySettings(rows[0].data)
+    : defaultLibrarySettings();
+  const baseRootFolder = trimmed.length > 0 ? trimmed : settings.libraryPath;
 
-  if (trimmed.length > 0) {
-    return trimmed;
+  if (!settings.createAnimeFolders) {
+    return baseRootFolder;
   }
 
-  const rows = await db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1);
-  const libraryPath = rows[0] ? parseLibraryPath(rows[0].data) : "./library";
+  const safeSegment = toSafePathSegment(title);
 
-  return `${libraryPath.replace(/\/$/, "")}/${toSafePathSegment(title)}`;
+  if (baseRootFolder.split("/").filter(Boolean).pop() === safeSegment) {
+    return baseRootFolder;
+  }
+
+  return `${baseRootFolder.replace(/\/$/, "")}/${safeSegment}`;
 }
 
 export async function appendAnimeLog(
@@ -172,25 +189,41 @@ export function inferAiredAt(
 
     if (!Number.isNaN(end.getTime())) {
       const spanMs = Math.max(end.getTime() - start.getTime(), 0);
-      const intervalMs = episodeCount > 1 ? Math.floor(spanMs / (episodeCount - 1)) : 0;
-      return new Date(start.getTime() + intervalMs * (episodeNumber - 1)).toISOString();
+      const intervalMs = episodeCount > 1
+        ? Math.floor(spanMs / (episodeCount - 1))
+        : 0;
+      return new Date(start.getTime() + intervalMs * (episodeNumber - 1))
+        .toISOString();
     }
   }
 
   const weeklyMs = 7 * 24 * 60 * 60 * 1000;
-  return new Date(start.getTime() + weeklyMs * (episodeNumber - 1)).toISOString();
+  return new Date(start.getTime() + weeklyMs * (episodeNumber - 1))
+    .toISOString();
 }
 
-function parseLibraryPath(configJson: string) {
+function parseLibrarySettings(configJson: string) {
   try {
-    return decodeConfigCore(configJson).library.library_path.trim() || "./library";
+    const config = decodeConfigCore(configJson);
+    return {
+      createAnimeFolders: config.downloads.create_anime_folders,
+      libraryPath: config.library.library_path.trim() || "./library",
+    };
   } catch {
-    return "./library";
+    return defaultLibrarySettings();
   }
 }
 
+function defaultLibrarySettings() {
+  return {
+    createAnimeFolders: true,
+    libraryPath: "./library",
+  };
+}
+
 function toSafePathSegment(value: string) {
-  return value.replace(/[<>:"/\\|?*]/g, " ").replace(/\s+/g, " ").trim() || "anime";
+  return value.replace(/[<>:"/\\|?*]/g, " ").replace(/\s+/g, " ").trim() ||
+    "anime";
 }
 
 function range(start: number, end: number) {

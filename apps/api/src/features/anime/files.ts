@@ -1,6 +1,8 @@
 import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
 
-export async function collectVideoFiles(rootFolder: string): Promise<VideoFile[]> {
+export async function collectVideoFiles(
+  rootFolder: string,
+): Promise<VideoFile[]> {
   const entries: VideoFile[] = [];
   const stack = [rootFolder];
 

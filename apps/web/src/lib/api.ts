@@ -339,6 +339,8 @@ export interface BackgroundJobStatus {
 	last_status?: string;
 	last_message?: string;
 	run_count: number;
+	schedule_mode?: "cron" | "interval" | "manual" | "disabled";
+	schedule_value?: string;
 }
 
 export interface DownloadEvent {

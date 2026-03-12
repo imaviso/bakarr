@@ -251,7 +251,6 @@ const makeOperationsService = Effect.gen(function* () {
     toggleRssFeed,
   } = catalogOrchestration;
 
-
   return {
     listRssFeeds,
     listAnimeRssFeeds,

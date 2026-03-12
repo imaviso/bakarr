@@ -33,13 +33,14 @@ export type AppVariables = {
   viewer: AuthUser | null;
 };
 
-export class RequestValidationError extends Schema.TaggedError<RequestValidationError>()(
-  "RequestValidationError",
-  {
-    message: Schema.String,
-    status: Schema.Literal(400),
-  },
-) {}
+export class RequestValidationError
+  extends Schema.TaggedError<RequestValidationError>()(
+    "RequestValidationError",
+    {
+      message: Schema.String,
+      status: Schema.Literal(400),
+    },
+  ) {}
 
 export async function runRoute<A, E, R>(
   c: {
@@ -264,7 +265,9 @@ export function withQuery<A, I, B, E, R>(
 }
 
 export function withParamsAndBody<PA, PI, BA, BI, B, E, R>(
-  c: { req: { json: () => Promise<unknown>; param: () => Record<string, string> } },
+  c: {
+    req: { json: () => Promise<unknown>; param: () => Record<string, string> };
+  },
   paramsSchema: Schema.Schema<PA, PI>,
   bodySchema: Schema.Schema<BA, BI>,
   label: string,
@@ -294,7 +297,8 @@ export function parseJsonBody<A, I>(
       RequestValidationError.make({
         message: `Invalid request body for ${label}`,
         status: 400,
-      })),
+      })
+    ),
   );
 }
 
@@ -312,7 +316,8 @@ export function parseOptionalJsonBody<A, I>(
       RequestValidationError.make({
         message: `Invalid request body for ${label}`,
         status: 400,
-      })),
+      })
+    ),
   );
 }
 
@@ -321,7 +326,11 @@ export function parseParams<A, I>(
   schema: Schema.Schema<A, I>,
   label: string,
 ): Effect.Effect<A, RequestValidationError> {
-  return decodeUnknownInput(c.req.param(), schema, `Invalid route params for ${label}`);
+  return decodeUnknownInput(
+    c.req.param(),
+    schema,
+    `Invalid route params for ${label}`,
+  );
 }
 
 export function parseQuery<A, I>(
@@ -373,12 +382,16 @@ export function toUpdateReleaseProfileInput(
   };
 }
 
-export function toConfig(body: Schema.Schema.Type<typeof ConfigSchema>): Config {
+export function toConfig(
+  body: Schema.Schema.Type<typeof ConfigSchema>,
+): Config {
   return {
     downloads: {
       ...body.downloads,
       preferred_groups: [...body.downloads.preferred_groups],
-      remote_path_mappings: body.downloads.remote_path_mappings.map((mapping) => [
+      remote_path_mappings: body.downloads.remote_path_mappings.map((
+        mapping,
+      ) => [
         ...mapping,
       ]),
     },
@@ -418,7 +431,9 @@ function mapError(error: unknown): { message: string; status: number } {
   return { message: "Unexpected server error", status: 500 };
 }
 
-function getOptionalViewer(c: { get: (key: string) => unknown }): AuthUser | null {
+function getOptionalViewer(
+  c: { get: (key: string) => unknown },
+): AuthUser | null {
   const viewer = c.get("viewer");
 
   if (!isAuthUser(viewer)) {
@@ -438,7 +453,8 @@ function decodeUnknownInput<A, I>(
       RequestValidationError.make({
         message,
         status: 400,
-      })),
+      })
+    ),
   );
 }
 

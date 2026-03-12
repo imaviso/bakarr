@@ -9,7 +9,10 @@ import { AuthService } from "./src/features/auth/service.ts";
 import { SystemService } from "./src/features/system/service.ts";
 import { createApp } from "./src/http/app.ts";
 import { createAppFetchHandler } from "./src/http/static.ts";
-import { compactLogAnnotations, setRuntimeLogLevel } from "./src/lib/logging.ts";
+import {
+  compactLogAnnotations,
+  setRuntimeLogLevel,
+} from "./src/lib/logging.ts";
 import { makeApiRuntime, runApi } from "./src/runtime.ts";
 
 const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {

@@ -33,7 +33,11 @@ export async function importDownloadedFile(
   const extension = sourcePath.includes(".")
     ? sourcePath.slice(sourcePath.lastIndexOf("."))
     : ".mkv";
-  const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${animeRow.titleRomaji} - ${String(episodeNumber).padStart(2, "0")}${extension}`;
+  const destination = `${
+    animeRow.rootFolder.replace(/\/$/, "")
+  }/${animeRow.titleRomaji} - ${
+    String(episodeNumber).padStart(2, "0")
+  }${extension}`;
 
   await Deno.mkdir(animeRow.rootFolder, { recursive: true });
 

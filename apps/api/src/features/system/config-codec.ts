@@ -96,7 +96,9 @@ const ConfigCoreSchema = Schema.Struct({
 
 const StringListJsonSchema = Schema.parseJson(StringListSchema);
 const NumberListJsonSchema = Schema.parseJson(NumberListSchema);
-const ReleaseProfileRulesJsonSchema = Schema.parseJson(ReleaseProfileRulesSchema);
+const ReleaseProfileRulesJsonSchema = Schema.parseJson(
+  ReleaseProfileRulesSchema,
+);
 const ConfigCoreJsonSchema = Schema.parseJson(ConfigCoreSchema);
 
 export function encodeQualityProfileRow(profile: QualityProfile) {
@@ -137,7 +139,9 @@ export function decodeReleaseProfileRow(
   };
 }
 
-export function encodeReleaseProfileRules(rules: readonly ReleaseProfileRule[]) {
+export function encodeReleaseProfileRules(
+  rules: readonly ReleaseProfileRule[],
+) {
   return Schema.encodeSync(ReleaseProfileRulesJsonSchema)(rules.map((rule) => ({
     ...rule,
   })));
@@ -152,7 +156,9 @@ export function encodeConfigCore(core: ConfigCore): string {
     downloads: {
       ...core.downloads,
       preferred_groups: [...core.downloads.preferred_groups],
-      remote_path_mappings: core.downloads.remote_path_mappings.map((mapping) => [
+      remote_path_mappings: core.downloads.remote_path_mappings.map((
+        mapping,
+      ) => [
         ...mapping,
       ]),
     },
@@ -178,7 +184,9 @@ export function decodeConfigCore(value: string): ConfigCore {
     downloads: {
       ...decoded.downloads,
       preferred_groups: [...decoded.downloads.preferred_groups],
-      remote_path_mappings: decoded.downloads.remote_path_mappings.map((mapping) => [
+      remote_path_mappings: decoded.downloads.remote_path_mappings.map((
+        mapping,
+      ) => [
         ...mapping,
       ]),
     },
@@ -191,7 +199,9 @@ export function decodeConfigCore(value: string): ConfigCore {
       ...decoded.security,
       auth_throttle: {
         ...decoded.security.auth_throttle,
-        trusted_proxy_ips: [...decoded.security.auth_throttle.trusted_proxy_ips],
+        trusted_proxy_ips: [
+          ...decoded.security.auth_throttle.trusted_proxy_ips,
+        ],
       },
     },
   };
@@ -213,14 +223,20 @@ export function decodeNumberList(value: string): number[] {
   return [...Schema.decodeUnknownSync(NumberListJsonSchema)(value)];
 }
 
-export function encodeOptionalNumberList(values: readonly number[]): string | null {
-  const normalized = [...new Set(values.filter((value) => Number.isInteger(value) && value > 0))]
+export function encodeOptionalNumberList(
+  values: readonly number[],
+): string | null {
+  const normalized = [
+    ...new Set(values.filter((value) => Number.isInteger(value) && value > 0)),
+  ]
     .sort((left, right) => left - right);
 
   return normalized.length > 0 ? encodeNumberList(normalized) : null;
 }
 
-export function decodeOptionalNumberList(value: string | null | undefined): number[] {
+export function decodeOptionalNumberList(
+  value: string | null | undefined,
+): number[] {
   if (!value) {
     return [];
   }

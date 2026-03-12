@@ -15,8 +15,8 @@ import { registerOperationsRoutes } from "./operations-routes.ts";
 import {
   type AppVariables,
   getApiKey,
-  shouldLogRequest,
   type RunEffect,
+  shouldLogRequest,
   withRequestLogContext,
 } from "./route-helpers.ts";
 import { registerSystemRoutes } from "./system-routes.ts";
@@ -97,7 +97,10 @@ export function createApp(runEffect: RunEffect) {
     const viewer = await runEffect(
       withRequestLogContext(
         c,
-        Effect.flatMap(AuthService, (auth) => auth.resolveViewer(sessionToken, apiKey)),
+        Effect.flatMap(
+          AuthService,
+          (auth) => auth.resolveViewer(sessionToken, apiKey),
+        ),
       ),
     );
 

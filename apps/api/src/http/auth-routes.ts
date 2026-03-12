@@ -25,8 +25,11 @@ export function registerAuthRoutes(
     const result = await runRoute(
       c,
       runEffect,
-      withJsonBody(c, LoginRequestSchema, "auth login", (body) =>
-        Effect.flatMap(AuthService, (auth) => auth.login(body))
+      withJsonBody(
+        c,
+        LoginRequestSchema,
+        "auth login",
+        (body) => Effect.flatMap(AuthService, (auth) => auth.login(body)),
       ),
       async (value) => {
         await persistSession(c, runEffect, value.token);
@@ -41,8 +44,12 @@ export function registerAuthRoutes(
     return runRoute(
       c,
       runEffect,
-      withJsonBody(c, ApiKeyLoginRequestSchema, "api key login", (body) =>
-        Effect.flatMap(AuthService, (auth) => auth.loginWithApiKey(body))
+      withJsonBody(
+        c,
+        ApiKeyLoginRequestSchema,
+        "api key login",
+        (body) =>
+          Effect.flatMap(AuthService, (auth) => auth.loginWithApiKey(body)),
       ),
       async (value) => {
         await persistSession(c, runEffect, value.token);
@@ -82,18 +89,23 @@ export function registerAuthRoutes(
       runEffect,
       Effect.flatMap(AuthService, (auth) =>
         auth.regenerateApiKey(requireViewer(c).id)),
-      (value) => c.json(value),
+      (value) =>
+        c.json(value),
     ));
 
   app.put("/api/auth/password", (c) => {
     return runRoute(
       c,
       runEffect,
-      withJsonBody(c, ChangePasswordRequestSchema, "change password", (body) =>
-        Effect.flatMap(
-          AuthService,
-          (auth) => auth.changePassword(requireViewer(c).id, body),
-        )
+      withJsonBody(
+        c,
+        ChangePasswordRequestSchema,
+        "change password",
+        (body) =>
+          Effect.flatMap(
+            AuthService,
+            (auth) => auth.changePassword(requireViewer(c).id, body),
+          ),
       ),
       () => c.json({ data: null, success: true }),
     );

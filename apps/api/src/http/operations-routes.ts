@@ -28,8 +28,8 @@ import {
   ScanImportPathBodySchema,
   SearchDownloadBodySchema,
   SearchEpisodeParamsSchema,
-  SearchReleasesQuerySchema,
   SearchMissingBodySchema,
+  SearchReleasesQuerySchema,
   WantedMissingQuerySchema,
 } from "./request-schemas.ts";
 import type { AppVariables, RunEffect } from "./route-helpers.ts";
@@ -54,7 +54,10 @@ export function registerOperationsRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) => service.listDownloadQueue()),
+      Effect.flatMap(
+        OperationsService,
+        (service) => service.listDownloadQueue(),
+      ),
       (value: Download[]) => c.json(value),
     ));
 
@@ -62,8 +65,10 @@ export function registerOperationsRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) => service.listDownloadHistory()),
-      (value: Download[]) => c.json(value),
+      Effect.flatMap(OperationsService, (service) =>
+        service.listDownloadHistory()),
+      (value: Download[]) =>
+        c.json(value),
     ));
 
   app.get("/api/downloads/events", (c) =>
@@ -77,9 +82,9 @@ export function registerOperationsRoutes(
             downloadId: query.download_id,
             eventType: query.event_type,
             limit: query.limit,
-          }))
-      ),
-      (value) => c.json(value),
+          }))),
+      (value) =>
+        c.json(value),
     ));
 
   app.get("/api/rss", (c) =>
@@ -96,9 +101,9 @@ export function registerOperationsRoutes(
       runEffect,
       withParams(c, IdParamsSchema, "list anime rss feeds", (params) =>
         Effect.flatMap(OperationsService, (service) =>
-          service.listAnimeRssFeeds(params.id))
-      ),
-      (value: RssFeed[]) => c.json(value),
+          service.listAnimeRssFeeds(params.id))),
+      (value: RssFeed[]) =>
+        c.json(value),
     ));
 
   app.get("/api/wanted/missing", (c) =>
@@ -107,9 +112,9 @@ export function registerOperationsRoutes(
       runEffect,
       withQuery(c, WantedMissingQuerySchema, "get wanted missing", (query) =>
         Effect.flatMap(OperationsService, (service) =>
-          service.getWantedMissing(query.limit ?? 50))
-      ),
-      (value: MissingEpisode[]) => c.json(value),
+          service.getWantedMissing(query.limit ?? 50))),
+      (value: MissingEpisode[]) =>
+        c.json(value),
     ));
 
   app.get("/api/calendar", (c) =>
@@ -118,9 +123,9 @@ export function registerOperationsRoutes(
       runEffect,
       withQuery(c, CalendarQuerySchema, "calendar", (query) =>
         Effect.flatMap(OperationsService, (service) =>
-          service.getCalendar(query.start ?? nowIso(), query.end ?? nowIso()))
-      ),
-      (value: CalendarEvent[]) => c.json(value),
+          service.getCalendar(query.start ?? nowIso(), query.end ?? nowIso()))),
+      (value: CalendarEvent[]) =>
+        c.json(value),
     ));
 
   app.get("/api/anime/:id/rename-preview", (c) =>
@@ -128,17 +133,20 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "rename preview", (params) =>
-        Effect.flatMap(OperationsService, (service) => service.getRenamePreview(params.id))
-      ),
-      (value: RenamePreviewItem[]) => c.json(value),
+        Effect.flatMap(OperationsService, (service) =>
+          service.getRenamePreview(params.id))),
+      (value: RenamePreviewItem[]) =>
+        c.json(value),
     ));
 
   app.get("/api/library/unmapped", (c) =>
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) => service.getUnmappedFolders()),
-      (value: ScannerState) => c.json(value),
+      Effect.flatMap(OperationsService, (service) =>
+        service.getUnmappedFolders()),
+      (value: ScannerState) =>
+        c.json(value),
     ));
 
   app.get("/api/search/releases", (c) =>
@@ -152,9 +160,9 @@ export function registerOperationsRoutes(
             query.anime_id,
             query.category,
             query.filter,
-          ))
-      ),
-      (value: SearchResults) => c.json(value),
+          ))),
+      (value: SearchResults) =>
+        c.json(value),
     ));
 
   app.get("/api/search/episode/:animeId/:episodeNumber", (c) =>
@@ -163,13 +171,15 @@ export function registerOperationsRoutes(
       runEffect,
       withParams(c, SearchEpisodeParamsSchema, "search episode", (params) =>
         Effect.flatMap(OperationsService, (service) =>
-          service.searchEpisode(params.animeId, params.episodeNumber))
-      ),
-      (value: EpisodeSearchResult[]) => c.json(value),
+          service.searchEpisode(params.animeId, params.episodeNumber))),
+      (value: EpisodeSearchResult[]) =>
+        c.json(value),
     ));
 
   app.get("/api/library/browse", async (c) => {
-    const query = await runEffect(parseQuery(c, BrowseQuerySchema, "browse library"));
+    const query = await runEffect(
+      parseQuery(c, BrowseQuerySchema, "browse library"),
+    );
     return c.json(await browsePath(query.path || "."));
   });
 
@@ -177,8 +187,15 @@ export function registerOperationsRoutes(
     return runRoute(
       c,
       runEffect,
-      withJsonBody(c, SearchDownloadBodySchema, "trigger download", (body) =>
-        Effect.flatMap(OperationsService, (service) => service.triggerDownload({ ...body }))
+      withJsonBody(
+        c,
+        SearchDownloadBodySchema,
+        "trigger download",
+        (body) =>
+          Effect.flatMap(
+            OperationsService,
+            (service) => service.triggerDownload({ ...body }),
+          ),
       ),
       () => c.json({ data: null, success: true }),
     );
@@ -196,7 +213,8 @@ export function registerOperationsRoutes(
           Effect.flatMap(OperationsService, (service) =>
             service.triggerSearchMissing(body.anime_id)),
       ),
-      () => c.json({ data: null, success: true }),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.post("/api/downloads/:id/pause", (c) =>
@@ -204,9 +222,10 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "pause download", (params) =>
-        Effect.flatMap(OperationsService, (service) => service.pauseDownload(params.id))
-      ),
-      () => c.json({ data: null, success: true }),
+        Effect.flatMap(OperationsService, (service) =>
+          service.pauseDownload(params.id))),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.post("/api/downloads/:id/resume", (c) =>
@@ -214,9 +233,10 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "resume download", (params) =>
-        Effect.flatMap(OperationsService, (service) => service.resumeDownload(params.id))
-      ),
-      () => c.json({ data: null, success: true }),
+        Effect.flatMap(OperationsService, (service) =>
+          service.resumeDownload(params.id))),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.post("/api/downloads/:id/retry", (c) =>
@@ -224,9 +244,10 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "retry download", (params) =>
-        Effect.flatMap(OperationsService, (service) => service.retryDownload(params.id))
-      ),
-      () => c.json({ data: null, success: true }),
+        Effect.flatMap(OperationsService, (service) =>
+          service.retryDownload(params.id))),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.post("/api/downloads/:id/reconcile", (c) =>
@@ -234,9 +255,10 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "reconcile download", (params) =>
-        Effect.flatMap(OperationsService, (service) => service.reconcileDownload(params.id))
-      ),
-      () => c.json({ data: null, success: true }),
+        Effect.flatMap(OperationsService, (service) =>
+          service.reconcileDownload(params.id))),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.post("/api/downloads/sync", (c) =>
@@ -260,7 +282,8 @@ export function registerOperationsRoutes(
             service.removeDownload(params.id, query.delete_files === "true"))
         ),
       ),
-      () => c.json({ data: null, success: true }),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.post("/api/rss", (c) =>
@@ -268,9 +291,10 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withJsonBody(c, AddRssFeedBodySchema, "add rss feed", (body) =>
-        Effect.flatMap(OperationsService, (service) => service.addRssFeed({ ...body }))
-      ),
-      (value: RssFeed) => c.json(value),
+        Effect.flatMap(OperationsService, (service) =>
+          service.addRssFeed({ ...body }))),
+      (value: RssFeed) =>
+        c.json(value),
     ));
 
   app.delete("/api/rss/:id", (c) =>
@@ -278,22 +302,29 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "delete rss feed", (params) =>
-        Effect.flatMap(OperationsService, (service) => service.deleteRssFeed(params.id))
-      ),
-      () => c.json({ data: null, success: true }),
+        Effect.flatMap(OperationsService, (service) =>
+          service.deleteRssFeed(params.id))),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.put("/api/rss/:id/toggle", (c) =>
     runRoute(
       c,
       runEffect,
-      withParamsAndBody(c, IdParamsSchema, EnabledBodySchema, "toggle rss feed", (
-        params,
-        body,
-      ) =>
-        Effect.flatMap(OperationsService, (service) =>
-          service.toggleRssFeed(params.id, body.enabled)
-        )
+      withParamsAndBody(
+        c,
+        IdParamsSchema,
+        EnabledBodySchema,
+        "toggle rss feed",
+        (
+          params,
+          body,
+        ) =>
+          Effect.flatMap(
+            OperationsService,
+            (service) => service.toggleRssFeed(params.id, body.enabled),
+          ),
       ),
       () => c.json({ data: null, success: true }),
     ));
@@ -301,7 +332,10 @@ export function registerOperationsRoutes(
   app.post("/api/library/unmapped/scan", (c) => {
     queueMicrotask(() => {
       void runEffect(
-        Effect.flatMap(OperationsService, (service) => service.runUnmappedScan()),
+        Effect.flatMap(
+          OperationsService,
+          (service) => service.runUnmappedScan(),
+        ),
       ).catch(() => undefined);
     });
     return c.json({ data: null, success: true });
@@ -319,7 +353,8 @@ export function registerOperationsRoutes(
           Effect.flatMap(OperationsService, (service) =>
             service.importUnmappedFolder({ ...body })),
       ),
-      () => c.json({ data: null, success: true }),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.post("/api/library/import/scan", (c) =>
@@ -328,9 +363,9 @@ export function registerOperationsRoutes(
       runEffect,
       withJsonBody(c, ScanImportPathBodySchema, "scan import path", (body) =>
         Effect.flatMap(OperationsService, (service) =>
-          service.scanImportPath(body.path, body.anime_id))
-      ),
-      (value: ScanResult) => c.json(value),
+          service.scanImportPath(body.path, body.anime_id))),
+      (value: ScanResult) =>
+        c.json(value),
     ));
 
   app.post("/api/library/import", (c) =>
@@ -338,9 +373,10 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withJsonBody(c, ImportFilesBodySchema, "import files", (body) =>
-        Effect.flatMap(OperationsService, (service) => service.importFiles([...body.files]))
-      ),
-      (value: ImportResult) => c.json(value),
+        Effect.flatMap(OperationsService, (service) =>
+          service.importFiles([...body.files]))),
+      (value: ImportResult) =>
+        c.json(value),
     ));
 
   app.post("/api/anime/:id/rename", (c) =>
@@ -348,8 +384,9 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "rename files", (params) =>
-        Effect.flatMap(OperationsService, (service) => service.renameFiles(params.id))
-      ),
-      (value: RenameResult) => c.json(value),
+        Effect.flatMap(OperationsService, (service) =>
+          service.renameFiles(params.id))),
+      (value: RenameResult) =>
+        c.json(value),
     ));
 }

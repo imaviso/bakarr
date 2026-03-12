@@ -612,6 +612,12 @@ function BackgroundJobCard(props: { job: BackgroundJobStatus }) {
 			</div>
 			<div class="space-y-1 text-xs text-muted-foreground">
 				<div>Runs: {props.job.run_count}</div>
+				<div>
+					Schedule: {props.job.schedule_mode ?? "manual"}
+					<Show when={props.job.schedule_value}>
+						<span> ({props.job.schedule_value})</span>
+					</Show>
+				</div>
 				<div>Last run: {props.job.last_run_at ? formatLogTimestamp(props.job.last_run_at) : "-"}</div>
 				<div>Last success: {props.job.last_success_at ? formatLogTimestamp(props.job.last_success_at) : "-"}</div>
 				<Show when={props.job.last_message}>

@@ -4,7 +4,10 @@ import type { ParsedRelease } from "./rss-client.ts";
 import { parseEpisodeNumber } from "./library-import.ts";
 import { nowIso, randomHex } from "./job-support.ts";
 
-export function mapSearchCategory(category: string | undefined, fallback: string) {
+export function mapSearchCategory(
+  category: string | undefined,
+  fallback: string,
+) {
   switch (category) {
     case "anime_english":
       return "1_2";
@@ -52,7 +55,10 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
   };
 }
 
-export function fallbackReleases(query: string, title?: string): ParsedRelease[] {
+export function fallbackReleases(
+  query: string,
+  title?: string,
+): ParsedRelease[] {
   const base = title || query || "Anime";
   return [
     {
@@ -60,7 +66,9 @@ export function fallbackReleases(query: string, title?: string): ParsedRelease[]
       infoHash: randomHex(20),
       isSeaDex: true,
       leechers: 3,
-      magnet: `magnet:?xt=urn:btih:${randomHex(20)}&dn=${encodeURIComponent(base)}`,
+      magnet: `magnet:?xt=urn:btih:${randomHex(20)}&dn=${
+        encodeURIComponent(base)
+      }`,
       pubDate: nowIso(),
       remake: false,
       resolution: "1080p",

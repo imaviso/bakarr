@@ -10,7 +10,13 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
-import { anime, backgroundJobs, downloads, episodes, rssFeeds } from "../../db/schema.ts";
+import {
+  anime,
+  backgroundJobs,
+  downloads,
+  episodes,
+  rssFeeds,
+} from "../../db/schema.ts";
 import type { AniListClient } from "../anime/anilist.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { type ParsedRelease, RssClient } from "./rss-client.ts";
@@ -28,7 +34,15 @@ import {
   parseCoveredEpisodes,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
-import { appendLog, loadMissingEpisodeNumbers, markJobFailed, markJobStarted, markJobSucceeded, nowIso, recordDownloadEvent } from "./job-support.ts";
+import {
+  appendLog,
+  loadMissingEpisodeNumbers,
+  markJobFailed,
+  markJobStarted,
+  markJobSucceeded,
+  nowIso,
+  recordDownloadEvent,
+} from "./job-support.ts";
 import {
   getConfigLibraryPath,
   loadCurrentEpisodeState,
@@ -70,7 +84,9 @@ export function makeSearchOrchestration(input: {
   eventBus: typeof EventBus.Service;
   tryDatabasePromise: TryDatabasePromise;
   tryOperationsPromise: TryOperationsPromise;
-  wrapOperationsError: (message: string) => (cause: unknown) => OperationsError | DatabaseError;
+  wrapOperationsError: (
+    message: string,
+  ) => (cause: unknown) => OperationsError | DatabaseError;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
@@ -105,7 +121,9 @@ export function makeSearchOrchestration(input: {
         filter,
         config.nyaa.filter_remakes ? "1" : "0",
       );
-      const url = `https://nyaa.si/?page=rss&q=${encodeURIComponent(query)}&c=${encodeURIComponent(resolvedCategory)}&f=${encodeURIComponent(resolvedFilter)}`;
+      const url = `https://nyaa.si/?page=rss&q=${encodeURIComponent(query)}&c=${
+        encodeURIComponent(resolvedCategory)
+      }&f=${encodeURIComponent(resolvedFilter)}`;
       const results = [...yield* rssClient.fetchItems(url)];
 
       if (results.length > 0) {
@@ -158,7 +176,10 @@ export function makeSearchOrchestration(input: {
     }
 
     if (results.length === 0) {
-      return fallbackReleases(`${animeRow.titleRomaji} ${episodeNumber}`, animeRow.titleRomaji);
+      return fallbackReleases(
+        `${animeRow.titleRomaji} ${episodeNumber}`,
+        animeRow.titleRomaji,
+      );
     }
 
     return results.slice(0, 10);
@@ -172,7 +193,10 @@ export function makeSearchOrchestration(input: {
       filter?: string,
     ) {
       const animeRow = animeId
-        ? yield* tryOperationsPromise("Failed to search releases", () => requireAnime(db, animeId))
+        ? yield* tryOperationsPromise(
+          "Failed to search releases",
+          () => requireAnime(db, animeId),
+        )
         : null;
       const searchQuery = (query || animeRow?.titleRomaji || "Search").trim();
       const runtimeConfig = yield* tryOperationsPromise(
@@ -189,7 +213,9 @@ export function makeSearchOrchestration(input: {
 
       return {
         results: results.map(toNyaaSearchResult),
-        seadex_groups: results.filter((item) => item.isSeaDex).map((item) => item.group)
+        seadex_groups: results.filter((item) => item.isSeaDex).map((item) =>
+          item.group
+        )
           .filter((value): value is string => Boolean(value)),
       } satisfies SearchResults;
     },
@@ -203,7 +229,11 @@ export function makeSearchOrchestration(input: {
   ) =>
     searchReleasesRaw(query, animeId, category, filter).pipe(
       Effect.catchAll((error) =>
-        Effect.fail(error instanceof DatabaseError ? error : dbError("Failed to search releases")(error))
+        Effect.fail(
+          error instanceof DatabaseError
+            ? error
+            : dbError("Failed to search releases")(error),
+        )
       ),
     );
 
@@ -235,10 +265,18 @@ export function makeSearchOrchestration(input: {
       animeRow,
       episodeNumber,
       runtimeConfig,
-    ).pipe(Effect.mapError(wrapOperationsError("Failed to search episode releases")));
+    ).pipe(
+      Effect.mapError(wrapOperationsError("Failed to search episode releases")),
+    );
 
     return results.map((item) => ({
-      download_action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig),
+      download_action: decideDownloadAction(
+        profile,
+        rules,
+        currentEpisode,
+        item,
+        runtimeConfig,
+      ),
       group: item.group,
       indexer: "Nyaa",
       info_hash: item.infoHash,
@@ -272,7 +310,10 @@ export function makeSearchOrchestration(input: {
       const missingRows = yield* tryDatabasePromise(
         "Failed to queue missing-episode search",
         () =>
-          db.select().from(episodes).innerJoin(anime, eq(anime.id, episodes.animeId))
+          db.select().from(episodes).innerJoin(
+            anime,
+            eq(anime.id, episodes.animeId),
+          )
             .where(
               filter
                 ? and(eq(episodes.downloaded, false), filter)
@@ -305,7 +346,13 @@ export function makeSearchOrchestration(input: {
         );
         const best = candidates
           .map((item) => ({
-            action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig),
+            action: decideDownloadAction(
+              profile,
+              rules,
+              currentEpisode,
+              item,
+              runtimeConfig,
+            ),
             item,
           }))
           .find((entry) => entry.action.Accept || entry.action.Upgrade);
@@ -346,44 +393,52 @@ export function makeSearchOrchestration(input: {
 
         if (qbitConfig) {
           yield* qbitClient.addTorrentUrl(qbitConfig, best.item.magnet).pipe(
-            Effect.mapError(wrapOperationsError("Failed to queue missing-episode search")),
+            Effect.mapError(
+              wrapOperationsError("Failed to queue missing-episode search"),
+            ),
           );
           status = "downloading";
         }
 
-        yield* tryDatabasePromise("Failed to queue missing-episode search", () =>
-          db.insert(downloads).values({
-            addedAt: nowIso(),
-            animeId: row.anime.id,
-            animeTitle: row.anime.titleRomaji,
-            contentPath: null,
-            coveredEpisodes,
-            downloadDate: null,
-            episodeNumber: row.episodes.number,
-            isBatch: parsedRelease.isBatch,
-            downloadedBytes: 0,
-            errorMessage: null,
-            etaSeconds: null,
-            externalState: status,
-            groupName: best.item.group ?? null,
-            infoHash: best.item.infoHash,
-            lastSyncedAt: nowIso(),
-            magnet: best.item.magnet,
-            progress: 0,
-            savePath: null,
-            speedBytes: 0,
-            status,
-            totalBytes: best.item.sizeBytes,
-            torrentName: best.item.title,
-          }));
-        yield* tryDatabasePromise("Failed to queue missing-episode search", () =>
-          recordDownloadEvent(db, {
-            animeId: row.anime.id,
-            eventType: "download.search_missing.queued",
-            message: `Queued ${best.item.title}`,
-            metadata: coveredEpisodes,
-            toStatus: status,
-          }));
+        yield* tryDatabasePromise(
+          "Failed to queue missing-episode search",
+          () =>
+            db.insert(downloads).values({
+              addedAt: nowIso(),
+              animeId: row.anime.id,
+              animeTitle: row.anime.titleRomaji,
+              contentPath: null,
+              coveredEpisodes,
+              downloadDate: null,
+              episodeNumber: row.episodes.number,
+              isBatch: parsedRelease.isBatch,
+              downloadedBytes: 0,
+              errorMessage: null,
+              etaSeconds: null,
+              externalState: status,
+              groupName: best.item.group ?? null,
+              infoHash: best.item.infoHash,
+              lastSyncedAt: nowIso(),
+              magnet: best.item.magnet,
+              progress: 0,
+              savePath: null,
+              speedBytes: 0,
+              status,
+              totalBytes: best.item.sizeBytes,
+              torrentName: best.item.title,
+            }),
+        );
+        yield* tryDatabasePromise(
+          "Failed to queue missing-episode search",
+          () =>
+            recordDownloadEvent(db, {
+              animeId: row.anime.id,
+              eventType: "download.search_missing.queued",
+              message: `Queued ${best.item.title}`,
+              metadata: coveredEpisodes,
+              toStatus: status,
+            }),
+        );
         queued += 1;
       }
 
@@ -393,7 +448,9 @@ export function makeSearchOrchestration(input: {
       });
       yield* publishDownloadProgress();
     } catch (cause) {
-      return yield* Effect.fail(dbError("Failed to queue missing-episode search")(cause));
+      return yield* Effect.fail(
+        dbError("Failed to queue missing-episode search")(cause),
+      );
     }
   });
 
@@ -408,150 +465,199 @@ export function makeSearchOrchestration(input: {
       ),
     );
 
-  const runRssCheckRaw = Effect.fn("OperationsService.runRssCheck")(function* () {
-    yield* tryDatabasePromise("Failed to run RSS check", () => markJobStarted(db, "rss"));
+  const runRssCheckRaw = Effect.fn("OperationsService.runRssCheck")(
+    function* () {
+      yield* tryDatabasePromise(
+        "Failed to run RSS check",
+        () => markJobStarted(db, "rss"),
+      );
 
-    try {
-      const feeds = yield* tryDatabasePromise("Failed to run RSS check", () =>
-        db.select().from(rssFeeds).where(eq(rssFeeds.enabled, true)));
-      const runtimeConfig = yield* tryOperationsPromise("Failed to run RSS check", () =>
-        loadRuntimeConfig(db));
-      let newItems = 0;
+      try {
+        const feeds = yield* tryDatabasePromise(
+          "Failed to run RSS check",
+          () => db.select().from(rssFeeds).where(eq(rssFeeds.enabled, true)),
+        );
+        const runtimeConfig = yield* tryOperationsPromise(
+          "Failed to run RSS check",
+          () => loadRuntimeConfig(db),
+        );
+        let newItems = 0;
 
-      yield* eventBus.publish({ type: "RssCheckStarted" });
+        yield* eventBus.publish({ type: "RssCheckStarted" });
 
-      for (const feed of feeds) {
-        const items = yield* rssClient.fetchItems(feed.url);
-        const animeRow = yield* tryOperationsPromise("Failed to run RSS check", () =>
-          requireAnime(db, feed.animeId));
-        const profile = yield* tryDatabasePromise("Failed to run RSS check", () =>
-          loadQualityProfile(db, animeRow.profileName));
-        const rules = yield* tryDatabasePromise("Failed to run RSS check", () =>
-          loadReleaseRules(db, animeRow));
-
-        for (const item of items.slice(0, 10)) {
-          const exists = yield* tryDatabasePromise("Failed to run RSS check", () =>
-            db.select({ id: downloads.id }).from(downloads).where(
-              sql`${downloads.infoHash} = ${item.infoHash}`,
-            ).limit(1));
-
-          if (exists[0]) {
-            continue;
-          }
-
-          const episodeNumber = parseEpisodeFromTitle(item.title) ?? 1;
-          const currentEpisode = yield* tryDatabasePromise(
+        for (const feed of feeds) {
+          const items = yield* rssClient.fetchItems(feed.url);
+          const animeRow = yield* tryOperationsPromise(
             "Failed to run RSS check",
-            () => loadCurrentEpisodeState(db, animeRow.id, episodeNumber),
+            () => requireAnime(db, feed.animeId),
           );
-          const action = decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig);
-
-          if (!(action.Accept || action.Upgrade)) {
-            continue;
-          }
-
-          const qbitConfig = maybeQBitConfig(runtimeConfig);
-          const parsedRelease = parseReleaseName(item.title);
-          const missingEpisodes = yield* tryDatabasePromise(
+          const profile = yield* tryDatabasePromise(
             "Failed to run RSS check",
-            () => loadMissingEpisodeNumbers(db, animeRow.id),
+            () => loadQualityProfile(db, animeRow.profileName),
           );
-          const coveredEpisodes = toCoveredEpisodesJson(
-            inferCoveredEpisodeNumbers({
-              explicitEpisodes: parsedRelease.episodeNumbers,
-              isBatch: parsedRelease.isBatch,
-              missingEpisodes,
-              requestedEpisode: episodeNumber,
-            }),
+          const rules = yield* tryDatabasePromise(
+            "Failed to run RSS check",
+            () => loadReleaseRules(db, animeRow),
           );
 
-          if (
-            yield* tryDatabasePromise("Failed to run RSS check", () =>
-              hasOverlappingDownload(
-                db,
-                animeRow.id,
-                item.infoHash,
-                parseCoveredEpisodes(coveredEpisodes),
-              ))
-          ) {
-            continue;
-          }
-
-          let status = "queued";
-
-          if (qbitConfig) {
-            yield* qbitClient.addTorrentUrl(qbitConfig, item.magnet).pipe(
-              Effect.mapError(wrapOperationsError("Failed to run RSS check")),
+          for (const item of items.slice(0, 10)) {
+            const exists = yield* tryDatabasePromise(
+              "Failed to run RSS check",
+              () =>
+                db.select({ id: downloads.id }).from(downloads).where(
+                  sql`${downloads.infoHash} = ${item.infoHash}`,
+                ).limit(1),
             );
-            status = "downloading";
+
+            if (exists[0]) {
+              continue;
+            }
+
+            const episodeNumber = parseEpisodeFromTitle(item.title) ?? 1;
+            const currentEpisode = yield* tryDatabasePromise(
+              "Failed to run RSS check",
+              () => loadCurrentEpisodeState(db, animeRow.id, episodeNumber),
+            );
+            const action = decideDownloadAction(
+              profile,
+              rules,
+              currentEpisode,
+              item,
+              runtimeConfig,
+            );
+
+            if (!(action.Accept || action.Upgrade)) {
+              continue;
+            }
+
+            const qbitConfig = maybeQBitConfig(runtimeConfig);
+            const parsedRelease = parseReleaseName(item.title);
+            const missingEpisodes = yield* tryDatabasePromise(
+              "Failed to run RSS check",
+              () => loadMissingEpisodeNumbers(db, animeRow.id),
+            );
+            const coveredEpisodes = toCoveredEpisodesJson(
+              inferCoveredEpisodeNumbers({
+                explicitEpisodes: parsedRelease.episodeNumbers,
+                isBatch: parsedRelease.isBatch,
+                missingEpisodes,
+                requestedEpisode: episodeNumber,
+              }),
+            );
+
+            if (
+              yield* tryDatabasePromise(
+                "Failed to run RSS check",
+                () =>
+                  hasOverlappingDownload(
+                    db,
+                    animeRow.id,
+                    item.infoHash,
+                    parseCoveredEpisodes(coveredEpisodes),
+                  ),
+              )
+            ) {
+              continue;
+            }
+
+            let status = "queued";
+
+            if (qbitConfig) {
+              yield* qbitClient.addTorrentUrl(qbitConfig, item.magnet).pipe(
+                Effect.mapError(wrapOperationsError("Failed to run RSS check")),
+              );
+              status = "downloading";
+            }
+
+            yield* tryDatabasePromise(
+              "Failed to run RSS check",
+              () =>
+                db.insert(downloads).values({
+                  addedAt: nowIso(),
+                  animeId: animeRow.id,
+                  animeTitle: animeRow.titleRomaji,
+                  contentPath: null,
+                  coveredEpisodes,
+                  downloadDate: null,
+                  episodeNumber,
+                  isBatch: parsedRelease.isBatch,
+                  downloadedBytes: 0,
+                  errorMessage: null,
+                  etaSeconds: null,
+                  externalState: status,
+                  groupName: item.group ?? null,
+                  infoHash: item.infoHash,
+                  lastSyncedAt: nowIso(),
+                  magnet: item.magnet,
+                  progress: 0,
+                  savePath: null,
+                  speedBytes: 0,
+                  status,
+                  totalBytes: item.sizeBytes,
+                  torrentName: item.title,
+                }),
+            );
+            yield* tryDatabasePromise(
+              "Failed to run RSS check",
+              () =>
+                recordDownloadEvent(db, {
+                  animeId: animeRow.id,
+                  eventType: "download.rss.queued",
+                  message: `Queued ${item.title} from RSS`,
+                  metadata: coveredEpisodes,
+                  toStatus: status,
+                }),
+            );
+            newItems += 1;
           }
 
-          yield* tryDatabasePromise("Failed to run RSS check", () =>
-            db.insert(downloads).values({
-              addedAt: nowIso(),
-              animeId: animeRow.id,
-              animeTitle: animeRow.titleRomaji,
-              contentPath: null,
-              coveredEpisodes,
-              downloadDate: null,
-              episodeNumber,
-              isBatch: parsedRelease.isBatch,
-              downloadedBytes: 0,
-              errorMessage: null,
-              etaSeconds: null,
-              externalState: status,
-              groupName: item.group ?? null,
-              infoHash: item.infoHash,
-              lastSyncedAt: nowIso(),
-              magnet: item.magnet,
-              progress: 0,
-              savePath: null,
-              speedBytes: 0,
-              status,
-              totalBytes: item.sizeBytes,
-              torrentName: item.title,
-            }));
-          yield* tryDatabasePromise("Failed to run RSS check", () =>
-            recordDownloadEvent(db, {
-              animeId: animeRow.id,
-              eventType: "download.rss.queued",
-              message: `Queued ${item.title} from RSS`,
-              metadata: coveredEpisodes,
-              toStatus: status,
-            }));
-          newItems += 1;
+          yield* tryDatabasePromise(
+            "Failed to run RSS check",
+            () =>
+              db.update(rssFeeds).set({ lastChecked: nowIso() }).where(
+                eq(rssFeeds.id, feed.id),
+              ),
+          );
         }
 
-        yield* tryDatabasePromise("Failed to run RSS check", () =>
-          db.update(rssFeeds).set({ lastChecked: nowIso() }).where(eq(rssFeeds.id, feed.id)));
+        yield* tryDatabasePromise(
+          "Failed to run RSS check",
+          () => markJobSucceeded(db, "rss", `Queued ${newItems} release(s)`),
+        );
+        yield* eventBus.publish({
+          type: "RssCheckFinished",
+          payload: { new_items: newItems, total_feeds: feeds.length },
+        });
+        yield* publishDownloadProgress();
+
+        return { newItems };
+      } catch (cause) {
+        yield* tryDatabasePromise(
+          "Failed to run RSS check",
+          () => markJobFailed(db, "rss", cause),
+        );
+        return yield* Effect.fail(dbError("Failed to run RSS check")(cause));
       }
-
-      yield* tryDatabasePromise("Failed to run RSS check", () =>
-        markJobSucceeded(db, "rss", `Queued ${newItems} release(s)`));
-      yield* eventBus.publish({
-        type: "RssCheckFinished",
-        payload: { new_items: newItems, total_feeds: feeds.length },
-      });
-      yield* publishDownloadProgress();
-
-      return { newItems };
-    } catch (cause) {
-      yield* tryDatabasePromise("Failed to run RSS check", () => markJobFailed(db, "rss", cause));
-      return yield* Effect.fail(dbError("Failed to run RSS check")(cause));
-    }
-  });
+    },
+  );
 
   const runRssCheck = () =>
     runRssCheckRaw().pipe(
       Effect.catchAll((error) =>
-        Effect.fail(error instanceof DatabaseError ? error : dbError("Failed to run RSS check")(error))
+        Effect.fail(
+          error instanceof DatabaseError
+            ? error
+            : dbError("Failed to run RSS check")(error),
+        )
       ),
     );
 
   const getUnmappedFolders = Effect.fn("OperationsService.getUnmappedFolders")(
     function* () {
-      const root = yield* tryDatabasePromise("Failed to scan unmapped folders", () =>
-        getConfigLibraryPath(db));
+      const root = yield* tryDatabasePromise(
+        "Failed to scan unmapped folders",
+        () => getConfigLibraryPath(db),
+      );
       const animeRows = yield* tryDatabasePromise(
         "Failed to scan unmapped folders",
         () => db.select().from(anime),
@@ -560,7 +666,9 @@ export function makeSearchOrchestration(input: {
       const [job] = yield* tryDatabasePromise(
         "Failed to scan unmapped folders",
         () =>
-          db.select().from(backgroundJobs).where(eq(backgroundJobs.name, "unmapped_scan"))
+          db.select().from(backgroundJobs).where(
+            eq(backgroundJobs.name, "unmapped_scan"),
+          )
             .limit(1),
       );
       const entries = yield* tryDatabasePromise<Deno.DirEntry[]>(
@@ -599,8 +707,10 @@ export function makeSearchOrchestration(input: {
 
   const runUnmappedScan = Effect.fn("OperationsService.runUnmappedScan")(
     function* () {
-      yield* tryDatabasePromise("Failed to scan unmapped folders", () =>
-        markJobStarted(db, "unmapped_scan"));
+      yield* tryDatabasePromise(
+        "Failed to scan unmapped folders",
+        () => markJobStarted(db, "unmapped_scan"),
+      );
 
       try {
         const root = yield* tryDatabasePromise(
@@ -625,23 +735,44 @@ export function makeSearchOrchestration(input: {
           return mappedRoots.has(fullPath) ? count : count + 1;
         }, 0);
 
-        yield* tryDatabasePromise("Failed to scan unmapped folders", () =>
-          markJobSucceeded(db, "unmapped_scan", `Found ${folderCount} unmapped folder(s)`));
-        yield* tryDatabasePromise("Failed to scan unmapped folders", () =>
-          appendLog(db, "library.unmapped.scan", "info", `Scanned unmapped folders: ${folderCount}`));
+        yield* tryDatabasePromise(
+          "Failed to scan unmapped folders",
+          () =>
+            markJobSucceeded(
+              db,
+              "unmapped_scan",
+              `Found ${folderCount} unmapped folder(s)`,
+            ),
+        );
+        yield* tryDatabasePromise(
+          "Failed to scan unmapped folders",
+          () =>
+            appendLog(
+              db,
+              "library.unmapped.scan",
+              "info",
+              `Scanned unmapped folders: ${folderCount}`,
+            ),
+        );
 
         return { folderCount };
       } catch (cause) {
-        yield* tryDatabasePromise("Failed to scan unmapped folders", () =>
-          markJobFailed(db, "unmapped_scan", cause));
-        return yield* Effect.fail(dbError("Failed to scan unmapped folders")(cause));
+        yield* tryDatabasePromise(
+          "Failed to scan unmapped folders",
+          () => markJobFailed(db, "unmapped_scan", cause),
+        );
+        return yield* Effect.fail(
+          dbError("Failed to scan unmapped folders")(cause),
+        );
       }
     },
   );
 
   const importUnmappedFolder = Effect.fn(
     "OperationsService.importUnmappedFolder",
-  )(function* (input: { folder_name: string; anime_id: number; profile_name?: string }) {
+  )(function* (
+    input: { folder_name: string; anime_id: number; profile_name?: string },
+  ) {
     const animeRow = yield* tryOperationsPromise(
       "Failed to import unmapped folder",
       () => requireAnime(db, input.anime_id),
@@ -652,29 +783,59 @@ export function makeSearchOrchestration(input: {
     );
     const folderPath = `${libraryPath.replace(/\/$/, "")}/${input.folder_name}`;
 
-    yield* tryOperationsPromise("Failed to import unmapped folder", () =>
-      copyDirectoryContents(folderPath, animeRow.rootFolder));
-    yield* tryDatabasePromise("Failed to import unmapped folder", () =>
-      appendLog(db, "library.unmapped.imported", "success", `Imported ${input.folder_name}`));
+    yield* tryOperationsPromise(
+      "Failed to import unmapped folder",
+      () => copyDirectoryContents(folderPath, animeRow.rootFolder),
+    );
+    yield* tryDatabasePromise(
+      "Failed to import unmapped folder",
+      () =>
+        appendLog(
+          db,
+          "library.unmapped.imported",
+          "success",
+          `Imported ${input.folder_name}`,
+        ),
+    );
   });
 
   const scanImportPathRaw = Effect.fn("OperationsService.scanImportPath")(
     function* (path: string, animeId?: number) {
-      const files = yield* tryDatabasePromise("Failed to scan import path", () => scanVideoFiles(path));
+      const files = yield* tryDatabasePromise(
+        "Failed to scan import path",
+        () => scanVideoFiles(path),
+      );
       const animeRows = animeId
-        ? [yield* tryOperationsPromise("Failed to scan import path", () => requireAnime(db, animeId))]
-        : yield* tryDatabasePromise("Failed to scan import path", () => db.select().from(anime));
+        ? [
+          yield* tryOperationsPromise("Failed to scan import path", () =>
+            requireAnime(db, animeId)),
+        ]
+        : yield* tryDatabasePromise(
+          "Failed to scan import path",
+          () => db.select().from(anime),
+        );
       const analyzedFiles = files.map((file) => analyzeScannedFile(file));
-      const candidateMap = new Map<number, ReturnType<typeof toAnimeSearchCandidate>>();
+      const candidateMap = new Map<
+        number,
+        ReturnType<typeof toAnimeSearchCandidate>
+      >();
 
       if (animeId) {
         const row = animeRows[0];
         candidateMap.set(row.id, toAnimeSearchCandidate(row));
       } else {
-        const parsedTitles = [...new Set(analyzedFiles.map((file) => file.parsed_title).filter((value) => value.length > 0))].slice(0, 8);
+        const parsedTitles = [
+          ...new Set(
+            analyzedFiles.map((file) => file.parsed_title).filter((value) =>
+              value.length > 0
+            ),
+          ),
+        ].slice(0, 8);
 
         for (const parsedTitle of parsedTitles) {
-          const remoteCandidates = yield* aniList.searchAnimeMetadata(parsedTitle);
+          const remoteCandidates = yield* aniList.searchAnimeMetadata(
+            parsedTitle,
+          );
 
           for (const candidate of remoteCandidates.slice(0, 5)) {
             candidateMap.set(candidate.id, candidate);
@@ -689,16 +850,22 @@ export function makeSearchOrchestration(input: {
       return {
         candidates: [...candidateMap.values()],
         files: analyzedFiles.map((file) => {
-          const localMatch = animeId ? animeRows[0] : findBestLocalAnimeMatch(file.parsed_title, animeRows);
+          const localMatch = animeId
+            ? animeRows[0]
+            : findBestLocalAnimeMatch(file.parsed_title, animeRows);
           const remoteCandidate = !animeId && !localMatch
-            ? [...candidateMap.values()].find((candidate) => titlesMatch(file.parsed_title, candidate))
+            ? [...candidateMap.values()].find((candidate) =>
+              titlesMatch(file.parsed_title, candidate)
+            )
             : undefined;
 
           return {
             episode_number: file.episode_number,
             filename: file.filename,
             group: file.group,
-            matched_anime: localMatch ? { id: localMatch.id, title: localMatch.titleRomaji } : undefined,
+            matched_anime: localMatch
+              ? { id: localMatch.id, title: localMatch.titleRomaji }
+              : undefined,
             parsed_title: file.parsed_title,
             resolution: file.resolution,
             season: file.season,
@@ -714,7 +881,11 @@ export function makeSearchOrchestration(input: {
   const scanImportPath = (path: string, animeId?: number) =>
     scanImportPathRaw(path, animeId).pipe(
       Effect.catchAll((error) =>
-        Effect.fail(error instanceof DatabaseError ? error : dbError("Failed to scan import path")(error))
+        Effect.fail(
+          error instanceof DatabaseError
+            ? error
+            : dbError("Failed to scan import path")(error),
+        )
       ),
     );
 

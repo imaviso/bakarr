@@ -20,7 +20,9 @@ export interface ParsedRelease {
 }
 
 interface RssClientShape {
-  readonly fetchItems: (url: string) => Effect.Effect<readonly ParsedRelease[], never>;
+  readonly fetchItems: (
+    url: string,
+  ) => Effect.Effect<readonly ParsedRelease[], never>;
 }
 
 export class RssClient extends Context.Tag("@bakarr/api/RssClient")<
@@ -33,8 +35,7 @@ const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
     fetch(url, {
       headers: { Accept: "application/rss+xml, application/xml, text/xml" },
       signal,
-    })
-  )().pipe(Effect.catchAll(() => Effect.succeed<Response | null>(null)));
+    }))().pipe(Effect.catchAll(() => Effect.succeed<Response | null>(null)));
 
   if (!response || !response.ok) {
     return [];
@@ -57,18 +58,28 @@ const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
   return items.map((item) => {
     const title = decodeXml(extractTag(item, "title") ?? "Unknown release");
     const link = decodeXml(extractTag(item, "link") ?? "");
-    const infoHash = decodeXml(extractTag(item, "nyaa:infoHash") ?? randomHex(20));
+    const infoHash = decodeXml(
+      extractTag(item, "nyaa:infoHash") ?? randomHex(20),
+    );
     const groupMatch = title.match(/^\[(.*?)\]/);
     const size = decodeXml(extractTag(item, "nyaa:size") ?? "0 B");
     const pubDate = decodeXml(extractTag(item, "pubDate") ?? nowIso());
-    const seeders = Number.parseInt(decodeXml(extractTag(item, "nyaa:seeders") ?? "0"), 10) || 0;
+    const seeders =
+      Number.parseInt(decodeXml(extractTag(item, "nyaa:seeders") ?? "0"), 10) ||
+      0;
     const leechers = Number.parseInt(
       decodeXml(extractTag(item, "nyaa:leechers") ?? "0"),
       10,
     ) || 0;
-    const trusted = /^yes$/i.test(decodeXml(extractTag(item, "nyaa:trusted") ?? "no"));
-    const remake = /^yes$/i.test(decodeXml(extractTag(item, "nyaa:remake") ?? "no"));
-    const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`;
+    const trusted = /^yes$/i.test(
+      decodeXml(extractTag(item, "nyaa:trusted") ?? "no"),
+    );
+    const remake = /^yes$/i.test(
+      decodeXml(extractTag(item, "nyaa:remake") ?? "no"),
+    );
+    const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${
+      encodeURIComponent(title)
+    }`;
 
     return {
       group: groupMatch?.[1],
@@ -89,7 +100,10 @@ const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
   });
 });
 
-export const RssClientLive = Layer.succeed(RssClient, { fetchItems } satisfies RssClientShape);
+export const RssClientLive = Layer.succeed(
+  RssClient,
+  { fetchItems } satisfies RssClientShape,
+);
 
 function extractTag(input: string, tag: string) {
   const match = input.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
