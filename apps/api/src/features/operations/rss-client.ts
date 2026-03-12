@@ -31,6 +31,35 @@ export class RssClient extends Context.Tag("@bakarr/api/RssClient")<
 >() {}
 
 const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "data:") {
+      return [];
+    }
+
+    if (parsedUrl.protocol !== "data:") {
+      if (parsedUrl.port && parsedUrl.port !== "80" && parsedUrl.port !== "443") {
+        return [];
+      }
+
+      const hostname = parsedUrl.hostname.toLowerCase();
+      if (
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname === "::1" ||
+        hostname.startsWith("192.168.") ||
+        hostname.startsWith("10.") ||
+        hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+        hostname.endsWith(".local") ||
+        hostname.endsWith(".internal")
+      ) {
+        return [];
+      }
+    }
+  } catch {
+    return [];
+  }
+
   const response = yield* tryExternal("rss.fetch", (signal) =>
     fetch(url, {
       headers: { Accept: "application/rss+xml, application/xml, text/xml" },

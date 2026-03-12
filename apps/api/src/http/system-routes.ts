@@ -3,7 +3,7 @@ import type { Hono } from "hono";
 
 import type { HealthStatus } from "../../../../packages/shared/src/index.ts";
 import { EventBus } from "../features/events/event-bus.ts";
-import { OperationsService } from "../features/operations/service.ts";
+import { DownloadService, LibraryService, RssService } from "../features/operations/service.ts";
 import { SystemService } from "../features/system/service.ts";
 import {
   ConfigSchema,
@@ -339,7 +339,7 @@ export function registerSystemRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) => service.runLibraryScan()),
+      Effect.flatMap(LibraryService, (service) => service.runLibraryScan()),
       () => c.json({ data: null, success: true }),
     ));
 
@@ -347,7 +347,7 @@ export function registerSystemRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) => service.runRssCheck()),
+      Effect.flatMap(RssService, (service) => service.runRssCheck()),
       () => c.json({ data: null, success: true }),
     ));
 
@@ -361,7 +361,7 @@ export function registerSystemRoutes(
       ),
       runEffect(
         Effect.flatMap(
-          OperationsService,
+          DownloadService,
           (service) => service.getDownloadProgress(),
         ),
       ),
@@ -411,7 +411,7 @@ export function registerSystemRoutes(
       ),
       runEffect(
         Effect.flatMap(
-          OperationsService,
+          DownloadService,
           (service) => service.getDownloadProgress(),
         ),
       ),

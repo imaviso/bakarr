@@ -803,7 +803,13 @@ export function makeSearchOrchestration(input: {
     function* (path: string, animeId?: number) {
       const files = yield* tryDatabasePromise(
         "Failed to scan import path",
-        () => scanVideoFiles(path),
+        async () => {
+          const result = [];
+          for await (const file of scanVideoFiles(path)) {
+            result.push(file);
+          }
+          return result.sort((a, b) => a.path.localeCompare(b.path));
+        },
       );
       const animeRows = animeId
         ? [

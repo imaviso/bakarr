@@ -9,7 +9,7 @@ import type {
 } from "../../../../packages/shared/src/index.ts";
 import { AnimeService } from "../features/anime/service.ts";
 import { AuthService } from "../features/auth/service.ts";
-import { OperationsService } from "../features/operations/service.ts";
+import { DownloadService } from "../features/operations/service.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
@@ -88,7 +88,7 @@ export function registerAnimeRoutes(
 
             if (body.monitor_and_search) {
               yield* Effect.flatMap(
-                OperationsService,
+                DownloadService,
                 (service) => service.triggerSearchMissing(anime.id),
               );
             }

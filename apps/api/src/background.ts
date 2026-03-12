@@ -11,7 +11,11 @@ import {
   errorLogAnnotations,
 } from "./lib/logging.ts";
 import { EventBus } from "./features/events/event-bus.ts";
-import { OperationsService } from "./features/operations/service.ts";
+import {
+  DownloadService,
+  LibraryService,
+  RssService,
+} from "./features/operations/service.ts";
 import { SystemService } from "./features/system/service.ts";
 import { type ApiRuntime, runApi } from "./runtime.ts";
 
@@ -65,11 +69,11 @@ export async function startBackgroundWorkers(
     "rss",
     Effect.gen(function* () {
       yield* Effect.flatMap(
-        OperationsService,
+        RssService,
         (service) => service.runRssCheck(),
       );
       yield* Effect.flatMap(
-        OperationsService,
+        DownloadService,
         (service) => service.triggerSearchMissing(),
       );
     }),
@@ -77,14 +81,14 @@ export async function startBackgroundWorkers(
 
   const libraryLoop = withLockEffect(
     "library_scan",
-    Effect.flatMap(OperationsService, (service) => service.runLibraryScan()),
+    Effect.flatMap(LibraryService, (service) => service.runLibraryScan()),
   );
 
   const downloadSyncLoop = withLockEffect(
     "download_sync",
     Effect.gen(function* () {
       const downloads: DownloadStatus[] = yield* Effect.flatMap(
-        OperationsService,
+        DownloadService,
         (service) => service.getDownloadProgress(),
       );
 
@@ -170,7 +174,7 @@ function withLockEffect<A, E, R>(
 function repeatWorker(
   task:
     | Effect.Effect<void, never, never>
-    | Effect.Effect<void, never, EventBus | OperationsService>,
+    | Effect.Effect<void, never, EventBus | DownloadService | LibraryService | RssService>,
   options: {
     readonly cronExpression?: string | null;
     readonly initialDelayMs?: number;
@@ -188,13 +192,15 @@ function repeatWorker(
 
   if (options.cronExpression) {
     return initialRun.pipe(
-      Effect.repeat(Schedule.cron(options.cronExpression)),
+      Effect.zipRight(task.pipe(Effect.repeat(Schedule.cron(options.cronExpression)))),
       Effect.asVoid,
     );
   }
 
   return initialRun.pipe(
-    Effect.repeat(Schedule.spaced(`${options.intervalMs ?? 0} millis`)),
+    Effect.zipRight(
+      task.pipe(Effect.repeat(Schedule.spaced(`${options.intervalMs ?? 0} millis`))),
+    ),
     Effect.asVoid,
   );
 }

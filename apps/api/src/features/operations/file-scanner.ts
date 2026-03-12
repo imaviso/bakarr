@@ -1,5 +1,4 @@
-export async function scanVideoFiles(path: string) {
-  const files: Array<{ name: string; path: string }> = [];
+export async function* scanVideoFiles(path: string): AsyncGenerator<{ name: string; path: string }> {
   const stack = [path];
 
   while (stack.length > 0) {
@@ -9,22 +8,23 @@ export async function scanVideoFiles(path: string) {
       continue;
     }
 
-    for await (const entry of Deno.readDir(current)) {
-      const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+    try {
+      for await (const entry of Deno.readDir(current)) {
+        const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
 
-      if (entry.isDirectory) {
-        stack.push(fullPath);
-        continue;
-      }
+        if (entry.isDirectory) {
+          stack.push(fullPath);
+          continue;
+        }
 
-      if (entry.isFile && isVideoFile(entry.name)) {
-        files.push({ name: entry.name, path: fullPath });
+        if (entry.isFile && isVideoFile(entry.name)) {
+          yield { name: entry.name, path: fullPath };
+        }
       }
+    } catch {
+      // Ignore inaccessible directories
     }
   }
-
-  files.sort((left, right) => left.path.localeCompare(right.path));
-  return files;
 }
 
 export function parseEpisodeNumber(path: string) {

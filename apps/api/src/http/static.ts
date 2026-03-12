@@ -37,6 +37,10 @@ async function serveStaticAsset(
 
   const fileUrl = new URL(normalized, webDistUrl);
 
+  if (!fileUrl.pathname.startsWith(webDistUrl.pathname)) {
+    return null;
+  }
+
   try {
     const file = await Deno.readFile(fileUrl);
 

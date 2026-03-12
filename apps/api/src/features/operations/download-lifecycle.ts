@@ -36,7 +36,10 @@ export async function resolveCompletedContentPath(
     return undefined;
   }
 
-  const files = await scanVideoFiles(contentPath);
+  const files = [];
+  for await (const file of scanVideoFiles(contentPath)) {
+    files.push(file);
+  }
   const matching = files.find((file) =>
     parseEpisodeNumber(file.path) === episodeNumber
   );
@@ -61,7 +64,10 @@ export async function resolveBatchContentPaths(
     return [];
   }
 
-  const files = await scanVideoFiles(contentPath);
+  const files = [];
+  for await (const file of scanVideoFiles(contentPath)) {
+    files.push(file);
+  }
   return files.map((file) => file.path);
 }
 

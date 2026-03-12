@@ -37,6 +37,7 @@ import {
 } from "./job-support.ts";
 import {
   currentImportMode,
+  loadRuntimeConfig,
   requireAnime,
   toDownload,
   toDownloadEvent,
@@ -145,8 +146,27 @@ export function makeCatalogOrchestration(input: {
     const importedFiles: ImportResult["imported_files"] = [];
     const failedFiles: ImportResult["failed_files"] = [];
 
+    const runtimeConfig = yield* tryOperationsPromise(
+      "Failed to load config",
+      () => loadRuntimeConfig(db)
+    );
+    const importMode = yield* tryDatabasePromise(
+      "Failed to import files",
+      () => currentImportMode(db),
+    );
+
     for (const file of files) {
       try {
+        const resolvedSource = yield* tryOperationsPromise(
+          "Failed to import files",
+          () => Deno.realPath(file.source_path)
+        );
+
+        if (!resolvedSource.startsWith(Deno.realPathSync(runtimeConfig.downloads.root_path)) &&
+            !resolvedSource.startsWith(Deno.realPathSync(runtimeConfig.library.library_path))) {
+          throw new Error("Source path is not within allowed download or library directories");
+        }
+
         const animeRow = yield* tryOperationsPromise(
           "Failed to import files",
           () => requireAnime(db, file.anime_id),
@@ -159,10 +179,6 @@ export function makeCatalogOrchestration(input: {
         }/${animeRow.titleRomaji} - ${
           String(file.episode_number).padStart(2, "0")
         }${extension}`;
-        const importMode = yield* tryDatabasePromise(
-          "Failed to import files",
-          () => currentImportMode(db),
-        );
 
         yield* tryDatabasePromise(
           "Failed to import files",
@@ -172,12 +188,12 @@ export function makeCatalogOrchestration(input: {
         if (importMode === "move") {
           yield* tryDatabasePromise(
             "Failed to import files",
-            () => Deno.rename(file.source_path, destination),
+            () => Deno.rename(resolvedSource, destination),
           );
         } else {
           yield* tryDatabasePromise(
             "Failed to import files",
-            () => Deno.copyFile(file.source_path, destination),
+            () => Deno.copyFile(resolvedSource, destination),
           );
         }
 
@@ -476,25 +492,23 @@ export function makeCatalogOrchestration(input: {
         yield* eventBus.publish({ type: "LibraryScanStarted" });
 
         for (const animeRow of animeRows) {
-          const files = yield* tryDatabasePromise(
+          const { scannedFiles, matchedFiles } = yield* tryDatabasePromise(
             "Failed to run library scan",
-            () => scanVideoFiles(animeRow.rootFolder),
-          );
-          scanned += files.length;
-
-          for (const file of files) {
-            const episodeNumber = parseEpisodeNumber(file.path);
-            if (!episodeNumber) {
-              continue;
+            async () => {
+              let s = 0, m = 0;
+              for await (const file of scanVideoFiles(animeRow.rootFolder)) {
+                s++;
+                const episodeNumber = parseEpisodeNumber(file.path);
+                if (episodeNumber) {
+                  await upsertEpisodeFile(db, animeRow.id, episodeNumber, file.path);
+                  m++;
+                }
+              }
+              return { scannedFiles: s, matchedFiles: m };
             }
-
-            yield* tryDatabasePromise(
-              "Failed to run library scan",
-              () =>
-                upsertEpisodeFile(db, animeRow.id, episodeNumber, file.path),
-            );
-            matched += 1;
-          }
+          );
+          scanned += scannedFiles;
+          matched += matchedFiles;
         }
 
         yield* tryDatabasePromise(

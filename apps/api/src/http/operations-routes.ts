@@ -14,7 +14,7 @@ import type {
   ScanResult,
   SearchResults,
 } from "../../../../packages/shared/src/index.ts";
-import { OperationsService } from "../features/operations/service.ts";
+import { DownloadService, LibraryService, RssService, SearchService } from "../features/operations/service.ts";
 import {
   AddRssFeedBodySchema,
   BrowseQuerySchema,
@@ -55,7 +55,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       Effect.flatMap(
-        OperationsService,
+        DownloadService,
         (service) => service.listDownloadQueue(),
       ),
       (value: Download[]) => c.json(value),
@@ -65,7 +65,7 @@ export function registerOperationsRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) =>
+      Effect.flatMap(DownloadService, (service) =>
         service.listDownloadHistory()),
       (value: Download[]) =>
         c.json(value),
@@ -76,7 +76,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withQuery(c, DownloadEventsQuerySchema, "list download events", (query) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(DownloadService, (service) =>
           service.listDownloadEvents({
             animeId: query.anime_id,
             downloadId: query.download_id,
@@ -91,7 +91,7 @@ export function registerOperationsRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) => service.listRssFeeds()),
+      Effect.flatMap(RssService, (service) => service.listRssFeeds()),
       (value: RssFeed[]) => c.json(value),
     ));
 
@@ -100,7 +100,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "list anime rss feeds", (params) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(RssService, (service) =>
           service.listAnimeRssFeeds(params.id))),
       (value: RssFeed[]) =>
         c.json(value),
@@ -111,7 +111,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withQuery(c, WantedMissingQuerySchema, "get wanted missing", (query) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(LibraryService, (service) =>
           service.getWantedMissing(query.limit ?? 50))),
       (value: MissingEpisode[]) =>
         c.json(value),
@@ -122,7 +122,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withQuery(c, CalendarQuerySchema, "calendar", (query) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(LibraryService, (service) =>
           service.getCalendar(query.start ?? nowIso(), query.end ?? nowIso()))),
       (value: CalendarEvent[]) =>
         c.json(value),
@@ -133,7 +133,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "rename preview", (params) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(LibraryService, (service) =>
           service.getRenamePreview(params.id))),
       (value: RenamePreviewItem[]) =>
         c.json(value),
@@ -143,7 +143,7 @@ export function registerOperationsRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) =>
+      Effect.flatMap(LibraryService, (service) =>
         service.getUnmappedFolders()),
       (value: ScannerState) =>
         c.json(value),
@@ -154,7 +154,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withQuery(c, SearchReleasesQuerySchema, "search releases", (query) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(SearchService, (service) =>
           service.searchReleases(
             query.query ?? "",
             query.anime_id,
@@ -170,7 +170,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, SearchEpisodeParamsSchema, "search episode", (params) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(SearchService, (service) =>
           service.searchEpisode(params.animeId, params.episodeNumber))),
       (value: EpisodeSearchResult[]) =>
         c.json(value),
@@ -193,7 +193,7 @@ export function registerOperationsRoutes(
         "trigger download",
         (body) =>
           Effect.flatMap(
-            OperationsService,
+            DownloadService,
             (service) => service.triggerDownload({ ...body }),
           ),
       ),
@@ -210,7 +210,7 @@ export function registerOperationsRoutes(
         SearchMissingBodySchema,
         "search missing downloads",
         (body) =>
-          Effect.flatMap(OperationsService, (service) =>
+          Effect.flatMap(DownloadService, (service) =>
             service.triggerSearchMissing(body.anime_id)),
       ),
       () =>
@@ -222,7 +222,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "pause download", (params) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(DownloadService, (service) =>
           service.pauseDownload(params.id))),
       () =>
         c.json({ data: null, success: true }),
@@ -233,7 +233,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "resume download", (params) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(DownloadService, (service) =>
           service.resumeDownload(params.id))),
       () =>
         c.json({ data: null, success: true }),
@@ -244,7 +244,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "retry download", (params) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(DownloadService, (service) =>
           service.retryDownload(params.id))),
       () =>
         c.json({ data: null, success: true }),
@@ -255,7 +255,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "reconcile download", (params) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(DownloadService, (service) =>
           service.reconcileDownload(params.id))),
       () =>
         c.json({ data: null, success: true }),
@@ -265,7 +265,7 @@ export function registerOperationsRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(OperationsService, (service) => service.syncDownloads()),
+      Effect.flatMap(DownloadService, (service) => service.syncDownloads()),
       () => c.json({ data: null, success: true }),
     ));
 
@@ -278,7 +278,7 @@ export function registerOperationsRoutes(
         query: parseQuery(c, DeleteDownloadQuerySchema, "delete download"),
       }).pipe(
         Effect.flatMap(({ params, query }) =>
-          Effect.flatMap(OperationsService, (service) =>
+          Effect.flatMap(DownloadService, (service) =>
             service.removeDownload(params.id, query.delete_files === "true"))
         ),
       ),
@@ -291,7 +291,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withJsonBody(c, AddRssFeedBodySchema, "add rss feed", (body) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(RssService, (service) =>
           service.addRssFeed({ ...body }))),
       (value: RssFeed) =>
         c.json(value),
@@ -302,7 +302,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "delete rss feed", (params) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(RssService, (service) =>
           service.deleteRssFeed(params.id))),
       () =>
         c.json({ data: null, success: true }),
@@ -322,7 +322,7 @@ export function registerOperationsRoutes(
           body,
         ) =>
           Effect.flatMap(
-            OperationsService,
+            RssService,
             (service) => service.toggleRssFeed(params.id, body.enabled),
           ),
       ),
@@ -333,7 +333,7 @@ export function registerOperationsRoutes(
     queueMicrotask(() => {
       void runEffect(
         Effect.flatMap(
-          OperationsService,
+          LibraryService,
           (service) => service.runUnmappedScan(),
         ),
       ).catch(() => undefined);
@@ -350,7 +350,7 @@ export function registerOperationsRoutes(
         ImportUnmappedFolderBodySchema,
         "import unmapped folder",
         (body) =>
-          Effect.flatMap(OperationsService, (service) =>
+          Effect.flatMap(LibraryService, (service) =>
             service.importUnmappedFolder({ ...body })),
       ),
       () =>
@@ -362,7 +362,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withJsonBody(c, ScanImportPathBodySchema, "scan import path", (body) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(LibraryService, (service) =>
           service.scanImportPath(body.path, body.anime_id))),
       (value: ScanResult) =>
         c.json(value),
@@ -373,7 +373,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withJsonBody(c, ImportFilesBodySchema, "import files", (body) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(LibraryService, (service) =>
           service.importFiles([...body.files]))),
       (value: ImportResult) =>
         c.json(value),
@@ -384,7 +384,7 @@ export function registerOperationsRoutes(
       c,
       runEffect,
       withParams(c, IdParamsSchema, "rename files", (params) =>
-        Effect.flatMap(OperationsService, (service) =>
+        Effect.flatMap(LibraryService, (service) =>
           service.renameFiles(params.id))),
       (value: RenameResult) =>
         c.json(value),

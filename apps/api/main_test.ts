@@ -34,7 +34,7 @@ Deno.test("bootstrap admin can log in and read auth/session protected endpoints"
     assert(sessionCookie);
     assertEquals(loginBody.username, "admin");
     assertEquals(loginBody.must_change_password, true);
-    assertMatch(loginBody.api_key, /^[a-f0-9]{48}$/);
+    assertMatch(loginBody.api_key, /^\*+$/);
 
     const meResponse = await ctx.app.request("/api/auth/me", {
       headers: { Cookie: sessionCookie },
@@ -269,6 +269,24 @@ Deno.test("rss, wanted, rename, and download helper endpoints work", async () =>
     const importFolder = await Deno.makeTempDir();
 
     try {
+      const currentConfigResponse = await ctx.app.request(
+        "/api/system/config",
+        { headers: { Cookie: sessionCookie } },
+      );
+      const currentConfig = await currentConfigResponse.json();
+
+      await ctx.app.request("/api/system/config", {
+        body: JSON.stringify({
+          ...currentConfig,
+          downloads: {
+            ...currentConfig.downloads,
+            root_path: importFolder,
+          },
+        }),
+        headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
+        method: "PUT",
+      });
+
       const addAnimeResponse = await ctx.app.request("/api/anime", {
         body: JSON.stringify({
           id: 11061,
