@@ -8,6 +8,7 @@ import {
   useQueryClient,
 } from "@tanstack/solid-query";
 // ... (rest of imports)
+import type { ImportMode, PreferredTitle, RuleType } from "@bakarr/shared";
 import { getAuthHeaders, logout } from "~/lib/auth";
 
 // ==================== API Client ====================
@@ -397,7 +398,7 @@ export interface ImportFileRequest {
 export interface ReleaseProfileRule {
   term: string;
   score: number;
-  rule_type: "preferred" | "must" | "must_not";
+  rule_type: RuleType;
 }
 
 export interface ReleaseProfile {
@@ -458,10 +459,10 @@ export interface Config {
     recycle_path: string;
     recycle_cleanup_days: number;
     naming_format: string;
-    import_mode: string;
+    import_mode: ImportMode;
     movie_naming_format: string;
     auto_scan_interval_hours: number;
-    preferred_title: string;
+    preferred_title: PreferredTitle;
   };
   security: {
     argon2_memory_cost_kib: number;

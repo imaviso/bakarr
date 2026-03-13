@@ -1,7 +1,8 @@
 # Bakarr API Effect-Native Implementation Plan
 
 This plan is a codebase-specific roadmap for pushing `apps/api` closer to a
-fully Effect-native backend, using the `effect-ts` references as the baseline.
+fully Effect-native backend, using the `effect-ts` skill + references as the
+baseline.
 
 It builds on the refactor work already completed in:
 
@@ -355,6 +356,13 @@ Progress notes:
 - request parsing in `apps/api/src/http/route-helpers.ts` now includes Effect
   schema parse details in validation responses, which makes bad body/query/param
   failures more localized during API usage and tests
+- branded positive-integer domain primitives now live in
+  `apps/api/src/lib/domain-schema.ts`, and request parsing reuses them for anime
+  IDs, download IDs, episode numbers, and release-profile IDs instead of
+  accepting arbitrary numbers at HTTP boundaries
+- shared config literals and schemas now live in `packages/shared/src/index.ts`,
+  and the API/web config boundaries reuse the same `import_mode`,
+  `preferred_title`, and release-rule type contracts
 
 ### 5. Improve Concurrency, Scheduling, and Backpressure
 
@@ -413,6 +421,14 @@ Acceptance criteria:
 - concurrency-sensitive paths use Effect primitives instead of manual state
 - scheduling/backpressure decisions are explicit and testable
 
+Progress notes:
+
+- `apps/api/src/features/events/event-bus.ts` now uses `PubSub.sliding(...)`
+  with explicit scoped subscriptions instead of manual subscriber `Ref` state
+- `apps/api/src/features/events/event-bus_test.ts` now covers fan-out and
+  sliding backpressure behavior so the queue policy is explicit and command-
+  verified
+
 ### 6. Add Tracing, Metrics, and Supervision
 
 Why:
@@ -456,6 +472,21 @@ Acceptance criteria:
 - request, background, and external workflows are traceable
 - worker supervision policy is explicit
 - log/span correlation is straightforward
+
+Progress notes:
+
+- `apps/api/src/features/operations/download-orchestration.ts` now wraps
+  download triggering and qBittorrent sync/state workflows in explicit internal
+  spans
+- `apps/api/src/features/operations/search-orchestration.ts` now wraps missing-
+  episode search and RSS processing flows in explicit internal spans, including
+  per-feed RSS spans
+- `apps/api/src/background.ts` now tracks background worker daemon/run state,
+  success/failure/skip counters, and last failure details through a dedicated
+  monitor service so worker supervision policy is observable and explicit
+- `apps/api/src/http/system-routes.ts` now exposes background worker gauges and
+  counters from `/api/metrics`, and `apps/api/src/background_test.ts` covers the
+  worker monitor state transitions directly
 
 ### 7. Upgrade Testing to Deno + Effect Testing Patterns
 
@@ -501,6 +532,16 @@ Acceptance criteria:
 - time-based behavior is tested without real sleeps
 - important units can be tested without full app bootstrap
 - tests exercise layers and Effect runtime behavior directly
+
+Progress notes:
+
+- `apps/api/src/lib/effect-retry_test.ts` now uses `TestClock` plus
+  `TestContext` to verify retry and timeout behavior without real waits
+- `apps/api/src/test/effect-test.ts` now centralizes small `TestContext`-based
+  helpers for running Effect tests and collecting exits
+- `packages/shared/src/index_test.ts` and
+  `apps/api/src/features/events/event-bus_test.ts` add more focused,
+  layer-friendly unit coverage around shared schemas and concurrency behavior
 
 ## Requested Concept Coverage Map
 

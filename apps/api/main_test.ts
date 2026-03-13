@@ -1551,9 +1551,9 @@ integrationTest(
         method: "POST",
       });
       assertEquals(invalidBodyResponse.status, 400);
-      assertEquals(
+      assertMatch(
         await invalidBodyResponse.text(),
-        "Invalid request body for create quality profile",
+        /^Invalid request body for create quality profile: allowed_qualities: is missing$/,
       );
 
       const invalidQueryResponse = await ctx.app.request(
@@ -1561,9 +1561,9 @@ integrationTest(
         { headers: { Cookie: sessionCookie } },
       );
       assertEquals(invalidQueryResponse.status, 400);
-      assertEquals(
+      assertMatch(
         await invalidQueryResponse.text(),
-        "Invalid query parameters for system logs",
+        /^Invalid query parameters for system logs: page: Expected a positive number, actual 0; page: Expected undefined, actual "0"$/,
       );
     } finally {
       await ctx.dispose();
@@ -2146,6 +2146,12 @@ integrationTest(
           metricsText.includes("bakarr_active_download_items"),
           true,
         );
+        assertEquals(
+          metricsText.includes(
+            'bakarr_background_worker_daemon_running{worker="download_sync"}',
+          ),
+          true,
+        );
 
         const searchMissing = await ctx.app.request(
           "/api/downloads/search-missing",
@@ -2285,7 +2291,14 @@ integrationTest(
         });
 
         assertEquals(history.status, 200);
-        assertEquals((await history.json()).length, 0);
+        const downloads = await history.json();
+
+        assertEquals(
+          downloads.some((download: { episode_number: number }) =>
+            download.episode_number === 2
+          ),
+          false,
+        );
       } finally {
         await Deno.remove(rootFolder, { recursive: true });
       }

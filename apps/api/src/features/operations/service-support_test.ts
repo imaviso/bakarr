@@ -1,8 +1,8 @@
 import { assertEquals, assertInstanceOf } from "@std/assert";
-import { Effect } from "effect";
 
 import { makeDefaultConfig } from "../system/defaults.ts";
 import { DatabaseError } from "../../db/database.ts";
+import { runTestEffectExit } from "../../test/effect-test.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
@@ -58,12 +58,12 @@ Deno.test("operations service support preserves known errors and wraps unknown o
   assertInstanceOf(wrapped, DatabaseError);
   assertEquals(wrapped.message, "wrapped");
 
-  const dbExit = await Effect.runPromiseExit(
+  const dbExit = await runTestEffectExit(
     tryDatabasePromise("db failed", () => Promise.reject(new Error("boom"))),
   );
   assertEquals(dbExit._tag, "Failure");
 
-  const operationsExit = await Effect.runPromiseExit(
+  const operationsExit = await runTestEffectExit(
     tryOperationsPromise(
       "operations failed",
       () => Promise.reject(new Error("boom")),

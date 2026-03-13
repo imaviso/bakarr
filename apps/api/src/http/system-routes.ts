@@ -2,6 +2,7 @@ import { Effect } from "effect";
 import type { Hono } from "hono";
 
 import type { HealthStatus } from "../../../../packages/shared/src/index.ts";
+import { BackgroundWorkerMonitor } from "../background.ts";
 import { EventBus } from "../features/events/event-bus.ts";
 import { FileSystem } from "../lib/filesystem.ts";
 import {
@@ -458,7 +459,7 @@ export function registerSystemRoutes(
   });
 
   app.get("/api/metrics", async (_c) => {
-    const [status, stats, downloads] = await Promise.all([
+    const [status, stats, downloads, backgroundWorkers] = await Promise.all([
       runEffect(
         Effect.flatMap(SystemService, (service) => service.getSystemStatus()),
       ),
@@ -471,7 +472,27 @@ export function registerSystemRoutes(
           (service) => service.getDownloadProgress(),
         ),
       ),
+      runEffect(
+        Effect.flatMap(
+          BackgroundWorkerMonitor,
+          (monitor) => monitor.snapshot(),
+        ),
+      ),
     ]);
+
+    const workerMetrics = Object.entries(backgroundWorkers).flatMap(
+      ([worker, snapshot]) => [
+        `bakarr_background_worker_daemon_running{worker="${worker}"} ${
+          snapshot.daemonRunning ? 1 : 0
+        }`,
+        `bakarr_background_worker_run_running{worker="${worker}"} ${
+          snapshot.runRunning ? 1 : 0
+        }`,
+        `bakarr_background_worker_success_total{worker="${worker}"} ${snapshot.successCount}`,
+        `bakarr_background_worker_failures_total{worker="${worker}"} ${snapshot.failureCount}`,
+        `bakarr_background_worker_skips_total{worker="${worker}"} ${snapshot.skipCount}`,
+      ],
+    );
 
     const body = [
       "# TYPE bakarr_active_torrents gauge",
@@ -488,6 +509,12 @@ export function registerSystemRoutes(
       `bakarr_missing_episodes ${stats.missing_episodes}`,
       "# TYPE bakarr_active_download_items gauge",
       `bakarr_active_download_items ${downloads.length}`,
+      "# TYPE bakarr_background_worker_daemon_running gauge",
+      "# TYPE bakarr_background_worker_run_running gauge",
+      "# TYPE bakarr_background_worker_success_total counter",
+      "# TYPE bakarr_background_worker_failures_total counter",
+      "# TYPE bakarr_background_worker_skips_total counter",
+      ...workerMetrics,
     ].join("\n");
 
     return new Response(`${body}\n`, {

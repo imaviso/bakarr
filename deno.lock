@@ -3187,6 +3187,12 @@
             "npm:vite@^7.1.0"
           ]
         }
+      },
+      "packages/shared": {
+        "dependencies": [
+          "jsr:@std/assert@1",
+          "npm:effect@^3.19.19"
+        ]
       }
     }
   }

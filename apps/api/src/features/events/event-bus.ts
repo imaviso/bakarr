@@ -1,14 +1,8 @@
-import { Context, Effect, Layer, Queue, Ref } from "effect";
+import { Context, Effect, Exit, Layer, PubSub, Queue, Scope } from "effect";
 
 import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
 
-type EventQueue = ReturnType<typeof Queue.unbounded<NotificationEvent>> extends
-  Effect.Effect<
-    infer QueueType,
-    unknown,
-    unknown
-  > ? QueueType
-  : never;
+export const DEFAULT_EVENT_BUS_CAPACITY = 256;
 
 export interface EventSubscription {
   readonly close: Effect.Effect<void>;
@@ -25,50 +19,34 @@ export class EventBus extends Context.Tag("@bakarr/api/EventBus")<
   EventBusShape
 >() {}
 
-export const EventBusLive = Layer.effect(
-  EventBus,
-  Effect.gen(function* () {
-    const subscribers = yield* Ref.make<Set<EventQueue>>(new Set());
+export function makeEventBus(
+  options: { readonly capacity?: number } = {},
+) {
+  const capacity = options.capacity ?? DEFAULT_EVENT_BUS_CAPACITY;
+
+  return Effect.gen(function* () {
+    const pubsub = yield* PubSub.sliding<NotificationEvent>(capacity);
 
     return {
       publish: (event: NotificationEvent) =>
-        Effect.gen(function* () {
-          const queues = yield* Ref.get(subscribers);
-
-          for (const queue of queues) {
-            yield* Queue.offer(queue, event).pipe(
-              Effect.catchAllCause(() =>
-                Ref.update(subscribers, (current) => {
-                  const next = new Set(current);
-                  next.delete(queue);
-                  return next;
-                })
-              ),
-            );
-          }
-        }).pipe(Effect.asVoid),
+        PubSub.publish(pubsub, event).pipe(Effect.asVoid),
       subscribe: () =>
         Effect.gen(function* () {
-          const queue = yield* Queue.unbounded<NotificationEvent>();
-
-          yield* Ref.update(subscribers, (current) => {
-            const next = new Set(current);
-            next.add(queue);
-            return next;
-          });
+          const scope = yield* Scope.make();
+          const queue = yield* PubSub.subscribe(pubsub).pipe(
+            Scope.extend(scope),
+          );
 
           return {
-            close: Effect.gen(function* () {
-              yield* Ref.update(subscribers, (current) => {
-                const next = new Set(current);
-                next.delete(queue);
-                return next;
-              });
-              yield* Queue.shutdown(queue);
-            }),
+            close: Scope.close(scope, Exit.succeed(void 0)),
             take: Queue.take(queue),
           } satisfies EventSubscription;
         }),
-    };
-  }),
+    } satisfies EventBusShape;
+  });
+}
+
+export const EventBusLive = Layer.effect(
+  EventBus,
+  makeEventBus(),
 );

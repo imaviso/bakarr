@@ -1,18 +1,15 @@
 import { Schema } from "effect";
+import {
+  ImportModeSchema,
+  PreferredTitleSchema,
+  RuleTypeSchema,
+} from "../../../../../packages/shared/src/index.ts";
 
 export const StringListSchema = Schema.Array(Schema.String);
 export const NumberListSchema = Schema.Array(Schema.Number.pipe(Schema.int()));
 
 export const RemotePathMappingSchema = Schema.Array(Schema.String).pipe(
   Schema.itemsCount(2),
-);
-
-export const RuleTypeSchema = Schema.Literal("preferred", "must", "must_not");
-export const ImportModeSchema = Schema.String.pipe(
-  Schema.pattern(/^(copy|move)$/),
-);
-export const PreferredTitleSchema = Schema.String.pipe(
-  Schema.pattern(/^(romaji|english|native)$/),
 );
 
 export const QualityProfileSchema = Schema.Struct({

@@ -1,4 +1,13 @@
 import { Schema } from "effect";
+import {
+  AnimeIdFromStringSchema,
+  AnimeIdSchema,
+  DownloadIdFromStringSchema,
+  EpisodeNumberFromStringSchema,
+  EpisodeNumberSchema,
+  PositiveIntFromStringSchema,
+  ReleaseProfileIdSchema,
+} from "../lib/domain-schema.ts";
 
 export {
   ConfigSchema,
@@ -9,34 +18,7 @@ export {
   UpdateReleaseProfileSchema,
 } from "../features/system/config-schema.ts";
 
-type SearchDownloadBody = {
-  anime_id: number;
-  episode_number: number;
-  group?: string;
-  info_hash?: string;
-  is_batch?: boolean;
-  magnet: string;
-  title: string;
-};
-
-type AddRssFeedBody = {
-  anime_id: number;
-  name?: string;
-  url: string;
-};
-
-type ImportUnmappedFolderBody = {
-  anime_id: number;
-  folder_name: string;
-  profile_name?: string;
-};
-
-const PositiveIntFromString = Schema.NumberFromString.pipe(
-  Schema.int(),
-  Schema.greaterThan(0),
-);
-
-const NumberArray = Schema.Array(Schema.Number);
+const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 
 export const LoginRequestSchema = Schema.Struct({
   password: Schema.String,
@@ -53,11 +35,11 @@ export const ChangePasswordRequestSchema = Schema.Struct({
 });
 
 export const AddAnimeInputSchema = Schema.Struct({
-  id: Schema.Number,
+  id: AnimeIdSchema,
   monitor_and_search: Schema.Boolean,
   monitored: Schema.Boolean,
   profile_name: Schema.String,
-  release_profile_ids: NumberArray,
+  release_profile_ids: ReleaseProfileIdArraySchema,
   root_folder: Schema.String,
 });
 
@@ -74,7 +56,7 @@ export const ProfileNameBodySchema = Schema.Struct({
 });
 
 export const ReleaseProfileIdsBodySchema = Schema.Struct({
-  release_profile_ids: NumberArray,
+  release_profile_ids: ReleaseProfileIdArraySchema,
 });
 
 export const FilePathBodySchema = Schema.Struct({
@@ -83,61 +65,57 @@ export const FilePathBodySchema = Schema.Struct({
 
 export const BulkEpisodeMappingsBodySchema = Schema.Struct({
   mappings: Schema.Array(Schema.Struct({
-    episode_number: Schema.Number,
+    episode_number: EpisodeNumberSchema,
     file_path: Schema.String,
   })),
 });
 
-export const SearchDownloadBodySchema: Schema.Schema<SearchDownloadBody> =
-  Schema.Struct({
-    anime_id: Schema.Number,
-    episode_number: Schema.Number,
-    group: Schema.optional(Schema.String),
-    info_hash: Schema.optional(Schema.String),
-    is_batch: Schema.optional(Schema.Boolean),
-    magnet: Schema.String,
-    title: Schema.String,
-  });
-
-export const SearchMissingBodySchema = Schema.Struct({
-  anime_id: Schema.optional(Schema.Number),
+export const SearchDownloadBodySchema = Schema.Struct({
+  anime_id: AnimeIdSchema,
+  episode_number: EpisodeNumberSchema,
+  group: Schema.optional(Schema.String),
+  info_hash: Schema.optional(Schema.String),
+  is_batch: Schema.optional(Schema.Boolean),
+  magnet: Schema.String,
+  title: Schema.String,
 });
 
-export const AddRssFeedBodySchema: Schema.Schema<AddRssFeedBody> = Schema
-  .Struct({
-    anime_id: Schema.Number,
-    name: Schema.optional(Schema.String),
-    url: Schema.String,
-  });
+export const SearchMissingBodySchema = Schema.Struct({
+  anime_id: Schema.optional(AnimeIdSchema),
+});
+
+export const AddRssFeedBodySchema = Schema.Struct({
+  anime_id: AnimeIdSchema,
+  name: Schema.optional(Schema.String),
+  url: Schema.String,
+});
 
 export const EnabledBodySchema = Schema.Struct({
   enabled: Schema.Boolean,
 });
 
-export const ImportUnmappedFolderBodySchema: Schema.Schema<
-  ImportUnmappedFolderBody
-> = Schema.Struct({
-  anime_id: Schema.Number,
+export const ImportUnmappedFolderBodySchema = Schema.Struct({
+  anime_id: AnimeIdSchema,
   folder_name: Schema.String,
   profile_name: Schema.optional(Schema.String),
 });
 
 export const ScanImportPathBodySchema = Schema.Struct({
-  anime_id: Schema.optional(Schema.Number),
+  anime_id: Schema.optional(AnimeIdSchema),
   path: Schema.String,
 });
 
 export const ImportFilesBodySchema = Schema.Struct({
   files: Schema.Array(Schema.Struct({
-    anime_id: Schema.Number,
-    episode_number: Schema.Number,
+    anime_id: AnimeIdSchema,
+    episode_number: EpisodeNumberSchema,
     season: Schema.optional(Schema.Number),
     source_path: Schema.String,
   })),
 });
 
 export const IdParamsSchema = Schema.Struct({
-  id: PositiveIntFromString,
+  id: PositiveIntFromStringSchema,
 });
 
 export const NameParamsSchema = Schema.Struct({
@@ -145,20 +123,20 @@ export const NameParamsSchema = Schema.Struct({
 });
 
 export const AnimeEpisodeParamsSchema = Schema.Struct({
-  episodeNumber: PositiveIntFromString,
-  id: PositiveIntFromString,
+  episodeNumber: EpisodeNumberFromStringSchema,
+  id: AnimeIdFromStringSchema,
 });
 
 export const SearchEpisodeParamsSchema = Schema.Struct({
-  animeId: PositiveIntFromString,
-  episodeNumber: PositiveIntFromString,
+  animeId: AnimeIdFromStringSchema,
+  episodeNumber: EpisodeNumberFromStringSchema,
 });
 
 export const SystemLogsQuerySchema = Schema.Struct({
   end_date: Schema.optional(Schema.String),
   event_type: Schema.optional(Schema.String),
   level: Schema.optional(Schema.String),
-  page: Schema.optional(PositiveIntFromString),
+  page: Schema.optional(PositiveIntFromStringSchema),
   start_date: Schema.optional(Schema.String),
 });
 
@@ -179,14 +157,14 @@ export const StreamQuerySchema = Schema.Struct({
 });
 
 export const DownloadEventsQuerySchema = Schema.Struct({
-  anime_id: Schema.optional(PositiveIntFromString),
-  download_id: Schema.optional(PositiveIntFromString),
+  anime_id: Schema.optional(AnimeIdFromStringSchema),
+  download_id: Schema.optional(DownloadIdFromStringSchema),
   event_type: Schema.optional(Schema.String),
-  limit: Schema.optional(PositiveIntFromString),
+  limit: Schema.optional(PositiveIntFromStringSchema),
 });
 
 export const WantedMissingQuerySchema = Schema.Struct({
-  limit: Schema.optional(PositiveIntFromString),
+  limit: Schema.optional(PositiveIntFromStringSchema),
 });
 
 export const CalendarQuerySchema = Schema.Struct({
@@ -195,7 +173,7 @@ export const CalendarQuerySchema = Schema.Struct({
 });
 
 export const SearchReleasesQuerySchema = Schema.Struct({
-  anime_id: Schema.optional(PositiveIntFromString),
+  anime_id: Schema.optional(AnimeIdFromStringSchema),
   category: Schema.optional(Schema.String),
   filter: Schema.optional(Schema.String),
   query: Schema.optional(Schema.String),

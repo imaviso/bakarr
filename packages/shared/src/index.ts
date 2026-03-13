@@ -1,3 +1,22 @@
+import { Schema } from "effect";
+
+export const RULE_TYPE_VALUES = ["preferred", "must", "must_not"] as const;
+export type RuleType = (typeof RULE_TYPE_VALUES)[number];
+export const RuleTypeSchema: Schema.Schema<RuleType> = Schema.Literal(
+  ...RULE_TYPE_VALUES,
+);
+
+export const IMPORT_MODE_VALUES = ["copy", "move"] as const;
+export type ImportMode = (typeof IMPORT_MODE_VALUES)[number];
+export const ImportModeSchema: Schema.Schema<ImportMode> = Schema.Literal(
+  ...IMPORT_MODE_VALUES,
+);
+
+export const PREFERRED_TITLE_VALUES = ["romaji", "english", "native"] as const;
+export type PreferredTitle = (typeof PREFERRED_TITLE_VALUES)[number];
+export const PreferredTitleSchema: Schema.Schema<PreferredTitle> = Schema
+  .Literal(...PREFERRED_TITLE_VALUES);
+
 export type ApiResult<T> =
   | {
     ok: true;
@@ -200,7 +219,7 @@ export interface QualityProfile {
 export interface ReleaseProfileRule {
   term: string;
   score: number;
-  rule_type: "preferred" | "must" | "must_not";
+  rule_type: RuleType;
 }
 
 export interface ReleaseProfile {
@@ -261,10 +280,10 @@ export interface Config {
     recycle_path: string;
     recycle_cleanup_days: number;
     naming_format: string;
-    import_mode: string;
+    import_mode: ImportMode;
     movie_naming_format: string;
     auto_scan_interval_hours: number;
-    preferred_title: string;
+    preferred_title: PreferredTitle;
   };
   security: {
     argon2_memory_cost_kib: number;

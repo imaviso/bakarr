@@ -313,75 +313,79 @@ export function makeDownloadOrchestration(input: {
   const syncDownloadsWithQBitEffect = Effect.fn(
     "OperationsService.syncDownloadsWithQBit",
   )(function* () {
-    const config = yield* tryDatabasePromise(
-      "Failed to sync downloads with qBittorrent",
-      () => loadRuntimeConfig(db),
-    ).pipe(Effect.catchAll(() => Effect.succeed<Config | null>(null)));
-    const qbitConfig = config ? maybeQBitConfig(config) : null;
-
-    if (!qbitConfig) {
-      return;
-    }
-
-    const torrents = yield* qbitClient.listTorrents(qbitConfig).pipe(
-      Effect.catchAll(() => Effect.succeed<readonly QBitTorrent[]>([])),
-    );
-
-    for (const torrent of torrents) {
-      const status = mapQBitState(torrent.state);
-      const existingRows = yield* tryDatabasePromise(
+    return yield* Effect.gen(function* () {
+      const config = yield* tryDatabasePromise(
         "Failed to sync downloads with qBittorrent",
-        () =>
-          db.select().from(downloads).where(
-            eq(downloads.infoHash, torrent.hash.toLowerCase()),
-          ).limit(1),
-      );
-      const existing = existingRows[0];
+        () => loadRuntimeConfig(db),
+      ).pipe(Effect.catchAll(() => Effect.succeed<Config | null>(null)));
+      const qbitConfig = config ? maybeQBitConfig(config) : null;
 
-      yield* tryDatabasePromise(
-        "Failed to sync downloads with qBittorrent",
-        () =>
-          db.update(downloads).set({
-            contentPath: torrent.content_path ?? null,
-            downloadDate: status === "completed" ? nowIso() : null,
-            downloadedBytes: torrent.downloaded,
-            errorMessage: status === "error"
-              ? `qBittorrent state: ${torrent.state}`
-              : null,
-            etaSeconds: torrent.eta,
-            externalState: torrent.state,
-            lastErrorAt: status === "error" ? nowIso() : null,
-            lastSyncedAt: nowIso(),
-            progress: Math.round(torrent.progress * 100),
-            savePath: torrent.save_path ?? null,
-            speedBytes: torrent.dlspeed,
-            status,
-            totalBytes: torrent.size,
-          }).where(eq(downloads.infoHash, torrent.hash.toLowerCase())),
+      if (!qbitConfig) {
+        return;
+      }
+
+      const torrents = yield* qbitClient.listTorrents(qbitConfig).pipe(
+        Effect.catchAll(() => Effect.succeed<readonly QBitTorrent[]>([])),
       );
 
-      if (existing && existing.status !== status) {
+      for (const torrent of torrents) {
+        const status = mapQBitState(torrent.state);
+        const existingRows = yield* tryDatabasePromise(
+          "Failed to sync downloads with qBittorrent",
+          () =>
+            db.select().from(downloads).where(
+              eq(downloads.infoHash, torrent.hash.toLowerCase()),
+            ).limit(1),
+        );
+        const existing = existingRows[0];
+
         yield* tryDatabasePromise(
           "Failed to sync downloads with qBittorrent",
           () =>
-            recordDownloadEvent(db, {
-              animeId: existing.animeId,
-              downloadId: existing.id,
-              eventType: "download.status_changed",
-              fromStatus: existing.status,
-              message: `${existing.torrentName} moved to ${status}`,
-              toStatus: status,
-            }),
+            db.update(downloads).set({
+              contentPath: torrent.content_path ?? null,
+              downloadDate: status === "completed" ? nowIso() : null,
+              downloadedBytes: torrent.downloaded,
+              errorMessage: status === "error"
+                ? `qBittorrent state: ${torrent.state}`
+                : null,
+              etaSeconds: torrent.eta,
+              externalState: torrent.state,
+              lastErrorAt: status === "error" ? nowIso() : null,
+              lastSyncedAt: nowIso(),
+              progress: Math.round(torrent.progress * 100),
+              savePath: torrent.save_path ?? null,
+              speedBytes: torrent.dlspeed,
+              status,
+              totalBytes: torrent.size,
+            }).where(eq(downloads.infoHash, torrent.hash.toLowerCase())),
         );
-      }
 
-      if (status === "completed" && shouldReconcileCompletedDownloads(config)) {
-        yield* reconcileCompletedTorrentEffect(
-          torrent.hash.toLowerCase(),
-          torrent.content_path ?? torrent.save_path,
-        );
+        if (existing && existing.status !== status) {
+          yield* tryDatabasePromise(
+            "Failed to sync downloads with qBittorrent",
+            () =>
+              recordDownloadEvent(db, {
+                animeId: existing.animeId,
+                downloadId: existing.id,
+                eventType: "download.status_changed",
+                fromStatus: existing.status,
+                message: `${existing.torrentName} moved to ${status}`,
+                toStatus: status,
+              }),
+          );
+        }
+
+        if (
+          status === "completed" && shouldReconcileCompletedDownloads(config)
+        ) {
+          yield* reconcileCompletedTorrentEffect(
+            torrent.hash.toLowerCase(),
+            torrent.content_path ?? torrent.save_path,
+          );
+        }
       }
-    }
+    }).pipe(Effect.withSpan("operations.downloads.sync_qbit"));
   });
 
   const getDownloadProgressSnapshotEffect = Effect.fn(
@@ -417,23 +421,25 @@ export function makeDownloadOrchestration(input: {
 
   const syncDownloadState = Effect.fn("OperationsService.syncDownloadState")(
     function* (trigger: string) {
-      const startedAt = performance.now();
+      return yield* Effect.gen(function* () {
+        const startedAt = performance.now();
 
-      yield* syncDownloadsWithQBitEffect().pipe(
-        Effect.catchAll((error) =>
-          error instanceof DatabaseError ? Effect.fail(error) : Effect.fail(
-            dbError("Failed to sync downloads with qBittorrent")(error),
-          )
-        ),
-      );
+        yield* syncDownloadsWithQBitEffect().pipe(
+          Effect.catchAll((error) =>
+            error instanceof DatabaseError ? Effect.fail(error) : Effect.fail(
+              dbError("Failed to sync downloads with qBittorrent")(error),
+            )
+          ),
+        );
 
-      yield* Effect.logInfo("download state sync completed").pipe(
-        Effect.annotateLogs({
-          component: "downloads",
-          durationMs: durationMsSince(startedAt),
-          syncTrigger: trigger,
-        }),
-      );
+        yield* Effect.logInfo("download state sync completed").pipe(
+          Effect.annotateLogs({
+            component: "downloads",
+            durationMs: durationMsSince(startedAt),
+            syncTrigger: trigger,
+          }),
+        );
+      }).pipe(Effect.withSpan("operations.downloads.sync_state"));
     },
   );
 
@@ -624,96 +630,100 @@ export function makeDownloadOrchestration(input: {
       info_hash?: string;
       is_batch?: boolean;
     }) {
-      return yield* triggerSemaphore.withPermits(1)(Effect.gen(function* () {
-        const animeRow = yield* tryOperationsPromise(
-          "Failed to trigger download",
-          () => requireAnime(db, input.anime_id),
-        );
-        const now = nowIso();
-        const runtimeConfig = yield* tryOperationsPromise(
-          "Failed to trigger download",
-          () => loadRuntimeConfig(db),
-        );
-        const parsedRelease = parseReleaseName(input.title);
-        const missingEpisodes = yield* tryDatabasePromise(
-          "Failed to trigger download",
-          () => loadMissingEpisodeNumbers(db, animeRow.id),
-        );
-        const coveredEpisodes = toCoveredEpisodesJson(
-          inferCoveredEpisodeNumbers({
-            explicitEpisodes: parsedRelease.episodeNumbers,
-            isBatch: input.is_batch ?? parsedRelease.isBatch,
-            missingEpisodes,
-            requestedEpisode: input.episode_number,
-          }),
-        );
-        let status = "queued";
-
-        const qbitConfig = maybeQBitConfig(runtimeConfig);
-
-        if (qbitConfig && input.magnet) {
-          yield* qbitClient.addTorrentUrl(qbitConfig, input.magnet).pipe(
-            Effect.mapError(wrapOperationsError("Failed to trigger download")),
+      return yield* triggerSemaphore.withPermits(1)(
+        Effect.gen(function* () {
+          const animeRow = yield* tryOperationsPromise(
+            "Failed to trigger download",
+            () => requireAnime(db, input.anime_id),
           );
-          status = "downloading";
-        }
-
-        yield* tryDatabasePromise(
-          "Failed to trigger download",
-          () =>
-            db.insert(downloads).values({
-              addedAt: now,
-              animeId: animeRow.id,
-              animeTitle: animeRow.titleRomaji,
-              contentPath: null,
-              coveredEpisodes,
-              downloadDate: null,
-              episodeNumber: input.episode_number,
+          const now = nowIso();
+          const runtimeConfig = yield* tryOperationsPromise(
+            "Failed to trigger download",
+            () => loadRuntimeConfig(db),
+          );
+          const parsedRelease = parseReleaseName(input.title);
+          const missingEpisodes = yield* tryDatabasePromise(
+            "Failed to trigger download",
+            () => loadMissingEpisodeNumbers(db, animeRow.id),
+          );
+          const coveredEpisodes = toCoveredEpisodesJson(
+            inferCoveredEpisodeNumbers({
+              explicitEpisodes: parsedRelease.episodeNumbers,
               isBatch: input.is_batch ?? parsedRelease.isBatch,
-              downloadedBytes: 0,
-              errorMessage: null,
-              etaSeconds: null,
-              externalState: status,
-              groupName: input.group ?? null,
-              infoHash: (input.info_hash ?? parseMagnetInfoHash(input.magnet))
-                ?.toLowerCase() ?? null,
-              lastSyncedAt: now,
-              magnet: input.magnet,
-              progress: 0,
-              savePath: null,
-              speedBytes: 0,
-              status,
-              totalBytes: null,
-              torrentName: input.title,
+              missingEpisodes,
+              requestedEpisode: input.episode_number,
             }),
-        );
-        yield* tryDatabasePromise(
-          "Failed to trigger download",
-          () =>
-            recordDownloadEvent(db, {
-              animeId: animeRow.id,
-              eventType: "download.queued",
-              message: `Queued ${input.title}`,
-              metadata: coveredEpisodes,
-              toStatus: status,
-            }),
-        );
-        yield* tryDatabasePromise(
-          "Failed to trigger download",
-          () =>
-            appendLog(
-              db,
-              "downloads.triggered",
-              "success",
-              `Queued download for ${animeRow.titleRomaji} episode ${input.episode_number}`,
-            ),
-        );
-        yield* eventBus.publish({
-          type: "DownloadStarted",
-          payload: { anime_id: animeRow.id, title: input.title },
-        });
-        yield* publishDownloadProgress();
-      }));
+          );
+          let status = "queued";
+
+          const qbitConfig = maybeQBitConfig(runtimeConfig);
+
+          if (qbitConfig && input.magnet) {
+            yield* qbitClient.addTorrentUrl(qbitConfig, input.magnet).pipe(
+              Effect.mapError(
+                wrapOperationsError("Failed to trigger download"),
+              ),
+            );
+            status = "downloading";
+          }
+
+          yield* tryDatabasePromise(
+            "Failed to trigger download",
+            () =>
+              db.insert(downloads).values({
+                addedAt: now,
+                animeId: animeRow.id,
+                animeTitle: animeRow.titleRomaji,
+                contentPath: null,
+                coveredEpisodes,
+                downloadDate: null,
+                episodeNumber: input.episode_number,
+                isBatch: input.is_batch ?? parsedRelease.isBatch,
+                downloadedBytes: 0,
+                errorMessage: null,
+                etaSeconds: null,
+                externalState: status,
+                groupName: input.group ?? null,
+                infoHash: (input.info_hash ?? parseMagnetInfoHash(input.magnet))
+                  ?.toLowerCase() ?? null,
+                lastSyncedAt: now,
+                magnet: input.magnet,
+                progress: 0,
+                savePath: null,
+                speedBytes: 0,
+                status,
+                totalBytes: null,
+                torrentName: input.title,
+              }),
+          );
+          yield* tryDatabasePromise(
+            "Failed to trigger download",
+            () =>
+              recordDownloadEvent(db, {
+                animeId: animeRow.id,
+                eventType: "download.queued",
+                message: `Queued ${input.title}`,
+                metadata: coveredEpisodes,
+                toStatus: status,
+              }),
+          );
+          yield* tryDatabasePromise(
+            "Failed to trigger download",
+            () =>
+              appendLog(
+                db,
+                "downloads.triggered",
+                "success",
+                `Queued download for ${animeRow.titleRomaji} episode ${input.episode_number}`,
+              ),
+          );
+          yield* eventBus.publish({
+            type: "DownloadStarted",
+            payload: { anime_id: animeRow.id, title: input.title },
+          });
+          yield* publishDownloadProgress();
+        }).pipe(Effect.withSpan("operations.downloads.trigger")),
+      );
     },
   );
 

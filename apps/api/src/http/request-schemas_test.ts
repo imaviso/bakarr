@@ -2,7 +2,12 @@ import { assertEquals, assertMatch } from "@std/assert";
 import { Effect, Schema } from "effect";
 
 import { parseJsonBody } from "./route-helpers.ts";
-import { ConfigSchema } from "./request-schemas.ts";
+import {
+  AddAnimeInputSchema,
+  ConfigSchema,
+  ImportFilesBodySchema,
+  SearchDownloadBodySchema,
+} from "./request-schemas.ts";
 
 function makeValidConfig() {
   return {
@@ -140,5 +145,52 @@ Deno.test("parseJsonBody formats schema validation errors as concise path summar
     assertMatch(parsed.left.message, /library\.import_mode/);
     assertMatch(parsed.left.message, /actual "Copy"/);
     assertEquals(parsed.left.message.includes("readonly downloads"), false);
+  }
+});
+
+Deno.test("SearchDownloadBodySchema rejects non-positive and fractional identifiers", () => {
+  const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)({
+    anime_id: 0,
+    episode_number: 1.5,
+    magnet: "magnet:?xt=urn:btih:test",
+    title: "Example release",
+  });
+
+  assertEquals(result._tag, "Left");
+
+  if (result._tag === "Left") {
+    assertMatch(result.left.message, /anime_id/);
+    assertMatch(result.left.message, /episode_number/);
+  }
+});
+
+Deno.test("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids", () => {
+  const addAnime = Schema.decodeUnknownEither(AddAnimeInputSchema)({
+    id: -3,
+    monitor_and_search: false,
+    monitored: true,
+    profile_name: "Default",
+    release_profile_ids: [1, 2.5],
+    root_folder: "/library",
+  });
+
+  const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)({
+    files: [{
+      anime_id: 2,
+      episode_number: 0,
+      source_path: "/downloads/file.mkv",
+    }],
+  });
+
+  assertEquals(addAnime._tag, "Left");
+  assertEquals(importFiles._tag, "Left");
+
+  if (addAnime._tag === "Left") {
+    assertMatch(addAnime.left.message, /id/);
+    assertMatch(addAnime.left.message, /release_profile_ids/);
+  }
+
+  if (importFiles._tag === "Left") {
+    assertMatch(importFiles.left.message, /episode_number/);
   }
 });

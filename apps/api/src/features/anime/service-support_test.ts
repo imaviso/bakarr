@@ -1,7 +1,7 @@
 import { assertEquals, assertInstanceOf } from "@std/assert";
-import { Effect } from "effect";
 
 import { DatabaseError } from "../../db/database.ts";
+import { runTestEffectExit } from "../../test/effect-test.ts";
 import { AnimeConflictError, AnimeNotFoundError } from "./errors.ts";
 import {
   tryAnimePromise,
@@ -22,12 +22,12 @@ Deno.test("anime service support preserves known errors and wraps unknown ones",
   assertInstanceOf(wrapped, DatabaseError);
   assertEquals(wrapped.message, "wrapped");
 
-  const dbExit = await Effect.runPromiseExit(
+  const dbExit = await runTestEffectExit(
     tryDatabasePromise("db failed", () => Promise.reject(new Error("boom"))),
   );
   assertEquals(dbExit._tag, "Failure");
 
-  const animeExit = await Effect.runPromiseExit(
+  const animeExit = await runTestEffectExit(
     tryAnimePromise("anime failed", () => Promise.reject(new Error("boom"))),
   );
   assertEquals(animeExit._tag, "Failure");

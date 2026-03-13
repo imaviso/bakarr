@@ -1,7 +1,10 @@
 import { assertEquals } from "@std/assert";
+import { Effect } from "effect";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
+import { makeBackgroundWorkerMonitor } from "./background.ts";
+import { runTestEffect } from "./test/effect-test.ts";
 
 const baseConfig: Config = {
   downloads: {
@@ -129,4 +132,32 @@ Deno.test("build background schedule ignores invalid cron and keeps interval", (
 
   assertEquals(schedule.rssCronExpression, null);
   assertEquals(schedule.rssCheckMs, 30 * 60 * 1000);
+});
+
+Deno.test("background worker monitor tracks supervision state and counters", async () => {
+  const snapshot = await runTestEffect(
+    Effect.gen(function* () {
+      const monitor = yield* makeBackgroundWorkerMonitor();
+
+      yield* monitor.markDaemonStarted("rss");
+      yield* monitor.markRunStarted("rss");
+      yield* monitor.markRunFailed("rss", "boom");
+      yield* monitor.markRunStarted("rss");
+      yield* monitor.markRunSucceeded("rss");
+      yield* monitor.markRunSkipped("rss");
+      yield* monitor.markDaemonStopped("rss");
+
+      return yield* monitor.snapshot();
+    }),
+  );
+
+  assertEquals(snapshot.rss.daemonRunning, false);
+  assertEquals(snapshot.rss.runRunning, false);
+  assertEquals(snapshot.rss.failureCount, 1);
+  assertEquals(snapshot.rss.successCount, 1);
+  assertEquals(snapshot.rss.skipCount, 1);
+  assertEquals(snapshot.rss.lastErrorMessage, "boom");
+  assertEquals(typeof snapshot.rss.lastStartedAt, "string");
+  assertEquals(typeof snapshot.rss.lastSucceededAt, "string");
+  assertEquals(typeof snapshot.rss.lastFailedAt, "string");
 });

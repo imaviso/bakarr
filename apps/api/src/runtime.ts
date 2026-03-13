@@ -1,7 +1,10 @@
 import { Effect, Layer, ManagedRuntime } from "effect";
 
 import { AppRuntime } from "./app-runtime.ts";
-import { BackgroundWorkerServiceLive } from "./background.ts";
+import {
+  BackgroundWorkerMonitorLive,
+  BackgroundWorkerServiceLive,
+} from "./background.ts";
 import { AppConfig, type AppConfigShape } from "./config.ts";
 import { DatabaseLive } from "./db/database.ts";
 import { AniListClientLive } from "./features/anime/anilist.ts";
@@ -20,12 +23,14 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
   const runtimeLayer = AppRuntime.layer();
   const databaseLayer = DatabaseLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
+  const backgroundMonitorLayer = BackgroundWorkerMonitorLive;
   const platformLayer = Layer.mergeAll(
     configLayer,
     runtimeLayer,
     RuntimeLoggerLayer,
     databaseLayer,
     eventBusLayer,
+    backgroundMonitorLayer,
     AniListClientLive,
     QBitTorrentClientLive,
     RssClientLive,

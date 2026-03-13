@@ -290,168 +290,170 @@ export function makeSearchOrchestration(input: {
   const triggerSearchMissingRaw = Effect.fn(
     "OperationsService.triggerSearchMissing",
   )(function* (animeId?: number) {
-    const title = animeId
-      ? (yield* tryOperationsPromise(
-        "Failed to queue missing-episode search",
-        () => requireAnime(db, animeId),
-      )).titleRomaji
-      : "all anime";
+    return yield* Effect.gen(function* () {
+      const title = animeId
+        ? (yield* tryOperationsPromise(
+          "Failed to queue missing-episode search",
+          () => requireAnime(db, animeId),
+        )).titleRomaji
+        : "all anime";
 
-    yield* eventBus.publish({
-      type: "SearchMissingStarted",
-      payload: { anime_id: animeId ?? 0, title },
-    });
+      yield* eventBus.publish({
+        type: "SearchMissingStarted",
+        payload: { anime_id: animeId ?? 0, title },
+      });
 
-    const filter = animeId ? eq(episodes.animeId, animeId) : undefined;
-    const missingRows = yield* tryDatabasePromise(
-      "Failed to queue missing-episode search",
-      () =>
-        db.select().from(episodes).innerJoin(
-          anime,
-          eq(anime.id, episodes.animeId),
-        )
-          .where(
-            filter
-              ? and(
-                eq(episodes.downloaded, false),
-                sql`${episodes.aired} is not null`,
-                sql`${episodes.aired} <= ${nowIso()}`,
-                filter,
-              )
-              : and(
-                eq(episodes.downloaded, false),
-                sql`${episodes.aired} is not null`,
-                sql`${episodes.aired} <= ${nowIso()}`,
-              ),
-          ),
-    );
-    const runtimeConfig = yield* tryOperationsPromise(
-      "Failed to queue missing-episode search",
-      () => loadRuntimeConfig(db),
-    );
-    let queued = 0;
+      const filter = animeId ? eq(episodes.animeId, animeId) : undefined;
+      const missingRows = yield* tryDatabasePromise(
+        "Failed to queue missing-episode search",
+        () =>
+          db.select().from(episodes).innerJoin(
+            anime,
+            eq(anime.id, episodes.animeId),
+          )
+            .where(
+              filter
+                ? and(
+                  eq(episodes.downloaded, false),
+                  sql`${episodes.aired} is not null`,
+                  sql`${episodes.aired} <= ${nowIso()}`,
+                  filter,
+                )
+                : and(
+                  eq(episodes.downloaded, false),
+                  sql`${episodes.aired} is not null`,
+                  sql`${episodes.aired} <= ${nowIso()}`,
+                ),
+            ),
+      );
+      const runtimeConfig = yield* tryOperationsPromise(
+        "Failed to queue missing-episode search",
+        () => loadRuntimeConfig(db),
+      );
+      let queued = 0;
 
-    for (const row of missingRows.slice(0, 10)) {
-      const profile = yield* tryDatabasePromise(
-        "Failed to queue missing-episode search",
-        () => loadQualityProfile(db, row.anime.profileName),
-      );
-      const rules = yield* tryDatabasePromise(
-        "Failed to queue missing-episode search",
-        () => loadReleaseRules(db, row.anime),
-      );
-      const currentEpisode = yield* tryDatabasePromise(
-        "Failed to queue missing-episode search",
-        () => loadCurrentEpisodeState(db, row.anime.id, row.episodes.number),
-      );
-      const candidates = yield* searchEpisodeReleases(
-        row.anime,
-        row.episodes.number,
-        runtimeConfig,
-      );
-      const best = candidates
-        .map((item) => ({
-          action: decideDownloadAction(
-            profile,
-            rules,
-            currentEpisode,
+      for (const row of missingRows.slice(0, 10)) {
+        const profile = yield* tryDatabasePromise(
+          "Failed to queue missing-episode search",
+          () => loadQualityProfile(db, row.anime.profileName),
+        );
+        const rules = yield* tryDatabasePromise(
+          "Failed to queue missing-episode search",
+          () => loadReleaseRules(db, row.anime),
+        );
+        const currentEpisode = yield* tryDatabasePromise(
+          "Failed to queue missing-episode search",
+          () => loadCurrentEpisodeState(db, row.anime.id, row.episodes.number),
+        );
+        const candidates = yield* searchEpisodeReleases(
+          row.anime,
+          row.episodes.number,
+          runtimeConfig,
+        );
+        const best = candidates
+          .map((item) => ({
+            action: decideDownloadAction(
+              profile,
+              rules,
+              currentEpisode,
+              item,
+              runtimeConfig,
+            ),
             item,
-            runtimeConfig,
-          ),
-          item,
-        }))
-        .find((entry) => entry.action.Accept || entry.action.Upgrade);
+          }))
+          .find((entry) => entry.action.Accept || entry.action.Upgrade);
 
-      if (!best) {
-        continue;
-      }
+        if (!best) {
+          continue;
+        }
 
-      const qbitConfig = maybeQBitConfig(runtimeConfig);
-      const parsedRelease = parseReleaseName(best.item.title);
-      const coveredEpisodes = toCoveredEpisodesJson(
-        inferCoveredEpisodeNumbers({
-          explicitEpisodes: parsedRelease.episodeNumbers,
-          isBatch: parsedRelease.isBatch,
-          missingEpisodes: missingRows
-            .filter((entry) => entry.anime.id === row.anime.id)
-            .map((entry) => entry.episodes.number),
-          requestedEpisode: row.episodes.number,
-        }),
-      );
+        const qbitConfig = maybeQBitConfig(runtimeConfig);
+        const parsedRelease = parseReleaseName(best.item.title);
+        const coveredEpisodes = toCoveredEpisodesJson(
+          inferCoveredEpisodeNumbers({
+            explicitEpisodes: parsedRelease.episodeNumbers,
+            isBatch: parsedRelease.isBatch,
+            missingEpisodes: missingRows
+              .filter((entry) => entry.anime.id === row.anime.id)
+              .map((entry) => entry.episodes.number),
+            requestedEpisode: row.episodes.number,
+          }),
+        );
 
-      if (
+        if (
+          yield* tryDatabasePromise(
+            "Failed to queue missing-episode search",
+            () =>
+              hasOverlappingDownload(
+                db,
+                row.anime.id,
+                best.item.infoHash,
+                parseCoveredEpisodes(coveredEpisodes),
+              ),
+          )
+        ) {
+          continue;
+        }
+
+        let status = "queued";
+
+        if (qbitConfig) {
+          yield* qbitClient.addTorrentUrl(qbitConfig, best.item.magnet).pipe(
+            Effect.mapError(
+              wrapOperationsError("Failed to queue missing-episode search"),
+            ),
+          );
+          status = "downloading";
+        }
+
         yield* tryDatabasePromise(
           "Failed to queue missing-episode search",
           () =>
-            hasOverlappingDownload(
-              db,
-              row.anime.id,
-              best.item.infoHash,
-              parseCoveredEpisodes(coveredEpisodes),
-            ),
-        )
-      ) {
-        continue;
-      }
-
-      let status = "queued";
-
-      if (qbitConfig) {
-        yield* qbitClient.addTorrentUrl(qbitConfig, best.item.magnet).pipe(
-          Effect.mapError(
-            wrapOperationsError("Failed to queue missing-episode search"),
-          ),
+            db.insert(downloads).values({
+              addedAt: nowIso(),
+              animeId: row.anime.id,
+              animeTitle: row.anime.titleRomaji,
+              contentPath: null,
+              coveredEpisodes,
+              downloadDate: null,
+              episodeNumber: row.episodes.number,
+              isBatch: parsedRelease.isBatch,
+              downloadedBytes: 0,
+              errorMessage: null,
+              etaSeconds: null,
+              externalState: status,
+              groupName: best.item.group ?? null,
+              infoHash: best.item.infoHash,
+              lastSyncedAt: nowIso(),
+              magnet: best.item.magnet,
+              progress: 0,
+              savePath: null,
+              speedBytes: 0,
+              status,
+              totalBytes: best.item.sizeBytes,
+              torrentName: best.item.title,
+            }),
         );
-        status = "downloading";
+        yield* tryDatabasePromise(
+          "Failed to queue missing-episode search",
+          () =>
+            recordDownloadEvent(db, {
+              animeId: row.anime.id,
+              eventType: "download.search_missing.queued",
+              message: `Queued ${best.item.title}`,
+              metadata: coveredEpisodes,
+              toStatus: status,
+            }),
+        );
+        queued += 1;
       }
 
-      yield* tryDatabasePromise(
-        "Failed to queue missing-episode search",
-        () =>
-          db.insert(downloads).values({
-            addedAt: nowIso(),
-            animeId: row.anime.id,
-            animeTitle: row.anime.titleRomaji,
-            contentPath: null,
-            coveredEpisodes,
-            downloadDate: null,
-            episodeNumber: row.episodes.number,
-            isBatch: parsedRelease.isBatch,
-            downloadedBytes: 0,
-            errorMessage: null,
-            etaSeconds: null,
-            externalState: status,
-            groupName: best.item.group ?? null,
-            infoHash: best.item.infoHash,
-            lastSyncedAt: nowIso(),
-            magnet: best.item.magnet,
-            progress: 0,
-            savePath: null,
-            speedBytes: 0,
-            status,
-            totalBytes: best.item.sizeBytes,
-            torrentName: best.item.title,
-          }),
-      );
-      yield* tryDatabasePromise(
-        "Failed to queue missing-episode search",
-        () =>
-          recordDownloadEvent(db, {
-            animeId: row.anime.id,
-            eventType: "download.search_missing.queued",
-            message: `Queued ${best.item.title}`,
-            metadata: coveredEpisodes,
-            toStatus: status,
-          }),
-      );
-      queued += 1;
-    }
-
-    yield* eventBus.publish({
-      type: "SearchMissingFinished",
-      payload: { anime_id: animeId ?? 0, title, count: queued },
-    });
-    yield* publishDownloadProgress();
+      yield* eventBus.publish({
+        type: "SearchMissingFinished",
+        payload: { anime_id: animeId ?? 0, title, count: queued },
+      });
+      yield* publishDownloadProgress();
+    }).pipe(Effect.withSpan("operations.search.missing"));
   });
 
   const triggerSearchMissing = (animeId?: number) =>
@@ -484,138 +486,145 @@ export function makeSearchOrchestration(input: {
         yield* eventBus.publish({ type: "RssCheckStarted" });
 
         for (const feed of feeds) {
-          const items = yield* rssClient.fetchItems(feed.url);
-          const animeRow = yield* tryOperationsPromise(
-            "Failed to run RSS check",
-            () => requireAnime(db, feed.animeId),
-          );
-          const profile = yield* tryDatabasePromise(
-            "Failed to run RSS check",
-            () => loadQualityProfile(db, animeRow.profileName),
-          );
-          const rules = yield* tryDatabasePromise(
-            "Failed to run RSS check",
-            () => loadReleaseRules(db, animeRow),
-          );
-
-          for (const item of items.slice(0, 10)) {
-            const exists = yield* tryDatabasePromise(
+          newItems += yield* Effect.gen(function* () {
+            const items = yield* rssClient.fetchItems(feed.url);
+            const animeRow = yield* tryOperationsPromise(
               "Failed to run RSS check",
-              () =>
-                db.select({ id: downloads.id }).from(downloads).where(
-                  sql`${downloads.infoHash} = ${item.infoHash}`,
-                ).limit(1),
+              () => requireAnime(db, feed.animeId),
             );
-
-            if (exists[0]) {
-              continue;
-            }
-
-            const episodeNumber = parseEpisodeFromTitle(item.title) ?? 1;
-            const currentEpisode = yield* tryDatabasePromise(
+            const profile = yield* tryDatabasePromise(
               "Failed to run RSS check",
-              () => loadCurrentEpisodeState(db, animeRow.id, episodeNumber),
+              () => loadQualityProfile(db, animeRow.profileName),
             );
-            const action = decideDownloadAction(
-              profile,
-              rules,
-              currentEpisode,
-              item,
-              runtimeConfig,
-            );
-
-            if (!(action.Accept || action.Upgrade)) {
-              continue;
-            }
-
-            const qbitConfig = maybeQBitConfig(runtimeConfig);
-            const parsedRelease = parseReleaseName(item.title);
-            const missingEpisodes = yield* tryDatabasePromise(
+            const rules = yield* tryDatabasePromise(
               "Failed to run RSS check",
-              () => loadMissingEpisodeNumbers(db, animeRow.id),
+              () => loadReleaseRules(db, animeRow),
             );
-            const coveredEpisodes = toCoveredEpisodesJson(
-              inferCoveredEpisodeNumbers({
-                explicitEpisodes: parsedRelease.episodeNumbers,
-                isBatch: parsedRelease.isBatch,
-                missingEpisodes,
-                requestedEpisode: episodeNumber,
-              }),
-            );
+            let queuedForFeed = 0;
 
-            if (
+            for (const item of items.slice(0, 10)) {
+              const exists = yield* tryDatabasePromise(
+                "Failed to run RSS check",
+                () =>
+                  db.select({ id: downloads.id }).from(downloads).where(
+                    sql`${downloads.infoHash} = ${item.infoHash}`,
+                  ).limit(1),
+              );
+
+              if (exists[0]) {
+                continue;
+              }
+
+              const episodeNumber = parseEpisodeFromTitle(item.title) ?? 1;
+              const currentEpisode = yield* tryDatabasePromise(
+                "Failed to run RSS check",
+                () => loadCurrentEpisodeState(db, animeRow.id, episodeNumber),
+              );
+              const action = decideDownloadAction(
+                profile,
+                rules,
+                currentEpisode,
+                item,
+                runtimeConfig,
+              );
+
+              if (!(action.Accept || action.Upgrade)) {
+                continue;
+              }
+
+              const qbitConfig = maybeQBitConfig(runtimeConfig);
+              const parsedRelease = parseReleaseName(item.title);
+              const missingEpisodes = yield* tryDatabasePromise(
+                "Failed to run RSS check",
+                () => loadMissingEpisodeNumbers(db, animeRow.id),
+              );
+              const coveredEpisodes = toCoveredEpisodesJson(
+                inferCoveredEpisodeNumbers({
+                  explicitEpisodes: parsedRelease.episodeNumbers,
+                  isBatch: parsedRelease.isBatch,
+                  missingEpisodes,
+                  requestedEpisode: episodeNumber,
+                }),
+              );
+
+              if (
+                yield* tryDatabasePromise(
+                  "Failed to run RSS check",
+                  () =>
+                    hasOverlappingDownload(
+                      db,
+                      animeRow.id,
+                      item.infoHash,
+                      parseCoveredEpisodes(coveredEpisodes),
+                    ),
+                )
+              ) {
+                continue;
+              }
+
+              let status = "queued";
+
+              if (qbitConfig) {
+                yield* qbitClient.addTorrentUrl(qbitConfig, item.magnet).pipe(
+                  Effect.mapError(
+                    wrapOperationsError("Failed to run RSS check"),
+                  ),
+                );
+                status = "downloading";
+              }
+
               yield* tryDatabasePromise(
                 "Failed to run RSS check",
                 () =>
-                  hasOverlappingDownload(
-                    db,
-                    animeRow.id,
-                    item.infoHash,
-                    parseCoveredEpisodes(coveredEpisodes),
-                  ),
-              )
-            ) {
-              continue;
-            }
-
-            let status = "queued";
-
-            if (qbitConfig) {
-              yield* qbitClient.addTorrentUrl(qbitConfig, item.magnet).pipe(
-                Effect.mapError(wrapOperationsError("Failed to run RSS check")),
+                  db.insert(downloads).values({
+                    addedAt: nowIso(),
+                    animeId: animeRow.id,
+                    animeTitle: animeRow.titleRomaji,
+                    contentPath: null,
+                    coveredEpisodes,
+                    downloadDate: null,
+                    episodeNumber,
+                    isBatch: parsedRelease.isBatch,
+                    downloadedBytes: 0,
+                    errorMessage: null,
+                    etaSeconds: null,
+                    externalState: status,
+                    groupName: item.group ?? null,
+                    infoHash: item.infoHash,
+                    lastSyncedAt: nowIso(),
+                    magnet: item.magnet,
+                    progress: 0,
+                    savePath: null,
+                    speedBytes: 0,
+                    status,
+                    totalBytes: item.sizeBytes,
+                    torrentName: item.title,
+                  }),
               );
-              status = "downloading";
+              yield* tryDatabasePromise(
+                "Failed to run RSS check",
+                () =>
+                  recordDownloadEvent(db, {
+                    animeId: animeRow.id,
+                    eventType: "download.rss.queued",
+                    message: `Queued ${item.title} from RSS`,
+                    metadata: coveredEpisodes,
+                    toStatus: status,
+                  }),
+              );
+              queuedForFeed += 1;
             }
 
             yield* tryDatabasePromise(
               "Failed to run RSS check",
               () =>
-                db.insert(downloads).values({
-                  addedAt: nowIso(),
-                  animeId: animeRow.id,
-                  animeTitle: animeRow.titleRomaji,
-                  contentPath: null,
-                  coveredEpisodes,
-                  downloadDate: null,
-                  episodeNumber,
-                  isBatch: parsedRelease.isBatch,
-                  downloadedBytes: 0,
-                  errorMessage: null,
-                  etaSeconds: null,
-                  externalState: status,
-                  groupName: item.group ?? null,
-                  infoHash: item.infoHash,
-                  lastSyncedAt: nowIso(),
-                  magnet: item.magnet,
-                  progress: 0,
-                  savePath: null,
-                  speedBytes: 0,
-                  status,
-                  totalBytes: item.sizeBytes,
-                  torrentName: item.title,
-                }),
+                db.update(rssFeeds).set({ lastChecked: nowIso() }).where(
+                  eq(rssFeeds.id, feed.id),
+                ),
             );
-            yield* tryDatabasePromise(
-              "Failed to run RSS check",
-              () =>
-                recordDownloadEvent(db, {
-                  animeId: animeRow.id,
-                  eventType: "download.rss.queued",
-                  message: `Queued ${item.title} from RSS`,
-                  metadata: coveredEpisodes,
-                  toStatus: status,
-                }),
-            );
-            newItems += 1;
-          }
 
-          yield* tryDatabasePromise(
-            "Failed to run RSS check",
-            () =>
-              db.update(rssFeeds).set({ lastChecked: nowIso() }).where(
-                eq(rssFeeds.id, feed.id),
-              ),
-          );
+            return queuedForFeed;
+          }).pipe(Effect.withSpan("operations.rss.feed"));
         }
 
         yield* tryDatabasePromise(
@@ -630,6 +639,7 @@ export function makeSearchOrchestration(input: {
 
         return { newItems };
       }).pipe(
+        Effect.withSpan("operations.rss.check"),
         Effect.catchAll((cause) =>
           tryDatabasePromise(
             "Failed to run RSS check",
