@@ -2309,6 +2309,88 @@ integrationTest(
 );
 
 integrationTest(
+  "manual import succeeds for files outside configured roots",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const rootFolder = await Deno.makeTempDir();
+      const importFolder = await Deno.makeTempDir();
+
+      try {
+        const addAnimeResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(addAnimeResponse.status, 200);
+
+        const sourcePath = `${importFolder}/manual-import-001.mkv`;
+        await Deno.writeTextFile(sourcePath, "video import");
+
+        const importScan = await ctx.app.request("/api/library/import/scan", {
+          body: JSON.stringify({ anime_id: 20, path: importFolder }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(importScan.status, 200);
+        const scanBody = await importScan.json();
+        assertEquals(scanBody.files.length, 1);
+
+        const importExecute = await ctx.app.request("/api/library/import", {
+          body: JSON.stringify({
+            files: [{
+              anime_id: 20,
+              episode_number: 1,
+              source_path: sourcePath,
+            }],
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(importExecute.status, 200);
+        const importBody = await importExecute.json();
+        assertEquals(importBody.imported, 1);
+        assertEquals(importBody.failed, 0);
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+        await Deno.remove(importFolder, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
   "events endpoint streams initial state and live notifications",
   async () => {
     const ctx = await createTestContext();

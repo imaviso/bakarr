@@ -34,7 +34,6 @@ import {
 } from "./job-support.ts";
 import {
   currentImportMode,
-  loadRuntimeConfig,
   requireAnime,
   toDownload,
   toDownloadEvent,
@@ -46,10 +45,7 @@ import type {
   TryDatabasePromise,
   TryOperationsPromise,
 } from "./service-support.ts";
-import {
-  type FileSystemShape,
-  isWithinPathRoot,
-} from "../../lib/filesystem.ts";
+import { type FileSystemShape } from "../../lib/filesystem.ts";
 
 export function makeCatalogOrchestration(input: {
   db: AppDatabase;
@@ -156,26 +152,10 @@ export function makeCatalogOrchestration(input: {
     const importedFiles: ImportResult["imported_files"] = [];
     const failedFiles: ImportResult["failed_files"] = [];
 
-    const runtimeConfig = yield* tryOperationsPromise(
-      "Failed to load config",
-      () => loadRuntimeConfig(db),
-    );
     const importMode = yield* tryDatabasePromise(
       "Failed to import files",
       () => currentImportMode(db),
     );
-    const downloadRoot = yield* fs.realPath(runtimeConfig.downloads.root_path)
-      .pipe(
-        Effect.mapError((error) =>
-          new DatabaseError({ cause: error, message: "Failed to import files" })
-        ),
-      );
-    const libraryRoot = yield* fs.realPath(runtimeConfig.library.library_path)
-      .pipe(
-        Effect.mapError((error) =>
-          new DatabaseError({ cause: error, message: "Failed to import files" })
-        ),
-      );
 
     for (const file of files) {
       const result = yield* Effect.gen(function* () {
@@ -187,17 +167,6 @@ export function makeCatalogOrchestration(input: {
             })
           ),
         );
-
-        if (
-          !isWithinPathRoot(resolvedSource, downloadRoot) &&
-          !isWithinPathRoot(resolvedSource, libraryRoot)
-        ) {
-          return yield* dbError("Failed to import files")(
-            new Error(
-              "Source path is not within allowed download or library directories",
-            ),
-          );
-        }
 
         const animeRow = yield* tryOperationsPromise(
           "Failed to import files",
