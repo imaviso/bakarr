@@ -6,6 +6,9 @@ export class FileSystemError extends Schema.TaggedError<FileSystemError>()(
 ) {}
 
 export interface FileSystemShape {
+  readonly readFile: (
+    path: string,
+  ) => Effect.Effect<Uint8Array, FileSystemError>;
   readonly readDir: (
     path: string,
   ) => Effect.Effect<Deno.DirEntry[], FileSystemError>;
@@ -26,6 +29,10 @@ export interface FileSystemShape {
   readonly copyFile: (
     from: string,
     to: string,
+  ) => Effect.Effect<void, FileSystemError>;
+  readonly writeFile: (
+    path: string,
+    data: Uint8Array,
   ) => Effect.Effect<void, FileSystemError>;
   readonly remove: (
     path: string,
@@ -50,6 +57,8 @@ function wrap<A>(
 }
 
 const makeFileSystem: FileSystemShape = {
+  readFile: (path) =>
+    wrap(path, "Failed to read file", () => Deno.readFile(path)),
   readDir: (path) =>
     wrap(
       path,
@@ -65,6 +74,8 @@ const makeFileSystem: FileSystemShape = {
     wrap(from, "Failed to rename", () => Deno.rename(from, to)),
   copyFile: (from, to) =>
     wrap(from, "Failed to copy file", () => Deno.copyFile(from, to)),
+  writeFile: (path, data) =>
+    wrap(path, "Failed to write file", () => Deno.writeFile(path, data)),
   remove: (path, options) =>
     wrap(path, "Failed to remove", () => Deno.remove(path, options)),
 };

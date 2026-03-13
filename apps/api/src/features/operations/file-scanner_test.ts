@@ -29,6 +29,7 @@ const tree = new Map<string, Deno.DirEntry[]>([
 ]);
 
 const mockFs: FileSystemShape = {
+  readFile: () => Effect.die("unused"),
   readDir: (path) =>
     path === "/library/show/season-2/broken"
       ? Effect.fail(
@@ -44,6 +45,7 @@ const mockFs: FileSystemShape = {
   mkdir: () => Effect.die("unused"),
   rename: () => Effect.die("unused"),
   copyFile: () => Effect.die("unused"),
+  writeFile: () => Effect.die("unused"),
   remove: () => Effect.die("unused"),
 };
 

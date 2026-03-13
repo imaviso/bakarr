@@ -310,8 +310,17 @@ export function makeSearchOrchestration(input: {
         )
           .where(
             filter
-              ? and(eq(episodes.downloaded, false), filter)
-              : eq(episodes.downloaded, false),
+              ? and(
+                eq(episodes.downloaded, false),
+                sql`${episodes.aired} is not null`,
+                sql`${episodes.aired} <= ${nowIso()}`,
+                filter,
+              )
+              : and(
+                eq(episodes.downloaded, false),
+                sql`${episodes.aired} is not null`,
+                sql`${episodes.aired} <= ${nowIso()}`,
+              ),
           ),
     );
     const runtimeConfig = yield* tryOperationsPromise(

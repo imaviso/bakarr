@@ -1,8 +1,6 @@
 import { Context, Effect, Fiber, Layer, Schedule } from "effect";
 
-import type {
-  DownloadStatus,
-} from "../../../packages/shared/src/index.ts";
+import type { DownloadStatus } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
 import { DatabaseError } from "./db/database.ts";
 import {
@@ -40,66 +38,69 @@ const makeBackgroundWorkerService = Effect.gen(function* () {
   const rssService = yield* RssService;
 
   const start = Effect.fn("BackgroundWorkerService.start")(function* () {
-      const config = yield* system.getConfig();
-      const schedule = buildBackgroundSchedule(config);
+    const config = yield* system.getConfig();
+    const schedule = buildBackgroundSchedule(config);
 
-      const rssLoop = yield* withLockEffect(
-        "rss",
-        Effect.gen(function* () {
-          yield* rssService.runRssCheck();
-          yield* downloadService.triggerSearchMissing();
+    const rssLoop = yield* withLockEffect(
+      "rss",
+      Effect.gen(function* () {
+        yield* rssService.runRssCheck();
+        yield* downloadService.triggerSearchMissing();
+      }),
+    );
+
+    const libraryLoop = yield* withLockEffect(
+      "library_scan",
+      libraryService.runLibraryScan(),
+    );
+
+    const downloadSyncLoop = yield* withLockEffect(
+      "download_sync",
+      Effect.gen(function* () {
+        const downloads: DownloadStatus[] = yield* downloadService
+          .getDownloadProgress();
+        yield* eventBus.publish({
+          type: "DownloadProgress",
+          payload: { downloads },
+        });
+      }),
+    );
+
+    const spawnedFibers: Fiber.Fiber<void, never>[] = [
+      yield* Effect.forkDaemon(
+        repeatWorker(downloadSyncLoop, {
+          intervalMs: schedule.downloadSyncMs,
         }),
-      );
+      ),
+    ];
 
-      const libraryLoop = yield* withLockEffect(
-        "library_scan",
-        libraryService.runLibraryScan(),
-      );
-
-      const downloadSyncLoop = yield* withLockEffect(
-        "download_sync",
-        Effect.gen(function* () {
-          const downloads: DownloadStatus[] = yield* downloadService
-            .getDownloadProgress();
-          yield* eventBus.publish({ type: "DownloadProgress", payload: { downloads } });
-        }),
-      );
-
-      const spawnedFibers: Fiber.Fiber<void, never>[] = [
+    if (schedule.rssCronExpression !== null || schedule.rssCheckMs !== null) {
+      spawnedFibers.push(
         yield* Effect.forkDaemon(
-          repeatWorker(downloadSyncLoop, {
-            intervalMs: schedule.downloadSyncMs,
+          repeatWorker(rssLoop, {
+            cronExpression: schedule.rssCronExpression,
+            initialDelayMs: schedule.initialDelayMs,
+            intervalMs: schedule.rssCheckMs ?? undefined,
           }),
         ),
-      ];
+      );
+    }
 
-      if (schedule.rssCronExpression !== null || schedule.rssCheckMs !== null) {
-        spawnedFibers.push(
-          yield* Effect.forkDaemon(
-            repeatWorker(rssLoop, {
-              cronExpression: schedule.rssCronExpression,
-              initialDelayMs: schedule.initialDelayMs,
-              intervalMs: schedule.rssCheckMs ?? undefined,
-            }),
-          ),
-        );
-      }
+    if (schedule.libraryScanMs !== null) {
+      spawnedFibers.push(
+        yield* Effect.forkDaemon(
+          repeatWorker(libraryLoop, {
+            initialDelayMs: schedule.initialDelayMs,
+            intervalMs: schedule.libraryScanMs,
+          }),
+        ),
+      );
+    }
 
-      if (schedule.libraryScanMs !== null) {
-        spawnedFibers.push(
-          yield* Effect.forkDaemon(
-            repeatWorker(libraryLoop, {
-              initialDelayMs: schedule.initialDelayMs,
-              intervalMs: schedule.libraryScanMs,
-            }),
-          ),
-        );
-      }
-
-      return {
-        stop: Fiber.interruptAll(spawnedFibers).pipe(Effect.asVoid),
-      } satisfies BackgroundWorkerHandle;
-    });
+    return {
+      stop: Fiber.interruptAll(spawnedFibers).pipe(Effect.asVoid),
+    } satisfies BackgroundWorkerHandle;
+  });
 
   return {
     start,

@@ -21,7 +21,8 @@ export type ReleaseProfileRow = typeof releaseProfiles.$inferSelect;
 export type ReleaseProfileInsert = typeof releaseProfiles.$inferInsert;
 
 export async function loadSystemConfigRow(db: AppDatabase) {
-  const rows = await db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1);
+  const rows = await db.select().from(appConfig).where(eq(appConfig.id, 1))
+    .limit(1);
   return rows[0];
 }
 
@@ -70,7 +71,9 @@ export async function insertQualityProfileRows(
 }
 
 export async function loadQualityProfileRow(db: AppDatabase, name: string) {
-  const rows = await db.select().from(qualityProfiles).where(eq(qualityProfiles.name, name))
+  const rows = await db.select().from(qualityProfiles).where(
+    eq(qualityProfiles.name, name),
+  )
     .limit(1);
   return rows[0];
 }
@@ -80,7 +83,9 @@ export function updateQualityProfileRow(
   name: string,
   row: QualityProfileInsert,
 ) {
-  return db.update(qualityProfiles).set(row).where(eq(qualityProfiles.name, name));
+  return db.update(qualityProfiles).set(row).where(
+    eq(qualityProfiles.name, name),
+  );
 }
 
 export function deleteQualityProfileRow(db: AppDatabase, name: string) {
@@ -205,9 +210,10 @@ export function listRecentSystemLogRows(db: AppDatabase, limit: number) {
 }
 
 export function listRecentDownloadEventRows(db: AppDatabase, limit: number) {
-  return db.select().from(downloadEvents).orderBy(desc(downloadEvents.id)).limit(
-    limit,
-  );
+  return db.select().from(downloadEvents).orderBy(desc(downloadEvents.id))
+    .limit(
+      limit,
+    );
 }
 
 export async function loadSystemLogPage(
@@ -227,7 +233,9 @@ export async function loadSystemLogPage(
     input.startDate
       ? sql`${systemLogs.createdAt} >= ${input.startDate}`
       : undefined,
-    input.endDate ? sql`${systemLogs.createdAt} <= ${input.endDate}` : undefined,
+    input.endDate
+      ? sql`${systemLogs.createdAt} <= ${input.endDate}`
+      : undefined,
   ].filter((value): value is Exclude<typeof value, undefined> =>
     value !== undefined
   );

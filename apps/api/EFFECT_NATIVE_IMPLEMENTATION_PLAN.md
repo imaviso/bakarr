@@ -28,14 +28,17 @@ What is already in good shape:
 
 Verified complete from this plan:
 
-- phase 1 is complete: expected failures are now mostly modeled as tagged
-  errors across auth, anime, operations, and system flows, and route mapping in
+- phase 1 is complete: expected failures are now mostly modeled as tagged errors
+  across auth, anime, operations, and system flows, and route mapping in
   `apps/api/src/http/route-helpers.ts` is primarily tag-based
 - phase 2 is complete: raw filesystem access is centralized behind
-  `apps/api/src/lib/filesystem.ts`, orchestration uses Effect-wrapped
-  filesystem boundaries, queue-backed event delivery lives in
+  `apps/api/src/lib/filesystem.ts`, orchestration uses Effect-wrapped filesystem
+  boundaries, queue-backed event delivery lives in
   `apps/api/src/features/events/event-bus.ts`, and HTTP stream conversion stays
   at the route edge
+- phase 3 is complete: anime, operations, and system services now delegate
+  persistence and boundary helpers to leaf modules, background worker startup is
+  modeled as a service/layer, and runtime wiring remains centralized
 - Effect language service diagnostics are clean, which removed several
   non-native patterns that previously blocked both phases
 
@@ -43,6 +46,8 @@ Main remaining gaps:
 
 - some concurrency and subscription paths can still use stronger primitives or
   clearer scoped ownership
+- schema-first domain modeling is still uneven across persisted and shared
+  contracts
 - observability is mostly logging, not full tracing/metrics/supervision
 - tests are still mostly integration-style `Deno.test` instead of Effect-native
 - many advanced Effect and Schema capabilities are available but not yet applied
@@ -201,8 +206,8 @@ Verification notes:
 - raw filesystem access is isolated to `apps/api/src/lib/filesystem.ts`
 - feature modules such as `apps/api/src/features/anime/files.ts`,
   `apps/api/src/features/operations/file-scanner.ts`, and
-  `apps/api/src/features/operations/catalog-orchestration.ts` use the
-  filesystem service boundary instead of calling `Deno.*` directly
+  `apps/api/src/features/operations/catalog-orchestration.ts` use the filesystem
+  service boundary instead of calling `Deno.*` directly
 - event subscriptions are queue-backed in
   `apps/api/src/features/events/event-bus.ts`
 - SSE transport remains in `apps/api/src/http/system-routes.ts`, which matches
@@ -210,7 +215,7 @@ Verification notes:
 - large library scans now support streaming iteration in
   `apps/api/src/features/operations/file-scanner.ts`
 
-### 3. Formalize Service Graph and Layer Boundaries
+### 3. Formalize Service Graph and Layer Boundaries (Done)
 
 Why:
 
@@ -252,9 +257,25 @@ Implementation steps:
 
 Acceptance criteria:
 
-- service files are primarily orchestration and policy
-- reusable boundary logic lives in leaf modules/services
-- layer graph stays centralized in `runtime.ts`
+- [x] service files are primarily orchestration and policy
+- [x] reusable boundary logic lives in leaf modules/services
+- [x] layer graph stays centralized in `runtime.ts`
+
+Verification notes:
+
+- operations boundary helpers moved into
+  `apps/api/src/features/operations/service-support.ts`
+- system persistence and query helpers moved into
+  `apps/api/src/features/system/repository.ts`
+- anime boundary helpers moved into
+  `apps/api/src/features/anime/service-support.ts` and image caching now lives in
+  `apps/api/src/features/anime/image-cache.ts`
+- background worker startup is modeled as
+  `apps/api/src/background.ts` `BackgroundWorkerService` and is composed through
+  `apps/api/src/runtime.ts`
+- service methods across anime, operations, and system now read more clearly as
+  orchestration/policy over repositories, support modules, and boundary
+  adapters
 
 ### 4. Expand Schema-First Modeling
 
@@ -502,16 +523,19 @@ Defer unless a clear use case appears:
 
 Completed:
 
-- 1. error contracts and recovery
-- 2. filesystem and streaming boundaries
+-
+  1. error contracts and recovery
+-
+  2. filesystem and streaming boundaries
+-
+  3. service/layer graph cleanup
 
 Next recommended focus:
 
-1. service/layer graph cleanup
-2. richer schema/domain modeling
-3. concurrency/backpressure primitives
-4. tracing/metrics/supervision
-5. Effect-native testing
+1. richer schema/domain modeling
+2. concurrency/backpressure primitives
+3. tracing/metrics/supervision
+4. Effect-native testing
 
 ## Verification Checklist
 

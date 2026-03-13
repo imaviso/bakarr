@@ -22,6 +22,12 @@ function filesystemTest(name: string, fn: () => void | Promise<void>) {
 
 /** Real filesystem for integration tests */
 const fs: FileSystemShape = {
+  readFile: (path) =>
+    Effect.tryPromise({
+      try: () => Deno.readFile(path),
+      catch: (cause) =>
+        new FileSystemError({ cause, message: "readFile failed", path }),
+    }),
   readDir: (path) =>
     Effect.tryPromise({
       try: () => Array.fromAsync(Deno.readDir(path)),
@@ -57,6 +63,12 @@ const fs: FileSystemShape = {
       try: () => Deno.copyFile(from, to),
       catch: (cause) =>
         new FileSystemError({ cause, message: "copyFile failed", path: from }),
+    }),
+  writeFile: (path, data) =>
+    Effect.tryPromise({
+      try: () => Deno.writeFile(path, data),
+      catch: (cause) =>
+        new FileSystemError({ cause, message: "writeFile failed", path }),
     }),
   remove: (path, options) =>
     Effect.tryPromise({
