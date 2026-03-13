@@ -1,10 +1,10 @@
 import { Context, Effect, Fiber, Layer, Schedule } from "effect";
 
 import type {
-  Config,
   DownloadStatus,
 } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
+import { DatabaseError } from "./db/database.ts";
 import {
   compactLogAnnotations,
   durationMsSince,
@@ -23,7 +23,7 @@ export interface BackgroundWorkerHandle {
 }
 
 export interface BackgroundWorkerServiceShape {
-  readonly start: () => Effect.Effect<BackgroundWorkerHandle, unknown>;
+  readonly start: () => Effect.Effect<BackgroundWorkerHandle, DatabaseError>;
 }
 
 export class BackgroundWorkerService
@@ -40,7 +40,7 @@ const makeBackgroundWorkerService = Effect.gen(function* () {
   const rssService = yield* RssService;
 
   const start = Effect.fn("BackgroundWorkerService.start")(function* () {
-      const config = (yield* system.getConfig()) as Config;
+      const config = yield* system.getConfig();
       const schedule = buildBackgroundSchedule(config);
 
       const rssLoop = yield* withLockEffect(
