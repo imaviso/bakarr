@@ -40,21 +40,25 @@ Deno.test("suggestUnmappedFolders reuses normalized queries and falls back when 
           case "Scissor Seven Season 4":
             return Effect.succeed([]);
           case "Scissor Seven":
-            return Effect.succeed([
-              {
-                already_in_library: false,
-                id: 1,
-                title: { romaji: "Scissor Seven" },
-              },
-            ] satisfies AnimeSearchResult[]);
+            return Effect.succeed(
+              [
+                {
+                  already_in_library: false,
+                  id: 1,
+                  title: { romaji: "Scissor Seven" },
+                },
+              ] satisfies AnimeSearchResult[],
+            );
           case "Mono":
-            return Effect.succeed([
-              {
-                already_in_library: false,
-                id: 2,
-                title: { romaji: "Mono" },
-              },
-            ] satisfies AnimeSearchResult[]);
+            return Effect.succeed(
+              [
+                {
+                  already_in_library: false,
+                  id: 2,
+                  title: { romaji: "Mono" },
+                },
+              ] satisfies AnimeSearchResult[],
+            );
           default:
             return Effect.succeed([] satisfies AnimeSearchResult[]);
         }

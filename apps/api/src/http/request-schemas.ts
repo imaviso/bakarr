@@ -4,8 +4,8 @@ export {
   ConfigSchema,
   CreateReleaseProfileSchema,
   QualityProfileSchema,
-  ReleaseProfileSchema,
   ReleaseProfileRuleSchema,
+  ReleaseProfileSchema,
   UpdateReleaseProfileSchema,
 } from "../features/system/config-schema.ts";
 

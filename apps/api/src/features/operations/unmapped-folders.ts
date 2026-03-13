@@ -5,7 +5,10 @@ import type {
   ScannerState,
 } from "../../../../../packages/shared/src/index.ts";
 
-type UnmappedFolderInput = Pick<ScannerState["folders"][number], "name" | "path">;
+type UnmappedFolderInput = Pick<
+  ScannerState["folders"][number],
+  "name" | "path"
+>;
 
 const DEFAULT_SEARCH_CONCURRENCY = 4;
 const NOISE_PATTERNS = [
@@ -34,7 +37,9 @@ export function buildUnmappedFolderSearchQueries(folderName: string): string[] {
     primary.replace(/\bseason\s+\d+\b/gi, " "),
   );
 
-  return [...new Set([primary, seasonless].filter((value) => value.length > 0))];
+  return [
+    ...new Set([primary, seasonless].filter((value) => value.length > 0)),
+  ];
 }
 
 export const suggestUnmappedFolders = Effect.fn(
@@ -45,7 +50,9 @@ export const suggestUnmappedFolders = Effect.fn(
   options?: { readonly concurrency?: number },
 ) {
   const queriesByFolder = new Map(
-    folders.map((folder) => [folder.path, buildUnmappedFolderSearchQueries(folder.name)]),
+    folders.map((
+      folder,
+    ) => [folder.path, buildUnmappedFolderSearchQueries(folder.name)]),
   );
   const queryResults = new Map<string, readonly AnimeSearchResult[]>();
   const uniqueQueries = [
@@ -56,9 +63,11 @@ export const suggestUnmappedFolders = Effect.fn(
     uniqueQueries,
     (query) =>
       search(query).pipe(
-        Effect.tap((results) => Effect.sync(() => {
-          queryResults.set(query, results.slice(0, 5));
-        })),
+        Effect.tap((results) =>
+          Effect.sync(() => {
+            queryResults.set(query, results.slice(0, 5));
+          })
+        ),
       ),
     {
       concurrency: options?.concurrency ?? DEFAULT_SEARCH_CONCURRENCY,
