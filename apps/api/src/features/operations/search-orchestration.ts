@@ -18,11 +18,11 @@ import {
   rssFeeds,
 } from "../../db/schema.ts";
 import type { AniListClient } from "../anime/anilist.ts";
+import { inferAiredAt, upsertEpisode } from "../anime/repository.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { type ParsedRelease, RssClient } from "./rss-client.ts";
 import {
   analyzeScannedFile,
-  copyDirectoryContents,
   findBestLocalAnimeMatch,
   scanVideoFiles,
   titlesMatch,
@@ -63,6 +63,7 @@ import {
   parseEpisodeFromTitle,
   parseReleaseName,
 } from "./release-ranking.ts";
+import { parseEpisodeNumber } from "./file-scanner.ts";
 import { type OperationsError } from "./errors.ts";
 import type {
   TryDatabasePromise,
@@ -792,11 +793,63 @@ export function makeSearchOrchestration(input: {
       () => getConfigLibraryPath(db),
     );
     const folderPath = `${libraryPath.replace(/\/$/, "")}/${input.folder_name}`;
-
-    yield* tryOperationsPromise(
-      "Failed to import unmapped folder",
-      () => copyDirectoryContents(fs, folderPath, animeRow.rootFolder),
+    const files = yield* scanVideoFiles(fs, folderPath).pipe(
+      Effect.mapError((error) =>
+        new DatabaseError({
+          cause: error,
+          message: "Failed to import unmapped folder",
+        })
+      ),
     );
+
+    yield* tryDatabasePromise(
+      "Failed to import unmapped folder",
+      () =>
+        db.update(anime).set({ rootFolder: folderPath }).where(
+          eq(anime.id, input.anime_id),
+        ),
+    );
+
+    if (animeRow.rootFolder !== folderPath) {
+      const previousEntries = yield* fs.readDir(animeRow.rootFolder).pipe(
+        Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+      );
+
+      if (previousEntries.length === 0) {
+        yield* fs.remove(animeRow.rootFolder, { recursive: true }).pipe(
+          Effect.catchAll(() => Effect.void),
+        );
+      }
+    }
+
+    let imported = 0;
+
+    for (const file of files) {
+      const episodeNumber = parseEpisodeNumber(file.path);
+
+      if (!episodeNumber) {
+        continue;
+      }
+
+      yield* tryDatabasePromise(
+        "Failed to import unmapped folder",
+        () =>
+          upsertEpisode(db, input.anime_id, episodeNumber, {
+            aired: inferAiredAt(
+              animeRow.status,
+              episodeNumber,
+              animeRow.episodeCount ?? undefined,
+              animeRow.startDate ?? undefined,
+              animeRow.endDate ?? undefined,
+            ),
+            downloaded: true,
+            filePath: file.path,
+            title: null,
+          }),
+      );
+      imported += 1;
+    }
+
     yield* tryDatabasePromise(
       "Failed to import unmapped folder",
       () =>
@@ -804,11 +857,10 @@ export function makeSearchOrchestration(input: {
           db,
           "library.unmapped.imported",
           "success",
-          `Imported ${input.folder_name}`,
+          `Mapped ${input.folder_name} to anime ${input.anime_id} and imported ${imported} episode(s)`,
         ),
     );
   });
-
   const scanImportPathRaw = Effect.fn("OperationsService.scanImportPath")(
     function* (path: string, animeId?: number) {
       const files = [...yield* scanVideoFiles(fs, path)].sort((a, b) =>
