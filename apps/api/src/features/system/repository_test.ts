@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
@@ -28,7 +28,9 @@ import {
   countRssFeedRows,
   countRunningBackgroundJobs,
   insertSystemConfigRow,
+  listQualityProfileRows,
   loadSystemConfigRow,
+  replaceQualityProfileRows,
   loadSystemLogPage,
   upsertSystemConfigRow,
 } from "./repository.ts";
@@ -322,6 +324,46 @@ Deno.test("system repository query helpers filter logs and count system state", 
     assertEquals(await countEpisodeRows(db), 2);
     assertEquals(await countDownloadedEpisodeRows(db), 1);
     assertEquals(await countRssFeedRows(db), 1);
+  });
+});
+
+Deno.test("replaceQualityProfileRows rolls back when replacement insert fails", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(schema.qualityProfiles).values({
+      name: "Existing",
+      cutoff: "1080p",
+      upgradeAllowed: true,
+      seadexPreferred: false,
+      allowedQualities: '["1080p"]',
+      minSize: null,
+      maxSize: null,
+    });
+
+    await assertRejects(() =>
+      replaceQualityProfileRows(db, [
+        {
+          name: "Duplicate",
+          cutoff: "1080p",
+          upgradeAllowed: true,
+          seadexPreferred: false,
+          allowedQualities: '["1080p"]',
+          minSize: null,
+          maxSize: null,
+        },
+        {
+          name: "Duplicate",
+          cutoff: "720p",
+          upgradeAllowed: false,
+          seadexPreferred: false,
+          allowedQualities: '["720p"]',
+          minSize: null,
+          maxSize: null,
+        },
+      ]));
+
+    const rows = await listQualityProfileRows(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0]?.name, "Existing");
   });
 });
 

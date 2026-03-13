@@ -66,14 +66,30 @@ export async function upsertEpisodeFile(
       .where(eq(episodes.id, rows[0].id));
     return;
   }
-  await db.insert(episodes).values({
-    aired: null,
-    animeId,
-    downloaded: true,
-    filePath: destination,
-    number: episodeNumber,
-    title: null,
-  });
+
+  try {
+    await db.insert(episodes).values({
+      aired: null,
+      animeId,
+      downloaded: true,
+      filePath: destination,
+      number: episodeNumber,
+      title: null,
+    });
+  } catch {
+    const existingRows = await db.select().from(episodes).where(
+      and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
+    ).limit(1);
+
+    if (!existingRows[0]) {
+      throw new Error("Failed to upsert episode file");
+    }
+
+    await db.update(episodes).set({
+      downloaded: true,
+      filePath: destination,
+    }).where(eq(episodes.id, existingRows[0].id));
+  }
 }
 
 export async function markDownloadImported(

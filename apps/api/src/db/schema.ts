@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
 export const anime = sqliteTable("anime", {
   id: integer("id").primaryKey(),
@@ -24,19 +24,25 @@ export const anime = sqliteTable("anime", {
   releaseProfileIds: text("release_profile_ids").notNull(),
 });
 
-export const episodes = sqliteTable("episodes", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  animeId: integer("anime_id")
-    .notNull()
-    .references(() => anime.id, { onDelete: "cascade" }),
-  number: integer("number").notNull(),
-  title: text("title"),
-  aired: text("aired"),
-  downloaded: integer("downloaded", { mode: "boolean" }).notNull().default(
-    false,
-  ),
-  filePath: text("file_path"),
-});
+export const episodes = sqliteTable(
+  "episodes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    animeId: integer("anime_id")
+      .notNull()
+      .references(() => anime.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    title: text("title"),
+    aired: text("aired"),
+    downloaded: integer("downloaded", { mode: "boolean" }).notNull().default(
+      false,
+    ),
+    filePath: text("file_path"),
+  },
+  (table) => [
+    unique("anime_episode_unique").on(table.animeId, table.number),
+  ],
+);
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),

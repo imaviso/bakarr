@@ -96,8 +96,15 @@ export async function replaceQualityProfileRows(
   db: AppDatabase,
   rows: readonly QualityProfileInsert[],
 ) {
-  await db.delete(qualityProfiles);
-  await insertQualityProfileRows(db, rows);
+  await db.transaction(async (tx) => {
+    await tx.delete(qualityProfiles);
+
+    if (rows.length === 0) {
+      return;
+    }
+
+    await tx.insert(qualityProfiles).values([...rows]);
+  });
 }
 
 export function listReleaseProfileRows(db: AppDatabase) {

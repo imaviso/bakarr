@@ -504,11 +504,22 @@ const makeAnimeService = Effect.gen(function* () {
       "Failed to list anime",
       () => db.select().from(episodes),
     );
+    const episodesByAnimeId = new Map<number, Array<typeof episodes.$inferSelect>>();
+
+    for (const episodeRow of episodeRows) {
+      const bucket = episodesByAnimeId.get(episodeRow.animeId);
+
+      if (bucket) {
+        bucket.push(episodeRow);
+      } else {
+        episodesByAnimeId.set(episodeRow.animeId, [episodeRow]);
+      }
+    }
 
     return animeRows.map((row) =>
       toAnimeDto(
         row,
-        episodeRows.filter((episode) => episode.animeId === row.id),
+        episodesByAnimeId.get(row.id) ?? [],
       )
     );
   });

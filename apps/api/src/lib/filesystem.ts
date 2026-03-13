@@ -90,6 +90,22 @@ export function isWithinPathRoot(path: string, root: string) {
     normalizedPath.startsWith(`${normalizedRoot}/`);
 }
 
+export function sanitizePathSegment(value: string) {
+  const trimmed = value.trim();
+
+  if (
+    trimmed.length === 0 ||
+    trimmed === "." ||
+    trimmed === ".." ||
+    trimmed.includes("/") ||
+    trimmed.includes("\\")
+  ) {
+    throw new Error("Invalid path segment");
+  }
+
+  return trimmed;
+}
+
 function normalizePathForContainment(path: string) {
   const normalized = path.replace(/[\\/]+/g, "/");
 

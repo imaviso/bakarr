@@ -1,6 +1,6 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertThrows } from "@std/assert";
 
-import { isWithinPathRoot } from "./filesystem.ts";
+import { isWithinPathRoot, sanitizePathSegment } from "./filesystem.ts";
 
 Deno.test("isWithinPathRoot only matches the configured root boundary", () => {
   assertEquals(isWithinPathRoot("/data/downloads", "/data/downloads"), true);
@@ -36,4 +36,19 @@ Deno.test("isWithinPathRoot accepts Windows-style child paths", () => {
     ),
     false,
   );
+});
+
+Deno.test("sanitizePathSegment rejects traversal and nested path inputs", () => {
+  for (const value of ["../etc", "..", "nested/show", "nested\\show", ""]) {
+    assertThrows(() => sanitizePathSegment(value), Error);
+  }
+});
+
+Deno.test("sanitizePathSegment allows plain folder names within root", () => {
+  const segment = sanitizePathSegment("My Show Season 2");
+  const libraryRoot = "/library";
+  const folderPath = `${libraryRoot}/${segment}`;
+
+  assertEquals(segment, "My Show Season 2");
+  assertEquals(isWithinPathRoot(folderPath, libraryRoot), true);
 });

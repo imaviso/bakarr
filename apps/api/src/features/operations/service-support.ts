@@ -6,6 +6,7 @@ import {
   DownloadConflictError,
   DownloadNotFoundError,
   OperationsAnimeNotFoundError,
+  OperationsInputError,
   type OperationsError,
 } from "./errors.ts";
 import type { QBitConfig } from "./qbittorrent.ts";
@@ -41,6 +42,7 @@ export function wrapOperationsError(message: string) {
   return (cause: unknown) => {
     if (
       cause instanceof OperationsAnimeNotFoundError ||
+      cause instanceof OperationsInputError ||
       cause instanceof DownloadNotFoundError ||
       cause instanceof DownloadConflictError ||
       cause instanceof DatabaseError

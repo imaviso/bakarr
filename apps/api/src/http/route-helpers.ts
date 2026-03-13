@@ -442,6 +442,8 @@ function mapError(error: unknown): { message: string; status: number } {
       case "OperationsAnimeNotFoundError":
       case "ProfileNotFoundError":
         return { message: tagged.message, status: 404 };
+      case "OperationsInputError":
+        return { message: tagged.message, status: 400 };
       case "AnimeConflictError":
       case "DownloadConflictError":
         return { message: tagged.message, status: 409 };

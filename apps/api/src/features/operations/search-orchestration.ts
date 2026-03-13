@@ -71,7 +71,12 @@ import type {
   TryOperationsPromise,
 } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+import {
+  isWithinPathRoot,
+  sanitizePathSegment,
+  type FileSystemShape,
+} from "../../lib/filesystem.ts";
+import { OperationsInputError } from "./errors.ts";
 
 export function makeSearchOrchestration(input: {
   db: AppDatabase;
@@ -798,7 +803,20 @@ export function makeSearchOrchestration(input: {
       "Failed to import unmapped folder",
       () => getConfigLibraryPath(db),
     );
-    const folderPath = `${libraryPath.replace(/\/$/, "")}/${input.folder_name}`;
+    const folderName = yield* Effect.try({
+      try: () => sanitizePathSegment(input.folder_name),
+      catch: () =>
+        new OperationsInputError({
+          message: "folder_name must be a single folder name",
+        }),
+    });
+    const folderPath = `${libraryPath.replace(/\/$/, "")}/${folderName}`;
+
+    if (!isWithinPathRoot(folderPath, libraryPath)) {
+      yield* new OperationsInputError({
+        message: "folder_name must stay within the library root",
+      });
+    }
     const files = yield* scanVideoFiles(fs, folderPath).pipe(
       Effect.mapError((error) =>
         new DatabaseError({
@@ -863,7 +881,7 @@ export function makeSearchOrchestration(input: {
           db,
           "library.unmapped.imported",
           "success",
-          `Mapped ${input.folder_name} to anime ${input.anime_id} and imported ${imported} episode(s)`,
+          `Mapped ${folderName} to anime ${input.anime_id} and imported ${imported} episode(s)`,
         ),
     );
   });

@@ -103,14 +103,31 @@ export async function upsertEpisode(
     return;
   }
 
-  await db.insert(episodes).values({
-    aired: patch.aired ?? null,
-    animeId,
-    downloaded: patch.downloaded ?? false,
-    filePath: patch.filePath ?? null,
-    number: episodeNumber,
-    title: patch.title ?? null,
-  });
+  try {
+    await db.insert(episodes).values({
+      aired: patch.aired ?? null,
+      animeId,
+      downloaded: patch.downloaded ?? false,
+      filePath: patch.filePath ?? null,
+      number: episodeNumber,
+      title: patch.title ?? null,
+    });
+  } catch {
+    const existingRows = await db.select().from(episodes).where(
+      and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
+    ).limit(1);
+
+    if (!existingRows[0]) {
+      throw new Error("Failed to upsert episode");
+    }
+
+    await db.update(episodes).set({
+      aired: patch.aired ?? existingRows[0].aired,
+      downloaded: patch.downloaded ?? existingRows[0].downloaded,
+      filePath: patch.filePath ?? existingRows[0].filePath,
+      title: patch.title ?? existingRows[0].title,
+    }).where(eq(episodes.id, existingRows[0].id));
+  }
 }
 
 export async function clearEpisodeMapping(
