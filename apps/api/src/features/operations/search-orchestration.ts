@@ -28,6 +28,7 @@ import {
   titlesMatch,
   toAnimeSearchCandidate,
 } from "./library-import.ts";
+import { suggestUnmappedFolders } from "./unmapped-folders.ts";
 import {
   hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
@@ -679,27 +680,22 @@ export function makeSearchOrchestration(input: {
           })
         ),
       );
-      const folders: ScannerState["folders"] = [];
+      const folders = yield* suggestUnmappedFolders(
+        entries.flatMap((entry) => {
+          if (!entry.isDirectory) {
+            return [];
+          }
 
-      for (const entry of entries) {
-        if (!entry.isDirectory) {
-          continue;
-        }
+          const fullPath = `${root.replace(/\/$/, "")}/${entry.name}`;
 
-        const fullPath = `${root.replace(/\/$/, "")}/${entry.name}`;
+          if (mappedRoots.has(fullPath)) {
+            return [];
+          }
 
-        if (mappedRoots.has(fullPath)) {
-          continue;
-        }
-
-        const suggestedMatches = yield* aniList.searchAnimeMetadata(entry.name);
-        folders.push({
-          name: entry.name,
-          path: fullPath,
-          size: 0,
-          suggested_matches: suggestedMatches.slice(0, 5),
-        });
-      }
+          return [{ name: entry.name, path: fullPath }];
+        }),
+        aniList.searchAnimeMetadata,
+      );
 
       return {
         folders,
