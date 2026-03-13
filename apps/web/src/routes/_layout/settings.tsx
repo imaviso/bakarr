@@ -1367,10 +1367,10 @@ const ConfigSchema = v.object({
     recycle_path: v.pipe(v.string(), v.minLength(1, "Path is required")),
     recycle_cleanup_days: v.number(),
     naming_format: v.string(),
-    import_mode: v.string(),
+    import_mode: v.picklist(["copy", "move"]),
     movie_naming_format: v.string(),
     auto_scan_interval_hours: v.number(),
-    preferred_title: v.string(),
+    preferred_title: v.picklist(["romaji", "english", "native"]),
   }),
   security: v.object({
     argon2_memory_cost_kib: v.number(),
@@ -1428,6 +1428,24 @@ const ConfigSchema = v.object({
     }),
   ),
 });
+
+const IMPORT_MODE_OPTIONS = ["copy", "move"] as const;
+const PREFERRED_TITLE_OPTIONS = ["romaji", "english", "native"] as const;
+
+function importModeLabel(value: string) {
+  return value === "copy" ? "Copy" : "Move";
+}
+
+function preferredTitleLabel(value: string) {
+  switch (value) {
+    case "english":
+      return "English";
+    case "native":
+      return "Native";
+    default:
+      return "Romaji";
+  }
+}
 
 type ConfigSettingsMode = "general" | "automation" | "security";
 
@@ -1845,17 +1863,20 @@ function SystemForm(props: {
                   name={field().name}
                   value={field().state.value}
                   onChange={(val) => val && field().handleChange(val)}
-                  options={["Copy", "Move", "Hardlink"]}
+                  options={[...IMPORT_MODE_OPTIONS]}
                   placeholder="Select..."
                   itemComponent={(itemProps) => (
                     <SelectItem item={itemProps.item}>
-                      {itemProps.item.rawValue}
+                      {importModeLabel(itemProps.item.rawValue)}
                     </SelectItem>
                   )}
                 >
                   <SelectTrigger class="w-32">
                     <SelectValue<string>>
-                      {(state) => state.selectedOption()}
+                      {(state) =>
+                        state.selectedOption()
+                          ? importModeLabel(state.selectedOption())
+                          : "Select..."}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent />
@@ -1874,26 +1895,20 @@ function SystemForm(props: {
                   name={field().name}
                   value={field().state.value}
                   onChange={(val) => val && field().handleChange(val)}
-                  options={["stored", "english", "romaji"]}
+                  options={[...PREFERRED_TITLE_OPTIONS]}
                   placeholder="Select..."
                   itemComponent={(itemProps) => (
                     <SelectItem item={itemProps.item}>
-                      {itemProps.item.rawValue === "stored"
-                        ? "Existing"
-                        : itemProps.item.rawValue === "english"
-                        ? "English"
-                        : "Romaji"}
+                      {preferredTitleLabel(itemProps.item.rawValue)}
                     </SelectItem>
                   )}
                 >
                   <SelectTrigger class="w-32">
                     <SelectValue<string>>
                       {(state) =>
-                        state.selectedOption() === "stored"
-                          ? "Existing"
-                          : state.selectedOption() === "english"
-                          ? "English"
-                          : "Romaji"}
+                        state.selectedOption()
+                          ? preferredTitleLabel(state.selectedOption())
+                          : "Select..."}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent />
