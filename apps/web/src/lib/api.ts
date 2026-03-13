@@ -1,11 +1,11 @@
 import {
-	infiniteQueryOptions,
-	keepPreviousData,
-	queryOptions,
-	useInfiniteQuery,
-	useMutation,
-	useQuery,
-	useQueryClient,
+  infiniteQueryOptions,
+  keepPreviousData,
+  queryOptions,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
 } from "@tanstack/solid-query";
 // ... (rest of imports)
 import { getAuthHeaders, logout } from "~/lib/auth";
@@ -15,1912 +15,1928 @@ import { getAuthHeaders, logout } from "~/lib/auth";
 const API_BASE = "/api";
 
 type ApiRequestOptions = RequestInit & {
-	skipAutoLogoutOnUnauthorized?: boolean;
+  skipAutoLogoutOnUnauthorized?: boolean;
 };
 
 async function fetchApi<T>(
-	endpoint: string,
-	options?: ApiRequestOptions,
-	signal?: AbortSignal,
+  endpoint: string,
+  options?: ApiRequestOptions,
+  signal?: AbortSignal,
 ): Promise<T> {
-	const res = await fetch(endpoint, {
-		...options,
-		signal,
-		headers: {
-			"Content-Type": "application/json",
-			...getAuthHeaders(),
-			...options?.headers,
-		},
-	});
+  const res = await fetch(endpoint, {
+    ...options,
+    signal,
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+      ...options?.headers,
+    },
+  });
 
-	if (res.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
-		logout();
-		throw new Error("Session expired");
-	}
+  if (res.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
+    logout();
+    throw new Error("Session expired");
+  }
 
-	if (!res.ok) {
-		const errorText = await res.text();
-		throw new Error(errorText || `API error: ${res.status}`);
-	}
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || `API error: ${res.status}`);
+  }
 
-	const json = await res.json();
-	if (json && typeof json === "object" && "data" in json && "success" in json) {
-		if (!json.success) {
-			throw new Error(json.error || "Unknown API error");
-		}
-		return json.data as T;
-	}
+  const json = await res.json();
+  if (json && typeof json === "object" && "data" in json && "success" in json) {
+    if (!json.success) {
+      throw new Error(json.error || "Unknown API error");
+    }
+    return json.data as T;
+  }
 
-	return json as T;
+  return json as T;
 }
 
 // ==================== Types ====================
 
 export interface EpisodeProgress {
-	downloaded: number;
-	total?: number;
-	missing: number[];
+  downloaded: number;
+  total?: number;
+  missing: number[];
 }
 
 export interface Anime {
-	id: number;
-	mal_id?: number;
-	title: {
-		romaji: string;
-		english?: string;
-		native?: string;
-	};
-	format: string;
-	description?: string;
-	score?: number;
-	genres?: string[];
-	studios?: string[];
-	cover_image?: string;
-	banner_image?: string;
-	status: string;
-	episode_count?: number;
-	profile_name: string;
-	root_folder: string;
-	added_at: string;
-	monitored: boolean;
-	release_profile_ids: number[];
-	progress: EpisodeProgress;
+  id: number;
+  mal_id?: number;
+  title: {
+    romaji: string;
+    english?: string;
+    native?: string;
+  };
+  format: string;
+  description?: string;
+  score?: number;
+  genres?: string[];
+  studios?: string[];
+  cover_image?: string;
+  banner_image?: string;
+  status: string;
+  episode_count?: number;
+  profile_name: string;
+  root_folder: string;
+  added_at: string;
+  monitored: boolean;
+  release_profile_ids: number[];
+  progress: EpisodeProgress;
 }
 
 export interface AnimeSearchResult {
-	id: number;
-	title: {
-		romaji?: string;
-		english?: string;
-		native?: string;
-	};
-	format?: string;
-	episode_count?: number;
-	status?: string;
-	cover_image?: string;
-	already_in_library?: boolean;
+  id: number;
+  title: {
+    romaji?: string;
+    english?: string;
+    native?: string;
+  };
+  format?: string;
+  episode_count?: number;
+  status?: string;
+  cover_image?: string;
+  already_in_library?: boolean;
 }
 
 export interface Episode {
-	number: number;
-	title?: string;
-	aired?: string;
-	downloaded: boolean;
-	file_path?: string;
+  number: number;
+  title?: string;
+  aired?: string;
+  downloaded: boolean;
+  file_path?: string;
 }
 
 export interface LibraryStats {
-	total_anime: number;
-	total_episodes: number;
-	downloaded_episodes: number;
-	missing_episodes: number;
-	rss_feeds: number;
-	recent_downloads: number;
+  total_anime: number;
+  total_episodes: number;
+  downloaded_episodes: number;
+  missing_episodes: number;
+  rss_feeds: number;
+  recent_downloads: number;
 }
 
 export interface ActivityItem {
-	id: number;
-	activity_type: string;
-	anime_id: number;
-	anime_title: string;
-	episode_number?: number;
-	description: string;
-	timestamp: string;
+  id: number;
+  activity_type: string;
+  anime_id: number;
+  anime_title: string;
+  episode_number?: number;
+  description: string;
+  timestamp: string;
 }
 
 export interface RssFeed {
-	id: number;
-	anime_id: number;
-	url: string;
-	name?: string;
-	last_checked?: string;
-	enabled: boolean;
-	created_at: string;
+  id: number;
+  anime_id: number;
+  url: string;
+  name?: string;
+  last_checked?: string;
+  enabled: boolean;
+  created_at: string;
 }
 
 export interface CalendarEvent {
-	id: string;
-	title: string;
-	start: string;
-	end: string;
-	all_day: boolean;
-	extended_props: {
-		anime_id: number;
-		anime_title: string;
-		episode_number: number;
-		downloaded: boolean;
-		anime_image?: string;
-	};
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  all_day: boolean;
+  extended_props: {
+    anime_id: number;
+    anime_title: string;
+    episode_number: number;
+    downloaded: boolean;
+    anime_image?: string;
+  };
 }
 
 export interface Download {
-	id: number;
-	anime_id: number;
-	anime_title: string;
-	episode_number: number;
-	torrent_name: string;
-	is_batch?: boolean;
-	covered_episodes?: number[];
-	status?: string;
-	progress?: number;
-	added_at?: string;
-	download_date?: string;
-	group_name?: string;
-	external_state?: string;
-	error_message?: string;
-	save_path?: string;
-	content_path?: string;
-	total_bytes?: number;
-	downloaded_bytes?: number;
-	speed_bytes?: number;
-	eta_seconds?: number;
-	last_synced_at?: string;
-	retry_count?: number;
-	last_error_at?: string;
-	reconciled_at?: string;
+  id: number;
+  anime_id: number;
+  anime_title: string;
+  episode_number: number;
+  torrent_name: string;
+  is_batch?: boolean;
+  covered_episodes?: number[];
+  status?: string;
+  progress?: number;
+  added_at?: string;
+  download_date?: string;
+  group_name?: string;
+  external_state?: string;
+  error_message?: string;
+  save_path?: string;
+  content_path?: string;
+  total_bytes?: number;
+  downloaded_bytes?: number;
+  speed_bytes?: number;
+  eta_seconds?: number;
+  last_synced_at?: string;
+  retry_count?: number;
+  last_error_at?: string;
+  reconciled_at?: string;
 }
 
 export interface DownloadStatus {
-	id?: number;
-	hash: string;
-	name: string;
-	progress: number;
-	speed: number;
-	eta: number;
-	state: string;
-	total_bytes: number;
-	downloaded_bytes: number;
+  id?: number;
+  hash: string;
+  name: string;
+  progress: number;
+  speed: number;
+  eta: number;
+  state: string;
+  total_bytes: number;
+  downloaded_bytes: number;
 }
 
 export interface VideoFile {
-	name: string;
-	path: string;
-	size: number;
-	episode_number?: number;
+  name: string;
+  path: string;
+  size: number;
+  episode_number?: number;
 }
 
 export interface Quality {
-	id: number;
-	name: string;
-	source: string;
-	resolution: number;
-	rank: number;
+  id: number;
+  name: string;
+  source: string;
+  resolution: number;
+  rank: number;
 }
 
 export interface QualityProfile {
-	cutoff: string;
-	upgrade_allowed: boolean;
-	seadex_preferred: boolean;
-	allowed_qualities: string[];
-	name: string;
-	min_size?: string | null;
-	max_size?: string | null;
+  cutoff: string;
+  upgrade_allowed: boolean;
+  seadex_preferred: boolean;
+  allowed_qualities: string[];
+  name: string;
+  min_size?: string | null;
+  max_size?: string | null;
 }
 
 export interface ScanFolderResult {
-	found: number;
-	total: number;
+  found: number;
+  total: number;
 }
 
 export interface UnmappedFolder {
-	name: string;
-	path: string;
-	size: number;
-	suggested_matches: AnimeSearchResult[];
+  name: string;
+  path: string;
+  size: number;
+  suggested_matches: AnimeSearchResult[];
 }
 
 export interface ScannerState {
-	is_scanning: boolean;
-	folders: UnmappedFolder[];
-	last_updated?: string;
+  is_scanning: boolean;
+  folders: UnmappedFolder[];
+  last_updated?: string;
 }
 
 export interface SystemStatus {
-	version: string;
-	uptime: number;
-	active_torrents: number;
-	pending_downloads: number;
-	disk_space: {
-		free: number;
-		total: number;
-	};
-	last_scan?: string | null;
-	last_rss?: string | null;
+  version: string;
+  uptime: number;
+  active_torrents: number;
+  pending_downloads: number;
+  disk_space: {
+    free: number;
+    total: number;
+  };
+  last_scan?: string | null;
+  last_rss?: string | null;
 }
 
 export interface AuthUser {
-	id: number;
-	username: string;
-	created_at: string;
-	updated_at: string;
+  id: number;
+  username: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ApiKeyResponse {
-	api_key: string;
+  api_key: string;
 }
 
 export interface RenamePreviewItem {
-	episode_number: number;
-	current_path: string;
-	new_path: string;
-	new_filename: string;
+  episode_number: number;
+  current_path: string;
+  new_path: string;
+  new_filename: string;
 }
 
 export interface RenameResult {
-	renamed: number;
-	failed: number;
-	failures: string[];
+  renamed: number;
+  failed: number;
+  failures: string[];
 }
 
 export interface ScannedFile {
-	source_path: string;
-	filename: string;
-	parsed_title: string;
-	episode_number: number;
-	season?: number;
-	group?: string;
-	resolution?: string;
-	matched_anime?: {
-		id: number;
-		title: string;
-	};
-	suggested_candidate_id?: number;
+  source_path: string;
+  filename: string;
+  parsed_title: string;
+  episode_number: number;
+  season?: number;
+  group?: string;
+  resolution?: string;
+  matched_anime?: {
+    id: number;
+    title: string;
+  };
+  suggested_candidate_id?: number;
 }
 
 export interface SkippedFile {
-	path: string;
-	reason: string;
+  path: string;
+  reason: string;
 }
 
 export interface ScanResult {
-	files: ScannedFile[];
-	skipped: SkippedFile[];
-	candidates: AnimeSearchResult[];
+  files: ScannedFile[];
+  skipped: SkippedFile[];
+  candidates: AnimeSearchResult[];
 }
 
 export interface ImportedFile {
-	source_path: string;
-	destination_path: string;
-	anime_id: number;
-	episode_number: number;
+  source_path: string;
+  destination_path: string;
+  anime_id: number;
+  episode_number: number;
 }
 
 export interface FailedImport {
-	source_path: string;
-	error: string;
+  source_path: string;
+  error: string;
 }
 
 export interface ImportResult {
-	imported: number;
-	failed: number;
-	imported_files: ImportedFile[];
-	failed_files: FailedImport[];
+  imported: number;
+  failed: number;
+  imported_files: ImportedFile[];
+  failed_files: FailedImport[];
 }
 
 export interface SystemLog {
-	id: number;
-	event_type: string;
-	level: "info" | "warn" | "error" | "success";
-	message: string;
-	details?: string;
-	created_at: string;
+  id: number;
+  event_type: string;
+  level: "info" | "warn" | "error" | "success";
+  message: string;
+  details?: string;
+  created_at: string;
 }
 
 export interface SystemLogsResponse {
-	logs: SystemLog[];
-	total_pages: number;
+  logs: SystemLog[];
+  total_pages: number;
 }
 
 export interface BackgroundJobStatus {
-	name: string;
-	is_running: boolean;
-	last_run_at?: string;
-	last_success_at?: string;
-	last_status?: string;
-	last_message?: string;
-	run_count: number;
-	schedule_mode?: "cron" | "interval" | "manual" | "disabled";
-	schedule_value?: string;
+  name: string;
+  is_running: boolean;
+  last_run_at?: string;
+  last_success_at?: string;
+  last_status?: string;
+  last_message?: string;
+  run_count: number;
+  schedule_mode?: "cron" | "interval" | "manual" | "disabled";
+  schedule_value?: string;
 }
 
 export interface DownloadEvent {
-	id: number;
-	download_id?: number;
-	anime_id?: number;
-	event_type: string;
-	from_status?: string;
-	to_status?: string;
-	message: string;
-	metadata?: string;
-	created_at: string;
+  id: number;
+  download_id?: number;
+  anime_id?: number;
+  event_type: string;
+  from_status?: string;
+  to_status?: string;
+  message: string;
+  metadata?: string;
+  created_at: string;
 }
 
 export interface OpsDashboard {
-	queued_downloads: number;
-	active_downloads: number;
-	failed_downloads: number;
-	imported_downloads: number;
-	running_jobs: number;
-	recent_download_events: DownloadEvent[];
-	jobs: BackgroundJobStatus[];
+  queued_downloads: number;
+  active_downloads: number;
+  failed_downloads: number;
+  imported_downloads: number;
+  running_jobs: number;
+  recent_download_events: DownloadEvent[];
+  jobs: BackgroundJobStatus[];
 }
 
 export interface BrowseEntry {
-	name: string;
-	path: string;
-	is_directory: boolean;
-	size?: number;
+  name: string;
+  path: string;
+  is_directory: boolean;
+  size?: number;
 }
 
 export interface BrowseResult {
-	current_path: string;
-	parent_path?: string;
-	entries: BrowseEntry[];
+  current_path: string;
+  parent_path?: string;
+  entries: BrowseEntry[];
 }
 
 export interface MissingEpisode {
-	anime_id: number;
-	anime_title: string;
-	episode_number: number;
-	episode_title?: string;
-	aired?: string;
-	anime_image?: string;
+  anime_id: number;
+  anime_title: string;
+  episode_number: number;
+  episode_title?: string;
+  aired?: string;
+  anime_image?: string;
 }
 
 export interface ImportFileRequest {
-	source_path: string;
-	anime_id: number;
-	episode_number: number;
-	season?: number;
+  source_path: string;
+  anime_id: number;
+  episode_number: number;
+  season?: number;
 }
 
 export interface ReleaseProfileRule {
-	term: string;
-	score: number;
-	rule_type: "preferred" | "must" | "must_not";
+  term: string;
+  score: number;
+  rule_type: "preferred" | "must" | "must_not";
 }
 
 export interface ReleaseProfile {
-	id: number;
-	name: string;
-	enabled: boolean;
-	is_global: boolean;
-	rules: ReleaseProfileRule[];
+  id: number;
+  name: string;
+  enabled: boolean;
+  is_global: boolean;
+  rules: ReleaseProfileRule[];
 }
 
 export interface Config {
-	general: {
-		database_path: string;
-		log_level: string;
-		images_path: string;
-		suppress_connection_errors: boolean;
-		worker_threads: number;
-		max_db_connections: number;
-		min_db_connections: number;
-	};
-	qbittorrent: {
-		enabled: boolean;
-		url: string;
-		username: string;
-		password?: string | null;
-		default_category: string;
-	};
-	nyaa: {
-		base_url: string;
-		default_category: string;
-		filter_remakes: boolean;
-		preferred_resolution?: string | null;
-		min_seeders: number;
-	};
-	scheduler: {
-		enabled: boolean;
-		check_interval_minutes: number;
-		cron_expression?: string | null;
-		max_concurrent_checks: number;
-		check_delay_seconds: number;
-		metadata_refresh_hours: number;
-	};
-	downloads: {
-		root_path: string;
-		create_anime_folders: boolean;
-		preferred_groups: string[];
-		use_seadex: boolean;
-		prefer_dual_audio: boolean;
-		preferred_codec?: string | null;
-		max_size_gb: number;
-		remote_path_mappings: string[][];
-		reconcile_completed_downloads?: boolean;
-		remove_torrent_on_import?: boolean;
-		delete_download_files_after_import?: boolean;
-	};
-	library: {
-		library_path: string;
-		recycle_path: string;
-		recycle_cleanup_days: number;
-		naming_format: string;
-		import_mode: string;
-		movie_naming_format: string;
-		auto_scan_interval_hours: number;
-		preferred_title: string;
-	};
-	security: {
-		argon2_memory_cost_kib: number;
-		argon2_time_cost: number;
-		argon2_parallelism: number;
-		auto_migrate_password_hashes: boolean;
-		auth_throttle: {
-			max_attempts: number;
-			window_seconds: number;
-			lockout_seconds: number;
-			login_base_delay_ms: number;
-			login_max_delay_ms: number;
-			password_base_delay_ms: number;
-			password_max_delay_ms: number;
-			trusted_proxy_ips: string[];
-		};
-	};
-	profiles: QualityProfile[];
+  general: {
+    database_path: string;
+    log_level: string;
+    images_path: string;
+    suppress_connection_errors: boolean;
+    worker_threads: number;
+    max_db_connections: number;
+    min_db_connections: number;
+  };
+  qbittorrent: {
+    enabled: boolean;
+    url: string;
+    username: string;
+    password?: string | null;
+    default_category: string;
+  };
+  nyaa: {
+    base_url: string;
+    default_category: string;
+    filter_remakes: boolean;
+    preferred_resolution?: string | null;
+    min_seeders: number;
+  };
+  scheduler: {
+    enabled: boolean;
+    check_interval_minutes: number;
+    cron_expression?: string | null;
+    max_concurrent_checks: number;
+    check_delay_seconds: number;
+    metadata_refresh_hours: number;
+  };
+  downloads: {
+    root_path: string;
+    create_anime_folders: boolean;
+    preferred_groups: string[];
+    use_seadex: boolean;
+    prefer_dual_audio: boolean;
+    preferred_codec?: string | null;
+    max_size_gb: number;
+    remote_path_mappings: string[][];
+    reconcile_completed_downloads?: boolean;
+    remove_torrent_on_import?: boolean;
+    delete_download_files_after_import?: boolean;
+  };
+  library: {
+    library_path: string;
+    recycle_path: string;
+    recycle_cleanup_days: number;
+    naming_format: string;
+    import_mode: string;
+    movie_naming_format: string;
+    auto_scan_interval_hours: number;
+    preferred_title: string;
+  };
+  security: {
+    argon2_memory_cost_kib: number;
+    argon2_time_cost: number;
+    argon2_parallelism: number;
+    auto_migrate_password_hashes: boolean;
+    auth_throttle: {
+      max_attempts: number;
+      window_seconds: number;
+      lockout_seconds: number;
+      login_base_delay_ms: number;
+      login_max_delay_ms: number;
+      password_base_delay_ms: number;
+      password_max_delay_ms: number;
+      trusted_proxy_ips: string[];
+    };
+  };
+  profiles: QualityProfile[];
 }
 
 export interface ReleaseProfileCreateRequest {
-	name: string;
-	rules: ReleaseProfileRule[];
-	is_global: boolean;
+  name: string;
+  rules: ReleaseProfileRule[];
+  is_global: boolean;
 }
 
 export interface ReleaseProfileUpdateRequest {
-	name: string;
-	enabled: boolean;
-	is_global: boolean;
-	rules: ReleaseProfileRule[];
+  name: string;
+  enabled: boolean;
+  is_global: boolean;
+  rules: ReleaseProfileRule[];
 }
 
 export interface RssFeedCreateRequest {
-	anime_id: number;
-	url: string;
-	name?: string;
+  anime_id: number;
+  url: string;
+  name?: string;
 }
 
 export interface UnmappedFolderImportRequest {
-	folder_name: string;
-	anime_id: number;
-	profile_name?: string;
+  folder_name: string;
+  anime_id: number;
+  profile_name?: string;
 }
 
 export interface ChangePasswordRequest {
-	current_password: string;
-	new_password: string;
+  current_password: string;
+  new_password: string;
 }
 
 export interface LoginRequest {
-	username: string;
-	password: string;
+  username: string;
+  password: string;
 }
 
 export interface ApiKeyLoginRequest {
-	api_key: string;
+  api_key: string;
 }
 
 export interface LoginResponse {
-	username: string;
-	api_key: string;
-	must_change_password: boolean;
+  username: string;
+  api_key: string;
+  must_change_password: boolean;
 }
 
 export interface DownloadAction {
-	Accept?: { quality: Quality; is_seadex: boolean; score: number };
-	Upgrade?: {
-		quality: Quality;
-		is_seadex: boolean;
-		score: number;
-		reason: string;
-		old_file_path?: string;
-		old_quality: Quality;
-		old_score?: number;
-	};
-	Reject?: { reason: string };
+  Accept?: { quality: Quality; is_seadex: boolean; score: number };
+  Upgrade?: {
+    quality: Quality;
+    is_seadex: boolean;
+    score: number;
+    reason: string;
+    old_file_path?: string;
+    old_quality: Quality;
+    old_score?: number;
+  };
+  Reject?: { reason: string };
 }
 
 export interface NyaaSearchResult {
-	title: string;
-	magnet: string;
-	info_hash: string;
-	size: string;
-	seeders: number;
-	leechers: number;
-	pub_date: string;
-	view_url: string;
-	parsed_episode?: string;
-	parsed_group?: string;
-	parsed_resolution?: string;
-	trusted: boolean;
-	is_seadex: boolean;
-	is_seadex_best: boolean;
-	remake: boolean;
+  title: string;
+  magnet: string;
+  info_hash: string;
+  size: string;
+  seeders: number;
+  leechers: number;
+  pub_date: string;
+  view_url: string;
+  parsed_episode?: string;
+  parsed_group?: string;
+  parsed_resolution?: string;
+  trusted: boolean;
+  is_seadex: boolean;
+  is_seadex_best: boolean;
+  remake: boolean;
 }
 
 export interface EpisodeSearchResult {
-	title: string;
-	indexer: string;
-	link: string;
-	info_hash: string;
-	size: number;
-	seeders: number;
-	leechers: number;
-	publish_date: string;
-	download_action: DownloadAction;
-	quality: string;
-	group?: string;
+  title: string;
+  indexer: string;
+  link: string;
+  info_hash: string;
+  size: number;
+  seeders: number;
+  leechers: number;
+  publish_date: string;
+  download_action: DownloadAction;
+  quality: string;
+  group?: string;
 }
 
 export interface SearchResults {
-	results: NyaaSearchResult[];
-	seadex_groups: string[];
+  results: NyaaSearchResult[];
+  seadex_groups: string[];
 }
 
 // ==================== Query Key Factory ====================
 
 export const animeKeys = {
-	all: ["anime"] as const,
-	lists: () => ["anime", "list"] as const,
-	detail: (id: number) => ["anime", "detail", id] as const,
-	episodes: (id: number) => ["anime", "detail", id, "episodes"] as const,
-	files: (id: number) => ["anime", "detail", id, "files"] as const,
-	search: {
-		all: ["search"] as const,
-		query: (q: string) => ["anime", "search", q] as const,
-		episode: (animeId: number, episodeNumber: number) =>
-			["search", "episode", animeId, episodeNumber] as const,
-		releases: (
-			query: string,
-			options?: { animeId?: number; category?: string; filter?: string },
-		) => ["search", "releases", { query, ...options }] as const,
-	},
-	anilist: (id: number) => ["anime", "anilist", id] as const,
-	library: {
-		all: ["library"] as const,
-		stats: () => ["library", "stats"] as const,
-		activity: () => ["library", "activity"] as const,
-		unmapped: () => ["library", "unmapped"] as const,
-	},
-	downloads: {
-		all: ["downloads"] as const,
-		queue: () => ["downloads", "queue"] as const,
-		history: () => ["downloads", "history"] as const,
-	},
-	profiles: {
-		all: ["profiles"] as const,
-		qualities: () => ["profiles", "qualities"] as const,
-	},
-	releaseProfiles: ["release-profiles"] as const,
-	renamePreview: (id: number) => ["rename-preview", id] as const,
-	rss: {
-		all: ["rss"] as const,
-		anime: (id: number) => ["rss", "anime", id] as const,
-	},
-	calendar: (start: string, end: string) => ["calendar", start, end] as const,
-	wanted: (limit: number) => ["wanted", limit] as const,
-	browse: (path: string) => ["browse", path] as const,
-	auth: {
-		all: ["auth"] as const,
-		me: () => ["auth", "me"] as const,
-		apiKey: () => ["auth", "api-key"] as const,
-	},
-	system: {
-		all: ["system"] as const,
-		config: () => ["system", "config"] as const,
-		dashboard: () => ["system", "dashboard"] as const,
-		jobs: () => ["system", "jobs"] as const,
-		status: () => ["system", "status"] as const,
-		logs: (
-			page: number,
-			level?: string,
-			eventType?: string,
-			startDate?: string,
-			endDate?: string,
-		) =>
-			[
-				"system",
-				"logs",
-				{ page, level, eventType, startDate, endDate },
-			] as const,
-	},
+  all: ["anime"] as const,
+  lists: () => ["anime", "list"] as const,
+  detail: (id: number) => ["anime", "detail", id] as const,
+  episodes: (id: number) => ["anime", "detail", id, "episodes"] as const,
+  files: (id: number) => ["anime", "detail", id, "files"] as const,
+  search: {
+    all: ["search"] as const,
+    query: (q: string) => ["anime", "search", q] as const,
+    episode: (animeId: number, episodeNumber: number) =>
+      ["search", "episode", animeId, episodeNumber] as const,
+    releases: (
+      query: string,
+      options?: { animeId?: number; category?: string; filter?: string },
+    ) => ["search", "releases", { query, ...options }] as const,
+  },
+  anilist: (id: number) => ["anime", "anilist", id] as const,
+  library: {
+    all: ["library"] as const,
+    stats: () => ["library", "stats"] as const,
+    activity: () => ["library", "activity"] as const,
+    unmapped: () => ["library", "unmapped"] as const,
+  },
+  downloads: {
+    all: ["downloads"] as const,
+    queue: () => ["downloads", "queue"] as const,
+    history: () => ["downloads", "history"] as const,
+  },
+  profiles: {
+    all: ["profiles"] as const,
+    qualities: () => ["profiles", "qualities"] as const,
+  },
+  releaseProfiles: ["release-profiles"] as const,
+  renamePreview: (id: number) => ["rename-preview", id] as const,
+  rss: {
+    all: ["rss"] as const,
+    anime: (id: number) => ["rss", "anime", id] as const,
+  },
+  calendar: (start: string, end: string) => ["calendar", start, end] as const,
+  wanted: (limit: number) => ["wanted", limit] as const,
+  browse: (path: string) => ["browse", path] as const,
+  auth: {
+    all: ["auth"] as const,
+    me: () => ["auth", "me"] as const,
+    apiKey: () => ["auth", "api-key"] as const,
+  },
+  system: {
+    all: ["system"] as const,
+    config: () => ["system", "config"] as const,
+    dashboard: () => ["system", "dashboard"] as const,
+    jobs: () => ["system", "jobs"] as const,
+    status: () => ["system", "status"] as const,
+    logs: (
+      page: number,
+      level?: string,
+      eventType?: string,
+      startDate?: string,
+      endDate?: string,
+    ) =>
+      [
+        "system",
+        "logs",
+        { page, level, eventType, startDate, endDate },
+      ] as const,
+  },
 } as const satisfies Record<string, unknown>;
 
 // ==================== Library Hooks ====================
 
 export function libraryStatsQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.library.stats(),
-		queryFn: ({ signal }) =>
-			fetchApi<LibraryStats>(`${API_BASE}/library/stats`, undefined, signal),
-		staleTime: 1000 * 60, // 1 minute
-	});
+  return queryOptions({
+    queryKey: animeKeys.library.stats(),
+    queryFn: ({ signal }) =>
+      fetchApi<LibraryStats>(`${API_BASE}/library/stats`, undefined, signal),
+    staleTime: 1000 * 60, // 1 minute
+  });
 }
 
 export function createLibraryStatsQuery() {
-	return useQuery(libraryStatsQueryOptions);
+  return useQuery(libraryStatsQueryOptions);
 }
 
 export function activityQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.library.activity(),
-		queryFn: ({ signal }) =>
-			fetchApi<ActivityItem[]>(
-				`${API_BASE}/library/activity`,
-				undefined,
-				signal,
-			),
-		staleTime: 1000 * 30, // 30 seconds
-	});
+  return queryOptions({
+    queryKey: animeKeys.library.activity(),
+    queryFn: ({ signal }) =>
+      fetchApi<ActivityItem[]>(
+        `${API_BASE}/library/activity`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 30, // 30 seconds
+  });
 }
 
 export function createActivityQuery() {
-	return useQuery(activityQueryOptions);
+  return useQuery(activityQueryOptions);
 }
 
 // ==================== Anime Hooks ====================
 
 export function animeListQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.lists(),
-		queryFn: ({ signal }) =>
-			fetchApi<Anime[]>(`${API_BASE}/anime`, undefined, signal),
-		staleTime: 1000 * 60 * 5, // 5 minutes
-	});
+  return queryOptions({
+    queryKey: animeKeys.lists(),
+    queryFn: ({ signal }) =>
+      fetchApi<Anime[]>(`${API_BASE}/anime`, undefined, signal),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 }
 
 export function createAnimeListQuery() {
-	return useQuery(animeListQueryOptions);
+  return useQuery(animeListQueryOptions);
 }
 
 export function animeDetailsQueryOptions(id: number) {
-	return queryOptions({
-		queryKey: animeKeys.detail(id),
-		queryFn: ({ signal }) =>
-			fetchApi<Anime>(`${API_BASE}/anime/${id}`, undefined, signal),
-		staleTime: 1000 * 60 * 5, // 5 minutes
-	});
+  return queryOptions({
+    queryKey: animeKeys.detail(id),
+    queryFn: ({ signal }) =>
+      fetchApi<Anime>(`${API_BASE}/anime/${id}`, undefined, signal),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 }
 
 // ... rest of file (I'll add the infinite query at the bottom)
 
 export function infiniteLogsQueryOptions(
-	level?: string,
-	eventType?: string,
-	startDate?: string,
-	endDate?: string,
+  level?: string,
+  eventType?: string,
+  startDate?: string,
+  endDate?: string,
 ) {
-	return infiniteQueryOptions({
-		queryKey: [
-			...animeKeys.system
-				.logs(1, level, eventType, startDate, endDate)
-				.slice(0, 2),
-			"infinite",
-			{ level, eventType, startDate, endDate },
-		] as const,
-		queryFn: ({ pageParam = 1, signal }) => {
-			const params = new URLSearchParams({ page: pageParam.toString() });
-			if (level) params.append("level", level);
-			if (eventType) params.append("event_type", eventType);
-			if (startDate) params.append("start_date", startDate);
-			if (endDate) params.append("end_date", endDate);
-			return fetchApi<SystemLogsResponse>(
-				`${API_BASE}/system/logs?${params.toString()}`,
-				undefined,
-				signal,
-			);
-		},
-		getNextPageParam: (lastPage, allPages) => {
-			if (allPages.length >= lastPage.total_pages) return undefined;
-			return allPages.length + 1;
-		},
-		initialPageParam: 1,
-		staleTime: 1000 * 10,
-	});
+  return infiniteQueryOptions({
+    queryKey: [
+      ...animeKeys.system
+        .logs(1, level, eventType, startDate, endDate)
+        .slice(0, 2),
+      "infinite",
+      { level, eventType, startDate, endDate },
+    ] as const,
+    queryFn: ({ pageParam = 1, signal }) => {
+      const params = new URLSearchParams({ page: pageParam.toString() });
+      if (level) params.append("level", level);
+      if (eventType) params.append("event_type", eventType);
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+      return fetchApi<SystemLogsResponse>(
+        `${API_BASE}/system/logs?${params.toString()}`,
+        undefined,
+        signal,
+      );
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (allPages.length >= lastPage.total_pages) return undefined;
+      return allPages.length + 1;
+    },
+    initialPageParam: 1,
+    staleTime: 1000 * 10,
+  });
 }
 
 export function createInfiniteLogsQuery(
-	level: () => string | undefined,
-	eventType: () => string | undefined,
-	startDate: () => string | undefined,
-	endDate: () => string | undefined,
+  level: () => string | undefined,
+  eventType: () => string | undefined,
+  startDate: () => string | undefined,
+  endDate: () => string | undefined,
 ) {
-	return useInfiniteQuery(() =>
-		infiniteLogsQueryOptions(level(), eventType(), startDate(), endDate()),
-	);
+  return useInfiniteQuery(() =>
+    infiniteLogsQueryOptions(level(), eventType(), startDate(), endDate())
+  );
 }
 
 export function createAnimeDetailsQuery(id: () => number) {
-	return useQuery(() => ({
-		...animeDetailsQueryOptions(id()),
-		enabled: !!id(),
-	}));
+  return useQuery(() => ({
+    ...animeDetailsQueryOptions(id()),
+    enabled: !!id(),
+  }));
 }
 
 export function episodesQueryOptions(animeId: number) {
-	return queryOptions({
-		queryKey: animeKeys.episodes(animeId),
-		queryFn: ({ signal }) =>
-			fetchApi<Episode[]>(
-				`${API_BASE}/anime/${animeId}/episodes`,
-				undefined,
-				signal,
-			),
-		staleTime: 1000 * 60 * 5,
-	});
+  return queryOptions({
+    queryKey: animeKeys.episodes(animeId),
+    queryFn: ({ signal }) =>
+      fetchApi<Episode[]>(
+        `${API_BASE}/anime/${animeId}/episodes`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 60 * 5,
+  });
 }
 
 export function createEpisodesQuery(animeId: () => number) {
-	return useQuery(() => ({
-		...episodesQueryOptions(animeId()),
-		enabled: !!animeId(),
-	}));
+  return useQuery(() => ({
+    ...episodesQueryOptions(animeId()),
+    enabled: !!animeId(),
+  }));
 }
 
 export function listFilesQueryOptions(animeId: number) {
-	return queryOptions({
-		queryKey: animeKeys.files(animeId),
-		queryFn: ({ signal }) =>
-			fetchApi<VideoFile[]>(
-				`${API_BASE}/anime/${animeId}/files`,
-				undefined,
-				signal,
-			),
-		staleTime: 1000 * 60,
-	});
+  return queryOptions({
+    queryKey: animeKeys.files(animeId),
+    queryFn: ({ signal }) =>
+      fetchApi<VideoFile[]>(
+        `${API_BASE}/anime/${animeId}/files`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 60,
+  });
 }
 
 export function createListFilesQuery(animeId: () => number) {
-	return useQuery(() => ({
-		...listFilesQueryOptions(animeId()),
-		enabled: !!animeId(),
-	}));
+  return useQuery(() => ({
+    ...listFilesQueryOptions(animeId()),
+    enabled: !!animeId(),
+  }));
 }
 
 export function animeSearchQueryOptions(query: string) {
-	return queryOptions({
-		queryKey: animeKeys.search.query(query),
-		queryFn: ({ signal }) =>
-			fetchApi<AnimeSearchResult[]>(
-				`${API_BASE}/anime/search?q=${encodeURIComponent(query)}`,
-				undefined,
-				signal,
-			),
-		staleTime: 1000 * 60 * 60, // 1 hour
-	});
+  return queryOptions({
+    queryKey: animeKeys.search.query(query),
+    queryFn: ({ signal }) =>
+      fetchApi<AnimeSearchResult[]>(
+        `${API_BASE}/anime/search?q=${encodeURIComponent(query)}`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
 }
 
 export function createAnimeSearchQuery(query: () => string) {
-	return useQuery(() => ({
-		...animeSearchQueryOptions(query()),
-		enabled: query().length >= 3,
-	}));
+  return useQuery(() => ({
+    ...animeSearchQueryOptions(query()),
+    enabled: query().length >= 3,
+  }));
 }
 
 export function episodeSearchQueryOptions(
-	animeId: number,
-	episodeNumber: number,
+  animeId: number,
+  episodeNumber: number,
 ) {
-	return queryOptions({
-		queryKey: animeKeys.search.episode(animeId, episodeNumber),
-		queryFn: ({ signal }) =>
-			fetchApi<EpisodeSearchResult[]>(
-				`${API_BASE}/search/episode/${animeId}/${episodeNumber}`,
-				undefined,
-				signal,
-			),
-	});
+  return queryOptions({
+    queryKey: animeKeys.search.episode(animeId, episodeNumber),
+    queryFn: ({ signal }) =>
+      fetchApi<EpisodeSearchResult[]>(
+        `${API_BASE}/search/episode/${animeId}/${episodeNumber}`,
+        undefined,
+        signal,
+      ),
+  });
 }
 
 export function createEpisodeSearchQuery(
-	animeId: () => number,
-	episodeNumber: () => number,
+  animeId: () => number,
+  episodeNumber: () => number,
 ) {
-	return useQuery(() => ({
-		...episodeSearchQueryOptions(animeId(), episodeNumber()),
-		enabled: false,
-	}));
+  return useQuery(() => ({
+    ...episodeSearchQueryOptions(animeId(), episodeNumber()),
+    enabled: false,
+  }));
 }
 
 export function nyaaSearchQueryOptions(
-	query: string,
-	options: {
-		anime_id?: number;
-		category?: string;
-		filter?: string;
-	} = {},
+  query: string,
+  options: {
+    anime_id?: number;
+    category?: string;
+    filter?: string;
+  } = {},
 ) {
-	return queryOptions({
-		queryKey: animeKeys.search.releases(query, {
-			animeId: options.anime_id,
-			category: options.category,
-			filter: options.filter,
-		}),
-		queryFn: ({ signal }) => {
-			const params = new URLSearchParams();
-			params.append("query", query);
-			if (options.anime_id)
-				params.append("anime_id", options.anime_id.toString());
-			if (options.category) params.append("category", options.category);
-			if (options.filter) params.append("filter", options.filter);
-			return fetchApi<SearchResults>(
-				`${API_BASE}/search/releases?${params.toString()}`,
-				undefined,
-				signal,
-			);
-		},
-		staleTime: 60 * 1000,
-	});
+  return queryOptions({
+    queryKey: animeKeys.search.releases(query, {
+      animeId: options.anime_id,
+      category: options.category,
+      filter: options.filter,
+    }),
+    queryFn: ({ signal }) => {
+      const params = new URLSearchParams();
+      params.append("query", query);
+      if (options.anime_id) {
+        params.append("anime_id", options.anime_id.toString());
+      }
+      if (options.category) params.append("category", options.category);
+      if (options.filter) params.append("filter", options.filter);
+      return fetchApi<SearchResults>(
+        `${API_BASE}/search/releases?${params.toString()}`,
+        undefined,
+        signal,
+      );
+    },
+    staleTime: 60 * 1000,
+  });
 }
 
 export function createNyaaSearchQuery(
-	query: () => string,
-	options: {
-		anime_id?: () => number;
-		category?: () => string | undefined;
-		filter?: () => string | undefined;
-		enabled?: () => boolean;
-	} = {},
+  query: () => string,
+  options: {
+    anime_id?: () => number;
+    category?: () => string | undefined;
+    filter?: () => string | undefined;
+    enabled?: () => boolean;
+  } = {},
 ) {
-	return useQuery(() => ({
-		...nyaaSearchQueryOptions(query(), {
-			anime_id: options.anime_id?.(),
-			category: options.category?.(),
-			filter: options.filter?.(),
-		}),
-		enabled: (options.enabled?.() ?? true) && !!query(),
-	}));
+  return useQuery(() => ({
+    ...nyaaSearchQueryOptions(query(), {
+      anime_id: options.anime_id?.(),
+      category: options.category?.(),
+      filter: options.filter?.(),
+    }),
+    enabled: (options.enabled?.() ?? true) && !!query(),
+  }));
 }
 
 export function animeByAnilistIdQueryOptions(id: number) {
-	return queryOptions({
-		queryKey: animeKeys.anilist(id),
-		queryFn: ({ signal }) =>
-			fetchApi<AnimeSearchResult>(
-				`${API_BASE}/anime/anilist/${id}`,
-				undefined,
-				signal,
-			),
-		staleTime: 1000 * 60 * 60,
-	});
+  return queryOptions({
+    queryKey: animeKeys.anilist(id),
+    queryFn: ({ signal }) =>
+      fetchApi<AnimeSearchResult>(
+        `${API_BASE}/anime/anilist/${id}`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 60 * 60,
+  });
 }
 
 export function createAnimeByAnilistIdQuery(id: () => number | null) {
-	return useQuery(() => {
-		const currentId = id();
-		if (!currentId) {
-			return {
-				queryKey: animeKeys.anilist(0),
-				queryFn: () => Promise.resolve({} as AnimeSearchResult),
-				enabled: false,
-			};
-		}
-		return {
-			...animeByAnilistIdQueryOptions(currentId),
-			enabled: true,
-		};
-	});
+  return useQuery(() => {
+    const currentId = id();
+    if (!currentId) {
+      return {
+        queryKey: animeKeys.anilist(0),
+        queryFn: () => Promise.resolve({} as AnimeSearchResult),
+        enabled: false,
+      };
+    }
+    return {
+      ...animeByAnilistIdQueryOptions(currentId),
+      enabled: true,
+    };
+  });
 }
 
 // ==================== Mutation Hooks ====================
 
 export function createAddAnimeMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (data: {
-			id: number;
-			profile_name: string;
-			root_folder: string;
-			monitor_and_search: boolean;
-			monitored: boolean;
-			release_profile_ids: number[];
-		}) =>
-			fetchApi<Anime>(`${API_BASE}/anime`, {
-				method: "POST",
-				body: JSON.stringify(data),
-			}),
-		onSuccess: (newAnime) => {
-			queryClient.setQueryData<Anime[]>(animeKeys.lists(), (old) => {
-				if (!old) return [newAnime];
-				return [...old, newAnime].sort((a, b) =>
-					a.title.romaji.localeCompare(b.title.romaji),
-				);
-			});
-			queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (data: {
+      id: number;
+      profile_name: string;
+      root_folder: string;
+      monitor_and_search: boolean;
+      monitored: boolean;
+      release_profile_ids: number[];
+    }) =>
+      fetchApi<Anime>(`${API_BASE}/anime`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (newAnime) => {
+      queryClient.setQueryData<Anime[]>(animeKeys.lists(), (old) => {
+        if (!old) return [newAnime];
+        return [...old, newAnime].sort((a, b) =>
+          a.title.romaji.localeCompare(b.title.romaji)
+        );
+      });
+      queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
+    },
+  }));
 }
 
 export function createDeleteAnimeMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (id: number) =>
-			fetchApi(`${API_BASE}/anime/${id}`, { method: "DELETE" }),
-		onSettled: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-			queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (id: number) =>
+      fetchApi(`${API_BASE}/anime/${id}`, { method: "DELETE" }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
+    },
+  }));
 }
 
 export function createToggleMonitorMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({ id, monitored }: { id: number; monitored: boolean }) =>
-			fetchApi(`${API_BASE}/anime/${id}/monitor`, {
-				method: "POST",
-				body: JSON.stringify({ monitored }),
-			}),
-		onMutate: async ({ id, monitored }) => {
-			await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
-			await queryClient.cancelQueries({ queryKey: animeKeys.lists() });
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: ({ id, monitored }: { id: number; monitored: boolean }) =>
+      fetchApi(`${API_BASE}/anime/${id}/monitor`, {
+        method: "POST",
+        body: JSON.stringify({ monitored }),
+      }),
+    onMutate: async ({ id, monitored }) => {
+      await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
+      await queryClient.cancelQueries({ queryKey: animeKeys.lists() });
 
-			const previousAnime = queryClient.getQueryData<Anime>(
-				animeKeys.detail(id),
-			);
-			const previousList = queryClient.getQueryData<Anime[]>(animeKeys.lists());
+      const previousAnime = queryClient.getQueryData<Anime>(
+        animeKeys.detail(id),
+      );
+      const previousList = queryClient.getQueryData<Anime[]>(animeKeys.lists());
 
-			if (previousAnime) {
-				queryClient.setQueryData<Anime>(animeKeys.detail(id), {
-					...previousAnime,
-					monitored,
-				});
-			}
+      if (previousAnime) {
+        queryClient.setQueryData<Anime>(animeKeys.detail(id), {
+          ...previousAnime,
+          monitored,
+        });
+      }
 
-			if (previousList) {
-				queryClient.setQueryData<Anime[]>(
-					animeKeys.lists(),
-					previousList.map((a) => (a.id === id ? { ...a, monitored } : a)),
-				);
-			}
+      if (previousList) {
+        queryClient.setQueryData<Anime[]>(
+          animeKeys.lists(),
+          previousList.map((a) => (a.id === id ? { ...a, monitored } : a)),
+        );
+      }
 
-			return { previousAnime, previousList };
-		},
-		onError: (_err, { id }, context) => {
-			if (context?.previousAnime) {
-				queryClient.setQueryData(animeKeys.detail(id), context.previousAnime);
-			}
-			if (context?.previousList) {
-				queryClient.setQueryData(animeKeys.lists(), context.previousList);
-			}
-		},
-		onSettled: (_, __, { id }) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
-			queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-		},
-	}));
+      return { previousAnime, previousList };
+    },
+    onError: (_err, { id }, context) => {
+      if (context?.previousAnime) {
+        queryClient.setQueryData(animeKeys.detail(id), context.previousAnime);
+      }
+      if (context?.previousList) {
+        queryClient.setQueryData(animeKeys.lists(), context.previousList);
+      }
+    },
+    onSettled: (_, __, { id }) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+    },
+  }));
 }
 
 export function createUpdateAnimePathMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({ id, path }: { id: number; path: string }) =>
-			fetchApi(`${API_BASE}/anime/${id}/path`, {
-				method: "PUT",
-				body: JSON.stringify({ path }),
-			}),
-		onMutate: async ({ id, path }) => {
-			await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
-			const previousAnime = queryClient.getQueryData<Anime>(
-				animeKeys.detail(id),
-			);
-			if (previousAnime) {
-				queryClient.setQueryData<Anime>(animeKeys.detail(id), {
-					...previousAnime,
-					root_folder: path,
-				});
-			}
-			return { previousAnime };
-		},
-		onError: (_err, { id }, context) => {
-			if (context?.previousAnime) {
-				queryClient.setQueryData(animeKeys.detail(id), context.previousAnime);
-			}
-		},
-		onSettled: (_, __, { id }) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (
+      { id, path }: { id: number; path: string; rescan?: boolean },
+    ) =>
+      fetchApi(`${API_BASE}/anime/${id}/path`, {
+        method: "PUT",
+        body: JSON.stringify({ path }),
+      }),
+    onMutate: async ({ id, path }) => {
+      await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
+      const previousAnime = queryClient.getQueryData<Anime>(
+        animeKeys.detail(id),
+      );
+      if (previousAnime) {
+        queryClient.setQueryData<Anime>(animeKeys.detail(id), {
+          ...previousAnime,
+          root_folder: path,
+        });
+      }
+      return { previousAnime };
+    },
+    onError: (_err, { id }, context) => {
+      if (context?.previousAnime) {
+        queryClient.setQueryData(animeKeys.detail(id), context.previousAnime);
+      }
+    },
+    onSettled: (_, __, { id }) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+    },
+  }));
 }
 
 export function createUpdateAnimeProfileMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({ id, profileName }: { id: number; profileName: string }) =>
-			fetchApi(`${API_BASE}/anime/${id}/profile`, {
-				method: "PUT",
-				body: JSON.stringify({ profile_name: profileName }),
-			}),
-		onMutate: async ({ id, profileName }) => {
-			await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
-			const previousAnime = queryClient.getQueryData<Anime>(
-				animeKeys.detail(id),
-			);
-			if (previousAnime) {
-				queryClient.setQueryData<Anime>(animeKeys.detail(id), {
-					...previousAnime,
-					profile_name: profileName,
-				});
-			}
-			return { previousAnime };
-		},
-		onError: (_err, { id }, context) => {
-			if (context?.previousAnime) {
-				queryClient.setQueryData(animeKeys.detail(id), context.previousAnime);
-			}
-		},
-		onSettled: (_, __, { id }) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: ({ id, profileName }: { id: number; profileName: string }) =>
+      fetchApi(`${API_BASE}/anime/${id}/profile`, {
+        method: "PUT",
+        body: JSON.stringify({ profile_name: profileName }),
+      }),
+    onMutate: async ({ id, profileName }) => {
+      await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
+      const previousAnime = queryClient.getQueryData<Anime>(
+        animeKeys.detail(id),
+      );
+      if (previousAnime) {
+        queryClient.setQueryData<Anime>(animeKeys.detail(id), {
+          ...previousAnime,
+          profile_name: profileName,
+        });
+      }
+      return { previousAnime };
+    },
+    onError: (_err, { id }, context) => {
+      if (context?.previousAnime) {
+        queryClient.setQueryData(animeKeys.detail(id), context.previousAnime);
+      }
+    },
+    onSettled: (_, __, { id }) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+    },
+  }));
 }
 
 export function createUpdateAnimeReleaseProfilesMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({
-			id,
-			releaseProfileIds,
-		}: {
-			id: number;
-			releaseProfileIds: number[];
-		}) =>
-			fetchApi(`${API_BASE}/anime/${id}/release-profiles`, {
-				method: "PUT",
-				body: JSON.stringify({ release_profile_ids: releaseProfileIds }),
-			}),
-		onSuccess: (_, { id }) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: ({
+      id,
+      releaseProfileIds,
+    }: {
+      id: number;
+      releaseProfileIds: number[];
+    }) =>
+      fetchApi(`${API_BASE}/anime/${id}/release-profiles`, {
+        method: "PUT",
+        body: JSON.stringify({ release_profile_ids: releaseProfileIds }),
+      }),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+    },
+  }));
 }
 
 export function createRefreshEpisodesMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (animeId: number) =>
-			fetchApi(`${API_BASE}/anime/${animeId}/episodes/refresh`, {
-				method: "POST",
-			}),
-		onSuccess: (_, animeId) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
-			queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
-			queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (animeId: number) =>
+      fetchApi(`${API_BASE}/anime/${animeId}/episodes/refresh`, {
+        method: "POST",
+      }),
+    onSuccess: (_, animeId) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
+      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+    },
+  }));
 }
 
 export function createScanFolderMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (animeId: number) =>
-			fetchApi<ScanFolderResult>(`${API_BASE}/anime/${animeId}/episodes/scan`, {
-				method: "POST",
-			}),
-		onSuccess: (_, animeId) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
-			queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
-			queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (animeId: number) =>
+      fetchApi<ScanFolderResult>(`${API_BASE}/anime/${animeId}/episodes/scan`, {
+        method: "POST",
+      }),
+    onSuccess: (_, animeId) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+      queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
+      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+    },
+  }));
 }
 
 export function createDeleteEpisodeFileMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({
-			animeId,
-			episodeNumber,
-		}: {
-			animeId: number;
-			episodeNumber: number;
-		}) =>
-			fetchApi(`${API_BASE}/anime/${animeId}/episodes/${episodeNumber}/file`, {
-				method: "DELETE",
-			}),
-		onSuccess: (_, { animeId }) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: ({
+      animeId,
+      episodeNumber,
+    }: {
+      animeId: number;
+      episodeNumber: number;
+    }) =>
+      fetchApi(`${API_BASE}/anime/${animeId}/episodes/${episodeNumber}/file`, {
+        method: "DELETE",
+      }),
+    onSuccess: (_, { animeId }) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+    },
+  }));
 }
 
 export function createMapEpisodeMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({
-			animeId,
-			episodeNumber,
-			filePath,
-		}: {
-			animeId: number;
-			episodeNumber: number;
-			filePath: string;
-		}) =>
-			fetchApi(`${API_BASE}/anime/${animeId}/episodes/${episodeNumber}/map`, {
-				method: "POST",
-				body: JSON.stringify({ file_path: filePath }),
-			}),
-		onSuccess: (_, { animeId }) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
-			queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: ({
+      animeId,
+      episodeNumber,
+      filePath,
+    }: {
+      animeId: number;
+      episodeNumber: number;
+      filePath: string;
+    }) =>
+      fetchApi(`${API_BASE}/anime/${animeId}/episodes/${episodeNumber}/map`, {
+        method: "POST",
+        body: JSON.stringify({ file_path: filePath }),
+      }),
+    onSuccess: (_, { animeId }) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+      queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
+    },
+  }));
 }
 
 export function createBulkMapEpisodesMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({
-			animeId,
-			mappings,
-		}: {
-			animeId: number;
-			mappings: { episode_number: number; file_path: string }[];
-		}) =>
-			fetchApi(`${API_BASE}/anime/${animeId}/episodes/map/bulk`, {
-				method: "POST",
-				body: JSON.stringify({ mappings }),
-			}),
-		onSuccess: (_, { animeId }) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
-			queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: ({
+      animeId,
+      mappings,
+    }: {
+      animeId: number;
+      mappings: { episode_number: number; file_path: string }[];
+    }) =>
+      fetchApi(`${API_BASE}/anime/${animeId}/episodes/map/bulk`, {
+        method: "POST",
+        body: JSON.stringify({ mappings }),
+      }),
+    onSuccess: (_, { animeId }) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+      queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
+    },
+  }));
 }
 
 export function createGrabReleaseMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (data: {
-			anime_id: number;
-			magnet: string;
-			episode_number: number;
-			title: string;
-			group?: string;
-			info_hash?: string;
-			is_batch?: boolean;
-		}) =>
-			fetchApi<void>(`${API_BASE}/search/download`, {
-				method: "POST",
-				body: JSON.stringify(data),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.downloads.queue() });
-			queryClient.invalidateQueries({
-				queryKey: animeKeys.downloads.history(),
-			});
-			queryClient.invalidateQueries({ queryKey: animeKeys.library.activity() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (data: {
+      anime_id: number;
+      magnet: string;
+      episode_number: number;
+      title: string;
+      group?: string;
+      info_hash?: string;
+      is_batch?: boolean;
+    }) =>
+      fetchApi<void>(`${API_BASE}/search/download`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.downloads.queue() });
+      queryClient.invalidateQueries({
+        queryKey: animeKeys.downloads.history(),
+      });
+      queryClient.invalidateQueries({ queryKey: animeKeys.library.activity() });
+    },
+  }));
 }
 
 // ==================== Profile & Release Hooks ====================
 
 export function profilesQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.profiles.all,
-		queryFn: ({ signal }) =>
-			fetchApi<QualityProfile[]>(`${API_BASE}/profiles`, undefined, signal),
-		staleTime: Infinity,
-	});
+  return queryOptions({
+    queryKey: animeKeys.profiles.all,
+    queryFn: ({ signal }) =>
+      fetchApi<QualityProfile[]>(`${API_BASE}/profiles`, undefined, signal),
+    staleTime: Infinity,
+  });
 }
 
 export function createProfilesQuery(enabled: () => boolean = () => true) {
-	return useQuery(() => ({ ...profilesQueryOptions(), enabled: enabled() }));
+  return useQuery(() => ({ ...profilesQueryOptions(), enabled: enabled() }));
 }
 
 export function qualitiesQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.profiles.qualities(),
-		queryFn: ({ signal }) =>
-			fetchApi<Quality[]>(`${API_BASE}/profiles/qualities`, undefined, signal),
-		staleTime: Infinity,
-	});
+  return queryOptions({
+    queryKey: animeKeys.profiles.qualities(),
+    queryFn: ({ signal }) =>
+      fetchApi<Quality[]>(`${API_BASE}/profiles/qualities`, undefined, signal),
+    staleTime: Infinity,
+  });
 }
 
 export function createQualitiesQuery() {
-	return useQuery(qualitiesQueryOptions);
+  return useQuery(qualitiesQueryOptions);
 }
 
 export function releaseProfilesQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.releaseProfiles,
-		queryFn: ({ signal }) =>
-			fetchApi<ReleaseProfile[]>(
-				`${API_BASE}/release-profiles`,
-				undefined,
-				signal,
-			),
-		staleTime: 1000 * 60 * 60,
-	});
+  return queryOptions({
+    queryKey: animeKeys.releaseProfiles,
+    queryFn: ({ signal }) =>
+      fetchApi<ReleaseProfile[]>(
+        `${API_BASE}/release-profiles`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 60 * 60,
+  });
 }
 
 export function createReleaseProfilesQuery(
-	enabled: () => boolean = () => true,
+  enabled: () => boolean = () => true,
 ) {
-	return useQuery(() => ({
-		...releaseProfilesQueryOptions(),
-		enabled: enabled(),
-	}));
+  return useQuery(() => ({
+    ...releaseProfilesQueryOptions(),
+    enabled: enabled(),
+  }));
 }
 
 export function createCreateProfileMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (data: QualityProfile) =>
-			fetchApi<QualityProfile>(`${API_BASE}/profiles`, {
-				method: "POST",
-				body: JSON.stringify(data),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (data: QualityProfile) =>
+      fetchApi<QualityProfile>(`${API_BASE}/profiles`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
+    },
+  }));
 }
 
 export function createUpdateProfileMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({
-			name,
-			profile,
-		}: {
-			name: string;
-			profile: QualityProfile;
-		}) =>
-			fetchApi<QualityProfile>(`${API_BASE}/profiles/${name}`, {
-				method: "PUT",
-				body: JSON.stringify(profile),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: ({
+      name,
+      profile,
+    }: {
+      name: string;
+      profile: QualityProfile;
+    }) =>
+      fetchApi<QualityProfile>(`${API_BASE}/profiles/${name}`, {
+        method: "PUT",
+        body: JSON.stringify(profile),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
+    },
+  }));
 }
 
 export function createDeleteProfileMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (name: string) =>
-			fetchApi(`${API_BASE}/profiles/${name}`, { method: "DELETE" }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (name: string) =>
+      fetchApi(`${API_BASE}/profiles/${name}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
+    },
+  }));
 }
 
 export function createCreateReleaseProfileMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (data: ReleaseProfileCreateRequest) =>
-			fetchApi<ReleaseProfile>(`${API_BASE}/release-profiles`, {
-				method: "POST",
-				body: JSON.stringify(data),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (data: ReleaseProfileCreateRequest) =>
+      fetchApi<ReleaseProfile>(`${API_BASE}/release-profiles`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
+    },
+  }));
 }
 
 export function createUpdateReleaseProfileMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({
-			id,
-			data,
-		}: {
-			id: number;
-			data: ReleaseProfileUpdateRequest;
-		}) =>
-			fetchApi(`${API_BASE}/release-profiles/${id}`, {
-				method: "PUT",
-				body: JSON.stringify(data),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: ReleaseProfileUpdateRequest;
+    }) =>
+      fetchApi(`${API_BASE}/release-profiles/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
+    },
+  }));
 }
 
 export function createDeleteReleaseProfileMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (id: number) =>
-			fetchApi(`${API_BASE}/release-profiles/${id}`, { method: "DELETE" }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (id: number) =>
+      fetchApi(`${API_BASE}/release-profiles/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
+    },
+  }));
 }
 
 // ==================== System & Tasks Hooks ====================
 
 export function systemConfigQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.system.config(),
-		queryFn: ({ signal }) =>
-			fetchApi<Config>(`${API_BASE}/system/config`, undefined, signal),
-		staleTime: Infinity,
-		placeholderData: keepPreviousData,
-	});
+  return queryOptions({
+    queryKey: animeKeys.system.config(),
+    queryFn: ({ signal }) =>
+      fetchApi<Config>(`${API_BASE}/system/config`, undefined, signal),
+    staleTime: Infinity,
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function createSystemConfigQuery(enabled: () => boolean = () => true) {
-	return useQuery(() => ({
-		...systemConfigQueryOptions(),
-		enabled: enabled(),
-	}));
+  return useQuery(() => ({
+    ...systemConfigQueryOptions(),
+    enabled: enabled(),
+  }));
 }
 
 export function createUpdateSystemConfigMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (data: Config) =>
-			fetchApi(`${API_BASE}/system/config`, {
-				method: "PUT",
-				body: JSON.stringify(data),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.system.config() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (data: Config) =>
+      fetchApi(`${API_BASE}/system/config`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.system.config() });
+    },
+  }));
 }
 
 export function systemStatusQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.system.status(),
-		queryFn: ({ signal }) =>
-			fetchApi<SystemStatus>(`${API_BASE}/system/status`, undefined, signal),
-		refetchInterval: 30000,
-	});
+  return queryOptions({
+    queryKey: animeKeys.system.status(),
+    queryFn: ({ signal }) =>
+      fetchApi<SystemStatus>(`${API_BASE}/system/status`, undefined, signal),
+    refetchInterval: 30000,
+  });
 }
 
 export function createSystemStatusQuery() {
-	return useQuery(systemStatusQueryOptions);
+  return useQuery(systemStatusQueryOptions);
 }
 
 export function createTriggerScanMutation() {
-	return useMutation(() => ({
-		mutationFn: () =>
-			fetchApi(`${API_BASE}/system/tasks/scan`, { method: "POST" }),
-	}));
+  return useMutation(() => ({
+    mutationFn: () =>
+      fetchApi(`${API_BASE}/system/tasks/scan`, { method: "POST" }),
+  }));
 }
 
 export function createTriggerRssCheckMutation() {
-	return useMutation(() => ({
-		mutationFn: () =>
-			fetchApi(`${API_BASE}/system/tasks/rss`, { method: "POST" }),
-	}));
+  return useMutation(() => ({
+    mutationFn: () =>
+      fetchApi(`${API_BASE}/system/tasks/rss`, { method: "POST" }),
+  }));
 }
 
 // ==================== RSS & Others ====================
 
 export function rssFeedsQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.rss.all,
-		queryFn: ({ signal }) =>
-			fetchApi<RssFeed[]>(`${API_BASE}/rss`, undefined, signal),
-		staleTime: 1000 * 60 * 5,
-	});
+  return queryOptions({
+    queryKey: animeKeys.rss.all,
+    queryFn: ({ signal }) =>
+      fetchApi<RssFeed[]>(`${API_BASE}/rss`, undefined, signal),
+    staleTime: 1000 * 60 * 5,
+  });
 }
 
 export function createRssFeedsQuery() {
-	return useQuery(rssFeedsQueryOptions);
+  return useQuery(rssFeedsQueryOptions);
 }
 
 export function animeRssFeedsQueryOptions(animeId: number) {
-	return queryOptions({
-		queryKey: animeKeys.rss.anime(animeId),
-		queryFn: ({ signal }) =>
-			fetchApi<RssFeed[]>(
-				`${API_BASE}/anime/${animeId}/rss`,
-				undefined,
-				signal,
-			),
-		staleTime: 1000 * 60 * 5,
-	});
+  return queryOptions({
+    queryKey: animeKeys.rss.anime(animeId),
+    queryFn: ({ signal }) =>
+      fetchApi<RssFeed[]>(
+        `${API_BASE}/anime/${animeId}/rss`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 60 * 5,
+  });
 }
 
 export function createAnimeRssFeedsQuery(animeId: () => number) {
-	return useQuery(() => ({
-		...animeRssFeedsQueryOptions(animeId()),
-		enabled: !!animeId(),
-	}));
+  return useQuery(() => ({
+    ...animeRssFeedsQueryOptions(animeId()),
+    enabled: !!animeId(),
+  }));
 }
 
 export function createAddRssFeedMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (data: RssFeedCreateRequest) =>
-			fetchApi<RssFeed>(`${API_BASE}/rss`, {
-				method: "POST",
-				body: JSON.stringify(data),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (data: RssFeedCreateRequest) =>
+      fetchApi<RssFeed>(`${API_BASE}/rss`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
+    },
+  }));
 }
 
 export function createDeleteRssFeedMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (id: number) =>
-			fetchApi(`${API_BASE}/rss/${id}`, { method: "DELETE" }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (id: number) =>
+      fetchApi(`${API_BASE}/rss/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
+    },
+  }));
 }
 
 export function createToggleRssFeedMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-			fetchApi(`${API_BASE}/rss/${id}/toggle`, {
-				method: "PUT",
-				body: JSON.stringify({ enabled }),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
+      fetchApi(`${API_BASE}/rss/${id}/toggle`, {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
+    },
+  }));
 }
 
 export function calendarQueryOptions(start: Date, end: Date) {
-	return queryOptions({
-		queryKey: animeKeys.calendar(start.toISOString(), end.toISOString()),
-		queryFn: ({ signal }) =>
-			fetchApi<CalendarEvent[]>(
-				`${API_BASE}/calendar?start=${start.toISOString()}&end=${end.toISOString()}`,
-				undefined,
-				signal,
-			),
-		staleTime: 1000 * 60 * 10,
-	});
+  return queryOptions({
+    queryKey: animeKeys.calendar(start.toISOString(), end.toISOString()),
+    queryFn: ({ signal }) =>
+      fetchApi<CalendarEvent[]>(
+        `${API_BASE}/calendar?start=${start.toISOString()}&end=${end.toISOString()}`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 60 * 10,
+  });
 }
 
 export function createCalendarQuery(start: () => Date, end: () => Date) {
-	return useQuery(() => ({
-		...calendarQueryOptions(start(), end()),
-		suspense: true,
-	}));
+  return useQuery(() => ({
+    ...calendarQueryOptions(start(), end()),
+    suspense: true,
+  }));
 }
 
 export function downloadQueueQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.downloads.queue(),
-		queryFn: ({ signal }) =>
-			fetchApi<Download[]>(`${API_BASE}/downloads/queue`, undefined, signal),
-		refetchInterval: 5000,
-	});
+  return queryOptions({
+    queryKey: animeKeys.downloads.queue(),
+    queryFn: ({ signal }) =>
+      fetchApi<Download[]>(`${API_BASE}/downloads/queue`, undefined, signal),
+    refetchInterval: 5000,
+  });
 }
 
 export function createDownloadQueueQuery() {
-	return useQuery(downloadQueueQueryOptions);
+  return useQuery(downloadQueueQueryOptions);
 }
 
 export function downloadHistoryQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.downloads.history(),
-		queryFn: ({ signal }) =>
-			fetchApi<Download[]>(`${API_BASE}/downloads/history`, undefined, signal),
-		staleTime: 1000 * 60,
-	});
+  return queryOptions({
+    queryKey: animeKeys.downloads.history(),
+    queryFn: ({ signal }) =>
+      fetchApi<Download[]>(`${API_BASE}/downloads/history`, undefined, signal),
+    staleTime: 1000 * 60,
+  });
 }
 
 export function createDownloadHistoryQuery() {
-	return useQuery(downloadHistoryQueryOptions);
+  return useQuery(downloadHistoryQueryOptions);
 }
 
 export function createSearchMissingMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (animeId?: number) =>
-			fetchApi(`${API_BASE}/downloads/search-missing`, {
-				method: "POST",
-				body: JSON.stringify({ anime_id: animeId }),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (animeId?: number) =>
+      fetchApi(`${API_BASE}/downloads/search-missing`, {
+        method: "POST",
+        body: JSON.stringify({ anime_id: animeId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
+    },
+  }));
 }
 
-function invalidateDownloadQueries(queryClient: ReturnType<typeof useQueryClient>) {
-	queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
-	queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
+function invalidateDownloadQueries(
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
+  queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
 }
 
 export function createPauseDownloadMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (downloadId: number) =>
-			fetchApi(`${API_BASE}/downloads/${downloadId}/pause`, { method: "POST" }),
-		onSuccess: () => {
-			invalidateDownloadQueries(queryClient);
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (downloadId: number) =>
+      fetchApi(`${API_BASE}/downloads/${downloadId}/pause`, { method: "POST" }),
+    onSuccess: () => {
+      invalidateDownloadQueries(queryClient);
+    },
+  }));
 }
 
 export function createResumeDownloadMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (downloadId: number) =>
-			fetchApi(`${API_BASE}/downloads/${downloadId}/resume`, { method: "POST" }),
-		onSuccess: () => {
-			invalidateDownloadQueries(queryClient);
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (downloadId: number) =>
+      fetchApi(`${API_BASE}/downloads/${downloadId}/resume`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      invalidateDownloadQueries(queryClient);
+    },
+  }));
 }
 
 export function createRetryDownloadMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (downloadId: number) =>
-			fetchApi(`${API_BASE}/downloads/${downloadId}/retry`, { method: "POST" }),
-		onSuccess: () => {
-			invalidateDownloadQueries(queryClient);
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (downloadId: number) =>
+      fetchApi(`${API_BASE}/downloads/${downloadId}/retry`, { method: "POST" }),
+    onSuccess: () => {
+      invalidateDownloadQueries(queryClient);
+    },
+  }));
 }
 
 export function createDeleteDownloadMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (input: { downloadId: number; deleteFiles?: boolean }) =>
-			fetchApi(
-				`${API_BASE}/downloads/${input.downloadId}?delete_files=${input.deleteFiles ? "true" : "false"}`,
-				{ method: "DELETE" },
-			),
-		onSuccess: () => {
-			invalidateDownloadQueries(queryClient);
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (input: { downloadId: number; deleteFiles?: boolean }) =>
+      fetchApi(
+        `${API_BASE}/downloads/${input.downloadId}?delete_files=${
+          input.deleteFiles ? "true" : "false"
+        }`,
+        { method: "DELETE" },
+      ),
+    onSuccess: () => {
+      invalidateDownloadQueries(queryClient);
+    },
+  }));
 }
 
 export function createSyncDownloadsMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: () => fetchApi(`${API_BASE}/downloads/sync`, { method: "POST" }),
-		onSuccess: () => {
-			invalidateDownloadQueries(queryClient);
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: () =>
+      fetchApi(`${API_BASE}/downloads/sync`, { method: "POST" }),
+    onSuccess: () => {
+      invalidateDownloadQueries(queryClient);
+    },
+  }));
 }
 
 export function createReconcileDownloadMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (downloadId: number) =>
-			fetchApi(`${API_BASE}/downloads/${downloadId}/reconcile`, { method: "POST" }),
-		onSuccess: () => {
-			invalidateDownloadQueries(queryClient);
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (downloadId: number) =>
+      fetchApi(`${API_BASE}/downloads/${downloadId}/reconcile`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      invalidateDownloadQueries(queryClient);
+    },
+  }));
 }
 
 export function wantedQueryOptions(limit = 100) {
-	return queryOptions({
-		queryKey: animeKeys.wanted(limit),
-		queryFn: ({ signal }) =>
-			fetchApi<MissingEpisode[]>(
-				`${API_BASE}/wanted/missing?limit=${limit}`,
-				undefined,
-				signal,
-			),
-		staleTime: 1000 * 60 * 5,
-	});
+  return queryOptions({
+    queryKey: animeKeys.wanted(limit),
+    queryFn: ({ signal }) =>
+      fetchApi<MissingEpisode[]>(
+        `${API_BASE}/wanted/missing?limit=${limit}`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 60 * 5,
+  });
 }
 
 export function createWantedQuery(limit: () => number) {
-	return useQuery(() => wantedQueryOptions(limit()));
+  return useQuery(() => wantedQueryOptions(limit()));
 }
 
 export function unmappedFoldersQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.library.unmapped(),
-		queryFn: ({ signal }) =>
-			fetchApi<ScannerState>(`${API_BASE}/library/unmapped`, undefined, signal),
-		refetchInterval: (query) => (query.state.data?.is_scanning ? 1000 : false),
-	});
+  return queryOptions({
+    queryKey: animeKeys.library.unmapped(),
+    queryFn: ({ signal }) =>
+      fetchApi<ScannerState>(`${API_BASE}/library/unmapped`, undefined, signal),
+    refetchInterval: (query) => (query.state.data?.is_scanning ? 1000 : false),
+  });
 }
 
 export function createUnmappedFoldersQuery() {
-	return useQuery(unmappedFoldersQueryOptions);
+  return useQuery(unmappedFoldersQueryOptions);
 }
 
 export function createScanLibraryMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: () =>
-			fetchApi(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: () =>
+      fetchApi(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
+    },
+  }));
 }
 
 export function systemJobsQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.system.jobs(),
-		queryFn: ({ signal }) =>
-			fetchApi<BackgroundJobStatus[]>(`${API_BASE}/system/jobs`, undefined, signal),
-		staleTime: 1000 * 10,
-	});
+  return queryOptions({
+    queryKey: animeKeys.system.jobs(),
+    queryFn: ({ signal }) =>
+      fetchApi<BackgroundJobStatus[]>(
+        `${API_BASE}/system/jobs`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 10,
+  });
 }
 
 export function createSystemJobsQuery() {
-	return useQuery(systemJobsQueryOptions);
+  return useQuery(systemJobsQueryOptions);
 }
 
 export function systemDashboardQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.system.dashboard(),
-		queryFn: ({ signal }) =>
-			fetchApi<OpsDashboard>(`${API_BASE}/system/dashboard`, undefined, signal),
-		staleTime: 1000 * 10,
-	});
+  return queryOptions({
+    queryKey: animeKeys.system.dashboard(),
+    queryFn: ({ signal }) =>
+      fetchApi<OpsDashboard>(`${API_BASE}/system/dashboard`, undefined, signal),
+    staleTime: 1000 * 10,
+  });
 }
 
 export function createSystemDashboardQuery() {
-	return useQuery(() => systemDashboardQueryOptions());
+  return useQuery(() => systemDashboardQueryOptions());
 }
 
 export function createImportUnmappedFolderMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (data: UnmappedFolderImportRequest) =>
-			fetchApi(`${API_BASE}/library/unmapped/import`, {
-				method: "POST",
-				body: JSON.stringify(data),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
-			queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (data: UnmappedFolderImportRequest) =>
+      fetchApi(`${API_BASE}/library/unmapped/import`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
+      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+    },
+  }));
 }
 
 export function systemLogsQueryOptions(
-	page = 1,
-	level?: string,
-	eventType?: string,
-	startDate?: string,
-	endDate?: string,
+  page = 1,
+  level?: string,
+  eventType?: string,
+  startDate?: string,
+  endDate?: string,
 ) {
-	return queryOptions({
-		queryKey: animeKeys.system.logs(page, level, eventType, startDate, endDate),
-		queryFn: ({ signal }) => {
-			const params = new URLSearchParams({ page: page.toString() });
-			if (level) params.append("level", level);
-			if (eventType) params.append("event_type", eventType);
-			if (startDate) params.append("start_date", startDate);
-			if (endDate) params.append("end_date", endDate);
-			return fetchApi<SystemLogsResponse>(
-				`${API_BASE}/system/logs?${params.toString()}`,
-				undefined,
-				signal,
-			);
-		},
-		placeholderData: keepPreviousData,
-		staleTime: 1000 * 10,
-	});
+  return queryOptions({
+    queryKey: animeKeys.system.logs(page, level, eventType, startDate, endDate),
+    queryFn: ({ signal }) => {
+      const params = new URLSearchParams({ page: page.toString() });
+      if (level) params.append("level", level);
+      if (eventType) params.append("event_type", eventType);
+      if (startDate) params.append("start_date", startDate);
+      if (endDate) params.append("end_date", endDate);
+      return fetchApi<SystemLogsResponse>(
+        `${API_BASE}/system/logs?${params.toString()}`,
+        undefined,
+        signal,
+      );
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 10,
+  });
 }
 
 export function createSystemLogsQuery(
-	page: () => number,
-	level: () => string | undefined,
-	eventType: () => string | undefined,
-	startDate: () => string | undefined,
-	endDate: () => string | undefined,
+  page: () => number,
+  level: () => string | undefined,
+  eventType: () => string | undefined,
+  startDate: () => string | undefined,
+  endDate: () => string | undefined,
 ) {
-	return useQuery(() => ({
-		...systemLogsQueryOptions(
-			page(),
-			level(),
-			eventType(),
-			startDate(),
-			endDate(),
-		),
-	}));
+  return useQuery(() => ({
+    ...systemLogsQueryOptions(
+      page(),
+      level(),
+      eventType(),
+      startDate(),
+      endDate(),
+    ),
+  }));
 }
 
 export function getExportLogsUrl(
-	level?: string,
-	eventType?: string,
-	startDate?: string,
-	endDate?: string,
-	format: "json" | "csv" = "json",
+  level?: string,
+  eventType?: string,
+  startDate?: string,
+  endDate?: string,
+  format: "json" | "csv" = "json",
 ) {
-	const params = new URLSearchParams();
-	if (level) params.append("level", level);
-	if (eventType) params.append("event_type", eventType);
-	if (startDate) params.append("start_date", startDate);
-	if (endDate) params.append("end_date", endDate);
-	params.append("format", format);
-	return `${API_BASE}/system/logs/export?${params.toString()}`;
+  const params = new URLSearchParams();
+  if (level) params.append("level", level);
+  if (eventType) params.append("event_type", eventType);
+  if (startDate) params.append("start_date", startDate);
+  if (endDate) params.append("end_date", endDate);
+  params.append("format", format);
+  return `${API_BASE}/system/logs/export?${params.toString()}`;
 }
 
 export function createClearLogsMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: () => fetchApi(`${API_BASE}/system/logs`, { method: "DELETE" }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: () => fetchApi(`${API_BASE}/system/logs`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
+    },
+  }));
 }
 
 export function createScanImportPathMutation() {
-	return useMutation(() => ({
-		mutationFn: (data: { path: string; anime_id?: number }) =>
-			fetchApi<ScanResult>(`${API_BASE}/library/import/scan`, {
-				method: "POST",
-				body: JSON.stringify(data),
-			}),
-	}));
+  return useMutation(() => ({
+    mutationFn: (data: { path: string; anime_id?: number }) =>
+      fetchApi<ScanResult>(`${API_BASE}/library/import/scan`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+  }));
 }
 
 export function createImportFilesMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (files: ImportFileRequest[]) =>
-			fetchApi<ImportResult>(`${API_BASE}/library/import`, {
-				method: "POST",
-				body: JSON.stringify({ files }),
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-			queryClient.invalidateQueries({ queryKey: animeKeys.library.all });
-			queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (files: ImportFileRequest[]) =>
+      fetchApi<ImportResult>(`${API_BASE}/library/import`, {
+        method: "POST",
+        body: JSON.stringify({ files }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: animeKeys.library.all });
+      queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
+    },
+  }));
 }
 
 export function browsePathQueryOptions(path: string) {
-	return queryOptions({
-		queryKey: animeKeys.browse(path),
-		queryFn: ({ signal }) =>
-			fetchApi<BrowseResult>(
-				`${API_BASE}/library/browse?path=${encodeURIComponent(path)}`,
-				undefined,
-				signal,
-			),
-		placeholderData: keepPreviousData,
-		staleTime: 1000 * 60 * 60,
-	});
+  return queryOptions({
+    queryKey: animeKeys.browse(path),
+    queryFn: ({ signal }) =>
+      fetchApi<BrowseResult>(
+        `${API_BASE}/library/browse?path=${encodeURIComponent(path)}`,
+        undefined,
+        signal,
+      ),
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 60 * 60,
+  });
 }
 
 export function createBrowsePathQuery(path: () => string) {
-	return useQuery(() => ({ ...browsePathQueryOptions(path()) }));
+  return useQuery(() => ({ ...browsePathQueryOptions(path()) }));
 }
 
 // ==================== Auth API ====================
 
 export function authMeQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.auth.me(),
-		queryFn: ({ signal }) =>
-			fetchApi<AuthUser>(`${API_BASE}/auth/me`, undefined, signal),
-		staleTime: Infinity,
-	});
+  return queryOptions({
+    queryKey: animeKeys.auth.me(),
+    queryFn: ({ signal }) =>
+      fetchApi<AuthUser>(`${API_BASE}/auth/me`, undefined, signal),
+    staleTime: Infinity,
+  });
 }
 
 export function createAuthMeQuery() {
-	return useQuery(authMeQueryOptions);
+  return useQuery(authMeQueryOptions);
 }
 
 export function authApiKeyQueryOptions() {
-	return queryOptions({
-		queryKey: animeKeys.auth.apiKey(),
-		queryFn: ({ signal }) =>
-			fetchApi<ApiKeyResponse>(`${API_BASE}/auth/api-key`, undefined, signal),
-		staleTime: Infinity,
-	});
+  return queryOptions({
+    queryKey: animeKeys.auth.apiKey(),
+    queryFn: ({ signal }) =>
+      fetchApi<ApiKeyResponse>(`${API_BASE}/auth/api-key`, undefined, signal),
+    staleTime: Infinity,
+  });
 }
 
 export function createAuthApiKeyQuery() {
-	return useQuery(authApiKeyQueryOptions);
+  return useQuery(authApiKeyQueryOptions);
 }
 
 export function createLoginMutation() {
-	return useMutation(() => ({
-		mutationFn: (data: LoginRequest) =>
-			fetchApi<LoginResponse>(`${API_BASE}/auth/login`, {
-				method: "POST",
-				body: JSON.stringify(data),
-				skipAutoLogoutOnUnauthorized: true,
-			}),
-	}));
+  return useMutation(() => ({
+    mutationFn: (data: LoginRequest) =>
+      fetchApi<LoginResponse>(`${API_BASE}/auth/login`, {
+        method: "POST",
+        body: JSON.stringify(data),
+        skipAutoLogoutOnUnauthorized: true,
+      }),
+  }));
 }
 
 export function createApiKeyLoginMutation() {
-	return useMutation(() => ({
-		mutationFn: (data: ApiKeyLoginRequest) =>
-			fetchApi<LoginResponse>(`${API_BASE}/auth/login/api-key`, {
-				method: "POST",
-				body: JSON.stringify(data),
-				skipAutoLogoutOnUnauthorized: true,
-			}),
-	}));
+  return useMutation(() => ({
+    mutationFn: (data: ApiKeyLoginRequest) =>
+      fetchApi<LoginResponse>(`${API_BASE}/auth/login/api-key`, {
+        method: "POST",
+        body: JSON.stringify(data),
+        skipAutoLogoutOnUnauthorized: true,
+      }),
+  }));
 }
 
 export function createChangePasswordMutation() {
-	return useMutation(() => ({
-		mutationFn: (data: ChangePasswordRequest) =>
-			fetchApi(`${API_BASE}/auth/password`, {
-				method: "PUT",
-				body: JSON.stringify(data),
-				skipAutoLogoutOnUnauthorized: true,
-			}),
-	}));
+  return useMutation(() => ({
+    mutationFn: (data: ChangePasswordRequest) =>
+      fetchApi(`${API_BASE}/auth/password`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+        skipAutoLogoutOnUnauthorized: true,
+      }),
+  }));
 }
 
 export function createRegenerateApiKeyMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: () =>
-			fetchApi<ApiKeyResponse>(`${API_BASE}/auth/api-key/regenerate`, {
-				method: "POST",
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: () =>
+      fetchApi<ApiKeyResponse>(`${API_BASE}/auth/api-key/regenerate`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
+    },
+  }));
 }
 
 export function renamePreviewQueryOptions(id: number) {
-	return queryOptions({
-		queryKey: animeKeys.renamePreview(id),
-		queryFn: ({ signal }) =>
-			fetchApi<RenamePreviewItem[]>(
-				`${API_BASE}/anime/${id}/rename-preview`,
-				undefined,
-				signal,
-			),
-	});
+  return queryOptions({
+    queryKey: animeKeys.renamePreview(id),
+    queryFn: ({ signal }) =>
+      fetchApi<RenamePreviewItem[]>(
+        `${API_BASE}/anime/${id}/rename-preview`,
+        undefined,
+        signal,
+      ),
+  });
 }
 
 export function createRenamePreviewQuery(id: () => number) {
-	return useQuery(() => ({
-		...renamePreviewQueryOptions(id()),
-		enabled: false,
-	}));
+  return useQuery(() => ({
+    ...renamePreviewQueryOptions(id()),
+    enabled: false,
+  }));
 }
 
 export function createExecuteRenameMutation() {
-	const queryClient = useQueryClient();
-	return useMutation(() => ({
-		mutationFn: (id: number) =>
-			fetchApi<RenameResult>(`${API_BASE}/anime/${id}/rename`, {
-				method: "POST",
-			}),
-		onSuccess: (_, id) => {
-			queryClient.invalidateQueries({ queryKey: animeKeys.episodes(id) });
-			queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
-		},
-	}));
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (id: number) =>
+      fetchApi<RenameResult>(`${API_BASE}/anime/${id}/rename`, {
+        method: "POST",
+      }),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(id) });
+      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+    },
+  }));
 }

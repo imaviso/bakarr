@@ -10,19 +10,22 @@ Anime library manager monorepo.
 
 ## Workspace
 
-- package manager: `pnpm`
-- workspace config: `pnpm-workspace.yaml`
+- runtime and task runner: `deno`
+- workspace config: `deno.json`
+- npm packages are resolved through Deno's npm compatibility layer
 
 ## Common Commands
 
 From the repo root:
 
 ```sh
-pnpm dev
-pnpm dev:api
-pnpm dev:web
-pnpm test
-pnpm build
+deno task dev
+deno task dev:api
+deno task dev:web
+deno task test
+deno task build
+deno task lint
+deno task fmt
 ```
 
 API checks:
@@ -38,7 +41,8 @@ Web checks:
 
 ```sh
 cd apps/web
-pnpm build
+deno task build
+deno task lint
 ```
 
 ## Notes

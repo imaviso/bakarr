@@ -152,6 +152,16 @@ export async function resolveAnimeRootFolder(
   return `${baseRootFolder.replace(/\/$/, "")}/${safeSegment}`;
 }
 
+export async function getConfiguredImagesPath(db: AppDatabase) {
+  const rows = await db.select().from(appConfig).where(eq(appConfig.id, 1))
+    .limit(1);
+  const settings = rows[0]
+    ? parseImageSettings(rows[0].data)
+    : defaultImageSettings();
+
+  return settings.imagesPath;
+}
+
 export async function appendAnimeLog(
   db: AppDatabase,
   eventType: string,
@@ -219,6 +229,19 @@ function defaultLibrarySettings() {
     createAnimeFolders: true,
     libraryPath: "./library",
   };
+}
+
+function parseImageSettings(configJson: string) {
+  try {
+    const config = decodeConfigCore(configJson);
+    return { imagesPath: config.general.images_path.trim() || "./data/images" };
+  } catch {
+    return defaultImageSettings();
+  }
+}
+
+function defaultImageSettings() {
+  return { imagesPath: "./data/images" };
 }
 
 function toSafePathSegment(value: string) {

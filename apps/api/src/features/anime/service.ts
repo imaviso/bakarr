@@ -11,6 +11,7 @@ import { Database, DatabaseError } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { AniListClient } from "./anilist.ts";
+import { cacheAnimeMetadataImages } from "./image-cache.ts";
 import { encodeNumberList, encodeStringList } from "../system/config-codec.ts";
 import { toAnimeDto } from "./dto.ts";
 import {
@@ -25,6 +26,7 @@ import {
   clearEpisodeMapping,
   ensureEpisodes,
   getAnimeRowOrThrow,
+  getConfiguredImagesPath,
   getEpisodeRowOrThrow,
   inferAiredAt,
   requireAnimeExists,
@@ -163,10 +165,31 @@ const makeAnimeService = Effect.gen(function* () {
       ),
     );
 
+    const imagesPath = yield* tryAnimePromise(
+      "Failed to add anime",
+      () => getConfiguredImagesPath(db),
+    );
+    const cachedImages = yield* cacheAnimeMetadataImages(
+      fs,
+      imagesPath,
+      animeMetadata.id,
+      {
+        bannerImage: animeMetadata.bannerImage,
+        coverImage: animeMetadata.coverImage,
+      },
+    ).pipe(
+      Effect.catchAllCause(() =>
+        Effect.succeed({
+          bannerImage: animeMetadata.bannerImage,
+          coverImage: animeMetadata.coverImage,
+        })
+      ),
+    );
+
     const animeRow = {
       addedAt: new Date().toISOString(),
-      bannerImage: animeMetadata.bannerImage ?? null,
-      coverImage: animeMetadata.coverImage ?? null,
+      bannerImage: cachedImages.bannerImage ?? null,
+      coverImage: cachedImages.coverImage ?? null,
       description: animeMetadata.description ?? null,
       episodeCount: animeMetadata.episodeCount ?? null,
       endDate: animeMetadata.endDate ?? null,

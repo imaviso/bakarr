@@ -62,14 +62,14 @@ import {
   insertSystemConfigRow,
   listBackgroundJobRows,
   listQualityProfileRows,
-  listReleaseProfileRows,
   listRecentDownloadEventRows,
   listRecentSystemLogRows,
-  loadBackgroundJobRow,
-  loadSystemLogPage,
+  listReleaseProfileRows,
   loadAnyQualityProfileRow,
+  loadBackgroundJobRow,
   loadQualityProfileRow,
   loadSystemConfigRow,
+  loadSystemLogPage,
   replaceQualityProfileRows,
   updateQualityProfileRow,
   updateReleaseProfileRow,
@@ -203,7 +203,8 @@ const makeSystemService = Effect.gen(function* () {
   ) {
     const created = yield* tryDatabasePromise(
       "Failed to create release profile",
-      () => insertReleaseProfileRow(db, {
+      () =>
+        insertReleaseProfileRow(db, {
           enabled: input.enabled ?? true,
           isGlobal: input.is_global,
           name: input.name,
@@ -229,7 +230,8 @@ const makeSystemService = Effect.gen(function* () {
   )(function* (id: number, input: Omit<ReleaseProfile, "id">) {
     yield* tryDatabasePromise(
       "Failed to update release profile",
-      () => updateReleaseProfileRow(db, id, {
+      () =>
+        updateReleaseProfileRow(db, id, {
           enabled: input.enabled,
           isGlobal: input.is_global,
           name: input.name,

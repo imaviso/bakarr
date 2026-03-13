@@ -3,6 +3,7 @@ import type { Hono } from "hono";
 
 import type { HealthStatus } from "../../../../packages/shared/src/index.ts";
 import { EventBus } from "../features/events/event-bus.ts";
+import { FileSystem } from "../lib/filesystem.ts";
 import {
   DownloadService,
   LibraryService,
@@ -57,6 +58,42 @@ export function registerSystemRoutes(
         (value) => c.json(value),
       ),
   );
+
+  app.get("/api/images/*", async (c) => {
+    const relativePath = c.req.path.slice("/api/images/".length)
+      .split("/")
+      .filter((segment) => segment.length > 0);
+
+    if (
+      relativePath.length === 0 ||
+      relativePath.some((segment) =>
+        segment === "." || segment === ".." || segment.includes("\\")
+      )
+    ) {
+      return c.text("Not Found", 404);
+    }
+
+    const config = await runEffect(
+      Effect.flatMap(SystemService, (service) => service.getConfig()),
+    );
+    const filePath = `${config.general.images_path.replace(/\/$/, "")}/${
+      relativePath.join("/")
+    }`;
+    const bytes = await runEffect(
+      Effect.flatMap(FileSystem, (fs) => fs.readFile(filePath)),
+    ).catch(() => null);
+
+    if (!bytes) {
+      return c.text("Not Found", 404);
+    }
+
+    return new Response(new Blob([Uint8Array.from(bytes)]), {
+      headers: {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "Content-Type": contentTypeForPath(filePath),
+      },
+    });
+  });
 
   app.get(
     "/api/system/dashboard",
@@ -459,4 +496,16 @@ export function registerSystemRoutes(
       },
     });
   });
+}
+
+function contentTypeForPath(path: string): string {
+  const lower = path.toLowerCase();
+
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".svg")) return "image/svg+xml";
+
+  return "application/octet-stream";
 }

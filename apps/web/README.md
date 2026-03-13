@@ -1,8 +1,10 @@
-# Example
+# Bakarr UI
 
-To run this example:
+Run from `apps/web`:
 
-- `npm install` or `yarn`
-- `npm start` or `yarn start`
+- `deno task dev`
+- `deno task build`
+- `deno task lint`
+- `deno task serve`
 
-## This project was created with the [Solid CLI](https://github.com/solidjs-community/solid-cli)
+From the repo root you can also use `deno task dev:web`.

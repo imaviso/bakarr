@@ -1,4 +1,5 @@
 import { assert, assertEquals, assertMatch } from "@std/assert";
+import { createClient } from "@libsql/client";
 import { Redacted } from "effect";
 
 const integrationTestPermissions: Deno.PermissionOptions = {
@@ -28,6 +29,68 @@ integrationTest("GET /health returns ok", async () => {
     await ctx.dispose();
   }
 });
+
+integrationTest(
+  "cached anime images are served from the image store",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const imagesPath = await Deno.makeTempDir();
+
+      try {
+        const currentConfigResponse = await ctx.app.request(
+          "/api/system/config",
+          { headers: { Cookie: sessionCookie } },
+        );
+        const currentConfig = await currentConfigResponse.json();
+
+        await ctx.app.request("/api/system/config", {
+          body: JSON.stringify({
+            ...currentConfig,
+            general: {
+              ...currentConfig.general,
+              images_path: imagesPath,
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        });
+
+        await Deno.mkdir(`${imagesPath}/anime/20`, { recursive: true });
+        const body = new TextEncoder().encode("cached-image");
+        await Deno.writeFile(`${imagesPath}/anime/20/cover.png`, body);
+
+        const response = await ctx.app.request(
+          "/api/images/anime/20/cover.png",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(response.status, 200);
+        assertEquals(response.headers.get("content-type"), "image/png");
+        assertEquals(await response.text(), "cached-image");
+      } finally {
+        await Deno.remove(imagesPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
 
 integrationTest(
   "bootstrap admin can log in and read auth/session protected endpoints",
@@ -357,13 +420,41 @@ integrationTest(
         assertEquals(feeds.length, 1);
         assertEquals(feeds[0].anime_id, 11061);
 
-        const wanted = await ctx.app.request("/api/wanted/missing?limit=5", {
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
+        try {
+          await client.execute({
+            sql:
+              "update episodes set aired = ? where anime_id = ? and number = ?",
+            args: ["2999-01-01T00:00:00.000Z", 11061, 2],
+          });
+          await client.execute({
+            sql:
+              "update episodes set aired = null where anime_id = ? and number = ?",
+            args: [11061, 3],
+          });
+        } finally {
+          client.close();
+        }
+
+        const wanted = await ctx.app.request("/api/wanted/missing?limit=20", {
           headers: { Cookie: sessionCookie },
         });
 
         const missing = await wanted.json();
-        assertEquals(missing.length, 5);
+        assert(missing.length > 0);
         assertEquals(missing[0].anime_id, 11061);
+        assertEquals(
+          missing.some((item: { episode_number: number }) =>
+            item.episode_number === 2
+          ),
+          false,
+        );
+        assertEquals(
+          missing.some((item: { episode_number: number }) =>
+            item.episode_number === 3
+          ),
+          false,
+        );
 
         const renamePreview = await ctx.app.request(
           "/api/anime/11061/rename-preview",
@@ -745,6 +836,95 @@ integrationTest(
             episodeSearchBody[0].download_action.Upgrade ||
             episodeSearchBody[0].download_action.Reject,
         );
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "missing-search ignores episodes that have not aired yet",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const rootFolder = await Deno.makeTempDir();
+
+      try {
+        await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
+        try {
+          await client.execute({
+            sql:
+              "update episodes set aired = ? where anime_id = ? and number = ?",
+            args: ["2999-01-01T00:00:00.000Z", 20, 2],
+          });
+        } finally {
+          client.close();
+        }
+
+        const rssXml =
+          `<?xml version="1.0"?><rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item><title>[SubsPlease] Naruto - 002 (1080p)</title><link>https://nyaa.si/download/2.torrent</link><pubDate>${
+            new Date().toUTCString()
+          }</pubDate><nyaa:seeders>55</nyaa:seeders><nyaa:leechers>1</nyaa:leechers><nyaa:infoHash>bcdefabcdefabcdefabcdefabcdefabcdefabcde</nyaa:infoHash><nyaa:size>1.3 GiB</nyaa:size><nyaa:trusted>Yes</nyaa:trusted><nyaa:remake>No</nyaa:remake></item></channel></rss>`;
+        const rssUrl = `data:text/xml,${encodeURIComponent(rssXml)}`;
+
+        await ctx.app.request("/api/rss", {
+          body: JSON.stringify({ anime_id: 20, url: rssUrl }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        const searchMissing = await ctx.app.request(
+          "/api/downloads/search-missing",
+          {
+            body: JSON.stringify({ anime_id: 20 }),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+
+        assertEquals(searchMissing.status, 200);
+
+        const history = await ctx.app.request("/api/downloads/history", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        assertEquals(history.status, 200);
+        assertEquals((await history.json()).length, 0);
       } finally {
         await Deno.remove(rootFolder, { recursive: true });
       }

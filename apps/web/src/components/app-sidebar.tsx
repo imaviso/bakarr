@@ -1,200 +1,204 @@
 import {
-	IconAlertTriangle,
-	IconCalendar,
-	IconDeviceTv,
-	IconDownload,
-	IconHome,
-	IconList,
-	IconLogout,
-	IconRss,
-	IconSettings,
+  IconAlertTriangle,
+  IconCalendar,
+  IconDeviceTv,
+  IconDownload,
+  IconHome,
+  IconList,
+  IconLogout,
+  IconRss,
+  IconSettings,
 } from "@tabler/icons-solidjs";
 import { Link, useLocation } from "@tanstack/solid-router";
 import { For, Show } from "solid-js";
 import {
-	DropdownMenu,
-	DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import {
-	Sidebar,
-	SidebarContent,
-	SidebarFooter,
-	SidebarGroup,
-	SidebarGroupContent,
-	SidebarHeader,
-	SidebarMenu,
-	SidebarMenuButton,
-	SidebarMenuItem,
-	SidebarSeparator,
-	useSidebar,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+  useSidebar,
 } from "~/components/ui/sidebar";
 import { useAuth } from "~/lib/auth";
 
 const mainItems = [
-	{
-		title: "Dashboard",
-		url: "/",
-		icon: IconHome,
-	},
-	{
-		title: "Anime",
-		url: "/anime",
-		icon: IconDeviceTv,
-	},
-	{
-		title: "RSS Feeds",
-		url: "/rss",
-		icon: IconRss,
-	},
-	{
-		title: "Wanted",
-		url: "/wanted",
-		icon: IconAlertTriangle,
-	},
-	{
-		title: "Calendar",
-		url: "/calendar",
-		icon: IconCalendar,
-	},
-	{
-		title: "Downloads",
-		url: "/downloads",
-		icon: IconDownload,
-	},
+  {
+    title: "Dashboard",
+    url: "/",
+    icon: IconHome,
+  },
+  {
+    title: "Anime",
+    url: "/anime",
+    icon: IconDeviceTv,
+  },
+  {
+    title: "RSS Feeds",
+    url: "/rss",
+    icon: IconRss,
+  },
+  {
+    title: "Wanted",
+    url: "/wanted",
+    icon: IconAlertTriangle,
+  },
+  {
+    title: "Calendar",
+    url: "/calendar",
+    icon: IconCalendar,
+  },
+  {
+    title: "Downloads",
+    url: "/downloads",
+    icon: IconDownload,
+  },
 ];
 
 const settingsItems = [
-	{
-		title: "System Logs",
-		url: "/logs",
-		icon: IconList,
-	},
-	{
-		title: "Settings",
-		url: "/settings",
-		icon: IconSettings,
-	},
+  {
+    title: "System Logs",
+    url: "/logs",
+    icon: IconList,
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: IconSettings,
+  },
 ];
 
 export function AppSidebar() {
-	const { logout } = useAuth();
-	const location = useLocation();
-	const { state } = useSidebar();
+  const { logout } = useAuth();
+  const location = useLocation();
+  const { state } = useSidebar();
 
-	const isCollapsed = () => state() === "collapsed";
+  const isCollapsed = () => state() === "collapsed";
 
-	const isActive = (url: string) => {
-		if (url === "/") return location().pathname === "/";
-		return location().pathname.startsWith(url);
-	};
+  const isActive = (url: string) => {
+    if (url === "/") return location().pathname === "/";
+    return location().pathname.startsWith(url);
+  };
 
-	return (
-		<Sidebar collapsible="icon" class="border-r-0">
-			{/* Workspace Header */}
-			<SidebarHeader class="p-2 group-data-[collapsible=icon]:p-1">
-				<DropdownMenu>
-					<DropdownMenuTrigger class="flex items-center gap-2 w-full rounded-none px-2 py-1.5 hover:bg-sidebar-accent transition-colors group outline-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-						<div class="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-semibold text-xs shrink-0 rounded-none">
-							B
-						</div>
-						<Show when={!isCollapsed()}>
-							<span class="font-semibold text-sm text-sidebar-accent-foreground truncate flex-1 text-left">
-								Bakarr
-							</span>
-						</Show>
-					</DropdownMenuTrigger>
-				</DropdownMenu>
-			</SidebarHeader>
+  return (
+    <Sidebar collapsible="icon" class="border-r-0">
+      {/* Workspace Header */}
+      <SidebarHeader class="p-2 group-data-[collapsible=icon]:p-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger class="flex items-center gap-2 w-full rounded-none px-2 py-1.5 hover:bg-sidebar-accent transition-colors group outline-none group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+            <div class="flex h-6 w-6 items-center justify-center bg-primary text-primary-foreground font-semibold text-xs shrink-0 rounded-none">
+              B
+            </div>
+            <Show when={!isCollapsed()}>
+              <span class="font-semibold text-sm text-sidebar-accent-foreground truncate flex-1 text-left">
+                Bakarr
+              </span>
+            </Show>
+          </DropdownMenuTrigger>
+        </DropdownMenu>
+      </SidebarHeader>
 
-			<SidebarContent class="px-3 group-data-[collapsible=icon]:px-0">
-				{/* Main Navigation */}
-				<SidebarGroup class="py-2 group-data-[collapsible=icon]:px-0">
-					<div class="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
-						MAIN
-					</div>
-					<SidebarGroupContent>
-						<SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
-							<For each={mainItems}>
-								{(item) => {
-									return (
-										<SidebarMenuItem>
-											<Link
-												to={item.url}
-												class="w-full"
-												activeOptions={{
-													exact: item.url === "/",
-												}}
-											>
-												<SidebarMenuButton
-													tooltip={item.title}
-													isActive={isActive(item.url)}
-													class="h-9 transition-all"
-												>
-													<item.icon
-														class={`h-4 w-4 shrink-0 transition-opacity ${isActive(item.url) ? "opacity-100" : "opacity-50"}`}
-													/>
-													<span>{item.title}</span>
-												</SidebarMenuButton>
-											</Link>
-										</SidebarMenuItem>
-									);
-								}}
-							</For>
-						</SidebarMenu>
-					</SidebarGroupContent>
-				</SidebarGroup>
+      <SidebarContent class="px-3 group-data-[collapsible=icon]:px-0">
+        {/* Main Navigation */}
+        <SidebarGroup class="py-2 group-data-[collapsible=icon]:px-0">
+          <div class="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+            MAIN
+          </div>
+          <SidebarGroupContent>
+            <SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
+              <For each={mainItems}>
+                {(item) => {
+                  return (
+                    <SidebarMenuItem>
+                      <Link
+                        to={item.url}
+                        class="w-full"
+                        activeOptions={{
+                          exact: item.url === "/",
+                        }}
+                      >
+                        <SidebarMenuButton
+                          tooltip={item.title}
+                          isActive={isActive(item.url)}
+                          class="h-9 transition-all"
+                        >
+                          <item.icon
+                            class={`h-4 w-4 shrink-0 transition-opacity ${
+                              isActive(item.url) ? "opacity-100" : "opacity-50"
+                            }`}
+                          />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                  );
+                }}
+              </For>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-				{/* Active Downloads Placeholder */}
-				{/* <ActiveDownloads /> */}
+        {/* Active Downloads Placeholder */}
+        {/* <ActiveDownloads /> */}
 
-				{/* Settings Section */}
-				<SidebarGroup class="py-2 mt-auto group-data-[collapsible=icon]:px-0">
-					<div class="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
-						SYSTEM
-					</div>
-					<SidebarGroupContent>
-						<SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
-							<For each={settingsItems}>
-								{(item) => {
-									return (
-										<SidebarMenuItem>
-											<Link to={item.url} class="w-full">
-												<SidebarMenuButton
-													tooltip={item.title}
-													isActive={isActive(item.url)}
-													class="h-9 transition-all"
-												>
-													<item.icon
-														class={`h-4 w-4 shrink-0 transition-opacity ${isActive(item.url) ? "opacity-100" : "opacity-50"}`}
-													/>
-													<span>{item.title}</span>
-												</SidebarMenuButton>
-											</Link>
-										</SidebarMenuItem>
-									);
-								}}
-							</For>
-						</SidebarMenu>
-					</SidebarGroupContent>
-				</SidebarGroup>
-			</SidebarContent>
+        {/* Settings Section */}
+        <SidebarGroup class="py-2 mt-auto group-data-[collapsible=icon]:px-0">
+          <div class="px-3 pb-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-widest hidden group-data-[collapsible=icon]:block group-data-[collapsible=icon]:opacity-0">
+            SYSTEM
+          </div>
+          <SidebarGroupContent>
+            <SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
+              <For each={settingsItems}>
+                {(item) => {
+                  return (
+                    <SidebarMenuItem>
+                      <Link to={item.url} class="w-full">
+                        <SidebarMenuButton
+                          tooltip={item.title}
+                          isActive={isActive(item.url)}
+                          class="h-9 transition-all"
+                        >
+                          <item.icon
+                            class={`h-4 w-4 shrink-0 transition-opacity ${
+                              isActive(item.url) ? "opacity-100" : "opacity-50"
+                            }`}
+                          />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                  );
+                }}
+              </For>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-			{/* Footer */}
-			<SidebarFooter class="p-3 group-data-[collapsible=icon]:p-1">
-				<SidebarSeparator class="mb-2 mx-0 group-data-[collapsible=icon]:mx-0 bg-border/50" />
-				<SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
-					<SidebarMenuItem>
-						<SidebarMenuButton
-							onClick={() => logout()}
-							tooltip="Sign out"
-							class="h-9 transition-all"
-						>
-							<IconLogout class="h-4 w-4 shrink-0 opacity-50" />
-							<span>Sign out</span>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
-				</SidebarMenu>
-			</SidebarFooter>
-		</Sidebar>
-	);
+      {/* Footer */}
+      <SidebarFooter class="p-3 group-data-[collapsible=icon]:p-1">
+        <SidebarSeparator class="mb-2 mx-0 group-data-[collapsible=icon]:mx-0 bg-border/50" />
+        <SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => logout()}
+              tooltip="Sign out"
+              class="h-9 transition-all"
+            >
+              <IconLogout class="h-4 w-4 shrink-0 opacity-50" />
+              <span>Sign out</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
+  );
 }
