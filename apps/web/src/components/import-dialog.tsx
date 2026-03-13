@@ -56,17 +56,20 @@ import {
 } from "~/components/ui/tooltip";
 import {
   type AnimeSearchResult,
-  createAddAnimeMutation,
   createAnimeListQuery,
   createAnimeSearchQuery,
   createImportFilesMutation,
-  createProfilesQuery,
   createScanImportPathMutation,
   type ImportFileRequest,
   type ScannedFile,
 } from "~/lib/api";
+import { AddAnimeDialog } from "~/components/add-anime-dialog";
 import { createDebouncer } from "~/lib/debounce";
 import { cn } from "~/lib/utils";
+import {
+  findMissingImportCandidates,
+  toggleImportCandidateSelection,
+} from "./import/import-flow";
 
 interface ImportDialogProps {
   trigger?: JSX.Element;
@@ -93,12 +96,14 @@ export function ImportDialog(props: ImportDialogProps) {
     AnimeSearchResult[]
   >([]);
   const [isSearchOpen, setIsSearchOpen] = createSignal(false);
+  const [pendingAddCandidates, setPendingAddCandidates] = createSignal<
+    AnimeSearchResult[]
+  >([]);
+  const [currentAddIndex, setCurrentAddIndex] = createSignal(0);
 
   const scanMutation = createScanImportPathMutation();
   const importMutation = createImportFilesMutation();
-  const addAnimeMutation = createAddAnimeMutation();
   const animeListQuery = createAnimeListQuery();
-  const profilesQuery = createProfilesQuery();
 
   const scannedFiles = createMemo(() => {
     const files = scanMutation.data?.files || [];
@@ -136,11 +141,6 @@ export function ImportDialog(props: ImportDialogProps) {
   const handleManualAdd = (candidate: AnimeSearchResult) => {
     setManualCandidates((prev) => [...prev, candidate]);
     setIsSearchOpen(false);
-    setSelectedCandidateIds((prev) => {
-      const next = new Set(prev);
-      next.add(candidate.id);
-      return next;
-    });
     toggleCandidate(candidate, true);
   };
 
@@ -182,100 +182,49 @@ export function ImportDialog(props: ImportDialogProps) {
     candidate: AnimeSearchResult,
     forceSelect = false,
   ) => {
-    const newSelectedCandidates = new Set(selectedCandidateIds());
-    const newSelectedFiles = new Map(selectedFiles());
-    const files = scanMutation.data?.files || [];
+    const next = toggleImportCandidateSelection({
+      candidate,
+      files: scanMutation.data?.files || [],
+      forceSelect,
+      selectedCandidateIds: selectedCandidateIds(),
+      selectedFiles: selectedFiles(),
+    });
 
-    const isSelected = newSelectedCandidates.has(candidate.id) && !forceSelect;
+    setSelectedCandidateIds(next.selectedCandidateIds);
+    setSelectedFiles(next.selectedFiles);
+  };
 
-    if (isSelected) {
-      newSelectedCandidates.delete(candidate.id);
-      files.forEach((file) => {
-        const current = newSelectedFiles.get(file.source_path);
-        if (current && current.anime_id === candidate.id) {
-          newSelectedFiles.delete(file.source_path);
-        }
-      });
-    } else {
-      newSelectedCandidates.add(candidate.id);
-      let candidateSeason = 1;
-      const titleLower = (
-        candidate.title.english ||
-        candidate.title.romaji ||
-        ""
-      ).toLowerCase();
+  const activeAddCandidate = createMemo(() =>
+    pendingAddCandidates()[currentAddIndex()]
+  );
 
-      const seasonMatch = titleLower.match(/season\s+(\d+)/) ||
-        titleLower.match(/(\d+)(?:nd|rd|th)\s+season/);
+  const closeAddCandidateDialog = () => {
+    setPendingAddCandidates([]);
+    setCurrentAddIndex(0);
+  };
 
-      if (seasonMatch) {
-        candidateSeason = Number.parseInt(seasonMatch[1], 10);
-      }
-
-      files.forEach((file) => {
-        const fileSeason = file.season || 1;
-        const currentSelection = newSelectedFiles.get(file.source_path);
-
-        let shouldSelect = false;
-        if (candidateSeason > 1) {
-          if (fileSeason === candidateSeason) {
-            shouldSelect = true;
-          } else if (fileSeason === 1 && !currentSelection) {
-            shouldSelect = true;
-          }
-        } else {
-          if (!currentSelection) {
-            shouldSelect = true;
-          }
-        }
-
-        if (shouldSelect) {
-          newSelectedFiles.set(file.source_path, {
-            source_path: file.source_path,
-            anime_id: candidate.id,
-            episode_number: Math.floor(file.episode_number),
-            season: file.season,
-          });
-        }
-      });
+  const advanceAddCandidateDialog = () => {
+    if (currentAddIndex() + 1 >= pendingAddCandidates().length) {
+      closeAddCandidateDialog();
+      return;
     }
 
-    setSelectedCandidateIds(newSelectedCandidates);
-    setSelectedFiles(newSelectedFiles);
+    setCurrentAddIndex((index) => index + 1);
   };
 
   const handleImport = async () => {
     const files = Array.from(selectedFiles().values());
 
-    const uniqueAnimeIds = new Set(files.map((f) => f.anime_id));
-    const localAnimeIds = new Set(animeListQuery.data?.map((a) => a.id));
-    const newAnimeIds = Array.from(uniqueAnimeIds).filter(
-      (id) => !localAnimeIds.has(id),
-    );
+    const missingCandidates = findMissingImportCandidates({
+      files,
+      localAnimeIds: new Set(animeListQuery.data?.map((a) => a.id) || []),
+      candidates: candidates(),
+    });
 
-    if (newAnimeIds.length > 0) {
-      const candidate = candidates().find((c) => c.id === newAnimeIds[0]);
-      if (candidate) {
-        const toastId = toast.loading(
-          `Adding new anime: ${candidate.title.romaji}...`,
-        );
-        try {
-          await addAnimeMutation.mutateAsync({
-            id: candidate.id,
-            profile_name: profilesQuery.data?.[0]?.name || "Any",
-            root_folder: "",
-            monitor_and_search: false,
-            monitored: true,
-            release_profile_ids: [],
-          });
-          toast.success(`Added ${candidate.title.romaji}`, { id: toastId });
-        } catch (err) {
-          toast.error(`Failed to add anime: ${(err as Error).message}`, {
-            id: toastId,
-          });
-          return;
-        }
-      }
+    if (missingCandidates.length > 0) {
+      setPendingAddCandidates(missingCandidates);
+      setCurrentAddIndex(0);
+      return;
     }
 
     setOpen(false);
@@ -390,259 +339,285 @@ export function ImportDialog(props: ImportDialogProps) {
   };
 
   return (
-    <Dialog open={open()} onOpenChange={setOpen}>
-      <DialogTrigger as="div" class="contents">
-        <Show
-          when={props.tooltip}
-          fallback={props.trigger || (
-            <Button variant="outline">
-              <IconFolderOpen class="mr-2 h-4 w-4" />
-              Import Files
-            </Button>
-          )}
-        >
-          <Tooltip>
-            <TooltipTrigger>
-              {props.trigger || (
-                <Button variant="outline">
-                  <IconFolderOpen class="mr-2 h-4 w-4" />
-                  Import Files
-                </Button>
-              )}
-            </TooltipTrigger>
-            <TooltipContent>{props.tooltip}</TooltipContent>
-          </Tooltip>
-        </Show>
-      </DialogTrigger>
+    <>
+      <Dialog open={open()} onOpenChange={setOpen}>
+        <DialogTrigger as="div" class="contents">
+          <Show
+            when={props.tooltip}
+            fallback={props.trigger || (
+              <Button variant="outline">
+                <IconFolderOpen class="mr-2 h-4 w-4" />
+                Import Files
+              </Button>
+            )}
+          >
+            <Tooltip>
+              <TooltipTrigger>
+                {props.trigger || (
+                  <Button variant="outline">
+                    <IconFolderOpen class="mr-2 h-4 w-4" />
+                    Import Files
+                  </Button>
+                )}
+              </TooltipTrigger>
+              <TooltipContent>{props.tooltip}</TooltipContent>
+            </Tooltip>
+          </Show>
+        </DialogTrigger>
 
-      <DialogContent class="max-w-6xl w-full max-h-[85vh] flex flex-col overflow-hidden">
-        <Show when={step() === "scan"}>
-          <DialogHeader>
-            <DialogTitle>Import Video Files</DialogTitle>
-            <DialogDescription>
-              Select a folder containing video files to import into your
-              library.
-            </DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-4 flex-1 min-h-0 flex flex-col">
-            <Tabs
-              value={inputMode()}
-              onChange={(v) => setInputMode(v as "browser" | "manual")}
-              class="flex-1 flex flex-col min-h-0"
-            >
-              <TabsList class="grid w-full grid-cols-2">
-                <TabsTrigger value="browser">
-                  <IconListTree class="mr-2 h-4 w-4" />
-                  Browse
-                </TabsTrigger>
-                <TabsTrigger value="manual">
-                  <IconTypography class="mr-2 h-4 w-4" />
-                  Manual Path
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="browser" class="mt-4 flex-1 min-h-0">
-                <div class="h-[280px] border rounded-none overflow-hidden bg-background">
-                  <FileBrowser
-                    onSelect={(p) => setPath(p)}
-                    directoryOnly
-                    height="100%"
-                  />
-                </div>
-              </TabsContent>
-              <TabsContent value="manual" class="mt-4 flex-1">
-                <div
-                  class={cn(
-                    "border-2 border-dashed rounded-none p-6 transition-colors h-full flex flex-col items-center justify-center",
-                    isDragOver()
-                      ? "border-primary bg-primary/5"
-                      : "border-muted-foreground/25",
-                  )}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <div class="flex flex-col items-center gap-4">
-                    <div class="rounded-none bg-muted p-3">
-                      <IconUpload class="h-6 w-6 text-muted-foreground" />
-                    </div>
-                    <div class="text-center">
-                      <p class="text-sm font-medium">
-                        Drag and drop a folder here
-                      </p>
-                      <p class="text-xs text-muted-foreground mt-1">
-                        or enter path below
-                      </p>
-                    </div>
-                    <div class="w-full space-y-2">
-                      <TextField value={path()} onChange={setPath}>
-                        <TextFieldLabel>Folder Path</TextFieldLabel>
-                        <TextFieldInput
-                          placeholder="/path/to/videos"
-                          class="font-mono text-sm"
-                        />
-                      </TextField>
+        <DialogContent class="max-w-6xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+          <Show when={step() === "scan"}>
+            <DialogHeader>
+              <DialogTitle>Import Video Files</DialogTitle>
+              <DialogDescription>
+                Select a folder containing video files to import into your
+                library.
+              </DialogDescription>
+            </DialogHeader>
+            <div class="space-y-4 py-4 flex-1 min-h-0 flex flex-col">
+              <Tabs
+                value={inputMode()}
+                onChange={(v) => setInputMode(v as "browser" | "manual")}
+                class="flex-1 flex flex-col min-h-0"
+              >
+                <TabsList class="grid w-full grid-cols-2">
+                  <TabsTrigger value="browser">
+                    <IconListTree class="mr-2 h-4 w-4" />
+                    Browse
+                  </TabsTrigger>
+                  <TabsTrigger value="manual">
+                    <IconTypography class="mr-2 h-4 w-4" />
+                    Manual Path
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="browser" class="mt-4 flex-1 min-h-0">
+                  <div class="h-[280px] border rounded-none overflow-hidden bg-background">
+                    <FileBrowser
+                      onSelect={(p) => setPath(p)}
+                      directoryOnly
+                      height="100%"
+                    />
+                  </div>
+                </TabsContent>
+                <TabsContent value="manual" class="mt-4 flex-1">
+                  <div
+                    class={cn(
+                      "border-2 border-dashed rounded-none p-6 transition-colors h-full flex flex-col items-center justify-center",
+                      isDragOver()
+                        ? "border-primary bg-primary/5"
+                        : "border-muted-foreground/25",
+                    )}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                  >
+                    <div class="flex flex-col items-center gap-4">
+                      <div class="rounded-none bg-muted p-3">
+                        <IconUpload class="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div class="text-center">
+                        <p class="text-sm font-medium">
+                          Drag and drop a folder here
+                        </p>
+                        <p class="text-xs text-muted-foreground mt-1">
+                          or enter path below
+                        </p>
+                      </div>
+                      <div class="w-full space-y-2">
+                        <TextField value={path()} onChange={setPath}>
+                          <TextFieldLabel>Folder Path</TextFieldLabel>
+                          <TextFieldInput
+                            placeholder="/path/to/videos"
+                            class="font-mono text-sm"
+                          />
+                        </TextField>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </TabsContent>
-            </Tabs>
+                </TabsContent>
+              </Tabs>
 
-            <Show when={path()}>
-              <div class="flex items-center gap-2 p-3 rounded-none bg-muted/50 border">
-                <IconFolderOpen class="h-4 w-4 text-muted-foreground shrink-0" />
-                <span class="text-sm font-mono truncate flex-1">{path()}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setPath("")}
-                  class="shrink-0 h-6 w-6"
-                >
-                  <IconX class="h-3 w-3" />
-                </Button>
-              </div>
-            </Show>
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={handleScan}
-              disabled={!path() || scanMutation.isPending}
-            >
-              <Show
-                when={scanMutation.isPending}
-                fallback={
-                  <>
-                    <IconSearch class="mr-2 h-4 w-4" />
-                    Scan Folder
-                  </>
-                }
-              >
-                <IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
-                Scanning...
-              </Show>
-            </Button>
-          </DialogFooter>
-        </Show>
-
-        <Show when={step() === "review"}>
-          <DialogHeader>
-            <DialogTitle>Review Files</DialogTitle>
-            <DialogDescription>
-              Found {scannedFiles().length} file(s). Select files to import.
-              <Show when={skippedFiles().length > 0}>
-                <span class="text-yellow-600">
-                  {" "}
-                  ({skippedFiles().length} skipped)
-                </span>
-              </Show>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div class="flex-1 min-h-0 overflow-y-auto px-1">
-            {/* Candidates */}
-            <div class="bg-muted/30 p-4 rounded-none border mb-4">
-              <div class="flex items-center justify-between mb-3">
-                <h4 class="text-sm font-medium flex items-center gap-2">
-                  <IconListTree class="h-4 w-4 text-primary" />
-                  Suggested Series
-                </h4>
-                <Dialog open={isSearchOpen()} onOpenChange={setIsSearchOpen}>
-                  <DialogTrigger
-                    as={Button}
-                    variant="outline"
-                    size="sm"
-                    class="h-7 text-xs gap-1.5"
+              <Show when={path()}>
+                <div class="flex items-center gap-2 p-3 rounded-none bg-muted/50 border">
+                  <IconFolderOpen class="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span class="text-sm font-mono truncate flex-1">
+                    {path()}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setPath("")}
+                    class="shrink-0 h-6 w-6"
                   >
-                    <IconPlus class="h-3.5 w-3.5" />
-                    Add Series
-                  </DialogTrigger>
-                  <DialogContent class="sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle>Search Anime</DialogTitle>
-                    </DialogHeader>
-                    <div class="py-4">
-                      <ManualSearch
-                        onSelect={handleManualAdd}
-                        existingIds={new Set(candidates().map((c) => c.id))}
+                    <IconX class="h-3 w-3" />
+                  </Button>
+                </div>
+              </Show>
+            </div>
+            <DialogFooter>
+              <Button
+                onClick={handleScan}
+                disabled={!path() || scanMutation.isPending}
+              >
+                <Show
+                  when={scanMutation.isPending}
+                  fallback={
+                    <>
+                      <IconSearch class="mr-2 h-4 w-4" />
+                      Scan Folder
+                    </>
+                  }
+                >
+                  <IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
+                  Scanning...
+                </Show>
+              </Button>
+            </DialogFooter>
+          </Show>
+
+          <Show when={step() === "review"}>
+            <DialogHeader>
+              <DialogTitle>Review Files</DialogTitle>
+              <DialogDescription>
+                Found {scannedFiles().length} file(s). Select files to import.
+                <Show when={skippedFiles().length > 0}>
+                  <span class="text-yellow-600">
+                    {" "}
+                    ({skippedFiles().length} skipped)
+                  </span>
+                </Show>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div class="flex-1 min-h-0 overflow-y-auto px-1">
+              {/* Candidates */}
+              <div class="bg-muted/30 p-4 rounded-none border mb-4">
+                <div class="flex items-center justify-between mb-3">
+                  <h4 class="text-sm font-medium flex items-center gap-2">
+                    <IconListTree class="h-4 w-4 text-primary" />
+                    Suggested Series
+                  </h4>
+                  <Dialog open={isSearchOpen()} onOpenChange={setIsSearchOpen}>
+                    <DialogTrigger
+                      as={Button}
+                      variant="outline"
+                      size="sm"
+                      class="h-7 text-xs gap-1.5"
+                    >
+                      <IconPlus class="h-3.5 w-3.5" />
+                      Add Series
+                    </DialogTrigger>
+                    <DialogContent class="sm:max-w-[500px]">
+                      <DialogHeader>
+                        <DialogTitle>Search Anime</DialogTitle>
+                      </DialogHeader>
+                      <div class="py-4">
+                        <ManualSearch
+                          onSelect={handleManualAdd}
+                          existingIds={new Set(candidates().map((c) => c.id))}
+                        />
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <For each={candidates()}>
+                    {(candidate) => (
+                      <CandidateCard
+                        candidate={candidate}
+                        isSelected={selectedCandidateIds().has(candidate.id)}
+                        isLocal={animeListQuery.data?.some(
+                          (a) => a.id === candidate.id,
+                        ) || false}
+                        isManual={manualCandidates().some(
+                          (c) => c.id === candidate.id,
+                        )}
+                        onToggle={() => toggleCandidate(candidate)}
                       />
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                    )}
+                  </For>
+                </div>
               </div>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                <For each={candidates()}>
-                  {(candidate) => (
-                    <CandidateCard
-                      candidate={candidate}
-                      isSelected={selectedCandidateIds().has(candidate.id)}
-                      isLocal={animeListQuery.data?.some(
-                        (a) => a.id === candidate.id,
-                      ) || false}
-                      isManual={manualCandidates().some(
-                        (c) => c.id === candidate.id,
-                      )}
-                      onToggle={() => toggleCandidate(candidate)}
+              {/* File List */}
+              <div class="divide-y border rounded-none">
+                <For each={scannedFiles()}>
+                  {(file) => (
+                    <FileRow
+                      file={file}
+                      animeList={animeListQuery.data || []}
+                      candidates={candidates()}
+                      isSelected={selectedFiles().has(file.source_path)}
+                      selectedAnimeId={selectedFiles().get(file.source_path)
+                        ?.anime_id}
+                      currentEpisode={selectedFiles().get(file.source_path)
+                        ?.episode_number}
+                      currentSeason={selectedFiles().get(file.source_path)
+                        ?.season}
+                      onToggle={(id) => toggleFile(file, id)}
+                      onAnimeChange={(id) => updateFileAnime(file, id)}
+                      onMappingChange={(s, e) => updateFileMapping(file, s, e)}
                     />
                   )}
                 </For>
               </div>
             </div>
 
-            {/* File List */}
-            <div class="divide-y border rounded-none">
-              <For each={scannedFiles()}>
-                {(file) => (
-                  <FileRow
-                    file={file}
-                    animeList={animeListQuery.data || []}
-                    candidates={candidates()}
-                    isSelected={selectedFiles().has(file.source_path)}
-                    selectedAnimeId={selectedFiles().get(file.source_path)
-                      ?.anime_id}
-                    currentEpisode={selectedFiles().get(file.source_path)
-                      ?.episode_number}
-                    currentSeason={selectedFiles().get(file.source_path)
-                      ?.season}
-                    onToggle={(id) => toggleFile(file, id)}
-                    onAnimeChange={(id) => updateFileAnime(file, id)}
-                    onMappingChange={(s, e) => updateFileMapping(file, s, e)}
-                  />
-                )}
-              </For>
-            </div>
-          </div>
-
-          <DialogFooter class="flex-row justify-between sm:justify-between">
-            <Button variant="outline" onClick={() => setStep("scan")}>
-              Back
-            </Button>
-            <div class="flex items-center gap-2">
-              <span class="text-sm text-muted-foreground">
-                {selectedFiles().size} selected
-              </span>
-              <Button
-                onClick={handleImport}
-                disabled={selectedFiles().size === 0 ||
-                  importMutation.isPending}
-              >
-                <Show
-                  when={importMutation.isPending}
-                  fallback={
-                    <>
-                      <IconArrowRight class="mr-2 h-4 w-4" />
-                      Import Selected
-                    </>
-                  }
-                >
-                  <IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
-                </Show>
+            <DialogFooter class="flex-row justify-between sm:justify-between">
+              <Button variant="outline" onClick={() => setStep("scan")}>
+                Back
               </Button>
-            </div>
-          </DialogFooter>
-        </Show>
-      </DialogContent>
-    </Dialog>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-muted-foreground">
+                  {selectedFiles().size} selected
+                </span>
+                <Button
+                  onClick={handleImport}
+                  disabled={selectedFiles().size === 0 ||
+                    importMutation.isPending}
+                >
+                  <Show
+                    when={importMutation.isPending}
+                    fallback={
+                      <>
+                        <IconArrowRight class="mr-2 h-4 w-4" />
+                        Import Selected
+                      </>
+                    }
+                  >
+                    <IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
+                    Importing...
+                  </Show>
+                </Button>
+              </div>
+            </DialogFooter>
+          </Show>
+        </DialogContent>
+      </Dialog>
+
+      <Show when={activeAddCandidate()}>
+        {(candidate) => (
+          <AddAnimeDialog
+            anime={candidate()}
+            open={true}
+            onOpenChange={(nextOpen) => {
+              if (!nextOpen) {
+                closeAddCandidateDialog();
+              }
+            }}
+            onSuccess={() => {
+              advanceAddCandidateDialog();
+              queueMicrotask(() => {
+                if (pendingAddCandidates().length === 0) {
+                  void handleImport();
+                }
+              });
+            }}
+          />
+        )}
+      </Show>
+    </>
   );
 }
 
