@@ -113,36 +113,38 @@ function withLockEffect<A, E, R>(
   return Effect.gen(function* () {
     const semaphore = yield* Effect.makeSemaphore(1);
 
-    return Effect.fn(`background.${workerName}`)(function* () {
-      const acquired = yield* semaphore.take(1).pipe(
-        Effect.as(true),
-        Effect.timeout("1 millis"),
-        Effect.catchTag("TimeoutException", () => Effect.succeed(false)),
-      );
+    return yield* Effect.succeed(
+      Effect.gen(function* () {
+        const acquired = yield* semaphore.take(1).pipe(
+          Effect.as(true),
+          Effect.timeout("1 millis"),
+          Effect.catchTag("TimeoutException", () => Effect.succeed(false)),
+        );
 
-      if (!acquired) {
-        return;
-      }
+        if (!acquired) {
+          return;
+        }
 
-      const startedAt = performance.now();
+        const startedAt = performance.now();
 
-      yield* task.pipe(
-        Effect.catchAll((error) =>
-          Effect.logError("background worker failed").pipe(
-            Effect.annotateLogs(
-              compactLogAnnotations({
-                component: "background",
-                durationMs: durationMsSince(startedAt),
-                event: "background.worker.failed",
-                workerName,
-                ...errorLogAnnotations(error),
-              }),
-            ),
-          )
-        ),
-        Effect.ensuring(semaphore.release(1)),
-      );
-    })().pipe(Effect.catchAll(() => Effect.void));
+        yield* task.pipe(
+          Effect.catchAll((error) =>
+            Effect.logError("background worker failed").pipe(
+              Effect.annotateLogs(
+                compactLogAnnotations({
+                  component: "background",
+                  durationMs: durationMsSince(startedAt),
+                  event: "background.worker.failed",
+                  workerName,
+                  ...errorLogAnnotations(error),
+                }),
+              ),
+            )
+          ),
+          Effect.ensuring(semaphore.release(1)),
+        );
+      }).pipe(Effect.withSpan(`background.${workerName}`)),
+    );
   });
 }
 

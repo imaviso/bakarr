@@ -9,7 +9,8 @@
     "npm:drizzle-kit@~0.31.9": "0.31.9_esbuild@0.25.12",
     "npm:drizzle-orm@~0.45.1": "0.45.1_@libsql+client@0.17.0",
     "npm:effect@^3.19.19": "3.19.19",
-    "npm:hono@^4.12.7": "4.12.7"
+    "npm:hono@^4.12.7": "4.12.7",
+    "npm:typescript@^5.9.3": "5.9.3"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -594,6 +595,10 @@
     "tr46@0.0.3": {
       "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw=="
     },
+    "typescript@5.9.3": {
+      "integrity": "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==",
+      "bin": true
+    },
     "undici-types@7.16.0": {
       "integrity": "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="
     },
@@ -628,7 +633,8 @@
         "npm:@effect/language-service@0.79",
         "npm:@libsql/client@0.17",
         "npm:drizzle-kit@~0.31.9",
-        "npm:drizzle-orm@~0.45.1"
+        "npm:drizzle-orm@~0.45.1",
+        "npm:typescript@^5.9.3"
       ]
     }
   }

@@ -16,7 +16,7 @@
 ## Commands
 
 - root: `pnpm dev`, `pnpm test`, `pnpm build`
-- api: `deno task check`, `deno task test`, `deno lint`
+- api: `deno task check`, `deno task test`, `deno lint`, `dx effect-language-service diagnostics --project tsconfig.json`
 - web: `pnpm build`
 
 ## Caution

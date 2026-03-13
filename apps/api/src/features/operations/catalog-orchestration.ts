@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 
 import type {
   CalendarEvent,
@@ -46,7 +46,6 @@ import {
   type FileSystemShape,
   isWithinPathRoot,
 } from "../../lib/filesystem.ts";
-import { Effect as Ef } from "effect";
 
 type TryDatabasePromise = <A>(
   message: string,
@@ -93,8 +92,8 @@ export function makeCatalogOrchestration(input: {
     publishDownloadProgress,
   } = input;
 
-  const renameFiles = (animeId: number) =>
-    Effect.fn("OperationsService.renameFiles")(function* () {
+  const renameFiles = Effect.fn("OperationsService.renameFiles")(
+    function* (animeId: number) {
       const animeRow = yield* tryOperationsPromise(
         "Failed to rename files",
         () => requireAnime(db, animeId),
@@ -107,19 +106,31 @@ export function makeCatalogOrchestration(input: {
       const failures: string[] = [];
 
       for (const item of preview) {
-        try {
-          yield* tryOperationsPromise("Failed to rename files", async () => {
-            await Ef.runPromise(fs.rename(item.current_path, item.new_path));
-            await db.update(episodes).set({ filePath: item.new_path }).where(
-              and(
-                eq(episodes.animeId, animeId),
-                eq(episodes.number, item.episode_number),
-              ),
-            );
-          });
+        const result = yield* fs.rename(item.current_path, item.new_path).pipe(
+          Effect.mapError(dbError("Failed to rename files")),
+          Effect.zipRight(
+            tryOperationsPromise(
+              "Failed to rename files",
+              () =>
+                db.update(episodes).set({ filePath: item.new_path }).where(
+                  and(
+                    eq(episodes.animeId, animeId),
+                    eq(episodes.number, item.episode_number),
+                  ),
+                ),
+            ),
+          ),
+          Effect.either,
+        );
+
+        if (Either.isRight(result)) {
           renamed += 1;
-        } catch (error) {
-          failures.push(error instanceof Error ? error.message : String(error));
+        } else {
+          failures.push(
+            result.left instanceof Error
+              ? result.left.message
+              : String(result.left),
+          );
         }
       }
 
@@ -137,7 +148,8 @@ export function makeCatalogOrchestration(input: {
         failures,
         renamed,
       } satisfies RenameResult;
-    })();
+    },
+  );
 
   const importFilesRaw = Effect.fn("OperationsService.importFiles")(function* (
     files: readonly {
@@ -172,7 +184,7 @@ export function makeCatalogOrchestration(input: {
       );
 
     for (const file of files) {
-      try {
+      const result = yield* Effect.gen(function* () {
         const resolvedSource = yield* fs.realPath(file.source_path).pipe(
           Effect.mapError((error) =>
             new DatabaseError({
@@ -186,8 +198,10 @@ export function makeCatalogOrchestration(input: {
           !isWithinPathRoot(resolvedSource, downloadRoot) &&
           !isWithinPathRoot(resolvedSource, libraryRoot)
         ) {
-          throw new Error(
-            "Source path is not within allowed download or library directories",
+          return yield* dbError("Failed to import files")(
+            new Error(
+              "Source path is not within allowed download or library directories",
+            ),
           );
         }
 
@@ -204,21 +218,32 @@ export function makeCatalogOrchestration(input: {
           String(file.episode_number).padStart(2, "0")
         }${extension}`;
 
-        yield* tryDatabasePromise(
-          "Failed to import files",
-          () =>
-            Ef.runPromise(fs.mkdir(animeRow.rootFolder, { recursive: true })),
+        yield* fs.mkdir(animeRow.rootFolder, { recursive: true }).pipe(
+          Effect.mapError((error) =>
+            new DatabaseError({
+              cause: error,
+              message: "Failed to import files",
+            })
+          ),
         );
 
         if (importMode === "move") {
-          yield* tryDatabasePromise(
-            "Failed to import files",
-            () => Ef.runPromise(fs.rename(resolvedSource, destination)),
+          yield* fs.rename(resolvedSource, destination).pipe(
+            Effect.mapError((error) =>
+              new DatabaseError({
+                cause: error,
+                message: "Failed to import files",
+              })
+            ),
           );
         } else {
-          yield* tryDatabasePromise(
-            "Failed to import files",
-            () => Ef.runPromise(fs.copyFile(resolvedSource, destination)),
+          yield* fs.copyFile(resolvedSource, destination).pipe(
+            Effect.mapError((error) =>
+              new DatabaseError({
+                cause: error,
+                message: "Failed to import files",
+              })
+            ),
           );
         }
 
@@ -238,10 +263,14 @@ export function makeCatalogOrchestration(input: {
           episode_number: file.episode_number,
           source_path: file.source_path,
         });
-      } catch (error) {
+      }).pipe(Effect.either);
+
+      if (Either.isLeft(result)) {
         failedFiles.push({
           source_path: file.source_path,
-          error: error instanceof Error ? error.message : String(error),
+          error: result.left instanceof Error
+            ? result.left.message
+            : String(result.left),
         });
       }
     }
@@ -272,66 +301,72 @@ export function makeCatalogOrchestration(input: {
     }[],
   ) =>
     importFilesRaw(files).pipe(
-      Effect.catchAll((error) =>
-        Effect.fail(
-          error instanceof DatabaseError
-            ? error
-            : dbError("Failed to import files")(error),
-        )
+      Effect.mapError((error) =>
+        error instanceof DatabaseError
+          ? error
+          : dbError("Failed to import files")(error)
       ),
     );
 
-  const retryDownload = (id: number) =>
-    Effect.fn("OperationsService.retryDownload")(function* () {
+  const retryDownload = Effect.fn("OperationsService.retryDownload")(
+    function* (id: number) {
       yield* retryDownloadById(id);
       yield* publishDownloadProgress();
-    })();
+    },
+  );
 
-  const reconcileDownload = (id: number) =>
-    Effect.fn("OperationsService.reconcileDownload")(function* () {
-      yield* reconcileDownloadByIdEffect(id);
-      yield* publishDownloadProgress();
-    })();
+  const reconcileDownload = Effect.fn(
+    "OperationsService.reconcileDownload",
+  )(function* (id: number) {
+    yield* reconcileDownloadByIdEffect(id);
+    yield* publishDownloadProgress();
+  });
 
-  const syncDownloads = () =>
-    Effect.fn("OperationsService.syncDownloads")(function* () {
+  const syncDownloads = Effect.fn("OperationsService.syncDownloads")(
+    function* () {
       yield* syncDownloadState("downloads.manual_sync");
       yield* publishDownloadProgress();
-    })();
+    },
+  );
 
-  const listRssFeeds = () =>
-    Effect.fn("OperationsService.listRssFeeds")(function* () {
+  const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(
+    function* () {
       const rows = yield* tryDatabasePromise(
         "Failed to list RSS feeds",
         () => db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),
       );
       return rows.map(toRssFeed) as RssFeed[];
-    })();
+    },
+  );
 
-  const listAnimeRssFeeds = (animeId: number) =>
-    Effect.fn("OperationsService.listAnimeRssFeeds")(function* () {
-      const rows = yield* tryDatabasePromise(
-        "Failed to list anime RSS feeds",
-        () => db.select().from(rssFeeds).where(eq(rssFeeds.animeId, animeId)),
+  const listAnimeRssFeeds = Effect.fn(
+    "OperationsService.listAnimeRssFeeds",
+  )(function* (animeId: number) {
+    const rows = yield* tryDatabasePromise(
+      "Failed to list anime RSS feeds",
+      () => db.select().from(rssFeeds).where(eq(rssFeeds.animeId, animeId)),
+    );
+    return rows.map(toRssFeed) as RssFeed[];
+  });
+
+  const addRssFeed = Effect.fn("OperationsService.addRssFeed")(
+    function* (input: { anime_id: number; url: string; name?: string }) {
+      yield* tryOperationsPromise(
+        "Failed to add RSS feed",
+        () => requireAnime(db, input.anime_id),
       );
-      return rows.map(toRssFeed) as RssFeed[];
-    })();
-
-  const addRssFeed = (
-    input: { anime_id: number; url: string; name?: string },
-  ) =>
-    Effect.fn("OperationsService.addRssFeed")(function* () {
-      yield* tryOperationsPromise("Failed to add RSS feed", () =>
-        requireAnime(db, input.anime_id));
-      const [row] = yield* tryOperationsPromise("Failed to add RSS feed", () =>
-        db.insert(rssFeeds).values({
-          animeId: input.anime_id,
-          createdAt: nowIso(),
-          enabled: true,
-          lastChecked: null,
-          name: input.name ?? null,
-          url: input.url,
-        }).returning());
+      const [row] = yield* tryOperationsPromise(
+        "Failed to add RSS feed",
+        () =>
+          db.insert(rssFeeds).values({
+            animeId: input.anime_id,
+            createdAt: nowIso(),
+            enabled: true,
+            lastChecked: null,
+            name: input.name ?? null,
+            url: input.url,
+          }).returning(),
+      );
       yield* tryDatabasePromise("Failed to add RSS feed", () =>
         appendLog(
           db,
@@ -340,26 +375,29 @@ export function makeCatalogOrchestration(input: {
           `RSS feed added for anime ${input.anime_id}`,
         ));
       return toRssFeed(row);
-    })();
+    },
+  );
 
-  const deleteRssFeed = (id: number) =>
-    Effect.fn("OperationsService.deleteRssFeed")(function* () {
+  const deleteRssFeed = Effect.fn("OperationsService.deleteRssFeed")(
+    function* (id: number) {
       yield* tryDatabasePromise(
         "Failed to delete RSS feed",
         () => db.delete(rssFeeds).where(eq(rssFeeds.id, id)),
       );
-    })();
+    },
+  );
 
-  const toggleRssFeed = (id: number, enabled: boolean) =>
-    Effect.fn("OperationsService.toggleRssFeed")(function* () {
+  const toggleRssFeed = Effect.fn("OperationsService.toggleRssFeed")(
+    function* (id: number, enabled: boolean) {
       yield* tryDatabasePromise(
         "Failed to toggle RSS feed",
         () => db.update(rssFeeds).set({ enabled }).where(eq(rssFeeds.id, id)),
       );
-    })();
+    },
+  );
 
-  const getWantedMissing = (limit: number) =>
-    Effect.fn("OperationsService.getWantedMissing")(function* () {
+  const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(
+    function* (limit: number) {
       const rows = yield* tryDatabasePromise(
         "Failed to load wanted episodes",
         () =>
@@ -384,10 +422,11 @@ export function makeCatalogOrchestration(input: {
         episode_number: row.episodeNumber,
         episode_title: row.title ?? undefined,
       })) as MissingEpisode[];
-    })();
+    },
+  );
 
-  const getCalendar = (start: string, end: string) =>
-    Effect.fn("OperationsService.getCalendar")(function* () {
+  const getCalendar = Effect.fn("OperationsService.getCalendar")(
+    function* (start: string, end: string) {
       const rows = yield* tryDatabasePromise(
         "Failed to load calendar events",
         () =>
@@ -416,15 +455,17 @@ export function makeCatalogOrchestration(input: {
         start: episodeRow.aired ?? new Date().toISOString(),
         title: `${animeRow.titleRomaji} - Episode ${episodeRow.number}`,
       })) as CalendarEvent[];
-    })();
+    },
+  );
 
-  const getRenamePreview = (animeId: number) =>
-    Effect.fn("OperationsService.getRenamePreview")(function* () {
+  const getRenamePreview = Effect.fn("OperationsService.getRenamePreview")(
+    function* (animeId: number) {
       return yield* tryOperationsPromise(
         "Failed to build rename preview",
         () => buildRenamePreview(db, animeId),
       );
-    })();
+    },
+  );
 
   const pauseDownload = (id: number) => applyDownloadActionEffect(id, "pause");
   const resumeDownload = (id: number) =>
@@ -432,13 +473,13 @@ export function makeCatalogOrchestration(input: {
   const removeDownload = (id: number, deleteFiles: boolean) =>
     applyDownloadActionEffect(id, "delete", deleteFiles);
 
-  const listDownloadEvents = (input: {
-    animeId?: number;
-    downloadId?: number;
-    eventType?: string;
-    limit?: number;
-  } = {}) =>
-    Effect.fn("OperationsService.listDownloadEvents")(function* () {
+  const listDownloadEvents = Effect.fn("OperationsService.listDownloadEvents")(
+    function* (input: {
+      animeId?: number;
+      downloadId?: number;
+      eventType?: string;
+      limit?: number;
+    } = {}) {
       const limit = Math.max(1, Math.min(input.limit ?? 100, 1000));
       const conditions = [
         input.animeId ? eq(downloadEvents.animeId, input.animeId) : undefined,
@@ -459,10 +500,11 @@ export function makeCatalogOrchestration(input: {
         () => conditions.length > 0 ? query.where(and(...conditions)) : query,
       );
       return rows.map(toDownloadEvent) as DownloadEvent[];
-    })();
+    },
+  );
 
-  const listDownloadQueue = () =>
-    Effect.fn("OperationsService.listDownloadQueue")(function* () {
+  const listDownloadQueue = Effect.fn("OperationsService.listDownloadQueue")(
+    function* () {
       yield* syncDownloadState("downloads.queue");
       const rows = yield* tryDatabasePromise(
         "Failed to list download queue",
@@ -472,20 +514,26 @@ export function makeCatalogOrchestration(input: {
           ).orderBy(desc(downloads.id)),
       );
       return rows.map(toDownload) as Download[];
-    })();
+    },
+  );
 
-  const listDownloadHistory = () =>
-    Effect.fn("OperationsService.listDownloadHistory")(function* () {
+  const listDownloadHistory = Effect.fn(
+    "OperationsService.listDownloadHistory",
+  )(
+    function* () {
       yield* syncDownloadState("downloads.history");
       const rows = yield* tryDatabasePromise(
         "Failed to list download history",
         () => db.select().from(downloads).orderBy(desc(downloads.id)),
       );
       return rows.map(toDownload) as Download[];
-    })();
+    },
+  );
 
-  const getDownloadProgress = () =>
-    Effect.fn("OperationsService.getDownloadProgress")(function* () {
+  const getDownloadProgress = Effect.fn(
+    "OperationsService.getDownloadProgress",
+  )(
+    function* () {
       yield* syncDownloadState("downloads.progress");
       const rows = yield* tryDatabasePromise(
         "Failed to build download progress snapshot",
@@ -497,16 +545,17 @@ export function makeCatalogOrchestration(input: {
       return rows.map((row) =>
         toDownloadStatus(row, () => randomHex(20))
       ) as DownloadStatus[];
-    })();
+    },
+  );
 
-  const runLibraryScan = () =>
-    Effect.fn("OperationsService.runLibraryScan")(function* () {
+  const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(
+    function* () {
       yield* tryDatabasePromise(
         "Failed to run library scan",
         () => markJobStarted(db, "library_scan"),
       );
 
-      try {
+      return yield* Effect.gen(function* () {
         const animeRows = yield* tryDatabasePromise(
           "Failed to run library scan",
           () => db.select().from(anime),
@@ -562,14 +611,20 @@ export function makeCatalogOrchestration(input: {
         });
 
         return { matched, scanned };
-      } catch (cause) {
-        yield* tryDatabasePromise(
-          "Failed to run library scan",
-          () => markJobFailed(db, "library_scan", cause),
-        );
-        return yield* Effect.fail(dbError("Failed to run library scan")(cause));
-      }
-    })();
+      }).pipe(
+        Effect.catchAll((cause) =>
+          tryDatabasePromise(
+            "Failed to run library scan",
+            () => markJobFailed(db, "library_scan", cause),
+          ).pipe(
+            Effect.zipRight(
+              Effect.fail(dbError("Failed to run library scan")(cause)),
+            ),
+          )
+        ),
+      );
+    },
+  );
 
   return {
     addRssFeed,

@@ -37,7 +37,7 @@ export const EventBusLive = Layer.effect(
 
           for (const queue of queues) {
             yield* Queue.offer(queue, event).pipe(
-              Effect.catchAll(() =>
+              Effect.catchAllCause(() =>
                 Ref.update(subscribers, (current) => {
                   const next = new Set(current);
                   next.delete(queue);

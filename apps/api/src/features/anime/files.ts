@@ -2,11 +2,11 @@ import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import { Effect } from "effect";
 
-export function collectVideoFiles(
-  fs: FileSystemShape,
-  rootFolder: string,
-) {
-  return Effect.fn("AnimeService.collectVideoFiles")(function* () {
+export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
+  function* (
+    fs: FileSystemShape,
+    rootFolder: string,
+  ) {
     const entries: VideoFile[] = [];
     const stack = [rootFolder];
 
@@ -47,8 +47,8 @@ export function collectVideoFiles(
     }
 
     return entries.sort((left, right) => left.name.localeCompare(right.name));
-  })();
-}
+  },
+);
 
 export function parseEpisodeNumber(path: string) {
   const filename = path.split("/").pop() ?? path;
