@@ -1,11 +1,6 @@
-import { Context, Effect, Layer, Option, Schema } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { tryExternal } from "../../lib/effect-retry.ts";
-
-class RssClientError extends Schema.TaggedError<RssClientError>()(
-  "RssClientError",
-  { cause: Schema.Defect, message: Schema.String },
-) {}
 
 export interface ParsedRelease {
   readonly group?: string;
@@ -36,32 +31,35 @@ export class RssClient extends Context.Tag("@bakarr/api/RssClient")<
 >() {}
 
 const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
-  const parsedUrl = yield* Effect.try({
-    try: () => new URL(url),
-    catch: (cause) => new RssClientError({ cause, message: "Invalid RSS URL" }),
-  }).pipe(Effect.option);
+  const parsedUrl = yield* Effect.sync(() => {
+    try {
+      return new URL(url);
+    } catch {
+      return null;
+    }
+  });
 
-  if (Option.isNone(parsedUrl)) {
+  if (!parsedUrl) {
     return [];
   }
 
   if (
-    parsedUrl.value.protocol !== "http:" &&
-    parsedUrl.value.protocol !== "https:" &&
-    parsedUrl.value.protocol !== "data:"
+    parsedUrl.protocol !== "http:" &&
+    parsedUrl.protocol !== "https:" &&
+    parsedUrl.protocol !== "data:"
   ) {
     return [];
   }
 
-  if (parsedUrl.value.protocol !== "data:") {
+  if (parsedUrl.protocol !== "data:") {
     if (
-      parsedUrl.value.port && parsedUrl.value.port !== "80" &&
-      parsedUrl.value.port !== "443"
+      parsedUrl.port && parsedUrl.port !== "80" &&
+      parsedUrl.port !== "443"
     ) {
       return [];
     }
 
-    const hostname = parsedUrl.value.hostname.toLowerCase();
+    const hostname = parsedUrl.hostname.toLowerCase();
     if (
       hostname === "localhost" ||
       hostname === "127.0.0.1" ||
@@ -86,14 +84,9 @@ const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
     return [];
   }
 
-  const text = yield* Effect.tryPromise({
-    try: () => response.text(),
-    catch: (cause) =>
-      new RssClientError({
-        cause,
-        message: "Failed to read RSS response body",
-      }),
-  }).pipe(Effect.catchAll(() => Effect.succeed("")));
+  const text = yield* Effect.promise(() => response.text()).pipe(
+    Effect.catchAllCause(() => Effect.succeed("")),
+  );
 
   if (text.length === 0) {
     return [];
