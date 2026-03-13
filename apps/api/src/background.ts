@@ -1,4 +1,4 @@
-import { Effect, Fiber, Schedule } from "effect";
+import { Context, Effect, Fiber, Layer, Schedule } from "effect";
 
 import type {
   Config,
@@ -17,49 +17,51 @@ import {
   RssService,
 } from "./features/operations/service.ts";
 import { SystemService } from "./features/system/service.ts";
-import { type ApiRuntime, runApi } from "./runtime.ts";
 
-export interface BackgroundWorkers {
-  readonly stop: () => void;
+export interface BackgroundWorkerHandle {
+  readonly stop: Effect.Effect<void>;
 }
 
-export async function startBackgroundWorkers(
-  runtime: ApiRuntime,
-): Promise<BackgroundWorkers> {
-  const fibers = await runApi(
-    runtime,
-    Effect.gen(function* () {
-      const config = (yield* SystemService.pipe(Effect.flatMap((s) =>
-        s.getConfig()
-      ))) as Config;
+export interface BackgroundWorkerServiceShape {
+  readonly start: () => Effect.Effect<BackgroundWorkerHandle, unknown>;
+}
+
+export class BackgroundWorkerService
+  extends Context.Tag("@bakarr/api/BackgroundWorkerService")<
+    BackgroundWorkerService,
+    BackgroundWorkerServiceShape
+  >() {}
+
+const makeBackgroundWorkerService = Effect.gen(function* () {
+  const system = yield* SystemService;
+  const eventBus = yield* EventBus;
+  const downloadService = yield* DownloadService;
+  const libraryService = yield* LibraryService;
+  const rssService = yield* RssService;
+
+  const start = Effect.fn("BackgroundWorkerService.start")(function* () {
+      const config = (yield* system.getConfig()) as Config;
       const schedule = buildBackgroundSchedule(config);
 
       const rssLoop = yield* withLockEffect(
         "rss",
         Effect.gen(function* () {
-          yield* RssService.pipe(Effect.flatMap((s) =>
-            s.runRssCheck()
-          ));
-          yield* DownloadService.pipe(
-            Effect.flatMap((s) => s.triggerSearchMissing()),
-          );
+          yield* rssService.runRssCheck();
+          yield* downloadService.triggerSearchMissing();
         }),
       );
 
       const libraryLoop = yield* withLockEffect(
         "library_scan",
-        LibraryService.pipe(Effect.flatMap((s) => s.runLibraryScan())),
+        libraryService.runLibraryScan(),
       );
 
       const downloadSyncLoop = yield* withLockEffect(
         "download_sync",
         Effect.gen(function* () {
-          const downloads: DownloadStatus[] = yield* DownloadService.pipe(
-            Effect.flatMap((s) => s.getDownloadProgress()),
-          );
-          yield* EventBus.pipe(Effect.flatMap((bus) =>
-            bus.publish({ type: "DownloadProgress", payload: { downloads } })
-          ));
+          const downloads: DownloadStatus[] = yield* downloadService
+            .getDownloadProgress();
+          yield* eventBus.publish({ type: "DownloadProgress", payload: { downloads } });
         }),
       );
 
@@ -94,17 +96,20 @@ export async function startBackgroundWorkers(
         );
       }
 
-      return spawnedFibers;
-    }),
-  );
+      return {
+        stop: Fiber.interruptAll(spawnedFibers).pipe(Effect.asVoid),
+      } satisfies BackgroundWorkerHandle;
+    });
 
   return {
-    stop: () => {
-      void runApi(runtime, Fiber.interruptAll(fibers).pipe(Effect.asVoid))
-        .catch(() => undefined);
-    },
-  };
-}
+    start,
+  } satisfies BackgroundWorkerServiceShape;
+});
+
+export const BackgroundWorkerServiceLive = Layer.effect(
+  BackgroundWorkerService,
+  makeBackgroundWorkerService,
+);
 
 function withLockEffect<A, E, R>(
   workerName: string,
@@ -149,13 +154,7 @@ function withLockEffect<A, E, R>(
 }
 
 function repeatWorker(
-  task:
-    | Effect.Effect<void, never, never>
-    | Effect.Effect<
-      void,
-      never,
-      EventBus | DownloadService | LibraryService | RssService
-    >,
+  task: Effect.Effect<void, never>,
   options: {
     readonly cronExpression?: string | null;
     readonly initialDelayMs?: number;

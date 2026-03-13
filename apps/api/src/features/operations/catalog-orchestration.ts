@@ -42,20 +42,14 @@ import {
   toRssFeed,
 } from "./repository.ts";
 import { type OperationsError } from "./errors.ts";
+import type {
+  TryDatabasePromise,
+  TryOperationsPromise,
+} from "./service-support.ts";
 import {
   type FileSystemShape,
   isWithinPathRoot,
 } from "../../lib/filesystem.ts";
-
-type TryDatabasePromise = <A>(
-  message: string,
-  try_: () => Promise<A>,
-) => Effect.Effect<A, DatabaseError>;
-
-type TryOperationsPromise = <A>(
-  message: string,
-  try_: () => Promise<A>,
-) => Effect.Effect<A, OperationsError | DatabaseError>;
 
 export function makeCatalogOrchestration(input: {
   db: AppDatabase;

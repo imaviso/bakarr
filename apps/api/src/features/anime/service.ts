@@ -5,14 +5,9 @@ import type {
   Anime,
   AnimeSearchResult,
   Episode,
-  NotificationEvent,
   VideoFile,
 } from "../../../../../packages/shared/src/index.ts";
-import {
-  type AppDatabase,
-  Database,
-  DatabaseError,
-} from "../../db/database.ts";
+import { Database, DatabaseError } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { AniListClient } from "./anilist.ts";
@@ -36,6 +31,11 @@ import {
   resolveAnimeRootFolder,
   upsertEpisode,
 } from "./repository.ts";
+import {
+  tryAnimePromise,
+  tryDatabasePromise,
+  updateAnimeRow,
+} from "./service-support.ts";
 
 export interface AddAnimeInput {
   readonly id: number;
@@ -607,60 +607,3 @@ const makeAnimeService = Effect.gen(function* () {
 });
 
 export const AnimeServiceLive = Layer.effect(AnimeService, makeAnimeService);
-
-function wrapAnimeError(message: string) {
-  return (cause: unknown) => {
-    if (
-      cause instanceof AnimeNotFoundError ||
-      cause instanceof AnimeConflictError ||
-      cause instanceof DatabaseError
-    ) {
-      return cause;
-    }
-    return new DatabaseError({ cause, message });
-  };
-}
-
-function tryDatabasePromise<A>(
-  message: string,
-  try_: () => Promise<A>,
-): Effect.Effect<A, DatabaseError> {
-  return Effect.tryPromise({
-    try: try_,
-    catch: (cause) => new DatabaseError({ cause, message }),
-  });
-}
-
-function tryAnimePromise<A>(
-  message: string,
-  try_: () => Promise<A>,
-): Effect.Effect<A, AnimeServiceError | DatabaseError> {
-  return Effect.tryPromise({
-    try: try_,
-    catch: wrapAnimeError(message),
-  });
-}
-
-const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(
-  function* (
-    db: AppDatabase,
-    animeId: number,
-    patch: Partial<typeof anime.$inferInsert>,
-    message: string,
-    eventBus: { publish: (event: NotificationEvent) => Effect.Effect<void> },
-  ) {
-    yield* tryAnimePromise(
-      "Failed to update anime",
-      () => requireAnimeExists(db, animeId),
-    );
-    yield* tryAnimePromise(
-      "Failed to update anime",
-      () => db.update(anime).set(patch).where(eq(anime.id, animeId)),
-    );
-    yield* tryDatabasePromise(
-      "Failed to update anime",
-      () => appendAnimeLog(db, "anime.updated", "success", message),
-    );
-    yield* eventBus.publish({ type: "Info", payload: { message } });
-  },
-);

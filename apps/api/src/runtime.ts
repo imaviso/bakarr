@@ -1,6 +1,7 @@
 import { Effect, Layer, ManagedRuntime } from "effect";
 
 import { AppRuntime } from "./app-runtime.ts";
+import { BackgroundWorkerServiceLive } from "./background.ts";
 import { AppConfig, type AppConfigShape } from "./config.ts";
 import { DatabaseLive } from "./db/database.ts";
 import { AniListClientLive } from "./features/anime/anilist.ts";
@@ -36,8 +37,11 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
     OperationsServiceLive,
     SystemServiceLive,
   ).pipe(Layer.provide(platformLayer));
+  const backgroundLayer = BackgroundWorkerServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(platformLayer, servicesLayer)),
+  );
 
-  return Layer.mergeAll(platformLayer, servicesLayer);
+  return Layer.mergeAll(platformLayer, servicesLayer, backgroundLayer);
 }
 
 export function makeApiRuntime(overrides: Partial<AppConfigShape> = {}) {
