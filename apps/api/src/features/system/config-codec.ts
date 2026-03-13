@@ -7,92 +7,14 @@ import type {
   ReleaseProfileRule,
 } from "../../../../../packages/shared/src/index.ts";
 import { qualityProfiles, releaseProfiles } from "../../db/schema.ts";
+import {
+  ConfigCoreSchema,
+  NumberListSchema,
+  ReleaseProfileRulesSchema,
+  StringListSchema,
+} from "./config-schema.ts";
 
 export type ConfigCore = Omit<Config, "profiles">;
-
-const StringListSchema = Schema.Array(Schema.String);
-const NumberListSchema = Schema.Array(Schema.Number.pipe(Schema.int()));
-
-const ReleaseProfileRuleSchema = Schema.Struct({
-  rule_type: Schema.Literal("preferred", "must", "must_not"),
-  score: Schema.Number,
-  term: Schema.String,
-});
-
-const ReleaseProfileRulesSchema = Schema.Array(ReleaseProfileRuleSchema);
-
-const ConfigCoreSchema = Schema.Struct({
-  downloads: Schema.Struct({
-    create_anime_folders: Schema.Boolean,
-    delete_download_files_after_import: Schema.optional(Schema.Boolean),
-    max_size_gb: Schema.Number,
-    prefer_dual_audio: Schema.Boolean,
-    preferred_codec: Schema.optional(Schema.NullOr(Schema.String)),
-    preferred_groups: StringListSchema,
-    reconcile_completed_downloads: Schema.optional(Schema.Boolean),
-    remote_path_mappings: Schema.Array(StringListSchema),
-    remove_torrent_on_import: Schema.optional(Schema.Boolean),
-    root_path: Schema.String,
-    use_seadex: Schema.Boolean,
-  }),
-  general: Schema.Struct({
-    database_path: Schema.String,
-    images_path: Schema.String,
-    log_level: Schema.String,
-    max_db_connections: Schema.Number,
-    min_db_connections: Schema.Number,
-    suppress_connection_errors: Schema.Boolean,
-    worker_threads: Schema.Number,
-  }),
-  library: Schema.Struct({
-    auto_scan_interval_hours: Schema.Number,
-    import_mode: Schema.String,
-    library_path: Schema.String,
-    movie_naming_format: Schema.String,
-    naming_format: Schema.String,
-    preferred_title: Schema.String,
-    recycle_cleanup_days: Schema.Number,
-    recycle_path: Schema.String,
-  }),
-  nyaa: Schema.Struct({
-    base_url: Schema.String,
-    default_category: Schema.String,
-    filter_remakes: Schema.Boolean,
-    min_seeders: Schema.Number,
-    preferred_resolution: Schema.optional(Schema.NullOr(Schema.String)),
-  }),
-  qbittorrent: Schema.Struct({
-    default_category: Schema.String,
-    enabled: Schema.Boolean,
-    password: Schema.optional(Schema.NullOr(Schema.String)),
-    url: Schema.String,
-    username: Schema.String,
-  }),
-  scheduler: Schema.Struct({
-    check_delay_seconds: Schema.Number,
-    check_interval_minutes: Schema.Number,
-    cron_expression: Schema.optional(Schema.NullOr(Schema.String)),
-    enabled: Schema.Boolean,
-    max_concurrent_checks: Schema.Number,
-    metadata_refresh_hours: Schema.Number,
-  }),
-  security: Schema.Struct({
-    argon2_memory_cost_kib: Schema.Number,
-    argon2_parallelism: Schema.Number,
-    argon2_time_cost: Schema.Number,
-    auth_throttle: Schema.Struct({
-      lockout_seconds: Schema.Number,
-      login_base_delay_ms: Schema.Number,
-      login_max_delay_ms: Schema.Number,
-      max_attempts: Schema.Number,
-      password_base_delay_ms: Schema.Number,
-      password_max_delay_ms: Schema.Number,
-      trusted_proxy_ips: StringListSchema,
-      window_seconds: Schema.Number,
-    }),
-    auto_migrate_password_hashes: Schema.Boolean,
-  }),
-});
 
 const StringListJsonSchema = Schema.parseJson(StringListSchema);
 const NumberListJsonSchema = Schema.parseJson(NumberListSchema);

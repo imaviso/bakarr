@@ -1,5 +1,14 @@
 import { Schema } from "effect";
 
+export {
+  ConfigSchema,
+  CreateReleaseProfileSchema,
+  QualityProfileSchema,
+  ReleaseProfileSchema,
+  ReleaseProfileRuleSchema,
+  UpdateReleaseProfileSchema,
+} from "../features/system/config-schema.ts";
+
 type SearchDownloadBody = {
   anime_id: number;
   episode_number: number;
@@ -27,9 +36,7 @@ const PositiveIntFromString = Schema.NumberFromString.pipe(
   Schema.greaterThan(0),
 );
 
-const StringArray = Schema.Array(Schema.String);
 const NumberArray = Schema.Array(Schema.Number);
-const RemotePathMappings = Schema.Array(Schema.Array(Schema.String));
 
 export const LoginRequestSchema = Schema.Struct({
   password: Schema.String,
@@ -43,118 +50,6 @@ export const ApiKeyLoginRequestSchema = Schema.Struct({
 export const ChangePasswordRequestSchema = Schema.Struct({
   current_password: Schema.String,
   new_password: Schema.String,
-});
-
-export const QualityProfileSchema = Schema.Struct({
-  allowed_qualities: StringArray,
-  cutoff: Schema.String,
-  max_size: Schema.optional(Schema.NullOr(Schema.String)),
-  min_size: Schema.optional(Schema.NullOr(Schema.String)),
-  name: Schema.String,
-  seadex_preferred: Schema.Boolean,
-  upgrade_allowed: Schema.Boolean,
-});
-
-export const ReleaseProfileRuleSchema = Schema.Struct({
-  rule_type: Schema.Literal("preferred", "must", "must_not"),
-  score: Schema.Number,
-  term: Schema.String,
-});
-
-export const ReleaseProfileSchema = Schema.Struct({
-  enabled: Schema.Boolean,
-  id: Schema.Number,
-  is_global: Schema.Boolean,
-  name: Schema.String,
-  rules: Schema.Array(ReleaseProfileRuleSchema),
-});
-
-export const CreateReleaseProfileSchema = Schema.Struct({
-  enabled: Schema.optional(Schema.Boolean),
-  is_global: Schema.Boolean,
-  name: Schema.String,
-  rules: Schema.Array(ReleaseProfileRuleSchema),
-});
-
-export const UpdateReleaseProfileSchema = Schema.Struct({
-  enabled: Schema.Boolean,
-  is_global: Schema.Boolean,
-  name: Schema.String,
-  rules: Schema.Array(ReleaseProfileRuleSchema),
-});
-
-export const ConfigSchema = Schema.Struct({
-  downloads: Schema.Struct({
-    create_anime_folders: Schema.Boolean,
-    delete_download_files_after_import: Schema.optional(Schema.Boolean),
-    max_size_gb: Schema.Number,
-    prefer_dual_audio: Schema.Boolean,
-    preferred_codec: Schema.optional(Schema.NullOr(Schema.String)),
-    preferred_groups: StringArray,
-    reconcile_completed_downloads: Schema.optional(Schema.Boolean),
-    remote_path_mappings: RemotePathMappings,
-    remove_torrent_on_import: Schema.optional(Schema.Boolean),
-    root_path: Schema.String,
-    use_seadex: Schema.Boolean,
-  }),
-  general: Schema.Struct({
-    database_path: Schema.String,
-    images_path: Schema.String,
-    log_level: Schema.String,
-    max_db_connections: Schema.Number,
-    min_db_connections: Schema.Number,
-    suppress_connection_errors: Schema.Boolean,
-    worker_threads: Schema.Number,
-  }),
-  library: Schema.Struct({
-    auto_scan_interval_hours: Schema.Number,
-    import_mode: Schema.String,
-    library_path: Schema.String,
-    movie_naming_format: Schema.String,
-    naming_format: Schema.String,
-    preferred_title: Schema.String,
-    recycle_cleanup_days: Schema.Number,
-    recycle_path: Schema.String,
-  }),
-  nyaa: Schema.Struct({
-    base_url: Schema.String,
-    default_category: Schema.String,
-    filter_remakes: Schema.Boolean,
-    min_seeders: Schema.Number,
-    preferred_resolution: Schema.optional(Schema.NullOr(Schema.String)),
-  }),
-  profiles: Schema.Array(QualityProfileSchema),
-  qbittorrent: Schema.Struct({
-    default_category: Schema.String,
-    enabled: Schema.Boolean,
-    password: Schema.optional(Schema.NullOr(Schema.String)),
-    url: Schema.String,
-    username: Schema.String,
-  }),
-  scheduler: Schema.Struct({
-    check_delay_seconds: Schema.Number,
-    check_interval_minutes: Schema.Number,
-    cron_expression: Schema.optional(Schema.NullOr(Schema.String)),
-    enabled: Schema.Boolean,
-    max_concurrent_checks: Schema.Number,
-    metadata_refresh_hours: Schema.Number,
-  }),
-  security: Schema.Struct({
-    argon2_memory_cost_kib: Schema.Number,
-    argon2_parallelism: Schema.Number,
-    argon2_time_cost: Schema.Number,
-    auth_throttle: Schema.Struct({
-      lockout_seconds: Schema.Number,
-      login_base_delay_ms: Schema.Number,
-      login_max_delay_ms: Schema.Number,
-      max_attempts: Schema.Number,
-      password_base_delay_ms: Schema.Number,
-      password_max_delay_ms: Schema.Number,
-      trusted_proxy_ips: StringArray,
-      window_seconds: Schema.Number,
-    }),
-    auto_migrate_password_hashes: Schema.Boolean,
-  }),
 });
 
 export const AddAnimeInputSchema = Schema.Struct({

@@ -343,6 +343,19 @@ Acceptance criteria:
 - runtime errors from validation are clearer and more localized
 - repeated inline schema fragments are consolidated
 
+Progress notes:
+
+- canonical config and release-profile schemas now live in
+  `apps/api/src/features/system/config-schema.ts`
+- `apps/api/src/features/system/config-codec.ts` and
+  `apps/api/src/http/request-schemas.ts` now reuse the same system config
+  schema modules instead of maintaining duplicated inline structs
+- system config validation now enforces structured remote path mappings and
+  constrained `library.import_mode` / `library.preferred_title` values
+- request parsing in `apps/api/src/http/route-helpers.ts` now includes Effect
+  schema parse details in validation responses, which makes bad body/query/param
+  failures more localized during API usage and tests
+
 ### 5. Improve Concurrency, Scheduling, and Backpressure
 
 Why:

@@ -298,9 +298,12 @@ export function parseJsonBody<A, I>(
   }).pipe(
     Effect.flatMap((json) =>
       Schema.decodeUnknown(schema)(json).pipe(
-        Effect.mapError(() =>
+        Effect.mapError((error) =>
           RequestValidationError.make({
-            message: `Invalid request body for ${label}`,
+            message: formatValidationErrorMessage(
+              `Invalid request body for ${label}`,
+              error,
+            ),
             status: 400,
           })
         ),
@@ -319,9 +322,12 @@ export function parseOptionalJsonBody<A, I>(
     catch: () => ({}),
   }).pipe(
     Effect.flatMap(Schema.decodeUnknown(schema)),
-    Effect.mapError(() =>
+    Effect.mapError((error) =>
       RequestValidationError.make({
-        message: `Invalid request body for ${label}`,
+        message: formatValidationErrorMessage(
+          `Invalid request body for ${label}`,
+          error,
+        ),
         status: 400,
       })
     ),
@@ -469,13 +475,26 @@ function decodeUnknownInput<A, I>(
   message: string,
 ): Effect.Effect<A, RequestValidationError> {
   return Schema.decodeUnknown(schema)(input).pipe(
-    Effect.mapError(() =>
+    Effect.mapError((error) =>
       RequestValidationError.make({
-        message,
+        message: formatValidationErrorMessage(message, error),
         status: 400,
       })
     ),
   );
+}
+
+function formatValidationErrorMessage(message: string, error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return `${message}: ${error.message}`;
+  }
+
+  return message;
 }
 
 function isAuthUser(value: unknown): value is AuthUser {
