@@ -8,7 +8,7 @@ import {
   IconSearch,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import { GeneralError } from "~/components/general-error";
 import { Button } from "~/components/ui/button";
 import {
@@ -29,6 +29,7 @@ import {
   type UnmappedFolder,
   unmappedFoldersQueryOptions,
 } from "~/lib/api";
+import { createDebouncer } from "~/lib/debounce";
 import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout/anime/scan")({
@@ -292,13 +293,14 @@ function ManualMatchSearch(props: {
 }) {
   const [query, setQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
+  const debouncer = createDebouncer(setDebouncedQuery, 500);
 
   createEffect(() => {
-    const timeout = setTimeout(() => setDebouncedQuery(query()), 500);
-    return () => clearTimeout(timeout);
+    debouncer.schedule(query());
+    onCleanup(() => debouncer.cancel());
   });
 
-  const search = createAnimeSearchQuery(debouncedQuery);
+  const search = createAnimeSearchQuery(() => debouncedQuery());
 
   return (
     <div class="space-y-4">

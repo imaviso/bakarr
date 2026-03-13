@@ -65,6 +65,7 @@ import {
   type ImportFileRequest,
   type ScannedFile,
 } from "~/lib/api";
+import { createDebouncer } from "~/lib/debounce";
 import { cn } from "~/lib/utils";
 
 interface ImportDialogProps {
@@ -868,12 +869,14 @@ function ManualSearch(props: {
 }) {
   const [query, setQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
+  const debouncer = createDebouncer(setDebouncedQuery, 500);
+
   createEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query()), 500);
-    onCleanup(() => clearTimeout(t));
+    debouncer.schedule(query());
+    onCleanup(() => debouncer.cancel());
   });
 
-  const search = createAnimeSearchQuery(debouncedQuery);
+  const search = createAnimeSearchQuery(() => debouncedQuery());
 
   return (
     <div class="space-y-4">

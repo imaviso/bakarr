@@ -4,22 +4,24 @@ import {
   IconPlus,
   IconSearch,
 } from "@tabler/icons-solidjs";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
 import { createAnimeSearchQuery } from "~/lib/api";
+import { createDebouncer } from "~/lib/debounce";
 import { cn } from "~/lib/utils";
 import type { ManualSearchProps } from "./types";
 
 export function ManualSearch(props: ManualSearchProps) {
   const [query, setQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
+  const debouncer = createDebouncer(setDebouncedQuery, 500);
 
   createEffect(() => {
-    const timeout = setTimeout(() => setDebouncedQuery(query()), 500);
-    return () => clearTimeout(timeout);
+    debouncer.schedule(query());
+    onCleanup(() => debouncer.cancel());
   });
 
-  const search = createAnimeSearchQuery(debouncedQuery);
+  const search = createAnimeSearchQuery(() => debouncedQuery());
 
   return (
     <div class="space-y-4">
