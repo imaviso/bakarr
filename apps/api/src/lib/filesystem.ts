@@ -99,3 +99,10 @@ function normalizePathForContainment(path: string) {
 
   return normalized.replace(/\/+$/, "");
 }
+
+export function sanitizeFilename(name: string) {
+  return name.replace(/[\\/]/g, " ").replace(/[:*?"<>|]/g, "").replace(
+    /\s+/g,
+    " ",
+  ).trim();
+}

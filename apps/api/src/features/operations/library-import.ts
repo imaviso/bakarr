@@ -24,7 +24,7 @@ export async function buildRenamePreview(
     const extension = row.filePath!.includes(".")
       ? row.filePath!.slice(row.filePath!.lastIndexOf("."))
       : ".mkv";
-    const filename = `${animeRow.titleRomaji} - ${
+    const filename = `${sanitizeFilename(animeRow.titleRomaji)} - ${
       String(row.number).padStart(2, "0")
     }${extension}`;
     return {
@@ -37,7 +37,10 @@ export async function buildRenamePreview(
 }
 
 import { Effect } from "effect";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+import {
+  type FileSystemShape,
+  sanitizeFilename,
+} from "../../lib/filesystem.ts";
 
 export async function copyDirectoryContents(
   fs: FileSystemShape,

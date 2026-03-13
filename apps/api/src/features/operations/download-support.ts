@@ -4,7 +4,10 @@ import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import { anime } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+import {
+  type FileSystemShape,
+  sanitizeFilename,
+} from "../../lib/filesystem.ts";
 import { Effect } from "effect";
 
 export function shouldReconcileCompletedDownloads(config: Config | null) {
@@ -36,11 +39,9 @@ export async function importDownloadedFile(
   const extension = sourcePath.includes(".")
     ? sourcePath.slice(sourcePath.lastIndexOf("."))
     : ".mkv";
-  const destination = `${
-    animeRow.rootFolder.replace(/\/$/, "")
-  }/${animeRow.titleRomaji} - ${
-    String(episodeNumber).padStart(2, "0")
-  }${extension}`;
+  const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${
+    sanitizeFilename(animeRow.titleRomaji)
+  } - ${String(episodeNumber).padStart(2, "0")}${extension}`;
 
   await Effect.runPromise(fs.mkdir(animeRow.rootFolder, { recursive: true }));
 

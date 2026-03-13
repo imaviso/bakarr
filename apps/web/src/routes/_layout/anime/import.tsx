@@ -157,7 +157,7 @@ function ImportPage() {
     );
   };
 
-  const handleImport = async () => {
+  const handleImport = () => {
     const files = Array.from(selectedFiles().values());
 
     const missingCandidates = findMissingImportCandidates({
@@ -753,7 +753,7 @@ function ImportPage() {
         {(candidate) => (
           <AddAnimeDialog
             anime={candidate()}
-            open={true}
+            open
             onOpenChange={(nextOpen) => {
               if (!nextOpen) {
                 closeAddCandidateDialog();

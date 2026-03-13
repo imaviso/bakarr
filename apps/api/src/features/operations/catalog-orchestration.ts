@@ -45,7 +45,10 @@ import type {
   TryDatabasePromise,
   TryOperationsPromise,
 } from "./service-support.ts";
-import { type FileSystemShape } from "../../lib/filesystem.ts";
+import {
+  type FileSystemShape,
+  sanitizeFilename,
+} from "../../lib/filesystem.ts";
 
 export function makeCatalogOrchestration(input: {
   db: AppDatabase;
@@ -175,11 +178,9 @@ export function makeCatalogOrchestration(input: {
         const extension = file.source_path.includes(".")
           ? file.source_path.slice(file.source_path.lastIndexOf("."))
           : ".mkv";
-        const destination = `${
-          animeRow.rootFolder.replace(/\/$/, "")
-        }/${animeRow.titleRomaji} - ${
-          String(file.episode_number).padStart(2, "0")
-        }${extension}`;
+        const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${
+          sanitizeFilename(animeRow.titleRomaji)
+        } - ${String(file.episode_number).padStart(2, "0")}${extension}`;
 
         yield* fs.mkdir(animeRow.rootFolder, { recursive: true }).pipe(
           Effect.mapError((error) =>

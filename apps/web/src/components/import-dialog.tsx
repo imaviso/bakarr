@@ -212,7 +212,7 @@ export function ImportDialog(props: ImportDialogProps) {
     setCurrentAddIndex((index) => index + 1);
   };
 
-  const handleImport = async () => {
+  const handleImport = () => {
     const files = Array.from(selectedFiles().values());
 
     const missingCandidates = findMissingImportCandidates({
@@ -600,7 +600,7 @@ export function ImportDialog(props: ImportDialogProps) {
         {(candidate) => (
           <AddAnimeDialog
             anime={candidate()}
-            open={true}
+            open
             onOpenChange={(nextOpen) => {
               if (!nextOpen) {
                 closeAddCandidateDialog();

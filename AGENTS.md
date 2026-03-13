@@ -1,6 +1,7 @@
 # AGENTS
 
-Project status: pre-release alpha. Do not preserve backward compatibility unless explicitly requested.
+Project status: pre-release alpha. Do not preserve backward compatibility unless
+explicitly requested.
 
 ## Repo Overview
 
