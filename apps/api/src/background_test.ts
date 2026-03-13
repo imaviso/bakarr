@@ -100,3 +100,33 @@ Deno.test("build background schedule disables loops when config disables them", 
   assertEquals(schedule.rssCheckMs, null);
   assertEquals(schedule.libraryScanMs, null);
 });
+
+Deno.test("build background schedule prefers valid cron over interval", () => {
+  const schedule = buildBackgroundSchedule({
+    ...baseConfig,
+    scheduler: {
+      ...baseConfig.scheduler,
+      check_interval_minutes: 30,
+      cron_expression: "0 * * * *",
+      enabled: true,
+    },
+  });
+
+  assertEquals(schedule.rssCronExpression, "0 * * * *");
+  assertEquals(schedule.rssCheckMs, null);
+});
+
+Deno.test("build background schedule ignores invalid cron and keeps interval", () => {
+  const schedule = buildBackgroundSchedule({
+    ...baseConfig,
+    scheduler: {
+      ...baseConfig.scheduler,
+      check_interval_minutes: 30,
+      cron_expression: "not a cron",
+      enabled: true,
+    },
+  });
+
+  assertEquals(schedule.rssCronExpression, null);
+  assertEquals(schedule.rssCheckMs, 30 * 60 * 1000);
+});

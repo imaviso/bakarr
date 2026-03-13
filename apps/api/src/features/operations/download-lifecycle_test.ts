@@ -3,10 +3,12 @@ import { assertEquals } from "@std/assert";
 import {
   applyRemotePathMappings,
   inferCoveredEpisodeNumbers,
+  parseCoveredEpisodes,
   parseMagnetInfoHash,
   resolveAccessibleDownloadPath,
   resolveBatchContentPaths,
   resolveCompletedContentPath,
+  toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
 import { Effect } from "effect";
@@ -195,6 +197,34 @@ filesystemTest(
         "/local/downloads",
       ]]),
       ["/local/downloads/show/episode.mkv"],
+    );
+  },
+);
+
+filesystemTest(
+  "covered episode serialization round-trips optional values",
+  () => {
+    assertEquals(toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
+    assertEquals(parseCoveredEpisodes("[1,2,3]"), [1, 2, 3]);
+    assertEquals(toCoveredEpisodesJson([]), null);
+    assertEquals(parseCoveredEpisodes(null), []);
+  },
+);
+
+filesystemTest(
+  "applyRemotePathMappings returns multiple matching candidates and skips invalid mappings",
+  () => {
+    assertEquals(
+      applyRemotePathMappings("/remote/downloads/show/episode.mkv", [
+        ["", "/ignored"],
+        ["/different", "/ignored"],
+        ["/remote", "/mnt/remote"],
+        ["/remote/downloads", "/data/downloads"],
+      ]),
+      [
+        "/mnt/remote/downloads/show/episode.mkv",
+        "/data/downloads/show/episode.mkv",
+      ],
     );
   },
 );

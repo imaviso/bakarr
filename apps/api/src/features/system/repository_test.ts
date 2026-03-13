@@ -1,0 +1,342 @@
+import { assertEquals } from "@std/assert";
+import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
+
+import * as schema from "../../db/schema.ts";
+import type { AppDatabase } from "../../db/database.ts";
+import {
+  anime,
+  backgroundJobs,
+  downloads,
+  episodes,
+  rssFeeds,
+  systemLogs,
+} from "../../db/schema.ts";
+import { encodeConfigCore } from "./config-codec.ts";
+import { makeDefaultConfig } from "./defaults.ts";
+import {
+  countActiveDownloads,
+  countAnimeRows,
+  countCompletedDownloads,
+  countDownloadedEpisodeRows,
+  countEpisodeRows,
+  countFailedDownloads,
+  countImportedDownloads,
+  countQueuedDownloads,
+  countQueuedOrDownloadingDownloads,
+  countRssFeedRows,
+  countRunningBackgroundJobs,
+  insertSystemConfigRow,
+  loadSystemConfigRow,
+  loadSystemLogPage,
+  upsertSystemConfigRow,
+} from "./repository.ts";
+
+Deno.test("system repository config helpers insert and upsert config rows", async () => {
+  await withTestDb(async (db, databaseFile) => {
+    await insertSystemConfigRow(db, {
+      id: 1,
+      data: encodeConfigCore(makeDefaultConfig(databaseFile)),
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+
+    const initial = await loadSystemConfigRow(db);
+    assertEquals(initial?.id, 1);
+
+    await upsertSystemConfigRow(db, {
+      id: 1,
+      data: encodeConfigCore({
+        ...makeDefaultConfig(databaseFile),
+        library: {
+          ...makeDefaultConfig(databaseFile).library,
+          library_path: "/new-library",
+        },
+      }),
+      updatedAt: "2024-01-02T00:00:00.000Z",
+    });
+
+    const updated = await loadSystemConfigRow(db);
+    assertEquals(updated?.updatedAt, "2024-01-02T00:00:00.000Z");
+    assertEquals(updated?.data.includes("/new-library"), true);
+  });
+});
+
+Deno.test("system repository query helpers filter logs and count system state", async () => {
+  await withTestDb(async (db, _databaseFile) => {
+    await db.insert(systemLogs).values([
+      {
+        eventType: "library.scan.started",
+        level: "info",
+        message: "scan start",
+        details: null,
+        createdAt: "2024-01-01T00:00:00.000Z",
+      },
+      {
+        eventType: "downloads.error",
+        level: "error",
+        message: "download failed",
+        details: null,
+        createdAt: "2024-01-02T00:00:00.000Z",
+      },
+      {
+        eventType: "rss.refresh",
+        level: "info",
+        message: "rss",
+        details: null,
+        createdAt: "2024-01-03T00:00:00.000Z",
+      },
+    ]);
+    await db.insert(anime).values({
+      id: 20,
+      malId: null,
+      titleRomaji: "Naruto",
+      titleEnglish: null,
+      titleNative: null,
+      format: "TV",
+      description: null,
+      score: null,
+      genres: "[]",
+      studios: "[]",
+      coverImage: null,
+      bannerImage: null,
+      status: "RELEASING",
+      episodeCount: 2,
+      startDate: null,
+      endDate: null,
+      profileName: "Default",
+      rootFolder: "/library/Naruto",
+      addedAt: "2024-01-01T00:00:00.000Z",
+      monitored: true,
+      releaseProfileIds: "[]",
+    });
+    await db.insert(episodes).values([
+      {
+        animeId: 20,
+        number: 1,
+        title: null,
+        aired: null,
+        downloaded: true,
+        filePath: "/library/Naruto/01.mkv",
+      },
+      {
+        animeId: 20,
+        number: 2,
+        title: null,
+        aired: null,
+        downloaded: false,
+        filePath: null,
+      },
+    ]);
+    await db.insert(downloads).values([
+      {
+        animeId: 20,
+        animeTitle: "Naruto",
+        episodeNumber: 1,
+        isBatch: false,
+        coveredEpisodes: null,
+        torrentName: "Naruto - 01",
+        status: "queued",
+        progress: null,
+        addedAt: "2024-01-01T00:00:00.000Z",
+        downloadDate: null,
+        groupName: null,
+        magnet: null,
+        infoHash: null,
+        externalState: null,
+        errorMessage: null,
+        savePath: null,
+        contentPath: null,
+        totalBytes: null,
+        downloadedBytes: null,
+        speedBytes: null,
+        etaSeconds: null,
+        lastSyncedAt: null,
+        retryCount: 0,
+        lastErrorAt: null,
+        reconciledAt: null,
+      },
+      {
+        animeId: 20,
+        animeTitle: "Naruto",
+        episodeNumber: 2,
+        isBatch: false,
+        coveredEpisodes: null,
+        torrentName: "Naruto - 02",
+        status: "paused",
+        progress: null,
+        addedAt: "2024-01-01T00:00:00.000Z",
+        downloadDate: null,
+        groupName: null,
+        magnet: null,
+        infoHash: null,
+        externalState: null,
+        errorMessage: null,
+        savePath: null,
+        contentPath: null,
+        totalBytes: null,
+        downloadedBytes: null,
+        speedBytes: null,
+        etaSeconds: null,
+        lastSyncedAt: null,
+        retryCount: 0,
+        lastErrorAt: null,
+        reconciledAt: null,
+      },
+      {
+        animeId: 20,
+        animeTitle: "Naruto",
+        episodeNumber: 3,
+        isBatch: false,
+        coveredEpisodes: null,
+        torrentName: "Naruto - 03",
+        status: "error",
+        progress: null,
+        addedAt: "2024-01-01T00:00:00.000Z",
+        downloadDate: null,
+        groupName: null,
+        magnet: null,
+        infoHash: null,
+        externalState: null,
+        errorMessage: null,
+        savePath: null,
+        contentPath: null,
+        totalBytes: null,
+        downloadedBytes: null,
+        speedBytes: null,
+        etaSeconds: null,
+        lastSyncedAt: null,
+        retryCount: 0,
+        lastErrorAt: null,
+        reconciledAt: null,
+      },
+      {
+        animeId: 20,
+        animeTitle: "Naruto",
+        episodeNumber: 4,
+        isBatch: false,
+        coveredEpisodes: null,
+        torrentName: "Naruto - 04",
+        status: "completed",
+        progress: null,
+        addedAt: "2024-01-01T00:00:00.000Z",
+        downloadDate: null,
+        groupName: null,
+        magnet: null,
+        infoHash: null,
+        externalState: null,
+        errorMessage: null,
+        savePath: null,
+        contentPath: null,
+        totalBytes: null,
+        downloadedBytes: null,
+        speedBytes: null,
+        etaSeconds: null,
+        lastSyncedAt: null,
+        retryCount: 0,
+        lastErrorAt: null,
+        reconciledAt: null,
+      },
+      {
+        animeId: 20,
+        animeTitle: "Naruto",
+        episodeNumber: 5,
+        isBatch: false,
+        coveredEpisodes: null,
+        torrentName: "Naruto - 05",
+        status: "imported",
+        progress: null,
+        addedAt: "2024-01-01T00:00:00.000Z",
+        downloadDate: null,
+        groupName: null,
+        magnet: null,
+        infoHash: null,
+        externalState: null,
+        errorMessage: null,
+        savePath: null,
+        contentPath: null,
+        totalBytes: null,
+        downloadedBytes: null,
+        speedBytes: null,
+        etaSeconds: null,
+        lastSyncedAt: null,
+        retryCount: 0,
+        lastErrorAt: null,
+        reconciledAt: null,
+      },
+    ]);
+    await db.insert(backgroundJobs).values([
+      {
+        name: "rss",
+        isRunning: true,
+        lastRunAt: null,
+        lastSuccessAt: null,
+        lastStatus: null,
+        lastMessage: null,
+        runCount: 0,
+      },
+      {
+        name: "library_scan",
+        isRunning: false,
+        lastRunAt: null,
+        lastSuccessAt: null,
+        lastStatus: null,
+        lastMessage: null,
+        runCount: 0,
+      },
+    ]);
+    await db.insert(rssFeeds).values({
+      animeId: 20,
+      url: "https://example.com/rss.xml",
+      name: null,
+      lastChecked: null,
+      enabled: true,
+      createdAt: "2024-01-01T00:00:00.000Z",
+    });
+
+    const scanPage = await loadSystemLogPage(db, {
+      eventType: "Scan",
+      page: 1,
+      pageSize: 10,
+    });
+    assertEquals(scanPage.total, 1);
+    assertEquals(scanPage.rows[0].message, "scan start");
+
+    const errorPage = await loadSystemLogPage(db, {
+      level: "error",
+      page: 1,
+      pageSize: 10,
+      startDate: "2024-01-02T00:00:00.000Z",
+    });
+    assertEquals(errorPage.total, 1);
+    assertEquals(errorPage.rows[0].eventType, "downloads.error");
+
+    assertEquals(await countQueuedOrDownloadingDownloads(db), 1);
+    assertEquals(await countQueuedDownloads(db), 1);
+    assertEquals(await countActiveDownloads(db), 1);
+    assertEquals(await countFailedDownloads(db), 1);
+    assertEquals(await countCompletedDownloads(db), 1);
+    assertEquals(await countImportedDownloads(db), 1);
+    assertEquals(await countRunningBackgroundJobs(db), 1);
+    assertEquals(await countAnimeRows(db), 1);
+    assertEquals(await countEpisodeRows(db), 2);
+    assertEquals(await countDownloadedEpisodeRows(db), 1);
+    assertEquals(await countRssFeedRows(db), 1);
+  });
+});
+
+async function withTestDb(
+  run: (db: AppDatabase, databaseFile: string) => Promise<void>,
+) {
+  const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
+  const client = createClient({ url: `file:${databaseFile}` });
+  const db = drizzle({ client, schema });
+
+  try {
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    await run(db, databaseFile);
+  } finally {
+    client.close();
+    await Deno.remove(databaseFile).catch(() => undefined);
+  }
+}
