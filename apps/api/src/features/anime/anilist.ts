@@ -192,9 +192,7 @@ const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(
 const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(
   function* (id: number) {
     const remote = yield* tryFetchDetail(id).pipe(
-      Effect.catchAll(() =>
-        Effect.succeed<AnimeMetadata | null | undefined>(undefined)
-      ),
+      Effect.catchAll(() => Effect.void),
     );
 
     if (remote !== undefined) {
@@ -213,8 +211,8 @@ export const AniListClientLive = Layer.succeed(
   } satisfies AniListClientShape,
 );
 
-function trySearchRemote(trimmed: string) {
-  return Effect.fn("AniListClient.trySearchRemote")(function* () {
+const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
+  function* (trimmed: string) {
     const response = yield* tryExternal(
       "anilist.search",
       (signal) =>
@@ -257,15 +255,13 @@ function trySearchRemote(trimmed: string) {
     )();
 
     if (!response.ok) {
-      return yield* Effect.fail(
-        ExternalCallError.make({
-          cause: new Error(
-            `AniList search failed with status ${response.status}`,
-          ),
-          message: "AniList search failed",
-          operation: "anilist.search.response",
-        }),
-      );
+      return yield* ExternalCallError.make({
+        cause: new Error(
+          `AniList search failed with status ${response.status}`,
+        ),
+        message: "AniList search failed",
+        operation: "anilist.search.response",
+      });
     }
 
     const payload = yield* decodeJsonResponse(
@@ -287,11 +283,11 @@ function trySearchRemote(trimmed: string) {
         romaji: entry.title?.romaji ?? undefined,
       },
     }));
-  })();
-}
+  },
+);
 
-function tryFetchDetail(id: number) {
-  return Effect.fn("AniListClient.tryFetchDetail")(function* () {
+const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
+  function* (id: number) {
     const response = yield* tryExternal(
       "anilist.detail",
       (signal) =>
@@ -342,15 +338,13 @@ function tryFetchDetail(id: number) {
     )();
 
     if (!response.ok) {
-      return yield* Effect.fail(
-        ExternalCallError.make({
-          cause: new Error(
-            `AniList detail failed with status ${response.status}`,
-          ),
-          message: "AniList detail failed",
-          operation: "anilist.detail.response",
-        }),
-      );
+      return yield* ExternalCallError.make({
+        cause: new Error(
+          `AniList detail failed with status ${response.status}`,
+        ),
+        message: "AniList detail failed",
+        operation: "anilist.detail.response",
+      });
     }
 
     const payload = yield* decodeJsonResponse(
@@ -386,15 +380,15 @@ function tryFetchDetail(id: number) {
         romaji: media.title?.romaji ?? `Anime ${id}`,
       },
     } satisfies AnimeMetadata;
-  })();
-}
+  },
+);
 
 function decodeJsonResponse<A, I>(
   response: Response,
   operation: string,
   schema: Schema.Schema<A, I>,
 ) {
-  return Effect.fn(`AniListClient.${operation}`)(function* () {
+  return Effect.gen(function* () {
     const payload = yield* Effect.tryPromise({
       try: () => response.json(),
       catch: (cause) =>
@@ -408,17 +402,15 @@ function decodeJsonResponse<A, I>(
     const decoded = Schema.decodeUnknownEither(schema)(payload);
 
     if (Either.isLeft(decoded)) {
-      return yield* Effect.fail(
-        ExternalCallError.make({
-          cause: decoded.left,
-          message: "AniList response schema mismatch",
-          operation,
-        }),
-      );
+      return yield* ExternalCallError.make({
+        cause: decoded.left,
+        message: "AniList response schema mismatch",
+        operation,
+      });
     }
 
     return decoded.right;
-  })();
+  }).pipe(Effect.withSpan(`AniListClient.${operation}`));
 }
 
 function fallbackSearch(trimmed: string) {

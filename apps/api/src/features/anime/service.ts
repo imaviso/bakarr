@@ -132,7 +132,7 @@ const makeAnimeService = Effect.gen(function* () {
     );
 
     if (existing[0]) {
-      yield* new AnimeConflictError({
+      return yield* new AnimeConflictError({
         message: "Anime already exists",
       });
     }
@@ -140,7 +140,7 @@ const makeAnimeService = Effect.gen(function* () {
     const metadata = yield* aniList.getAnimeMetadataById(input.id);
 
     if (!metadata) {
-      yield* new AnimeNotFoundError({
+      return yield* new AnimeNotFoundError({
         message: "Anime not found",
       });
     }
@@ -508,7 +508,7 @@ const makeAnimeService = Effect.gen(function* () {
       const metadata = yield* aniList.getAnimeMetadataById(id);
 
       if (!metadata) {
-        yield* new AnimeNotFoundError({
+        return yield* new AnimeNotFoundError({
           message: "Anime not found",
         });
       }
@@ -641,14 +641,14 @@ function tryAnimePromise<A>(
   });
 }
 
-function updateAnimeRow(
-  db: AppDatabase,
-  animeId: number,
-  patch: Partial<typeof anime.$inferInsert>,
-  message: string,
-  eventBus: { publish: (event: NotificationEvent) => Effect.Effect<void> },
-) {
-  return Effect.fn("AnimeService.updateAnimeRow")(function* () {
+const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(
+  function* (
+    db: AppDatabase,
+    animeId: number,
+    patch: Partial<typeof anime.$inferInsert>,
+    message: string,
+    eventBus: { publish: (event: NotificationEvent) => Effect.Effect<void> },
+  ) {
     yield* tryAnimePromise(
       "Failed to update anime",
       () => requireAnimeExists(db, animeId),
@@ -662,5 +662,5 @@ function updateAnimeRow(
       () => appendAnimeLog(db, "anime.updated", "success", message),
     );
     yield* eventBus.publish({ type: "Info", payload: { message } });
-  })();
-}
+  },
+);

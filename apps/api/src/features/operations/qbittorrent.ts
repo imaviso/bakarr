@@ -192,8 +192,8 @@ export const QBitTorrentClientLive = Layer.succeed(
   } satisfies QBitTorrentClientShape,
 );
 
-function login(config: QBitConfig) {
-  return Effect.fn("QBitTorrentClient.login")(function* () {
+const login = Effect.fn("QBitTorrentClient.login")(
+  function* (config: QBitConfig) {
     const body = new URLSearchParams();
     body.set("username", config.username);
     body.set("password", config.password);
@@ -220,29 +220,25 @@ function login(config: QBitConfig) {
     });
 
     if (!response.ok || !text.includes("Ok")) {
-      return yield* Effect.fail(
-        QBitTorrentClientError.make({
-          message: "qBittorrent authentication failed",
-        }),
-      );
+      return yield* QBitTorrentClientError.make({
+        message: "qBittorrent authentication failed",
+      });
     }
 
     const cookie = response.headers.get("set-cookie");
 
     if (!cookie) {
-      return yield* Effect.fail(
-        QBitTorrentClientError.make({
-          message: "qBittorrent did not return a session cookie",
-        }),
-      );
+      return yield* QBitTorrentClientError.make({
+        message: "qBittorrent did not return a session cookie",
+      });
     }
 
     return cookie.split(";")[0];
-  })();
-}
+  },
+);
 
-function postHashesAction(config: QBitConfig, path: string, hash: string) {
-  return Effect.fn("QBitTorrentClient.postHashesAction")(function* () {
+const postHashesAction = Effect.fn("QBitTorrentClient.postHashesAction")(
+  function* (config: QBitConfig, path: string, hash: string) {
     const cookie = yield* login(config);
     const body = new URLSearchParams();
     body.set("hashes", hash);
@@ -260,8 +256,8 @@ function postHashesAction(config: QBitConfig, path: string, hash: string) {
       response,
       `qBittorrent action failed with status ${response.status}`,
     );
-  })();
-}
+  },
+);
 
 function execute(
   config: QBitConfig,
@@ -298,7 +294,7 @@ function decodeJson<A, I>(
   schema: Schema.Schema<A, I>,
   operation: string,
 ) {
-  return Effect.fn(`QBitTorrentClient.${operation}`)(function* () {
+  return Effect.gen(function* () {
     const payload = yield* Effect.tryPromise({
       try: () => response.json(),
       catch: (cause) =>
@@ -310,16 +306,14 @@ function decodeJson<A, I>(
     const decoded = Schema.decodeUnknownEither(schema)(payload);
 
     if (Either.isLeft(decoded)) {
-      return yield* Effect.fail(
-        QBitTorrentClientError.make({
-          cause: decoded.left,
-          message: "qBittorrent response schema mismatch",
-        }),
-      );
+      return yield* QBitTorrentClientError.make({
+        cause: decoded.left,
+        message: "qBittorrent response schema mismatch",
+      });
     }
 
     return decoded.right;
-  })();
+  }).pipe(Effect.withSpan(`QBitTorrentClient.${operation}`));
 }
 
 function resolveUrl(baseUrl: string, path: string) {

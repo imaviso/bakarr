@@ -530,7 +530,7 @@ const makeSystemService = Effect.gen(function* () {
       const parsed = Cron.parse(cronExpression);
 
       if (Either.isLeft(parsed)) {
-        yield* new ConfigValidationError({
+        return yield* new ConfigValidationError({
           message: "Invalid scheduler cron expression",
         });
       }
@@ -600,7 +600,7 @@ const makeSystemService = Effect.gen(function* () {
     );
 
     if (!existing[0]) {
-      yield* new ProfileNotFoundError({
+      return yield* new ProfileNotFoundError({
         message: "Quality profile not found",
       });
     }

@@ -1,6 +1,11 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import { tryExternal } from "../../lib/effect-retry.ts";
+
+class RssClientError extends Schema.TaggedError<RssClientError>()(
+  "RssClientError",
+  { cause: Schema.Defect, message: Schema.String },
+) {}
 
 export interface ParsedRelease {
   readonly group?: string;
@@ -31,38 +36,44 @@ export class RssClient extends Context.Tag("@bakarr/api/RssClient")<
 >() {}
 
 const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
-  try {
-    const parsedUrl = new URL(url);
+  const parsedUrl = yield* Effect.try({
+    try: () => new URL(url),
+    catch: (cause) => new RssClientError({ cause, message: "Invalid RSS URL" }),
+  }).pipe(Effect.option);
+
+  if (Option.isNone(parsedUrl)) {
+    return [];
+  }
+
+  if (
+    parsedUrl.value.protocol !== "http:" &&
+    parsedUrl.value.protocol !== "https:" &&
+    parsedUrl.value.protocol !== "data:"
+  ) {
+    return [];
+  }
+
+  if (parsedUrl.value.protocol !== "data:") {
     if (
-      parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:" &&
-      parsedUrl.protocol !== "data:"
+      parsedUrl.value.port && parsedUrl.value.port !== "80" &&
+      parsedUrl.value.port !== "443"
     ) {
       return [];
     }
 
-    if (parsedUrl.protocol !== "data:") {
-      if (
-        parsedUrl.port && parsedUrl.port !== "80" && parsedUrl.port !== "443"
-      ) {
-        return [];
-      }
-
-      const hostname = parsedUrl.hostname.toLowerCase();
-      if (
-        hostname === "localhost" ||
-        hostname === "127.0.0.1" ||
-        hostname === "::1" ||
-        hostname.startsWith("192.168.") ||
-        hostname.startsWith("10.") ||
-        hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
-        hostname.endsWith(".local") ||
-        hostname.endsWith(".internal")
-      ) {
-        return [];
-      }
+    const hostname = parsedUrl.value.hostname.toLowerCase();
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("10.") ||
+      hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
+      hostname.endsWith(".local") ||
+      hostname.endsWith(".internal")
+    ) {
+      return [];
     }
-  } catch {
-    return [];
   }
 
   const response = yield* tryExternal("rss.fetch", (signal) =>
@@ -77,7 +88,11 @@ const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
 
   const text = yield* Effect.tryPromise({
     try: () => response.text(),
-    catch: () => new Error("Failed to read RSS response body"),
+    catch: (cause) =>
+      new RssClientError({
+        cause,
+        message: "Failed to read RSS response body",
+      }),
   }).pipe(Effect.catchAll(() => Effect.succeed("")));
 
   if (text.length === 0) {

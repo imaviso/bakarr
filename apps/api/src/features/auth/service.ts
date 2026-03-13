@@ -129,7 +129,7 @@ const makeAuthService = Effect.gen(function* () {
     );
 
     if (!row) {
-      yield* AuthError.make({
+      return yield* AuthError.make({
         message: "Invalid username or password",
         status: 401,
       });
@@ -141,7 +141,7 @@ const makeAuthService = Effect.gen(function* () {
     );
 
     if (!verified) {
-      yield* AuthError.make({
+      return yield* AuthError.make({
         message: "Invalid username or password",
         status: 401,
       });
@@ -185,7 +185,7 @@ const makeAuthService = Effect.gen(function* () {
     );
 
     if (!row) {
-      yield* AuthError.make({ message: "Invalid API key", status: 401 });
+      return yield* AuthError.make({ message: "Invalid API key", status: 401 });
     }
 
     const userRow = row!;
@@ -310,7 +310,7 @@ const makeAuthService = Effect.gen(function* () {
     );
 
     if (!row) {
-      yield* AuthError.make({ message: "User not found", status: 404 });
+      return yield* AuthError.make({ message: "User not found", status: 404 });
     }
 
     const userRow = row!;
@@ -320,7 +320,7 @@ const makeAuthService = Effect.gen(function* () {
     );
 
     if (!verified) {
-      yield* AuthError.make({
+      return yield* AuthError.make({
         message: "Current password is incorrect",
         status: 401,
       });
@@ -358,7 +358,7 @@ const makeAuthService = Effect.gen(function* () {
     );
 
     if (!row) {
-      yield* AuthError.make({ message: "User not found", status: 404 });
+      return yield* AuthError.make({ message: "User not found", status: 404 });
     }
 
     return { api_key: "************************" };
@@ -372,7 +372,10 @@ const makeAuthService = Effect.gen(function* () {
       );
 
       if (!row) {
-        yield* AuthError.make({ message: "User not found", status: 404 });
+        return yield* AuthError.make({
+          message: "User not found",
+          status: 404,
+        });
       }
 
       const userRow = row!;

@@ -6,8 +6,8 @@ export interface ScannedVideoFile {
   readonly path: string;
 }
 
-export function scanVideoFiles(fs: FileSystemShape, path: string) {
-  return Effect.fn("Operations.scanVideoFiles")(function* () {
+export const scanVideoFiles = Effect.fn("Operations.scanVideoFiles")(
+  function* (fs: FileSystemShape, path: string) {
     const results: ScannedVideoFile[] = [];
     const stack = [path];
 
@@ -37,8 +37,8 @@ export function scanVideoFiles(fs: FileSystemShape, path: string) {
     }
 
     return results;
-  })();
-}
+  },
+);
 
 export async function* scanVideoFilesIterator(
   fs: FileSystemShape,

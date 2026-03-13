@@ -457,7 +457,7 @@ export function makeDownloadOrchestration(input: {
     const row = rows[0];
 
     if (!row) {
-      yield* new DownloadNotFoundError({
+      return yield* new DownloadNotFoundError({
         message: "Download not found",
       });
     }
@@ -539,13 +539,13 @@ export function makeDownloadOrchestration(input: {
       const row = rows[0];
 
       if (!row) {
-        yield* new DownloadNotFoundError({
+        return yield* new DownloadNotFoundError({
           message: "Download not found",
         });
       }
 
       if (!row!.magnet) {
-        yield* new DownloadConflictError({
+        return yield* new DownloadConflictError({
           message: "Download cannot be retried without a magnet link",
         });
       }
@@ -601,7 +601,7 @@ export function makeDownloadOrchestration(input: {
     const row = rows[0];
 
     if (!row) {
-      yield* new DownloadNotFoundError({
+      return yield* new DownloadNotFoundError({
         message: "Download not found",
       });
     }
@@ -609,7 +609,7 @@ export function makeDownloadOrchestration(input: {
     const contentPath = row!.contentPath ?? row!.savePath;
 
     if (!contentPath || !row!.infoHash) {
-      yield* new DownloadConflictError({
+      return yield* new DownloadConflictError({
         message: "Download has no reconciliable content path",
       });
     }
