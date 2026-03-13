@@ -123,6 +123,7 @@ const AniListDateSchema = Schema.Struct({
 
 const AniListSearchMediaSchema = Schema.Struct({
   coverImage: Schema.optional(Schema.Struct({
+    extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
     large: Schema.optional(Schema.NullOr(Schema.String)),
   })),
   episodes: Schema.optional(Schema.NullOr(Schema.Number)),
@@ -144,6 +145,7 @@ const AniListDetailMediaSchema = Schema.Struct({
   averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
   bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
   coverImage: Schema.optional(Schema.Struct({
+    extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
     large: Schema.optional(Schema.NullOr(Schema.String)),
   })),
   description: Schema.optional(Schema.NullOr(Schema.String)),
@@ -241,6 +243,7 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
               native
             }
             coverImage {
+              extraLarge
               large
             }
           }
@@ -272,7 +275,7 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
 
     return payload.data.Page.media.map((entry) => ({
       already_in_library: false,
-      cover_image: entry.coverImage?.large ?? undefined,
+      cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ?? undefined,
       episode_count: entry.episodes ?? undefined,
       format: entry.format ?? undefined,
       id: entry.id,
@@ -360,7 +363,7 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
 
     return {
       bannerImage: media.bannerImage ?? undefined,
-      coverImage: media.coverImage?.large ?? undefined,
+      coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ?? undefined,
       description: media.description ?? undefined,
       endDate: toIsoDate(media.endDate),
       episodeCount: media.episodes ?? undefined,
