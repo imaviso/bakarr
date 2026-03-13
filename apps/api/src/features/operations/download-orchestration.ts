@@ -46,20 +46,14 @@ import {
 } from "./errors.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type {
+  TryDatabasePromise,
+  TryOperationsPromise,
+} from "./service-support.ts";
+import type {
   QBitConfig,
   QBitTorrent,
   QBitTorrentClient,
 } from "./qbittorrent.ts";
-
-type TryDatabasePromise = <A>(
-  message: string,
-  try_: () => Promise<A>,
-) => Effect.Effect<A, DatabaseError>;
-
-type TryOperationsPromise = <A>(
-  message: string,
-  try_: () => Promise<A>,
-) => Effect.Effect<A, OperationsError | DatabaseError>;
 
 export function makeDownloadOrchestration(input: {
   db: AppDatabase;

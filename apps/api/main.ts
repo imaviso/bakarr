@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { Config } from "../../packages/shared/src/index.ts";
-import { startBackgroundWorkers } from "./src/background.ts";
+import { BackgroundWorkerService } from "./src/background.ts";
 import { AppConfig, type AppConfigShape } from "./src/config.ts";
 import { migrateDatabase } from "./src/db/migrate.ts";
 import { AuthService } from "./src/features/auth/service.ts";
@@ -50,7 +50,10 @@ if (import.meta.main) {
     Effect.flatMap(SystemService, (system) => system.getConfig()),
   ) as Config;
   setRuntimeLogLevel(systemConfig.general.log_level);
-  const workers = await startBackgroundWorkers(runtime);
+  const workers = await runApi(
+    runtime,
+    Effect.flatMap(BackgroundWorkerService, (service) => service.start()),
+  );
 
   await runApi(
     runtime,
@@ -76,7 +79,7 @@ if (import.meta.main) {
         }),
       ),
     ).catch(() => undefined);
-    workers.stop();
+    await runApi(runtime, workers.stop).catch(() => undefined);
     await runtime.dispose();
   };
 

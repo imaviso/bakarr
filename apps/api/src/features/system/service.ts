@@ -1,4 +1,3 @@
-import { and, count, desc, eq, sql } from "drizzle-orm";
 import * as Cron from "effect/Cron";
 import { Context, Effect, Either, Layer } from "effect";
 
@@ -17,18 +16,7 @@ import type {
 import { AppRuntime } from "../../app-runtime.ts";
 import { AppConfig } from "../../config.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
-import {
-  anime,
-  appConfig,
-  backgroundJobs,
-  downloadEvents,
-  downloads,
-  episodes,
-  qualityProfiles,
-  releaseProfiles,
-  rssFeeds,
-  systemLogs,
-} from "../../db/schema.ts";
+import { systemLogs } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
 import {
   DEFAULT_PROFILES,
@@ -48,12 +36,45 @@ import {
 } from "./config-codec.ts";
 import {
   appendSystemLog,
-  eventTypeCondition,
+  backgroundJobNames,
   getDiskSpaceSafe,
   normalizeLevel,
   nowIso,
   toBackgroundJobStatus,
 } from "./support.ts";
+import {
+  countActiveDownloads,
+  countAnimeRows,
+  countCompletedDownloads,
+  countDownloadedEpisodeRows,
+  countEpisodeRows,
+  countFailedDownloads,
+  countImportedDownloads,
+  countQueuedDownloads,
+  countQueuedOrDownloadingDownloads,
+  countRssFeedRows,
+  countRunningBackgroundJobs,
+  deleteQualityProfileRow,
+  deleteReleaseProfileRow,
+  insertQualityProfileRow,
+  insertQualityProfileRows,
+  insertReleaseProfileRow,
+  insertSystemConfigRow,
+  listBackgroundJobRows,
+  listQualityProfileRows,
+  listReleaseProfileRows,
+  listRecentDownloadEventRows,
+  listRecentSystemLogRows,
+  loadBackgroundJobRow,
+  loadSystemLogPage,
+  loadAnyQualityProfileRow,
+  loadQualityProfileRow,
+  loadSystemConfigRow,
+  replaceQualityProfileRows,
+  updateQualityProfileRow,
+  updateReleaseProfileRow,
+  upsertSystemConfigRow,
+} from "./repository.ts";
 
 export interface SystemServiceShape {
   readonly ensureInitialized: () => Effect.Effect<void, DatabaseError>;
@@ -121,7 +142,7 @@ const makeSystemService = Effect.gen(function* () {
   const listProfiles = Effect.fn("SystemService.listProfiles")(function* () {
     const rows = yield* tryDatabasePromise(
       "Failed to load quality profiles",
-      () => db.select().from(qualityProfiles).orderBy(qualityProfiles.name),
+      () => listQualityProfileRows(db),
     );
     return rows.map(decodeQualityProfileRow);
   });
@@ -131,7 +152,7 @@ const makeSystemService = Effect.gen(function* () {
   ) {
     yield* tryDatabasePromise(
       "Failed to create quality profile",
-      () => db.insert(qualityProfiles).values(encodeQualityProfileRow(profile)),
+      () => insertQualityProfileRow(db, encodeQualityProfileRow(profile)),
     );
     yield* tryDatabasePromise(
       "Failed to create quality profile",
@@ -151,7 +172,7 @@ const makeSystemService = Effect.gen(function* () {
   ) {
     yield* tryDatabasePromise(
       "Failed to delete quality profile",
-      () => db.delete(qualityProfiles).where(eq(qualityProfiles.name, name)),
+      () => deleteQualityProfileRow(db, name),
     );
     yield* tryDatabasePromise(
       "Failed to delete quality profile",
@@ -170,7 +191,7 @@ const makeSystemService = Effect.gen(function* () {
   )(function* () {
     const rows = yield* tryDatabasePromise(
       "Failed to load release profiles",
-      () => db.select().from(releaseProfiles).orderBy(releaseProfiles.id),
+      () => listReleaseProfileRows(db),
     );
     return rows.map(decodeReleaseProfileRow);
   });
@@ -180,15 +201,14 @@ const makeSystemService = Effect.gen(function* () {
   )(function* (
     input: Omit<ReleaseProfile, "id" | "enabled"> & { enabled?: boolean },
   ) {
-    const [created] = yield* tryDatabasePromise(
+    const created = yield* tryDatabasePromise(
       "Failed to create release profile",
-      () =>
-        db.insert(releaseProfiles).values({
+      () => insertReleaseProfileRow(db, {
           enabled: input.enabled ?? true,
           isGlobal: input.is_global,
           name: input.name,
           rules: encodeReleaseProfileRules(input.rules),
-        }).returning(),
+        }),
     );
 
     yield* tryDatabasePromise(
@@ -209,13 +229,12 @@ const makeSystemService = Effect.gen(function* () {
   )(function* (id: number, input: Omit<ReleaseProfile, "id">) {
     yield* tryDatabasePromise(
       "Failed to update release profile",
-      () =>
-        db.update(releaseProfiles).set({
+      () => updateReleaseProfileRow(db, id, {
           enabled: input.enabled,
           isGlobal: input.is_global,
           name: input.name,
           rules: encodeReleaseProfileRules(input.rules),
-        }).where(eq(releaseProfiles.id, id)),
+        }),
     );
 
     yield* tryDatabasePromise(
@@ -235,7 +254,7 @@ const makeSystemService = Effect.gen(function* () {
   )(function* (id: number) {
     yield* tryDatabasePromise(
       "Failed to delete release profile",
-      () => db.delete(releaseProfiles).where(eq(releaseProfiles.id, id)),
+      () => deleteReleaseProfileRow(db, id),
     );
     yield* tryDatabasePromise(
       "Failed to delete release profile",
@@ -270,14 +289,17 @@ const makeSystemService = Effect.gen(function* () {
     function* () {
       const configRows = yield* tryDatabasePromise(
         "Failed to initialize system configuration",
-        () => db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+        async () => {
+          const row = await loadSystemConfigRow(db);
+          return row ? [row] : [];
+        },
       );
 
       if (configRows.length === 0) {
         yield* tryDatabasePromise(
           "Failed to initialize system configuration",
           () =>
-            db.insert(appConfig).values({
+            insertSystemConfigRow(db, {
               data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
               id: 1,
               updatedAt: nowIso(),
@@ -287,14 +309,18 @@ const makeSystemService = Effect.gen(function* () {
 
       const existingProfiles = yield* tryDatabasePromise(
         "Failed to initialize system configuration",
-        () => db.select().from(qualityProfiles).limit(1),
+        async () => {
+          const row = await loadAnyQualityProfileRow(db);
+          return row ? [row] : [];
+        },
       );
 
       if (existingProfiles.length === 0) {
         yield* tryDatabasePromise(
           "Failed to initialize system configuration",
           () =>
-            db.insert(qualityProfiles).values(
+            insertQualityProfileRows(
+              db,
               DEFAULT_PROFILES.map(encodeQualityProfileRow),
             ),
         );
@@ -305,25 +331,17 @@ const makeSystemService = Effect.gen(function* () {
   const getSystemStatus = Effect.fn("SystemService.getSystemStatus")(
     function* () {
       const diskSpace = getDiskSpaceSafe(config.databaseFile);
-      const [{ value: queuedDownloads }] = yield* tryDatabasePromise(
+      const queuedDownloads = yield* tryDatabasePromise(
         "Failed to build system status",
-        () =>
-          db.select({ value: count() }).from(downloads).where(
-            sql`${downloads.status} in ('queued', 'downloading')`,
-          ),
+        () => countQueuedOrDownloadingDownloads(db),
       );
-      const [rssJob] = yield* tryDatabasePromise(
+      const rssJob = yield* tryDatabasePromise(
         "Failed to build system status",
-        () =>
-          db.select().from(backgroundJobs).where(eq(backgroundJobs.name, "rss"))
-            .limit(1),
+        () => loadBackgroundJobRow(db, "rss"),
       );
-      const [scanJob] = yield* tryDatabasePromise(
+      const scanJob = yield* tryDatabasePromise(
         "Failed to build system status",
-        () =>
-          db.select().from(backgroundJobs).where(
-            eq(backgroundJobs.name, "library_scan"),
-          ).limit(1),
+        () => loadBackgroundJobRow(db, "library_scan"),
       );
 
       return {
@@ -343,31 +361,25 @@ const makeSystemService = Effect.gen(function* () {
 
   const getLibraryStats = Effect.fn("SystemService.getLibraryStats")(
     function* () {
-      const [{ value: totalAnime }] = yield* tryDatabasePromise(
+      const totalAnime = yield* tryDatabasePromise(
         "Failed to load library stats",
-        () => db.select({ value: count() }).from(anime),
+        () => countAnimeRows(db),
       );
-      const [{ value: totalEpisodes }] = yield* tryDatabasePromise(
+      const totalEpisodes = yield* tryDatabasePromise(
         "Failed to load library stats",
-        () => db.select({ value: count() }).from(episodes),
+        () => countEpisodeRows(db),
       );
-      const [{ value: downloadedEpisodes }] = yield* tryDatabasePromise(
+      const downloadedEpisodes = yield* tryDatabasePromise(
         "Failed to load library stats",
-        () =>
-          db.select({ value: count() }).from(episodes).where(
-            eq(episodes.downloaded, true),
-          ),
+        () => countDownloadedEpisodeRows(db),
       );
-      const [{ value: totalRssFeeds }] = yield* tryDatabasePromise(
+      const totalRssFeeds = yield* tryDatabasePromise(
         "Failed to load library stats",
-        () => db.select({ value: count() }).from(rssFeeds),
+        () => countRssFeedRows(db),
       );
-      const [{ value: completedDownloads }] = yield* tryDatabasePromise(
+      const completedDownloads = yield* tryDatabasePromise(
         "Failed to load library stats",
-        () =>
-          db.select({ value: count() }).from(downloads).where(
-            eq(downloads.status, "completed"),
-          ),
+        () => countCompletedDownloads(db),
       );
 
       return {
@@ -384,7 +396,7 @@ const makeSystemService = Effect.gen(function* () {
   const getActivity = Effect.fn("SystemService.getActivity")(function* () {
     const rows = yield* tryDatabasePromise(
       "Failed to load recent activity",
-      () => db.select().from(systemLogs).orderBy(desc(systemLogs.id)).limit(20),
+      () => listRecentSystemLogRows(db, 20),
     );
 
     return rows.map((row) => ({
@@ -401,18 +413,10 @@ const makeSystemService = Effect.gen(function* () {
     const currentConfig = yield* getConfig();
     const rows = yield* tryDatabasePromise(
       "Failed to load background jobs",
-      () => db.select().from(backgroundJobs).orderBy(backgroundJobs.name),
+      () => listBackgroundJobRows(db),
     );
     const rowsByName = new Map(rows.map((row) => [row.name, row]));
-    const names = [
-      ...new Set([
-        "download_sync",
-        "library_scan",
-        "rss",
-        "unmapped_scan",
-        ...rows.map((row) => row.name),
-      ]),
-    ].sort();
+    const names = backgroundJobNames(rows);
 
     return names.map((name) =>
       toBackgroundJobStatus(currentConfig, rowsByName.get(name), name)
@@ -421,61 +425,35 @@ const makeSystemService = Effect.gen(function* () {
 
   const getDashboard = Effect.fn("SystemService.getDashboard")(function* () {
     const currentConfig = yield* getConfig();
-    const [{ value: queuedDownloads }] = yield* tryDatabasePromise(
+    const queuedDownloads = yield* tryDatabasePromise(
       "Failed to load ops dashboard",
-      () =>
-        db.select({ value: count() }).from(downloads).where(
-          eq(downloads.status, "queued"),
-        ),
+      () => countQueuedDownloads(db),
     );
-    const [{ value: activeDownloads }] = yield* tryDatabasePromise(
+    const activeDownloads = yield* tryDatabasePromise(
       "Failed to load ops dashboard",
-      () =>
-        db.select({ value: count() }).from(downloads).where(
-          sql`${downloads.status} in ('downloading', 'paused')`,
-        ),
+      () => countActiveDownloads(db),
     );
-    const [{ value: failedDownloads }] = yield* tryDatabasePromise(
+    const failedDownloads = yield* tryDatabasePromise(
       "Failed to load ops dashboard",
-      () =>
-        db.select({ value: count() }).from(downloads).where(
-          eq(downloads.status, "error"),
-        ),
+      () => countFailedDownloads(db),
     );
-    const [{ value: importedDownloads }] = yield* tryDatabasePromise(
+    const importedDownloads = yield* tryDatabasePromise(
       "Failed to load ops dashboard",
-      () =>
-        db.select({ value: count() }).from(downloads).where(
-          eq(downloads.status, "imported"),
-        ),
+      () => countImportedDownloads(db),
     );
-    const [{ value: runningJobs }] = yield* tryDatabasePromise(
+    const runningJobs = yield* tryDatabasePromise(
       "Failed to load ops dashboard",
-      () =>
-        db.select({ value: count() }).from(backgroundJobs).where(
-          eq(backgroundJobs.isRunning, true),
-        ),
+      () => countRunningBackgroundJobs(db),
     );
     const jobs = yield* tryDatabasePromise(
       "Failed to load ops dashboard",
-      () => db.select().from(backgroundJobs).orderBy(backgroundJobs.name),
+      () => listBackgroundJobRows(db),
     );
     const rowsByName = new Map(jobs.map((row) => [row.name, row]));
-    const jobNames = [
-      ...new Set([
-        "download_sync",
-        "library_scan",
-        "rss",
-        "unmapped_scan",
-        ...jobs.map((row) => row.name),
-      ]),
-    ].sort();
+    const jobNames = backgroundJobNames(jobs);
     const events = yield* tryDatabasePromise(
       "Failed to load ops dashboard",
-      () =>
-        db.select().from(downloadEvents).orderBy(desc(downloadEvents.id)).limit(
-          12,
-        ),
+      () => listRecentDownloadEventRows(db, 12),
     );
 
     return {
@@ -504,11 +482,14 @@ const makeSystemService = Effect.gen(function* () {
   const getConfig = Effect.fn("SystemService.getConfig")(function* () {
     const [storedConfig] = yield* tryDatabasePromise(
       "Failed to load system configuration",
-      () => db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+      async () => {
+        const row = await loadSystemConfigRow(db);
+        return row ? [row] : [];
+      },
     );
     const profiles = yield* tryDatabasePromise(
       "Failed to load system configuration",
-      () => db.select().from(qualityProfiles).orderBy(qualityProfiles.name),
+      () => listQualityProfileRows(db),
     );
 
     const core = storedConfig
@@ -549,28 +530,21 @@ const makeSystemService = Effect.gen(function* () {
     yield* tryDatabasePromise(
       "Failed to update system configuration",
       () =>
-        db.insert(appConfig)
-          .values({ data: encodeConfigCore(core), id: 1, updatedAt: nowIso() })
-          .onConflictDoUpdate({
-            target: appConfig.id,
-            set: { data: encodeConfigCore(core), updatedAt: nowIso() },
-          }),
+        upsertSystemConfigRow(db, {
+          data: encodeConfigCore(core),
+          id: 1,
+          updatedAt: nowIso(),
+        }),
     );
 
     yield* tryDatabasePromise(
       "Failed to update system configuration",
-      () => db.delete(qualityProfiles),
+      () =>
+        replaceQualityProfileRows(
+          db,
+          nextConfig.profiles.map(encodeQualityProfileRow),
+        ),
     );
-
-    if (nextConfig.profiles.length > 0) {
-      yield* tryDatabasePromise(
-        "Failed to update system configuration",
-        () =>
-          db.insert(qualityProfiles).values(
-            nextConfig.profiles.map(encodeQualityProfileRow),
-          ),
-      );
-    }
 
     setRuntimeLogLevel(nextConfig.general.log_level);
 
@@ -594,9 +568,10 @@ const makeSystemService = Effect.gen(function* () {
   ) {
     const existing = yield* tryDatabasePromise(
       "Failed to update quality profile",
-      () =>
-        db.select().from(qualityProfiles).where(eq(qualityProfiles.name, name))
-          .limit(1),
+      async () => {
+        const row = await loadQualityProfileRow(db, name);
+        return row ? [row] : [];
+      },
     );
 
     if (!existing[0]) {
@@ -607,10 +582,7 @@ const makeSystemService = Effect.gen(function* () {
 
     yield* tryDatabasePromise(
       "Failed to update quality profile",
-      () =>
-        db.update(qualityProfiles).set(encodeQualityProfileRow(profile)).where(
-          eq(qualityProfiles.name, name),
-        ),
+      () => updateQualityProfileRow(db, name, encodeQualityProfileRow(profile)),
     );
     yield* tryDatabasePromise(
       "Failed to update quality profile",
@@ -639,33 +611,17 @@ const makeSystemService = Effect.gen(function* () {
       1,
       Math.min(input.pageSize ?? PAGE_SIZE, 10_000),
     );
-    const conditions = [
-      input.level ? eq(systemLogs.level, input.level) : undefined,
-      input.eventType ? eventTypeCondition(input.eventType) : undefined,
-      input.startDate
-        ? sql`${systemLogs.createdAt} >= ${input.startDate}`
-        : undefined,
-      input.endDate
-        ? sql`${systemLogs.createdAt} <= ${input.endDate}`
-        : undefined,
-    ].filter((value): value is Exclude<typeof value, undefined> =>
-      value !== undefined
-    );
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    const countQuery = db.select({ value: count() }).from(systemLogs);
-    const rowsQuery = db.select().from(systemLogs).orderBy(desc(systemLogs.id))
-      .limit(
-        safePageSize,
-      ).offset((safePage - 1) * safePageSize);
-
-    const [{ value: totalLogs }] = yield* tryDatabasePromise(
+    const { rows, total } = yield* tryDatabasePromise(
       "Failed to load system logs",
-      () => (whereClause ? countQuery.where(whereClause) : countQuery),
-    );
-
-    const rows = yield* tryDatabasePromise(
-      "Failed to load system logs",
-      () => whereClause ? rowsQuery.where(whereClause) : rowsQuery,
+      () =>
+        loadSystemLogPage(db, {
+          endDate: input.endDate,
+          eventType: input.eventType,
+          level: input.level,
+          page: safePage,
+          pageSize: safePageSize,
+          startDate: input.startDate,
+        }),
     );
 
     return {
@@ -677,7 +633,7 @@ const makeSystemService = Effect.gen(function* () {
         level: normalizeLevel(row.level),
         message: row.message,
       })),
-      total_pages: Math.max(1, Math.ceil(totalLogs / safePageSize)),
+      total_pages: Math.max(1, Math.ceil(total / safePageSize)),
     } satisfies SystemLogsResponse;
   });
 

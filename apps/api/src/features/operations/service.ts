@@ -2,7 +2,6 @@ import { Context, Effect, Layer } from "effect";
 
 import type {
   CalendarEvent,
-  Config,
   Download,
   DownloadEvent,
   DownloadStatus,
@@ -19,12 +18,19 @@ import type {
 import { Database, DatabaseError } from "../../db/database.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { AniListClient } from "../anime/anilist.ts";
-import { type QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
+import { QBitTorrentClient } from "./qbittorrent.ts";
 import { RssClient } from "./rss-client.ts";
 import { makeSearchOrchestration } from "./search-orchestration.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
 import { makeCatalogOrchestration } from "./catalog-orchestration.ts";
 import { FileSystem } from "../../lib/filesystem.ts";
+import {
+  dbError,
+  maybeQBitConfig,
+  tryDatabasePromise,
+  tryOperationsPromise,
+  wrapOperationsError,
+} from "./service-support.ts";
 
 export {
   applyRemotePathMappings,
@@ -34,12 +40,7 @@ export {
   resolveBatchContentPaths,
   resolveCompletedContentPath,
 } from "./download-lifecycle.ts";
-import {
-  DownloadConflictError,
-  DownloadNotFoundError,
-  OperationsAnimeNotFoundError,
-  type OperationsError,
-} from "./errors.ts";
+import { type OperationsError } from "./errors.ts";
 
 export interface RssServiceShape {
   readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
@@ -192,18 +193,6 @@ const makeOperationsService = Effect.gen(function* () {
   const qbitClient = yield* QBitTorrentClient;
   const rssClient = yield* RssClient;
   const fs = yield* FileSystem;
-  const maybeQBitConfig = (config: Config): QBitConfig | null => {
-    if (!config.qbittorrent.enabled || !config.qbittorrent.password) {
-      return null;
-    }
-
-    return {
-      baseUrl: config.qbittorrent.url,
-      category: config.qbittorrent.default_category,
-      password: config.qbittorrent.password,
-      username: config.qbittorrent.username,
-    };
-  };
 
   const triggerSemaphore = yield* Effect.makeSemaphore(1);
 
@@ -345,41 +334,3 @@ export const OperationsServiceLive = Layer.mergeAll(
   ),
   Layer.effect(SearchService, Effect.map(InternalOperationsService, (s) => s)),
 ).pipe(Layer.provide(internalLayer));
-
-function dbError(message: string) {
-  return (cause: unknown) => new DatabaseError({ cause, message });
-}
-
-function wrapOperationsError(message: string) {
-  return (cause: unknown) => {
-    if (
-      cause instanceof OperationsAnimeNotFoundError ||
-      cause instanceof DownloadNotFoundError ||
-      cause instanceof DownloadConflictError ||
-      cause instanceof DatabaseError
-    ) {
-      return cause;
-    }
-    return new DatabaseError({ cause, message });
-  };
-}
-
-function tryDatabasePromise<A>(
-  message: string,
-  try_: () => Promise<A>,
-): Effect.Effect<A, DatabaseError> {
-  return Effect.tryPromise({
-    try: try_,
-    catch: dbError(message),
-  });
-}
-
-function tryOperationsPromise<A>(
-  message: string,
-  try_: () => Promise<A>,
-): Effect.Effect<A, OperationsError | DatabaseError> {
-  return Effect.tryPromise({
-    try: try_,
-    catch: wrapOperationsError(message),
-  });
-}

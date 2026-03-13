@@ -26,11 +26,23 @@ What is already in good shape:
 - feature and route decomposition is well underway across `anime`, `operations`,
   `system`, and `http`
 
+Verified complete from this plan:
+
+- phase 1 is complete: expected failures are now mostly modeled as tagged
+  errors across auth, anime, operations, and system flows, and route mapping in
+  `apps/api/src/http/route-helpers.ts` is primarily tag-based
+- phase 2 is complete: raw filesystem access is centralized behind
+  `apps/api/src/lib/filesystem.ts`, orchestration uses Effect-wrapped
+  filesystem boundaries, queue-backed event delivery lives in
+  `apps/api/src/features/events/event-bus.ts`, and HTTP stream conversion stays
+  at the route edge
+- Effect language service diagnostics are clean, which removed several
+  non-native patterns that previously blocked both phases
+
 Main remaining gaps:
 
-- error modeling is still broader than ideal
-- filesystem and stream/event boundaries are not yet fully Effect-native
-- concurrency primitives are underused compared to current needs
+- some concurrency and subscription paths can still use stronger primitives or
+  clearer scoped ownership
 - observability is mostly logging, not full tracing/metrics/supervision
 - tests are still mostly integration-style `Deno.test` instead of Effect-native
 - many advanced Effect and Schema capabilities are available but not yet applied
@@ -47,7 +59,7 @@ Main remaining gaps:
 
 ## Priority Tracks
 
-### 1. Tighten Error Modeling and Recovery
+### 1. Tighten Error Modeling and Recovery (Done)
 
 Why:
 
@@ -107,12 +119,23 @@ Implementation steps:
 
 Acceptance criteria:
 
-- route error handling is primarily tag-based
-- expected failures are modeled in the error channel
-- unexpected failures remain defects or are wrapped with `Schema.Defect`
-- fallback behavior is explicit and intentional
+- [x] route error handling is primarily tag-based
+- [x] expected failures are modeled in the error channel
+- [x] unexpected failures remain defects or are wrapped with `Schema.Defect`
+- [x] fallback behavior is explicit and intentional
 
-### 2. Make Filesystem and Streaming Boundaries Effect-Native
+Verification notes:
+
+- `apps/api/src/http/route-helpers.ts` maps tagged domain errors to HTTP status
+  codes directly
+- auth, anime, operations, system, RSS, AniList, and qBittorrent paths now use
+  explicit tagged errors or typed boundary wrappers instead of broad ad hoc
+  failures in the main control flow
+- the diagnostics cleanup removed common anti-patterns such as immediate
+  `Effect.fn(...)(...)()` execution, `yield* new Error()` without `return`, and
+  `catchAll(() => Effect.fail(...))` wrappers
+
+### 2. Make Filesystem and Streaming Boundaries Effect-Native (Done)
 
 Why:
 
@@ -169,9 +192,23 @@ Implementation steps:
 
 Acceptance criteria:
 
-- feature orchestration no longer calls raw `Deno.*` directly
-- SSE/event delivery is backed by Effect concurrency primitives
-- scoped resources are explicitly acquired and released
+- [x] feature orchestration no longer calls raw `Deno.*` directly
+- [x] SSE/event delivery is backed by Effect concurrency primitives
+- [x] scoped resources are explicitly acquired and released
+
+Verification notes:
+
+- raw filesystem access is isolated to `apps/api/src/lib/filesystem.ts`
+- feature modules such as `apps/api/src/features/anime/files.ts`,
+  `apps/api/src/features/operations/file-scanner.ts`, and
+  `apps/api/src/features/operations/catalog-orchestration.ts` use the
+  filesystem service boundary instead of calling `Deno.*` directly
+- event subscriptions are queue-backed in
+  `apps/api/src/features/events/event-bus.ts`
+- SSE transport remains in `apps/api/src/http/system-routes.ts`, which matches
+  the intended boundary of keeping `ReadableStream` conversion at the HTTP edge
+- large library scans now support streaming iteration in
+  `apps/api/src/features/operations/file-scanner.ts`
 
 ### 3. Formalize Service Graph and Layer Boundaries
 
@@ -463,13 +500,18 @@ Defer unless a clear use case appears:
 
 ## Recommended Sequence
 
-1. error contracts and recovery
-2. filesystem and streaming boundaries
-3. service/layer graph cleanup
-4. richer schema/domain modeling
-5. concurrency/backpressure primitives
-6. tracing/metrics/supervision
-7. Effect-native testing
+Completed:
+
+- 1. error contracts and recovery
+- 2. filesystem and streaming boundaries
+
+Next recommended focus:
+
+1. service/layer graph cleanup
+2. richer schema/domain modeling
+3. concurrency/backpressure primitives
+4. tracing/metrics/supervision
+5. Effect-native testing
 
 ## Verification Checklist
 

@@ -90,6 +90,20 @@ export function toBackgroundJobStatus(
   };
 }
 
+export function backgroundJobNames(
+  rows: ReadonlyArray<{ name: string }>,
+): string[] {
+  return [
+    ...new Set([
+      "download_sync",
+      "library_scan",
+      "rss",
+      "unmapped_scan",
+      ...rows.map((row) => row.name),
+    ]),
+  ].sort();
+}
+
 function describeJobSchedule(config: Config, name: string) {
   if (name === "download_sync") {
     return { mode: "interval" as const, value: "15s" };
