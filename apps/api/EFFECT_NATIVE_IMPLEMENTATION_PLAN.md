@@ -49,7 +49,9 @@ Main remaining gaps:
 - schema-first domain modeling is still uneven across persisted and shared
   contracts
 - observability is mostly logging, not full tracing/metrics/supervision
-- tests are still mostly integration-style `Deno.test` instead of Effect-native
+- tests are still mostly integration-style `Deno.test` and underuse Effect test
+  utilities such as `TestClock`, layer-provided dependencies, and runtime-driven
+  helpers
 - many advanced Effect and Schema capabilities are available but not yet applied
 
 ## Guiding Principles
@@ -442,12 +444,12 @@ Acceptance criteria:
 - worker supervision policy is explicit
 - log/span correlation is straightforward
 
-### 7. Upgrade Testing to Effect-Native Patterns
+### 7. Upgrade Testing to Deno + Effect Testing Patterns
 
 Why:
 
 - the codebase has decent integration coverage, but it underuses layer-based
-  testing and `TestClock`
+  testing, `TestClock`, and Deno-native helpers for running Effect-heavy tests
 
 Targets:
 
@@ -476,7 +478,9 @@ Implementation steps:
 - keep current integration tests
 - add layer-driven tests for repositories, orchestrators, and external clients
 - move time/schedule/retry tests to `TestClock`
-- introduce `@effect/vitest` for Effect-heavy modules where it improves signal
+- standardize small Deno test helpers for running Effect programs and asserting
+  on `Exit`, tagged errors, and provided layers instead of introducing
+  `@effect/vitest`
 - provide test layers for config, event bus, filesystem, and external services
 
 Acceptance criteria:
@@ -557,5 +561,5 @@ Next recommended focus:
 - major boundaries are modeled as services/layers and can be test-provided
 - schemas are canonical, reusable, and expressive enough for validation and DX
 - observability covers request, job, and external-call flows
-- tests cover scheduling, retries, and service orchestration with Effect-native
-  tools
+- tests cover scheduling, retries, and service orchestration with Deno-based
+  Effect test utilities

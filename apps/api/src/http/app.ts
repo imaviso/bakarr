@@ -91,7 +91,7 @@ export function createApp(runEffect: RunEffect) {
     const apiKey = getApiKey(
       c.req.header("x-api-key"),
       c.req.header("authorization"),
-      c.req.query("api_key"),
+      c.req.query("api_key") ?? c.req.query("token"),
     );
 
     const viewer = await runEffect(

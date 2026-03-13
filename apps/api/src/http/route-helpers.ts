@@ -296,12 +296,15 @@ export function parseJsonBody<A, I>(
         status: 400,
       }),
   }).pipe(
-    Effect.flatMap(Schema.decodeUnknown(schema)),
-    Effect.mapError(() =>
-      RequestValidationError.make({
-        message: `Invalid request body for ${label}`,
-        status: 400,
-      })
+    Effect.flatMap((json) =>
+      Schema.decodeUnknown(schema)(json).pipe(
+        Effect.mapError(() =>
+          RequestValidationError.make({
+            message: `Invalid request body for ${label}`,
+            status: 400,
+          })
+        ),
+      )
     ),
   );
 }
