@@ -268,14 +268,12 @@ Verification notes:
 - system persistence and query helpers moved into
   `apps/api/src/features/system/repository.ts`
 - anime boundary helpers moved into
-  `apps/api/src/features/anime/service-support.ts` and image caching now lives in
-  `apps/api/src/features/anime/image-cache.ts`
-- background worker startup is modeled as
-  `apps/api/src/background.ts` `BackgroundWorkerService` and is composed through
-  `apps/api/src/runtime.ts`
+  `apps/api/src/features/anime/service-support.ts` and image caching now lives
+  in `apps/api/src/features/anime/image-cache.ts`
+- background worker startup is modeled as `apps/api/src/background.ts`
+  `BackgroundWorkerService` and is composed through `apps/api/src/runtime.ts`
 - service methods across anime, operations, and system now read more clearly as
-  orchestration/policy over repositories, support modules, and boundary
-  adapters
+  orchestration/policy over repositories, support modules, and boundary adapters
 
 ### 4. Expand Schema-First Modeling
 
@@ -542,7 +540,7 @@ Next recommended focus:
 - `deno task check`
 - `deno task test`
 - `deno lint`
-- `pnpm build` in `apps/web` when shared contracts change
+- `deno task --cwd=apps/web build` when shared contracts change
 - search for residual non-native patterns in `apps/api/src`:
   - broad `catchAll` fallbacks hiding expected failures
   - route or service code calling raw `Deno.*` directly

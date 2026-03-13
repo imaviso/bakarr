@@ -1,12 +1,12 @@
 export type ApiResult<T> =
   | {
-      ok: true;
-      data: T;
-    }
+    ok: true;
+    data: T;
+  }
   | {
-      ok: false;
-      error: string;
-    };
+    ok: false;
+    error: string;
+  };
 
 export interface HealthStatus {
   status: "ok";
@@ -511,20 +511,44 @@ export type NotificationEvent =
   | { type: "DownloadFinished"; payload: { title: string; anime_id?: number } }
   | { type: "RefreshStarted"; payload: { anime_id: number; title: string } }
   | { type: "RefreshFinished"; payload: { anime_id: number; title: string } }
-  | { type: "SearchMissingStarted"; payload: { anime_id: number; title: string } }
-  | { type: "SearchMissingFinished"; payload: { anime_id: number; title: string; count: number } }
+  | {
+    type: "SearchMissingStarted";
+    payload: { anime_id: number; title: string };
+  }
+  | {
+    type: "SearchMissingFinished";
+    payload: { anime_id: number; title: string; count: number };
+  }
   | { type: "ScanFolderStarted"; payload: { anime_id: number; title: string } }
-  | { type: "ScanFolderFinished"; payload: { anime_id: number; title: string; found: number } }
+  | {
+    type: "ScanFolderFinished";
+    payload: { anime_id: number; title: string; found: number };
+  }
   | { type: "RenameStarted"; payload: { anime_id: number; title: string } }
-  | { type: "RenameFinished"; payload: { anime_id: number; title: string; count: number } }
+  | {
+    type: "RenameFinished";
+    payload: { anime_id: number; title: string; count: number };
+  }
   | { type: "ImportStarted"; payload: { count: number } }
-  | { type: "ImportFinished"; payload: { count: number; imported: number; failed: number } }
+  | {
+    type: "ImportFinished";
+    payload: { count: number; imported: number; failed: number };
+  }
   | { type: "LibraryScanStarted" }
-  | { type: "LibraryScanFinished"; payload: { scanned: number; matched: number; updated?: number } }
+  | {
+    type: "LibraryScanFinished";
+    payload: { scanned: number; matched: number; updated?: number };
+  }
   | { type: "LibraryScanProgress"; payload: { scanned: number } }
   | { type: "RssCheckStarted" }
-  | { type: "RssCheckFinished"; payload: { total_feeds?: number; new_items: number } }
-  | { type: "RssCheckProgress"; payload: { current: number; total: number; feed_name: string } }
+  | {
+    type: "RssCheckFinished";
+    payload: { total_feeds?: number; new_items: number };
+  }
+  | {
+    type: "RssCheckProgress";
+    payload: { current: number; total: number; feed_name: string };
+  }
   | { type: "Error"; payload: { message: string } }
   | { type: "Info"; payload: { message: string } }
   | { type: "DownloadProgress"; payload: { downloads: DownloadStatus[] } }

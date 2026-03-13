@@ -5,19 +5,19 @@ import { FilterMenu } from "./filter-menu";
 import { FilterProvider } from "./filter-provider";
 
 interface FilterRootProps {
-	children: JSX.Element;
+  children: JSX.Element;
 }
 
 function FilterRoot(props: FilterRootProps) {
-	return <div class="flex flex-col gap-3">{props.children}</div>;
+  return <div class="flex flex-col gap-3">{props.children}</div>;
 }
 
 export const Filter = {
-	Provider: FilterProvider,
-	Root: FilterRoot,
-	Menu: FilterMenu,
-	List: FilterList,
-	Actions: FilterActions,
+  Provider: FilterProvider,
+  Root: FilterRoot,
+  Menu: FilterMenu,
+  List: FilterList,
+  Actions: FilterActions,
 };
 
 export * from "./types";

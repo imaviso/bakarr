@@ -104,7 +104,7 @@
     --ring: 0 0% 20%;
     --radius: 0rem;
 
-    --sidebar-background: 0 0% 2%; 
+    --sidebar-background: 0 0% 2%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 0 0% 98%;
     --sidebar-primary-foreground: 0 0% 0%;
@@ -131,7 +131,7 @@
   *:focus-visible {
     @apply outline-none ring-1 ring-ring ring-offset-1 ring-offset-background;
   }
-  
+
   /* Make headings a bit lighter in weight than the brutalist ones */
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
@@ -156,7 +156,8 @@
   }
 
   .card-hover {
-    @apply transition-colors duration-200 border border-border hover:border-muted-foreground/30;
+    @apply transition-colors duration-200 border border-border
+      hover:border-muted-foreground/30;
   }
 
   .skeleton {
@@ -178,7 +179,8 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/20 rounded-none border-[1px] border-background bg-clip-content;
+  @apply bg-muted-foreground/20 rounded-none border-[1px] border-background
+    bg-clip-content;
   transition: background-color 0.2s ease;
 }
 

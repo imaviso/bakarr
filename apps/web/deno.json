@@ -1,0 +1,32 @@
+{
+  "imports": {
+    "~/": "./src/"
+  },
+  "tasks": {
+    "dev": "vite --port 3000",
+    "build": "vite build && deno task check",
+    "serve": "vite preview",
+    "start": "vite",
+    "check": "deno check --unstable-sloppy-imports src",
+    "lint": "deno lint src vite.config.js tailwind.config.js postcss.config.js",
+    "fmt": "deno fmt src vite.config.js tailwind.config.js postcss.config.js"
+  },
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "solid-js",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ES2022"
+    ],
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

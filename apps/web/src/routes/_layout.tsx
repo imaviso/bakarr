@@ -7,54 +7,54 @@ import { CommandPalette } from "~/components/command-palette";
 import { ModeToggle } from "~/components/mode-toggle";
 import { SseToastListener } from "~/components/sse-toast-listener";
 import {
-	SidebarInset,
-	SidebarProvider,
-	SidebarTrigger,
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
 } from "~/components/ui/sidebar";
 
 export const Route = createFileRoute("/_layout")({
-	beforeLoad: ({ context, location }) => {
-		const authState = context.getAuthState();
-		if (!authState.isAuthenticated) {
-			throw redirect({
-				to: "/login",
-				search: {
-					redirect: location.href,
-				},
-			});
-		}
-	},
-	component: LayoutComponent,
+  beforeLoad: ({ context, location }) => {
+    const authState = context.getAuthState();
+    if (!authState.isAuthenticated) {
+      throw redirect({
+        to: "/login",
+        search: {
+          redirect: location.href,
+        },
+      });
+    }
+  },
+  component: LayoutComponent,
 });
 
 function LayoutComponent() {
-	const isFetching = useIsFetching();
+  const isFetching = useIsFetching();
 
-	return (
-		<SidebarProvider>
-			<AppSidebar />
-			<SidebarInset>
-				<div class="h-0.5 w-full bg-transparent overflow-hidden fixed top-0 left-0 z-[100] pointer-events-none">
-					<Show when={isFetching() > 0}>
-						<div class="h-full bg-primary animate-progress-indeterminate w-full origin-left" />
-					</Show>
-				</div>
-				<header class="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-sm px-4 border-b border-border">
-					<SidebarTrigger class="-ml-1" />
-					<div class="h-4 w-px bg-border/50 mx-1 hidden md:block" />
-					<Breadcrumb />
-					<div class="flex-1" />
-					<div class="flex items-center gap-2">
-						<CommandPalette />
-						<div class="h-4 w-px bg-border/50 mx-1" />
-						<ModeToggle />
-					</div>
-				</header>
-				<main class="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden">
-					<Outlet />
-				</main>
-				<SseToastListener />
-			</SidebarInset>
-		</SidebarProvider>
-	);
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <div class="h-0.5 w-full bg-transparent overflow-hidden fixed top-0 left-0 z-[100] pointer-events-none">
+          <Show when={isFetching() > 0}>
+            <div class="h-full bg-primary animate-progress-indeterminate w-full origin-left" />
+          </Show>
+        </div>
+        <header class="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-sm px-4 border-b border-border">
+          <SidebarTrigger class="-ml-1" />
+          <div class="h-4 w-px bg-border/50 mx-1 hidden md:block" />
+          <Breadcrumb />
+          <div class="flex-1" />
+          <div class="flex items-center gap-2">
+            <CommandPalette />
+            <div class="h-4 w-px bg-border/50 mx-1" />
+            <ModeToggle />
+          </div>
+        </header>
+        <main class="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden">
+          <Outlet />
+        </main>
+        <SseToastListener />
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }

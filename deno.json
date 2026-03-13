@@ -1,0 +1,33 @@
+{
+  "workspace": [
+    "./apps/*",
+    "./packages/*"
+  ],
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev": "deno run -A ./tools/dev.ts",
+    "dev:api": "deno task --cwd=apps/api dev",
+    "dev:web": "deno task --cwd=apps/web dev",
+    "build": "deno task --cwd=apps/api build && deno task --cwd=apps/web build",
+    "test": "deno task --cwd=apps/api test",
+    "check": "deno task --cwd=apps/api check && deno task --cwd=apps/web check",
+    "lint": "deno lint",
+    "fmt": "deno fmt"
+  },
+  "fmt": {
+    "exclude": [
+      "apps/web/dist",
+      "apps/web/node_modules",
+      "apps/web/src/routeTree.gen.ts",
+      "node_modules"
+    ]
+  },
+  "lint": {
+    "exclude": [
+      "apps/web/dist",
+      "apps/web/node_modules",
+      "apps/web/src/routeTree.gen.ts",
+      "node_modules"
+    ]
+  }
+}

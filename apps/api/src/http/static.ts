@@ -69,7 +69,7 @@ async function serveIndexHtml(webDistUrl: URL): Promise<Response> {
     });
   } catch {
     return new Response(
-      "Frontend bundle not found. Run `pnpm --filter @bakarr/ui build` first.",
+      "Frontend bundle not found. Run `deno task --cwd=apps/web build` first.",
       {
         status: 503,
         headers: {
