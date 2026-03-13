@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect";
+import { Effect, ParseResult, Schema } from "effect";
 import { setCookie } from "hono/cookie";
 import type { FileSystemShape } from "../lib/filesystem.ts";
 
@@ -485,6 +485,19 @@ function decodeUnknownInput<A, I>(
 }
 
 function formatValidationErrorMessage(message: string, error: unknown) {
+  if (ParseResult.isParseError(error)) {
+    const issues = ParseResult.ArrayFormatter.formatErrorSync(error);
+
+    if (issues.length > 0) {
+      const details = issues.slice(0, 3).map((issue) => {
+        const path = issue.path.length > 0 ? issue.path.join(".") : "input";
+        return `${path}: ${issue.message}`;
+      }).join("; ");
+
+      return `${message}: ${details}`;
+    }
+  }
+
   if (
     typeof error === "object" &&
     error !== null &&

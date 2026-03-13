@@ -113,7 +113,7 @@ Deno.test("ConfigSchema rejects malformed config fields with localized paths", (
   }
 });
 
-Deno.test("parseJsonBody includes schema validation detail in request errors", async () => {
+Deno.test("parseJsonBody formats schema validation errors as concise path summaries", async () => {
   const parsed = await Effect.runPromise(
     parseJsonBody(
       {
@@ -123,7 +123,7 @@ Deno.test("parseJsonBody includes schema validation detail in request errors", a
               ...makeValidConfig(),
               library: {
                 ...makeValidConfig().library,
-                import_mode: "link",
+                import_mode: "Copy",
               },
             }),
         },
@@ -137,6 +137,8 @@ Deno.test("parseJsonBody includes schema validation detail in request errors", a
 
   if (parsed._tag === "Left") {
     assertMatch(parsed.left.message, /system config/);
-    assertMatch(parsed.left.message, /import_mode/);
+    assertMatch(parsed.left.message, /library\.import_mode/);
+    assertMatch(parsed.left.message, /actual "Copy"/);
+    assertEquals(parsed.left.message.includes("readonly downloads"), false);
   }
 });
