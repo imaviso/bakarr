@@ -275,7 +275,8 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
 
     return payload.data.Page.media.map((entry) => ({
       already_in_library: false,
-      cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ?? undefined,
+      cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ??
+        undefined,
       episode_count: entry.episodes ?? undefined,
       format: entry.format ?? undefined,
       id: entry.id,
@@ -363,7 +364,8 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
 
     return {
       bannerImage: media.bannerImage ?? undefined,
-      coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ?? undefined,
+      coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ??
+        undefined,
       description: media.description ?? undefined,
       endDate: toIsoDate(media.endDate),
       episodeCount: media.episodes ?? undefined,
