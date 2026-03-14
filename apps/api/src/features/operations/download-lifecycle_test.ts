@@ -1,4 +1,5 @@
 import { assertEquals } from "@std/assert";
+import { Effect } from "effect";
 
 import {
   applyRemotePathMappings,
@@ -11,7 +12,7 @@ import {
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import { Effect } from "effect";
+import { runTestEffect } from "../../test/effect-test.ts";
 
 const filesystemTestPermissions: Deno.PermissionOptions = {
   read: true,
@@ -99,8 +100,14 @@ filesystemTest(
       await Deno.writeTextFile(first, "one");
       await Deno.writeTextFile(second, "two");
 
-      assertEquals(await resolveCompletedContentPath(fs, dir, 2), second);
-      assertEquals(await resolveCompletedContentPath(fs, first, 1), first);
+      assertEquals(
+        await runTestEffect(resolveCompletedContentPath(fs, dir, 2)),
+        second,
+      );
+      assertEquals(
+        await runTestEffect(resolveCompletedContentPath(fs, first, 1)),
+        first,
+      );
     } finally {
       await Deno.remove(dir, { recursive: true });
     }
@@ -120,7 +127,10 @@ filesystemTest(
       await Deno.writeTextFile(second, "two");
       await Deno.writeTextFile(ignored, "ignore");
 
-      assertEquals(await resolveBatchContentPaths(fs, dir), [first, second]);
+      assertEquals(await runTestEffect(resolveBatchContentPaths(fs, dir)), [
+        first,
+        second,
+      ]);
     } finally {
       await Deno.remove(dir, { recursive: true });
     }
@@ -136,7 +146,9 @@ filesystemTest(
       const file = `${dir}/Show Season Pack.mkv`;
       await Deno.writeTextFile(file, "season");
 
-      assertEquals(await resolveBatchContentPaths(fs, file), [file]);
+      assertEquals(await runTestEffect(resolveBatchContentPaths(fs, file)), [
+        file,
+      ]);
     } finally {
       await Deno.remove(dir, { recursive: true });
     }
@@ -241,10 +253,12 @@ filesystemTest(
       await Deno.writeTextFile(localFile, "video");
 
       assertEquals(
-        await resolveAccessibleDownloadPath(
-          fs,
-          "/remote/downloads/show/episode.mkv",
-          [["/remote/downloads", localRoot]],
+        await runTestEffect(
+          resolveAccessibleDownloadPath(
+            fs,
+            "/remote/downloads/show/episode.mkv",
+            [["/remote/downloads", localRoot]],
+          ),
         ),
         localFile,
       );

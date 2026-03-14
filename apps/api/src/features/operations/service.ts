@@ -26,6 +26,8 @@ import { makeCatalogOrchestration } from "./catalog-orchestration.ts";
 import { FileSystem } from "../../lib/filesystem.ts";
 import {
   dbError,
+  makeCoalescedEffectRunner,
+  makeLatestValuePublisher,
   maybeQBitConfig,
   tryDatabasePromise,
   tryOperationsPromise,
@@ -209,6 +211,25 @@ const makeOperationsService = Effect.gen(function* () {
     triggerSemaphore,
   });
 
+  const coalescedDownloadProgressPublisher = yield* makeCoalescedEffectRunner(
+    downloadOrchestration.publishDownloadProgress(),
+  );
+  const publishDownloadProgress = () => coalescedDownloadProgressPublisher.trigger;
+  const libraryScanProgressPublisher = yield* makeLatestValuePublisher(
+    (scanned: number) =>
+      eventBus.publish({
+        type: "LibraryScanProgress",
+        payload: { scanned },
+      }),
+  );
+  const rssCheckProgressPublisher = yield* makeLatestValuePublisher(
+    (payload: { current: number; total: number; feed_name: string }) =>
+      eventBus.publish({
+        type: "RssCheckProgress",
+        payload,
+      }),
+  );
+
   const searchOrchestration = makeSearchOrchestration({
     aniList,
     db,
@@ -216,7 +237,8 @@ const makeOperationsService = Effect.gen(function* () {
     eventBus,
     fs,
     maybeQBitConfig,
-    publishDownloadProgress: downloadOrchestration.publishDownloadProgress,
+    publishDownloadProgress,
+    publishRssCheckProgress: rssCheckProgressPublisher.offer,
     qbitClient,
     rssClient,
     tryDatabasePromise,
@@ -226,7 +248,6 @@ const makeOperationsService = Effect.gen(function* () {
 
   const {
     applyDownloadActionEffect,
-    publishDownloadProgress,
     reconcileDownloadByIdEffect,
     retryDownloadById,
     syncDownloadState,
@@ -251,6 +272,7 @@ const makeOperationsService = Effect.gen(function* () {
     eventBus,
     fs,
     publishDownloadProgress,
+    publishLibraryScanProgress: libraryScanProgressPublisher.offer,
     reconcileDownloadByIdEffect,
     retryDownloadById,
     syncDownloadState,

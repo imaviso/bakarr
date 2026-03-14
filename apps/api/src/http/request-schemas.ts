@@ -8,6 +8,11 @@ import {
   PositiveIntFromStringSchema,
   ReleaseProfileIdSchema,
 } from "../lib/domain-schema.ts";
+export {
+  ApiKeyLoginRequestSchema,
+  ChangePasswordRequestSchema,
+  LoginRequestSchema,
+} from "../../../../packages/shared/src/index.ts";
 
 export {
   ConfigSchema,
@@ -19,20 +24,6 @@ export {
 } from "../features/system/config-schema.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
-
-export const LoginRequestSchema = Schema.Struct({
-  password: Schema.String,
-  username: Schema.String,
-});
-
-export const ApiKeyLoginRequestSchema = Schema.Struct({
-  api_key: Schema.String,
-});
-
-export const ChangePasswordRequestSchema = Schema.Struct({
-  current_password: Schema.String,
-  new_password: Schema.String,
-});
 
 export const AddAnimeInputSchema = Schema.Struct({
   id: AnimeIdSchema,

@@ -1,10 +1,18 @@
-import { Effect } from "effect";
+import { Effect, Fiber, Metric, Schema, Stream } from "effect";
 import type { Hono } from "hono";
 
-import type { HealthStatus } from "../../../../packages/shared/src/index.ts";
-import { BackgroundWorkerMonitor } from "../background.ts";
+import type {
+  DownloadStatus,
+  HealthStatus,
+  NotificationEvent,
+} from "../../../../packages/shared/src/index.ts";
+import { NotificationEventSchema } from "../../../../packages/shared/src/index.ts";
 import { EventBus } from "../features/events/event-bus.ts";
 import { FileSystem } from "../lib/filesystem.ts";
+import {
+  recordHttpRequestMetrics,
+  renderBakarrPrometheusMetrics,
+} from "../lib/metrics.ts";
 import {
   DownloadService,
   LibraryService,
@@ -35,6 +43,9 @@ import {
   withParamsAndBody,
   withQuery,
 } from "./route-helpers.ts";
+
+const NotificationEventJsonSchema = Schema.parseJson(NotificationEventSchema);
+const encodeNotificationEvent = Schema.encodeSync(NotificationEventJsonSchema);
 
 export function registerSystemRoutes(
   app: Hono<{ Variables: AppVariables }>,
@@ -415,82 +426,33 @@ export function registerSystemRoutes(
       () => c.json({ data: null, success: true }),
     ));
 
-  app.get("/api/events", async (_c) => {
-    const [subscription, downloads] = await Promise.all([
-      runEffect(
-        Effect.flatMap(
-          EventBus,
-          (eventBus) => eventBus.subscribe(),
-        ),
-      ),
-      runEffect(
-        Effect.flatMap(
+  app.get("/api/events", (_c) => {
+    return runRoute(
+      _c,
+      runEffect,
+      Effect.gen(function* () {
+        const downloads = yield* Effect.flatMap(
           DownloadService,
           (service) => service.getDownloadProgress(),
-        ),
-      ),
-    ]);
-
-    const encoder = new TextEncoder();
-    const encodeSse = (payload: string) => encoder.encode(`${payload}\n\n`);
-    const initial = encodeSse(
-      `data: ${
-        JSON.stringify({ type: "DownloadProgress", payload: { downloads } })
-      }`,
+        );
+        const eventBus = yield* EventBus;
+        return { downloads, eventBus };
+      }),
+      ({ downloads, eventBus }) =>
+        new Response(createEventsResponseBody(runEffect, downloads, eventBus), {
+          headers: {
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+            "Content-Type": "text/event-stream",
+          },
+        }),
     );
-    let interval: ReturnType<typeof setInterval> | undefined;
-
-    const stopStream = () => {
-      if (interval !== undefined) {
-        clearInterval(interval);
-        interval = undefined;
-      }
-      return Effect.runPromise(subscription.close).catch(() => undefined);
-    };
-
-    const combined = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        interval = setInterval(() => {
-          try {
-            controller.enqueue(encodeSse(`: keep-alive ${Date.now()}`));
-          } catch {
-            void stopStream();
-          }
-        }, 15_000);
-
-        try {
-          controller.enqueue(encodeSse(": connected"));
-          controller.enqueue(initial);
-
-          while (true) {
-            const event = await Effect.runPromise(subscription.take);
-            controller.enqueue(encodeSse(`data: ${JSON.stringify(event)}`));
-          }
-        } finally {
-          await stopStream();
-          try {
-            controller.close();
-          } catch {
-            // Ignore cancelled streams.
-          }
-        }
-      },
-      cancel() {
-        return stopStream();
-      },
-    });
-
-    return new Response(combined, {
-      headers: {
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "Content-Type": "text/event-stream",
-      },
-    });
   });
 
   app.get("/api/metrics", async (_c) => {
-    const [status, stats, downloads, backgroundWorkers] = await Promise.all([
+    const startedAt = performance.now();
+
+    const [status, stats, downloads] = await Promise.all([
       runEffect(
         Effect.flatMap(SystemService, (service) => service.getSystemStatus()),
       ),
@@ -503,26 +465,15 @@ export function registerSystemRoutes(
           (service) => service.getDownloadProgress(),
         ),
       ),
-      runEffect(
-        Effect.flatMap(
-          BackgroundWorkerMonitor,
-          (monitor) => monitor.snapshot(),
-        ),
-      ),
     ]);
 
-    const workerMetrics = Object.entries(backgroundWorkers).flatMap(
-      ([worker, snapshot]) => [
-        `bakarr_background_worker_daemon_running{worker="${worker}"} ${
-          snapshot.daemonRunning ? 1 : 0
-        }`,
-        `bakarr_background_worker_run_running{worker="${worker}"} ${
-          snapshot.runRunning ? 1 : 0
-        }`,
-        `bakarr_background_worker_success_total{worker="${worker}"} ${snapshot.successCount}`,
-        `bakarr_background_worker_failures_total{worker="${worker}"} ${snapshot.failureCount}`,
-        `bakarr_background_worker_skips_total{worker="${worker}"} ${snapshot.skipCount}`,
-      ],
+    const snapshot = await runEffect(
+      recordHttpRequestMetrics({
+        durationMs: performance.now() - startedAt,
+        method: _c.req.method,
+        route: _c.req.path,
+        status: 200,
+      }).pipe(Effect.zipRight(Metric.snapshot)),
     );
 
     const body = [
@@ -540,12 +491,7 @@ export function registerSystemRoutes(
       `bakarr_missing_episodes ${stats.missing_episodes}`,
       "# TYPE bakarr_active_download_items gauge",
       `bakarr_active_download_items ${downloads.length}`,
-      "# TYPE bakarr_background_worker_daemon_running gauge",
-      "# TYPE bakarr_background_worker_run_running gauge",
-      "# TYPE bakarr_background_worker_success_total counter",
-      "# TYPE bakarr_background_worker_failures_total counter",
-      "# TYPE bakarr_background_worker_skips_total counter",
-      ...workerMetrics,
+      ...renderBakarrPrometheusMetrics(snapshot),
     ].join("\n");
 
     return new Response(`${body}\n`, {
@@ -555,6 +501,78 @@ export function registerSystemRoutes(
     });
   });
 }
+
+function createEventsResponseBody(
+  runEffect: RunEffect,
+  downloads: DownloadStatus[],
+  eventBus: typeof EventBus.Service,
+) {
+  let fiber: Fiber.RuntimeFiber<void, never> | undefined;
+
+  const stopStream = () =>
+    fiber
+      ? runEffect(Fiber.interrupt(fiber).pipe(Effect.asVoid)).catch(() => undefined)
+      : Promise.resolve();
+
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      fiber = await runEffect(forkEventsStream(controller, downloads, eventBus));
+    },
+    cancel() {
+      return stopStream();
+    },
+  });
+}
+
+const forkEventsStream = Effect.fn("Http.forkEventsStream")(function* (
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  downloads: DownloadStatus[],
+  eventBus: typeof EventBus.Service,
+) {
+  const encoder = new TextEncoder();
+  const encodeSse = (payload: string) => encoder.encode(`${payload}\n\n`);
+  const encodeNotificationSse = (event: NotificationEvent) =>
+    encodeSse(`data: ${encodeNotificationEvent(event)}`);
+  const subscription = yield* eventBus.subscribe();
+  const initialEvents = Stream.fromIterable([
+    encodeSse(": connected"),
+    encodeNotificationSse({
+      type: "DownloadProgress",
+      payload: { downloads },
+    }),
+  ]);
+  const liveEvents = Stream.merge(
+    subscription.stream.pipe(
+      Stream.map(encodeNotificationSse),
+    ),
+    Stream.tick("15 seconds").pipe(
+      Stream.map(() => encodeSse(`: keep-alive ${Date.now()}`)),
+    ),
+  ).pipe(Stream.withSpan("http.events.stream"));
+
+  return yield* Stream.concat(initialEvents, liveEvents).pipe(
+    Stream.runForEach((chunk) =>
+      Effect.sync(() => {
+        try {
+          controller.enqueue(chunk);
+        } catch {
+          // Ignore cancelled streams.
+        }
+      })
+    ),
+    Effect.ensuring(subscription.close),
+    Effect.ensuring(
+      Effect.sync(() => {
+        try {
+          controller.close();
+        } catch {
+          // Ignore cancelled streams.
+        }
+      }),
+    ),
+    Effect.forkDaemon,
+  );
+});
 
 function contentTypeForPath(path: string): string {
   const lower = path.toLowerCase();

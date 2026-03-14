@@ -5,6 +5,7 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import {
   anime,
   appConfig,
@@ -76,7 +77,7 @@ Deno.test("operations repository helpers load runtime config and fallback values
 
 Deno.test("operations repository helpers fall back on missing or invalid config rows", async () => {
   await withTestDb(async (db, _databaseFile) => {
-    assertEquals(await getConfigLibraryPath(db), ".");
+    assertEquals(await getConfigLibraryPath(db), "./library");
     assertEquals(await currentImportMode(db), "copy");
 
     await db.insert(appConfig).values({
@@ -85,7 +86,27 @@ Deno.test("operations repository helpers fall back on missing or invalid config 
       updatedAt: "2024-01-01T00:00:00.000Z",
     });
 
-    assertEquals(await getConfigLibraryPath(db), ".");
+    assertEquals(await getConfigLibraryPath(db), "./library");
+    assertEquals(await currentImportMode(db), "copy");
+  });
+});
+
+Deno.test("operations repository helpers prefer schema-backed defaults for partial config rows", async () => {
+  await withTestDb(async (db, databaseFile) => {
+    const defaults = makeDefaultConfig(databaseFile);
+
+    await db.insert(appConfig).values({
+      id: 1,
+      data: JSON.stringify({
+        ...defaults,
+        library: {
+          library_path: "/custom-library",
+        },
+      }),
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+
+    assertEquals(await getConfigLibraryPath(db), "/custom-library");
     assertEquals(await currentImportMode(db), "copy");
   });
 });
@@ -185,7 +206,7 @@ async function withTestDb(
   const db = drizzle({ client, schema });
 
   try {
-    await migrate(db, { migrationsFolder: "./drizzle" });
+    await migrate(db, { migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER });
     await run(db, databaseFile);
   } finally {
     client.close();

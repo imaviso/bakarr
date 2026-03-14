@@ -93,6 +93,11 @@ export function makeSearchOrchestration(input: {
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
+  publishRssCheckProgress: (input: {
+    current: number;
+    total: number;
+    feed_name: string;
+  }) => Effect.Effect<void>;
 }) {
   const {
     db,
@@ -107,6 +112,7 @@ export function makeSearchOrchestration(input: {
     dbError,
     maybeQBitConfig,
     publishDownloadProgress,
+    publishRssCheckProgress,
   } = input;
 
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(
@@ -519,7 +525,13 @@ export function makeSearchOrchestration(input: {
 
         yield* eventBus.publish({ type: "RssCheckStarted" });
 
-        for (const feed of feeds) {
+        for (const [index, feed] of feeds.entries()) {
+          yield* publishRssCheckProgress({
+            current: index + 1,
+            total: feeds.length,
+            feed_name: feed.name ?? feed.url,
+          });
+
           newItems += yield* Effect.gen(function* () {
             const items = yield* rssClient.fetchItems(feed.url);
             const animeRow = yield* tryOperationsPromise(

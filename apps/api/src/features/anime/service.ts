@@ -9,7 +9,7 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
-import { EventBus } from "../events/event-bus.ts";
+import { EventPublisher } from "../events/publisher.ts";
 import { AniListClient } from "./anilist.ts";
 import { cacheAnimeMetadataImages } from "./image-cache.ts";
 import { encodeNumberList, encodeStringList } from "../system/config-codec.ts";
@@ -122,7 +122,7 @@ export class AnimeService extends Context.Tag("@bakarr/api/AnimeService")<
 
 const makeAnimeService = Effect.gen(function* () {
   const { db } = yield* Database;
-  const eventBus = yield* EventBus;
+  const eventPublisher = yield* EventPublisher;
   const aniList = yield* AniListClient;
   const fs = yield* FileSystem;
 
@@ -239,10 +239,7 @@ const makeAnimeService = Effect.gen(function* () {
         }),
     );
 
-    yield* eventBus.publish({
-      type: "Info",
-      payload: { message: `Added ${animeRow.titleRomaji} to library` },
-    });
+    yield* eventPublisher.publishInfo(`Added ${animeRow.titleRomaji} to library`);
 
     const persistedEpisodeRows = yield* tryDatabasePromise(
       "Failed to add anime",
@@ -280,7 +277,7 @@ const makeAnimeService = Effect.gen(function* () {
           `Refreshed episodes for ${animeRow.titleRomaji}`,
         ),
     );
-    yield* eventBus.publish({
+    yield* eventPublisher.publish({
       type: "RefreshFinished",
       payload: { anime_id: animeId, title: animeRow.titleRomaji },
     });
@@ -339,7 +336,7 @@ const makeAnimeService = Effect.gen(function* () {
           `Scanned ${animeRow.titleRomaji} folder and found ${found} files`,
         ),
     );
-    yield* eventBus.publish({
+    yield* eventPublisher.publish({
       type: "ScanFolderFinished",
       payload: { anime_id: animeId, found, title: animeRow.titleRomaji },
     });
@@ -685,7 +682,7 @@ const makeAnimeService = Effect.gen(function* () {
         id,
         { monitored },
         `Anime ${id} monitoring updated`,
-        eventBus,
+        eventPublisher,
       ),
     updatePath,
     updateProfile: (id, profileName) =>
@@ -694,7 +691,7 @@ const makeAnimeService = Effect.gen(function* () {
         id,
         { profileName },
         `Updated profile for anime ${id}`,
-        eventBus,
+        eventPublisher,
       ),
     updateReleaseProfiles: (id, releaseProfileIds) =>
       updateAnimeRow(
@@ -702,7 +699,7 @@ const makeAnimeService = Effect.gen(function* () {
         id,
         { releaseProfileIds: encodeNumberList(releaseProfileIds) },
         `Updated release profiles for anime ${id}`,
-        eventBus,
+        eventPublisher,
       ),
     listEpisodes,
     refreshEpisodes,

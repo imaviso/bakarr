@@ -11,6 +11,7 @@ import { AniListClientLive } from "./features/anime/anilist.ts";
 import { AnimeServiceLive } from "./features/anime/service.ts";
 import { AuthServiceLive } from "./features/auth/service.ts";
 import { EventBusLive } from "./features/events/event-bus.ts";
+import { EventPublisherLive } from "./features/events/publisher.ts";
 import { QBitTorrentClientLive } from "./features/operations/qbittorrent.ts";
 import { RssClientLive } from "./features/operations/rss-client.ts";
 import { OperationsServiceLive } from "./features/operations/service.ts";
@@ -23,6 +24,7 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
   const runtimeLayer = AppRuntime.layer();
   const databaseLayer = DatabaseLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
+  const eventPublisherLayer = EventPublisherLive.pipe(Layer.provide(eventBusLayer));
   const backgroundMonitorLayer = BackgroundWorkerMonitorLive;
   const platformLayer = Layer.mergeAll(
     configLayer,
@@ -30,6 +32,7 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
     RuntimeLoggerLayer,
     databaseLayer,
     eventBusLayer,
+    eventPublisherLayer,
     backgroundMonitorLayer,
     AniListClientLive,
     QBitTorrentClientLive,

@@ -1,13 +1,13 @@
 import type { AppDatabase } from "../../db/database.ts";
 import { downloads } from "../../db/schema.ts";
 import { eq } from "drizzle-orm";
+import { Effect } from "effect";
 import {
   decodeOptionalNumberList,
   encodeOptionalNumberList,
 } from "../system/config-codec.ts";
 import { parseEpisodeNumber, scanVideoFiles } from "./file-scanner.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
-import { Effect } from "effect";
 
 export function parseMagnetInfoHash(
   magnet: string | null | undefined,
@@ -20,54 +20,62 @@ export function parseMagnetInfoHash(
   return match?.[1]?.toLowerCase();
 }
 
-export async function resolveCompletedContentPath(
+export const resolveCompletedContentPath = Effect.fn(
+  "Operations.resolveCompletedContentPath",
+)(function* (
   fs: FileSystemShape,
   contentPath: string,
   episodeNumber: number,
-): Promise<string | undefined> {
-  try {
-    const stat = await Effect.runPromise(fs.stat(contentPath));
+){
+  const statResult = yield* Effect.either(fs.stat(contentPath));
 
-    if (stat.isFile) {
-      return contentPath;
-    }
-
-    if (!stat.isDirectory) {
-      return undefined;
-    }
-  } catch {
+  if (statResult._tag === "Left") {
     return undefined;
   }
 
-  const files = await Effect.runPromise(scanVideoFiles(fs, contentPath));
+  const stat = statResult.right;
+
+  if (stat.isFile) {
+    return contentPath;
+  }
+
+  if (!stat.isDirectory) {
+    return undefined;
+  }
+
+  const files = yield* scanVideoFiles(fs, contentPath);
   const matching = files.find((file) =>
     parseEpisodeNumber(file.path) === episodeNumber
   );
 
   return matching?.path ?? files[0]?.path;
-}
+});
 
-export async function resolveBatchContentPaths(
+export const resolveBatchContentPaths = Effect.fn(
+  "Operations.resolveBatchContentPaths",
+)(function* (
   fs: FileSystemShape,
   contentPath: string,
-): Promise<readonly string[]> {
-  try {
-    const stat = await Effect.runPromise(fs.stat(contentPath));
+){
+  const statResult = yield* Effect.either(fs.stat(contentPath));
 
-    if (stat.isFile) {
-      return [contentPath];
-    }
-
-    if (!stat.isDirectory) {
-      return [];
-    }
-  } catch {
+  if (statResult._tag === "Left") {
     return [];
   }
 
-  const files = await Effect.runPromise(scanVideoFiles(fs, contentPath));
+  const stat = statResult.right;
+
+  if (stat.isFile) {
+    return [contentPath];
+  }
+
+  if (!stat.isDirectory) {
+    return [];
+  }
+
+  const files = yield* scanVideoFiles(fs, contentPath);
   return files.map((file) => file.path);
-}
+});
 
 export function toCoveredEpisodesJson(
   episodes: readonly number[],
@@ -145,27 +153,28 @@ export function inferCoveredEpisodeNumbers(input: {
   return [input.requestedEpisode];
 }
 
-export async function resolveAccessibleDownloadPath(
+export const resolveAccessibleDownloadPath = Effect.fn(
+  "Operations.resolveAccessibleDownloadPath",
+)(function* (
   fs: FileSystemShape,
   contentPath: string,
   remotePathMappings: readonly string[][],
-): Promise<string | undefined> {
+){
   const candidates = [
     contentPath,
     ...applyRemotePathMappings(contentPath, remotePathMappings),
   ];
 
   for (const candidate of candidates) {
-    try {
-      await Effect.runPromise(fs.stat(candidate));
+    const statResult = yield* Effect.either(fs.stat(candidate));
+
+    if (statResult._tag === "Right") {
       return candidate;
-    } catch {
-      // try next candidate
     }
   }
 
   return undefined;
-}
+});
 
 export function applyRemotePathMappings(
   contentPath: string,

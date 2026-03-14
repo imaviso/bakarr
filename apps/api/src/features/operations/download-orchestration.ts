@@ -146,14 +146,10 @@ export function makeDownloadOrchestration(input: {
       "Failed to reconcile completed download",
       () => loadRuntimeConfig(db),
     );
-    const resolvedContentRoot = yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      () =>
-        resolveAccessibleDownloadPath(
-          fs,
-          contentPath,
-          runtimeConfig.downloads.remote_path_mappings,
-        ),
+    const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
+      fs,
+      contentPath,
+      runtimeConfig.downloads.remote_path_mappings,
     );
 
     if (!resolvedContentRoot) {
@@ -180,10 +176,7 @@ export function makeDownloadOrchestration(input: {
 
     if (row.isBatch) {
       const coveredEpisodes = parseCoveredEpisodes(row.coveredEpisodes);
-      const batchPaths = yield* tryDatabasePromise(
-        "Failed to reconcile completed download",
-        () => resolveBatchContentPaths(fs, resolvedContentRoot),
-      );
+      const batchPaths = yield* resolveBatchContentPaths(fs, resolvedContentRoot);
 
       if (batchPaths.length > 0) {
         for (const path of batchPaths) {
@@ -283,10 +276,10 @@ export function makeDownloadOrchestration(input: {
       return;
     }
 
-    const resolvedPath = yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      () =>
-        resolveCompletedContentPath(fs, resolvedContentRoot, row.episodeNumber),
+    const resolvedPath = yield* resolveCompletedContentPath(
+      fs,
+      resolvedContentRoot,
+      row.episodeNumber,
     );
 
     if (!resolvedPath) {

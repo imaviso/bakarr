@@ -1,4 +1,4 @@
-import { Context, Effect, Exit, Layer, PubSub, Queue, Scope } from "effect";
+import { Context, Effect, Exit, Layer, PubSub, Queue, Scope, Stream } from "effect";
 
 import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
 
@@ -6,6 +6,7 @@ export const DEFAULT_EVENT_BUS_CAPACITY = 256;
 
 export interface EventSubscription {
   readonly close: Effect.Effect<void>;
+  readonly stream: Stream.Stream<NotificationEvent>;
   readonly take: Effect.Effect<NotificationEvent, unknown>;
 }
 
@@ -50,6 +51,7 @@ export function makeEventBus(
             close: Queue.shutdown(slidingQueue).pipe(
               Effect.zipRight(Scope.close(scope, Exit.succeed(void 0))),
             ),
+            stream: Stream.fromQueue(slidingQueue, { shutdown: false }),
             take: Queue.take(slidingQueue),
           } satisfies EventSubscription;
         }),

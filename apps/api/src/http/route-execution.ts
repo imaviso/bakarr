@@ -22,17 +22,22 @@ export async function runRoute<A, E, R>(
 ): Promise<Response> {
   const viewer = getOptionalViewer(c);
   const startedAt = performance.now();
+  const requestAttributes = compactLogAnnotations({ viewerId: viewer?.id });
 
   const result = await runEffect(
-    withRequestLogContext(
+    withRequestSpan(
       c,
-      effect.pipe(
-        Effect.match({
-          onFailure: (error) => ({ error, ok: false as const }),
-          onSuccess: (value) => ({ ok: true as const, value }),
-        }),
+      withRequestLogContext(
+        c,
+        effect.pipe(
+          Effect.match({
+            onFailure: (error) => ({ error, ok: false as const }),
+            onSuccess: (value) => ({ ok: true as const, value }),
+          }),
+        ),
+        requestAttributes,
       ),
-      compactLogAnnotations({ viewerId: viewer?.id }),
+      requestAttributes,
     ),
   );
 
@@ -79,6 +84,23 @@ export function withRequestLogContext<A, E, R>(
         ...extraAnnotations,
       }),
     ),
+  );
+}
+
+export function withRequestSpan<A, E, R>(
+  c: { get: (key: string) => unknown; req: { method: string; path: string } },
+  effect: Effect.Effect<A, E, R>,
+  extraAttributes: Record<string, unknown> = {},
+) {
+  return effect.pipe(
+    Effect.withSpan("http.route", {
+      attributes: compactLogAnnotations({
+        httpMethod: c.req.method,
+        httpPath: c.req.path,
+        requestId: c.get("requestId"),
+        ...extraAttributes,
+      }),
+    }),
   );
 }
 

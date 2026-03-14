@@ -5,10 +5,15 @@ import type {
   Download,
   DownloadEvent,
   DownloadStatus,
+  ImportMode,
   QualityProfile,
   ReleaseProfileRule,
   RssFeed,
 } from "../../../../../packages/shared/src/index.ts";
+import {
+  ImportModeSchema,
+} from "../../../../../packages/shared/src/index.ts";
+import { Schema } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import {
   anime,
@@ -27,6 +32,7 @@ import {
   decodeQualityProfileRow,
   decodeReleaseProfileRules,
 } from "../system/config-codec.ts";
+import { makeDefaultConfig } from "../system/defaults.ts";
 import { OperationsAnimeNotFoundError } from "./errors.ts";
 
 export interface CurrentEpisodeState {
@@ -193,24 +199,53 @@ export async function loadCurrentEpisodeState(
 
 export async function getConfigLibraryPath(db: AppDatabase) {
   const rows = await db.select().from(appConfig).limit(1);
-  if (rows[0]) {
-    try {
-      return decodeConfigCore(rows[0].data).library.library_path ?? ".";
-    } catch {
-      return ".";
-    }
-  }
-  return ".";
+
+  return decodeLibraryConfig(rows[0]?.data).library_path;
 }
 
 export async function currentImportMode(db: AppDatabase) {
   const rows = await db.select().from(appConfig).limit(1);
-  if (rows[0]) {
+
+  return decodeLibraryConfig(rows[0]?.data).import_mode;
+}
+
+function decodeLibraryConfig(value: string | undefined) {
+  const defaults = makeDefaultConfig(":memory:").library;
+
+  if (!value) {
+    return defaults;
+  }
+
+  try {
+    const decoded = decodeConfigCore(value).library;
+
+    return {
+      ...defaults,
+      ...decoded,
+    };
+  } catch {
     try {
-      return decodeConfigCore(rows[0].data).library.import_mode ?? "copy";
+      const parsed = JSON.parse(value) as {
+        library?: {
+          import_mode?: unknown;
+          library_path?: unknown;
+        };
+      };
+
+      const importMode: ImportMode = parsed.library?.import_mode === undefined
+        ? defaults.import_mode
+        : Schema.decodeUnknownSync(ImportModeSchema)(parsed.library.import_mode);
+      const libraryPath = typeof parsed.library?.library_path === "string"
+        ? parsed.library.library_path
+        : defaults.library_path;
+
+      return {
+        ...defaults,
+        import_mode: importMode,
+        library_path: libraryPath,
+      };
     } catch {
-      return "copy";
+      return defaults;
     }
   }
-  return "copy";
 }

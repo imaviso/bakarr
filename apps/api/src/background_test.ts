@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { Effect } from "effect";
+import { Deferred, Effect, Fiber, Metric } from "effect";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
@@ -7,6 +7,10 @@ import {
   makeBackgroundWorkerController,
   makeBackgroundWorkerMonitor,
 } from "./background.ts";
+import {
+  makeCoalescedEffectRunner,
+  makeLatestValuePublisher,
+} from "./features/operations/service-support.ts";
 import { runTestEffect } from "./test/effect-test.ts";
 
 const baseConfig: Config = {
@@ -148,6 +152,118 @@ Deno.test("background worker monitor tracks supervision state and counters", asy
   assertEquals(typeof snapshot.rss.lastSucceededAt, "string");
   assertEquals(typeof snapshot.rss.lastFailedAt, "string");
 });
+
+Deno.test("background worker monitor publishes Effect metrics", async () => {
+  const { after, before } = await runTestEffect(
+    Effect.gen(function* () {
+      const monitor = yield* makeBackgroundWorkerMonitor();
+      const before = yield* Metric.snapshot;
+
+      yield* monitor.markDaemonStarted("rss");
+      yield* monitor.markRunStarted("rss");
+      yield* monitor.markRunSucceeded("rss", 123);
+      yield* monitor.markRunSkipped("rss");
+      yield* monitor.markRunFailed("rss", "boom", 456);
+
+      const after = yield* Metric.snapshot;
+
+      return { after, before };
+    }),
+  );
+
+  assertEquals(
+    counterDelta(after, before, "bakarr_background_worker_runs_total", {
+      status: "success",
+      worker: "rss",
+    }),
+    1,
+  );
+  assertEquals(
+    counterDelta(after, before, "bakarr_background_worker_runs_total", {
+      status: "failure",
+      worker: "rss",
+    }),
+    1,
+  );
+  assertEquals(
+    counterDelta(after, before, "bakarr_background_worker_runs_total", {
+      status: "skipped",
+      worker: "rss",
+    }),
+    1,
+  );
+  assertEquals(
+    gaugeValue(after, "bakarr_background_worker_daemon_running", {
+      worker: "rss",
+    }),
+    1,
+  );
+  assertEquals(
+    histogramCountDelta(after, before, "bakarr_background_worker_run_duration_ms", {
+      status: "failure",
+      worker: "rss",
+    }),
+    1,
+  );
+});
+
+function counterDelta(
+  after: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  before: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  name: string,
+  labels: Record<string, string>,
+) {
+  return counterValue(after, name, labels) - counterValue(before, name, labels);
+}
+
+function counterValue(
+  snapshot: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  name: string,
+  labels: Record<string, string>,
+) {
+  const pair = findMetric(snapshot, name, labels);
+  return (pair?.metricState as { readonly count: number } | undefined)?.count ?? 0;
+}
+
+function gaugeValue(
+  snapshot: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  name: string,
+  labels: Record<string, string>,
+) {
+  const pair = findMetric(snapshot, name, labels);
+  return (pair?.metricState as { readonly value: number } | undefined)?.value;
+}
+
+function histogramCountDelta(
+  after: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  before: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  name: string,
+  labels: Record<string, string>,
+) {
+  return histogramCount(after, name, labels) - histogramCount(before, name, labels);
+}
+
+function histogramCount(
+  snapshot: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  name: string,
+  labels: Record<string, string>,
+) {
+  const pair = findMetric(snapshot, name, labels);
+  return (pair?.metricState as { readonly count: number } | undefined)?.count ?? 0;
+}
+
+function findMetric(
+  snapshot: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  name: string,
+  labels: Record<string, string>,
+) {
+  return snapshot.find((pair) =>
+    pair.metricKey.name === name &&
+    Object.entries(labels).every(([key, value]) =>
+      pair.metricKey.tags.some((tag) => tag.key === key && tag.value === value)
+    )
+  );
+}
 
 Deno.test("BackgroundWorkerController starts workers with config", async () => {
   await runTestEffect(
@@ -385,6 +501,86 @@ Deno.test("BackgroundWorkerController serializes concurrent reloads", async () =
   await Promise.all([firstReload, secondReload]);
 
   assertEquals(stoppedHandles, ["handle-1", "handle-2"]);
+});
+
+Deno.test("coalesced effect runner batches concurrent triggers into one follow-up run", async () => {
+  await runTestEffect(
+    Effect.gen(function* () {
+      const firstRunStarted = yield* Deferred.make<void>();
+      const secondRunStarted = yield* Deferred.make<void>();
+      const releaseFirstRun = yield* Deferred.make<void>();
+      const releaseSecondRun = yield* Deferred.make<void>();
+      const runCount = yield* Effect.sync(() => ({ value: 0 }));
+
+      const runner = yield* makeCoalescedEffectRunner(
+        Effect.gen(function* () {
+          runCount.value += 1;
+
+          if (runCount.value === 1) {
+            yield* Deferred.succeed(firstRunStarted, void 0);
+            yield* Deferred.await(releaseFirstRun);
+            return;
+          }
+
+          yield* Deferred.succeed(secondRunStarted, void 0);
+          yield* Deferred.await(releaseSecondRun);
+        }),
+      );
+
+      const firstTrigger = yield* Effect.fork(runner.trigger);
+      yield* Deferred.await(firstRunStarted);
+
+      const secondTrigger = yield* Effect.fork(runner.trigger);
+      const thirdTrigger = yield* Effect.fork(runner.trigger);
+
+      assertEquals(runCount.value, 1);
+
+      yield* Deferred.succeed(releaseFirstRun, void 0);
+      yield* Deferred.await(secondRunStarted);
+
+      assertEquals(runCount.value, 2);
+
+      yield* Deferred.succeed(releaseSecondRun, void 0);
+      yield* Fiber.await(firstTrigger);
+      yield* Fiber.await(secondTrigger);
+      yield* Fiber.await(thirdTrigger);
+
+      assertEquals(runCount.value, 2);
+    }),
+  );
+});
+
+Deno.test("latest value publisher keeps only the newest pending update", async () => {
+  const published: number[] = [];
+
+  await runTestEffect(
+    Effect.gen(function* () {
+      const firstPublishStarted = yield* Deferred.make<void>();
+      const releaseFirstPublish = yield* Deferred.make<void>();
+
+      const publisher = yield* makeLatestValuePublisher((value: number) =>
+        Effect.gen(function* () {
+          published.push(value);
+
+          if (value === 1) {
+            yield* Deferred.succeed(firstPublishStarted, void 0);
+            yield* Deferred.await(releaseFirstPublish);
+          }
+        })
+      );
+
+      yield* publisher.offer(1);
+      yield* Deferred.await(firstPublishStarted);
+
+      yield* publisher.offer(2);
+      yield* publisher.offer(3);
+
+      yield* Deferred.succeed(releaseFirstPublish, void 0);
+      yield* publisher.flush;
+    }),
+  );
+
+  assertEquals(published, [1, 3]);
 });
 
 function deferred<A>() {

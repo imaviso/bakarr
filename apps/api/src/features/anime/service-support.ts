@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
+import type { EventPublisherShape } from "../events/publisher.ts";
 import {
   AnimeConflictError,
   AnimeNotFoundError,
@@ -52,7 +52,7 @@ export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(
     animeId: number,
     patch: Partial<typeof anime.$inferInsert>,
     message: string,
-    eventBus: { publish: (event: NotificationEvent) => Effect.Effect<void> },
+    eventPublisher: Pick<EventPublisherShape, "publishInfo">,
   ) {
     yield* tryAnimePromise(
       "Failed to update anime",
@@ -66,6 +66,6 @@ export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(
       "Failed to update anime",
       () => appendAnimeLog(db, "anime.updated", "success", message),
     );
-    yield* eventBus.publish({ type: "Info", payload: { message } });
+    yield* eventPublisher.publishInfo(message);
   },
 );

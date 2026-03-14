@@ -1,7 +1,9 @@
 import { assertEquals, assertInstanceOf } from "@std/assert";
+import { Deferred, Effect, Fiber, Ref, TestClock } from "effect";
 
 import { DatabaseError } from "../../db/database.ts";
-import { runTestEffectExit } from "../../test/effect-test.ts";
+import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
+import { makeEventPublisher } from "../events/publisher.ts";
 import { AnimeConflictError, AnimeNotFoundError } from "./errors.ts";
 import {
   tryAnimePromise,
@@ -31,4 +33,33 @@ Deno.test("anime service support preserves known errors and wraps unknown ones",
     tryAnimePromise("anime failed", () => Promise.reject(new Error("boom"))),
   );
   assertEquals(animeExit._tag, "Failure");
+});
+
+Deno.test("anime service support can publish coalesced info messages", async () => {
+  const published = await runTestEffect(
+    Effect.gen(function* () {
+      const state = yield* Ref.make<string[]>([]);
+      const publishedSignal = yield* Deferred.make<void>();
+      const publisher = yield* makeEventPublisher({
+        infoEventToastWindowMs: 250,
+        publish: (event) =>
+          Ref.update(state, (current) => [
+            ...current,
+            event.type === "Info" ? event.payload.message : event.type,
+          ]).pipe(Effect.zipRight(Deferred.succeed(publishedSignal, void 0))),
+      });
+
+      const first = yield* Effect.fork(publisher.publishInfo("first"));
+      const second = yield* Effect.fork(publisher.publishInfo("second"));
+      yield* TestClock.adjust("300 millis");
+      yield* Deferred.await(publishedSignal);
+      yield* Fiber.await(first);
+      yield* Fiber.await(second);
+      yield* publisher.shutdown;
+
+      return yield* Ref.get(state);
+    }),
+  );
+
+  assertEquals(published, ["second"]);
 });

@@ -26,6 +26,13 @@ What is already in good shape:
   `apps/api/src/background.ts`
 - feature and route decomposition is well underway across `anime`, `operations`,
   `system`, and `http`
+- shared DTO contracts are now schema-backed in `packages/shared/src/index.ts`
+  and reused across `apps/api` and `apps/web`
+- request tracing plus request/background metrics are now exposed through
+  `apps/api/src/http/route-execution.ts`, `apps/api/src/lib/metrics.ts`, and
+  `/api/metrics`
+- bursty progress and toast publication now use reusable coalescing helpers in
+  `apps/api/src/lib/effect-coalescing.ts`
 
 Verified complete from this plan:
 
@@ -45,15 +52,19 @@ Verified complete from this plan:
 
 Main remaining gaps:
 
-- some concurrency and subscription paths can still use stronger primitives or
-  clearer scoped ownership
-- schema-first domain modeling is still uneven across persisted and shared
-  contracts
-- observability is mostly logging, not full tracing/metrics/supervision
+- some higher-throughput paths could still use bounded queues or `Cache`, but
+  the main bursty progress/toast flows now have explicit coalescing and scoped
+  ownership
+- schema-first domain modeling is now strong at shared/API boundaries, but
+  deeper domain objects still underuse richer schema constructs such as
+  `Schema.Class`, broader branded primitives, or JSON Schema export
+- observability now includes request/background metrics and named spans, but
+  dedicated external-call metrics and OTLP/export decisions remain open
 - tests are still mostly integration-style `Deno.test` and underuse Effect test
   utilities such as `TestClock`, layer-provided dependencies, and runtime-driven
   helpers
-- many advanced Effect and Schema capabilities are available but not yet applied
+- many advanced Effect and Schema capabilities remain optional opportunities,
+  not current blockers
 
 ## Guiding Principles
 
@@ -340,9 +351,9 @@ Implementation steps:
 
 Acceptance criteria:
 
-- important primitives are branded where misuse is likely
-- runtime errors from validation are clearer and more localized
-- repeated inline schema fragments are consolidated
+- [x] important primitives are branded where misuse is likely
+- [x] runtime errors from validation are clearer and more localized
+- [x] repeated inline schema fragments are consolidated
 
 Progress notes:
 
@@ -363,6 +374,25 @@ Progress notes:
 - shared config literals and schemas now live in `packages/shared/src/index.ts`,
   and the API/web config boundaries reuse the same `import_mode`,
   `preferred_title`, and release-rule type contracts
+- `packages/shared/src/index.ts` now defines canonical schemas for the exported
+  shared DTO surface, and `packages/shared/src/index_test.ts` covers valid and
+  invalid payloads across auth, anime/media, system, config, search/download,
+  and notification contracts
+- `apps/api/src/http/request-schemas.ts` and
+  `apps/api/src/features/system/config-schema.ts` now reuse shared auth/config
+  contracts instead of redefining overlapping DTOs locally
+- `apps/web/src/lib/api.ts` now imports and re-exports shared DTO types from
+  `@bakarr/shared` instead of maintaining a duplicated client-side contract
+  block
+- `apps/api/src/http/system-routes.ts` now encodes SSE notification payloads
+  through `NotificationEventSchema` JSON encoding instead of raw
+  `JSON.stringify`, keeping the event wire format schema-backed end-to-end
+
+Remaining opportunities:
+
+- add broader branded persisted/domain primitives where misuse is still easy
+- introduce `Schema.Class` / JSON Schema export only if a concrete tooling or DX
+  use case emerges
 
 ### 5. Improve Concurrency, Scheduling, and Backpressure
 
@@ -418,8 +448,8 @@ Implementation steps:
 
 Acceptance criteria:
 
-- concurrency-sensitive paths use Effect primitives instead of manual state
-- scheduling/backpressure decisions are explicit and testable
+- [x] concurrency-sensitive paths use Effect primitives instead of manual state
+- [x] scheduling/backpressure decisions are explicit and testable
 
 Progress notes:
 
@@ -428,6 +458,18 @@ Progress notes:
 - `apps/api/src/features/events/event-bus_test.ts` now covers fan-out and
   sliding backpressure behavior so the queue policy is explicit and command-
   verified
+- `apps/api/src/lib/effect-coalescing.ts` now provides reusable coalesced
+  trigger and latest-value publisher helpers for bursty asynchronous paths
+- `apps/api/src/features/operations/service.ts` now collapses overlapping
+  download-progress refreshes into a single follow-up run, and coalesces RSS and
+  library-scan progress publication to the newest pending state
+- `apps/api/src/features/events/publisher.ts` now gives `Info` toast
+  notifications a short coalescing window with scoped lifetime management,
+  reducing SSE/UI spam without changing non-Info domain event delivery
+- `apps/api/src/background_test.ts`,
+  `apps/api/src/features/events/publisher_test.ts`, and targeted SSE integration
+  tests now make the coalescing/backpressure policy explicit and regression-
+  checked
 
 ### 6. Add Tracing, Metrics, and Supervision
 
@@ -469,9 +511,9 @@ Implementation steps:
 
 Acceptance criteria:
 
-- request, background, and external workflows are traceable
-- worker supervision policy is explicit
-- log/span correlation is straightforward
+- [x] request, background, and external workflows are traceable
+- [x] worker supervision policy is explicit
+- [x] log/span correlation is straightforward
 
 Progress notes:
 
@@ -487,6 +529,22 @@ Progress notes:
 - `apps/api/src/http/system-routes.ts` now exposes background worker gauges and
   counters from `/api/metrics`, and `apps/api/src/background_test.ts` covers the
   worker monitor state transitions directly
+- `apps/api/src/http/route-execution.ts` now wraps route programs in
+  `http.route` spans, while `apps/api/src/http/app.ts` records request metrics
+  for method/path/status/duration at the HTTP boundary
+- `apps/api/src/features/anime/anilist.ts` and
+  `apps/api/src/features/operations/qbittorrent.ts` now wrap external client
+  operations in named spans, matching the orchestration spans already present in
+  search/download workflows
+- `dx effect-language-service diagnostics --project tsconfig.json` is currently
+  clean again, including the SSE notification boundary in
+  `apps/api/src/http/system-routes.ts`
+
+Remaining opportunities:
+
+- add dedicated external-call counters/histograms for AniList, qBittorrent, and
+  RSS if request/worker metrics stop being sufficient
+- decide whether OTLP export is worth the additional operational surface area
 
 ### 7. Upgrade Testing to Deno + Effect Testing Patterns
 
@@ -588,14 +646,14 @@ Completed:
 
 Next recommended focus:
 
-1. richer schema/domain modeling
-2. concurrency/backpressure primitives
-3. tracing/metrics/supervision
-4. Effect-native testing
+1. dedicated external-call observability polish
+2. optional remaining schema/domain enhancements where new features need them
+3. Effect-native testing
 
 ## Verification Checklist
 
 - `deno task check`
+- `dx effect-language-service diagnostics --project tsconfig.json`
 - `deno task test`
 - `deno lint`
 - `deno task --cwd=apps/web build` when shared contracts change

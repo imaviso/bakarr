@@ -2,6 +2,10 @@ import { Effect } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { DatabaseError } from "../../db/database.ts";
+export {
+  makeCoalescedEffectRunner,
+  makeLatestValuePublisher,
+} from "../../lib/effect-coalescing.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,

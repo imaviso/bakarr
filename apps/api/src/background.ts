@@ -11,6 +11,12 @@ import {
   durationMsSince,
   errorLogAnnotations,
 } from "./lib/logging.ts";
+import {
+  preRegisterBackgroundWorkerMetrics,
+  recordBackgroundWorkerRun,
+  setBackgroundWorkerDaemonRunning,
+  setBackgroundWorkerRunRunning,
+} from "./lib/metrics.ts";
 import { EventBus, type EventBusShape } from "./features/events/event-bus.ts";
 import {
   DownloadService,
@@ -56,6 +62,7 @@ export interface BackgroundWorkerMonitorShape {
   readonly markRunFailed: (
     workerName: BackgroundWorkerName,
     error: string,
+    durationMs?: number,
   ) => Effect.Effect<void>;
   readonly markRunInterrupted: (
     workerName: BackgroundWorkerName,
@@ -68,6 +75,7 @@ export interface BackgroundWorkerMonitorShape {
   ) => Effect.Effect<void>;
   readonly markRunSucceeded: (
     workerName: BackgroundWorkerName,
+    durationMs?: number,
   ) => Effect.Effect<void>;
   readonly snapshot: () => Effect.Effect<BackgroundWorkerSnapshot>;
 }
@@ -111,6 +119,7 @@ function nowIso() {
 export function makeBackgroundWorkerMonitor() {
   return Effect.gen(function* () {
     const state = yield* Ref.make(initialBackgroundWorkerSnapshot());
+    yield* preRegisterBackgroundWorkerMetrics(BACKGROUND_WORKER_NAMES);
 
     const updateWorker = (
       workerName: BackgroundWorkerName,
@@ -123,47 +132,89 @@ export function makeBackgroundWorkerMonitor() {
 
     return {
       markDaemonStarted: (workerName: BackgroundWorkerName) =>
-        updateWorker(workerName, (stats) => ({
-          ...stats,
-          daemonRunning: true,
-        })),
+        Effect.zipRight(
+          updateWorker(workerName, (stats) => ({
+            ...stats,
+            daemonRunning: true,
+          })),
+          setBackgroundWorkerDaemonRunning(workerName, true),
+        ),
       markDaemonStopped: (workerName: BackgroundWorkerName) =>
-        updateWorker(workerName, (stats) => ({
-          ...stats,
-          daemonRunning: false,
-          runRunning: false,
-        })),
-      markRunFailed: (workerName: BackgroundWorkerName, error: string) =>
-        updateWorker(workerName, (stats) => ({
-          ...stats,
-          failureCount: stats.failureCount + 1,
-          lastErrorMessage: error,
-          lastFailedAt: nowIso(),
-          runRunning: false,
-        })),
+        Effect.all([
+          updateWorker(workerName, (stats) => ({
+            ...stats,
+            daemonRunning: false,
+            runRunning: false,
+          })),
+          setBackgroundWorkerDaemonRunning(workerName, false),
+          setBackgroundWorkerRunRunning(workerName, false),
+        ], { concurrency: "unbounded", discard: true }),
+      markRunFailed: (
+        workerName: BackgroundWorkerName,
+        error: string,
+        durationMs?: number,
+      ) =>
+        Effect.all([
+          updateWorker(workerName, (stats) => ({
+            ...stats,
+            failureCount: stats.failureCount + 1,
+            lastErrorMessage: error,
+            lastFailedAt: nowIso(),
+            runRunning: false,
+          })),
+          setBackgroundWorkerRunRunning(workerName, false),
+          recordBackgroundWorkerRun({
+            durationMs,
+            status: "failure",
+            worker: workerName,
+          }),
+        ], { concurrency: "unbounded", discard: true }),
       markRunInterrupted: (workerName: BackgroundWorkerName) =>
-        updateWorker(workerName, (stats) => ({
-          ...stats,
-          runRunning: false,
-        })),
+        Effect.zipRight(
+          updateWorker(workerName, (stats) => ({
+            ...stats,
+            runRunning: false,
+          })),
+          setBackgroundWorkerRunRunning(workerName, false),
+        ),
       markRunSkipped: (workerName: BackgroundWorkerName) =>
-        updateWorker(workerName, (stats) => ({
-          ...stats,
-          skipCount: stats.skipCount + 1,
-        })),
+        Effect.all([
+          updateWorker(workerName, (stats) => ({
+            ...stats,
+            skipCount: stats.skipCount + 1,
+          })),
+          recordBackgroundWorkerRun({
+            status: "skipped",
+            worker: workerName,
+          }),
+        ], { concurrency: "unbounded", discard: true }),
       markRunStarted: (workerName: BackgroundWorkerName) =>
-        updateWorker(workerName, (stats) => ({
-          ...stats,
-          lastStartedAt: nowIso(),
-          runRunning: true,
-        })),
-      markRunSucceeded: (workerName: BackgroundWorkerName) =>
-        updateWorker(workerName, (stats) => ({
-          ...stats,
-          lastSucceededAt: nowIso(),
-          runRunning: false,
-          successCount: stats.successCount + 1,
-        })),
+        Effect.all([
+          updateWorker(workerName, (stats) => ({
+            ...stats,
+            lastStartedAt: nowIso(),
+            runRunning: true,
+          })),
+          setBackgroundWorkerRunRunning(workerName, true),
+        ], { concurrency: "unbounded", discard: true }),
+      markRunSucceeded: (
+        workerName: BackgroundWorkerName,
+        durationMs?: number,
+      ) =>
+        Effect.all([
+          updateWorker(workerName, (stats) => ({
+            ...stats,
+            lastSucceededAt: nowIso(),
+            runRunning: false,
+            successCount: stats.successCount + 1,
+          })),
+          setBackgroundWorkerRunRunning(workerName, false),
+          recordBackgroundWorkerRun({
+            durationMs,
+            status: "success",
+            worker: workerName,
+          }),
+        ], { concurrency: "unbounded", discard: true }),
       snapshot: () => Ref.get(state),
     } satisfies BackgroundWorkerMonitorShape;
   });
@@ -288,15 +339,16 @@ function withLockEffect<A, E, R>(
         yield* monitor.markRunStarted(workerName);
 
         const exit = yield* Effect.exit(task);
+        const durationMs = durationMsSince(startedAt);
 
         if (exit._tag === "Success") {
-          yield* monitor.markRunSucceeded(workerName);
+          yield* monitor.markRunSucceeded(workerName, durationMs);
         } else if (Cause.isInterruptedOnly(exit.cause)) {
           yield* monitor.markRunInterrupted(workerName);
         } else {
           const prettyCause = Cause.pretty(exit.cause);
 
-          yield* monitor.markRunFailed(workerName, prettyCause);
+          yield* monitor.markRunFailed(workerName, prettyCause, durationMs);
           yield* Effect.logError("background worker failed").pipe(
             Effect.annotateLogs(
               compactLogAnnotations({

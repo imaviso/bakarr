@@ -1,8 +1,10 @@
 import { assertEquals } from "@std/assert";
 
+import { Effect, Stream } from "effect";
+
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import { scanVideoFiles, scanVideoFilesIterator } from "./file-scanner.ts";
-import { Effect } from "effect";
+import { runTestEffect } from "../../test/effect-test.ts";
+import { scanVideoFiles, scanVideoFilesStream } from "./file-scanner.ts";
 
 const tree = new Map<string, Deno.DirEntry[]>([
   [
@@ -49,12 +51,12 @@ const mockFs: FileSystemShape = {
   remove: () => Effect.die("unused"),
 };
 
-Deno.test("scanVideoFilesIterator streams matching files and skips bad dirs", async () => {
-  const files: string[] = [];
-
-  for await (const file of scanVideoFilesIterator(mockFs, "/library")) {
-    files.push(file.path);
-  }
+Deno.test("scanVideoFilesStream streams matching files and skips bad dirs", async () => {
+  const files = await runTestEffect(
+    Stream.runCollect(scanVideoFilesStream(mockFs, "/library")).pipe(
+      Effect.map((items) => Array.from(items, (file) => file.path)),
+    ),
+  );
 
   assertEquals(files, [
     "/library/show/episode-01.mkv",

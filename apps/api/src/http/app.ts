@@ -9,6 +9,7 @@ import {
   durationMsSince,
   errorLogAnnotations,
 } from "../lib/logging.ts";
+import { recordHttpRequestMetrics } from "../lib/metrics.ts";
 import { registerAnimeRoutes } from "./anime-routes.ts";
 import { registerAuthRoutes } from "./auth-routes.ts";
 import { registerOperationsRoutes } from "./operations-routes.ts";
@@ -72,6 +73,20 @@ export function createApp(runEffect: RunEffect) {
           ),
         ),
       ).catch(() => undefined);
+
+      if (c.req.path !== "/api/metrics") {
+        await runEffect(
+          withRequestLogContext(
+            c,
+            recordHttpRequestMetrics({
+              durationMs: durationMsSince(startedAt),
+              method: c.req.method,
+              route: c.req.path,
+              status: statusCode,
+            }),
+          ),
+        ).catch(() => undefined);
+      }
     }
   });
 

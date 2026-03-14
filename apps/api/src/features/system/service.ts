@@ -18,7 +18,7 @@ import { AppConfig } from "../../config.ts";
 import { BackgroundWorkerController } from "../../background.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { systemLogs } from "../../db/schema.ts";
-import { EventBus } from "../events/event-bus.ts";
+import { EventPublisher } from "../events/publisher.ts";
 import {
   DEFAULT_PROFILES,
   DEFAULT_QUALITIES,
@@ -136,7 +136,7 @@ const makeSystemService = Effect.gen(function* () {
   const { db } = yield* Database;
   const config = yield* AppConfig;
   const runtime = yield* AppRuntime;
-  const eventBus = yield* EventBus;
+  const eventPublisher = yield* EventPublisher;
   const workerController = yield* BackgroundWorkerController;
 
   const listProfiles = Effect.fn("SystemService.listProfiles")(function* () {
@@ -283,7 +283,7 @@ const makeSystemService = Effect.gen(function* () {
         "Failed to write system log",
         () => appendSystemLog(db, eventType, "info", message),
       );
-      yield* eventBus.publish({ type: "Info", payload: { message } });
+      yield* eventPublisher.publishInfo(message);
     },
   );
 

@@ -1584,7 +1584,7 @@ integrationTest(
       assertEquals(invalidBodyResponse.status, 400);
       assertMatch(
         await invalidBodyResponse.text(),
-        /^Invalid request body for create quality profile: allowed_qualities: is missing$/,
+        /^Invalid request body for create quality profile: .*: is missing(?:; .*: is missing)*$/,
       );
 
       const invalidQueryResponse = await ctx.app.request(
@@ -2183,6 +2183,24 @@ integrationTest(
           ),
           true,
         );
+        assertEquals(
+          metricsText.includes(
+            'bakarr_http_requests_total{method="GET",route="/api/metrics",status="200"} 1',
+          ),
+          true,
+        );
+        assertEquals(
+          metricsText.includes(
+            'bakarr_http_request_duration_ms_bucket{method="GET",route="/api/metrics",status="200",le="10"}',
+          ),
+          true,
+        );
+        assertEquals(
+          metricsText.includes(
+            'bakarr_background_worker_runs_total{status="success",worker="download_sync"}',
+          ),
+          true,
+        );
 
         const searchMissing = await ctx.app.request(
           "/api/downloads/search-missing",
@@ -2610,6 +2628,105 @@ integrationTest(
     } finally {
       await firstReader?.cancel().catch(() => undefined);
       await secondReader?.cancel().catch(() => undefined);
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "events stream emits RSS and library scan progress updates",
+  async () => {
+    const ctx = await createTestContext();
+
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const rootFolder = await Deno.makeTempDir();
+
+      try {
+        const addAnimeResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(addAnimeResponse.status, 200);
+
+        await Deno.writeTextFile(`${rootFolder}/Naruto - 001.mkv`, "video");
+
+        const rssXml =
+          `<?xml version="1.0"?><rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item><title>[SubsPlease] Naruto - 001 (1080p)</title><link>https://nyaa.si/download/1.torrent</link><pubDate>${
+            new Date().toUTCString()
+          }</pubDate><nyaa:seeders>55</nyaa:seeders><nyaa:leechers>1</nyaa:leechers><nyaa:infoHash>abcdefabcdefabcdefabcdefabcdefabcdefabcd</nyaa:infoHash><nyaa:size>1.3 GiB</nyaa:size><nyaa:trusted>Yes</nyaa:trusted><nyaa:remake>No</nyaa:remake></item></channel></rss>`;
+        const rssUrl = `data:text/xml,${encodeURIComponent(rssXml)}`;
+
+        const addFeedResponse = await ctx.app.request("/api/rss", {
+          body: JSON.stringify({ anime_id: 20, url: rssUrl }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(addFeedResponse.status, 200);
+
+        const eventsResponse = await ctx.app.request("/api/events", {
+          headers: { Cookie: sessionCookie },
+        });
+
+        assertEquals(eventsResponse.status, 200);
+        assert(eventsResponse.body);
+        reader = eventsResponse.body.getReader();
+
+        await readUntilMatch(reader, /"type":"DownloadProgress"/);
+
+        const rssTask = await ctx.app.request("/api/system/tasks/rss", {
+          headers: { Cookie: sessionCookie },
+          method: "POST",
+        });
+
+        assertEquals(rssTask.status, 200);
+
+        const rssProgress = await readUntilMatch(reader, /"type":"RssCheckProgress"/);
+        assertMatch(rssProgress, /"type":"RssCheckProgress"/);
+
+        const scanTask = await ctx.app.request("/api/system/tasks/scan", {
+          headers: { Cookie: sessionCookie },
+          method: "POST",
+        });
+
+        assertEquals(scanTask.status, 200);
+
+        const scanProgress = await readUntilMatch(
+          reader,
+          /"type":"LibraryScanProgress"/,
+        );
+        assertMatch(scanProgress, /"type":"LibraryScanProgress"/);
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+      }
+    } finally {
+      await reader?.cancel().catch(() => undefined);
       await ctx.dispose();
     }
   },

@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { Effect, Either } from "effect";
+import { Effect, Either, Stream } from "effect";
 
 import type {
   CalendarEvent,
@@ -22,7 +22,7 @@ import {
 } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { buildRenamePreview, parseEpisodeNumber } from "./library-import.ts";
-import { scanVideoFilesIterator } from "./file-scanner.ts";
+import { scanVideoFilesStream } from "./file-scanner.ts";
 import { upsertEpisodeFile } from "./download-support.ts";
 import {
   appendLog,
@@ -70,6 +70,7 @@ export function makeCatalogOrchestration(input: {
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
   syncDownloadState: (trigger: string) => Effect.Effect<void, DatabaseError>;
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
+  publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
 }) {
   const {
     db,
@@ -83,6 +84,7 @@ export function makeCatalogOrchestration(input: {
     reconcileDownloadByIdEffect,
     syncDownloadState,
     publishDownloadProgress,
+    publishLibraryScanProgress,
   } = input;
 
   const renameFiles = Effect.fn("OperationsService.renameFiles")(
@@ -547,34 +549,44 @@ export function makeCatalogOrchestration(input: {
         yield* eventBus.publish({ type: "LibraryScanStarted" });
 
         for (const animeRow of animeRows) {
-          const { scannedFiles, matchedFiles } = yield* tryDatabasePromise(
-            "Failed to run library scan",
-            async () => {
-              let s = 0, m = 0;
+          const { scannedFiles, matchedFiles } = yield* scanVideoFilesStream(
+            fs,
+            animeRow.rootFolder,
+          ).pipe(
+            Stream.runFoldEffect(
+              { matchedFiles: 0, scannedFiles: 0 },
+              (counts, file) =>
+                Effect.gen(function* () {
+                  const episodeNumber = parseEpisodeNumber(file.path);
 
-              for await (
-                const file of scanVideoFilesIterator(
-                  fs,
-                  animeRow.rootFolder,
-                )
-              ) {
-                s++;
-                const episodeNumber = parseEpisodeNumber(file.path);
-                if (episodeNumber) {
-                  await upsertEpisodeFile(
-                    db,
-                    animeRow.id,
-                    episodeNumber,
-                    file.path,
+                  if (!episodeNumber) {
+                    return {
+                      matchedFiles: counts.matchedFiles,
+                      scannedFiles: counts.scannedFiles + 1,
+                    };
+                  }
+
+                  yield* tryDatabasePromise(
+                    "Failed to run library scan",
+                    () =>
+                      upsertEpisodeFile(
+                        db,
+                        animeRow.id,
+                        episodeNumber,
+                        file.path,
+                      ),
                   );
-                  m++;
-                }
-              }
-              return { scannedFiles: s, matchedFiles: m };
-            },
+
+                  return {
+                    matchedFiles: counts.matchedFiles + 1,
+                    scannedFiles: counts.scannedFiles + 1,
+                  };
+                }),
+            ),
           );
           scanned += scannedFiles;
           matched += matchedFiles;
+          yield* publishLibraryScanProgress(scanned);
         }
 
         yield* tryDatabasePromise(
