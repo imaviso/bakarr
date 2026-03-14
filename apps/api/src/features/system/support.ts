@@ -49,13 +49,6 @@ export async function appendSystemLog(
   });
 }
 
-export function getDiskSpaceSafe(_path: string) {
-  return {
-    free: 0,
-    total: 0,
-  };
-}
-
 export function nowIso() {
   return new Date().toISOString();
 }

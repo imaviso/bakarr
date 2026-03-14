@@ -472,6 +472,7 @@ export function makeSearchOrchestration(input: {
           () =>
             recordDownloadEvent(db, {
               animeId: row.anime.id,
+              downloadId: insertedId,
               eventType: "download.search_missing.queued",
               message: `Queued ${best.item.title}`,
               metadata: coveredEpisodes,
@@ -668,6 +669,7 @@ export function makeSearchOrchestration(input: {
                 () =>
                   recordDownloadEvent(db, {
                     animeId: animeRow.id,
+                    downloadId: insertedId,
                     eventType: "download.rss.queued",
                     message: `Queued ${item.title} from RSS`,
                     metadata: coveredEpisodes,

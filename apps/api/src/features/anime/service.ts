@@ -61,7 +61,7 @@ export interface AnimeServiceShape {
   ) => Effect.Effect<AnimeSearchResult[], never>;
   readonly getAnimeByAnilistId: (
     id: number,
-  ) => Effect.Effect<AnimeSearchResult, AnimeNotFoundError>;
+  ) => Effect.Effect<AnimeSearchResult, AnimeNotFoundError | DatabaseError>;
   readonly addAnime: (
     input: AddAnimeInput,
   ) => Effect.Effect<
@@ -630,8 +630,8 @@ const makeAnimeService = Effect.gen(function* () {
       }
 
       const animeMetadata = metadata!;
-      const existing = yield* tryAnimePromise(
-        "Failed to fetch anime metadata",
+      const existing = yield* tryDatabasePromise(
+        "Failed to check library status",
         () =>
           db.select({ id: anime.id }).from(anime).where(eq(anime.id, id)).limit(
             1,
@@ -651,15 +651,7 @@ const makeAnimeService = Effect.gen(function* () {
   );
 
   const getAnimeByAnilistId: AnimeServiceShape["getAnimeByAnilistId"] = (id) =>
-    getAnimeByAnilistIdRaw(id).pipe(
-      Effect.catchAll((error) =>
-        error instanceof AnimeNotFoundError ? Effect.fail(error) : Effect.fail(
-          new AnimeNotFoundError({
-            message: "Failed to fetch anime metadata",
-          }),
-        )
-      ),
-    );
+    getAnimeByAnilistIdRaw(id);
 
   const listEpisodes = Effect.fn("AnimeService.listEpisodes")(function* (
     animeId: number,

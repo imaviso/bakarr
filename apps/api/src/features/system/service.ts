@@ -15,6 +15,7 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import { AppRuntime } from "../../app-runtime.ts";
 import { AppConfig } from "../../config.ts";
+import { BackgroundWorkerController } from "../../background.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { systemLogs } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
@@ -37,11 +38,11 @@ import {
 import {
   appendSystemLog,
   backgroundJobNames,
-  getDiskSpaceSafe,
   normalizeLevel,
   nowIso,
   toBackgroundJobStatus,
 } from "./support.ts";
+import { getDiskSpaceSafe, selectStoragePath } from "./disk-space.ts";
 import {
   countActiveDownloads,
   countAnimeRows,
@@ -51,7 +52,6 @@ import {
   countFailedDownloads,
   countImportedDownloads,
   countQueuedDownloads,
-  countQueuedOrDownloadingDownloads,
   countRssFeedRows,
   countRunningBackgroundJobs,
   deleteQualityProfileRow,
@@ -137,6 +137,7 @@ const makeSystemService = Effect.gen(function* () {
   const config = yield* AppConfig;
   const runtime = yield* AppRuntime;
   const eventBus = yield* EventBus;
+  const workerController = yield* BackgroundWorkerController;
 
   const listProfiles = Effect.fn("SystemService.listProfiles")(function* () {
     const rows = yield* tryDatabasePromise(
@@ -331,10 +332,33 @@ const makeSystemService = Effect.gen(function* () {
 
   const getSystemStatus = Effect.fn("SystemService.getSystemStatus")(
     function* () {
-      const diskSpace = getDiskSpaceSafe(config.databaseFile);
+      const storedConfig = yield* tryDatabasePromise(
+        "Failed to build system status",
+        () => loadSystemConfigRow(db),
+      );
+      let core: ConfigCore;
+      if (storedConfig) {
+        const decoded = tryDecodeConfigCore(storedConfig.data);
+        if (decoded) {
+          core = decoded;
+        } else {
+          core = makeDefaultConfig(config.databaseFile);
+        }
+      } else {
+        core = makeDefaultConfig(config.databaseFile);
+      }
+      const storagePath = selectStoragePath({
+        ...core,
+        profiles: [],
+      } as Config, config.databaseFile);
+      const diskSpace = yield* getDiskSpaceSafe(storagePath);
       const queuedDownloads = yield* tryDatabasePromise(
         "Failed to build system status",
-        () => countQueuedOrDownloadingDownloads(db),
+        () => countQueuedDownloads(db),
+      );
+      const activeDownloads = yield* tryDatabasePromise(
+        "Failed to build system status",
+        () => countActiveDownloads(db),
       );
       const rssJob = yield* tryDatabasePromise(
         "Failed to build system status",
@@ -346,8 +370,8 @@ const makeSystemService = Effect.gen(function* () {
       );
 
       return {
-        active_torrents: queuedDownloads,
-        disk_space: diskSpace,
+        active_torrents: activeDownloads,
+        disk_space: { free: diskSpace.free, total: diskSpace.total },
         last_rss: rssJob?.lastSuccessAt ?? rssJob?.lastRunAt ?? null,
         last_scan: scanJob?.lastSuccessAt ?? scanJob?.lastRunAt ?? null,
         pending_downloads: queuedDownloads,
@@ -555,6 +579,8 @@ const makeSystemService = Effect.gen(function* () {
     );
 
     setRuntimeLogLevel(nextConfig.general.log_level);
+
+    yield* workerController.reload(nextConfig);
 
     return nextConfig;
   });

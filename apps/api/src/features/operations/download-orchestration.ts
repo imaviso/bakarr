@@ -215,16 +215,16 @@ export function makeDownloadOrchestration(input: {
             continue;
           }
 
-          const managedPath = yield* tryOperationsPromise(
-            "Failed to reconcile completed download",
-            () =>
-              importDownloadedFile(
-                fs,
-                animeRow,
-                episodeNumber,
-                path,
-                importMode,
-              ),
+          const managedPath = yield* importDownloadedFile(
+            fs,
+            animeRow,
+            episodeNumber,
+            path,
+            importMode,
+          ).pipe(
+            Effect.mapError(
+              wrapOperationsError("Failed to reconcile completed download"),
+            ),
           );
           yield* tryDatabasePromise(
             "Failed to reconcile completed download",
@@ -297,16 +297,16 @@ export function makeDownloadOrchestration(input: {
       return;
     }
 
-    const managedPath = yield* tryOperationsPromise(
-      "Failed to reconcile completed download",
-      () =>
-        importDownloadedFile(
-          fs,
-          animeRow,
-          row.episodeNumber,
-          resolvedPath,
-          importMode,
-        ),
+    const managedPath = yield* importDownloadedFile(
+      fs,
+      animeRow,
+      row.episodeNumber,
+      resolvedPath,
+      importMode,
+    ).pipe(
+      Effect.mapError(
+        wrapOperationsError("Failed to reconcile completed download"),
+      ),
     );
     yield* tryDatabasePromise(
       "Failed to reconcile completed download",
@@ -762,6 +762,7 @@ export function makeDownloadOrchestration(input: {
             () =>
               recordDownloadEvent(db, {
                 animeId: animeRow.id,
+                downloadId: insertedId,
                 eventType: "download.queued",
                 message: `Queued ${input.title}`,
                 metadata: coveredEpisodes,

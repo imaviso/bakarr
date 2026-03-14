@@ -3,7 +3,10 @@ import { Effect } from "effect";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
-import { makeBackgroundWorkerMonitor } from "./background.ts";
+import {
+  makeBackgroundWorkerController,
+  makeBackgroundWorkerMonitor,
+} from "./background.ts";
 import { runTestEffect } from "./test/effect-test.ts";
 
 const baseConfig: Config = {
@@ -145,3 +148,252 @@ Deno.test("background worker monitor tracks supervision state and counters", asy
   assertEquals(typeof snapshot.rss.lastSucceededAt, "string");
   assertEquals(typeof snapshot.rss.lastFailedAt, "string");
 });
+
+Deno.test("BackgroundWorkerController starts workers with config", async () => {
+  await runTestEffect(
+    Effect.gen(function* () {
+      const monitor = yield* makeBackgroundWorkerMonitor();
+      const controller = yield* makeBackgroundWorkerController({
+        monitor,
+        spawnWorkers: () => Effect.succeed({ stop: Effect.void }),
+      });
+
+      const started = yield* controller.isStarted();
+      assertEquals(started, false);
+
+      yield* controller.start(baseConfig);
+
+      const startedAfter = yield* controller.isStarted();
+      assertEquals(startedAfter, true);
+    }),
+  );
+});
+
+Deno.test("BackgroundWorkerController start is idempotent", async () => {
+  await runTestEffect(
+    Effect.gen(function* () {
+      const spawnCalls: Config[] = [];
+      const monitor = yield* makeBackgroundWorkerMonitor();
+      const controller = yield* makeBackgroundWorkerController({
+        monitor,
+        spawnWorkers: (config: Config) =>
+          Effect.sync(() => {
+            spawnCalls.push(config);
+            return { stop: Effect.void };
+          }),
+      });
+
+      yield* controller.start(baseConfig);
+      yield* controller.start(baseConfig);
+      yield* controller.start(baseConfig);
+
+      assertEquals(spawnCalls.length, 1);
+    }),
+  );
+});
+
+Deno.test("BackgroundWorkerController reload spawns new workers and stops old", async () => {
+  await runTestEffect(
+    Effect.gen(function* () {
+      const stoppedHandles: string[] = [];
+      const monitor = yield* makeBackgroundWorkerMonitor();
+      const controller = yield* makeBackgroundWorkerController({
+        monitor,
+        spawnWorkers: () =>
+          Effect.succeed({
+            stop: Effect.sync(() => {
+              stoppedHandles.push("handle");
+            }),
+          }),
+      });
+
+      yield* controller.start(baseConfig);
+      assertEquals(stoppedHandles.length, 0);
+
+      yield* controller.reload(baseConfig);
+      assertEquals(stoppedHandles.length, 1);
+
+      yield* controller.reload(baseConfig);
+      assertEquals(stoppedHandles.length, 2);
+    }),
+  );
+});
+
+Deno.test("BackgroundWorkerController keeps old workers if new spawn fails", async () => {
+  await runTestEffect(
+    Effect.gen(function* () {
+      const stoppedHandles: number[] = [];
+      let spawnCallCount = 0;
+      const monitor = yield* makeBackgroundWorkerMonitor();
+      const controller = yield* makeBackgroundWorkerController({
+        monitor,
+        spawnWorkers: () =>
+          Effect.sync(() => {
+            spawnCallCount++;
+            if (spawnCallCount === 2) {
+              throw new Error("spawn failed");
+            }
+            return {
+              stop: Effect.sync(() => {
+                stoppedHandles.push(spawnCallCount);
+              }),
+            };
+          }),
+      });
+
+      yield* controller.start(baseConfig);
+      assertEquals(stoppedHandles.length, 0);
+
+      const exitResult = yield* Effect.exit(controller.reload(baseConfig));
+      assertEquals(exitResult._tag, "Failure");
+
+      assertEquals(stoppedHandles.length, 0);
+      const started = yield* controller.isStarted();
+      assertEquals(started, true);
+    }),
+  );
+});
+
+Deno.test("BackgroundWorkerController stop shuts down workers", async () => {
+  await runTestEffect(
+    Effect.gen(function* () {
+      const stoppedHandles: string[] = [];
+      const monitor = yield* makeBackgroundWorkerMonitor();
+      const controller = yield* makeBackgroundWorkerController({
+        monitor,
+        spawnWorkers: () =>
+          Effect.succeed({
+            stop: Effect.sync(() => {
+              stoppedHandles.push("handle");
+            }),
+          }),
+      });
+
+      yield* controller.start(baseConfig);
+      assertEquals(stoppedHandles.length, 0);
+
+      yield* controller.stop();
+      assertEquals(stoppedHandles.length, 1);
+
+      const started = yield* controller.isStarted();
+      assertEquals(started, false);
+    }),
+  );
+});
+
+Deno.test("BackgroundWorkerController stop is idempotent", async () => {
+  await runTestEffect(
+    Effect.gen(function* () {
+      const stoppedHandles: string[] = [];
+      const monitor = yield* makeBackgroundWorkerMonitor();
+      const controller = yield* makeBackgroundWorkerController({
+        monitor,
+        spawnWorkers: () =>
+          Effect.succeed({
+            stop: Effect.sync(() => {
+              stoppedHandles.push("handle");
+            }),
+          }),
+      });
+
+      yield* controller.start(baseConfig);
+      yield* controller.stop();
+      yield* controller.stop();
+      yield* controller.stop();
+
+      assertEquals(stoppedHandles.length, 1);
+    }),
+  );
+});
+
+Deno.test("BackgroundWorkerController serializes concurrent starts", async () => {
+  const firstSpawnEntered = deferred<void>();
+  const releaseSpawn = deferred<void>();
+  let spawnCallCount = 0;
+
+  const controller = await runTestEffect(
+    Effect.gen(function* () {
+      const monitor = yield* makeBackgroundWorkerMonitor();
+
+      return yield* makeBackgroundWorkerController({
+        monitor,
+        spawnWorkers: () =>
+          Effect.promise(async () => {
+            spawnCallCount += 1;
+            firstSpawnEntered.resolve();
+            await releaseSpawn.promise;
+            return { stop: Effect.void };
+          }),
+      });
+    }),
+  );
+
+  const firstStart = runTestEffect(controller.start(baseConfig));
+  await firstSpawnEntered.promise;
+
+  const secondStart = runTestEffect(controller.start(baseConfig));
+
+  releaseSpawn.resolve();
+  await Promise.all([firstStart, secondStart]);
+
+  assertEquals(spawnCallCount, 1);
+});
+
+Deno.test("BackgroundWorkerController serializes concurrent reloads", async () => {
+  const firstReloadEntered = deferred<void>();
+  const releaseReload = deferred<void>();
+  const stoppedHandles: string[] = [];
+  let spawnCallCount = 0;
+
+  const controller = await runTestEffect(
+    Effect.gen(function* () {
+      const monitor = yield* makeBackgroundWorkerMonitor();
+
+      return yield* makeBackgroundWorkerController({
+        monitor,
+        spawnWorkers: () =>
+          Effect.promise(async () => {
+            spawnCallCount += 1;
+            const handleId = `handle-${spawnCallCount}`;
+
+            if (spawnCallCount === 2) {
+              firstReloadEntered.resolve();
+            }
+
+            if (spawnCallCount >= 2) {
+              await releaseReload.promise;
+            }
+
+            return {
+              stop: Effect.sync(() => {
+                stoppedHandles.push(handleId);
+              }),
+            };
+          }),
+      });
+    }),
+  );
+
+  await runTestEffect(controller.start(baseConfig));
+
+  const firstReload = runTestEffect(controller.reload(baseConfig));
+  await firstReloadEntered.promise;
+
+  const secondReload = runTestEffect(controller.reload(baseConfig));
+
+  releaseReload.resolve();
+  await Promise.all([firstReload, secondReload]);
+
+  assertEquals(stoppedHandles, ["handle-1", "handle-2"]);
+});
+
+function deferred<A>() {
+  let resolve!: (value: A | PromiseLike<A>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<A>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, reject, resolve };
+}

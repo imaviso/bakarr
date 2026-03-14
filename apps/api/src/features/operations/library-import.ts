@@ -10,6 +10,7 @@ import { anime, episodes } from "../../db/schema.ts";
 import { parseResolution } from "./release-ranking.ts";
 import { parseEpisodeNumber, scanVideoFiles } from "./file-scanner.ts";
 import { requireAnime } from "./repository.ts";
+import { sanitizeFilename } from "../../lib/filesystem.ts";
 
 export async function buildRenamePreview(
   db: AppDatabase,
@@ -34,30 +35,6 @@ export async function buildRenamePreview(
       new_path: `${animeRow.rootFolder.replace(/\/$/, "")}/${filename}`,
     };
   });
-}
-
-import { Effect } from "effect";
-import {
-  type FileSystemShape,
-  sanitizeFilename,
-} from "../../lib/filesystem.ts";
-
-export async function copyDirectoryContents(
-  fs: FileSystemShape,
-  source: string,
-  destination: string,
-) {
-  await Effect.runPromise(fs.mkdir(destination, { recursive: true }));
-  const entries = await Effect.runPromise(fs.readDir(source));
-  for (const entry of entries) {
-    const sourcePath = `${source.replace(/\/$/, "")}/${entry.name}`;
-    const destinationPath = `${destination.replace(/\/$/, "")}/${entry.name}`;
-    if (entry.isDirectory) {
-      await copyDirectoryContents(fs, sourcePath, destinationPath);
-    } else if (entry.isFile) {
-      await Effect.runPromise(fs.copyFile(sourcePath, destinationPath));
-    }
-  }
 }
 
 export function analyzeScannedFile(

@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { Config } from "../../packages/shared/src/index.ts";
-import { BackgroundWorkerService } from "./src/background.ts";
+import { BackgroundWorkerController } from "./src/background.ts";
 import { AppConfig, type AppConfigShape } from "./src/config.ts";
 import { migrateDatabase } from "./src/db/migrate.ts";
 import { AuthService } from "./src/features/auth/service.ts";
@@ -47,13 +47,20 @@ if (import.meta.main) {
   const { app, config, runtime } = await bootstrap();
   const systemConfig = await runApi(
     runtime,
-    Effect.flatMap(SystemService, (system) => system.getConfig()),
+    Effect.flatMap(
+      BackgroundWorkerController,
+      (controller) =>
+        Effect.gen(function* () {
+          const cfg = yield* Effect.flatMap(
+            SystemService,
+            (s) => s.getConfig(),
+          );
+          yield* controller.start(cfg);
+          return cfg;
+        }),
+    ),
   ) as Config;
   setRuntimeLogLevel(systemConfig.general.log_level);
-  const workers = await runApi(
-    runtime,
-    Effect.flatMap(BackgroundWorkerService, (service) => service.start()),
-  );
 
   await runApi(
     runtime,
@@ -79,7 +86,10 @@ if (import.meta.main) {
         }),
       ),
     ).catch(() => undefined);
-    await runApi(runtime, workers.stop).catch(() => undefined);
+    await runApi(
+      runtime,
+      Effect.flatMap(BackgroundWorkerController, (c) => c.stop()),
+    ).catch(() => undefined);
     await runtime.dispose();
   };
 

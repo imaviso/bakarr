@@ -12,7 +12,3 @@ export class AppRuntime extends Context.Tag("@bakarr/api/AppRuntime")<
     return Layer.succeed(AppRuntime, { startedAt });
   }
 }
-
-export function makeAppRuntimeLayer(startedAt = new Date()) {
-  return AppRuntime.layer(startedAt);
-}

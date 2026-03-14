@@ -1,6 +1,9 @@
 import { Cause, Context, Effect, Fiber, Layer, Ref, Schedule } from "effect";
 
-import type { DownloadStatus } from "../../../packages/shared/src/index.ts";
+import type {
+  Config,
+  DownloadStatus,
+} from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
 import { DatabaseError } from "./db/database.ts";
 import {
@@ -8,13 +11,15 @@ import {
   durationMsSince,
   errorLogAnnotations,
 } from "./lib/logging.ts";
-import { EventBus } from "./features/events/event-bus.ts";
+import { EventBus, type EventBusShape } from "./features/events/event-bus.ts";
 import {
   DownloadService,
+  type DownloadServiceShape,
   LibraryService,
+  type LibraryServiceShape,
   RssService,
+  type RssServiceShape,
 } from "./features/operations/service.ts";
-import { SystemService } from "./features/system/service.ts";
 
 export const BACKGROUND_WORKER_NAMES = [
   "download_sync",
@@ -76,16 +81,6 @@ export class BackgroundWorkerMonitor
 export interface BackgroundWorkerHandle {
   readonly stop: Effect.Effect<void>;
 }
-
-export interface BackgroundWorkerServiceShape {
-  readonly start: () => Effect.Effect<BackgroundWorkerHandle, DatabaseError>;
-}
-
-export class BackgroundWorkerService
-  extends Context.Tag("@bakarr/api/BackgroundWorkerService")<
-    BackgroundWorkerService,
-    BackgroundWorkerServiceShape
-  >() {}
 
 function emptyBackgroundWorkerStats(): BackgroundWorkerStats {
   return {
@@ -174,18 +169,23 @@ export function makeBackgroundWorkerMonitor() {
   });
 }
 
-const makeBackgroundWorkerService = Effect.gen(function* () {
-  const system = yield* SystemService;
-  const eventBus = yield* EventBus;
-  const monitor = yield* BackgroundWorkerMonitor;
-  const downloadService = yield* DownloadService;
-  const libraryService = yield* LibraryService;
-  const rssService = yield* RssService;
+export interface WorkersDeps {
+  readonly eventBus: EventBusShape;
+  readonly monitor: BackgroundWorkerMonitorShape;
+  readonly downloadService: DownloadServiceShape;
+  readonly libraryService: LibraryServiceShape;
+  readonly rssService: RssServiceShape;
+}
 
-  const start = Effect.fn("BackgroundWorkerService.start")(function* () {
-    const config = yield* system.getConfig();
-    const schedule = buildBackgroundSchedule(config);
+export function spawnWorkersFromConfig(
+  config: Config,
+  deps: WorkersDeps,
+): Effect.Effect<BackgroundWorkerHandle, never, never> {
+  const { eventBus, monitor, downloadService, libraryService, rssService } =
+    deps;
+  const schedule = buildBackgroundSchedule(config);
 
+  return Effect.gen(function* () {
     const rssLoop = yield* withLockEffect(
       "rss",
       Effect.gen(function* () {
@@ -255,16 +255,7 @@ const makeBackgroundWorkerService = Effect.gen(function* () {
       stop: Fiber.interruptAll(spawnedFibers).pipe(Effect.asVoid),
     } satisfies BackgroundWorkerHandle;
   });
-
-  return {
-    start,
-  } satisfies BackgroundWorkerServiceShape;
-});
-
-export const BackgroundWorkerServiceLive = Layer.effect(
-  BackgroundWorkerService,
-  makeBackgroundWorkerService,
-);
+}
 
 export const BackgroundWorkerMonitorLive = Layer.effect(
   BackgroundWorkerMonitor,
@@ -383,3 +374,101 @@ function repeatWorker(
     Effect.asVoid,
   );
 }
+
+export interface BackgroundWorkerControllerShape {
+  readonly isStarted: () => Effect.Effect<boolean>;
+  readonly start: (config: Config) => Effect.Effect<void, DatabaseError>;
+  readonly reload: (config: Config) => Effect.Effect<void, DatabaseError>;
+  readonly stop: () => Effect.Effect<void>;
+}
+
+export class BackgroundWorkerController
+  extends Context.Tag("@bakarr/api/BackgroundWorkerController")<
+    BackgroundWorkerController,
+    BackgroundWorkerControllerShape
+  >() {}
+
+export interface BackgroundWorkerSpawner {
+  (config: Config): Effect.Effect<BackgroundWorkerHandle, DatabaseError>;
+}
+
+export function makeBackgroundWorkerController(options: {
+  readonly monitor: BackgroundWorkerMonitorShape;
+  readonly spawnWorkers: BackgroundWorkerSpawner;
+}) {
+  return Effect.gen(function* () {
+    const handleRef = yield* Ref.make<BackgroundWorkerHandle | null>(null);
+    const lifecycleSemaphore = yield* Effect.makeSemaphore(1);
+
+    const isStarted = () =>
+      Ref.get(handleRef).pipe(Effect.map((h) => h !== null));
+
+    const start = (config: Config) =>
+      lifecycleSemaphore.withPermits(1)(
+        Effect.gen(function* () {
+          const current = yield* Ref.get(handleRef);
+          if (current !== null) {
+            return;
+          }
+          const handle = yield* options.spawnWorkers(config);
+          yield* Ref.set(handleRef, handle);
+        }),
+      );
+
+    const reload = (config: Config) =>
+      lifecycleSemaphore.withPermits(1)(
+        Effect.gen(function* () {
+          const oldHandle = yield* Ref.get(handleRef);
+          if (oldHandle === null) {
+            return;
+          }
+          const newHandle = yield* options.spawnWorkers(config);
+          yield* Ref.set(handleRef, newHandle);
+          yield* oldHandle.stop;
+        }),
+      );
+
+    const stop = () =>
+      lifecycleSemaphore.withPermits(1)(
+        Effect.gen(function* () {
+          const current = yield* Ref.getAndSet(handleRef, null);
+          if (current !== null) {
+            yield* current.stop;
+          }
+        }),
+      );
+
+    return {
+      isStarted,
+      start,
+      reload,
+      stop,
+    } satisfies BackgroundWorkerControllerShape;
+  });
+}
+
+const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
+  const eventBus = yield* EventBus;
+  const monitor = yield* BackgroundWorkerMonitor;
+  const downloadService = yield* DownloadService;
+  const libraryService = yield* LibraryService;
+  const rssService = yield* RssService;
+
+  const deps: WorkersDeps = {
+    eventBus,
+    monitor,
+    downloadService,
+    libraryService,
+    rssService,
+  };
+
+  const spawnWorkers: BackgroundWorkerSpawner = (config) =>
+    spawnWorkersFromConfig(config, deps);
+
+  return yield* makeBackgroundWorkerController({ monitor, spawnWorkers });
+});
+
+export const BackgroundWorkerControllerLive = Layer.effect(
+  BackgroundWorkerController,
+  makeBackgroundWorkerControllerLive,
+);

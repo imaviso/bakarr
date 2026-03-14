@@ -2,8 +2,8 @@ import { Effect, Layer, ManagedRuntime } from "effect";
 
 import { AppRuntime } from "./app-runtime.ts";
 import {
+  BackgroundWorkerControllerLive,
   BackgroundWorkerMonitorLive,
-  BackgroundWorkerServiceLive,
 } from "./background.ts";
 import { AppConfig, type AppConfigShape } from "./config.ts";
 import { DatabaseLive } from "./db/database.ts";
@@ -36,17 +36,28 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
     RssClientLive,
     FileSystemLive,
   );
+  const operationsLayer = OperationsServiceLive.pipe(
+    Layer.provide(platformLayer),
+  );
+  const controllerLayer = BackgroundWorkerControllerLive.pipe(
+    Layer.provide(Layer.mergeAll(platformLayer, operationsLayer)),
+  );
   const servicesLayer = Layer.mergeAll(
     AuthServiceLive,
     AnimeServiceLive,
-    OperationsServiceLive,
     SystemServiceLive,
-  ).pipe(Layer.provide(platformLayer));
-  const backgroundLayer = BackgroundWorkerServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(platformLayer, servicesLayer)),
+  ).pipe(
+    Layer.provide(
+      Layer.mergeAll(platformLayer, operationsLayer, controllerLayer),
+    ),
   );
 
-  return Layer.mergeAll(platformLayer, servicesLayer, backgroundLayer);
+  return Layer.mergeAll(
+    platformLayer,
+    operationsLayer,
+    controllerLayer,
+    servicesLayer,
+  );
 }
 
 export function makeApiRuntime(overrides: Partial<AppConfigShape> = {}) {

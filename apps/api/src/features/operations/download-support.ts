@@ -5,6 +5,7 @@ import type { AppDatabase } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import { anime } from "../../db/schema.ts";
 import {
+  FileSystemError,
   type FileSystemShape,
   sanitizeFilename,
 } from "../../lib/filesystem.ts";
@@ -22,49 +23,69 @@ export function shouldDeleteImportedData(config: Config | null | undefined) {
   return config?.downloads.delete_download_files_after_import ?? false;
 }
 
-export async function importDownloadedFile(
+export class ImportFileError {
+  readonly _tag = "ImportFileError";
+  constructor(readonly message: string, readonly cause?: unknown) {}
+}
+
+export function importDownloadedFile(
   fs: FileSystemShape,
   animeRow: typeof anime.$inferSelect,
   episodeNumber: number,
   sourcePath: string,
   importMode: string,
-): Promise<string> {
-  if (
-    sourcePath.startsWith(animeRow.rootFolder.replace(/\/$/, "") + "/") ||
-    sourcePath === animeRow.rootFolder
-  ) {
-    return sourcePath;
-  }
-
-  const extension = sourcePath.includes(".")
-    ? sourcePath.slice(sourcePath.lastIndexOf("."))
-    : ".mkv";
-  const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${
-    sanitizeFilename(animeRow.titleRomaji)
-  } - ${String(episodeNumber).padStart(2, "0")}${extension}`;
-  const tempDestination = `${destination}.tmp.${crypto.randomUUID()}`;
-
-  await Effect.runPromise(fs.mkdir(animeRow.rootFolder, { recursive: true }));
-
-  try {
-    if (importMode === "move") {
-      await Effect.runPromise(fs.rename(sourcePath, tempDestination));
-    } else {
-      await Effect.runPromise(fs.copyFile(sourcePath, tempDestination));
+): Effect.Effect<string, ImportFileError | FileSystemError, never> {
+  return Effect.gen(function* () {
+    if (
+      sourcePath.startsWith(animeRow.rootFolder.replace(/\/$/, "") + "/") ||
+      sourcePath === animeRow.rootFolder
+    ) {
+      return sourcePath;
     }
 
-    await Effect.runPromise(
-      fs.remove(destination).pipe(Effect.catchAll(() => Effect.void)),
-    );
-    await Effect.runPromise(fs.rename(tempDestination, destination));
-  } catch (error) {
-    await Effect.runPromise(
-      fs.remove(tempDestination).pipe(Effect.catchAll(() => Effect.void)),
-    );
-    throw error;
-  }
+    const extension = sourcePath.includes(".")
+      ? sourcePath.slice(sourcePath.lastIndexOf("."))
+      : ".mkv";
+    const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${
+      sanitizeFilename(animeRow.titleRomaji)
+    } - ${String(episodeNumber).padStart(2, "0")}${extension}`;
+    const tempDestination = `${destination}.tmp.${crypto.randomUUID()}`;
 
-  return destination;
+    yield* fs.mkdir(animeRow.rootFolder, { recursive: true });
+
+    yield* (
+      importMode === "move"
+        ? fs.rename(sourcePath, tempDestination)
+        : fs.copyFile(sourcePath, tempDestination)
+    ).pipe(
+      Effect.mapError((cause) =>
+        new ImportFileError(
+          `Failed to ${importMode} file to temp destination`,
+          cause,
+        )
+      ),
+    );
+
+    yield* fs.remove(destination).pipe(Effect.catchAll(() => Effect.void));
+
+    const renameResult = yield* Effect.either(
+      fs.rename(tempDestination, destination),
+    );
+
+    if (renameResult._tag === "Left") {
+      yield* fs.remove(tempDestination).pipe(
+        Effect.catchAll(() => Effect.void),
+      );
+      return yield* Effect.fail(
+        new ImportFileError(
+          "Failed to rename temp file to destination",
+          renameResult.left,
+        ),
+      );
+    }
+
+    return destination;
+  });
 }
 
 export async function upsertEpisodeFile(
