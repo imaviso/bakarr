@@ -154,7 +154,7 @@ function FeedCard(props: {
             when={props.feed.enabled}
             fallback={<IconToggleLeft class="h-6 w-6 text-muted-foreground" />}
           >
-            <IconToggleRight class="h-6 w-6 text-green-500" />
+            <IconToggleRight class="h-6 w-6 text-success" />
           </Show>
         </button>
         <div class="flex-1 min-w-0">

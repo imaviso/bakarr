@@ -106,7 +106,7 @@ export function RenameDialog(props: RenameDialogProps) {
                   </Show>
                   <Show when={(result()?.renamed ?? 0) > 0}>
                     <div class="flex flex-col items-center justify-center py-8 text-center">
-                      <IconCheck class="h-16 w-16 text-green-500 mb-4" />
+                      <IconCheck class="h-16 w-16 text-success mb-4" />
                       <h3 class="text-xl font-semibold">Rename Complete</h3>
                       <p class="text-muted-foreground">
                         Successfully renamed {result()?.renamed} files.
@@ -140,7 +140,7 @@ export function RenameDialog(props: RenameDialogProps) {
                           <TableCell class="font-mono text-sm break-all text-muted-foreground">
                             {item.current_path.split("/").pop()}
                           </TableCell>
-                          <TableCell class="font-mono text-sm break-all text-green-600 dark:text-green-400">
+                          <TableCell class="font-mono text-sm break-all text-success dark:text-success">
                             {item.new_filename}
                           </TableCell>
                         </TableRow>

@@ -500,7 +500,7 @@ function AnimeGridView(props: AnimeViewProps) {
                         class={cn(
                           "h-1.5 w-1.5 rounded-full",
                           anime.monitored
-                            ? "bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]"
+                            ? "bg-success shadow-[0_0_4px_rgba(16,185,129,0.4)]"
                             : "bg-muted-foreground/40",
                         )}
                       />
@@ -575,7 +575,7 @@ function AnimeListView(props: AnimeViewProps) {
                   <div class="flex items-center gap-2">
                     <div
                       class={`h-2 w-2 rounded-full ${
-                        anime.monitored ? "bg-green-500" : "bg-yellow-500"
+                        anime.monitored ? "bg-success" : "bg-warning"
                       }`}
                     />
                     <span class="text-sm">

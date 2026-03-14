@@ -447,7 +447,7 @@ export function ImportDialog(props: ImportDialogProps) {
                     variant="ghost"
                     size="icon"
                     onClick={() => setPath("")}
-                    class="shrink-0 h-6 w-6"
+                    class="shrink-0"
                   >
                     <IconX class="h-3 w-3" />
                   </Button>
@@ -481,7 +481,7 @@ export function ImportDialog(props: ImportDialogProps) {
               <DialogDescription>
                 Found {scannedFiles().length} file(s). Select files to import.
                 <Show when={skippedFiles().length > 0}>
-                  <span class="text-yellow-600">
+                  <span class="text-warning">
                     {" "}
                     ({skippedFiles().length} skipped)
                   </span>
@@ -675,7 +675,7 @@ function CandidateCard(props: {
           <Show when={!props.isLocal}>
             <Badge
               variant="secondary"
-              class="h-4 px-1 text-[9px] bg-blue-500/10 text-blue-500 border-blue-500/20"
+              class="h-4 px-1 text-[9px] bg-info/10 text-info border-info/20"
             >
               New
             </Badge>
@@ -683,7 +683,7 @@ function CandidateCard(props: {
           <Show when={props.isManual}>
             <Badge
               variant="secondary"
-              class="h-4 px-1 text-[9px] bg-purple-500/10 text-purple-500 border-purple-500/20"
+              class="h-4 px-1 text-[9px] bg-accent/10 text-accent border-accent/20"
             >
               Manual
             </Badge>
@@ -775,7 +775,7 @@ function FileRow(props: FileRowProps) {
             when={hasMatch()}
             fallback={
               <>
-                <IconAlertTriangle class="h-4 w-4 text-yellow-600 shrink-0" />
+                <IconAlertTriangle class="h-4 w-4 text-warning shrink-0" />
                 <Select
                   value={null}
                   onChange={(v) => v && props.onToggle(v.id)}
@@ -800,7 +800,7 @@ function FileRow(props: FileRowProps) {
               </>
             }
           >
-            <IconCheck class="h-4 w-4 text-green-600 shrink-0" />
+            <IconCheck class="h-4 w-4 text-success shrink-0" />
             <Select
               value={allOptions().find(
                 (o) => o.id === (props.selectedAnimeId || matchedAnimeId()),

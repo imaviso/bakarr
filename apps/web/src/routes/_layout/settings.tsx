@@ -488,7 +488,7 @@ function SettingsPage() {
                                     </Badge>
                                   }
                                 >
-                                  <Badge class="text-[10px] h-5 px-1.5 bg-green-500/10 text-green-600 border-green-500/20 font-medium">
+                                  <Badge class="text-[10px] h-5 px-1.5 bg-success/10 text-success border-success/20 font-medium">
                                     Enabled
                                   </Badge>
                                 </Show>

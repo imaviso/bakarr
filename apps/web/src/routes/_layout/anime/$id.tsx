@@ -275,16 +275,16 @@ function AnimeDetailsPage() {
                     <Tooltip>
                       <TooltipTrigger>
                         <Show when={anime().status === "RELEASING"}>
-                          <IconBroadcast class="w-4 h-4 text-green-500" />
+                          <IconBroadcast class="w-4 h-4 text-success" />
                         </Show>
                         <Show when={anime().status === "FINISHED"}>
-                          <IconCircleCheck class="w-4 h-4 text-blue-500" />
+                          <IconCircleCheck class="w-4 h-4 text-info" />
                         </Show>
                         <Show when={anime().status === "NOT_YET_RELEASED"}>
-                          <IconCalendar class="w-4 h-4 text-orange-500" />
+                          <IconCalendar class="w-4 h-4 text-warning" />
                         </Show>
                         <Show when={anime().status === "CANCELLED"}>
-                          <IconBan class="w-4 h-4 text-red-500" />
+                          <IconBan class="w-4 h-4 text-error" />
                         </Show>
                         <Show
                           when={![
@@ -581,7 +581,7 @@ function AnimeDetailsPage() {
                   </Card>
                   <Card>
                     <CardContent class="p-4 text-center">
-                      <p class="text-2xl font-bold text-green-500">
+                      <p class="text-2xl font-bold text-success">
                         {availableCount()}
                       </p>
                       <p class="text-xs text-muted-foreground">Downloaded</p>
@@ -589,7 +589,7 @@ function AnimeDetailsPage() {
                   </Card>
                   <Card>
                     <CardContent class="p-4 text-center">
-                      <p class="text-2xl font-bold text-orange-500">
+                      <p class="text-2xl font-bold text-warning">
                         {missingCount()}
                       </p>
                       <p class="text-xs text-muted-foreground">Missing</p>
@@ -660,9 +660,9 @@ function AnimeDetailsPage() {
                                     class={cn(
                                       "aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-all",
                                       episode.downloaded
-                                        ? "bg-green-500/20 text-green-500 border border-green-500/30"
+                                        ? "bg-success/20 text-success border border-success/30"
                                         : isAired(episode.aired)
-                                        ? "bg-orange-500/10 text-orange-500/70 border border-orange-500/20"
+                                        ? "bg-warning/10 text-warning/70 border border-warning/20"
                                         : "bg-muted/30 text-muted-foreground/40 border border-transparent",
                                     )}
                                     title={`Episode ${episode.number}: ${
@@ -751,7 +751,7 @@ function AnimeDetailsPage() {
                                                     class={cn(
                                                       "h-4 w-4",
                                                       isAired(episode.aired)
-                                                        ? "text-orange-500/70"
+                                                        ? "text-warning/70"
                                                         : "text-muted-foreground/30",
                                                     )}
                                                   />
@@ -766,7 +766,7 @@ function AnimeDetailsPage() {
                                           >
                                             <Tooltip>
                                               <TooltipTrigger>
-                                                <IconCircleCheck class="h-4 w-4 text-green-500" />
+                                                <IconCircleCheck class="h-4 w-4 text-success" />
                                               </TooltipTrigger>
                                               <TooltipContent>
                                                 Downloaded - {episode.file_path

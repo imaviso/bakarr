@@ -300,7 +300,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       </div>
 
       <Show when={props.anime.already_in_library}>
-        <div class="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-none text-yellow-600">
+        <div class="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-none text-warning">
           <IconCheck class="h-4 w-4" />
           <span class="text-sm">This anime is already in your library</span>
         </div>

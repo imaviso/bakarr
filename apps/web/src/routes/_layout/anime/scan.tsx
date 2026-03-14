@@ -169,8 +169,8 @@ function FolderItem(props: { folder: UnmappedFolder }) {
     <div class="grid grid-cols-[1fr_1fr_auto] gap-4 py-3 items-center">
       {/* Folder Info */}
       <div class="flex items-center gap-3 min-w-0 overflow-hidden">
-        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
-          <IconFolder class="h-5 w-5 text-blue-500" />
+        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-info/10">
+          <IconFolder class="h-5 w-5 text-info" />
         </div>
         <div class="min-w-0 overflow-hidden">
           <p class="font-medium text-sm truncate" title={props.folder.name}>
@@ -217,10 +217,10 @@ function FolderItem(props: { folder: UnmappedFolder }) {
                     <span>• {anime().episode_count} eps</span>
                   </Show>
                   <Show when={manualMatch()}>
-                    <span class="text-blue-500">• Manual</span>
+                    <span class="text-info">• Manual</span>
                   </Show>
                   <Show when={anime().already_in_library}>
-                    <span class="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 px-1.5 py-0.5 rounded font-medium text-[10px] uppercase tracking-wider">
+                    <span class="bg-info/10 text-info dark:bg-info/20 dark:text-info px-1.5 py-0.5 rounded font-medium text-[10px] uppercase tracking-wider">
                       In Library
                     </span>
                   </Show>
@@ -364,7 +364,7 @@ function ManualMatchSearch(props: {
                     </div>
                     <div class="flex gap-2 text-xs text-muted-foreground">
                       <Show when={anime.already_in_library}>
-                        <span class="bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 px-1.5 py-0.5 rounded font-medium text-[10px] uppercase tracking-wider">
+                        <span class="bg-info/10 text-info dark:bg-info/20 dark:text-info px-1.5 py-0.5 rounded font-medium text-[10px] uppercase tracking-wider">
                           In Library
                         </span>
                       </Show>

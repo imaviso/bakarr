@@ -194,21 +194,18 @@ export function SearchDialog(props: SearchDialogProps) {
         </div>
 
         {/* Footer Legend */}
-        <div class="px-6 py-2.5 border-t border-border/40 bg-background/95 backdrop-blur-sm text-[10px] text-muted-foreground flex gap-6 items-center overflow-x-auto">
+        <div class="px-6 py-2.5 border-t border-border/40 bg-background text-[10px] text-muted-foreground flex gap-6 items-center overflow-x-auto">
           <span class="flex items-center gap-1.5 whitespace-nowrap">
-            <IconStarFilled class="h-3 w-3 text-green-500 fill-green-500" />
-            {" "}
-            Trusted
+            <IconStarFilled class="h-3 w-3 text-success fill-success" /> Trusted
           </span>
           <span class="flex items-center gap-1.5 whitespace-nowrap">
-            <IconCheck class="h-3 w-3 text-blue-500 fill-blue-500" /> SeaDex
+            <IconCheck class="h-3 w-3 text-info fill-info" /> SeaDex
           </span>
           <span class="flex items-center gap-1.5 whitespace-nowrap">
-            <IconCheck class="h-3 w-3 text-amber-500 fill-amber-500" />{" "}
-            SeaDex Best
+            <IconCheck class="h-3 w-3 text-warning fill-warning" /> SeaDex Best
           </span>
           <span class="flex items-center gap-1.5 whitespace-nowrap">
-            <IconAlertTriangle class="h-3 w-3 text-orange-500" /> Remake
+            <IconAlertTriangle class="h-3 w-3 text-warning" /> Remake
           </span>
         </div>
       </DialogContent>
@@ -277,7 +274,7 @@ function SearchResults(props: {
   return (
     <div class="h-full overflow-auto">
       <Table>
-        <TableHeader class="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b border-border/40 shadow-sm">
+        <TableHeader class="sticky top-0 bg-background z-10 border-b border-border/40 shadow-sm">
           <TableRow class="hover:bg-transparent border-border/40">
             <TableHead class="w-[45%] pl-6 h-9 text-xs font-medium">
               Release ({results().length})
@@ -388,7 +385,7 @@ function SearchResultsSkeleton() {
   return (
     <div class="h-full overflow-hidden flex flex-col">
       <Table>
-        <TableHeader class="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b border-border/40 shadow-sm">
+        <TableHeader class="sticky top-0 bg-background z-10 border-b border-border/40 shadow-sm">
           <TableRow class="hover:bg-transparent border-border/40">
             <TableHead class="w-[45%] pl-6 h-9 text-xs font-medium">
               Release
@@ -524,7 +521,7 @@ function ReleaseRow(props: {
             <Show when={props.result.trusted}>
               <Badge
                 variant="outline"
-                class="h-4 px-1 text-[9px] border-green-500/20 text-green-600 bg-green-500/5 rounded-none"
+                class="h-4 px-1 text-[9px] border-success/20 text-success bg-success/5 rounded-none"
               >
                 Trusted
               </Badge>
@@ -535,8 +532,8 @@ function ReleaseRow(props: {
                 class={cn(
                   "h-4 px-1 text-[9px] rounded-none",
                   props.result.is_seadex_best
-                    ? "border-amber-500/20 text-amber-600 bg-amber-500/5"
-                    : "border-blue-500/20 text-blue-600 bg-blue-500/5",
+                    ? "border-warning/20 text-warning bg-warning/5"
+                    : "border-info/20 text-info bg-info/5",
                 )}
               >
                 {props.result.is_seadex_best ? "SeaDex Best" : "SeaDex"}
@@ -545,7 +542,7 @@ function ReleaseRow(props: {
             <Show when={props.result.remake}>
               <Badge
                 variant="outline"
-                class="h-4 px-1 text-[9px] border-orange-500/20 text-orange-600 bg-orange-500/5 rounded-none"
+                class="h-4 px-1 text-[9px] border-warning/20 text-warning bg-warning/5 rounded-none"
               >
                 Remake
               </Badge>
@@ -575,7 +572,7 @@ function ReleaseRow(props: {
             class={cn(
               "font-medium",
               props.result.seeders > 0
-                ? "text-green-600 dark:text-green-500"
+                ? "text-success dark:text-success"
                 : "text-muted-foreground",
             )}
           >

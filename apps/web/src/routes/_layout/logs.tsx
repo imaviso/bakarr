@@ -115,22 +115,22 @@ function LogsPage() {
         {
           value: "info",
           label: "Info",
-          icon: <IconInfoCircle class="h-4 w-4 text-blue-500" />,
+          icon: <IconInfoCircle class="h-4 w-4 text-info" />,
         },
         {
           value: "warn",
           label: "Warn",
-          icon: <IconAlertTriangle class="h-4 w-4 text-yellow-500" />,
+          icon: <IconAlertTriangle class="h-4 w-4 text-warning" />,
         },
         {
           value: "error",
           label: "Error",
-          icon: <IconAlertCircle class="h-4 w-4 text-red-500" />,
+          icon: <IconAlertCircle class="h-4 w-4 text-error" />,
         },
         {
           value: "success",
           label: "Success",
-          icon: <IconCheck class="h-4 w-4 text-green-500" />,
+          icon: <IconCheck class="h-4 w-4 text-success" />,
         },
       ],
     },
@@ -230,13 +230,13 @@ function LogsPage() {
   const getLevelColorClass = (level: string) => {
     switch (level.toLowerCase()) {
       case "error":
-        return "bg-red-500/15 text-red-500 hover:bg-red-500/25 border-red-500/20";
+        return "bg-error/15 text-error hover:bg-error/25 border-error/20";
       case "warn":
-        return "bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25 border-yellow-500/20";
+        return "bg-warning/15 text-warning hover:bg-warning/25 border-warning/20";
       case "success":
-        return "bg-green-500/15 text-green-500 hover:bg-green-500/25 border-green-500/20";
+        return "bg-success/15 text-success hover:bg-success/25 border-success/20";
       case "info":
-        return "bg-blue-500/15 text-blue-500 hover:bg-blue-500/25 border-blue-500/20";
+        return "bg-info/15 text-info hover:bg-info/25 border-info/20";
       default:
         return "";
     }
@@ -384,17 +384,17 @@ function LogsPage() {
                 <DashboardMetricCard
                   label="Failed"
                   value={dashboard().failed_downloads}
-                  highlight="text-red-500"
+                  highlight="text-error"
                 />
                 <DashboardMetricCard
                   label="Imported"
                   value={dashboard().imported_downloads}
-                  highlight="text-green-500"
+                  highlight="text-success"
                 />
                 <DashboardMetricCard
                   label="Running Jobs"
                   value={dashboard().running_jobs}
-                  highlight="text-blue-500"
+                  highlight="text-info"
                 />
               </>
             )}
@@ -651,7 +651,7 @@ function BackgroundJobCard(props: { job: BackgroundJobStatus }) {
         <div class="font-medium text-sm">{props.job.name}</div>
         <Badge
           variant="outline"
-          class={cn(props.job.is_running && "border-blue-500/40 text-blue-600")}
+          class={cn(props.job.is_running && "border-info/40 text-info")}
         >
           {props.job.is_running ? "Running" : props.job.last_status ?? "Idle"}
         </Badge>

@@ -304,15 +304,13 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
       <TableCell class="py-2 pl-4">
         <Show
           when={!props.item.state.includes("Error")}
-          fallback={<IconAlertTriangle class="w-4 h-4 text-red-500 shrink-0" />}
+          fallback={<IconAlertTriangle class="w-4 h-4 text-error shrink-0" />}
         >
           <Show
             when={!props.item.state.includes("Paused")}
-            fallback={
-              <IconPlayerPause class="w-4 h-4 text-yellow-500 shrink-0" />
-            }
+            fallback={<IconPlayerPause class="w-4 h-4 text-warning shrink-0" />}
           >
-            <IconDownload class="w-4 h-4 text-blue-500 shrink-0 animate-pulse" />
+            <IconDownload class="w-4 h-4 text-info shrink-0 animate-pulse" />
           </Show>
         </Show>
       </TableCell>
@@ -429,13 +427,13 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
 
     switch (status.toLowerCase()) {
       case "completed":
-        return <IconCheck class="h-4 w-4 text-green-500" />;
+        return <IconCheck class="h-4 w-4 text-success" />;
       case "downloading":
-        return <IconArrowDown class="h-4 w-4 text-blue-500 animate-pulse" />;
+        return <IconArrowDown class="h-4 w-4 text-info animate-pulse" />;
       case "failed":
         return <IconX class="h-4 w-4 text-destructive" />;
       case "paused":
-        return <IconPlayerPause class="h-4 w-4 text-yellow-500" />;
+        return <IconPlayerPause class="h-4 w-4 text-warning" />;
       default:
         return <IconClock class="h-4 w-4 text-muted-foreground" />;
     }

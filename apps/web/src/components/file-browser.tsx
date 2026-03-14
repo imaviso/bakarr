@@ -99,7 +99,6 @@ export function FileBrowser(props: FileBrowserProps) {
         <Button
           variant="ghost"
           size="icon"
-          class="h-8 w-8"
           onClick={handleGoHome}
           title="Go to root"
         >
@@ -108,7 +107,6 @@ export function FileBrowser(props: FileBrowserProps) {
         <Button
           variant="ghost"
           size="icon"
-          class="h-8 w-8"
           onClick={handleGoUp}
           disabled={!browserQuery.data?.parent_path}
           title="Go up"

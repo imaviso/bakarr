@@ -363,7 +363,7 @@ function ImportPage() {
                           step() === s.id
                             ? "bg-primary-foreground/20"
                             : index() < currentStepIndex()
-                            ? "bg-green-500/20 text-green-600"
+                            ? "bg-success/20 text-success"
                             : "bg-muted-foreground/10",
                         )}
                       >
@@ -543,7 +543,7 @@ function ImportPage() {
                     <p class="text-sm text-muted-foreground mt-1">
                       Found {scannedFiles().length} file(s)
                       <Show when={skippedFiles().length > 0}>
-                        <span class="text-yellow-600 dark:text-yellow-500">
+                        <span class="text-warning dark:text-warning">
                           {" "}
                           • {skippedFiles().length} skipped
                         </span>
@@ -665,7 +665,7 @@ function ImportPage() {
                                   <Show when={!isLocal()}>
                                     <Badge
                                       variant="secondary"
-                                      class="h-4 px-1 text-[9px] bg-blue-500/10 text-blue-500"
+                                      class="h-4 px-1 text-[9px] bg-info/10 text-info"
                                     >
                                       New
                                     </Badge>
@@ -673,7 +673,7 @@ function ImportPage() {
                                   <Show when={isManual()}>
                                     <Badge
                                       variant="secondary"
-                                      class="h-4 px-1 text-[9px] bg-purple-500/10 text-purple-500"
+                                      class="h-4 px-1 text-[9px] bg-accent/10 text-accent"
                                     >
                                       Manual
                                     </Badge>

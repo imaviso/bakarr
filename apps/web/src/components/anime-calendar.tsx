@@ -46,7 +46,8 @@ export function AnimeCalendar() {
   const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   // Optimized: Create a memoized map of events by date for O(1) lookup
-  const eventsByDate = createMemo(() => {
+  // Returns a lookup function to avoid re-tracking the entire map on each access
+  const getEventsForDay = createMemo(() => {
     const events = calendarQuery.data || [];
     const map: Record<string, typeof events> = {};
 
@@ -58,13 +59,12 @@ export function AnimeCalendar() {
       map[dateKey].push(event);
     }
 
-    return map;
+    // Return a stable lookup function that only accesses the specific date
+    return (day: Date) => {
+      const dateKey = format(day, "yyyy-MM-dd");
+      return map[dateKey] || [];
+    };
   });
-
-  const getEventsForDay = (day: Date) => {
-    const dateKey = format(day, "yyyy-MM-dd");
-    return eventsByDate()[dateKey] || [];
-  };
 
   const handlePrevMonth = () => setCurrentDate((d) => subMonths(d, 1));
   const handleNextMonth = () => setCurrentDate((d) => addMonths(d, 1));
@@ -79,7 +79,6 @@ export function AnimeCalendar() {
             variant="ghost"
             size="icon"
             onClick={handlePrevMonth}
-            class="h-8 w-8"
           >
             <IconCaretLeft class="h-4 w-4" />
           </Button>
@@ -90,7 +89,6 @@ export function AnimeCalendar() {
             variant="ghost"
             size="icon"
             onClick={handleNextMonth}
-            class="h-8 w-8"
           >
             <IconCaretRight class="h-4 w-4" />
           </Button>
@@ -118,7 +116,7 @@ export function AnimeCalendar() {
           <div class="grid grid-cols-7">
             <For each={days()}>
               {(day) => {
-                const dayEvents = getEventsForDay(day);
+                const dayEvents = getEventsForDay()(day);
                 const isCurrentMonth = isSameMonth(day, currentDate());
                 const isCurrentDay = isToday(day);
 
@@ -161,8 +159,8 @@ export function AnimeCalendar() {
                                 "flex items-center gap-1.5 rounded px-1.5 py-1 text-xs transition-all",
                                 "hover:bg-accent/80 cursor-pointer",
                                 event.extended_props.downloaded
-                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                  : "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+                                  ? "bg-success/10 text-success dark:text-success"
+                                  : "bg-accent/10 text-accent dark:text-accent",
                               )}
                             >
                               <div class="flex-1 min-w-0">
@@ -204,11 +202,11 @@ export function AnimeCalendar() {
       {/* Legend */}
       <div class="flex items-center gap-4 text-xs text-muted-foreground">
         <div class="flex items-center gap-1.5">
-          <div class="w-3 h-3 rounded bg-emerald-500/20 border border-emerald-500/40" />
+          <div class="w-3 h-3 rounded bg-success/20 border border-success/40" />
           <span>Downloaded</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <div class="w-3 h-3 rounded bg-violet-500/20 border border-violet-500/40" />
+          <div class="w-3 h-3 rounded bg-accent/20 border border-accent/40" />
           <span>Missing</span>
         </div>
       </div>

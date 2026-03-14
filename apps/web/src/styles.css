@@ -148,11 +148,11 @@
   }
 
   .glass {
-    @apply bg-background/80 backdrop-blur-xl border-b border-border;
+    @apply bg-background/95 border-b border-border;
   }
 
   .glass-dark {
-    @apply bg-background/80 backdrop-blur-xl border-b border-border;
+    @apply bg-background/95 border-b border-border;
   }
 
   .card-hover {

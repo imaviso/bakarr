@@ -121,7 +121,7 @@ export function SearchModal(props: SearchModalProps) {
             <Show
               when={!searchQuery.error}
               fallback={
-                <div class="flex flex-col items-center justify-center flex-1 text-red-500 gap-2">
+                <div class="flex flex-col items-center justify-center flex-1 text-error gap-2">
                   <IconAlertTriangle class="h-8 w-8" />
                   <p>Error searching for releases</p>
                   <p class="text-sm text-muted-foreground">
@@ -206,11 +206,11 @@ export function SearchModal(props: SearchModalProps) {
                                 {formatSize(release.size)}
                               </TableCell>
                               <TableCell class="text-xs">
-                                <span class="text-green-500 font-medium">
+                                <span class="text-success font-medium">
                                   {release.seeders}
                                 </span>
                                 {" / "}
-                                <span class="text-red-500">
+                                <span class="text-error">
                                   {release.leechers}
                                 </span>
                               </TableCell>
@@ -232,9 +232,9 @@ export function SearchModal(props: SearchModalProps) {
                                     class={cn(
                                       "h-7 w-full gap-1 text-xs",
                                       action.Accept &&
-                                        "bg-green-600 hover:bg-green-700 text-white",
+                                        "bg-success hover:bg-success text-white",
                                       action.Upgrade &&
-                                        "bg-blue-600 hover:bg-blue-700 text-white",
+                                        "bg-info hover:bg-info text-white",
                                       isRejected &&
                                         "text-muted-foreground border",
                                     )}
@@ -253,7 +253,7 @@ export function SearchModal(props: SearchModalProps) {
                                   </Button>
                                   <Show when={reason}>
                                     <span
-                                      class="text-[10px] text-red-500 text-right leading-tight max-w-[100px]"
+                                      class="text-[10px] text-error text-right leading-tight max-w-[100px]"
                                       title={reason || ""}
                                     >
                                       {reason}

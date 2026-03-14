@@ -277,7 +277,7 @@ function AddAnimePage() {
                                 class={cn(
                                   "text-[10px] h-5 px-1.5 font-normal capitalize",
                                   anime.status?.toLowerCase() === "releasing"
-                                    ? "text-green-500 border-green-500/30"
+                                    ? "text-success border-success/30"
                                     : "text-muted-foreground",
                                 )}
                               >

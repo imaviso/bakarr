@@ -86,7 +86,7 @@ export function FileRow(props: FileRowProps) {
             when={hasMatch()}
             fallback={
               <>
-                <IconAlertTriangle class="h-4 w-4 text-yellow-600 shrink-0" />
+                <IconAlertTriangle class="h-4 w-4 text-warning shrink-0" />
                 <Select
                   value={null}
                   onChange={(v) => {
@@ -133,7 +133,7 @@ export function FileRow(props: FileRowProps) {
               </>
             }
           >
-            <IconCheck class="h-4 w-4 text-green-600 shrink-0" />
+            <IconCheck class="h-4 w-4 text-success shrink-0" />
             <Select
               value={allOptions().find(
                 (o) => o.id === (props.selectedAnimeId || matchedAnimeId()),

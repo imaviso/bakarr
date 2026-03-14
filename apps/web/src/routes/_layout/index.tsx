@@ -51,7 +51,7 @@ function DashboardPage() {
         </div>
         <div class="text-xs font-mono text-muted-foreground uppercase flex gap-4">
           <span class="flex items-center gap-1.5">
-            <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>{" "}
+            <div class="w-1.5 h-1.5 rounded-full bg-success"></div>{" "}
             System Online
           </span>
         </div>
@@ -90,7 +90,7 @@ function DashboardPage() {
                 <CardTitle class="text-sm font-medium text-muted-foreground">
                   Downloaded
                 </CardTitle>
-                <IconCheck class="h-4 w-4 text-green-500" />
+                <IconCheck class="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
                 <div class="text-2xl font-bold">
@@ -104,7 +104,7 @@ function DashboardPage() {
                 <CardTitle class="text-sm font-medium text-muted-foreground">
                   Missing
                 </CardTitle>
-                <IconCloudDownload class="h-4 w-4 text-orange-500" />
+                <IconCloudDownload class="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
                 <div class="text-2xl font-bold">{stats().missing_episodes}</div>
@@ -197,8 +197,8 @@ function DashboardPage() {
 function ActivityRow(props: { item: ActivityItem }) {
   return (
     <div class="flex items-center gap-4 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-      <div class="p-2 rounded-lg bg-green-500/10">
-        <IconCheck class="h-4 w-4 text-green-500" />
+      <div class="p-2 rounded-lg bg-success/10">
+        <IconCheck class="h-4 w-4 text-success" />
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-medium truncate">{props.item.anime_title}</p>
