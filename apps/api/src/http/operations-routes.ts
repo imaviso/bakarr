@@ -14,7 +14,7 @@ import type {
   ScanResult,
   SearchResults,
 } from "../../../../packages/shared/src/index.ts";
-import { FileSystem } from "../lib/filesystem.ts";
+import { FileSystem, isWithinPathRoot } from "../lib/filesystem.ts";
 import {
   DownloadService,
   LibraryService,
@@ -39,6 +39,9 @@ import {
   WantedMissingQuerySchema,
 } from "./request-schemas.ts";
 import type { AppVariables, RunEffect } from "./route-helpers.ts";
+import { SystemService } from "../features/system/service.ts";
+import { OperationsInputError } from "../features/operations/errors.ts";
+import { listLibraryRoots } from "../features/library-roots/library-roots-repository.ts";
 import {
   browsePath,
   nowIso,
@@ -188,7 +191,43 @@ export function registerOperationsRoutes(
       Effect.gen(function* () {
         const query = yield* parseQuery(c, BrowseQuerySchema, "browse library");
         const fs = yield* FileSystem;
-        return yield* browsePath(fs, query.path || ".");
+        const config = yield* Effect.flatMap(
+          SystemService,
+          (s) => s.getConfig(),
+        );
+        const roots = yield* listLibraryRoots();
+
+        const allowedPrefixes = [
+          ...roots.map((r: { path: string }) => r.path),
+          config.downloads.root_path,
+          config.library.library_path,
+        ].filter(Boolean) as string[];
+
+        const requestedPath = query.path || ".";
+
+        if (requestedPath !== ".") {
+          const isAllowed = allowedPrefixes.some(
+            (prefix) => isWithinPathRoot(requestedPath, prefix),
+          );
+
+          if (!isAllowed) {
+            return yield* new OperationsInputError({
+              message: "Path is outside allowed library roots",
+            });
+          }
+        } else if (requestedPath === ".") {
+          return {
+            current_path: ".",
+            entries: allowedPrefixes.map((path) => ({
+              is_directory: true,
+              name: path,
+              path: path,
+            })),
+            parent_path: undefined,
+          };
+        }
+
+        return yield* browsePath(fs, requestedPath);
       }),
       (value) => c.json(value),
     ));

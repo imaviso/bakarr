@@ -285,22 +285,6 @@ export interface Config {
     auto_scan_interval_hours: number;
     preferred_title: PreferredTitle;
   };
-  security: {
-    argon2_memory_cost_kib: number;
-    argon2_time_cost: number;
-    argon2_parallelism: number;
-    auto_migrate_password_hashes: boolean;
-    auth_throttle: {
-      max_attempts: number;
-      window_seconds: number;
-      lockout_seconds: number;
-      login_base_delay_ms: number;
-      login_max_delay_ms: number;
-      password_base_delay_ms: number;
-      password_max_delay_ms: number;
-      trusted_proxy_ips: string[];
-    };
-  };
   profiles: QualityProfile[];
 }
 

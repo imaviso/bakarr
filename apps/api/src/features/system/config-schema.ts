@@ -112,23 +112,6 @@ export const SchedulerConfigSchema = Schema.Struct({
   metadata_refresh_hours: Schema.Number,
 });
 
-export const SecurityConfigSchema = Schema.Struct({
-  argon2_memory_cost_kib: Schema.Number,
-  argon2_parallelism: Schema.Number,
-  argon2_time_cost: Schema.Number,
-  auth_throttle: Schema.Struct({
-    lockout_seconds: Schema.Number,
-    login_base_delay_ms: Schema.Number,
-    login_max_delay_ms: Schema.Number,
-    max_attempts: Schema.Number,
-    password_base_delay_ms: Schema.Number,
-    password_max_delay_ms: Schema.Number,
-    trusted_proxy_ips: StringListSchema,
-    window_seconds: Schema.Number,
-  }),
-  auto_migrate_password_hashes: Schema.Boolean,
-});
-
 export const ConfigCoreSchema = Schema.Struct({
   downloads: DownloadsConfigSchema,
   general: GeneralConfigSchema,
@@ -136,7 +119,6 @@ export const ConfigCoreSchema = Schema.Struct({
   nyaa: NyaaConfigSchema,
   qbittorrent: QbittorrentConfigSchema,
   scheduler: SchedulerConfigSchema,
-  security: SecurityConfigSchema,
 });
 
 export const ConfigSchema = Schema.Struct({
@@ -147,5 +129,4 @@ export const ConfigSchema = Schema.Struct({
   profiles: Schema.Array(QualityProfileSchema),
   qbittorrent: QbittorrentConfigSchema,
   scheduler: SchedulerConfigSchema,
-  security: SecurityConfigSchema,
 });

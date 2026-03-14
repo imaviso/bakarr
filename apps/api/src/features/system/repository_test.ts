@@ -30,8 +30,8 @@ import {
   insertSystemConfigRow,
   listQualityProfileRows,
   loadSystemConfigRow,
-  replaceQualityProfileRows,
   loadSystemLogPage,
+  replaceQualityProfileRows,
   upsertSystemConfigRow,
 } from "./repository.ts";
 
@@ -359,7 +359,8 @@ Deno.test("replaceQualityProfileRows rolls back when replacement insert fails", 
           minSize: null,
           maxSize: null,
         },
-      ]));
+      ])
+    );
 
     const rows = await listQualityProfileRows(db);
     assertEquals(rows.length, 1);

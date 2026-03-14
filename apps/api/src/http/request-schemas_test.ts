@@ -76,22 +76,6 @@ function makeValidConfig() {
       max_concurrent_checks: 2,
       metadata_refresh_hours: 24,
     },
-    security: {
-      argon2_memory_cost_kib: 19456,
-      argon2_parallelism: 1,
-      argon2_time_cost: 2,
-      auth_throttle: {
-        lockout_seconds: 300,
-        login_base_delay_ms: 250,
-        login_max_delay_ms: 1500,
-        max_attempts: 5,
-        password_base_delay_ms: 250,
-        password_max_delay_ms: 1500,
-        trusted_proxy_ips: ["127.0.0.1"],
-        window_seconds: 300,
-      },
-      auto_migrate_password_hashes: true,
-    },
   };
 }
 

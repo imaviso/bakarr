@@ -152,10 +152,6 @@ export const SearchAnimeQuerySchema = Schema.Struct({
   q: Schema.optional(Schema.String),
 });
 
-export const StreamQuerySchema = Schema.Struct({
-  token: Schema.optional(Schema.String),
-});
-
 export const DownloadEventsQuerySchema = Schema.Struct({
   anime_id: Schema.optional(AnimeIdFromStringSchema),
   download_id: Schema.optional(DownloadIdFromStringSchema),

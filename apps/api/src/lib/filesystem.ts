@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
+import { resolve } from "node:path";
 
 export class FileSystemError extends Schema.TaggedError<FileSystemError>()(
   "FileSystemError",
@@ -83,11 +84,11 @@ const makeFileSystem: FileSystemShape = {
 export const FileSystemLive = Layer.succeed(FileSystem, makeFileSystem);
 
 export function isWithinPathRoot(path: string, root: string) {
-  const normalizedPath = normalizePathForContainment(path);
-  const normalizedRoot = normalizePathForContainment(root);
+  const resolvedPath = resolve(path.replace(/[\\/]+/g, "/"));
+  const resolvedRoot = resolve(root.replace(/[\\/]+/g, "/"));
 
-  return normalizedPath === normalizedRoot ||
-    normalizedPath.startsWith(`${normalizedRoot}/`);
+  return resolvedPath === resolvedRoot ||
+    resolvedPath.startsWith(`${resolvedRoot}/`);
 }
 
 export function sanitizePathSegment(value: string) {
@@ -104,16 +105,6 @@ export function sanitizePathSegment(value: string) {
   }
 
   return trimmed;
-}
-
-function normalizePathForContainment(path: string) {
-  const normalized = path.replace(/[\\/]+/g, "/");
-
-  if (normalized === "/" || /^[A-Za-z]:\/$/.test(normalized)) {
-    return normalized;
-  }
-
-  return normalized.replace(/\/+$/, "");
 }
 
 export function sanitizeFilename(name: string) {

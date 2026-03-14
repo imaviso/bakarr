@@ -72,9 +72,9 @@ import type {
 } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import {
+  type FileSystemShape,
   isWithinPathRoot,
   sanitizePathSegment,
-  type FileSystemShape,
 } from "../../lib/filesystem.ts";
 import { OperationsInputError } from "./errors.ts";
 
@@ -813,7 +813,7 @@ export function makeSearchOrchestration(input: {
     const folderPath = `${libraryPath.replace(/\/$/, "")}/${folderName}`;
 
     if (!isWithinPathRoot(folderPath, libraryPath)) {
-      yield* new OperationsInputError({
+      return yield* new OperationsInputError({
         message: "folder_name must stay within the library root",
       });
     }

@@ -88,11 +88,13 @@ export function createApp(runEffect: RunEffect) {
       ),
     );
     const sessionToken = getCookie(c, sessionCookieName);
+    const tokenQuery = path.startsWith("/api/stream/")
+      ? c.req.query("token")
+      : undefined;
     const apiKey = getApiKey(
       c.req.header("x-api-key"),
       c.req.header("authorization"),
-      c.req.query("api_key") ?? c.req.query("token"),
-    );
+    ) || tokenQuery;
 
     const viewer = await runEffect(
       withRequestLogContext(

@@ -46,7 +46,29 @@ export function registerSystemRoutes(
   app.get(
     "/api/system/health/ready",
     (c) =>
-      c.json({ checks: { database: true, qbittorrent: true }, ready: true }),
+      runRoute(
+        c,
+        runEffect,
+        Effect.gen(function* () {
+          yield* Effect.flatMap(SystemService, (service) =>
+            service.getSystemStatus());
+          return c.json({
+            checks: { database: true },
+            ready: true,
+          });
+        }).pipe(
+          Effect.catchAll(() =>
+            Effect.succeed(
+              c.json({
+                checks: { database: false },
+                ready: false,
+              }, 503),
+            )
+          ),
+        ),
+        (response) =>
+          response,
+      ),
   );
 
   app.get(

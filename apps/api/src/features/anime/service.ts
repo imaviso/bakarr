@@ -504,7 +504,10 @@ const makeAnimeService = Effect.gen(function* () {
       "Failed to list anime",
       () => db.select().from(episodes),
     );
-    const episodesByAnimeId = new Map<number, Array<typeof episodes.$inferSelect>>();
+    const episodesByAnimeId = new Map<
+      number,
+      Array<typeof episodes.$inferSelect>
+    >();
 
     for (const episodeRow of episodeRows) {
       const bucket = episodesByAnimeId.get(episodeRow.animeId);

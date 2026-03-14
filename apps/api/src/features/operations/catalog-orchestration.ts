@@ -111,6 +111,13 @@ export function makeCatalogOrchestration(input: {
                     eq(episodes.number, item.episode_number),
                   ),
                 ),
+            ).pipe(
+              Effect.catchAll((error) =>
+                fs.rename(item.new_path, item.current_path).pipe(
+                  Effect.catchAll(() => Effect.void),
+                  Effect.zipRight(Effect.fail(error)),
+                )
+              ),
             ),
           ),
           Effect.either,
@@ -220,6 +227,15 @@ export function makeCatalogOrchestration(input: {
               file.episode_number,
               destination,
             ),
+        ).pipe(
+          Effect.catchAll((error) =>
+            (importMode === "move"
+              ? fs.rename(destination, resolvedSource)
+              : fs.remove(destination)).pipe(
+                Effect.catchAll(() => Effect.void),
+                Effect.zipRight(Effect.fail(error)),
+              )
+          ),
         );
         importedFiles.push({
           anime_id: file.anime_id,

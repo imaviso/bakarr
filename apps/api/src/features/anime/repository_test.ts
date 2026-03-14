@@ -23,7 +23,9 @@ Deno.test("upsertEpisode prevents duplicate anime episode rows", async () => {
       title: "Episode 1 updated",
     });
 
-    const rows = await db.select().from(episodes).where(eq(episodes.animeId, 1));
+    const rows = await db.select().from(episodes).where(
+      eq(episodes.animeId, 1),
+    );
     assertEquals(rows.length, 1);
     assertEquals(rows[0]?.number, 1);
     assertEquals(rows[0]?.title, "Episode 1 updated");
@@ -60,7 +62,8 @@ Deno.test("ensureEpisodes rejects duplicate episode inserts for same anime", asy
         aired: null,
         downloaded: false,
         filePath: null,
-      }));
+      })
+    );
   });
 });
 

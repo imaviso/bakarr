@@ -168,11 +168,11 @@ function SettingsPage() {
             Release Profiles
           </TabsTrigger>
           <TabsTrigger
-            value="security"
+            value="account"
             class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
           >
-            <IconLock class="mr-2 h-4 w-4" />
-            Security
+            <IconKey class="mr-2 h-4 w-4" />
+            Account
           </TabsTrigger>
         </TabsList>
 
@@ -589,15 +589,14 @@ function SettingsPage() {
           </Show>
         </TabsContent>
 
-        <TabsContent value="security" class="mt-0">
+        <TabsContent value="account" class="mt-0">
           <div class="mb-6">
-            <h2 class="text-lg font-medium">Security</h2>
+            <h2 class="text-lg font-medium">Account</h2>
             <p class="text-sm text-muted-foreground">
-              Password, API access, and authentication hardening
+              Manage your password and API access
             </p>
           </div>
-          <GeneralSettingsForm mode="security" />
-          <SecuritySettingsForm />
+          <AccountSettingsForm />
         </TabsContent>
       </Tabs>
     </div>
@@ -1372,50 +1371,6 @@ const ConfigSchema = v.object({
     auto_scan_interval_hours: v.number(),
     preferred_title: v.picklist(["romaji", "english", "native"]),
   }),
-  security: v.object({
-    argon2_memory_cost_kib: v.number(),
-    argon2_time_cost: v.number(),
-    argon2_parallelism: v.number(),
-    auto_migrate_password_hashes: v.boolean(),
-    auth_throttle: v.object({
-      max_attempts: v.pipe(
-        v.number(),
-        v.integer(),
-        v.minValue(1, "Must be at least 1"),
-      ),
-      window_seconds: v.pipe(
-        v.number(),
-        v.integer(),
-        v.minValue(1, "Must be at least 1 second"),
-      ),
-      lockout_seconds: v.pipe(
-        v.number(),
-        v.integer(),
-        v.minValue(1, "Must be at least 1 second"),
-      ),
-      login_base_delay_ms: v.pipe(
-        v.number(),
-        v.integer(),
-        v.minValue(1, "Must be at least 1 ms"),
-      ),
-      login_max_delay_ms: v.pipe(
-        v.number(),
-        v.integer(),
-        v.minValue(1, "Must be at least 1 ms"),
-      ),
-      password_base_delay_ms: v.pipe(
-        v.number(),
-        v.integer(),
-        v.minValue(1, "Must be at least 1 ms"),
-      ),
-      password_max_delay_ms: v.pipe(
-        v.number(),
-        v.integer(),
-        v.minValue(1, "Must be at least 1 ms"),
-      ),
-      trusted_proxy_ips: v.array(v.string()),
-    }),
-  }),
   profiles: v.array(
     v.object({
       name: v.string(),
@@ -1447,7 +1402,7 @@ function preferredTitleLabel(value: string) {
   }
 }
 
-type ConfigSettingsMode = "general" | "automation" | "security";
+type ConfigSettingsMode = "general" | "automation";
 
 function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
   const configQuery = createSystemConfigQuery();
@@ -1629,7 +1584,6 @@ function SystemForm(props: {
   const triggerRss = createTriggerRssCheckMutation();
   const showsGeneral = () => props.mode === "general";
   const showsAutomation = () => props.mode === "automation";
-  const showsSecurity = () => props.mode === "security";
 
   const handleTriggerScan = async () => {
     try {
@@ -2171,260 +2125,6 @@ function SystemForm(props: {
         </SettingSection>
       </Show>
 
-      <Show when={showsSecurity()}>
-        {/* Security */}
-        <SettingSection title="Security">
-          <form.Field name="security.argon2_memory_cost_kib">
-            {(field) => (
-              <SettingRow
-                label="Argon2 Memory Cost"
-                description="Memory cost for password hashing"
-              >
-                <div class="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
-                    class="w-28"
-                  />
-                  <span class="text-xs text-muted-foreground">KiB</span>
-                </div>
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.argon2_time_cost">
-            {(field) => (
-              <SettingRow
-                label="Argon2 Time Cost"
-                description="Iterations for password hashing"
-              >
-                <Input
-                  type="number"
-                  min="1"
-                  value={field().state.value.toString()}
-                  onInput={(e) =>
-                    field().handleChange(Number(e.currentTarget.value))}
-                  class="w-24"
-                />
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.argon2_parallelism">
-            {(field) => (
-              <SettingRow
-                label="Argon2 Parallelism"
-                description="Parallel lanes for password hashing"
-              >
-                <Input
-                  type="number"
-                  min="1"
-                  value={field().state.value.toString()}
-                  onInput={(e) =>
-                    field().handleChange(Number(e.currentTarget.value))}
-                  class="w-24"
-                />
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.auto_migrate_password_hashes">
-            {(field) => (
-              <SettingRow
-                label="Auto Migrate Password Hashes"
-                description="Upgrade password hashes after successful login"
-              >
-                <Switch
-                  checked={field().state.value}
-                  onChange={(checked) => field().handleChange(checked)}
-                />
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.auth_throttle.trusted_proxy_ips">
-            {(field) => (
-              <SettingRow
-                label="Trusted Proxy IPs"
-                description="One IP or CIDR per line"
-                class="items-start"
-              >
-                <div class="w-80 space-y-2">
-                  <StringListEditor
-                    value={field().state.value}
-                    onChange={field().handleChange}
-                    placeholder="127.0.0.1\n10.0.0.0/8"
-                    rows={4}
-                  />
-                  <div class="text-[10px] text-muted-foreground">
-                    Used when Bakarr is behind a reverse proxy.
-                  </div>
-                </div>
-              </SettingRow>
-            )}
-          </form.Field>
-        </SettingSection>
-      </Show>
-
-      <Show when={showsSecurity()}>
-        {/* Authentication Throttling */}
-        <SettingSection title="Authentication Throttling">
-          <form.Field name="security.auth_throttle.max_attempts">
-            {(field) => (
-              <SettingRow
-                label="Max Failed Attempts"
-                description="Failed attempts in the window before temporary lockout"
-              >
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={field().state.value.toString()}
-                  onInput={(e) =>
-                    field().handleChange(Number(e.currentTarget.value))}
-                  class="w-20"
-                />
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.auth_throttle.window_seconds">
-            {(field) => (
-              <SettingRow
-                label="Failure Window"
-                description="Time window used to count failed attempts"
-              >
-                <div class="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
-                    class="w-24"
-                  />
-                  <span class="text-xs text-muted-foreground">sec</span>
-                </div>
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.auth_throttle.lockout_seconds">
-            {(field) => (
-              <SettingRow
-                label="Lockout Duration"
-                description="How long login/password attempts are blocked after lockout"
-              >
-                <div class="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
-                    class="w-24"
-                  />
-                  <span class="text-xs text-muted-foreground">sec</span>
-                </div>
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.auth_throttle.login_base_delay_ms">
-            {(field) => (
-              <SettingRow
-                label="Login Base Delay"
-                description="Initial delay added after each failed login attempt"
-              >
-                <div class="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
-                    class="w-24"
-                  />
-                  <span class="text-xs text-muted-foreground">ms</span>
-                </div>
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.auth_throttle.login_max_delay_ms">
-            {(field) => (
-              <SettingRow
-                label="Login Max Delay"
-                description="Maximum delay cap for failed login attempts"
-              >
-                <div class="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
-                    class="w-24"
-                  />
-                  <span class="text-xs text-muted-foreground">ms</span>
-                </div>
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.auth_throttle.password_base_delay_ms">
-            {(field) => (
-              <SettingRow
-                label="Password Base Delay"
-                description="Initial delay added after failed password-change attempts"
-              >
-                <div class="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
-                    class="w-24"
-                  />
-                  <span class="text-xs text-muted-foreground">ms</span>
-                </div>
-              </SettingRow>
-            )}
-          </form.Field>
-
-          <form.Field name="security.auth_throttle.password_max_delay_ms">
-            {(field) => (
-              <SettingRow
-                label="Password Max Delay"
-                description="Maximum delay cap for failed password-change attempts"
-              >
-                <div class="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
-                    class="w-24"
-                  />
-                  <span class="text-xs text-muted-foreground">ms</span>
-                </div>
-              </SettingRow>
-            )}
-          </form.Field>
-        </SettingSection>
-      </Show>
-
       <Show when={showsAutomation()}>
         {/* Tasks */}
         <SettingSection title="Tasks">
@@ -2775,7 +2475,7 @@ const ChangePasswordSchema = v.object({
 
 type ChangePasswordFormData = v.InferOutput<typeof ChangePasswordSchema>;
 
-function SecuritySettingsForm() {
+function AccountSettingsForm() {
   const { auth, loginSuccess } = useAuth();
   const changePassword = createChangePasswordMutation();
   const regenerateApiKey = createRegenerateApiKeyMutation();

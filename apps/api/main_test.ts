@@ -289,6 +289,17 @@ integrationTest("library browse returns sorted entries and sizes", async () => {
     const root = await Deno.makeTempDir();
 
     try {
+      const configRes = await ctx.app.request("/api/system/config", {
+        headers: { Cookie: sessionCookie },
+      });
+      const config = await configRes.json();
+      config.library.library_path = root;
+      await ctx.app.request("/api/system/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Cookie: sessionCookie },
+        body: JSON.stringify(config),
+      });
+
       await Deno.mkdir(`${root}/anime`, { recursive: true });
       await Deno.writeTextFile(`${root}/notes.txt`, "hello");
 
@@ -1251,7 +1262,8 @@ integrationTest(
         assertEquals(streamUnauthorized.status, 401);
 
         const streamAuthorized = await ctx.app.request(
-          `/api/stream/20/1?token=${apiKey}`,
+          "/api/stream/20/1",
+          { headers: { Authorization: `Bearer ${apiKey}` } },
         );
         assertEquals(streamAuthorized.status, 200);
         assertEquals(

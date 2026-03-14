@@ -8,8 +8,8 @@ import type {
   VideoFile,
 } from "../../../../packages/shared/src/index.ts";
 import { AnimeService } from "../features/anime/service.ts";
-import { AuthService } from "../features/auth/service.ts";
 import { DownloadService } from "../features/operations/service.ts";
+import { FileSystem } from "../lib/filesystem.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
@@ -21,14 +21,11 @@ import {
   ProfileNameBodySchema,
   ReleaseProfileIdsBodySchema,
   SearchAnimeQuerySchema,
-  StreamQuerySchema,
 } from "./request-schemas.ts";
 import type { AppVariables, RunEffect } from "./route-helpers.ts";
 import {
-  getApiKey,
   guessContentType,
   parseParams,
-  parseQuery,
   runRoute,
   toAddAnimeInput,
   withJsonBody,
@@ -36,6 +33,7 @@ import {
   withParamsAndBody,
   withQuery,
 } from "./route-helpers.ts";
+import { requireViewer } from "./route-auth.ts";
 
 export function registerAnimeRoutes(
   app: Hono<{ Variables: AppVariables }>,
@@ -303,23 +301,11 @@ export function registerAnimeRoutes(
     ));
 
   app.get("/api/stream/:id/:episodeNumber", async (c) => {
-    const query = await runEffect(
-      parseQuery(c, StreamQuerySchema, "stream episode"),
-    );
     const params = await runEffect(
       parseParams(c, AnimeEpisodeParamsSchema, "stream episode"),
     );
-    const apiKey = getApiKey(undefined, undefined, query.token);
-    const viewer = await runEffect(
-      Effect.flatMap(
-        AuthService,
-        (auth) => auth.resolveViewer(undefined, apiKey),
-      ),
-    );
 
-    if (!viewer) {
-      return c.text("Unauthorized", 401);
-    }
+    requireViewer(c);
 
     const files = await runEffect(
       Effect.flatMap(AnimeService, (service) => service.listFiles(params.id)),
@@ -332,9 +318,11 @@ export function registerAnimeRoutes(
       return c.text("Episode file not found", 404);
     }
 
-    const bytes = await Deno.readFile(match.path);
+    const bytes = await runEffect(
+      Effect.flatMap(FileSystem, (fs) => fs.readFile(match.path)),
+    );
 
-    return new Response(bytes, {
+    return new Response(new Blob([Uint8Array.from(bytes)]), {
       headers: {
         "Content-Disposition": `inline; filename="${match.name}"`,
         "Content-Type": guessContentType(match.name),

@@ -6,8 +6,8 @@ import {
   DownloadConflictError,
   DownloadNotFoundError,
   OperationsAnimeNotFoundError,
-  OperationsInputError,
   type OperationsError,
+  OperationsInputError,
 } from "./errors.ts";
 import type { QBitConfig } from "./qbittorrent.ts";
 

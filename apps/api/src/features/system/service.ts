@@ -526,7 +526,6 @@ const makeSystemService = Effect.gen(function* () {
       nyaa: nextConfig.nyaa,
       qbittorrent: nextConfig.qbittorrent,
       scheduler: nextConfig.scheduler,
-      security: nextConfig.security,
     };
 
     yield* tryDatabasePromise(

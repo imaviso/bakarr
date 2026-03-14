@@ -89,13 +89,6 @@ export function encodeConfigCore(core: ConfigCore): string {
     nyaa: { ...core.nyaa },
     qbittorrent: { ...core.qbittorrent },
     scheduler: { ...core.scheduler },
-    security: {
-      ...core.security,
-      auth_throttle: {
-        ...core.security.auth_throttle,
-        trusted_proxy_ips: [...core.security.auth_throttle.trusted_proxy_ips],
-      },
-    },
   });
 }
 
@@ -117,15 +110,6 @@ export function decodeConfigCore(value: string): ConfigCore {
     nyaa: { ...decoded.nyaa },
     qbittorrent: { ...decoded.qbittorrent },
     scheduler: { ...decoded.scheduler },
-    security: {
-      ...decoded.security,
-      auth_throttle: {
-        ...decoded.security.auth_throttle,
-        trusted_proxy_ips: [
-          ...decoded.security.auth_throttle.trusted_proxy_ips,
-        ],
-      },
-    },
   };
 }
 
