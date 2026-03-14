@@ -25,35 +25,68 @@ function filesystemTest(name: string, fn: () => void | Promise<void>) {
 
 /** Real filesystem for integration tests */
 const fs: FileSystemShape = {
+  openFile: (path, options) =>
+    Effect.acquireRelease(
+      Effect.tryPromise({
+        try: () => Deno.open(path, options),
+        catch: (cause) =>
+          new FileSystemError({
+            cause,
+            message: "openFile failed",
+            path: toPathString(path),
+          }),
+      }),
+      (file) => Effect.sync(() => file.close()),
+    ),
   readFile: (path) =>
     Effect.tryPromise({
       try: () => Deno.readFile(path),
       catch: (cause) =>
-        new FileSystemError({ cause, message: "readFile failed", path }),
+        new FileSystemError({
+          cause,
+          message: "readFile failed",
+          path: toPathString(path),
+        }),
     }),
   readDir: (path) =>
     Effect.tryPromise({
       try: () => Array.fromAsync(Deno.readDir(path)),
       catch: (cause) =>
-        new FileSystemError({ cause, message: "readDir failed", path }),
+        new FileSystemError({
+          cause,
+          message: "readDir failed",
+          path: toPathString(path),
+        }),
     }),
   realPath: (path) =>
     Effect.tryPromise({
       try: () => Deno.realPath(path),
       catch: (cause) =>
-        new FileSystemError({ cause, message: "realPath failed", path }),
+        new FileSystemError({
+          cause,
+          message: "realPath failed",
+          path: toPathString(path),
+        }),
     }),
   stat: (path) =>
     Effect.tryPromise({
       try: () => Deno.stat(path),
       catch: (cause) =>
-        new FileSystemError({ cause, message: "stat failed", path }),
+        new FileSystemError({
+          cause,
+          message: "stat failed",
+          path: toPathString(path),
+        }),
     }),
   mkdir: (path, options) =>
     Effect.tryPromise({
       try: () => Deno.mkdir(path, options),
       catch: (cause) =>
-        new FileSystemError({ cause, message: "mkdir failed", path }),
+        new FileSystemError({
+          cause,
+          message: "mkdir failed",
+          path: toPathString(path),
+        }),
     }),
   rename: (from, to) =>
     Effect.tryPromise({
@@ -71,15 +104,27 @@ const fs: FileSystemShape = {
     Effect.tryPromise({
       try: () => Deno.writeFile(path, data),
       catch: (cause) =>
-        new FileSystemError({ cause, message: "writeFile failed", path }),
+        new FileSystemError({
+          cause,
+          message: "writeFile failed",
+          path: toPathString(path),
+        }),
     }),
   remove: (path, options) =>
     Effect.tryPromise({
       try: () => Deno.remove(path, options),
       catch: (cause) =>
-        new FileSystemError({ cause, message: "remove failed", path }),
+        new FileSystemError({
+          cause,
+          message: "remove failed",
+          path: toPathString(path),
+        }),
     }),
 };
+
+function toPathString(path: string | URL) {
+  return typeof path === "string" ? path : path.toString();
+}
 
 filesystemTest("parseMagnetInfoHash extracts btih from magnet links", () => {
   assertEquals(

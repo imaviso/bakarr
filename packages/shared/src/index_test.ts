@@ -14,8 +14,8 @@ import {
   ChangePasswordRequestSchema,
   ConfigSchema,
   DownloadActionSchema,
-  DownloadSchema,
   DownloadEventSchema,
+  DownloadSchema,
   DownloadStatusSchema,
   EpisodeSchema,
   EpisodeSearchResultSchema,
@@ -30,16 +30,16 @@ import {
   NotificationEventSchema,
   OpsDashboardSchema,
   PreferredTitleSchema,
-  QualitySchema,
   QualityProfileSchema,
+  QualitySchema,
+  ReleaseProfileSchema,
   RenamePreviewItemSchema,
   RenameResultSchema,
-  ReleaseProfileSchema,
   RssFeedSchema,
   RuleTypeSchema,
-  ScanResultSchema,
   ScannedFileSchema,
   ScannerStateSchema,
+  ScanResultSchema,
   SearchResultsSchema,
   SkippedFileSchema,
   SystemLogSchema,
@@ -87,7 +87,7 @@ Deno.test("shared api schemas accept canonical system and download payloads", ()
     from_status: "queued",
     id: 8,
     message: "Started Naruto - 01",
-    metadata: "{\"source\":\"rss\"}",
+    metadata: '{"source":"rss"}',
     to_status: "downloading",
   });
   const downloadStatus = Schema.decodeUnknownEither(DownloadStatusSchema)({
@@ -182,7 +182,7 @@ Deno.test("shared dashboard and browse schemas accept canonical payloads", () =>
       from_status: "queued",
       id: 8,
       message: "Started Naruto - 01",
-      metadata: "{\"source\":\"rss\"}",
+      metadata: '{"source":"rss"}',
       to_status: "downloading",
     }],
     running_jobs: 1,
@@ -485,7 +485,9 @@ Deno.test("shared media and profile schemas reject invalid nested payloads", () 
 });
 
 Deno.test("shared auth and utility schemas accept canonical payloads", () => {
-  const health = Schema.decodeUnknownEither(HealthStatusSchema)({ status: "ok" });
+  const health = Schema.decodeUnknownEither(HealthStatusSchema)({
+    status: "ok",
+  });
   const authUser = Schema.decodeUnknownEither(AuthUserSchema)({
     created_at: "2024-01-01T00:00:00.000Z",
     id: 1,
@@ -497,7 +499,9 @@ Deno.test("shared auth and utility schemas accept canonical payloads", () => {
     password: "secret",
     username: "admin",
   });
-  const apiKeyLoginRequest = Schema.decodeUnknownEither(ApiKeyLoginRequestSchema)({
+  const apiKeyLoginRequest = Schema.decodeUnknownEither(
+    ApiKeyLoginRequestSchema,
+  )({
     api_key: "abc123",
   });
   const loginResponse = Schema.decodeUnknownEither(LoginResponseSchema)({
@@ -505,7 +509,9 @@ Deno.test("shared auth and utility schemas accept canonical payloads", () => {
     must_change_password: false,
     username: "admin",
   });
-  const changePassword = Schema.decodeUnknownEither(ChangePasswordRequestSchema)({
+  const changePassword = Schema.decodeUnknownEither(
+    ChangePasswordRequestSchema,
+  )({
     current_password: "old",
     new_password: "new",
   });
@@ -561,7 +567,9 @@ Deno.test("shared operational detail schemas accept canonical payloads", () => {
     level: "success",
     message: "Imported file",
   });
-  const systemLogsResponse = Schema.decodeUnknownEither(SystemLogsResponseSchema)({
+  const systemLogsResponse = Schema.decodeUnknownEither(
+    SystemLogsResponseSchema,
+  )({
     logs: [{
       created_at: "2024-01-01T00:00:00.000Z",
       event_type: "import",
@@ -639,7 +647,9 @@ Deno.test("shared operational detail schemas accept canonical payloads", () => {
       score: 100,
     },
   });
-  const episodeSearchResult = Schema.decodeUnknownEither(EpisodeSearchResultSchema)({
+  const episodeSearchResult = Schema.decodeUnknownEither(
+    EpisodeSearchResultSchema,
+  )({
     download_action: {
       Reject: {
         reason: "Too many duplicates",
@@ -656,22 +666,24 @@ Deno.test("shared operational detail schemas accept canonical payloads", () => {
     size: 1024,
     title: "Naruto - 01",
   });
-  const notificationEvent = Schema.decodeUnknownEither(NotificationEventSchema)({
-    payload: {
-      downloads: [{
-        downloaded_bytes: 512,
-        eta: 60,
-        hash: "abcdef",
-        id: 1,
-        name: "Naruto - 01",
-        progress: 0.5,
-        speed: 1024,
-        state: "downloading",
-        total_bytes: 1024,
-      }],
+  const notificationEvent = Schema.decodeUnknownEither(NotificationEventSchema)(
+    {
+      payload: {
+        downloads: [{
+          downloaded_bytes: 512,
+          eta: 60,
+          hash: "abcdef",
+          id: 1,
+          name: "Naruto - 01",
+          progress: 0.5,
+          speed: 1024,
+          state: "downloading",
+          total_bytes: 1024,
+        }],
+      },
+      type: "DownloadProgress",
     },
-    type: "DownloadProgress",
-  });
+  );
   const config = Schema.decodeUnknownEither(ConfigSchema)({
     downloads: {
       create_anime_folders: true,
@@ -754,13 +766,15 @@ Deno.test("shared operational detail schemas accept canonical payloads", () => {
 });
 
 Deno.test("shared config and notification schemas reject invalid payloads", () => {
-  const notificationEvent = Schema.decodeUnknownEither(NotificationEventSchema)({
-    payload: {
-      current: "1",
-      total: 4,
+  const notificationEvent = Schema.decodeUnknownEither(NotificationEventSchema)(
+    {
+      payload: {
+        current: "1",
+        total: 4,
+      },
+      type: "ScanProgress",
     },
-    type: "ScanProgress",
-  });
+  );
   const config = Schema.decodeUnknownEither(ConfigSchema)({
     downloads: {
       create_anime_folders: true,

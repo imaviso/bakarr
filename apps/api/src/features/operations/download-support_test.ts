@@ -90,18 +90,24 @@ function makeTestFileSystem(
   overrides: Partial<FileSystemShape> = {},
 ): FileSystemShape {
   const wrap = <A>(
-    path: string,
+    path: string | URL,
     message: string,
     operation: () => Promise<A>,
   ) =>
     Effect.tryPromise({
       try: operation,
-      catch: (cause) => new FileSystemError({ cause, message, path }),
+      catch: (cause) =>
+        new FileSystemError({ cause, message, path: toPathString(path) }),
     });
 
   const base: FileSystemShape = {
     copyFile: (from, to) =>
       wrap(from, "Failed to copy file", () => Deno.copyFile(from, to)),
+    openFile: (path, options) =>
+      Effect.acquireRelease(
+        wrap(path, "Failed to open file", () => Deno.open(path, options)),
+        (file) => Effect.sync(() => file.close()),
+      ),
     mkdir: (path, options) =>
       wrap(path, "Failed to create directory", () => Deno.mkdir(path, options)),
     readDir: (path) =>
@@ -124,4 +130,8 @@ function makeTestFileSystem(
   };
 
   return { ...base, ...overrides };
+}
+
+function toPathString(path: string | URL) {
+  return typeof path === "string" ? path : path.toString();
 }

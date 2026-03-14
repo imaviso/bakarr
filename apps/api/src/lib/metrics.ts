@@ -66,15 +66,19 @@ export const recordHttpRequestMetrics = Effect.fn("Metrics.recordHttpRequest")(
 export const setBackgroundWorkerDaemonRunning = Effect.fn(
   "Metrics.setBackgroundWorkerDaemonRunning",
 )(function* (worker: BackgroundWorkerName, running: boolean) {
-  yield* Metric.update(withWorkerTag(backgroundMetrics.daemonRunning, worker),
-    running ? 1 : 0);
+  yield* Metric.update(
+    withWorkerTag(backgroundMetrics.daemonRunning, worker),
+    running ? 1 : 0,
+  );
 });
 
 export const setBackgroundWorkerRunRunning = Effect.fn(
   "Metrics.setBackgroundWorkerRunRunning",
 )(function* (worker: BackgroundWorkerName, running: boolean) {
-  yield* Metric.update(withWorkerTag(backgroundMetrics.runRunning, worker),
-    running ? 1 : 0);
+  yield* Metric.update(
+    withWorkerTag(backgroundMetrics.runRunning, worker),
+    running ? 1 : 0,
+  );
 });
 
 export const recordBackgroundWorkerRun = Effect.fn(
@@ -86,7 +90,10 @@ export const recordBackgroundWorkerRun = Effect.fn(
     readonly worker: BackgroundWorkerName;
   },
 ) {
-  const taggedCounter = withWorkerStatusTags(backgroundMetrics.runsTotal, input);
+  const taggedCounter = withWorkerStatusTags(
+    backgroundMetrics.runsTotal,
+    input,
+  );
 
   yield* Metric.update(taggedCounter, 1);
 
@@ -135,7 +142,9 @@ export function renderBakarrPrometheusMetrics(
   snapshot: ReadonlyArray<{
     readonly metricKey: {
       readonly name: string;
-      readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
+      readonly tags: ReadonlyArray<
+        { readonly key: string; readonly value: string }
+      >;
     };
     readonly metricState: unknown;
   }>,
@@ -143,9 +152,11 @@ export function renderBakarrPrometheusMetrics(
   const metricLines: string[] = [];
   const seenTypes = new Set<string>();
 
-  for (const pair of [...snapshot]
-    .filter((item) => item.metricKey.name.startsWith("bakarr_"))
-    .sort(compareMetricPairs)) {
+  for (
+    const pair of [...snapshot]
+      .filter((item) => item.metricKey.name.startsWith("bakarr_"))
+      .sort(compareMetricPairs)
+  ) {
     const metricName = pair.metricKey.name;
     const tags = normalizeTags(pair.metricKey.tags);
     const state = pair.metricState;
@@ -158,15 +169,21 @@ export function renderBakarrPrometheusMetrics(
 
       for (const [boundary, count] of state.buckets) {
         metricLines.push(
-          `${metricName}_bucket${formatLabels([...tags, ["le", formatNumber(boundary)]])} ${count}`,
+          `${metricName}_bucket${
+            formatLabels([...tags, ["le", formatNumber(boundary)]])
+          } ${count}`,
         );
       }
 
       metricLines.push(
-        `${metricName}_bucket${formatLabels([...tags, ["le", "+Inf"]])} ${state.count}`,
+        `${metricName}_bucket${
+          formatLabels([...tags, ["le", "+Inf"]])
+        } ${state.count}`,
       );
       metricLines.push(`${metricName}_sum${formatLabels(tags)} ${state.sum}`);
-      metricLines.push(`${metricName}_count${formatLabels(tags)} ${state.count}`);
+      metricLines.push(
+        `${metricName}_count${formatLabels(tags)} ${state.count}`,
+      );
       continue;
     }
 
@@ -175,7 +192,9 @@ export function renderBakarrPrometheusMetrics(
         metricLines.push(`# TYPE ${metricName} gauge`);
         seenTypes.add(metricName);
       }
-      metricLines.push(`${metricName}${formatLabels(tags)} ${formatNumber(state.value)}`);
+      metricLines.push(
+        `${metricName}${formatLabels(tags)} ${formatNumber(state.value)}`,
+      );
       continue;
     }
 
@@ -184,7 +203,9 @@ export function renderBakarrPrometheusMetrics(
         metricLines.push(`# TYPE ${metricName} counter`);
         seenTypes.add(metricName);
       }
-      metricLines.push(`${metricName}${formatLabels(tags)} ${formatNumber(state.count)}`);
+      metricLines.push(
+        `${metricName}${formatLabels(tags)} ${formatNumber(state.count)}`,
+      );
     }
   }
 
@@ -193,7 +214,11 @@ export function renderBakarrPrometheusMetrics(
 
 function withHttpTags<Type, In, Out>(
   metric: Metric.Metric<Type, In, Out>,
-  input: { readonly method: string; readonly route: string; readonly status: number },
+  input: {
+    readonly method: string;
+    readonly route: string;
+    readonly status: number;
+  },
 ) {
   return Metric.tagged(
     Metric.tagged(
@@ -231,13 +256,17 @@ function compareMetricPairs(
   left: {
     readonly metricKey: {
       readonly name: string;
-      readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
+      readonly tags: ReadonlyArray<
+        { readonly key: string; readonly value: string }
+      >;
     };
   },
   right: {
     readonly metricKey: {
       readonly name: string;
-      readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
+      readonly tags: ReadonlyArray<
+        { readonly key: string; readonly value: string }
+      >;
     };
   },
 ) {
@@ -265,21 +294,31 @@ function formatLabels(tags: ReadonlyArray<readonly [string, string]>) {
     return "";
   }
 
-  return `{${tags.map(([key, value]) => `${key}="${escapeLabelValue(value)}"`).join(",")}}`;
+  return `{${
+    tags.map(([key, value]) => `${key}="${escapeLabelValue(value)}"`).join(",")
+  }}`;
 }
 
 function escapeLabelValue(value: string) {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replaceAll("\n", "\\n");
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replaceAll(
+    "\n",
+    "\\n",
+  );
 }
 
 function formatNumber(value: number | bigint) {
-  return typeof value === "bigint" ? value.toString() : Number.isFinite(value) ? String(value) : "0";
+  return typeof value === "bigint"
+    ? value.toString()
+    : Number.isFinite(value)
+    ? String(value)
+    : "0";
 }
 
 function isCounterState(
   state: unknown,
 ): state is { readonly count: number | bigint } {
-  return typeof state === "object" && state !== null && "count" in state && !isHistogramState(state);
+  return typeof state === "object" && state !== null && "count" in state &&
+    !isHistogramState(state);
 }
 
 function isGaugeState(

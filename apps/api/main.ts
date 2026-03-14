@@ -101,5 +101,8 @@ if (import.meta.main) {
     void shutdown().finally(() => Deno.exit(0));
   });
 
-  Deno.serve({ port: config.port }, createAppFetchHandler(app.fetch));
+  Deno.serve(
+    { port: config.port },
+    createAppFetchHandler(app.fetch, (effect) => runApi(runtime, effect)),
+  );
 }

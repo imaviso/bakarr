@@ -9,7 +9,11 @@ import {
 import { getOptionalViewer } from "./route-auth.ts";
 import type { RunEffect } from "./route-types.ts";
 
-export async function runRoute<A, E, R>(
+type RouteEffect<A, E> = Parameters<RunEffect>[0] extends
+  Effect.Effect<infer _A, infer _E, infer R> ? Effect.Effect<A, E, R>
+  : never;
+
+export async function runRoute<A, E>(
   c: {
     get: (key: string) => unknown;
     json: (data: unknown, status?: number) => Response;
@@ -17,7 +21,7 @@ export async function runRoute<A, E, R>(
     text: (text: string, status?: number) => Response;
   },
   runEffect: RunEffect,
-  effect: Effect.Effect<A, E, R>,
+  effect: RouteEffect<A, E>,
   onSuccess: (value: A) => Response | Promise<Response>,
 ): Promise<Response> {
   const viewer = getOptionalViewer(c);

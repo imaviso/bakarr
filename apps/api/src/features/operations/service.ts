@@ -214,7 +214,8 @@ const makeOperationsService = Effect.gen(function* () {
   const coalescedDownloadProgressPublisher = yield* makeCoalescedEffectRunner(
     downloadOrchestration.publishDownloadProgress(),
   );
-  const publishDownloadProgress = () => coalescedDownloadProgressPublisher.trigger;
+  const publishDownloadProgress = () =>
+    coalescedDownloadProgressPublisher.trigger;
   const libraryScanProgressPublisher = yield* makeLatestValuePublisher(
     (scanned: number) =>
       eventBus.publish({

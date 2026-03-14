@@ -199,17 +199,42 @@ Deno.test("background worker monitor publishes Effect metrics", async () => {
     1,
   );
   assertEquals(
-    histogramCountDelta(after, before, "bakarr_background_worker_run_duration_ms", {
-      status: "failure",
-      worker: "rss",
-    }),
+    histogramCountDelta(
+      after,
+      before,
+      "bakarr_background_worker_run_duration_ms",
+      {
+        status: "failure",
+        worker: "rss",
+      },
+    ),
     1,
   );
 });
 
 function counterDelta(
-  after: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
-  before: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  after: ReadonlyArray<
+    {
+      readonly metricKey: {
+        readonly name: string;
+        readonly tags: ReadonlyArray<
+          { readonly key: string; readonly value: string }
+        >;
+      };
+      readonly metricState: unknown;
+    }
+  >,
+  before: ReadonlyArray<
+    {
+      readonly metricKey: {
+        readonly name: string;
+        readonly tags: ReadonlyArray<
+          { readonly key: string; readonly value: string }
+        >;
+      };
+      readonly metricState: unknown;
+    }
+  >,
   name: string,
   labels: Record<string, string>,
 ) {
@@ -217,16 +242,37 @@ function counterDelta(
 }
 
 function counterValue(
-  snapshot: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  snapshot: ReadonlyArray<
+    {
+      readonly metricKey: {
+        readonly name: string;
+        readonly tags: ReadonlyArray<
+          { readonly key: string; readonly value: string }
+        >;
+      };
+      readonly metricState: unknown;
+    }
+  >,
   name: string,
   labels: Record<string, string>,
 ) {
   const pair = findMetric(snapshot, name, labels);
-  return (pair?.metricState as { readonly count: number } | undefined)?.count ?? 0;
+  return (pair?.metricState as { readonly count: number } | undefined)?.count ??
+    0;
 }
 
 function gaugeValue(
-  snapshot: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  snapshot: ReadonlyArray<
+    {
+      readonly metricKey: {
+        readonly name: string;
+        readonly tags: ReadonlyArray<
+          { readonly key: string; readonly value: string }
+        >;
+      };
+      readonly metricState: unknown;
+    }
+  >,
   name: string,
   labels: Record<string, string>,
 ) {
@@ -235,25 +281,67 @@ function gaugeValue(
 }
 
 function histogramCountDelta(
-  after: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
-  before: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  after: ReadonlyArray<
+    {
+      readonly metricKey: {
+        readonly name: string;
+        readonly tags: ReadonlyArray<
+          { readonly key: string; readonly value: string }
+        >;
+      };
+      readonly metricState: unknown;
+    }
+  >,
+  before: ReadonlyArray<
+    {
+      readonly metricKey: {
+        readonly name: string;
+        readonly tags: ReadonlyArray<
+          { readonly key: string; readonly value: string }
+        >;
+      };
+      readonly metricState: unknown;
+    }
+  >,
   name: string,
   labels: Record<string, string>,
 ) {
-  return histogramCount(after, name, labels) - histogramCount(before, name, labels);
+  return histogramCount(after, name, labels) -
+    histogramCount(before, name, labels);
 }
 
 function histogramCount(
-  snapshot: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  snapshot: ReadonlyArray<
+    {
+      readonly metricKey: {
+        readonly name: string;
+        readonly tags: ReadonlyArray<
+          { readonly key: string; readonly value: string }
+        >;
+      };
+      readonly metricState: unknown;
+    }
+  >,
   name: string,
   labels: Record<string, string>,
 ) {
   const pair = findMetric(snapshot, name, labels);
-  return (pair?.metricState as { readonly count: number } | undefined)?.count ?? 0;
+  return (pair?.metricState as { readonly count: number } | undefined)?.count ??
+    0;
 }
 
 function findMetric(
-  snapshot: ReadonlyArray<{ readonly metricKey: { readonly name: string; readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }> }; readonly metricState: unknown }>,
+  snapshot: ReadonlyArray<
+    {
+      readonly metricKey: {
+        readonly name: string;
+        readonly tags: ReadonlyArray<
+          { readonly key: string; readonly value: string }
+        >;
+      };
+      readonly metricState: unknown;
+    }
+  >,
   name: string,
   labels: Record<string, string>,
 ) {

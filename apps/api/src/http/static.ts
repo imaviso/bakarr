@@ -1,7 +1,13 @@
+import { Effect } from "effect";
+
+import { FileSystem } from "../lib/filesystem.ts";
+import type { RunEffect } from "./route-types.ts";
+
 const DEFAULT_WEB_DIST_URL = new URL("../../../web/dist/", import.meta.url);
 
 export function createAppFetchHandler(
   appFetch: (request: Request) => Response | Promise<Response>,
+  runEffect: RunEffect,
   webDistUrl = DEFAULT_WEB_DIST_URL,
 ) {
   return async (request: Request): Promise<Response> => {
@@ -15,17 +21,22 @@ export function createAppFetchHandler(
       return new Response("Method Not Allowed", { status: 405 });
     }
 
-    const staticResponse = await serveStaticAsset(url.pathname, webDistUrl);
+    const staticResponse = await serveStaticAsset(
+      runEffect,
+      url.pathname,
+      webDistUrl,
+    );
 
     if (staticResponse) {
       return staticResponse;
     }
 
-    return await serveIndexHtml(webDistUrl);
+    return await serveIndexHtml(runEffect, webDistUrl);
   };
 }
 
 async function serveStaticAsset(
+  runEffect: RunEffect,
   pathname: string,
   webDistUrl: URL,
 ): Promise<Response | null> {
@@ -42,9 +53,11 @@ async function serveStaticAsset(
   }
 
   try {
-    const file = await Deno.readFile(fileUrl);
+    const file = await runEffect(
+      Effect.flatMap(FileSystem, (fs) => fs.readFile(fileUrl)),
+    );
 
-    return new Response(file, {
+    return new Response(new Uint8Array(file), {
       headers: {
         "Cache-Control": normalized.startsWith("assets/")
           ? "public, max-age=31536000, immutable"
@@ -57,11 +70,19 @@ async function serveStaticAsset(
   }
 }
 
-async function serveIndexHtml(webDistUrl: URL): Promise<Response> {
+async function serveIndexHtml(
+  runEffect: RunEffect,
+  webDistUrl: URL,
+): Promise<Response> {
   try {
-    const file = await Deno.readFile(new URL("index.html", webDistUrl));
+    const file = await runEffect(
+      Effect.flatMap(
+        FileSystem,
+        (fs) => fs.readFile(new URL("index.html", webDistUrl)),
+      ),
+    );
 
-    return new Response(file, {
+    return new Response(new Uint8Array(file), {
       headers: {
         "Cache-Control": "no-cache",
         "Content-Type": "text/html; charset=utf-8",

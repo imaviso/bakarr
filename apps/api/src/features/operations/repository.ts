@@ -5,14 +5,11 @@ import type {
   Download,
   DownloadEvent,
   DownloadStatus,
-  ImportMode,
   QualityProfile,
   ReleaseProfileRule,
   RssFeed,
 } from "../../../../../packages/shared/src/index.ts";
-import {
-  ImportModeSchema,
-} from "../../../../../packages/shared/src/index.ts";
+import type { ImportMode } from "../../../../../packages/shared/src/index.ts";
 import { Schema } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import {
@@ -32,8 +29,22 @@ import {
   decodeQualityProfileRow,
   decodeReleaseProfileRules,
 } from "../system/config-codec.ts";
+import { LibraryConfigSchema } from "../system/config-schema.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 import { OperationsAnimeNotFoundError } from "./errors.ts";
+
+const PartialLibraryConfigSchema = Schema.Struct({
+  library: Schema.optional(
+    Schema.partialWith({ exact: true })(
+      LibraryConfigSchema,
+    ),
+  ),
+});
+
+const PartialLibraryConfigJsonSchema: Schema.Schema<
+  Schema.Schema.Type<typeof PartialLibraryConfigSchema>,
+  string
+> = Schema.parseJson(PartialLibraryConfigSchema);
 
 export interface CurrentEpisodeState {
   readonly downloaded: boolean;
@@ -225,19 +236,12 @@ function decodeLibraryConfig(value: string | undefined) {
     };
   } catch {
     try {
-      const parsed = JSON.parse(value) as {
-        library?: {
-          import_mode?: unknown;
-          library_path?: unknown;
-        };
-      };
-
-      const importMode: ImportMode = parsed.library?.import_mode === undefined
-        ? defaults.import_mode
-        : Schema.decodeUnknownSync(ImportModeSchema)(parsed.library.import_mode);
-      const libraryPath = typeof parsed.library?.library_path === "string"
-        ? parsed.library.library_path
-        : defaults.library_path;
+      const parsed = Schema.decodeUnknownSync(PartialLibraryConfigJsonSchema)(
+        value,
+      );
+      const importMode: ImportMode = parsed.library?.import_mode ??
+        defaults.import_mode;
+      const libraryPath = parsed.library?.library_path ?? defaults.library_path;
 
       return {
         ...defaults,

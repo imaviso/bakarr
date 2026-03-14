@@ -2707,7 +2707,10 @@ integrationTest(
 
         assertEquals(rssTask.status, 200);
 
-        const rssProgress = await readUntilMatch(reader, /"type":"RssCheckProgress"/);
+        const rssProgress = await readUntilMatch(
+          reader,
+          /"type":"RssCheckProgress"/,
+        );
         assertMatch(rssProgress, /"type":"RssCheckProgress"/);
 
         const scanTask = await ctx.app.request("/api/system/tasks/scan", {

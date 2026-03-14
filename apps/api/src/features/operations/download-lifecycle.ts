@@ -26,7 +26,7 @@ export const resolveCompletedContentPath = Effect.fn(
   fs: FileSystemShape,
   contentPath: string,
   episodeNumber: number,
-){
+) {
   const statResult = yield* Effect.either(fs.stat(contentPath));
 
   if (statResult._tag === "Left") {
@@ -56,7 +56,7 @@ export const resolveBatchContentPaths = Effect.fn(
 )(function* (
   fs: FileSystemShape,
   contentPath: string,
-){
+) {
   const statResult = yield* Effect.either(fs.stat(contentPath));
 
   if (statResult._tag === "Left") {
@@ -159,7 +159,7 @@ export const resolveAccessibleDownloadPath = Effect.fn(
   fs: FileSystemShape,
   contentPath: string,
   remotePathMappings: readonly string[][],
-){
+) {
   const candidates = [
     contentPath,
     ...applyRemotePathMappings(contentPath, remotePathMappings),

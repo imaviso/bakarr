@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Schema, Scope } from "effect";
 import { resolve } from "node:path";
 
 export class FileSystemError extends Schema.TaggedError<FileSystemError>()(
@@ -7,20 +7,24 @@ export class FileSystemError extends Schema.TaggedError<FileSystemError>()(
 ) {}
 
 export interface FileSystemShape {
+  readonly openFile: (
+    path: string | URL,
+    options: Deno.OpenOptions,
+  ) => Effect.Effect<Deno.FsFile, FileSystemError, Scope.Scope>;
   readonly readFile: (
-    path: string,
+    path: string | URL,
   ) => Effect.Effect<Uint8Array, FileSystemError>;
   readonly readDir: (
-    path: string,
+    path: string | URL,
   ) => Effect.Effect<Deno.DirEntry[], FileSystemError>;
   readonly realPath: (
-    path: string,
+    path: string | URL,
   ) => Effect.Effect<string, FileSystemError>;
   readonly stat: (
-    path: string,
+    path: string | URL,
   ) => Effect.Effect<Deno.FileInfo, FileSystemError>;
   readonly mkdir: (
-    path: string,
+    path: string | URL,
     options?: Deno.MkdirOptions,
   ) => Effect.Effect<void, FileSystemError>;
   readonly rename: (
@@ -32,11 +36,11 @@ export interface FileSystemShape {
     to: string,
   ) => Effect.Effect<void, FileSystemError>;
   readonly writeFile: (
-    path: string,
+    path: string | URL,
     data: Uint8Array,
   ) => Effect.Effect<void, FileSystemError>;
   readonly remove: (
-    path: string,
+    path: string | URL,
     options?: Deno.RemoveOptions,
   ) => Effect.Effect<void, FileSystemError>;
 }
@@ -47,17 +51,23 @@ export class FileSystem extends Context.Tag("@bakarr/api/FileSystem")<
 >() {}
 
 function wrap<A>(
-  path: string,
+  path: string | URL,
   message: string,
   promise: () => Promise<A>,
 ): Effect.Effect<A, FileSystemError> {
   return Effect.tryPromise({
     try: promise,
-    catch: (cause) => new FileSystemError({ cause, message, path }),
+    catch: (cause) =>
+      new FileSystemError({ cause, message, path: path.toString() }),
   });
 }
 
 const makeFileSystem: FileSystemShape = {
+  openFile: (path, options) =>
+    Effect.acquireRelease(
+      wrap(path, "Failed to open file", () => Deno.open(path, options)),
+      (file) => Effect.sync(() => file.close()),
+    ),
   readFile: (path) =>
     wrap(path, "Failed to read file", () => Deno.readFile(path)),
   readDir: (path) =>

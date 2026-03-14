@@ -20,7 +20,7 @@ import { hashPassword, verifyPassword } from "../../security/password.ts";
 
 export class AuthError extends Schema.TaggedError<AuthError>()("AuthError", {
   message: Schema.String,
-  status: Schema.Literal(400, 401, 404, 409),
+  status: Schema.Literal(400, 401, 403, 404, 409),
 }) {}
 
 export interface SessionIdentity {

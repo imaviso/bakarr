@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Chunk, Effect, Option, ParseResult, Schema, Stream } from "effect";
 import { Hono } from "hono";
 
 import type {
@@ -8,7 +8,9 @@ import type {
   VideoFile,
 } from "../../../../packages/shared/src/index.ts";
 import { AnimeService } from "../features/anime/service.ts";
+import { AuthError } from "../features/auth/service.ts";
 import { DownloadService } from "../features/operations/service.ts";
+import { FileSystem, FileSystemError } from "../lib/filesystem.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
@@ -32,6 +34,28 @@ import {
   withQuery,
 } from "./route-helpers.ts";
 import { requireViewer } from "./route-auth.ts";
+
+const StreamQuerySchema = Schema.Struct({
+  exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
+  sig: Schema.String.pipe(Schema.minLength(1)),
+});
+
+class EpisodeStreamRangeError
+  extends Schema.TaggedError<EpisodeStreamRangeError>()(
+    "EpisodeStreamRangeError",
+    {
+      fileSize: Schema.Number,
+      message: Schema.String,
+      status: Schema.Literal(416),
+    },
+  ) {}
+
+interface ByteRange {
+  readonly end: number;
+  readonly start: number;
+}
+
+const STREAM_CHUNK_SIZE = 64 * 1024;
 
 export function registerAnimeRoutes(
   app: Hono<{ Variables: AppVariables }>,
@@ -372,93 +396,249 @@ export function registerAnimeRoutes(
   });
 
   app.get("/api/stream/:id/:episodeNumber", async (c) => {
-    const id = parseInt(c.req.param("id"), 10);
-    const episodeNumber = parseInt(c.req.param("episodeNumber"), 10);
-    const exp = parseInt(c.req.query("exp") || "0", 10);
-    const sig = c.req.query("sig") || "";
+    try {
+      return await runRoute(
+        c,
+        runEffect,
+        Effect.gen(function* () {
+          const params = yield* decodeRequestInput(
+            AnimeEpisodeParamsSchema,
+            {
+              episodeNumber: c.req.param("episodeNumber"),
+              id: c.req.param("id"),
+            },
+            "stream episode",
+          );
+          const query = yield* decodeRequestInput(
+            StreamQuerySchema,
+            {
+              exp: c.req.query("exp") ?? "",
+              sig: c.req.query("sig") ?? "",
+            },
+            "stream episode",
+          );
 
-    if (
-      isNaN(id) || isNaN(episodeNumber) || !exp || !sig ||
-      !(await verifyStreamUrl(id, episodeNumber, exp, sig))
-    ) {
-      return c.text("Forbidden or expired", 403);
-    }
+          const isAuthorized = yield* Effect.tryPromise({
+            try: () =>
+              verifyStreamUrl(
+                params.id,
+                params.episodeNumber,
+                query.exp,
+                query.sig,
+              ),
+            catch: (cause) =>
+              new AuthError({
+                message: cause instanceof Error
+                  ? cause.message
+                  : "Forbidden or expired",
+                status: 403,
+              }),
+          });
 
-    const files = await runEffect(
-      Effect.flatMap(AnimeService, (service) => service.listFiles(id)),
-    );
-    const match = files.find((file) => file.episode_number === episodeNumber);
+          if (!isAuthorized) {
+            return yield* new AuthError({
+              message: "Forbidden or expired",
+              status: 403,
+            });
+          }
 
-    if (!match) {
-      return c.text("Episode file not found", 404);
-    }
+          const files = yield* Effect.flatMap(
+            AnimeService,
+            (service) => service.listFiles(params.id),
+          );
+          const match = files.find((file) =>
+            file.episode_number === params.episodeNumber
+          );
 
-    const stat = await Deno.stat(match.path);
-    const fileSize = stat.size;
-    const range = c.req.header("range");
-    const contentType = guessContentType(match.name);
+          if (!match) {
+            return yield* new AuthError({
+              message: "Episode file not found",
+              status: 404,
+            });
+          }
 
-    if (range) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+          const fs = yield* FileSystem;
+          const fileInfo = yield* fs.stat(match.path).pipe(
+            Effect.mapError((error) =>
+              new FileSystemError({
+                ...error,
+                message: "Failed to stat stream file",
+              })
+            ),
+          );
+          const byteRange = parseByteRange(
+            c.req.header("range"),
+            fileInfo.size,
+          );
 
-      if (isNaN(start) || start >= fileSize || end >= fileSize || start > end) {
-        return new Response("Requested range not satisfiable", {
-          status: 416,
-          headers: { "Content-Range": `bytes */${fileSize}` },
+          return {
+            contentLength: byteRange
+              ? byteRange.end - byteRange.start + 1
+              : fileInfo.size,
+            contentType: guessContentType(match.name),
+            fileName: match.name,
+            fileSize: fileInfo.size,
+            fs,
+            filePath: match.path,
+            range: byteRange,
+            status: byteRange ? 206 : 200,
+          };
+        }),
+        (value) =>
+          new Response(
+            createFileReadableStream(value.fs, value.filePath, value.range),
+            {
+              status: value.status,
+              headers: {
+                ...(value.range
+                  ? {
+                    "Content-Range":
+                      `bytes ${value.range.start}-${value.range.end}/${value.fileSize}`,
+                  }
+                  : {}),
+                "Accept-Ranges": "bytes",
+                "Content-Length": value.contentLength.toString(),
+                "Content-Type": value.contentType,
+                "Content-Disposition": `inline; filename="${value.fileName}"`,
+              },
+            },
+          ),
+      );
+    } catch (error) {
+      if (error instanceof EpisodeStreamRangeError) {
+        return new Response(error.message, {
+          status: error.status,
+          headers: { "Content-Range": `bytes */${error.fileSize}` },
         });
       }
 
-      const chunkSize = end - start + 1;
-      const file = await Deno.open(match.path, { read: true });
-      await file.seek(start, Deno.SeekMode.Start);
-
-      const stream = new ReadableStream<Uint8Array>({
-        async pull(controller) {
-          const buffer = new Uint8Array(Math.min(chunkSize, 65536));
-          let remaining = chunkSize;
-          try {
-            while (remaining > 0) {
-              const read = await file.read(
-                buffer.subarray(0, Math.min(remaining, buffer.length)),
-              );
-              if (read === null) break;
-              controller.enqueue(buffer.subarray(0, read));
-              remaining -= read;
-            }
-            controller.close();
-          } catch (error) {
-            controller.error(error);
-          } finally {
-            file.close();
-          }
-        },
-        cancel() {
-          file.close();
-        },
-      });
-
-      return new Response(stream, {
-        status: 206,
-        headers: {
-          "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-          "Accept-Ranges": "bytes",
-          "Content-Length": chunkSize.toString(),
-          "Content-Type": contentType,
-          "Content-Disposition": `inline; filename="${match.name}"`,
-        },
-      });
+      throw error;
     }
-
-    const file = await Deno.open(match.path, { read: true });
-    return new Response(file.readable, {
-      headers: {
-        "Content-Length": fileSize.toString(),
-        "Accept-Ranges": "bytes",
-        "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${match.name}"`,
-      },
-    });
   });
+}
+
+function decodeRequestInput<A, I, R>(
+  schema: Schema.Schema<A, I, R>,
+  input: I,
+  subject: string,
+): Effect.Effect<A, AuthError | ParseResult.ParseError, R> {
+  if (input === undefined || input === null) {
+    return Effect.fail(
+      new AuthError({
+        message: `Invalid request for ${subject}`,
+        status: 403,
+      }),
+    );
+  }
+
+  return Schema.decodeUnknown(schema)(input).pipe(
+    Effect.mapError((error) =>
+      ParseResult.isParseError(error)
+        ? new AuthError({
+          message: `Invalid request for ${subject}`,
+          status: subject === "stream episode" ? 403 : 400,
+        })
+        : error
+    ),
+  );
+}
+
+function parseByteRange(
+  rangeHeader: string | undefined,
+  fileSize: number,
+): ByteRange | undefined {
+  if (!rangeHeader) {
+    return undefined;
+  }
+
+  const match = /^bytes=(\d+)-(\d+)?$/.exec(rangeHeader.trim());
+
+  if (!match) {
+    throw new EpisodeStreamRangeError({
+      fileSize,
+      message: "Requested range not satisfiable",
+      status: 416,
+    });
+  }
+
+  const start = Number.parseInt(match[1], 10);
+  const end = match[2] ? Number.parseInt(match[2], 10) : fileSize - 1;
+
+  if (
+    Number.isNaN(start) || Number.isNaN(end) || start < 0 || end < start ||
+    start >= fileSize || end >= fileSize
+  ) {
+    throw new EpisodeStreamRangeError({
+      fileSize,
+      message: "Requested range not satisfiable",
+      status: 416,
+    });
+  }
+
+  return { end, start };
+}
+
+function createFileReadableStream(
+  fs: typeof FileSystem.Service,
+  path: string,
+  range: ByteRange | undefined,
+): ReadableStream<Uint8Array> {
+  return Stream.toReadableStream<Uint8Array>({})(
+    createFileChunkStream(fs, path, range),
+  );
+}
+
+function createFileChunkStream(
+  fs: typeof FileSystem.Service,
+  path: string,
+  range: ByteRange | undefined,
+): Stream.Stream<Uint8Array, FileSystemError> {
+  const initialRange = range ?? { end: Number.MAX_SAFE_INTEGER, start: 0 };
+
+  return Stream.unwrapScoped(
+    Effect.map(
+      fs.openFile(path, { read: true }),
+      (file) =>
+        Stream.paginateChunkEffect(
+          initialRange,
+          (current) =>
+            Effect.tryPromise({
+              try: async () => {
+                const requestedLength = range
+                  ? Math.min(STREAM_CHUNK_SIZE, current.end - current.start + 1)
+                  : STREAM_CHUNK_SIZE;
+                const buffer = new Uint8Array(requestedLength);
+
+                await file.seek(current.start, Deno.SeekMode.Start);
+                const read = await file.read(buffer);
+
+                if (read === null || read === 0) {
+                  return [
+                    Chunk.empty<Uint8Array>(),
+                    Option.none<ByteRange>(),
+                  ] as const;
+                }
+
+                const nextStart = current.start + read;
+
+                return [
+                  Chunk.of(buffer.subarray(0, read)),
+                  range && nextStart > current.end
+                    ? Option.none<ByteRange>()
+                    : Option.some({
+                      ...current,
+                      start: nextStart,
+                    }),
+                ] as const;
+              },
+              catch: (cause) =>
+                new FileSystemError({
+                  cause,
+                  message: "Failed to read stream file",
+                  path,
+                }),
+            }),
+        ),
+    ),
+  );
 }

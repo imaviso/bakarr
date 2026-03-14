@@ -29,8 +29,8 @@ import type {
   EpisodeProgress,
   EpisodeSearchResult,
   FailedImport,
-  ImportResult,
   ImportedFile,
+  ImportResult,
   LibraryStats,
   LoginRequest,
   LoginResponse,
@@ -44,9 +44,9 @@ import type {
   RenamePreviewItem,
   RenameResult,
   RssFeed,
-  ScanResult,
   ScannedFile,
   ScannerState,
+  ScanResult,
   SearchResults,
   SkippedFile,
   SystemLog,
@@ -123,8 +123,8 @@ export type {
   EpisodeProgress,
   EpisodeSearchResult,
   FailedImport,
-  ImportResult,
   ImportedFile,
+  ImportResult,
   LibraryStats,
   LoginRequest,
   LoginResponse,
@@ -138,9 +138,9 @@ export type {
   RenamePreviewItem,
   RenameResult,
   RssFeed,
-  ScanResult,
   ScannedFile,
   ScannerState,
+  ScanResult,
   SearchResults,
   SkippedFile,
   SystemLog,
@@ -154,12 +154,14 @@ export interface ScanFolderResult {
   found: number;
   total: number;
 }
-export type ImportFileRequest = Pick<
-  ImportedFile,
-  "anime_id" | "episode_number" | "source_path"
-> & {
-  season?: number;
-};
+export type ImportFileRequest =
+  & Pick<
+    ImportedFile,
+    "anime_id" | "episode_number" | "source_path"
+  >
+  & {
+    season?: number;
+  };
 
 export type ReleaseProfileCreateRequest = Pick<
   ReleaseProfile,

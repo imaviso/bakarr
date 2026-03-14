@@ -2,8 +2,8 @@ import { Clock, Context, Effect, Layer } from "effect";
 
 import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
 import {
-  makeLatestValuePublisher,
   type LatestValuePublisher,
+  makeLatestValuePublisher,
 } from "../../lib/effect-coalescing.ts";
 import { EventBus } from "./event-bus.ts";
 
@@ -16,11 +16,10 @@ interface ManagedEventPublisher extends EventPublisherShape {
   readonly shutdown: Effect.Effect<void>;
 }
 
-export class EventPublisher
-  extends Context.Tag("@bakarr/api/EventPublisher")<
-    EventPublisher,
-    EventPublisherShape
-  >() {}
+export class EventPublisher extends Context.Tag("@bakarr/api/EventPublisher")<
+  EventPublisher,
+  EventPublisherShape
+>() {}
 
 const INFO_EVENT_TOAST_WINDOW_MS = 250;
 
@@ -38,19 +37,24 @@ export function makeEventPublisher(options?: {
 
   return Effect.gen(function* () {
     const publish = options?.publish ?? (yield* EventBus).publish;
-    const infoPublisher: LatestValuePublisher<CoalescedInfoEvent, never, never> =
-      yield* makeLatestValuePublisher<CoalescedInfoEvent, never, never>((value) =>
-        Effect.gen(function* () {
-          const now = yield* Clock.currentTimeMillis;
-          const remainingMs = value.emitAt - now;
+    const infoPublisher: LatestValuePublisher<
+      CoalescedInfoEvent,
+      never,
+      never
+    > = yield* makeLatestValuePublisher<CoalescedInfoEvent, never, never>((
+      value,
+    ) =>
+      Effect.gen(function* () {
+        const now = yield* Clock.currentTimeMillis;
+        const remainingMs = value.emitAt - now;
 
-          if (remainingMs > 0) {
-            yield* Effect.sleep(`${remainingMs} millis`);
-          }
+        if (remainingMs > 0) {
+          yield* Effect.sleep(`${remainingMs} millis`);
+        }
 
-          yield* publish(value.event);
-        })
-      );
+        yield* publish(value.event);
+      })
+    );
 
     return {
       publish,

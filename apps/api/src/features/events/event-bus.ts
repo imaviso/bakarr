@@ -1,4 +1,13 @@
-import { Context, Effect, Exit, Layer, PubSub, Queue, Scope, Stream } from "effect";
+import {
+  Context,
+  Effect,
+  Exit,
+  Layer,
+  PubSub,
+  Queue,
+  Scope,
+  Stream,
+} from "effect";
 
 import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
 

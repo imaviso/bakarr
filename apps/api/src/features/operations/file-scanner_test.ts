@@ -31,18 +31,19 @@ const tree = new Map<string, Deno.DirEntry[]>([
 ]);
 
 const mockFs: FileSystemShape = {
+  openFile: () => Effect.die("unused"),
   readFile: () => Effect.die("unused"),
   readDir: (path) =>
-    path === "/library/show/season-2/broken"
+    toPathString(path) === "/library/show/season-2/broken"
       ? Effect.fail(
         new FileSystemError({
           cause: new Error("denied"),
           message: "Failed to read directory",
-          path,
+          path: toPathString(path),
         }),
       )
-      : Effect.succeed(tree.get(path) ?? []),
-  realPath: (path) => Effect.succeed(path),
+      : Effect.succeed(tree.get(toPathString(path)) ?? []),
+  realPath: (path) => Effect.succeed(toPathString(path)),
   stat: () => Effect.die("unused"),
   mkdir: () => Effect.die("unused"),
   rename: () => Effect.die("unused"),
@@ -86,4 +87,8 @@ function entry(
     isSymlink: options.isSymlink ?? false,
     name,
   };
+}
+
+function toPathString(path: string | URL) {
+  return typeof path === "string" ? path : path.toString();
 }
