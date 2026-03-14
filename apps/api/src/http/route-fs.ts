@@ -69,5 +69,14 @@ export function guessContentType(name: string) {
 }
 
 export function escapeCsv(value: string) {
-  return `"${value.replaceAll('"', '""')}"`;
+  const escaped = value.replaceAll('"', '""');
+  if (
+    escaped.startsWith("=") ||
+    escaped.startsWith("+") ||
+    escaped.startsWith("-") ||
+    escaped.startsWith("@")
+  ) {
+    return `"'${escaped}"`;
+  }
+  return `"${escaped}"`;
 }

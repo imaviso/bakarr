@@ -44,38 +44,24 @@ export async function ensureEpisodes(
   endDate: string | undefined,
   resetMissingOnly: boolean,
 ) {
-  if (!episodeCount || episodeCount <= 0) {
+  const existingRows = !episodeCount || episodeCount <= 0
+    ? []
+    : await db.select().from(episodes).where(eq(episodes.animeId, animeId));
+  const missingRows = buildMissingEpisodeRows({
+    animeId,
+    episodeCount,
+    endDate,
+    existingRows,
+    resetMissingOnly,
+    startDate,
+    status,
+  });
+
+  if (missingRows.length === 0) {
     return;
   }
 
-  const existingRows = await db.select().from(episodes).where(
-    eq(episodes.animeId, animeId),
-  );
-  const existingByNumber = new Map(
-    existingRows.map((row) => [row.number, row]),
-  );
-  const numbers = range(1, episodeCount);
-
-  for (const number of numbers) {
-    const existing = existingByNumber.get(number);
-
-    if (existing) {
-      if (resetMissingOnly && existing.downloaded) {
-        continue;
-      }
-
-      continue;
-    }
-
-    await db.insert(episodes).values({
-      aired: inferAiredAt(status, number, episodeCount, startDate, endDate),
-      animeId,
-      downloaded: false,
-      filePath: null,
-      number,
-      title: null,
-    });
-  }
+  await db.insert(episodes).values(missingRows);
 }
 
 export async function upsertEpisode(
@@ -191,6 +177,72 @@ export async function appendAnimeLog(
     eventType,
     level,
     message,
+  });
+}
+
+export async function insertAnimeAggregateAtomic(
+  db: AppDatabase,
+  input: {
+    animeRow: typeof anime.$inferInsert;
+    episodeRows: readonly (typeof episodes.$inferInsert)[];
+    log: typeof systemLogs.$inferInsert;
+  },
+) {
+  await db.transaction(async (tx) => {
+    await tx.insert(anime).values(input.animeRow);
+
+    if (input.episodeRows.length > 0) {
+      await tx.insert(episodes).values([...input.episodeRows]);
+    }
+
+    await tx.insert(systemLogs).values(input.log);
+  });
+}
+
+export function buildMissingEpisodeRows(input: {
+  animeId: number;
+  episodeCount: number | undefined;
+  status: string;
+  startDate: string | undefined;
+  endDate: string | undefined;
+  resetMissingOnly: boolean;
+  existingRows: readonly typeof episodes.$inferSelect[];
+}) {
+  if (!input.episodeCount || input.episodeCount <= 0) {
+    return [] as (typeof episodes.$inferInsert)[];
+  }
+
+  const existingByNumber = new Map(
+    input.existingRows.map((row) => [row.number, row]),
+  );
+
+  return range(1, input.episodeCount).flatMap((number) => {
+    const existing = existingByNumber.get(number);
+
+    if (existing) {
+      if (input.resetMissingOnly && existing.downloaded) {
+        return [];
+      }
+
+      return [];
+    }
+
+    return [
+      {
+        aired: inferAiredAt(
+          input.status,
+          number,
+          input.episodeCount,
+          input.startDate,
+          input.endDate,
+        ),
+        animeId: input.animeId,
+        downloaded: false,
+        filePath: null,
+        number,
+        title: null,
+      } satisfies typeof episodes.$inferInsert,
+    ];
   });
 }
 

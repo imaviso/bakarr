@@ -24,6 +24,7 @@ import { registerSystemRoutes } from "./system-routes.ts";
 const PUBLIC_API_PATHS = new Set([
   "/api/auth/login",
   "/api/auth/login/api-key",
+  "/api/auth/logout",
   "/api/stream/",
   "/api/system/health/live",
   "/api/system/health/ready",
@@ -107,14 +108,6 @@ export function createApp(runEffect: RunEffect) {
     if (!viewer) {
       c.set("viewer", null);
       return c.text("Unauthorized", 401);
-    }
-
-    if (
-      viewer.must_change_password &&
-      path !== "/api/auth/password" &&
-      path !== "/api/auth/logout"
-    ) {
-      return c.text("Forbidden: must change password", 403);
     }
 
     c.set("viewer", viewer);

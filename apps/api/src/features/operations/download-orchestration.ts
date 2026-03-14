@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
@@ -130,6 +130,10 @@ export function makeDownloadOrchestration(input: {
       return;
     }
 
+    if (row.reconciledAt) {
+      return;
+    }
+
     const animeRow = yield* tryOperationsPromise(
       "Failed to reconcile completed download",
       () => requireAnime(db, row.animeId),
@@ -156,18 +160,21 @@ export function makeDownloadOrchestration(input: {
       return;
     }
 
-    const existingEpisode = yield* tryDatabasePromise(
+    const claimResult = yield* tryDatabasePromise(
       "Failed to reconcile completed download",
-      () =>
-        db.select().from(episodes).where(
-          and(
-            eq(episodes.animeId, row.animeId),
-            eq(episodes.number, row.episodeNumber),
-          ),
-        ).limit(1),
+      async () => {
+        const result = await db
+          .update(downloads)
+          .set({ reconciledAt: nowIso() })
+          .where(
+            and(eq(downloads.id, row.id), isNull(downloads.reconciledAt)),
+          )
+          .returning({ id: downloads.id });
+        return result.length > 0;
+      },
     );
 
-    if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
+    if (!claimResult) {
       return;
     }
 
@@ -193,6 +200,21 @@ export function makeDownloadOrchestration(input: {
             continue;
           }
 
+          const existingEpisode = yield* tryDatabasePromise(
+            "Failed to reconcile completed download",
+            () =>
+              db.select().from(episodes).where(
+                and(
+                  eq(episodes.animeId, row.animeId),
+                  eq(episodes.number, episodeNumber),
+                ),
+              ).limit(1),
+          );
+
+          if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
+            continue;
+          }
+
           const managedPath = yield* tryOperationsPromise(
             "Failed to reconcile completed download",
             () =>
@@ -211,13 +233,6 @@ export function makeDownloadOrchestration(input: {
           );
         }
 
-        yield* tryDatabasePromise(
-          "Failed to reconcile completed download",
-          () =>
-            db.update(downloads).set({ reconciledAt: nowIso() }).where(
-              eq(downloads.id, row.id),
-            ),
-        );
         yield* tryDatabasePromise(
           "Failed to reconcile completed download",
           () => markDownloadImported(db, row.id),
@@ -249,6 +264,25 @@ export function makeDownloadOrchestration(input: {
       }
     }
 
+    const existingEpisode = yield* tryDatabasePromise(
+      "Failed to reconcile completed download",
+      () =>
+        db.select().from(episodes).where(
+          and(
+            eq(episodes.animeId, row.animeId),
+            eq(episodes.number, row.episodeNumber),
+          ),
+        ).limit(1),
+    );
+
+    if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
+      yield* tryDatabasePromise(
+        "Failed to reconcile completed download",
+        () => markDownloadImported(db, row.id),
+      );
+      return;
+    }
+
     const resolvedPath = yield* tryDatabasePromise(
       "Failed to reconcile completed download",
       () =>
@@ -256,6 +290,10 @@ export function makeDownloadOrchestration(input: {
     );
 
     if (!resolvedPath) {
+      yield* tryDatabasePromise(
+        "Failed to reconcile completed download",
+        () => markDownloadImported(db, row.id),
+      );
       return;
     }
 
@@ -273,13 +311,6 @@ export function makeDownloadOrchestration(input: {
     yield* tryDatabasePromise(
       "Failed to reconcile completed download",
       () => upsertEpisodeFile(db, row.animeId, row.episodeNumber, managedPath),
-    );
-    yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      () =>
-        db.update(downloads).set({ reconciledAt: nowIso() }).where(
-          eq(downloads.id, row.id),
-        ),
     );
     yield* tryDatabasePromise(
       "Failed to reconcile completed download",

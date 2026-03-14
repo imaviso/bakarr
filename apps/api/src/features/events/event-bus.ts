@@ -47,7 +47,9 @@ export function makeEventBus(
           );
 
           return {
-            close: Scope.close(scope, Exit.succeed(void 0)),
+            close: Queue.shutdown(slidingQueue).pipe(
+              Effect.zipRight(Scope.close(scope, Exit.succeed(void 0))),
+            ),
             take: Queue.take(slidingQueue),
           } satisfies EventSubscription;
         }),

@@ -64,7 +64,10 @@ export function registerAuthRoutes(
     );
     const token = getCookie(c, sessionCookieName);
 
-    await runEffect(Effect.flatMap(AuthService, (auth) => auth.logout(token)));
+    await runEffect(Effect.flatMap(AuthService, (auth) => auth.logout(token)))
+      .catch(
+        () => undefined,
+      );
     deleteCookie(c, sessionCookieName, { path: "/" });
 
     return c.json({ data: null, success: true });

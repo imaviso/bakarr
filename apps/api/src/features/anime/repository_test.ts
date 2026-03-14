@@ -6,8 +6,13 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
-import { anime, episodes } from "../../db/schema.ts";
-import { ensureEpisodes, upsertEpisode } from "./repository.ts";
+import { anime, episodes, systemLogs } from "../../db/schema.ts";
+import {
+  buildMissingEpisodeRows,
+  ensureEpisodes,
+  insertAnimeAggregateAtomic,
+  upsertEpisode,
+} from "./repository.ts";
 
 Deno.test("upsertEpisode prevents duplicate anime episode rows", async () => {
   await withTestDb(async (db) => {
@@ -65,6 +70,97 @@ Deno.test("ensureEpisodes rejects duplicate episode inserts for same anime", asy
       })
     );
   });
+});
+
+Deno.test("insertAnimeAggregateAtomic rolls back anime inserts when a later write fails", async () => {
+  await withTestDb(async (db) => {
+    await assertRejects(() =>
+      insertAnimeAggregateAtomic(db, {
+        animeRow: {
+          id: 77,
+          malId: null,
+          titleRomaji: "Rollback Show",
+          titleEnglish: null,
+          titleNative: null,
+          format: "TV",
+          description: null,
+          score: null,
+          genres: "[]",
+          studios: "[]",
+          coverImage: null,
+          bannerImage: null,
+          status: "RELEASING",
+          episodeCount: 2,
+          startDate: null,
+          endDate: null,
+          profileName: "Default",
+          rootFolder: "/library/Rollback Show",
+          addedAt: "2024-01-01T00:00:00.000Z",
+          monitored: true,
+          releaseProfileIds: "[]",
+        },
+        episodeRows: [
+          {
+            animeId: 77,
+            number: 1,
+            title: null,
+            aired: null,
+            downloaded: false,
+            filePath: null,
+          },
+          {
+            animeId: 77,
+            number: 2,
+            title: null,
+            aired: null,
+            downloaded: false,
+            filePath: null,
+          },
+        ],
+        log: {
+          eventType: null as unknown as string,
+          level: "success",
+          message: "This should fail",
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+      })
+    );
+
+    const animeRows = await db.select().from(anime).where(eq(anime.id, 77));
+    const episodeRows = await db.select().from(episodes).where(
+      eq(episodes.animeId, 77),
+    );
+    const logRows = await db.select().from(systemLogs).where(
+      eq(systemLogs.message, "This should fail"),
+    );
+
+    assertEquals(animeRows.length, 0);
+    assertEquals(episodeRows.length, 0);
+    assertEquals(logRows.length, 0);
+  });
+});
+
+Deno.test("buildMissingEpisodeRows creates rows only for missing episodes", () => {
+  const rows = buildMissingEpisodeRows({
+    animeId: 15,
+    episodeCount: 3,
+    status: "RELEASING",
+    startDate: undefined,
+    endDate: undefined,
+    resetMissingOnly: true,
+    existingRows: [{
+      id: 1,
+      animeId: 15,
+      number: 1,
+      title: null,
+      aired: null,
+      downloaded: true,
+      filePath: "/library/Show 15/Show 15 - 01.mkv",
+    }],
+  });
+
+  assertEquals(rows.length, 2);
+  assertEquals(rows.map((row) => row.number), [2, 3]);
 });
 
 async function insertAnime(

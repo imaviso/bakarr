@@ -351,6 +351,11 @@ const makeAuthService = Effect.gen(function* () {
         })
         .where(eq(users.id, userId)));
 
+    yield* tryDatabasePromise(
+      "Failed to update password",
+      () => revokeAllSessions(db, userId),
+    );
+
     yield* tryDatabasePromise("Failed to update password", () =>
       writeLog(db, {
         eventType: "auth.password.changed",
@@ -403,6 +408,11 @@ const makeAuthService = Effect.gen(function* () {
             updatedAt: nowIso(),
           })
           .where(eq(users.id, userId)));
+
+      yield* tryDatabasePromise(
+        "Failed to regenerate API key",
+        () => revokeAllSessions(db, userId),
+      );
 
       yield* tryDatabasePromise(
         "Failed to regenerate API key",
@@ -487,6 +497,10 @@ async function createSession(
   });
 
   return token;
+}
+
+async function revokeAllSessions(db: AppDatabase, userId: number) {
+  await db.delete(sessions).where(eq(sessions.userId, userId));
 }
 
 function expiresAtIso(durationDays: number) {

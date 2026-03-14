@@ -658,7 +658,7 @@ integrationTest(
       const readyResponse = await ctx.app.request("/api/system/health/ready");
       assertEquals(readyResponse.status, 200);
       assertEquals(await readyResponse.json(), {
-        checks: { database: true, qbittorrent: true },
+        checks: { database: true },
         ready: true,
       });
 
@@ -1149,7 +1149,20 @@ integrationTest(
           method: "POST",
         },
       );
+      assertEquals(regenerateApiKey.status, 200);
       const { api_key: apiKey } = await regenerateApiKey.json();
+
+      const apiKeyLoginResponse = await ctx.app.request(
+        "/api/auth/login/api-key",
+        {
+          body: JSON.stringify({ api_key: apiKey }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        },
+      );
+      assertEquals(apiKeyLoginResponse.status, 200);
+      const apiKeySessionCookie = apiKeyLoginResponse.headers.get("set-cookie");
+      assert(apiKeySessionCookie);
 
       const rootFolder = await Deno.makeTempDir();
       const updatedFolder = await Deno.makeTempDir();
@@ -1165,7 +1178,7 @@ integrationTest(
               rules: [{ rule_type: "preferred", score: 5, term: "SubsPlease" }],
             }),
             headers: {
-              Cookie: sessionCookie,
+              Cookie: apiKeySessionCookie,
               "Content-Type": "application/json",
             },
             method: "POST",
@@ -1184,7 +1197,7 @@ integrationTest(
             root_folder: rootFolder,
           }),
           headers: {
-            Cookie: sessionCookie,
+            Cookie: apiKeySessionCookie,
             "Content-Type": "application/json",
           },
           method: "POST",
@@ -1194,7 +1207,7 @@ integrationTest(
         const monitorResponse = await ctx.app.request("/api/anime/20/monitor", {
           body: JSON.stringify({ monitored: false }),
           headers: {
-            Cookie: sessionCookie,
+            Cookie: apiKeySessionCookie,
             "Content-Type": "application/json",
           },
           method: "POST",
@@ -1204,7 +1217,7 @@ integrationTest(
         const pathResponse = await ctx.app.request("/api/anime/20/path", {
           body: JSON.stringify({ path: updatedFolder }),
           headers: {
-            Cookie: sessionCookie,
+            Cookie: apiKeySessionCookie,
             "Content-Type": "application/json",
           },
           method: "PUT",
@@ -1214,7 +1227,7 @@ integrationTest(
         const profileResponse = await ctx.app.request("/api/anime/20/profile", {
           body: JSON.stringify({ profile_name: "Default" }),
           headers: {
-            Cookie: sessionCookie,
+            Cookie: apiKeySessionCookie,
             "Content-Type": "application/json",
           },
           method: "PUT",
@@ -1226,7 +1239,7 @@ integrationTest(
           {
             body: JSON.stringify({ release_profile_ids: [releaseProfile.id] }),
             headers: {
-              Cookie: sessionCookie,
+              Cookie: apiKeySessionCookie,
               "Content-Type": "application/json",
             },
             method: "PUT",
@@ -1242,7 +1255,7 @@ integrationTest(
           {
             body: JSON.stringify({ file_path: filePath }),
             headers: {
-              Cookie: sessionCookie,
+              Cookie: apiKeySessionCookie,
               "Content-Type": "application/json",
             },
             method: "POST",
@@ -1251,7 +1264,7 @@ integrationTest(
         assertEquals(mapResponse.status, 200);
 
         const detailResponse = await ctx.app.request("/api/anime/20", {
-          headers: { Cookie: sessionCookie },
+          headers: { Cookie: apiKeySessionCookie },
         });
         const detail = await detailResponse.json();
         assertEquals(detail.monitored, false);
@@ -1259,12 +1272,18 @@ integrationTest(
         assertEquals(detail.release_profile_ids, [releaseProfile.id]);
 
         const streamUnauthorized = await ctx.app.request("/api/stream/20/1");
-        assertEquals(streamUnauthorized.status, 401);
+        assertEquals(streamUnauthorized.status, 403);
 
-        const streamAuthorized = await ctx.app.request(
-          "/api/stream/20/1",
-          { headers: { Authorization: `Bearer ${apiKey}` } },
+        const streamUrlResponse = await ctx.app.request(
+          "/api/anime/20/stream-url?episodeNumber=1",
+          { headers: { Cookie: apiKeySessionCookie } },
         );
+        assertEquals(streamUrlResponse.status, 200);
+        const { url: signedStreamUrl } = await streamUrlResponse.json();
+
+        const streamAuthorized = await ctx.app.request(signedStreamUrl, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
         assertEquals(streamAuthorized.status, 200);
         assertEquals(
           streamAuthorized.headers.get("content-type"),
@@ -1275,7 +1294,7 @@ integrationTest(
         const deleteEpisodeFileResponse = await ctx.app.request(
           "/api/anime/20/episodes/1/file",
           {
-            headers: { Cookie: sessionCookie },
+            headers: { Cookie: apiKeySessionCookie },
             method: "DELETE",
           },
         );
@@ -1284,7 +1303,7 @@ integrationTest(
         const episodesAfterDelete = await ctx.app.request(
           "/api/anime/20/episodes",
           {
-            headers: { Cookie: sessionCookie },
+            headers: { Cookie: apiKeySessionCookie },
           },
         );
         const episodeRows = await episodesAfterDelete.json();
@@ -1292,13 +1311,13 @@ integrationTest(
         assertEquals(episodeRows[0].file_path, undefined);
 
         const deleteAnimeResponse = await ctx.app.request("/api/anime/20", {
-          headers: { Cookie: sessionCookie },
+          headers: { Cookie: apiKeySessionCookie },
           method: "DELETE",
         });
         assertEquals(deleteAnimeResponse.status, 200);
 
         const animeListAfterDelete = await ctx.app.request("/api/anime", {
-          headers: { Cookie: sessionCookie },
+          headers: { Cookie: apiKeySessionCookie },
         });
         assertEquals((await animeListAfterDelete.json()).length, 0);
       } finally {

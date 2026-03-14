@@ -113,6 +113,16 @@ export function decodeConfigCore(value: string): ConfigCore {
   };
 }
 
+export function tryDecodeConfigCore(
+  value: string,
+): ConfigCore | null {
+  try {
+    return decodeConfigCore(value);
+  } catch {
+    return null;
+  }
+}
+
 export function encodeStringList(values: readonly string[]) {
   return Schema.encodeSync(StringListJsonSchema)([...values]);
 }

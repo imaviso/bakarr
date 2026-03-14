@@ -39,7 +39,11 @@ const PositiveIntSchema = Schema.NumberFromString.pipe(
 
 export const defaultAppConfig: AppConfigShape = {
   appVersion: "0.1.0",
-  bootstrapPassword: Redacted.make(crypto.randomUUID().split("-")[0]),
+  bootstrapPassword: Redacted.make(
+    Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join(""),
+  ),
   bootstrapUsername: "admin",
   databaseFile: "./bakarr.sqlite",
   port: 8000,

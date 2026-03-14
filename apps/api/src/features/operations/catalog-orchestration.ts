@@ -489,7 +489,6 @@ export function makeCatalogOrchestration(input: {
 
   const listDownloadQueue = Effect.fn("OperationsService.listDownloadQueue")(
     function* () {
-      yield* syncDownloadState("downloads.queue");
       const rows = yield* tryDatabasePromise(
         "Failed to list download queue",
         () =>
@@ -505,7 +504,6 @@ export function makeCatalogOrchestration(input: {
     "OperationsService.listDownloadHistory",
   )(
     function* () {
-      yield* syncDownloadState("downloads.history");
       const rows = yield* tryDatabasePromise(
         "Failed to list download history",
         () => db.select().from(downloads).orderBy(desc(downloads.id)),
@@ -518,7 +516,6 @@ export function makeCatalogOrchestration(input: {
     "OperationsService.getDownloadProgress",
   )(
     function* () {
-      yield* syncDownloadState("downloads.progress");
       const rows = yield* tryDatabasePromise(
         "Failed to build download progress snapshot",
         () =>

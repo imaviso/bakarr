@@ -17,18 +17,21 @@ import { toAnimeDto } from "./dto.ts";
 import {
   AnimeConflictError,
   AnimeNotFoundError,
+  AnimePathError,
   type AnimeServiceError,
 } from "./errors.ts";
 import { collectVideoFiles, parseEpisodeNumber } from "./files.ts";
-import { FileSystem } from "../../lib/filesystem.ts";
+import { FileSystem, isWithinPathRoot } from "../../lib/filesystem.ts";
 import {
   appendAnimeLog,
+  buildMissingEpisodeRows,
   clearEpisodeMapping,
   ensureEpisodes,
   getAnimeRowOrThrow,
   getConfiguredImagesPath,
   getEpisodeRowOrThrow,
   inferAiredAt,
+  insertAnimeAggregateAtomic,
   requireAnimeExists,
   resolveAnimeRootFolder,
   upsertEpisode,
@@ -63,7 +66,7 @@ export interface AnimeServiceShape {
     input: AddAnimeInput,
   ) => Effect.Effect<
     Anime,
-    AnimeNotFoundError | AnimeConflictError | DatabaseError
+    AnimeNotFoundError | AnimeConflictError | AnimePathError | DatabaseError
   >;
   readonly deleteAnime: (id: number) => Effect.Effect<void, DatabaseError>;
   readonly setMonitored: (
@@ -210,38 +213,43 @@ const makeAnimeService = Effect.gen(function* () {
       titleRomaji: animeMetadata.title.romaji,
     };
 
+    const episodeRows = buildMissingEpisodeRows({
+      animeId: animeRow.id,
+      episodeCount: animeMetadata.episodeCount,
+      endDate: animeMetadata.endDate ?? undefined,
+      existingRows: [],
+      resetMissingOnly: true,
+      startDate: animeMetadata.startDate ?? undefined,
+      status: animeMetadata.status,
+    });
+
     yield* tryDatabasePromise(
       "Failed to add anime",
-      () => db.insert(anime).values(animeRow),
+      () =>
+        insertAnimeAggregateAtomic(db, {
+          animeRow,
+          episodeRows,
+          log: {
+            createdAt: new Date().toISOString(),
+            details: null,
+            eventType: "anime.created",
+            level: "success",
+            message: `Added ${animeRow.titleRomaji} to library`,
+          },
+        }),
     );
-    yield* tryAnimePromise("Failed to add anime", () =>
-      ensureEpisodes(
-        db,
-        animeRow.id,
-        animeMetadata.episodeCount,
-        animeMetadata.status,
-        animeMetadata.startDate ?? undefined,
-        animeMetadata.endDate ?? undefined,
-        true,
-      ));
-    yield* tryDatabasePromise("Failed to add anime", () =>
-      appendAnimeLog(
-        db,
-        "anime.created",
-        "success",
-        `Added ${animeRow.titleRomaji} to library`,
-      ));
+
     yield* eventBus.publish({
       type: "Info",
       payload: { message: `Added ${animeRow.titleRomaji} to library` },
     });
 
-    const episodeRows = yield* tryDatabasePromise(
+    const persistedEpisodeRows = yield* tryDatabasePromise(
       "Failed to add anime",
       () => db.select().from(episodes).where(eq(episodes.animeId, animeRow.id)),
     );
 
-    return toAnimeDto(animeRow, episodeRows);
+    return toAnimeDto(animeRow, persistedEpisodeRows);
   });
 
   const refreshEpisodes = Effect.fn("AnimeService.refreshEpisodes")(function* (
@@ -357,6 +365,10 @@ const makeAnimeService = Effect.gen(function* () {
     id: number,
     path: string,
   ) {
+    yield* tryAnimePromise(
+      "Failed to update anime path",
+      () => requireAnimeExists(db, id),
+    );
     yield* fs.mkdir(path, { recursive: true }).pipe(
       Effect.mapError((error) =>
         new DatabaseError({
@@ -364,10 +376,6 @@ const makeAnimeService = Effect.gen(function* () {
           message: "Failed to update anime path",
         })
       ),
-    );
-    yield* tryAnimePromise(
-      "Failed to update anime path",
-      () => requireAnimeExists(db, id),
     );
     yield* tryAnimePromise(
       "Failed to update anime path",
@@ -387,6 +395,10 @@ const makeAnimeService = Effect.gen(function* () {
 
   const deleteEpisodeFile = Effect.fn("AnimeService.deleteEpisodeFile")(
     function* (animeId: number, episodeNumber: number) {
+      const animeRow = yield* tryAnimePromise(
+        "Failed to delete episode file",
+        () => getAnimeRowOrThrow(db, animeId),
+      );
       const episodeRow = yield* tryAnimePromise(
         "Failed to delete episode file",
         () => getEpisodeRowOrThrow(db, animeId, episodeNumber),
@@ -394,9 +406,29 @@ const makeAnimeService = Effect.gen(function* () {
 
       if (episodeRow.filePath) {
         const filePath = episodeRow.filePath;
-        yield* fs.remove(filePath).pipe(
-          Effect.catchAll(() => Effect.void),
+        const resolvedPath = yield* fs.realPath(filePath).pipe(
+          Effect.mapError(() =>
+            new AnimePathError({
+              message: "File path does not exist or is inaccessible",
+            })
+          ),
         );
+
+        const animeRoot = yield* fs.realPath(animeRow.rootFolder).pipe(
+          Effect.mapError(() =>
+            new AnimePathError({
+              message: "Anime root folder does not exist",
+            })
+          ),
+        );
+
+        if (!isWithinPathRoot(resolvedPath, animeRoot)) {
+          return yield* new AnimePathError({
+            message: "File path is not within the anime root folder",
+          });
+        }
+
+        yield* fs.remove(filePath).pipe(Effect.catchAll(() => Effect.void));
       }
 
       yield* tryAnimePromise(
@@ -417,7 +449,7 @@ const makeAnimeService = Effect.gen(function* () {
     episodeNumber: number,
     filePath: string,
   ) {
-    yield* tryAnimePromise(
+    const animeRow = yield* tryAnimePromise(
       "Failed to map episode file",
       () => getAnimeRowOrThrow(db, animeId),
     );
@@ -428,6 +460,30 @@ const makeAnimeService = Effect.gen(function* () {
         () => clearEpisodeMapping(db, animeId, episodeNumber),
       );
       return;
+    }
+
+    const resolvedPath = yield* fs.realPath(filePath).pipe(
+      Effect.mapError(() =>
+        new AnimePathError({
+          message: "File path does not exist or is inaccessible",
+        })
+      ),
+    );
+
+    const animeRootResult = yield* fs.realPath(animeRow.rootFolder).pipe(
+      Effect.either,
+    );
+
+    if (animeRootResult._tag === "Left") {
+      return yield* new AnimePathError({
+        message: "Anime root folder does not exist",
+      });
+    }
+
+    if (!isWithinPathRoot(resolvedPath, animeRootResult.right)) {
+      return yield* new AnimePathError({
+        message: "File path is not within the anime root folder",
+      });
     }
 
     yield* tryAnimePromise(
@@ -445,9 +501,17 @@ const makeAnimeService = Effect.gen(function* () {
       animeId: number,
       mappings: readonly { episode_number: number; file_path: string }[],
     ) {
-      yield* tryAnimePromise(
+      const animeRow = yield* tryAnimePromise(
         "Failed to bulk-map episode files",
         () => getAnimeRowOrThrow(db, animeId),
+      );
+
+      const animeRoot = yield* fs.realPath(animeRow.rootFolder).pipe(
+        Effect.mapError(() =>
+          new AnimePathError({
+            message: "Anime root folder does not exist",
+          })
+        ),
       );
 
       for (const mapping of mappings) {
@@ -457,6 +521,21 @@ const makeAnimeService = Effect.gen(function* () {
             () => clearEpisodeMapping(db, animeId, mapping.episode_number),
           );
           continue;
+        }
+
+        const resolvedPath = yield* fs.realPath(mapping.file_path).pipe(
+          Effect.mapError(() =>
+            new AnimePathError({
+              message: "File path does not exist or is inaccessible",
+            })
+          ),
+        );
+
+        if (!isWithinPathRoot(resolvedPath, animeRoot)) {
+          return yield* new AnimePathError({
+            message:
+              `File path for episode ${mapping.episode_number} is not within the anime root folder`,
+          });
         }
 
         yield* tryAnimePromise(

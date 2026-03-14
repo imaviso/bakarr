@@ -27,12 +27,12 @@ import { setRuntimeLogLevel } from "../../lib/logging.ts";
 import { ConfigValidationError, ProfileNotFoundError } from "./errors.ts";
 import {
   type ConfigCore,
-  decodeConfigCore,
   decodeQualityProfileRow,
   decodeReleaseProfileRow,
   encodeConfigCore,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
+  tryDecodeConfigCore,
 } from "./config-codec.ts";
 import {
   appendSystemLog,
@@ -493,9 +493,22 @@ const makeSystemService = Effect.gen(function* () {
       () => listQualityProfileRows(db),
     );
 
-    const core = storedConfig
-      ? decodeConfigCore(storedConfig.data)
-      : makeDefaultConfig(config.databaseFile);
+    let core: ConfigCore;
+    if (storedConfig) {
+      const decoded = tryDecodeConfigCore(storedConfig.data);
+      if (decoded) {
+        core = decoded;
+      } else {
+        yield* Effect.logWarning(
+          "Corrupt config detected, falling back to defaults",
+        ).pipe(
+          Effect.annotateLogs({ component: "system" }),
+        );
+        core = makeDefaultConfig(config.databaseFile);
+      }
+    } else {
+      core = makeDefaultConfig(config.databaseFile);
+    }
 
     return {
       ...core,

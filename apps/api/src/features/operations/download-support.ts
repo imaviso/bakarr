@@ -42,23 +42,26 @@ export async function importDownloadedFile(
   const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${
     sanitizeFilename(animeRow.titleRomaji)
   } - ${String(episodeNumber).padStart(2, "0")}${extension}`;
+  const tempDestination = `${destination}.tmp.${crypto.randomUUID()}`;
 
   await Effect.runPromise(fs.mkdir(animeRow.rootFolder, { recursive: true }));
 
   try {
-    if (destination !== sourcePath) {
-      await Effect.runPromise(
-        fs.remove(destination).pipe(Effect.catchAll(() => Effect.void)),
-      );
+    if (importMode === "move") {
+      await Effect.runPromise(fs.rename(sourcePath, tempDestination));
+    } else {
+      await Effect.runPromise(fs.copyFile(sourcePath, tempDestination));
     }
-  } catch {
-    // Ignore destination cleanup failures.
-  }
 
-  if (importMode === "move") {
-    await Effect.runPromise(fs.rename(sourcePath, destination));
-  } else {
-    await Effect.runPromise(fs.copyFile(sourcePath, destination));
+    await Effect.runPromise(
+      fs.remove(destination).pipe(Effect.catchAll(() => Effect.void)),
+    );
+    await Effect.runPromise(fs.rename(tempDestination, destination));
+  } catch (error) {
+    await Effect.runPromise(
+      fs.remove(tempDestination).pipe(Effect.catchAll(() => Effect.void)),
+    );
+    throw error;
   }
 
   return destination;

@@ -438,13 +438,23 @@ export function registerSystemRoutes(
         JSON.stringify({ type: "DownloadProgress", payload: { downloads } })
       }`,
     );
+    let interval: ReturnType<typeof setInterval> | undefined;
+
+    const stopStream = () => {
+      if (interval !== undefined) {
+        clearInterval(interval);
+        interval = undefined;
+      }
+      return Effect.runPromise(subscription.close).catch(() => undefined);
+    };
+
     const combined = new ReadableStream<Uint8Array>({
       async start(controller) {
-        const interval = setInterval(() => {
+        interval = setInterval(() => {
           try {
             controller.enqueue(encodeSse(`: keep-alive ${Date.now()}`));
           } catch {
-            void Effect.runPromise(subscription.close).catch(() => undefined);
+            void stopStream();
           }
         }, 15_000);
 
@@ -457,8 +467,7 @@ export function registerSystemRoutes(
             controller.enqueue(encodeSse(`data: ${JSON.stringify(event)}`));
           }
         } finally {
-          clearInterval(interval);
-          await Effect.runPromise(subscription.close).catch(() => undefined);
+          await stopStream();
           try {
             controller.close();
           } catch {
@@ -467,7 +476,7 @@ export function registerSystemRoutes(
         }
       },
       cancel() {
-        return Effect.runPromise(subscription.close).catch(() => undefined);
+        return stopStream();
       },
     });
 

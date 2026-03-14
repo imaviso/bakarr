@@ -12,4 +12,12 @@ export class AnimeConflictError
     { message: Schema.String },
   ) {}
 
-export type AnimeServiceError = AnimeNotFoundError | AnimeConflictError;
+export class AnimePathError extends Schema.TaggedError<AnimePathError>()(
+  "AnimePathError",
+  { message: Schema.String },
+) {}
+
+export type AnimeServiceError =
+  | AnimeNotFoundError
+  | AnimeConflictError
+  | AnimePathError;
