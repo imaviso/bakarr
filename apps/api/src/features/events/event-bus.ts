@@ -33,13 +33,22 @@ export function makeEventBus(
       subscribe: () =>
         Effect.gen(function* () {
           const scope = yield* Scope.make();
-          const queue = yield* PubSub.subscribe(pubsub).pipe(
+          const pubsubQueue = yield* PubSub.subscribe(pubsub).pipe(
             Scope.extend(scope),
+          );
+          const slidingQueue = yield* Queue.sliding<NotificationEvent>(
+            capacity,
+          );
+
+          yield* Queue.take(pubsubQueue).pipe(
+            Effect.flatMap((event) => Queue.offer(slidingQueue, event)),
+            Effect.forever,
+            Effect.forkIn(scope),
           );
 
           return {
             close: Scope.close(scope, Exit.succeed(void 0)),
-            take: Queue.take(queue),
+            take: Queue.take(slidingQueue),
           } satisfies EventSubscription;
         }),
     } satisfies EventBusShape;

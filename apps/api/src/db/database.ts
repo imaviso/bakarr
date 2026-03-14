@@ -13,7 +13,20 @@ export class DatabaseError extends Schema.TaggedError<DatabaseError>()(
     cause: Schema.Defect,
     message: Schema.String,
   },
-) {}
+) {
+  isUniqueConstraint(): boolean {
+    const error = this.cause as { code?: string | number; errno?: number };
+    if (!error) return false;
+    const code = typeof error.code === "string"
+      ? error.code
+      : String(error.code ?? error.errno ?? "");
+    return code === "SQLITE_CONSTRAINT" ||
+      code === "SQLITE_CONSTRAINT_UNIQUE" ||
+      code === "2067" ||
+      code === "19" ||
+      code.includes("UNIQUE constraint failed");
+  }
+}
 
 export interface DatabaseService {
   readonly client: Client;

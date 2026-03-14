@@ -24,6 +24,7 @@ import { registerSystemRoutes } from "./system-routes.ts";
 const PUBLIC_API_PATHS = new Set([
   "/api/auth/login",
   "/api/auth/login/api-key",
+  "/api/stream/",
   "/api/system/health/live",
   "/api/system/health/ready",
 ]);
@@ -76,7 +77,7 @@ export function createApp(runEffect: RunEffect) {
   app.use("/api/*", async (c, next) => {
     const path = c.req.path;
 
-    if (PUBLIC_API_PATHS.has(path)) {
+    if (PUBLIC_API_PATHS.has(path) || path.startsWith("/api/stream/")) {
       await next();
       return;
     }
@@ -88,13 +89,10 @@ export function createApp(runEffect: RunEffect) {
       ),
     );
     const sessionToken = getCookie(c, sessionCookieName);
-    const tokenQuery = path.startsWith("/api/stream/")
-      ? c.req.query("token")
-      : undefined;
     const apiKey = getApiKey(
       c.req.header("x-api-key"),
       c.req.header("authorization"),
-    ) || tokenQuery;
+    );
 
     const viewer = await runEffect(
       withRequestLogContext(
@@ -109,6 +107,14 @@ export function createApp(runEffect: RunEffect) {
     if (!viewer) {
       c.set("viewer", null);
       return c.text("Unauthorized", 401);
+    }
+
+    if (
+      viewer.must_change_password &&
+      path !== "/api/auth/password" &&
+      path !== "/api/auth/logout"
+    ) {
+      return c.text("Forbidden: must change password", 403);
     }
 
     c.set("viewer", viewer);

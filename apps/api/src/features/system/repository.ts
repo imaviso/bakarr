@@ -43,6 +43,32 @@ export function upsertSystemConfigRow(
   });
 }
 
+export async function updateSystemConfigAtomic(
+  db: AppDatabase,
+  coreInput: typeof appConfig.$inferInsert,
+  profileRows: readonly QualityProfileInsert[],
+) {
+  await db.transaction(async (tx) => {
+    await tx.insert(appConfig).values(coreInput).onConflictDoUpdate({
+      target: appConfig.id,
+      set: { data: coreInput.data, updatedAt: coreInput.updatedAt },
+    });
+
+    await tx.delete(qualityProfiles);
+
+    if (profileRows.length > 0) {
+      await tx.insert(qualityProfiles).values([...profileRows]);
+    }
+
+    await tx.insert(systemLogs).values({
+      createdAt: coreInput.updatedAt || new Date().toISOString(),
+      eventType: "system.config.updated",
+      level: "success",
+      message: "System configuration updated",
+    });
+  });
+}
+
 export async function loadAnyQualityProfileRow(db: AppDatabase) {
   const rows = await db.select().from(qualityProfiles).limit(1);
   return rows[0];

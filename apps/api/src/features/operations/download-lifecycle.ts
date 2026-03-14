@@ -180,11 +180,19 @@ export function applyRemotePathMappings(
       continue;
     }
 
-    if (!contentPath.startsWith(remotePrefix)) {
+    const normalizedRemote = remotePrefix.replace(/\/+$/, "");
+    const normalizedLocal = localPrefix.replace(/\/+$/, "");
+
+    if (contentPath === normalizedRemote) {
+      results.push(normalizedLocal);
       continue;
     }
 
-    results.push(`${localPrefix}${contentPath.slice(remotePrefix.length)}`);
+    if (contentPath.startsWith(`${normalizedRemote}/`)) {
+      results.push(
+        `${normalizedLocal}${contentPath.slice(normalizedRemote.length)}`,
+      );
+    }
   }
 
   return results;

@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import type { Hono } from "hono";
+import { Hono } from "hono";
 
 import type {
   Anime,
@@ -9,7 +9,6 @@ import type {
 } from "../../../../packages/shared/src/index.ts";
 import { AnimeService } from "../features/anime/service.ts";
 import { DownloadService } from "../features/operations/service.ts";
-import { FileSystem } from "../lib/filesystem.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
@@ -25,7 +24,6 @@ import {
 import type { AppVariables, RunEffect } from "./route-helpers.ts";
 import {
   guessContentType,
-  parseParams,
   runRoute,
   toAddAnimeInput,
   withJsonBody,
@@ -300,32 +298,166 @@ export function registerAnimeRoutes(
         c.json(value),
     ));
 
-  app.get("/api/stream/:id/:episodeNumber", async (c) => {
-    const params = await runEffect(
-      parseParams(c, AnimeEpisodeParamsSchema, "stream episode"),
+  const STREAM_SECRET = crypto.getRandomValues(new Uint8Array(32));
+
+  async function signStreamUrl(
+    animeId: number,
+    episodeNumber: number,
+    expiresAt: number,
+  ): Promise<string> {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      STREAM_SECRET,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
     );
 
+    const payload = `${animeId}:${episodeNumber}:${expiresAt}`;
+    const signatureBuffer = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(payload),
+    );
+    const signatureHex = Array.from(new Uint8Array(signatureBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    return `/api/stream/${animeId}/${episodeNumber}?exp=${expiresAt}&sig=${signatureHex}`;
+  }
+
+  async function verifyStreamUrl(
+    animeId: number,
+    episodeNumber: number,
+    expiresAt: number,
+    signatureHex: string,
+  ): Promise<boolean> {
+    if (Date.now() > expiresAt) return false;
+
+    const key = await crypto.subtle.importKey(
+      "raw",
+      STREAM_SECRET,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"],
+    );
+
+    const payload = `${animeId}:${episodeNumber}:${expiresAt}`;
+    const signatureBuffer = new Uint8Array(
+      signatureHex.match(/.{1,2}/g)?.map((byte) => parseInt(byte, 16)) ?? [],
+    );
+    if (signatureBuffer.length !== 32) return false;
+
+    return crypto.subtle.verify(
+      "HMAC",
+      key,
+      signatureBuffer,
+      new TextEncoder().encode(payload),
+    );
+  }
+
+  app.get("/api/anime/:id/stream-url", async (c) => {
     requireViewer(c);
+    const id = parseInt(c.req.param("id"), 10);
+    const episodeNumberStr = c.req.query("episodeNumber");
+
+    if (isNaN(id) || !episodeNumberStr) return c.text("Bad request", 400);
+
+    const episodeNumber = parseInt(episodeNumberStr, 10);
+    if (isNaN(episodeNumber)) return c.text("Bad request", 400);
+
+    const expiresAt = Date.now() + 6 * 60 * 60 * 1000; // 6 hours
+    const url = await signStreamUrl(id, episodeNumber, expiresAt);
+    return c.json({ url });
+  });
+
+  app.get("/api/stream/:id/:episodeNumber", async (c) => {
+    const id = parseInt(c.req.param("id"), 10);
+    const episodeNumber = parseInt(c.req.param("episodeNumber"), 10);
+    const exp = parseInt(c.req.query("exp") || "0", 10);
+    const sig = c.req.query("sig") || "";
+
+    if (
+      isNaN(id) || isNaN(episodeNumber) || !exp || !sig ||
+      !(await verifyStreamUrl(id, episodeNumber, exp, sig))
+    ) {
+      return c.text("Forbidden or expired", 403);
+    }
 
     const files = await runEffect(
-      Effect.flatMap(AnimeService, (service) => service.listFiles(params.id)),
+      Effect.flatMap(AnimeService, (service) => service.listFiles(id)),
     );
-    const match = files.find((file) =>
-      file.episode_number === params.episodeNumber
-    );
+    const match = files.find((file) => file.episode_number === episodeNumber);
 
     if (!match) {
       return c.text("Episode file not found", 404);
     }
 
-    const bytes = await runEffect(
-      Effect.flatMap(FileSystem, (fs) => fs.readFile(match.path)),
-    );
+    const stat = await Deno.stat(match.path);
+    const fileSize = stat.size;
+    const range = c.req.header("range");
+    const contentType = guessContentType(match.name);
 
-    return new Response(new Blob([Uint8Array.from(bytes)]), {
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      if (isNaN(start) || start >= fileSize || end >= fileSize || start > end) {
+        return new Response("Requested range not satisfiable", {
+          status: 416,
+          headers: { "Content-Range": `bytes */${fileSize}` },
+        });
+      }
+
+      const chunkSize = end - start + 1;
+      const file = await Deno.open(match.path, { read: true });
+      await file.seek(start, Deno.SeekMode.Start);
+
+      const stream = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          const buffer = new Uint8Array(Math.min(chunkSize, 65536));
+          let remaining = chunkSize;
+          try {
+            while (remaining > 0) {
+              const read = await file.read(
+                buffer.subarray(0, Math.min(remaining, buffer.length)),
+              );
+              if (read === null) break;
+              controller.enqueue(buffer.subarray(0, read));
+              remaining -= read;
+            }
+            controller.close();
+          } catch (error) {
+            controller.error(error);
+          } finally {
+            file.close();
+          }
+        },
+        cancel() {
+          file.close();
+        },
+      });
+
+      return new Response(stream, {
+        status: 206,
+        headers: {
+          "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+          "Accept-Ranges": "bytes",
+          "Content-Length": chunkSize.toString(),
+          "Content-Type": contentType,
+          "Content-Disposition": `inline; filename="${match.name}"`,
+        },
+      });
+    }
+
+    const file = await Deno.open(match.path, { read: true });
+    return new Response(file.readable, {
       headers: {
+        "Content-Length": fileSize.toString(),
+        "Accept-Ranges": "bytes",
+        "Content-Type": contentType,
         "Content-Disposition": `inline; filename="${match.name}"`,
-        "Content-Type": guessContentType(match.name),
       },
     });
   });

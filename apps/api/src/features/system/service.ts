@@ -70,10 +70,9 @@ import {
   loadQualityProfileRow,
   loadSystemConfigRow,
   loadSystemLogPage,
-  replaceQualityProfileRows,
   updateQualityProfileRow,
   updateReleaseProfileRow,
-  upsertSystemConfigRow,
+  updateSystemConfigAtomic,
 } from "./repository.ts";
 
 export interface SystemServiceShape {
@@ -531,34 +530,18 @@ const makeSystemService = Effect.gen(function* () {
     yield* tryDatabasePromise(
       "Failed to update system configuration",
       () =>
-        upsertSystemConfigRow(db, {
-          data: encodeConfigCore(core),
-          id: 1,
-          updatedAt: nowIso(),
-        }),
-    );
-
-    yield* tryDatabasePromise(
-      "Failed to update system configuration",
-      () =>
-        replaceQualityProfileRows(
+        updateSystemConfigAtomic(
           db,
+          {
+            data: encodeConfigCore(core),
+            id: 1,
+            updatedAt: nowIso(),
+          },
           nextConfig.profiles.map(encodeQualityProfileRow),
         ),
     );
 
     setRuntimeLogLevel(nextConfig.general.log_level);
-
-    yield* tryDatabasePromise(
-      "Failed to update system configuration",
-      () =>
-        appendSystemLog(
-          db,
-          "system.config.updated",
-          "success",
-          "System configuration updated",
-        ),
-    );
 
     return nextConfig;
   });

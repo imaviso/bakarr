@@ -36,6 +36,7 @@ export interface AuthUser {
   username: string;
   created_at: string;
   updated_at: string;
+  must_change_password: boolean;
 }
 
 export interface LoginRequest {

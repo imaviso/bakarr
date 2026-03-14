@@ -126,7 +126,7 @@ export const downloads = sqliteTable("downloads", {
   downloadDate: text("download_date"),
   groupName: text("group_name"),
   magnet: text("magnet"),
-  infoHash: text("info_hash"),
+  infoHash: text("info_hash").unique(),
   externalState: text("external_state"),
   errorMessage: text("error_message"),
   savePath: text("save_path"),

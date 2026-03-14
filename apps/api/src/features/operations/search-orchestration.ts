@@ -400,18 +400,7 @@ export function makeSearchOrchestration(input: {
           continue;
         }
 
-        let status = "queued";
-
-        if (qbitConfig) {
-          yield* qbitClient.addTorrentUrl(qbitConfig, best.item.magnet).pipe(
-            Effect.mapError(
-              wrapOperationsError("Failed to queue missing-episode search"),
-            ),
-          );
-          status = "downloading";
-        }
-
-        yield* tryDatabasePromise(
+        const insertResult = yield* Effect.either(tryDatabasePromise(
           "Failed to queue missing-episode search",
           () =>
             db.insert(downloads).values({
@@ -422,25 +411,64 @@ export function makeSearchOrchestration(input: {
               coveredEpisodes,
               downloadDate: null,
               episodeNumber: row.episodes.number,
-              isBatch: parsedRelease.isBatch,
-              downloadedBytes: 0,
-              errorMessage: null,
-              etaSeconds: null,
-              externalState: status,
               groupName: best.item.group ?? null,
               infoHash: best.item.infoHash,
-              lastSyncedAt: nowIso(),
+              isBatch: parsedRelease.isBatch,
               magnet: best.item.magnet,
               progress: 0,
               savePath: null,
               speedBytes: 0,
-              status,
+              status: "queued",
               totalBytes: best.item.sizeBytes,
               torrentName: best.item.title,
-            }),
-        );
+              downloadedBytes: 0,
+              errorMessage: null,
+              etaSeconds: null,
+              externalState: "queued",
+              lastSyncedAt: nowIso(),
+            }).returning({ id: downloads.id }),
+        ));
+
+        if (insertResult._tag === "Left") {
+          const dbError = insertResult.left;
+          if (
+            dbError instanceof DatabaseError && dbError.isUniqueConstraint()
+          ) {
+            continue;
+          }
+          return yield* dbError;
+        }
+
+        const insertedId = insertResult.right[0].id;
+        let status = "queued";
+
+        if (qbitConfig) {
+          const qbitResult = yield* Effect.either(
+            qbitClient.addTorrentUrl(qbitConfig, best.item.magnet),
+          );
+
+          if (qbitResult._tag === "Left") {
+            yield* tryDatabasePromise(
+              "Cleanup failed download",
+              () => db.delete(downloads).where(eq(downloads.id, insertedId)),
+            );
+            return yield* wrapOperationsError(
+              "Failed to queue missing-episode search",
+            )(qbitResult.left);
+          }
+
+          status = "downloading";
+          yield* tryDatabasePromise(
+            "Update download status",
+            () =>
+              db.update(downloads).set({ status, externalState: status }).where(
+                eq(downloads.id, insertedId),
+              ),
+          );
+        }
+
         yield* tryDatabasePromise(
-          "Failed to queue missing-episode search",
+          "Failed to record download event",
           () =>
             recordDownloadEvent(db, {
               animeId: row.anime.id,
@@ -567,18 +595,7 @@ export function makeSearchOrchestration(input: {
                 continue;
               }
 
-              let status = "queued";
-
-              if (qbitConfig) {
-                yield* qbitClient.addTorrentUrl(qbitConfig, item.magnet).pipe(
-                  Effect.mapError(
-                    wrapOperationsError("Failed to run RSS check"),
-                  ),
-                );
-                status = "downloading";
-              }
-
-              yield* tryDatabasePromise(
+              const insertResult = yield* Effect.either(tryDatabasePromise(
                 "Failed to run RSS check",
                 () =>
                   db.insert(downloads).values({
@@ -593,7 +610,7 @@ export function makeSearchOrchestration(input: {
                     downloadedBytes: 0,
                     errorMessage: null,
                     etaSeconds: null,
-                    externalState: status,
+                    externalState: "queued",
                     groupName: item.group ?? null,
                     infoHash: item.infoHash,
                     lastSyncedAt: nowIso(),
@@ -601,11 +618,51 @@ export function makeSearchOrchestration(input: {
                     progress: 0,
                     savePath: null,
                     speedBytes: 0,
-                    status,
+                    status: "queued",
                     totalBytes: item.sizeBytes,
                     torrentName: item.title,
-                  }),
-              );
+                  }).returning({ id: downloads.id }),
+              ));
+
+              if (insertResult._tag === "Left") {
+                const dbError = insertResult.left;
+                if (
+                  dbError instanceof DatabaseError &&
+                  dbError.isUniqueConstraint()
+                ) {
+                  continue;
+                }
+                return yield* dbError;
+              }
+
+              const insertedId = insertResult.right[0].id;
+              let status = "queued";
+
+              if (qbitConfig) {
+                const qbitResult = yield* Effect.either(
+                  qbitClient.addTorrentUrl(qbitConfig, item.magnet),
+                );
+
+                if (qbitResult._tag === "Left") {
+                  yield* tryDatabasePromise(
+                    "Cleanup failed download",
+                    () =>
+                      db.delete(downloads).where(eq(downloads.id, insertedId)),
+                  );
+                  return yield* wrapOperationsError("Failed to run RSS check")(
+                    qbitResult.left,
+                  );
+                }
+
+                status = "downloading";
+                yield* tryDatabasePromise(
+                  "Update download status",
+                  () =>
+                    db.update(downloads).set({ status, externalState: status })
+                      .where(eq(downloads.id, insertedId)),
+                );
+              }
+
               yield* tryDatabasePromise(
                 "Failed to run RSS check",
                 () =>

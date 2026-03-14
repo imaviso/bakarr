@@ -1,7 +1,9 @@
 # AGENTS
 
 Project status: pre-release alpha. Do not preserve backward compatibility unless
-explicitly requested.
+explicitly requested. App is created with single-user and local lan deployment
+in mind. Use Effect primitives as much as possible and the effect-ts skill +
+references. Use typescript-magician skill when encountering type-issues.
 
 ## Repo Overview
 

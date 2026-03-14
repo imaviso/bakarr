@@ -654,20 +654,11 @@ export function makeDownloadOrchestration(input: {
               requestedEpisode: input.episode_number,
             }),
           );
-          let status = "queued";
+          const infoHash =
+            (input.info_hash ?? parseMagnetInfoHash(input.magnet))
+              ?.toLowerCase() ?? null;
 
-          const qbitConfig = maybeQBitConfig(runtimeConfig);
-
-          if (qbitConfig && input.magnet) {
-            yield* qbitClient.addTorrentUrl(qbitConfig, input.magnet).pipe(
-              Effect.mapError(
-                wrapOperationsError("Failed to trigger download"),
-              ),
-            );
-            status = "downloading";
-          }
-
-          yield* tryDatabasePromise(
+          const insertResult = yield* Effect.either(tryDatabasePromise(
             "Failed to trigger download",
             () =>
               db.insert(downloads).values({
@@ -682,20 +673,59 @@ export function makeDownloadOrchestration(input: {
                 downloadedBytes: 0,
                 errorMessage: null,
                 etaSeconds: null,
-                externalState: status,
+                externalState: "queued",
                 groupName: input.group ?? null,
-                infoHash: (input.info_hash ?? parseMagnetInfoHash(input.magnet))
-                  ?.toLowerCase() ?? null,
+                infoHash,
                 lastSyncedAt: now,
                 magnet: input.magnet,
                 progress: 0,
                 savePath: null,
                 speedBytes: 0,
-                status,
+                status: "queued",
                 totalBytes: null,
                 torrentName: input.title,
-              }),
-          );
+              }).returning({ id: downloads.id }),
+          ));
+
+          if (insertResult._tag === "Left") {
+            const dbError = insertResult.left;
+            if (
+              dbError instanceof DatabaseError && dbError.isUniqueConstraint()
+            ) {
+              return yield* new DownloadConflictError({
+                message: "Download already exists",
+              });
+            }
+            return yield* dbError;
+          }
+
+          const insertedId = insertResult.right[0].id;
+          let status = "queued";
+          const qbitConfig = maybeQBitConfig(runtimeConfig);
+
+          if (qbitConfig && input.magnet) {
+            const qbitResult = yield* Effect.either(
+              qbitClient.addTorrentUrl(qbitConfig, input.magnet),
+            );
+
+            if (qbitResult._tag === "Left") {
+              yield* tryDatabasePromise(
+                "Cleanup failed download",
+                () => db.delete(downloads).where(eq(downloads.id, insertedId)),
+              );
+              return yield* wrapOperationsError("Failed to trigger download")(
+                qbitResult.left,
+              );
+            }
+
+            status = "downloading";
+            yield* tryDatabasePromise(
+              "Update download status",
+              () =>
+                db.update(downloads).set({ status, externalState: status })
+                  .where(eq(downloads.id, insertedId)),
+            );
+          }
           yield* tryDatabasePromise(
             "Failed to trigger download",
             () =>

@@ -117,6 +117,14 @@ const makeAuthService = Effect.gen(function* () {
             message: `Bootstrap user '${config.bootstrapUsername}' created`,
           }),
       );
+
+      // Print bootstrap credentials directly to stderr (not structured logs)
+      // to avoid leaking the password in log aggregation systems
+      console.error(
+        `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${config.bootstrapUsername}\n* Password: ${
+          Redacted.value(config.bootstrapPassword)
+        }\n* Please log in and change your password.\n*************************************************************\n`,
+      );
     },
   );
 
@@ -232,6 +240,7 @@ const makeAuthService = Effect.gen(function* () {
             .select({
               createdAt: users.createdAt,
               id: users.id,
+              mustChangePassword: users.mustChangePassword,
               updatedAt: users.updatedAt,
               username: users.username,
             })
@@ -259,6 +268,7 @@ const makeAuthService = Effect.gen(function* () {
         return {
           created_at: result[0].createdAt,
           id: result[0].id,
+          must_change_password: result[0].mustChangePassword,
           updated_at: result[0].updatedAt,
           username: result[0].username,
         };
@@ -426,6 +436,7 @@ function toAuthUser(row: typeof users.$inferSelect): AuthUser {
   return {
     created_at: row.createdAt,
     id: row.id,
+    must_change_password: row.mustChangePassword,
     updated_at: row.updatedAt,
     username: row.username,
   };

@@ -110,7 +110,6 @@ import {
   releaseProfilesQueryOptions,
   type VideoFile,
 } from "~/lib/api";
-import { useAuth } from "~/lib/auth";
 import { cn, copyToClipboard } from "~/lib/utils";
 
 const IdParamSchema = v.pipe(
@@ -137,7 +136,6 @@ function AnimeDetailsPage() {
   const params = Route.useParams();
   const animeId = () => v.parse(IdParamSchema, params().id);
   const navigate = useNavigate();
-  const { auth } = useAuth();
 
   const animeQuery = useQuery(() => animeDetailsQueryOptions(animeId()));
   const episodesQuery = useQuery(() => episodesQueryOptions(animeId()));
@@ -202,34 +200,32 @@ function AnimeDetailsPage() {
   );
   const isMonitored = () => animeQuery.data?.monitored ?? true;
 
-  const handlePlayInMpv = (episodeNumber: number) => {
-    const apiKey = auth().apiKey || "";
-    if (!apiKey) {
-      toast.error(
-        "Regenerate your API key in Settings before creating stream links.",
+  const handlePlayInMpv = async (episodeNumber: number) => {
+    try {
+      const response = await fetch(
+        `/api/anime/${animeId()}/stream-url?episodeNumber=${episodeNumber}`,
       );
-      return;
+      if (!response.ok) throw new Error("Failed to generate stream link");
+      const { url } = await response.json();
+      const origin = globalThis.location.origin;
+      globalThis.open(`mpv://${origin}${url}`, "_self");
+    } catch {
+      toast.error("Could not generate stream link.");
     }
-
-    const origin = globalThis.location.origin;
-    const streamUrl =
-      `${origin}/api/stream/${animeId()}/${episodeNumber}?token=${apiKey}`;
-    globalThis.open(`mpv://${streamUrl}`, "_self");
   };
 
   const handleCopyStreamLink = async (episodeNumber: number) => {
-    const apiKey = auth().apiKey || "";
-    if (!apiKey) {
-      toast.error(
-        "Regenerate your API key in Settings before copying stream links.",
+    try {
+      const response = await fetch(
+        `/api/anime/${animeId()}/stream-url?episodeNumber=${episodeNumber}`,
       );
-      return;
+      if (!response.ok) throw new Error("Failed to generate stream link");
+      const { url } = await response.json();
+      const origin = globalThis.location.origin;
+      await copyToClipboard(`${origin}${url}`, "Stream URL");
+    } catch {
+      toast.error("Could not copy stream link.");
     }
-
-    const origin = globalThis.location.origin;
-    const streamUrl =
-      `${origin}/api/stream/${animeId()}/${episodeNumber}?token=${apiKey}`;
-    await copyToClipboard(streamUrl, "Stream URL");
   };
 
   return (

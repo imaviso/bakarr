@@ -80,66 +80,94 @@ const fetchItems = Effect.fn("RssClient.fetchItems")(function* (url: string) {
       signal,
     }))().pipe(Effect.catchAll(() => Effect.succeed<Response | null>(null)));
 
-  if (!response || !response.ok) {
+  if (!response || !response.ok || !response.body) {
     return [];
   }
 
-  const text = yield* Effect.promise(() => response.text()).pipe(
-    Effect.catchAllCause(() => Effect.succeed("")),
-  );
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  const releases: ParsedRelease[] = [];
 
-  if (text.length === 0) {
-    return [];
-  }
+  yield* Effect.promise(async () => {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-  const items = Array.from(
-    text.matchAll(/<item>([\s\S]*?)<\/item>/g),
-    (match) => match[1],
-  );
+      buffer += value;
+      let startIndex = 0;
 
-  return items.map((item) => {
-    const title = decodeXml(extractTag(item, "title") ?? "Unknown release");
-    const link = decodeXml(extractTag(item, "link") ?? "");
-    const infoHash = decodeXml(
-      extractTag(item, "nyaa:infoHash") ?? randomHex(20),
-    );
-    const groupMatch = title.match(/^\[(.*?)\]/);
-    const size = decodeXml(extractTag(item, "nyaa:size") ?? "0 B");
-    const pubDate = decodeXml(extractTag(item, "pubDate") ?? nowIso());
-    const seeders =
-      Number.parseInt(decodeXml(extractTag(item, "nyaa:seeders") ?? "0"), 10) ||
-      0;
-    const leechers = Number.parseInt(
-      decodeXml(extractTag(item, "nyaa:leechers") ?? "0"),
-      10,
-    ) || 0;
-    const trusted = /^yes$/i.test(
-      decodeXml(extractTag(item, "nyaa:trusted") ?? "no"),
-    );
-    const remake = /^yes$/i.test(
-      decodeXml(extractTag(item, "nyaa:remake") ?? "no"),
-    );
-    const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${
-      encodeURIComponent(title)
-    }`;
+      while (true) {
+        const itemStart = buffer.indexOf("<item>", startIndex);
+        if (itemStart === -1) break;
 
-    return {
-      group: groupMatch?.[1],
-      infoHash,
-      isSeaDex: /seadex/i.test(title) || /subsplease/i.test(title),
-      leechers,
-      magnet,
-      pubDate,
-      remake,
-      resolution: parseResolution(title),
-      seeders,
-      size,
-      sizeBytes: parseSizeToBytes(size),
-      title,
-      trusted,
-      viewUrl: link.replace("/download/", "/view/").replace(/\.torrent$/i, ""),
-    } satisfies ParsedRelease;
+        const itemEnd = buffer.indexOf("</item>", itemStart);
+        if (itemEnd === -1) break;
+
+        const itemXml = buffer.slice(itemStart + 6, itemEnd);
+
+        const title = decodeXml(
+          extractTag(itemXml, "title") ?? "Unknown release",
+        );
+        const link = decodeXml(extractTag(itemXml, "link") ?? "");
+        const infoHash = decodeXml(
+          extractTag(itemXml, "nyaa:infoHash") ?? randomHex(20),
+        );
+        const groupMatch = title.match(/^\[(.*?)\]/);
+        const size = decodeXml(extractTag(itemXml, "nyaa:size") ?? "0 B");
+        const pubDate = decodeXml(extractTag(itemXml, "pubDate") ?? nowIso());
+        const seeders = Number.parseInt(
+          decodeXml(extractTag(itemXml, "nyaa:seeders") ?? "0"),
+          10,
+        ) ||
+          0;
+        const leechers = Number.parseInt(
+          decodeXml(extractTag(itemXml, "nyaa:leechers") ?? "0"),
+          10,
+        ) || 0;
+        const trusted = /^yes$/i.test(
+          decodeXml(extractTag(itemXml, "nyaa:trusted") ?? "no"),
+        );
+        const remake = /^yes$/i.test(
+          decodeXml(extractTag(itemXml, "nyaa:remake") ?? "no"),
+        );
+        const magnet = `magnet:?xt=urn:btih:${infoHash}&dn=${
+          encodeURIComponent(title)
+        }`;
+
+        releases.push({
+          group: groupMatch?.[1],
+          infoHash,
+          isSeaDex: /seadex/i.test(title) || /subsplease/i.test(title),
+          leechers,
+          magnet,
+          pubDate,
+          remake,
+          resolution: parseResolution(title),
+          seeders,
+          size,
+          sizeBytes: parseSizeToBytes(size),
+          title,
+          trusted,
+          viewUrl: link.replace("/download/", "/view/").replace(
+            /\.torrent$/i,
+            "",
+          ),
+        });
+
+        startIndex = itemEnd + 7;
+      }
+
+      buffer = buffer.slice(startIndex);
+      const nextItemStart = buffer.lastIndexOf("<item>");
+      if (nextItemStart === -1) {
+        buffer = buffer.length > 20 ? buffer.slice(-20) : buffer;
+      } else {
+        buffer = buffer.slice(nextItemStart);
+      }
+    }
   });
+
+  return releases;
 });
 
 export const RssClientLive = Layer.succeed(

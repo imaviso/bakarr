@@ -1,6 +1,9 @@
 import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import { Effect } from "effect";
+import { parseEpisodeNumber } from "../../lib/episode-parser.ts";
+
+export { parseEpisodeNumber };
 
 export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
   function* (
@@ -49,17 +52,6 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
     return entries.sort((left, right) => left.name.localeCompare(right.name));
   },
 );
-
-export function parseEpisodeNumber(path: string) {
-  const filename = path.split("/").pop() ?? path;
-  const match = filename.match(/(?:^|[^0-9])(\d{1,3})(?:[^0-9]|$)/);
-  if (!match) {
-    return undefined;
-  }
-
-  const value = Number(match[1]);
-  return Number.isInteger(value) && value > 0 ? value : undefined;
-}
 
 function isVideoFile(name: string) {
   return [".mkv", ".mp4", ".avi", ".mov", ".webm"].some((extension) =>
