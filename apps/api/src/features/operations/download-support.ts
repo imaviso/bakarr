@@ -66,7 +66,9 @@ export function importDownloadedFile(
       ),
     );
 
-    yield* fs.remove(destination).pipe(Effect.catchAll(() => Effect.void));
+    yield* fs.remove(destination).pipe(
+      Effect.catchTag("FileSystemError", () => Effect.void),
+    );
 
     const renameResult = yield* Effect.either(
       fs.rename(tempDestination, destination),
@@ -74,7 +76,7 @@ export function importDownloadedFile(
 
     if (renameResult._tag === "Left") {
       yield* fs.remove(tempDestination).pipe(
-        Effect.catchAll(() => Effect.void),
+        Effect.catchTag("FileSystemError", () => Effect.void),
       );
       return yield* Effect.fail(
         new ImportFileError(

@@ -1,5 +1,9 @@
 import { Effect, ParseResult, Schema } from "effect";
 
+import type { ApiEffect } from "../runtime.ts";
+
+const UnknownJsonSchema = Schema.parseJson(Schema.Unknown);
+
 export class RequestValidationError
   extends Schema.TaggedError<RequestValidationError>()(
     "RequestValidationError",
@@ -85,19 +89,27 @@ export function parseOptionalJsonBody<A, I>(
   label: string,
 ): Effect.Effect<A, RequestValidationError> {
   return Effect.tryPromise({
-    try: async () => {
-      const text = await c.req.text();
-      if (!text || text.trim() === "") {
-        return {};
-      }
-      return JSON.parse(text);
-    },
+    try: () => c.req.text(),
     catch: () =>
       RequestValidationError.make({
         message: `Malformed JSON for ${label}`,
         status: 400,
       }),
   }).pipe(
+    Effect.flatMap((text) => {
+      if (!text || text.trim() === "") {
+        return Effect.succeed({});
+      }
+
+      return Schema.decodeUnknown(UnknownJsonSchema)(text).pipe(
+        Effect.mapError(() =>
+          RequestValidationError.make({
+            message: `Malformed JSON for ${label}`,
+            status: 400,
+          })
+        ),
+      );
+    }),
     Effect.flatMap((json) =>
       Schema.decodeUnknown(schema)(json).pipe(
         Effect.mapError((error) =>
@@ -139,51 +151,51 @@ export function parseQuery<A, I>(
   );
 }
 
-export function withJsonBody<A, I, B, E, R>(
+export function withJsonBody<A, I, B, E>(
   c: { req: { json: () => Promise<unknown> } },
   schema: Schema.Schema<A, I>,
   label: string,
-  effect: (body: A) => Effect.Effect<B, E, R>,
-): Effect.Effect<B, E | RequestValidationError, R> {
+  effect: (body: A) => ApiEffect<B, E>,
+): ApiEffect<B, E | RequestValidationError> {
   return parseJsonBody(c, schema, label).pipe(Effect.flatMap(effect));
 }
 
-export function withOptionalJsonBody<A, I, B, E, R>(
+export function withOptionalJsonBody<A, I, B, E>(
   c: { req: { text: () => Promise<string> } },
   schema: Schema.Schema<A, I>,
   label: string,
-  effect: (body: A) => Effect.Effect<B, E, R>,
-): Effect.Effect<B, E | RequestValidationError, R> {
+  effect: (body: A) => ApiEffect<B, E>,
+): ApiEffect<B, E | RequestValidationError> {
   return parseOptionalJsonBody(c, schema, label).pipe(Effect.flatMap(effect));
 }
 
-export function withParams<A, I, B, E, R>(
+export function withParams<A, I, B, E>(
   c: { req: { param: () => Record<string, string> } },
   schema: Schema.Schema<A, I>,
   label: string,
-  effect: (params: A) => Effect.Effect<B, E, R>,
-): Effect.Effect<B, E | RequestValidationError, R> {
+  effect: (params: A) => ApiEffect<B, E>,
+): ApiEffect<B, E | RequestValidationError> {
   return parseParams(c, schema, label).pipe(Effect.flatMap(effect));
 }
 
-export function withQuery<A, I, B, E, R>(
+export function withQuery<A, I, B, E>(
   c: { req: { url: string } },
   schema: Schema.Schema<A, I>,
   label: string,
-  effect: (query: A) => Effect.Effect<B, E, R>,
-): Effect.Effect<B, E | RequestValidationError, R> {
+  effect: (query: A) => ApiEffect<B, E>,
+): ApiEffect<B, E | RequestValidationError> {
   return parseQuery(c, schema, label).pipe(Effect.flatMap(effect));
 }
 
-export function withParamsAndBody<PA, PI, BA, BI, B, E, R>(
+export function withParamsAndBody<PA, PI, BA, BI, B, E>(
   c: {
     req: { json: () => Promise<unknown>; param: () => Record<string, string> };
   },
   paramsSchema: Schema.Schema<PA, PI>,
   bodySchema: Schema.Schema<BA, BI>,
   label: string,
-  effect: (params: PA, body: BA) => Effect.Effect<B, E, R>,
-): Effect.Effect<B, E | RequestValidationError, R> {
+  effect: (params: PA, body: BA) => ApiEffect<B, E>,
+): ApiEffect<B, E | RequestValidationError> {
   return Effect.all({
     body: parseJsonBody(c, bodySchema, label),
     params: parseParams(c, paramsSchema, label),

@@ -907,12 +907,15 @@ export function makeSearchOrchestration(input: {
 
     if (animeRow.rootFolder !== folderPath) {
       const previousEntries = yield* fs.readDir(animeRow.rootFolder).pipe(
-        Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+        Effect.catchTag(
+          "FileSystemError",
+          () => Effect.succeed<Deno.DirEntry[]>([]),
+        ),
       );
 
       if (previousEntries.length === 0) {
         yield* fs.remove(animeRow.rootFolder, { recursive: true }).pipe(
-          Effect.catchAll(() => Effect.void),
+          Effect.catchTag("FileSystemError", () => Effect.void),
         );
       }
     }

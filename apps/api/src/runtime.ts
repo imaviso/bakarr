@@ -1,3 +1,4 @@
+import { FetchHttpClient } from "@effect/platform";
 import { Effect, Layer, ManagedRuntime } from "effect";
 
 import { AppRuntime } from "./app-runtime.ts";
@@ -22,21 +23,28 @@ import { RuntimeLoggerLayer } from "./lib/logging.ts";
 export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
   const configLayer = AppConfig.layer(overrides);
   const runtimeLayer = AppRuntime.layer();
+  const httpClientLayer = FetchHttpClient.layer;
   const databaseLayer = DatabaseLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
-  const eventPublisherLayer = EventPublisherLive.pipe(Layer.provide(eventBusLayer));
+  const eventPublisherLayer = EventPublisherLive.pipe(
+    Layer.provide(eventBusLayer),
+  );
   const backgroundMonitorLayer = BackgroundWorkerMonitorLive;
+  const externalClientsLayer = Layer.mergeAll(
+    AniListClientLive,
+    QBitTorrentClientLive,
+    RssClientLive,
+  ).pipe(Layer.provide(httpClientLayer));
   const platformLayer = Layer.mergeAll(
     configLayer,
     runtimeLayer,
     RuntimeLoggerLayer,
+    httpClientLayer,
     databaseLayer,
     eventBusLayer,
     eventPublisherLayer,
     backgroundMonitorLayer,
-    AniListClientLive,
-    QBitTorrentClientLive,
-    RssClientLive,
+    externalClientsLayer,
     FileSystemLive,
   );
   const operationsLayer = OperationsServiceLive.pipe(
@@ -69,9 +77,17 @@ export function makeApiRuntime(overrides: Partial<AppConfigShape> = {}) {
 
 export type ApiRuntime = ReturnType<typeof makeApiRuntime>;
 
-export function runApi<A, E, R>(
+export type ApiLayer = ReturnType<typeof makeApiLayer>;
+
+export type ApiContext = ManagedRuntime.ManagedRuntime.Context<ApiRuntime>;
+
+export type ApiLayerError = ManagedRuntime.ManagedRuntime.Error<ApiRuntime>;
+
+export type ApiEffect<A, E = never> = Effect.Effect<A, E, ApiContext>;
+
+export function runApi<A, E>(
   runtime: ApiRuntime,
-  effect: Effect.Effect<A, E, R>,
+  effect: ApiEffect<A, E>,
 ): Promise<A> {
-  return runtime.runPromise(effect as Effect.Effect<A, E, never>);
+  return runtime.runPromise(effect);
 }

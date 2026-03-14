@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { HttpClient } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
 import type {
@@ -125,6 +126,7 @@ const makeAnimeService = Effect.gen(function* () {
   const eventPublisher = yield* EventPublisher;
   const aniList = yield* AniListClient;
   const fs = yield* FileSystem;
+  const httpClient = yield* HttpClient.HttpClient;
 
   const addAnime = Effect.fn("AnimeService.addAnime")(function* (
     input: AddAnimeInput,
@@ -174,6 +176,7 @@ const makeAnimeService = Effect.gen(function* () {
     );
     const cachedImages = yield* cacheAnimeMetadataImages(
       fs,
+      httpClient,
       imagesPath,
       animeMetadata.id,
       {
@@ -239,7 +242,9 @@ const makeAnimeService = Effect.gen(function* () {
         }),
     );
 
-    yield* eventPublisher.publishInfo(`Added ${animeRow.titleRomaji} to library`);
+    yield* eventPublisher.publishInfo(
+      `Added ${animeRow.titleRomaji} to library`,
+    );
 
     const persistedEpisodeRows = yield* tryDatabasePromise(
       "Failed to add anime",
@@ -425,7 +430,9 @@ const makeAnimeService = Effect.gen(function* () {
           });
         }
 
-        yield* fs.remove(filePath).pipe(Effect.catchAll(() => Effect.void));
+        yield* fs.remove(filePath).pipe(
+          Effect.catchTag("FileSystemError", () => Effect.void),
+        );
       }
 
       yield* tryAnimePromise(

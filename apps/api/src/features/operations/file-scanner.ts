@@ -35,7 +35,8 @@ export function scanVideoFilesStream(
       }
 
       const entries = yield* fs.readDir(current).pipe(
-        Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+        Effect.catchTag("FileSystemError", () =>
+          Effect.succeed<Deno.DirEntry[]>([])),
       );
       const files: ScannedVideoFile[] = [];
 
@@ -52,12 +53,13 @@ export function scanVideoFilesStream(
         }
       }
 
-      return Option.some([
-        Chunk.fromIterable(files),
-        nextStack,
-      ] as const);
-    })
-  ).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
+      return Option.some(
+        [
+          Chunk.fromIterable(files),
+          nextStack,
+        ] as const,
+      );
+    })).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
 }
 
 function isVideoFile(name: string) {

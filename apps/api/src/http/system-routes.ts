@@ -1,12 +1,16 @@
-import { Effect, Fiber, Metric, Schema, Stream } from "effect";
+import { Clock, Effect, Metric, Schema, Stream } from "effect";
 import type { Hono } from "hono";
 
 import type {
   DownloadStatus,
   HealthStatus,
   NotificationEvent,
+  SystemLog,
 } from "../../../../packages/shared/src/index.ts";
-import { NotificationEventSchema } from "../../../../packages/shared/src/index.ts";
+import {
+  NotificationEventSchema,
+  SystemLogSchema,
+} from "../../../../packages/shared/src/index.ts";
 import { EventBus } from "../features/events/event-bus.ts";
 import { FileSystem } from "../lib/filesystem.ts";
 import {
@@ -46,6 +50,8 @@ import {
 
 const NotificationEventJsonSchema = Schema.parseJson(NotificationEventSchema);
 const encodeNotificationEvent = Schema.encodeSync(NotificationEventJsonSchema);
+const SystemLogsJsonSchema = Schema.parseJson(Schema.Array(SystemLogSchema));
+const encodeSystemLogs = Schema.encodeSync(SystemLogsJsonSchema);
 
 export function registerSystemRoutes(
   app: Hono<{ Variables: AppVariables }>,
@@ -68,14 +74,13 @@ export function registerSystemRoutes(
             ready: true,
           });
         }).pipe(
-          Effect.catchAll(() =>
+          Effect.catchTag("DatabaseError", () =>
             Effect.succeed(
               c.json({
                 checks: { database: false },
                 ready: false,
               }, 503),
-            )
-          ),
+            )),
         ),
         (response) =>
           response,
@@ -402,12 +407,15 @@ export function registerSystemRoutes(
       });
     }
 
-    return new Response(JSON.stringify(logs.logs, null, 2), {
-      headers: {
-        "Content-Disposition": 'attachment; filename="bakarr-logs.json"',
-        "Content-Type": "application/json; charset=utf-8",
+    return new Response(
+      encodeSystemLogs([...logs.logs] satisfies SystemLog[]),
+      {
+        headers: {
+          "Content-Disposition": 'attachment; filename="bakarr-logs.json"',
+          "Content-Type": "application/json; charset=utf-8",
+        },
       },
-    });
+    );
   });
 
   app.post("/api/system/tasks/scan", (c) =>
@@ -438,14 +446,17 @@ export function registerSystemRoutes(
         const eventBus = yield* EventBus;
         return { downloads, eventBus };
       }),
-      ({ downloads, eventBus }) =>
-        new Response(createEventsResponseBody(runEffect, downloads, eventBus), {
-          headers: {
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
-            "Content-Type": "text/event-stream",
+      async ({ downloads, eventBus }) =>
+        new Response(
+          await runEffect(createEventsResponseBody(downloads, eventBus)),
+          {
+            headers: {
+              "Cache-Control": "no-cache",
+              Connection: "keep-alive",
+              "Content-Type": "text/event-stream",
+            },
           },
-        }),
+        ),
     );
   });
 
@@ -503,29 +514,16 @@ export function registerSystemRoutes(
 }
 
 function createEventsResponseBody(
-  runEffect: RunEffect,
   downloads: DownloadStatus[],
   eventBus: typeof EventBus.Service,
 ) {
-  let fiber: Fiber.RuntimeFiber<void, never> | undefined;
-
-  const stopStream = () =>
-    fiber
-      ? runEffect(Fiber.interrupt(fiber).pipe(Effect.asVoid)).catch(() => undefined)
-      : Promise.resolve();
-
-  return new ReadableStream<Uint8Array>({
-    async start(controller) {
-      fiber = await runEffect(forkEventsStream(controller, downloads, eventBus));
-    },
-    cancel() {
-      return stopStream();
-    },
-  });
+  return Effect.map(
+    buildEventsStream(downloads, eventBus),
+    Stream.toReadableStream<Uint8Array>(),
+  );
 }
 
-const forkEventsStream = Effect.fn("Http.forkEventsStream")(function* (
-  controller: ReadableStreamDefaultController<Uint8Array>,
+const buildEventsStream = Effect.fn("Http.buildEventsStream")(function* (
   downloads: DownloadStatus[],
   eventBus: typeof EventBus.Service,
 ) {
@@ -546,31 +544,16 @@ const forkEventsStream = Effect.fn("Http.forkEventsStream")(function* (
       Stream.map(encodeNotificationSse),
     ),
     Stream.tick("15 seconds").pipe(
-      Stream.map(() => encodeSse(`: keep-alive ${Date.now()}`)),
+      Stream.mapEffect(() =>
+        Clock.currentTimeMillis.pipe(
+          Effect.map((now) => encodeSse(`: keep-alive ${now}`)),
+        )
+      ),
     ),
   ).pipe(Stream.withSpan("http.events.stream"));
 
-  return yield* Stream.concat(initialEvents, liveEvents).pipe(
-    Stream.runForEach((chunk) =>
-      Effect.sync(() => {
-        try {
-          controller.enqueue(chunk);
-        } catch {
-          // Ignore cancelled streams.
-        }
-      })
-    ),
-    Effect.ensuring(subscription.close),
-    Effect.ensuring(
-      Effect.sync(() => {
-        try {
-          controller.close();
-        } catch {
-          // Ignore cancelled streams.
-        }
-      }),
-    ),
-    Effect.forkDaemon,
+  return Stream.concat(initialEvents, liveEvents).pipe(
+    Stream.ensuring(subscription.close),
   );
 });
 

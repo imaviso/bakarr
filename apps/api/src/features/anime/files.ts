@@ -20,7 +20,10 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
       }
 
       const dirEntries = yield* fs.readDir(current).pipe(
-        Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+        Effect.catchTag(
+          "FileSystemError",
+          () => Effect.succeed<Deno.DirEntry[]>([]),
+        ),
       );
 
       for (const entry of dirEntries) {
@@ -36,8 +39,9 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
         }
 
         const stats = yield* fs.stat(fullPath).pipe(
-          Effect.catchAll(() =>
-            Effect.succeed({ size: 0 } as { size: number })
+          Effect.catchTag(
+            "FileSystemError",
+            () => Effect.succeed({ size: 0 } as { size: number }),
           ),
         );
         entries.push({

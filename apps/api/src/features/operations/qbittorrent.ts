@@ -1,6 +1,14 @@
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+} from "@effect/platform";
 import { Context, Effect, Either, Layer, Schema } from "effect";
 
-import { ExternalCallError, tryExternal } from "../../lib/effect-retry.ts";
+import {
+  ExternalCallError,
+  tryExternalEffect,
+} from "../../lib/effect-retry.ts";
 
 export interface QBitConfig {
   readonly baseUrl: string;
@@ -80,152 +88,152 @@ const QBitTorrentSchema = Schema.Struct({
 
 const QBitTorrentArraySchema = Schema.Array(QBitTorrentSchema);
 
-const addTorrentUrl = Effect.fn("QBitTorrentClient.addTorrentUrl")(
-  function* (config: QBitConfig, url: string) {
-    const cookie = yield* login(config);
-    const body = new URLSearchParams();
-
-    body.set("urls", url);
-
-    if (config.category) {
-      body.set("category", config.category);
-    }
-
-    const response = yield* execute(
-      config,
-      "qbit.addTorrentUrl",
-      "/api/v2/torrents/add",
-      {
-        body,
-        headers: {
-          Cookie: cookie,
-          Referer: config.baseUrl,
-        },
-        method: "POST",
-      },
-    );
-
-    yield* ensureOk(
-      response,
-      `qBittorrent add failed with status ${response.status}`,
-    );
-  },
-);
-
-const listTorrents = Effect.fn("QBitTorrentClient.listTorrents")(
-  function* (config: QBitConfig) {
-    const cookie = yield* login(config);
-    const response = yield* execute(
-      config,
-      "qbit.listTorrents",
-      "/api/v2/torrents/info",
-      {
-        headers: {
-          Cookie: cookie,
-          Referer: config.baseUrl,
-        },
-      },
-    );
-
-    yield* ensureOk(
-      response,
-      `qBittorrent list failed with status ${response.status}`,
-    );
-
-    const payload = yield* decodeJson(
-      response,
-      QBitTorrentArraySchema,
-      "qbit.listTorrents.json",
-    );
-    return payload;
-  },
-);
-
-const pauseTorrent = Effect.fn("QBitTorrentClient.pauseTorrent")(
-  function* (config: QBitConfig, hash: string) {
-    yield* postHashesAction(config, "/api/v2/torrents/pause", hash);
-  },
-);
-
-const resumeTorrent = Effect.fn("QBitTorrentClient.resumeTorrent")(
-  function* (config: QBitConfig, hash: string) {
-    yield* postHashesAction(config, "/api/v2/torrents/resume", hash);
-  },
-);
-
-const deleteTorrent = Effect.fn("QBitTorrentClient.deleteTorrent")(
-  function* (config: QBitConfig, hash: string, deleteFiles: boolean) {
-    const cookie = yield* login(config);
-    const body = new URLSearchParams();
-    body.set("hashes", hash);
-    body.set("deleteFiles", deleteFiles ? "true" : "false");
-
-    const response = yield* execute(
-      config,
-      "qbit.deleteTorrent",
-      "/api/v2/torrents/delete",
-      {
-        body,
-        headers: {
-          Cookie: cookie,
-          Referer: config.baseUrl,
-        },
-        method: "POST",
-      },
-    );
-
-    yield* ensureOk(
-      response,
-      `qBittorrent delete failed with status ${response.status}`,
-    );
-  },
-);
-
-export const QBitTorrentClientLive = Layer.succeed(
+export const QBitTorrentClientLive = Layer.effect(
   QBitTorrentClient,
-  {
-    addTorrentUrl,
-    deleteTorrent,
-    listTorrents,
-    pauseTorrent,
-    resumeTorrent,
-  } satisfies QBitTorrentClientShape,
+  Effect.gen(function* () {
+    const client = yield* HttpClient.HttpClient;
+
+    const addTorrentUrl = Effect.fn("QBitTorrentClient.addTorrentUrl")(
+      function* (config: QBitConfig, url: string) {
+        const cookie = yield* login(client, config);
+        const response = yield* execute(
+          client,
+          "qbit.addTorrentUrl",
+          authorizedRequest(
+            config,
+            cookie,
+            HttpClientRequest.post(
+              resolveUrl(config.baseUrl, "/api/v2/torrents/add"),
+            ).pipe(
+              HttpClientRequest.bodyUrlParams({
+                category: config.category,
+                urls: url,
+              }),
+            ),
+          ),
+        );
+
+        yield* ensureOk(
+          response,
+          `qBittorrent add failed with status ${response.status}`,
+        );
+      },
+    );
+
+    const listTorrents = Effect.fn("QBitTorrentClient.listTorrents")(
+      function* (config: QBitConfig) {
+        const cookie = yield* login(client, config);
+        const response = yield* execute(
+          client,
+          "qbit.listTorrents",
+          authorizedRequest(
+            config,
+            cookie,
+            HttpClientRequest.get(
+              resolveUrl(config.baseUrl, "/api/v2/torrents/info"),
+            ),
+          ),
+        );
+
+        yield* ensureOk(
+          response,
+          `qBittorrent list failed with status ${response.status}`,
+        );
+
+        return yield* decodeJson(
+          response,
+          QBitTorrentArraySchema,
+          "qbit.listTorrents.json",
+        );
+      },
+    );
+
+    const pauseTorrent = Effect.fn("QBitTorrentClient.pauseTorrent")(
+      function* (config: QBitConfig, hash: string) {
+        yield* postHashesAction(client, config, "/api/v2/torrents/pause", hash);
+      },
+    );
+
+    const resumeTorrent = Effect.fn("QBitTorrentClient.resumeTorrent")(
+      function* (config: QBitConfig, hash: string) {
+        yield* postHashesAction(
+          client,
+          config,
+          "/api/v2/torrents/resume",
+          hash,
+        );
+      },
+    );
+
+    const deleteTorrent = Effect.fn("QBitTorrentClient.deleteTorrent")(
+      function* (config: QBitConfig, hash: string, deleteFiles: boolean) {
+        const cookie = yield* login(client, config);
+        const response = yield* execute(
+          client,
+          "qbit.deleteTorrent",
+          authorizedRequest(
+            config,
+            cookie,
+            HttpClientRequest.post(
+              resolveUrl(config.baseUrl, "/api/v2/torrents/delete"),
+            ).pipe(
+              HttpClientRequest.bodyUrlParams({
+                deleteFiles: deleteFiles ? "true" : "false",
+                hashes: hash,
+              }),
+            ),
+          ),
+        );
+
+        yield* ensureOk(
+          response,
+          `qBittorrent delete failed with status ${response.status}`,
+        );
+      },
+    );
+
+    return {
+      addTorrentUrl,
+      deleteTorrent,
+      listTorrents,
+      pauseTorrent,
+      resumeTorrent,
+    } satisfies QBitTorrentClientShape;
+  }),
 );
 
 const login = Effect.fn("QBitTorrentClient.login")(
-  function* (config: QBitConfig) {
-    const body = new URLSearchParams();
-    body.set("username", config.username);
-    body.set("password", config.password);
-
+  function* (client: HttpClient.HttpClient, config: QBitConfig) {
     const response = yield* execute(
-      config,
+      client,
       "qbit.login",
-      "/api/v2/auth/login",
-      {
-        body,
-        headers: {
-          Referer: config.baseUrl,
-        },
-        method: "POST",
-      },
+      HttpClientRequest.post(resolveUrl(config.baseUrl, "/api/v2/auth/login"))
+        .pipe(
+          HttpClientRequest.setHeader("Referer", config.baseUrl),
+          HttpClientRequest.bodyUrlParams({
+            password: config.password,
+            username: config.username,
+          }),
+        ),
     );
-    const text = yield* Effect.tryPromise({
-      try: () => response.text(),
-      catch: (cause) =>
+    const text = yield* response.text.pipe(
+      Effect.mapError((cause) =>
         QBitTorrentClientError.make({
           cause,
           message: "Failed to read qBittorrent login response",
-        }),
-    });
+        })
+      ),
+    );
 
-    if (!response.ok || !text.includes("Ok")) {
+    if (
+      response.status < 200 || response.status >= 300 || !text.includes("Ok")
+    ) {
       return yield* QBitTorrentClientError.make({
         message: "qBittorrent authentication failed",
       });
     }
 
-    const cookie = response.headers.get("set-cookie");
+    const cookie = response.headers["set-cookie"];
 
     if (!cookie) {
       return yield* QBitTorrentClientError.make({
@@ -238,19 +246,24 @@ const login = Effect.fn("QBitTorrentClient.login")(
 );
 
 const postHashesAction = Effect.fn("QBitTorrentClient.postHashesAction")(
-  function* (config: QBitConfig, path: string, hash: string) {
-    const cookie = yield* login(config);
-    const body = new URLSearchParams();
-    body.set("hashes", hash);
-
-    const response = yield* execute(config, "qbit.postHashesAction", path, {
-      body,
-      headers: {
-        Cookie: cookie,
-        Referer: config.baseUrl,
-      },
-      method: "POST",
-    });
+  function* (
+    client: HttpClient.HttpClient,
+    config: QBitConfig,
+    path: string,
+    hash: string,
+  ) {
+    const cookie = yield* login(client, config);
+    const response = yield* execute(
+      client,
+      "qbit.postHashesAction",
+      authorizedRequest(
+        config,
+        cookie,
+        HttpClientRequest.post(resolveUrl(config.baseUrl, path)).pipe(
+          HttpClientRequest.bodyUrlParams({ hashes: hash }),
+        ),
+      ),
+    );
 
     yield* ensureOk(
       response,
@@ -260,49 +273,36 @@ const postHashesAction = Effect.fn("QBitTorrentClient.postHashesAction")(
 );
 
 function execute(
-  config: QBitConfig,
+  client: HttpClient.HttpClient,
   operation: string,
-  path: string,
-  init: RequestInit,
+  request: HttpClientRequest.HttpClientRequest,
 ) {
-  return tryExternal(
-    operation,
-    (signal) =>
-      fetch(resolveUrl(config.baseUrl, path), {
-        ...init,
-        signal,
-      }),
-  )().pipe(
-    Effect.mapError((cause) =>
-      cause instanceof ExternalCallError ? cause : ExternalCallError.make({
-        cause,
-        message: `External call failed: ${operation}`,
-        operation,
-      })
-    ),
-  );
+  return tryExternalEffect(operation, client.execute(request))();
 }
 
-function ensureOk(response: Response, message: string) {
-  return response.ok
+function ensureOk(
+  response: HttpClientResponse.HttpClientResponse,
+  message: string,
+) {
+  return response.status >= 200 && response.status < 300
     ? Effect.void
     : Effect.fail(QBitTorrentClientError.make({ message }));
 }
 
 function decodeJson<A, I>(
-  response: Response,
+  response: HttpClientResponse.HttpClientResponse,
   schema: Schema.Schema<A, I>,
   operation: string,
 ) {
   return Effect.gen(function* () {
-    const payload = yield* Effect.tryPromise({
-      try: () => response.json(),
-      catch: (cause) =>
+    const payload = yield* response.json.pipe(
+      Effect.mapError((cause) =>
         QBitTorrentClientError.make({
           cause,
           message: "Failed to decode qBittorrent JSON response",
-        }),
-    });
+        })
+      ),
+    );
     const decoded = Schema.decodeUnknownEither(schema)(payload);
 
     if (Either.isLeft(decoded)) {
@@ -318,4 +318,17 @@ function decodeJson<A, I>(
 
 function resolveUrl(baseUrl: string, path: string) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
+}
+
+function authorizedRequest(
+  config: QBitConfig,
+  cookie: string,
+  request: HttpClientRequest.HttpClientRequest,
+) {
+  return request.pipe(
+    HttpClientRequest.setHeaders({
+      Cookie: cookie,
+      Referer: config.baseUrl,
+    }),
+  );
 }

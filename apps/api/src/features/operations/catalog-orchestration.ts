@@ -116,7 +116,7 @@ export function makeCatalogOrchestration(input: {
             ).pipe(
               Effect.catchAll((error) =>
                 fs.rename(item.new_path, item.current_path).pipe(
-                  Effect.catchAll(() => Effect.void),
+                  Effect.catchTag("FileSystemError", () => Effect.void),
                   Effect.zipRight(Effect.fail(error)),
                 )
               ),
@@ -234,7 +234,7 @@ export function makeCatalogOrchestration(input: {
             (importMode === "move"
               ? fs.rename(destination, resolvedSource)
               : fs.remove(destination)).pipe(
-                Effect.catchAll(() => Effect.void),
+                Effect.catchTag("FileSystemError", () => Effect.void),
                 Effect.zipRight(Effect.fail(error)),
               )
           ),

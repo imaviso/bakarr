@@ -8,20 +8,22 @@ export function browsePath(fs: FileSystemShape, path: string) {
     > = [];
 
     const dirEntries = yield* fs.readDir(path).pipe(
-      Effect.catchAll(() => Effect.succeed<Deno.DirEntry[]>([])),
+      Effect.catchTag(
+        "FileSystemError",
+        () => Effect.succeed<Deno.DirEntry[]>([]),
+      ),
     );
 
     for (const entry of dirEntries) {
       const fullPath = `${path.replace(/\/$/, "")}/${entry.name}`;
       const stats = yield* fs.stat(fullPath).pipe(
-        Effect.catchAll(() =>
+        Effect.catchTag("FileSystemError", () =>
           Effect.succeed(
             {
               isFile: false,
               isDirectory: entry.isDirectory,
             } as unknown as Deno.FileInfo,
-          )
-        ),
+          )),
       );
       entries.push({
         is_directory: entry.isDirectory,

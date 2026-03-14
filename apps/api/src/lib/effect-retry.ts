@@ -63,6 +63,47 @@ export const tryExternal = <A>(
     }),
   );
 
+export const tryExternalEffect = <A, E, R>(
+  operation: string,
+  effect: Effect.Effect<A, E, R>,
+) =>
+  Effect.fn(`external.${operation}`)(
+    function* () {
+      const startedAt = performance.now();
+
+      const result = yield* effect.pipe(
+        Effect.timeout("10 seconds"),
+        Effect.retry(retryPolicy),
+        Effect.scoped,
+        Effect.mapError((cause) => toExternalCallError(operation, cause)),
+        Effect.tapBoth({
+          onSuccess: () =>
+            Effect.logInfo("external call completed").pipe(
+              Effect.annotateLogs({
+                durationMs: durationMsSince(startedAt),
+              }),
+            ),
+          onFailure: (error) =>
+            Effect.logError("external call failed").pipe(
+              Effect.annotateLogs(
+                compactLogAnnotations({
+                  durationMs: durationMsSince(startedAt),
+                  ...errorLogAnnotations(error),
+                }),
+              ),
+            ),
+        }),
+        Effect.withLogSpan(operation),
+      );
+
+      return result;
+    },
+    Effect.annotateLogs({
+      component: "external",
+      externalOperation: operation,
+    }),
+  );
+
 function toExternalCallError(operation: string, cause: unknown) {
   return cause instanceof ExternalCallError ? cause : ExternalCallError.make({
     cause,

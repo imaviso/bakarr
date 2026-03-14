@@ -99,15 +99,28 @@ export function makeDownloadOrchestration(input: {
       infoHash,
       shouldDeleteImportedData(config),
     ).pipe(
-      Effect.catchAll((cause) =>
-        Effect.logWarning("Failed to delete imported torrent from qBittorrent")
-          .pipe(
-            Effect.annotateLogs({
-              infoHash,
-              error: String(cause),
-            }),
+      Effect.catchTags({
+        ExternalCallError: (cause) =>
+          Effect.logWarning(
+            "Failed to delete imported torrent from qBittorrent",
           )
-      ),
+            .pipe(
+              Effect.annotateLogs({
+                infoHash,
+                error: String(cause),
+              }),
+            ),
+        QBitTorrentClientError: (cause) =>
+          Effect.logWarning(
+            "Failed to delete imported torrent from qBittorrent",
+          )
+            .pipe(
+              Effect.annotateLogs({
+                infoHash,
+                error: String(cause),
+              }),
+            ),
+      }),
     );
   });
 
@@ -176,7 +189,10 @@ export function makeDownloadOrchestration(input: {
 
     if (row.isBatch) {
       const coveredEpisodes = parseCoveredEpisodes(row.coveredEpisodes);
-      const batchPaths = yield* resolveBatchContentPaths(fs, resolvedContentRoot);
+      const batchPaths = yield* resolveBatchContentPaths(
+        fs,
+        resolvedContentRoot,
+      );
 
       if (batchPaths.length > 0) {
         for (const path of batchPaths) {
@@ -341,7 +357,12 @@ export function makeDownloadOrchestration(input: {
       const config = yield* tryDatabasePromise(
         "Failed to sync downloads with qBittorrent",
         () => loadRuntimeConfig(db),
-      ).pipe(Effect.catchAll(() => Effect.succeed<Config | null>(null)));
+      ).pipe(
+        Effect.catchTag(
+          "DatabaseError",
+          () => Effect.succeed<Config | null>(null),
+        ),
+      );
       const qbitConfig = config ? maybeQBitConfig(config) : null;
 
       if (!qbitConfig) {
@@ -349,7 +370,11 @@ export function makeDownloadOrchestration(input: {
       }
 
       const torrents = yield* qbitClient.listTorrents(qbitConfig).pipe(
-        Effect.catchAll(() => Effect.succeed<readonly QBitTorrent[]>([])),
+        Effect.catchTags({
+          ExternalCallError: () => Effect.succeed<readonly QBitTorrent[]>([]),
+          QBitTorrentClientError: () =>
+            Effect.succeed<readonly QBitTorrent[]>([]),
+        }),
       );
 
       for (const torrent of torrents) {

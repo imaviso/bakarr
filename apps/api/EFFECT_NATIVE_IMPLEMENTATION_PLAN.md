@@ -643,12 +643,14 @@ Completed:
   2. filesystem and streaming boundaries
 -
   3. service/layer graph cleanup
+-
+  4. final audit of residual HTTP/parsing boundaries
 
 Next recommended focus:
 
-1. dedicated external-call observability polish
-2. optional remaining schema/domain enhancements where new features need them
-3. Effect-native testing
+1. optional remaining schema/domain enhancements where new features need them
+2. Effect-native testing
+3. optional observability follow-up for external-call metrics/OTLP decisions
 
 ## Verification Checklist
 
@@ -675,3 +677,49 @@ Next recommended focus:
 - observability covers request, job, and external-call flows
 - tests cover scheduling, retries, and service orchestration with Deno-based
   Effect test utilities
+
+## Recent Progress Notes
+
+- image caching now uses `@effect/platform` `HttpClient` instead of raw
+  `fetch(...)` in `apps/api/src/features/anime/image-cache.ts`, which keeps the
+  download boundary Effect-native and runtime-provided
+- `apps/api/src/runtime.ts` now provides `FetchHttpClient.layer` once at the app
+  boundary, matching the broader rule of providing dependencies centrally
+- `apps/api/src/features/anime/service.ts` now threads the provided `HttpClient`
+  into image caching instead of relying on ambient globals
+- `apps/api/src/features/anime/image-cache_test.ts` adds a focused test proving
+  cached image downloads can run through a provided `HttpClient`, and filesystem
+  test doubles were updated across operations tests to reflect the scoped
+  `openFile(...)` API and widened `string | URL` paths
+- `apps/api/src/features/anime/anilist.ts` and
+  `apps/api/src/features/operations/qbittorrent.ts` now use `@effect/platform`
+  request/response APIs instead of raw `fetch(...)`, while preserving existing
+  fallback and error behavior through shared `tryExternalEffect(...)`
+- focused client tests now cover the runtime-provided HTTP client wiring in
+  `apps/api/src/features/anime/anilist_test.ts` and
+  `apps/api/src/features/operations/qbittorrent_test.ts`
+- `apps/api/src/features/operations/rss-client.ts` now uses `@effect/platform`
+  `HttpClient` and response streams instead of raw `fetch(...)`, which removes
+  the last known production raw HTTP boundary in `apps/api/src`
+- `apps/api/src/runtime.ts` now provides `RssClientLive` through the same
+  centralized `FetchHttpClient.layer` wiring used by other external clients
+- `apps/api/src/features/operations/rss-client_test.ts` adds focused coverage
+  proving RSS fetches use a provided `HttpClient` rather than ambient global
+  `fetch`
+- `apps/api/src/http/route-validation.ts` no longer uses raw `JSON.parse(...)`
+  for optional request bodies; it now decodes JSON text through
+  `Schema.parseJson(Schema.Unknown)` before applying request schemas
+- `apps/api/src/http/system-routes.ts` now exports system logs JSON through a
+  schema-backed encoder, keeping that HTTP boundary consistent with the rest of
+  the schema-first DTO surface
+- the latest audit pass narrowed several broad fallback paths to tagged error
+  recovery, especially around external HTTP fallbacks and best-effort
+  filesystem cleanup paths
+- current audit status for `apps/api/src` is:
+  - no production raw `fetch(...)`
+  - no production raw `JSON.parse(...)`
+  - remaining `Deno.*` usage is confined to the filesystem adapter and the
+    streaming route edge
+  - remaining `JSON.stringify(...)`, `catchAll(...)`, and `catchAllCause(...)`
+    sites appear intentional utility, orchestration, or best-effort fallback
+    paths rather than outstanding boundary leaks

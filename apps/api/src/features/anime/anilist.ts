@@ -1,7 +1,15 @@
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+} from "@effect/platform";
 import { Context, Effect, Either, Layer, Schema } from "effect";
 
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
-import { ExternalCallError, tryExternal } from "../../lib/effect-retry.ts";
+import {
+  ExternalCallError,
+  tryExternalEffect,
+} from "../../lib/effect-retry.ts";
 
 export interface AnimeMetadata {
   id: number;
@@ -171,56 +179,63 @@ const AniListDetailPayloadSchema = Schema.Struct({
   }),
 });
 
-const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(
-  function* (query: string) {
-    const trimmed = query.trim();
-
-    if (trimmed.length === 0) {
-      return [];
-    }
-
-    const remote = yield* trySearchRemote(trimmed).pipe(
-      Effect.catchAll(() => Effect.succeed<AnimeSearchResult[] | null>(null)),
-    );
-
-    if (remote) {
-      return remote;
-    }
-
-    return fallbackSearch(trimmed);
-  },
-);
-
-const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(
-  function* (id: number) {
-    const remote = yield* tryFetchDetail(id).pipe(
-      Effect.catchAll(() => Effect.void),
-    );
-
-    if (remote !== undefined) {
-      return remote;
-    }
-
-    return SAMPLE_ANIME.find((entry) => entry.id === id) ?? null;
-  },
-);
-
-export const AniListClientLive = Layer.succeed(
+export const AniListClientLive = Layer.effect(
   AniListClient,
-  {
-    getAnimeMetadataById,
-    searchAnimeMetadata,
-  } satisfies AniListClientShape,
+  Effect.gen(function* () {
+    const client = yield* HttpClient.HttpClient;
+
+    const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(
+      function* (query: string) {
+        const trimmed = query.trim();
+
+        if (trimmed.length === 0) {
+          return [];
+        }
+
+        const remote = yield* trySearchRemote(client, trimmed).pipe(
+          Effect.catchTag(
+            "ExternalCallError",
+            () => Effect.succeed<AnimeSearchResult[] | null>(null),
+          ),
+        );
+
+        if (remote) {
+          return remote;
+        }
+
+        return fallbackSearch(trimmed);
+      },
+    );
+
+    const getAnimeMetadataById = Effect.fn(
+      "AniListClient.getAnimeMetadataById",
+    )(
+      function* (id: number) {
+        const remote = yield* tryFetchDetail(client, id).pipe(
+          Effect.catchTag("ExternalCallError", () => Effect.void),
+        );
+
+        if (remote !== undefined) {
+          return remote;
+        }
+
+        return SAMPLE_ANIME.find((entry) => entry.id === id) ?? null;
+      },
+    );
+
+    return {
+      getAnimeMetadataById,
+      searchAnimeMetadata,
+    } satisfies AniListClientShape;
+  }),
 );
 
 const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
-  function* (trimmed: string) {
-    const response = yield* tryExternal(
-      "anilist.search",
-      (signal) =>
-        fetch(ANILIST_URL, {
-          body: JSON.stringify({
-            query: `query ($search: String) {
+  function* (client: HttpClient.HttpClient, trimmed: string) {
+    const request = HttpClientRequest.post(ANILIST_URL).pipe(
+      HttpClientRequest.setHeader("Content-Type", "application/json"),
+      HttpClientRequest.bodyUnsafeJson({
+        query: `query ($search: String) {
         Page(page: 1, perPage: 10) {
           media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
             id
@@ -249,15 +264,15 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
           }
         }
       }`,
-            variables: { search: trimmed },
-          }),
-          headers: { "Content-Type": "application/json" },
-          method: "POST",
-          signal,
-        }),
+        variables: { search: trimmed },
+      }),
+    );
+    const response = yield* tryExternalEffect(
+      "anilist.search",
+      client.execute(request),
     )();
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       return yield* ExternalCallError.make({
         cause: new Error(
           `AniList search failed with status ${response.status}`,
@@ -291,13 +306,11 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
 );
 
 const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
-  function* (id: number) {
-    const response = yield* tryExternal(
-      "anilist.detail",
-      (signal) =>
-        fetch(ANILIST_URL, {
-          body: JSON.stringify({
-            query: `query ($id: Int) {
+  function* (client: HttpClient.HttpClient, id: number) {
+    const request = HttpClientRequest.post(ANILIST_URL).pipe(
+      HttpClientRequest.setHeader("Content-Type", "application/json"),
+      HttpClientRequest.bodyUnsafeJson({
+        query: `query ($id: Int) {
         Media(id: $id, type: ANIME) {
           id
           idMal
@@ -333,15 +346,15 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
           }
         }
       }`,
-            variables: { id },
-          }),
-          headers: { "Content-Type": "application/json" },
-          method: "POST",
-          signal,
-        }),
+        variables: { id },
+      }),
+    );
+    const response = yield* tryExternalEffect(
+      "anilist.detail",
+      client.execute(request),
     )();
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       return yield* ExternalCallError.make({
         cause: new Error(
           `AniList detail failed with status ${response.status}`,
@@ -389,20 +402,20 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
 );
 
 function decodeJsonResponse<A, I>(
-  response: Response,
+  response: HttpClientResponse.HttpClientResponse,
   operation: string,
   schema: Schema.Schema<A, I>,
 ) {
   return Effect.gen(function* () {
-    const payload = yield* Effect.tryPromise({
-      try: () => response.json(),
-      catch: (cause) =>
+    const payload = yield* response.json.pipe(
+      Effect.mapError((cause) =>
         ExternalCallError.make({
           cause,
           message: "Failed to decode AniList JSON response",
           operation,
-        }),
-    });
+        })
+      ),
+    );
 
     const decoded = Schema.decodeUnknownEither(schema)(payload);
 

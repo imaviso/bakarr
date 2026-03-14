@@ -1,3 +1,4 @@
+import { HttpClient } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
 import type { FileSystemShape } from "../../lib/filesystem.ts";
@@ -16,6 +17,7 @@ export const cacheAnimeMetadataImages = Effect.fn(
   "AnimeService.cacheAnimeMetadataImages",
 )(function* (
   fs: FileSystemShape,
+  client: HttpClient.HttpClient,
   imagesRoot: string,
   animeId: number,
   images: CachedAnimeImages,
@@ -26,6 +28,7 @@ export const cacheAnimeMetadataImages = Effect.fn(
 
   const coverImage = yield* cacheAnimeImage(
     fs,
+    client,
     baseDir,
     animeId,
     "cover",
@@ -33,6 +36,7 @@ export const cacheAnimeMetadataImages = Effect.fn(
   ).pipe(Effect.catchAllCause(() => Effect.succeed(images.coverImage)));
   const bannerImage = yield* cacheAnimeImage(
     fs,
+    client,
     baseDir,
     animeId,
     "banner",
@@ -45,6 +49,7 @@ export const cacheAnimeMetadataImages = Effect.fn(
 const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(
   function* (
     fs: FileSystemShape,
+    client: HttpClient.HttpClient,
     baseDir: string,
     animeId: number,
     kind: "banner" | "cover",
@@ -54,7 +59,7 @@ const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(
       return undefined;
     }
 
-    const download = yield* downloadImage(url);
+    const download = yield* downloadImage(client, url);
     const filename = `${kind}.${download.extension}`;
 
     yield* fs.writeFile(`${baseDir}/${filename}`, download.bytes);
@@ -64,29 +69,31 @@ const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(
 );
 
 const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
+  client: HttpClient.HttpClient,
   url: string,
 ) {
-  const response = yield* Effect.tryPromise({
-    try: () => fetch(url),
-    catch: (cause) =>
-      new ImageCacheError({ cause, message: "Failed to download image" }),
-  });
+  const response = yield* client.get(url).pipe(
+    Effect.mapError((cause) =>
+      new ImageCacheError({ cause, message: "Failed to download image" })
+    ),
+  );
 
-  if (!response.ok) {
+  if (response.status < 200 || response.status >= 300) {
     return yield* new ImageCacheError({
       cause: response,
       message: `Image download failed with status ${response.status}`,
     });
   }
 
-  const bytes = yield* Effect.tryPromise({
-    try: async () => new Uint8Array(await response.arrayBuffer()),
-    catch: (cause) =>
-      new ImageCacheError({ cause, message: "Failed to read image bytes" }),
-  });
+  const bytes = yield* response.arrayBuffer.pipe(
+    Effect.map((buffer: ArrayBuffer) => new Uint8Array(buffer)),
+    Effect.mapError((cause) =>
+      new ImageCacheError({ cause, message: "Failed to read image bytes" })
+    ),
+  );
   const extension = inferImageExtension(
     url,
-    response.headers.get("content-type"),
+    response.headers["content-type"] ?? null,
   );
 
   if (!extension) {
