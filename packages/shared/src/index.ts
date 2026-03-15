@@ -804,6 +804,7 @@ export const MissingEpisodeSchema: Schema.Schema<MissingEpisode> = Schema
 
 export interface RenamePreviewItem {
   episode_number: number;
+  episode_numbers?: number[];
   current_path: string;
   new_path: string;
   new_filename: string;
@@ -812,6 +813,9 @@ export interface RenamePreviewItem {
 export const RenamePreviewItemSchema: Schema.Schema<RenamePreviewItem> = Schema
   .Struct({
     episode_number: Schema.Number,
+    episode_numbers: Schema.optional(
+      Schema.mutable(Schema.Array(Schema.Number)),
+    ),
     current_path: Schema.String,
     new_path: Schema.String,
     new_filename: Schema.String,
@@ -831,6 +835,25 @@ export const RenameResultSchema: Schema.Schema<RenameResult> = Schema.mutable(
   }),
 );
 
+export interface ParsedEpisodeIdentity {
+  scheme: "season" | "absolute" | "daily";
+  season?: number;
+  episode_numbers?: number[];
+  air_dates?: string[];
+  label: string;
+}
+
+export const ParsedEpisodeIdentitySchema: Schema.Schema<ParsedEpisodeIdentity> =
+  Schema.Struct({
+    scheme: Schema.Literal("season", "absolute", "daily"),
+    season: Schema.optional(Schema.Number),
+    episode_numbers: Schema.optional(
+      Schema.mutable(Schema.Array(Schema.Number)),
+    ),
+    air_dates: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+    label: Schema.String,
+  });
+
 export interface ScannedFile {
   source_path: string;
   filename: string;
@@ -845,6 +868,9 @@ export interface ScannedFile {
     title: string;
   };
   suggested_candidate_id?: number;
+  source_identity?: ParsedEpisodeIdentity;
+  skip_reason?: string;
+  needs_manual_mapping?: boolean;
 }
 
 export const ScannedFileMatchedAnimeSchema: Schema.Schema<
@@ -865,6 +891,9 @@ export const ScannedFileSchema: Schema.Schema<ScannedFile> = Schema.Struct({
   resolution: Schema.optional(Schema.String),
   matched_anime: Schema.optional(ScannedFileMatchedAnimeSchema),
   suggested_candidate_id: Schema.optional(Schema.Number),
+  source_identity: Schema.optional(ParsedEpisodeIdentitySchema),
+  skip_reason: Schema.optional(Schema.String),
+  needs_manual_mapping: Schema.optional(Schema.Boolean),
 });
 
 export interface SkippedFile {
@@ -898,6 +927,7 @@ export interface ImportedFile {
   destination_path: string;
   anime_id: number;
   episode_number: number;
+  episode_numbers?: number[];
 }
 
 export const ImportedFileSchema: Schema.Schema<ImportedFile> = Schema.Struct({
@@ -905,6 +935,9 @@ export const ImportedFileSchema: Schema.Schema<ImportedFile> = Schema.Struct({
   destination_path: Schema.String,
   anime_id: Schema.Number,
   episode_number: Schema.Number,
+  episode_numbers: Schema.optional(
+    Schema.mutable(Schema.Array(Schema.Number)),
+  ),
 });
 
 export interface FailedImport {
@@ -992,6 +1025,9 @@ export interface NyaaSearchResult {
   parsed_episode?: string;
   parsed_group?: string;
   parsed_resolution?: string;
+  parsed_episode_label?: string;
+  parsed_episode_numbers?: number[];
+  parsed_air_date?: string;
   trusted: boolean;
   is_seadex: boolean;
   is_seadex_best: boolean;
@@ -1011,6 +1047,11 @@ export const NyaaSearchResultSchema: Schema.Schema<NyaaSearchResult> = Schema
     parsed_episode: Schema.optional(Schema.String),
     parsed_group: Schema.optional(Schema.String),
     parsed_resolution: Schema.optional(Schema.String),
+    parsed_episode_label: Schema.optional(Schema.String),
+    parsed_episode_numbers: Schema.optional(
+      Schema.mutable(Schema.Array(Schema.Number)),
+    ),
+    parsed_air_date: Schema.optional(Schema.String),
     trusted: Schema.Boolean,
     is_seadex: Schema.Boolean,
     is_seadex_best: Schema.Boolean,

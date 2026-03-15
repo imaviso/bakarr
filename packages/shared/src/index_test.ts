@@ -152,6 +152,7 @@ Deno.test("shared dashboard and browse schemas accept canonical payloads", () =>
   const libraryStats = Schema.decodeUnknownEither(LibraryStatsSchema)({
     downloaded_episodes: 8,
     missing_episodes: 4,
+    monitored_anime: 3,
     recent_downloads: 2,
     rss_feeds: 3,
     total_anime: 5,
