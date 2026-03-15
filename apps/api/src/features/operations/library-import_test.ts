@@ -21,6 +21,32 @@ Deno.test("analyzeScannedFile strips release noise and extracts metadata", () =>
   assertEquals(parsed.season, 2);
 });
 
+Deno.test("analyzeScannedFile handles Sonarr and Plex style episode names", () => {
+  const parsed = analyzeScannedFile({
+    name:
+      "Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You♡ Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC]-SubsPlus+.mkv",
+    path:
+      "/library/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You♡ Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC]-SubsPlus+.mkv",
+  });
+
+  assertEquals(parsed.episode_number, 1);
+  assertEquals(parsed.parsed_title, "Rock Is a Lady's Modesty (2025)");
+  assertEquals(parsed.resolution, "1080p");
+  assertEquals(parsed.season, 1);
+});
+
+Deno.test("analyzeScannedFile preserves multi-episode local ranges", () => {
+  const parsed = analyzeScannedFile({
+    name: "Show Name - 1x01-1x02 - Premiere.mkv",
+    path: "/library/Show Name - 1x01-1x02 - Premiere.mkv",
+  });
+
+  assertEquals(parsed.episode_number, 1);
+  assertEquals(parsed.episode_numbers, [1, 2]);
+  assertEquals(parsed.parsed_title, "Show Name");
+  assertEquals(parsed.season, 1);
+});
+
 Deno.test("findBestLocalAnimeMatch handles title normalization and rejects weak matches", () => {
   const naruto = makeAnimeRow({
     addedAt: "2024-01-01T00:00:00.000Z",

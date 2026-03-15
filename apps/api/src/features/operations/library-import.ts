@@ -8,7 +8,11 @@ import type {
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
 import { parseResolution } from "./release-ranking.ts";
-import { parseEpisodeNumber, scanVideoFiles } from "./file-scanner.ts";
+import {
+  parseEpisodeNumber,
+  parseEpisodeNumbers,
+  scanVideoFiles,
+} from "./file-scanner.ts";
 import { requireAnime } from "./repository.ts";
 import { sanitizeFilename } from "../../lib/filesystem.ts";
 
@@ -41,7 +45,11 @@ export function analyzeScannedFile(
   file: { name: string; path: string },
 ): ScannedFile {
   const extensionless = file.name.replace(/\.[^.]+$/, "");
-  const cleaned = extensionless
+  const episodeNumbers = [...parseEpisodeNumbers(file.path)];
+  const titleSegment = stripEpisodeSuffix(
+    extensionless.replace(/^\[[^\]]+\]\s*/g, ""),
+  );
+  const cleaned = titleSegment
     .replace(/^\[[^\]]+\]\s*/g, "")
     .replace(
       /\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray)[^\]]*\]/gi,
@@ -53,20 +61,33 @@ export function analyzeScannedFile(
     )
     .replace(/(?:^|\s)[-_ ]?\d{1,3}(?:\s*[-~]\s*\d{1,3})?(?=\s|$)/g, " ")
     .replace(/s\d{1,2}e\d{1,3}(?:\s*[-~]\s*e?\d{1,3})?/gi, " ")
+    .replace(
+      /\b\d{1,2}x\d{1,3}(?:\s*[-~]\s*(?:\d{1,2}x)?\d{1,3})?\b/gi,
+      " ",
+    )
+    .replace(
+      /\bseason\s+\d+\s+(?:ep|e|episode)\s+\d{1,3}(?:\s*[-~]\s*(?:season\s+\d+\s+)?(?:ep|e|episode)?\s*\d{1,3})?\b/gi,
+      " ",
+    )
     .replace(/\s+/g, " ")
     .trim();
   const seasonMatch = extensionless.match(
-    /season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+season/i,
+    /season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+season|s(\d{1,2})[\s._-]*e\d{1,3}|(\d{1,2})x\d{1,3}/i,
   );
   const groupMatch = file.name.match(/^\[(.*?)\]/);
 
   return {
-    episode_number: parseEpisodeNumber(file.path) ?? 1,
+    episode_number: episodeNumbers[0] ?? parseEpisodeNumber(file.path) ?? 1,
+    episode_numbers: episodeNumbers.length > 1 ? episodeNumbers : undefined,
     filename: file.name,
     group: groupMatch?.[1],
     parsed_title: cleaned.length > 0 ? cleaned : extensionless,
     resolution: parseResolution(extensionless),
-    season: seasonMatch ? Number(seasonMatch[1] ?? seasonMatch[2]) : undefined,
+    season: seasonMatch
+      ? Number(
+        seasonMatch[1] ?? seasonMatch[2] ?? seasonMatch[3] ?? seasonMatch[4],
+      )
+      : undefined,
     source_path: file.path,
   };
 }
@@ -133,7 +154,26 @@ export function titlesMatch(parsedTitle: string, candidate: AnimeSearchResult) {
   );
 }
 
-export { parseEpisodeNumber, scanVideoFiles };
+export { parseEpisodeNumber, parseEpisodeNumbers, scanVideoFiles };
+
+function stripEpisodeSuffix(value: string) {
+  const patterns = [
+    /^(.*?)(?:\s*[-._ ]\s*)s\d{1,2}[\s._-]*e\d{1,3}(?:[\s._-]*e?\d{1,3})*(?:\s*[-._ ]\s*.*)?$/i,
+    /^(.*?)(?:\s*[-._ ]\s*)\d{1,2}x\d{1,3}(?:[\s._-](?:\d{1,2}x)?\d{1,3})*(?:\s*[-._ ]\s*.*)?$/i,
+    /^(.*?)(?:\s*[-._ ]\s*)season[\s._-]*\d{1,2}[\s._-]*(?:ep|e|episode)[\s._-]*\d{1,3}(?:\s*[-._ ]\s*(?:season[\s._-]*\d{1,2}[\s._-]*)?(?:ep|e|episode)?[\s._-]*\d{1,3})*(?:\s*[-._ ]\s*.*)?$/i,
+    /^(.*?)(?:\s+-\s+)\d{1,4}(?:v\d+)?(?:\s+-\s+.*|\s*(?:\[.*|\(.*|$))/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = value.match(pattern);
+
+    if (match?.[1]?.trim()) {
+      return match[1].trim();
+    }
+  }
+
+  return value;
+}
 
 function normalizeTitle(value: string) {
   return romanToArabic(
