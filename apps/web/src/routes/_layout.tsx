@@ -50,7 +50,7 @@ function LayoutComponent() {
             <ModeToggle />
           </div>
         </header>
-        <main class="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden">
+        <main class="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden min-h-0 overflow-y-auto">
           <Outlet />
         </main>
         <SseToastListener />
