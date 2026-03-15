@@ -158,6 +158,7 @@ export function ImportDialog(props: ImportDialogProps) {
                 source_path: file.source_path,
                 anime_id: file.matched_anime.id,
                 episode_number: Math.floor(file.episode_number),
+                episode_numbers: file.episode_numbers,
                 season: file.season,
               });
             } else if (file.suggested_candidate_id) {
@@ -165,6 +166,7 @@ export function ImportDialog(props: ImportDialogProps) {
                 source_path: file.source_path,
                 anime_id: file.suggested_candidate_id,
                 episode_number: Math.floor(file.episode_number),
+                episode_numbers: file.episode_numbers,
                 season: file.season,
               });
               newSelectedCandidates.add(file.suggested_candidate_id);
@@ -259,6 +261,7 @@ export function ImportDialog(props: ImportDialogProps) {
         source_path: file.source_path,
         anime_id: targetAnimeId,
         episode_number: Math.floor(file.episode_number),
+        episode_numbers: file.episode_numbers,
         season: file.season,
       });
     }
@@ -562,6 +565,35 @@ export function ImportDialog(props: ImportDialogProps) {
                   )}
                 </For>
               </div>
+
+              {/* Skipped Files */}
+              <Show when={skippedFiles().length > 0}>
+                <details class="mt-4 border rounded-none">
+                  <summary class="px-4 py-2 text-sm text-muted-foreground cursor-pointer hover:bg-muted/50">
+                    {skippedFiles().length} skipped file(s)
+                  </summary>
+                  <div class="divide-y border-t">
+                    <For each={skippedFiles()}>
+                      {(file) => (
+                        <div class="px-4 py-2 flex items-center gap-3 text-muted-foreground">
+                          <IconFile class="h-4 w-4 shrink-0 opacity-50" />
+                          <span class="text-xs font-mono truncate flex-1">
+                            {file.path.substring(
+                              file.path.lastIndexOf("/") + 1,
+                            )}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            class="text-xs shrink-0"
+                          >
+                            {file.reason}
+                          </Badge>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </details>
+              </Show>
             </div>
 
             <DialogFooter class="flex-row justify-between sm:justify-between">
@@ -759,6 +791,11 @@ function FileRow(props: FileRowProps) {
           </span>
         </div>
         <div class="flex items-center gap-1.5 shrink-0">
+          <Show when={props.file.source_identity?.label}>
+            <Badge variant="outline" class="text-xs font-mono">
+              {props.file.source_identity!.label}
+            </Badge>
+          </Show>
           <EditMappingPopover
             episode={displayEpisode()}
             season={displaySeason()}
@@ -767,6 +804,14 @@ function FileRow(props: FileRowProps) {
           <Show when={props.file.resolution}>
             <Badge variant="secondary" class="text-xs">
               {props.file.resolution}
+            </Badge>
+          </Show>
+          <Show when={props.file.needs_manual_mapping}>
+            <Badge
+              variant="secondary"
+              class="text-xs bg-warning/10 text-warning border-warning/20"
+            >
+              Manual
             </Badge>
           </Show>
         </div>

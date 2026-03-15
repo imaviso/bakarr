@@ -70,6 +70,11 @@ export function FileRow(props: FileRowProps) {
           </span>
         </div>
         <div class="flex items-center gap-1.5 shrink-0">
+          <Show when={props.file.source_identity?.label}>
+            <Badge variant="outline" class="text-xs font-mono">
+              {props.file.source_identity!.label}
+            </Badge>
+          </Show>
           <EditMappingPopover
             episode={displayEpisode()}
             season={displaySeason()}
@@ -78,6 +83,14 @@ export function FileRow(props: FileRowProps) {
           <Show when={props.file.resolution}>
             <Badge variant="secondary" class="text-xs">
               {props.file.resolution}
+            </Badge>
+          </Show>
+          <Show when={props.file.needs_manual_mapping}>
+            <Badge
+              variant="secondary"
+              class="text-xs bg-warning/10 text-warning border-warning/20"
+            >
+              Manual
             </Badge>
           </Show>
         </div>

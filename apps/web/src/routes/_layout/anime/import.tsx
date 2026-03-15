@@ -137,6 +137,7 @@ function ImportPage() {
                 source_path: file.source_path,
                 anime_id: file.matched_anime.id,
                 episode_number: Math.floor(file.episode_number),
+                episode_numbers: file.episode_numbers,
                 season: file.season,
               });
             } else if (file.suggested_candidate_id) {
@@ -144,6 +145,7 @@ function ImportPage() {
                 source_path: file.source_path,
                 anime_id: file.suggested_candidate_id,
                 episode_number: Math.floor(file.episode_number),
+                episode_numbers: file.episode_numbers,
                 season: file.season,
               });
               newSelectedCandidates.add(file.suggested_candidate_id);
@@ -225,6 +227,7 @@ function ImportPage() {
         source_path: file.source_path,
         anime_id: targetAnimeId,
         episode_number: Math.floor(file.episode_number),
+        episode_numbers: file.episode_numbers,
         season: file.season,
       });
     }
@@ -714,6 +717,35 @@ function ImportPage() {
                     )}
                   </For>
                 </ul>
+
+                {/* Skipped Files */}
+                <Show when={skippedFiles().length > 0}>
+                  <details class="mx-8 my-4 border rounded-lg">
+                    <summary class="px-4 py-2 text-sm text-muted-foreground cursor-pointer hover:bg-muted/50">
+                      {skippedFiles().length} skipped file(s)
+                    </summary>
+                    <div class="divide-y border-t">
+                      <For each={skippedFiles()}>
+                        {(file) => (
+                          <div class="px-4 py-2 flex items-center gap-3 text-muted-foreground">
+                            <IconFile class="h-4 w-4 shrink-0 opacity-50" />
+                            <span class="text-xs font-mono truncate flex-1">
+                              {file.path.substring(
+                                file.path.lastIndexOf("/") + 1,
+                              )}
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              class="text-xs shrink-0"
+                            >
+                              {file.reason}
+                            </Badge>
+                          </div>
+                        )}
+                      </For>
+                    </div>
+                  </details>
+                </Show>
               </div>
 
               {/* Footer */}

@@ -85,6 +85,7 @@ export function toggleImportCandidateSelection(input: {
         source_path: file.source_path,
         anime_id: input.candidate.id,
         episode_number: Math.floor(file.episode_number),
+        episode_numbers: file.episode_numbers,
         season: file.season,
       });
     }

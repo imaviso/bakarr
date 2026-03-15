@@ -161,6 +161,7 @@ export type ImportFileRequest =
   >
   & {
     season?: number;
+    episode_numbers?: number[];
   };
 
 export type ReleaseProfileCreateRequest = Pick<
