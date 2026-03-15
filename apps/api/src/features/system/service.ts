@@ -32,8 +32,8 @@ import {
 } from "./errors.ts";
 import {
   type ConfigCore,
-  decodeQualityProfileRow,
-  decodeReleaseProfileRow,
+  effectDecodeQualityProfileRow,
+  effectDecodeReleaseProfileRow,
   encodeConfigCore,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
@@ -103,7 +103,10 @@ export interface SystemServiceShape {
     Config,
     DatabaseError | ConfigValidationError | StoredConfigCorruptError
   >;
-  readonly listProfiles: () => Effect.Effect<QualityProfile[], DatabaseError>;
+  readonly listProfiles: () => Effect.Effect<
+    QualityProfile[],
+    DatabaseError | StoredConfigCorruptError
+  >;
   readonly listQualities: () => Effect.Effect<Quality[], never>;
   readonly createProfile: (
     profile: QualityProfile,
@@ -117,11 +120,11 @@ export interface SystemServiceShape {
   ) => Effect.Effect<void, DatabaseError | ConfigValidationError>;
   readonly listReleaseProfiles: () => Effect.Effect<
     ReleaseProfile[],
-    DatabaseError
+    DatabaseError | StoredConfigCorruptError
   >;
   readonly createReleaseProfile: (
     input: Omit<ReleaseProfile, "id" | "enabled"> & { enabled?: boolean },
-  ) => Effect.Effect<ReleaseProfile, DatabaseError>;
+  ) => Effect.Effect<ReleaseProfile, DatabaseError | StoredConfigCorruptError>;
   readonly updateReleaseProfile: (
     id: number,
     input: Omit<ReleaseProfile, "id">,
@@ -163,7 +166,7 @@ const makeSystemService = Effect.gen(function* () {
       "Failed to load quality profiles",
       () => listQualityProfileRows(db),
     );
-    return rows.map(decodeQualityProfileRow);
+    return yield* Effect.forEach(rows, effectDecodeQualityProfileRow);
   });
 
   const createProfile = Effect.fn("SystemService.createProfile")(function* (
@@ -224,7 +227,7 @@ const makeSystemService = Effect.gen(function* () {
       "Failed to load release profiles",
       () => listReleaseProfileRows(db),
     );
-    return rows.map(decodeReleaseProfileRow);
+    return yield* Effect.forEach(rows, effectDecodeReleaseProfileRow);
   });
 
   const createReleaseProfile = Effect.fn(
@@ -253,7 +256,7 @@ const makeSystemService = Effect.gen(function* () {
           `Release profile '${input.name}' created`,
         ),
     );
-    return decodeReleaseProfileRow(created);
+    return yield* effectDecodeReleaseProfileRow(created);
   });
 
   const updateReleaseProfile = Effect.fn(
@@ -580,7 +583,7 @@ const makeSystemService = Effect.gen(function* () {
 
     return {
       ...core,
-      profiles: profiles.map(decodeQualityProfileRow),
+      profiles: yield* Effect.forEach(profiles, effectDecodeQualityProfileRow),
     } satisfies Config;
   });
 
@@ -599,8 +602,30 @@ const makeSystemService = Effect.gen(function* () {
       }
     }
 
-    const previousConfig = yield* getConfig();
-    const previousLogLevel = previousConfig.general.log_level;
+    const existingProfileRows = yield* tryDatabasePromise(
+      "Failed to update system configuration",
+      () => listQualityProfileRows(db),
+    );
+
+    // Guard: ensure no anime still references profiles being removed
+    const keptProfileNames = new Set(nextConfig.profiles.map((p) => p.name));
+    const removedProfileNames = existingProfileRows
+      .map((row) => row.name)
+      .filter((name) => !keptProfileNames.has(name));
+
+    for (const removedProfileName of removedProfileNames) {
+      const referencingAnime = yield* tryDatabasePromise(
+        "Failed to update system configuration",
+        () => countAnimeUsingProfile(db, removedProfileName),
+      );
+
+      if (referencingAnime > 0) {
+        return yield* new ConfigValidationError({
+          message:
+            `Cannot remove profile '${removedProfileName}': still referenced by ${referencingAnime} anime`,
+        });
+      }
+    }
 
     const core: ConfigCore = {
       downloads: nextConfig.downloads,
@@ -625,16 +650,15 @@ const makeSystemService = Effect.gen(function* () {
         ),
     );
 
-    setRuntimeLogLevel(nextConfig.general.log_level);
-
     const reloadResult = yield* Effect.either(
       workerController.reload(nextConfig),
     );
 
     if (reloadResult._tag === "Left") {
-      setRuntimeLogLevel(previousLogLevel);
       return yield* reloadResult.left;
     }
+
+    setRuntimeLogLevel(nextConfig.general.log_level);
 
     return nextConfig;
   });

@@ -465,15 +465,13 @@ export function registerAnimeRoutes(
           });
         }
 
-        const files = yield* Effect.flatMap(
+        const resolvedEpisodeFile = yield* Effect.flatMap(
           AnimeService,
-          (service) => service.listFiles(params.id),
-        );
-        const match = files.find((file) =>
-          file.episode_number === params.episodeNumber
+          (service) =>
+            service.resolveEpisodeFile(params.id, params.episodeNumber),
         );
 
-        if (!match) {
+        if (!resolvedEpisodeFile) {
           return yield* new AuthError({
             message: "Episode file not found",
             status: 404,
@@ -481,11 +479,11 @@ export function registerAnimeRoutes(
         }
 
         const fs = yield* FileSystem;
-        const fileInfo = yield* fs.stat(match.path).pipe(
-          Effect.mapError((error) =>
-            new FileSystemError({
-              ...error,
-              message: "Failed to stat stream file",
+        const fileInfo = yield* fs.stat(resolvedEpisodeFile.filePath).pipe(
+          Effect.mapError(() =>
+            new AuthError({
+              message: "Episode file not found",
+              status: 404,
             })
           ),
         );
@@ -498,11 +496,11 @@ export function registerAnimeRoutes(
           contentLength: byteRange
             ? byteRange.end - byteRange.start + 1
             : fileInfo.size,
-          contentType: guessContentType(match.name),
-          fileName: match.name,
+          contentType: guessContentType(resolvedEpisodeFile.fileName),
+          fileName: resolvedEpisodeFile.fileName,
           fileSize: fileInfo.size,
           fs,
-          filePath: match.path,
+          filePath: resolvedEpisodeFile.filePath,
           range: byteRange,
           status: byteRange ? 206 : 200,
         };
@@ -560,7 +558,7 @@ function parseByteRange(
   fileSize: number,
 ): Effect.Effect<ByteRange | undefined, EpisodeStreamRangeError> {
   if (!rangeHeader) {
-    return Effect.succeed(undefined);
+    return Effect.void.pipe(Effect.as(undefined));
   }
 
   const match = /^bytes=(\d+)-(\d+)?$/.exec(rangeHeader.trim());

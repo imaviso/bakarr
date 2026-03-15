@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import type {
   Config,
@@ -7,6 +7,7 @@ import type {
   ReleaseProfileRule,
 } from "../../../../../packages/shared/src/index.ts";
 import { qualityProfiles, releaseProfiles } from "../../db/schema.ts";
+import { StoredConfigCorruptError } from "./errors.ts";
 import {
   ConfigCoreSchema,
   NumberListSchema,
@@ -162,4 +163,63 @@ export function decodeOptionalNumberList(
   } catch {
     return [];
   }
+}
+
+export function effectDecodeStringList(
+  value: string,
+): Effect.Effect<string[], StoredConfigCorruptError> {
+  return Schema.decodeUnknown(StringListJsonSchema)(value).pipe(
+    Effect.map((arr) => [...arr]),
+    Effect.mapError(
+      () =>
+        new StoredConfigCorruptError({
+          message: "Stored string list is corrupt and could not be decoded",
+        }),
+    ),
+  );
+}
+
+export function effectDecodeReleaseProfileRules(
+  value: string,
+): Effect.Effect<ReleaseProfileRule[], StoredConfigCorruptError> {
+  return Schema.decodeUnknown(ReleaseProfileRulesJsonSchema)(value).pipe(
+    Effect.map((arr) => [...arr]),
+    Effect.mapError(
+      () =>
+        new StoredConfigCorruptError({
+          message:
+            "Stored release profile rules are corrupt and could not be decoded",
+        }),
+    ),
+  );
+}
+
+export function effectDecodeQualityProfileRow(
+  row: typeof qualityProfiles.$inferSelect,
+): Effect.Effect<QualityProfile, StoredConfigCorruptError> {
+  return effectDecodeStringList(row.allowedQualities).pipe(
+    Effect.map((allowed_qualities) => ({
+      allowed_qualities,
+      cutoff: row.cutoff,
+      max_size: row.maxSize ?? null,
+      min_size: row.minSize ?? null,
+      name: row.name,
+      seadex_preferred: row.seadexPreferred,
+      upgrade_allowed: row.upgradeAllowed,
+    })),
+  );
+}
+
+export function effectDecodeReleaseProfileRow(
+  row: typeof releaseProfiles.$inferSelect,
+): Effect.Effect<ReleaseProfile, StoredConfigCorruptError> {
+  return effectDecodeReleaseProfileRules(row.rules).pipe(
+    Effect.map((rules) => ({
+      enabled: row.enabled,
+      id: row.id,
+      is_global: row.isGlobal,
+      name: row.name,
+      rules,
+    })),
+  );
 }

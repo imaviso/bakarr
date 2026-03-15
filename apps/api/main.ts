@@ -1,10 +1,10 @@
 import { Effect } from "effect";
 
-import type { Config } from "../../packages/shared/src/index.ts";
 import { BackgroundWorkerController } from "./src/background.ts";
 import { AppConfig, type AppConfigShape } from "./src/config.ts";
 import { migrateDatabase } from "./src/db/migrate.ts";
 import { AuthService } from "./src/features/auth/service.ts";
+import { StoredConfigCorruptError } from "./src/features/system/errors.ts";
 import { SystemService } from "./src/features/system/service.ts";
 import { createApp } from "./src/http/app.ts";
 import { createAppFetchHandler } from "./src/http/static.ts";
@@ -17,11 +17,11 @@ import { makeApiRuntime, runApi, type RuntimeOptions } from "./src/runtime.ts";
 const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   yield* migrateDatabase();
 
-  const auth = yield* AuthService;
-  yield* auth.ensureBootstrapUser();
-
   const system = yield* SystemService;
   yield* system.ensureInitialized();
+
+  const auth = yield* AuthService;
+  yield* auth.ensureBootstrapUser();
 
   return yield* AppConfig;
 });
@@ -57,13 +57,32 @@ if (import.meta.main) {
           const cfg = yield* Effect.flatMap(
             SystemService,
             (s) => s.getConfig(),
+          ).pipe(
+            Effect.catchTag(
+              "StoredConfigCorruptError",
+              (error: StoredConfigCorruptError) =>
+                Effect.logWarning(
+                  "Stored configuration is corrupt; skipping background worker startup",
+                ).pipe(
+                  Effect.annotateLogs({
+                    component: "api",
+                    error: error.message,
+                    event: "api.background.start.skipped",
+                  }),
+                  Effect.as(null),
+                ),
+            ),
           );
+
+          if (!cfg) {
+            return;
+          }
+
           setRuntimeLogLevel(cfg.general.log_level);
           yield* controller.start(cfg);
-          return cfg;
         }),
     ),
-  ) as Config;
+  );
 
   await runApi(
     runtime,

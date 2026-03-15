@@ -219,10 +219,42 @@ Deno.test("findAnimeRootFolderOwner returns the mapped anime for a root", async 
   });
 });
 
+Deno.test("findAnimeRootFolderOwner handles trailing slash parents", async () => {
+  await withTestDb(async (db) => {
+    await insertAnimeWithRoot(db, 21, 12, "/library/Naruto/");
+
+    const owner = await findAnimeRootFolderOwner(
+      db,
+      "/library/Naruto/Season 1",
+    );
+
+    assertEquals(owner?.id, 21);
+  });
+});
+
+Deno.test("anime root-folder triggers reject overlapping roots", async () => {
+  await withTestDb(async (db) => {
+    await insertAnimeWithRoot(db, 30, 12, "/library/Naruto/");
+
+    await assertRejects(() =>
+      insertAnimeWithRoot(db, 31, 12, "/library/Naruto/Season 1")
+    );
+  });
+});
+
 async function insertAnime(
   db: AppDatabase,
   id: number,
   episodeCount: number,
+) {
+  await insertAnimeWithRoot(db, id, episodeCount, `/library/Show-${id}`);
+}
+
+async function insertAnimeWithRoot(
+  db: AppDatabase,
+  id: number,
+  episodeCount: number,
+  rootFolder: string,
 ) {
   await db.insert(anime).values({
     id,
@@ -242,7 +274,7 @@ async function insertAnime(
     startDate: null,
     endDate: null,
     profileName: "Default",
-    rootFolder: `/library/Show-${id}`,
+    rootFolder,
     addedAt: "2024-01-01T00:00:00.000Z",
     monitored: true,
     releaseProfileIds: "[]",

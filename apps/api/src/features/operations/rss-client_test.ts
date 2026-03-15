@@ -11,19 +11,26 @@ Deno.test("RssClient uses provided HttpClient for feed fetches", async () => {
     globalThis.fetch = () =>
       Promise.reject(new Error("unexpected global fetch"));
 
-    const items = await Effect.runPromise(
-      Effect.flatMap(
-        RssClient,
-        (client) => client.fetchItems("https://feeds.example/releases.xml"),
-      ).pipe(
-        Effect.provide(
-          RssClientLive.pipe(
-            Layer.provide(
-              Layer.succeed(HttpClient.HttpClient, makeRssHttpClient()),
+    const items = await withMockResolveDns(
+      (_name, type) =>
+        type === "A"
+          ? Promise.resolve(["93.184.216.34"])
+          : Promise.reject(new Deno.errors.NotFound()),
+      () =>
+        Effect.runPromise(
+          Effect.flatMap(
+            RssClient,
+            (client) => client.fetchItems("https://feeds.example/releases.xml"),
+          ).pipe(
+            Effect.provide(
+              RssClientLive.pipe(
+                Layer.provide(
+                  Layer.succeed(HttpClient.HttpClient, makeRssHttpClient()),
+                ),
+              ),
             ),
           ),
         ),
-      ),
     );
 
     assertEquals(items, [
@@ -48,6 +55,71 @@ Deno.test("RssClient uses provided HttpClient for feed fetches", async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+Deno.test("RssClient blocks feeds that resolve to private IPv6 addresses", async () => {
+  let httpCalled = false;
+
+  const items = await withMockResolveDns(
+    (_name, type) =>
+      type === "AAAA"
+        ? Promise.resolve(["fd00::1"])
+        : Promise.reject(new Deno.errors.NotFound()),
+    () =>
+      Effect.runPromise(
+        Effect.flatMap(
+          RssClient,
+          (client) => client.fetchItems("https://feeds.example/releases.xml"),
+        ).pipe(
+          Effect.provide(
+            RssClientLive.pipe(
+              Layer.provide(
+                Layer.succeed(
+                  HttpClient.HttpClient,
+                  makeTrackingHttpClient(() => {
+                    httpCalled = true;
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+  );
+
+  assertEquals(items, []);
+  assertEquals(httpCalled, false);
+});
+
+Deno.test("RssClient blocks feeds when DNS resolution fails", async () => {
+  let httpCalled = false;
+
+  const items = await withMockResolveDns(
+    () => Promise.reject(new Error("SERVFAIL")),
+    () =>
+      Effect.runPromise(
+        Effect.flatMap(
+          RssClient,
+          (client) => client.fetchItems("https://feeds.example/releases.xml"),
+        ).pipe(
+          Effect.provide(
+            RssClientLive.pipe(
+              Layer.provide(
+                Layer.succeed(
+                  HttpClient.HttpClient,
+                  makeTrackingHttpClient(() => {
+                    httpCalled = true;
+                  }),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+  );
+
+  assertEquals(items, []);
+  assertEquals(httpCalled, false);
 });
 
 function makeRssHttpClient() {
@@ -79,4 +151,41 @@ function makeRssHttpClient() {
       ),
     )
   );
+}
+
+function makeTrackingHttpClient(onRequest: () => void) {
+  return HttpClient.make((request) => {
+    onRequest();
+
+    return Effect.succeed(
+      HttpClientResponse.fromWeb(
+        request,
+        new Response("", {
+          headers: { "content-type": "application/rss+xml" },
+          status: 200,
+        }),
+      ),
+    );
+  });
+}
+
+async function withMockResolveDns<T>(
+  mock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
+  run: () => Promise<T>,
+) {
+  const descriptor = Object.getOwnPropertyDescriptor(Deno, "resolveDns");
+
+  Object.defineProperty(Deno, "resolveDns", {
+    configurable: true,
+    value: mock,
+    writable: true,
+  });
+
+  try {
+    return await run();
+  } finally {
+    if (descriptor) {
+      Object.defineProperty(Deno, "resolveDns", descriptor);
+    }
+  }
 }

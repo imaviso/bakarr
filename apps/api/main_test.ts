@@ -217,6 +217,73 @@ integrationTest("auth password change and logout flow works", async () => {
 });
 
 integrationTest(
+  "system config update can repair corrupt stored config rows",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const configResponse = await ctx.app.request("/api/system/config", {
+        headers: { Cookie: sessionCookie },
+      });
+      assertEquals(configResponse.status, 200);
+      const validConfig = await configResponse.json();
+
+      const client = createClient({ url: `file:${ctx.databaseFile}` });
+
+      try {
+        await client.execute({
+          sql: "update app_config set data = ? where id = 1",
+          args: ["{"],
+        });
+        await client.execute({
+          sql:
+            "update quality_profiles set allowed_qualities = ? where name = ?",
+          args: ["{", "Default"],
+        });
+      } finally {
+        client.close();
+      }
+
+      const brokenConfigResponse = await ctx.app.request("/api/system/config", {
+        headers: { Cookie: sessionCookie },
+      });
+      assertEquals(brokenConfigResponse.status, 500);
+
+      const repairResponse = await ctx.app.request("/api/system/config", {
+        body: JSON.stringify(validConfig),
+        headers: {
+          Cookie: sessionCookie,
+          "Content-Type": "application/json",
+        },
+        method: "PUT",
+      });
+      assertEquals(repairResponse.status, 200);
+
+      const repairedConfigResponse = await ctx.app.request(
+        "/api/system/config",
+        {
+          headers: { Cookie: sessionCookie },
+        },
+      );
+      assertEquals(repairedConfigResponse.status, 200);
+      const repairedConfig = await repairedConfigResponse.json();
+      assertEquals(repairedConfig.general.database_path, ctx.databaseFile);
+      assertEquals(repairedConfig.profiles[0]?.name, "Default");
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
   "auth API key regeneration and API key login work",
   async () => {
     const ctx = await createTestContext();
@@ -1686,6 +1753,91 @@ integrationTest(
       } finally {
         await Deno.remove(rootFolder, { recursive: true });
         await Deno.remove(updatedFolder, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "stream endpoint rejects stale episode paths after anime root changes",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const initialRoot = await Deno.makeTempDir();
+      const updatedRoot = await Deno.makeTempDir();
+
+      try {
+        const addResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: initialRoot,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        assertEquals(addResponse.status, 200);
+        const anime = await addResponse.json();
+
+        const filePath = `${anime.root_folder}/Naruto - 001.mkv`;
+        await Deno.writeTextFile(filePath, "stale-stream");
+
+        const mapResponse = await ctx.app.request(
+          "/api/anime/20/episodes/1/map",
+          {
+            body: JSON.stringify({ file_path: filePath }),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+        assertEquals(mapResponse.status, 200);
+
+        const streamUrlResponse = await ctx.app.request(
+          "/api/anime/20/stream-url?episodeNumber=1",
+          { headers: { Cookie: sessionCookie } },
+        );
+        assertEquals(streamUrlResponse.status, 200);
+        const { url: signedStreamUrl } = await streamUrlResponse.json();
+
+        const initialStreamResponse = await ctx.app.request(signedStreamUrl);
+        assertEquals(initialStreamResponse.status, 200);
+        assertEquals(await initialStreamResponse.text(), "stale-stream");
+
+        const pathResponse = await ctx.app.request("/api/anime/20/path", {
+          body: JSON.stringify({ path: updatedRoot }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        });
+        assertEquals(pathResponse.status, 200);
+
+        const staleStreamResponse = await ctx.app.request(signedStreamUrl);
+        assertEquals(staleStreamResponse.status, 404);
+      } finally {
+        await Deno.remove(initialRoot, { recursive: true });
+        await Deno.remove(updatedRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -3219,6 +3371,154 @@ integrationTest(
         const history = await historyResponse.json();
         assertEquals(history[0].status, "imported");
         assertEquals(history[0].is_batch, true);
+      } finally {
+        await Deno.remove(animeRoot, { recursive: true });
+        await Deno.remove(completedRoot, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "batch reconcile marks already-imported episodes as reconciled",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const animeRoot = await Deno.makeTempDir();
+      const completedRoot = await Deno.makeTempDir();
+
+      try {
+        const addAnimeResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: animeRoot,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        assertEquals(addAnimeResponse.status, 200);
+        const anime = await addAnimeResponse.json();
+
+        const existingEpisodeOne = `${anime.root_folder}/Naruto - 001.mkv`;
+        const existingEpisodeTwo = `${anime.root_folder}/Naruto - 002.mkv`;
+        await Deno.writeTextFile(existingEpisodeOne, "episode-1");
+        await Deno.writeTextFile(existingEpisodeTwo, "episode-2");
+
+        const mapEpisodeOne = await ctx.app.request(
+          "/api/anime/20/episodes/1/map",
+          {
+            body: JSON.stringify({ file_path: existingEpisodeOne }),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+        assertEquals(mapEpisodeOne.status, 200);
+
+        const mapEpisodeTwo = await ctx.app.request(
+          "/api/anime/20/episodes/2/map",
+          {
+            body: JSON.stringify({ file_path: existingEpisodeTwo }),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+        assertEquals(mapEpisodeTwo.status, 200);
+
+        const magnetHash = "abcdef1234567890abcdef1234567890abcdef12";
+        const triggerDownloadResponse = await ctx.app.request(
+          "/api/search/download",
+          {
+            body: JSON.stringify({
+              anime_id: 20,
+              episode_number: 1,
+              is_batch: true,
+              magnet: `magnet:?xt=urn:btih:${magnetHash}`,
+              title: "Naruto Batch 01-02",
+            }),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+        assertEquals(triggerDownloadResponse.status, 200);
+
+        const batchFolder = `${completedRoot}/batch`;
+        await Deno.mkdir(batchFolder, { recursive: true });
+        await Deno.writeTextFile(
+          `${batchFolder}/Naruto - 001.mkv`,
+          "episode-1",
+        );
+        await Deno.writeTextFile(
+          `${batchFolder}/Naruto - 002.mkv`,
+          "episode-2",
+        );
+
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
+        try {
+          await client.execute({
+            sql:
+              "update downloads set content_path = ?, save_path = ?, status = ?, external_state = ?, is_batch = 1 where info_hash = ?",
+            args: [
+              batchFolder,
+              batchFolder,
+              "completed",
+              "completed",
+              magnetHash,
+            ],
+          });
+        } finally {
+          client.close();
+        }
+
+        const reconcileResponse = await ctx.app.request(
+          "/api/downloads/1/reconcile",
+          {
+            headers: { Cookie: sessionCookie },
+            method: "POST",
+          },
+        );
+        assertEquals(reconcileResponse.status, 200);
+
+        const verifyClient = createClient({ url: `file:${ctx.databaseFile}` });
+        try {
+          const result = await verifyClient.execute(
+            "select status, reconciled_at as reconciledAt from downloads where id = 1",
+          );
+          const row = result.rows[0] as {
+            reconciledAt?: string | null;
+            status?: string;
+          };
+          assertEquals(row.status, "imported");
+          assertEquals(typeof row.reconciledAt, "string");
+        } finally {
+          verifyClient.close();
+        }
       } finally {
         await Deno.remove(animeRoot, { recursive: true });
         await Deno.remove(completedRoot, { recursive: true });

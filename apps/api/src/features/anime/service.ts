@@ -95,7 +95,10 @@ export interface AnimeServiceShape {
   readonly updateProfile: (
     id: number,
     profileName: string,
-  ) => Effect.Effect<void, AnimeServiceError | DatabaseError>;
+  ) => Effect.Effect<
+    void,
+    AnimeServiceError | DatabaseError | ProfileNotFoundError
+  >;
   readonly updateReleaseProfiles: (
     id: number,
     releaseProfileIds: number[],
@@ -103,6 +106,13 @@ export interface AnimeServiceShape {
   readonly listEpisodes: (
     animeId: number,
   ) => Effect.Effect<Episode[], DatabaseError>;
+  readonly resolveEpisodeFile: (
+    animeId: number,
+    episodeNumber: number,
+  ) => Effect.Effect<
+    { fileName: string; filePath: string } | null,
+    AnimeServiceError | DatabaseError
+  >;
   readonly refreshEpisodes: (
     animeId: number,
   ) => Effect.Effect<void, AnimeServiceError | DatabaseError>;
@@ -763,6 +773,74 @@ const makeAnimeService = Effect.gen(function* () {
     }));
   });
 
+  const resolveEpisodeFile = Effect.fn("AnimeService.resolveEpisodeFile")(
+    function* (animeId: number, episodeNumber: number) {
+      const animeRow = yield* tryAnimePromise(
+        "Failed to resolve episode file",
+        () => getAnimeRowOrThrow(db, animeId),
+      );
+      const episodeRow = yield* tryAnimePromise(
+        "Failed to resolve episode file",
+        () => getEpisodeRowOrThrow(db, animeId, episodeNumber),
+      );
+
+      if (!episodeRow.filePath) {
+        return null;
+      }
+
+      const animeRootResult = yield* Effect.either(
+        fs.realPath(animeRow.rootFolder),
+      );
+
+      if (animeRootResult._tag === "Left") {
+        return null;
+      }
+
+      const filePathResult = yield* Effect.either(
+        fs.realPath(episodeRow.filePath),
+      );
+
+      if (filePathResult._tag === "Left") {
+        return null;
+      }
+
+      const filePath = filePathResult.right;
+
+      if (!isWithinPathRoot(filePath, animeRootResult.right)) {
+        return null;
+      }
+
+      return {
+        fileName: filePath.split("/").pop() ?? `episode-${episodeNumber}`,
+        filePath,
+      };
+    },
+  );
+
+  const updateProfile = Effect.fn("AnimeService.updateProfile")(function* (
+    id: number,
+    profileName: string,
+  ) {
+    const profileExists = yield* tryDatabasePromise(
+      "Failed to update anime profile",
+      () => qualityProfileExists(db, profileName),
+    );
+
+    if (!profileExists) {
+      return yield* new ProfileNotFoundError({
+        message: `Quality profile '${profileName}' not found`,
+      });
+    }
+
+    yield* updateAnimeRow(
+      db,
+      id,
+      { profileName },
+      `Updated profile for anime ${id}`,
+      eventPublisher,
+    );
+  });
+
   return {
     listAnime,
     getAnime,
@@ -787,14 +865,7 @@ const makeAnimeService = Effect.gen(function* () {
         eventPublisher,
       ),
     updatePath,
-    updateProfile: (id, profileName) =>
-      updateAnimeRow(
-        db,
-        id,
-        { profileName },
-        `Updated profile for anime ${id}`,
-        eventPublisher,
-      ),
+    updateProfile,
     updateReleaseProfiles: (id, releaseProfileIds) =>
       updateAnimeRow(
         db,
@@ -804,6 +875,7 @@ const makeAnimeService = Effect.gen(function* () {
         eventPublisher,
       ),
     listEpisodes,
+    resolveEpisodeFile,
     refreshEpisodes,
     scanFolder,
     deleteEpisodeFile,

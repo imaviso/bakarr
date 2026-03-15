@@ -175,6 +175,11 @@ export function makeDownloadOrchestration(input: {
       );
 
       if (batchPaths.length > 0) {
+        const accountedEpisodes = new Set<number>();
+        const expectedEpisodeCount = coveredEpisodes.length > 0
+          ? new Set(coveredEpisodes).size
+          : undefined;
+        let alreadyImportedCount = 0;
         let importedCount = 0;
 
         for (const path of batchPaths) {
@@ -191,6 +196,8 @@ export function makeDownloadOrchestration(input: {
             continue;
           }
 
+          accountedEpisodes.add(episodeNumber);
+
           const existingEpisode = yield* tryDatabasePromise(
             "Failed to reconcile completed download",
             () =>
@@ -203,6 +210,7 @@ export function makeDownloadOrchestration(input: {
           );
 
           if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
+            alreadyImportedCount += 1;
             continue;
           }
 
@@ -225,16 +233,22 @@ export function makeDownloadOrchestration(input: {
           importedCount += 1;
         }
 
-        if (importedCount === 0) {
-          yield* tryDatabasePromise(
-            "Failed to reconcile completed download",
-            async () => {
-              await markDownloadImported(db, row.id);
-              await db
-                .update(downloads)
-                .set({ reconciledAt: nowIso() })
-                .where(eq(downloads.id, row.id));
-            },
+        const batchAlreadyImported = importedCount === 0 &&
+          accountedEpisodes.size > 0 &&
+          alreadyImportedCount === accountedEpisodes.size &&
+          (
+            expectedEpisodeCount === undefined ||
+            accountedEpisodes.size === expectedEpisodeCount
+          );
+
+        if (importedCount === 0 && !batchAlreadyImported) {
+          yield* Effect.logWarning(
+            "Batch reconciliation skipped all files; leaving unreconciled for retry",
+          ).pipe(
+            Effect.annotateLogs({
+              animeTitle: row.animeTitle,
+              downloadId: row.id,
+            }),
           );
           return;
         }
@@ -258,7 +272,9 @@ export function makeDownloadOrchestration(input: {
               downloadId: row.id,
               eventType: "download.imported.batch",
               fromStatus: row.status,
-              message: `Imported batch torrent for ${row.animeTitle}`,
+              message: batchAlreadyImported
+                ? `Reconciled already-imported batch torrent for ${row.animeTitle}`
+                : `Imported batch torrent for ${row.animeTitle}`,
               toStatus: "imported",
             }),
         );
@@ -269,7 +285,9 @@ export function makeDownloadOrchestration(input: {
               db,
               "downloads.reconciled.batch",
               "success",
-              `Mapped completed batch torrent for ${row.animeTitle}`,
+              batchAlreadyImported
+                ? `Marked already-imported batch torrent as reconciled for ${row.animeTitle}`
+                : `Mapped completed batch torrent for ${row.animeTitle}`,
             ),
         );
         return;

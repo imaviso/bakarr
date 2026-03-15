@@ -204,24 +204,29 @@ export async function findAnimeRootFolderOwner(
   db: AppDatabase,
   rootFolder: string,
 ) {
+  const normalized = normalizeRootFolder(rootFolder);
   const rows = await db.select({
     id: anime.id,
     rootFolder: anime.rootFolder,
     titleRomaji: anime.titleRomaji,
   }).from(anime);
 
-  const normalized = rootFolder.endsWith("/") ? rootFolder : `${rootFolder}/`;
-
   return rows.find((row) => {
-    const existing = row.rootFolder.endsWith("/")
-      ? row.rootFolder
-      : `${row.rootFolder}/`;
+    const existing = normalizeRootFolder(row.rootFolder);
     return (
       existing === normalized ||
-      normalized.startsWith(existing) ||
-      existing.startsWith(normalized)
+      normalized.startsWith(`${existing}/`) ||
+      existing.startsWith(`${normalized}/`)
     );
-  });
+  }) ?? null;
+}
+
+function normalizeRootFolder(rootFolder: string) {
+  if (rootFolder === "/") {
+    return "/";
+  }
+
+  return rootFolder.replace(/\/+$/, "");
 }
 
 export async function getConfiguredImagesPath(db: AppDatabase) {

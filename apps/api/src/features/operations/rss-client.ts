@@ -67,18 +67,33 @@ const makeFetchItems = (client: HttpClient.HttpClient) =>
       return [];
     }
 
-    const hostname = parsedUrl.hostname.toLowerCase();
+    const hostname = normalizeHostname(parsedUrl.hostname);
     if (
       hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "::1" ||
-      hostname.startsWith("192.168.") ||
-      hostname.startsWith("10.") ||
-      hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\./) ||
       hostname.endsWith(".local") ||
       hostname.endsWith(".internal")
     ) {
       return [];
+    }
+
+    if (isIpLiteral(hostname)) {
+      if (isPrivateIpAddress(hostname)) {
+        return [];
+      }
+    } else {
+      const resolvedAddrs = yield* Effect.promise(() =>
+        resolveFeedAddresses(hostname)
+      );
+
+      if (resolvedAddrs.length === 0) {
+        return [];
+      }
+
+      for (const addr of resolvedAddrs) {
+        if (isPrivateIpAddress(addr)) {
+          return [];
+        }
+      }
     }
 
     const request = HttpClientRequest.get(url).pipe(
@@ -270,4 +285,137 @@ function randomHex(bytes: number) {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function normalizeHostname(hostname: string) {
+  return hostname.toLowerCase().replace(/^\[/, "").replace(/\]$/, "");
+}
+
+function isIpLiteral(hostname: string) {
+  return isIpv4Literal(hostname) || isIpv6Literal(hostname);
+}
+
+function isIpv4Literal(hostname: string) {
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+}
+
+function isIpv6Literal(hostname: string) {
+  return hostname.includes(":");
+}
+
+function isPrivateIpAddress(addr: string) {
+  return isPrivateIpv4(addr) || isPrivateIpv6(addr);
+}
+
+async function resolveFeedAddresses(hostname: string): Promise<string[]> {
+  const dns = Deno as unknown as {
+    resolveDns: (name: string, type: "A" | "AAAA") => Promise<string[]>;
+  };
+  const lookups = await Promise.allSettled([
+    dns.resolveDns(hostname, "A"),
+    dns.resolveDns(hostname, "AAAA"),
+  ]);
+  const addresses: string[] = [];
+  let hadLookupFailure = false;
+
+  for (const lookup of lookups) {
+    if (lookup.status === "fulfilled") {
+      addresses.push(...lookup.value);
+      continue;
+    }
+
+    if (!isNoRecordDnsError(lookup.reason)) {
+      hadLookupFailure = true;
+    }
+  }
+
+  return hadLookupFailure || addresses.length === 0 ? [] : addresses;
+}
+
+function isNoRecordDnsError(error: unknown) {
+  return error instanceof Deno.errors.NotFound ||
+    (error instanceof Error &&
+      /no data|no records|not found|nxdomain/i.test(error.message));
+}
+
+function isPrivateIpv4(addr: string): boolean {
+  const parts = addr.split(".").map(Number);
+  if (
+    parts.length !== 4 ||
+    parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)
+  ) {
+    return false;
+  }
+
+  return (
+    parts[0] === 0 ||
+    parts[0] === 127 ||
+    parts[0] === 10 ||
+    (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) ||
+    (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
+    (parts[0] === 192 && parts[1] === 168) ||
+    (parts[0] === 169 && parts[1] === 254)
+  );
+}
+
+function isPrivateIpv6(addr: string): boolean {
+  const normalized = addr.toLowerCase().split("%")[0];
+
+  if (normalized === "::" || normalized === "::1") {
+    return true;
+  }
+
+  if (normalized.startsWith("::ffff:")) {
+    return isPrivateIpv4(normalized.slice("::ffff:".length));
+  }
+
+  const segments = expandIpv6(normalized);
+
+  if (!segments) {
+    return false;
+  }
+
+  const first = Number.parseInt(segments[0], 16);
+
+  if (Number.isNaN(first)) {
+    return false;
+  }
+
+  return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80;
+}
+
+function expandIpv6(addr: string): string[] | null {
+  if (addr.includes(".")) {
+    return null;
+  }
+
+  const sections = addr.split("::");
+
+  if (sections.length > 2) {
+    return null;
+  }
+
+  const head = sections[0] ? sections[0].split(":") : [];
+  const tail = sections[1] ? sections[1].split(":") : [];
+
+  if (
+    head.some((part) => !isIpv6Hextet(part)) ||
+    tail.some((part) => !isIpv6Hextet(part))
+  ) {
+    return null;
+  }
+
+  const fillCount = 8 - head.length - tail.length;
+
+  if ((sections.length === 1 && fillCount !== 0) || fillCount < 0) {
+    return null;
+  }
+
+  return [...head, ...Array(fillCount).fill("0"), ...tail].map((part) =>
+    part.padStart(4, "0")
+  );
+}
+
+function isIpv6Hextet(part: string) {
+  return /^[0-9a-f]{1,4}$/i.test(part);
 }
