@@ -253,6 +253,7 @@ Deno.test("shared search and scanner schemas accept canonical payloads", () => {
   });
   const scannerState = Schema.decodeUnknownEither(ScannerStateSchema)({
     folders: [{
+      match_attempts: 1,
       last_matched_at: "2024-01-01T00:00:00.000Z",
       match_status: "done",
       name: "Naruto",
@@ -605,6 +606,7 @@ Deno.test("shared operational detail schemas accept canonical payloads", () => {
   });
   const scannedFile = Schema.decodeUnknownEither(ScannedFileSchema)({
     episode_number: 1,
+    episode_numbers: [1, 2],
     filename: "Naruto - 01.mkv",
     group: "SubsPlease",
     matched_anime: {
@@ -630,6 +632,7 @@ Deno.test("shared operational detail schemas accept canonical payloads", () => {
     }],
     files: [{
       episode_number: 1,
+      episode_numbers: [1, 2],
       filename: "Naruto - 01.mkv",
       parsed_title: "Naruto",
       source_path: "/imports/Naruto - 01.mkv",
