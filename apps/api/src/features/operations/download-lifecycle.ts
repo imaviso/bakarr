@@ -6,8 +6,12 @@ import {
   decodeOptionalNumberList,
   encodeOptionalNumberList,
 } from "../system/config-codec.ts";
-import { parseEpisodeNumber, scanVideoFiles } from "./file-scanner.ts";
+import { scanVideoFiles } from "./file-scanner.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
+import {
+  classifyMediaArtifact,
+  parseFileSourceIdentity,
+} from "../../lib/media-identity.ts";
 
 export function parseMagnetInfoHash(
   magnet: string | null | undefined,
@@ -44,9 +48,12 @@ export const resolveCompletedContentPath = Effect.fn(
   }
 
   const files = yield* scanVideoFiles(fs, contentPath);
-  const matching = files.find((file) =>
-    parseEpisodeNumber(file.path) === episodeNumber
-  );
+  const matching = files.find((file) => {
+    const parsed = parseFileSourceIdentity(file.path);
+    if (!parsed.source_identity) return false;
+    if (parsed.source_identity.scheme === "daily") return false;
+    return parsed.source_identity.episode_numbers.includes(episodeNumber);
+  });
 
   return matching?.path;
 });
@@ -74,7 +81,13 @@ export const resolveBatchContentPaths = Effect.fn(
   }
 
   const files = yield* scanVideoFiles(fs, contentPath);
-  return files.map((file) => file.path);
+  return files
+    .filter((file) => {
+      const classification = classifyMediaArtifact(file.path, file.name);
+      return classification.kind !== "extra" &&
+        classification.kind !== "sample";
+    })
+    .map((file) => file.path);
 });
 
 export function toCoveredEpisodesJson(
@@ -218,4 +231,4 @@ export function applyRemotePathMappings(
   return results;
 }
 
-export { parseEpisodeNumber, scanVideoFiles };
+export { scanVideoFiles };

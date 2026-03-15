@@ -19,8 +19,12 @@ import {
   shouldReconcileCompletedDownloads,
   shouldRemoveTorrentOnImport,
   upsertEpisodeFile,
+  upsertEpisodeFiles,
 } from "./download-support.ts";
-import { parseEpisodeNumber } from "./library-import.ts";
+import {
+  classifyMediaArtifact,
+  parseFileSourceIdentity,
+} from "../../lib/media-identity.ts";
 import {
   hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
@@ -183,20 +187,39 @@ export function makeDownloadOrchestration(input: {
         let importedCount = 0;
 
         for (const path of batchPaths) {
-          const episodeNumber = parseEpisodeNumber(path);
-
-          if (!episodeNumber) {
-            continue;
-          }
-
+          const fileName = path.substring(path.lastIndexOf("/") + 1);
+          const classification = classifyMediaArtifact(path, fileName);
           if (
-            coveredEpisodes.length > 0 &&
-            !coveredEpisodes.includes(episodeNumber)
+            classification.kind === "extra" ||
+            classification.kind === "sample"
           ) {
             continue;
           }
 
-          accountedEpisodes.add(episodeNumber);
+          const parsed = parseFileSourceIdentity(path);
+          const identity = parsed.source_identity;
+          if (!identity || identity.scheme === "daily") {
+            continue;
+          }
+
+          const episodeNumbers = identity.episode_numbers;
+          if (episodeNumbers.length === 0) {
+            continue;
+          }
+
+          const relevantEpisodes = coveredEpisodes.length > 0
+            ? episodeNumbers.filter((ep) => coveredEpisodes.includes(ep))
+            : episodeNumbers;
+
+          if (relevantEpisodes.length === 0) {
+            continue;
+          }
+
+          for (const ep of relevantEpisodes) {
+            accountedEpisodes.add(ep);
+          }
+
+          const primaryEpisode = relevantEpisodes[0];
 
           const existingEpisode = yield* tryDatabasePromise(
             "Failed to reconcile completed download",
@@ -204,7 +227,7 @@ export function makeDownloadOrchestration(input: {
               db.select().from(episodes).where(
                 and(
                   eq(episodes.animeId, row.animeId),
-                  eq(episodes.number, episodeNumber),
+                  eq(episodes.number, primaryEpisode),
                 ),
               ).limit(1),
           );
@@ -217,7 +240,7 @@ export function makeDownloadOrchestration(input: {
           const managedPath = yield* importDownloadedFile(
             fs,
             animeRow,
-            episodeNumber,
+            primaryEpisode,
             path,
             importMode,
           ).pipe(
@@ -228,7 +251,12 @@ export function makeDownloadOrchestration(input: {
           yield* tryDatabasePromise(
             "Failed to reconcile completed download",
             () =>
-              upsertEpisodeFile(db, row.animeId, episodeNumber, managedPath),
+              upsertEpisodeFiles(
+                db,
+                row.animeId,
+                relevantEpisodes,
+                managedPath,
+              ),
           );
           importedCount += 1;
         }

@@ -21,9 +21,13 @@ import {
   rssFeeds,
 } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
-import { buildRenamePreview, parseEpisodeNumber } from "./library-import.ts";
+import { buildRenamePreview } from "./library-import.ts";
 import { scanVideoFilesStream } from "./file-scanner.ts";
-import { upsertEpisodeFile } from "./download-support.ts";
+import { upsertEpisodeFile, upsertEpisodeFiles } from "./download-support.ts";
+import {
+  classifyMediaArtifact,
+  parseFileSourceIdentity,
+} from "../../lib/media-identity.ts";
 import {
   appendLog,
   markJobFailed,
@@ -158,6 +162,7 @@ export function makeCatalogOrchestration(input: {
       source_path: string;
       anime_id: number;
       episode_number: number;
+      episode_numbers?: readonly number[];
       season?: number;
     }[],
   ) {
@@ -220,29 +225,40 @@ export function makeCatalogOrchestration(input: {
           );
         }
 
-        yield* tryDatabasePromise(
-          "Failed to import files",
-          () =>
-            upsertEpisodeFile(
-              db,
-              file.anime_id,
-              file.episode_number,
-              destination,
+        // Upsert all covered episode numbers (multi-episode support)
+        const allEpisodeNumbers = file.episode_numbers?.length
+          ? file.episode_numbers
+          : [file.episode_number];
+
+        for (const epNum of allEpisodeNumbers) {
+          yield* tryDatabasePromise(
+            "Failed to import files",
+            () =>
+              upsertEpisodeFile(
+                db,
+                file.anime_id,
+                epNum,
+                destination,
+              ),
+          ).pipe(
+            Effect.catchAll((error) =>
+              (importMode === "move"
+                ? fs.rename(destination, resolvedSource)
+                : fs.remove(destination)).pipe(
+                  Effect.catchTag("FileSystemError", () => Effect.void),
+                  Effect.zipRight(Effect.fail(error)),
+                )
             ),
-        ).pipe(
-          Effect.catchAll((error) =>
-            (importMode === "move"
-              ? fs.rename(destination, resolvedSource)
-              : fs.remove(destination)).pipe(
-                Effect.catchTag("FileSystemError", () => Effect.void),
-                Effect.zipRight(Effect.fail(error)),
-              )
-          ),
-        );
+          );
+        }
+
         importedFiles.push({
           anime_id: file.anime_id,
           destination_path: destination,
           episode_number: file.episode_number,
+          episode_numbers: file.episode_numbers
+            ? [...file.episode_numbers]
+            : undefined,
           source_path: file.source_path,
         });
       }).pipe(Effect.either);
@@ -279,6 +295,7 @@ export function makeCatalogOrchestration(input: {
       source_path: string;
       anime_id: number;
       episode_number: number;
+      episode_numbers?: readonly number[];
       season?: number;
     }[],
   ) =>
@@ -557,28 +574,54 @@ export function makeCatalogOrchestration(input: {
               { matchedFiles: 0, scannedFiles: 0 },
               (counts, file) =>
                 Effect.gen(function* () {
-                  const episodeNumber = parseEpisodeNumber(file.path);
-
-                  if (!episodeNumber) {
+                  // Skip extras and samples
+                  const classification = classifyMediaArtifact(
+                    file.path,
+                    file.name,
+                  );
+                  if (
+                    classification.kind === "extra" ||
+                    classification.kind === "sample"
+                  ) {
                     return {
                       matchedFiles: counts.matchedFiles,
                       scannedFiles: counts.scannedFiles + 1,
                     };
                   }
 
+                  // Parse with canonical parser
+                  const parsed = parseFileSourceIdentity(file.path);
+                  const identity = parsed.source_identity;
+
+                  if (!identity || identity.scheme === "daily") {
+                    return {
+                      matchedFiles: counts.matchedFiles,
+                      scannedFiles: counts.scannedFiles + 1,
+                    };
+                  }
+
+                  const episodeNumbers = identity.episode_numbers;
+                  if (episodeNumbers.length === 0) {
+                    return {
+                      matchedFiles: counts.matchedFiles,
+                      scannedFiles: counts.scannedFiles + 1,
+                    };
+                  }
+
+                  // Upsert all covered episode numbers for multi-episode files
                   yield* tryDatabasePromise(
                     "Failed to run library scan",
                     () =>
-                      upsertEpisodeFile(
+                      upsertEpisodeFiles(
                         db,
                         animeRow.id,
-                        episodeNumber,
+                        episodeNumbers,
                         file.path,
                       ),
                   );
 
                   return {
-                    matchedFiles: counts.matchedFiles + 1,
+                    matchedFiles: counts.matchedFiles + episodeNumbers.length,
                     scannedFiles: counts.scannedFiles + 1,
                   };
                 }),

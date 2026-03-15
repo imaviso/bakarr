@@ -216,6 +216,12 @@ export async function currentImportMode(db: AppDatabase) {
   return decodeLibraryConfig(rows[0]?.data).import_mode;
 }
 
+export async function currentNamingFormat(db: AppDatabase) {
+  const rows = await db.select().from(appConfig).limit(1);
+
+  return decodeLibraryConfig(rows[0]?.data).naming_format;
+}
+
 function decodeLibraryConfig(value: string | undefined) {
   const defaults = makeDefaultConfig(":memory:").library;
 

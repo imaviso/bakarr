@@ -6,6 +6,7 @@ import type {
   QualityProfile,
   ReleaseProfileRule,
 } from "../../../../../packages/shared/src/index.ts";
+import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
 
 export interface ParsedReleaseName {
   readonly episodeNumber?: number;
@@ -96,34 +97,15 @@ export function parseEpisodeFromTitle(title: string): number | undefined {
 }
 
 export function parseEpisodeNumbersFromTitle(title: string): readonly number[] {
-  const expandedRange = parseEpisodeRange(title);
+  const result = parseReleaseSourceIdentity(title);
+  if (!result.source_identity) return [];
 
-  if (expandedRange.length > 0) {
-    return expandedRange;
+  if (result.source_identity.scheme === "daily") {
+    // Daily identities cannot be represented as numeric episode numbers
+    return [];
   }
 
-  const stripped = title.replace(/\b\d{3,4}p\b/gi, "");
-
-  const patterns = [
-    /(?:^|[^a-z0-9])s\d{1,2}e(\d{1,3})(?:[^a-z0-9]|$)/i,
-    /(?:^|[^a-z0-9])ep?(\d{1,3})(?:[^a-z0-9]|$)/i,
-    /(?:^|[^a-z0-9])-(\d{1,3})(?:[^a-z0-9]|$)/,
-    /(?:^|[^0-9])(\d{1,3})(?:[^0-9]|$)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = stripped.match(pattern);
-    if (!match) {
-      continue;
-    }
-
-    const value = Number(match[1]);
-    if (Number.isInteger(value) && value > 0 && value < 2000) {
-      return [value];
-    }
-  }
-
-  return [];
+  return result.source_identity.episode_numbers;
 }
 
 export function parseResolution(title: string): string | undefined {
@@ -450,40 +432,6 @@ function parseSizeLabelToBytes(value: string): number {
     ? 1024 ** 3
     : 1024 ** 4;
   return Math.round(amount * multiplier);
-}
-
-function parseEpisodeRange(title: string): readonly number[] {
-  const patterns = [
-    /(?:^|[^0-9])(\d{1,3})\s*[-~]\s*(\d{1,3})(?:[^0-9]|$)/,
-    /s\d{1,2}e(\d{1,3})\s*[-~]\s*e?(\d{1,3})(?:[^0-9]|$)/i,
-    /episodes?\s*(\d{1,3})\s*[-~]\s*(\d{1,3})/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = title.match(pattern);
-
-    if (!match) {
-      continue;
-    }
-
-    const start = Number(match[1]);
-    const end = Number(match[2]);
-
-    if (
-      !Number.isInteger(start) || !Number.isInteger(end) || start <= 0 ||
-      end <= 0 || end < start
-    ) {
-      continue;
-    }
-
-    if (end - start > 500) {
-      continue;
-    }
-
-    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
-  }
-
-  return [];
 }
 
 function stripSourceKind(

@@ -29,10 +29,10 @@ import { type ParsedRelease, RssClient } from "./rss-client.ts";
 import {
   analyzeScannedFile,
   findBestLocalAnimeMatch,
-  scanVideoFiles,
   titlesMatch,
   toAnimeSearchCandidate,
 } from "./library-import.ts";
+import { scanVideoFiles } from "./file-scanner.ts";
 import {
   buildUnmappedFolderSearchQueries,
   hasUnmappedFolderRetryAttemptsRemaining,
@@ -84,7 +84,10 @@ import {
   parseEpisodeFromTitle,
   parseReleaseName,
 } from "./release-ranking.ts";
-import { parseEpisodeNumber } from "./file-scanner.ts";
+import {
+  classifyMediaArtifact,
+  parseFileSourceIdentity,
+} from "../../lib/media-identity.ts";
 import {
   ExternalCallError,
   OperationsConflictError,
@@ -1123,29 +1126,43 @@ export function makeSearchOrchestration(input: {
     let imported = 0;
 
     for (const file of files) {
-      const episodeNumber = parseEpisodeNumber(file.path);
-
-      if (!episodeNumber) {
+      const classification = classifyMediaArtifact(file.path, file.name);
+      if (
+        classification.kind === "extra" || classification.kind === "sample"
+      ) {
         continue;
       }
 
-      yield* tryDatabasePromise(
-        "Failed to import unmapped folder",
-        () =>
-          upsertEpisode(db, input.anime_id, episodeNumber, {
-            aired: inferAiredAt(
-              animeRow.status,
-              episodeNumber,
-              animeRow.episodeCount ?? undefined,
-              animeRow.startDate ?? undefined,
-              animeRow.endDate ?? undefined,
-            ),
-            downloaded: true,
-            filePath: file.path,
-            title: null,
-          }),
-      );
-      imported += 1;
+      const parsed = parseFileSourceIdentity(file.path);
+      const identity = parsed.source_identity;
+      if (!identity || identity.scheme === "daily") {
+        continue;
+      }
+
+      const episodeNumbers = identity.episode_numbers;
+      if (episodeNumbers.length === 0) {
+        continue;
+      }
+
+      for (const episodeNumber of episodeNumbers) {
+        yield* tryDatabasePromise(
+          "Failed to import unmapped folder",
+          () =>
+            upsertEpisode(db, input.anime_id, episodeNumber, {
+              aired: inferAiredAt(
+                animeRow.status,
+                episodeNumber,
+                animeRow.episodeCount ?? undefined,
+                animeRow.startDate ?? undefined,
+                animeRow.endDate ?? undefined,
+              ),
+              downloaded: true,
+              filePath: file.path,
+              title: null,
+            }),
+        );
+      }
+      imported += episodeNumbers.length;
     }
 
     yield* tryDatabasePromise(
@@ -1179,7 +1196,14 @@ export function makeSearchOrchestration(input: {
           "Failed to scan import path",
           () => db.select().from(anime),
         );
-      const analyzedFiles = files.map((file) => analyzeScannedFile(file));
+      const analyzed = files.map((file) =>
+        analyzeScannedFile(file, canonicalPath)
+      );
+      const episodeFiles = analyzed.filter((a) => !a.skipped);
+      const skippedFiles = analyzed
+        .filter((a) => a.skipped)
+        .map((a) => a.skipped!);
+
       const candidateMap = new Map<
         number,
         ReturnType<typeof toAnimeSearchCandidate>
@@ -1191,9 +1215,9 @@ export function makeSearchOrchestration(input: {
       } else {
         const parsedTitles = [
           ...new Set(
-            analyzedFiles.map((file) => file.parsed_title).filter((value) =>
-              value.length > 0
-            ),
+            episodeFiles
+              .map((a) => a.scanned.parsed_title)
+              .filter((value) => value.length > 0),
           ),
         ].slice(0, 8);
 
@@ -1214,7 +1238,8 @@ export function makeSearchOrchestration(input: {
 
       return {
         candidates: [...candidateMap.values()],
-        files: analyzedFiles.map((file) => {
+        files: episodeFiles.map((a) => {
+          const file = a.scanned;
           const localMatch = animeId
             ? animeRows[0]
             : findBestLocalAnimeMatch(file.parsed_title, animeRows);
@@ -1226,6 +1251,7 @@ export function makeSearchOrchestration(input: {
 
           return {
             episode_number: file.episode_number,
+            episode_numbers: file.episode_numbers,
             filename: file.filename,
             group: file.group,
             matched_anime: localMatch
@@ -1235,10 +1261,12 @@ export function makeSearchOrchestration(input: {
             resolution: file.resolution,
             season: file.season,
             source_path: file.source_path,
+            source_identity: file.source_identity,
+            needs_manual_mapping: file.needs_manual_mapping,
             suggested_candidate_id: localMatch?.id ?? remoteCandidate?.id,
           };
         }),
-        skipped: [],
+        skipped: skippedFiles,
       } satisfies ScanResult;
     },
   );

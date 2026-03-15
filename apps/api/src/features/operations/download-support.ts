@@ -4,11 +4,8 @@ import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import { anime } from "../../db/schema.ts";
-import {
-  FileSystemError,
-  type FileSystemShape,
-  sanitizeFilename,
-} from "../../lib/filesystem.ts";
+import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
+import { renderEpisodeFilename } from "../../lib/naming.ts";
 import { Effect } from "effect";
 
 function isCrossFilesystemError(error: { cause?: unknown }): boolean {
@@ -42,6 +39,10 @@ export function importDownloadedFile(
   episodeNumber: number,
   sourcePath: string,
   importMode: string,
+  options?: {
+    episodeNumbers?: readonly number[];
+    namingFormat?: string;
+  },
 ): Effect.Effect<string, ImportFileError | FileSystemError, never> {
   return Effect.gen(function* () {
     if (
@@ -54,9 +55,17 @@ export function importDownloadedFile(
     const extension = sourcePath.includes(".")
       ? sourcePath.slice(sourcePath.lastIndexOf("."))
       : ".mkv";
-    const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${
-      sanitizeFilename(animeRow.titleRomaji)
-    } - ${String(episodeNumber).padStart(2, "0")}${extension}`;
+    const allEpisodes = options?.episodeNumbers?.length
+      ? options.episodeNumbers
+      : [episodeNumber];
+    const namingFormat = options?.namingFormat ?? "{title} - {episode_segment}";
+    const baseName = renderEpisodeFilename(namingFormat, {
+      title: animeRow.titleRomaji,
+      episodeNumbers: allEpisodes,
+    });
+    const destination = `${
+      animeRow.rootFolder.replace(/\/$/, "")
+    }/${baseName}${extension}`;
     const tempDestination = `${destination}.tmp.${crypto.randomUUID()}`;
 
     yield* fs.mkdir(animeRow.rootFolder, { recursive: true });
@@ -130,6 +139,17 @@ export function importDownloadedFile(
 
     return destination;
   });
+}
+
+export async function upsertEpisodeFiles(
+  db: AppDatabase,
+  animeId: number,
+  episodeNumbers: readonly number[],
+  destination: string,
+) {
+  for (const episodeNumber of episodeNumbers) {
+    await upsertEpisodeFile(db, animeId, episodeNumber, destination);
+  }
 }
 
 export async function upsertEpisodeFile(
