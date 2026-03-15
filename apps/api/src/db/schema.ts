@@ -161,6 +161,7 @@ export const unmappedFolderMatches = sqliteTable("unmapped_folder_matches", {
   name: text("name").notNull(),
   size: integer("size").notNull().default(0),
   matchStatus: text("match_status").notNull().default("pending"),
+  matchAttempts: integer("match_attempts").notNull().default(0),
   suggestedMatches: text("suggested_matches").notNull().default("[]"),
   lastMatchedAt: text("last_matched_at"),
   lastMatchError: text("last_match_error"),

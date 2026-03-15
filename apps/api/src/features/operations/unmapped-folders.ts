@@ -12,6 +12,7 @@ type UnmappedFolderInput = Pick<
 >;
 
 const DEFAULT_SEARCH_CONCURRENCY = 4;
+export const MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS = 3;
 const NOISE_PATTERNS = [
   /\b(?:19|20)\d{2}\b/gi,
   /\b(?:2160|1080|720|480)p\b/gi,
@@ -93,6 +94,7 @@ export function mergeUnmappedFolderSuggestions(
 ): UnmappedFolder {
   return {
     ...folder,
+    match_attempts: 0,
     last_match_error: undefined,
     last_matched_at: new Date().toISOString(),
     match_status: "done",
@@ -105,6 +107,7 @@ export function markUnmappedFolderMatching(
 ): UnmappedFolder {
   return {
     ...folder,
+    match_attempts: folder.match_attempts ?? 0,
     last_match_error: undefined,
     match_status: "matching",
   };
@@ -115,7 +118,18 @@ export function markUnmappedFolderPending(
 ): UnmappedFolder {
   return {
     ...folder,
+    match_attempts: folder.match_attempts ?? 0,
     last_match_error: undefined,
+    match_status: "pending",
+  };
+}
+
+export function markUnmappedFolderRetryPending(
+  folder: UnmappedFolder,
+): UnmappedFolder {
+  return {
+    ...folder,
+    match_attempts: folder.match_attempts ?? 0,
     match_status: "pending",
   };
 }
@@ -124,12 +138,30 @@ export function markUnmappedFolderFailed(
   folder: UnmappedFolder,
   error: string,
 ): UnmappedFolder {
+  const matchAttempts = (folder.match_attempts ?? 0) + 1;
+
   return {
     ...folder,
+    match_attempts: matchAttempts,
     last_match_error: error,
     last_matched_at: new Date().toISOString(),
     match_status: "failed",
   };
+}
+
+export function hasUnmappedFolderRetryAttemptsRemaining(
+  folder: Pick<UnmappedFolder, "match_attempts" | "match_status">,
+) {
+  return folder.match_status === "failed" &&
+    (folder.match_attempts ?? 0) < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS;
+}
+
+export function isUnmappedFolderOutstanding(
+  folder: Pick<UnmappedFolder, "match_attempts" | "match_status">,
+) {
+  return folder.match_status === "pending" ||
+    folder.match_status === "matching" ||
+    hasUnmappedFolderRetryAttemptsRemaining(folder);
 }
 
 function stripNoise(value: string) {

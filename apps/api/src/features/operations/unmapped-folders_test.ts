@@ -5,6 +5,8 @@ import type { AnimeSearchResult } from "../../../../../packages/shared/src/index
 
 import {
   buildUnmappedFolderSearchQueries,
+  hasUnmappedFolderRetryAttemptsRemaining,
+  isUnmappedFolderOutstanding,
   markUnmappedFolderFailed,
   markUnmappedFolderMatching,
   markUnmappedFolderPending,
@@ -78,6 +80,7 @@ Deno.test("suggestUnmappedFolders reuses normalized queries and falls back when 
 Deno.test("unmapped folder helpers track matching status transitions", () => {
   const base = {
     match_status: "pending" as const,
+    match_attempts: 0,
     name: "Naruto Archive",
     path: "/library/Naruto Archive",
     size: 0,
@@ -95,10 +98,29 @@ Deno.test("unmapped folder helpers track matching status transitions", () => {
 
   assertEquals(matching.match_status, "matching");
   assertEquals(done.match_status, "done");
+  assertEquals(done.match_attempts, 0);
   assertEquals(done.suggested_matches[0]?.id, 20);
   assertEquals(typeof done.last_matched_at, "string");
   assertEquals(failed.match_status, "failed");
+  assertEquals(failed.match_attempts, 1);
   assertEquals(failed.last_match_error, "rate limited");
   assertEquals(pending.match_status, "pending");
+  assertEquals(pending.match_attempts, 0);
   assertEquals(pending.last_match_error, undefined);
+});
+
+Deno.test("unmapped folder retry helpers stop after three failed attempts", () => {
+  const retryable = {
+    match_attempts: 2,
+    match_status: "failed" as const,
+  };
+  const exhausted = {
+    match_attempts: 3,
+    match_status: "failed" as const,
+  };
+
+  assertEquals(hasUnmappedFolderRetryAttemptsRemaining(retryable), true);
+  assertEquals(isUnmappedFolderOutstanding(retryable), true);
+  assertEquals(hasUnmappedFolderRetryAttemptsRemaining(exhausted), false);
+  assertEquals(isUnmappedFolderOutstanding(exhausted), false);
 });
