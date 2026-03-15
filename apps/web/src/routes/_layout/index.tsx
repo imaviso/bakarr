@@ -4,6 +4,7 @@ import {
   IconClock,
   IconCloudDownload,
   IconDeviceTv,
+  IconEye,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, Link } from "@tanstack/solid-router";
 import { createMemo, For, Show } from "solid-js";
@@ -55,16 +56,28 @@ function DashboardPage() {
       {/* Stats Grid */}
       <Show when={statsQuery.data} fallback={<DashboardLoading />}>
         {(stats) => (
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Card class="card-hover">
               <CardHeader class="flex flex-row items-center justify-between pb-2">
                 <CardTitle class="text-sm font-medium text-muted-foreground">
-                  Monitored Anime
+                  Total Anime
                 </CardTitle>
                 <IconDeviceTv class="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div class="text-2xl font-bold">{stats().total_anime}</div>
+              </CardContent>
+            </Card>
+
+            <Card class="card-hover">
+              <CardHeader class="flex flex-row items-center justify-between pb-2">
+                <CardTitle class="text-sm font-medium text-muted-foreground">
+                  Monitored
+                </CardTitle>
+                <IconEye class="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div class="text-2xl font-bold">{stats().monitored_anime}</div>
               </CardContent>
             </Card>
 
