@@ -1,8 +1,12 @@
 import { Chunk, Effect, Option, Stream } from "effect";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
-import { parseEpisodeNumber } from "../../lib/episode-parser.ts";
+import {
+  parseEpisodeNumber,
+  parseEpisodeNumbers,
+} from "../../lib/episode-parser.ts";
 
 export { parseEpisodeNumber };
+export { parseEpisodeNumbers };
 
 export interface ScannedVideoFile {
   readonly name: string;
