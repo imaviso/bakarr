@@ -62,6 +62,8 @@ export const Route = createFileRoute("/_layout/anime/scan")({
   errorComponent: GeneralError,
 });
 
+const MAX_AUTO_MATCH_ATTEMPTS = 3;
+
 function LibraryScanPage() {
   const scanState = createUnmappedFoldersQuery();
   const systemJobs = createSystemJobsQuery();
@@ -293,8 +295,10 @@ function BackgroundMatchingCard(props: {
               ? "Matching one folder right now to stay under AniList rate limits."
               : props.queuedCount > 0
               ? "Queued folders will keep matching automatically every few seconds."
-              : props.failedCount > 0
+              : props.failedCount > 0 && props.hasOutstandingWork
               ? "Some folders failed their latest automatic match. They will retry in the background, or you can choose a manual match now."
+              : props.failedCount > 0
+              ? `Some folders hit the ${MAX_AUTO_MATCH_ATTEMPTS}-attempt automatic match limit. Choose a manual match to continue.`
               : "All discovered folders have finished their latest background match pass."}
           </p>
           <Show when={props.job?.last_message}>
@@ -663,7 +667,9 @@ function folderStatusLabel(folder: UnmappedFolder) {
     case "done":
       return folder.suggested_matches.length > 0 ? "Matched" : "No match";
     case "failed":
-      return "Retrying soon";
+      return hasAutomaticRetryRemaining(folder)
+        ? "Retrying soon"
+        : "Needs review";
     case "pending":
     default:
       return "Queued";
@@ -675,13 +681,17 @@ function folderMatchHint(folder: UnmappedFolder) {
     case "matching":
       return "Searching AniList in the background now.";
     case "failed":
-      return folder.last_match_error
-        ? `Last attempt failed: ${folder.last_match_error}`
-        : "The last attempt failed. It will retry automatically.";
+      return hasAutomaticRetryRemaining(folder)
+        ? folder.last_match_error
+          ? `Last attempt failed: ${folder.last_match_error}. Another automatic retry is queued.`
+          : "The last attempt failed. It will retry automatically."
+        : folder.last_match_error
+        ? `Automatic matching stopped after ${MAX_AUTO_MATCH_ATTEMPTS} failed attempts: ${folder.last_match_error}`
+        : `Automatic matching stopped after ${MAX_AUTO_MATCH_ATTEMPTS} failed attempts.`;
     case "done":
       return folder.suggested_matches.length > 0
         ? "Automatic suggestions are ready. You can import immediately or change the match."
-        : "No automatic match yet. You can search manually while background retries continue.";
+        : "No automatic match was found in the latest background pass. Search manually to continue.";
     case "pending":
     default:
       return "Waiting for the background matcher. Folders are processed one by one.";
@@ -693,13 +703,20 @@ function emptyMatchMessage(folder: UnmappedFolder) {
     case "matching":
       return "Matching in background...";
     case "failed":
-      return "Automatic match failed for now. Search for an anime to import.";
+      return hasAutomaticRetryRemaining(folder)
+        ? "Automatic match failed for now. Another retry is queued."
+        : "Automatic matching is paused. Search for an anime to import.";
     case "pending":
       return "Queued for background matching. Search for an anime to import now, or wait for suggestions.";
     case "done":
     default:
       return "No automatic match yet. Search for an anime to import.";
   }
+}
+
+function hasAutomaticRetryRemaining(folder: UnmappedFolder) {
+  return folder.match_status === "failed" &&
+    (folder.match_attempts ?? 0) < MAX_AUTO_MATCH_ATTEMPTS;
 }
 
 function normalizeApiErrorMessage(message: string) {
