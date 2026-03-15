@@ -15,11 +15,15 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
 import {
   createEffect,
   createMemo,
+  createSignal,
   ErrorBoundary,
   For,
+  onCleanup,
+  onMount,
   Show,
   Suspense,
 } from "solid-js";
+import { createVirtualizer } from "@tanstack/solid-virtual";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { GeneralError } from "~/components/general-error";
@@ -140,11 +144,11 @@ function AnimeIndexPage() {
     });
 
   return (
-    <div class="space-y-6">
+    <div class="flex flex-col flex-1 min-h-0 gap-6">
       <PageHeader title="Library" subtitle="Manage your anime collection" />
 
       <div class="flex flex-col sm:flex-row gap-3">
-        {/* Search and Filter */}
+        {/* Search */}
         <div class="relative flex-1">
           <IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -155,148 +159,139 @@ function AnimeIndexPage() {
           />
         </div>
 
-        <div class="flex items-center justify-between sm:justify-end gap-2">
-          <div class="flex items-center gap-2">
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger>
-                  <DropdownMenuTrigger
-                    as={Button}
-                    variant="outline"
-                    size="icon"
-                    aria-label="Filter by status"
-                  >
-                    <IconFilter class="h-4 w-4" />
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent>Filter by status</TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent>
-                <DropdownMenuItem onSelect={() => updateFilter("all")}>
-                  <Show when={search().filter === "all"}>
-                    <IconCheck class="mr-2 h-4 w-4" />
-                  </Show>
-                  <span class={search().filter !== "all" ? "ml-6" : ""}>
-                    All Anime
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => updateFilter("monitored")}>
-                  <Show when={search().filter === "monitored"}>
-                    <IconCheck class="mr-2 h-4 w-4" />
-                  </Show>
-                  <span class={search().filter !== "monitored" ? "ml-6" : ""}>
-                    Monitored
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => updateFilter("unmonitored")}>
-                  <Show when={search().filter === "unmonitored"}>
-                    <IconCheck class="mr-2 h-4 w-4" />
-                  </Show>
-                  <span class={search().filter !== "unmonitored" ? "ml-6" : ""}>
-                    Unmonitored
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Actions */}
-            <div class="flex items-center gap-1">
-              <Tooltip>
-                <TooltipTrigger>
-                  <Link
-                    to="/anime/import"
-                    class={buttonVariants({ variant: "outline", size: "icon" })}
-                    aria-label="Import from folder"
-                  >
-                    <IconFolderOpen class="h-4 w-4" />
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent>Import from folder</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Link
-                    to="/anime/scan"
-                    class={buttonVariants({ variant: "outline", size: "icon" })}
-                    aria-label="Scan library"
-                  >
-                    <IconFolder class="h-4 w-4" />
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent>Scan Library</TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <div class="h-6 w-px bg-border mx-1 hidden sm:block" />
-
-            <div class="hidden sm:flex items-center gap-1 bg-muted/50 p-1 rounded-md">
-              <Tooltip>
-                <TooltipTrigger>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class={cn(
-                      "h-7 w-7",
-                      search().view === "grid"
-                        ? "bg-background shadow-sm"
-                        : "hover:bg-background/50",
-                    )}
-                    aria-label="Grid view"
-                    onClick={() => updateView("grid")}
-                  >
-                    <IconGridDots class="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Grid view</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class={cn(
-                      "h-7 w-7",
-                      search().view === "list"
-                        ? "bg-background shadow-sm"
-                        : "hover:bg-background/50",
-                    )}
-                    aria-label="List view"
-                    onClick={() => updateView("list")}
-                  >
-                    <IconList class="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>List view</TooltipContent>
-              </Tooltip>
-            </div>
-
+        {/* Controls */}
+        <div class="flex items-center gap-1">
+          {/* Filter */}
+          <DropdownMenu>
             <Tooltip>
               <TooltipTrigger>
-                <Link
-                  to="/anime/add"
-                  class={buttonVariants({ size: "icon", class: "md:hidden" })}
-                  aria-label="Add anime"
+                <DropdownMenuTrigger
+                  as={Button}
+                  variant="outline"
+                  size="icon"
+                  aria-label="Filter by status"
                 >
-                  <IconPlus class="h-4 w-4" />
-                </Link>
+                  <IconFilter class="h-4 w-4" />
+                </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent>Add new anime</TooltipContent>
+              <TooltipContent>Filter by status</TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent>
+              <DropdownMenuItem onSelect={() => updateFilter("all")}>
+                <Show when={search().filter === "all"}>
+                  <IconCheck class="mr-2 h-4 w-4" />
+                </Show>
+                <span class={search().filter !== "all" ? "ml-6" : ""}>
+                  All Anime
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => updateFilter("monitored")}>
+                <Show when={search().filter === "monitored"}>
+                  <IconCheck class="mr-2 h-4 w-4" />
+                </Show>
+                <span class={search().filter !== "monitored" ? "ml-6" : ""}>
+                  Monitored
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => updateFilter("unmonitored")}>
+                <Show when={search().filter === "unmonitored"}>
+                  <IconCheck class="mr-2 h-4 w-4" />
+                </Show>
+                <span class={search().filter !== "unmonitored" ? "ml-6" : ""}>
+                  Unmonitored
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div class="h-6 w-px bg-border mx-1" />
+
+          {/* Library actions */}
+          <Tooltip>
+            <TooltipTrigger>
+              <Link
+                to="/anime/import"
+                class={buttonVariants({ variant: "outline", size: "icon" })}
+                aria-label="Import from folder"
+              >
+                <IconFolderOpen class="h-4 w-4" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>Import from folder</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <Link
+                to="/anime/scan"
+                class={buttonVariants({ variant: "outline", size: "icon" })}
+                aria-label="Scan library"
+              >
+                <IconFolder class="h-4 w-4" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>Scan library</TooltipContent>
+          </Tooltip>
+
+          <div class="h-6 w-px bg-border mx-1" />
+
+          {/* View toggle */}
+          <div class="flex items-center gap-1 bg-muted/50 p-1 rounded-md">
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class={cn(
+                    "h-7 w-7",
+                    search().view === "grid"
+                      ? "bg-background shadow-sm"
+                      : "hover:bg-background/50",
+                  )}
+                  aria-label="Grid view"
+                  onClick={() => updateView("grid")}
+                >
+                  <IconGridDots class="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Grid view</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger>
-                <Link
-                  to="/anime/add"
-                  class={buttonVariants({ class: "hidden md:flex" })}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class={cn(
+                    "h-7 w-7",
+                    search().view === "list"
+                      ? "bg-background shadow-sm"
+                      : "hover:bg-background/50",
+                  )}
+                  aria-label="List view"
+                  onClick={() => updateView("list")}
                 >
-                  <IconPlus class="mr-2 h-4 w-4" />
-                  Add Anime
-                </Link>
+                  <IconList class="h-4 w-4" />
+                </Button>
               </TooltipTrigger>
-              <TooltipContent>Add new anime</TooltipContent>
+              <TooltipContent>List view</TooltipContent>
             </Tooltip>
           </div>
+
+          <div class="h-6 w-px bg-border mx-1" />
+
+          {/* Add Anime */}
+          <Tooltip>
+            <TooltipTrigger>
+              <Link
+                to="/anime/add"
+                class={buttonVariants({ class: "gap-1.5 px-2.5 sm:px-4" })}
+                aria-label="Add anime"
+              >
+                <IconPlus class="h-4 w-4" />
+                <span class="hidden sm:inline">Add Anime</span>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>Add new anime</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -355,47 +350,52 @@ function AnimeContent(props: AnimeContentProps) {
   });
 
   return (
-    <Show
-      when={filteredList().length > 0}
-      fallback={
+    <div class="flex flex-col flex-1 min-h-0">
+      <Show
+        when={filteredList().length > 0}
+        fallback={
+          <Show
+            when={!props.search.q}
+            fallback={
+              <p class="text-center text-muted-foreground py-8">
+                No anime matching "{props.search.q}"
+              </p>
+            }
+          >
+            <Card class="p-12 text-center border-dashed">
+              <div class="flex flex-col items-center gap-4">
+                <IconDeviceTv class="h-12 w-12 text-muted-foreground/50" />
+                <div>
+                  <h3 class="font-medium">No anime yet</h3>
+                  <p class="text-sm text-muted-foreground mt-1">
+                    Add your first anime to start monitoring
+                  </p>
+                </div>
+                <Link to="/anime/add" class={buttonVariants()}>
+                  <IconPlus class="mr-2 h-4 w-4" />
+                  Add Anime
+                </Link>
+              </div>
+            </Card>
+          </Show>
+        }
+      >
         <Show
-          when={!props.search.q}
+          when={props.search.view === "grid"}
           fallback={
-            <p class="text-center text-muted-foreground py-8">
-              No anime matching "{props.search.q}"
-            </p>
+            <AnimeListView
+              anime={filteredList()}
+              deleteAnime={props.deleteAnime}
+            />
           }
         >
-          <Card class="p-12 text-center border-dashed">
-            <div class="flex flex-col items-center gap-4">
-              <IconDeviceTv class="h-12 w-12 text-muted-foreground/50" />
-              <div>
-                <h3 class="font-medium">No anime yet</h3>
-                <p class="text-sm text-muted-foreground mt-1">
-                  Add your first anime to start monitoring
-                </p>
-              </div>
-              <Link to="/anime/add" class={buttonVariants()}>
-                <IconPlus class="mr-2 h-4 w-4" />
-                Add Anime
-              </Link>
-            </div>
-          </Card>
-        </Show>
-      }
-    >
-      <Show
-        when={props.search.view === "grid"}
-        fallback={
-          <AnimeListView
+          <AnimeGridView
             anime={filteredList()}
             deleteAnime={props.deleteAnime}
           />
-        }
-      >
-        <AnimeGridView anime={filteredList()} deleteAnime={props.deleteAnime} />
+        </Show>
       </Show>
-    </Show>
+    </div>
   );
 }
 
@@ -404,124 +404,209 @@ interface AnimeViewProps {
   deleteAnime: ReturnType<typeof createDeleteAnimeMutation>;
 }
 
+function getColCount() {
+  const w = globalThis.innerWidth;
+  if (w >= 1536) return 6;
+  if (w >= 1280) return 5;
+  if (w >= 1024) return 4;
+  if (w >= 640) return 3;
+  return 2;
+}
+
 function AnimeGridView(props: AnimeViewProps) {
+  let scrollRef!: HTMLDivElement;
+  const [colCount, setColCount] = createSignal(getColCount());
+
+  onMount(() => {
+    const handler = () => setColCount(getColCount());
+    globalThis.addEventListener("resize", handler);
+    onCleanup(() => globalThis.removeEventListener("resize", handler));
+  });
+
+  const rowCount = createMemo(() => Math.ceil(props.anime.length / colCount()));
+
+  const estimateRowSize = createMemo(() => {
+    const cols = colCount();
+    const vw = globalThis.innerWidth;
+    const containerW = Math.max(280, vw - (vw >= 768 ? 260 : 0) - 48);
+    const colW = (containerW - (cols - 1) * 16) / cols;
+    return Math.round(colW * 1.5 + 68 + 16); // image + card content + row gap
+  });
+
+  const rowVirtualizer = createVirtualizer({
+    get count() {
+      return rowCount();
+    },
+    estimateSize: () => estimateRowSize(),
+    overscan: 2,
+    getScrollElement: () => scrollRef,
+  });
+
+  const gridPaddingTop = createMemo(() => {
+    const items = rowVirtualizer.getVirtualItems();
+    return items.length > 0 ? items[0].start : 0;
+  });
+  const gridPaddingBottom = createMemo(() => {
+    const items = rowVirtualizer.getVirtualItems();
+    return items.length > 0
+      ? rowVirtualizer.getTotalSize() - items[items.length - 1].end
+      : 0;
+  });
+
   return (
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-      <For each={props.anime}>
-        {(anime) => (
-          <Card class="group relative flex flex-col overflow-hidden bg-card card-hover transition-colors">
-            <div class="relative aspect-[2/3] w-full overflow-hidden bg-muted border-b border-border">
-              <Link
-                to="/anime/$id"
-                params={{ id: anime.id.toString() }}
-                class="block h-full w-full"
-              >
-                <Show
-                  when={anime.cover_image}
-                  fallback={
-                    <div class="flex h-full items-center justify-center text-muted-foreground">
-                      <IconDeviceTv class="h-12 w-12 opacity-20" />
-                    </div>
-                  }
-                >
-                  <img
-                    src={anime.cover_image}
-                    alt={anime.title.english || anime.title.romaji}
-                    class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </Show>
-
-                {/* Gradient Overlay */}
-                <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              </Link>
-
-              {/* Actions overlay - Top Right */}
-              <div class="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
-                <AlertDialog>
-                  <AlertDialogTrigger
-                    as={Button}
-                    size="icon"
-                    variant="secondary"
-                    class="h-7 w-7 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
-                  >
-                    <IconTrash class="h-3.5 w-3.5" />
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Anime</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Are you sure you want to delete "
-                        {anime.title.english || anime.title.romaji}
-                        "? This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => props.deleteAnime.mutate(anime.id)}
+    <div ref={scrollRef} class="overflow-y-auto flex-1 min-h-0">
+      <Show when={gridPaddingTop() > 0}>
+        <div style={{ height: `${gridPaddingTop()}px` }} aria-hidden="true" />
+      </Show>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-4">
+        <For each={rowVirtualizer.getVirtualItems()}>
+          {(vRow) => {
+            const startIdx = vRow.index * colCount();
+            const rowItems = props.anime.slice(startIdx, startIdx + colCount());
+            return (
+              <For each={rowItems}>
+                {(anime) => (
+                  <Card class="group relative flex flex-col overflow-hidden bg-card card-hover transition-colors">
+                    <div class="relative aspect-[2/3] w-full overflow-hidden bg-muted border-b border-border">
+                      <Link
+                        to="/anime/$id"
+                        params={{ id: anime.id.toString() }}
+                        class="block h-full w-full"
                       >
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-
-            <div class="flex flex-1 flex-col gap-2 p-3">
-              <Link
-                to="/anime/$id"
-                params={{ id: anime.id.toString() }}
-                class="line-clamp-1 text-sm font-medium leading-tight text-foreground/90 transition-colors hover:text-primary"
-                title={anime.title.english || anime.title.romaji}
-              >
-                {anime.title.english || anime.title.romaji}
-              </Link>
-
-              <div class="mt-auto flex items-center justify-between gap-2">
-                <Badge
-                  variant="outline"
-                  class="h-5 rounded-sm border-border/50 px-1.5 text-[10px] font-normal text-muted-foreground/80 hover:bg-muted hover:text-foreground"
-                >
-                  {anime.profile_name}
-                </Badge>
-
-                <Tooltip>
-                  <TooltipTrigger
-                    as={Button}
-                    variant="ghost"
-                    class="p-1 -mr-1 h-auto hover:bg-muted/50 transition-colors rounded-full"
-                  >
-                    <div class="flex items-center gap-1.5">
-                      <div
-                        class={cn(
-                          "h-1.5 w-1.5 rounded-full",
-                          anime.monitored
-                            ? "bg-success shadow-[0_0_4px_rgba(16,185,129,0.4)]"
-                            : "bg-muted-foreground/40",
-                        )}
-                      />
+                        <Show
+                          when={anime.cover_image}
+                          fallback={
+                            <div class="flex h-full items-center justify-center text-muted-foreground">
+                              <IconDeviceTv class="h-12 w-12 opacity-20" />
+                            </div>
+                          }
+                        >
+                          <img
+                            src={anime.cover_image}
+                            alt={anime.title.english || anime.title.romaji}
+                            class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        </Show>
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      </Link>
+                      <div class="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+                        <AlertDialog>
+                          <AlertDialogTrigger
+                            as={Button}
+                            size="icon"
+                            variant="secondary"
+                            class="h-7 w-7 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
+                          >
+                            <IconTrash class="h-3.5 w-3.5" />
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Anime</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "
+                                {anime.title.english || anime.title.romaji}
+                                "? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() =>
+                                  props.deleteAnime.mutate(anime.id)}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {anime.monitored ? "Monitored" : "Unmonitored"}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-          </Card>
-        )}
-      </For>
+                    <div class="flex flex-1 flex-col gap-2 p-3">
+                      <Link
+                        to="/anime/$id"
+                        params={{ id: anime.id.toString() }}
+                        class="line-clamp-1 text-sm font-medium leading-tight text-foreground/90 transition-colors hover:text-primary"
+                        title={anime.title.english || anime.title.romaji}
+                      >
+                        {anime.title.english || anime.title.romaji}
+                      </Link>
+                      <div class="mt-auto flex items-center justify-between gap-2">
+                        <Badge
+                          variant="outline"
+                          class="h-5 rounded-sm border-border/50 px-1.5 text-[10px] font-normal text-muted-foreground/80 hover:bg-muted hover:text-foreground"
+                        >
+                          {anime.profile_name}
+                        </Badge>
+                        <Tooltip>
+                          <TooltipTrigger
+                            as={Button}
+                            variant="ghost"
+                            class="p-1 -mr-1 h-auto hover:bg-muted/50 transition-colors rounded-full"
+                          >
+                            <div class="flex items-center gap-1.5">
+                              <div
+                                class={cn(
+                                  "h-1.5 w-1.5 rounded-full",
+                                  anime.monitored
+                                    ? "bg-success shadow-[0_0_4px_rgba(16,185,129,0.4)]"
+                                    : "bg-muted-foreground/40",
+                                )}
+                              />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {anime.monitored ? "Monitored" : "Unmonitored"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+              </For>
+            );
+          }}
+        </For>
+      </div>
+      <Show when={gridPaddingBottom() > 0}>
+        <div
+          style={{ height: `${gridPaddingBottom()}px` }}
+          aria-hidden="true"
+        />
+      </Show>
     </div>
   );
 }
 
 function AnimeListView(props: AnimeViewProps) {
+  let scrollRef!: HTMLDivElement;
+  const rowVirtualizer = createVirtualizer({
+    get count() {
+      return props.anime.length;
+    },
+    estimateSize: () => 72,
+    getScrollElement: () => scrollRef,
+    overscan: 10,
+  });
+
+  const paddingTop = createMemo(() => {
+    const items = rowVirtualizer.getVirtualItems();
+    return items.length > 0 ? items[0].start : 0;
+  });
+  const paddingBottom = createMemo(() => {
+    const items = rowVirtualizer.getVirtualItems();
+    return items.length > 0
+      ? rowVirtualizer.getTotalSize() - items[items.length - 1].end
+      : 0;
+  });
+
   return (
-    <div class="rounded-md border">
+    <div
+      ref={scrollRef}
+      class="flex-1 min-h-0 overflow-y-auto rounded-md border"
+    >
       <Table>
-        <TableHeader>
-          <TableRow>
+        <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
+          <TableRow class="hover:bg-transparent border-none">
             <TableHead class="w-[80px]">Cover</TableHead>
             <TableHead>Title</TableHead>
             <TableHead>Status</TableHead>
@@ -529,91 +614,118 @@ function AnimeListView(props: AnimeViewProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <For each={props.anime}>
-            {(anime) => (
-              <TableRow>
-                <TableCell>
-                  <Link
-                    to="/anime/$id"
-                    params={{ id: anime.id.toString() }}
-                    class="block w-12 h-16 rounded-md overflow-hidden bg-muted"
-                  >
-                    <Show
-                      when={anime.cover_image}
-                      fallback={
-                        <div class="flex items-center justify-center h-full text-muted-foreground">
-                          <IconDeviceTv class="h-6 w-6" />
-                        </div>
-                      }
+          <Show when={paddingTop() > 0}>
+            <tr aria-hidden="true">
+              <td
+                colSpan={4}
+                style={{
+                  height: `${paddingTop()}px`,
+                  padding: "0",
+                  border: "none",
+                }}
+              />
+            </tr>
+          </Show>
+          <For each={rowVirtualizer.getVirtualItems()}>
+            {(vRow) => {
+              const anime = props.anime[vRow.index];
+              return (
+                <TableRow>
+                  <TableCell>
+                    <Link
+                      to="/anime/$id"
+                      params={{ id: anime.id.toString() }}
+                      class="block w-12 h-16 rounded-md overflow-hidden bg-muted"
                     >
-                      <img
-                        src={anime.cover_image}
-                        alt={anime.title.english || anime.title.romaji}
-                        class="w-full h-full object-cover"
+                      <Show
+                        when={anime.cover_image}
+                        fallback={
+                          <div class="flex items-center justify-center h-full text-muted-foreground">
+                            <IconDeviceTv class="h-6 w-6" />
+                          </div>
+                        }
+                      >
+                        <img
+                          src={anime.cover_image}
+                          alt={anime.title.english || anime.title.romaji}
+                          class="w-full h-full object-cover"
+                        />
+                      </Show>
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Link
+                      to="/anime/$id"
+                      params={{ id: anime.id.toString() }}
+                      class="block group"
+                    >
+                      <div class="font-medium group-hover:text-primary transition-colors">
+                        {anime.title.english || anime.title.romaji}
+                      </div>
+                      <div class="text-xs text-muted-foreground">
+                        {anime.profile_name}
+                      </div>
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-2">
+                      <div
+                        class={`h-2 w-2 rounded-full ${
+                          anime.monitored ? "bg-success" : "bg-warning"
+                        }`}
                       />
-                    </Show>
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <Link
-                    to="/anime/$id"
-                    params={{ id: anime.id.toString() }}
-                    class="block group"
-                  >
-                    <div class="font-medium group-hover:text-primary transition-colors">
-                      {anime.title.english || anime.title.romaji}
+                      <span class="text-sm">
+                        {anime.monitored ? "Monitored" : "Unmonitored"}
+                      </span>
                     </div>
-                    <div class="text-xs text-muted-foreground">
-                      {anime.profile_name}
-                    </div>
-                  </Link>
-                </TableCell>
-                <TableCell>
-                  <div class="flex items-center gap-2">
-                    <div
-                      class={`h-2 w-2 rounded-full ${
-                        anime.monitored ? "bg-success" : "bg-warning"
-                      }`}
-                    />
-                    <span class="text-sm">
-                      {anime.monitored ? "Monitored" : "Unmonitored"}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell class="text-right">
-                  <AlertDialog>
-                    <AlertDialogTrigger
-                      as={Button}
-                      variant="ghost"
-                      size="icon"
-                      class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={(e: Event) => e.stopPropagation()}
-                    >
-                      <IconTrash class="h-4 w-4" />
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Anime</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete "
-                          {anime.title.english || anime.title.romaji}
-                          "? This action cannot be undone.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => props.deleteAnime.mutate(anime.id)}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </TableCell>
-              </TableRow>
-            )}
+                  </TableCell>
+                  <TableCell class="text-right">
+                    <AlertDialog>
+                      <AlertDialogTrigger
+                        as={Button}
+                        variant="ghost"
+                        size="icon"
+                        class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={(e: Event) => e.stopPropagation()}
+                      >
+                        <IconTrash class="h-4 w-4" />
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Anime</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "
+                            {anime.title.english || anime.title.romaji}
+                            "? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => props.deleteAnime.mutate(anime.id)}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </TableCell>
+                </TableRow>
+              );
+            }}
           </For>
+          <Show when={paddingBottom() > 0}>
+            <tr aria-hidden="true">
+              <td
+                colSpan={4}
+                style={{
+                  height: `${paddingBottom()}px`,
+                  padding: "0",
+                  border: "none",
+                }}
+              />
+            </tr>
+          </Show>
         </TableBody>
       </Table>
     </div>
