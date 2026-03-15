@@ -102,6 +102,8 @@ export function parseEpisodeNumbersFromTitle(title: string): readonly number[] {
     return expandedRange;
   }
 
+  const stripped = title.replace(/\b\d{3,4}p\b/gi, "");
+
   const patterns = [
     /(?:^|[^a-z0-9])s\d{1,2}e(\d{1,3})(?:[^a-z0-9]|$)/i,
     /(?:^|[^a-z0-9])ep?(\d{1,3})(?:[^a-z0-9]|$)/i,
@@ -110,7 +112,7 @@ export function parseEpisodeNumbersFromTitle(title: string): readonly number[] {
   ];
 
   for (const pattern of patterns) {
-    const match = title.match(pattern);
+    const match = stripped.match(pattern);
     if (!match) {
       continue;
     }
@@ -204,15 +206,20 @@ export function decideDownloadAction(
     return { Reject: { reason: "upgrades disabled" } };
   }
 
-  const currentQuality = parseQualityFromTitle(current.filePath ?? "Unknown");
+  const currentFilePath = current.filePath ?? "";
+  const currentHasQualityInfo = Boolean(parseResolution(currentFilePath)) ||
+    hasSourceMarkers(currentFilePath);
+  const currentQuality = currentHasQualityInfo
+    ? parseQualityFromTitle(currentFilePath)
+    : stripSourceKind(QUALITY_DEFS[QUALITY_DEFS.length - 1]);
   const currentScore = calculateScore(
     {
-      group: parseReleaseName(current.filePath ?? "").group,
+      group: parseReleaseName(currentFilePath).group,
       isSeaDex: current.isSeaDex ?? false,
       remake: false,
       seeders: 0,
       sizeBytes: 0,
-      title: current.filePath ?? "",
+      title: currentFilePath,
       trusted: false,
     },
     rules,
@@ -377,6 +384,33 @@ function cutoffQuality(label: string): Quality {
     quality.resolution === resolution && quality.sourceKind === "BluRay"
   );
   return stripSourceKind(exact ?? QUALITY_DEFS[5]);
+}
+
+const SOURCE_MARKERS = [
+  "remux",
+  "bluray",
+  "blu-ray",
+  "bdremux",
+  "bdrip",
+  "webrip",
+  "amzn",
+  "amazon",
+  "crunchyroll",
+  "dsnp",
+  "disney",
+  "netflix",
+  "hmax",
+  "hulu",
+  "web-dl",
+  "webdl",
+  "hdtv",
+  "dvd",
+  "sdtv",
+];
+
+function hasSourceMarkers(title: string): boolean {
+  const lower = title.toLowerCase();
+  return SOURCE_MARKERS.some((marker) => lower.includes(marker));
 }
 
 function inferSource(lower: string): QualitySource {

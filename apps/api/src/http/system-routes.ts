@@ -373,50 +373,56 @@ export function registerSystemRoutes(
       ),
   );
 
-  app.get("/api/system/logs/export", async (c) => {
-    const query = await runEffect(
-      parseQuery(c, SystemLogExportQuerySchema, "export system logs"),
-    );
-    const format = query.format ?? "json";
-    const logs = await runEffect(
-      Effect.flatMap(SystemService, (service) =>
-        service.getLogs({
-          endDate: query.end_date,
-          eventType: query.event_type,
-          level: query.level,
-          page: 1,
-          pageSize: 10_000,
-          startDate: query.start_date,
-        })),
-    );
+  app.get("/api/system/logs/export", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      Effect.gen(function* () {
+        const query = yield* parseQuery(
+          c,
+          SystemLogExportQuerySchema,
+          "export system logs",
+        );
+        const logs = yield* Effect.flatMap(SystemService, (service) =>
+          service.getLogs({
+            endDate: query.end_date,
+            eventType: query.event_type,
+            level: query.level,
+            page: 1,
+            pageSize: 10_000,
+            startDate: query.start_date,
+          }));
+        return { format: query.format ?? "json", logs };
+      }),
+      ({ format, logs }) => {
+        if (format === "csv") {
+          const csv = [
+            "id,level,event_type,message,created_at",
+            ...logs.logs.map((log) =>
+              `${log.id},${log.level},${escapeCsv(log.event_type)},${
+                escapeCsv(log.message)
+              },${log.created_at}`
+            ),
+          ].join("\n");
+          return new Response(csv, {
+            headers: {
+              "Content-Disposition": 'attachment; filename="bakarr-logs.csv"',
+              "Content-Type": "text/csv; charset=utf-8",
+            },
+          });
+        }
 
-    if (format === "csv") {
-      const csv = [
-        "id,level,event_type,message,created_at",
-        ...logs.logs.map((log) =>
-          `${log.id},${log.level},${escapeCsv(log.event_type)},${
-            escapeCsv(log.message)
-          },${log.created_at}`
-        ),
-      ].join("\n");
-      return new Response(csv, {
-        headers: {
-          "Content-Disposition": 'attachment; filename="bakarr-logs.csv"',
-          "Content-Type": "text/csv; charset=utf-8",
-        },
-      });
-    }
-
-    return new Response(
-      encodeSystemLogs([...logs.logs] satisfies SystemLog[]),
-      {
-        headers: {
-          "Content-Disposition": 'attachment; filename="bakarr-logs.json"',
-          "Content-Type": "application/json; charset=utf-8",
-        },
+        return new Response(
+          encodeSystemLogs([...logs.logs] satisfies SystemLog[]),
+          {
+            headers: {
+              "Content-Disposition": 'attachment; filename="bakarr-logs.json"',
+              "Content-Type": "application/json; charset=utf-8",
+            },
+          },
+        );
       },
-    );
-  });
+    ));
 
   app.post("/api/system/tasks/scan", (c) =>
     runRoute(

@@ -328,7 +328,7 @@ function parseLibrarySettings(configJson: string) {
       libraryPath: config.library.library_path.trim() || "./library",
     };
   } catch {
-    return defaultLibrarySettings();
+    throw new Error("Stored configuration is corrupt and could not be decoded");
   }
 }
 

@@ -71,7 +71,6 @@ import {
   upsertUnmappedFolderMatchRows,
 } from "../system/repository.ts";
 import {
-  fallbackReleases,
   mapSearchCategory,
   mapSearchFilter,
   toNyaaSearchResult,
@@ -141,7 +140,6 @@ export function makeSearchOrchestration(input: {
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(
     function* (
       query: string,
-      animeRow: typeof anime.$inferSelect | null,
       config: Config,
       category?: string,
       filter?: string,
@@ -157,13 +155,7 @@ export function makeSearchOrchestration(input: {
       const url = `https://nyaa.si/?page=rss&q=${encodeURIComponent(query)}&c=${
         encodeURIComponent(resolvedCategory)
       }&f=${encodeURIComponent(resolvedFilter)}`;
-      const results = [...yield* rssClient.fetchItems(url)];
-
-      if (results.length > 0) {
-        return results;
-      }
-
-      return fallbackReleases(query, animeRow?.titleRomaji);
+      return [...yield* rssClient.fetchItems(url)];
     },
   );
 
@@ -185,7 +177,7 @@ export function makeSearchOrchestration(input: {
     const results: ParsedRelease[] = [];
 
     for (const query of queries) {
-      const items = yield* searchNyaaReleases(query, animeRow, config);
+      const items = yield* searchNyaaReleases(query, config);
 
       for (const item of items) {
         const parsedRelease = parseReleaseName(item.title);
@@ -206,13 +198,6 @@ export function makeSearchOrchestration(input: {
       if (results.length >= 10) {
         break;
       }
-    }
-
-    if (results.length === 0) {
-      return fallbackReleases(
-        `${animeRow.titleRomaji} ${episodeNumber}`,
-        animeRow.titleRomaji,
-      );
     }
 
     return results.slice(0, 10);
@@ -238,7 +223,6 @@ export function makeSearchOrchestration(input: {
       );
       const results = yield* searchNyaaReleases(
         searchQuery,
-        animeRow,
         runtimeConfig,
         category,
         filter,
@@ -284,6 +268,13 @@ export function makeSearchOrchestration(input: {
       "Failed to search episode releases",
       () => loadQualityProfile(db, animeRow.profileName),
     );
+
+    if (!profile) {
+      return yield* new OperationsInputError({
+        message: `Quality profile '${animeRow.profileName}' not found`,
+      });
+    }
+
     const rules = yield* tryDatabasePromise(
       "Failed to search episode releases",
       () => loadReleaseRules(db, animeRow),
@@ -371,6 +362,11 @@ export function makeSearchOrchestration(input: {
           "Failed to queue missing-episode search",
           () => loadQualityProfile(db, row.anime.profileName),
         );
+
+        if (!profile) {
+          continue;
+        }
+
         const rules = yield* tryDatabasePromise(
           "Failed to queue missing-episode search",
           () => loadReleaseRules(db, row.anime),
@@ -565,6 +561,11 @@ export function makeSearchOrchestration(input: {
               "Failed to run RSS check",
               () => loadQualityProfile(db, animeRow.profileName),
             );
+
+            if (!profile) {
+              return 0;
+            }
+
             const rules = yield* tryDatabasePromise(
               "Failed to run RSS check",
               () => loadReleaseRules(db, animeRow),
@@ -1121,7 +1122,13 @@ export function makeSearchOrchestration(input: {
   });
   const scanImportPathRaw = Effect.fn("OperationsService.scanImportPath")(
     function* (path: string, animeId?: number) {
-      const files = [...yield* scanVideoFiles(fs, path)].sort((a, b) =>
+      const canonicalPath = yield* fs.realPath(path).pipe(
+        Effect.mapError(
+          wrapOperationsError("Failed to resolve import path"),
+        ),
+      );
+
+      const files = [...yield* scanVideoFiles(fs, canonicalPath)].sort((a, b) =>
         a.path.localeCompare(b.path)
       );
       const animeRows = animeId

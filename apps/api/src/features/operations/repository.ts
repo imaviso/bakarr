@@ -160,19 +160,13 @@ export async function loadRuntimeConfig(db: AppDatabase): Promise<Config> {
 export async function loadQualityProfile(
   db: AppDatabase,
   name: string,
-): Promise<QualityProfile> {
+): Promise<QualityProfile | null> {
   const rows = await db.select().from(qualityProfiles).where(
     eq(qualityProfiles.name, name),
   ).limit(1);
 
   if (!rows[0]) {
-    return {
-      allowed_qualities: ["1080p", "720p"],
-      cutoff: "1080p",
-      name,
-      seadex_preferred: true,
-      upgrade_allowed: true,
-    };
+    return null;
   }
 
   return decodeQualityProfileRow(rows[0]);
@@ -185,7 +179,9 @@ export async function loadReleaseRules(
   const assignedIds = decodeNumberList(animeRow.releaseProfileIds);
   const rows = await db.select().from(releaseProfiles);
   return rows
-    .filter((row) => row.isGlobal || assignedIds.includes(row.id))
+    .filter((row) =>
+      row.enabled && (row.isGlobal || assignedIds.includes(row.id))
+    )
     .flatMap((row) => decodeReleaseProfileRules(row.rules));
 }
 

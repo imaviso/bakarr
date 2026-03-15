@@ -227,6 +227,17 @@ export async function countAnimeRows(db: AppDatabase) {
   return value;
 }
 
+export async function countAnimeUsingProfile(
+  db: AppDatabase,
+  profileName: string,
+) {
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(anime)
+    .where(eq(anime.profileName, profileName));
+  return value;
+}
+
 export async function countEpisodeRows(db: AppDatabase) {
   const [{ value }] = await db.select({ value: count() }).from(episodes);
   return value;

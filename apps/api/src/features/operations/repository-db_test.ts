@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertNotEquals, assertRejects } from "@std/assert";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
@@ -67,11 +67,11 @@ Deno.test("operations repository helpers load runtime config and fallback values
     assertEquals(await currentImportMode(db), "move");
 
     const storedProfile = await loadQualityProfile(db, "Default");
-    assertEquals(storedProfile.max_size, "4GB");
+    assertNotEquals(storedProfile, null);
+    assertEquals(storedProfile!.max_size, "4GB");
 
     const fallbackProfile = await loadQualityProfile(db, "Missing");
-    assertEquals(fallbackProfile.name, "Missing");
-    assertEquals(fallbackProfile.allowed_qualities, ["1080p", "720p"]);
+    assertEquals(fallbackProfile, null);
   });
 });
 

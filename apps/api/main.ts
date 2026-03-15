@@ -12,7 +12,7 @@ import {
   compactLogAnnotations,
   setRuntimeLogLevel,
 } from "./src/lib/logging.ts";
-import { makeApiRuntime, runApi } from "./src/runtime.ts";
+import { makeApiRuntime, runApi, type RuntimeOptions } from "./src/runtime.ts";
 
 const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   yield* migrateDatabase();
@@ -26,8 +26,11 @@ const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   return yield* AppConfig;
 });
 
-export async function bootstrap(overrides: Partial<AppConfigShape> = {}) {
-  const runtime = makeApiRuntime(overrides);
+export async function bootstrap(
+  overrides: Partial<AppConfigShape> = {},
+  runtimeOptions?: RuntimeOptions,
+) {
+  const runtime = makeApiRuntime(overrides, runtimeOptions);
   const config = await runApi(
     runtime,
     bootstrapProgram().pipe(Effect.withSpan("api.bootstrap")),

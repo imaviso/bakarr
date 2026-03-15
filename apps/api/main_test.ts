@@ -1,6 +1,12 @@
 import { assert, assertEquals, assertMatch } from "@std/assert";
 import { createClient } from "@libsql/client";
-import { Redacted } from "effect";
+import { Effect, Layer, Redacted } from "effect";
+import { AniListClient } from "./src/features/anime/anilist.ts";
+import {
+  type ParsedRelease,
+  RssClient,
+} from "./src/features/operations/rss-client.ts";
+import type { AnimeSearchResult } from "../../packages/shared/src/index.ts";
 
 const integrationTestPermissions: Deno.PermissionOptions = {
   env: true,
@@ -3647,7 +3653,7 @@ integrationTest(
           "video",
         );
         await Deno.writeTextFile(
-          `${importFolder}/[SubsPlease] SPYxFAMILY Season II - 03 [1080p].mkv`,
+          `${importFolder}/[SubsPlease] Spy x Family Season 2 - 03 [1080p].mkv`,
           "video",
         );
 
@@ -3740,15 +3746,164 @@ integrationTest("bulk map accepts empty file path as unmap", async () => {
   }
 });
 
+const TEST_ANIME_METADATA = new Map([
+  [20, {
+    id: 20,
+    malId: 20,
+    title: { romaji: "Naruto", english: "Naruto", native: "NARUTO -ナルト-" },
+    format: "TV",
+    status: "FINISHED",
+    episodeCount: 220,
+    score: 79,
+    genres: ["Action", "Adventure"],
+    studios: ["Pierrot"],
+    coverImage: undefined,
+    bannerImage: undefined,
+    description: "Test anime",
+    startDate: "2002-10-03",
+    endDate: "2007-02-08",
+  }],
+  [11061, {
+    id: 11061,
+    malId: 11061,
+    title: {
+      romaji: "Hunter x Hunter (2011)",
+      english: "Hunter x Hunter",
+      native: "HUNTER×HUNTER",
+    },
+    format: "TV",
+    status: "FINISHED",
+    episodeCount: 148,
+    score: 89,
+    genres: ["Action", "Adventure"],
+    studios: ["Madhouse"],
+    coverImage: undefined,
+    bannerImage: undefined,
+    description: "Test anime",
+    startDate: "2011-10-02",
+    endDate: "2014-09-24",
+  }],
+  [140960, {
+    id: 140960,
+    title: { romaji: "Spy x Family Season 2" },
+    format: "TV",
+    status: "FINISHED",
+    episodeCount: 12,
+    score: 80,
+    genres: ["Action", "Comedy"],
+    studios: ["Wit Studio"],
+    coverImage: undefined,
+    bannerImage: undefined,
+    description: "Test anime",
+    startDate: "2023-10-07",
+    endDate: "2023-12-23",
+  }],
+]);
+
+function normalizeForSearch(s: string): string {
+  return s.toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .replace(/season\s*ii\b/gi, "season2")
+    .replace(/season\s*iii\b/gi, "season3");
+}
+
+const testAniListLayer = Layer.succeed(AniListClient, {
+  searchAnimeMetadata: (query: string) => {
+    const results: AnimeSearchResult[] = [];
+    const normalizedQuery = normalizeForSearch(query);
+    for (const [id, meta] of TEST_ANIME_METADATA) {
+      const normalizedRomaji = normalizeForSearch(meta.title.romaji);
+      const normalizedEnglish = meta.title.english
+        ? normalizeForSearch(meta.title.english)
+        : "";
+      if (
+        normalizedRomaji.includes(normalizedQuery) ||
+        normalizedQuery.includes(normalizedRomaji) ||
+        (normalizedEnglish &&
+          (normalizedEnglish.includes(normalizedQuery) ||
+            normalizedQuery.includes(normalizedEnglish)))
+      ) {
+        results.push({
+          already_in_library: false,
+          cover_image: undefined,
+          episode_count: meta.episodeCount,
+          format: meta.format,
+          id,
+          status: meta.status,
+          title: meta.title,
+        });
+      }
+    }
+    return Effect.succeed(results);
+  },
+  getAnimeMetadataById: (id: number) =>
+    Effect.succeed(TEST_ANIME_METADATA.get(id) ?? null),
+});
+
+function deterministicHex(input: string): string {
+  let hash = 0;
+  for (let i = 0; i < input.length; i++) {
+    hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash).toString(16).padStart(40, "0");
+}
+
+function makeTestRelease(
+  title: string,
+  overrides: Partial<ParsedRelease> = {},
+): ParsedRelease {
+  const infoHash = overrides.infoHash ?? deterministicHex(title);
+  return {
+    group: "TestGroup",
+    infoHash,
+    isSeaDex: false,
+    leechers: 0,
+    magnet: `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`,
+    pubDate: new Date().toISOString(),
+    remake: false,
+    resolution: "1080p",
+    seeders: 10,
+    size: "500 MiB",
+    sizeBytes: 524_288_000,
+    title,
+    trusted: true,
+    viewUrl: "https://nyaa.si/view/0",
+    ...overrides,
+  };
+}
+
+const testRssLayer = Layer.succeed(RssClient, {
+  fetchItems: (url: string) => {
+    const query = decodeURIComponent(url).toLowerCase();
+    const releases: ParsedRelease[] = [];
+    if (query.includes("naruto")) {
+      releases.push(
+        makeTestRelease("[SubsPlease] Naruto - 01 (1080p) [ABC123].mkv"),
+      );
+    }
+    if (query.includes("hunter")) {
+      releases.push(
+        makeTestRelease(
+          "[SubsPlease] Hunter x Hunter (2011) - 02 (1080p) [DEF456].mkv",
+        ),
+      );
+    }
+    return Effect.succeed(releases);
+  },
+});
+
 async function createTestContext() {
   const { bootstrap } = await import("./main.ts");
   const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
-  const { app, runtime } = await bootstrap({
-    bootstrapPassword: Redacted.make("admin"),
-    bootstrapUsername: "admin",
-    databaseFile,
-    port: 9999,
-  });
+  const { app, runtime } = await bootstrap(
+    {
+      bootstrapPassword: Redacted.make("admin"),
+      bootstrapUsername: "admin",
+      databaseFile,
+      port: 9999,
+    },
+    { aniListLayer: testAniListLayer, rssLayer: testRssLayer },
+  );
 
   return {
     app,

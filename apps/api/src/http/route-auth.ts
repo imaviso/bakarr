@@ -31,6 +31,18 @@ export function requireViewer(c: { get: (key: "viewer") => AuthUser | null }) {
   return viewer;
 }
 
+export function requireViewerEffect(
+  c: { get: (key: "viewer") => AuthUser | null },
+): Effect.Effect<AuthUser, AuthError> {
+  const viewer = c.get("viewer");
+
+  if (!viewer) {
+    return Effect.fail(new AuthError({ message: "Unauthorized", status: 401 }));
+  }
+
+  return Effect.succeed(viewer);
+}
+
 export async function persistSession(
   c: Parameters<typeof setCookie>[0],
   runEffect: RunEffect,

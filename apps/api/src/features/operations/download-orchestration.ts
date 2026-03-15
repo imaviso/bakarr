@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
@@ -22,6 +22,7 @@ import {
 } from "./download-support.ts";
 import { parseEpisodeNumber } from "./library-import.ts";
 import {
+  hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
   parseCoveredEpisodes,
   parseMagnetInfoHash,
@@ -169,24 +170,6 @@ export function makeDownloadOrchestration(input: {
       return;
     }
 
-    const claimResult = yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      async () => {
-        const result = await db
-          .update(downloads)
-          .set({ reconciledAt: nowIso() })
-          .where(
-            and(eq(downloads.id, row.id), isNull(downloads.reconciledAt)),
-          )
-          .returning({ id: downloads.id });
-        return result.length > 0;
-      },
-    );
-
-    if (!claimResult) {
-      return;
-    }
-
     if (row.isBatch) {
       const coveredEpisodes = parseCoveredEpisodes(row.coveredEpisodes);
       const batchPaths = yield* resolveBatchContentPaths(
@@ -195,6 +178,8 @@ export function makeDownloadOrchestration(input: {
       );
 
       if (batchPaths.length > 0) {
+        let importedCount = 0;
+
         for (const path of batchPaths) {
           const episodeNumber = parseEpisodeNumber(path);
 
@@ -240,11 +225,22 @@ export function makeDownloadOrchestration(input: {
             () =>
               upsertEpisodeFile(db, row.animeId, episodeNumber, managedPath),
           );
+          importedCount += 1;
+        }
+
+        if (importedCount === 0) {
+          return;
         }
 
         yield* tryDatabasePromise(
           "Failed to reconcile completed download",
-          () => markDownloadImported(db, row.id),
+          async () => {
+            await markDownloadImported(db, row.id);
+            await db
+              .update(downloads)
+              .set({ reconciledAt: nowIso() })
+              .where(eq(downloads.id, row.id));
+          },
         );
         yield* maybeCleanupImportedTorrent(runtimeConfig, row.infoHash);
         yield* tryDatabasePromise(
@@ -287,7 +283,13 @@ export function makeDownloadOrchestration(input: {
     if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
       yield* tryDatabasePromise(
         "Failed to reconcile completed download",
-        () => markDownloadImported(db, row.id),
+        async () => {
+          await markDownloadImported(db, row.id);
+          await db
+            .update(downloads)
+            .set({ reconciledAt: nowIso() })
+            .where(eq(downloads.id, row.id));
+        },
       );
       return;
     }
@@ -299,10 +301,6 @@ export function makeDownloadOrchestration(input: {
     );
 
     if (!resolvedPath) {
-      yield* tryDatabasePromise(
-        "Failed to reconcile completed download",
-        () => markDownloadImported(db, row.id),
-      );
       return;
     }
 
@@ -323,7 +321,13 @@ export function makeDownloadOrchestration(input: {
     );
     yield* tryDatabasePromise(
       "Failed to reconcile completed download",
-      () => markDownloadImported(db, row.id),
+      async () => {
+        await markDownloadImported(db, row.id);
+        await db
+          .update(downloads)
+          .set({ reconciledAt: nowIso() })
+          .where(eq(downloads.id, row.id));
+      },
     );
     yield* maybeCleanupImportedTorrent(runtimeConfig, row.infoHash);
     yield* tryDatabasePromise(
@@ -706,6 +710,31 @@ export function makeDownloadOrchestration(input: {
           const infoHash =
             (input.info_hash ?? parseMagnetInfoHash(input.magnet))
               ?.toLowerCase() ?? null;
+
+          if (infoHash) {
+            const coveredNumbers = inferCoveredEpisodeNumbers({
+              explicitEpisodes: parsedRelease.episodeNumbers,
+              isBatch: input.is_batch ?? parsedRelease.isBatch,
+              missingEpisodes,
+              requestedEpisode: input.episode_number,
+            });
+            const overlapping = yield* tryDatabasePromise(
+              "Failed to trigger download",
+              () =>
+                hasOverlappingDownload(
+                  db,
+                  animeRow.id,
+                  infoHash,
+                  coveredNumbers,
+                ),
+            );
+
+            if (overlapping) {
+              return yield* new DownloadConflictError({
+                message: "An in-flight download already covers these episodes",
+              });
+            }
+          }
 
           const insertResult = yield* Effect.either(tryDatabasePromise(
             "Failed to trigger download",

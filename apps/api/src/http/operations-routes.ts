@@ -206,8 +206,13 @@ export function registerOperationsRoutes(
         const requestedPath = query.path || ".";
 
         if (requestedPath !== ".") {
+          const canonicalPath = yield* fs.realPath(requestedPath).pipe(
+            Effect.catchTag("FileSystemError", () =>
+              Effect.succeed(requestedPath)),
+          );
           const isAllowed = allowedPrefixes.some(
-            (prefix) => isWithinPathRoot(requestedPath, prefix),
+            (prefix) =>
+              isWithinPathRoot(canonicalPath, prefix),
           );
 
           if (!isAllowed) {

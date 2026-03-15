@@ -81,7 +81,7 @@ export function createApp(runEffect: RunEffect) {
             recordHttpRequestMetrics({
               durationMs: durationMsSince(startedAt),
               method: c.req.method,
-              route: c.req.path,
+              route: normalizeRouteLabel(c.req.path),
               status: statusCode,
             }),
           ),
@@ -147,4 +147,26 @@ export function createApp(runEffect: RunEffect) {
   registerOperationsRoutes(app, runEffect);
 
   return app;
+}
+
+const ROUTE_PATTERNS: readonly [RegExp, string][] = [
+  [/^\/api\/anime\/\d+\/episodes\/\d+\//, "/api/anime/:id/episodes/:ep/"],
+  [/^\/api\/anime\/\d+\//, "/api/anime/:id/"],
+  [/^\/api\/anime\/anilist\/\d+/, "/api/anime/anilist/:id"],
+  [/^\/api\/stream\/\d+\/\d+/, "/api/stream/:id/:ep"],
+  [/^\/api\/images\/.*/, "/api/images/*"],
+  [/^\/api\/profiles\/[^/]+$/, "/api/profiles/:name"],
+  [/^\/api\/release-profiles\/\d+/, "/api/release-profiles/:id"],
+  [/^\/api\/downloads\/\d+/, "/api/downloads/:id"],
+  [/^\/api\/operations\/anime\/\d+/, "/api/operations/anime/:id"],
+];
+
+function normalizeRouteLabel(path: string): string {
+  for (const [pattern, label] of ROUTE_PATTERNS) {
+    if (pattern.test(path)) {
+      return label;
+    }
+  }
+
+  return path;
 }

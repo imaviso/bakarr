@@ -89,16 +89,23 @@ export function parseCoveredEpisodes(
   return decodeOptionalNumberList(value);
 }
 
+const IN_FLIGHT_STATUSES = ["queued", "downloading", "paused"];
+
 export async function hasOverlappingDownload(
   db: AppDatabase,
   animeId: number,
   infoHash: string,
   coveredEpisodes: readonly number[],
 ): Promise<boolean> {
-  const existingByHash = await db.select({ id: downloads.id }).from(downloads)
+  const existingByHash = await db.select({
+    id: downloads.id,
+    status: downloads.status,
+  }).from(downloads)
     .where(eq(downloads.infoHash, infoHash)).limit(1);
 
-  if (existingByHash[0]) {
+  if (
+    existingByHash[0] && IN_FLIGHT_STATUSES.includes(existingByHash[0].status)
+  ) {
     return true;
   }
 
@@ -110,10 +117,14 @@ export async function hasOverlappingDownload(
     eq(downloads.animeId, animeId),
   );
 
-  return rows.some((row) => {
-    const existingCovered = parseCoveredEpisodes(row.coveredEpisodes);
-    return existingCovered.some((episode) => coveredEpisodes.includes(episode));
-  });
+  return rows
+    .filter((row) => IN_FLIGHT_STATUSES.includes(row.status))
+    .some((row) => {
+      const existingCovered = parseCoveredEpisodes(row.coveredEpisodes);
+      return existingCovered.some((episode) =>
+        coveredEpisodes.includes(episode)
+      );
+    });
 }
 
 export function inferCoveredEpisodeNumbers(input: {

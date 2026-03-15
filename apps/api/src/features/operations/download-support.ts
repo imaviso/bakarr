@@ -66,15 +66,31 @@ export function importDownloadedFile(
       ),
     );
 
-    yield* fs.remove(destination).pipe(
-      Effect.catchTag("FileSystemError", () => Effect.void),
-    );
+    const backupDestination = `${destination}.bak.${crypto.randomUUID()}`;
+    const existingStat = yield* Effect.either(fs.stat(destination));
+    const hasExisting = existingStat._tag === "Right";
+
+    if (hasExisting) {
+      yield* fs.rename(destination, backupDestination).pipe(
+        Effect.mapError((cause) =>
+          new ImportFileError(
+            "Failed to back up existing destination",
+            cause,
+          )
+        ),
+      );
+    }
 
     const renameResult = yield* Effect.either(
       fs.rename(tempDestination, destination),
     );
 
     if (renameResult._tag === "Left") {
+      if (hasExisting) {
+        yield* fs.rename(backupDestination, destination).pipe(
+          Effect.catchTag("FileSystemError", () => Effect.void),
+        );
+      }
       yield* fs.remove(tempDestination).pipe(
         Effect.catchTag("FileSystemError", () => Effect.void),
       );
@@ -83,6 +99,12 @@ export function importDownloadedFile(
           "Failed to rename temp file to destination",
           renameResult.left,
         ),
+      );
+    }
+
+    if (hasExisting) {
+      yield* fs.remove(backupDestination).pipe(
+        Effect.catchTag("FileSystemError", () => Effect.void),
       );
     }
 

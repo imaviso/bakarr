@@ -22,7 +22,10 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
       const dirEntries = yield* fs.readDir(current).pipe(
         Effect.catchTag(
           "FileSystemError",
-          () => Effect.succeed<Deno.DirEntry[]>([]),
+          (error) =>
+            isNotFoundError(error)
+              ? Effect.succeed<Deno.DirEntry[]>([])
+              : Effect.fail(error),
         ),
       );
 
@@ -41,7 +44,10 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
         const stats = yield* fs.stat(fullPath).pipe(
           Effect.catchTag(
             "FileSystemError",
-            () => Effect.succeed({ size: 0 } as { size: number }),
+            (error) =>
+              isNotFoundError(error)
+                ? Effect.succeed({ size: 0 } as { size: number })
+                : Effect.fail(error),
           ),
         );
         entries.push({
@@ -61,4 +67,13 @@ function isVideoFile(name: string) {
   return [".mkv", ".mp4", ".avi", ".mov", ".webm"].some((extension) =>
     name.toLowerCase().endsWith(extension)
   );
+}
+
+function isNotFoundError(error: { cause?: unknown }): boolean {
+  const cause = error.cause;
+  if (cause instanceof Error && "code" in cause) {
+    return (cause as { code?: string }).code === "ENOENT" ||
+      (cause as { code?: string }).code === "NotFound";
+  }
+  return false;
 }

@@ -118,13 +118,20 @@ const makeAuthService = Effect.gen(function* () {
           }),
       );
 
-      // Print bootstrap credentials directly to stderr (not structured logs)
-      // to avoid leaking the password in log aggregation systems
-      console.error(
-        `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${config.bootstrapUsername}\n* Password: ${
-          Redacted.value(config.bootstrapPassword)
-        }\n* Please log in and change your password.\n*************************************************************\n`,
-      );
+      if (
+        typeof Deno !== "undefined" && Deno.stderr &&
+        (Deno.stderr as { isTerminal?: () => boolean }).isTerminal?.()
+      ) {
+        console.error(
+          `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${config.bootstrapUsername}\n* Password: ${
+            Redacted.value(config.bootstrapPassword)
+          }\n* Please log in and change your password.\n*************************************************************\n`,
+        );
+      } else {
+        console.error(
+          "\n* INITIAL SETUP: Bootstrap user created. Log in with the configured credentials and change your password.\n",
+        );
+      }
     },
   );
 
@@ -333,6 +340,16 @@ const makeAuthService = Effect.gen(function* () {
       return yield* AuthError.make({
         message: "Current password is incorrect",
         status: 401,
+      });
+    }
+
+    if (
+      !request.new_password ||
+      request.new_password.length < 8
+    ) {
+      return yield* AuthError.make({
+        message: "New password must be at least 8 characters",
+        status: 400,
       });
     }
 

@@ -46,6 +46,7 @@ import { getDiskSpaceSafe, selectStoragePath } from "./disk-space.ts";
 import {
   countActiveDownloads,
   countAnimeRows,
+  countAnimeUsingProfile,
   countCompletedDownloads,
   countDownloadedEpisodeRows,
   countEpisodeRows,
@@ -80,9 +81,18 @@ export interface SystemServiceShape {
   readonly getSystemStatus: () => Effect.Effect<SystemStatus, DatabaseError>;
   readonly getLibraryStats: () => Effect.Effect<LibraryStats, DatabaseError>;
   readonly getActivity: () => Effect.Effect<ActivityItem[], DatabaseError>;
-  readonly getJobs: () => Effect.Effect<BackgroundJobStatus[], DatabaseError>;
-  readonly getDashboard: () => Effect.Effect<OpsDashboard, DatabaseError>;
-  readonly getConfig: () => Effect.Effect<Config, DatabaseError>;
+  readonly getJobs: () => Effect.Effect<
+    BackgroundJobStatus[],
+    DatabaseError | ConfigValidationError
+  >;
+  readonly getDashboard: () => Effect.Effect<
+    OpsDashboard,
+    DatabaseError | ConfigValidationError
+  >;
+  readonly getConfig: () => Effect.Effect<
+    Config,
+    DatabaseError | ConfigValidationError
+  >;
   readonly updateConfig: (
     config: Config,
   ) => Effect.Effect<Config, DatabaseError | ConfigValidationError>;
@@ -95,7 +105,9 @@ export interface SystemServiceShape {
     name: string,
     profile: QualityProfile,
   ) => Effect.Effect<QualityProfile, DatabaseError | ProfileNotFoundError>;
-  readonly deleteProfile: (name: string) => Effect.Effect<void, DatabaseError>;
+  readonly deleteProfile: (
+    name: string,
+  ) => Effect.Effect<void, DatabaseError | ConfigValidationError>;
   readonly listReleaseProfiles: () => Effect.Effect<
     ReleaseProfile[],
     DatabaseError
@@ -170,6 +182,18 @@ const makeSystemService = Effect.gen(function* () {
   const deleteProfile = Effect.fn("SystemService.deleteProfile")(function* (
     name: string,
   ) {
+    const referencingAnime = yield* tryDatabasePromise(
+      "Failed to delete quality profile",
+      () => countAnimeUsingProfile(db, name),
+    );
+
+    if (referencingAnime > 0) {
+      return yield* new ConfigValidationError({
+        message:
+          `Cannot delete profile '${name}': still referenced by ${referencingAnime} anime`,
+      });
+    }
+
     yield* tryDatabasePromise(
       "Failed to delete quality profile",
       () => deleteQualityProfileRow(db, name),
@@ -339,11 +363,7 @@ const makeSystemService = Effect.gen(function* () {
       let core: ConfigCore;
       if (storedConfig) {
         const decoded = tryDecodeConfigCore(storedConfig.data);
-        if (decoded) {
-          core = decoded;
-        } else {
-          core = makeDefaultConfig(config.databaseFile);
-        }
+        core = decoded ?? makeDefaultConfig(config.databaseFile);
       } else {
         core = makeDefaultConfig(config.databaseFile);
       }
@@ -523,12 +543,10 @@ const makeSystemService = Effect.gen(function* () {
       if (decoded) {
         core = decoded;
       } else {
-        yield* Effect.logWarning(
-          "Corrupt config detected, falling back to defaults",
-        ).pipe(
-          Effect.annotateLogs({ component: "system" }),
-        );
-        core = makeDefaultConfig(config.databaseFile);
+        return yield* new ConfigValidationError({
+          message:
+            "Stored configuration is corrupt and could not be decoded. Re-save config to repair.",
+        });
       }
     } else {
       core = makeDefaultConfig(config.databaseFile);
@@ -555,6 +573,9 @@ const makeSystemService = Effect.gen(function* () {
       }
     }
 
+    const previousConfig = yield* getConfig();
+    const previousLogLevel = previousConfig.general.log_level;
+
     const core: ConfigCore = {
       downloads: nextConfig.downloads,
       general: nextConfig.general,
@@ -563,6 +584,17 @@ const makeSystemService = Effect.gen(function* () {
       qbittorrent: nextConfig.qbittorrent,
       scheduler: nextConfig.scheduler,
     };
+
+    setRuntimeLogLevel(nextConfig.general.log_level);
+
+    const reloadResult = yield* Effect.either(
+      workerController.reload(nextConfig),
+    );
+
+    if (reloadResult._tag === "Left") {
+      setRuntimeLogLevel(previousLogLevel);
+      return yield* reloadResult.left;
+    }
 
     yield* tryDatabasePromise(
       "Failed to update system configuration",
@@ -577,10 +609,6 @@ const makeSystemService = Effect.gen(function* () {
           nextConfig.profiles.map(encodeQualityProfileRow),
         ),
     );
-
-    setRuntimeLogLevel(nextConfig.general.log_level);
-
-    yield* workerController.reload(nextConfig);
 
     return nextConfig;
   });

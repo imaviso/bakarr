@@ -46,75 +46,6 @@ export class AniListClient extends Context.Tag("@bakarr/api/AniListClient")<
   AniListClientShape
 >() {}
 
-const SAMPLE_ANIME: readonly AnimeMetadata[] = [
-  {
-    bannerImage:
-      "https://s4.anilist.co/file/anilistcdn/media/anime/banner/16498-RSsE8k6xpk7L.jpg",
-    coverImage:
-      "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-buvcRTBx4NS6.png",
-    description:
-      "A group of aspiring hunters challenge a deadly exam to chase their dreams.",
-    episodeCount: 148,
-    format: "TV",
-    genres: ["Action", "Adventure", "Fantasy"],
-    id: 11061,
-    endDate: "2014-09-23",
-    malId: 11061,
-    score: 90,
-    startDate: "2011-10-02",
-    status: "FINISHED",
-    studios: ["MADHOUSE"],
-    title: {
-      english: "Hunter x Hunter",
-      native: "HUNTER x HUNTER",
-      romaji: "Hunter x Hunter (2011)",
-    },
-  },
-  {
-    bannerImage:
-      "https://s4.anilist.co/file/anilistcdn/media/anime/banner/16498-RSsE8k6xpk7L.jpg",
-    coverImage:
-      "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20583-Gj8MGuJHYWvV.jpg",
-    description:
-      "A family of spies, assassins, and telepaths try to pass as ordinary.",
-    episodeCount: 12,
-    format: "TV",
-    genres: ["Action", "Comedy", "Slice of Life"],
-    id: 140960,
-    malId: 50265,
-    score: 84,
-    startDate: "2022-04-09",
-    status: "RELEASING",
-    studios: ["WIT STUDIO", "CloverWorks"],
-    title: {
-      english: "SPY x FAMILY",
-      native: "SPYxFAMILY",
-      romaji: "SPY x FAMILY",
-    },
-  },
-  {
-    coverImage:
-      "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1535-df1v0A3qP2G2.jpg",
-    description:
-      "A young ninja vows to become the strongest leader of his village.",
-    episodeCount: 220,
-    format: "TV",
-    genres: ["Action", "Adventure"],
-    id: 20,
-    endDate: "2007-02-08",
-    malId: 20,
-    score: 79,
-    startDate: "2002-10-03",
-    status: "FINISHED",
-    studios: ["Studio Pierrot"],
-    title: {
-      english: "Naruto",
-      native: "NARUTO -ナルト-",
-      romaji: "Naruto",
-    },
-  },
-];
-
 const ANILIST_URL = "https://graphql.anilist.co";
 
 const AniListTitleSchema = Schema.Struct({
@@ -192,18 +123,18 @@ export const AniListClientLive = Layer.effect(
           return [];
         }
 
-        const remote = yield* trySearchRemote(client, trimmed).pipe(
+        return yield* trySearchRemote(client, trimmed).pipe(
           Effect.catchTag(
             "ExternalCallError",
-            () => Effect.succeed<AnimeSearchResult[] | null>(null),
+            (cause) =>
+              Effect.logWarning(
+                "AniList search unavailable, returning empty results",
+              ).pipe(
+                Effect.annotateLogs({ error: String(cause) }),
+                Effect.map(() => [] as AnimeSearchResult[]),
+              ),
           ),
         );
-
-        if (remote) {
-          return remote;
-        }
-
-        return fallbackSearch(trimmed);
       },
     );
 
@@ -211,15 +142,16 @@ export const AniListClientLive = Layer.effect(
       "AniListClient.getAnimeMetadataById",
     )(
       function* (id: number) {
-        const remote = yield* tryFetchDetail(client, id).pipe(
-          Effect.catchTag("ExternalCallError", () => Effect.void),
+        return yield* tryFetchDetail(client, id).pipe(
+          Effect.catchTag(
+            "ExternalCallError",
+            (cause) =>
+              Effect.logWarning("AniList detail unavailable").pipe(
+                Effect.annotateLogs({ anilistId: id, error: String(cause) }),
+                Effect.map(() => null as AnimeMetadata | null),
+              ),
+          ),
         );
-
-        if (remote !== undefined) {
-          return remote;
-        }
-
-        return SAMPLE_ANIME.find((entry) => entry.id === id) ?? null;
       },
     );
 
@@ -431,19 +363,6 @@ function decodeJsonResponse<A, I>(
   }).pipe(Effect.withSpan(`AniListClient.${operation}`));
 }
 
-function fallbackSearch(trimmed: string) {
-  const lower = trimmed.toLowerCase();
-
-  return SAMPLE_ANIME.filter((entry) => {
-    const candidates = [
-      entry.title.romaji,
-      entry.title.english,
-      entry.title.native,
-    ].filter(isString).map((value) => value.toLowerCase());
-    return candidates.some((candidate) => candidate.includes(lower));
-  }).map(toSearchResult);
-}
-
 function toIsoDate(
   date:
     | { year?: number | null; month?: number | null; day?: number | null }
@@ -456,18 +375,6 @@ function toIsoDate(
   return `${String(date.year).padStart(4, "0")}-${
     String(date.month).padStart(2, "0")
   }-${String(date.day).padStart(2, "0")}`;
-}
-
-function toSearchResult(entry: AnimeMetadata): AnimeSearchResult {
-  return {
-    already_in_library: false,
-    cover_image: entry.coverImage,
-    episode_count: entry.episodeCount,
-    format: entry.format,
-    id: entry.id,
-    status: entry.status,
-    title: entry.title,
-  };
 }
 
 function isString(value: string | null | undefined): value is string {

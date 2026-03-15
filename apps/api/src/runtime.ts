@@ -8,19 +8,27 @@ import {
 } from "./background.ts";
 import { AppConfig, type AppConfigShape } from "./config.ts";
 import { DatabaseLive } from "./db/database.ts";
-import { AniListClientLive } from "./features/anime/anilist.ts";
+import { AniListClient, AniListClientLive } from "./features/anime/anilist.ts";
 import { AnimeServiceLive } from "./features/anime/service.ts";
 import { AuthServiceLive } from "./features/auth/service.ts";
 import { EventBusLive } from "./features/events/event-bus.ts";
 import { EventPublisherLive } from "./features/events/publisher.ts";
 import { QBitTorrentClientLive } from "./features/operations/qbittorrent.ts";
-import { RssClientLive } from "./features/operations/rss-client.ts";
+import { RssClient, RssClientLive } from "./features/operations/rss-client.ts";
 import { OperationsServiceLive } from "./features/operations/service.ts";
 import { SystemServiceLive } from "./features/system/service.ts";
 import { FileSystemLive } from "./lib/filesystem.ts";
 import { RuntimeLoggerLayer } from "./lib/logging.ts";
 
-export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
+export interface RuntimeOptions {
+  aniListLayer?: Layer.Layer<AniListClient>;
+  rssLayer?: Layer.Layer<RssClient>;
+}
+
+export function makeApiLayer(
+  overrides: Partial<AppConfigShape> = {},
+  options?: RuntimeOptions,
+) {
   const configLayer = AppConfig.layer(overrides);
   const runtimeLayer = AppRuntime.layer();
   const httpClientLayer = FetchHttpClient.layer;
@@ -30,10 +38,16 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
     Layer.provide(eventBusLayer),
   );
   const backgroundMonitorLayer = BackgroundWorkerMonitorLive;
+  const aniListLayer = options?.aniListLayer
+    ? options.aniListLayer
+    : AniListClientLive.pipe(Layer.provide(httpClientLayer));
+  const rssLayer = options?.rssLayer
+    ? options.rssLayer
+    : RssClientLive.pipe(Layer.provide(httpClientLayer));
   const externalClientsLayer = Layer.mergeAll(
-    AniListClientLive,
+    aniListLayer,
+    rssLayer,
     QBitTorrentClientLive,
-    RssClientLive,
   ).pipe(Layer.provide(httpClientLayer));
   const platformLayer = Layer.mergeAll(
     configLayer,
@@ -71,8 +85,11 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}) {
   );
 }
 
-export function makeApiRuntime(overrides: Partial<AppConfigShape> = {}) {
-  return ManagedRuntime.make(makeApiLayer(overrides));
+export function makeApiRuntime(
+  overrides: Partial<AppConfigShape> = {},
+  options?: Parameters<typeof makeApiLayer>[1],
+) {
+  return ManagedRuntime.make(makeApiLayer(overrides, options));
 }
 
 export type ApiRuntime = ReturnType<typeof makeApiRuntime>;

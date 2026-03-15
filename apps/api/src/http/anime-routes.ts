@@ -33,7 +33,7 @@ import {
   withParamsAndBody,
   withQuery,
 } from "./route-helpers.ts";
-import { requireViewer } from "./route-auth.ts";
+import { requireViewerEffect } from "./route-auth.ts";
 
 const StreamQuerySchema = Schema.Struct({
   exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
@@ -380,20 +380,44 @@ export function registerAnimeRoutes(
     );
   }
 
-  app.get("/api/anime/:id/stream-url", async (c) => {
-    requireViewer(c);
-    const id = parseInt(c.req.param("id"), 10);
-    const episodeNumberStr = c.req.query("episodeNumber");
+  app.get("/api/anime/:id/stream-url", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      Effect.gen(function* () {
+        yield* requireViewerEffect(c);
+        const id = parseInt(c.req.param("id"), 10);
+        const episodeNumberStr = c.req.query("episodeNumber");
 
-    if (isNaN(id) || !episodeNumberStr) return c.text("Bad request", 400);
+        if (isNaN(id) || !episodeNumberStr) {
+          return yield* new AuthError({
+            message: "Bad request",
+            status: 400,
+          });
+        }
 
-    const episodeNumber = parseInt(episodeNumberStr, 10);
-    if (isNaN(episodeNumber)) return c.text("Bad request", 400);
+        const episodeNumber = parseInt(episodeNumberStr, 10);
+        if (isNaN(episodeNumber)) {
+          return yield* new AuthError({
+            message: "Bad request",
+            status: 400,
+          });
+        }
 
-    const expiresAt = Date.now() + 6 * 60 * 60 * 1000; // 6 hours
-    const url = await signStreamUrl(id, episodeNumber, expiresAt);
-    return c.json({ url });
-  });
+        const expiresAt = Date.now() + 6 * 60 * 60 * 1000;
+        const url = yield* Effect.tryPromise({
+          try: () => signStreamUrl(id, episodeNumber, expiresAt),
+          catch: () =>
+            new AuthError({
+              message: "Failed to sign stream URL",
+              status: 400,
+            }),
+        });
+
+        return { url };
+      }),
+      (value) => c.json(value),
+    ));
 
   app.get("/api/stream/:id/:episodeNumber", async (c) => {
     try {

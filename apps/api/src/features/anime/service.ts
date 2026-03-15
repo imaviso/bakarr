@@ -390,16 +390,6 @@ const makeAnimeService = Effect.gen(function* () {
       "Failed to update anime path",
       () => requireAnimeExists(db, id),
     );
-    const existingRootOwner = yield* tryDatabasePromise(
-      "Failed to update anime path",
-      () => findAnimeRootFolderOwner(db, trimmedPath),
-    );
-
-    if (existingRootOwner && existingRootOwner.id !== id) {
-      return yield* new AnimeConflictError({
-        message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
-      });
-    }
 
     yield* fs.mkdir(trimmedPath, { recursive: true }).pipe(
       Effect.mapError((error) =>
@@ -409,10 +399,30 @@ const makeAnimeService = Effect.gen(function* () {
         })
       ),
     );
+
+    const canonicalPath = yield* fs.realPath(trimmedPath).pipe(
+      Effect.mapError(() =>
+        new AnimePathError({
+          message: "Path does not exist or is inaccessible",
+        })
+      ),
+    );
+
+    const existingRootOwner = yield* tryDatabasePromise(
+      "Failed to update anime path",
+      () => findAnimeRootFolderOwner(db, canonicalPath),
+    );
+
+    if (existingRootOwner && existingRootOwner.id !== id) {
+      return yield* new AnimeConflictError({
+        message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
+      });
+    }
+
     yield* tryAnimePromise(
       "Failed to update anime path",
       () =>
-        db.update(anime).set({ rootFolder: trimmedPath }).where(
+        db.update(anime).set({ rootFolder: canonicalPath }).where(
           eq(anime.id, id),
         ),
     );
@@ -441,31 +451,34 @@ const makeAnimeService = Effect.gen(function* () {
 
       if (episodeRow.filePath) {
         const filePath = episodeRow.filePath;
-        const resolvedPath = yield* fs.realPath(filePath).pipe(
-          Effect.mapError(() =>
-            new AnimePathError({
-              message: "File path does not exist or is inaccessible",
-            })
-          ),
+        const resolvedPathResult = yield* Effect.either(
+          fs.realPath(filePath),
         );
 
-        const animeRoot = yield* fs.realPath(animeRow.rootFolder).pipe(
-          Effect.mapError(() =>
-            new AnimePathError({
-              message: "Anime root folder does not exist",
-            })
-          ),
-        );
+        if (resolvedPathResult._tag === "Right") {
+          const resolvedPath = resolvedPathResult.right;
+          const animeRoot = yield* fs.realPath(animeRow.rootFolder).pipe(
+            Effect.mapError(() =>
+              new AnimePathError({
+                message: "Anime root folder does not exist",
+              })
+            ),
+          );
 
-        if (!isWithinPathRoot(resolvedPath, animeRoot)) {
-          return yield* new AnimePathError({
-            message: "File path is not within the anime root folder",
-          });
+          if (!isWithinPathRoot(resolvedPath, animeRoot)) {
+            return yield* new AnimePathError({
+              message: "File path is not within the anime root folder",
+            });
+          }
+
+          yield* fs.remove(filePath).pipe(
+            Effect.mapError(() =>
+              new AnimePathError({
+                message: "Failed to delete episode file from disk",
+              })
+            ),
+          );
         }
-
-        yield* fs.remove(filePath).pipe(
-          Effect.catchTag("FileSystemError", () => Effect.void),
-        );
       }
 
       yield* tryAnimePromise(
@@ -551,12 +564,19 @@ const makeAnimeService = Effect.gen(function* () {
         ),
       );
 
+      const validated: {
+        episode_number: number;
+        file_path: string;
+        clear: boolean;
+      }[] = [];
+
       for (const mapping of mappings) {
         if (mapping.file_path.trim().length === 0) {
-          yield* tryAnimePromise(
-            "Failed to bulk-map episode files",
-            () => clearEpisodeMapping(db, animeId, mapping.episode_number),
-          );
+          validated.push({
+            episode_number: mapping.episode_number,
+            file_path: "",
+            clear: true,
+          });
           continue;
         }
 
@@ -575,14 +595,29 @@ const makeAnimeService = Effect.gen(function* () {
           });
         }
 
-        yield* tryAnimePromise(
-          "Failed to bulk-map episode files",
-          () =>
-            upsertEpisode(db, animeId, mapping.episode_number, {
-              downloaded: true,
-              filePath: mapping.file_path,
-            }),
-        );
+        validated.push({
+          episode_number: mapping.episode_number,
+          file_path: mapping.file_path,
+          clear: false,
+        });
+      }
+
+      for (const entry of validated) {
+        if (entry.clear) {
+          yield* tryAnimePromise(
+            "Failed to bulk-map episode files",
+            () => clearEpisodeMapping(db, animeId, entry.episode_number),
+          );
+        } else {
+          yield* tryAnimePromise(
+            "Failed to bulk-map episode files",
+            () =>
+              upsertEpisode(db, animeId, entry.episode_number, {
+                downloaded: true,
+                filePath: entry.file_path,
+              }),
+          );
+        }
       }
     },
   );
