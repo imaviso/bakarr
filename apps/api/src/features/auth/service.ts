@@ -406,6 +406,9 @@ const makeAuthService = Effect.gen(function* () {
             })
             .where(eq(users.id, userId));
           await tx.delete(sessions).where(eq(sessions.userId, userId));
+          await tx.update(appConfig).set({ bootstrapPassword: null }).where(
+            eq(appConfig.id, 1),
+          );
           await tx.insert(systemLogs).values({
             createdAt: nowIso(),
             details: null,

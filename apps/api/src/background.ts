@@ -257,6 +257,7 @@ export function spawnWorkersFromConfig(
     const downloadSyncLoop = yield* withLockEffect(
       "download_sync",
       Effect.gen(function* () {
+        yield* downloadService.syncDownloads();
         const downloads: DownloadStatus[] = yield* downloadService
           .getDownloadProgress();
         yield* eventBus.publish({
