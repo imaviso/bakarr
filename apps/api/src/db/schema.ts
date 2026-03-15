@@ -1,4 +1,10 @@
-import { integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+  unique,
+} from "drizzle-orm/sqlite-core";
 
 export const anime = sqliteTable("anime", {
   id: integer("id").primaryKey(),
@@ -41,6 +47,7 @@ export const episodes = sqliteTable(
   },
   (table) => [
     unique("anime_episode_unique").on(table.animeId, table.number),
+    index("episodes_anime_aired_idx").on(table.animeId, table.aired),
   ],
 );
 
