@@ -82,8 +82,12 @@ function RssPage() {
         title="RSS Feeds"
         subtitle="Manage RSS feeds for automatic episode detection"
       >
-        <Button onClick={() => setIsAdding(true)} disabled={isAdding()}>
-          <IconPlus class="mr-2 h-4 w-4" />
+        <Button
+          size="sm"
+          onClick={() => setIsAdding(true)}
+          disabled={isAdding()}
+        >
+          <IconPlus class="h-4 w-4" />
           Add Feed
         </Button>
       </PageHeader>
@@ -114,7 +118,7 @@ function RssPage() {
               </p>
             </div>
             <Button onClick={() => setIsAdding(true)}>
-              <IconPlus class="mr-2 h-4 w-4" />
+              <IconPlus class="h-4 w-4" />
               Add Feed
             </Button>
           </div>
@@ -147,11 +151,11 @@ function FeedCard(props: {
   return (
     <Card class="transition-all duration-150 hover:shadow-sm">
       <CardContent class="flex items-center gap-4 p-4">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => props.onToggle(!props.feed.enabled)}
-          class="p-2 hover:bg-muted transition-colors"
-          title={props.feed.enabled ? "Disable feed" : "Enable feed"}
+          aria-label={props.feed.enabled ? "Disable feed" : "Enable feed"}
         >
           <Show
             when={props.feed.enabled}
@@ -159,7 +163,7 @@ function FeedCard(props: {
           >
             <IconToggleRight class="h-6 w-6 text-success" />
           </Show>
-        </button>
+        </Button>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
             <p class="font-medium truncate">

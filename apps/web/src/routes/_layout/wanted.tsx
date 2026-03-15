@@ -1,6 +1,7 @@
 import { IconDots, IconSearch } from "@tabler/icons-solidjs";
 import { createFileRoute, Link } from "@tanstack/solid-router";
-import { createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
+import { createVirtualizer } from "@tanstack/solid-virtual";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
@@ -40,9 +41,31 @@ export const Route = createFileRoute("/_layout/wanted")({
 });
 
 function WantedPage() {
+  let scrollRef!: HTMLDivElement;
   const [limit] = createSignal(100);
   const wantedQuery = createWantedQuery(limit);
   const searchMissing = createSearchMissingMutation();
+  const data = createMemo(() => wantedQuery.data ?? []);
+
+  const rowVirtualizer = createVirtualizer({
+    get count() {
+      return data().length;
+    },
+    estimateSize: () => 56,
+    overscan: 10,
+    getScrollElement: () => scrollRef,
+  });
+
+  const paddingTop = createMemo(() => {
+    const items = rowVirtualizer.getVirtualItems();
+    return items.length > 0 ? items[0].start : 0;
+  });
+  const paddingBottom = createMemo(() => {
+    const items = rowVirtualizer.getVirtualItems();
+    return items.length > 0
+      ? rowVirtualizer.getTotalSize() - items[items.length - 1].end
+      : 0;
+  });
 
   const [searchModalState, setSearchModalState] = createSignal<{
     open: boolean;
@@ -64,7 +87,7 @@ function WantedPage() {
   };
 
   return (
-    <div class="space-y-6">
+    <div class="flex flex-col flex-1 min-h-0 gap-6">
       <PageHeader
         title="Wanted"
         subtitle="Missing episodes that have aired but haven't been downloaded yet."
@@ -80,11 +103,11 @@ function WantedPage() {
         </Button>
       </PageHeader>
 
-      <Card>
-        <div class="rounded-md border">
+      <Card class="overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div ref={scrollRef} class="overflow-y-auto flex-1">
           <Table>
-            <TableHeader>
-              <TableRow>
+            <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
+              <TableRow class="hover:bg-transparent border-none">
                 <TableHead class="w-[60px]" />
                 <TableHead>Anime</TableHead>
                 <TableHead class="w-[100px]">Episode</TableHead>
@@ -95,7 +118,7 @@ function WantedPage() {
             </TableHeader>
             <TableBody>
               <Show
-                when={wantedQuery.data && wantedQuery.data.length > 0}
+                when={!wantedQuery.isLoading && data().length > 0}
                 fallback={
                   <TableRow>
                     <TableCell colSpan={6} class="h-24 text-center">
@@ -106,20 +129,47 @@ function WantedPage() {
                   </TableRow>
                 }
               >
-                <For each={wantedQuery.data}>
-                  {(item) => (
-                    <WantedRow
-                      item={item}
-                      onSearch={() =>
-                        setSearchModalState({
-                          open: true,
-                          animeId: item.anime_id,
-                          episodeNumber: item.episode_number,
-                          episodeTitle: item.episode_title,
-                        })}
+                <Show when={paddingTop() > 0}>
+                  <tr aria-hidden="true">
+                    <td
+                      colSpan={6}
+                      style={{
+                        height: `${paddingTop()}px`,
+                        padding: "0",
+                        border: "none",
+                      }}
                     />
-                  )}
+                  </tr>
+                </Show>
+                <For each={rowVirtualizer.getVirtualItems()}>
+                  {(vRow) => {
+                    const item = data()[vRow.index];
+                    return (
+                      <WantedRow
+                        item={item}
+                        onSearch={() =>
+                          setSearchModalState({
+                            open: true,
+                            animeId: item.anime_id,
+                            episodeNumber: item.episode_number,
+                            episodeTitle: item.episode_title,
+                          })}
+                      />
+                    );
+                  }}
                 </For>
+                <Show when={paddingBottom() > 0}>
+                  <tr aria-hidden="true">
+                    <td
+                      colSpan={6}
+                      style={{
+                        height: `${paddingBottom()}px`,
+                        padding: "0",
+                        border: "none",
+                      }}
+                    />
+                  </tr>
+                </Show>
               </Show>
             </TableBody>
           </Table>

@@ -17,6 +17,7 @@ import {
 import { createFileRoute } from "@tanstack/solid-router";
 import { format } from "date-fns";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createVirtualizer } from "@tanstack/solid-virtual";
 import {
   Filter,
   type FilterColumnConfig,
@@ -100,6 +101,7 @@ function formatLogTimestamp(createdAt: string): string {
 }
 
 function LogsPage() {
+  let logsScrollRef!: HTMLDivElement;
   const [autoRefresh, setAutoRefresh] = createSignal(false);
   const [selectedLog, setSelectedLog] = createSignal<SystemLog | null>(null);
   const [filterStates, setFilterStates] = createSignal<FilterState[]>([]);
@@ -216,6 +218,40 @@ function LogsPage() {
     return () => clearInterval(interval);
   });
 
+  const rowVirtualizer = createVirtualizer({
+    get count() {
+      return allLogs().length;
+    },
+    estimateSize: () => 52,
+    overscan: 10,
+    getScrollElement: () => logsScrollRef,
+  });
+
+  const logsPaddingTop = createMemo(() => {
+    const items = rowVirtualizer.getVirtualItems();
+    return items.length > 0 ? items[0].start : 0;
+  });
+  const logsPaddingBottom = createMemo(() => {
+    const items = rowVirtualizer.getVirtualItems();
+    return items.length > 0
+      ? rowVirtualizer.getTotalSize() - items[items.length - 1].end
+      : 0;
+  });
+
+  // Auto-fetch next page when approaching the end
+  createEffect(() => {
+    const items = rowVirtualizer.getVirtualItems();
+    if (items.length === 0) return;
+    const lastItem = items[items.length - 1];
+    if (
+      lastItem.index >= allLogs().length - 20 &&
+      logsQuery.hasNextPage &&
+      !logsQuery.isFetchingNextPage
+    ) {
+      logsQuery.fetchNextPage();
+    }
+  });
+
   const handleExport = (format: "json" | "csv") => {
     const url = getExportLogsUrl(
       apiParams().level,
@@ -259,13 +295,13 @@ function LogsPage() {
   };
 
   return (
-    <div class="space-y-6">
+    <div class="flex flex-col flex-1 min-h-0 gap-6">
       <PageHeader
         title="System Logs"
         subtitle="View, filter, and export system events and errors"
       >
         <div class="flex items-center gap-2">
-          <div class="flex items-center gap-2 mr-2">
+          <div class="flex items-center gap-2">
             <Switch
               checked={autoRefresh()}
               onChange={setAutoRefresh}
@@ -286,7 +322,7 @@ function LogsPage() {
           >
             <IconRefresh
               class={cn(
-                "h-4 w-4 mr-2",
+                "h-4 w-4",
                 logsQuery.isRefetching && "animate-spin",
               )}
             />
@@ -295,7 +331,7 @@ function LogsPage() {
 
           <DropdownMenu>
             <DropdownMenuTrigger as={Button} variant="outline" size="sm">
-              <IconDownload class="h-4 w-4 mr-2" />
+              <IconDownload class="h-4 w-4" />
               Export
             </DropdownMenuTrigger>
             <DropdownMenuContent>
@@ -312,7 +348,7 @@ function LogsPage() {
 
           <AlertDialog>
             <AlertDialogTrigger as={Button} variant="destructive" size="sm">
-              <IconTrash class="h-4 w-4 mr-2" />
+              <IconTrash class="h-4 w-4" />
               Clear Logs
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -455,121 +491,150 @@ function LogsPage() {
         </div>
       </Card>
 
-      <Card class="border-primary/20">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead class="w-[160px]">Timestamp</TableHead>
-              <TableHead class="w-[100px]">Level</TableHead>
-              <TableHead class="w-[120px]">Source</TableHead>
-              <TableHead>Message</TableHead>
-              <TableHead class="w-[80px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <Show
-              when={!logsQuery.isLoading}
-              fallback={
-                <For each={[1, 2, 3, 4, 5]}>
-                  {() => (
-                    <TableRow>
-                      <TableCell>
-                        <Skeleton class="h-4 w-32" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton class="h-4 w-16" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton class="h-4 w-24" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton class="h-4 w-full" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton class="h-8 w-8" />
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </For>
-              }
-            >
-              <Show when={logsQuery.isError}>
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    class="h-24 text-center text-destructive"
-                  >
-                    Error loading logs. Please try again.
-                  </TableCell>
-                </TableRow>
-              </Show>
-
-              <Show when={allLogs().length === 0}>
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    class="h-24 text-center text-muted-foreground"
-                  >
-                    No logs found.
-                  </TableCell>
-                </TableRow>
-              </Show>
-
-              <For each={allLogs()}>
-                {(log) => (
-                  <TableRow class="group">
-                    <TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                      {formatLogTimestamp(log.created_at)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        class={cn(
-                          "text-xs capitalize pl-1 pr-2 py-0.5",
-                          getLevelColorClass(log.level),
-                        )}
-                      >
-                        {getLevelIcon(log.level)}
-                        {log.level}
-                      </Badge>
-                    </TableCell>
-                    <TableCell class="text-xs font-medium text-muted-foreground capitalize">
-                      {log.event_type}
-                    </TableCell>
-                    <TableCell class="text-sm max-w-[500px]">
-                      <div class="truncate" title={log.message}>
-                        {log.message}
-                      </div>
-                      <Show when={log.details}>
-                        <div
-                          class="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
-                          title={log.details}
-                        >
-                          {log.details}
-                        </div>
-                      </Show>
-                    </TableCell>
-                    <TableCell>
-                      <Show when={log.details}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          class="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => setSelectedLog(log)}
-                          title="View Details"
-                        >
-                          <IconEye class="h-4 w-4" />
-                        </Button>
-                      </Show>
+      <Card class="border-primary/20 flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div ref={logsScrollRef} class="overflow-y-auto flex-1">
+          <Table>
+            <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
+              <TableRow class="hover:bg-transparent border-none">
+                <TableHead class="w-[160px]">Timestamp</TableHead>
+                <TableHead class="w-[100px]">Level</TableHead>
+                <TableHead class="w-[120px]">Source</TableHead>
+                <TableHead>Message</TableHead>
+                <TableHead class="w-[80px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <Show
+                when={!logsQuery.isLoading}
+                fallback={
+                  <For each={[1, 2, 3, 4, 5]}>
+                    {() => (
+                      <TableRow>
+                        <TableCell>
+                          <Skeleton class="h-4 w-32" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton class="h-4 w-16" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton class="h-4 w-24" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton class="h-4 w-full" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton class="h-8 w-8" />
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </For>
+                }
+              >
+                <Show when={logsQuery.isError}>
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      class="h-24 text-center text-destructive"
+                    >
+                      Error loading logs. Please try again.
                     </TableCell>
                   </TableRow>
-                )}
-              </For>
-            </Show>
-          </TableBody>
-        </Table>
+                </Show>
+
+                <Show when={allLogs().length === 0}>
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      class="h-24 text-center text-muted-foreground"
+                    >
+                      No logs found.
+                    </TableCell>
+                  </TableRow>
+                </Show>
+
+                <Show when={logsPaddingTop() > 0}>
+                  <tr aria-hidden="true">
+                    <td
+                      colSpan={5}
+                      style={{
+                        height: `${logsPaddingTop()}px`,
+                        padding: "0",
+                        border: "none",
+                      }}
+                    />
+                  </tr>
+                </Show>
+                <For each={rowVirtualizer.getVirtualItems()}>
+                  {(vRow) => {
+                    const log = allLogs()[vRow.index];
+                    return (
+                      <TableRow class="group">
+                        <TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                          {formatLogTimestamp(log.created_at)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            class={cn(
+                              "text-xs capitalize pl-1 pr-2 py-0.5",
+                              getLevelColorClass(log.level),
+                            )}
+                          >
+                            {getLevelIcon(log.level)}
+                            {log.level}
+                          </Badge>
+                        </TableCell>
+                        <TableCell class="text-xs font-medium text-muted-foreground capitalize">
+                          {log.event_type}
+                        </TableCell>
+                        <TableCell class="text-sm max-w-[500px]">
+                          <div class="truncate" title={log.message}>
+                            {log.message}
+                          </div>
+                          <Show when={log.details}>
+                            <div
+                              class="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
+                              title={log.details}
+                            >
+                              {log.details}
+                            </div>
+                          </Show>
+                        </TableCell>
+                        <TableCell>
+                          <Show when={log.details}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              class="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => setSelectedLog(log)}
+                              title="View Details"
+                            >
+                              <IconEye class="h-4 w-4" />
+                            </Button>
+                          </Show>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }}
+                </For>
+                <Show when={logsPaddingBottom() > 0}>
+                  <tr aria-hidden="true">
+                    <td
+                      colSpan={5}
+                      style={{
+                        height: `${logsPaddingBottom()}px`,
+                        padding: "0",
+                        border: "none",
+                      }}
+                    />
+                  </tr>
+                </Show>
+              </Show>
+            </TableBody>
+          </Table>
+        </div>
         <Show when={logsQuery.hasNextPage}>
-          <div class="p-4 flex justify-center border-t">
+          <div class="p-4 flex justify-center border-t shrink-0">
             <Button
               variant="ghost"
               size="sm"
@@ -580,7 +645,7 @@ function LogsPage() {
                 when={logsQuery.isFetchingNextPage}
                 fallback="Load More Logs"
               >
-                <IconLoader class="h-4 w-4 mr-2 animate-spin" />
+                <IconLoader class="h-4 w-4 animate-spin" />
                 Loading...
               </Show>
             </Button>

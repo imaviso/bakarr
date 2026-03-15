@@ -12,7 +12,8 @@ import {
   IconX,
 } from "@tabler/icons-solidjs";
 import { createFileRoute } from "@tanstack/solid-router";
-import { For, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
+import { createVirtualizer } from "@tanstack/solid-virtual";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
@@ -76,12 +77,54 @@ function formatEta(seconds: number): string {
 }
 
 function DownloadsPage() {
+  let queueScrollRef!: HTMLDivElement;
+  let historyScrollRef!: HTMLDivElement;
+
   const queue = useActiveDownloads();
   const historyQuery = createDownloadHistoryQuery();
   const searchMissing = createSearchMissingMutation();
   const syncDownloads = createSyncDownloadsMutation();
 
   const queueCount = () => queue.length;
+  const history = createMemo(() => historyQuery.data ?? []);
+
+  const queueVirtualizer = createVirtualizer({
+    get count() {
+      return queue.length;
+    },
+    estimateSize: () => 48,
+    overscan: 10,
+    getScrollElement: () => queueScrollRef,
+  });
+  const queuePaddingTop = createMemo(() => {
+    const items = queueVirtualizer.getVirtualItems();
+    return items.length > 0 ? items[0].start : 0;
+  });
+  const queuePaddingBottom = createMemo(() => {
+    const items = queueVirtualizer.getVirtualItems();
+    return items.length > 0
+      ? queueVirtualizer.getTotalSize() - items[items.length - 1].end
+      : 0;
+  });
+
+  const historyVirtualizer = createVirtualizer({
+    get count() {
+      return history().length;
+    },
+    estimateSize: () => 64,
+    overscan: 10,
+    getScrollElement: () => historyScrollRef,
+  });
+  const historyPaddingTop = createMemo(() => {
+    const items = historyVirtualizer.getVirtualItems();
+    return items.length > 0 ? items[0].start : 0;
+  });
+  const historyPaddingBottom = createMemo(() => {
+    const items = historyVirtualizer.getVirtualItems();
+    return items.length > 0
+      ? historyVirtualizer.getTotalSize() - items[items.length - 1].end
+      : 0;
+  });
 
   return (
     <div class="flex flex-col flex-1 min-h-0 gap-4">
@@ -89,9 +132,9 @@ function DownloadsPage() {
         title="Downloads"
         subtitle="Manage active downloads and history"
       >
-        <div class="flex gap-2">
+        <div class="flex items-center gap-2">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() =>
               toast.promise(syncDownloads.mutateAsync(), {
@@ -101,7 +144,7 @@ function DownloadsPage() {
               })}
             disabled={syncDownloads.isPending}
           >
-            <IconRefresh class="mr-2 h-4 w-4" />
+            <IconRefresh class="h-4 w-4" />
             Sync
           </Button>
           <Button
@@ -115,7 +158,7 @@ function DownloadsPage() {
               })}
             disabled={searchMissing.isPending}
           >
-            <IconSearch class="mr-2 h-4 w-4" />
+            <IconSearch class="h-4 w-4" />
             Search Missing
           </Button>
         </div>
@@ -148,8 +191,11 @@ function DownloadsPage() {
             </TabsList>
           </div>
 
-          <TabsContent value="queue" class="flex-1 overflow-auto mt-0 min-h-0">
-            <div class="relative">
+          <TabsContent
+            value="queue"
+            class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col"
+          >
+            <div ref={queueScrollRef} class="overflow-y-auto flex-1">
               <Table class="table-fixed">
                 <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
                   <TableRow class="hover:bg-transparent border-none">
@@ -180,9 +226,33 @@ function DownloadsPage() {
                       </TableRow>
                     }
                   >
-                    <For each={queue}>
-                      {(item) => <ActiveDownloadRow item={item} />}
+                    <Show when={queuePaddingTop() > 0}>
+                      <tr aria-hidden="true">
+                        <td
+                          colSpan={7}
+                          style={{
+                            height: `${queuePaddingTop()}px`,
+                            padding: "0",
+                            border: "none",
+                          }}
+                        />
+                      </tr>
+                    </Show>
+                    <For each={queueVirtualizer.getVirtualItems()}>
+                      {(vRow) => <ActiveDownloadRow item={queue[vRow.index]} />}
                     </For>
+                    <Show when={queuePaddingBottom() > 0}>
+                      <tr aria-hidden="true">
+                        <td
+                          colSpan={7}
+                          style={{
+                            height: `${queuePaddingBottom()}px`,
+                            padding: "0",
+                            border: "none",
+                          }}
+                        />
+                      </tr>
+                    </Show>
                   </Show>
                 </TableBody>
               </Table>
@@ -191,9 +261,9 @@ function DownloadsPage() {
 
           <TabsContent
             value="history"
-            class="flex-1 overflow-auto mt-0 min-h-0"
+            class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col"
           >
-            <div class="relative">
+            <div ref={historyScrollRef} class="overflow-y-auto flex-1">
               <Table class="table-fixed">
                 <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
                   <TableRow class="hover:bg-transparent border-none">
@@ -235,7 +305,7 @@ function DownloadsPage() {
                     }
                   >
                     <Show
-                      when={historyQuery.data && historyQuery.data.length > 0}
+                      when={history().length > 0}
                       fallback={
                         <TableRow>
                           <TableCell
@@ -247,9 +317,35 @@ function DownloadsPage() {
                         </TableRow>
                       }
                     >
-                      <For each={historyQuery.data}>
-                        {(item) => <DownloadRow item={item} isHistory />}
+                      <Show when={historyPaddingTop() > 0}>
+                        <tr aria-hidden="true">
+                          <td
+                            colSpan={6}
+                            style={{
+                              height: `${historyPaddingTop()}px`,
+                              padding: "0",
+                              border: "none",
+                            }}
+                          />
+                        </tr>
+                      </Show>
+                      <For each={historyVirtualizer.getVirtualItems()}>
+                        {(vRow) => (
+                          <DownloadRow item={history()[vRow.index]} isHistory />
+                        )}
                       </For>
+                      <Show when={historyPaddingBottom() > 0}>
+                        <tr aria-hidden="true">
+                          <td
+                            colSpan={6}
+                            style={{
+                              height: `${historyPaddingBottom()}px`,
+                              padding: "0",
+                              border: "none",
+                            }}
+                          />
+                        </tr>
+                      </Show>
                     </Show>
                   </Show>
                 </TableBody>
