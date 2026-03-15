@@ -35,9 +35,12 @@ import {
 } from "./library-import.ts";
 import {
   buildUnmappedFolderSearchQueries,
+  hasUnmappedFolderRetryAttemptsRemaining,
+  isUnmappedFolderOutstanding,
   markUnmappedFolderFailed,
   markUnmappedFolderMatching,
   markUnmappedFolderPending,
+  markUnmappedFolderRetryPending,
   mergeUnmappedFolderSuggestions,
 } from "./unmapped-folders.ts";
 import {
@@ -590,6 +593,11 @@ export function makeSearchOrchestration(input: {
               "Failed to run RSS check",
               () => requireAnime(db, feed.animeId),
             );
+
+            if (!animeRow.monitored) {
+              return 0;
+            }
+
             const profile = yield* tryDatabasePromise(
               "Failed to run RSS check",
               () => loadQualityProfile(db, animeRow.profileName),
@@ -838,9 +846,7 @@ export function makeSearchOrchestration(input: {
           ),
       );
 
-      const hasOutstandingMatches = folders.some((folder) =>
-        folder.match_status !== "done"
-      );
+      const hasOutstandingMatches = folders.some(isUnmappedFolderOutstanding);
 
       return {
         has_outstanding_matches: hasOutstandingMatches,
@@ -906,7 +912,7 @@ export function makeSearchOrchestration(input: {
                 markJobSucceeded(
                   db,
                   "unmapped_scan",
-                  `Matched ${queuedFolders.length} unmapped folder(s)`,
+                  `Processed ${queuedFolders.length} unmapped folder(s)`,
                 ),
             );
             return { folderCount: queuedFolders.length };
@@ -1332,6 +1338,7 @@ function ensureFolderMatchStatus(
 
   return {
     ...folder,
+    match_attempts: cached.match_attempts ?? 0,
     last_match_error: cached.last_match_error,
     last_matched_at: cached.last_matched_at,
     match_status: cached.match_status,
@@ -1342,7 +1349,11 @@ function ensureFolderMatchStatus(
 function countCompletedUnmappedMatches(
   folders: readonly ScannerState["folders"][number][],
 ) {
-  return folders.filter((folder) => folder.match_status === "done").length;
+  return folders.filter((folder) =>
+    folder.match_status === "done" ||
+    (folder.match_status === "failed" &&
+      !hasUnmappedFolderRetryAttemptsRemaining(folder))
+  ).length;
 }
 
 function isUnmappedFolderQueuedForMatch(
@@ -1359,19 +1370,31 @@ function prepareUnmappedFoldersForScan(
   return folders.map((folder) => {
     const existing = cachedByPath.get(folder.path);
 
-    if (
-      existing &&
-      (existing.match_status === "done" || existing.match_status === "failed")
-    ) {
-      return {
-        ...folder,
-        ...existing,
-        name: folder.name,
-        path: folder.path,
-      };
+    if (!existing) {
+      return markUnmappedFolderPending(folder);
     }
 
-    return markUnmappedFolderPending(folder);
+    const merged = {
+      ...folder,
+      ...existing,
+      match_attempts: existing.match_attempts ?? 0,
+      name: folder.name,
+      path: folder.path,
+    };
+
+    if (existing.match_status === "done") {
+      return merged;
+    }
+
+    if (hasUnmappedFolderRetryAttemptsRemaining(existing)) {
+      return markUnmappedFolderRetryPending(merged);
+    }
+
+    if (existing.match_status === "failed") {
+      return merged;
+    }
+
+    return markUnmappedFolderPending(merged);
   });
 }
 
