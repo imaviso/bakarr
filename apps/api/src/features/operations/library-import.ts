@@ -2,93 +2,161 @@ import { and, eq, sql } from "drizzle-orm";
 
 import type {
   AnimeSearchResult,
+  ParsedEpisodeIdentity,
   RenamePreviewItem,
   ScannedFile,
+  SkippedFile,
 } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
-import { parseResolution } from "./release-ranking.ts";
 import {
-  parseEpisodeNumber,
-  parseEpisodeNumbers,
-  scanVideoFiles,
-} from "./file-scanner.ts";
-import { requireAnime } from "./repository.ts";
-import { sanitizeFilename } from "../../lib/filesystem.ts";
+  buildPathParseContext,
+  classifyMediaArtifact,
+  parseFileSourceIdentity,
+} from "../../lib/media-identity.ts";
+import { renderEpisodeFilename } from "../../lib/naming.ts";
+import { parseResolution } from "./release-ranking.ts";
+import { currentNamingFormat, requireAnime } from "./repository.ts";
 
 export async function buildRenamePreview(
   db: AppDatabase,
   animeId: number,
 ): Promise<RenamePreviewItem[]> {
   const animeRow = await requireAnime(db, animeId);
+  const namingFormat = await currentNamingFormat(db);
   const rows = await db.select().from(episodes).where(
     and(eq(episodes.animeId, animeId), sql`${episodes.filePath} is not null`),
   );
 
-  return rows.filter((row) => row.filePath).map((row) => {
-    const extension = row.filePath!.includes(".")
-      ? row.filePath!.slice(row.filePath!.lastIndexOf("."))
+  // Group rows by file path to handle multi-episode files
+  const fileGroups = new Map<string, typeof rows>();
+  for (const row of rows) {
+    if (!row.filePath) continue;
+    const existing = fileGroups.get(row.filePath) ?? [];
+    existing.push(row);
+    fileGroups.set(row.filePath, existing);
+  }
+
+  const results: RenamePreviewItem[] = [];
+  for (const [filePath, groupRows] of fileGroups) {
+    const episodeNumbers = groupRows.map((r) => r.number).sort((a, b) => a - b);
+    const primaryEpisode = episodeNumbers[0];
+    const extension = filePath.includes(".")
+      ? filePath.slice(filePath.lastIndexOf("."))
       : ".mkv";
-    const filename = `${sanitizeFilename(animeRow.titleRomaji)} - ${
-      String(row.number).padStart(2, "0")
-    }${extension}`;
-    return {
-      current_path: row.filePath!,
-      episode_number: row.number,
+    const filename = renderEpisodeFilename(namingFormat, {
+      title: animeRow.titleRomaji,
+      episodeNumbers,
+    }) + extension;
+    results.push({
+      current_path: filePath,
+      episode_number: primaryEpisode,
+      episode_numbers: episodeNumbers.length > 1 ? episodeNumbers : undefined,
       new_filename: filename,
       new_path: `${animeRow.rootFolder.replace(/\/$/, "")}/${filename}`,
-    };
-  });
+    });
+  }
+
+  return results;
+}
+
+export interface AnalyzedFile {
+  scanned: ScannedFile;
+  skipped?: SkippedFile;
 }
 
 export function analyzeScannedFile(
   file: { name: string; path: string },
-): ScannedFile {
-  const extensionless = file.name.replace(/\.[^.]+$/, "");
-  const episodeNumbers = [...parseEpisodeNumbers(file.path)];
-  const titleSegment = stripEpisodeSuffix(
-    extensionless.replace(/^\[[^\]]+\]\s*/g, ""),
+  rootPath?: string,
+): AnalyzedFile {
+  // Only build folder context when the file is in a subfolder of the root,
+  // not when it sits directly in the scan root (where the folder name is not
+  // an anime title).
+  const fileDir = file.path.substring(0, file.path.lastIndexOf("/"));
+  const isInSubfolder = rootPath
+    ? fileDir.replace(/\/$/, "") !== rootPath.replace(/\/$/, "")
+    : false;
+  const context = rootPath && isInSubfolder
+    ? buildPathParseContext(rootPath, file.path)
+    : undefined;
+
+  // Classify first to detect extras/samples
+  const classification = classifyMediaArtifact(
+    file.path,
+    file.name,
+    context,
   );
-  const cleaned = titleSegment
-    .replace(/^\[[^\]]+\]\s*/g, "")
-    .replace(
-      /\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray)[^\]]*\]/gi,
-      "",
-    )
-    .replace(
-      /\b(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray|batch|complete)\b/gi,
-      "",
-    )
-    .replace(/(?:^|\s)[-_ ]?\d{1,3}(?:\s*[-~]\s*\d{1,3})?(?=\s|$)/g, " ")
-    .replace(/s\d{1,2}e\d{1,3}(?:\s*[-~]\s*e?\d{1,3})?/gi, " ")
-    .replace(
-      /\b\d{1,2}x\d{1,3}(?:\s*[-~]\s*(?:\d{1,2}x)?\d{1,3})?\b/gi,
-      " ",
-    )
-    .replace(
-      /\bseason\s+\d+\s+(?:ep|e|episode)\s+\d{1,3}(?:\s*[-~]\s*(?:season\s+\d+\s+)?(?:ep|e|episode)?\s*\d{1,3})?\b/gi,
-      " ",
-    )
-    .replace(/\s+/g, " ")
-    .trim();
-  const seasonMatch = extensionless.match(
-    /season\s+(\d+)|(\d+)(?:st|nd|rd|th)\s+season|s(\d{1,2})[\s._-]*e\d{1,3}|(\d{1,2})x\d{1,3}/i,
-  );
-  const groupMatch = file.name.match(/^\[(.*?)\]/);
+
+  if (classification.kind === "extra" || classification.kind === "sample") {
+    return {
+      scanned: {
+        episode_number: 0,
+        filename: file.name,
+        parsed_title: "",
+        source_path: file.path,
+        skip_reason: classification.skip_reason ??
+          `Detected as ${classification.kind}`,
+        needs_manual_mapping: false,
+      },
+      skipped: {
+        path: file.path,
+        reason: classification.skip_reason ??
+          `Detected as ${classification.kind}`,
+      },
+    };
+  }
+
+  // Parse with canonical parser
+  const parsed = parseFileSourceIdentity(file.path, context);
+  const sourceIdentity = parsed.source_identity;
+
+  // Extract episode numbers from source identity
+  let episodeNumbers: number[] = [];
+  let season: number | undefined;
+  let sourceIdentityDto: ParsedEpisodeIdentity | undefined;
+
+  if (sourceIdentity) {
+    sourceIdentityDto = {
+      scheme: sourceIdentity.scheme,
+      label: sourceIdentity.label,
+    };
+
+    if (sourceIdentity.scheme === "season") {
+      season = sourceIdentity.season;
+      episodeNumbers = [...sourceIdentity.episode_numbers];
+      sourceIdentityDto.season = sourceIdentity.season;
+      sourceIdentityDto.episode_numbers = [...sourceIdentity.episode_numbers];
+    } else if (sourceIdentity.scheme === "absolute") {
+      episodeNumbers = [...sourceIdentity.episode_numbers];
+      sourceIdentityDto.episode_numbers = [...sourceIdentity.episode_numbers];
+    } else if (sourceIdentity.scheme === "daily") {
+      sourceIdentityDto.air_dates = [...sourceIdentity.air_dates];
+    }
+  }
+
+  const primaryEpisode = episodeNumbers[0];
+  const needsManualMapping = !sourceIdentity ||
+    parsed.kind === "unknown" ||
+    (sourceIdentity.scheme === "daily" && episodeNumbers.length === 0);
+
+  // Fallback: extract group from filename if canonical parser didn't find one
+  const group = parsed.group ??
+    file.name.match(/^\[(.*?)\]/)?.[1];
 
   return {
-    episode_number: episodeNumbers[0] ?? parseEpisodeNumber(file.path) ?? 1,
-    episode_numbers: episodeNumbers.length > 1 ? episodeNumbers : undefined,
-    filename: file.name,
-    group: groupMatch?.[1],
-    parsed_title: cleaned.length > 0 ? cleaned : extensionless,
-    resolution: parseResolution(extensionless),
-    season: seasonMatch
-      ? Number(
-        seasonMatch[1] ?? seasonMatch[2] ?? seasonMatch[3] ?? seasonMatch[4],
-      )
-      : undefined,
-    source_path: file.path,
+    scanned: {
+      episode_number: primaryEpisode ?? 0,
+      episode_numbers: episodeNumbers.length > 0 ? episodeNumbers : undefined,
+      filename: file.name,
+      group,
+      parsed_title: parsed.parsed_title,
+      resolution: parsed.resolution ?? parseResolution(file.name),
+      season,
+      source_path: file.path,
+      source_identity: sourceIdentityDto,
+      skip_reason: parsed.skip_reason,
+      needs_manual_mapping: needsManualMapping || undefined,
+    },
   };
 }
 
@@ -152,27 +220,6 @@ export function titlesMatch(parsedTitle: string, candidate: AnimeSearchResult) {
   return titles.some((title) =>
     scoreTitleMatch(target, normalizeTitle(title)) >= 0.55
   );
-}
-
-export { parseEpisodeNumber, parseEpisodeNumbers, scanVideoFiles };
-
-function stripEpisodeSuffix(value: string) {
-  const patterns = [
-    /^(.*?)(?:\s*[-._ ]\s*)s\d{1,2}[\s._-]*e\d{1,3}(?:[\s._-]*e?\d{1,3})*(?:\s*[-._ ]\s*.*)?$/i,
-    /^(.*?)(?:\s*[-._ ]\s*)\d{1,2}x\d{1,3}(?:[\s._-](?:\d{1,2}x)?\d{1,3})*(?:\s*[-._ ]\s*.*)?$/i,
-    /^(.*?)(?:\s*[-._ ]\s*)season[\s._-]*\d{1,2}[\s._-]*(?:ep|e|episode)[\s._-]*\d{1,3}(?:\s*[-._ ]\s*(?:season[\s._-]*\d{1,2}[\s._-]*)?(?:ep|e|episode)?[\s._-]*\d{1,3})*(?:\s*[-._ ]\s*.*)?$/i,
-    /^(.*?)(?:\s+-\s+)\d{1,4}(?:v\d+)?(?:\s+-\s+.*|\s*(?:\[.*|\(.*|$))/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = value.match(pattern);
-
-    if (match?.[1]?.trim()) {
-      return match[1].trim();
-    }
-  }
-
-  return value;
 }
 
 function normalizeTitle(value: string) {

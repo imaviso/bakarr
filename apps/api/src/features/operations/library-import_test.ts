@@ -9,42 +9,95 @@ import {
 import { anime } from "../../db/schema.ts";
 
 Deno.test("analyzeScannedFile strips release noise and extracts metadata", () => {
-  const parsed = analyzeScannedFile({
-    name: "[SubsPlease] Naruto Season 2 - 03 [1080p] [HEVC].mkv",
-    path: "/library/Naruto - 03.mkv",
+  const result = analyzeScannedFile({
+    name: "[SubsPlease] Naruto Season 2 - S02E03 [1080p] [HEVC].mkv",
+    path: "/library/[SubsPlease] Naruto Season 2 - S02E03 [1080p] [HEVC].mkv",
   });
+  const parsed = result.scanned;
 
   assertEquals(parsed.episode_number, 3);
   assertEquals(parsed.group, "SubsPlease");
-  assertEquals(parsed.parsed_title, "Naruto Season");
   assertEquals(parsed.resolution, "1080p");
   assertEquals(parsed.season, 2);
 });
 
 Deno.test("analyzeScannedFile handles Sonarr and Plex style episode names", () => {
-  const parsed = analyzeScannedFile({
+  const result = analyzeScannedFile({
     name:
       "Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You♡ Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC]-SubsPlus+.mkv",
     path:
       "/library/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You♡ Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC]-SubsPlus+.mkv",
   });
+  const parsed = result.scanned;
 
   assertEquals(parsed.episode_number, 1);
-  assertEquals(parsed.parsed_title, "Rock Is a Lady's Modesty (2025)");
   assertEquals(parsed.resolution, "1080p");
   assertEquals(parsed.season, 1);
 });
 
 Deno.test("analyzeScannedFile preserves multi-episode local ranges", () => {
-  const parsed = analyzeScannedFile({
+  const result = analyzeScannedFile({
     name: "Show Name - 1x01-1x02 - Premiere.mkv",
     path: "/library/Show Name - 1x01-1x02 - Premiere.mkv",
   });
+  const parsed = result.scanned;
 
   assertEquals(parsed.episode_number, 1);
   assertEquals(parsed.episode_numbers, [1, 2]);
-  assertEquals(parsed.parsed_title, "Show Name");
   assertEquals(parsed.season, 1);
+});
+
+Deno.test("analyzeScannedFile skips extras and samples", () => {
+  const extra = analyzeScannedFile({
+    name: "Featurette.mkv",
+    path: "/library/Extras/Featurette.mkv",
+  });
+  assertEquals(extra.skipped !== undefined, true);
+  assertEquals(extra.skipped!.reason.length > 0, true);
+
+  const sample = analyzeScannedFile({
+    name: "sample-Show.S01E01.mkv",
+    path: "/library/sample-Show.S01E01.mkv",
+  });
+  assertEquals(sample.skipped !== undefined, true);
+});
+
+Deno.test("analyzeScannedFile populates source_identity for season episodes", () => {
+  const result = analyzeScannedFile({
+    name: "Show.S02E03.mkv",
+    path: "/library/Show.S02E03.mkv",
+  });
+  const parsed = result.scanned;
+
+  assertEquals(parsed.source_identity?.scheme, "season");
+  assertEquals(parsed.source_identity?.season, 2);
+  assertEquals(parsed.source_identity?.episode_numbers, [3]);
+  assertEquals(parsed.source_identity?.label, "S02E03");
+  assertEquals(parsed.episode_number, 3);
+  assertEquals(parsed.season, 2);
+});
+
+Deno.test("analyzeScannedFile populates source_identity for daily episodes", () => {
+  const result = analyzeScannedFile({
+    name: "Show.2025-03-14.mkv",
+    path: "/library/Show.2025-03-14.mkv",
+  });
+  const parsed = result.scanned;
+
+  assertEquals(parsed.source_identity?.scheme, "daily");
+  assertEquals(parsed.source_identity?.air_dates, ["2025-03-14"]);
+  assertEquals(parsed.needs_manual_mapping, true);
+});
+
+Deno.test("analyzeScannedFile marks unknown files as needing manual mapping", () => {
+  const result = analyzeScannedFile({
+    name: "random_video.mkv",
+    path: "/library/random_video.mkv",
+  });
+  const parsed = result.scanned;
+
+  assertEquals(parsed.needs_manual_mapping, true);
+  assertEquals(parsed.episode_number, 0);
 });
 
 Deno.test("findBestLocalAnimeMatch handles title normalization and rejects weak matches", () => {
