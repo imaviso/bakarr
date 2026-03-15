@@ -419,126 +419,114 @@ export function registerAnimeRoutes(
       (value) => c.json(value),
     ));
 
-  app.get("/api/stream/:id/:episodeNumber", async (c) => {
-    try {
-      return await runRoute(
-        c,
-        runEffect,
-        Effect.gen(function* () {
-          const params = yield* decodeRequestInput(
-            AnimeEpisodeParamsSchema,
-            {
-              episodeNumber: c.req.param("episodeNumber"),
-              id: c.req.param("id"),
-            },
-            "stream episode",
-          );
-          const query = yield* decodeRequestInput(
-            StreamQuerySchema,
-            {
-              exp: c.req.query("exp") ?? "",
-              sig: c.req.query("sig") ?? "",
-            },
-            "stream episode",
-          );
+  app.get("/api/stream/:id/:episodeNumber", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      Effect.gen(function* () {
+        const params = yield* decodeRequestInput(
+          AnimeEpisodeParamsSchema,
+          {
+            episodeNumber: c.req.param("episodeNumber"),
+            id: c.req.param("id"),
+          },
+          "stream episode",
+        );
+        const query = yield* decodeRequestInput(
+          StreamQuerySchema,
+          {
+            exp: c.req.query("exp") ?? "",
+            sig: c.req.query("sig") ?? "",
+          },
+          "stream episode",
+        );
 
-          const isAuthorized = yield* Effect.tryPromise({
-            try: () =>
-              verifyStreamUrl(
-                params.id,
-                params.episodeNumber,
-                query.exp,
-                query.sig,
-              ),
-            catch: (cause) =>
-              new AuthError({
-                message: cause instanceof Error
-                  ? cause.message
-                  : "Forbidden or expired",
-                status: 403,
-              }),
-          });
-
-          if (!isAuthorized) {
-            return yield* new AuthError({
-              message: "Forbidden or expired",
-              status: 403,
-            });
-          }
-
-          const files = yield* Effect.flatMap(
-            AnimeService,
-            (service) => service.listFiles(params.id),
-          );
-          const match = files.find((file) =>
-            file.episode_number === params.episodeNumber
-          );
-
-          if (!match) {
-            return yield* new AuthError({
-              message: "Episode file not found",
-              status: 404,
-            });
-          }
-
-          const fs = yield* FileSystem;
-          const fileInfo = yield* fs.stat(match.path).pipe(
-            Effect.mapError((error) =>
-              new FileSystemError({
-                ...error,
-                message: "Failed to stat stream file",
-              })
+        const isAuthorized = yield* Effect.tryPromise({
+          try: () =>
+            verifyStreamUrl(
+              params.id,
+              params.episodeNumber,
+              query.exp,
+              query.sig,
             ),
-          );
-          const byteRange = parseByteRange(
-            c.req.header("range"),
-            fileInfo.size,
-          );
-
-          return {
-            contentLength: byteRange
-              ? byteRange.end - byteRange.start + 1
-              : fileInfo.size,
-            contentType: guessContentType(match.name),
-            fileName: match.name,
-            fileSize: fileInfo.size,
-            fs,
-            filePath: match.path,
-            range: byteRange,
-            status: byteRange ? 206 : 200,
-          };
-        }),
-        (value) =>
-          new Response(
-            createFileReadableStream(value.fs, value.filePath, value.range),
-            {
-              status: value.status,
-              headers: {
-                ...(value.range
-                  ? {
-                    "Content-Range":
-                      `bytes ${value.range.start}-${value.range.end}/${value.fileSize}`,
-                  }
-                  : {}),
-                "Accept-Ranges": "bytes",
-                "Content-Length": value.contentLength.toString(),
-                "Content-Type": value.contentType,
-                "Content-Disposition": `inline; filename="${value.fileName}"`,
-              },
-            },
-          ),
-      );
-    } catch (error) {
-      if (error instanceof EpisodeStreamRangeError) {
-        return new Response(error.message, {
-          status: error.status,
-          headers: { "Content-Range": `bytes */${error.fileSize}` },
+          catch: (cause) =>
+            new AuthError({
+              message: cause instanceof Error
+                ? cause.message
+                : "Forbidden or expired",
+              status: 403,
+            }),
         });
-      }
 
-      throw error;
-    }
-  });
+        if (!isAuthorized) {
+          return yield* new AuthError({
+            message: "Forbidden or expired",
+            status: 403,
+          });
+        }
+
+        const files = yield* Effect.flatMap(
+          AnimeService,
+          (service) => service.listFiles(params.id),
+        );
+        const match = files.find((file) =>
+          file.episode_number === params.episodeNumber
+        );
+
+        if (!match) {
+          return yield* new AuthError({
+            message: "Episode file not found",
+            status: 404,
+          });
+        }
+
+        const fs = yield* FileSystem;
+        const fileInfo = yield* fs.stat(match.path).pipe(
+          Effect.mapError((error) =>
+            new FileSystemError({
+              ...error,
+              message: "Failed to stat stream file",
+            })
+          ),
+        );
+        const byteRange = yield* parseByteRange(
+          c.req.header("range"),
+          fileInfo.size,
+        );
+
+        return {
+          contentLength: byteRange
+            ? byteRange.end - byteRange.start + 1
+            : fileInfo.size,
+          contentType: guessContentType(match.name),
+          fileName: match.name,
+          fileSize: fileInfo.size,
+          fs,
+          filePath: match.path,
+          range: byteRange,
+          status: byteRange ? 206 : 200,
+        };
+      }),
+      (value) =>
+        new Response(
+          createFileReadableStream(value.fs, value.filePath, value.range),
+          {
+            status: value.status,
+            headers: {
+              ...(value.range
+                ? {
+                  "Content-Range":
+                    `bytes ${value.range.start}-${value.range.end}/${value.fileSize}`,
+                }
+                : {}),
+              "Accept-Ranges": "bytes",
+              "Content-Length": value.contentLength.toString(),
+              "Content-Type": value.contentType,
+              "Content-Disposition": `inline; filename="${value.fileName}"`,
+            },
+          },
+        ),
+    ));
 }
 
 function decodeRequestInput<A, I, R>(
@@ -570,19 +558,21 @@ function decodeRequestInput<A, I, R>(
 function parseByteRange(
   rangeHeader: string | undefined,
   fileSize: number,
-): ByteRange | undefined {
+): Effect.Effect<ByteRange | undefined, EpisodeStreamRangeError> {
   if (!rangeHeader) {
-    return undefined;
+    return Effect.succeed(undefined);
   }
 
   const match = /^bytes=(\d+)-(\d+)?$/.exec(rangeHeader.trim());
 
   if (!match) {
-    throw new EpisodeStreamRangeError({
-      fileSize,
-      message: "Requested range not satisfiable",
-      status: 416,
-    });
+    return Effect.fail(
+      new EpisodeStreamRangeError({
+        fileSize,
+        message: "Requested range not satisfiable",
+        status: 416,
+      }),
+    );
   }
 
   const start = Number.parseInt(match[1], 10);
@@ -592,14 +582,16 @@ function parseByteRange(
     Number.isNaN(start) || Number.isNaN(end) || start < 0 || end < start ||
     start >= fileSize || end >= fileSize
   ) {
-    throw new EpisodeStreamRangeError({
-      fileSize,
-      message: "Requested range not satisfiable",
-      status: 416,
-    });
+    return Effect.fail(
+      new EpisodeStreamRangeError({
+        fileSize,
+        message: "Requested range not satisfiable",
+        status: 416,
+      }),
+    );
   }
 
-  return { end, start };
+  return Effect.succeed({ end, start });
 }
 
 function createFileReadableStream(

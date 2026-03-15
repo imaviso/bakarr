@@ -9,6 +9,7 @@ export {
 import {
   DownloadConflictError,
   DownloadNotFoundError,
+  ExternalCallError,
   OperationsAnimeNotFoundError,
   OperationsConflictError,
   type OperationsError,
@@ -24,7 +25,7 @@ export type TryDatabasePromise = <A>(
 export type TryOperationsPromise = <A>(
   message: string,
   try_: () => Promise<A>,
-) => Effect.Effect<A, OperationsError | DatabaseError>;
+) => Effect.Effect<A, ExternalCallError | OperationsError | DatabaseError>;
 
 export function maybeQBitConfig(config: Config): QBitConfig | null {
   if (!config.qbittorrent.enabled || !config.qbittorrent.password) {
@@ -51,6 +52,7 @@ export function wrapOperationsError(message: string) {
       cause instanceof OperationsConflictError ||
       cause instanceof DownloadNotFoundError ||
       cause instanceof DownloadConflictError ||
+      cause instanceof ExternalCallError ||
       cause instanceof DatabaseError
     ) {
       return cause;

@@ -83,6 +83,7 @@ import {
 } from "./release-ranking.ts";
 import { parseEpisodeNumber } from "./file-scanner.ts";
 import {
+  ExternalCallError,
   OperationsConflictError,
   type OperationsError,
   OperationsInputError,
@@ -109,7 +110,7 @@ export function makeSearchOrchestration(input: {
   tryOperationsPromise: TryOperationsPromise;
   wrapOperationsError: (
     message: string,
-  ) => (cause: unknown) => OperationsError | DatabaseError;
+  ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
@@ -118,6 +119,7 @@ export function makeSearchOrchestration(input: {
     total: number;
     feed_name: string;
   }) => Effect.Effect<void>;
+  triggerSemaphore: Effect.Semaphore;
   unmappedScanRunning: Ref.Ref<boolean>;
 }) {
   const {
@@ -134,6 +136,7 @@ export function makeSearchOrchestration(input: {
     maybeQBitConfig,
     publishDownloadProgress,
     publishRssCheckProgress,
+    triggerSemaphore,
     unmappedScanRunning,
   } = input;
 
@@ -410,49 +413,63 @@ export function makeSearchOrchestration(input: {
           }),
         );
 
-        if (
-          yield* tryDatabasePromise(
-            "Failed to queue missing-episode search",
-            () =>
-              hasOverlappingDownload(
-                db,
-                row.anime.id,
-                best.item.infoHash,
-                parseCoveredEpisodes(coveredEpisodes),
-              ),
-          )
-        ) {
+        // Atomic overlap-check + insert under a shared semaphore to prevent
+        // races between concurrent RSS/search-missing/HTTP-trigger flows.
+        const insertOutcome = yield* triggerSemaphore.withPermits(1)(
+          Effect.gen(function* () {
+            const overlapping = yield* tryDatabasePromise(
+              "Failed to queue missing-episode search",
+              () =>
+                hasOverlappingDownload(
+                  db,
+                  row.anime.id,
+                  best.item.infoHash,
+                  parseCoveredEpisodes(coveredEpisodes),
+                ),
+            );
+
+            if (overlapping) {
+              return { _tag: "skipped" } as const;
+            }
+
+            const result = yield* Effect.either(tryDatabasePromise(
+              "Failed to queue missing-episode search",
+              () =>
+                db.insert(downloads).values({
+                  addedAt: nowIso(),
+                  animeId: row.anime.id,
+                  animeTitle: row.anime.titleRomaji,
+                  contentPath: null,
+                  coveredEpisodes,
+                  downloadDate: null,
+                  downloadedBytes: 0,
+                  episodeNumber: row.episodes.number,
+                  errorMessage: null,
+                  etaSeconds: null,
+                  externalState: "queued",
+                  groupName: best.item.group ?? null,
+                  infoHash: best.item.infoHash,
+                  isBatch: parsedRelease.isBatch,
+                  lastSyncedAt: nowIso(),
+                  magnet: best.item.magnet,
+                  progress: 0,
+                  savePath: null,
+                  speedBytes: 0,
+                  status: "queued",
+                  torrentName: best.item.title,
+                  totalBytes: best.item.sizeBytes,
+                }).returning({ id: downloads.id }),
+            ));
+
+            return { _tag: "inserted", result } as const;
+          }),
+        );
+
+        if (insertOutcome._tag === "skipped") {
           continue;
         }
 
-        const insertResult = yield* Effect.either(tryDatabasePromise(
-          "Failed to queue missing-episode search",
-          () =>
-            db.insert(downloads).values({
-              addedAt: nowIso(),
-              animeId: row.anime.id,
-              animeTitle: row.anime.titleRomaji,
-              contentPath: null,
-              coveredEpisodes,
-              downloadDate: null,
-              episodeNumber: row.episodes.number,
-              groupName: best.item.group ?? null,
-              infoHash: best.item.infoHash,
-              isBatch: parsedRelease.isBatch,
-              magnet: best.item.magnet,
-              progress: 0,
-              savePath: null,
-              speedBytes: 0,
-              status: "queued",
-              totalBytes: best.item.sizeBytes,
-              torrentName: best.item.title,
-              downloadedBytes: 0,
-              errorMessage: null,
-              etaSeconds: null,
-              externalState: "queued",
-              lastSyncedAt: nowIso(),
-            }).returning({ id: downloads.id }),
-        ));
+        const insertResult = insertOutcome.result;
 
         if (insertResult._tag === "Left") {
           const dbError = insertResult.left;
@@ -1342,14 +1359,19 @@ function prepareUnmappedFoldersForScan(
   return folders.map((folder) => {
     const existing = cachedByPath.get(folder.path);
 
-    return existing && existing.match_status === "done"
-      ? {
+    if (
+      existing &&
+      (existing.match_status === "done" || existing.match_status === "failed")
+    ) {
+      return {
         ...folder,
         ...existing,
         name: folder.name,
         path: folder.path,
-      }
-      : markUnmappedFolderPending(folder);
+      };
+    }
+
+    return markUnmappedFolderPending(folder);
   });
 }
 

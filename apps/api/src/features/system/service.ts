@@ -25,7 +25,11 @@ import {
   makeDefaultConfig,
 } from "./defaults.ts";
 import { setRuntimeLogLevel } from "../../lib/logging.ts";
-import { ConfigValidationError, ProfileNotFoundError } from "./errors.ts";
+import {
+  ConfigValidationError,
+  ProfileNotFoundError,
+  StoredConfigCorruptError,
+} from "./errors.ts";
 import {
   type ConfigCore,
   decodeQualityProfileRow,
@@ -83,19 +87,22 @@ export interface SystemServiceShape {
   readonly getActivity: () => Effect.Effect<ActivityItem[], DatabaseError>;
   readonly getJobs: () => Effect.Effect<
     BackgroundJobStatus[],
-    DatabaseError | ConfigValidationError
+    DatabaseError | ConfigValidationError | StoredConfigCorruptError
   >;
   readonly getDashboard: () => Effect.Effect<
     OpsDashboard,
-    DatabaseError | ConfigValidationError
+    DatabaseError | ConfigValidationError | StoredConfigCorruptError
   >;
   readonly getConfig: () => Effect.Effect<
     Config,
-    DatabaseError | ConfigValidationError
+    DatabaseError | StoredConfigCorruptError
   >;
   readonly updateConfig: (
     config: Config,
-  ) => Effect.Effect<Config, DatabaseError | ConfigValidationError>;
+  ) => Effect.Effect<
+    Config,
+    DatabaseError | ConfigValidationError | StoredConfigCorruptError
+  >;
   readonly listProfiles: () => Effect.Effect<QualityProfile[], DatabaseError>;
   readonly listQualities: () => Effect.Effect<Quality[], never>;
   readonly createProfile: (
@@ -562,7 +569,7 @@ const makeSystemService = Effect.gen(function* () {
       if (decoded) {
         core = decoded;
       } else {
-        return yield* new ConfigValidationError({
+        return yield* new StoredConfigCorruptError({
           message:
             "Stored configuration is corrupt and could not be decoded. Re-save config to repair.",
         });

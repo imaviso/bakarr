@@ -1,5 +1,9 @@
 import { Schema } from "effect";
 
+import { ExternalCallError } from "../../lib/effect-retry.ts";
+
+export { ExternalCallError };
+
 export class DownloadNotFoundError
   extends Schema.TaggedError<DownloadNotFoundError>()(
     "DownloadNotFoundError",
@@ -35,4 +39,5 @@ export type OperationsError =
   | DownloadConflictError
   | OperationsConflictError
   | OperationsAnimeNotFoundError
-  | OperationsInputError;
+  | OperationsInputError
+  | ExternalCallError;

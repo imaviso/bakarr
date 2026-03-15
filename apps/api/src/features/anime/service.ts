@@ -21,6 +21,7 @@ import {
   AnimePathError,
   type AnimeServiceError,
 } from "./errors.ts";
+import { ProfileNotFoundError } from "../system/errors.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
 import { collectVideoFiles, parseEpisodeNumber } from "./files.ts";
 import { FileSystem, isWithinPathRoot } from "../../lib/filesystem.ts";
@@ -36,6 +37,7 @@ import {
   inferAiredAt,
   insertAnimeAggregateAtomic,
   markSearchResultsAlreadyInLibrary,
+  qualityProfileExists,
   requireAnimeExists,
   resolveAnimeRootFolder,
   upsertEpisode,
@@ -77,6 +79,7 @@ export interface AnimeServiceShape {
     | AnimeNotFoundError
     | AnimeConflictError
     | AnimePathError
+    | ProfileNotFoundError
     | DatabaseError
     | ExternalCallError
   >;
@@ -164,6 +167,17 @@ const makeAnimeService = Effect.gen(function* () {
     }
 
     const animeMetadata = metadata!;
+
+    const profileExists = yield* tryDatabasePromise(
+      "Failed to add anime",
+      () => qualityProfileExists(db, input.profile_name),
+    );
+
+    if (!profileExists) {
+      return yield* new ProfileNotFoundError({
+        message: `Quality profile '${input.profile_name}' not found`,
+      });
+    }
 
     const rootFolder = yield* tryAnimePromise(
       "Failed to add anime",

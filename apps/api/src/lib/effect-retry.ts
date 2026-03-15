@@ -19,20 +19,26 @@ const retryPolicy = Schedule.exponential("200 millis").pipe(
   Schedule.compose(Schedule.recurs(2)),
 );
 
+const noRetryPolicy = Schedule.recurs(0);
+
 export const tryExternal = <A>(
   operation: string,
   fn: (signal: AbortSignal) => Promise<A>,
+  options?: { readonly idempotent?: boolean },
 ) =>
   Effect.fn(`external.${operation}`)(
     function* () {
       const startedAt = performance.now();
+      const policy = options?.idempotent === false
+        ? noRetryPolicy
+        : retryPolicy;
 
       const result = yield* Effect.tryPromise({
         try: (signal) => fn(signal),
         catch: (cause) => toExternalCallError(operation, cause),
       }).pipe(
         Effect.timeout("10 seconds"),
-        Effect.retry(retryPolicy),
+        Effect.retry(policy),
         Effect.scoped,
         Effect.mapError((cause) => toExternalCallError(operation, cause)),
         Effect.tapBoth({
@@ -66,14 +72,18 @@ export const tryExternal = <A>(
 export const tryExternalEffect = <A, E, R>(
   operation: string,
   effect: Effect.Effect<A, E, R>,
+  options?: { readonly idempotent?: boolean },
 ) =>
   Effect.fn(`external.${operation}`)(
     function* () {
       const startedAt = performance.now();
+      const policy = options?.idempotent === false
+        ? noRetryPolicy
+        : retryPolicy;
 
       const result = yield* effect.pipe(
         Effect.timeout("10 seconds"),
-        Effect.retry(retryPolicy),
+        Effect.retry(policy),
         Effect.scoped,
         Effect.mapError((cause) => toExternalCallError(operation, cause)),
         Effect.tapBoth({

@@ -99,6 +99,13 @@
       "when": 1773501000000,
       "tag": "0013_unmapped_folder_matching",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1773502000000,
+      "tag": "0014_bootstrap_password_storage",
+      "breakpoints": true
     }
   ]
 }

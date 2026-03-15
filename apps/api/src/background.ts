@@ -498,8 +498,8 @@ export function makeBackgroundWorkerController(options: {
             return;
           }
           const newHandle = yield* options.spawnWorkers(config);
-          yield* Ref.set(handleRef, newHandle);
           yield* oldHandle.stop;
+          yield* Ref.set(handleRef, newHandle);
         }),
       );
 

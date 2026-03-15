@@ -6,10 +6,19 @@ export class ConfigValidationError
     { message: Schema.String },
   ) {}
 
+export class StoredConfigCorruptError
+  extends Schema.TaggedError<StoredConfigCorruptError>()(
+    "StoredConfigCorruptError",
+    { message: Schema.String },
+  ) {}
+
 export class ProfileNotFoundError
   extends Schema.TaggedError<ProfileNotFoundError>()(
     "ProfileNotFoundError",
     { message: Schema.String },
   ) {}
 
-export type SystemServiceError = ConfigValidationError | ProfileNotFoundError;
+export type SystemServiceError =
+  | ConfigValidationError
+  | StoredConfigCorruptError
+  | ProfileNotFoundError;

@@ -78,6 +78,7 @@ export const appConfig = sqliteTable("app_config", {
   id: integer("id").primaryKey(),
   data: text("data").notNull(),
   updatedAt: text("updated_at").notNull(),
+  bootstrapPassword: text("bootstrap_password"),
 });
 
 export const qualityProfiles = sqliteTable("quality_profiles", {

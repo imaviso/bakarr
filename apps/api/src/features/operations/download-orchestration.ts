@@ -43,6 +43,7 @@ import { parseReleaseName } from "./release-ranking.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
+  ExternalCallError,
   type OperationsError,
 } from "./errors.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
@@ -61,7 +62,7 @@ export function makeDownloadOrchestration(input: {
   tryOperationsPromise: TryOperationsPromise;
   wrapOperationsError: (
     message: string,
-  ) => (cause: unknown) => OperationsError | DatabaseError;
+  ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
   triggerSemaphore: Effect.Semaphore;
@@ -225,6 +226,16 @@ export function makeDownloadOrchestration(input: {
         }
 
         if (importedCount === 0) {
+          yield* tryDatabasePromise(
+            "Failed to reconcile completed download",
+            async () => {
+              await markDownloadImported(db, row.id);
+              await db
+                .update(downloads)
+                .set({ reconciledAt: nowIso() })
+                .where(eq(downloads.id, row.id));
+            },
+          );
           return;
         }
 

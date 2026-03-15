@@ -15,7 +15,7 @@ import {
   Database,
   DatabaseError,
 } from "../../db/database.ts";
-import { sessions, systemLogs, users } from "../../db/schema.ts";
+import { appConfig, sessions, systemLogs, users } from "../../db/schema.ts";
 import { hashPassword, verifyPassword } from "../../security/password.ts";
 
 export class AuthError extends Schema.TaggedError<AuthError>()("AuthError", {
@@ -83,10 +83,47 @@ const makeAuthService = Effect.gen(function* () {
         return;
       }
 
+      // Determine the bootstrap password to use, persisting it if it was
+      // randomly generated so it survives restarts without the env var.
+      let bootstrapPassword: string;
+
+      if (config.bootstrapPasswordIsEnvOverride) {
+        bootstrapPassword = Redacted.value(config.bootstrapPassword);
+      } else {
+        const storedRow = yield* tryDatabasePromise(
+          "Failed to ensure bootstrap user",
+          () =>
+            db.select({ bootstrapPassword: appConfig.bootstrapPassword })
+              .from(appConfig)
+              .where(eq(appConfig.id, 1))
+              .limit(1),
+        );
+        const stored = storedRow[0]?.bootstrapPassword ?? null;
+
+        if (stored) {
+          bootstrapPassword = stored;
+        } else {
+          bootstrapPassword = Redacted.value(config.bootstrapPassword);
+          yield* tryDatabasePromise(
+            "Failed to ensure bootstrap user",
+            () =>
+              db.insert(appConfig).values({
+                bootstrapPassword,
+                data: "{}",
+                id: 1,
+                updatedAt: nowIso(),
+              }).onConflictDoUpdate({
+                target: appConfig.id,
+                set: { bootstrapPassword },
+              }),
+          );
+        }
+      }
+
       const now = nowIso();
       const passwordHash = yield* tryDatabasePromise(
         "Failed to ensure bootstrap user",
-        () => hashPassword(Redacted.value(config.bootstrapPassword)),
+        () => hashPassword(bootstrapPassword),
       );
 
       const rawApiKey = randomHex(24);
@@ -105,7 +142,7 @@ const makeAuthService = Effect.gen(function* () {
             passwordHash,
             updatedAt: now,
             username: config.bootstrapUsername,
-          }),
+          }).onConflictDoNothing(),
       );
 
       yield* tryDatabasePromise(
@@ -123,9 +160,7 @@ const makeAuthService = Effect.gen(function* () {
         (Deno.stderr as { isTerminal?: () => boolean }).isTerminal?.()
       ) {
         console.error(
-          `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${config.bootstrapUsername}\n* Password: ${
-            Redacted.value(config.bootstrapPassword)
-          }\n* Please log in and change your password.\n*************************************************************\n`,
+          `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${config.bootstrapUsername}\n* Password: ${bootstrapPassword}\n* Please log in and change your password.\n*************************************************************\n`,
         );
       } else {
         console.error(

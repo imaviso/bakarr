@@ -68,6 +68,14 @@ export async function runRoute<A, E>(
         ),
       ),
     ).catch(() => undefined);
+
+    if (mapped.headers) {
+      return new Response(mapped.message, {
+        status: mapped.status,
+        headers: { "Content-Type": "text/plain", ...mapped.headers },
+      });
+    }
+
     return c.text(mapped.message, mapped.status);
   }
 
@@ -112,7 +120,9 @@ export function shouldLogRequest(path: string) {
   return path === "/health" || path.startsWith("/api/");
 }
 
-function mapError(error: unknown): { message: string; status: number } {
+function mapError(
+  error: unknown,
+): { message: string; status: number; headers?: Record<string, string> } {
   if (typeof error === "object" && error !== null && "_tag" in error) {
     const tagged = error as { _tag: string; message: string };
 
@@ -120,6 +130,20 @@ function mapError(error: unknown): { message: string; status: number } {
       case "RequestValidationError":
       case "ConfigValidationError":
         return { message: tagged.message, status: 400 };
+      case "StoredConfigCorruptError":
+        return { message: tagged.message, status: 500 };
+      case "EpisodeStreamRangeError": {
+        const rangeError = error as unknown as {
+          fileSize: number;
+          message: string;
+          status: 416;
+        };
+        return {
+          headers: { "Content-Range": `bytes */${rangeError.fileSize}` },
+          message: rangeError.message,
+          status: 416,
+        };
+      }
       case "AuthError":
         return {
           message: tagged.message,

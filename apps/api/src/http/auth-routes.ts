@@ -58,20 +58,21 @@ export function registerAuthRoutes(
     );
   });
 
-  app.post("/api/auth/logout", async (c) => {
-    const sessionCookieName = await runEffect(
-      Effect.map(AppConfig, (config) => config.sessionCookieName),
-    );
-    const token = getCookie(c, sessionCookieName);
-
-    await runEffect(Effect.flatMap(AuthService, (auth) => auth.logout(token)))
-      .catch(
-        () => undefined,
-      );
-    deleteCookie(c, sessionCookieName, { path: "/" });
-
-    return c.json({ data: null, success: true });
-  });
+  app.post("/api/auth/logout", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      Effect.gen(function* () {
+        const sessionCookieName = yield* Effect.map(
+          AppConfig,
+          (config) => config.sessionCookieName,
+        );
+        const token = getCookie(c, sessionCookieName);
+        yield* Effect.flatMap(AuthService, (auth) => auth.logout(token));
+        deleteCookie(c, sessionCookieName, { path: "/" });
+      }),
+      () => c.json({ data: null, success: true }),
+    ));
 
   app.get("/api/auth/me", (c) => c.json(requireViewer(c)));
 

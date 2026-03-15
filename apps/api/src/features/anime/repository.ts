@@ -2,7 +2,13 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
-import { anime, appConfig, episodes, systemLogs } from "../../db/schema.ts";
+import {
+  anime,
+  appConfig,
+  episodes,
+  qualityProfiles,
+  systemLogs,
+} from "../../db/schema.ts";
 import { decodeConfigCore } from "../system/config-codec.ts";
 import { AnimeNotFoundError } from "./errors.ts";
 
@@ -182,16 +188,40 @@ export async function markSearchResultsAlreadyInLibrary(
   }));
 }
 
+export async function qualityProfileExists(
+  db: AppDatabase,
+  name: string,
+): Promise<boolean> {
+  const rows = await db
+    .select({ name: qualityProfiles.name })
+    .from(qualityProfiles)
+    .where(eq(qualityProfiles.name, name))
+    .limit(1);
+  return rows.length > 0;
+}
+
 export async function findAnimeRootFolderOwner(
   db: AppDatabase,
   rootFolder: string,
 ) {
   const rows = await db.select({
     id: anime.id,
+    rootFolder: anime.rootFolder,
     titleRomaji: anime.titleRomaji,
-  }).from(anime).where(eq(anime.rootFolder, rootFolder)).limit(1);
+  }).from(anime);
 
-  return rows[0];
+  const normalized = rootFolder.endsWith("/") ? rootFolder : `${rootFolder}/`;
+
+  return rows.find((row) => {
+    const existing = row.rootFolder.endsWith("/")
+      ? row.rootFolder
+      : `${row.rootFolder}/`;
+    return (
+      existing === normalized ||
+      normalized.startsWith(existing) ||
+      existing.startsWith(normalized)
+    );
+  });
 }
 
 export async function getConfiguredImagesPath(db: AppDatabase) {

@@ -111,6 +111,7 @@ export const QBitTorrentClientLive = Layer.effect(
               }),
             ),
           ),
+          { idempotent: false },
         );
 
         yield* ensureOk(
@@ -183,6 +184,7 @@ export const QBitTorrentClientLive = Layer.effect(
               }),
             ),
           ),
+          { idempotent: false },
         );
 
         yield* ensureOk(
@@ -263,6 +265,7 @@ const postHashesAction = Effect.fn("QBitTorrentClient.postHashesAction")(
           HttpClientRequest.bodyUrlParams({ hashes: hash }),
         ),
       ),
+      { idempotent: false },
     );
 
     yield* ensureOk(
@@ -276,8 +279,9 @@ function execute(
   client: HttpClient.HttpClient,
   operation: string,
   request: HttpClientRequest.HttpClientRequest,
+  options?: { readonly idempotent?: boolean },
 ) {
-  return tryExternalEffect(operation, client.execute(request))();
+  return tryExternalEffect(operation, client.execute(request), options)();
 }
 
 function ensureOk(

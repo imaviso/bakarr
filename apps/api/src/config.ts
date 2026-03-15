@@ -3,6 +3,7 @@ import {
   Context,
   Effect,
   Layer,
+  Option,
   Redacted,
   Schema,
 } from "effect";
@@ -12,6 +13,8 @@ export interface AppConfigShape {
   readonly port: number;
   readonly bootstrapUsername: string;
   readonly bootstrapPassword: Redacted.Redacted<string>;
+  /** True when the bootstrap password was explicitly set via env var or override (not randomly generated). */
+  readonly bootstrapPasswordIsEnvOverride: boolean;
   readonly sessionCookieName: string;
   readonly sessionDurationDays: number;
   readonly appVersion: string;
@@ -44,6 +47,7 @@ export const defaultAppConfig: AppConfigShape = {
       .map((b) => b.toString(16).padStart(2, "0"))
       .join(""),
   ),
+  bootstrapPasswordIsEnvOverride: false,
   bootstrapUsername: "admin",
   databaseFile: "./bakarr.sqlite",
   port: 8000,
@@ -67,13 +71,21 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
             ),
           ),
         );
-        const bootstrapPassword = yield* readConfigValue(
-          normalizePasswordOverride(overrides.bootstrapPassword),
-          EffectConfig.redacted("BAKARR_BOOTSTRAP_PASSWORD").pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(defaultAppConfig.bootstrapPassword)
-            ),
-          ),
+        const bootstrapPasswordFromEnv =
+          overrides.bootstrapPassword !== undefined
+            ? Option.some(
+              normalizePasswordOverride(overrides.bootstrapPassword)!,
+            )
+            : yield* EffectConfig.redacted("BAKARR_BOOTSTRAP_PASSWORD").pipe(
+              Effect.map(Option.some),
+              Effect.orElse(() => Effect.succeed(Option.none())),
+            );
+        const bootstrapPassword = Option.getOrElse(
+          bootstrapPasswordFromEnv,
+          () => defaultAppConfig.bootstrapPassword,
+        );
+        const bootstrapPasswordIsEnvOverride = Option.isSome(
+          bootstrapPasswordFromEnv,
         );
         const bootstrapUsername = yield* readConfigValue(
           overrides.bootstrapUsername,
@@ -119,6 +131,7 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
         return {
           appVersion,
           bootstrapPassword,
+          bootstrapPasswordIsEnvOverride,
           bootstrapUsername,
           databaseFile,
           port,

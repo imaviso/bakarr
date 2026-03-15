@@ -243,6 +243,7 @@ const makeOperationsService = Effect.gen(function* () {
     publishRssCheckProgress: rssCheckProgressPublisher.offer,
     qbitClient,
     rssClient,
+    triggerSemaphore,
     tryDatabasePromise,
     tryOperationsPromise,
     unmappedScanRunning,
