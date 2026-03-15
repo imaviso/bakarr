@@ -342,6 +342,7 @@ export const LibraryRootSchema: Schema.Schema<LibraryRoot> = Schema.Struct({
 
 export interface LibraryStats {
   total_anime: number;
+  monitored_anime: number;
   total_episodes: number;
   downloaded_episodes: number;
   missing_episodes: number;
@@ -351,6 +352,7 @@ export interface LibraryStats {
 
 export const LibraryStatsSchema: Schema.Schema<LibraryStats> = Schema.Struct({
   total_anime: Schema.Number,
+  monitored_anime: Schema.Number,
   total_episodes: Schema.Number,
   downloaded_episodes: Schema.Number,
   missing_episodes: Schema.Number,
@@ -834,6 +836,7 @@ export interface ScannedFile {
   filename: string;
   parsed_title: string;
   episode_number: number;
+  episode_numbers?: number[];
   season?: number;
   group?: string;
   resolution?: string;
@@ -856,6 +859,7 @@ export const ScannedFileSchema: Schema.Schema<ScannedFile> = Schema.Struct({
   filename: Schema.String,
   parsed_title: Schema.String,
   episode_number: Schema.Number,
+  episode_numbers: Schema.optional(Schema.mutable(Schema.Array(Schema.Number))),
   season: Schema.optional(Schema.Number),
   group: Schema.optional(Schema.String),
   resolution: Schema.optional(Schema.String),
@@ -1102,6 +1106,7 @@ export const UnmappedFolderMatchStatusSchema: Schema.Schema<
 > = Schema.Literal(...UNMAPPED_FOLDER_MATCH_STATUS_VALUES);
 
 export interface UnmappedFolder {
+  match_attempts?: number;
   last_match_error?: string;
   last_matched_at?: string;
   match_status?: UnmappedFolderMatchStatus;
@@ -1114,6 +1119,7 @@ export interface UnmappedFolder {
 export const UnmappedFolderSchema: Schema.Schema<UnmappedFolder> = Schema
   .mutable(
     Schema.Struct({
+      match_attempts: Schema.optional(Schema.Number),
       last_match_error: Schema.optional(Schema.String),
       last_matched_at: Schema.optional(Schema.String),
       match_status: Schema.optional(UnmappedFolderMatchStatusSchema),

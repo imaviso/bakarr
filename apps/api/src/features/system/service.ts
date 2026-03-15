@@ -56,6 +56,7 @@ import {
   countEpisodeRows,
   countFailedDownloads,
   countImportedDownloads,
+  countMonitoredAnimeRows,
   countQueuedDownloads,
   countRssFeedRows,
   countRunningBackgroundJobs,
@@ -439,6 +440,10 @@ const makeSystemService = Effect.gen(function* () {
         "Failed to load library stats",
         () => countAnimeRows(db),
       );
+      const monitoredAnime = yield* tryDatabasePromise(
+        "Failed to load library stats",
+        () => countMonitoredAnimeRows(db),
+      );
       const totalEpisodes = yield* tryDatabasePromise(
         "Failed to load library stats",
         () => countEpisodeRows(db),
@@ -459,6 +464,7 @@ const makeSystemService = Effect.gen(function* () {
       return {
         downloaded_episodes: downloadedEpisodes,
         missing_episodes: Math.max(totalEpisodes - downloadedEpisodes, 0),
+        monitored_anime: monitoredAnime,
         recent_downloads: completedDownloads,
         rss_feeds: totalRssFeeds,
         total_anime: totalAnime,

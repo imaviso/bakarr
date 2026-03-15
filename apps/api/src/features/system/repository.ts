@@ -245,6 +245,12 @@ export async function countAnimeRows(db: AppDatabase) {
   return value;
 }
 
+export async function countMonitoredAnimeRows(db: AppDatabase) {
+  const [{ value }] = await db.select({ value: count() }).from(anime)
+    .where(eq(anime.monitored, true));
+  return value;
+}
+
 export async function countAnimeUsingProfile(
   db: AppDatabase,
   profileName: string,
@@ -317,6 +323,7 @@ export async function upsertUnmappedFolderMatchRows(
   await db.transaction(async (tx) => {
     for (const folder of folders) {
       await tx.insert(unmappedFolderMatches).values({
+        matchAttempts: folder.match_attempts ?? 0,
         lastMatchedAt: folder.last_matched_at ?? null,
         lastMatchError: folder.last_match_error ?? null,
         matchStatus: folder.match_status ?? "pending",
@@ -328,6 +335,7 @@ export async function upsertUnmappedFolderMatchRows(
       }).onConflictDoUpdate({
         target: unmappedFolderMatches.path,
         set: {
+          matchAttempts: folder.match_attempts ?? 0,
           lastMatchedAt: folder.last_matched_at ?? null,
           lastMatchError: folder.last_match_error ?? null,
           matchStatus: folder.match_status ?? "pending",
@@ -347,6 +355,7 @@ export function decodeUnmappedFolderMatchRow(
   row: typeof unmappedFolderMatches.$inferSelect,
 ): UnmappedFolder {
   return {
+    match_attempts: row.matchAttempts,
     last_match_error: row.lastMatchError ?? undefined,
     last_matched_at: row.lastMatchedAt ?? undefined,
     match_status: row.matchStatus as UnmappedFolder["match_status"],
