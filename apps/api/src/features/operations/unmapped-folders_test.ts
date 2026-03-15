@@ -5,6 +5,10 @@ import type { AnimeSearchResult } from "../../../../../packages/shared/src/index
 
 import {
   buildUnmappedFolderSearchQueries,
+  markUnmappedFolderFailed,
+  markUnmappedFolderMatching,
+  markUnmappedFolderPending,
+  mergeUnmappedFolderSuggestions,
   suggestUnmappedFolders,
 } from "./unmapped-folders.ts";
 
@@ -69,4 +73,32 @@ Deno.test("suggestUnmappedFolders reuses normalized queries and falls back when 
   assertEquals(calls, ["Scissor Seven Season 4", "Scissor Seven", "Mono"]);
   assertEquals(suggestions[0].suggested_matches[0]?.id, 1);
   assertEquals(suggestions[1].suggested_matches[0]?.id, 2);
+});
+
+Deno.test("unmapped folder helpers track matching status transitions", () => {
+  const base = {
+    match_status: "pending" as const,
+    name: "Naruto Archive",
+    path: "/library/Naruto Archive",
+    size: 0,
+    suggested_matches: [] as AnimeSearchResult[],
+  };
+
+  const matching = markUnmappedFolderMatching(base);
+  const done = mergeUnmappedFolderSuggestions(base, [{
+    already_in_library: true,
+    id: 20,
+    title: { romaji: "Naruto" },
+  }]);
+  const failed = markUnmappedFolderFailed(base, "rate limited");
+  const pending = markUnmappedFolderPending(done);
+
+  assertEquals(matching.match_status, "matching");
+  assertEquals(done.match_status, "done");
+  assertEquals(done.suggested_matches[0]?.id, 20);
+  assertEquals(typeof done.last_matched_at, "string");
+  assertEquals(failed.match_status, "failed");
+  assertEquals(failed.last_match_error, "rate limited");
+  assertEquals(pending.match_status, "pending");
+  assertEquals(pending.last_match_error, undefined);
 });

@@ -59,6 +59,8 @@ export function toBackgroundJobStatus(
     | {
       isRunning: boolean;
       lastMessage: string | null;
+      progressCurrent: number | null;
+      progressTotal: number | null;
       lastRunAt: string | null;
       lastStatus: string | null;
       lastSuccessAt: string | null;
@@ -73,6 +75,8 @@ export function toBackgroundJobStatus(
   return {
     is_running: row?.isRunning ?? false,
     last_message: row?.lastMessage ?? undefined,
+    progress_current: row?.progressCurrent ?? undefined,
+    progress_total: row?.progressTotal ?? undefined,
     last_run_at: row?.lastRunAt ?? undefined,
     last_status: row?.lastStatus ?? undefined,
     last_success_at: row?.lastSuccessAt ?? undefined,
@@ -134,6 +138,10 @@ function describeJobSchedule(config: Config, name: string) {
     }
 
     return { mode: "disabled" as const, value: undefined };
+  }
+
+  if (name === "unmapped_scan") {
+    return { mode: "interval" as const, value: "3s" };
   }
 
   return { mode: "manual" as const, value: undefined };

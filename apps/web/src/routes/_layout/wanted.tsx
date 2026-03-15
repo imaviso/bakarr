@@ -4,6 +4,7 @@ import { createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
+import { PageHeader } from "~/components/page-header";
 import { SearchModal } from "~/components/search-modal";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -64,15 +65,10 @@ function WantedPage() {
 
   return (
     <div class="space-y-6">
-      <div class="border-b border-border pb-4 mb-6 flex flex-col gap-4 sm:flex-row sm:items-end justify-between">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-            Wanted
-          </h1>
-          <div class="text-sm text-muted-foreground mt-1">
-            Missing episodes that have aired but haven't been downloaded yet.
-          </div>
-        </div>
+      <PageHeader
+        title="Wanted"
+        subtitle="Missing episodes that have aired but haven't been downloaded yet."
+      >
         <Button
           variant="default"
           size="sm"
@@ -82,7 +78,7 @@ function WantedPage() {
           <IconSearch class="mr-2 h-4 w-4" />
           Search All
         </Button>
-      </div>
+      </PageHeader>
 
       <Card>
         <div class="rounded-md border">
@@ -185,6 +181,7 @@ function WantedRow(props: { item: MissingEpisode; onSearch: () => void }) {
             variant="ghost"
             size="icon"
             class="h-8 w-8"
+            aria-label="Episode options"
           >
             <IconDots class="h-4 w-4" />
           </DropdownMenuTrigger>

@@ -27,6 +27,7 @@ import {
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
+import { PageHeader } from "~/components/page-header";
 import { SystemStatus } from "~/components/system-status";
 import {
   AlertDialog,
@@ -120,17 +121,12 @@ function SettingsPage() {
 
   return (
     <div class="space-y-6">
-      <div class="border-b border-border pb-4 mb-6 flex flex-col gap-4 sm:flex-row sm:items-end justify-between">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-            Settings
-          </h1>
-          <div class="text-sm text-muted-foreground mt-1">
-            Manage your application configuration
-          </div>
-        </div>
+      <PageHeader
+        title="Settings"
+        subtitle="Manage your application configuration"
+      >
         <SystemStatus />
-      </div>
+      </PageHeader>
 
       <Tabs
         defaultValue="general"

@@ -31,6 +31,7 @@ export const BACKGROUND_WORKER_NAMES = [
   "download_sync",
   "rss",
   "library_scan",
+  "unmapped_scan",
 ] as const;
 
 export type BackgroundWorkerName = (typeof BACKGROUND_WORKER_NAMES)[number];
@@ -109,6 +110,7 @@ function initialBackgroundWorkerSnapshot(): BackgroundWorkerSnapshot {
     download_sync: emptyBackgroundWorkerStats(),
     library_scan: emptyBackgroundWorkerStats(),
     rss: emptyBackgroundWorkerStats(),
+    unmapped_scan: emptyBackgroundWorkerStats(),
   };
 }
 
@@ -265,6 +267,12 @@ export function spawnWorkersFromConfig(
       monitor,
     );
 
+    const unmappedScanLoop = yield* withLockEffect(
+      "unmapped_scan",
+      libraryService.runUnmappedScan(),
+      monitor,
+    );
+
     const spawnedFibers: Fiber.Fiber<void, never>[] = [
       yield* forkSupervisedWorker(
         "download_sync",
@@ -301,6 +309,17 @@ export function spawnWorkersFromConfig(
         ),
       );
     }
+
+    spawnedFibers.push(
+      yield* forkSupervisedWorker(
+        "unmapped_scan",
+        repeatWorker(unmappedScanLoop, {
+          initialDelayMs: schedule.initialDelayMs,
+          intervalMs: schedule.unmappedScanMs,
+        }),
+        monitor,
+      ),
+    );
 
     return {
       stop: Fiber.interruptAll(spawnedFibers).pipe(Effect.asVoid),

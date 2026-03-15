@@ -28,11 +28,13 @@ import {
   buildMissingEpisodeRows,
   clearEpisodeMapping,
   ensureEpisodes,
+  findAnimeRootFolderOwner,
   getAnimeRowOrThrow,
   getConfiguredImagesPath,
   getEpisodeRowOrThrow,
   inferAiredAt,
   insertAnimeAggregateAtomic,
+  markSearchResultsAlreadyInLibrary,
   requireAnimeExists,
   resolveAnimeRootFolder,
   upsertEpisode,
@@ -50,6 +52,7 @@ export interface AddAnimeInput {
   readonly monitor_and_search: boolean;
   readonly monitored: boolean;
   readonly release_profile_ids: number[];
+  readonly use_existing_root?: boolean;
 }
 
 export interface AnimeServiceShape {
@@ -59,7 +62,7 @@ export interface AnimeServiceShape {
   ) => Effect.Effect<Anime, AnimeServiceError | DatabaseError>;
   readonly searchAnime: (
     query: string,
-  ) => Effect.Effect<AnimeSearchResult[], never>;
+  ) => Effect.Effect<AnimeSearchResult[], DatabaseError>;
   readonly getAnimeByAnilistId: (
     id: number,
   ) => Effect.Effect<AnimeSearchResult, AnimeNotFoundError | DatabaseError>;
@@ -154,6 +157,20 @@ const makeAnimeService = Effect.gen(function* () {
 
     const animeMetadata = metadata!;
 
+    if (input.use_existing_root && input.root_folder.trim().length > 0) {
+      const existingRootOwner = yield* tryDatabasePromise(
+        "Failed to add anime",
+        () => findAnimeRootFolderOwner(db, input.root_folder.trim()),
+      );
+
+      if (existingRootOwner) {
+        return yield* new AnimeConflictError({
+          message:
+            `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
+        });
+      }
+    }
+
     const rootFolder = yield* tryAnimePromise(
       "Failed to add anime",
       () =>
@@ -161,6 +178,7 @@ const makeAnimeService = Effect.gen(function* () {
           db,
           input.root_folder,
           animeMetadata.title.romaji,
+          { useExistingRoot: input.use_existing_root },
         ),
     );
 
@@ -367,11 +385,23 @@ const makeAnimeService = Effect.gen(function* () {
     id: number,
     path: string,
   ) {
+    const trimmedPath = path.trim();
     yield* tryAnimePromise(
       "Failed to update anime path",
       () => requireAnimeExists(db, id),
     );
-    yield* fs.mkdir(path, { recursive: true }).pipe(
+    const existingRootOwner = yield* tryDatabasePromise(
+      "Failed to update anime path",
+      () => findAnimeRootFolderOwner(db, trimmedPath),
+    );
+
+    if (existingRootOwner && existingRootOwner.id !== id) {
+      return yield* new AnimeConflictError({
+        message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
+      });
+    }
+
+    yield* fs.mkdir(trimmedPath, { recursive: true }).pipe(
       Effect.mapError((error) =>
         new DatabaseError({
           cause: error,
@@ -381,7 +411,10 @@ const makeAnimeService = Effect.gen(function* () {
     );
     yield* tryAnimePromise(
       "Failed to update anime path",
-      () => db.update(anime).set({ rootFolder: path }).where(eq(anime.id, id)),
+      () =>
+        db.update(anime).set({ rootFolder: trimmedPath }).where(
+          eq(anime.id, id),
+        ),
     );
     yield* tryDatabasePromise(
       "Failed to update anime path",
@@ -679,7 +712,15 @@ const makeAnimeService = Effect.gen(function* () {
   return {
     listAnime,
     getAnime,
-    searchAnime: (query) => aniList.searchAnimeMetadata(query),
+    searchAnime: (query) =>
+      aniList.searchAnimeMetadata(query).pipe(
+        Effect.flatMap((results) =>
+          tryDatabasePromise(
+            "Failed to check library status",
+            () => markSearchResultsAlreadyInLibrary(db, results),
+          )
+        ),
+      ),
     getAnimeByAnilistId,
     addAnime,
     deleteAnime,

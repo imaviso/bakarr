@@ -8,6 +8,7 @@ import {
 import { createFileRoute, Link } from "@tanstack/solid-router";
 import { createMemo, For, Show } from "solid-js";
 import { GeneralError } from "~/components/general-error";
+import { PageHeader } from "~/components/page-header";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import {
@@ -39,23 +40,17 @@ function DashboardPage() {
 
   return (
     <div class="space-y-6">
-      {/* Header */}
-      <div class="border-b border-border pb-4 mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-            Dashboard
-          </h1>
-          <div class="text-sm text-muted-foreground mt-1">
-            Overview of your library and activity
-          </div>
-        </div>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Overview of your library and activity"
+      >
         <div class="text-xs font-mono text-muted-foreground uppercase flex gap-4">
           <span class="flex items-center gap-1.5">
             <div class="w-1.5 h-1.5 rounded-full bg-success"></div>{" "}
             System Online
           </span>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Stats Grid */}
       <Show when={statsQuery.data} fallback={<DashboardLoading />}>
@@ -196,8 +191,8 @@ function DashboardPage() {
 
 function ActivityRow(props: { item: ActivityItem }) {
   return (
-    <div class="flex items-center gap-4 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-      <div class="p-2 rounded-lg bg-success/10">
+    <div class="flex items-center gap-4 p-3 bg-muted/30 hover:bg-muted/50 transition-colors">
+      <div class="p-2 bg-success/10">
         <IconCheck class="h-4 w-4 text-success" />
       </div>
       <div class="flex-1 min-w-0">
@@ -234,10 +229,10 @@ function DashboardLoading() {
         {() => (
           <Card>
             <CardHeader class="pb-2">
-              <div class="h-4 w-24 bg-muted animate-pulse rounded" />
+              <div class="h-4 w-24 bg-muted animate-pulse" />
             </CardHeader>
             <CardContent>
-              <div class="h-8 w-16 bg-muted animate-pulse rounded" />
+              <div class="h-8 w-16 bg-muted animate-pulse" />
             </CardContent>
           </Card>
         )}

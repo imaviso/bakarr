@@ -23,6 +23,7 @@ import {
   type FilterState,
 } from "~/components/filters";
 import { GeneralError } from "~/components/general-error";
+import { PageHeader } from "~/components/page-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -259,15 +260,10 @@ function LogsPage() {
 
   return (
     <div class="space-y-6">
-      <div class="border-b border-border pb-4 mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-            System Logs
-          </h1>
-          <div class="text-sm text-muted-foreground mt-1">
-            View, filter, and export system events and errors
-          </div>
-        </div>
+      <PageHeader
+        title="System Logs"
+        subtitle="View, filter, and export system events and errors"
+      >
         <div class="flex items-center gap-2">
           <div class="flex items-center gap-2 mr-2">
             <Switch
@@ -339,7 +335,7 @@ function LogsPage() {
             </AlertDialogContent>
           </AlertDialog>
         </div>
-      </div>
+      </PageHeader>
 
       <Filter.Provider
         columns={filterColumns}
@@ -624,13 +620,13 @@ function LogsPage() {
               </div>
             </Show>
             <div class="grid grid-cols-2 gap-4 text-sm">
-              <div>
+              <div class="flex gap-1 items-baseline">
                 <span class="text-muted-foreground">Level:</span>
                 <span class="capitalize font-medium">
                   {selectedLog()?.level}
                 </span>
               </div>
-              <div>
+              <div class="flex gap-1 items-baseline">
                 <span class="text-muted-foreground">Source:</span>
                 <span class="capitalize font-medium">
                   {selectedLog()?.event_type}

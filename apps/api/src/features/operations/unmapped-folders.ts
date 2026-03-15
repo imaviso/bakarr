@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import type {
   AnimeSearchResult,
   ScannerState,
+  UnmappedFolder,
 } from "../../../../../packages/shared/src/index.ts";
 
 type UnmappedFolderInput = Pick<
@@ -85,6 +86,51 @@ export const suggestUnmappedFolders = Effect.fn(
     ),
   })) satisfies ScannerState["folders"];
 });
+
+export function mergeUnmappedFolderSuggestions(
+  folder: UnmappedFolder,
+  suggestions: readonly AnimeSearchResult[],
+): UnmappedFolder {
+  return {
+    ...folder,
+    last_match_error: undefined,
+    last_matched_at: new Date().toISOString(),
+    match_status: "done",
+    suggested_matches: [...suggestions],
+  };
+}
+
+export function markUnmappedFolderMatching(
+  folder: UnmappedFolder,
+): UnmappedFolder {
+  return {
+    ...folder,
+    last_match_error: undefined,
+    match_status: "matching",
+  };
+}
+
+export function markUnmappedFolderPending(
+  folder: UnmappedFolder,
+): UnmappedFolder {
+  return {
+    ...folder,
+    last_match_error: undefined,
+    match_status: "pending",
+  };
+}
+
+export function markUnmappedFolderFailed(
+  folder: UnmappedFolder,
+  error: string,
+): UnmappedFolder {
+  return {
+    ...folder,
+    last_match_error: error,
+    last_matched_at: new Date().toISOString(),
+    match_status: "failed",
+  };
+}
 
 function stripNoise(value: string) {
   return NOISE_PATTERNS.reduce(

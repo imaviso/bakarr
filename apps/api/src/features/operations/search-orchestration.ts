@@ -18,7 +18,12 @@ import {
   rssFeeds,
 } from "../../db/schema.ts";
 import type { AniListClient } from "../anime/anilist.ts";
-import { inferAiredAt, upsertEpisode } from "../anime/repository.ts";
+import {
+  inferAiredAt,
+  markSearchResultsAlreadyInLibrary,
+  resolveAnimeRootFolder,
+  upsertEpisode,
+} from "../anime/repository.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { type ParsedRelease, RssClient } from "./rss-client.ts";
 import {
@@ -28,7 +33,13 @@ import {
   titlesMatch,
   toAnimeSearchCandidate,
 } from "./library-import.ts";
-import { suggestUnmappedFolders } from "./unmapped-folders.ts";
+import {
+  buildUnmappedFolderSearchQueries,
+  markUnmappedFolderFailed,
+  markUnmappedFolderMatching,
+  markUnmappedFolderPending,
+  mergeUnmappedFolderSuggestions,
+} from "./unmapped-folders.ts";
 import {
   hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
@@ -43,6 +54,7 @@ import {
   markJobSucceeded,
   nowIso,
   recordDownloadEvent,
+  updateJobProgress,
 } from "./job-support.ts";
 import {
   getConfigLibraryPath,
@@ -52,6 +64,12 @@ import {
   loadRuntimeConfig,
   requireAnime,
 } from "./repository.ts";
+import {
+  decodeUnmappedFolderMatchRow,
+  deleteUnmappedFolderMatchRowsNotInPaths,
+  listUnmappedFolderMatchRows,
+  upsertUnmappedFolderMatchRows,
+} from "../system/repository.ts";
 import {
   fallbackReleases,
   mapSearchCategory,
@@ -65,7 +83,11 @@ import {
   parseReleaseName,
 } from "./release-ranking.ts";
 import { parseEpisodeNumber } from "./file-scanner.ts";
-import { type OperationsError } from "./errors.ts";
+import {
+  OperationsConflictError,
+  type OperationsError,
+  OperationsInputError,
+} from "./errors.ts";
 import type {
   TryDatabasePromise,
   TryOperationsPromise,
@@ -76,7 +98,6 @@ import {
   isWithinPathRoot,
   sanitizePathSegment,
 } from "../../lib/filesystem.ts";
-import { OperationsInputError } from "./errors.ts";
 
 export function makeSearchOrchestration(input: {
   db: AppDatabase;
@@ -98,6 +119,7 @@ export function makeSearchOrchestration(input: {
     total: number;
     feed_name: string;
   }) => Effect.Effect<void>;
+  unmappedScanSemaphore: Effect.Semaphore;
 }) {
   const {
     db,
@@ -113,6 +135,7 @@ export function makeSearchOrchestration(input: {
     maybeQBitConfig,
     publishDownloadProgress,
     publishRssCheckProgress,
+    unmappedScanSemaphore,
   } = input;
 
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(
@@ -741,15 +764,11 @@ export function makeSearchOrchestration(input: {
 
   const getUnmappedFolders = Effect.fn("OperationsService.getUnmappedFolders")(
     function* () {
-      const root = yield* tryDatabasePromise(
-        "Failed to scan unmapped folders",
-        () => getConfigLibraryPath(db),
-      );
-      const animeRows = yield* tryDatabasePromise(
-        "Failed to scan unmapped folders",
-        () => db.select().from(anime),
-      );
-      const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
+      const snapshot = yield* loadUnmappedFolderSnapshot({
+        db,
+        fs,
+        tryDatabasePromise,
+      });
       const [job] = yield* tryDatabasePromise(
         "Failed to scan unmapped folders",
         () =>
@@ -758,34 +777,36 @@ export function makeSearchOrchestration(input: {
           )
             .limit(1),
       );
-      const entries = yield* fs.readDir(root).pipe(
-        Effect.mapError((error) =>
-          new DatabaseError({
-            cause: error,
-            message: "Failed to scan unmapped folders",
-          })
-        ),
+
+      const folders = snapshot.folders.map((folder) =>
+        mergeLocalFolderMatch(folder, snapshot.animeRows)
       );
-      const folders = yield* suggestUnmappedFolders(
-        entries.flatMap((entry) => {
-          if (!entry.isDirectory) {
-            return [];
-          }
 
-          const fullPath = `${root.replace(/\/$/, "")}/${entry.name}`;
+      const newFolders = folders.filter((folder) =>
+        !snapshot.cachedByPath.has(folder.path)
+      );
 
-          if (mappedRoots.has(fullPath)) {
-            return [];
-          }
+      yield* tryDatabasePromise(
+        "Failed to scan unmapped folders",
+        () => upsertUnmappedFolderMatchRows(db, newFolders),
+      );
+      yield* tryDatabasePromise(
+        "Failed to scan unmapped folders",
+        () =>
+          deleteUnmappedFolderMatchRowsNotInPaths(
+            db,
+            folders.map((folder) => folder.path),
+          ),
+      );
 
-          return [{ name: entry.name, path: fullPath }];
-        }),
-        aniList.searchAnimeMetadata,
+      const hasOutstandingMatches = folders.some((folder) =>
+        folder.match_status !== "done"
       );
 
       return {
+        has_outstanding_matches: hasOutstandingMatches,
         folders,
-        is_scanning: job?.isRunning ?? false,
+        is_scanning: Boolean(job?.isRunning),
         last_updated: job?.lastRunAt ?? nowIso(),
       } satisfies ScannerState;
     },
@@ -793,71 +814,176 @@ export function makeSearchOrchestration(input: {
 
   const runUnmappedScan = Effect.fn("OperationsService.runUnmappedScan")(
     function* () {
-      yield* tryDatabasePromise(
-        "Failed to scan unmapped folders",
-        () => markJobStarted(db, "unmapped_scan"),
-      );
+      let acquired = false;
 
-      return yield* Effect.gen(function* () {
-        const root = yield* tryDatabasePromise(
+      try {
+        acquired = yield* unmappedScanSemaphore.take(1).pipe(
+          Effect.as(true),
+          Effect.timeout("1 millis"),
+          Effect.catchTag("TimeoutException", () => Effect.succeed(false)),
+        );
+
+        if (!acquired) {
+          return { folderCount: 0 };
+        }
+
+        yield* tryDatabasePromise(
           "Failed to scan unmapped folders",
-          () => getConfigLibraryPath(db),
+          () => markJobStarted(db, "unmapped_scan"),
         );
-        const animeRows = yield* tryDatabasePromise(
-          "Failed to scan unmapped folders",
-          () => db.select().from(anime),
-        );
-        const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
-        const entries = yield* fs.readDir(root).pipe(
-          Effect.mapError((error) =>
-            new DatabaseError({
-              cause: error,
-              message: "Failed to scan unmapped folders",
-            })
-          ),
-        );
-        const folderCount = entries.reduce((count, entry) => {
-          if (!entry.isDirectory) {
-            return count;
+
+        return yield* Effect.gen(function* () {
+          const snapshot = yield* loadUnmappedFolderSnapshot({
+            db,
+            fs,
+            tryDatabasePromise,
+          });
+          const folders = snapshot.folders.map((folder) =>
+            mergeLocalFolderMatch(folder, snapshot.animeRows)
+          );
+
+          const queuedFolders = prepareUnmappedFoldersForScan(
+            folders,
+            snapshot.cachedByPath,
+          );
+
+          yield* tryDatabasePromise(
+            "Failed to scan unmapped folders",
+            () => upsertUnmappedFolderMatchRows(db, queuedFolders),
+          );
+
+          yield* tryDatabasePromise(
+            "Failed to scan unmapped folders",
+            () =>
+              deleteUnmappedFolderMatchRowsNotInPaths(
+                db,
+                folders.map((folder) => folder.path),
+              ),
+          );
+
+          const nextTarget = queuedFolders.find(isUnmappedFolderQueuedForMatch);
+
+          if (!nextTarget) {
+            yield* tryDatabasePromise(
+              "Failed to scan unmapped folders",
+              () =>
+                markJobSucceeded(
+                  db,
+                  "unmapped_scan",
+                  `Matched ${queuedFolders.length} unmapped folder(s)`,
+                ),
+            );
+            return { folderCount: queuedFolders.length };
           }
 
-          const fullPath = `${root.replace(/\/$/, "")}/${entry.name}`;
-          return mappedRoots.has(fullPath) ? count : count + 1;
-        }, 0);
-
-        yield* tryDatabasePromise(
-          "Failed to scan unmapped folders",
-          () =>
-            markJobSucceeded(
-              db,
-              "unmapped_scan",
-              `Found ${folderCount} unmapped folder(s)`,
-            ),
-        );
-        yield* tryDatabasePromise(
-          "Failed to scan unmapped folders",
-          () =>
-            appendLog(
-              db,
-              "library.unmapped.scan",
-              "info",
-              `Scanned unmapped folders: ${folderCount}`,
-            ),
-        );
-
-        return { folderCount };
-      }).pipe(
-        Effect.catchAll((cause) =>
-          tryDatabasePromise(
+          yield* tryDatabasePromise(
             "Failed to scan unmapped folders",
-            () => markJobFailed(db, "unmapped_scan", cause),
-          ).pipe(
-            Effect.zipRight(
-              Effect.fail(dbError("Failed to scan unmapped folders")(cause)),
-            ),
-          )
-        ),
-      );
+            () =>
+              updateJobProgress(
+                db,
+                "unmapped_scan",
+                countCompletedUnmappedMatches(queuedFolders) + 1,
+                queuedFolders.length,
+                `Matching ${nextTarget.name}`,
+              ),
+          );
+
+          const matchingFolder = markUnmappedFolderMatching(nextTarget);
+          yield* tryDatabasePromise(
+            "Failed to scan unmapped folders",
+            () => upsertUnmappedFolderMatchRows(db, [matchingFolder]),
+          );
+
+          const matchResult = yield* Effect.either(matchSingleUnmappedFolder({
+            aniList,
+            db,
+            folder: matchingFolder,
+            animeRows: snapshot.animeRows,
+            tryDatabasePromise,
+          }));
+
+          if (matchResult._tag === "Left") {
+            const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
+            const failedFolder = markUnmappedFolderFailed(
+              matchingFolder,
+              errorMessage,
+            );
+            yield* tryDatabasePromise(
+              "Failed to scan unmapped folders",
+              () => upsertUnmappedFolderMatchRows(db, [failedFolder]),
+            );
+            yield* tryDatabasePromise(
+              "Failed to scan unmapped folders",
+              () =>
+                markJobFailed(
+                  db,
+                  "unmapped_scan",
+                  failedFolder.last_match_error ??
+                    `Failed to match ${nextTarget.name}`,
+                ),
+            );
+
+            yield* tryDatabasePromise(
+              "Failed to scan unmapped folders",
+              () =>
+                appendLog(
+                  db,
+                  "library.unmapped.scan",
+                  "warn",
+                  `Failed to match unmapped folder ${nextTarget.name}: ${
+                    failedFolder.last_match_error ?? "Unknown error"
+                  }`,
+                ),
+            );
+
+            return { folderCount: queuedFolders.length };
+          }
+
+          const matchedFolder = matchResult.right;
+
+          yield* tryDatabasePromise(
+            "Failed to scan unmapped folders",
+            () => upsertUnmappedFolderMatchRows(db, [matchedFolder]),
+          );
+
+          yield* tryDatabasePromise(
+            "Failed to scan unmapped folders",
+            () =>
+              markJobSucceeded(
+                db,
+                "unmapped_scan",
+                `Processed ${nextTarget.name} (${queuedFolders.length} unmapped folder(s) total)`,
+              ),
+          );
+          yield* tryDatabasePromise(
+            "Failed to scan unmapped folders",
+            () =>
+              appendLog(
+                db,
+                "library.unmapped.scan",
+                "info",
+                `Matched unmapped folder ${nextTarget.name}`,
+              ),
+          );
+
+          return { folderCount: queuedFolders.length };
+        }).pipe(
+          Effect.catchAll((cause) =>
+            tryDatabasePromise(
+              "Failed to scan unmapped folders",
+              () => markJobFailed(db, "unmapped_scan", cause),
+            ).pipe(
+              Effect.zipRight(
+                Effect.fail(dbError("Failed to scan unmapped folders")(cause)),
+              ),
+            )
+          ),
+        );
+      } finally {
+        if (acquired) {
+          yield* unmappedScanSemaphore.release(1);
+        }
+      }
     },
   );
 
@@ -888,6 +1014,37 @@ export function makeSearchOrchestration(input: {
         message: "folder_name must stay within the library root",
       });
     }
+
+    const existingOwner = yield* tryDatabasePromise(
+      "Failed to import unmapped folder",
+      () =>
+        db.select({ id: anime.id, titleRomaji: anime.titleRomaji }).from(anime)
+          .where(eq(anime.rootFolder, folderPath))
+          .limit(1),
+    );
+
+    if (existingOwner[0] && existingOwner[0].id !== input.anime_id) {
+      return yield* new OperationsConflictError({
+        message: `Folder ${folderName} is already mapped to ${
+          existingOwner[0].titleRomaji
+        }`,
+      });
+    }
+
+    const rootFolder = yield* tryOperationsPromise(
+      "Failed to import unmapped folder",
+      () =>
+        resolveAnimeRootFolder(db, folderPath, animeRow.titleRomaji, {
+          useExistingRoot: true,
+        }),
+    );
+
+    const requestedProfileName = input.profile_name?.trim();
+    const nextProfileName =
+      requestedProfileName && requestedProfileName.length > 0
+        ? requestedProfileName
+        : animeRow.profileName;
+
     const files = yield* scanVideoFiles(fs, folderPath).pipe(
       Effect.mapError((error) =>
         new DatabaseError({
@@ -900,12 +1057,15 @@ export function makeSearchOrchestration(input: {
     yield* tryDatabasePromise(
       "Failed to import unmapped folder",
       () =>
-        db.update(anime).set({ rootFolder: folderPath }).where(
+        db.update(anime).set({
+          profileName: nextProfileName,
+          rootFolder,
+        }).where(
           eq(anime.id, input.anime_id),
         ),
     );
 
-    if (animeRow.rootFolder !== folderPath) {
+    if (animeRow.rootFolder !== rootFolder) {
       const previousEntries = yield* fs.readDir(animeRow.rootFolder).pipe(
         Effect.catchTag(
           "FileSystemError",
@@ -955,7 +1115,7 @@ export function makeSearchOrchestration(input: {
           db,
           "library.unmapped.imported",
           "success",
-          `Mapped ${folderName} to anime ${input.anime_id} and imported ${imported} episode(s)`,
+          `Mapped ${folderName} as the root folder for anime ${input.anime_id} and imported ${imported} episode(s)`,
         ),
     );
   });
@@ -1058,4 +1218,210 @@ export function makeSearchOrchestration(input: {
     searchReleases,
     triggerSearchMissing,
   };
+}
+
+function findLocalFolderAnimeMatch(
+  folderName: string,
+  animeRows: ReadonlyArray<typeof anime.$inferSelect>,
+) {
+  for (const query of buildUnmappedFolderSearchQueries(folderName)) {
+    const match = findBestLocalAnimeMatch(query, [...animeRows]);
+
+    if (match) {
+      return toAnimeSearchCandidate(match);
+    }
+  }
+
+  return undefined;
+}
+
+function listUnmappedFolderEntries(
+  root: string,
+  entries: readonly Deno.DirEntry[],
+  mappedRoots: ReadonlySet<string>,
+) {
+  return entries.flatMap((entry) => {
+    if (!entry.isDirectory) {
+      return [];
+    }
+
+    const fullPath = `${root.replace(/\/$/, "")}/${entry.name}`;
+
+    if (mappedRoots.has(fullPath)) {
+      return [];
+    }
+
+    return [{
+      match_status: "pending" as const,
+      name: entry.name,
+      path: fullPath,
+      size: 0,
+      suggested_matches: [],
+    }];
+  });
+}
+
+function mergeLocalFolderMatch(
+  folder: ScannerState["folders"][number],
+  animeRows: ReadonlyArray<typeof anime.$inferSelect>,
+) {
+  const localMatch = findLocalFolderAnimeMatch(folder.name, animeRows);
+
+  if (!localMatch) {
+    return folder;
+  }
+
+  return {
+    ...folder,
+    suggested_matches: [
+      localMatch,
+      ...folder.suggested_matches.filter((candidate) =>
+        candidate.id !== localMatch.id
+      ),
+    ],
+  };
+}
+
+function ensureFolderMatchStatus(
+  folder: ScannerState["folders"][number],
+  cached?: ScannerState["folders"][number],
+) {
+  if (!cached) {
+    return markUnmappedFolderPending(folder);
+  }
+
+  return {
+    ...folder,
+    last_match_error: cached.last_match_error,
+    last_matched_at: cached.last_matched_at,
+    match_status: cached.match_status,
+    suggested_matches: cached.suggested_matches,
+  };
+}
+
+function countCompletedUnmappedMatches(
+  folders: readonly ScannerState["folders"][number][],
+) {
+  return folders.filter((folder) => folder.match_status === "done").length;
+}
+
+function isUnmappedFolderQueuedForMatch(
+  folder: ScannerState["folders"][number],
+) {
+  return folder.match_status === "pending" ||
+    folder.match_status === "matching";
+}
+
+function prepareUnmappedFoldersForScan(
+  folders: readonly ScannerState["folders"][number][],
+  cachedByPath: ReadonlyMap<string, ScannerState["folders"][number]>,
+) {
+  return folders.map((folder) => {
+    const existing = cachedByPath.get(folder.path);
+
+    return existing && existing.match_status === "done"
+      ? {
+        ...folder,
+        ...existing,
+        name: folder.name,
+        path: folder.path,
+      }
+      : markUnmappedFolderPending(folder);
+  });
+}
+
+function toUnmappedMatchErrorMessage(error: unknown) {
+  if (typeof error === "object" && error !== null) {
+    if ("cause" in error && error.cause instanceof Error) {
+      return error.cause.message;
+    }
+
+    if ("message" in error && typeof error.message === "string") {
+      return error.message;
+    }
+  }
+
+  return String(error);
+}
+
+const matchSingleUnmappedFolder = Effect.fn(
+  "OperationsService.matchSingleUnmappedFolder",
+)(function* (input: {
+  aniList: typeof AniListClient.Service;
+  animeRows: ReadonlyArray<typeof anime.$inferSelect>;
+  db: AppDatabase;
+  folder: ScannerState["folders"][number];
+  tryDatabasePromise: TryDatabasePromise;
+}) {
+  const queries = buildUnmappedFolderSearchQueries(input.folder.name);
+  const suggestions = yield* Effect.forEach(
+    queries,
+    (query) => input.aniList.searchAnimeMetadata(query),
+    { concurrency: 1 },
+  ).pipe(
+    Effect.map((resultSets) =>
+      resultSets.find((results) => results.length > 0) ?? []
+    ),
+  );
+
+  const withLocal = mergeLocalFolderMatch({
+    ...input.folder,
+    suggested_matches: suggestions,
+  }, input.animeRows);
+
+  const annotatedSuggestions = yield* input.tryDatabasePromise(
+    "Failed to scan unmapped folders",
+    () =>
+      markSearchResultsAlreadyInLibrary(
+        input.db,
+        withLocal.suggested_matches,
+      ),
+  );
+
+  return mergeUnmappedFolderSuggestions(withLocal, annotatedSuggestions);
+});
+
+function loadUnmappedFolderSnapshot(input: {
+  db: AppDatabase;
+  fs: FileSystemShape;
+  tryDatabasePromise: TryDatabasePromise;
+}) {
+  return Effect.gen(function* () {
+    const root = yield* input.tryDatabasePromise(
+      "Failed to scan unmapped folders",
+      () => getConfigLibraryPath(input.db),
+    );
+    const animeRows = yield* input.tryDatabasePromise(
+      "Failed to scan unmapped folders",
+      () => input.db.select().from(anime),
+    );
+    const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
+    const cachedRows = yield* input.tryDatabasePromise(
+      "Failed to scan unmapped folders",
+      () => listUnmappedFolderMatchRows(input.db),
+    );
+    const cachedByPath = new Map(
+      cachedRows.map((row) => {
+        const decoded = decodeUnmappedFolderMatchRow(row);
+        return [decoded.path, decoded] as const;
+      }),
+    );
+    const entries = yield* input.fs.readDir(root).pipe(
+      Effect.mapError((error) =>
+        new DatabaseError({
+          cause: error,
+          message: "Failed to scan unmapped folders",
+        })
+      ),
+    );
+    const folders = listUnmappedFolderEntries(root, entries, mappedRoots).map((
+      folder,
+    ) => ensureFolderMatchStatus(folder, cachedByPath.get(folder.path)));
+
+    return {
+      animeRows,
+      cachedByPath,
+      folders,
+    };
+  });
 }

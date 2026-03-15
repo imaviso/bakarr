@@ -378,17 +378,16 @@ export function registerOperationsRoutes(
       () => c.json({ data: null, success: true }),
     ));
 
-  app.post("/api/library/unmapped/scan", (c) => {
-    queueMicrotask(() => {
-      void runEffect(
-        Effect.flatMap(
-          LibraryService,
-          (service) => service.runUnmappedScan(),
-        ),
-      ).catch(() => undefined);
-    });
-    return c.json({ data: null, success: true });
-  });
+  app.post("/api/library/unmapped/scan", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      Effect.flatMap(
+        LibraryService,
+        (service) => service.runUnmappedScan(),
+      ),
+      () => c.json({ data: null, success: true }),
+    ));
 
   app.post("/api/library/unmapped/import", (c) =>
     runRoute(

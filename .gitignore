@@ -6,7 +6,8 @@
 
 *.tsbuildinfo
 build.log
-
+node_modules/
+data/
 bakarr.sqlite
 bakarr.sqlite-shm
 bakarr.sqlite-wal

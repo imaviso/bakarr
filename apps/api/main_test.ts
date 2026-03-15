@@ -741,7 +741,8 @@ integrationTest(
       const libraryPath = await Deno.makeTempDir();
 
       try {
-        await Deno.mkdir(`${libraryPath}/Unmapped Show`, { recursive: true });
+        await Deno.mkdir(`${libraryPath}/Alpha Archive`, { recursive: true });
+        await Deno.mkdir(`${libraryPath}/Beta Archive`, { recursive: true });
 
         const currentConfigResponse = await ctx.app.request(
           "/api/system/config",
@@ -773,27 +774,383 @@ integrationTest(
         );
         assertEquals(scanResponse.status, 200);
 
-        let foundJob = false;
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
 
-        for (let attempt = 0; attempt < 20; attempt += 1) {
+        try {
+          await waitForSql(
+            client,
+            "select count(*) as value from unmapped_folder_matches where match_status = 'done'",
+            [],
+            (rows) => Number(rows[0]?.value ?? 0) >= 1,
+          );
+
+          const firstStateResponse = await ctx.app.request(
+            "/api/library/unmapped",
+            {
+              headers: { Cookie: sessionCookie },
+            },
+          );
+          assertEquals(firstStateResponse.status, 200);
+          const firstState = await firstStateResponse.json();
+
+          assertEquals(firstState.folders.length, 2);
+          assertEquals(
+            firstState.folders.filter((folder: { match_status?: string }) =>
+              folder.match_status === "done"
+            ).length,
+            1,
+          );
+          assertEquals(
+            firstState.folders.filter((folder: { match_status?: string }) =>
+              folder.match_status === "pending"
+            ).length,
+            1,
+          );
+          assertEquals(firstState.has_outstanding_matches, true);
+          assertEquals(firstState.is_scanning, false);
+
           const jobsResponse = await ctx.app.request("/api/system/jobs", {
             headers: { Cookie: sessionCookie },
           });
           assertEquals(jobsResponse.status, 200);
           const jobs = await jobsResponse.json();
-          const unmappedJob = jobs.find((
-            job: { name: string; last_message?: string },
-          ) => job.name === "unmapped_scan");
+          const unmappedJob = jobs.find((job: { name: string }) =>
+            job.name === "unmapped_scan"
+          );
 
-          if (unmappedJob?.last_message === "Found 1 unmapped folder(s)") {
-            foundJob = true;
-            break;
-          }
+          assert(unmappedJob);
+          assertEquals(unmappedJob.last_status, "success");
+          assertEquals(unmappedJob.schedule_value, "3s");
 
-          await new Promise((resolve) => setTimeout(resolve, 25));
+          const secondScanResponse = await ctx.app.request(
+            "/api/library/unmapped/scan",
+            {
+              headers: { Cookie: sessionCookie },
+              method: "POST",
+            },
+          );
+          assertEquals(secondScanResponse.status, 200);
+
+          await waitForSql(
+            client,
+            "select count(*) as value from unmapped_folder_matches where match_status = 'done'",
+            [],
+            (rows) => Number(rows[0]?.value ?? 0) === 2,
+          );
+
+          const secondStateResponse = await ctx.app.request(
+            "/api/library/unmapped",
+            {
+              headers: { Cookie: sessionCookie },
+            },
+          );
+          assertEquals(secondStateResponse.status, 200);
+          const secondState = await secondStateResponse.json();
+
+          assertEquals(secondState.folders.length, 2);
+          assertEquals(
+            secondState.folders.every((folder: { match_status?: string }) =>
+              folder.match_status === "done"
+            ),
+            true,
+          );
+          assertEquals(secondState.has_outstanding_matches, false);
+          assertEquals(secondState.is_scanning, false);
+        } finally {
+          client.close();
+        }
+      } finally {
+        await Deno.remove(libraryPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "unmapped folders mark already-imported anime suggestions",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const libraryPath = await Deno.makeTempDir();
+
+      try {
+        const currentConfigResponse = await ctx.app.request(
+          "/api/system/config",
+          { headers: { Cookie: sessionCookie } },
+        );
+        const currentConfig = await currentConfigResponse.json();
+
+        await ctx.app.request("/api/system/config", {
+          body: JSON.stringify({
+            ...currentConfig,
+            library: {
+              ...currentConfig.library,
+              library_path: libraryPath,
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        });
+
+        const addResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: "",
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(addResponse.status, 200);
+
+        await Deno.mkdir(`${libraryPath}/Naruto Archive`, { recursive: true });
+
+        const scanResponse = await ctx.app.request(
+          "/api/library/unmapped/scan",
+          {
+            headers: { Cookie: sessionCookie },
+            method: "POST",
+          },
+        );
+        assertEquals(scanResponse.status, 200);
+
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
+
+        try {
+          await waitForSql(
+            client,
+            "select match_status from unmapped_folder_matches where path = ? limit 1",
+            [`${libraryPath}/Naruto Archive`],
+            (rows) => rows[0]?.match_status === "done",
+          );
+        } finally {
+          client.close();
         }
 
-        assertEquals(foundJob, true);
+        const unmappedResponse = await ctx.app.request(
+          "/api/library/unmapped",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(unmappedResponse.status, 200);
+        const state = await unmappedResponse.json();
+        const folder = state.folders.find((entry: { name: string }) =>
+          entry.name === "Naruto Archive"
+        );
+
+        assert(folder);
+        assertEquals(state.has_outstanding_matches, false);
+        assertEquals(folder.match_status, "done");
+        assert(typeof folder.last_matched_at, "string");
+        assertEquals(folder.suggested_matches.length > 0, true);
+        assertEquals(folder.suggested_matches[0].id, 20);
+        assertEquals(folder.suggested_matches[0].already_in_library, true);
+      } finally {
+        await Deno.remove(libraryPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "concurrent unmapped scan requests coalesce into one run",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const libraryPath = await Deno.makeTempDir();
+
+      try {
+        await Deno.mkdir(`${libraryPath}/Naruto Archive`, { recursive: true });
+
+        const currentConfigResponse = await ctx.app.request(
+          "/api/system/config",
+          { headers: { Cookie: sessionCookie } },
+        );
+        const currentConfig = await currentConfigResponse.json();
+
+        await ctx.app.request("/api/system/config", {
+          body: JSON.stringify({
+            ...currentConfig,
+            library: {
+              ...currentConfig.library,
+              library_path: libraryPath,
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        });
+
+        const [firstScanResponse, secondScanResponse] = await Promise.all([
+          ctx.app.request(
+            "/api/library/unmapped/scan",
+            {
+              headers: { Cookie: sessionCookie },
+              method: "POST",
+            },
+          ),
+          ctx.app.request(
+            "/api/library/unmapped/scan",
+            {
+              headers: { Cookie: sessionCookie },
+              method: "POST",
+            },
+          ),
+        ]);
+
+        assertEquals(firstScanResponse.status, 200);
+        assertEquals(secondScanResponse.status, 200);
+
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
+
+        try {
+          const runCountRows = await waitForSql(
+            client,
+            "select run_count as value from background_jobs where name = 'unmapped_scan' limit 1",
+            [],
+            (rows) => Number(rows[0]?.value ?? 0) >= 1,
+          );
+
+          assertEquals(Number(runCountRows[0]?.value ?? 0), 1);
+
+          await waitForSql(
+            client,
+            "select count(*) as value from unmapped_folder_matches where match_status = 'done'",
+            [],
+            (rows) => Number(rows[0]?.value ?? 0) === 1,
+          );
+        } finally {
+          client.close();
+        }
+      } finally {
+        await Deno.remove(libraryPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "stale matching folders are retried on the next unmapped scan run",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const libraryPath = await Deno.makeTempDir();
+
+      try {
+        const folderPath = `${libraryPath}/Naruto Archive`;
+        await Deno.mkdir(folderPath, { recursive: true });
+
+        const currentConfigResponse = await ctx.app.request(
+          "/api/system/config",
+          { headers: { Cookie: sessionCookie } },
+        );
+        const currentConfig = await currentConfigResponse.json();
+
+        await ctx.app.request("/api/system/config", {
+          body: JSON.stringify({
+            ...currentConfig,
+            library: {
+              ...currentConfig.library,
+              library_path: libraryPath,
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        });
+
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
+
+        try {
+          await client.execute(
+            "insert into unmapped_folder_matches (path, name, size, match_status, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, 'matching', '[]', null, null, ?)",
+            [folderPath, "Naruto Archive", new Date().toISOString()],
+          );
+
+          const scanResponse = await ctx.app.request(
+            "/api/library/unmapped/scan",
+            {
+              headers: { Cookie: sessionCookie },
+              method: "POST",
+            },
+          );
+          assertEquals(scanResponse.status, 200);
+
+          await waitForSql(
+            client,
+            "select match_status as value from unmapped_folder_matches where path = ? limit 1",
+            [folderPath],
+            (rows) => rows[0]?.value === "done",
+          );
+        } finally {
+          client.close();
+        }
+
+        const unmappedResponse = await ctx.app.request(
+          "/api/library/unmapped",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(unmappedResponse.status, 200);
+        const state = await unmappedResponse.json();
+        const folder = state.folders.find((entry: { name: string }) =>
+          entry.name === "Naruto Archive"
+        );
+
+        assert(folder);
+        assertEquals(state.has_outstanding_matches, false);
+        assertEquals(folder.match_status, "done");
       } finally {
         await Deno.remove(libraryPath, { recursive: true });
       }
@@ -3062,6 +3419,119 @@ integrationTest(
 );
 
 integrationTest(
+  "adding an anime can keep an existing folder as its root",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+      const libraryPath = await Deno.makeTempDir();
+
+      try {
+        const existingFolder = `${libraryPath}/Naruto Fansub`;
+        await Deno.mkdir(existingFolder, { recursive: true });
+
+        const addResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: existingFolder,
+            use_existing_root: true,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(addResponse.status, 200);
+        const anime = await addResponse.json();
+        assertEquals(anime.root_folder, existingFolder);
+      } finally {
+        await Deno.remove(libraryPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "adding an anime with an already-mapped existing root returns conflict",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+      const libraryPath = await Deno.makeTempDir();
+
+      try {
+        const existingFolder = `${libraryPath}/Naruto Fansub`;
+        await Deno.mkdir(existingFolder, { recursive: true });
+
+        const firstAddResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: existingFolder,
+            use_existing_root: true,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(firstAddResponse.status, 200);
+
+        const secondAddResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 11061,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: existingFolder,
+            use_existing_root: true,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(secondAddResponse.status, 409);
+      } finally {
+        await Deno.remove(libraryPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
   "add anime with explicit root folder creates anime-specific folder by default",
   async () => {
     const ctx = await createTestContext();
@@ -3288,6 +3758,33 @@ async function createTestContext() {
       await Deno.remove(databaseFile);
     },
   };
+}
+
+async function waitForSql(
+  client: ReturnType<typeof createClient>,
+  sql: string,
+  args: Parameters<typeof client.execute>[1],
+  predicate: (rows: Array<Record<string, unknown>>) => boolean,
+  timeoutMs = 5000,
+) {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    try {
+      const result = await client.execute(sql, args);
+      const rows = result.rows as Array<Record<string, unknown>>;
+
+      if (predicate(rows)) {
+        return rows;
+      }
+    } catch {
+      // Retry while the background scan writes to SQLite.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  throw new Error(`Timed out waiting for SQL condition: ${sql}`);
 }
 
 async function readStreamChunk(

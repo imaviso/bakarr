@@ -181,6 +181,16 @@ export interface UnmappedFolderImportRequest {
   profile_name?: string;
 }
 
+export interface AddAnimeRequest {
+  id: number;
+  profile_name: string;
+  root_folder: string;
+  monitor_and_search: boolean;
+  monitored: boolean;
+  release_profile_ids: number[];
+  use_existing_root?: boolean;
+}
+
 // ==================== Query Key Factory ====================
 
 export const animeKeys = {
@@ -532,14 +542,7 @@ export function createAnimeByAnilistIdQuery(id: () => number | null) {
 export function createAddAnimeMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: (data: {
-      id: number;
-      profile_name: string;
-      root_folder: string;
-      monitor_and_search: boolean;
-      monitored: boolean;
-      release_profile_ids: number[];
-    }) =>
+    mutationFn: (data: AddAnimeRequest) =>
       fetchApi<Anime>(`${API_BASE}/anime`, {
         method: "POST",
         body: JSON.stringify(data),
@@ -1259,7 +1262,10 @@ export function unmappedFoldersQueryOptions() {
     queryKey: animeKeys.library.unmapped(),
     queryFn: ({ signal }) =>
       fetchApi<ScannerState>(`${API_BASE}/library/unmapped`, undefined, signal),
-    refetchInterval: (query) => (query.state.data?.is_scanning ? 1000 : false),
+    refetchInterval: (query) =>
+      query.state.data?.is_scanning || query.state.data?.has_outstanding_matches
+        ? 1000
+        : false,
   });
 }
 
@@ -1274,6 +1280,7 @@ export function createScanLibraryMutation() {
       fetchApi(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
+      queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
     },
   }));
 }
@@ -1288,6 +1295,13 @@ export function systemJobsQueryOptions() {
         signal,
       ),
     staleTime: 1000 * 10,
+    refetchInterval: (query) => {
+      const unmappedScan = query.state.data?.find((job) =>
+        job.name === "unmapped_scan"
+      );
+
+      return unmappedScan?.is_running ? 1000 : false;
+    },
   });
 }
 
@@ -1316,9 +1330,16 @@ export function createImportUnmappedFolderMutation() {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: animeKeys.detail(variables.anime_id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: animeKeys.episodes(variables.anime_id),
+      });
+      queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
   }));
 }

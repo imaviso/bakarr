@@ -19,6 +19,7 @@ export function toAddAnimeInput(
   return {
     ...body,
     release_profile_ids: [...body.release_profile_ids],
+    use_existing_root: body.use_existing_root,
   };
 }
 

@@ -3,13 +3,22 @@ import {
   IconCheck,
   IconFolder,
   IconLoader2,
-  IconPlus,
   IconRefresh,
   IconSearch,
+  IconSparkles,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
+import { toast } from "solid-sonner";
 import { GeneralError } from "~/components/general-error";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
   Dialog,
@@ -19,12 +28,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
 import {
+  type AddAnimeRequest,
   type AnimeSearchResult,
+  type BackgroundJobStatus,
+  createAddAnimeMutation,
   createAnimeSearchQuery,
   createImportUnmappedFolderMutation,
+  createProfilesQuery,
   createScanLibraryMutation,
+  createSystemJobsQuery,
   createUnmappedFoldersQuery,
   type UnmappedFolder,
   unmappedFoldersQueryOptions,
@@ -42,47 +63,76 @@ export const Route = createFileRoute("/_layout/anime/scan")({
 
 function LibraryScanPage() {
   const scanState = createUnmappedFoldersQuery();
+  const systemJobs = createSystemJobsQuery();
   const scanMutation = createScanLibraryMutation();
   const navigate = useNavigate();
 
   const folders = () => scanState.data?.folders || [];
   const isScanning = () => scanState.data?.is_scanning;
+  const hasOutstandingMatches = () => scanState.data?.has_outstanding_matches;
+  const unmappedJob = createMemo(() =>
+    systemJobs.data?.find((job) => job.name === "unmapped_scan")
+  );
+  const isWorkerRunning = () => Boolean(unmappedJob()?.is_running);
+  const isRescanning = () => scanMutation.isPending || isWorkerRunning();
+  const exactMatches = () =>
+    folders().filter((folder) =>
+      folder.suggested_matches[0]?.already_in_library
+    )
+      .length;
+  const queuedCount = () =>
+    folders().filter((folder) => folder.match_status === "pending").length;
+  const matchingCount = () =>
+    folders().filter((folder) => folder.match_status === "matching").length;
+  const matchedCount = () =>
+    folders().filter((folder) => folder.match_status === "done").length;
+  const failedCount = () =>
+    folders().filter((folder) => folder.match_status === "failed").length;
 
   return (
-    <div class="flex flex-col h-full w-full min-w-0">
-      {/* Sticky Header */}
-      <div class="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b shrink-0">
-        <div class="py-4 px-6">
-          <div class="flex items-center justify-between">
-            <div>
-              <h1 class="text-2xl font-semibold tracking-tight text-foreground">
+    <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
+      <div class="sticky top-0 z-10 shrink-0 border-b bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        <div class="px-6 py-5">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div class="space-y-3">
+              <div class="inline-flex items-center gap-2 border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground shadow-sm">
+                <IconSparkles class="h-3.5 w-3.5 text-info" />
                 Library Scan
-              </h1>
-              <p class="text-sm text-muted-foreground mt-1">
-                <Show
-                  when={isScanning()}
-                  fallback={
-                    <span>{folders().length} unmapped folders found</span>
-                  }
-                >
-                  <span class="flex items-center gap-2">
-                    <IconLoader2 class="h-3 w-3 animate-spin" />
-                    Scanning library...
-                  </span>
-                </Show>
-              </p>
+              </div>
+              <div>
+                <h1 class="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+                  Import folders
+                </h1>
+                <p class="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground md:text-[15px]">
+                  Map existing folders to anime and import episodes.
+                </p>
+                <p class="mt-1 max-w-3xl text-xs uppercase tracking-[0.18em] text-muted-foreground/80">
+                  Background matching checks one folder roughly every 3 seconds.
+                </p>
+              </div>
             </div>
-            <div class="flex gap-2">
+
+            <div class="flex flex-wrap items-center gap-2 lg:justify-end">
+              <StatChip label="Unmapped" value={String(folders().length)} />
+              <StatChip
+                label="Queued"
+                value={String(queuedCount() + matchingCount())}
+              />
+              <StatChip
+                label="Already in library"
+                value={String(exactMatches())}
+                tone="info"
+              />
               <Button
                 variant="outline"
                 size="sm"
-                disabled={isScanning()}
+                disabled={isRescanning()}
                 onClick={() => scanMutation.mutate()}
               >
                 <IconRefresh
-                  class={cn("mr-2 h-4 w-4", isScanning() && "animate-spin")}
+                  class={cn("mr-2 h-4 w-4", isRescanning() && "animate-spin")}
                 />
-                {isScanning() ? "Scanning..." : "Rescan"}
+                {isRescanning() ? "Scanning..." : "Rescan"}
               </Button>
               <Button
                 variant="ghost"
@@ -100,36 +150,37 @@ function LibraryScanPage() {
         </div>
       </div>
 
-      {/* Content - Natural scroll */}
-      <div class="flex-1 overflow-y-auto overflow-x-hidden px-6">
+      <div class="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
         <Show
           when={scanState.isLoading}
           fallback={
             <Show
               when={folders().length > 0}
               fallback={
-                <div class="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                  <IconFolder class="h-12 w-12 mb-4 opacity-50" />
-                  <p class="text-sm">
-                    <Show
-                      when={isScanning()}
-                      fallback="No unmapped folders found"
-                    >
-                      Scanning for folders...
-                    </Show>
-                  </p>
-                  <Show when={!isScanning()}>
-                    <p class="text-xs mt-1">
-                      All folders in your library are mapped. Great job!
-                    </p>
-                  </Show>
-                </div>
+                <EmptyScanState
+                  hasOutstandingMatches={Boolean(hasOutstandingMatches())}
+                  isScanning={Boolean(isScanning())}
+                />
               }
             >
-              <div class="divide-y">
-                <For each={folders()}>
-                  {(folder) => <FolderItem folder={folder} />}
-                </For>
+              <div class="space-y-4">
+                <Show when={folders().length > 0 || unmappedJob()}>
+                  <BackgroundMatchingCard
+                    job={unmappedJob()}
+                    failedCount={failedCount()}
+                    hasOutstandingWork={Boolean(hasOutstandingMatches())}
+                    isRunning={isWorkerRunning()}
+                    matchedCount={matchedCount()}
+                    matchingCount={matchingCount()}
+                    queuedCount={queuedCount()}
+                    totalCount={folders().length}
+                  />
+                </Show>
+                <div class="space-y-3">
+                  <For each={folders()}>
+                    {(folder) => <FolderItem folder={folder} />}
+                  </For>
+                </div>
               </div>
             </Show>
           }
@@ -143,108 +194,428 @@ function LibraryScanPage() {
   );
 }
 
+function EmptyScanState(props: {
+  hasOutstandingMatches: boolean;
+  isScanning: boolean;
+}) {
+  return (
+    <div class="flex min-h-[50vh] flex-col items-center justify-center border border-dashed border-border/70 bg-background/60 px-6 text-center shadow-sm">
+      <div class="flex h-16 w-16 items-center justify-center border border-info/20 bg-info/10">
+        <IconFolder class="h-8 w-8 text-info" />
+      </div>
+      <p class="mt-5 text-base font-medium text-foreground">
+        <Show
+          when={props.isScanning || props.hasOutstandingMatches}
+          fallback="No unmapped folders found"
+        >
+          Scanning for folders...
+        </Show>
+      </p>
+      <p class="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+        <Show
+          when={props.isScanning || props.hasOutstandingMatches}
+          fallback="Everything under your library root is already mapped to anime entries."
+        >
+          We&apos;re checking your library root for folders that are not linked
+          yet, then matching them in the background one by one.
+        </Show>
+      </p>
+    </div>
+  );
+}
+
+function BackgroundMatchingCard(props: {
+  failedCount: number;
+  hasOutstandingWork: boolean;
+  job?: BackgroundJobStatus;
+  isRunning: boolean;
+  matchedCount: number;
+  matchingCount: number;
+  queuedCount: number;
+  totalCount: number;
+}) {
+  const progressCurrent = createMemo(() => {
+    const current = props.job?.progress_current;
+    if (typeof current === "number") {
+      return current;
+    }
+
+    return props.matchedCount;
+  });
+  const progressTotal = createMemo(() => {
+    const total = props.job?.progress_total;
+    if (typeof total === "number") {
+      return total;
+    }
+
+    return props.totalCount;
+  });
+  const progressPercent = createMemo(() => {
+    const total = progressTotal();
+    if (!total) {
+      return 0;
+    }
+
+    return Math.min(100, Math.round((progressCurrent() / total) * 100));
+  });
+
+  return (
+    <div class="border border-border/70 bg-background/80 p-4 shadow-sm">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="space-y-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="text-sm font-semibold text-foreground">
+              Background folder matching
+            </p>
+            <Badge
+              variant={jobStatusVariant(
+                props.job,
+                props.isRunning,
+                props.hasOutstandingWork,
+                props.failedCount,
+              )}
+            >
+              {jobStatusLabel(
+                props.job,
+                props.isRunning,
+                props.hasOutstandingWork,
+                props.failedCount,
+              )}
+            </Badge>
+          </div>
+          <p class="text-sm text-muted-foreground">
+            {props.matchingCount > 0
+              ? "Matching one folder right now to stay under AniList rate limits."
+              : props.queuedCount > 0
+              ? "Queued folders will keep matching automatically every few seconds."
+              : props.failedCount > 0
+              ? "Some folders failed their latest automatic match. They will retry in the background, or you can choose a manual match now."
+              : "All discovered folders have finished their latest background match pass."}
+          </p>
+          <Show when={props.job?.last_message}>
+            <p class="text-xs text-muted-foreground">
+              {props.job?.last_message}
+            </p>
+          </Show>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-right text-xs text-muted-foreground lg:min-w-[260px]">
+          <div class="border border-border/60 bg-muted/20 px-3 py-2">
+            <div class="uppercase tracking-[0.18em]">Matched</div>
+            <div class="mt-1 text-lg font-semibold text-foreground">
+              {props.matchedCount}
+            </div>
+          </div>
+          <div class="border border-border/60 bg-muted/20 px-3 py-2">
+            <div class="uppercase tracking-[0.18em]">In queue</div>
+            <div class="mt-1 text-lg font-semibold text-foreground">
+              {props.queuedCount + props.matchingCount}
+            </div>
+          </div>
+          <div class="border border-border/60 bg-muted/20 px-3 py-2">
+            <div class="uppercase tracking-[0.18em]">Total</div>
+            <div class="mt-1 text-lg font-semibold text-foreground">
+              {props.totalCount}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Show when={progressTotal() > 0}>
+        <div class="mt-4 space-y-2">
+          <div class="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              Progress {progressCurrent()} / {progressTotal()}
+            </span>
+            <span>{progressPercent()}%</span>
+          </div>
+          <div class="h-2 overflow-hidden bg-muted">
+            <div
+              class="h-full bg-info transition-[width] duration-500"
+              style={{ width: `${progressPercent()}%` }}
+            />
+          </div>
+        </div>
+      </Show>
+    </div>
+  );
+}
+
+function jobStatusLabel(
+  job: BackgroundJobStatus | undefined,
+  isRunning: boolean,
+  hasOutstandingWork: boolean,
+  failedCount: number,
+) {
+  if (isRunning) {
+    return "Running";
+  }
+
+  if (failedCount > 0 && hasOutstandingWork) {
+    return "Retrying";
+  }
+
+  if (hasOutstandingWork) {
+    return "Scheduled";
+  }
+
+  if (job?.last_status === "failed") {
+    return "Failed";
+  }
+
+  return "Idle";
+}
+
+function jobStatusVariant(
+  job: BackgroundJobStatus | undefined,
+  isRunning: boolean,
+  hasOutstandingWork: boolean,
+  failedCount: number,
+): "outline" | "warning" | "error" {
+  if (isRunning || hasOutstandingWork) {
+    return "warning";
+  }
+
+  if (failedCount > 0 || job?.last_status === "failed") {
+    return "error";
+  }
+
+  return "outline";
+}
+
+function StatChip(props: {
+  label: string;
+  value: string;
+  tone?: "default" | "info";
+}) {
+  return (
+    <div
+      class={cn(
+        "min-w-[112px] border px-3 py-2 text-right shadow-sm",
+        props.tone === "info"
+          ? "border-info/20 bg-info/5"
+          : "border-border/70 bg-background/80",
+      )}
+    >
+      <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        {props.label}
+      </div>
+      <div class="text-lg font-semibold text-foreground">{props.value}</div>
+    </div>
+  );
+}
+
 function FolderItem(props: { folder: UnmappedFolder }) {
+  const addAnimeMutation = createAddAnimeMutation();
   const importMutation = createImportUnmappedFolderMutation();
+  const profilesQuery = createProfilesQuery();
   const [manualMatch, setManualMatch] = createSignal<AnimeSearchResult | null>(
     null,
   );
   const [manualDialogOpen, setManualDialogOpen] = createSignal(false);
+  const [selectedProfileName, setSelectedProfileName] = createSignal<string>(
+    "",
+  );
 
-  const selectedAnime = () =>
-    manualMatch() ||
-    (props.folder.suggested_matches && props.folder.suggested_matches.length > 0
-      ? props.folder.suggested_matches[0]
-      : null);
+  const selectedAnime = createMemo(() => {
+    const manual = manualMatch();
+    if (manual) {
+      return manual;
+    }
 
-  const handleImport = () => {
+    const suggested = props.folder.suggested_matches[0];
+    return suggested ?? null;
+  });
+
+  const selectedProfile = createMemo(() => {
+    const selectedName = selectedProfileName();
+    const profiles = profilesQuery.data ?? [];
+    const fallbackName = profiles[0]?.name ?? "";
+    const resolvedName = selectedName || fallbackName;
+
+    return profiles.find((profile) => profile.name === resolvedName) ??
+      profiles[0];
+  });
+
+  createEffect(() => {
+    if (!selectedProfileName() && profilesQuery.data?.[0]?.name) {
+      setSelectedProfileName(profilesQuery.data[0].name);
+    }
+  });
+
+  const existingAnime = createMemo(() =>
+    selectedAnime()?.already_in_library ? selectedAnime() : null
+  );
+  const importLabel = createMemo(() =>
+    existingAnime() ? "Use existing anime" : "Add and use folder"
+  );
+
+  const isImporting = () =>
+    addAnimeMutation.isPending || importMutation.isPending;
+
+  const handleImport = async () => {
     const anime = selectedAnime();
     if (!anime) return;
-    importMutation.mutate({
-      folder_name: props.folder.name,
-      anime_id: anime.id,
-    });
+
+    try {
+      let animeId = anime.id;
+
+      if (!anime.already_in_library) {
+        const profileName = selectedProfile()?.name;
+        if (!profileName) {
+          throw new Error("No quality profile is available yet.");
+        }
+
+        const payload: AddAnimeRequest = {
+          id: anime.id,
+          monitor_and_search: false,
+          monitored: true,
+          profile_name: profileName,
+          release_profile_ids: [],
+          root_folder: props.folder.path,
+          use_existing_root: true,
+        };
+        const createdAnime = await addAnimeMutation.mutateAsync(payload);
+        animeId = createdAnime.id;
+      }
+
+      await importMutation.mutateAsync({
+        anime_id: animeId,
+        folder_name: props.folder.name,
+      });
+      const action = anime.already_in_library ? "Linked" : "Added";
+      setManualMatch(null);
+      toast.success(`${action} ${anime.title.romaji}`);
+    } catch (error) {
+      const message = error instanceof Error
+        ? normalizeApiErrorMessage(error.message)
+        : "Failed to import folder";
+      toast.error(message);
+    }
   };
 
   return (
-    <div class="grid grid-cols-[1fr_1fr_auto] gap-4 py-3 items-center">
-      {/* Folder Info */}
-      <div class="flex items-center gap-3 min-w-0 overflow-hidden">
-        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-info/10">
-          <IconFolder class="h-5 w-5 text-info" />
-        </div>
-        <div class="min-w-0 overflow-hidden">
-          <p class="font-medium text-sm truncate" title={props.folder.name}>
-            {props.folder.name}
-          </p>
-          <p
-            class="text-xs text-muted-foreground truncate"
-            title={props.folder.path}
-          >
-            {props.folder.path}
-          </p>
+    <div class="grid gap-4 border border-border/70 bg-background/85 p-4 shadow-sm lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_auto] lg:items-start">
+      <div class="min-w-0">
+        <div class="flex items-start gap-3">
+          <div class="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center border border-info/20 bg-info/10 text-info">
+            <IconFolder class="h-5 w-5" />
+          </div>
+          <div class="min-w-0 space-y-1">
+            <div class="flex flex-wrap items-center gap-2">
+              <p
+                class="truncate text-sm font-semibold text-foreground"
+                title={props.folder.name}
+              >
+                {props.folder.name}
+              </p>
+              <Badge variant="outline">{folderStatusLabel(props.folder)}</Badge>
+            </div>
+            <p
+              class="truncate text-xs text-muted-foreground"
+              title={props.folder.path}
+            >
+              {props.folder.path}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              {folderMatchHint(props.folder)}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Match Info */}
-      <div class="flex items-center gap-3 min-w-0 overflow-hidden">
+      <div class="min-w-0 border border-border/60 bg-muted/20 p-3">
         <Show
           when={selectedAnime()}
           fallback={
-            <span class="text-sm text-muted-foreground italic">No match</span>
+            <div class="flex min-h-[88px] items-center text-sm text-muted-foreground italic">
+              {emptyMatchMessage(props.folder)}
+            </div>
           }
         >
           {(anime) => (
-            <>
+            <div class="flex items-start gap-3">
               <Show when={anime().cover_image}>
                 <img
                   src={anime().cover_image}
-                  alt=""
-                  class="h-10 w-7 rounded object-cover shrink-0"
+                  alt={anime().title.romaji}
+                  class="h-16 w-11 shrink-0 border border-border/60 object-cover"
                 />
               </Show>
-              <div class="min-w-0 overflow-hidden">
-                <p
-                  class="font-medium text-sm truncate"
-                  title={anime().title.romaji}
-                >
-                  {anime().title.romaji}
-                </p>
-                <div class="flex items-center gap-2 text-xs text-muted-foreground">
+              <div class="min-w-0 space-y-2">
+                <div class="flex flex-wrap items-center gap-2">
+                  <p
+                    class="truncate text-sm font-semibold text-foreground"
+                    title={anime().title.romaji}
+                  >
+                    {anime().title.romaji}
+                  </p>
+                  <Show when={anime().already_in_library}>
+                    <Badge variant="secondary">Already in library</Badge>
+                  </Show>
+                  <Show when={manualMatch()}>
+                    <Badge variant="outline">Manual match</Badge>
+                  </Show>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <Show when={anime().format}>
                     <span>{anime().format}</span>
                   </Show>
                   <Show when={anime().episode_count}>
-                    <span>• {anime().episode_count} eps</span>
-                  </Show>
-                  <Show when={manualMatch()}>
-                    <span class="text-info">• Manual</span>
-                  </Show>
-                  <Show when={anime().already_in_library}>
-                    <span class="bg-info/10 text-info dark:bg-info/20 dark:text-info px-1.5 py-0.5 rounded font-medium text-[10px] uppercase tracking-wider">
-                      In Library
-                    </span>
+                    <span>{anime().episode_count} episodes</span>
                   </Show>
                 </div>
+                <Show when={!anime().already_in_library}>
+                  <div class="space-y-2 pt-1">
+                    <label class="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      Quality profile for the new anime
+                    </label>
+                    <Select
+                      value={selectedProfile()?.name ?? null}
+                      onChange={(value) =>
+                        value && setSelectedProfileName(value)}
+                      options={(profilesQuery.data ?? []).map((profile) =>
+                        profile.name
+                      )}
+                      placeholder="Select profile..."
+                      itemComponent={(itemProps) => (
+                        <SelectItem item={itemProps.item}>
+                          {itemProps.item.rawValue}
+                        </SelectItem>
+                      )}
+                    >
+                      <SelectTrigger class="h-9 bg-background">
+                        <SelectValue<string>>
+                          {(state) => state.selectedOption()}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent />
+                    </Select>
+                  </div>
+                </Show>
               </div>
-            </>
+            </div>
           )}
         </Show>
       </div>
 
-      {/* Actions */}
-      <div class="flex items-center gap-2">
+      <div class="flex flex-col justify-start gap-2 lg:min-w-[160px]">
         <Dialog open={manualDialogOpen()} onOpenChange={setManualDialogOpen}>
-          <DialogTrigger as={Button} variant="ghost" size="sm">
-            <IconSearch class="h-4 w-4" />
+          <DialogTrigger
+            as={Button}
+            variant="ghost"
+            size="sm"
+            class="justify-start"
+          >
+            <IconSearch class="mr-2 h-4 w-4" />
+            Change match
           </DialogTrigger>
           <DialogContent class="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Match Folder</DialogTitle>
+              <DialogTitle>Match folder to anime</DialogTitle>
               <DialogDescription>
-                Search for the correct anime to link with{" "}
-                <span class="font-mono text-xs bg-muted px-1 rounded">
-                  {props.folder.name}
-                </span>
+                Search for the anime to associate with{" "}
+                <span class="font-mono text-xs">{props.folder.name}</span>
               </DialogDescription>
             </DialogHeader>
             <ManualMatchSearch
@@ -258,34 +629,90 @@ function FolderItem(props: { folder: UnmappedFolder }) {
 
         <Button
           size="sm"
-          disabled={!selectedAnime() ||
-            importMutation.isPending ||
-            importMutation.isSuccess}
-          onClick={handleImport}
+          disabled={!selectedAnime() || isImporting()}
+          onClick={() => void handleImport()}
+          class="justify-start"
         >
           <Show
-            when={importMutation.isPending}
+            when={isImporting()}
             fallback={
-              <Show
-                when={importMutation.isSuccess}
-                fallback={
-                  <>
-                    <IconPlus class="mr-1 h-4 w-4" />
-                    Import
-                  </>
-                }
-              >
-                <IconCheck class="mr-1 h-4 w-4" />
-                Done
-              </Show>
+              <>
+                <IconCheck class="mr-2 h-4 w-4" />
+                {importLabel()}
+              </>
             }
           >
-            <IconLoader2 class="h-4 w-4 animate-spin" />
+            <IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
+            Importing...
           </Show>
         </Button>
       </div>
     </div>
   );
+}
+
+function folderStatusLabel(folder: UnmappedFolder) {
+  switch (folder.match_status) {
+    case "matching":
+      return "Matching";
+    case "done":
+      return folder.suggested_matches.length > 0 ? "Matched" : "No match";
+    case "failed":
+      return "Retrying soon";
+    case "pending":
+    default:
+      return "Queued";
+  }
+}
+
+function folderMatchHint(folder: UnmappedFolder) {
+  switch (folder.match_status) {
+    case "matching":
+      return "Searching AniList in the background now.";
+    case "failed":
+      return folder.last_match_error
+        ? `Last attempt failed: ${folder.last_match_error}`
+        : "The last attempt failed. It will retry automatically.";
+    case "done":
+      return folder.suggested_matches.length > 0
+        ? "Automatic suggestions are ready. You can import immediately or change the match."
+        : "No automatic match yet. You can search manually while background retries continue.";
+    case "pending":
+    default:
+      return "Waiting for the background matcher. Folders are processed one by one.";
+  }
+}
+
+function emptyMatchMessage(folder: UnmappedFolder) {
+  switch (folder.match_status) {
+    case "matching":
+      return "Matching in background...";
+    case "failed":
+      return "Automatic match failed for now. Search for an anime to import.";
+    case "pending":
+      return "Queued for background matching. Search for an anime to import now, or wait for suggestions.";
+    case "done":
+    default:
+      return "No automatic match yet. Search for an anime to import.";
+  }
+}
+
+function normalizeApiErrorMessage(message: string) {
+  const trimmed = message.trim();
+
+  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed) as {
+        error?: string;
+        message?: string;
+      };
+      return parsed.error ?? parsed.message ?? trimmed;
+    } catch {
+      return trimmed;
+    }
+  }
+
+  return trimmed;
 }
 
 function ManualMatchSearch(props: {
@@ -308,7 +735,7 @@ function ManualMatchSearch(props: {
         <IconSearch class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <TextField value={query()} onChange={setQuery}>
           <TextFieldInput
-            placeholder="Search for anime..."
+            placeholder="Search anime title..."
             class="pl-9"
             autofocus
           />
@@ -318,57 +745,53 @@ function ManualMatchSearch(props: {
         </Show>
       </div>
 
-      <div class="h-[300px] border rounded-md overflow-y-auto">
+      <div class="h-[320px] overflow-y-auto border border-border/70 bg-background">
         <Show
           when={debouncedQuery()}
           fallback={
-            <div class="h-full flex flex-col items-center justify-center text-muted-foreground">
-              <IconSearch class="h-8 w-8 mb-2 opacity-20" />
-              <p class="text-sm">Type to search for anime</p>
+            <div class="flex h-full flex-col items-center justify-center text-muted-foreground">
+              <IconSearch class="mb-2 h-8 w-8 opacity-20" />
+              <p class="text-sm">Type at least 3 characters to search</p>
             </div>
           }
         >
           <Show
             when={search.data?.length !== 0}
             fallback={
-              <div class="h-full flex flex-col items-center justify-center text-muted-foreground">
-                <IconAlertTriangle class="h-8 w-8 mb-2 opacity-20" />
+              <div class="flex h-full flex-col items-center justify-center text-muted-foreground">
+                <IconAlertTriangle class="mb-2 h-8 w-8 opacity-20" />
                 <p class="text-sm">No results found</p>
               </div>
             }
           >
-            <div class="divide-y">
+            <div class="divide-y divide-border/70">
               <For each={search.data}>
                 {(anime) => (
                   <button
                     type="button"
                     onClick={() => props.onSelect(anime)}
-                    class="w-full flex items-center gap-3 p-3 text-left transition-colors hover:bg-muted/50"
+                    class="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-muted/40"
                   >
-                    <div class="h-10 w-10 shrink-0 rounded bg-muted overflow-hidden">
+                    <div class="h-12 w-9 shrink-0 overflow-hidden border border-border/60 bg-muted">
                       <Show when={anime.cover_image}>
                         <img
                           src={anime.cover_image}
-                          alt=""
+                          alt={anime.title.romaji}
                           class="h-full w-full object-cover"
                         />
                       </Show>
                     </div>
-                    <div class="flex-1 min-w-0">
-                      <p class="font-medium text-sm truncate">
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-medium text-foreground">
                         {anime.title.romaji}
                       </p>
-                      <p class="text-xs text-muted-foreground truncate">
+                      <p class="truncate text-xs text-muted-foreground">
                         {anime.title.english}
                       </p>
                     </div>
-                    <div class="flex gap-2 text-xs text-muted-foreground">
-                      <Show when={anime.already_in_library}>
-                        <span class="bg-info/10 text-info dark:bg-info/20 dark:text-info px-1.5 py-0.5 rounded font-medium text-[10px] uppercase tracking-wider">
-                          In Library
-                        </span>
-                      </Show>
-                    </div>
+                    <Show when={anime.already_in_library}>
+                      <Badge variant="secondary">In library</Badge>
+                    </Show>
                   </button>
                 )}
               </For>

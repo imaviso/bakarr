@@ -75,6 +75,7 @@ Deno.test("build background schedule enables RSS and library loops", () => {
   assertEquals(schedule.downloadSyncMs, 15_000);
   assertEquals(schedule.rssCheckMs, 30 * 60 * 1000);
   assertEquals(schedule.libraryScanMs, 12 * 60 * 60 * 1000);
+  assertEquals(schedule.unmappedScanMs, 3_000);
 });
 
 Deno.test("build background schedule disables loops when config disables them", () => {
@@ -93,6 +94,7 @@ Deno.test("build background schedule disables loops when config disables them", 
   assertEquals(schedule.initialDelayMs, 5_000);
   assertEquals(schedule.rssCheckMs, null);
   assertEquals(schedule.libraryScanMs, null);
+  assertEquals(schedule.unmappedScanMs, 3_000);
 });
 
 Deno.test("build background schedule prefers valid cron over interval", () => {
@@ -151,6 +153,7 @@ Deno.test("background worker monitor tracks supervision state and counters", asy
   assertEquals(typeof snapshot.rss.lastStartedAt, "string");
   assertEquals(typeof snapshot.rss.lastSucceededAt, "string");
   assertEquals(typeof snapshot.rss.lastFailedAt, "string");
+  assertEquals(snapshot.unmapped_scan.daemonRunning, false);
 });
 
 Deno.test("background worker monitor publishes Effect metrics", async () => {

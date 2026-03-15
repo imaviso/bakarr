@@ -68,8 +68,8 @@ function LoginPage() {
   }));
 
   return (
-    <div class="relative flex items-center justify-center min-h-[100dvh] bg-background p-4 overflow-hidden">
-      <Card class="w-full max-w-[400px] relative z-10 p-2 shadow-xl bg-card/50 backdrop-blur-md">
+    <div class="flex items-center justify-center min-h-[100dvh] bg-background p-4">
+      <Card class="w-full max-w-[400px] p-2 bg-card">
         <CardHeader class="text-center pb-6 mb-4">
           <CardTitle class="text-2xl font-semibold tracking-tight text-foreground">
             Bakarr

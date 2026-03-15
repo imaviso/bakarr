@@ -253,11 +253,14 @@ Deno.test("shared search and scanner schemas accept canonical payloads", () => {
   });
   const scannerState = Schema.decodeUnknownEither(ScannerStateSchema)({
     folders: [{
+      last_matched_at: "2024-01-01T00:00:00.000Z",
+      match_status: "done",
       name: "Naruto",
       path: "/imports/Naruto",
       size: 1024,
       suggested_matches: [animeSearchResult],
     }],
+    has_outstanding_matches: true,
     is_scanning: true,
     last_updated: "2024-01-01T00:00:00.000Z",
   });
@@ -271,6 +274,8 @@ Deno.test("shared nested dto schemas reject invalid payloads", () => {
   const backgroundJob = Schema.decodeUnknownEither(BackgroundJobStatusSchema)({
     is_running: false,
     name: "rss",
+    progress_current: 1,
+    progress_total: 5,
     run_count: 7,
     schedule_mode: "weekly",
   });

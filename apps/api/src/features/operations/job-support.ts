@@ -73,6 +73,8 @@ export async function markJobStarted(db: AppDatabase, name: string) {
     lastStatus: "running",
     lastSuccessAt: null,
     name,
+    progressCurrent: null,
+    progressTotal: null,
     runCount: 1,
   }).onConflictDoUpdate({
     target: backgroundJobs.name,
@@ -81,6 +83,8 @@ export async function markJobStarted(db: AppDatabase, name: string) {
       lastMessage: null,
       lastRunAt: now,
       lastStatus: "running",
+      progressCurrent: null,
+      progressTotal: null,
       runCount: sql`${backgroundJobs.runCount} + 1`,
     },
   });
@@ -100,6 +104,8 @@ export async function markJobSucceeded(
     lastStatus: "success",
     lastSuccessAt: now,
     name,
+    progressCurrent: null,
+    progressTotal: null,
     runCount: 1,
   }).onConflictDoUpdate({
     target: backgroundJobs.name,
@@ -109,6 +115,8 @@ export async function markJobSucceeded(
       lastRunAt: now,
       lastStatus: "success",
       lastSuccessAt: now,
+      progressCurrent: null,
+      progressTotal: null,
     },
   });
 }
@@ -128,6 +136,8 @@ export async function markJobFailed(
     lastStatus: "failed",
     lastSuccessAt: null,
     name,
+    progressCurrent: null,
+    progressTotal: null,
     runCount: 1,
   }).onConflictDoUpdate({
     target: backgroundJobs.name,
@@ -136,6 +146,40 @@ export async function markJobFailed(
       lastMessage: message,
       lastRunAt: now,
       lastStatus: "failed",
+      progressCurrent: null,
+      progressTotal: null,
+    },
+  });
+}
+
+export async function updateJobProgress(
+  db: AppDatabase,
+  name: string,
+  progressCurrent: number,
+  progressTotal: number,
+  message?: string,
+) {
+  const now = nowIso();
+
+  await db.insert(backgroundJobs).values({
+    isRunning: true,
+    lastMessage: message ?? null,
+    lastRunAt: now,
+    lastStatus: "running",
+    lastSuccessAt: null,
+    name,
+    progressCurrent,
+    progressTotal,
+    runCount: 1,
+  }).onConflictDoUpdate({
+    target: backgroundJobs.name,
+    set: {
+      isRunning: true,
+      lastMessage: message ?? null,
+      lastRunAt: now,
+      lastStatus: "running",
+      progressCurrent,
+      progressTotal,
     },
   });
 }

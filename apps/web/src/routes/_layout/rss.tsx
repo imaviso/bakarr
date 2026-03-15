@@ -12,6 +12,18 @@ import { createFileRoute } from "@tanstack/solid-router";
 import { createSignal, For, Show } from "solid-js";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
+import { PageHeader } from "~/components/page-header";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -66,20 +78,15 @@ function RssPage() {
 
   return (
     <div class="space-y-6">
-      <div class="border-b border-border pb-4 mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-            RSS Feeds
-          </h1>
-          <div class="text-sm text-muted-foreground mt-1">
-            Manage RSS feeds for automatic episode detection
-          </div>
-        </div>
+      <PageHeader
+        title="RSS Feeds"
+        subtitle="Manage RSS feeds for automatic episode detection"
+      >
         <Button onClick={() => setIsAdding(true)} disabled={isAdding()}>
           <IconPlus class="mr-2 h-4 w-4" />
           Add Feed
         </Button>
-      </div>
+      </PageHeader>
 
       <Show when={isAdding()}>
         <AddFeedForm
@@ -91,7 +98,7 @@ function RssPage() {
       <Show when={feedsQuery.isLoading}>
         <div class="space-y-4">
           <For each={[1, 2, 3]}>
-            {() => <Skeleton class="h-20 rounded-lg" />}
+            {() => <Skeleton class="h-20" />}
           </For>
         </div>
       </Show>
@@ -122,11 +129,7 @@ function RssPage() {
                 feed={feed}
                 onToggle={(enabled) =>
                   toggleFeed.mutate({ id: feed.id, enabled })}
-                onDelete={() => {
-                  if (confirm("Delete this RSS feed?")) {
-                    deleteFeed.mutate(feed.id);
-                  }
-                }}
+                onDelete={() => deleteFeed.mutate(feed.id)}
               />
             )}
           </For>
@@ -147,7 +150,7 @@ function FeedCard(props: {
         <button
           type="button"
           onClick={() => props.onToggle(!props.feed.enabled)}
-          class="p-2 rounded-lg hover:bg-muted transition-colors"
+          class="p-2 hover:bg-muted transition-colors"
           title={props.feed.enabled ? "Disable feed" : "Enable feed"}
         >
           <Show
@@ -182,14 +185,33 @@ function FeedCard(props: {
             </Show>
           </div>
         </div>
-        <Button
-          size="icon"
-          variant="ghost"
-          class="w-8 h-8 text-muted-foreground hover:text-destructive"
-          onClick={props.onDelete}
-        >
-          <IconTrash class="h-4 w-4" />
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger
+            as={Button}
+            size="icon"
+            variant="ghost"
+            class="w-8 h-8 text-muted-foreground hover:text-destructive"
+            aria-label="Delete feed"
+          >
+            <IconTrash class="h-4 w-4" />
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete RSS Feed</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "
+                {props.feed.name || "this feed"}
+                "? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={props.onDelete}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );

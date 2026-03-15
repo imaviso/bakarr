@@ -28,11 +28,18 @@ What is already in good shape:
   `system`, and `http`
 - shared DTO contracts are now schema-backed in `packages/shared/src/index.ts`
   and reused across `apps/api` and `apps/web`
+- reusable `TestContext`-based test helpers now live in
+  `apps/api/src/test/effect-test.ts`, and focused tests cover retries,
+  coalescing, repositories, codecs, request schemas, and runtime-provided
+  external clients
 - request tracing plus request/background metrics are now exposed through
   `apps/api/src/http/route-execution.ts`, `apps/api/src/lib/metrics.ts`, and
   `/api/metrics`
 - bursty progress and toast publication now use reusable coalescing helpers in
   `apps/api/src/lib/effect-coalescing.ts`
+- production HTTP/parsing boundaries no longer rely on raw `fetch(...)` or raw
+  `JSON.parse(...)`; remaining `Deno.*` usage is intentionally confined to
+  `apps/api/src/lib/filesystem.ts` and route-edge streaming/file APIs
 
 Verified complete from this plan:
 
@@ -47,22 +54,27 @@ Verified complete from this plan:
 - phase 3 is complete: anime, operations, and system services now delegate
   persistence and boundary helpers to leaf modules, background worker startup is
   modeled as a service/layer, and runtime wiring remains centralized
+- the residual HTTP/parsing audit is effectively complete: no production raw
+  `fetch(...)` or raw `JSON.parse(...)` remain in `apps/api/src`, and remaining
+  `Deno.*` usage is intentionally confined to the filesystem adapter and route
+  edge
 - Effect language service diagnostics are clean, which removed several
   non-native patterns that previously blocked both phases
 
 Main remaining gaps:
 
-- some higher-throughput paths could still use bounded queues or `Cache`, but
-  the main bursty progress/toast flows now have explicit coalescing and scoped
-  ownership
+- some higher-throughput paths could still use bounded queues or `Cache` if
+  profiling shows pressure, but current event and progress flows already have
+  explicit coalescing, backpressure policy, and scoped ownership
 - schema-first domain modeling is now strong at shared/API boundaries, but
-  deeper domain objects still underuse richer schema constructs such as
-  `Schema.Class`, broader branded primitives, or JSON Schema export
-- observability now includes request/background metrics and named spans, but
-  dedicated external-call metrics and OTLP/export decisions remain open
-- tests are still mostly integration-style `Deno.test` and underuse Effect test
-  utilities such as `TestClock`, layer-provided dependencies, and runtime-driven
-  helpers
+  deeper domain objects still underuse broader branded primitives and richer
+  schema constructs such as `Schema.Class` or JSON Schema export
+- observability now includes request/background metrics and named spans; the
+  main open question is whether dedicated external-call metrics and OTLP/export
+  are worth their added operational surface area
+- tests now include reusable Effect-native helpers, `TestClock` coverage, and
+  layer-provided dependency tests, but direct orchestration/service coverage is
+  still uneven
 - many advanced Effect and Schema capabilities remain optional opportunities,
   not current blockers
 
@@ -289,7 +301,7 @@ Verification notes:
 - service methods across anime, operations, and system now read more clearly as
   orchestration/policy over repositories, support modules, and boundary adapters
 
-### 4. Expand Schema-First Modeling
+### 4. Expand Schema-First Modeling (Done)
 
 Why:
 
@@ -587,9 +599,9 @@ Implementation steps:
 
 Acceptance criteria:
 
-- time-based behavior is tested without real sleeps
-- important units can be tested without full app bootstrap
-- tests exercise layers and Effect runtime behavior directly
+- [x] time-based behavior is tested without real sleeps
+- [x] important units can be tested without full app bootstrap
+- [x] tests exercise layers and Effect runtime behavior directly
 
 Progress notes:
 
@@ -597,9 +609,33 @@ Progress notes:
   `TestContext` to verify retry and timeout behavior without real waits
 - `apps/api/src/test/effect-test.ts` now centralizes small `TestContext`-based
   helpers for running Effect tests and collecting exits
-- `packages/shared/src/index_test.ts` and
-  `apps/api/src/features/events/event-bus_test.ts` add more focused,
-  layer-friendly unit coverage around shared schemas and concurrency behavior
+- `apps/api/src/features/events/publisher_test.ts` and
+  `apps/api/src/features/anime/service-support_test.ts` now apply the same
+  `TestClock`/`TestContext` pattern to coalescing behavior without real waits
+- `apps/api/src/background_test.ts` now exercises background worker monitor
+  state, metrics, coalesced runners, and start/reload coordination without full
+  app bootstrap
+- focused leaf-module tests now cover
+  `apps/api/src/features/system/repository_test.ts`,
+  `apps/api/src/features/operations/repository-db_test.ts`,
+  `apps/api/src/features/system/config-codec_test.ts`,
+  `apps/api/src/http/request-schemas_test.ts`, and
+  `apps/api/src/features/anime/dto_test.ts`
+- `packages/shared/src/index_test.ts`,
+  `apps/api/src/features/events/event-bus_test.ts`,
+  `apps/api/src/features/anime/anilist_test.ts`,
+  `apps/api/src/features/operations/qbittorrent_test.ts`, and
+  `apps/api/src/features/operations/rss-client_test.ts` add more focused,
+  layer-friendly coverage around shared schemas, concurrency behavior, and
+  runtime-provided external clients
+
+Remaining opportunities:
+
+- direct layer-driven tests for
+  `apps/api/src/features/operations/search-orchestration.ts`,
+  `apps/api/src/features/operations/download-orchestration.ts`, and
+  `apps/api/src/features/system/service.ts` are still thinner than the
+  surrounding leaf-module coverage
 
 ## Requested Concept Coverage Map
 
@@ -637,20 +673,19 @@ Defer unless a clear use case appears:
 
 Completed:
 
--
-  1. error contracts and recovery
--
-  2. filesystem and streaming boundaries
--
-  3. service/layer graph cleanup
--
-  4. final audit of residual HTTP/parsing boundaries
+1. error contracts and recovery
+2. filesystem and streaming boundaries
+3. service/layer graph cleanup
+4. final audit of residual HTTP/parsing boundaries
 
 Next recommended focus:
 
-1. optional remaining schema/domain enhancements where new features need them
-2. Effect-native testing
-3. optional observability follow-up for external-call metrics/OTLP decisions
+1. direct layer-driven tests for
+   `apps/api/src/features/operations/search-orchestration.ts`,
+   `apps/api/src/features/operations/download-orchestration.ts`, and
+   `apps/api/src/features/system/service.ts`
+2. optional observability follow-up for external-call metrics/OTLP decisions
+3. optional remaining schema/domain enhancements where new features need them
 
 ## Verification Checklist
 
@@ -713,8 +748,23 @@ Next recommended focus:
   schema-backed encoder, keeping that HTTP boundary consistent with the rest of
   the schema-first DTO surface
 - the latest audit pass narrowed several broad fallback paths to tagged error
-  recovery, especially around external HTTP fallbacks and best-effort
-  filesystem cleanup paths
+  recovery, especially around external HTTP fallbacks and best-effort filesystem
+  cleanup paths
+- `apps/api/src/background_test.ts`,
+  `apps/api/src/features/events/publisher_test.ts`, and
+  `apps/api/src/features/anime/service-support_test.ts` now extend the shared
+  `TestClock` / `TestContext` pattern to supervision and coalescing behavior,
+  which further reduces real-time waits in time-sensitive tests
+- focused leaf-module tests now cover
+  `apps/api/src/features/system/repository_test.ts`,
+  `apps/api/src/features/operations/repository-db_test.ts`,
+  `apps/api/src/features/system/config-codec_test.ts`,
+  `apps/api/src/http/request-schemas_test.ts`, and
+  `apps/api/src/features/anime/dto_test.ts` without full app bootstrap
+- the main remaining testing gap is now direct layer-driven coverage for
+  `apps/api/src/features/operations/search-orchestration.ts`,
+  `apps/api/src/features/operations/download-orchestration.ts`, and
+  `apps/api/src/features/system/service.ts`
 - current audit status for `apps/api/src` is:
   - no production raw `fetch(...)`
   - no production raw `JSON.parse(...)`

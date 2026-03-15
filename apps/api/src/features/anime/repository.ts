@@ -1,5 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
+import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, appConfig, episodes, systemLogs } from "../../db/schema.ts";
 import { decodeConfigCore } from "../system/config-codec.ts";
@@ -133,6 +134,7 @@ export async function resolveAnimeRootFolder(
   db: AppDatabase,
   requestedRootFolder: string,
   title: string,
+  options: { readonly useExistingRoot?: boolean } = {},
 ) {
   const trimmed = requestedRootFolder.trim();
   const rows = await db.select().from(appConfig).where(eq(appConfig.id, 1))
@@ -141,6 +143,10 @@ export async function resolveAnimeRootFolder(
     ? parseLibrarySettings(rows[0].data)
     : defaultLibrarySettings();
   const baseRootFolder = trimmed.length > 0 ? trimmed : settings.libraryPath;
+
+  if (options.useExistingRoot && trimmed.length > 0) {
+    return trimmed;
+  }
 
   if (!settings.createAnimeFolders) {
     return baseRootFolder;
@@ -153,6 +159,39 @@ export async function resolveAnimeRootFolder(
   }
 
   return `${baseRootFolder.replace(/\/$/, "")}/${safeSegment}`;
+}
+
+export async function markSearchResultsAlreadyInLibrary(
+  db: AppDatabase,
+  results: readonly AnimeSearchResult[],
+) {
+  const ids = [...new Set(results.map((result) => result.id))];
+
+  if (ids.length === 0) {
+    return [...results];
+  }
+
+  const rows = await db.select({ id: anime.id }).from(anime).where(
+    inArray(anime.id, ids),
+  );
+  const libraryIds = new Set(rows.map((row) => row.id));
+
+  return results.map((result) => ({
+    ...result,
+    already_in_library: libraryIds.has(result.id),
+  }));
+}
+
+export async function findAnimeRootFolderOwner(
+  db: AppDatabase,
+  rootFolder: string,
+) {
+  const rows = await db.select({
+    id: anime.id,
+    titleRomaji: anime.titleRomaji,
+  }).from(anime).where(eq(anime.rootFolder, rootFolder)).limit(1);
+
+  return rows[0];
 }
 
 export async function getConfiguredImagesPath(db: AppDatabase) {

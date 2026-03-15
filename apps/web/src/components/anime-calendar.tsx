@@ -156,11 +156,11 @@ export function AnimeCalendar() {
                           >
                             <div
                               class={cn(
-                                "flex items-center gap-1.5 rounded px-1.5 py-1 text-xs transition-all",
+                                "flex items-center gap-1.5 rounded-none px-1.5 py-1 text-xs transition-all",
                                 "hover:bg-accent/80 cursor-pointer",
                                 event.extended_props.downloaded
-                                  ? "bg-success/10 text-success dark:text-success"
-                                  : "bg-accent/10 text-accent dark:text-accent",
+                                  ? "bg-success/10 text-success"
+                                  : "bg-muted text-muted-foreground",
                               )}
                             >
                               <div class="flex-1 min-w-0">
@@ -202,11 +202,11 @@ export function AnimeCalendar() {
       {/* Legend */}
       <div class="flex items-center gap-4 text-xs text-muted-foreground">
         <div class="flex items-center gap-1.5">
-          <div class="w-3 h-3 rounded bg-success/20 border border-success/40" />
+          <div class="w-3 h-3 rounded-none bg-success/20 border border-success/40" />
           <span>Downloaded</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <div class="w-3 h-3 rounded bg-accent/20 border border-accent/40" />
+          <div class="w-3 h-3 rounded-none bg-accent/20 border border-accent/40" />
           <span>Missing</span>
         </div>
       </div>

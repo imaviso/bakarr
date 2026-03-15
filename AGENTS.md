@@ -1,9 +1,7 @@
 # AGENTS
 
 Project status: pre-release alpha. Do not preserve backward compatibility unless
-explicitly requested. App is created with single-user and local lan deployment
-in mind. Use Effect primitives as much as possible and the effect-ts skill +
-references. Use typescript-magician skill when encountering type-issues.
+explicitly requested.
 
 ## Repo Overview
 
@@ -13,6 +11,10 @@ references. Use typescript-magician skill when encountering type-issues.
 
 ## Working Rules
 
+- App is created with single-user and local lan deployment in mind.
+- Use Effect primitives as much as possible and the effect-ts skill +
+  references.
+- Use typescript-magician skill when encountering type-issues.
 - Prefer small, focused modules over large mixed files
 - Preserve existing Effect patterns in `apps/api`
 - Preserve Solid reactivity rules in `apps/web` (do not destructure props)

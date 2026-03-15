@@ -23,6 +23,7 @@ import {
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { GeneralError } from "~/components/general-error";
+import { PageHeader } from "~/components/page-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -140,17 +141,7 @@ function AnimeIndexPage() {
 
   return (
     <div class="space-y-6">
-      {/* Header */}
-      <div class="border-b border-border pb-4 mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-            Library
-          </h1>
-          <div class="text-sm text-muted-foreground mt-1">
-            Manage your anime collection
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Library" subtitle="Manage your anime collection" />
 
       <div class="flex flex-col sm:flex-row gap-3">
         {/* Search and Filter */}
@@ -173,6 +164,7 @@ function AnimeIndexPage() {
                     as={Button}
                     variant="outline"
                     size="icon"
+                    aria-label="Filter by status"
                   >
                     <IconFilter class="h-4 w-4" />
                   </DropdownMenuTrigger>
@@ -214,6 +206,7 @@ function AnimeIndexPage() {
                   <Link
                     to="/anime/import"
                     class={buttonVariants({ variant: "outline", size: "icon" })}
+                    aria-label="Import from folder"
                   >
                     <IconFolderOpen class="h-4 w-4" />
                   </Link>
@@ -225,6 +218,7 @@ function AnimeIndexPage() {
                   <Link
                     to="/anime/scan"
                     class={buttonVariants({ variant: "outline", size: "icon" })}
+                    aria-label="Scan library"
                   >
                     <IconFolder class="h-4 w-4" />
                   </Link>
@@ -249,6 +243,7 @@ function AnimeIndexPage() {
                         ? "bg-background shadow-sm"
                         : "hover:bg-background/50",
                     )}
+                    aria-label="Grid view"
                     onClick={() => updateView("grid")}
                   >
                     <IconGridDots class="h-4 w-4" />
@@ -267,6 +262,7 @@ function AnimeIndexPage() {
                         ? "bg-background shadow-sm"
                         : "hover:bg-background/50",
                     )}
+                    aria-label="List view"
                     onClick={() => updateView("list")}
                   >
                     <IconList class="h-4 w-4" />
@@ -281,6 +277,7 @@ function AnimeIndexPage() {
                 <Link
                   to="/anime/add"
                   class={buttonVariants({ size: "icon", class: "md:hidden" })}
+                  aria-label="Add anime"
                 >
                   <IconPlus class="h-4 w-4" />
                 </Link>
@@ -439,7 +436,7 @@ function AnimeGridView(props: AnimeViewProps) {
               </Link>
 
               {/* Actions overlay - Top Right */}
-              <div class="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <div class="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
                 <AlertDialog>
                   <AlertDialogTrigger
                     as={Button}

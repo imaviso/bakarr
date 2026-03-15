@@ -24,8 +24,15 @@ export class OperationsInputError
     { message: Schema.String },
   ) {}
 
+export class OperationsConflictError
+  extends Schema.TaggedError<OperationsConflictError>()(
+    "OperationsConflictError",
+    { message: Schema.String },
+  ) {}
+
 export type OperationsError =
   | DownloadNotFoundError
   | DownloadConflictError
+  | OperationsConflictError
   | OperationsAnimeNotFoundError
   | OperationsInputError;

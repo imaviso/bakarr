@@ -1,7 +1,6 @@
 /// <reference path="./vite-env.d.ts" />
 
 import { render } from "solid-js/web";
-import "solid-devtools";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { createRouter, RouterProvider } from "@tanstack/solid-router";
 import { routeTree } from "./routeTree.gen";

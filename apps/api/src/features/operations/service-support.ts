@@ -10,6 +10,7 @@ import {
   DownloadConflictError,
   DownloadNotFoundError,
   OperationsAnimeNotFoundError,
+  OperationsConflictError,
   type OperationsError,
   OperationsInputError,
 } from "./errors.ts";
@@ -47,6 +48,7 @@ export function wrapOperationsError(message: string) {
     if (
       cause instanceof OperationsAnimeNotFoundError ||
       cause instanceof OperationsInputError ||
+      cause instanceof OperationsConflictError ||
       cause instanceof DownloadNotFoundError ||
       cause instanceof DownloadConflictError ||
       cause instanceof DatabaseError

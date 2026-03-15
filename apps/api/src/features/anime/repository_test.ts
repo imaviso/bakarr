@@ -10,7 +10,10 @@ import { anime, episodes, systemLogs } from "../../db/schema.ts";
 import {
   buildMissingEpisodeRows,
   ensureEpisodes,
+  findAnimeRootFolderOwner,
   insertAnimeAggregateAtomic,
+  markSearchResultsAlreadyInLibrary,
+  resolveAnimeRootFolder,
   upsertEpisode,
 } from "./repository.ts";
 
@@ -161,6 +164,59 @@ Deno.test("buildMissingEpisodeRows creates rows only for missing episodes", () =
 
   assertEquals(rows.length, 2);
   assertEquals(rows.map((row) => row.number), [2, 3]);
+});
+
+Deno.test("resolveAnimeRootFolder can preserve an existing folder root", async () => {
+  await withTestDb(async (db) => {
+    const rootFolder = await resolveAnimeRootFolder(
+      db,
+      "/library/Naruto Fansub",
+      "Naruto",
+      { useExistingRoot: true },
+    );
+
+    assertEquals(rootFolder, "/library/Naruto Fansub");
+  });
+});
+
+Deno.test("markSearchResultsAlreadyInLibrary annotates local matches", async () => {
+  await withTestDb(async (db) => {
+    await insertAnime(db, 20, 12);
+
+    const results = await markSearchResultsAlreadyInLibrary(db, [
+      {
+        already_in_library: false,
+        cover_image: undefined,
+        episode_count: 12,
+        format: "TV",
+        id: 20,
+        status: "RELEASING",
+        title: { romaji: "Naruto" },
+      },
+      {
+        already_in_library: false,
+        cover_image: undefined,
+        episode_count: 24,
+        format: "TV",
+        id: 21,
+        status: "RELEASING",
+        title: { romaji: "Bleach" },
+      },
+    ]);
+
+    assertEquals(results[0]?.already_in_library, true);
+    assertEquals(results[1]?.already_in_library, false);
+  });
+});
+
+Deno.test("findAnimeRootFolderOwner returns the mapped anime for a root", async () => {
+  await withTestDb(async (db) => {
+    await insertAnime(db, 20, 12);
+
+    const owner = await findAnimeRootFolderOwner(db, "/library/Show-20");
+    assertEquals(owner?.id, 20);
+    assertEquals(owner?.titleRomaji, "Show 20");
+  });
 });
 
 async function insertAnime(

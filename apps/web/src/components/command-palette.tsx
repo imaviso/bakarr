@@ -112,7 +112,7 @@ function SearchResults(props: {
                     <img
                       src={anime.cover_image}
                       alt=""
-                      class="mr-2 h-8 w-6 object-cover rounded"
+                      class="mr-2 h-8 w-6 object-cover"
                     />
                   </Show>
                   <div class="flex flex-col">
@@ -155,7 +155,7 @@ function SearchResults(props: {
                     <img
                       src={anime.cover_image}
                       alt=""
-                      class="mr-2 h-8 w-6 object-cover rounded"
+                      class="mr-2 h-8 w-6 object-cover"
                     />
                   </Show>
                   <div class="flex flex-col">

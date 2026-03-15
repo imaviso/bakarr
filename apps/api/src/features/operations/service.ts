@@ -197,6 +197,7 @@ const makeOperationsService = Effect.gen(function* () {
   const fs = yield* FileSystem;
 
   const triggerSemaphore = yield* Effect.makeSemaphore(1);
+  const unmappedScanSemaphore = yield* Effect.makeSemaphore(1);
 
   const downloadOrchestration = makeDownloadOrchestration({
     db,
@@ -244,6 +245,7 @@ const makeOperationsService = Effect.gen(function* () {
     rssClient,
     tryDatabasePromise,
     tryOperationsPromise,
+    unmappedScanSemaphore,
     wrapOperationsError,
   });
 

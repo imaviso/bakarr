@@ -1,3 +1,4 @@
+import { IconLoader2 } from "@tabler/icons-solidjs";
 import { createFileRoute } from "@tanstack/solid-router";
 import {
   addMonths,
@@ -30,9 +31,7 @@ function CalendarPage() {
     <Suspense
       fallback={
         <div class="flex h-[400px] items-center justify-center">
-          <div class="linear-spinner h-8 w-8 text-primary">
-            <div class="linear-spinner-arc" />
-          </div>
+          <IconLoader2 class="h-8 w-8 animate-spin text-primary" />
         </div>
       }
     >

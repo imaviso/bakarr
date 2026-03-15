@@ -150,7 +150,20 @@ export const backgroundJobs = sqliteTable("background_jobs", {
   lastSuccessAt: text("last_success_at"),
   lastStatus: text("last_status"),
   lastMessage: text("last_message"),
+  progressCurrent: integer("progress_current"),
+  progressTotal: integer("progress_total"),
   runCount: integer("run_count").notNull().default(0),
+});
+
+export const unmappedFolderMatches = sqliteTable("unmapped_folder_matches", {
+  path: text("path").primaryKey(),
+  name: text("name").notNull(),
+  size: integer("size").notNull().default(0),
+  matchStatus: text("match_status").notNull().default("pending"),
+  suggestedMatches: text("suggested_matches").notNull().default("[]"),
+  lastMatchedAt: text("last_matched_at"),
+  lastMatchError: text("last_match_error"),
+  updatedAt: text("updated_at").notNull(),
 });
 
 export const downloadEvents = sqliteTable("download_events", {
@@ -184,3 +197,4 @@ export type DownloadRow = typeof downloads.$inferSelect;
 export type BackgroundJobRow = typeof backgroundJobs.$inferSelect;
 export type DownloadEventRow = typeof downloadEvents.$inferSelect;
 export type LibraryRoot = typeof libraryRoots.$inferSelect;
+export type UnmappedFolderMatchRow = typeof unmappedFolderMatches.$inferSelect;

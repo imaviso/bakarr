@@ -156,6 +156,7 @@ Deno.test("AddAnimeInputSchema and ImportFilesBodySchema require positive intege
     profile_name: "Default",
     release_profile_ids: [1, 2.5],
     root_folder: "/library",
+    use_existing_root: true,
   });
 
   const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)({
@@ -177,4 +178,18 @@ Deno.test("AddAnimeInputSchema and ImportFilesBodySchema require positive intege
   if (importFiles._tag === "Left") {
     assertMatch(importFiles.left.message, /episode_number/);
   }
+});
+
+Deno.test("AddAnimeInputSchema accepts existing-root flag", () => {
+  const addAnime = Schema.decodeUnknownEither(AddAnimeInputSchema)({
+    id: 20,
+    monitor_and_search: false,
+    monitored: true,
+    profile_name: "Default",
+    release_profile_ids: [],
+    root_folder: "/library/Naruto Fansub",
+    use_existing_root: true,
+  });
+
+  assertEquals(addAnime._tag, "Right");
 });

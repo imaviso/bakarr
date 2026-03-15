@@ -134,6 +134,7 @@ function mapError(error: unknown): { message: string; status: number } {
         return { message: tagged.message, status: 400 };
       case "AnimeConflictError":
       case "DownloadConflictError":
+      case "OperationsConflictError":
         return { message: tagged.message, status: 409 };
       case "DatabaseError":
         return { message: tagged.message, status: 500 };

@@ -675,6 +675,8 @@ export interface BackgroundJobStatus {
   last_success_at?: string;
   last_status?: string;
   last_message?: string;
+  progress_current?: number;
+  progress_total?: number;
   run_count: number;
   schedule_mode?: "cron" | "interval" | "manual" | "disabled";
   schedule_value?: string;
@@ -700,6 +702,8 @@ export const BackgroundJobStatusSchema: Schema.Schema<BackgroundJobStatus> =
     last_success_at: Schema.optional(Schema.String),
     last_status: Schema.optional(Schema.String),
     last_message: Schema.optional(Schema.String),
+    progress_current: Schema.optional(Schema.Number),
+    progress_total: Schema.optional(Schema.Number),
     run_count: Schema.Number,
     schedule_mode: Schema.optional(BackgroundJobScheduleModeSchema),
     schedule_value: Schema.optional(Schema.String),
@@ -1083,7 +1087,24 @@ export const AnimeSearchResultSchema: Schema.Schema<AnimeSearchResult> = Schema
     already_in_library: Schema.optional(Schema.Boolean),
   });
 
+export const UNMAPPED_FOLDER_MATCH_STATUS_VALUES = [
+  "pending",
+  "matching",
+  "done",
+  "failed",
+] as const;
+
+export type UnmappedFolderMatchStatus =
+  (typeof UNMAPPED_FOLDER_MATCH_STATUS_VALUES)[number];
+
+export const UnmappedFolderMatchStatusSchema: Schema.Schema<
+  UnmappedFolderMatchStatus
+> = Schema.Literal(...UNMAPPED_FOLDER_MATCH_STATUS_VALUES);
+
 export interface UnmappedFolder {
+  last_match_error?: string;
+  last_matched_at?: string;
+  match_status?: UnmappedFolderMatchStatus;
   name: string;
   path: string;
   size: number;
@@ -1093,6 +1114,9 @@ export interface UnmappedFolder {
 export const UnmappedFolderSchema: Schema.Schema<UnmappedFolder> = Schema
   .mutable(
     Schema.Struct({
+      last_match_error: Schema.optional(Schema.String),
+      last_matched_at: Schema.optional(Schema.String),
+      match_status: Schema.optional(UnmappedFolderMatchStatusSchema),
       name: Schema.String,
       path: Schema.String,
       size: Schema.Number,
@@ -1101,6 +1125,7 @@ export const UnmappedFolderSchema: Schema.Schema<UnmappedFolder> = Schema
   );
 
 export interface ScannerState {
+  has_outstanding_matches: boolean;
   is_scanning: boolean;
   folders: UnmappedFolder[];
   last_updated?: string;
@@ -1108,6 +1133,7 @@ export interface ScannerState {
 
 export const ScannerStateSchema: Schema.Schema<ScannerState> = Schema.mutable(
   Schema.Struct({
+    has_outstanding_matches: Schema.Boolean,
     is_scanning: Schema.Boolean,
     folders: Schema.mutable(Schema.Array(UnmappedFolderSchema)),
     last_updated: Schema.optional(Schema.String),

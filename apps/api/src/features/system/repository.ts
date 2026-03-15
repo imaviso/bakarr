@@ -1,4 +1,10 @@
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, count, desc, eq, notInArray, sql } from "drizzle-orm";
+import { Schema } from "effect";
+
+import {
+  AnimeSearchResultSchema,
+  type UnmappedFolder,
+} from "../../../../../packages/shared/src/index.ts";
 
 import type { AppDatabase } from "../../db/database.ts";
 import {
@@ -12,6 +18,7 @@ import {
   releaseProfiles,
   rssFeeds,
   systemLogs,
+  unmappedFolderMatches,
 } from "../../db/schema.ts";
 import { eventTypeCondition } from "./support.ts";
 
@@ -19,6 +26,16 @@ export type QualityProfileRow = typeof qualityProfiles.$inferSelect;
 export type QualityProfileInsert = typeof qualityProfiles.$inferInsert;
 export type ReleaseProfileRow = typeof releaseProfiles.$inferSelect;
 export type ReleaseProfileInsert = typeof releaseProfiles.$inferInsert;
+
+const AnimeSearchResultListJsonSchema = Schema.parseJson(
+  Schema.Array(AnimeSearchResultSchema),
+);
+const decodeAnimeSearchResultList = Schema.decodeUnknownSync(
+  AnimeSearchResultListJsonSchema,
+);
+const encodeAnimeSearchResultList = Schema.encodeSync(
+  AnimeSearchResultListJsonSchema,
+);
 
 export async function loadSystemConfigRow(db: AppDatabase) {
   const rows = await db.select().from(appConfig).where(eq(appConfig.id, 1))
@@ -236,6 +253,79 @@ export async function loadBackgroundJobRow(db: AppDatabase, name: string) {
 
 export function listBackgroundJobRows(db: AppDatabase) {
   return db.select().from(backgroundJobs).orderBy(backgroundJobs.name);
+}
+
+export async function listUnmappedFolderMatchRows(db: AppDatabase) {
+  return await db.select().from(unmappedFolderMatches).orderBy(
+    unmappedFolderMatches.path,
+  );
+}
+
+export async function deleteUnmappedFolderMatchRowsNotInPaths(
+  db: AppDatabase,
+  paths: readonly string[],
+) {
+  if (paths.length === 0) {
+    await db.delete(unmappedFolderMatches);
+    return;
+  }
+
+  await db.delete(unmappedFolderMatches).where(
+    notInArray(unmappedFolderMatches.path, [...paths]),
+  );
+}
+
+export async function upsertUnmappedFolderMatchRows(
+  db: AppDatabase,
+  folders: readonly UnmappedFolder[],
+) {
+  if (folders.length === 0) {
+    return;
+  }
+
+  const updatedAt = new Date().toISOString();
+
+  await db.transaction(async (tx) => {
+    for (const folder of folders) {
+      await tx.insert(unmappedFolderMatches).values({
+        lastMatchedAt: folder.last_matched_at ?? null,
+        lastMatchError: folder.last_match_error ?? null,
+        matchStatus: folder.match_status ?? "pending",
+        name: folder.name,
+        path: folder.path,
+        size: folder.size,
+        suggestedMatches: encodeAnimeSearchResultList(folder.suggested_matches),
+        updatedAt,
+      }).onConflictDoUpdate({
+        target: unmappedFolderMatches.path,
+        set: {
+          lastMatchedAt: folder.last_matched_at ?? null,
+          lastMatchError: folder.last_match_error ?? null,
+          matchStatus: folder.match_status ?? "pending",
+          name: folder.name,
+          size: folder.size,
+          suggestedMatches: encodeAnimeSearchResultList(
+            folder.suggested_matches,
+          ),
+          updatedAt,
+        },
+      });
+    }
+  });
+}
+
+export function decodeUnmappedFolderMatchRow(
+  row: typeof unmappedFolderMatches.$inferSelect,
+): UnmappedFolder {
+  return {
+    last_match_error: row.lastMatchError ?? undefined,
+    last_matched_at: row.lastMatchedAt ?? undefined,
+    match_status: row.matchStatus as UnmappedFolder["match_status"],
+    name: row.name,
+    path: row.path,
+    size: row.size,
+    suggested_matches: [...decodeAnimeSearchResultList(row.suggestedMatches)],
+  };
 }
 
 export function listRecentSystemLogRows(db: AppDatabase, limit: number) {

@@ -16,6 +16,7 @@ import { For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
+import { PageHeader } from "~/components/page-header";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -83,45 +84,42 @@ function DownloadsPage() {
   const queueCount = () => queue().length;
 
   return (
-    <div class="flex flex-col h-[calc(100vh-2rem)] gap-4">
-      <div class="border-b border-border pb-4 mb-2 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-            Downloads
-          </h1>
-          <div class="text-sm text-muted-foreground mt-1">
-            Manage active downloads and history
-          </div>
+    <div class="flex flex-col flex-1 min-h-0 gap-4">
+      <PageHeader
+        title="Downloads"
+        subtitle="Manage active downloads and history"
+      >
+        <div class="flex gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              toast.promise(syncDownloads.mutateAsync(), {
+                loading: "Syncing downloads...",
+                success: "Download state synced",
+                error: (err) => `Failed to sync downloads: ${err.message}`,
+              })}
+            disabled={syncDownloads.isPending}
+          >
+            <IconRefresh class="mr-2 h-4 w-4" />
+            Sync
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              toast.promise(searchMissing.mutateAsync(undefined), {
+                loading: "Triggering global search...",
+                success: "Global search triggered in background",
+                error: (err) => `Failed to trigger search: ${err.message}`,
+              })}
+            disabled={searchMissing.isPending}
+          >
+            <IconSearch class="mr-2 h-4 w-4" />
+            Search Missing
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() =>
-            toast.promise(syncDownloads.mutateAsync(), {
-              loading: "Syncing downloads...",
-              success: "Download state synced",
-              error: (err) => `Failed to sync downloads: ${err.message}`,
-            })}
-          disabled={syncDownloads.isPending}
-        >
-          <IconRefresh class="mr-2 h-4 w-4" />
-          Sync
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            toast.promise(searchMissing.mutateAsync(undefined), {
-              loading: "Triggering global search...",
-              success: "Global search triggered in background",
-              error: (err) => `Failed to trigger search: ${err.message}`,
-            })}
-          disabled={searchMissing.isPending}
-        >
-          <IconSearch class="mr-2 h-4 w-4" />
-          Search Missing
-        </Button>
-      </div>
+      </PageHeader>
 
       <Card class="flex-1 overflow-hidden flex flex-col">
         <Tabs defaultValue="queue" class="h-full flex flex-col">
@@ -217,7 +215,7 @@ function DownloadsPage() {
                         {() => (
                           <TableRow>
                             <TableCell>
-                              <Skeleton class="h-4 w-4 rounded-full" />
+                              <Skeleton class="h-4 w-4" />
                             </TableCell>
                             <TableCell>
                               <Skeleton class="h-4 w-48" />
@@ -349,7 +347,7 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
         </div>
       </TableCell>
       <TableCell class="text-right">
-        <div class="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <div class="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <Show
             when={props.item.state.toLowerCase().includes("paused") ||
               props.item.state.toLowerCase().includes("queued") ||
@@ -359,6 +357,7 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
                 variant="ghost"
                 size="icon"
                 class="h-7 w-7"
+                aria-label="Pause download"
                 onClick={handlePause}
                 disabled={!props.item.id || pauseDownload.isPending}
               >
@@ -370,6 +369,7 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
               variant="ghost"
               size="icon"
               class="h-7 w-7"
+              aria-label="Resume download"
               onClick={handleResume}
               disabled={!props.item.id || resumeDownload.isPending}
             >
@@ -381,6 +381,7 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
               variant="ghost"
               size="icon"
               class="h-7 w-7"
+              aria-label="Retry download"
               onClick={handleRetry}
               disabled={!props.item.id || retryDownload.isPending}
             >
@@ -498,7 +499,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
         </div>
       </TableCell>
       <TableCell class="text-right">
-        <div class="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <div class="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <Show
             when={props.item.status?.toLowerCase() === "completed" &&
               !props.item.reconciled_at}
@@ -507,6 +508,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
               variant="ghost"
               size="icon"
               class="h-7 w-7"
+              aria-label="Mark as reconciled"
               onClick={handleReconcile}
               disabled={reconcileDownload.isPending}
             >
@@ -521,6 +523,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
               variant="ghost"
               size="icon"
               class="h-7 w-7"
+              aria-label="Retry download"
               onClick={handleRetry}
               disabled={retryDownload.isPending}
             >
@@ -531,6 +534,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
             variant="ghost"
             size="icon"
             class="h-7 w-7"
+            aria-label="Remove download"
             onClick={handleDelete}
             disabled={deleteDownload.isPending}
           >

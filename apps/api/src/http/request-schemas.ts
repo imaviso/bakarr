@@ -32,6 +32,7 @@ export const AddAnimeInputSchema = Schema.Struct({
   profile_name: Schema.String,
   release_profile_ids: ReleaseProfileIdArraySchema,
   root_folder: Schema.String,
+  use_existing_root: Schema.optional(Schema.Boolean),
 });
 
 export const MonitoredBodySchema = Schema.Struct({

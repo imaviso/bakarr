@@ -4,11 +4,13 @@ import { Either } from "effect";
 import type { Config } from "../../../packages/shared/src/index.ts";
 
 const DEFAULT_DOWNLOAD_SYNC_MS = 15_000;
+const DEFAULT_UNMAPPED_SCAN_MS = 3_000;
 
 export interface BackgroundSchedule {
   readonly initialDelayMs: number;
   readonly downloadSyncMs: number;
   readonly libraryScanMs: number | null;
+  readonly unmappedScanMs: number;
   readonly rssCronExpression: string | null;
   readonly rssCheckMs: number | null;
 }
@@ -28,6 +30,7 @@ export function buildBackgroundSchedule(config: Config): BackgroundSchedule {
     libraryScanMs: config.library.auto_scan_interval_hours > 0
       ? config.library.auto_scan_interval_hours * 60 * 60 * 1000
       : null,
+    unmappedScanMs: DEFAULT_UNMAPPED_SCAN_MS,
     rssCronExpression,
     rssCheckMs: config.scheduler.enabled && !rssCronExpression &&
         config.scheduler.check_interval_minutes > 0

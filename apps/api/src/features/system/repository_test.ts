@@ -27,12 +27,15 @@ import {
   countQueuedOrDownloadingDownloads,
   countRssFeedRows,
   countRunningBackgroundJobs,
+  decodeUnmappedFolderMatchRow,
   insertSystemConfigRow,
   listQualityProfileRows,
+  listUnmappedFolderMatchRows,
   loadSystemConfigRow,
   loadSystemLogPage,
   replaceQualityProfileRows,
   upsertSystemConfigRow,
+  upsertUnmappedFolderMatchRows,
 } from "./repository.ts";
 
 Deno.test("system repository config helpers insert and upsert config rows", async () => {
@@ -365,6 +368,31 @@ Deno.test("replaceQualityProfileRows rolls back when replacement insert fails", 
     const rows = await listQualityProfileRows(db);
     assertEquals(rows.length, 1);
     assertEquals(rows[0]?.name, "Existing");
+  });
+});
+
+Deno.test("unmapped folder match rows persist cached suggestions", async () => {
+  await withTestDb(async (db) => {
+    await upsertUnmappedFolderMatchRows(db, [{
+      last_matched_at: "2024-01-01T00:00:00.000Z",
+      match_status: "done",
+      name: "Naruto Archive",
+      path: "/library/Naruto Archive",
+      size: 0,
+      suggested_matches: [{
+        already_in_library: true,
+        id: 20,
+        title: { romaji: "Naruto" },
+      }],
+    }]);
+
+    const rows = await listUnmappedFolderMatchRows(db);
+    assertEquals(rows.length, 1);
+    assertEquals(rows[0]?.path, "/library/Naruto Archive");
+
+    const decoded = decodeUnmappedFolderMatchRow(rows[0]!);
+    assertEquals(decoded.match_status, "done");
+    assertEquals(decoded.suggested_matches[0]?.id, 20);
   });
 });
 
