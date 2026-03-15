@@ -101,6 +101,9 @@ export const ImportFilesBodySchema = Schema.Struct({
   files: Schema.Array(Schema.Struct({
     anime_id: AnimeIdSchema,
     episode_number: EpisodeNumberSchema,
+    episode_numbers: Schema.optional(
+      Schema.Array(EpisodeNumberSchema),
+    ),
     season: Schema.optional(Schema.Number),
     source_path: Schema.String,
   })),

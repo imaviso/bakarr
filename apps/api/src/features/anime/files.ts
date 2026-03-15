@@ -1,7 +1,17 @@
 import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import { Effect } from "effect";
-import { parseEpisodeNumber } from "../../lib/episode-parser.ts";
+import {
+  classifyMediaArtifact,
+  parseFileSourceIdentity,
+} from "../../lib/media-identity.ts";
+
+function parseEpisodeNumber(path: string): number | undefined {
+  const parsed = parseFileSourceIdentity(path);
+  const identity = parsed.source_identity;
+  if (!identity || identity.scheme === "daily") return undefined;
+  return identity.episode_numbers[0];
+}
 
 export { parseEpisodeNumber };
 
@@ -42,6 +52,13 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
         }
 
         if (!entry.isFile || !isVideoFile(entry.name)) {
+          continue;
+        }
+
+        const classification = classifyMediaArtifact(fullPath, entry.name);
+        if (
+          classification.kind === "extra" || classification.kind === "sample"
+        ) {
           continue;
         }
 

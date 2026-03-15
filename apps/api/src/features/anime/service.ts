@@ -23,7 +23,11 @@ import {
 } from "./errors.ts";
 import { ProfileNotFoundError } from "../system/errors.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { collectVideoFiles, parseEpisodeNumber } from "./files.ts";
+import { collectVideoFiles } from "./files.ts";
+import {
+  classifyMediaArtifact,
+  parseFileSourceIdentity,
+} from "../../lib/media-identity.ts";
 import { FileSystem, isWithinPathRoot } from "../../lib/filesystem.ts";
 import {
   appendAnimeLog,
@@ -353,29 +357,43 @@ const makeAnimeService = Effect.gen(function* () {
     let found = 0;
 
     for (const file of files) {
-      const episodeNumber = parseEpisodeNumber(file.path);
-
-      if (!episodeNumber) {
+      const classification = classifyMediaArtifact(file.path, file.name);
+      if (
+        classification.kind === "extra" || classification.kind === "sample"
+      ) {
         continue;
       }
 
-      yield* tryAnimePromise(
-        "Failed to scan anime folder",
-        () =>
-          upsertEpisode(db, animeId, episodeNumber, {
-            aired: inferAiredAt(
-              animeRow.status,
-              episodeNumber,
-              animeRow.episodeCount ?? undefined,
-              animeRow.startDate ?? undefined,
-              animeRow.endDate ?? undefined,
-            ),
-            downloaded: true,
-            filePath: file.path,
-            title: null,
-          }),
-      );
-      found += 1;
+      const parsed = parseFileSourceIdentity(file.path);
+      const identity = parsed.source_identity;
+      if (!identity || identity.scheme === "daily") {
+        continue;
+      }
+
+      const episodeNumbers = identity.episode_numbers;
+      if (episodeNumbers.length === 0) {
+        continue;
+      }
+
+      for (const episodeNumber of episodeNumbers) {
+        yield* tryAnimePromise(
+          "Failed to scan anime folder",
+          () =>
+            upsertEpisode(db, animeId, episodeNumber, {
+              aired: inferAiredAt(
+                animeRow.status,
+                episodeNumber,
+                animeRow.episodeCount ?? undefined,
+                animeRow.startDate ?? undefined,
+                animeRow.endDate ?? undefined,
+              ),
+              downloaded: true,
+              filePath: file.path,
+              title: null,
+            }),
+        );
+      }
+      found += episodeNumbers.length;
     }
 
     yield* tryDatabasePromise(
@@ -667,12 +685,19 @@ const makeAnimeService = Effect.gen(function* () {
       ),
     );
 
-    return files.map((file) => ({
-      episode_number: parseEpisodeNumber(file.path),
-      name: file.name,
-      path: file.path,
-      size: file.size,
-    }));
+    return files.map((file) => {
+      const parsed = parseFileSourceIdentity(file.path);
+      const identity = parsed.source_identity;
+      const episodeNumber = identity && identity.scheme !== "daily"
+        ? identity.episode_numbers[0]
+        : undefined;
+      return {
+        episode_number: episodeNumber,
+        name: file.name,
+        path: file.path,
+        size: file.size,
+      };
+    });
   });
 
   const listAnime = Effect.fn("AnimeService.listAnime")(function* () {
