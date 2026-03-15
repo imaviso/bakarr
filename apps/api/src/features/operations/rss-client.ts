@@ -1,7 +1,10 @@
 import { HttpClient, HttpClientRequest } from "@effect/platform";
 import { Chunk, Context, Effect, Layer, Schema, Stream } from "effect";
 
-import { tryExternalEffect } from "../../lib/effect-retry.ts";
+import {
+  ExternalCallError,
+  tryExternalEffect,
+} from "../../lib/effect-retry.ts";
 
 class RssStreamReadError extends Schema.TaggedError<RssStreamReadError>()(
   "RssStreamReadError",
@@ -28,7 +31,7 @@ export interface ParsedRelease {
 interface RssClientShape {
   readonly fetchItems: (
     url: string,
-  ) => Effect.Effect<readonly ParsedRelease[], never>;
+  ) => Effect.Effect<readonly ParsedRelease[], ExternalCallError>;
 }
 
 export class RssClient extends Context.Tag("@bakarr/api/RssClient")<
@@ -90,12 +93,14 @@ const makeFetchItems = (client: HttpClient.HttpClient) =>
     const response = yield* tryExternalEffect(
       "rss.fetch",
       client.execute(request),
-    )().pipe(
-      Effect.catchTag("ExternalCallError", () => Effect.succeed(null)),
-    );
+    )();
 
-    if (!response || response.status < 200 || response.status >= 300) {
-      return [];
+    if (response.status < 200 || response.status >= 300) {
+      return yield* ExternalCallError.make({
+        cause: new Error(`RSS feed returned HTTP ${response.status}`),
+        message: `RSS feed returned HTTP ${response.status}`,
+        operation: "rss.fetch.status",
+      });
     }
 
     return yield* readRssItems(response.stream);
@@ -127,7 +132,13 @@ const readRssItems = Effect.fn("RssClient.readRssItems")(
       Effect.map((chunks) =>
         chunks.pipe(Chunk.toReadonlyArray).map(parseReleaseItem)
       ),
-      Effect.catchTag("RssStreamReadError", () => Effect.succeed([])),
+      Effect.mapError((error) =>
+        ExternalCallError.make({
+          cause: error,
+          message: "Failed to read RSS stream",
+          operation: "rss.stream",
+        })
+      ),
     );
   },
 );

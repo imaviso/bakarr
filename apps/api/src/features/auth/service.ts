@@ -358,27 +358,28 @@ const makeAuthService = Effect.gen(function* () {
       () => hashPassword(request.new_password),
     );
 
-    yield* tryAuthPromise("Failed to update password", () =>
-      db
-        .update(users)
-        .set({
-          mustChangePassword: false,
-          passwordHash,
-          updatedAt: nowIso(),
-        })
-        .where(eq(users.id, userId)));
-
     yield* tryDatabasePromise(
       "Failed to update password",
-      () => revokeAllSessions(db, userId),
+      () =>
+        db.transaction(async (tx) => {
+          await tx
+            .update(users)
+            .set({
+              mustChangePassword: false,
+              passwordHash,
+              updatedAt: nowIso(),
+            })
+            .where(eq(users.id, userId));
+          await tx.delete(sessions).where(eq(sessions.userId, userId));
+          await tx.insert(systemLogs).values({
+            createdAt: nowIso(),
+            details: null,
+            eventType: "auth.password.changed",
+            level: "success",
+            message: `${userRow.username} changed their password`,
+          });
+        }),
     );
-
-    yield* tryDatabasePromise("Failed to update password", () =>
-      writeLog(db, {
-        eventType: "auth.password.changed",
-        level: "success",
-        message: `${userRow.username} changed their password`,
-      }));
   });
 
   const getApiKey = Effect.fn("AuthService.getApiKey")(function* (
@@ -417,27 +418,25 @@ const makeAuthService = Effect.gen(function* () {
         () => hashToken(apiKey),
       );
 
-      yield* tryAuthPromise("Failed to regenerate API key", () =>
-        db
-          .update(users)
-          .set({
-            apiKey: hashedApiKey,
-            updatedAt: nowIso(),
-          })
-          .where(eq(users.id, userId)));
-
-      yield* tryDatabasePromise(
-        "Failed to regenerate API key",
-        () => revokeAllSessions(db, userId),
-      );
-
       yield* tryDatabasePromise(
         "Failed to regenerate API key",
         () =>
-          writeLog(db, {
-            eventType: "auth.api_key.regenerated",
-            level: "success",
-            message: `${userRow.username} regenerated an API key`,
+          db.transaction(async (tx) => {
+            await tx
+              .update(users)
+              .set({
+                apiKey: hashedApiKey,
+                updatedAt: nowIso(),
+              })
+              .where(eq(users.id, userId));
+            await tx.delete(sessions).where(eq(sessions.userId, userId));
+            await tx.insert(systemLogs).values({
+              createdAt: nowIso(),
+              details: null,
+              eventType: "auth.api_key.regenerated",
+              level: "success",
+              message: `${userRow.username} regenerated an API key`,
+            });
           }),
       );
 
@@ -514,10 +513,6 @@ async function createSession(
   });
 
   return token;
-}
-
-async function revokeAllSessions(db: AppDatabase, userId: number) {
-  await db.delete(sessions).where(eq(sessions.userId, userId));
 }
 
 function expiresAtIso(durationDays: number) {

@@ -12,6 +12,7 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
   ) {
     const entries: VideoFile[] = [];
     const stack = [rootFolder];
+    let isRoot = true;
 
     while (stack.length > 0) {
       const current = stack.pop();
@@ -19,11 +20,14 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
         continue;
       }
 
+      const isCurrentRoot = isRoot;
+      isRoot = false;
+
       const dirEntries = yield* fs.readDir(current).pipe(
         Effect.catchTag(
           "FileSystemError",
           (error) =>
-            isNotFoundError(error)
+            !isCurrentRoot && isNotFoundError(error)
               ? Effect.succeed<Deno.DirEntry[]>([])
               : Effect.fail(error),
         ),

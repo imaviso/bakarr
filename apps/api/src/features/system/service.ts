@@ -71,7 +71,7 @@ import {
   loadQualityProfileRow,
   loadSystemConfigRow,
   loadSystemLogPage,
-  updateQualityProfileRow,
+  renameQualityProfileWithCascade,
   updateReleaseProfileRow,
   updateSystemConfigAtomic,
 } from "./repository.ts";
@@ -351,6 +351,18 @@ const makeSystemService = Effect.gen(function* () {
             ),
         );
       }
+
+      const storedConfig = yield* tryDatabasePromise(
+        "Failed to initialize system configuration",
+        () => loadSystemConfigRow(db),
+      );
+
+      if (storedConfig) {
+        const decoded = tryDecodeConfigCore(storedConfig.data);
+        if (decoded) {
+          setRuntimeLogLevel(decoded.general.log_level);
+        }
+      }
     },
   );
 
@@ -363,7 +375,14 @@ const makeSystemService = Effect.gen(function* () {
       let core: ConfigCore;
       if (storedConfig) {
         const decoded = tryDecodeConfigCore(storedConfig.data);
-        core = decoded ?? makeDefaultConfig(config.databaseFile);
+        if (decoded) {
+          core = decoded;
+        } else {
+          yield* Effect.logWarning(
+            "Stored system config is corrupt, using defaults for status view",
+          );
+          core = makeDefaultConfig(config.databaseFile);
+        }
       } else {
         core = makeDefaultConfig(config.databaseFile);
       }
@@ -585,17 +604,6 @@ const makeSystemService = Effect.gen(function* () {
       scheduler: nextConfig.scheduler,
     };
 
-    setRuntimeLogLevel(nextConfig.general.log_level);
-
-    const reloadResult = yield* Effect.either(
-      workerController.reload(nextConfig),
-    );
-
-    if (reloadResult._tag === "Left") {
-      setRuntimeLogLevel(previousLogLevel);
-      return yield* reloadResult.left;
-    }
-
     yield* tryDatabasePromise(
       "Failed to update system configuration",
       () =>
@@ -609,6 +617,17 @@ const makeSystemService = Effect.gen(function* () {
           nextConfig.profiles.map(encodeQualityProfileRow),
         ),
     );
+
+    setRuntimeLogLevel(nextConfig.general.log_level);
+
+    const reloadResult = yield* Effect.either(
+      workerController.reload(nextConfig),
+    );
+
+    if (reloadResult._tag === "Left") {
+      setRuntimeLogLevel(previousLogLevel);
+      return yield* reloadResult.left;
+    }
 
     return nextConfig;
   });
@@ -633,7 +652,12 @@ const makeSystemService = Effect.gen(function* () {
 
     yield* tryDatabasePromise(
       "Failed to update quality profile",
-      () => updateQualityProfileRow(db, name, encodeQualityProfileRow(profile)),
+      () =>
+        renameQualityProfileWithCascade(
+          db,
+          name,
+          encodeQualityProfileRow(profile),
+        ),
     );
     yield* tryDatabasePromise(
       "Failed to update quality profile",

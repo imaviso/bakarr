@@ -21,6 +21,7 @@ import {
   AnimePathError,
   type AnimeServiceError,
 } from "./errors.ts";
+import { ExternalCallError } from "../../lib/effect-retry.ts";
 import { collectVideoFiles, parseEpisodeNumber } from "./files.ts";
 import { FileSystem, isWithinPathRoot } from "../../lib/filesystem.ts";
 import {
@@ -62,15 +63,22 @@ export interface AnimeServiceShape {
   ) => Effect.Effect<Anime, AnimeServiceError | DatabaseError>;
   readonly searchAnime: (
     query: string,
-  ) => Effect.Effect<AnimeSearchResult[], DatabaseError>;
+  ) => Effect.Effect<AnimeSearchResult[], DatabaseError | ExternalCallError>;
   readonly getAnimeByAnilistId: (
     id: number,
-  ) => Effect.Effect<AnimeSearchResult, AnimeNotFoundError | DatabaseError>;
+  ) => Effect.Effect<
+    AnimeSearchResult,
+    AnimeNotFoundError | DatabaseError | ExternalCallError
+  >;
   readonly addAnime: (
     input: AddAnimeInput,
   ) => Effect.Effect<
     Anime,
-    AnimeNotFoundError | AnimeConflictError | AnimePathError | DatabaseError
+    | AnimeNotFoundError
+    | AnimeConflictError
+    | AnimePathError
+    | DatabaseError
+    | ExternalCallError
   >;
   readonly deleteAnime: (id: number) => Effect.Effect<void, DatabaseError>;
   readonly setMonitored: (
@@ -157,20 +165,6 @@ const makeAnimeService = Effect.gen(function* () {
 
     const animeMetadata = metadata!;
 
-    if (input.use_existing_root && input.root_folder.trim().length > 0) {
-      const existingRootOwner = yield* tryDatabasePromise(
-        "Failed to add anime",
-        () => findAnimeRootFolderOwner(db, input.root_folder.trim()),
-      );
-
-      if (existingRootOwner) {
-        return yield* new AnimeConflictError({
-          message:
-            `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
-        });
-      }
-    }
-
     const rootFolder = yield* tryAnimePromise(
       "Failed to add anime",
       () =>
@@ -181,6 +175,17 @@ const makeAnimeService = Effect.gen(function* () {
           { useExistingRoot: input.use_existing_root },
         ),
     );
+
+    const existingRootOwner = yield* tryDatabasePromise(
+      "Failed to add anime",
+      () => findAnimeRootFolderOwner(db, rootFolder),
+    );
+
+    if (existingRootOwner) {
+      return yield* new AnimeConflictError({
+        message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
+      });
+    }
 
     yield* fs.mkdir(rootFolder, { recursive: true }).pipe(
       Effect.mapError((error) =>

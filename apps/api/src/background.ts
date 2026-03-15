@@ -379,6 +379,10 @@ function withLockEffect<A, E, R>(
               }),
             ),
           );
+
+          if (Cause.isDie(exit.cause)) {
+            return yield* Effect.die(Cause.squash(exit.cause));
+          }
         }
 
         return;

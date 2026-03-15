@@ -50,11 +50,7 @@ import type {
   TryDatabasePromise,
   TryOperationsPromise,
 } from "./service-support.ts";
-import type {
-  QBitConfig,
-  QBitTorrent,
-  QBitTorrentClient,
-} from "./qbittorrent.ts";
+import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 
 export function makeDownloadOrchestration(input: {
   db: AppDatabase;
@@ -361,25 +357,27 @@ export function makeDownloadOrchestration(input: {
       const config = yield* tryDatabasePromise(
         "Failed to sync downloads with qBittorrent",
         () => loadRuntimeConfig(db),
-      ).pipe(
-        Effect.catchTag(
-          "DatabaseError",
-          () => Effect.succeed<Config | null>(null),
-        ),
       );
-      const qbitConfig = config ? maybeQBitConfig(config) : null;
+      const qbitConfig = maybeQBitConfig(config);
 
       if (!qbitConfig) {
         return;
       }
 
-      const torrents = yield* qbitClient.listTorrents(qbitConfig).pipe(
-        Effect.catchTags({
-          ExternalCallError: () => Effect.succeed<readonly QBitTorrent[]>([]),
-          QBitTorrentClientError: () =>
-            Effect.succeed<readonly QBitTorrent[]>([]),
-        }),
+      const torrentsResult = yield* qbitClient.listTorrents(qbitConfig).pipe(
+        Effect.either,
       );
+
+      if (torrentsResult._tag === "Left") {
+        yield* Effect.logWarning(
+          "qBittorrent unreachable, skipping download sync",
+        ).pipe(
+          Effect.annotateLogs({ error: String(torrentsResult.left) }),
+        );
+        return;
+      }
+
+      const torrents = torrentsResult.right;
 
       for (const torrent of torrents) {
         const status = mapQBitState(torrent.state);

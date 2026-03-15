@@ -35,10 +35,10 @@ export interface AnimeMetadata {
 interface AniListClientShape {
   readonly searchAnimeMetadata: (
     query: string,
-  ) => Effect.Effect<AnimeSearchResult[], never>;
+  ) => Effect.Effect<AnimeSearchResult[], ExternalCallError>;
   readonly getAnimeMetadataById: (
     id: number,
-  ) => Effect.Effect<AnimeMetadata | null, never>;
+  ) => Effect.Effect<AnimeMetadata | null, ExternalCallError>;
 }
 
 export class AniListClient extends Context.Tag("@bakarr/api/AniListClient")<
@@ -123,18 +123,7 @@ export const AniListClientLive = Layer.effect(
           return [];
         }
 
-        return yield* trySearchRemote(client, trimmed).pipe(
-          Effect.catchTag(
-            "ExternalCallError",
-            (cause) =>
-              Effect.logWarning(
-                "AniList search unavailable, returning empty results",
-              ).pipe(
-                Effect.annotateLogs({ error: String(cause) }),
-                Effect.map(() => [] as AnimeSearchResult[]),
-              ),
-          ),
-        );
+        return yield* trySearchRemote(client, trimmed);
       },
     );
 
@@ -142,16 +131,7 @@ export const AniListClientLive = Layer.effect(
       "AniListClient.getAnimeMetadataById",
     )(
       function* (id: number) {
-        return yield* tryFetchDetail(client, id).pipe(
-          Effect.catchTag(
-            "ExternalCallError",
-            (cause) =>
-              Effect.logWarning("AniList detail unavailable").pipe(
-                Effect.annotateLogs({ anilistId: id, error: String(cause) }),
-                Effect.map(() => null as AnimeMetadata | null),
-              ),
-          ),
-        );
+        return yield* tryFetchDetail(client, id);
       },
     );
 

@@ -131,6 +131,24 @@ export function updateQualityProfileRow(
   );
 }
 
+export async function renameQualityProfileWithCascade(
+  db: AppDatabase,
+  oldName: string,
+  row: QualityProfileInsert,
+) {
+  await db.transaction(async (tx) => {
+    await tx.update(qualityProfiles).set(row).where(
+      eq(qualityProfiles.name, oldName),
+    );
+
+    if (oldName !== row.name) {
+      await tx.update(anime).set({ profileName: row.name }).where(
+        eq(anime.profileName, oldName),
+      );
+    }
+  });
+}
+
 export function deleteQualityProfileRow(db: AppDatabase, name: string) {
   return db.delete(qualityProfiles).where(eq(qualityProfiles.name, name));
 }

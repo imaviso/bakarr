@@ -11,6 +11,14 @@ import {
 } from "../../lib/filesystem.ts";
 import { Effect } from "effect";
 
+function isCrossFilesystemError(error: { cause?: unknown }): boolean {
+  const cause = error.cause;
+  if (cause instanceof Error && "code" in cause) {
+    return (cause as { code?: string }).code === "EXDEV";
+  }
+  return false;
+}
+
 export function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
 }
@@ -55,7 +63,19 @@ export function importDownloadedFile(
 
     yield* (
       importMode === "move"
-        ? fs.rename(sourcePath, tempDestination)
+        ? fs.rename(sourcePath, tempDestination).pipe(
+          Effect.catchTag("FileSystemError", (error) =>
+            isCrossFilesystemError(error)
+              ? fs.copyFile(sourcePath, tempDestination).pipe(
+                Effect.flatMap(() =>
+                  fs.remove(sourcePath).pipe(
+                    Effect.catchTag("FileSystemError", () =>
+                      Effect.void),
+                  )
+                ),
+              )
+              : Effect.fail(error)),
+        )
         : fs.copyFile(sourcePath, tempDestination)
     ).pipe(
       Effect.mapError((cause) =>

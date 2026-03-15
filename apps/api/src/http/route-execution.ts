@@ -136,6 +136,10 @@ function mapError(error: unknown): { message: string; status: number } {
       case "DownloadConflictError":
       case "OperationsConflictError":
         return { message: tagged.message, status: 409 };
+      case "AnimePathError":
+        return { message: tagged.message, status: 400 };
+      case "ExternalCallError":
+        return { message: "External service unavailable", status: 503 };
       case "DatabaseError":
         return { message: tagged.message, status: 500 };
     }

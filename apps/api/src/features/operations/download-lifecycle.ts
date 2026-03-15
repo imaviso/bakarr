@@ -48,7 +48,7 @@ export const resolveCompletedContentPath = Effect.fn(
     parseEpisodeNumber(file.path) === episodeNumber
   );
 
-  return matching?.path ?? files[0]?.path;
+  return matching?.path;
 });
 
 export const resolveBatchContentPaths = Effect.fn(

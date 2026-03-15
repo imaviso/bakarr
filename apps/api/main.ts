@@ -48,7 +48,7 @@ export async function bootstrap(
 if (import.meta.main) {
   await import("@std/dotenv/load");
   const { app, config, runtime } = await bootstrap();
-  const systemConfig = await runApi(
+  await runApi(
     runtime,
     Effect.flatMap(
       BackgroundWorkerController,
@@ -58,12 +58,12 @@ if (import.meta.main) {
             SystemService,
             (s) => s.getConfig(),
           );
+          setRuntimeLogLevel(cfg.general.log_level);
           yield* controller.start(cfg);
           return cfg;
         }),
     ),
   ) as Config;
-  setRuntimeLogLevel(systemConfig.general.log_level);
 
   await runApi(
     runtime,

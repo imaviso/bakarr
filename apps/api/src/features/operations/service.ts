@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Ref } from "effect";
 
 import type {
   CalendarEvent,
@@ -197,7 +197,7 @@ const makeOperationsService = Effect.gen(function* () {
   const fs = yield* FileSystem;
 
   const triggerSemaphore = yield* Effect.makeSemaphore(1);
-  const unmappedScanSemaphore = yield* Effect.makeSemaphore(1);
+  const unmappedScanRunning = yield* Ref.make(false);
 
   const downloadOrchestration = makeDownloadOrchestration({
     db,
@@ -245,7 +245,7 @@ const makeOperationsService = Effect.gen(function* () {
     rssClient,
     tryDatabasePromise,
     tryOperationsPromise,
-    unmappedScanSemaphore,
+    unmappedScanRunning,
     wrapOperationsError,
   });
 

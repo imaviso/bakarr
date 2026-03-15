@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Ref } from "effect";
 
 import type {
   Config,
@@ -118,7 +118,7 @@ export function makeSearchOrchestration(input: {
     total: number;
     feed_name: string;
   }) => Effect.Effect<void>;
-  unmappedScanSemaphore: Effect.Semaphore;
+  unmappedScanRunning: Ref.Ref<boolean>;
 }) {
   const {
     db,
@@ -134,7 +134,7 @@ export function makeSearchOrchestration(input: {
     maybeQBitConfig,
     publishDownloadProgress,
     publishRssCheckProgress,
-    unmappedScanSemaphore,
+    unmappedScanRunning,
   } = input;
 
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(
@@ -552,7 +552,23 @@ export function makeSearchOrchestration(input: {
           });
 
           newItems += yield* Effect.gen(function* () {
-            const items = yield* rssClient.fetchItems(feed.url);
+            const itemsResult = yield* rssClient.fetchItems(feed.url).pipe(
+              Effect.either,
+            );
+
+            if (itemsResult._tag === "Left") {
+              yield* Effect.logWarning("RSS feed fetch failed, skipping feed")
+                .pipe(
+                  Effect.annotateLogs({
+                    feedName: feed.name ?? feed.url,
+                    feedUrl: feed.url,
+                    error: String(itemsResult.left),
+                  }),
+                );
+              return 0;
+            }
+
+            const items = itemsResult.right;
             const animeRow = yield* tryOperationsPromise(
               "Failed to run RSS check",
               () => requireAnime(db, feed.animeId),
@@ -585,7 +601,12 @@ export function makeSearchOrchestration(input: {
                 continue;
               }
 
-              const episodeNumber = parseEpisodeFromTitle(item.title) ?? 1;
+              const episodeNumber = parseEpisodeFromTitle(item.title);
+
+              if (episodeNumber == null) {
+                continue;
+              }
+
               const currentEpisode = yield* tryDatabasePromise(
                 "Failed to run RSS check",
                 () => loadCurrentEpisodeState(db, animeRow.id, episodeNumber),
@@ -815,19 +836,16 @@ export function makeSearchOrchestration(input: {
 
   const runUnmappedScan = Effect.fn("OperationsService.runUnmappedScan")(
     function* () {
-      let acquired = false;
+      const alreadyRunning = yield* Ref.modify(
+        unmappedScanRunning,
+        (v) => [v, true] as const,
+      );
+
+      if (alreadyRunning) {
+        return { folderCount: 0 };
+      }
 
       try {
-        acquired = yield* unmappedScanSemaphore.take(1).pipe(
-          Effect.as(true),
-          Effect.timeout("1 millis"),
-          Effect.catchTag("TimeoutException", () => Effect.succeed(false)),
-        );
-
-        if (!acquired) {
-          return { folderCount: 0 };
-        }
-
         yield* tryDatabasePromise(
           "Failed to scan unmapped folders",
           () => markJobStarted(db, "unmapped_scan"),
@@ -981,9 +999,7 @@ export function makeSearchOrchestration(input: {
           ),
         );
       } finally {
-        if (acquired) {
-          yield* unmappedScanSemaphore.release(1);
-        }
+        yield* Ref.set(unmappedScanRunning, false);
       }
     },
   );
