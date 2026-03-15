@@ -150,6 +150,7 @@ integrationTest(
       assertEquals(await statsResponse.json(), {
         downloaded_episodes: 0,
         missing_episodes: 0,
+        monitored_anime: 0,
         recent_downloads: 0,
         rss_feeds: 0,
         total_anime: 0,
@@ -2430,6 +2431,7 @@ integrationTest("anime CRUD and episode scan flow works", async () => {
       assertEquals(await statsResponse.json(), {
         downloaded_episodes: 1,
         missing_episodes: 219,
+        monitored_anime: 1,
         recent_downloads: 0,
         rss_feeds: 0,
         total_anime: 1,
