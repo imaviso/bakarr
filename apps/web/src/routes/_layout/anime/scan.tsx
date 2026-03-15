@@ -16,6 +16,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import { toast } from "solid-sonner";
 import { GeneralError } from "~/components/general-error";
 import { Badge } from "~/components/ui/badge";
@@ -67,7 +68,13 @@ function LibraryScanPage() {
   const scanMutation = createScanLibraryMutation();
   const navigate = useNavigate();
 
-  const folders = () => scanState.data?.folders || [];
+  const [folders, setFolders] = createStore<UnmappedFolder[]>([]);
+  createEffect(() => {
+    setFolders(
+      reconcile(scanState.data?.folders ?? [], { key: "path", merge: true }),
+    );
+  });
+
   const isScanning = () => scanState.data?.is_scanning;
   const hasOutstandingMatches = () => scanState.data?.has_outstanding_matches;
   const unmappedJob = createMemo(() =>
@@ -76,18 +83,16 @@ function LibraryScanPage() {
   const isWorkerRunning = () => Boolean(unmappedJob()?.is_running);
   const isRescanning = () => scanMutation.isPending || isWorkerRunning();
   const exactMatches = () =>
-    folders().filter((folder) =>
-      folder.suggested_matches[0]?.already_in_library
-    )
+    folders.filter((folder) => folder.suggested_matches[0]?.already_in_library)
       .length;
   const queuedCount = () =>
-    folders().filter((folder) => folder.match_status === "pending").length;
+    folders.filter((folder) => folder.match_status === "pending").length;
   const matchingCount = () =>
-    folders().filter((folder) => folder.match_status === "matching").length;
+    folders.filter((folder) => folder.match_status === "matching").length;
   const matchedCount = () =>
-    folders().filter((folder) => folder.match_status === "done").length;
+    folders.filter((folder) => folder.match_status === "done").length;
   const failedCount = () =>
-    folders().filter((folder) => folder.match_status === "failed").length;
+    folders.filter((folder) => folder.match_status === "failed").length;
 
   return (
     <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
@@ -113,7 +118,7 @@ function LibraryScanPage() {
             </div>
 
             <div class="flex flex-wrap items-center gap-2 lg:justify-end">
-              <StatChip label="Unmapped" value={String(folders().length)} />
+              <StatChip label="Unmapped" value={String(folders.length)} />
               <StatChip
                 label="Queued"
                 value={String(queuedCount() + matchingCount())}
@@ -155,7 +160,7 @@ function LibraryScanPage() {
           when={scanState.isLoading}
           fallback={
             <Show
-              when={folders().length > 0}
+              when={folders.length > 0}
               fallback={
                 <EmptyScanState
                   hasOutstandingMatches={Boolean(hasOutstandingMatches())}
@@ -164,7 +169,7 @@ function LibraryScanPage() {
               }
             >
               <div class="space-y-4">
-                <Show when={folders().length > 0 || unmappedJob()}>
+                <Show when={folders.length > 0 || unmappedJob()}>
                   <BackgroundMatchingCard
                     job={unmappedJob()}
                     failedCount={failedCount()}
@@ -173,11 +178,11 @@ function LibraryScanPage() {
                     matchedCount={matchedCount()}
                     matchingCount={matchingCount()}
                     queuedCount={queuedCount()}
-                    totalCount={folders().length}
+                    totalCount={folders.length}
                   />
                 </Show>
                 <div class="space-y-3">
-                  <For each={folders()}>
+                  <For each={folders}>
                     {(folder) => <FolderItem folder={folder} />}
                   </For>
                 </div>

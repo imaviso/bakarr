@@ -1,10 +1,11 @@
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, onCleanup } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import type { NotificationEvent } from "@bakarr/shared";
 import type { DownloadStatus } from "~/lib/api";
 import { useAuth } from "~/lib/auth";
 
 export function useActiveDownloads() {
-  const [downloads, setDownloads] = createSignal<DownloadStatus[]>([]);
+  const [downloads, setDownloads] = createStore<DownloadStatus[]>([]);
   const { auth } = useAuth();
   let eventSource: EventSource | null = null;
 
@@ -18,24 +19,21 @@ export function useActiveDownloads() {
   createEffect(() => {
     if (!auth().isAuthenticated) {
       disconnect();
-      setDownloads([]);
+      setDownloads(reconcile([]));
       return;
     }
 
     disconnect();
     eventSource = new EventSource("/api/events");
 
-    eventSource.onopen = () => {
-      // console.log("Connected to download stream");
-    };
-
     eventSource.onmessage = (event) => {
       try {
         const data: NotificationEvent = JSON.parse(event.data);
 
         if (data.type === "DownloadProgress") {
-          // The backend sends the full list of active downloads
-          setDownloads(data.payload.downloads);
+          setDownloads(
+            reconcile(data.payload.downloads, { key: "hash", merge: true }),
+          );
         }
       } catch (e) {
         console.error("Failed to parse event", e);
@@ -43,7 +41,6 @@ export function useActiveDownloads() {
     };
 
     eventSource.onerror = (_e) => {
-      // console.error("EventSource error", e);
       disconnect();
     };
   });

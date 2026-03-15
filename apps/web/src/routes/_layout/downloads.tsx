@@ -81,7 +81,7 @@ function DownloadsPage() {
   const searchMissing = createSearchMissingMutation();
   const syncDownloads = createSyncDownloadsMutation();
 
-  const queueCount = () => queue().length;
+  const queueCount = () => queue.length;
 
   return (
     <div class="flex flex-col flex-1 min-h-0 gap-4">
@@ -168,7 +168,7 @@ function DownloadsPage() {
                 </TableHeader>
                 <TableBody>
                   <Show
-                    when={queue().length > 0}
+                    when={queue.length > 0}
                     fallback={
                       <TableRow>
                         <TableCell
@@ -180,7 +180,7 @@ function DownloadsPage() {
                       </TableRow>
                     }
                   >
-                    <For each={queue()}>
+                    <For each={queue}>
                       {(item) => <ActiveDownloadRow item={item} />}
                     </For>
                   </Show>
