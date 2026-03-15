@@ -716,6 +716,7 @@ export function makeDownloadOrchestration(input: {
             "Failed to trigger download",
             () => requireAnime(db, input.anime_id),
           );
+
           const now = nowIso();
           const runtimeConfig = yield* tryOperationsPromise(
             "Failed to trigger download",
