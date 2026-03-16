@@ -1135,6 +1135,7 @@ export const AnimeSearchResultSchema: Schema.Schema<AnimeSearchResult> = Schema
 export const UNMAPPED_FOLDER_MATCH_STATUS_VALUES = [
   "pending",
   "matching",
+  "paused",
   "done",
   "failed",
 ] as const;
