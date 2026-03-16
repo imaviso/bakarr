@@ -1,0 +1,199 @@
+import { HttpClient } from "@effect/platform";
+import { eq } from "drizzle-orm";
+import { Effect } from "effect";
+
+import { encodeNumberList, encodeStringList } from "../system/config-codec.ts";
+import { ProfileNotFoundError } from "../system/errors.ts";
+import type { AppDatabase } from "../../db/database.ts";
+import { anime, episodes } from "../../db/schema.ts";
+import type { FileSystemShape } from "../../lib/filesystem.ts";
+import type { EventPublisherShape } from "../events/publisher.ts";
+import type { AniListClient } from "./anilist.ts";
+import { toAnimeDto } from "./dto.ts";
+import {
+  AnimeConflictError,
+  AnimeNotFoundError,
+  AnimePathError,
+} from "./errors.ts";
+import { cacheAnimeMetadataImages } from "./image-cache.ts";
+import {
+  buildMissingEpisodeRows,
+  findAnimeRootFolderOwner,
+  getConfiguredImagesPath,
+  insertAnimeAggregateAtomic,
+  qualityProfileExists,
+  resolveAnimeRootFolder,
+} from "./repository.ts";
+import { tryAnimePromise, tryDatabasePromise } from "./service-support.ts";
+
+export interface AddAnimeEffectInput {
+  readonly id: number;
+  readonly profile_name: string;
+  readonly root_folder: string;
+  readonly monitor_and_search: boolean;
+  readonly monitored: boolean;
+  readonly release_profile_ids: number[];
+  readonly use_existing_root?: boolean;
+}
+
+export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
+  function* (input: {
+    aniList: typeof AniListClient.Service;
+    animeInput: AddAnimeEffectInput;
+    db: AppDatabase;
+    eventPublisher: Pick<EventPublisherShape, "publishInfo">;
+    fs: FileSystemShape;
+    httpClient: HttpClient.HttpClient;
+  }) {
+    const existing = yield* tryDatabasePromise(
+      "Failed to add anime",
+      () =>
+        input.db.select({ id: anime.id }).from(anime).where(
+          eq(anime.id, input.animeInput.id),
+        ).limit(1),
+    );
+
+    if (existing[0]) {
+      return yield* new AnimeConflictError({
+        message: "Anime already exists",
+      });
+    }
+
+    const metadata = yield* input.aniList.getAnimeMetadataById(
+      input.animeInput.id,
+    );
+
+    if (!metadata) {
+      return yield* new AnimeNotFoundError({
+        message: "Anime not found",
+      });
+    }
+
+    const profileExists = yield* tryDatabasePromise(
+      "Failed to add anime",
+      () => qualityProfileExists(input.db, input.animeInput.profile_name),
+    );
+
+    if (!profileExists) {
+      return yield* new ProfileNotFoundError({
+        message: `Quality profile '${input.animeInput.profile_name}' not found`,
+      });
+    }
+
+    const rootFolder = yield* tryAnimePromise(
+      "Failed to add anime",
+      () =>
+        resolveAnimeRootFolder(
+          input.db,
+          input.animeInput.root_folder,
+          metadata.title.romaji,
+          { useExistingRoot: input.animeInput.use_existing_root },
+        ),
+    );
+
+    const existingRootOwner = yield* tryDatabasePromise(
+      "Failed to add anime",
+      () => findAnimeRootFolderOwner(input.db, rootFolder),
+    );
+
+    if (existingRootOwner) {
+      return yield* new AnimeConflictError({
+        message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
+      });
+    }
+
+    yield* input.fs.mkdir(rootFolder, { recursive: true }).pipe(
+      Effect.mapError(() =>
+        new AnimePathError({
+          message: "Failed to create or access the anime root folder",
+        })
+      ),
+    );
+
+    const imagesPath = yield* tryAnimePromise(
+      "Failed to add anime",
+      () => getConfiguredImagesPath(input.db),
+    );
+    const cachedImages = yield* cacheAnimeMetadataImages(
+      input.fs,
+      input.httpClient,
+      imagesPath,
+      metadata.id,
+      {
+        bannerImage: metadata.bannerImage,
+        coverImage: metadata.coverImage,
+      },
+    ).pipe(
+      Effect.catchAllCause(() =>
+        Effect.succeed({
+          bannerImage: metadata.bannerImage,
+          coverImage: metadata.coverImage,
+        })
+      ),
+    );
+
+    const animeRow = {
+      addedAt: new Date().toISOString(),
+      bannerImage: cachedImages.bannerImage ?? null,
+      coverImage: cachedImages.coverImage ?? null,
+      description: metadata.description ?? null,
+      endDate: metadata.endDate ?? null,
+      episodeCount: metadata.episodeCount ?? null,
+      format: metadata.format,
+      genres: encodeStringList(metadata.genres ?? []),
+      id: metadata.id,
+      malId: metadata.malId ?? null,
+      monitored: input.animeInput.monitored,
+      profileName: input.animeInput.profile_name,
+      releaseProfileIds: encodeNumberList(input.animeInput.release_profile_ids),
+      rootFolder,
+      score: metadata.score ?? null,
+      startDate: metadata.startDate ?? null,
+      status: metadata.status,
+      studios: encodeStringList(metadata.studios ?? []),
+      titleEnglish: metadata.title.english ?? null,
+      titleNative: metadata.title.native ?? null,
+      titleRomaji: metadata.title.romaji,
+    };
+
+    const episodeRows = buildMissingEpisodeRows({
+      animeId: animeRow.id,
+      episodeCount: metadata.episodeCount,
+      endDate: metadata.endDate ?? undefined,
+      existingRows: [],
+      resetMissingOnly: true,
+      startDate: metadata.startDate ?? undefined,
+      status: metadata.status,
+    });
+
+    yield* tryDatabasePromise(
+      "Failed to add anime",
+      () =>
+        insertAnimeAggregateAtomic(input.db, {
+          animeRow,
+          episodeRows,
+          log: {
+            createdAt: new Date().toISOString(),
+            details: null,
+            eventType: "anime.created",
+            level: "success",
+            message: `Added ${animeRow.titleRomaji} to library`,
+          },
+        }),
+    );
+
+    yield* input.eventPublisher.publishInfo(
+      `Added ${animeRow.titleRomaji} to library`,
+    );
+
+    const persistedEpisodeRows = yield* tryDatabasePromise(
+      "Failed to add anime",
+      () =>
+        input.db.select().from(episodes).where(
+          eq(episodes.animeId, animeRow.id),
+        ),
+    );
+
+    return toAnimeDto(animeRow, persistedEpisodeRows);
+  },
+);
