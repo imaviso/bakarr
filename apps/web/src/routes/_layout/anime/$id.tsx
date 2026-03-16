@@ -373,7 +373,8 @@ function AnimeDetailsPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => searchMissing.mutate(animeId())}
-                    disabled={searchMissing.isPending || missingCount() === 0}
+                    disabled={searchMissing.isPending || !isMonitored() ||
+                      missingCount() === 0}
                     class="shrink-0"
                   >
                     <IconSearch class="min-[1670px]:mr-2 h-4 w-4" />
