@@ -32,6 +32,17 @@ export interface QBitTorrent {
   readonly added_on?: number;
 }
 
+export interface QBitTorrentFile {
+  readonly index?: number;
+  readonly name: string;
+  readonly size: number;
+  readonly progress: number;
+  readonly priority: number;
+  readonly is_seed: boolean;
+  readonly piece_range?: readonly number[];
+  readonly availability?: number;
+}
+
 interface QBitTorrentClientShape {
   readonly addTorrentUrl: (
     config: QBitConfig,
@@ -41,6 +52,13 @@ interface QBitTorrentClientShape {
     config: QBitConfig,
   ) => Effect.Effect<
     readonly QBitTorrent[],
+    ExternalCallError | QBitTorrentClientError
+  >;
+  readonly listTorrentContents: (
+    config: QBitConfig,
+    hash: string,
+  ) => Effect.Effect<
+    readonly QBitTorrentFile[],
     ExternalCallError | QBitTorrentClientError
   >;
   readonly pauseTorrent: (
@@ -87,6 +105,19 @@ const QBitTorrentSchema = Schema.Struct({
 });
 
 const QBitTorrentArraySchema = Schema.Array(QBitTorrentSchema);
+
+const QBitTorrentFileSchema = Schema.Struct({
+  availability: Schema.optional(Schema.Number),
+  index: Schema.optional(Schema.Number),
+  is_seed: Schema.Boolean,
+  name: Schema.String,
+  piece_range: Schema.optional(Schema.Array(Schema.Number)),
+  priority: Schema.Number,
+  progress: Schema.Number,
+  size: Schema.Number,
+});
+
+const QBitTorrentFileArraySchema = Schema.Array(QBitTorrentFileSchema);
 
 export const QBitTorrentClientLive = Layer.effect(
   QBitTorrentClient,
@@ -149,6 +180,34 @@ export const QBitTorrentClientLive = Layer.effect(
       },
     );
 
+    const listTorrentContents = Effect.fn(
+      "QBitTorrentClient.listTorrentContents",
+    )(function* (config: QBitConfig, hash: string) {
+      const cookie = yield* login(client, config);
+      const response = yield* execute(
+        client,
+        "qbit.listTorrentContents",
+        authorizedRequest(
+          config,
+          cookie,
+          HttpClientRequest.get(
+            resolveUrl(config.baseUrl, `/api/v2/torrents/files?hash=${hash}`),
+          ),
+        ),
+      );
+
+      yield* ensureOk(
+        response,
+        `qBittorrent torrent contents failed with status ${response.status}`,
+      );
+
+      return yield* decodeJson(
+        response,
+        QBitTorrentFileArraySchema,
+        "qbit.listTorrentContents.json",
+      );
+    });
+
     const pauseTorrent = Effect.fn("QBitTorrentClient.pauseTorrent")(
       function* (config: QBitConfig, hash: string) {
         yield* postHashesAction(client, config, "/api/v2/torrents/pause", hash);
@@ -197,6 +256,7 @@ export const QBitTorrentClientLive = Layer.effect(
     return {
       addTorrentUrl,
       deleteTorrent,
+      listTorrentContents,
       listTorrents,
       pauseTorrent,
       resumeTorrent,
