@@ -446,30 +446,44 @@ export function makeDownloadOrchestration(input: {
             ).limit(1),
         );
         const existing = existingRows[0];
+        const preservedImported = Boolean(existing?.reconciledAt);
+        const nextStatus = preservedImported ? "imported" : status;
+        const nextExternalState = preservedImported
+          ? (existing?.externalState ?? "imported")
+          : torrent.state;
+        const nextDownloadDate = preservedImported
+          ? (existing?.downloadDate ?? nowIso())
+          : status === "completed"
+          ? nowIso()
+          : null;
 
         yield* tryDatabasePromise(
           "Failed to sync downloads with qBittorrent",
           () =>
             db.update(downloads).set({
               contentPath: torrent.content_path ?? null,
-              downloadDate: status === "completed" ? nowIso() : null,
+              downloadDate: nextDownloadDate,
               downloadedBytes: torrent.downloaded,
-              errorMessage: status === "error"
+              errorMessage: preservedImported
+                ? null
+                : status === "error"
                 ? `qBittorrent state: ${torrent.state}`
                 : null,
               etaSeconds: torrent.eta,
-              externalState: torrent.state,
-              lastErrorAt: status === "error" ? nowIso() : null,
+              externalState: nextExternalState,
+              lastErrorAt: preservedImported || status !== "error"
+                ? null
+                : nowIso(),
               lastSyncedAt: nowIso(),
               progress: Math.round(torrent.progress * 100),
               savePath: torrent.save_path ?? null,
               speedBytes: torrent.dlspeed,
-              status,
+              status: nextStatus,
               totalBytes: torrent.size,
             }).where(eq(downloads.infoHash, torrent.hash.toLowerCase())),
         );
 
-        if (existing && existing.status !== status) {
+        if (existing && existing.status !== nextStatus) {
           yield* tryDatabasePromise(
             "Failed to sync downloads with qBittorrent",
             () =>
@@ -478,8 +492,8 @@ export function makeDownloadOrchestration(input: {
                 downloadId: existing.id,
                 eventType: "download.status_changed",
                 fromStatus: existing.status,
-                message: `${existing.torrentName} moved to ${status}`,
-                toStatus: status,
+                message: `${existing.torrentName} moved to ${nextStatus}`,
+                toStatus: nextStatus,
               }),
           );
         }
@@ -906,28 +920,46 @@ export function makeDownloadOrchestration(input: {
   };
 }
 
-function mapQBitState(state: string): string {
+export function mapQBitState(state: string): string {
   const value = state.toLowerCase();
+
+  if (value.includes("error") || value.includes("missing")) {
+    return "error";
+  }
+
   if (
-    value.includes("downloading") || value.includes("forceddl") ||
-    value.includes("metadl")
-  ) {
-    return "downloading";
-  }
-  if (value.includes("queued")) {
-    return "queued";
-  }
-  if (value.includes("paused")) {
-    return "paused";
-  }
-  if (
-    value.includes("upload") || value.includes("stalledup") ||
+    value.includes("uploading") || value.includes("pausedup") ||
+    value.includes("queuedup") || value.includes("stalledup") ||
+    value.includes("checkingup") || value.includes("forcedup") ||
     value.includes("completed")
   ) {
     return "completed";
   }
-  if (value.includes("error") || value.includes("missing")) {
-    return "error";
+
+  if (value.includes("pauseddl")) {
+    return "paused";
   }
+
+  if (value.includes("queueddl")) {
+    return "queued";
+  }
+
+  if (
+    value.includes("downloading") || value.includes("forceddl") ||
+    value.includes("metadl") || value.includes("stalleddl") ||
+    value.includes("checkingdl") || value.includes("allocating") ||
+    value.includes("checkingresumedata") || value.includes("moving")
+  ) {
+    return "downloading";
+  }
+
+  if (value.includes("queued")) {
+    return "queued";
+  }
+
+  if (value.includes("paused")) {
+    return "paused";
+  }
+
   return "queued";
 }
