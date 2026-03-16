@@ -3,7 +3,7 @@ import { assertEquals } from "@std/assert";
 import { Effect, Stream } from "effect";
 
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import { runTestEffect } from "../../test/effect-test.ts";
+import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 import { scanVideoFiles, scanVideoFilesStream } from "./file-scanner.ts";
 
 const tree = new Map<string, Deno.DirEntry[]>([
@@ -75,6 +75,14 @@ Deno.test("scanVideoFiles collects iterator output", async () => {
       "/library/show/season-2/episode-02.mp4",
     ],
   );
+});
+
+Deno.test("scanVideoFiles fails when the root path is inaccessible", async () => {
+  const exit = await runTestEffectExit(
+    scanVideoFiles(mockFs, "/library/show/season-2/broken"),
+  );
+
+  assertEquals(exit._tag, "Failure");
 });
 
 function entry(

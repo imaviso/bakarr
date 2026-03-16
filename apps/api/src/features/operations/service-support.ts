@@ -2,6 +2,10 @@ import { Effect } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { DatabaseError } from "../../db/database.ts";
+import {
+  toDatabaseError,
+  tryDatabasePromise as baseTryDatabasePromise,
+} from "../../lib/effect-db.ts";
 export {
   makeCoalescedEffectRunner,
   makeLatestValuePublisher,
@@ -14,6 +18,7 @@ import {
   OperationsConflictError,
   type OperationsError,
   OperationsInputError,
+  OperationsPathError,
 } from "./errors.ts";
 import type { QBitConfig } from "./qbittorrent.ts";
 
@@ -41,7 +46,7 @@ export function maybeQBitConfig(config: Config): QBitConfig | null {
 }
 
 export function dbError(message: string) {
-  return (cause: unknown) => new DatabaseError({ cause, message });
+  return toDatabaseError(message);
 }
 
 export function wrapOperationsError(message: string) {
@@ -50,6 +55,7 @@ export function wrapOperationsError(message: string) {
       cause instanceof OperationsAnimeNotFoundError ||
       cause instanceof OperationsInputError ||
       cause instanceof OperationsConflictError ||
+      cause instanceof OperationsPathError ||
       cause instanceof DownloadNotFoundError ||
       cause instanceof DownloadConflictError ||
       cause instanceof ExternalCallError ||
@@ -58,18 +64,17 @@ export function wrapOperationsError(message: string) {
       return cause;
     }
 
-    return new DatabaseError({ cause, message });
+    return toDatabaseError(message)(cause);
   };
 }
 
-export const tryDatabasePromise: TryDatabasePromise = (message, try_) =>
-  Effect.tryPromise({
-    try: try_,
-    catch: dbError(message),
-  });
+export const tryDatabasePromiseEffect: TryDatabasePromise = (message, try_) =>
+  baseTryDatabasePromise(message, try_);
 
 export const tryOperationsPromise: TryOperationsPromise = (message, try_) =>
   Effect.tryPromise({
     try: try_,
     catch: wrapOperationsError(message),
   });
+
+export { tryDatabasePromiseEffect as tryDatabasePromise };

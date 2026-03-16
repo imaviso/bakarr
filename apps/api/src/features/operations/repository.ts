@@ -9,8 +9,6 @@ import type {
   ReleaseProfileRule,
   RssFeed,
 } from "../../../../../packages/shared/src/index.ts";
-import type { ImportMode } from "../../../../../packages/shared/src/index.ts";
-import { Schema } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import {
   anime,
@@ -23,28 +21,14 @@ import {
   rssFeeds,
 } from "../../db/schema.ts";
 import {
-  decodeConfigCore,
-  decodeNumberList,
+  decodeNumberListOrThrow,
   decodeOptionalNumberList,
-  decodeQualityProfileRow,
-  decodeReleaseProfileRules,
+  decodeQualityProfileRowOrThrow,
+  decodeReleaseProfileRulesOrThrow,
+  decodeStoredConfigRowOrThrow,
+  decodeStoredLibraryConfigOrThrow,
 } from "../system/config-codec.ts";
-import { LibraryConfigSchema } from "../system/config-schema.ts";
-import { makeDefaultConfig } from "../system/defaults.ts";
 import { OperationsAnimeNotFoundError } from "./errors.ts";
-
-const PartialLibraryConfigSchema = Schema.Struct({
-  library: Schema.optional(
-    Schema.partialWith({ exact: true })(
-      LibraryConfigSchema,
-    ),
-  ),
-});
-
-const PartialLibraryConfigJsonSchema: Schema.Schema<
-  Schema.Schema.Type<typeof PartialLibraryConfigSchema>,
-  string
-> = Schema.parseJson(PartialLibraryConfigSchema);
 
 export interface CurrentEpisodeState {
   readonly downloaded: boolean;
@@ -158,17 +142,12 @@ export function toDownloadStatus(
 
 export async function loadRuntimeConfig(db: AppDatabase): Promise<Config> {
   const rows = await db.select().from(appConfig).limit(1);
-
-  if (!rows[0]) {
-    throw new Error("System config not initialized");
-  }
-
-  const core = decodeConfigCore(rows[0].data);
+  const core = decodeStoredConfigRowOrThrow(rows[0]);
   const profileRows = await db.select().from(qualityProfiles);
 
   return {
     ...core,
-    profiles: profileRows.map(decodeQualityProfileRow),
+    profiles: profileRows.map(decodeQualityProfileRowOrThrow),
   };
 }
 
@@ -184,20 +163,20 @@ export async function loadQualityProfile(
     return null;
   }
 
-  return decodeQualityProfileRow(rows[0]);
+  return decodeQualityProfileRowOrThrow(rows[0]);
 }
 
 export async function loadReleaseRules(
   db: AppDatabase,
   animeRow: typeof anime.$inferSelect,
 ): Promise<readonly ReleaseProfileRule[]> {
-  const assignedIds = decodeNumberList(animeRow.releaseProfileIds);
+  const assignedIds = decodeNumberListOrThrow(animeRow.releaseProfileIds);
   const rows = await db.select().from(releaseProfiles);
   return rows
     .filter((row) =>
       row.enabled && (row.isGlobal || assignedIds.includes(row.id))
     )
-    .flatMap((row) => decodeReleaseProfileRules(row.rules));
+    .flatMap((row) => decodeReleaseProfileRulesOrThrow(row.rules));
 }
 
 export async function loadCurrentEpisodeState(
@@ -222,51 +201,17 @@ export async function loadCurrentEpisodeState(
 export async function getConfigLibraryPath(db: AppDatabase) {
   const rows = await db.select().from(appConfig).limit(1);
 
-  return decodeLibraryConfig(rows[0]?.data).library_path;
+  return decodeStoredLibraryConfigOrThrow(rows[0]).library_path;
 }
 
 export async function currentImportMode(db: AppDatabase) {
   const rows = await db.select().from(appConfig).limit(1);
 
-  return decodeLibraryConfig(rows[0]?.data).import_mode;
+  return decodeStoredLibraryConfigOrThrow(rows[0]).import_mode;
 }
 
 export async function currentNamingFormat(db: AppDatabase) {
   const rows = await db.select().from(appConfig).limit(1);
 
-  return decodeLibraryConfig(rows[0]?.data).naming_format;
-}
-
-function decodeLibraryConfig(value: string | undefined) {
-  const defaults = makeDefaultConfig(":memory:").library;
-
-  if (!value) {
-    return defaults;
-  }
-
-  try {
-    const decoded = decodeConfigCore(value).library;
-
-    return {
-      ...defaults,
-      ...decoded,
-    };
-  } catch {
-    try {
-      const parsed = Schema.decodeUnknownSync(PartialLibraryConfigJsonSchema)(
-        value,
-      );
-      const importMode: ImportMode = parsed.library?.import_mode ??
-        defaults.import_mode;
-      const libraryPath = parsed.library?.library_path ?? defaults.library_path;
-
-      return {
-        ...defaults,
-        import_mode: importMode,
-        library_path: libraryPath,
-      };
-    } catch {
-      return defaults;
-    }
-  }
+  return decodeStoredLibraryConfigOrThrow(rows[0]).naming_format;
 }

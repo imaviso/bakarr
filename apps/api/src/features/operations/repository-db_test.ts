@@ -21,6 +21,10 @@ import {
 } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 import {
+  StoredConfigCorruptError,
+  StoredConfigMissingError,
+} from "../system/errors.ts";
+import {
   currentImportMode,
   getConfigLibraryPath,
   loadCurrentEpisodeState,
@@ -31,7 +35,7 @@ import {
 } from "./repository.ts";
 import { OperationsAnimeNotFoundError } from "./errors.ts";
 
-Deno.test("operations repository helpers load runtime config and fallback values", async () => {
+Deno.test("operations repository helpers load runtime config and config-backed library settings", async () => {
   await withTestDb(async (db, databaseFile) => {
     await db.insert(appConfig).values({
       id: 1,
@@ -75,10 +79,27 @@ Deno.test("operations repository helpers load runtime config and fallback values
   });
 });
 
-Deno.test("operations repository helpers fall back on missing or invalid config rows", async () => {
+Deno.test("operations repository helpers fall back only on missing config rows", async () => {
   await withTestDb(async (db, _databaseFile) => {
     assertEquals(await getConfigLibraryPath(db), "./library");
     assertEquals(await currentImportMode(db), "copy");
+    await assertRejects(
+      () => loadRuntimeConfig(db),
+      StoredConfigMissingError,
+      "Stored configuration is missing",
+    );
+
+    await db.insert(qualityProfiles).values(
+      encodeQualityProfileRow({
+        allowed_qualities: ["1080p", "720p"],
+        cutoff: "1080p",
+        max_size: "4GB",
+        min_size: null,
+        name: "Default",
+        seadex_preferred: true,
+        upgrade_allowed: true,
+      }),
+    );
 
     await db.insert(appConfig).values({
       id: 1,
@@ -86,8 +107,21 @@ Deno.test("operations repository helpers fall back on missing or invalid config 
       updatedAt: "2024-01-01T00:00:00.000Z",
     });
 
-    assertEquals(await getConfigLibraryPath(db), "./library");
-    assertEquals(await currentImportMode(db), "copy");
+    await assertRejects(
+      () => getConfigLibraryPath(db),
+      StoredConfigCorruptError,
+      "Stored library config is corrupt and could not be decoded",
+    );
+    await assertRejects(
+      () => currentImportMode(db),
+      StoredConfigCorruptError,
+      "Stored library config is corrupt and could not be decoded",
+    );
+    await assertRejects(
+      () => loadRuntimeConfig(db),
+      StoredConfigCorruptError,
+      "Stored configuration is corrupt and could not be decoded",
+    );
   });
 });
 

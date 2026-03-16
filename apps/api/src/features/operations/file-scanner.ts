@@ -1,5 +1,5 @@
 import { Chunk, Effect, Option, Stream } from "effect";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
 import {
   parseEpisodeNumber,
   parseEpisodeNumbers,
@@ -26,7 +26,7 @@ export const scanVideoFiles = Effect.fn("Operations.scanVideoFiles")(
 export function scanVideoFilesStream(
   fs: FileSystemShape,
   path: string,
-): Stream.Stream<ScannedVideoFile> {
+): Stream.Stream<ScannedVideoFile, FileSystemError> {
   return Stream.unfoldChunkEffect([path], (stack) =>
     Effect.gen(function* () {
       if (stack.length === 0) {
@@ -40,9 +40,13 @@ export function scanVideoFilesStream(
         return Option.none();
       }
 
+      const isRoot = current === path;
+
       const entries = yield* fs.readDir(current).pipe(
         Effect.catchTag("FileSystemError", (error) =>
-          isNotFoundError(error)
+          isRoot
+            ? Effect.fail(error)
+            : isNotFoundError(error)
             ? Effect.succeed<Deno.DirEntry[]>([])
             : Effect.logWarning("Skipping inaccessible directory during scan")
               .pipe(

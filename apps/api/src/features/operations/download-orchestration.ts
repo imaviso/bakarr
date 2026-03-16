@@ -51,6 +51,7 @@ import {
   ExternalCallError,
   type OperationsError,
   OperationsInputError,
+  OperationsPathError,
 } from "./errors.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type {
@@ -178,6 +179,13 @@ export function makeDownloadOrchestration(input: {
       const batchPaths = yield* resolveBatchContentPaths(
         fs,
         resolvedContentRoot,
+      ).pipe(
+        Effect.mapError(() =>
+          new OperationsPathError({
+            message:
+              `Download content path is inaccessible: ${resolvedContentRoot}`,
+          })
+        ),
       );
 
       if (batchPaths.length > 0) {
@@ -353,6 +361,13 @@ export function makeDownloadOrchestration(input: {
       fs,
       resolvedContentRoot,
       row.episodeNumber,
+    ).pipe(
+      Effect.mapError(() =>
+        new OperationsPathError({
+          message:
+            `Download content path is inaccessible: ${resolvedContentRoot}`,
+        })
+      ),
     );
 
     if (!resolvedPath) {

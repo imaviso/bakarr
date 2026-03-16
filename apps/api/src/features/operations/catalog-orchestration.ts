@@ -53,6 +53,7 @@ import {
   type FileSystemShape,
   sanitizeFilename,
 } from "../../lib/filesystem.ts";
+import { OperationsPathError } from "./errors.ts";
 
 export function makeCatalogOrchestration(input: {
   db: AppDatabase;
@@ -106,7 +107,11 @@ export function makeCatalogOrchestration(input: {
 
       for (const item of preview) {
         const result = yield* fs.rename(item.current_path, item.new_path).pipe(
-          Effect.mapError(dbError("Failed to rename files")),
+          Effect.mapError(() =>
+            new OperationsPathError({
+              message: `Failed to rename file ${item.current_path}`,
+            })
+          ),
           Effect.zipRight(
             tryOperationsPromise(
               "Failed to rename files",
@@ -177,10 +182,9 @@ export function makeCatalogOrchestration(input: {
     for (const file of files) {
       const result = yield* Effect.gen(function* () {
         const resolvedSource = yield* fs.realPath(file.source_path).pipe(
-          Effect.mapError((error) =>
-            new DatabaseError({
-              cause: error,
-              message: "Failed to import files",
+          Effect.mapError(() =>
+            new OperationsPathError({
+              message: `Source path is inaccessible: ${file.source_path}`,
             })
           ),
         );
@@ -197,29 +201,29 @@ export function makeCatalogOrchestration(input: {
         } - ${String(file.episode_number).padStart(2, "0")}${extension}`;
 
         yield* fs.mkdir(animeRow.rootFolder, { recursive: true }).pipe(
-          Effect.mapError((error) =>
-            new DatabaseError({
-              cause: error,
-              message: "Failed to import files",
+          Effect.mapError(() =>
+            new OperationsPathError({
+              message:
+                `Failed to create or access destination folder ${animeRow.rootFolder}`,
             })
           ),
         );
 
         if (importMode === "move") {
           yield* fs.rename(resolvedSource, destination).pipe(
-            Effect.mapError((error) =>
-              new DatabaseError({
-                cause: error,
-                message: "Failed to import files",
+            Effect.mapError(() =>
+              new OperationsPathError({
+                message:
+                  `Failed to move file into library: ${file.source_path}`,
               })
             ),
           );
         } else {
           yield* fs.copyFile(resolvedSource, destination).pipe(
-            Effect.mapError((error) =>
-              new DatabaseError({
-                cause: error,
-                message: "Failed to import files",
+            Effect.mapError(() =>
+              new OperationsPathError({
+                message:
+                  `Failed to copy file into library: ${file.source_path}`,
               })
             ),
           );
@@ -571,6 +575,12 @@ export function makeCatalogOrchestration(input: {
             fs,
             animeRow.rootFolder,
           ).pipe(
+            Stream.mapError(() =>
+              new OperationsPathError({
+                message:
+                  `Anime library folder is inaccessible: ${animeRow.rootFolder}`,
+              })
+            ),
             Stream.runFoldEffect(
               { matchedFiles: 0, scannedFiles: 0 },
               (counts, file) =>
@@ -655,7 +665,10 @@ export function makeCatalogOrchestration(input: {
             () => markJobFailed(db, "library_scan", cause),
           ).pipe(
             Effect.zipRight(
-              Effect.fail(dbError("Failed to run library scan")(cause)),
+              cause instanceof DatabaseError ||
+                cause instanceof OperationsPathError
+                ? Effect.fail(cause)
+                : Effect.fail(dbError("Failed to run library scan")(cause)),
             ),
           )
         ),

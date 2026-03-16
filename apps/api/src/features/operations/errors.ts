@@ -34,10 +34,17 @@ export class OperationsConflictError
     { message: Schema.String },
   ) {}
 
+export class OperationsPathError
+  extends Schema.TaggedError<OperationsPathError>()(
+    "OperationsPathError",
+    { message: Schema.String },
+  ) {}
+
 export type OperationsError =
   | DownloadNotFoundError
   | DownloadConflictError
   | OperationsConflictError
   | OperationsAnimeNotFoundError
   | OperationsInputError
+  | OperationsPathError
   | ExternalCallError;
