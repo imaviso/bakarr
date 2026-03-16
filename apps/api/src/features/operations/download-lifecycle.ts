@@ -9,9 +9,11 @@ import {
 import { scanVideoFiles } from "./file-scanner.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import {
+  buildPathParseContext,
   classifyMediaArtifact,
   parseFileSourceIdentity,
 } from "../../lib/media-identity.ts";
+import type { QBitTorrentFile } from "./qbittorrent.ts";
 
 export function parseMagnetInfoHash(
   magnet: string | null | undefined,
@@ -143,6 +145,7 @@ export async function hasOverlappingDownload(
 export function inferCoveredEpisodeNumbers(input: {
   readonly explicitEpisodes: readonly number[];
   readonly isBatch: boolean;
+  readonly totalEpisodes?: number | null;
   readonly missingEpisodes: readonly number[];
   readonly requestedEpisode: number;
 }): readonly number[] {
@@ -174,7 +177,54 @@ export function inferCoveredEpisodeNumbers(input: {
     return contiguous;
   }
 
+  if (input.totalEpisodes && input.totalEpisodes >= input.requestedEpisode) {
+    return rangeArray(input.requestedEpisode, input.totalEpisodes);
+  }
+
   return [input.requestedEpisode];
+}
+
+export function inferCoveredEpisodesFromTorrentContents(input: {
+  readonly files: readonly QBitTorrentFile[];
+  readonly rootName: string;
+}) {
+  const episodes = new Set<number>();
+
+  for (const file of input.files) {
+    const fullPath = `${input.rootName.replace(/\/+$/, "")}/${
+      file.name.replace(/^\/+/, "")
+    }`;
+    const fileName = file.name.split("/").pop() ?? file.name;
+    const classification = classifyMediaArtifact(fullPath, fileName);
+
+    if (classification.kind !== "episode") {
+      continue;
+    }
+
+    const context = buildPathParseContext(input.rootName, fullPath);
+    const parsed = parseFileSourceIdentity(fullPath, context);
+    const identity = parsed.source_identity;
+
+    if (!identity || identity.scheme === "daily") {
+      continue;
+    }
+
+    for (const episode of identity.episode_numbers) {
+      episodes.add(episode);
+    }
+  }
+
+  return [...episodes].sort((left, right) => left - right);
+}
+
+function rangeArray(start: number, end: number): number[] {
+  const values: number[] = [];
+
+  for (let value = start; value <= end; value += 1) {
+    values.push(value);
+  }
+
+  return values;
 }
 
 export const resolveAccessibleDownloadPath = Effect.fn(

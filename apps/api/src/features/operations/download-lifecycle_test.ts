@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import {
   applyRemotePathMappings,
   inferCoveredEpisodeNumbers,
+  inferCoveredEpisodesFromTorrentContents,
   parseCoveredEpisodes,
   parseMagnetInfoHash,
   resolveAccessibleDownloadPath,
@@ -209,6 +210,7 @@ filesystemTest(
         isBatch: true,
         missingEpisodes: [3, 4, 5, 6],
         requestedEpisode: 3,
+        totalEpisodes: undefined,
       }),
       [3, 4, 5],
     );
@@ -219,6 +221,7 @@ filesystemTest(
         isBatch: true,
         missingEpisodes: [5, 6, 7],
         requestedEpisode: 5,
+        totalEpisodes: undefined,
       }),
       [5, 6, 7],
     );
@@ -229,6 +232,7 @@ filesystemTest(
         isBatch: true,
         missingEpisodes: [5, 6, 8, 9],
         requestedEpisode: 5,
+        totalEpisodes: undefined,
       }),
       [5, 6],
     );
@@ -239,11 +243,58 @@ filesystemTest(
         isBatch: false,
         missingEpisodes: [5, 6, 7],
         requestedEpisode: 5,
+        totalEpisodes: undefined,
       }),
       [5],
     );
+
+    assertEquals(
+      inferCoveredEpisodeNumbers({
+        explicitEpisodes: [],
+        isBatch: true,
+        missingEpisodes: [],
+        requestedEpisode: 1,
+        totalEpisodes: 12,
+      }),
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    );
   },
 );
+
+Deno.test("inferCoveredEpisodesFromTorrentContents parses real batch file lists", () => {
+  assertEquals(
+    inferCoveredEpisodesFromTorrentContents({
+      files: [
+        {
+          index: 0,
+          is_seed: false,
+          name: "Season 01/Chainsaw Man - 01.mkv",
+          priority: 1,
+          progress: 1,
+          size: 100,
+        },
+        {
+          index: 1,
+          is_seed: false,
+          name: "Season 01/Chainsaw Man - 02.mkv",
+          priority: 1,
+          progress: 1,
+          size: 100,
+        },
+        {
+          index: 2,
+          is_seed: false,
+          name: "Season 01/NCOP.mkv",
+          priority: 1,
+          progress: 1,
+          size: 100,
+        },
+      ],
+      rootName: "Chainsaw Man",
+    }),
+    [1, 2],
+  );
+});
 
 filesystemTest(
   "applyRemotePathMappings rewrites qBittorrent remote paths",

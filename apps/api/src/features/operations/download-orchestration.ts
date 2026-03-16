@@ -28,6 +28,7 @@ import {
 import {
   hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
+  inferCoveredEpisodesFromTorrentContents,
   parseCoveredEpisodes,
   parseMagnetInfoHash,
   resolveAccessibleDownloadPath,
@@ -49,6 +50,7 @@ import {
   DownloadNotFoundError,
   ExternalCallError,
   type OperationsError,
+  OperationsInputError,
 } from "./errors.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type {
@@ -483,6 +485,17 @@ export function makeDownloadOrchestration(input: {
             }).where(eq(downloads.infoHash, torrent.hash.toLowerCase())),
         );
 
+        if (existing && existing.isBatch && !preservedImported) {
+          yield* refineBatchCoverageFromTorrentFiles({
+            animeId: existing.animeId,
+            downloadId: existing.id,
+            existingCoveredEpisodes: existing.coveredEpisodes,
+            infoHash: torrent.hash.toLowerCase(),
+            qbitConfig,
+            torrentName: torrent.name,
+          });
+        }
+
         if (existing && existing.status !== nextStatus) {
           yield* tryDatabasePromise(
             "Failed to sync downloads with qBittorrent",
@@ -564,6 +577,80 @@ export function makeDownloadOrchestration(input: {
       }).pipe(Effect.withSpan("operations.downloads.sync_state"));
     },
   );
+
+  const refineBatchCoverageFromTorrentFiles = Effect.fn(
+    "OperationsService.refineBatchCoverageFromTorrentFiles",
+  )(function* (input: {
+    animeId: number;
+    downloadId: number;
+    existingCoveredEpisodes: string | null;
+    infoHash: string;
+    qbitConfig: QBitConfig | null;
+    torrentName: string;
+  }) {
+    if (!input.qbitConfig) {
+      return;
+    }
+
+    const contentsResult = yield* qbitClient.listTorrentContents(
+      input.qbitConfig,
+      input.infoHash,
+    ).pipe(Effect.either);
+
+    if (contentsResult._tag === "Left") {
+      yield* Effect.logDebug("Failed to inspect qBittorrent file list").pipe(
+        Effect.annotateLogs({
+          downloadId: input.downloadId,
+          error: String(contentsResult.left),
+          infoHash: input.infoHash,
+        }),
+      );
+      return;
+    }
+
+    const inferredEpisodes = inferCoveredEpisodesFromTorrentContents({
+      files: contentsResult.right,
+      rootName: input.torrentName,
+    });
+
+    if (inferredEpisodes.length === 0) {
+      return;
+    }
+
+    const currentEpisodes = parseCoveredEpisodes(input.existingCoveredEpisodes);
+    if (
+      currentEpisodes.length === inferredEpisodes.length &&
+      currentEpisodes.every((episode, index) =>
+        episode === inferredEpisodes[index]
+      )
+    ) {
+      return;
+    }
+
+    yield* tryDatabasePromise(
+      "Failed to sync downloads with qBittorrent",
+      () =>
+        db.update(downloads).set({
+          coveredEpisodes: toCoveredEpisodesJson(inferredEpisodes),
+          episodeNumber: inferredEpisodes[0] ?? 1,
+          isBatch: inferredEpisodes.length > 1,
+        }).where(eq(downloads.id, input.downloadId)),
+    );
+
+    yield* tryDatabasePromise(
+      "Failed to sync downloads with qBittorrent",
+      () =>
+        recordDownloadEvent(db, {
+          animeId: input.animeId,
+          downloadId: input.downloadId,
+          eventType: "download.coverage_refined",
+          message: `Refined batch episodes from qBittorrent file list: ${
+            inferredEpisodes.join(", ")
+          }`,
+          metadata: toCoveredEpisodesJson(inferredEpisodes),
+        }),
+    );
+  });
 
   const applyDownloadActionEffect = Effect.fn(
     "OperationsService.applyDownloadAction",
@@ -746,7 +833,7 @@ export function makeDownloadOrchestration(input: {
     function* (input: {
       anime_id: number;
       magnet: string;
-      episode_number: number;
+      episode_number?: number;
       title: string;
       group?: string;
       info_hash?: string;
@@ -765,29 +852,44 @@ export function makeDownloadOrchestration(input: {
             () => loadRuntimeConfig(db),
           );
           const parsedRelease = parseReleaseName(input.title);
+          const effectiveIsBatch = input.is_batch ?? parsedRelease.isBatch;
+          const requestedEpisode = resolveRequestedEpisodeNumber({
+            explicitEpisode: input.episode_number,
+            inferredEpisodes: parsedRelease.episodeNumbers,
+            isBatch: effectiveIsBatch,
+          });
+
+          if (!requestedEpisode) {
+            return yield* new OperationsInputError({
+              message:
+                "episode_number is required when the release title does not include episode information",
+            });
+          }
+
           const missingEpisodes = yield* tryDatabasePromise(
             "Failed to trigger download",
             () => loadMissingEpisodeNumbers(db, animeRow.id),
           );
-          const coveredEpisodes = toCoveredEpisodesJson(
-            inferCoveredEpisodeNumbers({
+          const shouldDeferBatchCoverage = effectiveIsBatch &&
+            parsedRelease.episodeNumbers.length === 0;
+          const inferredCoveredEpisodes = shouldDeferBatchCoverage
+            ? []
+            : inferCoveredEpisodeNumbers({
               explicitEpisodes: parsedRelease.episodeNumbers,
-              isBatch: input.is_batch ?? parsedRelease.isBatch,
+              isBatch: effectiveIsBatch,
+              totalEpisodes: animeRow.episodeCount,
               missingEpisodes,
-              requestedEpisode: input.episode_number,
-            }),
+              requestedEpisode,
+            });
+          const coveredEpisodes = toCoveredEpisodesJson(
+            inferredCoveredEpisodes,
           );
           const infoHash =
             (input.info_hash ?? parseMagnetInfoHash(input.magnet))
               ?.toLowerCase() ?? null;
 
           if (infoHash) {
-            const coveredNumbers = inferCoveredEpisodeNumbers({
-              explicitEpisodes: parsedRelease.episodeNumbers,
-              isBatch: input.is_batch ?? parsedRelease.isBatch,
-              missingEpisodes,
-              requestedEpisode: input.episode_number,
-            });
+            const coveredNumbers = inferredCoveredEpisodes;
             const overlapping = yield* tryDatabasePromise(
               "Failed to trigger download",
               () =>
@@ -816,8 +918,8 @@ export function makeDownloadOrchestration(input: {
                 contentPath: null,
                 coveredEpisodes,
                 downloadDate: null,
-                episodeNumber: input.episode_number,
-                isBatch: input.is_batch ?? parsedRelease.isBatch,
+                episodeNumber: requestedEpisode,
+                isBatch: effectiveIsBatch,
                 downloadedBytes: 0,
                 errorMessage: null,
                 etaSeconds: null,
@@ -893,7 +995,9 @@ export function makeDownloadOrchestration(input: {
                 db,
                 "downloads.triggered",
                 "success",
-                `Queued download for ${animeRow.titleRomaji} episode ${input.episode_number}`,
+                shouldDeferBatchCoverage
+                  ? `Queued batch download for ${animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered episodes`
+                  : `Queued download for ${animeRow.titleRomaji} episode ${requestedEpisode}`,
               ),
           );
           yield* eventBus.publish({
@@ -918,6 +1022,27 @@ export function makeDownloadOrchestration(input: {
     syncDownloadsWithQBitEffect,
     triggerDownload,
   };
+}
+
+function resolveRequestedEpisodeNumber(input: {
+  explicitEpisode?: number;
+  inferredEpisodes: readonly number[];
+  isBatch: boolean;
+}) {
+  if (input.explicitEpisode && input.explicitEpisode > 0) {
+    return input.explicitEpisode;
+  }
+
+  const inferredEpisode = input.inferredEpisodes[0];
+  if (inferredEpisode && inferredEpisode > 0) {
+    return inferredEpisode;
+  }
+
+  if (input.isBatch) {
+    return 1;
+  }
+
+  return undefined;
 }
 
 export function mapQBitState(state: string): string {
