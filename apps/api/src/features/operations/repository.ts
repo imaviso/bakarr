@@ -75,14 +75,19 @@ export function toRssFeed(row: typeof rssFeeds.$inferSelect): RssFeed {
 }
 
 export function toDownload(row: typeof downloads.$inferSelect): Download {
+  const coveredEpisodes = row.coveredEpisodes
+    ? decodeOptionalNumberList(row.coveredEpisodes)
+    : undefined;
+  const coveragePending = Boolean(row.isBatch) &&
+    (!coveredEpisodes || coveredEpisodes.length === 0);
+
   return {
     added_at: row.addedAt,
     anime_id: row.animeId,
     anime_title: row.animeTitle,
     content_path: row.contentPath ?? undefined,
-    covered_episodes: row.coveredEpisodes
-      ? decodeOptionalNumberList(row.coveredEpisodes)
-      : undefined,
+    coverage_pending: coveragePending || undefined,
+    covered_episodes: coveredEpisodes,
     download_date: row.downloadDate ?? undefined,
     downloaded_bytes: row.downloadedBytes ?? undefined,
     episode_number: row.episodeNumber,
@@ -128,11 +133,21 @@ export function toDownloadStatus(
   const progress = row.progress ?? 0;
   const totalBytes = row.totalBytes ?? 0;
   const downloadedBytes = row.downloadedBytes ?? 0;
+  const coveredEpisodes = row.coveredEpisodes
+    ? decodeOptionalNumberList(row.coveredEpisodes)
+    : undefined;
+  const coveragePending = Boolean(row.isBatch) &&
+    (!coveredEpisodes || coveredEpisodes.length === 0);
+
   return {
+    coverage_pending: coveragePending || undefined,
+    covered_episodes: coveredEpisodes,
     downloaded_bytes: downloadedBytes,
     eta: row.etaSeconds ?? (row.status === "queued" ? 8640000 : 0),
     hash: row.infoHash ?? randomHash(),
     id: row.id,
+    episode_number: row.episodeNumber,
+    is_batch: row.isBatch,
     name: row.torrentName,
     progress: Math.max(0, Math.min(progress / 100, 1)),
     speed: row.speedBytes ?? (row.status === "downloading" ? 1024 * 1024 : 0),

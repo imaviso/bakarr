@@ -108,6 +108,49 @@ Deno.test("repository download mappers decode optional fields and derive status 
     status: "downloading",
   }, () => "unused");
   assertEquals(activeStatus.hash, "abcdef");
+  assertEquals(activeStatus.covered_episodes, [1, 2]);
+  assertEquals(activeStatus.coverage_pending, undefined);
+  assertEquals(activeStatus.episode_number, 1);
+  assertEquals(activeStatus.is_batch, true);
   assertEquals(activeStatus.progress, 0.8);
   assertEquals(activeStatus.speed, 1024 * 1024);
+});
+
+Deno.test("repository download mappers flag unresolved batch coverage", () => {
+  const row = {
+    addedAt: "2024-01-01T00:00:00.000Z",
+    animeId: 20,
+    animeTitle: "Chainsaw Man",
+    contentPath: null,
+    coveredEpisodes: null,
+    downloadDate: null,
+    downloadedBytes: 0,
+    episodeNumber: 1,
+    errorMessage: null,
+    etaSeconds: null,
+    externalState: "queued",
+    groupName: null,
+    id: 2,
+    infoHash: "abcdef",
+    isBatch: true,
+    lastErrorAt: null,
+    lastSyncedAt: null,
+    magnet: "magnet:?xt=urn:btih:abcdef",
+    progress: 0,
+    reconciledAt: null,
+    retryCount: 0,
+    savePath: null,
+    speedBytes: 0,
+    status: "queued",
+    torrentName: "Chainsaw Man S01",
+    totalBytes: 0,
+  } satisfies typeof downloads.$inferSelect;
+
+  const download = toDownload(row);
+  const status = toDownloadStatus(row, () => "abcdef");
+
+  assertEquals(download.coverage_pending, true);
+  assertEquals(download.covered_episodes, undefined);
+  assertEquals(status.coverage_pending, true);
+  assertEquals(status.covered_episodes, undefined);
 });
