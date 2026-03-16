@@ -10,3 +10,9 @@ export type AppVariables = {
   requestId: string;
   viewer: AuthUser | null;
 };
+
+export interface RouteErrorResponse {
+  readonly headers?: Record<string, string>;
+  readonly message: string;
+  readonly status: number;
+}

@@ -11,6 +11,7 @@ import { AnimeService } from "../features/anime/service.ts";
 import { AuthError } from "../features/auth/service.ts";
 import { DownloadService } from "../features/operations/service.ts";
 import { FileSystem, FileSystemError } from "../lib/filesystem.ts";
+import { EpisodeStreamRangeError } from "./streaming-errors.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
@@ -39,16 +40,6 @@ const StreamQuerySchema = Schema.Struct({
   exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
   sig: Schema.String.pipe(Schema.minLength(1)),
 });
-
-class EpisodeStreamRangeError
-  extends Schema.TaggedError<EpisodeStreamRangeError>()(
-    "EpisodeStreamRangeError",
-    {
-      fileSize: Schema.Number,
-      message: Schema.String,
-      status: Schema.Literal(416),
-    },
-  ) {}
 
 interface ByteRange {
   readonly end: number;
