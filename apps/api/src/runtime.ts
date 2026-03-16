@@ -18,6 +18,10 @@ import {
   QBitTorrentClientLive,
 } from "./features/operations/qbittorrent.ts";
 import { RssClient, RssClientLive } from "./features/operations/rss-client.ts";
+import {
+  SeaDexClient,
+  SeaDexClientLive,
+} from "./features/operations/seadex-client.ts";
 import { OperationsServiceLive } from "./features/operations/service.ts";
 import { SystemServiceLive } from "./features/system/service.ts";
 import { FileSystemLive } from "./lib/filesystem.ts";
@@ -27,6 +31,7 @@ export interface RuntimeOptions {
   aniListLayer?: Layer.Layer<AniListClient>;
   qbitLayer?: Layer.Layer<QBitTorrentClient>;
   rssLayer?: Layer.Layer<RssClient>;
+  seadexLayer?: Layer.Layer<SeaDexClient>;
 }
 
 export function makeApiLayer(
@@ -51,10 +56,14 @@ export function makeApiLayer(
   const qbitLayer = options?.qbitLayer
     ? options.qbitLayer
     : QBitTorrentClientLive.pipe(Layer.provide(httpClientLayer));
+  const seadexLayer = options?.seadexLayer
+    ? options.seadexLayer
+    : SeaDexClientLive.pipe(Layer.provide(httpClientLayer));
   const externalClientsLayer = Layer.mergeAll(
     aniListLayer,
     rssLayer,
     qbitLayer,
+    seadexLayer,
   ).pipe(Layer.provide(httpClientLayer));
   const platformLayer = Layer.mergeAll(
     configLayer,

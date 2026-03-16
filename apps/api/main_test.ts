@@ -11,7 +11,13 @@ import {
   type ParsedRelease,
   RssClient,
 } from "./src/features/operations/rss-client.ts";
+import {
+  SeaDexClient,
+  type SeaDexEntry,
+} from "./src/features/operations/seadex-client.ts";
 import type { AnimeSearchResult } from "../../packages/shared/src/index.ts";
+
+const NARUTO_RELEASE_TITLE = "[SubsPlease] Naruto - 01 (1080p) [ABC123].mkv";
 
 const integrationTestPermissions: Deno.PermissionOptions = {
   env: true,
@@ -40,6 +46,321 @@ integrationTest("GET /health returns ok", async () => {
     await ctx.dispose();
   }
 });
+
+integrationTest(
+  "search releases enriches SeaDex metadata using AniList ID",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const baseRoot = await Deno.makeTempDir();
+
+      try {
+        const addResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: baseRoot,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        assertEquals(addResponse.status, 200);
+
+        const response = await ctx.app.request(
+          "/api/search/releases?query=Naruto&anime_id=20",
+          { headers: { Cookie: sessionCookie } },
+        );
+        assertEquals(response.status, 200);
+
+        const body = await response.json();
+        assertEquals(body.seadex_groups, ["SubsPlease"]);
+        assertEquals(body.results.length, 1);
+        assertEquals(body.results[0].is_seadex, true);
+        assertEquals(body.results[0].is_seadex_best, true);
+        assertEquals(body.results[0].seadex_release_group, "SubsPlease");
+        assertEquals(
+          body.results[0].seadex_comparison,
+          "https://releases.moe/compare/naruto",
+        );
+        assertEquals(
+          body.results[0].seadex_notes,
+          "Prefer the SeaDex best release when available.",
+        );
+        assertEquals(body.results[0].seadex_tags, ["Best", "Dual Audio"]);
+        assertEquals(body.results[0].seadex_dual_audio, true);
+      } finally {
+        await Deno.remove(baseRoot, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "search releases can match SeaDex by Nyaa URL when info hash is unavailable",
+  async () => {
+    const seadexLayer = Layer.succeed(SeaDexClient, {
+      getEntryByAniListId: (_aniListId: number) =>
+        Effect.succeed({
+          alID: 20,
+          comparison: "https://releases.moe/compare/naruto-url",
+          incomplete: false,
+          notes: "Matched by Nyaa URL fallback.",
+          releases: [{
+            dualAudio: false,
+            groupedUrl: "https://releases.moe/collections/naruto-url",
+            infoHash: undefined,
+            isBest: false,
+            releaseGroup: "OtherGroup",
+            tags: ["Alt"],
+            tracker: "Nyaa",
+            url: "https://nyaa.si/download/7891011.torrent",
+          }],
+        }),
+    });
+    const rssLayer = Layer.succeed(RssClient, {
+      fetchItems: (_url: string) =>
+        Effect.succeed([
+          makeTestRelease("[MysteryGroup] Naruto - 01 (1080p)", {
+            group: "MysteryGroup",
+            infoHash: "",
+            viewUrl: "https://nyaa.si/view/7891011",
+          }),
+        ]),
+    });
+    const ctx = await createTestContext({ rssLayer, seadexLayer });
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const baseRoot = await Deno.makeTempDir();
+
+      try {
+        const addResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: baseRoot,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        assertEquals(addResponse.status, 200);
+
+        const response = await ctx.app.request(
+          "/api/search/releases?query=Naruto&anime_id=20",
+          { headers: { Cookie: sessionCookie } },
+        );
+        assertEquals(response.status, 200);
+
+        const body = await response.json();
+        assertEquals(body.results[0].is_seadex, true);
+        assertEquals(body.results[0].is_seadex_best, false);
+        assertEquals(
+          body.results[0].seadex_comparison,
+          "https://releases.moe/compare/naruto-url",
+        );
+        assertEquals(
+          body.results[0].seadex_notes,
+          "Matched by Nyaa URL fallback.",
+        );
+      } finally {
+        await Deno.remove(baseRoot, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "search releases only marks matching groups as SeaDex in fallback matching",
+  async () => {
+    const seadexLayer = Layer.succeed(SeaDexClient, {
+      getEntryByAniListId: (_aniListId: number) =>
+        Effect.succeed({
+          alID: 20,
+          comparison: "https://releases.moe/compare/yofukashi",
+          incomplete: false,
+          notes: "Okay-Subs is the recommended release.",
+          releases: [{
+            dualAudio: false,
+            groupedUrl: "https://releases.moe/collections/yofukashi",
+            infoHash: undefined,
+            isBest: true,
+            releaseGroup: "Okay-Subs",
+            tags: ["Best"],
+            tracker: "Nyaa",
+            url: "https://nyaa.si/view/999999",
+          }],
+        }),
+    });
+    const rssLayer = Layer.succeed(RssClient, {
+      fetchItems: (_url: string) =>
+        Effect.succeed([
+          makeTestRelease("[Okay-Subs] Yofukashi no Uta S2 - 12 [1080p]", {
+            group: "Okay-Subs",
+            infoHash: "",
+            viewUrl: "https://nyaa.si/view/111111",
+          }),
+          makeTestRelease("[EMBER] Yofukashi no Uta S2 - 12 [1080p]", {
+            group: "EMBER",
+            infoHash: "",
+            viewUrl: "https://nyaa.si/view/222222",
+          }),
+        ]),
+    });
+    const ctx = await createTestContext({ rssLayer, seadexLayer });
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const baseRoot = await Deno.makeTempDir();
+
+      try {
+        const addResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: baseRoot,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        assertEquals(addResponse.status, 200);
+
+        const response = await ctx.app.request(
+          "/api/search/releases?query=Yofukashi%20no%20Uta&anime_id=20",
+          { headers: { Cookie: sessionCookie } },
+        );
+        assertEquals(response.status, 200);
+
+        const body = await response.json();
+        assertEquals(body.results.length, 2);
+
+        const okaySubs = body.results.find((result: { title: string }) =>
+          result.title.includes("Okay-Subs")
+        );
+        const ember = body.results.find((result: { title: string }) =>
+          result.title.includes("EMBER")
+        );
+
+        assertEquals(okaySubs?.is_seadex, true);
+        assertEquals(okaySubs?.is_seadex_best, true);
+        assertEquals(ember?.is_seadex, false);
+        assertEquals(ember?.is_seadex_best, false);
+      } finally {
+        await Deno.remove(baseRoot, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "episode search includes SeaDex metadata in ranked results",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const baseRoot = await Deno.makeTempDir();
+
+      try {
+        const addResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: baseRoot,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        assertEquals(addResponse.status, 200);
+
+        const response = await ctx.app.request(
+          "/api/search/episode/20/1",
+          { headers: { Cookie: sessionCookie } },
+        );
+        assertEquals(response.status, 200);
+
+        const body = await response.json();
+        assertEquals(body.length, 1);
+        assertEquals(body[0].is_seadex, true);
+        assertEquals(body[0].is_seadex_best, true);
+        assertEquals(
+          body[0].seadex_comparison,
+          "https://releases.moe/compare/naruto",
+        );
+        assertEquals(body[0].seadex_dual_audio, true);
+        assertEquals(
+          body[0].seadex_notes,
+          "Prefer the SeaDex best release when available.",
+        );
+        assertEquals(body[0].seadex_tags, ["Best", "Dual Audio"]);
+        assertEquals(body[0].download_action.Accept?.is_seadex_best, true);
+      } finally {
+        await Deno.remove(baseRoot, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
 
 integrationTest(
   "cached anime images are served from the image store",
@@ -1987,6 +2308,15 @@ integrationTest(
     const qbitLayer = Layer.succeed(QBitTorrentClient, {
       addTorrentUrl: () => Effect.void,
       deleteTorrent: () => Effect.void,
+      listTorrentContents: () =>
+        Effect.succeed([{
+          index: 0,
+          is_seed: true,
+          name: "Naruto - 01.mkv",
+          priority: 1,
+          progress: 1,
+          size: 524_288_000,
+        }]),
       listTorrents: () =>
         Effect.succeed(
           [{
@@ -2112,6 +2442,238 @@ integrationTest(
       await ctx.dispose();
       await Deno.remove(animeRoot, { recursive: true });
       await Deno.remove(completedRoot, { recursive: true });
+    }
+  },
+);
+
+integrationTest(
+  "manual search download treats season-only batch torrents as batches",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const rootFolder = await Deno.makeTempDir();
+
+      try {
+        const addAnimeResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 140960,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        assertEquals(addAnimeResponse.status, 200);
+
+        const triggerDownloadResponse = await ctx.app.request(
+          "/api/search/download",
+          {
+            body: JSON.stringify({
+              anime_id: 140960,
+              magnet: "magnet:?xt=urn:btih:test-batch-season-pack",
+              title:
+                "[Flugel] Chainsaw Man S01 (BD 1080p HEVC Opus) [Multi Audio]",
+            }),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+        assertEquals(triggerDownloadResponse.status, 200);
+
+        const historyResponse = await ctx.app.request(
+          "/api/downloads/history",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+        assertEquals(historyResponse.status, 200);
+        const history = await historyResponse.json();
+
+        assertEquals(history.length, 1);
+        assertEquals(history[0].is_batch, true);
+        assertEquals(history[0].coverage_pending, true);
+        assertEquals(history[0].covered_episodes, undefined);
+        assertEquals(history[0].episode_number, 1);
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "download sync refines season-pack coverage from qBittorrent file list",
+  async () => {
+    const magnetHash = "feedfeedfeedfeedfeedfeedfeedfeedfeedfeed";
+    const qbitLayer = Layer.succeed(QBitTorrentClient, {
+      addTorrentUrl: () => Effect.void,
+      deleteTorrent: () => Effect.void,
+      listTorrentContents: () =>
+        Effect.succeed([
+          {
+            index: 0,
+            is_seed: false,
+            name: "Season 01/Chainsaw Man - 01.mkv",
+            priority: 1,
+            progress: 0.2,
+            size: 100,
+          },
+          {
+            index: 1,
+            is_seed: false,
+            name: "Season 01/Chainsaw Man - 02.mkv",
+            priority: 1,
+            progress: 0.2,
+            size: 100,
+          },
+          {
+            index: 2,
+            is_seed: false,
+            name: "Season 01/NCOP.mkv",
+            priority: 1,
+            progress: 0.2,
+            size: 100,
+          },
+        ]),
+      listTorrents: () =>
+        Effect.succeed([
+          {
+            content_path: undefined,
+            downloaded: 0,
+            dlspeed: 1,
+            eta: 99,
+            hash: magnetHash,
+            name: "Chainsaw Man S01",
+            progress: 0.2,
+            save_path: "/downloads/chainsaw-man-s01",
+            size: 300,
+            state: "downloading",
+          },
+        ]),
+      pauseTorrent: () => Effect.void,
+      resumeTorrent: () => Effect.void,
+    });
+
+    const ctx = await createTestContext({ qbitLayer });
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const currentConfigResponse = await ctx.app.request(
+        "/api/system/config",
+        { headers: { Cookie: sessionCookie } },
+      );
+      const currentConfig = await currentConfigResponse.json();
+
+      const updatedConfigResponse = await ctx.app.request(
+        "/api/system/config",
+        {
+          body: JSON.stringify({
+            ...currentConfig,
+            qbittorrent: {
+              ...currentConfig.qbittorrent,
+              enabled: true,
+              password: "secret",
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        },
+      );
+      assertEquals(updatedConfigResponse.status, 200);
+
+      const rootFolder = await Deno.makeTempDir();
+
+      try {
+        const addAnimeResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 140960,
+            monitor_and_search: false,
+            monitored: true,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+        assertEquals(addAnimeResponse.status, 200);
+
+        const triggerDownloadResponse = await ctx.app.request(
+          "/api/search/download",
+          {
+            body: JSON.stringify({
+              anime_id: 140960,
+              magnet: `magnet:?xt=urn:btih:${magnetHash}`,
+              title:
+                "[Flugel] Chainsaw Man S01 (BD 1080p HEVC Opus) [Multi Audio]",
+            }),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+        assertEquals(triggerDownloadResponse.status, 200);
+
+        const syncResponse = await ctx.app.request("/api/downloads/sync", {
+          headers: { Cookie: sessionCookie },
+          method: "POST",
+        });
+        assertEquals(syncResponse.status, 200);
+
+        const historyResponse = await ctx.app.request(
+          "/api/downloads/history",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+        assertEquals(historyResponse.status, 200);
+        const history = await historyResponse.json();
+
+        assertEquals(history.length, 1);
+        assertEquals(history[0].covered_episodes, [1, 2]);
+        assertEquals(history[0].episode_number, 1);
+        assertEquals(history[0].is_batch, true);
+        assertEquals(history[0].coverage_pending, undefined);
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
     }
   },
 );
@@ -5041,6 +5603,7 @@ function makeTestRelease(
     group: "TestGroup",
     infoHash,
     isSeaDex: false,
+    isSeaDexBest: false,
     leechers: 0,
     magnet: `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`,
     pubDate: new Date().toISOString(),
@@ -5056,13 +5619,32 @@ function makeTestRelease(
   };
 }
 
+const TEST_SEADEX_ENTRIES = new Map<number, SeaDexEntry>([
+  [20, {
+    alID: 20,
+    comparison: "https://releases.moe/compare/naruto",
+    incomplete: false,
+    notes: "Prefer the SeaDex best release when available.",
+    releases: [{
+      dualAudio: true,
+      groupedUrl: "https://releases.moe/collection/naruto",
+      infoHash: deterministicHex(NARUTO_RELEASE_TITLE),
+      isBest: true,
+      releaseGroup: "SubsPlease",
+      tags: ["Best", "Dual Audio"],
+      tracker: "Nyaa",
+      url: "https://nyaa.si/view/123",
+    }],
+  }],
+]);
+
 const testRssLayer = Layer.succeed(RssClient, {
   fetchItems: (url: string) => {
     const query = decodeURIComponent(url).toLowerCase();
     const releases: ParsedRelease[] = [];
     if (query.includes("naruto")) {
       releases.push(
-        makeTestRelease("[SubsPlease] Naruto - 01 (1080p) [ABC123].mkv"),
+        makeTestRelease(NARUTO_RELEASE_TITLE),
       );
     }
     if (query.includes("hunter")) {
@@ -5076,8 +5658,15 @@ const testRssLayer = Layer.succeed(RssClient, {
   },
 });
 
+const testSeaDexLayer = Layer.succeed(SeaDexClient, {
+  getEntryByAniListId: (aniListId: number) =>
+    Effect.succeed(TEST_SEADEX_ENTRIES.get(aniListId) ?? null),
+});
+
 async function createTestContext(options?: {
   qbitLayer?: Layer.Layer<QBitTorrentClient>;
+  rssLayer?: Layer.Layer<RssClient>;
+  seadexLayer?: Layer.Layer<SeaDexClient>;
 }) {
   const { bootstrap } = await import("./main.ts");
   const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
@@ -5091,7 +5680,8 @@ async function createTestContext(options?: {
     {
       aniListLayer: testAniListLayer,
       qbitLayer: options?.qbitLayer,
-      rssLayer: testRssLayer,
+      rssLayer: options?.rssLayer ?? testRssLayer,
+      seadexLayer: options?.seadexLayer ?? testSeaDexLayer,
     },
   );
 

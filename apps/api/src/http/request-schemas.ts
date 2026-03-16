@@ -64,7 +64,7 @@ export const BulkEpisodeMappingsBodySchema = Schema.Struct({
 
 export const SearchDownloadBodySchema = Schema.Struct({
   anime_id: AnimeIdSchema,
-  episode_number: EpisodeNumberSchema,
+  episode_number: Schema.optional(EpisodeNumberSchema),
   group: Schema.optional(Schema.String),
   info_hash: Schema.optional(Schema.String),
   is_batch: Schema.optional(Schema.Boolean),

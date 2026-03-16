@@ -20,6 +20,7 @@ import { EventBus } from "../events/event-bus.ts";
 import { AniListClient } from "../anime/anilist.ts";
 import { QBitTorrentClient } from "./qbittorrent.ts";
 import { RssClient } from "./rss-client.ts";
+import { SeaDexClient } from "./seadex-client.ts";
 import { makeSearchOrchestration } from "./search-orchestration.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
 import { makeCatalogOrchestration } from "./catalog-orchestration.ts";
@@ -151,7 +152,7 @@ export interface DownloadServiceShape {
     input: {
       anime_id: number;
       magnet: string;
-      episode_number: number;
+      episode_number?: number;
       title: string;
       group?: string;
       info_hash?: string;
@@ -208,6 +209,7 @@ const makeOperationsService = Effect.gen(function* () {
   const aniList = yield* AniListClient;
   const qbitClient = yield* QBitTorrentClient;
   const rssClient = yield* RssClient;
+  const seadexClient = yield* SeaDexClient;
   const fs = yield* FileSystem;
 
   const triggerSemaphore = yield* Effect.makeSemaphore(1);
@@ -257,6 +259,7 @@ const makeOperationsService = Effect.gen(function* () {
     publishRssCheckProgress: rssCheckProgressPublisher.offer,
     qbitClient,
     rssClient,
+    seadexClient,
     triggerSemaphore,
     tryDatabasePromise,
     tryOperationsPromise,

@@ -26,6 +26,8 @@ import {
 } from "../anime/repository.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { type ParsedRelease, RssClient } from "./rss-client.ts";
+import { SeaDexClient } from "./seadex-client.ts";
+import { applySeaDexMatch } from "./seadex-matching.ts";
 import {
   analyzeScannedFile,
   findBestLocalAnimeMatch,
@@ -113,6 +115,7 @@ export function makeSearchOrchestration(input: {
   fs: FileSystemShape;
   aniList: typeof AniListClient.Service;
   rssClient: typeof RssClient.Service;
+  seadexClient: typeof SeaDexClient.Service;
   qbitClient: typeof QBitTorrentClient.Service;
   eventBus: typeof EventBus.Service;
   tryDatabasePromise: TryDatabasePromise;
@@ -136,6 +139,7 @@ export function makeSearchOrchestration(input: {
     fs,
     aniList,
     rssClient,
+    seadexClient,
     qbitClient,
     eventBus,
     tryDatabasePromise,
@@ -212,7 +216,29 @@ export function makeSearchOrchestration(input: {
       }
     }
 
-    return results.slice(0, 10);
+    return yield* enrichSeaDexReleases(animeRow, results.slice(0, 10), config);
+  });
+
+  const enrichSeaDexReleases = Effect.fn(
+    "OperationsService.enrichSeaDexReleases",
+  )(function* (
+    animeRow: typeof anime.$inferSelect,
+    releases: readonly ParsedRelease[],
+    config: Config,
+  ) {
+    if (!config.downloads.use_seadex || releases.length === 0) {
+      return [...releases];
+    }
+
+    const entry = yield* seadexClient.getEntryByAniListId(animeRow.id).pipe(
+      Effect.catchAll(() => Effect.succeed(null)),
+    );
+
+    if (!entry || entry.releases.length === 0) {
+      return [...releases];
+    }
+
+    return releases.map((release) => applySeaDexMatch(release, entry));
   });
 
   const searchReleasesRaw = Effect.fn("OperationsService.searchReleases")(
@@ -240,12 +266,20 @@ export function makeSearchOrchestration(input: {
         filter,
       ).pipe(Effect.mapError(wrapOperationsError("Failed to search releases")));
 
+      const enrichedResults = animeRow
+        ? yield* enrichSeaDexReleases(animeRow, results, runtimeConfig)
+        : results;
+
       return {
-        results: results.map(toNyaaSearchResult),
-        seadex_groups: results.filter((item) => item.isSeaDex).map((item) =>
-          item.group
-        )
-          .filter((value): value is string => Boolean(value)),
+        results: enrichedResults.map(toNyaaSearchResult),
+        seadex_groups: [
+          ...new Set(
+            enrichedResults
+              .filter((item) => item.isSeaDex)
+              .map((item) => item.seaDexReleaseGroup ?? item.group)
+              .filter((value): value is string => Boolean(value)),
+          ),
+        ],
       } satisfies SearchResults;
     },
   );
@@ -312,12 +346,18 @@ export function makeSearchOrchestration(input: {
         runtimeConfig,
       ),
       group: item.group,
+      is_seadex: item.isSeaDex || undefined,
+      is_seadex_best: item.isSeaDexBest || undefined,
       indexer: "Nyaa",
       info_hash: item.infoHash,
       leechers: item.leechers,
       link: item.magnet,
       publish_date: item.pubDate,
       quality: parseReleaseName(item.title).quality.name,
+      seadex_comparison: item.seaDexComparison,
+      seadex_dual_audio: item.seaDexDualAudio,
+      seadex_notes: item.seaDexNotes,
+      seadex_tags: item.seaDexTags ? [...item.seaDexTags] : undefined,
       seeders: item.seeders,
       size: item.sizeBytes,
       title: item.title,
@@ -407,6 +447,7 @@ export function makeSearchOrchestration(input: {
           inferCoveredEpisodeNumbers({
             explicitEpisodes: parsedRelease.episodeNumbers,
             isBatch: parsedRelease.isBatch,
+            totalEpisodes: row.anime.episodeCount,
             missingEpisodes: missingRows
               .filter((entry) => entry.anime.id === row.anime.id)
               .map((entry) => entry.episodes.number),
@@ -656,6 +697,7 @@ export function makeSearchOrchestration(input: {
                 inferCoveredEpisodeNumbers({
                   explicitEpisodes: parsedRelease.episodeNumbers,
                   isBatch: parsedRelease.isBatch,
+                  totalEpisodes: animeRow.episodeCount,
                   missingEpisodes,
                   requestedEpisode: episodeNumber,
                 }),
