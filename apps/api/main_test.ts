@@ -3,6 +3,11 @@ import { createClient } from "@libsql/client";
 import { Effect, Layer, Redacted } from "effect";
 import { AniListClient } from "./src/features/anime/anilist.ts";
 import {
+  type QBitTorrent,
+  QBitTorrentClient,
+} from "./src/features/operations/qbittorrent.ts";
+import { mapQBitState } from "./src/features/operations/download-orchestration.ts";
+import {
   type ParsedRelease,
   RssClient,
 } from "./src/features/operations/rss-client.ts";
@@ -18,7 +23,7 @@ const integrationTestPermissions: Deno.PermissionOptions = {
 
 function integrationTest(
   name: string,
-  fn: () => Promise<void>,
+  fn: () => void | Promise<void>,
 ) {
   Deno.test({ fn, name, permissions: integrationTestPermissions });
 }
@@ -1440,6 +1445,159 @@ integrationTest(
 );
 
 integrationTest(
+  "unmapped folder controls pause resume reset and refresh matching",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const libraryPath = await Deno.makeTempDir();
+
+      try {
+        const folderPath = `${libraryPath}/Naruto Archive`;
+        await Deno.mkdir(folderPath, { recursive: true });
+
+        const currentConfigResponse = await ctx.app.request(
+          "/api/system/config",
+          { headers: { Cookie: sessionCookie } },
+        );
+        const currentConfig = await currentConfigResponse.json();
+
+        await ctx.app.request("/api/system/config", {
+          body: JSON.stringify({
+            ...currentConfig,
+            library: {
+              ...currentConfig.library,
+              library_path: libraryPath,
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        });
+
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
+
+        try {
+          await client.execute(
+            'insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, \'failed\', 2, \'[{"id":20,"title":{"romaji":"Naruto"},"already_in_library":true}]\', ?, ?, ?)',
+            [
+              folderPath,
+              "Naruto Archive",
+              new Date().toISOString(),
+              "rate limited",
+              new Date().toISOString(),
+            ],
+          );
+
+          const pauseResponse = await ctx.app.request(
+            "/api/library/unmapped/control",
+            {
+              body: JSON.stringify({ action: "pause", path: folderPath }),
+              headers: {
+                Cookie: sessionCookie,
+                "Content-Type": "application/json",
+              },
+              method: "POST",
+            },
+          );
+          assertEquals(pauseResponse.status, 200);
+
+          let rows = await waitForSql(
+            client,
+            "select match_status as status, match_attempts as attempts from unmapped_folder_matches where path = ? limit 1",
+            [folderPath],
+            (values) => values[0]?.status === "paused",
+          );
+          assertEquals(Number(rows[0]?.attempts ?? 0), 2);
+
+          const resumeResponse = await ctx.app.request(
+            "/api/library/unmapped/control",
+            {
+              body: JSON.stringify({ action: "resume", path: folderPath }),
+              headers: {
+                Cookie: sessionCookie,
+                "Content-Type": "application/json",
+              },
+              method: "POST",
+            },
+          );
+          assertEquals(resumeResponse.status, 200);
+
+          rows = await waitForSql(
+            client,
+            "select match_status as status, match_attempts as attempts from unmapped_folder_matches where path = ? limit 1",
+            [folderPath],
+            (values) => values[0]?.status === "pending",
+          );
+          assertEquals(Number(rows[0]?.attempts ?? 0), 2);
+
+          const resetResponse = await ctx.app.request(
+            "/api/library/unmapped/control",
+            {
+              body: JSON.stringify({ action: "reset", path: folderPath }),
+              headers: {
+                Cookie: sessionCookie,
+                "Content-Type": "application/json",
+              },
+              method: "POST",
+            },
+          );
+          assertEquals(resetResponse.status, 200);
+
+          rows = await waitForSql(
+            client,
+            "select match_status as status, match_attempts as attempts, last_match_error as error, suggested_matches as suggestions from unmapped_folder_matches where path = ? limit 1",
+            [folderPath],
+            (values) =>
+              values[0]?.status === "pending" &&
+              Number(values[0]?.attempts ?? 0) === 0,
+          );
+          assertEquals(rows[0]?.error, null);
+          assertEquals(rows[0]?.suggestions, "[]");
+
+          const refreshResponse = await ctx.app.request(
+            "/api/library/unmapped/control",
+            {
+              body: JSON.stringify({ action: "refresh", path: folderPath }),
+              headers: {
+                Cookie: sessionCookie,
+                "Content-Type": "application/json",
+              },
+              method: "POST",
+            },
+          );
+          assertEquals(refreshResponse.status, 200);
+
+          rows = await waitForSql(
+            client,
+            "select match_status as status, match_attempts as attempts from unmapped_folder_matches where path = ? limit 1",
+            [folderPath],
+            (values) => values[0]?.status === "done",
+          );
+          assertEquals(Number(rows[0]?.attempts ?? 0), 0);
+        } finally {
+          client.close();
+        }
+      } finally {
+        await Deno.remove(libraryPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
   "download reconcile imports a completed file into the anime library",
   async () => {
     const ctx = await createTestContext();
@@ -1552,6 +1710,159 @@ integrationTest(
     } finally {
       await ctx.dispose();
     }
+  },
+);
+
+integrationTest(
+  "download sync auto-imports paused seeding torrents",
+  async () => {
+    const animeRoot = await Deno.makeTempDir();
+    const completedRoot = await Deno.makeTempDir();
+    const magnetHash = "1234567890abcdef1234567890abcdef12345678";
+    const completedFile = `${completedRoot}/Naruto - 01.mkv`;
+    await Deno.writeTextFile(completedFile, "completed-download");
+
+    const qbitLayer = Layer.succeed(QBitTorrentClient, {
+      addTorrentUrl: () => Effect.void,
+      deleteTorrent: () => Effect.void,
+      listTorrents: () =>
+        Effect.succeed(
+          [{
+            content_path: completedFile,
+            downloaded: 524_288_000,
+            dlspeed: 0,
+            eta: 0,
+            hash: magnetHash,
+            name: "Naruto - 01",
+            progress: 1,
+            save_path: completedRoot,
+            size: 524_288_000,
+            state: "pausedUP",
+          }] satisfies QBitTorrent[],
+        ),
+      pauseTorrent: () => Effect.void,
+      resumeTorrent: () => Effect.void,
+    });
+
+    const ctx = await createTestContext({ qbitLayer });
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const currentConfigResponse = await ctx.app.request(
+        "/api/system/config",
+        { headers: { Cookie: sessionCookie } },
+      );
+      const currentConfig = await currentConfigResponse.json();
+
+      const updatedConfigResponse = await ctx.app.request(
+        "/api/system/config",
+        {
+          body: JSON.stringify({
+            ...currentConfig,
+            qbittorrent: {
+              ...currentConfig.qbittorrent,
+              enabled: true,
+              password: "secret",
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        },
+      );
+      assertEquals(updatedConfigResponse.status, 200);
+
+      const addAnimeResponse = await ctx.app.request("/api/anime", {
+        body: JSON.stringify({
+          id: 20,
+          monitor_and_search: false,
+          monitored: true,
+          profile_name: "Default",
+          release_profile_ids: [],
+          root_folder: animeRoot,
+        }),
+        headers: {
+          Cookie: sessionCookie,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      });
+      assertEquals(addAnimeResponse.status, 200);
+
+      const triggerDownloadResponse = await ctx.app.request(
+        "/api/search/download",
+        {
+          body: JSON.stringify({
+            anime_id: 20,
+            episode_number: 1,
+            magnet: `magnet:?xt=urn:btih:${magnetHash}`,
+            title: "Naruto - 01",
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        },
+      );
+      assertEquals(triggerDownloadResponse.status, 200);
+
+      const syncResponse = await ctx.app.request("/api/downloads/sync", {
+        headers: { Cookie: sessionCookie },
+        method: "POST",
+      });
+      assertEquals(syncResponse.status, 200);
+
+      const verifyClient = createClient({ url: `file:${ctx.databaseFile}` });
+      try {
+        await waitForSql(
+          verifyClient,
+          "select status, reconciled_at as reconciledAt from downloads where info_hash = ?",
+          [magnetHash],
+          (rows) =>
+            rows[0]?.status === "imported" &&
+            typeof rows[0]?.reconciledAt === "string",
+        );
+      } finally {
+        verifyClient.close();
+      }
+
+      const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
+        headers: { Cookie: sessionCookie },
+      });
+      assertEquals(episodesResponse.status, 200);
+      const episodes = await episodesResponse.json();
+      assertEquals(episodes[0].downloaded, true);
+      assertEquals(
+        episodes[0].file_path?.startsWith(`${animeRoot}/Naruto/`),
+        true,
+      );
+    } finally {
+      await ctx.dispose();
+      await Deno.remove(animeRoot, { recursive: true });
+      await Deno.remove(completedRoot, { recursive: true });
+    }
+  },
+);
+
+integrationTest(
+  "qBittorrent state mapping treats completed seeding states as completed",
+  () => {
+    assertEquals(mapQBitState("pausedUP"), "completed");
+    assertEquals(mapQBitState("queuedUP"), "completed");
+    assertEquals(mapQBitState("stalledUP"), "completed");
+    assertEquals(mapQBitState("checkingUP"), "completed");
+    assertEquals(mapQBitState("forcedUP"), "completed");
+    assertEquals(mapQBitState("pausedDL"), "paused");
   },
 );
 
@@ -3080,6 +3391,110 @@ integrationTest(
 );
 
 integrationTest(
+  "wanted and global missing search ignore unmonitored anime",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const rootFolder = await Deno.makeTempDir();
+
+      try {
+        const addAnimeResponse = await ctx.app.request("/api/anime", {
+          body: JSON.stringify({
+            id: 20,
+            monitor_and_search: false,
+            monitored: false,
+            profile_name: "Default",
+            release_profile_ids: [],
+            root_folder: rootFolder,
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+
+        assertEquals(addAnimeResponse.status, 200);
+
+        const wantedResponse = await ctx.app.request(
+          "/api/wanted/missing?limit=20",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(wantedResponse.status, 200);
+        assertEquals(await wantedResponse.json(), []);
+
+        const globalSearchResponse = await ctx.app.request(
+          "/api/downloads/search-missing",
+          {
+            body: JSON.stringify({}),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+
+        assertEquals(globalSearchResponse.status, 200);
+
+        const historyResponse = await ctx.app.request(
+          "/api/downloads/history",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(historyResponse.status, 200);
+        assertEquals(await historyResponse.json(), []);
+
+        const directSearchResponse = await ctx.app.request(
+          "/api/downloads/search-missing",
+          {
+            body: JSON.stringify({ anime_id: 20 }),
+            headers: {
+              Cookie: sessionCookie,
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+          },
+        );
+
+        assertEquals(directSearchResponse.status, 200);
+
+        const directHistoryResponse = await ctx.app.request(
+          "/api/downloads/history",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(directHistoryResponse.status, 200);
+        const downloads = await directHistoryResponse.json();
+        assertEquals(downloads.length > 0, true);
+        assertEquals(downloads[0].anime_id, 20);
+      } finally {
+        await Deno.remove(rootFolder, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
   "manual import succeeds for files outside configured roots",
   async () => {
     const ctx = await createTestContext();
@@ -4399,7 +4814,9 @@ const testRssLayer = Layer.succeed(RssClient, {
   },
 });
 
-async function createTestContext() {
+async function createTestContext(options?: {
+  qbitLayer?: Layer.Layer<QBitTorrentClient>;
+}) {
   const { bootstrap } = await import("./main.ts");
   const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
   const { app, runtime } = await bootstrap(
@@ -4409,7 +4826,11 @@ async function createTestContext() {
       databaseFile,
       port: 9999,
     },
-    { aniListLayer: testAniListLayer, rssLayer: testRssLayer },
+    {
+      aniListLayer: testAniListLayer,
+      qbitLayer: options?.qbitLayer,
+      rssLayer: testRssLayer,
+    },
   );
 
   return {

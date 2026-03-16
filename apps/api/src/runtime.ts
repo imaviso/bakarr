@@ -13,7 +13,10 @@ import { AnimeServiceLive } from "./features/anime/service.ts";
 import { AuthServiceLive } from "./features/auth/service.ts";
 import { EventBusLive } from "./features/events/event-bus.ts";
 import { EventPublisherLive } from "./features/events/publisher.ts";
-import { QBitTorrentClientLive } from "./features/operations/qbittorrent.ts";
+import {
+  QBitTorrentClient,
+  QBitTorrentClientLive,
+} from "./features/operations/qbittorrent.ts";
 import { RssClient, RssClientLive } from "./features/operations/rss-client.ts";
 import { OperationsServiceLive } from "./features/operations/service.ts";
 import { SystemServiceLive } from "./features/system/service.ts";
@@ -22,6 +25,7 @@ import { RuntimeLoggerLayer } from "./lib/logging.ts";
 
 export interface RuntimeOptions {
   aniListLayer?: Layer.Layer<AniListClient>;
+  qbitLayer?: Layer.Layer<QBitTorrentClient>;
   rssLayer?: Layer.Layer<RssClient>;
 }
 
@@ -44,10 +48,13 @@ export function makeApiLayer(
   const rssLayer = options?.rssLayer
     ? options.rssLayer
     : RssClientLive.pipe(Layer.provide(httpClientLayer));
+  const qbitLayer = options?.qbitLayer
+    ? options.qbitLayer
+    : QBitTorrentClientLive.pipe(Layer.provide(httpClientLayer));
   const externalClientsLayer = Layer.mergeAll(
     aniListLayer,
     rssLayer,
-    QBitTorrentClientLive,
+    qbitLayer,
   ).pipe(Layer.provide(httpClientLayer));
   const platformLayer = Layer.mergeAll(
     configLayer,
