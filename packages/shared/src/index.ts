@@ -278,6 +278,7 @@ export interface Download {
   torrent_name: string;
   is_batch?: boolean;
   covered_episodes?: number[];
+  coverage_pending?: boolean;
   status?: string;
   progress?: number;
   added_at?: string;
@@ -308,6 +309,7 @@ export const DownloadSchema: Schema.Schema<Download> = Schema.mutable(
     covered_episodes: Schema.optional(
       Schema.mutable(Schema.Array(Schema.Number)),
     ),
+    coverage_pending: Schema.optional(Schema.Boolean),
     status: Schema.optional(Schema.String),
     progress: Schema.optional(Schema.Number),
     added_at: Schema.optional(Schema.String),
@@ -967,10 +969,16 @@ export const ImportResultSchema: Schema.Schema<ImportResult> = Schema.mutable(
 );
 
 export interface DownloadAction {
-  Accept?: { quality: Quality; is_seadex: boolean; score: number };
+  Accept?: {
+    quality: Quality;
+    is_seadex: boolean;
+    is_seadex_best?: boolean;
+    score: number;
+  };
   Upgrade?: {
     quality: Quality;
     is_seadex: boolean;
+    is_seadex_best?: boolean;
     score: number;
     reason: string;
     old_file_path?: string;
@@ -985,6 +993,7 @@ export const DownloadActionAcceptSchema: Schema.Schema<
 > = Schema.Struct({
   quality: QualitySchema,
   is_seadex: Schema.Boolean,
+  is_seadex_best: Schema.optional(Schema.Boolean),
   score: Schema.Number,
 });
 
@@ -993,6 +1002,7 @@ export const DownloadActionUpgradeSchema: Schema.Schema<
 > = Schema.Struct({
   quality: QualitySchema,
   is_seadex: Schema.Boolean,
+  is_seadex_best: Schema.optional(Schema.Boolean),
   score: Schema.Number,
   reason: Schema.String,
   old_file_path: Schema.optional(Schema.String),
@@ -1031,6 +1041,11 @@ export interface NyaaSearchResult {
   trusted: boolean;
   is_seadex: boolean;
   is_seadex_best: boolean;
+  seadex_release_group?: string;
+  seadex_tags?: string[];
+  seadex_notes?: string;
+  seadex_comparison?: string;
+  seadex_dual_audio?: boolean;
   remake: boolean;
 }
 
@@ -1055,6 +1070,11 @@ export const NyaaSearchResultSchema: Schema.Schema<NyaaSearchResult> = Schema
     trusted: Schema.Boolean,
     is_seadex: Schema.Boolean,
     is_seadex_best: Schema.Boolean,
+    seadex_release_group: Schema.optional(Schema.String),
+    seadex_tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+    seadex_notes: Schema.optional(Schema.String),
+    seadex_comparison: Schema.optional(Schema.String),
+    seadex_dual_audio: Schema.optional(Schema.Boolean),
     remake: Schema.Boolean,
   });
 
@@ -1070,6 +1090,12 @@ export interface EpisodeSearchResult {
   download_action: DownloadAction;
   quality: string;
   group?: string;
+  is_seadex?: boolean;
+  is_seadex_best?: boolean;
+  seadex_comparison?: string;
+  seadex_dual_audio?: boolean;
+  seadex_tags?: string[];
+  seadex_notes?: string;
 }
 
 export const EpisodeSearchResultSchema: Schema.Schema<EpisodeSearchResult> =
@@ -1085,6 +1111,12 @@ export const EpisodeSearchResultSchema: Schema.Schema<EpisodeSearchResult> =
     download_action: DownloadActionSchema,
     quality: Schema.String,
     group: Schema.optional(Schema.String),
+    is_seadex: Schema.optional(Schema.Boolean),
+    is_seadex_best: Schema.optional(Schema.Boolean),
+    seadex_comparison: Schema.optional(Schema.String),
+    seadex_dual_audio: Schema.optional(Schema.Boolean),
+    seadex_tags: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+    seadex_notes: Schema.optional(Schema.String),
   });
 
 export interface SearchResults {
@@ -1190,6 +1222,7 @@ export const ScannerStateSchema: Schema.Schema<ScannerState> = Schema.mutable(
 
 export interface DownloadStatus {
   id?: number;
+  episode_number?: number;
   hash: string;
   name: string;
   progress: number;
@@ -1198,11 +1231,15 @@ export interface DownloadStatus {
   state: string;
   total_bytes: number;
   downloaded_bytes: number;
+  is_batch?: boolean;
+  covered_episodes?: number[];
+  coverage_pending?: boolean;
 }
 
 export const DownloadStatusSchema: Schema.Schema<DownloadStatus> = Schema
   .Struct({
     id: Schema.optional(Schema.Number),
+    episode_number: Schema.optional(Schema.Number),
     hash: Schema.String,
     name: Schema.String,
     progress: Schema.Number,
@@ -1211,6 +1248,11 @@ export const DownloadStatusSchema: Schema.Schema<DownloadStatus> = Schema
     state: Schema.String,
     total_bytes: Schema.Number,
     downloaded_bytes: Schema.Number,
+    is_batch: Schema.optional(Schema.Boolean),
+    covered_episodes: Schema.optional(
+      Schema.mutable(Schema.Array(Schema.Number)),
+    ),
+    coverage_pending: Schema.optional(Schema.Boolean),
   });
 
 export type NotificationEvent =
