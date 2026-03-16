@@ -37,7 +37,8 @@ Deno.test("RssClient uses provided HttpClient for feed fetches", async () => {
       {
         group: "SubsPlease",
         infoHash: "abcdef0123456789abcdef0123456789abcdef01",
-        isSeaDex: true,
+        isSeaDex: false,
+        isSeaDexBest: false,
         leechers: 12,
         magnet:
           "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=%5BSubsPlease%5D%20Example%20Show%20-%2001%20(1080p)%20%5BSeaDex%5D",

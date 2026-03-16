@@ -15,6 +15,12 @@ export interface ParsedRelease {
   readonly group?: string;
   readonly infoHash: string;
   readonly isSeaDex: boolean;
+  readonly isSeaDexBest: boolean;
+  readonly seaDexComparison?: string;
+  readonly seaDexDualAudio?: boolean;
+  readonly seaDexNotes?: string;
+  readonly seaDexReleaseGroup?: string;
+  readonly seaDexTags?: readonly string[];
   readonly leechers: number;
   readonly magnet: string;
   readonly pubDate: string;
@@ -218,7 +224,8 @@ function parseReleaseItem(itemXml: string): ParsedRelease {
   return {
     group: groupMatch?.[1],
     infoHash,
-    isSeaDex: /seadex/i.test(title) || /subsplease/i.test(title),
+    isSeaDex: false,
+    isSeaDexBest: false,
     leechers,
     magnet: `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`,
     pubDate,

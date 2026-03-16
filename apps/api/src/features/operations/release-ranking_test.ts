@@ -105,6 +105,7 @@ Deno.test("decide download accepts new release and upgrades higher quality", () 
     {
       group: "SubsPlease",
       isSeaDex: false,
+      isSeaDexBest: false,
       remake: false,
       seeders: 50,
       sizeBytes: 1024 ** 3,
@@ -123,10 +124,12 @@ Deno.test("decide download accepts new release and upgrades higher quality", () 
       downloaded: true,
       filePath: "[Group] Show - 01 [720p WEB-DL].mkv",
       isSeaDex: false,
+      isSeaDexBest: false,
     },
     {
       group: "SubsPlease",
       isSeaDex: false,
+      isSeaDexBest: false,
       remake: false,
       seeders: 50,
       sizeBytes: 1024 ** 3,
@@ -147,10 +150,12 @@ Deno.test("seadex release can upgrade same-quality current file", () => {
       downloaded: true,
       filePath: "[Group] Show - 01 [1080p WEB-DL].mkv",
       isSeaDex: false,
+      isSeaDexBest: false,
     },
     {
       group: "SubsPlease",
       isSeaDex: true,
+      isSeaDexBest: true,
       remake: false,
       seeders: 30,
       sizeBytes: 1024 ** 3,
@@ -161,6 +166,341 @@ Deno.test("seadex release can upgrade same-quality current file", () => {
   );
 
   assertEquals(Boolean(decision.Upgrade), true);
+  assertEquals(decision.Upgrade?.is_seadex_best, true);
+});
+
+Deno.test("seadex scoring is disabled when runtime config disables seadex", () => {
+  const decision = decideDownloadAction(
+    baseProfile,
+    [],
+    {
+      downloaded: true,
+      filePath: "[Group] Show - 01 [1080p WEB-DL].mkv",
+      isSeaDex: false,
+      isSeaDexBest: false,
+    },
+    {
+      group: "SubsPlease",
+      isSeaDex: true,
+      isSeaDexBest: true,
+      remake: false,
+      seeders: 30,
+      sizeBytes: 1024 ** 3,
+      title: "[SubsPlease] Show - 01 [1080p WEB-DL]",
+      trusted: true,
+    },
+    {
+      ...baseConfig,
+      downloads: {
+        ...baseConfig.downloads,
+        use_seadex: false,
+      },
+    },
+  );
+
+  assertEquals(decision.Reject?.reason, "already at quality cutoff");
+});
+
+Deno.test("seadex tags and config preferences boost release score", () => {
+  const preferred = decideDownloadAction(
+    baseProfile,
+    [],
+    null,
+    {
+      group: "OtherGroup",
+      isSeaDex: true,
+      isSeaDexBest: false,
+      remake: false,
+      seaDexDualAudio: true,
+      seaDexNotes: "Recommended encode",
+      seaDexTags: ["Best"],
+      seeders: 0,
+      sizeBytes: 800 * 1024 * 1024,
+      title: "[OtherGroup] Show - 01 [720p WEB-DL HEVC] [Dual Audio]",
+      trusted: false,
+    },
+    {
+      ...baseConfig,
+      downloads: {
+        ...baseConfig.downloads,
+        prefer_dual_audio: true,
+        preferred_codec: "hevc",
+        preferred_groups: [],
+      },
+      nyaa: {
+        ...baseConfig.nyaa,
+        preferred_resolution: "720p",
+      },
+    },
+  );
+  const fallback = decideDownloadAction(
+    baseProfile,
+    [],
+    null,
+    {
+      group: "OtherGroup",
+      isSeaDex: true,
+      isSeaDexBest: false,
+      remake: false,
+      seaDexDualAudio: false,
+      seaDexNotes: "Fallback option",
+      seaDexTags: ["Alt"],
+      seeders: 0,
+      sizeBytes: 800 * 1024 * 1024,
+      title: "[OtherGroup] Show - 01 [720p WEB-DL x264]",
+      trusted: false,
+    },
+    {
+      ...baseConfig,
+      downloads: {
+        ...baseConfig.downloads,
+        prefer_dual_audio: true,
+        preferred_codec: "hevc",
+        preferred_groups: [],
+      },
+      nyaa: {
+        ...baseConfig.nyaa,
+        preferred_resolution: "720p",
+      },
+    },
+  );
+
+  assertEquals(Boolean(preferred.Accept), true);
+  assertEquals(Boolean(fallback.Accept), true);
+  assertEquals(
+    (preferred.Accept?.score ?? 0) > (fallback.Accept?.score ?? 0),
+    true,
+  );
+});
+
+Deno.test("negative SeaDex notes can reduce release score", () => {
+  const recommended = decideDownloadAction(
+    baseProfile,
+    [],
+    null,
+    {
+      group: "OtherGroup",
+      isSeaDex: true,
+      isSeaDexBest: false,
+      remake: false,
+      seaDexNotes: "Recommended release",
+      seaDexTags: ["Best"],
+      seeders: 0,
+      sizeBytes: 800 * 1024 * 1024,
+      title: "[OtherGroup] Show - 01 [720p WEB-DL]",
+      trusted: false,
+    },
+    {
+      ...baseConfig,
+      downloads: {
+        ...baseConfig.downloads,
+        preferred_groups: [],
+      },
+      nyaa: {
+        ...baseConfig.nyaa,
+        preferred_resolution: "720p",
+      },
+    },
+  );
+  const problematic = decideDownloadAction(
+    baseProfile,
+    [],
+    null,
+    {
+      group: "OtherGroup",
+      isSeaDex: true,
+      isSeaDexBest: false,
+      remake: false,
+      seaDexNotes: "Avoid this release - audio desync issue",
+      seaDexTags: ["Best"],
+      seeders: 0,
+      sizeBytes: 800 * 1024 * 1024,
+      title: "[OtherGroup] Show - 01 [720p WEB-DL]",
+      trusted: false,
+    },
+    {
+      ...baseConfig,
+      downloads: {
+        ...baseConfig.downloads,
+        preferred_groups: [],
+      },
+      nyaa: {
+        ...baseConfig.nyaa,
+        preferred_resolution: "720p",
+      },
+    },
+  );
+
+  assertEquals(Boolean(recommended.Accept), true);
+  assertEquals(Boolean(problematic.Accept), true);
+  assertEquals(
+    (recommended.Accept?.score ?? 0) > (problematic.Accept?.score ?? 0),
+    true,
+  );
+});
+
+Deno.test("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
+  const seadex = decideDownloadAction(
+    baseProfile,
+    [],
+    null,
+    {
+      group: "sam",
+      isSeaDex: true,
+      isSeaDexBest: true,
+      remake: false,
+      seaDexNotes: "sam recommended release",
+      seaDexTags: ["Best"],
+      seeders: 2,
+      sizeBytes: 1024 ** 3,
+      title: "[sam] Show - 01 [1080p BluRay]",
+      trusted: false,
+    },
+    {
+      ...baseConfig,
+      downloads: {
+        ...baseConfig.downloads,
+        preferred_groups: [],
+      },
+    },
+  );
+  const popular = decideDownloadAction(
+    baseProfile,
+    [],
+    null,
+    {
+      group: "Judas",
+      isSeaDex: false,
+      isSeaDexBest: false,
+      remake: false,
+      seeders: 500,
+      sizeBytes: 1024 ** 3,
+      title: "[Judas] Show - 01 [1080p BluRay]",
+      trusted: true,
+    },
+    {
+      ...baseConfig,
+      downloads: {
+        ...baseConfig.downloads,
+        preferred_groups: [],
+      },
+    },
+  );
+
+  assertEquals(Boolean(seadex.Accept), true);
+  assertEquals(Boolean(popular.Accept), true);
+  assertEquals(
+    (seadex.Accept?.score ?? 0) > (popular.Accept?.score ?? 0),
+    true,
+  );
+});
+
+Deno.test("SeaDex notes mentioning the release group boost the matching release", () => {
+  const matched = decideDownloadAction(
+    baseProfile,
+    [],
+    null,
+    {
+      group: "ABdex",
+      isSeaDex: true,
+      isSeaDexBest: false,
+      remake: false,
+      seaDexNotes: "ABdex release",
+      seaDexTags: ["Alt"],
+      seeders: 0,
+      sizeBytes: 900 * 1024 * 1024,
+      title: "[ABdex] Show - 01 [1080p WEB-DL]",
+      trusted: false,
+    },
+    {
+      ...baseConfig,
+      downloads: {
+        ...baseConfig.downloads,
+        preferred_groups: [],
+      },
+    },
+  );
+  const unmatched = decideDownloadAction(
+    baseProfile,
+    [],
+    null,
+    {
+      group: "LostYears",
+      isSeaDex: true,
+      isSeaDexBest: false,
+      remake: false,
+      seaDexNotes: "ABdex release",
+      seaDexTags: ["Alt"],
+      seeders: 0,
+      sizeBytes: 900 * 1024 * 1024,
+      title: "[LostYears] Show - 01 [1080p WEB-DL]",
+      trusted: false,
+    },
+    {
+      ...baseConfig,
+      downloads: {
+        ...baseConfig.downloads,
+        preferred_groups: [],
+      },
+    },
+  );
+
+  assertEquals(Boolean(matched.Accept), true);
+  assertEquals(Boolean(unmatched.Accept), true);
+  assertEquals(
+    (matched.Accept?.score ?? 0) > (unmatched.Accept?.score ?? 0),
+    true,
+  );
+});
+
+Deno.test("compare episode search results prefers higher scores before seeders", () => {
+  const lowerScoreMoreSeeders = {
+    download_action: {
+      Accept: {
+        is_seadex: false,
+        quality: parseQualityFromTitle("1080p"),
+        score: 5,
+      },
+    },
+    indexer: "Nyaa",
+    info_hash: "a",
+    leechers: 1,
+    link: "magnet:?a",
+    publish_date: new Date().toISOString(),
+    quality: "1080p",
+    seeders: 100,
+    size: 100,
+    title: "left",
+  };
+  const higherScoreFewerSeeders = {
+    download_action: {
+      Accept: {
+        is_seadex: true,
+        is_seadex_best: true,
+        quality: parseQualityFromTitle("1080p"),
+        score: 25,
+      },
+    },
+    indexer: "Nyaa",
+    info_hash: "b",
+    leechers: 1,
+    link: "magnet:?b",
+    publish_date: new Date().toISOString(),
+    quality: "1080p",
+    seeders: 2,
+    size: 100,
+    title: "right",
+  };
+
+  assertEquals(
+    Math.sign(
+      compareEpisodeSearchResults(
+        lowerScoreMoreSeeders,
+        higherScoreFewerSeeders,
+      ),
+    ),
+    1,
+  );
 });
 
 Deno.test("compare episode search results prefers accepted higher-seeder entries", () => {
@@ -219,4 +559,10 @@ Deno.test("episode parser handles ranges and season packs", () => {
   const parsed = parseReleaseName("[Group] Show - 01-12 Batch [1080p]");
   assertEquals(parsed.isBatch, true);
   assertEquals(parsed.episodeNumbers.length, 12);
+
+  const seasonPack = parseReleaseName(
+    "[Flugel] Chainsaw Man S01 (BD 1080p HEVC Opus) [Multi Audio]",
+  );
+  assertEquals(seasonPack.isBatch, true);
+  assertEquals(seasonPack.episodeNumbers, []);
 });

@@ -14,6 +14,7 @@ export interface ParsedReleaseName {
   readonly group?: string;
   readonly isBatch: boolean;
   readonly isSeaDex: boolean;
+  readonly isSeaDexBest: boolean;
   readonly quality: Quality;
   readonly resolution?: string;
 }
@@ -22,11 +23,16 @@ export interface RankedCurrentEpisode {
   readonly downloaded: boolean;
   readonly filePath?: string;
   readonly isSeaDex?: boolean;
+  readonly isSeaDexBest?: boolean;
 }
 
 export interface RankedRelease {
   readonly group?: string;
   readonly isSeaDex: boolean;
+  readonly isSeaDexBest: boolean;
+  readonly seaDexDualAudio?: boolean;
+  readonly seaDexNotes?: string;
+  readonly seaDexTags?: readonly string[];
   readonly remake: boolean;
   readonly seeders: number;
   readonly sizeBytes: number;
@@ -79,17 +85,27 @@ export function parseReleaseName(title: string): ParsedReleaseName {
     "collection",
   ];
   const episodeNumbers = parseEpisodeNumbersFromTitle(title);
+  const seasonPack = looksLikeSeasonPack(title);
 
   return {
     episodeNumber: episodeNumbers[0],
     episodeNumbers,
     group: groupMatch?.[1],
     isBatch: episodeNumbers.length > 1 ||
-      batchTerms.some((term) => lower.includes(term)),
-    isSeaDex: /seadex|subsplease/i.test(title),
+      batchTerms.some((term) => lower.includes(term)) || seasonPack,
+    isSeaDex: false,
+    isSeaDexBest: false,
     quality,
     resolution,
   };
+}
+
+function looksLikeSeasonPack(title: string) {
+  return [
+    /(?:^|[\s._-])s(\d{1,2})(?![\s._-]*e\d)(?:[\s._-]|\(|\[|$)/i,
+    /(?:^|[\s._-])season[\s._-]*(\d{1,2})(?![\s._-]*(?:e|ep|episode)\d)(?:[\s._-]|\(|\[|$)/i,
+    /(?:^|[\s._-])(\d{1,2})(?:st|nd|rd|th)[\s._-]+season(?:[\s._-]|\(|\[|$)/i,
+  ].some((pattern) => pattern.test(title));
 }
 
 export function parseEpisodeFromTitle(title: string): number | undefined {
@@ -180,7 +196,12 @@ export function decideDownloadAction(
 
   if (!current || !current.downloaded) {
     return {
-      Accept: { quality: releaseQuality, is_seadex: release.isSeaDex, score },
+      Accept: {
+        quality: releaseQuality,
+        is_seadex: release.isSeaDex,
+        is_seadex_best: release.isSeaDexBest || undefined,
+        score,
+      },
     };
   }
 
@@ -198,6 +219,7 @@ export function decideDownloadAction(
     {
       group: parseReleaseName(currentFilePath).group,
       isSeaDex: current.isSeaDex ?? false,
+      isSeaDexBest: current.isSeaDexBest ?? false,
       remake: false,
       seeders: 0,
       sizeBytes: 0,
@@ -210,12 +232,15 @@ export function decideDownloadAction(
 
   const cutoffRank = cutoffQuality(profile.cutoff).rank;
   const currentMeetsCutoff = currentQuality.rank <= cutoffRank;
+  const seadexPreferred = profile.seadex_preferred &&
+    config.downloads.use_seadex;
 
-  if (profile.seadex_preferred && release.isSeaDex && !current.isSeaDex) {
+  if (seadexPreferred && release.isSeaDex && !current.isSeaDex) {
     return {
       Upgrade: {
         quality: releaseQuality,
         is_seadex: release.isSeaDex,
+        is_seadex_best: release.isSeaDexBest || undefined,
         score,
         reason: "SeaDex release available",
         old_file_path: current.filePath,
@@ -226,11 +251,12 @@ export function decideDownloadAction(
   }
 
   if (currentMeetsCutoff) {
-    if (release.isSeaDex && !current.isSeaDex && profile.seadex_preferred) {
+    if (release.isSeaDex && !current.isSeaDex && seadexPreferred) {
       return {
         Upgrade: {
           quality: releaseQuality,
           is_seadex: release.isSeaDex,
+          is_seadex_best: release.isSeaDexBest || undefined,
           score,
           reason: "SeaDex release available",
           old_file_path: current.filePath,
@@ -245,6 +271,7 @@ export function decideDownloadAction(
         Upgrade: {
           quality: releaseQuality,
           is_seadex: release.isSeaDex,
+          is_seadex_best: release.isSeaDexBest || undefined,
           score,
           reason: "better quality available",
           old_file_path: current.filePath,
@@ -262,6 +289,7 @@ export function decideDownloadAction(
       Upgrade: {
         quality: releaseQuality,
         is_seadex: release.isSeaDex,
+        is_seadex_best: release.isSeaDexBest || undefined,
         score,
         reason: "better quality available",
         old_file_path: current.filePath,
@@ -276,6 +304,7 @@ export function decideDownloadAction(
       Upgrade: {
         quality: releaseQuality,
         is_seadex: release.isSeaDex,
+        is_seadex_best: release.isSeaDexBest || undefined,
         score,
         reason: `Score upgrade (+${score} vs +${currentScore})`,
         old_file_path: current.filePath,
@@ -294,6 +323,7 @@ export function compareEpisodeSearchResults(
 ): number {
   return actionWeight(right.download_action) -
       actionWeight(left.download_action) ||
+    actionScore(right.download_action) - actionScore(left.download_action) ||
     right.seeders - left.seeders ||
     right.size - left.size;
 }
@@ -302,6 +332,11 @@ function actionWeight(action: DownloadAction): number {
   if (action.Accept) return 3;
   if (action.Upgrade) return 2;
   return 1;
+}
+
+function actionScore(action: DownloadAction): number {
+  return action.Accept?.score ?? action.Upgrade?.score ??
+    Number.NEGATIVE_INFINITY;
 }
 
 function calculateScore(
@@ -331,7 +366,56 @@ function calculateScore(
   }
 
   if (release.trusted) score += 10;
-  if (release.isSeaDex) score += 15;
+  if (config.downloads.use_seadex) {
+    if (release.isSeaDexBest) {
+      score += 20;
+    } else if (release.isSeaDex) {
+      score += 10;
+    }
+
+    if (config.downloads.prefer_dual_audio) {
+      if (release.seaDexDualAudio) {
+        score += 8;
+      } else if (release.isSeaDex) {
+        score -= 3;
+      }
+    }
+
+    if (release.seaDexTags?.some((tag) => /best/i.test(tag))) {
+      score += 5;
+    }
+
+    if (release.seaDexTags?.some((tag) => /alt|fallback/i.test(tag))) {
+      score -= 2;
+    }
+
+    if (release.seaDexNotes) {
+      if (/recommend|recommended|preferred/i.test(release.seaDexNotes)) {
+        score += 4;
+      }
+
+      if (
+        release.group &&
+        seaDexNotesMentionGroup(release.seaDexNotes, release.group)
+      ) {
+        score += 4;
+      }
+
+      if (/avoid|issue|broken|desync|inferior/i.test(release.seaDexNotes)) {
+        score -= 5;
+      }
+    }
+  }
+
+  const preferredCodec = config.downloads.preferred_codec?.trim().toLowerCase();
+  if (preferredCodec) {
+    if (titleHasCodec(release.title, preferredCodec)) {
+      score += 6;
+    } else {
+      score -= 1;
+    }
+  }
+
   if (release.remake && config.nyaa.filter_remakes) score -= 30;
 
   const parsed = parseReleaseName(release.title);
@@ -340,8 +424,6 @@ function calculateScore(
   ) {
     score += 10;
   }
-
-  score += Math.min(release.seeders, 50);
 
   return score;
 }
@@ -393,6 +475,32 @@ const SOURCE_MARKERS = [
 function hasSourceMarkers(title: string): boolean {
   const lower = title.toLowerCase();
   return SOURCE_MARKERS.some((marker) => lower.includes(marker));
+}
+
+function titleHasCodec(title: string, codec: string) {
+  const lower = title.toLowerCase();
+
+  if (codec === "hevc" || codec === "h265" || codec === "x265") {
+    return /\b(?:hevc|h[ .-]?265|x265)\b/i.test(lower);
+  }
+
+  if (codec === "avc" || codec === "h264" || codec === "x264") {
+    return /\b(?:avc|h[ .-]?264|x264)\b/i.test(lower);
+  }
+
+  if (codec === "av1") {
+    return /\bav1\b/i.test(lower);
+  }
+
+  return lower.includes(codec);
+}
+
+function seaDexNotesMentionGroup(notes: string, group: string) {
+  return new RegExp(`\\b${escapeRegex(group)}\\b`, "i").test(notes);
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function inferSource(lower: string): QualitySource {

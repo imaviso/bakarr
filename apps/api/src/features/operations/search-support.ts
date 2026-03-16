@@ -56,7 +56,7 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
   return {
     info_hash: item.infoHash,
     is_seadex: item.isSeaDex,
-    is_seadex_best: item.isSeaDex,
+    is_seadex_best: item.isSeaDexBest,
     leechers: item.leechers,
     magnet: item.magnet,
     parsed_episode: parsedEpisode,
@@ -67,6 +67,11 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
     parsed_air_date: parsedAirDate,
     pub_date: item.pubDate,
     remake: item.remake,
+    seadex_comparison: item.seaDexComparison,
+    seadex_dual_audio: item.seaDexDualAudio,
+    seadex_notes: item.seaDexNotes,
+    seadex_release_group: item.seaDexReleaseGroup,
+    seadex_tags: item.seaDexTags ? [...item.seaDexTags] : undefined,
     seeders: item.seeders,
     size: item.size,
     title: item.title,
@@ -84,7 +89,8 @@ export function fallbackReleases(
     {
       group: "SubsPlease",
       infoHash: randomHex(20),
-      isSeaDex: true,
+      isSeaDex: false,
+      isSeaDexBest: false,
       leechers: 3,
       magnet: `magnet:?xt=urn:btih:${randomHex(20)}&dn=${
         encodeURIComponent(base)

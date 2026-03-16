@@ -21,11 +21,17 @@ Deno.test("toNyaaSearchResult preserves release fields and parses episode number
     group: "SubsPlease",
     infoHash: "abcdef1234567890abcdef1234567890abcdef12",
     isSeaDex: true,
+    isSeaDexBest: false,
     leechers: 2,
     magnet: "magnet:?xt=urn:btih:abcdef1234567890abcdef1234567890abcdef12",
     pubDate: "2024-01-01T00:00:00.000Z",
     remake: false,
     resolution: "1080p",
+    seaDexComparison: "https://releases.moe/compare/example",
+    seaDexDualAudio: true,
+    seaDexNotes: "Preferred release",
+    seaDexReleaseGroup: "SeaDexGroup",
+    seaDexTags: ["Best", "Dual Audio"],
     seeders: 50,
     size: "1.4 GiB",
     sizeBytes: 1503238554,
@@ -41,14 +47,23 @@ Deno.test("toNyaaSearchResult preserves release fields and parses episode number
   assertEquals(result.parsed_episode, "1");
   assertEquals(result.parsed_resolution, "1080p");
   assertEquals(result.is_seadex, true);
-  assertEquals(result.is_seadex_best, true);
+  assertEquals(result.is_seadex_best, false);
+  assertEquals(result.seadex_release_group, "SeaDexGroup");
+  assertEquals(result.seadex_tags, ["Best", "Dual Audio"]);
+  assertEquals(result.seadex_notes, "Preferred release");
+  assertEquals(
+    result.seadex_comparison,
+    "https://releases.moe/compare/example",
+  );
+  assertEquals(result.seadex_dual_audio, true);
 });
 
 Deno.test("fallbackReleases builds a trusted placeholder release from title", () => {
   const [release] = fallbackReleases("naruto", "Naruto Shippuden");
 
   assertEquals(release.group, "SubsPlease");
-  assertEquals(release.isSeaDex, true);
+  assertEquals(release.isSeaDex, false);
+  assertEquals(release.isSeaDexBest, false);
   assertEquals(release.resolution, "1080p");
   assertEquals(release.trusted, true);
   assertMatch(release.magnet, /^magnet:\?xt=urn:btih:[a-f0-9]+&dn=/);
