@@ -153,6 +153,7 @@ function AnimeIndexPage() {
           <IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Filter anime..."
+            aria-label="Filter anime"
             value={search().q}
             onInput={(e) => updateSearch(e.currentTarget.value)}
             class="pl-9"

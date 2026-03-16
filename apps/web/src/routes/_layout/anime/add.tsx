@@ -132,6 +132,7 @@ function AddAnimePage() {
           <TextField class="w-full" value={query()} onChange={setQuery}>
             <TextFieldInput
               placeholder="Search for anime by title..."
+              aria-label="Search for anime by title"
               class="pl-9 h-11"
               autofocus
             />

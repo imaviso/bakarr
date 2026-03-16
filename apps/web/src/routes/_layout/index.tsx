@@ -189,11 +189,15 @@ function DashboardPage() {
                 </p>
               }
             >
-              <div class="space-y-2">
+              <ul role="list" class="space-y-2">
                 <For each={recentActivity()}>
-                  {(item) => <ActivityRow item={item} />}
+                  {(item) => (
+                    <li>
+                      <ActivityRow item={item} />
+                    </li>
+                  )}
                 </For>
-              </div>
+              </ul>
             </Show>
           </Show>
         </CardContent>
@@ -237,8 +241,8 @@ function formatTimeAgo(timestamp: string): string {
 
 function DashboardLoading() {
   return (
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <For each={[1, 2, 3, 4]}>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <For each={[1, 2, 3, 4, 5]}>
         {() => (
           <Card>
             <CardHeader class="pb-2">

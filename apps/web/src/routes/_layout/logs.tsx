@@ -607,7 +607,7 @@ function LogsPage() {
                               size="icon"
                               class="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() => setSelectedLog(log)}
-                              title="View Details"
+                              aria-label="View details"
                             >
                               <IconEye class="h-4 w-4" />
                             </Button>
@@ -749,7 +749,10 @@ function DashboardMetricCard(props: {
   highlight?: string;
 }) {
   return (
-    <div class="rounded-lg border border-border/60 bg-card p-3 space-y-1">
+    <div
+      aria-label={`${props.label}: ${props.value}`}
+      class="rounded-lg border border-border/60 bg-card p-3 space-y-1"
+    >
       <div class="text-xs text-muted-foreground">{props.label}</div>
       <div class={cn("text-2xl font-semibold", props.highlight)}>
         {props.value}
