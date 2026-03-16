@@ -14,6 +14,7 @@ import {
   createMemo,
   createSignal,
   For,
+  onCleanup,
   Show,
   Suspense,
 } from "solid-js";
@@ -106,7 +107,7 @@ function AddAnimePage() {
   createEffect(() => {
     const q = query();
     const timeout = setTimeout(() => setDebouncedQuery(q), 500);
-    return () => clearTimeout(timeout);
+    onCleanup(() => clearTimeout(timeout));
   });
 
   const searchQuery = createAnimeSearchQuery(debouncedQuery);

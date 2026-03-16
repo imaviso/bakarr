@@ -12,6 +12,7 @@ import { createStore, reconcile } from "solid-js/store";
 import { toast } from "solid-sonner";
 import { GeneralError } from "~/components/general-error";
 import { BackgroundMatchingCard } from "~/components/scan/background-matching-card";
+import { isBackgroundMatchingRunning } from "~/components/scan/background-matching-state";
 import { EmptyScanState } from "~/components/scan/empty-scan-state";
 import { FolderItem } from "~/components/scan/folder-item";
 import { StatChip } from "~/components/scan/stat-chip";
@@ -66,7 +67,14 @@ function LibraryScanPage() {
   const unmappedJob = createMemo(() =>
     systemJobs.data?.find((job) => job.name === "unmapped_scan")
   );
-  const isWorkerRunning = () => Boolean(unmappedJob()?.is_running);
+  const isWorkerRunning = () =>
+    isBackgroundMatchingRunning({
+      failedCount: counts().failed,
+      hasOutstandingWork: Boolean(hasOutstandingMatches()),
+      job: unmappedJob(),
+      matchingCount: counts().matching,
+      pausedCount: counts().paused,
+    });
   const isRescanning = () => scanMutation.isPending || isWorkerRunning();
   const counts = createMemo(() => {
     let exact = 0;

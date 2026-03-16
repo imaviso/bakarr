@@ -1,6 +1,10 @@
 import { createMemo, Show } from "solid-js";
 import { Badge } from "~/components/ui/badge";
 import { type BackgroundJobStatus } from "~/lib/api";
+import {
+  backgroundMatchingStatusLabel,
+  backgroundMatchingStatusVariant,
+} from "./background-matching-state";
 import { MAX_AUTO_MATCH_ATTEMPTS } from "./constants";
 
 export function BackgroundMatchingCard(props: {
@@ -48,21 +52,21 @@ export function BackgroundMatchingCard(props: {
               Background folder matching
             </p>
             <Badge
-              variant={jobStatusVariant(
-                props.job,
-                props.isRunning,
-                props.hasOutstandingWork,
-                props.failedCount,
-                props.pausedCount,
-              )}
+              variant={backgroundMatchingStatusVariant({
+                failedCount: props.failedCount,
+                hasOutstandingWork: props.hasOutstandingWork,
+                job: props.job,
+                matchingCount: props.matchingCount,
+                pausedCount: props.pausedCount,
+              })}
             >
-              {jobStatusLabel(
-                props.job,
-                props.isRunning,
-                props.hasOutstandingWork,
-                props.failedCount,
-                props.pausedCount,
-              )}
+              {backgroundMatchingStatusLabel({
+                failedCount: props.failedCount,
+                hasOutstandingWork: props.hasOutstandingWork,
+                job: props.job,
+                matchingCount: props.matchingCount,
+                pausedCount: props.pausedCount,
+              })}
             </Badge>
           </div>
           <p aria-live="polite" class="text-sm text-muted-foreground">
@@ -138,52 +142,4 @@ export function BackgroundMatchingCard(props: {
       </Show>
     </div>
   );
-}
-
-function jobStatusLabel(
-  job: BackgroundJobStatus | undefined,
-  isRunning: boolean,
-  hasOutstandingWork: boolean,
-  failedCount: number,
-  pausedCount: number,
-) {
-  if (isRunning) {
-    return "Running";
-  }
-
-  if (failedCount > 0 && hasOutstandingWork) {
-    return "Retrying";
-  }
-
-  if (hasOutstandingWork) {
-    return "Scheduled";
-  }
-
-  if (pausedCount > 0) {
-    return "Paused";
-  }
-
-  if (job?.last_status === "failed") {
-    return "Failed";
-  }
-
-  return "Idle";
-}
-
-function jobStatusVariant(
-  job: BackgroundJobStatus | undefined,
-  isRunning: boolean,
-  hasOutstandingWork: boolean,
-  failedCount: number,
-  pausedCount: number,
-): "outline" | "warning" | "error" {
-  if (isRunning || hasOutstandingWork || pausedCount > 0) {
-    return "warning";
-  }
-
-  if (failedCount > 0 || job?.last_status === "failed") {
-    return "error";
-  }
-
-  return "outline";
 }

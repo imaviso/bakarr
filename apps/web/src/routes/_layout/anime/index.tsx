@@ -15,12 +15,10 @@ import {
   createEffect,
   createMemo,
   createSignal,
-  ErrorBoundary,
   For,
   onCleanup,
   onMount,
   Show,
-  Suspense,
 } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import * as v from "valibot";
@@ -104,6 +102,7 @@ export const Route = createFileRoute("/_layout/anime/")({
 
 function AnimeIndexPage() {
   const deleteAnime = createDeleteAnimeMutation();
+  const animeQuery = useQuery(animeListQueryOptions);
   const search = Route.useSearch();
   const navigate = useNavigate();
 
@@ -127,6 +126,27 @@ function AnimeIndexPage() {
     setLocalQuery(q);
     debouncer.schedule(q);
   };
+
+  const filteredList = createMemo(() => {
+    const list = animeQuery.data;
+    if (!list) return [];
+
+    const searchQuery = localQuery().toLowerCase();
+    const filter = search().filter;
+
+    return list.filter((anime) => {
+      const matchesSearch =
+        anime.title.romaji.toLowerCase().includes(searchQuery) ||
+        anime.title.english?.toLowerCase().includes(searchQuery) ||
+        anime.title.native?.toLowerCase().includes(searchQuery);
+
+      const matchesMonitor = filter === "all" ||
+        (filter === "monitored" && anime.monitored) ||
+        (filter === "unmonitored" && !anime.monitored);
+
+      return matchesSearch && matchesMonitor;
+    });
+  });
 
   const updateFilter = (filter: "all" | "monitored" | "unmonitored") =>
     navigate({
@@ -285,109 +305,53 @@ function AnimeIndexPage() {
         </div>
       </div>
 
-      <ErrorBoundary
-        fallback={(err, reset) => (
-          <div class="flex flex-col items-center justify-center h-64 gap-4">
-            <p class="text-destructive">
-              Error loading anime:{" "}
-              {err instanceof Error ? err.message : String(err)}
-            </p>
-            <Button variant="outline" onClick={reset}>
-              Retry
-            </Button>
-          </div>
-        )}
-      >
-        <Suspense fallback={<AnimeListSkeleton />}>
-          <AnimeContent
-            search={search()}
-            query={localQuery()}
-            deleteAnime={deleteAnime}
-          />
-        </Suspense>
-      </ErrorBoundary>
-    </div>
-  );
-}
-
-interface AnimeContentProps {
-  search: {
-    q: string;
-    filter: "all" | "monitored" | "unmonitored";
-    view: "grid" | "list";
-  };
-  query: string;
-  deleteAnime: ReturnType<typeof createDeleteAnimeMutation>;
-}
-
-function AnimeContent(props: AnimeContentProps) {
-  const animeQuery = useQuery(animeListQueryOptions);
-
-  const filteredList = createMemo(() => {
-    const list = animeQuery.data;
-    if (!list) return [];
-
-    const searchQuery = props.query.toLowerCase();
-    const filter = props.search.filter;
-
-    return list.filter((anime) => {
-      const matchesSearch =
-        anime.title.romaji.toLowerCase().includes(searchQuery) ||
-        anime.title.english?.toLowerCase().includes(searchQuery) ||
-        anime.title.native?.toLowerCase().includes(searchQuery);
-
-      const matchesMonitor = filter === "all" ||
-        (filter === "monitored" && anime.monitored) ||
-        (filter === "unmonitored" && !anime.monitored);
-
-      return matchesSearch && matchesMonitor;
-    });
-  });
-
-  return (
-    <div class="flex flex-col flex-1 min-h-0">
       <Show
-        when={filteredList().length > 0}
-        fallback={
-          <Show
-            when={!props.query}
-            fallback={
-              <p class="text-center text-muted-foreground py-8">
-                No anime matching "{props.query}"
-              </p>
-            }
-          >
-            <Card class="p-12 text-center border-dashed">
-              <div class="flex flex-col items-center gap-4">
-                <IconDeviceTv class="h-12 w-12 text-muted-foreground/50" />
-                <div>
-                  <h3 class="font-medium">No anime yet</h3>
-                  <p class="text-sm text-muted-foreground mt-1">
-                    Add your first anime to start monitoring
-                  </p>
-                </div>
-                <Link to="/anime/add" class={buttonVariants()}>
-                  <IconPlus class="mr-2 h-4 w-4" />
-                  Add Anime
-                </Link>
-              </div>
-            </Card>
-          </Show>
-        }
+        when={!animeQuery.isLoading}
+        fallback={<AnimeListSkeleton />}
       >
         <Show
-          when={props.search.view === "grid"}
+          when={filteredList().length > 0}
           fallback={
-            <AnimeListView
-              anime={filteredList()}
-              deleteAnime={props.deleteAnime}
-            />
+            <Show
+              when={!localQuery()}
+              fallback={
+                <p class="text-center text-muted-foreground py-8">
+                  No anime matching "{localQuery()}"
+                </p>
+              }
+            >
+              <Card class="p-12 text-center border-dashed">
+                <div class="flex flex-col items-center gap-4">
+                  <IconDeviceTv class="h-12 w-12 text-muted-foreground/50" />
+                  <div>
+                    <h3 class="font-medium">No anime yet</h3>
+                    <p class="text-sm text-muted-foreground mt-1">
+                      Add your first anime to start monitoring
+                    </p>
+                  </div>
+                  <Link to="/anime/add" class={buttonVariants()}>
+                    <IconPlus class="mr-2 h-4 w-4" />
+                    Add Anime
+                  </Link>
+                </div>
+              </Card>
+            </Show>
           }
         >
-          <AnimeGridView
-            anime={filteredList()}
-            deleteAnime={props.deleteAnime}
-          />
+          <Show
+            when={search().view === "grid"}
+            fallback={
+              <AnimeListView
+                anime={filteredList()}
+                deleteAnime={deleteAnime}
+              />
+            }
+          >
+            <AnimeGridView
+              anime={filteredList()}
+              deleteAnime={deleteAnime}
+            />
+          </Show>
         </Show>
       </Show>
     </div>

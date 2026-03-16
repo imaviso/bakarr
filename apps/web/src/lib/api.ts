@@ -442,6 +442,7 @@ export function createAnimeSearchQuery(query: () => string) {
   return useQuery(() => ({
     ...animeSearchQueryOptions(query()),
     enabled: query().length >= 3,
+    placeholderData: (prev: AnimeSearchResult[] | undefined) => prev,
   }));
 }
 
@@ -1128,7 +1129,7 @@ export function calendarQueryOptions(start: Date, end: Date) {
 export function createCalendarQuery(start: () => Date, end: () => Date) {
   return useQuery(() => ({
     ...calendarQueryOptions(start(), end()),
-    suspense: true,
+    placeholderData: (prev: CalendarEvent[] | undefined) => prev,
   }));
 }
 
