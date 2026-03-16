@@ -33,6 +33,7 @@ import {
   listUnmappedFolderMatchRows,
   loadSystemConfigRow,
   loadSystemLogPage,
+  loadUnmappedFolderMatchRow,
   replaceQualityProfileRows,
   upsertSystemConfigRow,
   upsertUnmappedFolderMatchRows,
@@ -393,6 +394,23 @@ Deno.test("unmapped folder match rows persist cached suggestions", async () => {
     const decoded = decodeUnmappedFolderMatchRow(rows[0]!);
     assertEquals(decoded.match_status, "done");
     assertEquals(decoded.suggested_matches[0]?.id, 20);
+  });
+});
+
+Deno.test("loadUnmappedFolderMatchRow returns a row by folder path", async () => {
+  await withTestDb(async (db) => {
+    await upsertUnmappedFolderMatchRows(db, [{
+      match_status: "paused",
+      name: "Naruto Archive",
+      path: "/library/Naruto Archive",
+      size: 0,
+      suggested_matches: [],
+    }]);
+
+    const row = await loadUnmappedFolderMatchRow(db, "/library/Naruto Archive");
+
+    assertEquals(row?.path, "/library/Naruto Archive");
+    assertEquals(row?.matchStatus, "paused");
   });
 });
 

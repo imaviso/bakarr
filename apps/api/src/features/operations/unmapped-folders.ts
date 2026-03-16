@@ -124,6 +124,29 @@ export function markUnmappedFolderPending(
   };
 }
 
+export function markUnmappedFolderPaused(
+  folder: UnmappedFolder,
+): UnmappedFolder {
+  return {
+    ...folder,
+    match_attempts: folder.match_attempts ?? 0,
+    match_status: "paused",
+  };
+}
+
+export function resetUnmappedFolderMatch(
+  folder: UnmappedFolder,
+): UnmappedFolder {
+  return {
+    ...folder,
+    match_attempts: 0,
+    last_match_error: undefined,
+    last_matched_at: undefined,
+    match_status: "pending",
+    suggested_matches: [],
+  };
+}
+
 export function markUnmappedFolderRetryPending(
   folder: UnmappedFolder,
 ): UnmappedFolder {

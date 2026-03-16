@@ -351,6 +351,16 @@ export async function upsertUnmappedFolderMatchRows(
   });
 }
 
+export async function loadUnmappedFolderMatchRow(
+  db: AppDatabase,
+  path: string,
+) {
+  const rows = await db.select().from(unmappedFolderMatches).where(
+    eq(unmappedFolderMatches.path, path),
+  ).limit(1);
+  return rows[0];
+}
+
 export function decodeUnmappedFolderMatchRow(
   row: typeof unmappedFolderMatches.$inferSelect,
 ): UnmappedFolder {

@@ -9,8 +9,10 @@ import {
   isUnmappedFolderOutstanding,
   markUnmappedFolderFailed,
   markUnmappedFolderMatching,
+  markUnmappedFolderPaused,
   markUnmappedFolderPending,
   mergeUnmappedFolderSuggestions,
+  resetUnmappedFolderMatch,
   suggestUnmappedFolders,
 } from "./unmapped-folders.ts";
 
@@ -107,6 +109,36 @@ Deno.test("unmapped folder helpers track matching status transitions", () => {
   assertEquals(pending.match_status, "pending");
   assertEquals(pending.match_attempts, 0);
   assertEquals(pending.last_match_error, undefined);
+});
+
+Deno.test("unmapped folder helpers support pause and reset controls", () => {
+  const base = {
+    last_match_error: "rate limited",
+    last_matched_at: "2024-01-01T00:00:00.000Z",
+    match_attempts: 2,
+    match_status: "failed" as const,
+    name: "Naruto Archive",
+    path: "/library/Naruto Archive",
+    size: 0,
+    suggested_matches: [{
+      already_in_library: true,
+      id: 20,
+      title: { romaji: "Naruto" },
+    }] satisfies AnimeSearchResult[],
+  };
+
+  const paused = markUnmappedFolderPaused(base);
+  const reset = resetUnmappedFolderMatch(base);
+
+  assertEquals(paused.match_status, "paused");
+  assertEquals(paused.match_attempts, 2);
+  assertEquals(paused.last_match_error, "rate limited");
+
+  assertEquals(reset.match_status, "pending");
+  assertEquals(reset.match_attempts, 0);
+  assertEquals(reset.last_match_error, undefined);
+  assertEquals(reset.last_matched_at, undefined);
+  assertEquals(reset.suggested_matches, []);
 });
 
 Deno.test("unmapped folder retry helpers stop after three failed attempts", () => {
