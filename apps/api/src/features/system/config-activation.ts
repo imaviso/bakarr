@@ -1,0 +1,87 @@
+import { Effect } from "effect";
+
+import type { Config } from "../../../../../packages/shared/src/index.ts";
+import type { DatabaseError } from "../../db/database.ts";
+import {
+  compactLogAnnotations,
+  errorLogAnnotations,
+} from "../../lib/logging.ts";
+import type { QualityProfileInsert } from "./repository.ts";
+
+export type ConfigActivationEvent =
+  | "config.validation"
+  | "config.persisted"
+  | "config.activated"
+  | "config.activation_failed"
+  | "config.rollback_failed";
+
+export interface PersistedSystemConfigState {
+  readonly coreRow: {
+    readonly data: string;
+    readonly id: number;
+    readonly updatedAt: string;
+  };
+  readonly profileRows: readonly QualityProfileInsert[];
+}
+
+export const persistAndActivateConfig = Effect.fn(
+  "SystemService.persistAndActivateConfig",
+)(function* <E>(input: {
+  readonly activateConfig: (config: Config) => Effect.Effect<void, E>;
+  readonly nextConfig: Config;
+  readonly nextState: PersistedSystemConfigState;
+  readonly persistState: (
+    state: PersistedSystemConfigState,
+  ) => Effect.Effect<void, DatabaseError>;
+  readonly previousState: PersistedSystemConfigState;
+  readonly recordEvent?: (
+    event: ConfigActivationEvent,
+    error?: unknown,
+  ) => Effect.Effect<void>;
+}) {
+  const recordEvent = input.recordEvent ?? defaultRecordConfigActivationEvent;
+
+  yield* recordEvent("config.validation");
+  yield* input.persistState(input.nextState);
+  yield* recordEvent("config.persisted");
+
+  const activationResult = yield* Effect.either(
+    input.activateConfig(input.nextConfig),
+  );
+
+  if (activationResult._tag === "Right") {
+    yield* recordEvent("config.activated");
+    return;
+  }
+
+  yield* recordEvent("config.activation_failed", activationResult.left);
+
+  const rollbackResult = yield* Effect.either(
+    input.persistState(input.previousState),
+  );
+
+  if (rollbackResult._tag === "Left") {
+    yield* recordEvent("config.rollback_failed", rollbackResult.left);
+    return yield* rollbackResult.left;
+  }
+
+  return yield* Effect.fail(activationResult.left);
+});
+
+function defaultRecordConfigActivationEvent(
+  event: ConfigActivationEvent,
+  error?: unknown,
+) {
+  const annotations = compactLogAnnotations({
+    component: "system",
+    event,
+    ...errorLogAnnotations(error),
+  });
+
+  const logEffect = event === "config.activation_failed" ||
+      event === "config.rollback_failed"
+    ? Effect.logError("system config transition")
+    : Effect.logInfo("system config transition");
+
+  return logEffect.pipe(Effect.annotateLogs(annotations));
+}

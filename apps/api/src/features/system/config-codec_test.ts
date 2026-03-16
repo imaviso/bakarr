@@ -1,4 +1,5 @@
 import { assertEquals } from "@std/assert";
+import { assertThrows } from "@std/assert";
 
 import { qualityProfiles, releaseProfiles } from "../../db/schema.ts";
 import {
@@ -7,11 +8,17 @@ import {
   decodeQualityProfileRow,
   decodeReleaseProfileRow,
   decodeReleaseProfileRules,
+  decodeStoredConfigRowOrThrow,
+  decodeStoredLibraryConfigOrThrow,
   encodeConfigCore,
   encodeOptionalNumberList,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
 } from "./config-codec.ts";
+import {
+  StoredConfigCorruptError,
+  StoredConfigMissingError,
+} from "./errors.ts";
 
 Deno.test("config codec round-trips config core without mutating arrays", () => {
   const encoded = encodeConfigCore({
@@ -140,4 +147,30 @@ Deno.test("optional number list codec normalizes duplicates and invalid values",
   assertEquals(encodeOptionalNumberList([]), null);
   assertEquals(decodeOptionalNumberList("[3,1,2]"), [3, 1, 2]);
   assertEquals(decodeOptionalNumberList("not-json"), []);
+});
+
+Deno.test("stored config row decoder throws typed errors for missing and corrupt rows", () => {
+  assertThrows(
+    () => decodeStoredConfigRowOrThrow(undefined),
+    StoredConfigMissingError,
+    "Stored configuration is missing",
+  );
+  assertThrows(
+    () => decodeStoredConfigRowOrThrow({ data: "{not-json" }),
+    StoredConfigCorruptError,
+    "Stored configuration is corrupt and could not be decoded",
+  );
+});
+
+Deno.test("stored library config decoder merges partial rows with defaults", () => {
+  const library = decodeStoredLibraryConfigOrThrow({
+    data: JSON.stringify({
+      library: {
+        library_path: "/anime-library",
+      },
+    }),
+  });
+
+  assertEquals(library.library_path, "/anime-library");
+  assertEquals(library.import_mode, "copy");
 });
