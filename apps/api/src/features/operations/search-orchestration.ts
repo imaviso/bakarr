@@ -39,9 +39,11 @@ import {
   isUnmappedFolderOutstanding,
   markUnmappedFolderFailed,
   markUnmappedFolderMatching,
+  markUnmappedFolderPaused,
   markUnmappedFolderPending,
   markUnmappedFolderRetryPending,
   mergeUnmappedFolderSuggestions,
+  resetUnmappedFolderMatch,
 } from "./unmapped-folders.ts";
 import {
   hasOverlappingDownload,
@@ -71,6 +73,7 @@ import {
   decodeUnmappedFolderMatchRow,
   deleteUnmappedFolderMatchRowsNotInPaths,
   listUnmappedFolderMatchRows,
+  loadUnmappedFolderMatchRow,
   upsertUnmappedFolderMatchRows,
 } from "../system/repository.ts";
 import {
@@ -337,7 +340,12 @@ export function makeSearchOrchestration(input: {
         payload: { anime_id: animeId ?? 0, title },
       });
 
-      const filter = animeId ? eq(episodes.animeId, animeId) : undefined;
+      const missingConditions = [
+        eq(episodes.downloaded, false),
+        sql`${episodes.aired} is not null`,
+        sql`${episodes.aired} <= ${nowIso()}`,
+        animeId ? eq(episodes.animeId, animeId) : eq(anime.monitored, true),
+      ];
       const missingRows = yield* tryDatabasePromise(
         "Failed to queue missing-episode search",
         () =>
@@ -345,20 +353,7 @@ export function makeSearchOrchestration(input: {
             anime,
             eq(anime.id, episodes.animeId),
           )
-            .where(
-              filter
-                ? and(
-                  eq(episodes.downloaded, false),
-                  sql`${episodes.aired} is not null`,
-                  sql`${episodes.aired} <= ${nowIso()}`,
-                  filter,
-                )
-                : and(
-                  eq(episodes.downloaded, false),
-                  sql`${episodes.aired} is not null`,
-                  sql`${episodes.aired} <= ${nowIso()}`,
-                ),
-            ),
+            .where(and(...missingConditions)),
       );
       const runtimeConfig = yield* tryOperationsPromise(
         "Failed to queue missing-episode search",
@@ -1030,6 +1025,133 @@ export function makeSearchOrchestration(input: {
     },
   );
 
+  const controlUnmappedFolder = Effect.fn(
+    "OperationsService.controlUnmappedFolder",
+  )(function* (input: {
+    action: "pause" | "resume" | "reset" | "refresh";
+    path: string;
+  }) {
+    const row = yield* tryDatabasePromise(
+      "Failed to update unmapped folder",
+      () => loadUnmappedFolderMatchRow(db, input.path),
+    );
+
+    if (!row) {
+      return yield* new OperationsInputError({
+        message: "Unmapped folder not found",
+      });
+    }
+
+    const current = decodeUnmappedFolderMatchRow(row);
+
+    if (current.match_status === "matching") {
+      return yield* new OperationsConflictError({
+        message: "Folder is currently matching in the background",
+      });
+    }
+
+    let nextFolder = current;
+
+    switch (input.action) {
+      case "pause":
+        nextFolder = markUnmappedFolderPaused(current);
+        break;
+      case "resume":
+        nextFolder = markUnmappedFolderPending(current);
+        break;
+      case "reset":
+        nextFolder = resetUnmappedFolderMatch(current);
+        break;
+      case "refresh":
+        nextFolder = resetUnmappedFolderMatch(current);
+        break;
+    }
+
+    yield* tryDatabasePromise(
+      "Failed to update unmapped folder",
+      () => upsertUnmappedFolderMatchRows(db, [nextFolder]),
+    );
+
+    if (input.action === "refresh") {
+      const snapshot = yield* loadUnmappedFolderSnapshot({
+        db,
+        fs,
+        tryDatabasePromise,
+      });
+      const target = snapshot.folders.find((folder) =>
+        folder.path === input.path
+      );
+
+      if (!target) {
+        return yield* new OperationsInputError({
+          message: "Unmapped folder not found",
+        });
+      }
+
+      const matchingFolder = markUnmappedFolderMatching(target);
+      yield* tryDatabasePromise(
+        "Failed to update unmapped folder",
+        () => upsertUnmappedFolderMatchRows(db, [matchingFolder]),
+      );
+
+      const matchResult = yield* Effect.either(matchSingleUnmappedFolder({
+        aniList,
+        animeRows: snapshot.animeRows,
+        db,
+        folder: matchingFolder,
+        tryDatabasePromise,
+      }));
+
+      if (matchResult._tag === "Left") {
+        const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
+        const failedFolder = markUnmappedFolderFailed(
+          matchingFolder,
+          errorMessage,
+        );
+        yield* tryDatabasePromise(
+          "Failed to update unmapped folder",
+          () => upsertUnmappedFolderMatchRows(db, [failedFolder]),
+        );
+
+        return yield* new OperationsConflictError({
+          message: failedFolder.last_match_error ??
+            "Failed to refresh folder match",
+        });
+      }
+
+      yield* tryDatabasePromise(
+        "Failed to update unmapped folder",
+        () => upsertUnmappedFolderMatchRows(db, [matchResult.right]),
+      );
+
+      yield* tryDatabasePromise(
+        "Failed to update unmapped folder",
+        () =>
+          appendLog(
+            db,
+            "library.unmapped.control",
+            "info",
+            `refreshed unmapped folder ${current.name}`,
+          ),
+      );
+
+      return { folderCount: 1, folderPath: input.path };
+    }
+
+    yield* tryDatabasePromise(
+      "Failed to update unmapped folder",
+      () =>
+        appendLog(
+          db,
+          "library.unmapped.control",
+          "info",
+          `${input.action} unmapped folder ${current.name}`,
+        ),
+    );
+
+    return { folderCount: 0, folderPath: input.path };
+  });
+
   const importUnmappedFolder = Effect.fn(
     "OperationsService.importUnmappedFolder",
   )(function* (
@@ -1281,6 +1403,7 @@ export function makeSearchOrchestration(input: {
     );
 
   return {
+    controlUnmappedFolder,
     getUnmappedFolders,
     importUnmappedFolder,
     runRssCheck,

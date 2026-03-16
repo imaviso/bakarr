@@ -25,6 +25,7 @@ import {
   AddRssFeedBodySchema,
   BrowseQuerySchema,
   CalendarQuerySchema,
+  ControlUnmappedFolderBodySchema,
   DeleteDownloadQuerySchema,
   DownloadEventsQuerySchema,
   EnabledBodySchema,
@@ -392,6 +393,22 @@ export function registerOperationsRoutes(
         (service) => service.runUnmappedScan(),
       ),
       () => c.json({ data: null, success: true }),
+    ));
+
+  app.post("/api/library/unmapped/control", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      withJsonBody(
+        c,
+        ControlUnmappedFolderBodySchema,
+        "control unmapped folder",
+        (body) =>
+          Effect.flatMap(LibraryService, (service) =>
+            service.controlUnmappedFolder({ ...body })),
+      ),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.post("/api/library/unmapped/import", (c) =>

@@ -92,6 +92,11 @@ export const ImportUnmappedFolderBodySchema = Schema.Struct({
   profile_name: Schema.optional(Schema.String),
 });
 
+export const ControlUnmappedFolderBodySchema = Schema.Struct({
+  action: Schema.Literal("pause", "resume", "reset", "refresh"),
+  path: Schema.String,
+});
+
 export const ScanImportPathBodySchema = Schema.Struct({
   anime_id: Schema.optional(AnimeIdSchema),
   path: Schema.String,

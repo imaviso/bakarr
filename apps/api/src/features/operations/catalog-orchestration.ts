@@ -410,6 +410,7 @@ export function makeCatalogOrchestration(input: {
           }).from(episodes).innerJoin(anime, eq(anime.id, episodes.animeId))
             .where(
               and(
+                eq(anime.monitored, true),
                 eq(episodes.downloaded, false),
                 sql`${episodes.aired} is not null`,
                 sql`${episodes.aired} <= ${nowIso()}`,
