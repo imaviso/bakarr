@@ -3,9 +3,12 @@ import {
   IconCheck,
   IconFolder,
   IconLoader2,
+  IconPlayerPause,
+  IconPlayerPlay,
   IconRefresh,
   IconSearch,
   IconSparkles,
+  IconTrash,
 } from "@tabler/icons-solidjs";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import {
@@ -43,6 +46,7 @@ import {
   type BackgroundJobStatus,
   createAddAnimeMutation,
   createAnimeSearchQuery,
+  createControlUnmappedFolderMutation,
   createImportUnmappedFolderMutation,
   createProfilesQuery,
   createScanLibraryMutation,
@@ -95,6 +99,8 @@ function LibraryScanPage() {
     folders.filter((folder) => folder.match_status === "done").length;
   const failedCount = () =>
     folders.filter((folder) => folder.match_status === "failed").length;
+  const pausedCount = () =>
+    folders.filter((folder) => folder.match_status === "paused").length;
 
   return (
     <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
@@ -124,6 +130,10 @@ function LibraryScanPage() {
               <StatChip
                 label="Queued"
                 value={String(queuedCount() + matchingCount())}
+              />
+              <StatChip
+                label="Paused"
+                value={String(pausedCount())}
               />
               <StatChip
                 label="Already in library"
@@ -416,6 +426,7 @@ function StatChip(props: {
 
 function FolderItem(props: { folder: UnmappedFolder }) {
   const addAnimeMutation = createAddAnimeMutation();
+  const controlMutation = createControlUnmappedFolderMutation();
   const importMutation = createImportUnmappedFolderMutation();
   const profilesQuery = createProfilesQuery();
   const [manualMatch, setManualMatch] = createSignal<AnimeSearchResult | null>(
@@ -461,6 +472,25 @@ function FolderItem(props: { folder: UnmappedFolder }) {
 
   const isImporting = () =>
     addAnimeMutation.isPending || importMutation.isPending;
+  const isControlling = () => controlMutation.isPending;
+
+  const handleControl = (action: "pause" | "resume" | "reset" | "refresh") => {
+    const labels: Record<typeof action, string> = {
+      pause: "Paused automatic matching",
+      refresh: "Refreshing match",
+      reset: "Reset match state",
+      resume: "Resumed automatic matching",
+    };
+
+    toast.promise(
+      controlMutation.mutateAsync({ action, path: props.folder.path }),
+      {
+        loading: `${labels[action]}...`,
+        success: labels[action],
+        error: (err) => `Failed to ${action} folder: ${err.message}`,
+      },
+    );
+  };
 
   const handleImport = async () => {
     const anime = selectedAnime();
@@ -609,6 +639,57 @@ function FolderItem(props: { folder: UnmappedFolder }) {
       </div>
 
       <div class="flex flex-col justify-start gap-2 lg:min-w-[160px]">
+        <div class="grid grid-cols-2 gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isControlling() ||
+              props.folder.match_status === "matching" ||
+              props.folder.match_status === "paused"}
+            onClick={() => handleControl("pause")}
+            class="justify-start"
+          >
+            <IconPlayerPause class="mr-2 h-4 w-4" />
+            Pause
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isControlling() ||
+              props.folder.match_status === "matching" ||
+              props.folder.match_status !== "paused"}
+            onClick={() => handleControl("resume")}
+            class="justify-start"
+          >
+            <IconPlayerPlay class="mr-2 h-4 w-4" />
+            Start
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isControlling() ||
+              props.folder.match_status === "matching"}
+            onClick={() => handleControl("refresh")}
+            class="justify-start"
+          >
+            <IconRefresh
+              class={cn("mr-2 h-4 w-4", isControlling() && "animate-spin")}
+            />
+            Refresh
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isControlling() ||
+              props.folder.match_status === "matching"}
+            onClick={() => handleControl("reset")}
+            class="justify-start"
+          >
+            <IconTrash class="mr-2 h-4 w-4" />
+            Reset
+          </Button>
+        </div>
+
         <Dialog open={manualDialogOpen()} onOpenChange={setManualDialogOpen}>
           <DialogTrigger
             as={Button}
@@ -664,6 +745,8 @@ function folderStatusLabel(folder: UnmappedFolder) {
   switch (folder.match_status) {
     case "matching":
       return "Matching";
+    case "paused":
+      return "Paused";
     case "done":
       return folder.suggested_matches.length > 0 ? "Matched" : "No match";
     case "failed":
@@ -680,6 +763,8 @@ function folderMatchHint(folder: UnmappedFolder) {
   switch (folder.match_status) {
     case "matching":
       return "Searching AniList in the background now.";
+    case "paused":
+      return "Automatic matching is paused for this folder. Start it again or refresh when you are ready.";
     case "failed":
       return hasAutomaticRetryRemaining(folder)
         ? folder.last_match_error
@@ -702,6 +787,8 @@ function emptyMatchMessage(folder: UnmappedFolder) {
   switch (folder.match_status) {
     case "matching":
       return "Matching in background...";
+    case "paused":
+      return "Automatic matching is paused for this folder.";
     case "failed":
       return hasAutomaticRetryRemaining(folder)
         ? "Automatic match failed for now. Another retry is queued."

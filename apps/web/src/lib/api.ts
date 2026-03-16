@@ -182,6 +182,11 @@ export interface UnmappedFolderImportRequest {
   profile_name?: string;
 }
 
+export interface UnmappedFolderControlRequest {
+  action: "pause" | "resume" | "reset" | "refresh";
+  path: string;
+}
+
 export interface AddAnimeRequest {
   id: number;
   profile_name: string;
@@ -1279,6 +1284,21 @@ export function createScanLibraryMutation() {
   return useMutation(() => ({
     mutationFn: () =>
       fetchApi(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
+      queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
+    },
+  }));
+}
+
+export function createControlUnmappedFolderMutation() {
+  const queryClient = useQueryClient();
+  return useMutation(() => ({
+    mutationFn: (data: UnmappedFolderControlRequest) =>
+      fetchApi(`${API_BASE}/library/unmapped/control`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
