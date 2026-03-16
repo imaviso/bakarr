@@ -4,10 +4,13 @@ import { Effect } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
+import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
+export { tryDatabasePromise } from "../../lib/effect-db.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import {
   AnimeConflictError,
   AnimeNotFoundError,
+  AnimePathError,
   type AnimeServiceError,
 } from "./errors.ts";
 import { appendAnimeLog, requireAnimeExists } from "./repository.ts";
@@ -17,23 +20,14 @@ export function wrapAnimeError(message: string) {
     if (
       cause instanceof AnimeNotFoundError ||
       cause instanceof AnimeConflictError ||
+      cause instanceof AnimePathError ||
       cause instanceof DatabaseError
     ) {
       return cause;
     }
 
-    return new DatabaseError({ cause, message });
+    return toDatabaseError(message)(cause);
   };
-}
-
-export function tryDatabasePromise<A>(
-  message: string,
-  try_: () => Promise<A>,
-): Effect.Effect<A, DatabaseError> {
-  return Effect.tryPromise({
-    try: try_,
-    catch: (cause) => new DatabaseError({ cause, message }),
-  });
 }
 
 export function tryAnimePromise<A>(

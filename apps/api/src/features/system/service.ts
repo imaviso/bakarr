@@ -15,15 +15,28 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import { AppRuntime } from "../../app-runtime.ts";
 import { AppConfig } from "../../config.ts";
-import { BackgroundWorkerController } from "../../background.ts";
+import {
+  BackgroundWorkerController,
+  BackgroundWorkerMonitor,
+} from "../../background.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { systemLogs } from "../../db/schema.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { EventPublisher } from "../events/publisher.ts";
 import {
   DEFAULT_PROFILES,
   DEFAULT_QUALITIES,
   makeDefaultConfig,
 } from "./defaults.ts";
+import {
+  composeBackgroundJobStatuses,
+  countRunningBackgroundJobStatuses,
+  findBackgroundJobStatus,
+} from "./background-status.ts";
+import {
+  persistAndActivateConfig,
+  type PersistedSystemConfigState,
+} from "./config-activation.ts";
 import { setRuntimeLogLevel } from "../../lib/logging.ts";
 import {
   ConfigValidationError,
@@ -32,20 +45,16 @@ import {
 } from "./errors.ts";
 import {
   type ConfigCore,
+  effectDecodeConfigCore,
   effectDecodeQualityProfileRow,
   effectDecodeReleaseProfileRow,
+  effectDecodeStoredConfigRow,
   encodeConfigCore,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
   tryDecodeConfigCore,
 } from "./config-codec.ts";
-import {
-  appendSystemLog,
-  backgroundJobNames,
-  normalizeLevel,
-  nowIso,
-  toBackgroundJobStatus,
-} from "./support.ts";
+import { appendSystemLog, normalizeLevel, nowIso } from "./support.ts";
 import { getDiskSpaceSafe, selectStoragePath } from "./disk-space.ts";
 import {
   countActiveDownloads,
@@ -59,7 +68,6 @@ import {
   countMonitoredAnimeRows,
   countQueuedDownloads,
   countRssFeedRows,
-  countRunningBackgroundJobs,
   deleteQualityProfileRow,
   deleteReleaseProfileRow,
   insertQualityProfileRow,
@@ -72,7 +80,6 @@ import {
   listRecentSystemLogRows,
   listReleaseProfileRows,
   loadAnyQualityProfileRow,
-  loadBackgroundJobRow,
   loadQualityProfileRow,
   loadSystemConfigRow,
   loadSystemLogPage,
@@ -161,6 +168,7 @@ const makeSystemService = Effect.gen(function* () {
   const runtime = yield* AppRuntime;
   const eventPublisher = yield* EventPublisher;
   const workerController = yield* BackgroundWorkerController;
+  const backgroundWorkerMonitor = yield* BackgroundWorkerMonitor;
 
   const listProfiles = Effect.fn("SystemService.listProfiles")(function* () {
     const rows = yield* tryDatabasePromise(
@@ -369,13 +377,28 @@ const makeSystemService = Effect.gen(function* () {
       );
 
       if (storedConfig) {
-        const decoded = tryDecodeConfigCore(storedConfig.data);
-        if (decoded) {
-          setRuntimeLogLevel(decoded.general.log_level);
+        const decoded = yield* effectDecodeConfigCore(storedConfig.data).pipe(
+          Effect.either,
+        );
+
+        if (decoded._tag === "Right") {
+          setRuntimeLogLevel(decoded.right.general.log_level);
         }
       }
     },
   );
+
+  const loadComposedBackgroundJobs = Effect.fn(
+    "SystemService.loadComposedBackgroundJobs",
+  )(function* (currentConfig: Config, message: string) {
+    const rows = yield* tryDatabasePromise(
+      message,
+      () => listBackgroundJobRows(db),
+    );
+    const liveSnapshot = yield* backgroundWorkerMonitor.snapshot();
+
+    return composeBackgroundJobStatuses(currentConfig, liveSnapshot, rows);
+  });
 
   const getSystemStatus = Effect.fn("SystemService.getSystemStatus")(
     function* () {
@@ -410,20 +433,21 @@ const makeSystemService = Effect.gen(function* () {
         "Failed to build system status",
         () => countActiveDownloads(db),
       );
-      const rssJob = yield* tryDatabasePromise(
+      const jobs = yield* loadComposedBackgroundJobs(
+        {
+          ...core,
+          profiles: [],
+        } as Config,
         "Failed to build system status",
-        () => loadBackgroundJobRow(db, "rss"),
       );
-      const scanJob = yield* tryDatabasePromise(
-        "Failed to build system status",
-        () => loadBackgroundJobRow(db, "library_scan"),
-      );
+      const rssJob = findBackgroundJobStatus(jobs, "rss");
+      const scanJob = findBackgroundJobStatus(jobs, "library_scan");
 
       return {
         active_torrents: activeDownloads,
         disk_space: { free: diskSpace.free, total: diskSpace.total },
-        last_rss: rssJob?.lastSuccessAt ?? rssJob?.lastRunAt ?? null,
-        last_scan: scanJob?.lastSuccessAt ?? scanJob?.lastRunAt ?? null,
+        last_rss: rssJob?.last_success_at ?? rssJob?.last_run_at ?? null,
+        last_scan: scanJob?.last_success_at ?? scanJob?.last_run_at ?? null,
         pending_downloads: queuedDownloads,
         uptime: Math.max(
           0,
@@ -491,15 +515,9 @@ const makeSystemService = Effect.gen(function* () {
 
   const getJobs = Effect.fn("SystemService.getJobs")(function* () {
     const currentConfig = yield* getConfig();
-    const rows = yield* tryDatabasePromise(
+    return yield* loadComposedBackgroundJobs(
+      currentConfig,
       "Failed to load background jobs",
-      () => listBackgroundJobRows(db),
-    );
-    const rowsByName = new Map(rows.map((row) => [row.name, row]));
-    const names = backgroundJobNames(rows);
-
-    return names.map((name) =>
-      toBackgroundJobStatus(currentConfig, rowsByName.get(name), name)
     );
   });
 
@@ -521,16 +539,10 @@ const makeSystemService = Effect.gen(function* () {
       "Failed to load ops dashboard",
       () => countImportedDownloads(db),
     );
-    const runningJobs = yield* tryDatabasePromise(
+    const jobs = yield* loadComposedBackgroundJobs(
+      currentConfig,
       "Failed to load ops dashboard",
-      () => countRunningBackgroundJobs(db),
     );
-    const jobs = yield* tryDatabasePromise(
-      "Failed to load ops dashboard",
-      () => listBackgroundJobRows(db),
-    );
-    const rowsByName = new Map(jobs.map((row) => [row.name, row]));
-    const jobNames = backgroundJobNames(jobs);
     const events = yield* tryDatabasePromise(
       "Failed to load ops dashboard",
       () => listRecentDownloadEventRows(db, 12),
@@ -540,9 +552,7 @@ const makeSystemService = Effect.gen(function* () {
       active_downloads: activeDownloads,
       failed_downloads: failedDownloads,
       imported_downloads: importedDownloads,
-      jobs: jobNames.map((name) =>
-        toBackgroundJobStatus(currentConfig, rowsByName.get(name), name)
-      ),
+      jobs,
       queued_downloads: queuedDownloads,
       recent_download_events: events.map((row) => ({
         anime_id: row.animeId ?? undefined,
@@ -555,37 +565,36 @@ const makeSystemService = Effect.gen(function* () {
         metadata: row.metadata ?? undefined,
         to_status: row.toStatus ?? undefined,
       })),
-      running_jobs: runningJobs,
+      running_jobs: countRunningBackgroundJobStatuses(jobs),
     } as OpsDashboard;
   });
 
   const getConfig = Effect.fn("SystemService.getConfig")(function* () {
-    const [storedConfig] = yield* tryDatabasePromise(
+    const storedConfig = yield* tryDatabasePromise(
       "Failed to load system configuration",
-      async () => {
-        const row = await loadSystemConfigRow(db);
-        return row ? [row] : [];
-      },
+      () => loadSystemConfigRow(db),
     );
     const profiles = yield* tryDatabasePromise(
       "Failed to load system configuration",
       () => listQualityProfileRows(db),
     );
 
-    let core: ConfigCore;
-    if (storedConfig) {
-      const decoded = tryDecodeConfigCore(storedConfig.data);
-      if (decoded) {
-        core = decoded;
-      } else {
-        return yield* new StoredConfigCorruptError({
-          message:
-            "Stored configuration is corrupt and could not be decoded. Re-save config to repair.",
-        });
-      }
-    } else {
-      core = makeDefaultConfig(config.databaseFile);
-    }
+    const core = yield* effectDecodeStoredConfigRow(storedConfig).pipe(
+      Effect.catchTag(
+        "StoredConfigMissingError",
+        () => Effect.succeed(makeDefaultConfig(config.databaseFile)),
+      ),
+      Effect.catchTag(
+        "StoredConfigCorruptError",
+        () =>
+          Effect.fail(
+            new StoredConfigCorruptError({
+              message:
+                "Stored configuration is corrupt and could not be decoded. Re-save config to repair.",
+            }),
+          ),
+      ),
+    );
 
     return {
       ...core,
@@ -642,27 +651,64 @@ const makeSystemService = Effect.gen(function* () {
       scheduler: nextConfig.scheduler,
     };
 
+    const updatedAt = nowIso();
+    const previousConfigRow = yield* tryDatabasePromise(
+      "Failed to update system configuration",
+      () => loadSystemConfigRow(db),
+    );
+    const previousState: PersistedSystemConfigState = {
+      coreRow: previousConfigRow
+        ? {
+          data: previousConfigRow.data,
+          id: previousConfigRow.id,
+          updatedAt: previousConfigRow.updatedAt,
+        }
+        : {
+          data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
+          id: 1,
+          updatedAt,
+        },
+      profileRows: existingProfileRows.map((row) => ({
+        allowedQualities: row.allowedQualities,
+        cutoff: row.cutoff,
+        maxSize: row.maxSize,
+        minSize: row.minSize,
+        name: row.name,
+        seadexPreferred: row.seadexPreferred,
+        upgradeAllowed: row.upgradeAllowed,
+      })),
+    };
+    const nextState: PersistedSystemConfigState = {
+      coreRow: {
+        data: encodeConfigCore(core),
+        id: 1,
+        updatedAt,
+      },
+      profileRows: nextConfig.profiles.map(encodeQualityProfileRow),
+    };
+
+    yield* persistAndActivateConfig({
+      activateConfig: (value) => workerController.reload(value),
+      nextConfig,
+      nextState,
+      persistState: (state) =>
+        tryDatabasePromise(
+          "Failed to update system configuration",
+          () => updateSystemConfigAtomic(db, state.coreRow, state.profileRows),
+        ),
+      previousState,
+    });
+
     yield* tryDatabasePromise(
       "Failed to update system configuration",
       () =>
-        updateSystemConfigAtomic(
+        appendSystemLog(
           db,
-          {
-            data: encodeConfigCore(core),
-            id: 1,
-            updatedAt: nowIso(),
-          },
-          nextConfig.profiles.map(encodeQualityProfileRow),
+          "system.config.updated",
+          "success",
+          "System configuration updated",
         ),
     );
-
-    const reloadResult = yield* Effect.either(
-      workerController.reload(nextConfig),
-    );
-
-    if (reloadResult._tag === "Left") {
-      return yield* reloadResult.left;
-    }
 
     setRuntimeLogLevel(nextConfig.general.log_level);
 
@@ -774,13 +820,3 @@ const makeSystemService = Effect.gen(function* () {
 });
 
 export const SystemServiceLive = Layer.effect(SystemService, makeSystemService);
-
-function tryDatabasePromise<A>(
-  message: string,
-  try_: () => Promise<A>,
-): Effect.Effect<A, DatabaseError> {
-  return Effect.tryPromise({
-    try: try_,
-    catch: (cause) => new DatabaseError({ cause, message }),
-  });
-}

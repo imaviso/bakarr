@@ -12,13 +12,30 @@ export class StoredConfigCorruptError
     { message: Schema.String },
   ) {}
 
+export class StoredConfigMissingError
+  extends Schema.TaggedError<StoredConfigMissingError>()(
+    "StoredConfigMissingError",
+    { message: Schema.String },
+  ) {}
+
 export class ProfileNotFoundError
   extends Schema.TaggedError<ProfileNotFoundError>()(
     "ProfileNotFoundError",
     { message: Schema.String },
   ) {}
 
+export type StoredConfigReadError =
+  | StoredConfigCorruptError
+  | StoredConfigMissingError;
+
+export function isStoredConfigReadError(
+  cause: unknown,
+): cause is StoredConfigReadError {
+  return cause instanceof StoredConfigCorruptError ||
+    cause instanceof StoredConfigMissingError;
+}
+
 export type SystemServiceError =
   | ConfigValidationError
-  | StoredConfigCorruptError
+  | StoredConfigReadError
   | ProfileNotFoundError;

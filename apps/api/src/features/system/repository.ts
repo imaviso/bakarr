@@ -76,13 +76,6 @@ export async function updateSystemConfigAtomic(
     if (profileRows.length > 0) {
       await tx.insert(qualityProfiles).values([...profileRows]);
     }
-
-    await tx.insert(systemLogs).values({
-      createdAt: coreInput.updatedAt || new Date().toISOString(),
-      eventType: "system.config.updated",
-      level: "success",
-      message: "System configuration updated",
-    });
   });
 }
 

@@ -4,7 +4,11 @@ import { Deferred, Effect, Fiber, Ref, TestClock } from "effect";
 import { DatabaseError } from "../../db/database.ts";
 import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 import { makeEventPublisher } from "../events/publisher.ts";
-import { AnimeConflictError, AnimeNotFoundError } from "./errors.ts";
+import {
+  AnimeConflictError,
+  AnimeNotFoundError,
+  AnimePathError,
+} from "./errors.ts";
 import {
   tryAnimePromise,
   tryDatabasePromise,
@@ -14,10 +18,12 @@ import {
 Deno.test("anime service support preserves known errors and wraps unknown ones", async () => {
   const knownNotFound = new AnimeNotFoundError({ message: "missing" });
   const knownConflict = new AnimeConflictError({ message: "conflict" });
+  const knownPath = new AnimePathError({ message: "path" });
   const knownDb = new DatabaseError({ cause: new Error("db"), message: "db" });
 
   assertEquals(wrapAnimeError("ignored")(knownNotFound), knownNotFound);
   assertEquals(wrapAnimeError("ignored")(knownConflict), knownConflict);
+  assertEquals(wrapAnimeError("ignored")(knownPath), knownPath);
   assertEquals(wrapAnimeError("ignored")(knownDb), knownDb);
 
   const wrapped = wrapAnimeError("wrapped")(new Error("boom"));

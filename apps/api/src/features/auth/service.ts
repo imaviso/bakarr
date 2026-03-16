@@ -16,6 +16,7 @@ import {
   DatabaseError,
 } from "../../db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "../../db/schema.ts";
+import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
 import { hashPassword, verifyPassword } from "../../security/password.ts";
 
 export class AuthError extends Schema.TaggedError<AuthError>()("AuthError", {
@@ -593,18 +594,8 @@ function asAuthError(message: string) {
       return cause;
     }
 
-    return new DatabaseError({ cause, message });
+    return toDatabaseError(message)(cause);
   };
-}
-
-function tryDatabasePromise<A>(
-  message: string,
-  try_: () => Promise<A>,
-): Effect.Effect<A, DatabaseError> {
-  return Effect.tryPromise({
-    try: try_,
-    catch: (cause) => new DatabaseError({ cause, message }),
-  });
 }
 
 function tryAuthPromise<A>(

@@ -9,7 +9,11 @@ import {
   qualityProfiles,
   systemLogs,
 } from "../../db/schema.ts";
-import { decodeConfigCore } from "../system/config-codec.ts";
+import {
+  decodeConfigCoreOrThrow,
+  decodeStoredImagePathOrThrow,
+} from "../system/config-codec.ts";
+import { makeDefaultConfig } from "../system/defaults.ts";
 import { AnimeNotFoundError } from "./errors.ts";
 
 export async function getAnimeRowOrThrow(db: AppDatabase, animeId: number) {
@@ -145,9 +149,11 @@ export async function resolveAnimeRootFolder(
   const trimmed = requestedRootFolder.trim();
   const rows = await db.select().from(appConfig).where(eq(appConfig.id, 1))
     .limit(1);
-  const settings = rows[0]
-    ? parseLibrarySettings(rows[0].data)
-    : defaultLibrarySettings();
+  const settings = toLibrarySettings(
+    rows[0]
+      ? decodeConfigCoreOrThrow(rows[0].data)
+      : makeDefaultConfig(":memory:"),
+  );
   const baseRootFolder = trimmed.length > 0 ? trimmed : settings.libraryPath;
 
   if (options.useExistingRoot && trimmed.length > 0) {
@@ -232,11 +238,8 @@ function normalizeRootFolder(rootFolder: string) {
 export async function getConfiguredImagesPath(db: AppDatabase) {
   const rows = await db.select().from(appConfig).where(eq(appConfig.id, 1))
     .limit(1);
-  const settings = rows[0]
-    ? parseImageSettings(rows[0].data)
-    : defaultImageSettings();
 
-  return settings.imagesPath;
+  return decodeStoredImagePathOrThrow(rows[0]);
 }
 
 export async function appendAnimeLog(
@@ -355,36 +358,14 @@ export function inferAiredAt(
     .toISOString();
 }
 
-function parseLibrarySettings(configJson: string) {
-  try {
-    const config = decodeConfigCore(configJson);
-    return {
-      createAnimeFolders: config.downloads.create_anime_folders,
-      libraryPath: config.library.library_path.trim() || "./library",
-    };
-  } catch {
-    throw new Error("Stored configuration is corrupt and could not be decoded");
-  }
-}
-
-function defaultLibrarySettings() {
+function toLibrarySettings(config: {
+  downloads: { create_anime_folders: boolean };
+  library: { library_path: string };
+}) {
   return {
-    createAnimeFolders: true,
-    libraryPath: "./library",
+    createAnimeFolders: config.downloads.create_anime_folders,
+    libraryPath: config.library.library_path.trim() || "./library",
   };
-}
-
-function parseImageSettings(configJson: string) {
-  try {
-    const config = decodeConfigCore(configJson);
-    return { imagesPath: config.general.images_path.trim() || "./data/images" };
-  } catch {
-    return defaultImageSettings();
-  }
-}
-
-function defaultImageSettings() {
-  return { imagesPath: "./data/images" };
 }
 
 function toSafePathSegment(value: string) {

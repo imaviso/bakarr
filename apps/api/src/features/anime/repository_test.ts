@@ -6,11 +6,15 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
-import { anime, episodes, systemLogs } from "../../db/schema.ts";
+import { anime, appConfig, episodes, systemLogs } from "../../db/schema.ts";
+import { encodeConfigCore } from "../system/config-codec.ts";
+import { makeDefaultConfig } from "../system/defaults.ts";
+import { StoredConfigCorruptError } from "../system/errors.ts";
 import {
   buildMissingEpisodeRows,
   ensureEpisodes,
   findAnimeRootFolderOwner,
+  getConfiguredImagesPath,
   insertAnimeAggregateAtomic,
   markSearchResultsAlreadyInLibrary,
   resolveAnimeRootFolder,
@@ -176,6 +180,57 @@ Deno.test("resolveAnimeRootFolder can preserve an existing folder root", async (
     );
 
     assertEquals(rootFolder, "/library/Naruto Fansub");
+  });
+});
+
+Deno.test("anime repository helpers fail explicitly on corrupt stored config", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(appConfig).values({
+      id: 1,
+      data: "{not-json",
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+
+    await assertRejects(
+      () => resolveAnimeRootFolder(db, "", "Naruto"),
+      StoredConfigCorruptError,
+      "Stored configuration is corrupt and could not be decoded",
+    );
+    await assertRejects(
+      () => getConfiguredImagesPath(db),
+      StoredConfigCorruptError,
+      "Stored configuration is corrupt and could not be decoded",
+    );
+  });
+});
+
+Deno.test("anime repository helpers use stored config when available", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(appConfig).values({
+      id: 1,
+      data: encodeConfigCore({
+        ...makeDefaultConfig("./test.sqlite"),
+        downloads: {
+          ...makeDefaultConfig("./test.sqlite").downloads,
+          create_anime_folders: false,
+        },
+        general: {
+          ...makeDefaultConfig("./test.sqlite").general,
+          images_path: "./custom-images",
+        },
+        library: {
+          ...makeDefaultConfig("./test.sqlite").library,
+          library_path: "/anime-library",
+        },
+      }),
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+
+    assertEquals(
+      await resolveAnimeRootFolder(db, "", "Naruto"),
+      "/anime-library",
+    );
+    assertEquals(await getConfiguredImagesPath(db), "./custom-images");
   });
 });
 

@@ -4,6 +4,7 @@ import { Either } from "effect";
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { eq, sql } from "drizzle-orm";
 
+import { BACKGROUND_WORKER_NAMES } from "../../background-worker-model.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { systemLogs } from "../../db/schema.ts";
 
@@ -92,10 +93,7 @@ export function backgroundJobNames(
 ): string[] {
   return [
     ...new Set([
-      "download_sync",
-      "library_scan",
-      "rss",
-      "unmapped_scan",
+      ...BACKGROUND_WORKER_NAMES,
       ...rows.map((row) => row.name),
     ]),
   ].sort();
