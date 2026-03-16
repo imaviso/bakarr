@@ -2,6 +2,7 @@ import {
   IconAlertTriangle,
   IconCheck,
   IconDownload,
+  IconExternalLink,
   IconFilter,
   IconLoader2,
   IconSearch,
@@ -448,10 +449,15 @@ function ReleaseRow(props: {
   onGrab: () => void;
 }) {
   const grabMutation = createGrabReleaseMutation();
+  const detectedIsBatch = () =>
+    (props.result.parsed_episode_numbers?.length ?? 0) > 1 ||
+    !props.result.parsed_episode;
   const [epNum, setEpNum] = createSignal(
-    props.result.parsed_episode?.toString() || "",
+    props.result.parsed_episode?.toString() ||
+      props.result.parsed_episode_numbers?.[0]?.toString() ||
+      (detectedIsBatch() ? "1" : ""),
   );
-  const [isBatch, setIsBatch] = createSignal(false);
+  const [isBatch, setIsBatch] = createSignal(detectedIsBatch());
   const [popoverOpen, setPopoverOpen] = createSignal(false);
 
   const handleGrab = () => {
@@ -459,7 +465,9 @@ function ReleaseRow(props: {
       {
         anime_id: props.animeId,
         magnet: props.result.magnet,
-        episode_number: parseFloat(epNum()) || 0,
+        episode_number: Number.isFinite(parseFloat(epNum()))
+          ? parseFloat(epNum())
+          : undefined,
         group: props.result.parsed_group,
         title: props.result.title,
         is_batch: isBatch(),
@@ -539,6 +547,14 @@ function ReleaseRow(props: {
                 {props.result.is_seadex_best ? "SeaDex Best" : "SeaDex"}
               </Badge>
             </Show>
+            <Show when={props.result.seadex_dual_audio}>
+              <Badge
+                variant="outline"
+                class="h-4 px-1 text-[9px] border-primary/20 text-primary bg-primary/5 rounded-none"
+              >
+                Dual Audio
+              </Badge>
+            </Show>
             <Show when={props.result.remake}>
               <Badge
                 variant="outline"
@@ -548,6 +564,41 @@ function ReleaseRow(props: {
               </Badge>
             </Show>
           </div>
+          <Show
+            when={props.result.seadex_notes ||
+              props.result.seadex_tags?.length ||
+              props.result.seadex_comparison}
+          >
+            <div class="flex flex-col gap-1 text-[10px] text-muted-foreground pr-4">
+              <Show when={props.result.seadex_notes}>
+                <span class="line-clamp-2">{props.result.seadex_notes}</span>
+              </Show>
+              <Show when={props.result.seadex_tags?.length}>
+                <div class="flex flex-wrap gap-1">
+                  <For each={(props.result.seadex_tags || []).slice(0, 4)}>
+                    {(tag) => (
+                      <Badge
+                        variant="secondary"
+                        class="h-4 px-1 text-[9px] bg-muted/40 text-muted-foreground border-transparent rounded-none"
+                      >
+                        {tag}
+                      </Badge>
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <Show when={props.result.seadex_comparison}>
+                <a
+                  href={props.result.seadex_comparison}
+                  target="_blank"
+                  rel="noreferrer"
+                  class="inline-flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 w-fit"
+                >
+                  <IconExternalLink class="h-3 w-3" /> Compare notes
+                </a>
+              </Show>
+            </div>
+          </Show>
         </div>
       </TableCell>
       <TableCell class="py-2.5">
@@ -603,7 +654,9 @@ function ReleaseRow(props: {
                   Confirm Download
                 </h4>
                 <p class="text-[10px] text-muted-foreground">
-                  Verify episode number for mapping.
+                  {isBatch()
+                    ? "Verify the starting episode used for the batch mapping."
+                    : "Verify episode number for mapping."}
                 </p>
               </div>
               <div class="flex items-center space-x-2">
@@ -621,14 +674,14 @@ function ReleaseRow(props: {
                   <TextField value={epNum()} onChange={setEpNum}>
                     <TextFieldInput
                       class="h-7 text-xs font-mono"
-                      placeholder="Ep #"
+                      placeholder={isBatch() ? "Start ep" : "Ep #"}
                     />
                   </TextField>
                 </div>
                 <Button
                   size="sm"
                   onClick={handleGrab}
-                  disabled={grabMutation.isPending}
+                  disabled={grabMutation.isPending || (!isBatch() && !epNum())}
                   class="h-7 px-3 text-xs"
                 >
                   <Show

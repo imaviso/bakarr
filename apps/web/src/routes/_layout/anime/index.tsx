@@ -1,5 +1,4 @@
 import {
-  IconCheck,
   IconDeviceTv,
   IconFilter,
   IconFolder,
@@ -27,7 +26,6 @@ import { createVirtualizer } from "@tanstack/solid-virtual";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
 import { GeneralError } from "~/components/general-error";
-import { PageHeader } from "~/components/page-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +43,8 @@ import { Card } from "~/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
 import { Input } from "~/components/ui/input";
@@ -67,6 +66,7 @@ import {
   animeListQueryOptions,
   createDeleteAnimeMutation,
 } from "~/lib/api";
+import { createDebouncer } from "~/lib/debounce";
 import { cn } from "~/lib/utils";
 
 const MonitorFilterSchema = v.fallback(
@@ -107,21 +107,27 @@ function AnimeIndexPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
 
+  const [localQuery, setLocalQuery] = createSignal(search().q);
+  const debouncer = createDebouncer((q: string) => {
+    navigate({
+      to: ".",
+      search: (prev) => ({ q, filter: prev.filter, view: prev.view }),
+      replace: true,
+    });
+  }, 250);
+
   createEffect(() => {
     const currentSearch = search();
     localStorage.setItem("bakarr_anime_search", JSON.stringify(currentSearch));
   });
 
-  const updateSearch = (q: string) =>
-    navigate({
-      to: ".",
-      search: (prev) => ({
-        q,
-        filter: prev.filter,
-        view: prev.view,
-      }),
-      replace: true,
-    });
+  onCleanup(() => debouncer.cancel());
+
+  const handleSearchInput = (q: string) => {
+    setLocalQuery(q);
+    debouncer.schedule(q);
+  };
+
   const updateFilter = (filter: "all" | "monitored" | "unmonitored") =>
     navigate({
       to: ".",
@@ -144,70 +150,71 @@ function AnimeIndexPage() {
     });
 
   return (
-    <div class="flex flex-col flex-1 min-h-0 gap-6">
-      <PageHeader title="Library" subtitle="Manage your anime collection" />
-
-      <div class="flex flex-col sm:flex-row gap-3">
-        {/* Search */}
-        <div class="relative flex-1">
-          <IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Filter anime..."
-            aria-label="Filter anime"
-            value={search().q}
-            onInput={(e) => updateSearch(e.currentTarget.value)}
-            class="pl-9"
-          />
+    <div class="flex flex-col flex-1 min-h-0">
+      <div class="border-b border-border pb-3 mb-3 space-y-3">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">
+              Library
+            </h1>
+            <p class="text-sm text-muted-foreground mt-1">
+              Manage your anime collection
+            </p>
+          </div>
+          <Link
+            to="/anime/add"
+            class={buttonVariants({ class: "gap-1.5 px-2.5 sm:px-4" })}
+            aria-label="Add anime"
+          >
+            <IconPlus class="h-4 w-4" />
+            <span class="hidden sm:inline">Add Anime</span>
+          </Link>
         </div>
 
-        {/* Controls */}
-        <div class="flex items-center gap-1">
-          {/* Filter */}
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <IconSearch class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Filter anime..."
+              aria-label="Filter anime"
+              value={localQuery()}
+              onInput={(e) => handleSearchInput(e.currentTarget.value)}
+              class="pl-9"
+            />
+          </div>
+
           <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger>
-                <DropdownMenuTrigger
-                  as={Button}
-                  variant="outline"
-                  size="icon"
-                  aria-label="Filter by status"
-                >
-                  <IconFilter class="h-4 w-4" />
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>Filter by status</TooltipContent>
-            </Tooltip>
+            <DropdownMenuTrigger
+              as={Button}
+              variant="outline"
+              size="icon"
+              aria-label="Filter by status"
+            >
+              <IconFilter class="h-4 w-4" />
+            </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onSelect={() => updateFilter("all")}>
-                <Show when={search().filter === "all"}>
-                  <IconCheck class="mr-2 h-4 w-4" />
-                </Show>
-                <span class={search().filter !== "all" ? "ml-6" : ""}>
+              <DropdownMenuRadioGroup
+                value={search().filter}
+                onChange={(value) =>
+                  updateFilter(
+                    value as "all" | "monitored" | "unmonitored",
+                  )}
+              >
+                <DropdownMenuRadioItem value="all">
                   All Anime
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => updateFilter("monitored")}>
-                <Show when={search().filter === "monitored"}>
-                  <IconCheck class="mr-2 h-4 w-4" />
-                </Show>
-                <span class={search().filter !== "monitored" ? "ml-6" : ""}>
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="monitored">
                   Monitored
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => updateFilter("unmonitored")}>
-                <Show when={search().filter === "unmonitored"}>
-                  <IconCheck class="mr-2 h-4 w-4" />
-                </Show>
-                <span class={search().filter !== "unmonitored" ? "ml-6" : ""}>
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="unmonitored">
                   Unmonitored
-                </span>
-              </DropdownMenuItem>
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div class="h-6 w-px bg-border mx-1" />
+          <div class="h-6 w-px bg-border" />
 
-          {/* Library actions */}
           <Tooltip>
             <TooltipTrigger>
               <Link
@@ -233,10 +240,9 @@ function AnimeIndexPage() {
             <TooltipContent>Scan library</TooltipContent>
           </Tooltip>
 
-          <div class="h-6 w-px bg-border mx-1" />
+          <div class="h-6 w-px bg-border" />
 
-          {/* View toggle */}
-          <div class="flex items-center gap-1 bg-muted/50 p-1 rounded-md">
+          <div class="flex items-center gap-1 bg-muted/50 p-1">
             <Tooltip>
               <TooltipTrigger>
                 <Button
@@ -276,23 +282,6 @@ function AnimeIndexPage() {
               <TooltipContent>List view</TooltipContent>
             </Tooltip>
           </div>
-
-          <div class="h-6 w-px bg-border mx-1" />
-
-          {/* Add Anime */}
-          <Tooltip>
-            <TooltipTrigger>
-              <Link
-                to="/anime/add"
-                class={buttonVariants({ class: "gap-1.5 px-2.5 sm:px-4" })}
-                aria-label="Add anime"
-              >
-                <IconPlus class="h-4 w-4" />
-                <span class="hidden sm:inline">Add Anime</span>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent>Add new anime</TooltipContent>
-          </Tooltip>
         </div>
       </div>
 
@@ -310,7 +299,11 @@ function AnimeIndexPage() {
         )}
       >
         <Suspense fallback={<AnimeListSkeleton />}>
-          <AnimeContent search={search()} deleteAnime={deleteAnime} />
+          <AnimeContent
+            search={search()}
+            query={localQuery()}
+            deleteAnime={deleteAnime}
+          />
         </Suspense>
       </ErrorBoundary>
     </div>
@@ -323,6 +316,7 @@ interface AnimeContentProps {
     filter: "all" | "monitored" | "unmonitored";
     view: "grid" | "list";
   };
+  query: string;
   deleteAnime: ReturnType<typeof createDeleteAnimeMutation>;
 }
 
@@ -333,7 +327,7 @@ function AnimeContent(props: AnimeContentProps) {
     const list = animeQuery.data;
     if (!list) return [];
 
-    const searchQuery = props.search.q.toLowerCase();
+    const searchQuery = props.query.toLowerCase();
     const filter = props.search.filter;
 
     return list.filter((anime) => {
@@ -356,10 +350,10 @@ function AnimeContent(props: AnimeContentProps) {
         when={filteredList().length > 0}
         fallback={
           <Show
-            when={!props.search.q}
+            when={!props.query}
             fallback={
               <p class="text-center text-muted-foreground py-8">
-                No anime matching "{props.search.q}"
+                No anime matching "{props.query}"
               </p>
             }
           >

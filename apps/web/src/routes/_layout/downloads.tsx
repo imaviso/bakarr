@@ -47,6 +47,43 @@ import {
   type DownloadStatus,
 } from "~/lib/api";
 
+function formatEpisodeCoverage(
+  episodeNumber: number,
+  coveredEpisodes?: number[],
+  coveragePending?: boolean,
+) {
+  if (coveragePending) {
+    return "Batch pending";
+  }
+
+  if (!coveredEpisodes || coveredEpisodes.length === 0) {
+    return `Ep ${episodeNumber.toString().padStart(2, "0")}`;
+  }
+
+  if (coveredEpisodes.length === 1) {
+    return `Ep ${coveredEpisodes[0].toString().padStart(2, "0")}`;
+  }
+
+  return `Batch ${coveredEpisodes[0].toString().padStart(2, "0")}-${
+    coveredEpisodes[coveredEpisodes.length - 1].toString().padStart(2, "0")
+  }`;
+}
+
+function formatCoverageMeta(
+  coveredEpisodes?: number[],
+  coveragePending?: boolean,
+) {
+  if (coveragePending) {
+    return "Waiting for qBittorrent file metadata";
+  }
+
+  if (!coveredEpisodes || coveredEpisodes.length <= 1) {
+    return undefined;
+  }
+
+  return `${coveredEpisodes.length} episodes: ${coveredEpisodes.join(", ")}`;
+}
+
 export const Route = createFileRoute("/_layout/downloads")({
   validateSearch: (search) => v.parse(v.object({}), search),
   loader: async ({ context: { queryClient } }) => {
@@ -413,6 +450,18 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
           <span class="line-clamp-1 text-sm" title={props.item.name}>
             {props.item.name}
           </span>
+          <Show
+            when={props.item.is_batch || props.item.covered_episodes?.length ||
+              props.item.coverage_pending}
+          >
+            <span class="text-xs text-muted-foreground line-clamp-1">
+              {formatEpisodeCoverage(
+                props.item.episode_number ?? 1,
+                props.item.covered_episodes,
+                props.item.coverage_pending,
+              )}
+            </span>
+          </Show>
           <Show when={props.item.id !== undefined}>
             <span class="text-xs text-muted-foreground">#{props.item.id}</span>
           </Show>
@@ -558,8 +607,24 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
       </TableCell>
       <TableCell>
         <Badge variant="outline" class="font-normal font-mono text-xs">
-          {props.item.episode_number.toString().padStart(2, "0")}
+          {formatEpisodeCoverage(
+            props.item.episode_number,
+            props.item.covered_episodes,
+            props.item.coverage_pending,
+          )}
         </Badge>
+        <Show
+          when={formatCoverageMeta(
+            props.item.covered_episodes,
+            props.item.coverage_pending,
+          )}
+        >
+          {(meta) => (
+            <div class="mt-1 text-[11px] text-muted-foreground">
+              {meta()}
+            </div>
+          )}
+        </Show>
       </TableCell>
       <Show
         when={!props.isHistory}

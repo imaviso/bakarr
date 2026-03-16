@@ -818,7 +818,7 @@ export function createGrabReleaseMutation() {
     mutationFn: (data: {
       anime_id: number;
       magnet: string;
-      episode_number: number;
+      episode_number?: number;
       title: string;
       group?: string;
       info_hash?: string;

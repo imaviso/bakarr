@@ -1,6 +1,7 @@
 import {
   IconAlertTriangle,
   IconDownload,
+  IconExternalLink,
   IconLoader2,
   IconPlug,
   IconVideo,
@@ -196,7 +197,72 @@ export function SearchModal(props: SearchModalProps) {
                                         {release.group}
                                       </Badge>
                                     </Show>
+                                    <Show when={release.is_seadex}>
+                                      <Badge
+                                        variant="outline"
+                                        class={cn(
+                                          "text-[10px] px-1 h-4",
+                                          release.is_seadex_best
+                                            ? "border-warning/20 text-warning bg-warning/5"
+                                            : "border-info/20 text-info bg-info/5",
+                                        )}
+                                      >
+                                        {release.is_seadex_best
+                                          ? "SeaDex Best"
+                                          : "SeaDex"}
+                                      </Badge>
+                                    </Show>
+                                    <Show when={release.seadex_dual_audio}>
+                                      <Badge
+                                        variant="outline"
+                                        class="text-[10px] px-1 h-4 border-primary/20 text-primary bg-primary/5"
+                                      >
+                                        Dual Audio
+                                      </Badge>
+                                    </Show>
                                   </div>
+                                  <Show
+                                    when={release.seadex_notes ||
+                                      release.seadex_tags?.length ||
+                                      release.seadex_comparison}
+                                  >
+                                    <div class="text-[10px] text-muted-foreground leading-tight flex flex-col gap-1">
+                                      <Show when={release.seadex_notes}>
+                                        <div class="line-clamp-2">
+                                          {release.seadex_notes}
+                                        </div>
+                                      </Show>
+                                      <Show when={release.seadex_tags?.length}>
+                                        <div class="flex flex-wrap gap-1">
+                                          <For
+                                            each={(release.seadex_tags || [])
+                                              .slice(0, 4)}
+                                          >
+                                            {(tag) => (
+                                              <Badge
+                                                variant="secondary"
+                                                class="h-4 px-1 text-[9px] bg-muted/40 text-muted-foreground border-transparent"
+                                              >
+                                                {tag}
+                                              </Badge>
+                                            )}
+                                          </For>
+                                        </div>
+                                      </Show>
+                                      <Show when={release.seadex_comparison}>
+                                        <a
+                                          href={release.seadex_comparison}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          class="inline-flex items-center gap-1 text-primary hover:text-primary/80 w-fit"
+                                        >
+                                          <IconExternalLink class="h-3 w-3" />
+                                          {" "}
+                                          Compare notes
+                                        </a>
+                                      </Show>
+                                    </div>
+                                  </Show>
                                 </div>
                               </TableCell>
                               <TableCell class="text-xs">
