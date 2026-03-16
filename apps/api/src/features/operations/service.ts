@@ -89,6 +89,13 @@ export interface LibraryServiceShape {
     { folderCount: number; folderPath: string },
     OperationsError | DatabaseError
   >;
+  readonly bulkControlUnmappedFolders: (input: {
+    action:
+      | "pause_queued"
+      | "resume_paused"
+      | "reset_failed"
+      | "retry_failed";
+  }) => Effect.Effect<{ affectedCount: number }, DatabaseError>;
   readonly importUnmappedFolder: (
     input: { folder_name: string; anime_id: number; profile_name?: string },
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
@@ -266,6 +273,7 @@ const makeOperationsService = Effect.gen(function* () {
   } = downloadOrchestration;
 
   const {
+    bulkControlUnmappedFolders,
     controlUnmappedFolder,
     getUnmappedFolders,
     importUnmappedFolder,
@@ -326,6 +334,7 @@ const makeOperationsService = Effect.gen(function* () {
     getCalendar,
     getRenamePreview,
     renameFiles,
+    bulkControlUnmappedFolders,
     controlUnmappedFolder,
     getUnmappedFolders,
     runUnmappedScan,

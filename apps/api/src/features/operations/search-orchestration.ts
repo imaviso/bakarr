@@ -1152,6 +1152,64 @@ export function makeSearchOrchestration(input: {
     return { folderCount: 0, folderPath: input.path };
   });
 
+  const bulkControlUnmappedFolders = Effect.fn(
+    "OperationsService.bulkControlUnmappedFolders",
+  )(function* (input: {
+    action:
+      | "pause_queued"
+      | "resume_paused"
+      | "reset_failed"
+      | "retry_failed";
+  }) {
+    const rows = yield* tryDatabasePromise(
+      "Failed to update unmapped folders",
+      () => listUnmappedFolderMatchRows(db),
+    );
+    const folders = rows.map(decodeUnmappedFolderMatchRow);
+
+    const nextFolders = input.action === "pause_queued"
+      ? folders.filter((folder) => folder.match_status === "pending").map((
+        folder,
+      ) => markUnmappedFolderPaused(folder))
+      : input.action === "resume_paused"
+      ? folders.filter((folder) => folder.match_status === "paused").map((
+        folder,
+      ) => markUnmappedFolderPending(folder))
+      : folders.filter((folder) => folder.match_status === "failed").map((
+        folder,
+      ) => resetUnmappedFolderMatch(folder));
+
+    if (nextFolders.length === 0) {
+      return { affectedCount: 0 };
+    }
+
+    yield* tryDatabasePromise(
+      "Failed to update unmapped folders",
+      () => upsertUnmappedFolderMatchRows(db, nextFolders),
+    );
+
+    const logMessage = input.action === "pause_queued"
+      ? `Paused ${nextFolders.length} queued unmapped folder(s)`
+      : input.action === "resume_paused"
+      ? `Queued ${nextFolders.length} paused unmapped folder(s)`
+      : input.action === "reset_failed"
+      ? `Reset ${nextFolders.length} failed unmapped folder(s)`
+      : `Queued ${nextFolders.length} failed unmapped folder(s) for retry`;
+
+    yield* tryDatabasePromise(
+      "Failed to update unmapped folders",
+      () =>
+        appendLog(
+          db,
+          "library.unmapped.control.bulk",
+          "info",
+          logMessage,
+        ),
+    );
+
+    return { affectedCount: nextFolders.length };
+  });
+
   const importUnmappedFolder = Effect.fn(
     "OperationsService.importUnmappedFolder",
   )(function* (
@@ -1403,6 +1461,7 @@ export function makeSearchOrchestration(input: {
     );
 
   return {
+    bulkControlUnmappedFolders,
     controlUnmappedFolder,
     getUnmappedFolders,
     importUnmappedFolder,
@@ -1501,7 +1560,7 @@ function countCompletedUnmappedMatches(
   folders: readonly ScannerState["folders"][number][],
 ) {
   return folders.filter((folder) =>
-    folder.match_status === "done" ||
+    folder.match_status === "done" || folder.match_status === "paused" ||
     (folder.match_status === "failed" &&
       !hasUnmappedFolderRetryAttemptsRemaining(folder))
   ).length;
@@ -1534,6 +1593,10 @@ function prepareUnmappedFoldersForScan(
     };
 
     if (existing.match_status === "done") {
+      return merged;
+    }
+
+    if (existing.match_status === "paused") {
       return merged;
     }
 

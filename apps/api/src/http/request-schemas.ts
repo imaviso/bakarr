@@ -97,6 +97,15 @@ export const ControlUnmappedFolderBodySchema = Schema.Struct({
   path: Schema.String,
 });
 
+export const BulkControlUnmappedFoldersBodySchema = Schema.Struct({
+  action: Schema.Literal(
+    "pause_queued",
+    "resume_paused",
+    "reset_failed",
+    "retry_failed",
+  ),
+});
+
 export const ScanImportPathBodySchema = Schema.Struct({
   anime_id: Schema.optional(AnimeIdSchema),
   path: Schema.String,

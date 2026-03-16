@@ -1598,6 +1598,268 @@ integrationTest(
 );
 
 integrationTest(
+  "bulk unmapped folder controls resume paused and retry failed folders",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const libraryPath = await Deno.makeTempDir();
+
+      try {
+        const pausedFolderPath = `${libraryPath}/Paused Archive`;
+        const failedFolderPath = `${libraryPath}/Naruto Archive`;
+        await Deno.mkdir(pausedFolderPath, { recursive: true });
+        await Deno.mkdir(failedFolderPath, { recursive: true });
+
+        const currentConfigResponse = await ctx.app.request(
+          "/api/system/config",
+          { headers: { Cookie: sessionCookie } },
+        );
+        const currentConfig = await currentConfigResponse.json();
+
+        await ctx.app.request("/api/system/config", {
+          body: JSON.stringify({
+            ...currentConfig,
+            library: {
+              ...currentConfig.library,
+              library_path: libraryPath,
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        });
+
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
+
+        try {
+          await client.execute(
+            "insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, 'paused', 1, '[]', ?, null, ?)",
+            [
+              pausedFolderPath,
+              "Paused Archive",
+              new Date().toISOString(),
+              new Date().toISOString(),
+            ],
+          );
+
+          await client.execute(
+            'insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, \'failed\', 3, \'[{"id":20,"title":{"romaji":"Naruto"},"already_in_library":true}]\', ?, ?, ?)',
+            [
+              failedFolderPath,
+              "Naruto Archive",
+              new Date().toISOString(),
+              "AniList unavailable",
+              new Date().toISOString(),
+            ],
+          );
+
+          const retryFailedResponse = await ctx.app.request(
+            "/api/library/unmapped/control/bulk",
+            {
+              body: JSON.stringify({ action: "retry_failed" }),
+              headers: {
+                Cookie: sessionCookie,
+                "Content-Type": "application/json",
+              },
+              method: "POST",
+            },
+          );
+          assertEquals(retryFailedResponse.status, 200);
+
+          let rows = await waitForSql(
+            client,
+            "select match_status as status, match_attempts as attempts, suggested_matches as suggestions from unmapped_folder_matches where path = ? limit 1",
+            [failedFolderPath],
+            (values) =>
+              values[0]?.status === "pending" &&
+              Number(values[0]?.attempts ?? 0) === 0,
+          );
+          assertEquals(rows[0]?.suggestions, "[]");
+
+          const scanResponse = await ctx.app.request(
+            "/api/library/unmapped/scan",
+            {
+              headers: { Cookie: sessionCookie },
+              method: "POST",
+            },
+          );
+          assertEquals(scanResponse.status, 200);
+
+          rows = await waitForSql(
+            client,
+            "select match_status as status from unmapped_folder_matches where path = ? limit 1",
+            [pausedFolderPath],
+            (values) => values[0]?.status === "paused",
+          );
+          assertEquals(rows[0]?.status, "paused");
+
+          const startPausedResponse = await ctx.app.request(
+            "/api/library/unmapped/control/bulk",
+            {
+              body: JSON.stringify({ action: "resume_paused" }),
+              headers: {
+                Cookie: sessionCookie,
+                "Content-Type": "application/json",
+              },
+              method: "POST",
+            },
+          );
+          assertEquals(startPausedResponse.status, 200);
+
+          rows = await waitForSql(
+            client,
+            "select match_status as status from unmapped_folder_matches where path = ? limit 1",
+            [pausedFolderPath],
+            (values) => values[0]?.status === "pending",
+          );
+          assertEquals(rows[0]?.status, "pending");
+        } finally {
+          client.close();
+        }
+      } finally {
+        await Deno.remove(libraryPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
+  "bulk unmapped folder controls can pause queued and reset failed folders",
+  async () => {
+    const ctx = await createTestContext();
+
+    try {
+      const loginResponse = await ctx.app.request("/api/auth/login", {
+        body: JSON.stringify({ password: "admin", username: "admin" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const sessionCookie = loginResponse.headers.get("set-cookie");
+      assert(sessionCookie);
+
+      const libraryPath = await Deno.makeTempDir();
+
+      try {
+        const queuedFolderPath = `${libraryPath}/Queued Archive`;
+        const failedFolderPath = `${libraryPath}/Failed Archive`;
+        await Deno.mkdir(queuedFolderPath, { recursive: true });
+        await Deno.mkdir(failedFolderPath, { recursive: true });
+
+        const currentConfigResponse = await ctx.app.request(
+          "/api/system/config",
+          { headers: { Cookie: sessionCookie } },
+        );
+        const currentConfig = await currentConfigResponse.json();
+
+        await ctx.app.request("/api/system/config", {
+          body: JSON.stringify({
+            ...currentConfig,
+            library: {
+              ...currentConfig.library,
+              library_path: libraryPath,
+            },
+          }),
+          headers: {
+            Cookie: sessionCookie,
+            "Content-Type": "application/json",
+          },
+          method: "PUT",
+        });
+
+        const client = createClient({ url: `file:${ctx.databaseFile}` });
+
+        try {
+          await client.execute(
+            "insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, 'pending', 1, '[]', ?, null, ?)",
+            [
+              queuedFolderPath,
+              "Queued Archive",
+              new Date().toISOString(),
+              new Date().toISOString(),
+            ],
+          );
+
+          await client.execute(
+            'insert into unmapped_folder_matches (path, name, size, match_status, match_attempts, suggested_matches, last_matched_at, last_match_error, updated_at) values (?, ?, 0, \'failed\', 3, \'[{"id":20,"title":{"romaji":"Naruto"},"already_in_library":true}]\', ?, ?, ?)',
+            [
+              failedFolderPath,
+              "Failed Archive",
+              new Date().toISOString(),
+              "AniList unavailable",
+              new Date().toISOString(),
+            ],
+          );
+
+          const pauseQueuedResponse = await ctx.app.request(
+            "/api/library/unmapped/control/bulk",
+            {
+              body: JSON.stringify({ action: "pause_queued" }),
+              headers: {
+                Cookie: sessionCookie,
+                "Content-Type": "application/json",
+              },
+              method: "POST",
+            },
+          );
+          assertEquals(pauseQueuedResponse.status, 200);
+
+          let rows = await waitForSql(
+            client,
+            "select match_status as status from unmapped_folder_matches where path = ? limit 1",
+            [queuedFolderPath],
+            (values) => values[0]?.status === "paused",
+          );
+          assertEquals(rows[0]?.status, "paused");
+
+          const resetFailedResponse = await ctx.app.request(
+            "/api/library/unmapped/control/bulk",
+            {
+              body: JSON.stringify({ action: "reset_failed" }),
+              headers: {
+                Cookie: sessionCookie,
+                "Content-Type": "application/json",
+              },
+              method: "POST",
+            },
+          );
+          assertEquals(resetFailedResponse.status, 200);
+
+          rows = await waitForSql(
+            client,
+            "select match_status as status, match_attempts as attempts, suggested_matches as suggestions, last_match_error as error from unmapped_folder_matches where path = ? limit 1",
+            [failedFolderPath],
+            (values) =>
+              values[0]?.status === "pending" &&
+              Number(values[0]?.attempts ?? 0) === 0,
+          );
+          assertEquals(rows[0]?.suggestions, "[]");
+          assertEquals(rows[0]?.error, null);
+        } finally {
+          client.close();
+        }
+      } finally {
+        await Deno.remove(libraryPath, { recursive: true });
+      }
+    } finally {
+      await ctx.dispose();
+    }
+  },
+);
+
+integrationTest(
   "download reconcile imports a completed file into the anime library",
   async () => {
     const ctx = await createTestContext();

@@ -24,6 +24,7 @@ import {
 import {
   AddRssFeedBodySchema,
   BrowseQuerySchema,
+  BulkControlUnmappedFoldersBodySchema,
   CalendarQuerySchema,
   ControlUnmappedFolderBodySchema,
   DeleteDownloadQuerySchema,
@@ -406,6 +407,22 @@ export function registerOperationsRoutes(
         (body) =>
           Effect.flatMap(LibraryService, (service) =>
             service.controlUnmappedFolder({ ...body })),
+      ),
+      () =>
+        c.json({ data: null, success: true }),
+    ));
+
+  app.post("/api/library/unmapped/control/bulk", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      withJsonBody(
+        c,
+        BulkControlUnmappedFoldersBodySchema,
+        "bulk control unmapped folders",
+        (body) =>
+          Effect.flatMap(LibraryService, (service) =>
+            service.bulkControlUnmappedFolders({ ...body })),
       ),
       () =>
         c.json({ data: null, success: true }),
