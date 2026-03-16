@@ -1,11 +1,11 @@
 import { Effect } from "effect";
 
-import { AuthError } from "../features/auth/service.ts";
 import {
   compactLogAnnotations,
   durationMsSince,
   errorLogAnnotations,
 } from "../lib/logging.ts";
+import { mapRouteError } from "./route-errors.ts";
 import { getOptionalViewer } from "./route-auth.ts";
 import type { RunEffect } from "./route-types.ts";
 
@@ -46,7 +46,7 @@ export async function runRoute<A, E>(
   );
 
   if (!result.ok) {
-    const mapped = mapError(result.error);
+    const mapped = mapRouteError(result.error);
     const logEffect = mapped.status >= 500
       ? Effect.logError("route handler failed")
       : Effect.logWarning("route handler failed");
@@ -118,60 +118,4 @@ export function withRequestSpan<A, E, R>(
 
 export function shouldLogRequest(path: string) {
   return path === "/health" || path.startsWith("/api/");
-}
-
-function mapError(
-  error: unknown,
-): { message: string; status: number; headers?: Record<string, string> } {
-  if (typeof error === "object" && error !== null && "_tag" in error) {
-    const tagged = error as { _tag: string; message: string };
-
-    switch (tagged._tag) {
-      case "RequestValidationError":
-      case "ConfigValidationError":
-        return { message: tagged.message, status: 400 };
-      case "StoredConfigCorruptError":
-        return { message: tagged.message, status: 500 };
-      case "EpisodeStreamRangeError": {
-        const rangeError = error as unknown as {
-          fileSize: number;
-          message: string;
-          status: 416;
-        };
-        return {
-          headers: { "Content-Range": `bytes */${rangeError.fileSize}` },
-          message: rangeError.message,
-          status: 416,
-        };
-      }
-      case "AuthError":
-        return {
-          message: tagged.message,
-          status: error instanceof AuthError ? error.status : 500,
-        };
-      case "AnimeNotFoundError":
-      case "DownloadNotFoundError":
-      case "OperationsAnimeNotFoundError":
-      case "ProfileNotFoundError":
-        return { message: tagged.message, status: 404 };
-      case "OperationsInputError":
-        return { message: tagged.message, status: 400 };
-      case "AnimeConflictError":
-      case "DownloadConflictError":
-      case "OperationsConflictError":
-        return { message: tagged.message, status: 409 };
-      case "AnimePathError":
-        return { message: tagged.message, status: 400 };
-      case "ExternalCallError":
-        return { message: "External service unavailable", status: 503 };
-      case "DatabaseError":
-        return { message: tagged.message, status: 500 };
-    }
-  }
-
-  if (error instanceof Error) {
-    return { message: error.message, status: 500 };
-  }
-
-  return { message: "Unexpected server error", status: 500 };
 }
