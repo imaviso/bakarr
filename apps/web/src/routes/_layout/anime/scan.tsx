@@ -22,6 +22,16 @@ import {
 import { createStore, reconcile } from "solid-js/store";
 import { toast } from "solid-sonner";
 import { GeneralError } from "~/components/general-error";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -46,6 +56,7 @@ import {
   type BackgroundJobStatus,
   createAddAnimeMutation,
   createAnimeSearchQuery,
+  createBulkControlUnmappedFoldersMutation,
   createControlUnmappedFolderMutation,
   createImportUnmappedFolderMutation,
   createProfilesQuery,
@@ -71,8 +82,12 @@ const MAX_AUTO_MATCH_ATTEMPTS = 3;
 function LibraryScanPage() {
   const scanState = createUnmappedFoldersQuery();
   const systemJobs = createSystemJobsQuery();
+  const bulkControlMutation = createBulkControlUnmappedFoldersMutation();
   const scanMutation = createScanLibraryMutation();
   const navigate = useNavigate();
+  const [confirmBulkAction, setConfirmBulkAction] = createSignal<
+    null | "pause_queued" | "reset_failed"
+  >(null);
 
   const [folders, setFolders] = createStore<UnmappedFolder[]>([]);
   createEffect(() => {
@@ -101,6 +116,66 @@ function LibraryScanPage() {
     folders.filter((folder) => folder.match_status === "failed").length;
   const pausedCount = () =>
     folders.filter((folder) => folder.match_status === "paused").length;
+  const runBulkAction = (
+    action:
+      | "pause_queued"
+      | "resume_paused"
+      | "reset_failed"
+      | "retry_failed",
+  ) => {
+    const labels: Record<typeof action, string> = {
+      pause_queued: "Pausing queued folders",
+      reset_failed: "Resetting failed folders",
+      resume_paused: "Starting paused folders",
+      retry_failed: "Retrying failed folders",
+    };
+
+    toast.promise(bulkControlMutation.mutateAsync({ action }), {
+      loading: `${labels[action]}...`,
+      success: labels[action],
+      error: (err) => `Failed to run bulk action: ${err.message}`,
+    });
+  };
+  const confirmBulkMeta = createMemo(() => {
+    const action = confirmBulkAction();
+
+    if (action === "pause_queued") {
+      return {
+        actionLabel: "Pause queued folders",
+        description: `This pauses ${queuedCount()} queued ${
+          pluralizeFolderCount(queuedCount())
+        }. Folders already matching right now will keep running.`,
+        title: `Pause ${queuedCount()} queued ${
+          pluralizeFolderCount(queuedCount())
+        }?`,
+      };
+    }
+
+    if (action === "reset_failed") {
+      return {
+        actionLabel: "Reset failed folders",
+        description:
+          `This clears the cached error state and suggestions for ${failedCount()} failed ${
+            pluralizeFolderCount(failedCount())
+          }, then queues them for a fresh background match.`,
+        title: `Reset ${failedCount()} failed ${
+          pluralizeFolderCount(failedCount())
+        }?`,
+      };
+    }
+
+    return null;
+  });
+
+  const confirmBulkActionNow = () => {
+    const action = confirmBulkAction();
+    if (!action) {
+      return;
+    }
+
+    runBulkAction(action);
+    setConfirmBulkAction(null);
+  };
 
   return (
     <div class="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,hsl(var(--info)/0.12),transparent_34%),radial-gradient(circle_at_top_right,hsl(var(--primary)/0.08),transparent_28%)]">
@@ -152,6 +227,42 @@ function LibraryScanPage() {
                 {isRescanning() ? "Scanning..." : "Rescan"}
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkControlMutation.isPending || queuedCount() === 0}
+                onClick={() => setConfirmBulkAction("pause_queued")}
+              >
+                <IconPlayerPause class="mr-2 h-4 w-4" />
+                Pause Queued
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkControlMutation.isPending || pausedCount() === 0}
+                onClick={() => runBulkAction("resume_paused")}
+              >
+                <IconPlayerPlay class="mr-2 h-4 w-4" />
+                Start Paused
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkControlMutation.isPending || failedCount() === 0}
+                onClick={() => runBulkAction("retry_failed")}
+              >
+                <IconRefresh class="mr-2 h-4 w-4" />
+                Retry Failed
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkControlMutation.isPending || failedCount() === 0}
+                onClick={() => setConfirmBulkAction("reset_failed")}
+              >
+                <IconTrash class="mr-2 h-4 w-4" />
+                Reset Failed
+              </Button>
+              <Button
                 variant="ghost"
                 size="sm"
                 onClick={() =>
@@ -166,6 +277,37 @@ function LibraryScanPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={confirmBulkAction() !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmBulkAction(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmBulkMeta()?.title ?? ""}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmBulkMeta()?.description ?? ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              class={confirmBulkAction() === "reset_failed"
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : undefined}
+              onClick={confirmBulkActionNow}
+            >
+              {confirmBulkMeta()?.actionLabel ?? "Confirm"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div class="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
         <Show
@@ -189,6 +331,7 @@ function LibraryScanPage() {
                     isRunning={isWorkerRunning()}
                     matchedCount={matchedCount()}
                     matchingCount={matchingCount()}
+                    pausedCount={pausedCount()}
                     queuedCount={queuedCount()}
                     totalCount={folders.length}
                   />
@@ -209,6 +352,10 @@ function LibraryScanPage() {
       </div>
     </div>
   );
+}
+
+function pluralizeFolderCount(count: number) {
+  return count === 1 ? "folder" : "folders";
 }
 
 function EmptyScanState(props: {
@@ -248,6 +395,7 @@ function BackgroundMatchingCard(props: {
   isRunning: boolean;
   matchedCount: number;
   matchingCount: number;
+  pausedCount: number;
   queuedCount: number;
   totalCount: number;
 }) {
@@ -290,6 +438,7 @@ function BackgroundMatchingCard(props: {
                 props.isRunning,
                 props.hasOutstandingWork,
                 props.failedCount,
+                props.pausedCount,
               )}
             >
               {jobStatusLabel(
@@ -297,6 +446,7 @@ function BackgroundMatchingCard(props: {
                 props.isRunning,
                 props.hasOutstandingWork,
                 props.failedCount,
+                props.pausedCount,
               )}
             </Badge>
           </div>
@@ -305,6 +455,8 @@ function BackgroundMatchingCard(props: {
               ? "Matching one folder right now to stay under AniList rate limits."
               : props.queuedCount > 0
               ? "Queued folders will keep matching automatically every few seconds."
+              : props.pausedCount > 0
+              ? "Some folders are paused. Start them again individually or use Start Paused."
               : props.failedCount > 0 && props.hasOutstandingWork
               ? "Some folders failed their latest automatic match. They will retry in the background, or you can choose a manual match now."
               : props.failedCount > 0
@@ -318,7 +470,7 @@ function BackgroundMatchingCard(props: {
           </Show>
         </div>
 
-        <div class="grid grid-cols-3 gap-2 text-right text-xs text-muted-foreground lg:min-w-[260px]">
+        <div class="grid grid-cols-4 gap-2 text-right text-xs text-muted-foreground lg:min-w-[340px]">
           <div class="border border-border/60 bg-muted/20 px-3 py-2">
             <div class="uppercase tracking-[0.18em]">Matched</div>
             <div class="mt-1 text-lg font-semibold text-foreground">
@@ -329,6 +481,12 @@ function BackgroundMatchingCard(props: {
             <div class="uppercase tracking-[0.18em]">In queue</div>
             <div class="mt-1 text-lg font-semibold text-foreground">
               {props.queuedCount + props.matchingCount}
+            </div>
+          </div>
+          <div class="border border-border/60 bg-muted/20 px-3 py-2">
+            <div class="uppercase tracking-[0.18em]">Paused</div>
+            <div class="mt-1 text-lg font-semibold text-foreground">
+              {props.pausedCount}
             </div>
           </div>
           <div class="border border-border/60 bg-muted/20 px-3 py-2">
@@ -365,6 +523,7 @@ function jobStatusLabel(
   isRunning: boolean,
   hasOutstandingWork: boolean,
   failedCount: number,
+  pausedCount: number,
 ) {
   if (isRunning) {
     return "Running";
@@ -376,6 +535,10 @@ function jobStatusLabel(
 
   if (hasOutstandingWork) {
     return "Scheduled";
+  }
+
+  if (pausedCount > 0) {
+    return "Paused";
   }
 
   if (job?.last_status === "failed") {
@@ -390,8 +553,9 @@ function jobStatusVariant(
   isRunning: boolean,
   hasOutstandingWork: boolean,
   failedCount: number,
+  pausedCount: number,
 ): "outline" | "warning" | "error" {
-  if (isRunning || hasOutstandingWork) {
+  if (isRunning || hasOutstandingWork || pausedCount > 0) {
     return "warning";
   }
 
@@ -433,6 +597,7 @@ function FolderItem(props: { folder: UnmappedFolder }) {
     null,
   );
   const [manualDialogOpen, setManualDialogOpen] = createSignal(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = createSignal(false);
   const [selectedProfileName, setSelectedProfileName] = createSignal<string>(
     "",
   );
@@ -682,13 +847,42 @@ function FolderItem(props: { folder: UnmappedFolder }) {
             variant="outline"
             disabled={isControlling() ||
               props.folder.match_status === "matching"}
-            onClick={() => handleControl("reset")}
+            onClick={() => setResetConfirmOpen(true)}
             class="justify-start"
           >
             <IconTrash class="mr-2 h-4 w-4" />
             Reset
           </Button>
         </div>
+
+        <AlertDialog
+          open={resetConfirmOpen()}
+          onOpenChange={setResetConfirmOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Reset match for {props.folder.name}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                This clears the cached error state and suggested matches for
+                this folder, then queues it for a fresh background match.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  handleControl("reset");
+                  setResetConfirmOpen(false);
+                }}
+              >
+                Reset match
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog open={manualDialogOpen()} onOpenChange={setManualDialogOpen}>
           <DialogTrigger
