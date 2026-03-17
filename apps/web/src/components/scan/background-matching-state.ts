@@ -27,7 +27,7 @@ export function backgroundMatchingStatusLabel(
   }
 
   if (input.hasOutstandingWork) {
-    return "Scheduled";
+    return "Queued";
   }
 
   if (input.pausedCount > 0) {

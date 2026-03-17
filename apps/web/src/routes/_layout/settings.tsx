@@ -1902,11 +1902,11 @@ function SystemForm(props: {
                   <Input
                     value={field().state.value}
                     onInput={(e) => field().handleChange(e.currentTarget.value)}
-                    placeholder="{Series Title} - S{Season:02}E{Episode:02} - {Title}"
+                    placeholder="{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}]"
                     class="font-mono text-xs"
                   />
                   <div class="text-[10px] text-muted-foreground">
-                    {"{Series Title}, {Season}, {Episode}, {Title}, {Year}, {Resolution}, {Codec}, {Group}"}
+                    {"{title}, {episode}, {episode:02}, {episode:03}, {episode_segment}, {source_episode_segment}, {episode_title}, {season}, {season:02}, {year}, {air_date}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"}
                   </div>
                 </div>
               )}
@@ -1919,11 +1919,11 @@ function SystemForm(props: {
                   <Input
                     value={field().state.value}
                     onInput={(e) => field().handleChange(e.currentTarget.value)}
-                    placeholder="{Series Title}/{Series Title}"
+                    placeholder="{title}"
                     class="font-mono text-xs"
                   />
                   <div class="text-[10px] text-muted-foreground">
-                    {"{Series Title}, {Title}, {Year}, {Resolution}, {Codec}, {Group}"}
+                    {"{title}, {year}, {season}, {season:02}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"}
                   </div>
                 </div>
               )}

@@ -12,6 +12,7 @@ import { createStore, reconcile } from "solid-js/store";
 import { toast } from "solid-sonner";
 import { GeneralError } from "~/components/general-error";
 import { BackgroundMatchingCard } from "~/components/scan/background-matching-card";
+import { runBulkBackgroundMatchAction } from "~/components/scan/background-matching-actions";
 import { isBackgroundMatchingRunning } from "~/components/scan/background-matching-state";
 import { EmptyScanState } from "~/components/scan/empty-scan-state";
 import { FolderItem } from "~/components/scan/folder-item";
@@ -119,11 +120,18 @@ function LibraryScanPage() {
       retry_failed: "Retrying failed folders",
     };
 
-    toast.promise(bulkControlMutation.mutateAsync({ action }), {
-      loading: `${labels[action]}...`,
-      success: labels[action],
-      error: (err) => `Failed to run bulk action: ${err.message}`,
-    });
+    toast.promise(
+      runBulkBackgroundMatchAction({
+        action,
+        control: (data) => bulkControlMutation.mutateAsync(data),
+        startScan: () => scanMutation.mutateAsync(),
+      }),
+      {
+        loading: `${labels[action]}...`,
+        success: labels[action],
+        error: (err) => `Failed to run bulk action: ${err.message}`,
+      },
+    );
   };
   const confirmBulkMeta = createMemo(() => {
     const action = confirmBulkAction();
@@ -184,7 +192,8 @@ function LibraryScanPage() {
                   Map existing folders to anime and import episodes.
                 </p>
                 <p class="mt-1 max-w-3xl text-xs uppercase tracking-[0.18em] text-muted-foreground/80">
-                  Background matching checks one folder roughly every 3 seconds.
+                  Start a background pass to work through queued folders one by
+                  one. It stops automatically when the queue is empty.
                 </p>
               </div>
             </div>

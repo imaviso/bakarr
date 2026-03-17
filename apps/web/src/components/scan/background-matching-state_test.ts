@@ -50,7 +50,7 @@ Deno.test("background matching is running while a folder is actively matching", 
   assertEquals(backgroundMatchingStatusVariant(input), "warning");
 });
 
-Deno.test("background matching is scheduled when work remains but nothing is active", () => {
+Deno.test("background matching is queued when work remains but nothing is active", () => {
   const input = {
     failedCount: 0,
     hasOutstandingWork: true,
@@ -65,5 +65,5 @@ Deno.test("background matching is scheduled when work remains but nothing is act
   };
 
   assertEquals(isBackgroundMatchingRunning(input), false);
-  assertEquals(backgroundMatchingStatusLabel(input), "Scheduled");
+  assertEquals(backgroundMatchingStatusLabel(input), "Queued");
 });

@@ -44,9 +44,11 @@ import {
   createControlUnmappedFolderMutation,
   createImportUnmappedFolderMutation,
   createProfilesQuery,
+  createScanLibraryMutation,
   type UnmappedFolder,
 } from "~/lib/api";
 import { cn } from "~/lib/utils";
+import { runFolderBackgroundMatchAction } from "./background-matching-actions";
 import { MAX_AUTO_MATCH_ATTEMPTS } from "./constants";
 import { ManualMatchSearch } from "./manual-match-search";
 
@@ -54,6 +56,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
   const addAnimeMutation = createAddAnimeMutation();
   const controlMutation = createControlUnmappedFolderMutation();
   const importMutation = createImportUnmappedFolderMutation();
+  const scanMutation = createScanLibraryMutation();
   const profilesQuery = createProfilesQuery();
   const [manualMatch, setManualMatch] = createSignal<AnimeSearchResult | null>(
     null,
@@ -110,7 +113,12 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
     };
 
     toast.promise(
-      controlMutation.mutateAsync({ action, path: props.folder.path }),
+      runFolderBackgroundMatchAction({
+        action,
+        control: (data) => controlMutation.mutateAsync(data),
+        path: props.folder.path,
+        startScan: () => scanMutation.mutateAsync(),
+      }),
       {
         loading: `${labels[action]}...`,
         success: labels[action],
@@ -431,8 +439,8 @@ function folderMatchHint(folder: UnmappedFolder) {
     case "failed":
       return hasAutomaticRetryRemaining(folder)
         ? folder.last_match_error
-          ? `Last attempt failed: ${folder.last_match_error}. Another automatic retry is queued.`
-          : "The last attempt failed. It will retry automatically."
+          ? `Last attempt failed: ${folder.last_match_error}. Another background pass is queued.`
+          : "The last attempt failed. Another background pass is queued."
         : folder.last_match_error
         ? `Automatic matching stopped after ${MAX_AUTO_MATCH_ATTEMPTS} failed attempts: ${folder.last_match_error}`
         : `Automatic matching stopped after ${MAX_AUTO_MATCH_ATTEMPTS} failed attempts.`;
@@ -442,7 +450,7 @@ function folderMatchHint(folder: UnmappedFolder) {
         : "No automatic match was found in the latest background pass. Search manually to continue.";
     case "pending":
     default:
-      return "Waiting for the background matcher. Folders are processed one by one.";
+      return "Queued for the next background match pass. Folders are processed one by one.";
   }
 }
 
@@ -457,7 +465,7 @@ function emptyMatchMessage(folder: UnmappedFolder) {
         ? "Automatic match failed for now. Another retry is queued."
         : "Automatic matching is paused. Search for an anime to import.";
     case "pending":
-      return "Queued for background matching. Search for an anime to import now, or wait for suggestions.";
+      return "Queued for the next background match pass. Search for an anime to import now, or wait for suggestions.";
     case "done":
     default:
       return "No automatic match yet. Search for an anime to import.";

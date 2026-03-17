@@ -73,11 +73,11 @@ export function BackgroundMatchingCard(props: {
             {props.matchingCount > 0
               ? "Matching one folder right now to stay under AniList rate limits."
               : props.queuedCount > 0
-              ? "Queued folders will keep matching automatically every few seconds."
+              ? "Queued folders are ready for a background pass and will be worked through one by one."
               : props.pausedCount > 0
               ? "Some folders are paused. Start them again individually or use Start Paused."
               : props.failedCount > 0 && props.hasOutstandingWork
-              ? "Some folders failed their latest automatic match. They will retry in the background, or you can choose a manual match now."
+              ? "Some folders failed their latest automatic match. They are queued to retry in the background, or you can choose a manual match now."
               : props.failedCount > 0
               ? `Some folders hit the ${MAX_AUTO_MATCH_ATTEMPTS}-attempt automatic match limit. Choose a manual match to continue.`
               : "All discovered folders have finished their latest background match pass."}
