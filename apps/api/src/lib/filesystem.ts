@@ -118,7 +118,7 @@ export function sanitizePathSegment(value: string) {
 }
 
 export function sanitizeFilename(name: string) {
-  return name.replace(/[\\/]/g, " ").replace(/[:*?"<>|]/g, "").replace(
+  return name.replace(/[\\/:]/g, " ").replace(/[*?"<>|]/g, "").replace(
     /\s+/g,
     " ",
   ).trim();

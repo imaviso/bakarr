@@ -7,12 +7,18 @@
  * - {episode:02}         - Primary episode number (zero-padded to 2 digits)
  * - {episode:03}         - Primary episode number (zero-padded to 3 digits)
  * - {episode_segment}    - Entry-local numbering: "03", "03-04", "014"
+ * - {episode_title}      - Episode title (sanitized for filesystem)
  * - {air_date}           - Air date in YYYY-MM-DD format (if available)
  * - {source_episode_segment} - Source label: "S02E03", "S01E01-E02", "2025-03-14"
  * - {season}             - Season number (zero-padded to 2 digits)
  * - {season:02}          - Season number (zero-padded to 2 digits)
+ * - {year}               - Release year (e.g. "2012")
  * - {group}              - Release group name
  * - {resolution}         - Video resolution (e.g. "1080p")
+ * - {quality}            - Quality source (e.g. "HDTV", "WEB-DL", "BluRay")
+ * - {video_codec}        - Video codec (e.g. "x265", "H.264")
+ * - {audio_codec}        - Audio codec (e.g. "AAC", "FLAC")
+ * - {audio_channels}     - Audio channels (e.g. "2.0", "5.1")
  */
 
 import { sanitizeFilename } from "./filesystem.ts";
@@ -24,8 +30,14 @@ export interface NamingInput {
   readonly episodeNumbers: readonly number[];
   readonly sourceIdentity?: ParsedEpisodeIdentity;
   readonly season?: number;
+  readonly year?: number;
+  readonly episodeTitle?: string;
   readonly group?: string;
   readonly resolution?: string;
+  readonly quality?: string;
+  readonly videoCodec?: string;
+  readonly audioCodec?: string;
+  readonly audioChannels?: string;
   readonly airDate?: string;
 }
 
@@ -79,6 +91,16 @@ export function renderEpisodeFilename(
   );
 
   result = result.replace(
+    /\{episode_title\}/g,
+    input.episodeTitle ? sanitizeFilename(input.episodeTitle) : "",
+  );
+
+  result = result.replace(
+    /\{year\}/g,
+    input.year ? String(input.year) : "",
+  );
+
+  result = result.replace(
     /\{group\}/g,
     input.group ?? "",
   );
@@ -88,9 +110,32 @@ export function renderEpisodeFilename(
     input.resolution ?? "",
   );
 
+  result = result.replace(
+    /\{quality\}/g,
+    input.quality ?? "",
+  );
+
+  result = result.replace(
+    /\{video_codec\}/g,
+    input.videoCodec ?? "",
+  );
+
+  result = result.replace(
+    /\{audio_codec\}/g,
+    input.audioCodec ?? "",
+  );
+
+  result = result.replace(
+    /\{audio_channels\}/g,
+    input.audioChannels ?? "",
+  );
+
   // Clean up empty segments that may leave dangling separators
   result = result
-    .replace(/\s*-\s*(?=\s*-)/g, " -")
+    .replace(/\[\]/g, "")
+    .replace(/\(\)/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/(?:\s*-\s*){2,}/g, " - ")
     .replace(/\s+-\s*$/g, "")
     .replace(/^\s*-\s+/g, "")
     .trim();
