@@ -3,6 +3,7 @@ import type {
   Config,
 } from "../../../../../packages/shared/src/index.ts";
 import {
+  BACKGROUND_JOB_NAMES,
   BACKGROUND_WORKER_NAMES,
   type BackgroundWorkerName,
   type BackgroundWorkerSnapshot,
@@ -28,7 +29,7 @@ export function composeBackgroundJobStatuses(
 ): BackgroundJobStatus[] {
   const rowsByName = new Map(rows.map((row) => [row.name, row] as const));
   const names = [
-    ...new Set([...BACKGROUND_WORKER_NAMES, ...rows.map((row) => row.name)]),
+    ...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)]),
   ].sort();
 
   return names.map((name) =>

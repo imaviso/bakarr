@@ -2,6 +2,10 @@ export const BACKGROUND_WORKER_NAMES = [
   "download_sync",
   "rss",
   "library_scan",
+] as const;
+
+export const BACKGROUND_JOB_NAMES = [
+  ...BACKGROUND_WORKER_NAMES,
   "unmapped_scan",
 ] as const;
 
@@ -43,6 +47,5 @@ export function initialBackgroundWorkerSnapshot(): BackgroundWorkerSnapshot {
     download_sync: emptyBackgroundWorkerStats(),
     library_scan: emptyBackgroundWorkerStats(),
     rss: emptyBackgroundWorkerStats(),
-    unmapped_scan: emptyBackgroundWorkerStats(),
   };
 }

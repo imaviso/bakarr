@@ -82,6 +82,25 @@ export function makeUnmappedOrchestrationSupport(input: {
     unmappedScanRunning,
   } = input;
 
+  const loadQueuedUnmappedFolders = Effect.fn(
+    "OperationsService.loadQueuedUnmappedFolders",
+  )(function* () {
+    const snapshot = yield* loadUnmappedFolderSnapshot({
+      db,
+      fs,
+      tryDatabasePromise,
+    });
+    const folders = snapshot.folders.map((folder) =>
+      mergeLocalFolderMatch(folder, snapshot.animeRows)
+    );
+    const queuedFolders = prepareUnmappedFoldersForScan(
+      folders,
+      snapshot.cachedByPath,
+    );
+
+    return { folders, queuedFolders, snapshot };
+  });
+
   const getUnmappedFolders = Effect.fn("OperationsService.getUnmappedFolders")(
     function* () {
       const snapshot = yield* loadUnmappedFolderSnapshot({
@@ -130,178 +149,213 @@ export function makeUnmappedOrchestrationSupport(input: {
     },
   );
 
-  const runUnmappedScan = Effect.fn("OperationsService.runUnmappedScan")(
+  const runUnmappedScanPass = Effect.fn(
+    "OperationsService.runUnmappedScanPass",
+  )(
     function* () {
-      const alreadyRunning = yield* Ref.modify(
-        unmappedScanRunning,
-        (v) => [v, true] as const,
+      yield* tryDatabasePromise(
+        "Failed to scan unmapped folders",
+        () => markJobStarted(db, "unmapped_scan"),
       );
 
-      if (alreadyRunning) {
-        return { folderCount: 0 };
-      }
+      return yield* Effect.gen(function* () {
+        const { folders, queuedFolders, snapshot } =
+          yield* loadQueuedUnmappedFolders();
 
-      try {
         yield* tryDatabasePromise(
           "Failed to scan unmapped folders",
-          () => markJobStarted(db, "unmapped_scan"),
+          () => upsertUnmappedFolderMatchRows(db, queuedFolders),
         );
 
-        return yield* Effect.gen(function* () {
-          const snapshot = yield* loadUnmappedFolderSnapshot({
-            db,
-            fs,
-            tryDatabasePromise,
-          });
-          const folders = snapshot.folders.map((folder) =>
-            mergeLocalFolderMatch(folder, snapshot.animeRows)
-          );
+        yield* tryDatabasePromise(
+          "Failed to scan unmapped folders",
+          () =>
+            deleteUnmappedFolderMatchRowsNotInPaths(
+              db,
+              folders.map((folder) => folder.path),
+            ),
+        );
 
-          const queuedFolders = prepareUnmappedFoldersForScan(
-            folders,
-            snapshot.cachedByPath,
-          );
+        const nextTarget = queuedFolders.find(isUnmappedFolderQueuedForMatch);
 
-          yield* tryDatabasePromise(
-            "Failed to scan unmapped folders",
-            () => upsertUnmappedFolderMatchRows(db, queuedFolders),
-          );
-
-          yield* tryDatabasePromise(
-            "Failed to scan unmapped folders",
-            () =>
-              deleteUnmappedFolderMatchRowsNotInPaths(
-                db,
-                folders.map((folder) => folder.path),
-              ),
-          );
-
-          const nextTarget = queuedFolders.find(isUnmappedFolderQueuedForMatch);
-
-          if (!nextTarget) {
-            yield* tryDatabasePromise(
-              "Failed to scan unmapped folders",
-              () =>
-                markJobSucceeded(
-                  db,
-                  "unmapped_scan",
-                  `Processed ${queuedFolders.length} unmapped folder(s)`,
-                ),
-            );
-            return { folderCount: queuedFolders.length };
-          }
-
-          yield* tryDatabasePromise(
-            "Failed to scan unmapped folders",
-            () =>
-              updateJobProgress(
-                db,
-                "unmapped_scan",
-                countCompletedUnmappedMatches(queuedFolders) + 1,
-                queuedFolders.length,
-                `Matching ${nextTarget.name}`,
-              ),
-          );
-
-          const matchingFolder = markUnmappedFolderMatching(nextTarget);
-          yield* tryDatabasePromise(
-            "Failed to scan unmapped folders",
-            () => upsertUnmappedFolderMatchRows(db, [matchingFolder]),
-          );
-
-          const matchResult = yield* Effect.either(matchSingleUnmappedFolder({
-            aniList,
-            animeRows: snapshot.animeRows,
-            db,
-            folder: matchingFolder,
-            tryDatabasePromise,
-          }));
-
-          if (matchResult._tag === "Left") {
-            const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
-            const failedFolder = markUnmappedFolderFailed(
-              matchingFolder,
-              errorMessage,
-            );
-            yield* tryDatabasePromise(
-              "Failed to scan unmapped folders",
-              () => upsertUnmappedFolderMatchRows(db, [failedFolder]),
-            );
-            yield* tryDatabasePromise(
-              "Failed to scan unmapped folders",
-              () =>
-                markJobFailed(
-                  db,
-                  "unmapped_scan",
-                  failedFolder.last_match_error ??
-                    `Failed to match ${nextTarget.name}`,
-                ),
-            );
-
-            yield* tryDatabasePromise(
-              "Failed to scan unmapped folders",
-              () =>
-                appendLog(
-                  db,
-                  "library.unmapped.scan",
-                  "warn",
-                  `Failed to match unmapped folder ${nextTarget.name}: ${
-                    failedFolder.last_match_error ?? "Unknown error"
-                  }`,
-                ),
-            );
-
-            return { folderCount: queuedFolders.length };
-          }
-
-          const matchedFolder = matchResult.right;
-
-          yield* tryDatabasePromise(
-            "Failed to scan unmapped folders",
-            () => upsertUnmappedFolderMatchRows(db, [matchedFolder]),
-          );
-
+        if (!nextTarget) {
           yield* tryDatabasePromise(
             "Failed to scan unmapped folders",
             () =>
               markJobSucceeded(
                 db,
                 "unmapped_scan",
-                `Processed ${nextTarget.name} (${queuedFolders.length} unmapped folder(s) total)`,
+                `Processed ${queuedFolders.length} unmapped folder(s)`,
               ),
           );
+          return { folderCount: queuedFolders.length };
+        }
+
+        yield* tryDatabasePromise(
+          "Failed to scan unmapped folders",
+          () =>
+            updateJobProgress(
+              db,
+              "unmapped_scan",
+              countCompletedUnmappedMatches(queuedFolders) + 1,
+              queuedFolders.length,
+              `Matching ${nextTarget.name}`,
+            ),
+        );
+
+        const matchingFolder = markUnmappedFolderMatching(nextTarget);
+        yield* tryDatabasePromise(
+          "Failed to scan unmapped folders",
+          () => upsertUnmappedFolderMatchRows(db, [matchingFolder]),
+        );
+
+        const matchResult = yield* Effect.either(matchSingleUnmappedFolder({
+          aniList,
+          animeRows: snapshot.animeRows,
+          db,
+          folder: matchingFolder,
+          tryDatabasePromise,
+        }));
+
+        if (matchResult._tag === "Left") {
+          const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
+          const failedFolder = markUnmappedFolderFailed(
+            matchingFolder,
+            errorMessage,
+          );
+          yield* tryDatabasePromise(
+            "Failed to scan unmapped folders",
+            () => upsertUnmappedFolderMatchRows(db, [failedFolder]),
+          );
+          yield* tryDatabasePromise(
+            "Failed to scan unmapped folders",
+            () =>
+              markJobFailed(
+                db,
+                "unmapped_scan",
+                failedFolder.last_match_error ??
+                  `Failed to match ${nextTarget.name}`,
+              ),
+          );
+
           yield* tryDatabasePromise(
             "Failed to scan unmapped folders",
             () =>
               appendLog(
                 db,
                 "library.unmapped.scan",
-                "info",
-                `Matched unmapped folder ${nextTarget.name}`,
+                "warn",
+                `Failed to match unmapped folder ${nextTarget.name}: ${
+                  failedFolder.last_match_error ?? "Unknown error"
+                }`,
               ),
           );
 
           return { folderCount: queuedFolders.length };
-        }).pipe(
-          Effect.catchAll((cause) =>
-            tryDatabasePromise(
-              "Failed to scan unmapped folders",
-              () => markJobFailed(db, "unmapped_scan", cause),
-            ).pipe(
-              Effect.zipRight(
-                cause instanceof DatabaseError ||
-                  cause instanceof OperationsPathError
-                  ? Effect.fail(cause)
-                  : Effect.fail(
-                    dbError("Failed to scan unmapped folders")(cause),
-                  ),
-              ),
-            )
-          ),
+        }
+
+        const matchedFolder = matchResult.right;
+
+        yield* tryDatabasePromise(
+          "Failed to scan unmapped folders",
+          () => upsertUnmappedFolderMatchRows(db, [matchedFolder]),
         );
-      } finally {
+
+        yield* tryDatabasePromise(
+          "Failed to scan unmapped folders",
+          () =>
+            markJobSucceeded(
+              db,
+              "unmapped_scan",
+              `Processed ${nextTarget.name} (${queuedFolders.length} unmapped folder(s) total)`,
+            ),
+        );
+        yield* tryDatabasePromise(
+          "Failed to scan unmapped folders",
+          () =>
+            appendLog(
+              db,
+              "library.unmapped.scan",
+              "info",
+              `Matched unmapped folder ${nextTarget.name}`,
+            ),
+        );
+
+        return { folderCount: queuedFolders.length };
+      }).pipe(
+        Effect.catchAll((cause) =>
+          tryDatabasePromise(
+            "Failed to scan unmapped folders",
+            () => markJobFailed(db, "unmapped_scan", cause),
+          ).pipe(
+            Effect.zipRight(
+              cause instanceof DatabaseError ||
+                cause instanceof OperationsPathError
+                ? Effect.fail(cause)
+                : Effect.fail(
+                  dbError("Failed to scan unmapped folders")(cause),
+                ),
+            ),
+          )
+        ),
+      );
+    },
+  );
+
+  const startUnmappedScanLoop = Effect.fn(
+    "OperationsService.startUnmappedScanLoop",
+  )(function* () {
+    const alreadyRunning = yield* Ref.modify(
+      unmappedScanRunning,
+      (running) => [running, true] as const,
+    );
+
+    if (alreadyRunning) {
+      return { folderCount: 0 };
+    }
+
+    let forked = false;
+
+    try {
+      const { queuedFolders } = yield* loadQueuedUnmappedFolders();
+      const folderCount = queuedFolders.length;
+
+      if (!queuedFolders.some(isUnmappedFolderQueuedForMatch)) {
+        return { folderCount: 0 };
+      }
+
+      const loop = Effect.gen(function* () {
+        while (true) {
+          yield* runUnmappedScanPass();
+
+          const { queuedFolders: remainingQueuedFolders } =
+            yield* loadQueuedUnmappedFolders();
+
+          if (!remainingQueuedFolders.some(isUnmappedFolderQueuedForMatch)) {
+            return;
+          }
+
+          yield* Effect.sleep("3 seconds");
+        }
+      }).pipe(
+        Effect.catchAllCause(() => Effect.void),
+        Effect.ensuring(Ref.set(unmappedScanRunning, false)),
+      );
+
+      yield* Effect.forkDaemon(loop);
+      forked = true;
+
+      return { folderCount };
+    } finally {
+      if (!forked) {
         yield* Ref.set(unmappedScanRunning, false);
       }
+    }
+  });
+
+  const runUnmappedScan = Effect.fn("OperationsService.runUnmappedScan")(
+    function* () {
+      return yield* startUnmappedScanLoop();
     },
   );
 

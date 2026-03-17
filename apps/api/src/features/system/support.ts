@@ -4,7 +4,7 @@ import { Either } from "effect";
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { eq, sql } from "drizzle-orm";
 
-import { BACKGROUND_WORKER_NAMES } from "../../background-worker-model.ts";
+import { BACKGROUND_JOB_NAMES } from "../../background-worker-model.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { systemLogs } from "../../db/schema.ts";
 
@@ -93,7 +93,7 @@ export function backgroundJobNames(
 ): string[] {
   return [
     ...new Set([
-      ...BACKGROUND_WORKER_NAMES,
+      ...BACKGROUND_JOB_NAMES,
       ...rows.map((row) => row.name),
     ]),
   ].sort();
@@ -139,7 +139,7 @@ function describeJobSchedule(config: Config, name: string) {
   }
 
   if (name === "unmapped_scan") {
-    return { mode: "interval" as const, value: "3s" };
+    return { mode: "manual" as const, value: undefined };
   }
 
   return { mode: "manual" as const, value: undefined };

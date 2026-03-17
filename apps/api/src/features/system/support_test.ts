@@ -37,8 +37,8 @@ Deno.test("system support derives background job schedule modes", () => {
     "12h",
   );
   assertEquals(
-    toBackgroundJobStatus(config, undefined, "unmapped_scan").schedule_value,
-    "3s",
+    toBackgroundJobStatus(config, undefined, "unmapped_scan").schedule_mode,
+    "manual",
   );
   assertEquals(
     toBackgroundJobStatus(config, undefined, "custom_job").schedule_mode,

@@ -226,12 +226,6 @@ export function spawnWorkersFromConfig(
       monitor,
     );
 
-    const unmappedScanLoop = yield* withLockEffect(
-      "unmapped_scan",
-      libraryService.runUnmappedScan(),
-      monitor,
-    );
-
     const spawnedFibers: Fiber.Fiber<void, never>[] = [
       yield* forkSupervisedWorker(
         "download_sync",
@@ -268,17 +262,6 @@ export function spawnWorkersFromConfig(
         ),
       );
     }
-
-    spawnedFibers.push(
-      yield* forkSupervisedWorker(
-        "unmapped_scan",
-        repeatWorker(unmappedScanLoop, {
-          initialDelayMs: schedule.initialDelayMs,
-          intervalMs: schedule.unmappedScanMs,
-        }),
-        monitor,
-      ),
-    );
 
     return {
       stop: Fiber.interruptAll(spawnedFibers).pipe(Effect.asVoid),
