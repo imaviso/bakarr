@@ -22,6 +22,7 @@ import {
 } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { buildRenamePreview } from "./library-import.ts";
+import { buildEpisodeNamingInputFromPath } from "./naming-support.ts";
 import { scanVideoFilesStream } from "./file-scanner.ts";
 import { upsertEpisodeFile, upsertEpisodeFiles } from "./download-support.ts";
 import {
@@ -38,6 +39,7 @@ import {
 } from "./job-support.ts";
 import {
   currentImportMode,
+  currentNamingFormat,
   requireAnime,
   toDownload,
   toDownloadEvent,
@@ -49,10 +51,8 @@ import type {
   TryDatabasePromise,
   TryOperationsPromise,
 } from "./service-support.ts";
-import {
-  type FileSystemShape,
-  sanitizeFilename,
-} from "../../lib/filesystem.ts";
+import { type FileSystemShape } from "../../lib/filesystem.ts";
+import { renderEpisodeFilename } from "../../lib/naming.ts";
 import { OperationsPathError } from "./errors.ts";
 
 export function makeCatalogOrchestration(input: {
@@ -178,6 +178,10 @@ export function makeCatalogOrchestration(input: {
       "Failed to import files",
       () => currentImportMode(db),
     );
+    const namingFormat = yield* tryDatabasePromise(
+      "Failed to import files",
+      () => currentNamingFormat(db),
+    );
 
     for (const file of files) {
       const result = yield* Effect.gen(function* () {
@@ -193,12 +197,26 @@ export function makeCatalogOrchestration(input: {
           "Failed to import files",
           () => requireAnime(db, file.anime_id),
         );
+        const allEpisodeNumbers = file.episode_numbers?.length
+          ? file.episode_numbers
+          : [file.episode_number];
         const extension = file.source_path.includes(".")
           ? file.source_path.slice(file.source_path.lastIndexOf("."))
           : ".mkv";
-        const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${
-          sanitizeFilename(animeRow.titleRomaji)
-        } - ${String(file.episode_number).padStart(2, "0")}${extension}`;
+        const destinationBaseName = renderEpisodeFilename(
+          namingFormat,
+          buildEpisodeNamingInputFromPath({
+            animeStartDate: animeRow.startDate,
+            animeTitle: animeRow.titleRomaji,
+            episodeNumbers: allEpisodeNumbers,
+            filePath: file.source_path,
+            rootFolder: animeRow.rootFolder,
+            season: file.season,
+          }),
+        );
+        const destination = `${
+          animeRow.rootFolder.replace(/\/$/, "")
+        }/${destinationBaseName}${extension}`;
 
         yield* fs.mkdir(animeRow.rootFolder, { recursive: true }).pipe(
           Effect.mapError(() =>
@@ -230,10 +248,6 @@ export function makeCatalogOrchestration(input: {
         }
 
         // Upsert all covered episode numbers (multi-episode support)
-        const allEpisodeNumbers = file.episode_numbers?.length
-          ? file.episode_numbers
-          : [file.episode_number];
-
         for (const epNum of allEpisodeNumbers) {
           yield* tryDatabasePromise(
             "Failed to import files",

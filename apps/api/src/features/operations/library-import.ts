@@ -15,6 +15,7 @@ import {
   parseFileSourceIdentity,
 } from "../../lib/media-identity.ts";
 import { renderEpisodeFilename } from "../../lib/naming.ts";
+import { buildEpisodeNamingInputFromPath } from "./naming-support.ts";
 import { parseResolution } from "./release-ranking.ts";
 import { currentNamingFormat, requireAnime } from "./repository.ts";
 
@@ -41,13 +42,23 @@ export async function buildRenamePreview(
   for (const [filePath, groupRows] of fileGroups) {
     const episodeNumbers = groupRows.map((r) => r.number).sort((a, b) => a - b);
     const primaryEpisode = episodeNumbers[0];
+    const primaryRow = groupRows.find((row) => row.number === primaryEpisode) ??
+      groupRows[0];
     const extension = filePath.includes(".")
       ? filePath.slice(filePath.lastIndexOf("."))
       : ".mkv";
-    const filename = renderEpisodeFilename(namingFormat, {
-      title: animeRow.titleRomaji,
-      episodeNumbers,
-    }) + extension;
+    const filename = renderEpisodeFilename(
+      namingFormat,
+      buildEpisodeNamingInputFromPath({
+        airDate: primaryRow?.aired,
+        animeStartDate: animeRow.startDate,
+        animeTitle: animeRow.titleRomaji,
+        episodeNumbers,
+        episodeTitle: groupRows.length === 1 ? primaryRow?.title : undefined,
+        filePath,
+        rootFolder: animeRow.rootFolder,
+      }),
+    ) + extension;
     results.push({
       current_path: filePath,
       episode_number: primaryEpisode,

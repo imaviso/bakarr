@@ -253,6 +253,10 @@ export function makeDownloadOrchestration(input: {
             primaryEpisode,
             path,
             importMode,
+            {
+              episodeNumbers: relevantEpisodes,
+              namingFormat: runtimeConfig.library.naming_format,
+            },
           ).pipe(
             Effect.mapError(
               wrapOperationsError("Failed to reconcile completed download"),
@@ -380,6 +384,9 @@ export function makeDownloadOrchestration(input: {
       row.episodeNumber,
       resolvedPath,
       importMode,
+      {
+        namingFormat: runtimeConfig.library.naming_format,
+      },
     ).pipe(
       Effect.mapError(
         wrapOperationsError("Failed to reconcile completed download"),

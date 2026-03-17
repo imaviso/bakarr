@@ -7,6 +7,7 @@ import { anime } from "../../db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
 import { renderEpisodeFilename } from "../../lib/naming.ts";
 import { Effect } from "effect";
+import { buildEpisodeNamingInputFromPath } from "./naming-support.ts";
 
 function isCrossFilesystemError(error: { cause?: unknown }): boolean {
   const cause = error.cause;
@@ -42,6 +43,9 @@ export function importDownloadedFile(
   options?: {
     episodeNumbers?: readonly number[];
     namingFormat?: string;
+    airDate?: string;
+    episodeTitle?: string;
+    season?: number;
   },
 ): Effect.Effect<string, ImportFileError | FileSystemError, never> {
   return Effect.gen(function* () {
@@ -59,10 +63,19 @@ export function importDownloadedFile(
       ? options.episodeNumbers
       : [episodeNumber];
     const namingFormat = options?.namingFormat ?? "{title} - {episode_segment}";
-    const baseName = renderEpisodeFilename(namingFormat, {
-      title: animeRow.titleRomaji,
-      episodeNumbers: allEpisodes,
-    });
+    const baseName = renderEpisodeFilename(
+      namingFormat,
+      buildEpisodeNamingInputFromPath({
+        airDate: options?.airDate,
+        animeStartDate: animeRow.startDate,
+        animeTitle: animeRow.titleRomaji,
+        episodeNumbers: allEpisodes,
+        episodeTitle: options?.episodeTitle,
+        filePath: sourcePath,
+        rootFolder: animeRow.rootFolder,
+        season: options?.season,
+      }),
+    );
     const destination = `${
       animeRow.rootFolder.replace(/\/$/, "")
     }/${baseName}${extension}`;
