@@ -130,6 +130,9 @@ export function renderEpisodeFilename(
     input.audioChannels ?? "",
   );
 
+  result = normalizeWrappedSegments(result, "[", "]");
+  result = normalizeWrappedSegments(result, "(", ")");
+
   // Clean up empty segments that may leave dangling separators
   result = result
     .replace(/\[\]/g, "")
@@ -141,4 +144,22 @@ export function renderEpisodeFilename(
     .trim();
 
   return result;
+}
+
+function normalizeWrappedSegments(
+  value: string,
+  open: "(" | "[",
+  close: ")" | "]",
+) {
+  const openEscaped = open === "[" ? "\\[" : "\\(";
+  const closeEscaped = close === "]" ? "\\]" : "\\)";
+  const pattern = new RegExp(
+    `${openEscaped}([^${closeEscaped}]*)${closeEscaped}`,
+    "g",
+  );
+
+  return value.replace(pattern, (_, inner: string) => {
+    const normalized = inner.replace(/\s+/g, " ").trim();
+    return normalized.length > 0 ? `${open}${normalized}${close}` : "";
+  });
 }
