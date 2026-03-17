@@ -1121,8 +1121,55 @@ function extractTitleBeforeNumber(value: string): string {
 // ---------------------------------------------------------------------------
 
 function extractGroup(value: string): string | undefined {
-  const match = value.match(/^\[(.*?)\]/);
-  return match?.[1];
+  const extensionless = stripExtension(value);
+  const prefixMatch = extensionless.match(/^\[(.*?)\]/);
+  const prefixGroup = prefixMatch?.[1]?.trim();
+
+  if (prefixGroup && !looksLikeMetadataTag(prefixGroup)) {
+    return prefixGroup;
+  }
+
+  const bracketGroups = [...extensionless.matchAll(/\[(.*?)\]/g)]
+    .map((match) => match[1]?.trim())
+    .filter((match): match is string => Boolean(match));
+
+  for (let index = bracketGroups.length - 1; index >= 0; index -= 1) {
+    const candidate = bracketGroups[index];
+
+    if (!looksLikeMetadataTag(candidate)) {
+      return candidate;
+    }
+  }
+
+  const suffixMatch = extensionless.match(/-([A-Za-z0-9][A-Za-z0-9+_.&']*)$/);
+  const suffixGroup = suffixMatch?.[1]?.trim();
+
+  if (
+    suffixGroup && /[A-Za-z]/.test(suffixGroup) &&
+    !looksLikeMetadataTag(suffixGroup)
+  ) {
+    return suffixGroup;
+  }
+
+  return undefined;
+}
+
+function looksLikeMetadataTag(value: string): boolean {
+  const lower = value.trim().toLowerCase();
+
+  if (lower.length === 0) {
+    return true;
+  }
+
+  return [
+    /\b\d{3,4}p\b/i,
+    /\b\d{3,4}x\d{3,4}\b/i,
+    /\bv\d+\b/i,
+    /\b(?:web(?:[ .-]?dl)?|webdl|webrip|bluray|blu-ray|bdrip|bdremux|remux|hdtv|dvd|sdtv)\b/i,
+    /\b(?:x264|x265|h[ .-]?264|h[ .-]?265|hevc|avc|av1|vp9)\b/i,
+    /\b(?:aac|flac|opus|ac3|eac3|ddp|dts(?:-hd)?)(?:[ .-]?\d(?:[ .]?\d))?\b/i,
+    /\b(?:dual(?:[ .-]?audio)?|multi(?:[ .-]?audio)?|proper|repack|complete|batch)\b/i,
+  ].some((pattern) => pattern.test(lower));
 }
 
 function extractResolution(value: string): string | undefined {

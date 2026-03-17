@@ -361,6 +361,14 @@ Deno.test("parseReleaseSourceIdentity: fansub absolute number", () => {
   assertEquals(result.group, "SubsPlease");
 });
 
+Deno.test("parseFileSourceIdentity: trailing bracket group is detected", () => {
+  const result = parseFileSourceIdentity(
+    "Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv",
+  );
+
+  assertEquals(result.group, "MTBB");
+});
+
 Deno.test("parseReleaseSourceIdentity: release and file parser agree on 1x02", () => {
   const releaseResult = parseReleaseSourceIdentity(
     "Show Name - 1x02 - Title",
