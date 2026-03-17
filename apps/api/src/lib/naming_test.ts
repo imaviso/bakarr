@@ -504,3 +504,20 @@ Deno.test("naming: full Nukitashi Sonarr-style with all new tokens", () => {
     "Nukitashi The Animation - S01E02 - The Savior [WEB-DL-1080p][AAC 2.0][H.264] - [ToonsHub]",
   );
 });
+
+Deno.test("naming: wrapped segments collapse empty inner tokens", () => {
+  assertEquals(
+    renderEpisodeFilename(
+      "{title} - [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]",
+      makeInput({
+        title: "Nisemonogatari",
+        episodeNumbers: [1],
+        audioCodec: "AAC",
+        group: "MTBB",
+        resolution: "1080p",
+        videoCodec: "HEVC",
+      }),
+    ),
+    "Nisemonogatari - [1080p][HEVC][AAC][MTBB]",
+  );
+});

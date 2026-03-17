@@ -1,12 +1,22 @@
+import { createClient } from "@libsql/client";
 import { assertEquals } from "@std/assert";
+import { drizzle } from "drizzle-orm/libsql";
+import { migrate } from "drizzle-orm/libsql/migrator";
 
+import * as schema from "../../db/schema.ts";
+import type { AppDatabase } from "../../db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
+import { appConfig, episodes } from "../../db/schema.ts";
 import {
   analyzeScannedFile,
+  buildRenamePreview,
   findBestLocalAnimeMatch,
   titlesMatch,
   toAnimeSearchCandidate,
 } from "./library-import.ts";
 import { anime } from "../../db/schema.ts";
+import { encodeConfigCore } from "../system/config-codec.ts";
+import { makeDefaultConfig } from "../system/defaults.ts";
 
 Deno.test("analyzeScannedFile strips release noise and extracts metadata", () => {
   const result = analyzeScannedFile({
@@ -98,6 +108,51 @@ Deno.test("analyzeScannedFile marks unknown files as needing manual mapping", ()
 
   assertEquals(parsed.needs_manual_mapping, true);
   assertEquals(parsed.episode_number, 0);
+});
+
+Deno.test("buildRenamePreview fills naming tokens from existing file metadata", async () => {
+  await withTestDb(async (db, databaseFile) => {
+    const rootFolder = "/mnt/media2/Shows/Nisemonogatari (2012)";
+    const namingFormat =
+      "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
+
+    await db.insert(appConfig).values({
+      id: 1,
+      data: encodeConfigCore({
+        ...makeDefaultConfig(databaseFile),
+        library: {
+          ...makeDefaultConfig(databaseFile).library,
+          naming_format: namingFormat,
+        },
+      }),
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+
+    await db.insert(anime).values(makeAnimeRow({
+      episodeCount: 11,
+      rootFolder,
+      startDate: "2012-01-08",
+      titleRomaji: "Nisemonogatari",
+    }));
+
+    await db.insert(episodes).values({
+      aired: null,
+      animeId: 1,
+      downloaded: true,
+      filePath:
+        `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
+      number: 1,
+      title: null,
+    });
+
+    const preview = await buildRenamePreview(db, 1);
+
+    assertEquals(preview.length, 1);
+    assertEquals(
+      preview[0].new_filename,
+      "Nisemonogatari - S01E01 - Karen Bee, Part 1 [1080p][HEVC][AAC][MTBB].mkv",
+    );
+  });
 });
 
 Deno.test("findBestLocalAnimeMatch handles title normalization and rejects weak matches", () => {
@@ -198,4 +253,20 @@ function makeAnimeRow(
     titleRomaji: "Anime",
     ...overrides,
   };
+}
+
+async function withTestDb(
+  run: (db: AppDatabase, databaseFile: string) => Promise<void>,
+) {
+  const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
+  const client = createClient({ url: `file:${databaseFile}` });
+  const db = drizzle({ client, schema });
+
+  try {
+    await migrate(db, { migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER });
+    await run(db, databaseFile);
+  } finally {
+    client.close();
+    await Deno.remove(databaseFile).catch(() => undefined);
+  }
 }

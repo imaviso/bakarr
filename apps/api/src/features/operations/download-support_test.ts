@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { anime } from "../../db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import { runTestEffectExit } from "../../test/effect-test.ts";
+import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 import {
   importDownloadedFile,
@@ -80,6 +80,44 @@ Deno.test("importDownloadedFile keeps existing destination when staging copy fai
     }
 
     assertEquals(destinationContents, "existing");
+  } finally {
+    await Deno.remove(animeRoot, { recursive: true }).catch(() => undefined);
+    await Deno.remove(sourceRoot, { recursive: true }).catch(() => undefined);
+  }
+});
+
+Deno.test("importDownloadedFile applies configured naming tokens from source filename metadata", async () => {
+  const animeRoot = await Deno.makeTempDir();
+  const sourceRoot = await Deno.makeTempDir();
+  const namingFormat =
+    "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
+
+  try {
+    const sourcePath =
+      `${sourceRoot}/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC][SubsPlus+].mkv`;
+    const expectedDestination =
+      `${animeRoot}/Rock Is a Lady's Modesty - S01E01 - Good Day to You Quit Playing the Guitar!!! [WEB-DL 1080p][AVC][AAC 2.0][SubsPlus+].mkv`;
+
+    await Deno.writeTextFile(sourcePath, "incoming");
+
+    const destination = await runTestEffect(
+      importDownloadedFile(
+        makeTestFileSystem(),
+        {
+          rootFolder: animeRoot,
+          startDate: "2025-04-03",
+          titleRomaji: "Rock Is a Lady's Modesty",
+        } as typeof anime.$inferSelect,
+        1,
+        sourcePath,
+        "copy",
+        { namingFormat },
+      ),
+    );
+
+    assertEquals(destination, expectedDestination);
+    assertEquals(await Deno.readTextFile(destination), "incoming");
+    assertEquals(await Deno.readTextFile(sourcePath), "incoming");
   } finally {
     await Deno.remove(animeRoot, { recursive: true }).catch(() => undefined);
     await Deno.remove(sourceRoot, { recursive: true }).catch(() => undefined);
