@@ -1220,7 +1220,7 @@ integrationTest(
 
           assert(unmappedJob);
           assertEquals(unmappedJob.last_status, "success");
-          assertEquals(unmappedJob.schedule_value, "3s");
+          assertEquals(unmappedJob.schedule_mode, "manual");
 
           const secondScanResponse = await ctx.app.request(
             "/api/library/unmapped/scan",
