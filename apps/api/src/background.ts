@@ -33,6 +33,10 @@ import {
   RssService,
   type RssServiceShape,
 } from "./features/operations/service.ts";
+import {
+  AnimeService,
+  type AnimeServiceShape,
+} from "./features/anime/service.ts";
 
 export interface BackgroundWorkerMonitorShape {
   readonly markDaemonStarted: (
@@ -183,6 +187,7 @@ export function makeBackgroundWorkerMonitor() {
 export interface WorkersDeps {
   readonly eventBus: EventBusShape;
   readonly monitor: BackgroundWorkerMonitorShape;
+  readonly animeService: AnimeServiceShape;
   readonly downloadService: DownloadServiceShape;
   readonly libraryService: LibraryServiceShape;
   readonly rssService: RssServiceShape;
@@ -192,8 +197,14 @@ export function spawnWorkersFromConfig(
   config: Config,
   deps: WorkersDeps,
 ): Effect.Effect<BackgroundWorkerHandle, never, never> {
-  const { eventBus, monitor, downloadService, libraryService, rssService } =
-    deps;
+  const {
+    animeService,
+    eventBus,
+    monitor,
+    downloadService,
+    libraryService,
+    rssService,
+  } = deps;
   const schedule = buildBackgroundSchedule(config);
 
   return Effect.gen(function* () {
@@ -209,6 +220,12 @@ export function spawnWorkersFromConfig(
     const libraryLoop = yield* withLockEffect(
       "library_scan",
       libraryService.runLibraryScan(),
+      monitor,
+    );
+
+    const metadataRefreshLoop = yield* withLockEffect(
+      "metadata_refresh",
+      animeService.refreshMetadataForMonitoredAnime().pipe(Effect.asVoid),
       monitor,
     );
 
@@ -257,6 +274,19 @@ export function spawnWorkersFromConfig(
           repeatWorker(libraryLoop, {
             initialDelayMs: schedule.initialDelayMs,
             intervalMs: schedule.libraryScanMs,
+          }),
+          monitor,
+        ),
+      );
+    }
+
+    if (schedule.metadataRefreshMs !== null) {
+      spawnedFibers.push(
+        yield* forkSupervisedWorker(
+          "metadata_refresh",
+          repeatWorker(metadataRefreshLoop, {
+            initialDelayMs: schedule.initialDelayMs,
+            intervalMs: schedule.metadataRefreshMs,
           }),
           monitor,
         ),
@@ -467,11 +497,13 @@ export function makeBackgroundWorkerController(options: {
 const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
   const eventBus = yield* EventBus;
   const monitor = yield* BackgroundWorkerMonitor;
+  const animeService = yield* AnimeService;
   const downloadService = yield* DownloadService;
   const libraryService = yield* LibraryService;
   const rssService = yield* RssService;
 
   const deps: WorkersDeps = {
+    animeService,
     eventBus,
     monitor,
     downloadService,
