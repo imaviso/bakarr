@@ -1,4 +1,5 @@
 import {
+  IconCalendarEvent,
   IconCheck,
   IconDeviceTv,
   IconFolder,
@@ -40,6 +41,12 @@ import {
   type QualityProfile,
   type ReleaseProfile,
 } from "~/lib/api";
+import {
+  animeDiscoverySubtitle,
+  animeDisplayTitle,
+  animeSearchSubtitle,
+} from "~/lib/anime-metadata";
+import { formatMatchConfidence } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 
 const AddAnimeSchema = v.object({
@@ -70,6 +77,29 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
       configQuery.isSuccess &&
       releaseProfilesQuery.isSuccess,
   );
+  const metadataChips = createMemo(() => {
+    const chips: string[] = [];
+
+    if (props.anime.format) {
+      chips.push(props.anime.format);
+    }
+
+    if (props.anime.episode_count) {
+      chips.push(`${props.anime.episode_count} eps`);
+    }
+
+    const subtitle = animeSearchSubtitle(props.anime);
+    if (subtitle) {
+      chips.push(subtitle);
+    }
+
+    const confidence = formatMatchConfidence(props.anime.match_confidence);
+    if (confidence) {
+      chips.push(confidence);
+    }
+
+    return chips;
+  });
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -97,10 +127,75 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                   {props.anime.title.english}
                 </div>
               </Show>
+              <Show when={metadataChips().length > 0}>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  <For each={metadataChips()}>
+                    {(chip) => (
+                      <div class="inline-flex items-center gap-1 rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
+                        <Show when={chip.includes("/") || /^\d{4}$/.test(chip)}>
+                          <IconCalendarEvent class="h-3 w-3" />
+                        </Show>
+                        <span>{chip}</span>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <Show when={props.anime.genres?.length}>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  <For each={props.anime.genres?.slice(0, 3)}>
+                    {(genre) => (
+                      <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
+                        {genre}
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <Show when={props.anime.synonyms?.length}>
+                <div class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                  Also known as {props.anime.synonyms?.slice(0, 3).join(" • ")}
+                </div>
+              </Show>
+              <Show when={props.anime.related_anime?.length}>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  <For each={props.anime.related_anime?.slice(0, 2)}>
+                    {(related) => (
+                      <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
+                        {[
+                          animeDisplayTitle(related),
+                          ...animeDiscoverySubtitle(related),
+                        ].filter(Boolean).join(" - ")}
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <Show when={props.anime.recommended_anime?.length}>
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  <For each={props.anime.recommended_anime?.slice(0, 2)}>
+                    {(recommended) => (
+                      <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
+                        {[
+                          animeDisplayTitle(recommended),
+                          ...animeDiscoverySubtitle(recommended),
+                        ].filter(Boolean).join(" - ")}
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <Show when={props.anime.match_reason}>
+                <div class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                  {props.anime.match_reason}
+                </div>
+              </Show>
             </div>
           </DialogTitle>
           <DialogDescription>
-            Configure how this anime should be added to your library.
+            {props.anime.description?.trim()
+              ? props.anime.description
+              : "Configure how this anime should be added to your library."}
           </DialogDescription>
         </DialogHeader>
 

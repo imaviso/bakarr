@@ -8,8 +8,9 @@ import {
   IconSearch,
   IconTrash,
 } from "@tabler/icons-solidjs";
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
+import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,8 @@ import {
   createScanLibraryMutation,
   type UnmappedFolder,
 } from "~/lib/api";
+import { animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
+import { formatFileSize } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 import { runFolderBackgroundMatchAction } from "./background-matching-actions";
 import { MAX_AUTO_MATCH_ATTEMPTS } from "./constants";
@@ -194,6 +197,25 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
             <p class="text-xs text-muted-foreground">
               {folderMatchHint(props.folder)}
             </p>
+            <Show when={props.folder.search_queries?.length}>
+              <div class="flex flex-wrap items-center gap-1 pt-1">
+                <span class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
+                  Search
+                </span>
+                <For each={(props.folder.search_queries ?? []).slice(0, 3)}>
+                  {(query) => (
+                    <Badge variant="outline" class="h-5 px-1.5 text-xs">
+                      {query}
+                    </Badge>
+                  )}
+                </For>
+              </div>
+            </Show>
+            <Show when={formatFileSize(props.folder.size)}>
+              <p class="text-[11px] text-muted-foreground">
+                {formatFileSize(props.folder.size)} on disk
+              </p>
+            </Show>
           </div>
         </div>
       </div>
@@ -222,7 +244,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                     class="truncate text-sm font-semibold text-foreground"
                     title={anime().title.romaji}
                   >
-                    {anime().title.romaji}
+                    {animeDisplayTitle(anime())}
                   </p>
                   <Show when={anime().already_in_library}>
                     <Badge variant="secondary">Already in library</Badge>
@@ -231,6 +253,14 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                     <Badge variant="outline">Manual match</Badge>
                   </Show>
                 </div>
+                <Show
+                  when={anime().title.english &&
+                    anime().title.english !== anime().title.romaji}
+                >
+                  <p class="truncate text-xs text-muted-foreground">
+                    {anime().title.english}
+                  </p>
+                </Show>
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <Show when={anime().format}>
                     <span>{anime().format}</span>
@@ -238,7 +268,54 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                   <Show when={anime().episode_count}>
                     <span>{anime().episode_count} episodes</span>
                   </Show>
+                  <Show when={animeSearchSubtitle(anime())}>
+                    <span>{animeSearchSubtitle(anime())}</span>
+                  </Show>
+                  <Show when={anime().genres?.length}>
+                    <span>{anime().genres?.slice(0, 2).join(" / ")}</span>
+                  </Show>
+                  <Show when={anime().match_confidence !== undefined}>
+                    <Badge variant="outline" class="h-5 px-1.5 text-xs">
+                      {formatConfidencePercent(anime().match_confidence)} match
+                    </Badge>
+                  </Show>
                 </div>
+                <Show when={anime().match_reason && !manualMatch()}>
+                  <p class="text-[11px] text-muted-foreground line-clamp-2">
+                    {anime().match_reason}
+                  </p>
+                </Show>
+                <Show when={anime().description}>
+                  <p class="text-[11px] text-muted-foreground line-clamp-2">
+                    {anime().description}
+                  </p>
+                </Show>
+                <Show when={anime().related_anime?.length}>
+                  <div class="space-y-1.5">
+                    <For each={anime().related_anime?.slice(0, 2)}>
+                      {(related) => (
+                        <AnimeDiscoveryRow
+                          entry={related}
+                          libraryIds={new Set([anime().id])}
+                          compact
+                        />
+                      )}
+                    </For>
+                  </div>
+                </Show>
+                <Show when={anime().recommended_anime?.length}>
+                  <div class="space-y-1.5">
+                    <For each={anime().recommended_anime?.slice(0, 2)}>
+                      {(recommended) => (
+                        <AnimeDiscoveryRow
+                          entry={recommended}
+                          libraryIds={new Set([anime().id])}
+                          compact
+                        />
+                      )}
+                    </For>
+                  </div>
+                </Show>
                 <Show when={!anime().already_in_library}>
                   <div class="space-y-2 pt-1">
                     <span class="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -493,4 +570,13 @@ function normalizeApiErrorMessage(message: string) {
   }
 
   return trimmed;
+}
+
+function formatConfidencePercent(value?: number) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "Unknown";
+  }
+
+  const clamped = Math.max(0, Math.min(1, value));
+  return `${Math.round(clamped * 100)}%`;
 }

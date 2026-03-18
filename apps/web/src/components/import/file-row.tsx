@@ -1,5 +1,10 @@
-import { IconAlertTriangle, IconCheck, IconFile } from "@tabler/icons-solidjs";
-import { createMemo, Show } from "solid-js";
+import {
+  IconAlertTriangle,
+  IconCheck,
+  IconFile,
+  IconInfoCircle,
+} from "@tabler/icons-solidjs";
+import { createMemo, For, Show } from "solid-js";
 import { EditMappingPopover } from "~/components/edit-mapping-popover";
 import { Badge } from "~/components/ui/badge";
 import { Checkbox } from "~/components/ui/checkbox";
@@ -10,6 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+import {
+  buildFileDecisionSummary,
+  formatEpisodeNumberList,
+  formatFileSize,
+  formatMatchConfidence,
+  formatNamingTitleSource,
+  namingMetadataBadges,
+  scannedFileMetadataBadges,
+} from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 import type { FileRowProps } from "./types";
 
@@ -41,6 +55,25 @@ export function FileRow(props: FileRowProps) {
       return titleA.localeCompare(titleB);
     });
   });
+  const metadataBadges = createMemo(() =>
+    scannedFileMetadataBadges(props.file)
+  );
+  const fileSize = createMemo(() => formatFileSize(props.file.size));
+  const matchConfidence = createMemo(() =>
+    formatMatchConfidence(props.file.match_confidence)
+  );
+  const decisionSummary = createMemo(() =>
+    buildFileDecisionSummary({
+      coverage_summary: props.file.coverage_summary,
+      episode_conflict: props.file.episode_conflict,
+      existing_mapping: props.file.existing_mapping,
+      match_reason: props.file.match_reason,
+      warnings: props.file.warnings,
+    })
+  );
+  const namingBadges = createMemo(() =>
+    namingMetadataBadges(props.file.naming_metadata_snapshot)
+  );
 
   return (
     <li
@@ -53,6 +86,7 @@ export function FileRow(props: FileRowProps) {
         <Checkbox
           checked={props.isSelected}
           disabled={!hasMatch()}
+          aria-label={`Select ${props.file.filename}`}
           onChange={(checked) => {
             const id = matchedAnimeId();
             if (checked && id) {
@@ -68,6 +102,167 @@ export function FileRow(props: FileRowProps) {
           <span class="text-sm font-medium truncate block">
             {props.file.filename}
           </span>
+          <Show when={props.file.episode_title || props.file.air_date}>
+            <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+              <Show when={props.file.episode_title}>
+                <span class="truncate max-w-[28rem]">
+                  {props.file.episode_title}
+                </span>
+              </Show>
+              <Show when={props.file.air_date}>
+                <span>{props.file.air_date}</span>
+              </Show>
+              <Show when={fileSize()}>
+                <span>{fileSize()}</span>
+              </Show>
+            </div>
+          </Show>
+          <Show
+            when={!props.file.episode_title && !props.file.air_date &&
+              fileSize()}
+          >
+            <div class="mt-1 text-[11px] text-muted-foreground">
+              {fileSize()}
+            </div>
+          </Show>
+          <Show when={metadataBadges().length > 0}>
+            <div class="mt-1 flex flex-wrap gap-1">
+              <For each={metadataBadges()}>
+                {(value) => (
+                  <Badge variant="outline" class="h-5 px-1.5 text-xs">
+                    {value}
+                  </Badge>
+                )}
+              </For>
+            </div>
+          </Show>
+          <Show
+            when={props.file.coverage_summary || props.file.existing_mapping ||
+              props.file.episode_conflict}
+          >
+            <div class="mt-1 flex flex-wrap gap-1">
+              <Show when={props.file.coverage_summary}>
+                <Badge variant="secondary" class="h-5 px-1.5 text-xs">
+                  {props.file.coverage_summary}
+                </Badge>
+              </Show>
+              <Show when={props.file.existing_mapping}>
+                <Badge variant="secondary" class="h-5 px-1.5 text-xs">
+                  Already mapped
+                </Badge>
+              </Show>
+              <Show when={props.file.episode_conflict}>
+                <Badge
+                  variant="secondary"
+                  class="h-5 px-1.5 text-xs bg-warning/10 text-warning border-warning/20"
+                >
+                  Duplicate episode
+                </Badge>
+              </Show>
+            </div>
+          </Show>
+          <Show when={props.file.match_reason}>
+            <div class="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Show when={matchConfidence()}>
+                <Badge variant="outline" class="h-5 px-1.5 text-xs">
+                  {matchConfidence()}
+                </Badge>
+              </Show>
+              <p class="truncate">{props.file.match_reason}</p>
+            </div>
+          </Show>
+          <Show when={decisionSummary().length > 0}>
+            <div class="mt-1 space-y-0.5">
+              <For each={decisionSummary()}>
+                {(detail) => (
+                  <p
+                    class={cn(
+                      "text-[11px]",
+                      detail.startsWith("Existing file") ||
+                        props.file.warnings?.includes(detail)
+                        ? "text-warning"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {detail}
+                  </p>
+                )}
+              </For>
+            </div>
+          </Show>
+          <Show
+            when={props.file.naming_filename || props.file.naming_format_used ||
+              props.file.naming_fallback_used || namingBadges().length > 0 ||
+              props.file.naming_warnings?.length ||
+              props.file.naming_missing_fields?.length}
+          >
+            <div class="mt-2 space-y-1">
+              <Show when={props.file.naming_filename}>
+                <p class="text-[11px] text-muted-foreground">
+                  Will import as {props.file.naming_filename}
+                </p>
+              </Show>
+              <div class="flex flex-wrap gap-1">
+                <Show when={props.file.naming_fallback_used}>
+                  <Badge
+                    variant="outline"
+                    class="h-5 px-1.5 text-xs border-warning/30 text-warning"
+                  >
+                    Fallback naming
+                  </Badge>
+                </Show>
+                <Show when={props.file.naming_format_used}>
+                  <Badge
+                    variant="secondary"
+                    class="h-5 px-1.5 text-xs font-mono"
+                  >
+                    {props.file.naming_format_used}
+                  </Badge>
+                </Show>
+                <Show
+                  when={formatNamingTitleSource(
+                    props.file.naming_metadata_snapshot?.title_source,
+                  )}
+                >
+                  {(label) => (
+                    <Badge variant="secondary" class="h-5 px-1.5 text-xs">
+                      {label()}
+                    </Badge>
+                  )}
+                </Show>
+                <For each={namingBadges()}>
+                  {(value) => (
+                    <Badge variant="outline" class="h-5 px-1.5 text-xs">
+                      {value}
+                    </Badge>
+                  )}
+                </For>
+              </div>
+              <Show
+                when={props.file.naming_warnings?.length ||
+                  props.file.naming_missing_fields?.length}
+              >
+                <div class="space-y-0.5 text-[11px] text-muted-foreground">
+                  <For each={props.file.naming_warnings || []}>
+                    {(warning) => (
+                      <p class="flex items-start gap-1">
+                        <IconAlertTriangle class="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                        <span>{warning}</span>
+                      </p>
+                    )}
+                  </For>
+                  <For each={props.file.naming_missing_fields || []}>
+                    {(field) => (
+                      <p class="flex items-start gap-1">
+                        <IconInfoCircle class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>Missing naming field `{field}`</span>
+                      </p>
+                    )}
+                  </For>
+                </div>
+              </Show>
+            </div>
+          </Show>
         </div>
         <div class="flex items-center gap-1.5 shrink-0">
           <Show when={props.file.source_identity?.label}>
@@ -75,16 +270,19 @@ export function FileRow(props: FileRowProps) {
               {props.file.source_identity!.label}
             </Badge>
           </Show>
+          <Show
+            when={!props.file.source_identity?.label &&
+              formatEpisodeNumberList(props.file.episode_numbers)}
+          >
+            <Badge variant="outline" class="text-xs font-mono">
+              {formatEpisodeNumberList(props.file.episode_numbers)}
+            </Badge>
+          </Show>
           <EditMappingPopover
             episode={displayEpisode()}
             season={displaySeason()}
             onSave={props.onMappingChange}
           />
-          <Show when={props.file.resolution}>
-            <Badge variant="secondary" class="text-xs">
-              {props.file.resolution}
-            </Badge>
-          </Show>
           <Show when={props.file.needs_manual_mapping}>
             <Badge
               variant="secondary"
@@ -123,7 +321,7 @@ export function FileRow(props: FileRowProps) {
                         >
                           <Badge
                             variant="secondary"
-                            class="h-4 px-1 text-[9px]"
+                            class="h-4 px-1 text-xs"
                           >
                             New
                           </Badge>
@@ -170,7 +368,7 @@ export function FileRow(props: FileRowProps) {
                     {props.item.rawValue?.title.english ||
                       props.item.rawValue?.title.romaji}
                     <Show when={props.item.rawValue?.source === "candidate"}>
-                      <Badge variant="secondary" class="h-4 px-1 text-[9px]">
+                      <Badge variant="secondary" class="h-4 px-1 text-xs">
                         New
                       </Badge>
                     </Show>

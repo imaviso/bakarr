@@ -42,6 +42,21 @@ export function BackgroundMatchingCard(props: {
 
     return Math.min(100, Math.round((progressCurrent() / total) * 100));
   });
+  const explanation = createMemo(() => {
+    if (props.matchingCount > 0) {
+      return "Bakarr is trying one folder at a time, then scoring AniList candidates from cleaned folder titles, known year hints, and library overlap signals.";
+    }
+
+    if (props.failedCount > 0) {
+      return "Failed folders usually need manual confirmation because title cleanup, sequel disambiguation, or existing-library conflicts kept the automatic score below the safe threshold.";
+    }
+
+    if (props.queuedCount > 0) {
+      return "Queued folders will be retried with the same explanation metadata you see per folder: normalized search queries, confidence, and match reason.";
+    }
+
+    return "Finished folders keep their explanation trail so you can see why a match was chosen before importing.";
+  });
 
   return (
     <div class="border border-border/70 bg-background/80 p-4 shadow-sm">
@@ -87,6 +102,7 @@ export function BackgroundMatchingCard(props: {
               {props.job?.last_message}
             </p>
           </Show>
+          <p class="text-xs text-muted-foreground">{explanation()}</p>
         </div>
 
         <div class="grid grid-cols-2 gap-2 text-right text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-[340px]">

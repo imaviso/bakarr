@@ -26,12 +26,28 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
+import { ReleaseMetadataSummary } from "~/components/release-metadata-summary";
 import {
   createEpisodeSearchQuery,
   createGrabReleaseMutation,
   type DownloadAction,
   type EpisodeSearchResult,
+  type ParsedEpisodeIdentity,
 } from "~/lib/api";
+import {
+  formatReleaseParsedSummary,
+  formatReleaseSourceSummary,
+  getReleaseFlags,
+} from "~/lib/release-metadata";
+import {
+  formatSelectionDetail,
+  formatSelectionSummary,
+  getReleaseConfidence,
+  releaseConfidenceBadgeClass,
+  selectionKindBadgeClass,
+  selectionKindLabel,
+  selectionMetadataFromDownloadAction,
+} from "~/lib/release-selection";
 import { cn } from "~/lib/utils";
 
 interface SearchModalProps {
@@ -56,15 +72,79 @@ export function SearchModal(props: SearchModalProps) {
     }
   });
 
+  const decisionReason = (release: EpisodeSearchResult) => {
+    if (release.download_action.Upgrade) {
+      return `Upgrade: ${release.download_action.Upgrade.reason}`;
+    }
+    if (release.download_action.Accept) {
+      return `Accepted ${release.download_action.Accept.quality.name} (score ${release.download_action.Accept.score})`;
+    }
+    if (release.download_action.Reject) {
+      return `Manual override: ${release.download_action.Reject.reason}`;
+    }
+    return "Manual episode grab";
+  };
+
   const handleDownload = (release: EpisodeSearchResult) => {
+    const selection = selectionMetadataFromDownloadAction(
+      release.download_action,
+    );
+    const releaseSourceIdentity = (): ParsedEpisodeIdentity | undefined => {
+      if (!release.parsed_episode_label) {
+        return undefined;
+      }
+
+      if (release.parsed_air_date) {
+        return {
+          air_dates: [release.parsed_air_date],
+          label: release.parsed_episode_label,
+          scheme: "daily",
+        };
+      }
+
+      if (release.parsed_episode_numbers?.length) {
+        return {
+          episode_numbers: release.parsed_episode_numbers,
+          label: release.parsed_episode_label,
+          scheme: "absolute",
+        };
+      }
+
+      return undefined;
+    };
+
     grabRelease.mutate(
       {
         anime_id: props.animeId,
+        decision_reason: decisionReason(release),
         episode_number: props.episodeNumber,
         title: release.title,
         magnet: release.link,
         group: release.group,
         info_hash: release.info_hash,
+        release_metadata: {
+          air_date: release.parsed_air_date,
+          chosen_from_seadex: selection.chosen_from_seadex,
+          group: release.group,
+          indexer: release.indexer,
+          is_seadex: release.is_seadex,
+          is_seadex_best: release.is_seadex_best,
+          parsed_title: release.title,
+          previous_quality: selection.previous_quality,
+          previous_score: selection.previous_score,
+          remake: release.remake,
+          resolution: release.parsed_resolution,
+          seadex_comparison: release.seadex_comparison,
+          seadex_dual_audio: release.seadex_dual_audio,
+          seadex_notes: release.seadex_notes,
+          seadex_release_group: release.seadex_release_group,
+          seadex_tags: release.seadex_tags,
+          selection_kind: selection.selection_kind,
+          selection_score: selection.selection_score,
+          source_identity: releaseSourceIdentity(),
+          source_url: release.view_url,
+          trusted: release.trusted,
+        },
       },
       {
         onSuccess: () => {
@@ -73,7 +153,7 @@ export function SearchModal(props: SearchModalProps) {
         },
         onError: (err) => {
           toast.error("Failed to queue download", {
-            description: (err as Error).message,
+            description: err instanceof Error ? err.message : String(err),
           });
         },
       },
@@ -126,7 +206,9 @@ export function SearchModal(props: SearchModalProps) {
                   <IconAlertTriangle class="h-8 w-8" />
                   <p>Error searching for releases</p>
                   <p class="text-sm text-muted-foreground">
-                    {(searchQuery.error as Error).message}
+                    {searchQuery.error instanceof Error
+                      ? searchQuery.error.message
+                      : String(searchQuery.error)}
                   </p>
                   <Button
                     variant="outline"
@@ -166,6 +248,32 @@ export function SearchModal(props: SearchModalProps) {
                           const action = release.download_action;
                           const isRejected = !!action.Reject;
                           const reason = getActionReason(action);
+                          const selectionMetadata = () =>
+                            selectionMetadataFromDownloadAction(action);
+                          const selectionSummary = () =>
+                            formatSelectionSummary(selectionMetadata());
+                          const selectionLabel = () =>
+                            selectionKindLabel(
+                              selectionMetadata().selection_kind,
+                            );
+                          const selectionDetail = () =>
+                            formatSelectionDetail(selectionMetadata());
+                          const releaseConfidence = () =>
+                            getReleaseConfidence(release);
+                          const releaseFlags = () => getReleaseFlags(release);
+                          const releaseSourceSummary = () =>
+                            formatReleaseSourceSummary({
+                              group: release.group,
+                              indexer: release.indexer,
+                              quality: release.quality,
+                              resolution: release.parsed_resolution,
+                            });
+                          const releaseParsedSummary = () =>
+                            formatReleaseParsedSummary({
+                              parsed_air_date: release.parsed_air_date,
+                              parsed_episode_label:
+                                release.parsed_episode_label,
+                            });
 
                           return (
                             <TableRow
@@ -176,57 +284,36 @@ export function SearchModal(props: SearchModalProps) {
                             >
                               <TableCell class="font-medium max-w-[300px]">
                                 <div class="flex flex-col gap-1">
-                                  <span
-                                    class="line-clamp-2 text-sm break-all"
+                                  <a
+                                    href={release.view_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    class="line-clamp-2 text-sm break-all hover:text-primary transition-colors"
                                     title={release.title}
                                   >
                                     {release.title}
-                                  </span>
-                                  <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                                  </a>
+                                  <div class="text-xs text-muted-foreground">
                                     <span class="flex items-center gap-1">
                                       {formatDistanceToNow(
                                         new Date(release.publish_date),
                                         { addSuffix: true },
                                       )}
                                     </span>
-                                    <Show when={release.group}>
-                                      <Badge
-                                        variant="outline"
-                                        class="text-[10px] px-1 h-4"
-                                      >
-                                        {release.group}
-                                      </Badge>
-                                    </Show>
-                                    <Show when={release.is_seadex}>
-                                      <Badge
-                                        variant="outline"
-                                        class={cn(
-                                          "text-[10px] px-1 h-4",
-                                          release.is_seadex_best
-                                            ? "border-warning/20 text-warning bg-warning/5"
-                                            : "border-info/20 text-info bg-info/5",
-                                        )}
-                                      >
-                                        {release.is_seadex_best
-                                          ? "SeaDex Best"
-                                          : "SeaDex"}
-                                      </Badge>
-                                    </Show>
-                                    <Show when={release.seadex_dual_audio}>
-                                      <Badge
-                                        variant="outline"
-                                        class="text-[10px] px-1 h-4 border-primary/20 text-primary bg-primary/5"
-                                      >
-                                        Dual Audio
-                                      </Badge>
-                                    </Show>
+                                    <ReleaseMetadataSummary
+                                      compact
+                                      flags={releaseFlags()}
+                                      parsedSummary={releaseParsedSummary()}
+                                      sourceSummary={releaseSourceSummary()}
+                                      sourceUrl={release.view_url}
+                                    />
                                   </div>
                                   <Show
                                     when={release.seadex_notes ||
                                       release.seadex_tags?.length ||
                                       release.seadex_comparison}
                                   >
-                                    <div class="text-[10px] text-muted-foreground leading-tight flex flex-col gap-1">
+                                    <div class="text-xs text-muted-foreground leading-tight flex flex-col gap-1">
                                       <Show when={release.seadex_notes}>
                                         <div class="line-clamp-2">
                                           {release.seadex_notes}
@@ -241,7 +328,7 @@ export function SearchModal(props: SearchModalProps) {
                                             {(tag) => (
                                               <Badge
                                                 variant="secondary"
-                                                class="h-4 px-1 text-[9px] bg-muted/40 text-muted-foreground border-transparent"
+                                                class="h-4 px-1 text-xs bg-muted/40 text-muted-foreground border-transparent"
                                               >
                                                 {tag}
                                               </Badge>
@@ -262,6 +349,53 @@ export function SearchModal(props: SearchModalProps) {
                                         </a>
                                       </Show>
                                     </div>
+                                  </Show>
+                                  <Show when={selectionSummary()}>
+                                    <div class="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
+                                      <Show when={selectionLabel()}>
+                                        {(label) => (
+                                          <Badge
+                                            variant="secondary"
+                                            class={cn(
+                                              "h-4 px-1.5 border-transparent",
+                                              selectionKindBadgeClass(
+                                                selectionMetadata()
+                                                  .selection_kind,
+                                              ),
+                                            )}
+                                          >
+                                            {label()}
+                                          </Badge>
+                                        )}
+                                      </Show>
+                                      <Show when={selectionDetail()}>
+                                        {(detail) => (
+                                          <div class="text-muted-foreground">
+                                            {detail()}
+                                          </div>
+                                        )}
+                                      </Show>
+                                    </div>
+                                  </Show>
+                                  <Show when={releaseConfidence()}>
+                                    {(confidence) => (
+                                      <div class="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
+                                        <Badge
+                                          variant="secondary"
+                                          class={cn(
+                                            "h-4 px-1.5 border-transparent",
+                                            releaseConfidenceBadgeClass(
+                                              confidence().tone,
+                                            ),
+                                          )}
+                                        >
+                                          {confidence().label}
+                                        </Badge>
+                                        <div class="text-muted-foreground">
+                                          {confidence().reason}
+                                        </div>
+                                      </div>
+                                    )}
                                   </Show>
                                 </div>
                               </TableCell>
@@ -284,7 +418,7 @@ export function SearchModal(props: SearchModalProps) {
                                 <div class="flex flex-col gap-1">
                                   <Badge
                                     variant="secondary"
-                                    class="w-fit text-[10px]"
+                                    class="w-fit text-xs"
                                   >
                                     {release.quality}
                                   </Badge>
@@ -298,9 +432,9 @@ export function SearchModal(props: SearchModalProps) {
                                     class={cn(
                                       "h-7 w-full gap-1 text-xs",
                                       action.Accept &&
-                                        "bg-success hover:bg-success text-white",
+                                        "bg-success hover:bg-success text-success-foreground",
                                       action.Upgrade &&
-                                        "bg-info hover:bg-info text-white",
+                                        "bg-info hover:bg-info text-info-foreground",
                                       isRejected &&
                                         "text-muted-foreground border",
                                     )}
@@ -319,7 +453,7 @@ export function SearchModal(props: SearchModalProps) {
                                   </Button>
                                   <Show when={reason}>
                                     <span
-                                      class="text-[10px] text-error text-right leading-tight max-w-[100px]"
+                                      class="text-xs text-error text-right leading-tight max-w-[100px]"
                                       title={reason || ""}
                                     >
                                       {reason}

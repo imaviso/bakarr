@@ -1,8 +1,75 @@
 import type {
   AnimeSearchResult,
+  DownloadSourceMetadata,
   ImportFileRequest,
   ScannedFile,
 } from "~/lib/api";
+
+export function buildImportSourceMetadata(
+  file: Pick<
+    ScannedFile,
+    | "air_date"
+    | "audio_channels"
+    | "audio_codec"
+    | "episode_title"
+    | "group"
+    | "quality"
+    | "resolution"
+    | "source_identity"
+    | "video_codec"
+  >,
+): DownloadSourceMetadata | undefined {
+  const metadata: DownloadSourceMetadata = {
+    air_date: file.air_date,
+    audio_channels: file.audio_channels,
+    audio_codec: file.audio_codec,
+    episode_title: file.episode_title,
+    group: file.group,
+    quality: file.quality,
+    resolution: file.resolution,
+    source_identity: file.source_identity,
+    video_codec: file.video_codec,
+  };
+
+  return Object.values(metadata).some((value) => value !== undefined)
+    ? metadata
+    : undefined;
+}
+
+export function buildImportFileRequest(input: {
+  animeId: number;
+  file: Pick<
+    ScannedFile,
+    | "air_date"
+    | "audio_channels"
+    | "audio_codec"
+    | "episode_number"
+    | "episode_numbers"
+    | "episode_title"
+    | "group"
+    | "quality"
+    | "resolution"
+    | "season"
+    | "source_identity"
+    | "source_path"
+    | "video_codec"
+  >;
+  episodeNumber?: number;
+  episodeNumbers?: number[];
+  season?: number;
+  sourceMetadata?: DownloadSourceMetadata;
+}) {
+  return {
+    anime_id: input.animeId,
+    episode_number: input.episodeNumber ??
+      Math.floor(input.file.episode_number),
+    episode_numbers: input.episodeNumbers ?? input.file.episode_numbers,
+    season: input.season ?? input.file.season,
+    source_metadata: input.sourceMetadata ??
+      buildImportSourceMetadata(input.file),
+    source_path: input.file.source_path,
+  } satisfies ImportFileRequest;
+}
 
 export function findMissingImportCandidates(input: {
   files: readonly ImportFileRequest[];
@@ -81,13 +148,10 @@ export function toggleImportCandidateSelection(input: {
     }
 
     if (shouldSelect) {
-      newSelectedFiles.set(file.source_path, {
-        source_path: file.source_path,
-        anime_id: input.candidate.id,
-        episode_number: Math.floor(file.episode_number),
-        episode_numbers: file.episode_numbers,
-        season: file.season,
-      });
+      newSelectedFiles.set(
+        file.source_path,
+        buildImportFileRequest({ animeId: input.candidate.id, file }),
+      );
     }
   });
 

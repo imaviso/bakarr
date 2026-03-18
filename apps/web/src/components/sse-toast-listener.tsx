@@ -3,6 +3,7 @@ import { createEffect, onCleanup } from "solid-js";
 import { toast } from "solid-sonner";
 import type { NotificationEvent } from "@bakarr/shared";
 import { useAuth } from "~/lib/auth";
+import { getNotificationToastCopy } from "~/lib/notification-metadata";
 
 export function SseToastListener() {
   const queryClient = useQueryClient();
@@ -62,10 +63,26 @@ export function SseToastListener() {
         toast.success("Library scan finished");
         break;
       case "DownloadStarted":
-        toast.info(`Download started: ${event.payload.title}`);
+        {
+          const copy = getNotificationToastCopy(event);
+          toast.info(
+            copy?.message ?? `Download started: ${event.payload.title}`,
+            {
+              description: copy?.description,
+            },
+          );
+        }
         break;
       case "DownloadFinished":
-        toast.success(`Download finished: ${event.payload.title}`);
+        {
+          const copy = getNotificationToastCopy(event);
+          toast.success(
+            copy?.message ?? `Download finished: ${event.payload.title}`,
+            {
+              description: copy?.description,
+            },
+          );
+        }
         queryClient.invalidateQueries({ queryKey: ["anime"] });
         if (event.payload.anime_id) {
           queryClient.invalidateQueries({
@@ -130,9 +147,16 @@ export function SseToastListener() {
         toast.info(`Importing ${event.payload.count} files...`);
         break;
       case "ImportFinished":
-        toast.success(
-          `Import finished. Imported ${event.payload.imported}, Failed ${event.payload.failed}`,
-        );
+        {
+          const copy = getNotificationToastCopy(event);
+          toast.success(
+            copy?.message ??
+              `Import finished. Imported ${event.payload.imported}, Failed ${event.payload.failed}`,
+            {
+              description: copy?.description,
+            },
+          );
+        }
         queryClient.invalidateQueries({ queryKey: ["anime"] });
         break;
       case "LibraryScanStarted":

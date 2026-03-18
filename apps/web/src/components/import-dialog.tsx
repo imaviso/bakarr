@@ -1,7 +1,5 @@
 import {
-  IconAlertTriangle,
   IconArrowRight,
-  IconCheck,
   IconFile,
   IconFolderOpen,
   IconListTree,
@@ -18,15 +16,12 @@ import {
   createSignal,
   For,
   type JSX,
-  onCleanup,
   Show,
 } from "solid-js";
 import { toast } from "solid-sonner";
-import { EditMappingPopover } from "~/components/edit-mapping-popover";
 import { FileBrowser } from "~/components/file-browser";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -36,13 +31,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import {
   TextField,
@@ -57,16 +45,17 @@ import {
 import {
   type AnimeSearchResult,
   createAnimeListQuery,
-  createAnimeSearchQuery,
   createImportFilesMutation,
   createScanImportPathMutation,
   type ImportFileRequest,
   type ScannedFile,
 } from "~/lib/api";
 import { AddAnimeDialog } from "~/components/add-anime-dialog";
-import { createDebouncer } from "~/lib/debounce";
+import { summarizeImportNamingOutcome } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
+import { CandidateCard, FileRow, ManualSearch } from "./import";
 import {
+  buildImportFileRequest,
   findMissingImportCandidates,
   toggleImportCandidateSelection,
 } from "./import/import-flow";
@@ -123,6 +112,9 @@ export function ImportDialog(props: ImportDialogProps) {
       (mc) => !scanMutation.data?.candidates.some((c) => c.id === mc.id),
     ),
   ]);
+  const libraryIds = createMemo(() =>
+    new Set((animeListQuery.data ?? []).map((anime) => anime.id))
+  );
 
   const resetDialog = () => {
     setStep("scan");
@@ -154,21 +146,21 @@ export function ImportDialog(props: ImportDialogProps) {
 
           data.files.forEach((file) => {
             if (file.matched_anime) {
-              preselected.set(file.source_path, {
-                source_path: file.source_path,
-                anime_id: file.matched_anime.id,
-                episode_number: Math.floor(file.episode_number),
-                episode_numbers: file.episode_numbers,
-                season: file.season,
-              });
+              preselected.set(
+                file.source_path,
+                buildImportFileRequest({
+                  animeId: file.matched_anime.id,
+                  file,
+                }),
+              );
             } else if (file.suggested_candidate_id) {
-              preselected.set(file.source_path, {
-                source_path: file.source_path,
-                anime_id: file.suggested_candidate_id,
-                episode_number: Math.floor(file.episode_number),
-                episode_numbers: file.episode_numbers,
-                season: file.season,
-              });
+              preselected.set(
+                file.source_path,
+                buildImportFileRequest({
+                  animeId: file.suggested_candidate_id,
+                  file,
+                }),
+              );
               newSelectedCandidates.add(file.suggested_candidate_id);
             }
           });
@@ -237,14 +229,25 @@ export function ImportDialog(props: ImportDialogProps) {
       .then((data) => {
         const imported = data?.imported || 0;
         const failed = data?.failed || 0;
+        const namingDetail = summarizeImportNamingOutcome(data?.imported_files);
         if (failed > 0) {
-          toast.warning(`Imported ${imported} file(s), ${failed} failed`, {
-            id: toastId,
-          });
+          toast.warning(
+            namingDetail
+              ? `Imported ${imported} file(s), ${failed} failed. ${namingDetail}.`
+              : `Imported ${imported} file(s), ${failed} failed`,
+            {
+              id: toastId,
+            },
+          );
         } else {
-          toast.success(`Successfully imported ${imported} file(s)`, {
-            id: toastId,
-          });
+          toast.success(
+            namingDetail
+              ? `Successfully imported ${imported} file(s). ${namingDetail}.`
+              : `Successfully imported ${imported} file(s)`,
+            {
+              id: toastId,
+            },
+          );
         }
       })
       .catch((err) => {
@@ -257,13 +260,10 @@ export function ImportDialog(props: ImportDialogProps) {
     if (newSelected.has(file.source_path)) {
       newSelected.delete(file.source_path);
     } else {
-      newSelected.set(file.source_path, {
-        source_path: file.source_path,
-        anime_id: targetAnimeId,
-        episode_number: Math.floor(file.episode_number),
-        episode_numbers: file.episode_numbers,
-        season: file.season,
-      });
+      newSelected.set(
+        file.source_path,
+        buildImportFileRequest({ animeId: targetAnimeId, file }),
+      );
     }
     setSelectedFiles(newSelected);
   };
@@ -273,10 +273,17 @@ export function ImportDialog(props: ImportDialogProps) {
     if (newSelected.has(file.source_path)) {
       const existing = newSelected.get(file.source_path);
       if (existing) {
-        newSelected.set(file.source_path, {
-          ...existing,
-          anime_id: newAnimeId,
-        });
+        newSelected.set(
+          file.source_path,
+          buildImportFileRequest({
+            animeId: newAnimeId,
+            episodeNumber: existing.episode_number,
+            episodeNumbers: existing.episode_numbers,
+            file,
+            season: existing.season,
+            sourceMetadata: existing.source_metadata,
+          }),
+        );
       }
       setSelectedFiles(newSelected);
     }
@@ -289,17 +296,23 @@ export function ImportDialog(props: ImportDialogProps) {
   ) => {
     const newSelected = new Map(selectedFiles());
     const current = newSelected.get(file.source_path) || {
-      source_path: file.source_path,
-      anime_id: file.matched_anime?.id || 0,
-      episode_number: Math.floor(file.episode_number),
-      season: file.season,
+      ...buildImportFileRequest({
+        animeId: file.matched_anime?.id || 0,
+        file,
+      }),
     };
 
-    newSelected.set(file.source_path, {
-      ...current,
-      season,
-      episode_number: episode,
-    });
+    newSelected.set(
+      file.source_path,
+      buildImportFileRequest({
+        animeId: current.anime_id,
+        episodeNumber: episode,
+        episodeNumbers: current.episode_numbers,
+        file,
+        season,
+        sourceMetadata: current.source_metadata,
+      }),
+    );
     setSelectedFiles(newSelected);
   };
 
@@ -529,6 +542,7 @@ export function ImportDialog(props: ImportDialogProps) {
                     {(candidate) => (
                       <CandidateCard
                         candidate={candidate}
+                        libraryIds={libraryIds()}
                         isSelected={selectedCandidateIds().has(candidate.id)}
                         isLocal={animeListQuery.data?.some(
                           (a) => a.id === candidate.id,
@@ -544,7 +558,10 @@ export function ImportDialog(props: ImportDialogProps) {
               </div>
 
               {/* File List */}
-              <div class="divide-y border rounded-none">
+              <ul
+                class="divide-y border rounded-none"
+                aria-label="Scanned files for import"
+              >
                 <For each={scannedFiles()}>
                   {(file) => (
                     <FileRow
@@ -564,7 +581,7 @@ export function ImportDialog(props: ImportDialogProps) {
                     />
                   )}
                 </For>
-              </div>
+              </ul>
 
               {/* Skipped Files */}
               <Show when={skippedFiles().length > 0}>
@@ -650,337 +667,5 @@ export function ImportDialog(props: ImportDialogProps) {
         )}
       </Show>
     </>
-  );
-}
-
-function CandidateCard(props: {
-  candidate: AnimeSearchResult;
-  isSelected: boolean;
-  isLocal: boolean;
-  isManual: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      class={cn(
-        "relative group flex gap-3 p-2 rounded-none border transition-all cursor-pointer hover:shadow-sm text-left w-full",
-        props.isSelected
-          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-          : "border-border bg-card hover:border-primary/50",
-      )}
-      onClick={props.onToggle}
-    >
-      <div class="shrink-0 relative w-12 h-16 rounded overflow-hidden bg-muted shadow-sm">
-        <Show
-          when={props.candidate.cover_image}
-          fallback={
-            <div class="w-full h-full flex items-center justify-center bg-muted/50">
-              <IconFile class="h-4 w-4 text-muted-foreground/50" />
-            </div>
-          }
-        >
-          <img
-            src={props.candidate.cover_image}
-            alt=""
-            class="w-full h-full object-cover"
-          />
-        </Show>
-        <Show when={props.isSelected}>
-          <div class="absolute inset-0 bg-primary/20 flex items-center justify-center backdrop-blur-[1px]">
-            <IconCheck class="h-5 w-5 text-white drop-shadow-sm" />
-          </div>
-        </Show>
-      </div>
-      <div class="flex flex-col min-w-0 flex-1 justify-center gap-1">
-        <Tooltip>
-          <TooltipTrigger>
-            <span class="font-medium text-sm leading-tight line-clamp-2">
-              {props.candidate.title.romaji}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{props.candidate.title.romaji}</p>
-          </TooltipContent>
-        </Tooltip>
-        <div class="flex items-center flex-wrap gap-1.5 mt-0.5">
-          <Show when={!props.isLocal}>
-            <Badge
-              variant="secondary"
-              class="h-4 px-1 text-[9px] bg-info/10 text-info border-info/20"
-            >
-              New
-            </Badge>
-          </Show>
-          <Show when={props.isManual}>
-            <Badge
-              variant="secondary"
-              class="h-4 px-1 text-[9px] bg-accent/10 text-accent border-accent/20"
-            >
-              Manual
-            </Badge>
-          </Show>
-          <span class="text-[10px] text-muted-foreground font-mono bg-muted/50 px-1 rounded">
-            ID: {props.candidate.id}
-          </span>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-interface FileRowProps {
-  file: ScannedFile;
-  animeList: { id: number; title: { romaji: string; english?: string } }[];
-  candidates: AnimeSearchResult[];
-  isSelected: boolean;
-  selectedAnimeId?: number;
-  currentEpisode?: number;
-  currentSeason?: number | null;
-  onToggle: (animeId: number) => void;
-  onAnimeChange: (animeId: number) => void;
-  onMappingChange: (season: number, episode: number) => void;
-}
-
-type AnimeOption =
-  & (FileRowProps["animeList"][number] | FileRowProps["candidates"][number])
-  & { source: "library" | "candidate" };
-
-function FileRow(props: FileRowProps) {
-  const matchedAnimeId = () =>
-    props.file.matched_anime?.id || props.selectedAnimeId;
-  const hasMatch = () => !!matchedAnimeId();
-  const displayEpisode = () =>
-    props.currentEpisode ?? Math.floor(props.file.episode_number);
-  const displaySeason = () => props.currentSeason ?? props.file.season;
-
-  const allOptions = createMemo<AnimeOption[]>(() => {
-    return [
-      ...props.animeList.map((a) => ({ ...a, source: "library" as const })),
-      ...props.candidates
-        .filter((c) => !props.animeList.some((a) => a.id === c.id))
-        .map((c) => ({ ...c, source: "candidate" as const })),
-    ].sort((a, b) => {
-      const titleA = a.title.english || a.title.romaji || "";
-      const titleB = b.title.english || b.title.romaji || "";
-      return titleA.localeCompare(titleB);
-    });
-  });
-
-  return (
-    <div
-      class={cn(
-        "px-8 py-3 transition-colors",
-        props.isSelected ? "bg-primary/5" : "hover:bg-muted/50",
-      )}
-    >
-      <div class="flex items-center gap-4 min-w-0">
-        <Checkbox
-          checked={props.isSelected}
-          disabled={!hasMatch()}
-          onChange={(_checked) => {
-            const id = matchedAnimeId();
-            if (id) props.onToggle(id);
-          }}
-          class="shrink-0"
-        />
-        <IconFile class="h-4 w-4 text-muted-foreground shrink-0" />
-        <div class="flex-1 min-w-0 overflow-hidden">
-          <span class="text-sm font-medium truncate block">
-            {props.file.filename}
-          </span>
-        </div>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <Show when={props.file.source_identity?.label}>
-            <Badge variant="outline" class="text-xs font-mono">
-              {props.file.source_identity!.label}
-            </Badge>
-          </Show>
-          <EditMappingPopover
-            episode={displayEpisode()}
-            season={displaySeason()}
-            onSave={props.onMappingChange}
-          />
-          <Show when={props.file.resolution}>
-            <Badge variant="secondary" class="text-xs">
-              {props.file.resolution}
-            </Badge>
-          </Show>
-          <Show when={props.file.needs_manual_mapping}>
-            <Badge
-              variant="secondary"
-              class="text-xs bg-warning/10 text-warning border-warning/20"
-            >
-              Manual
-            </Badge>
-          </Show>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 w-64">
-          <Show
-            when={hasMatch()}
-            fallback={
-              <>
-                <IconAlertTriangle class="h-4 w-4 text-warning shrink-0" />
-                <Select
-                  value={null}
-                  onChange={(v) => v && props.onToggle(v.id)}
-                  options={allOptions()}
-                  optionValue="id"
-                  optionTextValue={(item) =>
-                    item.title.english || item.title.romaji || ""}
-                  itemComponent={(props) => (
-                    <SelectItem item={props.item}>
-                      {props.item.rawValue?.title.english ||
-                        props.item.rawValue?.title.romaji}
-                    </SelectItem>
-                  )}
-                >
-                  <SelectTrigger class="h-8 text-xs flex-1">
-                    <SelectValue<AnimeOption>>
-                      {() => "Select anime..."}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent />
-                </Select>
-              </>
-            }
-          >
-            <IconCheck class="h-4 w-4 text-success shrink-0" />
-            <Select
-              value={allOptions().find(
-                (o) => o.id === (props.selectedAnimeId || matchedAnimeId()),
-              )}
-              onChange={(v) => {
-                if (v) {
-                  props.onAnimeChange(v.id);
-                  if (!props.isSelected) props.onToggle(v.id);
-                }
-              }}
-              options={allOptions()}
-              optionValue="id"
-              optionTextValue={(item) =>
-                item.title.english || item.title.romaji || ""}
-              itemComponent={(props) => (
-                <SelectItem item={props.item}>
-                  {props.item.rawValue?.title.english ||
-                    props.item.rawValue?.title.romaji}
-                </SelectItem>
-              )}
-            >
-              <SelectTrigger class="h-8 text-xs flex-1">
-                <SelectValue<AnimeOption>>
-                  {(state) =>
-                    state.selectedOption()?.title.english ||
-                    state.selectedOption()?.title.romaji}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent />
-            </Select>
-          </Show>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ManualSearch(props: {
-  onSelect: (candidate: AnimeSearchResult) => void;
-  existingIds: Set<number>;
-}) {
-  const [query, setQuery] = createSignal("");
-  const [debouncedQuery, setDebouncedQuery] = createSignal("");
-  const debouncer = createDebouncer(setDebouncedQuery, 500);
-
-  createEffect(() => {
-    debouncer.schedule(query());
-    onCleanup(() => debouncer.cancel());
-  });
-
-  const search = createAnimeSearchQuery(() => debouncedQuery());
-
-  return (
-    <div class="space-y-4">
-      <div class="relative">
-        <IconSearch class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <TextField value={query()} onChange={setQuery}>
-          <TextFieldInput
-            placeholder="Search for anime..."
-            class="pl-9"
-            autofocus
-          />
-        </TextField>
-        <Show when={search.isFetching}>
-          <IconLoader2 class="absolute right-3 top-3 h-3 w-3 animate-spin text-muted-foreground" />
-        </Show>
-      </div>
-      <div class="h-[300px] border rounded-none overflow-y-auto">
-        <Show
-          when={debouncedQuery()}
-          fallback={
-            <div class="h-full flex flex-col items-center justify-center text-muted-foreground">
-              <IconSearch class="h-8 w-8 mb-2 opacity-20" />
-              <p class="text-sm">Type to search for anime</p>
-            </div>
-          }
-        >
-          <Show
-            when={search.data?.length !== 0}
-            fallback={
-              <div class="h-full flex flex-col items-center justify-center text-muted-foreground">
-                <IconAlertTriangle class="h-8 w-8 mb-2 opacity-20" />
-                <p class="text-sm">No results found</p>
-              </div>
-            }
-          >
-            <div class="divide-y">
-              <For each={search.data}>
-                {(anime) => {
-                  const isAdded = () => props.existingIds.has(anime.id);
-                  return (
-                    <button
-                      type="button"
-                      disabled={isAdded()}
-                      onClick={() => props.onSelect(anime)}
-                      class={cn(
-                        "w-full flex items-center gap-3 p-3 text-left transition-colors",
-                        isAdded()
-                          ? "opacity-50 cursor-not-allowed bg-muted/20"
-                          : "hover:bg-muted/50",
-                      )}
-                    >
-                      <div class="h-10 w-10 shrink-0 rounded bg-muted overflow-hidden">
-                        <Show when={anime.cover_image}>
-                          <img
-                            src={anime.cover_image}
-                            alt=""
-                            class="h-full w-full object-cover"
-                          />
-                        </Show>
-                      </div>
-                      <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium truncate">
-                          {anime.title.romaji}
-                        </p>
-                        <p class="text-xs text-muted-foreground truncate">
-                          {anime.title.english}
-                        </p>
-                      </div>
-                      <Show
-                        when={isAdded()}
-                        fallback={
-                          <IconPlus class="h-4 w-4 text-muted-foreground" />
-                        }
-                      >
-                        <span class="text-xs text-muted-foreground">Added</span>
-                      </Show>
-                    </button>
-                  );
-                }}
-              </For>
-            </div>
-          </Show>
-        </Show>
-      </div>
-    </div>
   );
 }

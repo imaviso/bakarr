@@ -57,11 +57,25 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
+import { ReleaseMetadataSummary } from "~/components/release-metadata-summary";
 import {
   createGrabReleaseMutation,
   createNyaaSearchQuery,
   type NyaaSearchResult,
+  type ParsedEpisodeIdentity,
 } from "~/lib/api";
+import {
+  formatReleaseParsedSummary,
+  formatReleaseSourceSummary,
+  getReleaseFlags,
+} from "~/lib/release-metadata";
+import {
+  formatSelectionSummary,
+  getReleaseConfidence,
+  releaseConfidenceBadgeClass,
+  selectionKindBadgeClass,
+  selectionKindLabel,
+} from "~/lib/release-selection";
 import { cn } from "~/lib/utils";
 
 interface SearchDialogProps {
@@ -195,7 +209,7 @@ export function SearchDialog(props: SearchDialogProps) {
         </div>
 
         {/* Footer Legend */}
-        <div class="px-6 py-2.5 border-t border-border/40 bg-background text-[10px] text-muted-foreground flex gap-6 items-center overflow-x-auto">
+        <div class="px-6 py-2.5 border-t border-border/40 bg-background text-xs text-muted-foreground flex gap-6 items-center overflow-x-auto">
           <span class="flex items-center gap-1.5 whitespace-nowrap">
             <IconStarFilled class="h-3 w-3 text-success fill-success" /> Trusted
           </span>
@@ -460,15 +474,90 @@ function ReleaseRow(props: {
   const [isBatch, setIsBatch] = createSignal(detectedIsBatch());
   const [popoverOpen, setPopoverOpen] = createSignal(false);
 
+  const decisionReason = () => {
+    if (props.result.is_seadex_best) {
+      return "SeaDex Best release";
+    }
+    if (props.result.is_seadex) {
+      return "SeaDex recommended release";
+    }
+    if (props.result.trusted) {
+      return "Manual grab from trusted release search";
+    }
+    return "Manual grab from release search";
+  };
+
+  const selectionMetadata = (): {
+    chosen_from_seadex?: boolean;
+    selection_kind: "manual" | "accept";
+  } => {
+    if (props.result.is_seadex_best || props.result.is_seadex) {
+      return {
+        chosen_from_seadex: true,
+        selection_kind: "accept",
+      };
+    }
+
+    return { selection_kind: "manual" };
+  };
+
   const handleGrab = () => {
+    const selection = selectionMetadata();
+    const releaseSourceIdentity = (): ParsedEpisodeIdentity | undefined => {
+      if (!props.result.parsed_episode_label) {
+        return undefined;
+      }
+
+      if (props.result.parsed_air_date) {
+        return {
+          air_dates: [props.result.parsed_air_date],
+          label: props.result.parsed_episode_label,
+          scheme: "daily",
+        };
+      }
+
+      if (props.result.parsed_episode_numbers?.length) {
+        return {
+          episode_numbers: props.result.parsed_episode_numbers,
+          label: props.result.parsed_episode_label,
+          scheme: "absolute",
+        };
+      }
+
+      return undefined;
+    };
+
     grabMutation.mutate(
       {
         anime_id: props.animeId,
+        decision_reason: decisionReason(),
         magnet: props.result.magnet,
         episode_number: Number.isFinite(parseFloat(epNum()))
           ? parseFloat(epNum())
           : undefined,
         group: props.result.parsed_group,
+        info_hash: props.result.info_hash,
+        release_metadata: {
+          air_date: props.result.parsed_air_date,
+          chosen_from_seadex: selection.chosen_from_seadex,
+          group: props.result.parsed_group,
+          indexer: props.result.indexer,
+          is_seadex: props.result.is_seadex,
+          is_seadex_best: props.result.is_seadex_best,
+          parsed_title: props.result.title,
+          quality: props.result.parsed_quality,
+          remake: props.result.remake,
+          resolution: props.result.parsed_resolution,
+          seadex_comparison: props.result.seadex_comparison,
+          seadex_dual_audio: props.result.seadex_dual_audio,
+          seadex_notes: props.result.seadex_notes,
+          seadex_release_group: props.result.seadex_release_group,
+          seadex_tags: props.result.seadex_tags,
+          selection_kind: selection.selection_kind,
+          source_identity: releaseSourceIdentity(),
+          source_url: props.result.view_url,
+          trusted: props.result.trusted,
+        },
         title: props.result.title,
         is_batch: isBatch(),
       },
@@ -498,6 +587,25 @@ function ReleaseRow(props: {
     });
   };
 
+  const selectionSummary = () => formatSelectionSummary(selectionMetadata());
+  const selectionLabel = () =>
+    selectionKindLabel(selectionMetadata().selection_kind);
+  // selectionDetail is not yet implemented for Nyaa search results
+  const releaseConfidence = () => getReleaseConfidence(props.result);
+  const releaseFlags = () => getReleaseFlags(props.result);
+  const releaseSourceSummary = () =>
+    formatReleaseSourceSummary({
+      group: props.result.parsed_group,
+      indexer: props.result.indexer,
+      quality: props.result.parsed_quality,
+      resolution: props.result.parsed_resolution,
+    });
+  const releaseParsedSummary = () =>
+    formatReleaseParsedSummary({
+      parsed_air_date: props.result.parsed_air_date,
+      parsed_episode_label: props.result.parsed_episode_label,
+    });
+
   return (
     <TableRow class="group border-b border-border/40 transition-colors hover:bg-muted/40 data-[state=selected]:bg-muted">
       <TableCell class="pl-6 py-2.5 max-w-[200px] sm:max-w-[300px] md:max-w-[400px]">
@@ -517,59 +625,18 @@ function ReleaseRow(props: {
               <p class="break-words font-normal">{props.result.title}</p>
             </TooltipContent>
           </Tooltip>
-          <div class="flex items-center gap-2">
-            <Show when={props.result.parsed_group}>
-              <Badge
-                variant="secondary"
-                class="h-4 px-1 text-[9px] font-medium text-muted-foreground bg-muted/50 border-transparent rounded-none"
-              >
-                {props.result.parsed_group}
-              </Badge>
-            </Show>
-            <Show when={props.result.trusted}>
-              <Badge
-                variant="outline"
-                class="h-4 px-1 text-[9px] border-success/20 text-success bg-success/5 rounded-none"
-              >
-                Trusted
-              </Badge>
-            </Show>
-            <Show when={props.result.is_seadex}>
-              <Badge
-                variant="outline"
-                class={cn(
-                  "h-4 px-1 text-[9px] rounded-none",
-                  props.result.is_seadex_best
-                    ? "border-warning/20 text-warning bg-warning/5"
-                    : "border-info/20 text-info bg-info/5",
-                )}
-              >
-                {props.result.is_seadex_best ? "SeaDex Best" : "SeaDex"}
-              </Badge>
-            </Show>
-            <Show when={props.result.seadex_dual_audio}>
-              <Badge
-                variant="outline"
-                class="h-4 px-1 text-[9px] border-primary/20 text-primary bg-primary/5 rounded-none"
-              >
-                Dual Audio
-              </Badge>
-            </Show>
-            <Show when={props.result.remake}>
-              <Badge
-                variant="outline"
-                class="h-4 px-1 text-[9px] border-warning/20 text-warning bg-warning/5 rounded-none"
-              >
-                Remake
-              </Badge>
-            </Show>
-          </div>
+          <ReleaseMetadataSummary
+            flags={releaseFlags()}
+            parsedSummary={releaseParsedSummary()}
+            sourceSummary={releaseSourceSummary()}
+            sourceUrl={props.result.view_url}
+          />
           <Show
             when={props.result.seadex_notes ||
               props.result.seadex_tags?.length ||
               props.result.seadex_comparison}
           >
-            <div class="flex flex-col gap-1 text-[10px] text-muted-foreground pr-4">
+            <div class="flex flex-col gap-1 text-xs text-muted-foreground pr-4">
               <Show when={props.result.seadex_notes}>
                 <span class="line-clamp-2">{props.result.seadex_notes}</span>
               </Show>
@@ -579,7 +646,7 @@ function ReleaseRow(props: {
                     {(tag) => (
                       <Badge
                         variant="secondary"
-                        class="h-4 px-1 text-[9px] bg-muted/40 text-muted-foreground border-transparent rounded-none"
+                        class="h-4 px-1 text-xs bg-muted/40 text-muted-foreground border-transparent rounded-none"
                       >
                         {tag}
                       </Badge>
@@ -592,12 +659,47 @@ function ReleaseRow(props: {
                   href={props.result.seadex_comparison}
                   target="_blank"
                   rel="noreferrer"
-                  class="inline-flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 w-fit"
+                  class="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80 w-fit"
                 >
                   <IconExternalLink class="h-3 w-3" /> Compare notes
                 </a>
               </Show>
             </div>
+          </Show>
+          <Show when={selectionSummary()}>
+            <div class="flex flex-wrap items-center gap-1.5 text-xs pr-4 leading-tight">
+              <Show when={selectionLabel()}>
+                {(label) => (
+                  <Badge
+                    variant="secondary"
+                    class={cn(
+                      "h-4 px-1.5 border-transparent",
+                      selectionKindBadgeClass(
+                        selectionMetadata().selection_kind,
+                      ),
+                    )}
+                  >
+                    {label()}
+                  </Badge>
+                )}
+              </Show>
+            </div>
+          </Show>
+          <Show when={releaseConfidence()}>
+            {(confidence) => (
+              <div class="flex flex-wrap items-center gap-1.5 text-xs pr-4 leading-tight">
+                <Badge
+                  variant="secondary"
+                  class={cn(
+                    "h-4 px-1.5 border-transparent",
+                    releaseConfidenceBadgeClass(confidence().tone),
+                  )}
+                >
+                  {confidence().label}
+                </Badge>
+                <div class="text-muted-foreground">{confidence().reason}</div>
+              </div>
+            )}
           </Show>
         </div>
       </TableCell>
@@ -612,7 +714,11 @@ function ReleaseRow(props: {
         </Show>
       </TableCell>
       <TableCell class="py-2.5 text-xs text-muted-foreground">
-        {props.result.parsed_resolution || "-"}
+        <span
+          title={props.result.parsed_quality || props.result.parsed_resolution}
+        >
+          {props.result.parsed_resolution || props.result.parsed_quality || "-"}
+        </span>
       </TableCell>
       <TableCell class="py-2.5 text-xs text-muted-foreground whitespace-nowrap">
         {props.result.size}
@@ -642,7 +748,8 @@ function ReleaseRow(props: {
             <Button
               size="icon"
               variant="ghost"
-              class="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/10 hover:text-primary"
+              class="relative after:absolute after:-inset-2 h-7 w-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity hover:bg-primary/10 hover:text-primary"
+              aria-label="Download release"
             >
               <IconDownload class="h-4 w-4" />
             </Button>
@@ -653,10 +760,32 @@ function ReleaseRow(props: {
                 <h4 class="text-xs font-semibold text-foreground">
                   Confirm Download
                 </h4>
-                <p class="text-[10px] text-muted-foreground">
+                <p class="text-xs text-muted-foreground">
                   {isBatch()
                     ? "Verify the starting episode used for the batch mapping."
                     : "Verify episode number for mapping."}
+                </p>
+                <Show when={selectionSummary()}>
+                  <div class="flex flex-wrap items-center gap-1.5 text-xs leading-tight">
+                    <Show when={selectionLabel()}>
+                      {(label) => (
+                        <Badge
+                          variant="secondary"
+                          class={cn(
+                            "h-4 px-1.5 border-transparent",
+                            selectionKindBadgeClass(
+                              selectionMetadata().selection_kind,
+                            ),
+                          )}
+                        >
+                          {label()}
+                        </Badge>
+                      )}
+                    </Show>
+                  </div>
+                </Show>
+                <p class="text-xs text-muted-foreground line-clamp-2">
+                  {decisionReason()}
                 </p>
               </div>
               <div class="flex items-center space-x-2">

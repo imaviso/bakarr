@@ -15,7 +15,7 @@ export function StatChip(props: {
           : "border-border/70 bg-background/80",
       )}
     >
-      <div class="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      <div class="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {props.label}
       </div>
       <div class="text-lg font-semibold text-foreground">{props.value}</div>

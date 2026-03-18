@@ -1,5 +1,6 @@
 import {
   IconActivity,
+  IconCloud,
   IconDatabase,
   IconDownload,
   IconRefresh,
@@ -51,8 +52,23 @@ export function SystemStatus() {
     return parts.join(" ");
   };
 
+  const formatRelativeTime = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "Never";
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
   return (
-    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       <Card>
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle class="text-sm font-medium">System Status</CardTitle>
@@ -109,6 +125,23 @@ export function SystemStatus() {
             <Show when={status.data} fallback="0">
               {(data) => data().active_torrents}
             </Show>
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle class="text-sm font-medium">Metadata</CardTitle>
+          <IconCloud class="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div class="text-2xl font-bold">
+            <Show when={status.data} fallback="-">
+              {(data) => formatRelativeTime(data().last_metadata_refresh)}
+            </Show>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            Last refresh
           </p>
         </CardContent>
       </Card>

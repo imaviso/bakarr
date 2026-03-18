@@ -20,7 +20,12 @@ import {
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
-import { createCalendarQuery } from "~/lib/api";
+import { createCalendarQuery, createSystemConfigQuery } from "~/lib/api";
+import {
+  formatAiringTimeWithPreferences,
+  getAiringDisplayDateKey,
+  getAiringDisplayPreferences,
+} from "~/lib/anime-metadata";
 import { cn } from "~/lib/utils";
 
 export function AnimeCalendar() {
@@ -34,6 +39,10 @@ export function AnimeCalendar() {
   );
 
   const calendarQuery = createCalendarQuery(fetchStart, fetchEnd);
+  const configQuery = createSystemConfigQuery();
+  const airingPreferences = createMemo(() =>
+    getAiringDisplayPreferences(configQuery.data?.library)
+  );
 
   const days = createMemo(() => {
     const monthStart = startOfMonth(currentDate());
@@ -52,7 +61,7 @@ export function AnimeCalendar() {
     const map: Record<string, typeof events> = {};
 
     for (const event of events) {
-      const dateKey = format(new Date(event.start), "yyyy-MM-dd");
+      const dateKey = getAiringDisplayDateKey(event.start, airingPreferences());
       if (!map[dateKey]) {
         map[dateKey] = [];
       }
@@ -79,6 +88,7 @@ export function AnimeCalendar() {
             variant="ghost"
             size="icon"
             onClick={handlePrevMonth}
+            aria-label="Previous month"
           >
             <IconCaretLeft class="h-4 w-4" />
           </Button>
@@ -89,6 +99,7 @@ export function AnimeCalendar() {
             variant="ghost"
             size="icon"
             onClick={handleNextMonth}
+            aria-label="Next month"
           >
             <IconCaretRight class="h-4 w-4" />
           </Button>
@@ -100,7 +111,7 @@ export function AnimeCalendar() {
 
       {/* Calendar Grid */}
       <Card class="overflow-x-auto border-border/50">
-        <div class="min-w-[800px]">
+        <div class="min-w-0 md:min-w-[800px]">
           {/* Weekday Headers */}
           <div class="grid grid-cols-7 border-b border-border/50 bg-muted/30">
             <For each={weekdays}>
@@ -116,8 +127,8 @@ export function AnimeCalendar() {
           <div class="grid grid-cols-7">
             <For each={days()}>
               {(day) => {
-                const dayEvents = getEventsForDay()(day);
-                const isCurrentMonth = isSameMonth(day, currentDate());
+                const dayEvents = () => getEventsForDay()(day);
+                const isCurrentMonth = () => isSameMonth(day, currentDate());
                 const isCurrentDay = isToday(day);
 
                 return (
@@ -125,7 +136,7 @@ export function AnimeCalendar() {
                     class={cn(
                       "min-h-[120px] border-r border-b border-border/30 p-1.5 transition-colors",
                       "last:border-r-0 [&:nth-child(7n)]:border-r-0",
-                      !isCurrentMonth && "bg-muted/20 opacity-50",
+                      !isCurrentMonth() && "bg-muted/20 opacity-50",
                       isCurrentDay && "bg-primary/5",
                     )}
                   >
@@ -136,7 +147,7 @@ export function AnimeCalendar() {
                           "text-sm font-medium",
                           isCurrentDay &&
                             "bg-primary text-primary-foreground rounded-none w-6 h-6 flex items-center justify-center",
-                          !isCurrentMonth && "text-muted-foreground",
+                          !isCurrentMonth() && "text-muted-foreground",
                         )}
                       >
                         {format(day, "d")}
@@ -145,49 +156,81 @@ export function AnimeCalendar() {
 
                     {/* Events */}
                     <div class="space-y-1">
-                      <For each={dayEvents.slice(0, 3)}>
+                      <For each={dayEvents().slice(0, 3)}>
                         {(event) => (
-                          <Link
-                            to="/anime/$id"
-                            params={{
-                              id: event.extended_props.anime_id.toString(),
-                            }}
-                            class="block group"
-                          >
-                            <div
-                              class={cn(
-                                "flex items-center gap-1.5 rounded-none px-1.5 py-1 text-xs transition-all",
-                                "hover:bg-accent/80 cursor-pointer",
-                                event.extended_props.downloaded
-                                  ? "bg-success/10 text-success"
-                                  : "bg-muted text-muted-foreground",
-                              )}
-                            >
-                              <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-1">
-                                  <Show
-                                    when={event.extended_props.downloaded}
-                                    fallback={
-                                      <IconCircle class="h-3 w-3 flex-shrink-0" />
-                                    }
-                                  >
-                                    <IconCheck class="h-3 w-3 flex-shrink-0" />
-                                  </Show>
-                                  <span class="truncate font-medium">
-                                    {event.extended_props.anime_title}
-                                  </span>
+                          (() => {
+                            const isMissingEvent =
+                              !event.extended_props.downloaded &&
+                              event.extended_props.airing_status === "aired";
+                            const isUpcomingEvent =
+                              !event.extended_props.downloaded &&
+                              !isMissingEvent;
+
+                            return (
+                              <Link
+                                to="/anime/$id"
+                                params={{
+                                  id: event.extended_props.anime_id.toString(),
+                                }}
+                                class="block group"
+                              >
+                                <div
+                                  class={cn(
+                                    "flex items-center gap-1.5 rounded-none px-1.5 py-1 text-xs transition-all",
+                                    "hover:bg-accent/80 cursor-pointer",
+                                    event.extended_props.downloaded
+                                      ? "bg-success/10 text-success"
+                                      : isMissingEvent
+                                      ? "bg-warning/10 text-warning"
+                                      : isUpcomingEvent
+                                      ? "bg-info/10 text-info"
+                                      : "bg-muted text-muted-foreground",
+                                  )}
+                                >
+                                  <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-1">
+                                      <Show
+                                        when={event.extended_props.downloaded}
+                                        fallback={
+                                          <IconCircle class="h-3 w-3 flex-shrink-0" />
+                                        }
+                                      >
+                                        <IconCheck class="h-3 w-3 flex-shrink-0" />
+                                      </Show>
+                                      <span class="truncate font-medium">
+                                        {event.extended_props.anime_title}
+                                      </span>
+                                    </div>
+                                    <span class="text-xs opacity-70 truncate block">
+                                      <span>
+                                        Ep {event.extended_props.episode_number}
+                                      </span>
+                                      <Show
+                                        when={formatAiringTimeWithPreferences(
+                                          event.start,
+                                          airingPreferences(),
+                                        )}
+                                      >
+                                        {(time) => <span>• {time()}</span>}
+                                      </Show>
+                                    </span>
+                                    <Show
+                                      when={event.extended_props.episode_title}
+                                    >
+                                      <span class="text-xs opacity-70 truncate block">
+                                        {event.extended_props.episode_title}
+                                      </span>
+                                    </Show>
+                                  </div>
                                 </div>
-                                <span class="text-[10px] opacity-70 truncate block">
-                                  Ep {event.extended_props.episode_number}
-                                </span>
-                              </div>
-                            </div>
-                          </Link>
+                              </Link>
+                            );
+                          })()
                         )}
                       </For>
-                      <Show when={dayEvents.length > 3}>
-                        <div class="text-[10px] text-muted-foreground px-1.5">
-                          +{dayEvents.length - 3} more
+                      <Show when={dayEvents().length > 3}>
+                        <div class="text-xs text-muted-foreground px-1.5">
+                          +{dayEvents().length - 3} more
                         </div>
                       </Show>
                     </div>
@@ -206,7 +249,11 @@ export function AnimeCalendar() {
           <span>Downloaded</span>
         </div>
         <div class="flex items-center gap-1.5">
-          <div class="w-3 h-3 rounded-none bg-accent/20 border border-accent/40" />
+          <div class="w-3 h-3 rounded-none bg-info/20 border border-info/40" />
+          <span>Upcoming</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <div class="w-3 h-3 rounded-none bg-warning/20 border border-warning/40" />
           <span>Missing</span>
         </div>
       </div>

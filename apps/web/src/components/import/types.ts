@@ -19,3 +19,13 @@ export interface ManualSearchProps {
   onSelect: (candidate: AnimeSearchResult) => void;
   existingIds: Set<number>;
 }
+
+export interface CandidateCardProps {
+  candidate: AnimeSearchResult;
+  libraryIds: ReadonlySet<number>;
+  isSelected: boolean;
+  isLocal: boolean;
+  isManual: boolean;
+  onToggle: () => void;
+  class?: string;
+}
