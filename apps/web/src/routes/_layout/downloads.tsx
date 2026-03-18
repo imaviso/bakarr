@@ -502,7 +502,7 @@ function DownloadsPage() {
                   />
                 </TextField>
                 <div class="flex flex-col gap-1">
-                  <TextFieldLabel>Event Type</TextFieldLabel>
+                  <label class="text-sm font-medium">Event Type</label>
                   <Select
                     value={search().events_event_type}
                     onChange={(value) =>

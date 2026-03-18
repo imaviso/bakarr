@@ -1,14 +1,8 @@
-import { IconLoader2, IconSparkles } from "@tabler/icons-solidjs";
-import { useQuery } from "@tanstack/solid-query";
 import { Link } from "@tanstack/solid-router";
-import { createMemo, createSignal, For, Show } from "solid-js";
-import { Button, buttonVariants } from "~/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "~/components/ui/popover";
-import { type Anime, animeDetailsQueryOptions } from "~/lib/api";
+import { createMemo, For, Show } from "solid-js";
+import { buttonVariants } from "~/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import type { Anime } from "~/lib/api";
 import {
   animeDiscoverySubtitle,
   animeDisplayTitle,
@@ -90,120 +84,72 @@ export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
   );
 }
 
-interface AnimeDiscoveryPopoverProps {
-  animeId: number;
+interface AnimeDiscoverySectionProps {
+  anime: Anime;
   libraryIds: ReadonlySet<number>;
-  triggerClass?: string;
 }
 
-export function AnimeDiscoveryPopover(props: AnimeDiscoveryPopoverProps) {
-  const [open, setOpen] = createSignal(false);
-  const query = useQuery(() => ({
-    ...animeDetailsQueryOptions(props.animeId),
-    enabled: open(),
-  }));
-
+export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
   const related = createMemo(() => {
-    const entries = query.data?.related_anime ?? [];
-    return entries.filter((entry) => entry.id !== props.animeId);
+    const entries = props.anime.related_anime ?? [];
+    return entries.filter((entry) => entry.id !== props.anime.id);
   });
   const recommended = createMemo(() => {
     const relatedIds = new Set(related().map((entry) => entry.id));
-    const entries = query.data?.recommended_anime ?? [];
+    const entries = props.anime.recommended_anime ?? [];
     return entries.filter((entry) =>
-      entry.id !== props.animeId && !relatedIds.has(entry.id)
+      entry.id !== props.anime.id && !relatedIds.has(entry.id)
     );
   });
 
+  const hasContent = createMemo(() =>
+    related().length > 0 || recommended().length > 0
+  );
+
   return (
-    <Popover open={open()} onOpenChange={setOpen}>
-      <PopoverTrigger
-        as={Button}
-        variant="ghost"
-        size="icon"
-        class={cn(
-          "relative after:absolute after:-inset-2 h-7 w-7 shrink-0",
-          props.triggerClass,
-        )}
-        aria-label="Show related and recommended anime"
-      >
-        <IconSparkles class="h-4 w-4" />
-      </PopoverTrigger>
-      <PopoverContent class="w-80 p-0">
-        <div class="border-b border-border/70 px-4 py-3">
-          <div class="text-sm font-medium text-foreground">
-            Related And Discovery
-          </div>
-          <div class="mt-1 text-xs text-muted-foreground">
-            Open matching library entries or jump to add them from AniList.
-          </div>
-        </div>
-
-        <Show
-          when={!query.isFetching}
-          fallback={
-            <div class="flex items-center justify-center px-4 py-8 text-sm text-muted-foreground">
-              <IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
-              Loading discovery metadata...
-            </div>
-          }
-        >
-          <Show
-            when={!query.error}
-            fallback={
-              <div class="px-4 py-6 text-sm text-muted-foreground">
-                Could not load discovery metadata right now.
+    <Show when={hasContent()}>
+      <Card>
+        <CardHeader class="pb-3">
+          <CardTitle class="text-base">Related & Recommended</CardTitle>
+        </CardHeader>
+        <CardContent class="space-y-4">
+          <Show when={related().length > 0}>
+            <section class="space-y-2">
+              <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Franchise
               </div>
-            }
-          >
-            <div class="space-y-4 px-4 py-4">
-              <Show when={related().length > 0}>
-                <section class="space-y-2">
-                  <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Franchise
-                  </div>
-                  <div class="space-y-2">
-                    <For each={related().slice(0, 4)}>
-                      {(entry) => (
-                        <AnimeDiscoveryRow
-                          entry={entry}
-                          libraryIds={props.libraryIds}
-                          onNavigate={() => setOpen(false)}
-                        />
-                      )}
-                    </For>
-                  </div>
-                </section>
-              </Show>
-
-              <Show when={recommended().length > 0}>
-                <section class="space-y-2">
-                  <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Discovery
-                  </div>
-                  <div class="space-y-2">
-                    <For each={recommended().slice(0, 4)}>
-                      {(entry) => (
-                        <AnimeDiscoveryRow
-                          entry={entry}
-                          libraryIds={props.libraryIds}
-                          onNavigate={() => setOpen(false)}
-                        />
-                      )}
-                    </For>
-                  </div>
-                </section>
-              </Show>
-
-              <Show when={related().length === 0 && recommended().length === 0}>
-                <div class="text-sm text-muted-foreground">
-                  No related or recommended anime available for this title yet.
-                </div>
-              </Show>
-            </div>
+              <div class="space-y-2">
+                <For each={related()}>
+                  {(entry) => (
+                    <AnimeDiscoveryRow
+                      entry={entry}
+                      libraryIds={props.libraryIds}
+                    />
+                  )}
+                </For>
+              </div>
+            </section>
           </Show>
-        </Show>
-      </PopoverContent>
-    </Popover>
+
+          <Show when={recommended().length > 0}>
+            <section class="space-y-2">
+              <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Recommended
+              </div>
+              <div class="space-y-2">
+                <For each={recommended().slice(0, 6)}>
+                  {(entry) => (
+                    <AnimeDiscoveryRow
+                      entry={entry}
+                      libraryIds={props.libraryIds}
+                    />
+                  )}
+                </For>
+              </div>
+            </section>
+          </Show>
+        </CardContent>
+      </Card>
+    </Show>
   );
 }

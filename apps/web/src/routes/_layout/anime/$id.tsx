@@ -29,7 +29,7 @@ import { createMemo, createSignal, For, Show, Suspense } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { AnimeError } from "~/components/anime-error";
-import { AnimeDiscoveryPopover } from "~/components/anime-discovery";
+import { AnimeDiscoverySection } from "~/components/anime-discovery";
 import { ImportDialog } from "~/components/import-dialog";
 import { RenameDialog } from "~/components/rename-dialog";
 import { SearchDialog } from "~/components/search-dialog";
@@ -468,11 +468,6 @@ function AnimeDetailsPage() {
                     <span class="hidden min-[1670px]:inline">Events</span>
                   </Button>
                 </Link>
-
-                <AnimeDiscoveryPopover
-                  animeId={animeId()}
-                  libraryIds={libraryIds()}
-                />
 
                 <AlertDialog>
                   <Tooltip>
@@ -925,6 +920,11 @@ function AnimeDetailsPage() {
                     </Card>
                   </Tabs>
                 </Suspense>
+
+                <AnimeDiscoverySection
+                  anime={anime()}
+                  libraryIds={libraryIds()}
+                />
 
                 {/* Info */}
                 <Card>

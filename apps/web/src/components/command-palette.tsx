@@ -17,7 +17,6 @@ import {
   Suspense,
 } from "solid-js";
 import { AddAnimeDialog } from "~/components/add-anime-dialog";
-import { AnimeDiscoveryPopover } from "~/components/anime-discovery";
 import { Button } from "~/components/ui/button";
 import {
   Command,
@@ -69,9 +68,6 @@ function SearchResults(props: {
       })
       .slice(0, 10);
   });
-  const libraryIds = createMemo(() =>
-    new Set((props.animeList.data ?? []).map((anime) => anime.id))
-  );
   const anilistResults = createMemo(() =>
     props.anilistSearch.data?.results ?? []
   );
@@ -236,11 +232,6 @@ function SearchResults(props: {
                     </Show>
                   </div>
                   <div class="ml-auto flex items-center gap-1">
-                    <AnimeDiscoveryPopover
-                      animeId={anime.id}
-                      libraryIds={libraryIds()}
-                      triggerClass="h-8 w-8"
-                    />
                     <Button
                       type="button"
                       variant="outline"
