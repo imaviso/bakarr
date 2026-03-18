@@ -22,6 +22,7 @@ import {
   LibraryService,
   RssService,
 } from "../features/operations/service.ts";
+import { AnimeService } from "../features/anime/service.ts";
 import { SystemService } from "../features/system/service.ts";
 import {
   ConfigSchema,
@@ -438,6 +439,16 @@ export function registerSystemRoutes(
       runEffect,
       Effect.flatMap(RssService, (service) => service.runRssCheck()),
       () => c.json({ data: null, success: true }),
+    ));
+
+  app.post("/api/system/tasks/metadata-refresh", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      Effect.flatMap(AnimeService, (service) =>
+        service.refreshMetadataForMonitoredAnime()),
+      () =>
+        c.json({ data: null, success: true }),
     ));
 
   app.get("/api/events", (_c) => {

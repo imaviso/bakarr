@@ -28,6 +28,7 @@ import {
   CalendarQuerySchema,
   ControlUnmappedFolderBodySchema,
   DeleteDownloadQuerySchema,
+  DownloadEventsExportQuerySchema,
   DownloadEventsQuerySchema,
   EnabledBodySchema,
   IdParamsSchema,
@@ -46,6 +47,7 @@ import { OperationsInputError } from "../features/operations/errors.ts";
 import { listLibraryRoots } from "../features/library-roots/library-roots-repository.ts";
 import {
   browsePath,
+  escapeCsv,
   nowIso,
   parseParams,
   parseQuery,
@@ -91,12 +93,102 @@ export function registerOperationsRoutes(
         Effect.flatMap(DownloadService, (service) =>
           service.listDownloadEvents({
             animeId: query.anime_id,
+            cursor: query.cursor,
             downloadId: query.download_id,
+            direction: query.direction,
+            endDate: query.end_date,
             eventType: query.event_type,
             limit: query.limit,
+            startDate: query.start_date,
+            status: query.status,
           }))),
       (value) =>
         c.json(value),
+    ));
+
+  app.get("/api/downloads/events/export", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      Effect.gen(function* () {
+        const query = yield* parseQuery(
+          c,
+          DownloadEventsExportQuerySchema,
+          "export download events",
+        );
+        const page = yield* Effect.flatMap(DownloadService, (service) =>
+          service.exportDownloadEvents({
+            animeId: query.anime_id,
+            downloadId: query.download_id,
+            endDate: query.end_date,
+            eventType: query.event_type,
+            limit: query.limit,
+            order: query.order,
+            startDate: query.start_date,
+            status: query.status,
+          }));
+
+        return {
+          format: query.format ?? "json",
+          page,
+        };
+      }),
+      ({ format, page }) => {
+        const exportHeaders = {
+          "X-Bakarr-Exported-Events": String(page.exported),
+          "X-Bakarr-Export-Limit": String(page.limit),
+          "X-Bakarr-Export-Order": page.order,
+          "X-Bakarr-Export-Truncated": String(page.truncated),
+          "X-Bakarr-Generated-At": page.generated_at,
+          "X-Bakarr-Total-Events": String(page.total),
+        };
+
+        if (format === "csv") {
+          const csv = [
+            "id,created_at,event_type,from_status,to_status,anime_id,anime_title,download_id,torrent_name,message,metadata,metadata_json",
+            ...page.events.map((event) =>
+              [
+                String(event.id),
+                event.created_at,
+                escapeCsv(event.event_type),
+                escapeCsv(event.from_status ?? ""),
+                escapeCsv(event.to_status ?? ""),
+                event.anime_id === undefined ? "" : String(event.anime_id),
+                escapeCsv(event.anime_title ?? ""),
+                event.download_id === undefined
+                  ? ""
+                  : String(event.download_id),
+                escapeCsv(event.torrent_name ?? ""),
+                escapeCsv(event.message),
+                escapeCsv(event.metadata ?? ""),
+                escapeCsv(
+                  event.metadata_json
+                    ? JSON.stringify(event.metadata_json)
+                    : "",
+                ),
+              ].join(",")
+            ),
+          ].join("\n");
+
+          return new Response(csv, {
+            headers: {
+              ...exportHeaders,
+              "Content-Disposition":
+                'attachment; filename="bakarr-download-events.csv"',
+              "Content-Type": "text/csv; charset=utf-8",
+            },
+          });
+        }
+
+        return new Response(JSON.stringify(page), {
+          headers: {
+            ...exportHeaders,
+            "Content-Disposition":
+              'attachment; filename="bakarr-download-events.json"',
+            "Content-Type": "application/json; charset=utf-8",
+          },
+        });
+      },
     ));
 
   app.get("/api/rss", (c) =>

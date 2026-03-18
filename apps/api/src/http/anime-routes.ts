@@ -3,6 +3,7 @@ import { Hono } from "hono";
 
 import type {
   Anime,
+  AnimeSearchResponse,
   AnimeSearchResult,
   Episode,
   VideoFile,
@@ -67,7 +68,7 @@ export function registerAnimeRoutes(
       withQuery(c, SearchAnimeQuerySchema, "search anime", (query) =>
         Effect.flatMap(AnimeService, (service) =>
           service.searchAnime(query.q ?? ""))),
-      (value: AnimeSearchResult[]) =>
+      (value: AnimeSearchResponse) =>
         c.json(value),
     ));
 

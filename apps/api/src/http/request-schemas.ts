@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { DownloadSourceMetadataSchema } from "../../../../packages/shared/src/index.ts";
 import {
   AnimeIdFromStringSchema,
   AnimeIdSchema,
@@ -64,11 +65,13 @@ export const BulkEpisodeMappingsBodySchema = Schema.Struct({
 
 export const SearchDownloadBodySchema = Schema.Struct({
   anime_id: AnimeIdSchema,
+  decision_reason: Schema.optional(Schema.String),
   episode_number: Schema.optional(EpisodeNumberSchema),
   group: Schema.optional(Schema.String),
   info_hash: Schema.optional(Schema.String),
   is_batch: Schema.optional(Schema.Boolean),
   magnet: Schema.String,
+  release_metadata: Schema.optional(DownloadSourceMetadataSchema),
   title: Schema.String,
 });
 
@@ -119,6 +122,7 @@ export const ImportFilesBodySchema = Schema.Struct({
       Schema.Array(EpisodeNumberSchema),
     ),
     season: Schema.optional(Schema.Number),
+    source_metadata: Schema.optional(DownloadSourceMetadataSchema),
     source_path: Schema.String,
   })),
 });
@@ -163,9 +167,26 @@ export const SearchAnimeQuerySchema = Schema.Struct({
 
 export const DownloadEventsQuerySchema = Schema.Struct({
   anime_id: Schema.optional(AnimeIdFromStringSchema),
+  cursor: Schema.optional(Schema.String),
   download_id: Schema.optional(DownloadIdFromStringSchema),
+  direction: Schema.optional(Schema.Literal("next", "prev")),
+  end_date: Schema.optional(Schema.String),
   event_type: Schema.optional(Schema.String),
   limit: Schema.optional(PositiveIntFromStringSchema),
+  start_date: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.String),
+});
+
+export const DownloadEventsExportQuerySchema = Schema.Struct({
+  anime_id: Schema.optional(AnimeIdFromStringSchema),
+  download_id: Schema.optional(DownloadIdFromStringSchema),
+  end_date: Schema.optional(Schema.String),
+  event_type: Schema.optional(Schema.String),
+  format: Schema.optional(Schema.Literal("csv", "json")),
+  limit: Schema.optional(PositiveIntFromStringSchema),
+  order: Schema.optional(Schema.Literal("asc", "desc")),
+  start_date: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.String),
 });
 
 export const WantedMissingQuerySchema = Schema.Struct({

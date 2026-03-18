@@ -5,6 +5,8 @@ import { parseJsonBody } from "./route-helpers.ts";
 import {
   AddAnimeInputSchema,
   ConfigSchema,
+  DownloadEventsExportQuerySchema,
+  DownloadEventsQuerySchema,
   ImportFilesBodySchema,
   SearchDownloadBodySchema,
 } from "./request-schemas.ts";
@@ -137,6 +139,9 @@ Deno.test("SearchDownloadBodySchema rejects non-positive and fractional identifi
     anime_id: 0,
     episode_number: 1.5,
     magnet: "magnet:?xt=urn:btih:test",
+    release_metadata: {
+      group: "SubsPlease",
+    },
     title: "Example release",
   });
 
@@ -146,6 +151,35 @@ Deno.test("SearchDownloadBodySchema rejects non-positive and fractional identifi
     assertMatch(result.left.message, /anime_id/);
     assertMatch(result.left.message, /episode_number/);
   }
+});
+
+Deno.test("SearchDownloadBodySchema accepts structured release metadata", () => {
+  const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)({
+    anime_id: 1,
+    decision_reason: "Accepted (WEB-DL 1080p, score 12)",
+    episode_number: 2,
+    info_hash: "abcdef",
+    magnet: "magnet:?xt=urn:btih:test",
+    release_metadata: {
+      air_date: "2025-03-14",
+      chosen_from_seadex: true,
+      group: "SubsPlease",
+      parsed_title: "[SubsPlease] Show - 02 (1080p)",
+      previous_quality: "WEB-DL 720p",
+      previous_score: 7,
+      resolution: "1080p",
+      selection_kind: "upgrade",
+      selection_score: 12,
+      source_identity: {
+        episode_numbers: [2],
+        label: "02",
+        scheme: "absolute",
+      },
+    },
+    title: "[SubsPlease] Show - 02 (1080p)",
+  });
+
+  assertEquals(result._tag, "Right");
 });
 
 Deno.test("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids", () => {
@@ -178,6 +212,60 @@ Deno.test("AddAnimeInputSchema and ImportFilesBodySchema require positive intege
   if (importFiles._tag === "Left") {
     assertMatch(importFiles.left.message, /episode_number/);
   }
+});
+
+Deno.test("ImportFilesBodySchema accepts source metadata for naming reuse", () => {
+  const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)({
+    files: [{
+      anime_id: 2,
+      episode_number: 1,
+      source_metadata: {
+        quality: "WEB-DL",
+        resolution: "1080p",
+        source_identity: {
+          episode_numbers: [1],
+          label: "S01E01",
+          scheme: "season",
+          season: 1,
+        },
+      },
+      source_path: "/downloads/file.mkv",
+    }],
+  });
+
+  assertEquals(importFiles._tag, "Right");
+});
+
+Deno.test("DownloadEventsQuerySchema accepts filtered query params", () => {
+  const query = Schema.decodeUnknownEither(DownloadEventsQuerySchema)({
+    anime_id: "20",
+    cursor: "400",
+    direction: "next",
+    download_id: "4",
+    end_date: "2026-03-18T23:59:59",
+    event_type: "download.imported",
+    limit: "25",
+    start_date: "2026-03-17T00:00:00",
+    status: "imported",
+  });
+
+  assertEquals(query._tag, "Right");
+});
+
+Deno.test("DownloadEventsExportQuerySchema accepts export query params", () => {
+  const query = Schema.decodeUnknownEither(DownloadEventsExportQuerySchema)({
+    anime_id: "20",
+    download_id: "4",
+    end_date: "2026-03-18T23:59:59",
+    event_type: "download.imported",
+    format: "csv",
+    limit: "500",
+    order: "asc",
+    start_date: "2026-03-17T00:00:00",
+    status: "imported",
+  });
+
+  assertEquals(query._tag, "Right");
 });
 
 Deno.test("AddAnimeInputSchema accepts existing-root flag", () => {
