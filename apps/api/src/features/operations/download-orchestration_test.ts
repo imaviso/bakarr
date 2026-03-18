@@ -212,6 +212,74 @@ Deno.test("triggerDownload stores source metadata in queued download event paylo
   });
 });
 
+Deno.test("triggerDownload prevents overlapping episode queue races across concurrent callers", async () => {
+  await withTestDb(async (db, databaseFile) => {
+    const libraryDir = await Deno.makeTempDir();
+
+    try {
+      await seedConfig(db, databaseFile, (config) => config);
+      await db.insert(anime).values({
+        addedAt: "2024-01-01T00:00:00.000Z",
+        bannerImage: null,
+        coverImage: null,
+        description: null,
+        endDate: null,
+        endYear: null,
+        episodeCount: 12,
+        format: "TV",
+        genres: "[]",
+        id: 1,
+        malId: null,
+        monitored: true,
+        nextAiringAt: null,
+        nextAiringEpisode: null,
+        profileName: "Default",
+        releaseProfileIds: encodeNumberList([]),
+        rootFolder: libraryDir,
+        score: null,
+        startDate: "2025-01-01",
+        startYear: 2025,
+        status: "RELEASING",
+        studios: "[]",
+        titleEnglish: "Show",
+        titleNative: null,
+        titleRomaji: "Show",
+      });
+
+      const orchestrations = await Promise.all(
+        Array.from({ length: 8 }, () =>
+          createDownloadOrchestrationForTest(db, [])
+        ),
+      );
+
+      await Promise.allSettled(
+        orchestrations.map((orchestration, index) =>
+          Effect.runPromise(
+            orchestration.triggerDownload({
+              anime_id: 1,
+              episode_number: 1,
+              group: "SubsPlease",
+              info_hash: `${(index + 1).toString(16).padStart(40, "0")}`,
+              magnet:
+                `magnet:?xt=urn:btih:${(index + 1).toString(16).padStart(40, "0")}&dn=Show`,
+              title: `[SubsPlease] Show - 01 (1080p) [attempt ${index + 1}]`,
+            }),
+          )
+        ),
+      );
+
+      const rows = await db.select().from(downloads).where(eq(downloads.animeId, 1));
+
+      assertEquals(rows.length, 1);
+      assertEquals(rows[0]?.episodeNumber, 1);
+      assertEquals(rows[0]?.status, "queued");
+      assertEquals(rows[0]?.coveredEpisodes, "[1]");
+    } finally {
+      await Deno.remove(libraryDir, { recursive: true }).catch(() => undefined);
+    }
+  });
+});
+
 Deno.test("applyDownloadActionEffect stores structured metadata on pause and resume events", async () => {
   await withTestDb(async (db, databaseFile) => {
     const libraryDir = await Deno.makeTempDir();

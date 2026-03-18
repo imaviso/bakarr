@@ -6,7 +6,7 @@ import {
   type QBitTorrent,
   QBitTorrentClient,
 } from "./src/features/operations/qbittorrent.ts";
-import { mapQBitState } from "./src/features/operations/download-orchestration.ts";
+import { mapQBitState } from "./src/features/operations/download-orchestration-shared.ts";
 import {
   type ParsedRelease,
   RssClient,
