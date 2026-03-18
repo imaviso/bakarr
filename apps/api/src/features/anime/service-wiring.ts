@@ -1,5 +1,6 @@
 import type { AppDatabase } from "../../db/database.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
+import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import {
   bulkMapEpisodeFilesEffect,
   deleteEpisodeFileEffect,
@@ -12,6 +13,7 @@ import type { AnimeServiceShape } from "./service.ts";
 export const makeAnimeFileOperations = (input: {
   db: AppDatabase;
   fs: FileSystemShape;
+  mediaProbe: MediaProbeShape;
 }) => {
   const deleteEpisodeFile: AnimeServiceShape["deleteEpisodeFile"] = (
     animeId,
@@ -49,7 +51,12 @@ export const makeAnimeFileOperations = (input: {
     });
 
   const listFiles: AnimeServiceShape["listFiles"] = (animeId) =>
-    listAnimeFilesEffect({ animeId, db: input.db, fs: input.fs });
+    listAnimeFilesEffect({
+      animeId,
+      db: input.db,
+      fs: input.fs,
+      mediaProbe: input.mediaProbe,
+    });
 
   const resolveEpisodeFile: AnimeServiceShape["resolveEpisodeFile"] = (
     animeId,

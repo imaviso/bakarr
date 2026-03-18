@@ -53,6 +53,7 @@ export async function ensureEpisodes(
   status: string,
   startDate: string | undefined,
   endDate: string | undefined,
+  futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   resetMissingOnly: boolean,
 ) {
   const existingRows = !episodeCount || episodeCount <= 0
@@ -63,6 +64,7 @@ export async function ensureEpisodes(
     episodeCount,
     endDate,
     existingRows,
+    futureAiringSchedule,
     resetMissingOnly,
     startDate,
     status,
@@ -171,6 +173,59 @@ export async function resolveAnimeRootFolder(
   }
 
   return `${baseRootFolder.replace(/\/$/, "")}/${safeSegment}`;
+}
+
+export interface FutureAiringScheduleEntry {
+  readonly airingAt: string;
+  readonly episode: number;
+}
+
+export function buildAiringScheduleMap(
+  futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
+) {
+  return new Map(
+    (futureAiringSchedule ?? []).map((
+      entry,
+    ) => [entry.episode, entry.airingAt]),
+  );
+}
+
+export async function updateAnimeEpisodeAirDates(
+  db: AppDatabase,
+  animeId: number,
+  episodeCount: number | undefined,
+  status: string,
+  startDate: string | undefined,
+  endDate: string | undefined,
+  futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
+) {
+  if (!episodeCount || episodeCount <= 0) {
+    return;
+  }
+
+  const existingRows = await db.select().from(episodes).where(
+    eq(episodes.animeId, animeId),
+  );
+  const scheduleMap = buildAiringScheduleMap(futureAiringSchedule);
+
+  for (const row of existingRows) {
+    const inferred = inferAiredAt(
+      status,
+      row.number,
+      episodeCount,
+      startDate,
+      endDate,
+      scheduleMap,
+    );
+
+    if (row.aired === inferred) {
+      continue;
+    }
+
+    await db.update(episodes).set({ aired: inferred }).where(
+      eq(episodes.id, row.id),
+    );
+  }
 }
 
 export async function markSearchResultsAlreadyInLibrary(
@@ -282,6 +337,7 @@ export function buildMissingEpisodeRows(input: {
   status: string;
   startDate: string | undefined;
   endDate: string | undefined;
+  futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined;
   resetMissingOnly: boolean;
   existingRows: readonly typeof episodes.$inferSelect[];
 }) {
@@ -291,6 +347,9 @@ export function buildMissingEpisodeRows(input: {
 
   const existingByNumber = new Map(
     input.existingRows.map((row) => [row.number, row]),
+  );
+  const airingScheduleByEpisode = buildAiringScheduleMap(
+    input.futureAiringSchedule,
   );
 
   return range(1, input.episodeCount).flatMap((number) => {
@@ -312,6 +371,7 @@ export function buildMissingEpisodeRows(input: {
           input.episodeCount,
           input.startDate,
           input.endDate,
+          airingScheduleByEpisode,
         ),
         animeId: input.animeId,
         downloaded: false,
@@ -329,7 +389,14 @@ export function inferAiredAt(
   episodeCount: number | undefined,
   startDate: string | undefined,
   endDate: string | undefined,
+  futureAiringSchedule?: ReadonlyMap<number, string>,
 ) {
+  const scheduledAiringAt = futureAiringSchedule?.get(episodeNumber);
+
+  if (scheduledAiringAt) {
+    return scheduledAiringAt;
+  }
+
   if (!startDate) {
     return status === "FINISHED" ? new Date().toISOString() : null;
   }

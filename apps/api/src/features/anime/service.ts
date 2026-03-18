@@ -1,8 +1,9 @@
 import { HttpClient } from "@effect/platform";
-import { Context, Effect, Layer } from "effect";
+import { Context, Deferred, Effect, Layer, Ref } from "effect";
 
 import type {
   Anime,
+  AnimeSearchResponse,
   AnimeSearchResult,
   Episode,
   VideoFile,
@@ -19,6 +20,7 @@ import {
 import { ProfileNotFoundError } from "../system/errors.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
 import { FileSystem } from "../../lib/filesystem.ts";
+import { MediaProbe } from "../../lib/media-probe.ts";
 import { addAnimeEffect } from "./add-anime-support.ts";
 import { deleteAnimeEffect } from "./delete-support.ts";
 import {
@@ -29,6 +31,7 @@ import {
 } from "./mutation-support.ts";
 import {
   refreshEpisodesEffect,
+  refreshMetadataForMonitoredAnimeEffect,
   scanAnimeFolderOrchestrationEffect,
 } from "./orchestration-support.ts";
 import {
@@ -57,7 +60,7 @@ export interface AnimeServiceShape {
   ) => Effect.Effect<Anime, AnimeServiceError | DatabaseError>;
   readonly searchAnime: (
     query: string,
-  ) => Effect.Effect<AnimeSearchResult[], DatabaseError | ExternalCallError>;
+  ) => Effect.Effect<AnimeSearchResponse, DatabaseError | ExternalCallError>;
   readonly getAnimeByAnilistId: (
     id: number,
   ) => Effect.Effect<
@@ -107,7 +110,14 @@ export interface AnimeServiceShape {
   >;
   readonly refreshEpisodes: (
     animeId: number,
-  ) => Effect.Effect<void, AnimeServiceError | DatabaseError>;
+  ) => Effect.Effect<
+    void,
+    AnimeServiceError | DatabaseError | ExternalCallError
+  >;
+  readonly refreshMetadataForMonitoredAnime: () => Effect.Effect<
+    { refreshed: number },
+    DatabaseError | ExternalCallError | AnimeServiceError
+  >;
   readonly scanFolder: (
     animeId: number,
   ) => Effect.Effect<
@@ -142,14 +152,18 @@ const makeAnimeService = Effect.gen(function* () {
   const eventPublisher = yield* EventPublisher;
   const aniList = yield* AniListClient;
   const fs = yield* FileSystem;
+  const mediaProbe = yield* MediaProbe;
   const httpClient = yield* HttpClient.HttpClient;
+  const metadataRefreshTrigger = yield* makeSingleFlightTrigger(
+    refreshMetadataForMonitoredAnimeEffect({ aniList, db }),
+  );
   const {
     bulkMapEpisodes,
     deleteEpisodeFile,
     listFiles,
     mapEpisode,
     resolveEpisodeFile,
-  } = makeAnimeFileOperations({ db, fs });
+  } = makeAnimeFileOperations({ db, fs, mediaProbe });
 
   const addAnime = Effect.fn("AnimeService.addAnime")(function* (
     input: AddAnimeInput,
@@ -172,9 +186,12 @@ const makeAnimeService = Effect.gen(function* () {
   const getAnimeByAnilistId: AnimeServiceShape["getAnimeByAnilistId"] = (id) =>
     getAnimeByAnilistIdEffect({ aniList, db, id });
   const listEpisodes: AnimeServiceShape["listEpisodes"] = (animeId) =>
-    listEpisodesEffect(db, animeId);
+    listEpisodesEffect({ animeId, db, fs, mediaProbe });
   const refreshEpisodes: AnimeServiceShape["refreshEpisodes"] = (animeId) =>
-    refreshEpisodesEffect({ animeId, db, eventPublisher });
+    refreshEpisodesEffect({ aniList, animeId, db, eventPublisher });
+  const refreshMetadataForMonitoredAnime:
+    AnimeServiceShape["refreshMetadataForMonitoredAnime"] = () =>
+      metadataRefreshTrigger();
   const scanFolder: AnimeServiceShape["scanFolder"] = (animeId) =>
     scanAnimeFolderOrchestrationEffect({ animeId, db, eventPublisher, fs });
   const deleteAnime: AnimeServiceShape["deleteAnime"] = (id) =>
@@ -211,6 +228,7 @@ const makeAnimeService = Effect.gen(function* () {
     listEpisodes,
     resolveEpisodeFile,
     refreshEpisodes,
+    refreshMetadataForMonitoredAnime,
     scanFolder,
     deleteEpisodeFile,
     mapEpisode,
@@ -220,3 +238,56 @@ const makeAnimeService = Effect.gen(function* () {
 });
 
 export const AnimeServiceLive = Layer.effect(AnimeService, makeAnimeService);
+
+function makeSingleFlightTrigger<A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<() => Effect.Effect<A, E, R>, never, R> {
+  return Effect.gen(function* () {
+    const currentRunRef = yield* Ref.make<Deferred.Deferred<A, E> | null>(null);
+    const stateSemaphore = yield* Effect.makeSemaphore(1);
+
+    const clearCurrentRun = stateSemaphore.withPermits(1)(
+      Ref.set(currentRunRef, null),
+    );
+
+    return () =>
+      Effect.gen(function* () {
+        const current = yield* stateSemaphore.withPermits(1)(
+          Ref.get(currentRunRef),
+        );
+
+        if (current !== null) {
+          return yield* Deferred.await(current);
+        }
+
+        const deferred = yield* Deferred.make<A, E>();
+        const started = yield* stateSemaphore.withPermits(1)(
+          Effect.gen(function* () {
+            const existing = yield* Ref.get(currentRunRef);
+
+            if (existing !== null) {
+              return existing;
+            }
+
+            yield* Ref.set(currentRunRef, deferred);
+            return deferred;
+          }),
+        );
+
+        if (started !== deferred) {
+          return yield* Deferred.await(started);
+        }
+
+        const exit = yield* Effect.exit(effect);
+        yield* clearCurrentRun;
+
+        if (exit._tag === "Success") {
+          yield* Deferred.succeed(deferred, exit.value);
+        } else {
+          yield* Deferred.failCause(deferred, exit.cause);
+        }
+
+        return yield* Deferred.await(deferred);
+      });
+  });
+}

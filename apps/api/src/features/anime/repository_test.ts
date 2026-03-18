@@ -15,6 +15,7 @@ import {
   ensureEpisodes,
   findAnimeRootFolderOwner,
   getConfiguredImagesPath,
+  inferAiredAt,
   insertAnimeAggregateAtomic,
   markSearchResultsAlreadyInLibrary,
   resolveAnimeRootFolder,
@@ -63,6 +64,7 @@ Deno.test("ensureEpisodes rejects duplicate episode inserts for same anime", asy
       "RELEASING",
       undefined,
       undefined,
+      undefined,
       false,
     );
 
@@ -100,6 +102,10 @@ Deno.test("insertAnimeAggregateAtomic rolls back anime inserts when a later writ
           episodeCount: 2,
           startDate: null,
           endDate: null,
+          startYear: null,
+          endYear: null,
+          nextAiringAt: null,
+          nextAiringEpisode: null,
           profileName: "Default",
           rootFolder: "/library/Rollback Show",
           addedAt: "2024-01-01T00:00:00.000Z",
@@ -154,6 +160,7 @@ Deno.test("buildMissingEpisodeRows creates rows only for missing episodes", () =
     status: "RELEASING",
     startDate: undefined,
     endDate: undefined,
+    futureAiringSchedule: undefined,
     resetMissingOnly: true,
     existingRows: [{
       id: 1,
@@ -168,6 +175,19 @@ Deno.test("buildMissingEpisodeRows creates rows only for missing episodes", () =
 
   assertEquals(rows.length, 2);
   assertEquals(rows.map((row) => row.number), [2, 3]);
+});
+
+Deno.test("inferAiredAt prefers AniList future schedule over heuristics", () => {
+  const airedAt = inferAiredAt(
+    "RELEASING",
+    12,
+    24,
+    "2024-01-01",
+    undefined,
+    new Map([[12, "2024-03-20T12:00:00.000Z"]]),
+  );
+
+  assertEquals(airedAt, "2024-03-20T12:00:00.000Z");
 });
 
 Deno.test("resolveAnimeRootFolder can preserve an existing folder root", async () => {
@@ -241,19 +261,37 @@ Deno.test("markSearchResultsAlreadyInLibrary annotates local matches", async () 
     const results = await markSearchResultsAlreadyInLibrary(db, [
       {
         already_in_library: false,
+        banner_image: undefined,
         cover_image: undefined,
+        description: undefined,
+        end_date: undefined,
+        end_year: undefined,
         episode_count: 12,
         format: "TV",
+        genres: undefined,
         id: 20,
+        season: undefined,
+        season_year: undefined,
+        start_date: undefined,
+        start_year: undefined,
         status: "RELEASING",
         title: { romaji: "Naruto" },
       },
       {
         already_in_library: false,
+        banner_image: undefined,
         cover_image: undefined,
+        description: undefined,
+        end_date: undefined,
+        end_year: undefined,
         episode_count: 24,
         format: "TV",
+        genres: undefined,
         id: 21,
+        season: undefined,
+        season_year: undefined,
+        start_date: undefined,
+        start_year: undefined,
         status: "RELEASING",
         title: { romaji: "Bleach" },
       },
@@ -328,6 +366,10 @@ async function insertAnimeWithRoot(
     episodeCount,
     startDate: null,
     endDate: null,
+    startYear: null,
+    endYear: null,
+    nextAiringAt: null,
+    nextAiringEpisode: null,
     profileName: "Default",
     rootFolder,
     addedAt: "2024-01-01T00:00:00.000Z",
