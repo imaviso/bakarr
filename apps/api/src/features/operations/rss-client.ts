@@ -1,5 +1,7 @@
 import { HttpClient, HttpClientRequest } from "@effect/platform";
-import { Chunk, Context, Effect, Layer, Schema, Stream } from "effect";
+import { Context, Effect, Layer, Schema, Stream } from "effect";
+import { XMLParser } from "fast-xml-parser";
+import ipaddr from "ipaddr.js";
 
 import {
   ExternalCallError,
@@ -44,6 +46,30 @@ export class RssClient extends Context.Tag("@bakarr/api/RssClient")<
   RssClient,
   RssClientShape
 >() {}
+
+const xmlParser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: "",
+  textNodeName: "#text",
+  parseAttributeValue: false,
+  parseTagValue: false,
+  trimValues: true,
+});
+
+const PRIVATE_IPV4_CIDRS: readonly [ipaddr.IPv4, number][] = [
+  ipaddr.IPv4.parseCIDR("10.0.0.0/8"),
+  ipaddr.IPv4.parseCIDR("172.16.0.0/12"),
+  ipaddr.IPv4.parseCIDR("192.168.0.0/16"),
+  ipaddr.IPv4.parseCIDR("127.0.0.0/8"),
+  ipaddr.IPv4.parseCIDR("169.254.0.0/16"),
+  ipaddr.IPv4.parseCIDR("0.0.0.0/8"),
+  ipaddr.IPv4.parseCIDR("100.64.0.0/10"),
+];
+
+const PRIVATE_IPV6_CIDRS: readonly [ipaddr.IPv6, number][] = [
+  ipaddr.IPv6.parseCIDR("fc00::/7"),
+  ipaddr.IPv6.parseCIDR("fe80::/10"),
+];
 
 const makeFetchItems = (client: HttpClient.HttpClient) =>
   Effect.fn("RssClient.fetchItems")(function* (url: string) {
@@ -144,12 +170,8 @@ const readRssItems = Effect.fn("RssClient.readRssItems")(
         new RssStreamReadError({ message: "Failed to read RSS stream" })
       ),
       Stream.map((chunk) => decoder.decode(chunk, { stream: true })),
-      Stream.mapAccum("", (buffer, chunk) => extractItems(`${buffer}${chunk}`)),
-      Stream.mapConcat(Chunk.toReadonlyArray),
-      Stream.runCollect,
-      Effect.map((chunks) =>
-        chunks.pipe(Chunk.toReadonlyArray).map(parseReleaseItem)
-      ),
+      Stream.runFold("", (acc, chunk) => acc + chunk),
+      Effect.map((xml) => parseRssXml(xml)),
       Effect.mapError((error) =>
         ExternalCallError.make({
           cause: error,
@@ -161,65 +183,66 @@ const readRssItems = Effect.fn("RssClient.readRssItems")(
   },
 );
 
-function extractItems(buffer: string): readonly [string, Chunk.Chunk<string>] {
-  let remaining = buffer;
-  let cursor = 0;
-  const items: string[] = [];
-
-  while (true) {
-    const itemStart = remaining.indexOf("<item>", cursor);
-
-    if (itemStart === -1) {
-      break;
-    }
-
-    const itemEnd = remaining.indexOf("</item>", itemStart);
-
-    if (itemEnd === -1) {
-      break;
-    }
-
-    items.push(remaining.slice(itemStart + 6, itemEnd));
-    cursor = itemEnd + 7;
+function parseRssXml(xml: string): ParsedRelease[] {
+  let parsed: unknown;
+  try {
+    parsed = xmlParser.parse(xml);
+  } catch {
+    return [];
   }
 
-  remaining = remaining.slice(cursor);
-  const nextItemStart = remaining.lastIndexOf("<item>");
-
-  if (nextItemStart === -1) {
-    remaining = remaining.length > 20 ? remaining.slice(-20) : remaining;
-  } else {
-    remaining = remaining.slice(nextItemStart);
+  if (!isRssRoot(parsed)) {
+    return [];
   }
 
-  return [remaining, Chunk.fromIterable(items)];
+  const channel = parsed.rss?.channel;
+  if (!channel) {
+    return [];
+  }
+
+  const items = Array.isArray(channel.item)
+    ? channel.item
+    : channel.item
+    ? [channel.item]
+    : [];
+  return items.map((item) => parseRssItem(item));
 }
 
-function parseReleaseItem(itemXml: string): ParsedRelease {
-  const title = decodeXml(
-    extractTag(itemXml, "title") ?? "Unknown release",
-  );
-  const link = decodeXml(extractTag(itemXml, "link") ?? "");
-  const infoHash = decodeXml(
-    extractTag(itemXml, "nyaa:infoHash") ?? randomHex(20),
-  );
+interface RssRoot {
+  rss?: {
+    channel?: {
+      item?: RssItem | RssItem[];
+    };
+  };
+}
+
+interface RssItem {
+  title?: string;
+  link?: string;
+  "nyaa:infoHash"?: string;
+  "nyaa:size"?: string;
+  "nyaa:seeders"?: string;
+  "nyaa:leechers"?: string;
+  "nyaa:trusted"?: string;
+  "nyaa:remake"?: string;
+  pubDate?: string;
+}
+
+function isRssRoot(value: unknown): value is RssRoot {
+  return typeof value === "object" && value !== null;
+}
+
+function parseRssItem(item: RssItem): ParsedRelease {
+  const title = item.title ?? "Unknown release";
+  const link = item.link ?? "";
+  const infoHash = item["nyaa:infoHash"] ?? randomHex(20);
   const groupMatch = title.match(/^\[(.*?)\]/);
-  const size = decodeXml(extractTag(itemXml, "nyaa:size") ?? "0 B");
-  const pubDate = decodeXml(extractTag(itemXml, "pubDate") ?? nowIso());
-  const seeders = Number.parseInt(
-    decodeXml(extractTag(itemXml, "nyaa:seeders") ?? "0"),
-    10,
-  ) || 0;
-  const leechers = Number.parseInt(
-    decodeXml(extractTag(itemXml, "nyaa:leechers") ?? "0"),
-    10,
-  ) || 0;
-  const trusted = /^yes$/i.test(
-    decodeXml(extractTag(itemXml, "nyaa:trusted") ?? "no"),
-  );
-  const remake = /^yes$/i.test(
-    decodeXml(extractTag(itemXml, "nyaa:remake") ?? "no"),
-  );
+  const size = item["nyaa:size"] ?? "0 B";
+  const pubDate = item.pubDate ?? new Date().toISOString();
+  const seeders = Number.parseInt(item["nyaa:seeders"] ?? "0", 10) || 0;
+  const leechers = Number.parseInt(item["nyaa:leechers"] ?? "0", 10) || 0;
+  const trusted = /^yes$/i.test(item["nyaa:trusted"] ?? "no");
+  const remake = /^yes$/i.test(item["nyaa:remake"] ?? "no");
 
   return {
     group: groupMatch?.[1],
@@ -238,21 +261,6 @@ function parseReleaseItem(itemXml: string): ParsedRelease {
     trusted,
     viewUrl: link.replace("/download/", "/view/").replace(/\.torrent$/i, ""),
   };
-}
-
-function extractTag(input: string, tag: string) {
-  const match = input.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
-  return match?.[1];
-}
-
-function decodeXml(value: string) {
-  return value
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#34;", '"')
-    .replaceAll("&#39;", "'")
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">");
 }
 
 function parseSizeToBytes(size: string): number {
@@ -285,13 +293,7 @@ function parseResolution(value: string) {
 function randomHex(bytes: number) {
   const data = new Uint8Array(bytes);
   crypto.getRandomValues(data);
-  return Array.from(data, (value) => value.toString(16).padStart(2, "0")).join(
-    "",
-  );
-}
-
-function nowIso() {
-  return new Date().toISOString();
+  return Array.from(data, (v) => v.toString(16).padStart(2, "0")).join("");
 }
 
 function normalizeHostname(hostname: string) {
@@ -299,19 +301,55 @@ function normalizeHostname(hostname: string) {
 }
 
 function isIpLiteral(hostname: string) {
-  return isIpv4Literal(hostname) || isIpv6Literal(hostname);
+  try {
+    ipaddr.parse(hostname);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-function isIpv4Literal(hostname: string) {
-  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+function isPrivateIpAddress(addr: string): boolean {
+  try {
+    const parsed = ipaddr.parse(addr);
+    const kind = parsed.kind();
+
+    if (kind === "ipv4") {
+      return isPrivateIpv4Address(parsed as ipaddr.IPv4);
+    }
+
+    return isPrivateIpv6Address(parsed as ipaddr.IPv6);
+  } catch {
+    return false;
+  }
 }
 
-function isIpv6Literal(hostname: string) {
-  return hostname.includes(":");
+function isPrivateIpv4Address(ip: ipaddr.IPv4): boolean {
+  for (const cidr of PRIVATE_IPV4_CIDRS) {
+    if (ip.match(cidr)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
-function isPrivateIpAddress(addr: string) {
-  return isPrivateIpv4(addr) || isPrivateIpv6(addr);
+function isPrivateIpv6Address(ip: ipaddr.IPv6): boolean {
+  if (ip.toString() === "::1" || ip.toString() === "::") {
+    return true;
+  }
+
+  if (ip.isIPv4MappedAddress()) {
+    return isPrivateIpv4Address(ip.toIPv4Address());
+  }
+
+  for (const cidr of PRIVATE_IPV6_CIDRS) {
+    if (ip.match(cidr)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 async function resolveFeedAddresses(hostname: string): Promise<string[]> {
@@ -343,86 +381,4 @@ function isNoRecordDnsError(error: unknown) {
   return error instanceof Deno.errors.NotFound ||
     (error instanceof Error &&
       /no data|no records|not found|nxdomain/i.test(error.message));
-}
-
-function isPrivateIpv4(addr: string): boolean {
-  const parts = addr.split(".").map(Number);
-  if (
-    parts.length !== 4 ||
-    parts.some((part) => Number.isNaN(part) || part < 0 || part > 255)
-  ) {
-    return false;
-  }
-
-  return (
-    parts[0] === 0 ||
-    parts[0] === 127 ||
-    parts[0] === 10 ||
-    (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) ||
-    (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
-    (parts[0] === 192 && parts[1] === 168) ||
-    (parts[0] === 169 && parts[1] === 254)
-  );
-}
-
-function isPrivateIpv6(addr: string): boolean {
-  const normalized = addr.toLowerCase().split("%")[0];
-
-  if (normalized === "::" || normalized === "::1") {
-    return true;
-  }
-
-  if (normalized.startsWith("::ffff:")) {
-    return isPrivateIpv4(normalized.slice("::ffff:".length));
-  }
-
-  const segments = expandIpv6(normalized);
-
-  if (!segments) {
-    return false;
-  }
-
-  const first = Number.parseInt(segments[0], 16);
-
-  if (Number.isNaN(first)) {
-    return false;
-  }
-
-  return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80;
-}
-
-function expandIpv6(addr: string): string[] | null {
-  if (addr.includes(".")) {
-    return null;
-  }
-
-  const sections = addr.split("::");
-
-  if (sections.length > 2) {
-    return null;
-  }
-
-  const head = sections[0] ? sections[0].split(":") : [];
-  const tail = sections[1] ? sections[1].split(":") : [];
-
-  if (
-    head.some((part) => !isIpv6Hextet(part)) ||
-    tail.some((part) => !isIpv6Hextet(part))
-  ) {
-    return null;
-  }
-
-  const fillCount = 8 - head.length - tail.length;
-
-  if ((sections.length === 1 && fillCount !== 0) || fillCount < 0) {
-    return null;
-  }
-
-  return [...head, ...Array(fillCount).fill("0"), ...tail].map((part) =>
-    part.padStart(4, "0")
-  );
-}
-
-function isIpv6Hextet(part: string) {
-  return /^[0-9a-f]{1,4}$/i.test(part);
 }

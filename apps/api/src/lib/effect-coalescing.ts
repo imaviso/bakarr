@@ -12,18 +12,14 @@ export interface LatestValuePublisher<A, E, R = never> {
 
 export function makeCoalescedEffectRunner<E, R>(
   effect: Effect.Effect<void, E, R>,
-): Effect.Effect<CoalescedEffectRunner<E, R>, never, R> {
+): Effect.Effect<CoalescedEffectRunner<E, R>, never, R | Scope.Scope> {
   return Effect.gen(function* () {
     const semaphore = yield* Effect.makeSemaphore(1);
     const state = yield* Ref.make<{
       readonly completion: Deferred.Deferred<void, E> | null;
       readonly pending: boolean;
       readonly running: boolean;
-    }>({
-      completion: null,
-      pending: false,
-      running: false,
-    });
+    }>({ completion: null, pending: false, running: false });
 
     const runDrain = (
       completion: Deferred.Deferred<void, E>,
@@ -115,7 +111,7 @@ export function makeCoalescedEffectRunner<E, R>(
 
 export function makeLatestValuePublisher<A, E, R>(
   publish: (value: A) => Effect.Effect<void, E, R>,
-): Effect.Effect<LatestValuePublisher<A, E, R>> {
+): Effect.Effect<LatestValuePublisher<A, E, R>, never, Scope.Scope> {
   return Effect.gen(function* () {
     const scope = yield* Scope.make();
     const semaphore = yield* Effect.makeSemaphore(1);
@@ -123,11 +119,7 @@ export function makeLatestValuePublisher<A, E, R>(
       readonly completion: Deferred.Deferred<void, E> | null;
       readonly latest: A | undefined;
       readonly running: boolean;
-    }>({
-      completion: null,
-      latest: undefined,
-      running: false,
-    });
+    }>({ completion: null, latest: undefined, running: false });
 
     const runLoop: Effect.Effect<void, never, R> = Effect.gen(function* () {
       while (true) {
@@ -235,7 +227,7 @@ export function makeLatestValuePublisher<A, E, R>(
         );
 
         if (shouldStart) {
-          yield* Effect.forkIn(scope)(runLoop).pipe(Effect.asVoid);
+          yield* Effect.forkIn(scope)(runLoop);
         }
       });
 

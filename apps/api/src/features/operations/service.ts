@@ -48,6 +48,8 @@ export {
   resolveCompletedContentPath,
 } from "./download-lifecycle.ts";
 
+export { mapQBitState } from "./download-orchestration-shared.ts";
+
 export {
   buildDownloadSourceMetadataFromRelease,
   mergeDownloadSourceMetadata,
