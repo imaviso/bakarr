@@ -1,7 +1,10 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
+import type {
+  Config,
+  DownloadSourceMetadata,
+} from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { downloads, episodes } from "../../db/schema.ts";
@@ -9,10 +12,21 @@ import { durationMsSince } from "../../lib/logging.ts";
 import { EventBus } from "../events/event-bus.ts";
 import {
   currentImportMode,
+  decodeDownloadSourceMetadata,
+  encodeDownloadSourceMetadata,
+  loadDownloadPresentationContexts,
   loadRuntimeConfig,
   requireAnime,
   toDownloadStatus,
 } from "./repository.ts";
+import {
+  buildDownloadSourceMetadataFromRelease,
+  buildEpisodeFilenamePlan,
+  hasMissingLocalMediaNamingFields,
+  mergeDownloadSourceMetadata,
+  selectNamingFormat,
+} from "./naming-support.ts";
+import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import {
   importDownloadedFile,
   shouldDeleteImportedData,
@@ -21,10 +35,7 @@ import {
   upsertEpisodeFile,
   upsertEpisodeFiles,
 } from "./download-support.ts";
-import {
-  classifyMediaArtifact,
-  parseFileSourceIdentity,
-} from "../../lib/media-identity.ts";
+import { classifyMediaArtifact } from "../../lib/media-identity.ts";
 import {
   hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
@@ -34,6 +45,7 @@ import {
   resolveAccessibleDownloadPath,
   resolveBatchContentPaths,
   resolveCompletedContentPath,
+  resolveReconciledBatchEpisodeNumbers,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
 import {
@@ -63,6 +75,7 @@ import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 export function makeDownloadOrchestration(input: {
   db: AppDatabase;
   fs: FileSystemShape;
+  mediaProbe: MediaProbeShape;
   qbitClient: typeof QBitTorrentClient.Service;
   eventBus: typeof EventBus.Service;
   tryDatabasePromise: TryDatabasePromise;
@@ -77,6 +90,7 @@ export function makeDownloadOrchestration(input: {
   const {
     db,
     fs,
+    mediaProbe,
     qbitClient,
     eventBus,
     tryDatabasePromise,
@@ -152,6 +166,10 @@ export function makeDownloadOrchestration(input: {
       return;
     }
 
+    const storedSourceMetadata = decodeDownloadSourceMetadata(
+      row.sourceMetadata,
+    );
+
     const animeRow = yield* tryOperationsPromise(
       "Failed to reconcile completed download",
       () => requireAnime(db, row.animeId),
@@ -206,13 +224,11 @@ export function makeDownloadOrchestration(input: {
             continue;
           }
 
-          const parsed = parseFileSourceIdentity(path);
-          const identity = parsed.source_identity;
-          if (!identity || identity.scheme === "daily") {
-            continue;
-          }
-
-          const episodeNumbers = identity.episode_numbers;
+          const episodeNumbers = resolveReconciledBatchEpisodeNumbers({
+            coveredEpisodes,
+            path,
+            totalCandidateCount: batchPaths.length,
+          });
           if (episodeNumbers.length === 0) {
             continue;
           }
@@ -230,6 +246,36 @@ export function makeDownloadOrchestration(input: {
           }
 
           const primaryEpisode = relevantEpisodes[0];
+          const namingFormat = selectNamingFormat(animeRow, {
+            movieNamingFormat: runtimeConfig.library.movie_naming_format,
+            namingFormat: runtimeConfig.library.naming_format,
+          });
+          const episodeRows = yield* tryDatabasePromise(
+            "Failed to reconcile completed download",
+            () =>
+              db.select({ aired: episodes.aired, title: episodes.title }).from(
+                episodes,
+              ).where(
+                and(
+                  eq(episodes.animeId, row.animeId),
+                  inArray(episodes.number, relevantEpisodes),
+                ),
+              ),
+          );
+          const initialNamingPlan = buildEpisodeFilenamePlan({
+            animeRow,
+            downloadSourceMetadata: storedSourceMetadata,
+            episodeNumbers: relevantEpisodes,
+            episodeRows,
+            filePath: path,
+            namingFormat,
+            preferredTitle: runtimeConfig.library.preferred_title,
+          });
+          const localMediaMetadata = hasMissingLocalMediaNamingFields(
+              initialNamingPlan.missingFields,
+            )
+            ? yield* mediaProbe.probeVideoFile(path)
+            : undefined;
 
           const existingEpisode = yield* tryDatabasePromise(
             "Failed to reconcile completed download",
@@ -254,8 +300,12 @@ export function makeDownloadOrchestration(input: {
             path,
             importMode,
             {
+              downloadSourceMetadata: storedSourceMetadata,
               episodeNumbers: relevantEpisodes,
-              namingFormat: runtimeConfig.library.naming_format,
+              episodeRows,
+              localMediaMetadata,
+              namingFormat,
+              preferredTitle: runtimeConfig.library.preferred_title,
             },
           ).pipe(
             Effect.mapError(
@@ -314,6 +364,11 @@ export function makeDownloadOrchestration(input: {
               downloadId: row.id,
               eventType: "download.imported.batch",
               fromStatus: row.status,
+              metadataJson: {
+                covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+                imported_path: animeRow.rootFolder,
+                source_metadata: storedSourceMetadata,
+              },
               message: batchAlreadyImported
                 ? `Reconciled already-imported batch torrent for ${row.animeTitle}`
                 : `Imported batch torrent for ${row.animeTitle}`,
@@ -332,6 +387,15 @@ export function makeDownloadOrchestration(input: {
                 : `Mapped completed batch torrent for ${row.animeTitle}`,
             ),
         );
+        yield* eventBus.publish({
+          type: "DownloadFinished",
+          payload: {
+            anime_id: row.animeId,
+            imported_path: animeRow.rootFolder,
+            source_metadata: storedSourceMetadata,
+            title: row.torrentName,
+          },
+        });
         return;
       }
     }
@@ -361,10 +425,17 @@ export function makeDownloadOrchestration(input: {
       return;
     }
 
+    const expectedAirDate = existingEpisode[0]?.aired ??
+      storedSourceMetadata?.air_date ??
+      (storedSourceMetadata?.source_identity?.scheme === "daily"
+        ? storedSourceMetadata.source_identity.air_dates?.[0]
+        : undefined);
+
     const resolvedPath = yield* resolveCompletedContentPath(
       fs,
       resolvedContentRoot,
       row.episodeNumber,
+      { expectedAirDate },
     ).pipe(
       Effect.mapError(() =>
         new OperationsPathError({
@@ -378,6 +449,37 @@ export function makeDownloadOrchestration(input: {
       return;
     }
 
+    const namingFormat = selectNamingFormat(animeRow, {
+      movieNamingFormat: runtimeConfig.library.movie_naming_format,
+      namingFormat: runtimeConfig.library.naming_format,
+    });
+    const episodeRows = yield* tryDatabasePromise(
+      "Failed to reconcile completed download",
+      () =>
+        db.select({ aired: episodes.aired, title: episodes.title }).from(
+          episodes,
+        ).where(
+          and(
+            eq(episodes.animeId, row.animeId),
+            eq(episodes.number, row.episodeNumber),
+          ),
+        ),
+    );
+    const initialNamingPlan = buildEpisodeFilenamePlan({
+      animeRow,
+      downloadSourceMetadata: storedSourceMetadata,
+      episodeNumbers: [row.episodeNumber],
+      episodeRows,
+      filePath: resolvedPath,
+      namingFormat,
+      preferredTitle: runtimeConfig.library.preferred_title,
+    });
+    const localMediaMetadata = hasMissingLocalMediaNamingFields(
+        initialNamingPlan.missingFields,
+      )
+      ? yield* mediaProbe.probeVideoFile(resolvedPath)
+      : undefined;
+
     const managedPath = yield* importDownloadedFile(
       fs,
       animeRow,
@@ -385,7 +487,11 @@ export function makeDownloadOrchestration(input: {
       resolvedPath,
       importMode,
       {
-        namingFormat: runtimeConfig.library.naming_format,
+        downloadSourceMetadata: storedSourceMetadata,
+        episodeRows,
+        localMediaMetadata,
+        namingFormat,
+        preferredTitle: runtimeConfig.library.preferred_title,
       },
     ).pipe(
       Effect.mapError(
@@ -415,6 +521,11 @@ export function makeDownloadOrchestration(input: {
           downloadId: row.id,
           eventType: "download.imported",
           fromStatus: row.status,
+          metadataJson: {
+            covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+            imported_path: managedPath,
+            source_metadata: storedSourceMetadata,
+          },
           message: `Imported ${row.animeTitle} episode ${row.episodeNumber}`,
           toStatus: "imported",
         }),
@@ -429,6 +540,15 @@ export function makeDownloadOrchestration(input: {
           `Mapped completed torrent for ${row.animeTitle} episode ${row.episodeNumber}`,
         ),
     );
+    yield* eventBus.publish({
+      type: "DownloadFinished",
+      payload: {
+        anime_id: row.animeId,
+        imported_path: managedPath,
+        source_metadata: storedSourceMetadata,
+        title: row.torrentName,
+      },
+    });
   });
 
   const syncDownloadsWithQBitEffect = Effect.fn(
@@ -514,6 +634,9 @@ export function makeDownloadOrchestration(input: {
             existingCoveredEpisodes: existing.coveredEpisodes,
             infoHash: torrent.hash.toLowerCase(),
             qbitConfig,
+            sourceMetadata: decodeDownloadSourceMetadata(
+              existing.sourceMetadata,
+            ),
             torrentName: torrent.name,
           });
         }
@@ -527,6 +650,14 @@ export function makeDownloadOrchestration(input: {
                 downloadId: existing.id,
                 eventType: "download.status_changed",
                 fromStatus: existing.status,
+                metadataJson: {
+                  covered_episodes: parseCoveredEpisodes(
+                    existing.coveredEpisodes,
+                  ),
+                  source_metadata: decodeDownloadSourceMetadata(
+                    existing.sourceMetadata,
+                  ),
+                },
                 message: `${existing.torrentName} moved to ${nextStatus}`,
                 toStatus: nextStatus,
               }),
@@ -556,7 +687,13 @@ export function makeDownloadOrchestration(input: {
           inArray(downloads.status, ["queued", "downloading", "paused"]),
         ).orderBy(desc(downloads.id)),
     );
-    return rows.map((row) => toDownloadStatus(row, () => randomHex(20)));
+    const contexts = yield* tryDatabasePromise(
+      "Failed to load download progress snapshot",
+      () => loadDownloadPresentationContexts(db, rows),
+    );
+    return rows.map((row) =>
+      toDownloadStatus(row, () => randomHex(20), contexts.get(row.id))
+    );
   });
 
   const publishDownloadProgress = Effect.fn(
@@ -608,6 +745,7 @@ export function makeDownloadOrchestration(input: {
     existingCoveredEpisodes: string | null;
     infoHash: string;
     qbitConfig: QBitConfig | null;
+    sourceMetadata?: DownloadSourceMetadata;
     torrentName: string;
   }) {
     if (!input.qbitConfig) {
@@ -666,6 +804,10 @@ export function makeDownloadOrchestration(input: {
           animeId: input.animeId,
           downloadId: input.downloadId,
           eventType: "download.coverage_refined",
+          metadataJson: {
+            covered_episodes: inferredEpisodes,
+            source_metadata: input.sourceMetadata,
+          },
           message: `Refined batch episodes from qBittorrent file list: ${
             inferredEpisodes.join(", ")
           }`,
@@ -725,6 +867,12 @@ export function makeDownloadOrchestration(input: {
             downloadId: row!.id,
             eventType: "download.deleted",
             fromStatus: row!.status,
+            metadataJson: {
+              covered_episodes: parseCoveredEpisodes(row!.coveredEpisodes),
+              source_metadata: decodeDownloadSourceMetadata(
+                row!.sourceMetadata,
+              ),
+            },
             message: `Deleted ${row!.torrentName}`,
             toStatus: "deleted",
           }),
@@ -753,6 +901,12 @@ export function makeDownloadOrchestration(input: {
           downloadId: row!.id,
           eventType: `download.${action}d`,
           fromStatus: row!.status,
+          metadataJson: {
+            covered_episodes: parseCoveredEpisodes(row!.coveredEpisodes),
+            source_metadata: decodeDownloadSourceMetadata(
+              row!.sourceMetadata,
+            ),
+          },
           message: `${action === "pause" ? "Paused" : "Resumed"} ${
             row!.torrentName
           }`,
@@ -815,6 +969,12 @@ export function makeDownloadOrchestration(input: {
             downloadId: row!.id,
             eventType: "download.retried",
             fromStatus: row!.status,
+            metadataJson: {
+              covered_episodes: parseCoveredEpisodes(row!.coveredEpisodes),
+              source_metadata: decodeDownloadSourceMetadata(
+                row!.sourceMetadata,
+              ),
+            },
             message: `Retried ${row!.torrentName}`,
             toStatus: qbitConfig ? "downloading" : "queued",
           }),
@@ -860,6 +1020,8 @@ export function makeDownloadOrchestration(input: {
       group?: string;
       info_hash?: string;
       is_batch?: boolean;
+      decision_reason?: string;
+      release_metadata?: DownloadSourceMetadata;
     }) {
       return yield* triggerSemaphore.withPermits(1)(
         Effect.gen(function* () {
@@ -905,6 +1067,22 @@ export function makeDownloadOrchestration(input: {
             });
           const coveredEpisodes = toCoveredEpisodesJson(
             inferredCoveredEpisodes,
+          );
+          const sourceMetadata = mergeDownloadSourceMetadata(
+            buildDownloadSourceMetadataFromRelease({
+              chosenFromSeadex: input.release_metadata?.chosen_from_seadex ??
+                input.release_metadata?.is_seadex,
+              decisionReason: input.decision_reason,
+              group: input.group,
+              indexer: "Nyaa",
+              previousQuality: input.release_metadata?.previous_quality,
+              previousScore: input.release_metadata?.previous_score,
+              selectionKind: input.release_metadata?.selection_kind ?? "manual",
+              selectionScore: input.release_metadata?.selection_score,
+              sourceUrl: input.release_metadata?.source_url,
+              title: input.title,
+            }),
+            input.release_metadata,
           );
           const infoHash =
             (input.info_hash ?? parseMagnetInfoHash(input.magnet))
@@ -953,6 +1131,7 @@ export function makeDownloadOrchestration(input: {
                 progress: 0,
                 savePath: null,
                 speedBytes: 0,
+                sourceMetadata: encodeDownloadSourceMetadata(sourceMetadata),
                 status: "queued",
                 totalBytes: null,
                 torrentName: input.title,
@@ -1005,6 +1184,10 @@ export function makeDownloadOrchestration(input: {
                 animeId: animeRow.id,
                 downloadId: insertedId,
                 eventType: "download.queued",
+                metadataJson: {
+                  covered_episodes: inferredCoveredEpisodes,
+                  source_metadata: sourceMetadata,
+                },
                 message: `Queued ${input.title}`,
                 metadata: coveredEpisodes,
                 toStatus: status,
@@ -1024,7 +1207,11 @@ export function makeDownloadOrchestration(input: {
           );
           yield* eventBus.publish({
             type: "DownloadStarted",
-            payload: { anime_id: animeRow.id, title: input.title },
+            payload: {
+              anime_id: animeRow.id,
+              source_metadata: sourceMetadata,
+              title: input.title,
+            },
           });
           yield* publishDownloadProgress();
         }).pipe(Effect.withSpan("operations.downloads.trigger")),

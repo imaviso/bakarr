@@ -1,13 +1,17 @@
 import { and, eq } from "drizzle-orm";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
+import type {
+  Config,
+  DownloadSourceMetadata,
+} from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import { anime } from "../../db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import { renderEpisodeFilename } from "../../lib/naming.ts";
+import type { ProbedMediaMetadata } from "../../lib/media-probe.ts";
 import { Effect } from "effect";
-import { buildEpisodeNamingInputFromPath } from "./naming-support.ts";
+import { buildEpisodeFilenamePlan } from "./naming-support.ts";
+import type { PreferredTitle } from "../../../../../packages/shared/src/index.ts";
 
 function isCrossFilesystemError(error: { cause?: unknown }): boolean {
   const cause = error.cause;
@@ -43,8 +47,10 @@ export function importDownloadedFile(
   options?: {
     episodeNumbers?: readonly number[];
     namingFormat?: string;
-    airDate?: string;
-    episodeTitle?: string;
+    preferredTitle?: PreferredTitle;
+    episodeRows?: readonly { title?: string | null; aired?: string | null }[];
+    downloadSourceMetadata?: DownloadSourceMetadata;
+    localMediaMetadata?: ProbedMediaMetadata;
     season?: number;
   },
 ): Effect.Effect<string, ImportFileError | FileSystemError, never> {
@@ -63,19 +69,18 @@ export function importDownloadedFile(
       ? options.episodeNumbers
       : [episodeNumber];
     const namingFormat = options?.namingFormat ?? "{title} - {episode_segment}";
-    const baseName = renderEpisodeFilename(
+    const plan = buildEpisodeFilenamePlan({
+      animeRow,
+      downloadSourceMetadata: options?.downloadSourceMetadata,
+      episodeNumbers: allEpisodes,
+      episodeRows: options?.episodeRows,
+      filePath: sourcePath,
+      localMediaMetadata: options?.localMediaMetadata,
       namingFormat,
-      buildEpisodeNamingInputFromPath({
-        airDate: options?.airDate,
-        animeStartDate: animeRow.startDate,
-        animeTitle: animeRow.titleRomaji,
-        episodeNumbers: allEpisodes,
-        episodeTitle: options?.episodeTitle,
-        filePath: sourcePath,
-        rootFolder: animeRow.rootFolder,
-        season: options?.season,
-      }),
-    );
+      preferredTitle: options?.preferredTitle ?? "romaji",
+      season: options?.season,
+    });
+    const baseName = plan.baseName;
     const destination = `${
       animeRow.rootFolder.replace(/\/$/, "")
     }/${baseName}${extension}`;

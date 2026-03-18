@@ -32,6 +32,7 @@ export const resolveCompletedContentPath = Effect.fn(
   fs: FileSystemShape,
   contentPath: string,
   episodeNumber: number,
+  options?: { expectedAirDate?: string },
 ) {
   const statResult = yield* Effect.either(fs.stat(contentPath));
 
@@ -50,14 +51,28 @@ export const resolveCompletedContentPath = Effect.fn(
   }
 
   const files = yield* scanVideoFiles(fs, contentPath);
-  const matching = files.find((file) => {
-    const parsed = parseFileSourceIdentity(file.path);
-    if (!parsed.source_identity) return false;
-    if (parsed.source_identity.scheme === "daily") return false;
-    return parsed.source_identity.episode_numbers.includes(episodeNumber);
+  const candidates = files.filter((file) => {
+    const classification = classifyMediaArtifact(file.path, file.name);
+    return classification.kind !== "extra" &&
+      classification.kind !== "sample";
   });
+  const matching = candidates.find((file) =>
+    matchesCompletedDownloadFile(
+      file.path,
+      episodeNumber,
+      options?.expectedAirDate,
+    )
+  );
 
-  return matching?.path;
+  if (matching) {
+    return matching.path;
+  }
+
+  if (candidates.length === 1) {
+    return candidates[0].path;
+  }
+
+  return undefined;
 });
 
 export const resolveBatchContentPaths = Effect.fn(
@@ -217,6 +232,24 @@ export function inferCoveredEpisodesFromTorrentContents(input: {
   return [...episodes].sort((left, right) => left - right);
 }
 
+export function resolveReconciledBatchEpisodeNumbers(input: {
+  readonly path: string;
+  readonly coveredEpisodes: readonly number[];
+  readonly totalCandidateCount: number;
+}) {
+  const identity = parseFileSourceIdentity(input.path).source_identity;
+
+  if (identity && identity.scheme !== "daily") {
+    return [...identity.episode_numbers];
+  }
+
+  if (input.totalCandidateCount === 1 && input.coveredEpisodes.length > 0) {
+    return [...input.coveredEpisodes];
+  }
+
+  return [];
+}
+
 function rangeArray(start: number, end: number): number[] {
   const values: number[] = [];
 
@@ -282,3 +315,23 @@ export function applyRemotePathMappings(
 }
 
 export { scanVideoFiles };
+
+function matchesCompletedDownloadFile(
+  path: string,
+  episodeNumber: number,
+  expectedAirDate?: string,
+) {
+  const identity = parseFileSourceIdentity(path).source_identity;
+
+  if (!identity) {
+    return false;
+  }
+
+  if (identity.scheme === "daily") {
+    return expectedAirDate
+      ? identity.air_dates.includes(expectedAirDate)
+      : false;
+  }
+
+  return identity.episode_numbers.includes(episodeNumber);
+}

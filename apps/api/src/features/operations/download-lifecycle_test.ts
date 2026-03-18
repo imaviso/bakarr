@@ -10,6 +10,7 @@ import {
   resolveAccessibleDownloadPath,
   resolveBatchContentPaths,
   resolveCompletedContentPath,
+  resolveReconciledBatchEpisodeNumbers,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
@@ -161,6 +162,50 @@ filesystemTest(
 );
 
 filesystemTest(
+  "resolveCompletedContentPath matches daily files by expected air date",
+  async () => {
+    const dir = await Deno.makeTempDir();
+
+    try {
+      const first = `${dir}/Show - 2025-03-14.mkv`;
+      const second = `${dir}/Show - 2025-03-21.mkv`;
+      await Deno.writeTextFile(first, "one");
+      await Deno.writeTextFile(second, "two");
+
+      assertEquals(
+        await runTestEffect(
+          resolveCompletedContentPath(fs, dir, 1, {
+            expectedAirDate: "2025-03-21",
+          }),
+        ),
+        second,
+      );
+    } finally {
+      await Deno.remove(dir, { recursive: true });
+    }
+  },
+);
+
+filesystemTest(
+  "resolveCompletedContentPath falls back to a lone generic video file",
+  async () => {
+    const dir = await Deno.makeTempDir();
+
+    try {
+      const file = `${dir}/download.mkv`;
+      await Deno.writeTextFile(file, "video");
+
+      assertEquals(
+        await runTestEffect(resolveCompletedContentPath(fs, dir, 7)),
+        file,
+      );
+    } finally {
+      await Deno.remove(dir, { recursive: true });
+    }
+  },
+);
+
+filesystemTest(
   "resolveBatchContentPaths collects video files from completed batch directories",
   async () => {
     const dir = await Deno.makeTempDir();
@@ -293,6 +338,26 @@ Deno.test("inferCoveredEpisodesFromTorrentContents parses real batch file lists"
       rootName: "Chainsaw Man",
     }),
     [1, 2],
+  );
+});
+
+Deno.test("resolveReconciledBatchEpisodeNumbers falls back to covered episodes for lone generic files", () => {
+  assertEquals(
+    resolveReconciledBatchEpisodeNumbers({
+      coveredEpisodes: [1, 2, 3],
+      path: "/downloads/Show Season Pack.mkv",
+      totalCandidateCount: 1,
+    }),
+    [1, 2, 3],
+  );
+
+  assertEquals(
+    resolveReconciledBatchEpisodeNumbers({
+      coveredEpisodes: [1, 2, 3],
+      path: "/downloads/Show Season Pack.mkv",
+      totalCandidateCount: 2,
+    }),
+    [],
   );
 });
 

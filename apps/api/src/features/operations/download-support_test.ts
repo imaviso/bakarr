@@ -106,6 +106,7 @@ Deno.test("importDownloadedFile applies configured naming tokens from source fil
         {
           rootFolder: animeRoot,
           startDate: "2025-04-03",
+          startYear: 2025,
           titleRomaji: "Rock Is a Lady's Modesty",
         } as typeof anime.$inferSelect,
         1,
@@ -118,6 +119,175 @@ Deno.test("importDownloadedFile applies configured naming tokens from source fil
     assertEquals(destination, expectedDestination);
     assertEquals(await Deno.readTextFile(destination), "incoming");
     assertEquals(await Deno.readTextFile(sourcePath), "incoming");
+  } finally {
+    await Deno.remove(animeRoot, { recursive: true }).catch(() => undefined);
+    await Deno.remove(sourceRoot, { recursive: true }).catch(() => undefined);
+  }
+});
+
+Deno.test("importDownloadedFile respects preferred title when building destination", async () => {
+  const animeRoot = await Deno.makeTempDir();
+  const sourceRoot = await Deno.makeTempDir();
+
+  try {
+    const sourcePath = `${sourceRoot}/movie-source-file.mkv`;
+    const expectedDestination = `${animeRoot}/Your Name. (2016).mkv`;
+
+    await Deno.writeTextFile(sourcePath, "incoming");
+
+    const destination = await runTestEffect(
+      importDownloadedFile(
+        makeTestFileSystem(),
+        {
+          format: "MOVIE",
+          rootFolder: animeRoot,
+          startDate: "2016-08-26",
+          startYear: 2016,
+          titleEnglish: "Your Name.",
+          titleNative: "君の名は。",
+          titleRomaji: "Kimi no Na wa.",
+        } as typeof anime.$inferSelect,
+        1,
+        sourcePath,
+        "copy",
+        {
+          namingFormat: "{title} ({year})",
+          preferredTitle: "english",
+        },
+      ),
+    );
+
+    assertEquals(destination, expectedDestination);
+  } finally {
+    await Deno.remove(animeRoot, { recursive: true }).catch(() => undefined);
+    await Deno.remove(sourceRoot, { recursive: true }).catch(() => undefined);
+  }
+});
+
+Deno.test("importDownloadedFile uses episode DB metadata and fallback naming plan", async () => {
+  const animeRoot = await Deno.makeTempDir();
+  const sourceRoot = await Deno.makeTempDir();
+
+  try {
+    const sourcePath = `${sourceRoot}/Show - 01.mkv`;
+    const expectedDestination = `${animeRoot}/Show - 01.mkv`;
+
+    await Deno.writeTextFile(sourcePath, "incoming");
+
+    const destination = await runTestEffect(
+      importDownloadedFile(
+        makeTestFileSystem(),
+        {
+          format: "TV",
+          rootFolder: animeRoot,
+          startDate: "2025-01-01",
+          startYear: 2025,
+          titleRomaji: "Show",
+        } as typeof anime.$inferSelect,
+        1,
+        sourcePath,
+        "copy",
+        {
+          episodeRows: [{ aired: "2025-03-14", title: "Pilot" }],
+          namingFormat: "{title} - S{season:02}E{episode:02}",
+          preferredTitle: "romaji",
+        },
+      ),
+    );
+
+    assertEquals(destination, expectedDestination);
+  } finally {
+    await Deno.remove(animeRoot, { recursive: true }).catch(() => undefined);
+    await Deno.remove(sourceRoot, { recursive: true }).catch(() => undefined);
+  }
+});
+
+Deno.test("importDownloadedFile reuses stored provenance when source path is weak", async () => {
+  const animeRoot = await Deno.makeTempDir();
+  const sourceRoot = await Deno.makeTempDir();
+
+  try {
+    const sourcePath = `${sourceRoot}/download.mkv`;
+    const expectedDestination = `${animeRoot}/Show - 01 [WEB-DL 1080p].mkv`;
+
+    await Deno.writeTextFile(sourcePath, "incoming");
+
+    const destination = await runTestEffect(
+      importDownloadedFile(
+        makeTestFileSystem(),
+        {
+          format: "TV",
+          rootFolder: animeRoot,
+          startDate: "2025-01-01",
+          startYear: 2025,
+          titleRomaji: "Show",
+        } as typeof anime.$inferSelect,
+        1,
+        sourcePath,
+        "copy",
+        {
+          downloadSourceMetadata: {
+            quality: "WEB-DL",
+            resolution: "1080p",
+            source_identity: {
+              episode_numbers: [1],
+              label: "01",
+              scheme: "absolute",
+            },
+          },
+          namingFormat:
+            "{title} - {source_episode_segment} [{quality} {resolution}]",
+          preferredTitle: "romaji",
+        },
+      ),
+    );
+
+    assertEquals(destination, expectedDestination);
+  } finally {
+    await Deno.remove(animeRoot, { recursive: true }).catch(() => undefined);
+    await Deno.remove(sourceRoot, { recursive: true }).catch(() => undefined);
+  }
+});
+
+Deno.test("importDownloadedFile uses local media metadata when heuristics are missing", async () => {
+  const animeRoot = await Deno.makeTempDir();
+  const sourceRoot = await Deno.makeTempDir();
+
+  try {
+    const sourcePath = `${sourceRoot}/download.mkv`;
+    const expectedDestination =
+      `${animeRoot}/Show - 01 [1080p][HEVC][AAC 2.0].mkv`;
+
+    await Deno.writeTextFile(sourcePath, "incoming");
+
+    const destination = await runTestEffect(
+      importDownloadedFile(
+        makeTestFileSystem(),
+        {
+          format: "TV",
+          rootFolder: animeRoot,
+          startDate: "2025-01-01",
+          startYear: 2025,
+          titleRomaji: "Show",
+        } as typeof anime.$inferSelect,
+        1,
+        sourcePath,
+        "copy",
+        {
+          localMediaMetadata: {
+            audio_channels: "2.0",
+            audio_codec: "AAC",
+            resolution: "1080p",
+            video_codec: "HEVC",
+          },
+          namingFormat:
+            "{title} - {source_episode_segment} [{resolution}][{video_codec}][{audio_codec} {audio_channels}]",
+          preferredTitle: "romaji",
+        },
+      ),
+    );
+
+    assertEquals(destination, expectedDestination);
   } finally {
     await Deno.remove(animeRoot, { recursive: true }).catch(() => undefined);
     await Deno.remove(sourceRoot, { recursive: true }).catch(() => undefined);
