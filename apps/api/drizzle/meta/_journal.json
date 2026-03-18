@@ -127,6 +127,27 @@
       "when": 1773600000000,
       "tag": "0017_episode_airdate_index",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1773700000000,
+      "tag": "0018_anime_airing_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1773800000000,
+      "tag": "0019_download_source_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1773809000000,
+      "tag": "0020_anime_discovery_metadata",
+      "breakpoints": true
     }
   ]
 }
