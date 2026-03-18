@@ -11,22 +11,31 @@ Deno.test("toAnimeDto builds progress, metadata, and decoded arrays", () => {
       coverImage: "/api/images/anime/20/cover.jpg",
       description: "A ninja story",
       endDate: null,
+      endYear: 2024,
       episodeCount: 4,
       format: "TV",
       genres: '["Action","Adventure"]',
       id: 20,
       malId: 1735,
       monitored: true,
+      nextAiringAt: "2024-01-20T12:00:00.000Z",
+      nextAiringEpisode: 5,
       profileName: "Default",
       releaseProfileIds: "[1,2]",
       rootFolder: "/library/Naruto",
       score: 79,
       startDate: null,
+      startYear: 2023,
       status: "RELEASING",
       studios: '["Studio Pierrot"]',
       titleEnglish: "Naruto",
       titleNative: "ナルト",
       titleRomaji: "Naruto",
+      synonyms: '["Naruto Alt"]',
+      relatedAnime:
+        '[{"id":10,"relation_type":"PREQUEL","title":{"english":"Naruto Classic","romaji":"Naruto Classic"}}]',
+      recommendedAnime:
+        '[{"id":30,"title":{"english":"Boruto","romaji":"Boruto"}}]',
     } satisfies typeof anime.$inferSelect,
     [
       {
@@ -64,10 +73,22 @@ Deno.test("toAnimeDto builds progress, metadata, and decoded arrays", () => {
   assertEquals(result.studios, ["Studio Pierrot"]);
   assertEquals(result.release_profile_ids, [1, 2]);
   assertEquals(result.progress.downloaded, 2);
+  assertEquals(result.progress.downloaded_percent, 50);
+  assertEquals(result.progress.is_up_to_date, false);
+  assertEquals(result.progress.latest_downloaded_episode, 3);
   assertEquals(result.progress.total, 4);
   assertEquals(result.progress.missing, [2, 4]);
+  assertEquals(result.progress.next_missing_episode, 2);
+  assertEquals(result.season, undefined);
+  assertEquals(result.season_year, 2023);
   assertEquals(result.title.english, "Naruto");
   assertEquals(result.banner_image, "/api/images/anime/20/banner.jpg");
+  assertEquals(result.related_anime?.[0]?.relation_type, "PREQUEL");
+  assertEquals(result.recommended_anime?.[0]?.title.english, "Boruto");
+  assertEquals(result.start_year, 2023);
+  assertEquals(result.synonyms, ["Naruto Alt"]);
+  assertEquals(result.end_year, 2024);
+  assertEquals(result.next_airing_episode?.episode, 5);
 });
 
 Deno.test("toAnimeDto handles anime with unknown episode totals", () => {
@@ -78,28 +99,39 @@ Deno.test("toAnimeDto handles anime with unknown episode totals", () => {
       coverImage: null,
       description: null,
       endDate: null,
+      endYear: null,
       episodeCount: null,
       format: "MOVIE",
       genres: "[]",
       id: 99,
       malId: null,
       monitored: false,
+      nextAiringAt: null,
+      nextAiringEpisode: null,
       profileName: "Default",
       releaseProfileIds: "[]",
       rootFolder: "/library/Movie",
       score: null,
       startDate: null,
+      startYear: null,
       status: "FINISHED",
       studios: "[]",
       titleEnglish: null,
       titleNative: null,
       titleRomaji: "Movie",
+      synonyms: null,
+      relatedAnime: null,
+      recommendedAnime: null,
     } satisfies typeof anime.$inferSelect,
     [],
   );
 
   assertEquals(result.progress.total, undefined);
+  assertEquals(result.progress.downloaded_percent, undefined);
+  assertEquals(result.progress.is_up_to_date, undefined);
   assertEquals(result.progress.missing, []);
+  assertEquals(result.progress.latest_downloaded_episode, undefined);
+  assertEquals(result.progress.next_missing_episode, undefined);
   assertEquals(result.cover_image, undefined);
   assertEquals(result.score, undefined);
 });
