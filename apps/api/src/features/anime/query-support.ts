@@ -319,8 +319,9 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(
               Effect.map((info) => info.size),
               Effect.catchTag(
                 "FileSystemError",
-                () => Effect.succeed(undefined) as Effect.Effect<undefined>,
+                () => Effect.void,
               ),
+              Effect.map((size) => size ?? undefined),
             );
             const enrichedMetadata = shouldProbeDetailedMediaMetadata({
                 duration_seconds: metadata.duration_seconds,

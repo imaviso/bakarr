@@ -9,6 +9,10 @@ import { anime, episodes } from "../../db/schema.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import type { AniListClient } from "./anilist.ts";
+import {
+  encodeAnimeDiscoveryEntries,
+  encodeAnimeSynonyms,
+} from "./discovery-metadata-codec.ts";
 import { toAnimeDto } from "./dto.ts";
 import {
   AnimeConflictError,
@@ -155,16 +159,9 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
       startYear: metadata.startYear ?? null,
       status: metadata.status,
       studios: encodeStringList(metadata.studios ?? []),
-      synonyms: metadata.synonyms && metadata.synonyms.length > 0
-        ? JSON.stringify(metadata.synonyms)
-        : null,
-      relatedAnime: metadata.relatedAnime && metadata.relatedAnime.length > 0
-        ? JSON.stringify(metadata.relatedAnime)
-        : null,
-      recommendedAnime:
-        metadata.recommendedAnime && metadata.recommendedAnime.length > 0
-          ? JSON.stringify(metadata.recommendedAnime)
-          : null,
+      synonyms: encodeAnimeSynonyms(metadata.synonyms),
+      relatedAnime: encodeAnimeDiscoveryEntries(metadata.relatedAnime),
+      recommendedAnime: encodeAnimeDiscoveryEntries(metadata.recommendedAnime),
       titleEnglish: metadata.title.english ?? null,
       titleNative: metadata.title.native ?? null,
       titleRomaji: metadata.title.romaji,

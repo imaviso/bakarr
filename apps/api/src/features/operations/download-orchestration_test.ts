@@ -784,7 +784,7 @@ Deno.test("syncDownloadsWithQBitEffect stores structured metadata for status and
         } as unknown as typeof EventBus.Service,
         fs: makeRealFileSystem(),
         mediaProbe: {
-          probeVideoFile: () => Effect.succeed(undefined),
+          probeVideoFile: () => Effect.sync(() => undefined),
         },
         maybeQBitConfig,
         qbitClient: {
@@ -1119,7 +1119,7 @@ async function createDownloadOrchestrationForTest(
     } as unknown as typeof EventBus.Service,
     fs: makeRealFileSystem(),
     mediaProbe: {
-      probeVideoFile: () => Effect.succeed(undefined),
+      probeVideoFile: () => Effect.sync(() => undefined),
     },
     maybeQBitConfig,
     qbitClient: {

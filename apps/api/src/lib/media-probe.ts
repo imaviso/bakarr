@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 
 export interface ProbedMediaMetadata {
   duration_seconds?: number;
@@ -22,6 +22,13 @@ const FFPROBE_PROBE_TIMEOUT_MS = 10_000;
 type FfprobeCommandResult =
   | { readonly ok: true; readonly output: Deno.CommandOutput }
   | { readonly ok: false; readonly reason: "aborted" | "failed" };
+
+class FfprobeCommandError extends Schema.TaggedError<FfprobeCommandError>()(
+  "FfprobeCommandError",
+  {
+    cause: Schema.Defect,
+  },
+) {}
 
 export interface MediaProbeShape {
   readonly probeVideoFile: (
@@ -251,35 +258,36 @@ function runFfprobeCommand(input: {
   readonly stdout: "null" | "piped";
   readonly timeoutMs: number;
 }) {
-  return Effect.tryPromise({
-    try: async () => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+  return Effect.gen(function* () {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), input.timeoutMs);
 
-      try {
-        const output = await new Deno.Command("ffprobe", {
-          args: [...input.args],
-          signal: controller.signal,
-          stderr: "null",
-          stdout: input.stdout,
-        }).output();
-
-        return { ok: true, output } satisfies FfprobeCommandResult;
-      } finally {
-        clearTimeout(timer);
-      }
-    },
-    catch: (cause) => cause,
-  }).pipe(
-    Effect.catchAll((cause) =>
-      Effect.succeed(
-        {
-          ok: false,
-          reason: isAbortError(cause) ? "aborted" : "failed",
-        } satisfies FfprobeCommandResult,
-      )
-    ),
-  );
+    try {
+      return yield* Effect.tryPromise({
+        try: () =>
+          new Deno.Command("ffprobe", {
+            args: [...input.args],
+            signal: controller.signal,
+            stderr: "null",
+            stdout: input.stdout,
+          }).output(),
+        catch: (cause) => new FfprobeCommandError({ cause }),
+      }).pipe(
+        Effect.map((output) =>
+          ({ ok: true, output }) satisfies FfprobeCommandResult
+        ),
+        Effect.catchTag("FfprobeCommandError", (error) =>
+          Effect.succeed(
+            {
+              ok: false,
+              reason: isAbortError(error.cause) ? "aborted" : "failed",
+            } satisfies FfprobeCommandResult,
+          )),
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  });
 }
 
 const makeMediaProbe = (): MediaProbeShape => {

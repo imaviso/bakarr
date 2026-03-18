@@ -12,6 +12,10 @@ import {
 } from "../operations/job-support.ts";
 import { appendSystemLog } from "../system/support.ts";
 import type { AniListClient } from "./anilist.ts";
+import {
+  encodeAnimeDiscoveryEntries,
+  encodeAnimeSynonyms,
+} from "./discovery-metadata-codec.ts";
 import { scanAnimeFolderEffect } from "./file-mapping-support.ts";
 import {
   appendAnimeLog,
@@ -63,20 +67,15 @@ const syncAnimeMetadataEffect = Effect.fn(
       malId: metadata.malId ?? animeRow.malId,
       nextAiringAt: metadata.nextAiringEpisode?.airingAt ?? null,
       nextAiringEpisode: metadata.nextAiringEpisode?.episode ?? null,
-      recommendedAnime:
-        metadata.recommendedAnime && metadata.recommendedAnime.length > 0
-          ? JSON.stringify(metadata.recommendedAnime)
-          : null,
-      relatedAnime: metadata.relatedAnime && metadata.relatedAnime.length > 0
-        ? JSON.stringify(metadata.relatedAnime)
-        : null,
+      recommendedAnime: encodeAnimeDiscoveryEntries(
+        metadata.recommendedAnime,
+      ),
+      relatedAnime: encodeAnimeDiscoveryEntries(metadata.relatedAnime),
       score: metadata.score ?? animeRow.score,
       startDate: metadata.startDate ?? null,
       startYear: metadata.startYear ?? null,
       status: metadata.status,
-      synonyms: metadata.synonyms && metadata.synonyms.length > 0
-        ? JSON.stringify(metadata.synonyms)
-        : null,
+      synonyms: encodeAnimeSynonyms(metadata.synonyms),
       titleEnglish: metadata.title.english ?? animeRow.titleEnglish,
       titleNative: metadata.title.native ?? animeRow.titleNative,
       titleRomaji: metadata.title.romaji,
