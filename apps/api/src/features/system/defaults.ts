@@ -71,6 +71,8 @@ export function makeDefaultConfig(databasePath: string): ConfigCore {
     },
     library: {
       auto_scan_interval_hours: 12,
+      airing_day_start_hour: 0,
+      airing_timezone: "system",
       import_mode: "copy",
       library_path: "./library",
       movie_naming_format: "{title} ({year})",

@@ -110,6 +110,10 @@ Deno.test("system repository query helpers filter logs and count system state", 
       episodeCount: 2,
       startDate: null,
       endDate: null,
+      startYear: null,
+      endYear: null,
+      nextAiringAt: null,
+      nextAiringEpisode: null,
       profileName: "Default",
       rootFolder: "/library/Naruto",
       addedAt: "2024-01-01T00:00:00.000Z",
@@ -157,6 +161,7 @@ Deno.test("system repository query helpers filter logs and count system state", 
         downloadedBytes: null,
         speedBytes: null,
         etaSeconds: null,
+        sourceMetadata: null,
         lastSyncedAt: null,
         retryCount: 0,
         lastErrorAt: null,
@@ -184,6 +189,7 @@ Deno.test("system repository query helpers filter logs and count system state", 
         downloadedBytes: null,
         speedBytes: null,
         etaSeconds: null,
+        sourceMetadata: null,
         lastSyncedAt: null,
         retryCount: 0,
         lastErrorAt: null,
@@ -211,6 +217,7 @@ Deno.test("system repository query helpers filter logs and count system state", 
         downloadedBytes: null,
         speedBytes: null,
         etaSeconds: null,
+        sourceMetadata: null,
         lastSyncedAt: null,
         retryCount: 0,
         lastErrorAt: null,
@@ -238,6 +245,7 @@ Deno.test("system repository query helpers filter logs and count system state", 
         downloadedBytes: null,
         speedBytes: null,
         etaSeconds: null,
+        sourceMetadata: null,
         lastSyncedAt: null,
         retryCount: 0,
         lastErrorAt: null,
@@ -265,6 +273,7 @@ Deno.test("system repository query helpers filter logs and count system state", 
         downloadedBytes: null,
         speedBytes: null,
         etaSeconds: null,
+        sourceMetadata: null,
         lastSyncedAt: null,
         retryCount: 0,
         lastErrorAt: null,
@@ -383,6 +392,9 @@ Deno.test("unmapped folder match rows persist cached suggestions", async () => {
       suggested_matches: [{
         already_in_library: true,
         id: 20,
+        match_confidence: 0.97,
+        match_reason:
+          'Matched a library title from the normalized folder name "Naruto Archive"',
         title: { romaji: "Naruto" },
       }],
     }]);
@@ -393,7 +405,9 @@ Deno.test("unmapped folder match rows persist cached suggestions", async () => {
 
     const decoded = decodeUnmappedFolderMatchRow(rows[0]!);
     assertEquals(decoded.match_status, "done");
+    assertEquals(decoded.search_queries, ["Naruto Archive"]);
     assertEquals(decoded.suggested_matches[0]?.id, 20);
+    assertEquals(decoded.suggested_matches[0]?.match_confidence, 0.97);
   });
 });
 

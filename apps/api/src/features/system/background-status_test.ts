@@ -62,8 +62,10 @@ Deno.test("background status falls back to live failure details for workers with
 
   const jobs = composeBackgroundJobStatuses(config, snapshot, []);
   const downloadSyncJob = findBackgroundJobStatus(jobs, "download_sync");
+  const metadataRefreshJob = findBackgroundJobStatus(jobs, "metadata_refresh");
 
   assertEquals(downloadSyncJob?.last_status, "failed");
   assertEquals(downloadSyncJob?.last_message, "sync failed");
   assertEquals(downloadSyncJob?.run_count, 1);
+  assertEquals(metadataRefreshJob?.schedule_value, "24h");
 });

@@ -48,6 +48,49 @@ function storedConfigCorrupt(message: string, cause?: unknown) {
   });
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeStoredConfigSections(value: string): unknown {
+  const parsed = JSON.parse(value);
+
+  if (!isRecord(parsed)) {
+    return parsed;
+  }
+
+  const defaults = makeDefaultConfig(":memory:");
+
+  return {
+    ...parsed,
+    library: isRecord(parsed.library)
+      ? { ...defaults.library, ...parsed.library }
+      : parsed.library,
+    scheduler: isRecord(parsed.scheduler)
+      ? { ...defaults.scheduler, ...parsed.scheduler }
+      : parsed.scheduler,
+  };
+}
+
+function cloneConfigCore(decoded: ConfigCore): ConfigCore {
+  return {
+    downloads: {
+      ...decoded.downloads,
+      preferred_groups: [...decoded.downloads.preferred_groups],
+      remote_path_mappings: decoded.downloads.remote_path_mappings.map((
+        mapping,
+      ) => [
+        ...mapping,
+      ]),
+    },
+    general: { ...decoded.general },
+    library: { ...decoded.library },
+    nyaa: { ...decoded.nyaa },
+    qbittorrent: { ...decoded.qbittorrent },
+    scheduler: { ...decoded.scheduler },
+  };
+}
+
 export function encodeQualityProfileRow(profile: QualityProfile) {
   return {
     allowedQualities: encodeStringList(profile.allowed_qualities),
@@ -222,24 +265,11 @@ export function encodeConfigCore(core: ConfigCore): string {
 }
 
 export function decodeConfigCore(value: string): ConfigCore {
-  const decoded = Schema.decodeUnknownSync(ConfigCoreJsonSchema)(value);
+  const decoded = Schema.decodeUnknownSync(ConfigCoreSchema)(
+    normalizeStoredConfigSections(value),
+  );
 
-  return {
-    downloads: {
-      ...decoded.downloads,
-      preferred_groups: [...decoded.downloads.preferred_groups],
-      remote_path_mappings: decoded.downloads.remote_path_mappings.map((
-        mapping,
-      ) => [
-        ...mapping,
-      ]),
-    },
-    general: { ...decoded.general },
-    library: { ...decoded.library },
-    nyaa: { ...decoded.nyaa },
-    qbittorrent: { ...decoded.qbittorrent },
-    scheduler: { ...decoded.scheduler },
-  };
+  return cloneConfigCore(decoded);
 }
 
 export function tryDecodeConfigCore(
@@ -376,23 +406,18 @@ export function effectDecodeReleaseProfileRow(
 export function effectDecodeConfigCore(
   value: string,
 ): Effect.Effect<ConfigCore, StoredConfigCorruptError> {
-  return Schema.decodeUnknown(ConfigCoreJsonSchema)(value).pipe(
-    Effect.map((decoded) => ({
-      downloads: {
-        ...decoded.downloads,
-        preferred_groups: [...decoded.downloads.preferred_groups],
-        remote_path_mappings: decoded.downloads.remote_path_mappings.map((
-          mapping,
-        ) => [
-          ...mapping,
-        ]),
-      },
-      general: { ...decoded.general },
-      library: { ...decoded.library },
-      nyaa: { ...decoded.nyaa },
-      qbittorrent: { ...decoded.qbittorrent },
-      scheduler: { ...decoded.scheduler },
-    })),
+  return Effect.try({
+    try: () => normalizeStoredConfigSections(value),
+    catch: (cause) =>
+      storedConfigCorrupt(
+        "Stored configuration is corrupt and could not be decoded",
+        cause,
+      ),
+  }).pipe(
+    Effect.flatMap((normalized) =>
+      Schema.decodeUnknown(ConfigCoreSchema)(normalized)
+    ),
+    Effect.map(cloneConfigCore),
     Effect.mapError((cause) =>
       storedConfigCorrupt(
         "Stored configuration is corrupt and could not be decoded",

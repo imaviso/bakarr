@@ -16,6 +16,7 @@ Deno.test("system support normalizes levels and deduplicates job names", () => {
     "custom",
     "download_sync",
     "library_scan",
+    "metadata_refresh",
     "rss",
     "unmapped_scan",
   ]);
@@ -35,6 +36,10 @@ Deno.test("system support derives background job schedule modes", () => {
   assertEquals(
     toBackgroundJobStatus(config, undefined, "library_scan").schedule_value,
     "12h",
+  );
+  assertEquals(
+    toBackgroundJobStatus(config, undefined, "metadata_refresh").schedule_value,
+    "24h",
   );
   assertEquals(
     toBackgroundJobStatus(config, undefined, "unmapped_scan").schedule_mode,
@@ -75,6 +80,11 @@ Deno.test("system support derives background job schedule modes", () => {
   );
   assertEquals(
     toBackgroundJobStatus(disabledConfig, undefined, "library_scan")
+      .schedule_mode,
+    "disabled",
+  );
+  assertEquals(
+    toBackgroundJobStatus(disabledConfig, undefined, "metadata_refresh")
       .schedule_mode,
     "disabled",
   );

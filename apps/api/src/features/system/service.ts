@@ -20,9 +20,14 @@ import {
   BackgroundWorkerMonitor,
 } from "../../background.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
-import { systemLogs } from "../../db/schema.ts";
+import { anime, episodes, systemLogs } from "../../db/schema.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { EventPublisher } from "../events/publisher.ts";
+import { toAnimeDto } from "../anime/dto.ts";
+import {
+  loadDownloadEventPresentationContexts,
+  toDownloadEvent,
+} from "../operations/repository.ts";
 import {
   DEFAULT_PROFILES,
   DEFAULT_QUALITIES,
@@ -442,12 +447,19 @@ const makeSystemService = Effect.gen(function* () {
       );
       const rssJob = findBackgroundJobStatus(jobs, "rss");
       const scanJob = findBackgroundJobStatus(jobs, "library_scan");
+      const metadataRefreshJob = findBackgroundJobStatus(
+        jobs,
+        "metadata_refresh",
+      );
 
       return {
         active_torrents: activeDownloads,
         disk_space: { free: diskSpace.free, total: diskSpace.total },
         last_rss: rssJob?.last_success_at ?? rssJob?.last_run_at ?? null,
         last_scan: scanJob?.last_success_at ?? scanJob?.last_run_at ?? null,
+        last_metadata_refresh: metadataRefreshJob?.last_success_at ??
+          metadataRefreshJob?.last_run_at ??
+          null,
         pending_downloads: queuedDownloads,
         uptime: Math.max(
           0,
@@ -484,15 +496,53 @@ const makeSystemService = Effect.gen(function* () {
         "Failed to load library stats",
         () => countCompletedDownloads(db),
       );
+      const animeRows = yield* tryDatabasePromise(
+        "Failed to load library stats",
+        () => db.select().from(anime),
+      );
+      const episodeRows = yield* tryDatabasePromise(
+        "Failed to load library stats",
+        () => db.select().from(episodes),
+      );
+      const episodesByAnimeId = new Map<
+        number,
+        Array<typeof episodes.$inferSelect>
+      >();
+
+      for (const episodeRow of episodeRows) {
+        const bucket = episodesByAnimeId.get(episodeRow.animeId);
+
+        if (bucket) {
+          bucket.push(episodeRow);
+        } else {
+          episodesByAnimeId.set(episodeRow.animeId, [episodeRow]);
+        }
+      }
+
+      const upToDateAnime = animeRows
+        .map((animeRow) =>
+          toAnimeDto(animeRow, episodesByAnimeId.get(animeRow.id) ?? [])
+        )
+        .filter((animeDto) =>
+          animeDto.monitored && animeDto.progress.is_up_to_date
+        )
+        .length;
 
       return {
         downloaded_episodes: downloadedEpisodes,
+        downloaded_percent: totalEpisodes > 0
+          ? Math.min(
+            100,
+            Math.round((downloadedEpisodes / totalEpisodes) * 100),
+          )
+          : 0,
         missing_episodes: Math.max(totalEpisodes - downloadedEpisodes, 0),
         monitored_anime: monitoredAnime,
         recent_downloads: completedDownloads,
         rss_feeds: totalRssFeeds,
         total_anime: totalAnime,
         total_episodes: totalEpisodes,
+        up_to_date_anime: upToDateAnime,
       };
     },
   );
@@ -547,6 +597,10 @@ const makeSystemService = Effect.gen(function* () {
       "Failed to load ops dashboard",
       () => listRecentDownloadEventRows(db, 12),
     );
+    const eventContexts = yield* tryDatabasePromise(
+      "Failed to load ops dashboard",
+      () => loadDownloadEventPresentationContexts(db, events),
+    );
 
     return {
       active_downloads: activeDownloads,
@@ -554,17 +608,9 @@ const makeSystemService = Effect.gen(function* () {
       imported_downloads: importedDownloads,
       jobs,
       queued_downloads: queuedDownloads,
-      recent_download_events: events.map((row) => ({
-        anime_id: row.animeId ?? undefined,
-        created_at: row.createdAt,
-        download_id: row.downloadId ?? undefined,
-        event_type: row.eventType,
-        from_status: row.fromStatus ?? undefined,
-        id: row.id,
-        message: row.message,
-        metadata: row.metadata ?? undefined,
-        to_status: row.toStatus ?? undefined,
-      })),
+      recent_download_events: events.map((row) =>
+        toDownloadEvent(row, eventContexts.get(row.id))
+      ),
       running_jobs: countRunningBackgroundJobStatuses(jobs),
     } as OpsDashboard;
   });
@@ -595,9 +641,14 @@ const makeSystemService = Effect.gen(function* () {
           ),
       ),
     );
+    const defaults = makeDefaultConfig(config.databaseFile);
 
     return {
       ...core,
+      library: {
+        ...defaults.library,
+        ...core.library,
+      },
       profiles: yield* Effect.forEach(profiles, effectDecodeQualityProfileRow),
     } satisfies Config;
   });

@@ -20,6 +20,7 @@ import {
   systemLogs,
   unmappedFolderMatches,
 } from "../../db/schema.ts";
+import { buildUnmappedFolderSearchQueries } from "../operations/unmapped-folders.ts";
 import { eventTypeCondition } from "./support.ts";
 
 export type QualityProfileRow = typeof qualityProfiles.$inferSelect;
@@ -364,6 +365,7 @@ export function decodeUnmappedFolderMatchRow(
     match_status: row.matchStatus as UnmappedFolder["match_status"],
     name: row.name,
     path: row.path,
+    search_queries: buildUnmappedFolderSearchQueries(row.name),
     size: row.size,
     suggested_matches: [...decodeAnimeSearchResultList(row.suggestedMatches)],
   };

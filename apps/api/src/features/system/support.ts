@@ -28,6 +28,8 @@ export function eventTypeCondition(eventType: string) {
       return sql`${systemLogs.eventType} like 'library.%import%'`;
     case "RSS":
       return sql`${systemLogs.eventType} like 'rss.%' or ${systemLogs.eventType} like 'system.task.rss%'`;
+    case "Metadata":
+      return sql`${systemLogs.eventType} like 'system.task.metadata_refresh%' or ${systemLogs.eventType} like 'anime.metadata%'`;
     case "Error":
       return eq(systemLogs.level, "error");
     default:
@@ -132,6 +134,21 @@ function describeJobSchedule(config: Config, name: string) {
       return {
         mode: "interval" as const,
         value: `${config.library.auto_scan_interval_hours}h`,
+      };
+    }
+
+    return { mode: "disabled" as const, value: undefined };
+  }
+
+  if (name === "metadata_refresh") {
+    if (!config.scheduler.enabled) {
+      return { mode: "disabled" as const, value: undefined };
+    }
+
+    if (config.scheduler.metadata_refresh_hours > 0) {
+      return {
+        mode: "interval" as const,
+        value: `${config.scheduler.metadata_refresh_hours}h`,
       };
     }
 
