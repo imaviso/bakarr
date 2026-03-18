@@ -29,6 +29,7 @@ import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { SystemStatus } from "~/components/system-status";
+import { TimezonePicker } from "~/components/timezone-picker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +75,7 @@ import {
   createReleaseProfilesQuery,
   createSystemConfigQuery,
   createSystemStatusQuery,
+  createTriggerMetadataRefreshMutation,
   createTriggerRssCheckMutation,
   createTriggerScanMutation,
   createUpdateProfileMutation,
@@ -134,7 +136,7 @@ function SettingsPage() {
         onChange={setActiveTab}
         class="w-full space-y-6"
       >
-        <TabsList class="w-full justify-start border-b rounded-none p-0 h-auto bg-transparent mb-6">
+        <TabsList class="w-full justify-start border-b rounded-none p-0 h-auto bg-transparent mb-6 overflow-x-auto">
           <TabsTrigger
             value="general"
             class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
@@ -272,7 +274,7 @@ function SettingsPage() {
                               <Show when={profile.seadex_preferred}>
                                 <Badge
                                   variant="secondary"
-                                  class="text-[10px] h-5 px-1.5 font-normal text-muted-foreground"
+                                  class="text-xs h-5 px-1.5 font-normal text-muted-foreground"
                                 >
                                   SeaDex
                                 </Badge>
@@ -285,7 +287,7 @@ function SettingsPage() {
                               </span>
                             </div>
                             <Show when={profile.min_size || profile.max_size}>
-                              <div class="text-[10px] text-muted-foreground flex gap-2">
+                              <div class="text-xs text-muted-foreground flex gap-2">
                                 <Show when={profile.min_size}>
                                   <span>Min: {profile.min_size}</span>
                                 </Show>
@@ -299,7 +301,7 @@ function SettingsPage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              class="h-8 w-8"
+                              class="relative after:absolute after:-inset-2 h-8 w-8"
                               onClick={() => setEditingProfile(profile)}
                             >
                               <IconEdit class="h-4 w-4" />
@@ -309,7 +311,7 @@ function SettingsPage() {
                                 as={Button}
                                 variant="ghost"
                                 size="icon"
-                                class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
                               >
                                 <IconTrash class="h-4 w-4" />
                               </AlertDialogTrigger>
@@ -478,20 +480,20 @@ function SettingsPage() {
                                   fallback={
                                     <Badge
                                       variant="outline"
-                                      class="text-[10px] h-5 px-1.5 text-muted-foreground"
+                                      class="text-xs h-5 px-1.5 text-muted-foreground"
                                     >
                                       Disabled
                                     </Badge>
                                   }
                                 >
-                                  <Badge class="text-[10px] h-5 px-1.5 bg-success/10 text-success border-success/20 font-medium">
+                                  <Badge class="text-xs h-5 px-1.5 bg-success/10 text-success border-success/20 font-medium">
                                     Enabled
                                   </Badge>
                                 </Show>
                                 <Show when={profile.is_global}>
                                   <Badge
                                     variant="secondary"
-                                    class="text-[10px] h-5 px-1.5 font-normal"
+                                    class="text-xs h-5 px-1.5 font-normal"
                                   >
                                     Global
                                   </Badge>
@@ -506,7 +508,7 @@ function SettingsPage() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              class="h-8 w-8"
+                              class="relative after:absolute after:-inset-2 h-8 w-8"
                               onClick={() => setEditingReleaseProfile(profile)}
                             >
                               <IconEdit class="h-4 w-4" />
@@ -516,7 +518,7 @@ function SettingsPage() {
                                 as={Button}
                                 variant="ghost"
                                 size="icon"
-                                class="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
                               >
                                 <IconTrash class="h-4 w-4" />
                               </AlertDialogTrigger>
@@ -650,7 +652,7 @@ function SortableQualityList(props: {
     <div class="space-y-3">
       <div class="space-y-1">
         <div class="text-sm font-medium leading-none">Allowed Qualities</div>
-        <p class="text-[10px] text-muted-foreground">
+        <p class="text-xs text-muted-foreground">
           Drag to reorder. Top items are preferred.
         </p>
       </div>
@@ -818,7 +820,7 @@ function ProfileForm(props: {
   const createProfile = createCreateProfileMutation();
   const updateProfile = createUpdateProfileMutation();
   const qualitiesQuery = createQualitiesQuery();
-  const isEditing = !!props.profile;
+  const isEditing = () => !!props.profile;
 
   const form = createForm(() => ({
     defaultValues: {
@@ -837,7 +839,7 @@ function ProfileForm(props: {
       onChange: ProfileSchema,
     },
     onSubmit: async ({ value }) => {
-      if (isEditing && props.profile) {
+      if (isEditing() && props.profile) {
         await updateProfile.mutateAsync({
           name: props.profile.name,
           profile: value,
@@ -855,7 +857,7 @@ function ProfileForm(props: {
     <Card class="border-primary/20">
       <CardHeader class="pb-4">
         <CardTitle class="text-base">
-          {isEditing ? "Edit Profile" : "Create Profile"}
+          {isEditing() ? "Edit Profile" : "Create Profile"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -872,7 +874,7 @@ function ProfileForm(props: {
               <TextField
                 value={field().state.value}
                 onChange={field().handleChange}
-                disabled={isEditing}
+                disabled={isEditing()}
               >
                 <TextFieldLabel>Profile Name</TextFieldLabel>
                 <TextFieldInput placeholder="e.g., HD Quality" />
@@ -1034,7 +1036,7 @@ function ProfileForm(props: {
                     createProfile.isPending ||
                     updateProfile.isPending}
                 >
-                  {state()[1] ? "Saving..." : isEditing ? "Update" : "Create"}
+                  {state()[1] ? "Saving..." : isEditing() ? "Update" : "Create"}
                 </Button>
               )}
             </form.Subscribe>
@@ -1065,7 +1067,7 @@ function ReleaseProfileForm(props: {
 }) {
   const createProfile = createCreateReleaseProfileMutation();
   const updateProfile = createUpdateReleaseProfileMutation();
-  const isEditing = !!props.profile;
+  const isEditing = () => !!props.profile;
 
   const form = createForm(() => ({
     defaultValues: {
@@ -1078,7 +1080,7 @@ function ReleaseProfileForm(props: {
       onChange: ReleaseProfileSchema,
     },
     onSubmit: async ({ value }) => {
-      if (isEditing && props.profile) {
+      if (isEditing() && props.profile) {
         await updateProfile.mutateAsync({
           id: props.profile.id,
           data: value,
@@ -1094,7 +1096,7 @@ function ReleaseProfileForm(props: {
     <Card class="border-primary/20">
       <CardHeader class="pb-4">
         <CardTitle class="text-base">
-          {isEditing ? "Edit Profile" : "Create Profile"}
+          {isEditing() ? "Edit Profile" : "Create Profile"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -1301,7 +1303,7 @@ function ReleaseProfileForm(props: {
                     createProfile.isPending ||
                     updateProfile.isPending}
                 >
-                  {state()[1] ? "Saving..." : isEditing ? "Update" : "Create"}
+                  {state()[1] ? "Saving..." : isEditing() ? "Update" : "Create"}
                 </Button>
               )}
             </form.Subscribe>
@@ -1366,6 +1368,8 @@ const ConfigSchema = v.object({
     movie_naming_format: v.string(),
     auto_scan_interval_hours: v.number(),
     preferred_title: v.picklist(["romaji", "english", "native"]),
+    airing_timezone: v.optional(v.string()),
+    airing_day_start_hour: v.optional(v.number()),
   }),
   profiles: v.array(
     v.object({
@@ -1578,6 +1582,7 @@ function SystemForm(props: {
   const systemStatus = createSystemStatusQuery();
   const triggerScan = createTriggerScanMutation();
   const triggerRss = createTriggerRssCheckMutation();
+  const triggerMetadataRefresh = createTriggerMetadataRefreshMutation();
   const showsGeneral = () => props.mode === "general";
   const showsAutomation = () => props.mode === "automation";
 
@@ -1596,6 +1601,15 @@ function SystemForm(props: {
       toast.success("RSS check started");
     } catch (_e) {
       toast.error("Failed to start RSS check");
+    }
+  };
+
+  const handleTriggerMetadataRefresh = async () => {
+    try {
+      await triggerMetadataRefresh.mutateAsync();
+      toast.success("Metadata refresh started");
+    } catch (_e) {
+      toast.error("Failed to start metadata refresh");
     }
   };
 
@@ -1867,6 +1881,42 @@ function SystemForm(props: {
             )}
           </form.Field>
 
+          <form.Field name="library.airing_timezone">
+            {(field) => (
+              <SettingRow
+                label="Airing Timezone"
+                description="Timezone used for wanted and calendar airing times. Use system for browser local time."
+              >
+                <TimezonePicker
+                  value={field().state.value ?? "system"}
+                  onChange={(value) => field().handleChange(value)}
+                />
+              </SettingRow>
+            )}
+          </form.Field>
+
+          <form.Field name="library.airing_day_start_hour">
+            {(field) => (
+              <SettingRow
+                label="Airing Day Start"
+                description="Treat airings before this hour as part of the previous day in calendar and wanted views"
+              >
+                <div class="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={(field().state.value ?? 0).toString()}
+                    onInput={(e) =>
+                      field().handleChange(Number(e.currentTarget.value))}
+                    class="w-20"
+                  />
+                  <span class="text-xs text-muted-foreground">hour</span>
+                </div>
+              </SettingRow>
+            )}
+          </form.Field>
+
           <form.Field name="library.auto_scan_interval_hours">
             {(field) => (
               <SettingRow
@@ -1905,7 +1955,7 @@ function SystemForm(props: {
                     placeholder="{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}]"
                     class="font-mono text-xs"
                   />
-                  <div class="text-[10px] text-muted-foreground">
+                  <div class="text-xs text-muted-foreground">
                     {"{title}, {episode}, {episode:02}, {episode:03}, {episode_segment}, {source_episode_segment}, {episode_title}, {season}, {season:02}, {year}, {air_date}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"}
                   </div>
                 </div>
@@ -1922,7 +1972,7 @@ function SystemForm(props: {
                     placeholder="{title}"
                     class="font-mono text-xs"
                   />
-                  <div class="text-[10px] text-muted-foreground">
+                  <div class="text-xs text-muted-foreground">
                     {"{title}, {year}, {season}, {season:02}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"}
                   </div>
                 </div>
@@ -2159,6 +2209,20 @@ function SystemForm(props: {
               {triggerRss.isPending ? "Running..." : "Run Now"}
             </Button>
           </SettingRow>
+
+          <SettingRow
+            label="Metadata Refresh"
+            description="Refresh anime metadata from AniList"
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTriggerMetadataRefresh}
+              disabled={triggerMetadataRefresh.isPending}
+            >
+              {triggerMetadataRefresh.isPending ? "Running..." : "Run Now"}
+            </Button>
+          </SettingRow>
         </SettingSection>
       </Show>
 
@@ -2355,7 +2419,7 @@ function SystemForm(props: {
                     rows={4}
                     splitOnComma
                   />
-                  <div class="text-[10px] text-muted-foreground">
+                  <div class="text-xs text-muted-foreground">
                     Used by release ranking and missing-episode search.
                   </div>
                 </div>
@@ -2377,7 +2441,7 @@ function SystemForm(props: {
                     placeholder="/downloads => /mnt/downloads\n/data/torrents => /srv/torrents"
                     rows={4}
                   />
-                  <div class="text-[10px] text-muted-foreground">
+                  <div class="text-xs text-muted-foreground">
                     Used when qBittorrent reports a different path than Bakarr
                     can see locally.
                   </div>
@@ -2699,7 +2763,7 @@ function AccountSettingsForm() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  class="h-7 w-7"
+                  class="relative after:absolute after:-inset-2 h-7 w-7"
                   onClick={() => setShowApiKey(!showApiKey())}
                   title={showApiKey() ? "Hide API key" : "Show API key"}
                 >
@@ -2716,7 +2780,7 @@ function AccountSettingsForm() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  class="h-7 w-7"
+                  class="relative after:absolute after:-inset-2 h-7 w-7"
                   onClick={copyApiKey}
                   disabled={!currentApiKey()}
                   title="Copy API key"

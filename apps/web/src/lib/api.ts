@@ -11,6 +11,7 @@ import {
 import type {
   ActivityItem,
   Anime,
+  AnimeSearchResponse,
   AnimeSearchResult,
   ApiKeyLoginRequest,
   ApiKeyResponse,
@@ -24,6 +25,9 @@ import type {
   Download,
   DownloadAction,
   DownloadEvent,
+  DownloadEventsPage,
+  DownloadSelectionKind,
+  DownloadSourceMetadata,
   DownloadStatus,
   Episode,
   EpisodeProgress,
@@ -37,6 +41,7 @@ import type {
   MissingEpisode,
   NyaaSearchResult,
   OpsDashboard,
+  ParsedEpisodeIdentity,
   Quality,
   QualityProfile,
   ReleaseProfile,
@@ -65,7 +70,7 @@ type ApiRequestOptions = RequestInit & {
   skipAutoLogoutOnUnauthorized?: boolean;
 };
 
-async function fetchApi<T>(
+export async function fetchApi<T>(
   endpoint: string,
   options?: ApiRequestOptions,
   signal?: AbortSignal,
@@ -105,6 +110,7 @@ async function fetchApi<T>(
 export type {
   ActivityItem,
   Anime,
+  AnimeSearchResponse,
   AnimeSearchResult,
   ApiKeyLoginRequest,
   ApiKeyResponse,
@@ -118,6 +124,8 @@ export type {
   Download,
   DownloadAction,
   DownloadEvent,
+  DownloadSelectionKind,
+  DownloadSourceMetadata,
   DownloadStatus,
   Episode,
   EpisodeProgress,
@@ -131,6 +139,7 @@ export type {
   MissingEpisode,
   NyaaSearchResult,
   OpsDashboard,
+  ParsedEpisodeIdentity,
   Quality,
   QualityProfile,
   ReleaseProfile,
@@ -162,6 +171,7 @@ export type ImportFileRequest =
   & {
     season?: number;
     episode_numbers?: number[];
+    source_metadata?: DownloadSourceMetadata;
   };
 
 export type ReleaseProfileCreateRequest = Pick<
@@ -205,6 +215,38 @@ export interface AddAnimeRequest {
   use_existing_root?: boolean;
 }
 
+export interface DownloadEventsFilterInput {
+  animeId?: number;
+  cursor?: string;
+  downloadId?: number;
+  direction?: "next" | "prev";
+  endDate?: string;
+  eventType?: string;
+  limit?: number;
+  startDate?: string;
+  status?: string;
+}
+
+export interface DownloadEventsExportInput {
+  animeId?: number;
+  downloadId?: number;
+  endDate?: string;
+  eventType?: string;
+  limit?: number;
+  order?: "asc" | "desc";
+  startDate?: string;
+  status?: string;
+}
+
+export interface DownloadEventsExportResult {
+  exported: number;
+  format: "json" | "csv";
+  generatedAt?: string;
+  limit: number;
+  total: number;
+  truncated: boolean;
+}
+
 // ==================== Query Key Factory ====================
 
 export const animeKeys = {
@@ -232,6 +274,17 @@ export const animeKeys = {
   },
   downloads: {
     all: ["downloads"] as const,
+    events: (input?: {
+      animeId?: number;
+      cursor?: string;
+      downloadId?: number;
+      direction?: "next" | "prev";
+      endDate?: string;
+      eventType?: string;
+      limit?: number;
+      startDate?: string;
+      status?: string;
+    }) => ["downloads", "events", input ?? {}] as const,
     queue: () => ["downloads", "queue"] as const,
     history: () => ["downloads", "history"] as const,
   },
@@ -429,7 +482,7 @@ export function animeSearchQueryOptions(query: string) {
   return queryOptions({
     queryKey: animeKeys.search.query(query),
     queryFn: ({ signal }) =>
-      fetchApi<AnimeSearchResult[]>(
+      fetchApi<AnimeSearchResponse>(
         `${API_BASE}/anime/search?q=${encodeURIComponent(query)}`,
         undefined,
         signal,
@@ -442,7 +495,7 @@ export function createAnimeSearchQuery(query: () => string) {
   return useQuery(() => ({
     ...animeSearchQueryOptions(query()),
     enabled: query().length >= 3,
-    placeholderData: (prev: AnimeSearchResult[] | undefined) => prev,
+    placeholderData: (prev: AnimeSearchResponse | undefined) => prev,
   }));
 }
 
@@ -818,12 +871,14 @@ export function createGrabReleaseMutation() {
   return useMutation(() => ({
     mutationFn: (data: {
       anime_id: number;
+      decision_reason?: string;
       magnet: string;
       episode_number?: number;
       title: string;
       group?: string;
       info_hash?: string;
       is_batch?: boolean;
+      release_metadata?: DownloadSourceMetadata;
     }) =>
       fetchApi<void>(`${API_BASE}/search/download`, {
         method: "POST",
@@ -1039,6 +1094,13 @@ export function createTriggerRssCheckMutation() {
   }));
 }
 
+export function createTriggerMetadataRefreshMutation() {
+  return useMutation(() => ({
+    mutationFn: () =>
+      fetchApi(`${API_BASE}/system/tasks/metadata-refresh`, { method: "POST" }),
+  }));
+}
+
 // ==================== RSS & Others ====================
 
 export function rssFeedsQueryOptions() {
@@ -1240,6 +1302,197 @@ export function createSyncDownloadsMutation() {
       invalidateDownloadQueries(queryClient);
     },
   }));
+}
+
+export function downloadEventsQueryOptions(limit = 25) {
+  return downloadEventsQueryOptionsWithFilters({ limit });
+}
+
+function buildDownloadEventsSearchParams(input: DownloadEventsFilterInput) {
+  const params = new URLSearchParams();
+
+  if (input.animeId !== undefined) {
+    params.set("anime_id", String(input.animeId));
+  }
+  if (input.downloadId !== undefined) {
+    params.set("download_id", String(input.downloadId));
+  }
+  if (input.cursor) {
+    params.set("cursor", input.cursor);
+  }
+  if (input.direction) {
+    params.set("direction", input.direction);
+  }
+  if (input.eventType) {
+    params.set("event_type", input.eventType);
+  }
+  if (input.status) {
+    params.set("status", input.status);
+  }
+  if (input.startDate) {
+    params.set("start_date", input.startDate);
+  }
+  if (input.endDate) {
+    params.set("end_date", input.endDate);
+  }
+  if (input.limit !== undefined) {
+    params.set("limit", String(input.limit));
+  }
+
+  return params;
+}
+
+function buildDownloadEventsExportSearchParams(
+  input: DownloadEventsExportInput,
+) {
+  const params = new URLSearchParams();
+
+  if (input.animeId !== undefined) {
+    params.set("anime_id", String(input.animeId));
+  }
+  if (input.downloadId !== undefined) {
+    params.set("download_id", String(input.downloadId));
+  }
+  if (input.eventType) {
+    params.set("event_type", input.eventType);
+  }
+  if (input.status) {
+    params.set("status", input.status);
+  }
+  if (input.startDate) {
+    params.set("start_date", input.startDate);
+  }
+  if (input.endDate) {
+    params.set("end_date", input.endDate);
+  }
+  if (input.limit !== undefined) {
+    params.set("limit", String(input.limit));
+  }
+  if (input.order) {
+    params.set("order", input.order);
+  }
+
+  return params;
+}
+
+export function downloadEventsQueryOptionsWithFilters(
+  input: DownloadEventsFilterInput,
+) {
+  const params = buildDownloadEventsSearchParams(input);
+
+  return queryOptions({
+    queryKey: animeKeys.downloads.events(input),
+    queryFn: ({ signal }) =>
+      fetchApi<DownloadEventsPage>(
+        `${API_BASE}/downloads/events${
+          params.size > 0 ? `?${params.toString()}` : ""
+        }`,
+        undefined,
+        signal,
+      ),
+    staleTime: 1000 * 10,
+  });
+}
+
+export function createDownloadEventsQuery(
+  input: () => DownloadEventsFilterInput,
+) {
+  return useQuery(() => downloadEventsQueryOptionsWithFilters(input()));
+}
+
+export function getDownloadEventsExportUrl(
+  input: DownloadEventsExportInput,
+  format: "json" | "csv" = "json",
+) {
+  const params = buildDownloadEventsExportSearchParams(input);
+  params.set("format", format);
+  return `${API_BASE}/downloads/events/export?${params.toString()}`;
+}
+
+function parseExportCountHeader(value: string | null): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : 0;
+}
+
+function parseExportTruncatedHeader(value: string | null): boolean {
+  return value?.toLowerCase() === "true";
+}
+
+function triggerBlobDownload(blob: Blob, fileName: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+function parseContentDispositionFilename(
+  headerValue: string | null,
+): string | undefined {
+  if (!headerValue) {
+    return undefined;
+  }
+
+  const utf8Match = /filename\*=UTF-8''([^;]+)/i.exec(headerValue);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]).replace(/"/g, "").trim();
+  }
+
+  const asciiMatch = /filename=([^;]+)/i.exec(headerValue);
+  if (asciiMatch?.[1]) {
+    return asciiMatch[1].replace(/"/g, "").trim();
+  }
+
+  return undefined;
+}
+
+export async function exportDownloadEvents(
+  input: DownloadEventsExportInput,
+  format: "json" | "csv" = "json",
+): Promise<DownloadEventsExportResult> {
+  const endpoint = getDownloadEventsExportUrl(input, format);
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
+  if (response.status === 401) {
+    logout();
+    throw new Error("Session expired");
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || `API error: ${response.status}`);
+  }
+
+  const payload = await response.blob();
+  const fallbackName = `download-events.${format}`;
+  const fileName = parseContentDispositionFilename(
+    response.headers.get("content-disposition"),
+  ) ?? fallbackName;
+
+  triggerBlobDownload(payload, fileName);
+
+  return {
+    exported: parseExportCountHeader(
+      response.headers.get("x-bakarr-exported-events"),
+    ),
+    format,
+    generatedAt: response.headers.get("x-bakarr-generated-at") ?? undefined,
+    limit: parseExportCountHeader(
+      response.headers.get("x-bakarr-export-limit"),
+    ),
+    total: parseExportCountHeader(
+      response.headers.get("x-bakarr-total-events"),
+    ),
+    truncated: parseExportTruncatedHeader(
+      response.headers.get("x-bakarr-export-truncated"),
+    ),
+  };
 }
 
 export function createReconcileDownloadMutation() {

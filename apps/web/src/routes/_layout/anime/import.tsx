@@ -14,11 +14,13 @@ import {
 } from "@tabler/icons-solidjs";
 import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
 import { createMemo, createSignal, For, Show, Suspense } from "solid-js";
+import { toast } from "solid-sonner";
 import { AddAnimeDialog } from "~/components/add-anime-dialog";
 import { FileBrowser } from "~/components/file-browser";
 import { GeneralError } from "~/components/general-error";
-import { FileRow, ManualSearch } from "~/components/import";
+import { CandidateCard, FileRow, ManualSearch } from "~/components/import";
 import {
+  buildImportFileRequest,
   findMissingImportCandidates,
   toggleImportCandidateSelection,
 } from "~/components/import/import-flow";
@@ -40,11 +42,6 @@ import {
   TextFieldLabel,
 } from "~/components/ui/text-field";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
-import {
   animeListQueryOptions,
   type AnimeSearchResult,
   createAnimeListQuery,
@@ -54,6 +51,7 @@ import {
   profilesQueryOptions,
   type ScannedFile,
 } from "~/lib/api";
+import { summarizeImportNamingOutcome } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 
 export const Route = createFileRoute("/_layout/anime/import")({
@@ -114,6 +112,9 @@ function ImportPage() {
       (mc) => !scanMutation.data?.candidates.some((c) => c.id === mc.id),
     ),
   ]);
+  const libraryIds = createMemo(() =>
+    new Set((animeListQuery.data ?? []).map((anime) => anime.id))
+  );
 
   const handleManualAdd = (candidate: AnimeSearchResult) => {
     setManualCandidates((prev) => [...prev, candidate]);
@@ -133,21 +134,21 @@ function ImportPage() {
 
           data.files.forEach((file) => {
             if (file.matched_anime) {
-              preselected.set(file.source_path, {
-                source_path: file.source_path,
-                anime_id: file.matched_anime.id,
-                episode_number: Math.floor(file.episode_number),
-                episode_numbers: file.episode_numbers,
-                season: file.season,
-              });
+              preselected.set(
+                file.source_path,
+                buildImportFileRequest({
+                  animeId: file.matched_anime.id,
+                  file,
+                }),
+              );
             } else if (file.suggested_candidate_id) {
-              preselected.set(file.source_path, {
-                source_path: file.source_path,
-                anime_id: file.suggested_candidate_id,
-                episode_number: Math.floor(file.episode_number),
-                episode_numbers: file.episode_numbers,
-                season: file.season,
-              });
+              preselected.set(
+                file.source_path,
+                buildImportFileRequest({
+                  animeId: file.suggested_candidate_id,
+                  file,
+                }),
+              );
               newSelectedCandidates.add(file.suggested_candidate_id);
             }
           });
@@ -159,7 +160,7 @@ function ImportPage() {
     );
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     const files = Array.from(selectedFiles().values());
 
     const missingCandidates = findMissingImportCandidates({
@@ -174,11 +175,35 @@ function ImportPage() {
       return;
     }
 
-    navigate({ to: "/anime", search: { q: "", filter: "all", view: "grid" } });
+    const toastId = toast.loading(`Importing ${files.length} file(s)...`);
 
-    importMutation.mutateAsync(files).catch((err) => {
-      console.error("Import failed request", err);
-    });
+    try {
+      const result = await importMutation.mutateAsync(files);
+      const namingDetail = summarizeImportNamingOutcome(result.imported_files);
+
+      if (result.failed > 0) {
+        toast.warning(
+          namingDetail
+            ? `Imported ${result.imported} file(s), ${result.failed} failed. ${namingDetail}.`
+            : `Imported ${result.imported} file(s), ${result.failed} failed.`,
+          { id: toastId },
+        );
+      } else {
+        toast.success(
+          namingDetail
+            ? `Imported ${result.imported} file(s). ${namingDetail}.`
+            : `Imported ${result.imported} file(s).`,
+          { id: toastId },
+        );
+      }
+      navigate({
+        to: "/anime",
+        search: { q: "", filter: "all", view: "grid" },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast.error(`Import failed: ${message}`, { id: toastId });
+    }
   };
 
   const toggleCandidate = (
@@ -223,13 +248,10 @@ function ImportPage() {
     if (newSelected.has(file.source_path)) {
       newSelected.delete(file.source_path);
     } else {
-      newSelected.set(file.source_path, {
-        source_path: file.source_path,
-        anime_id: targetAnimeId,
-        episode_number: Math.floor(file.episode_number),
-        episode_numbers: file.episode_numbers,
-        season: file.season,
-      });
+      newSelected.set(
+        file.source_path,
+        buildImportFileRequest({ animeId: targetAnimeId, file }),
+      );
     }
     setSelectedFiles(newSelected);
   };
@@ -239,10 +261,17 @@ function ImportPage() {
     if (newSelected.has(file.source_path)) {
       const existing = newSelected.get(file.source_path);
       if (existing) {
-        newSelected.set(file.source_path, {
-          ...existing,
-          anime_id: newAnimeId,
-        });
+        newSelected.set(
+          file.source_path,
+          buildImportFileRequest({
+            animeId: newAnimeId,
+            episodeNumber: existing.episode_number,
+            episodeNumbers: existing.episode_numbers,
+            file,
+            season: existing.season,
+            sourceMetadata: existing.source_metadata,
+          }),
+        );
       }
       setSelectedFiles(newSelected);
     }
@@ -255,17 +284,23 @@ function ImportPage() {
   ) => {
     const newSelected = new Map(selectedFiles());
     const current = newSelected.get(file.source_path) || {
-      source_path: file.source_path,
-      anime_id: file.matched_anime?.id || 0,
-      episode_number: Math.floor(file.episode_number),
-      season: file.season,
+      ...buildImportFileRequest({
+        animeId: file.matched_anime?.id || 0,
+        file,
+      }),
     };
 
-    newSelected.set(file.source_path, {
-      ...current,
-      season,
-      episode_number: episode,
-    });
+    newSelected.set(
+      file.source_path,
+      buildImportFileRequest({
+        animeId: current.anime_id,
+        episodeNumber: episode,
+        episodeNumbers: current.episode_numbers,
+        file,
+        season,
+        sourceMetadata: current.source_metadata,
+      }),
+    );
     setSelectedFiles(newSelected);
   };
 
@@ -323,7 +358,11 @@ function ImportPage() {
             {/* Left: Back + Title */}
             <div class="flex items-center gap-4">
               <Link to="/anime" search={{ q: "", filter: "all", view: "grid" }}>
-                <Button variant="ghost" size="icon" class="h-8 w-8">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="relative after:absolute after:-inset-2 h-8 w-8"
+                >
                   <IconArrowLeft class="h-4 w-4" />
                 </Button>
               </Link>
@@ -552,6 +591,11 @@ function ImportPage() {
                         </span>
                       </Show>
                     </p>
+                    <p class="mt-2 max-w-3xl text-xs text-muted-foreground">
+                      Bakarr keeps the import explanation next to each file:
+                      coverage, already-mapped episodes, duplicate conflicts,
+                      and the match reason that picked a series.
+                    </p>
                   </div>
                   <Badge variant="secondary" class="text-sm">
                     {selectedFiles().size} selected
@@ -622,71 +666,15 @@ function ImportPage() {
                             );
 
                           return (
-                            <button
-                              type="button"
-                              class={cn(
-                                "relative flex gap-3 p-3 rounded-lg border transition-all text-left hover:shadow-sm",
-                                isSelected()
-                                  ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                                  : "border-border bg-background hover:border-primary/50",
-                              )}
-                              onClick={() => toggleCandidate(candidate)}
-                            >
-                              <div class="shrink-0 relative w-10 h-14 rounded overflow-hidden bg-muted">
-                                <Show
-                                  when={candidate.cover_image}
-                                  fallback={
-                                    <div class="w-full h-full flex items-center justify-center">
-                                      <IconFile class="h-4 w-4 text-muted-foreground/50" />
-                                    </div>
-                                  }
-                                >
-                                  <img
-                                    src={candidate.cover_image}
-                                    alt={candidate.title.romaji}
-                                    class="w-full h-full object-cover"
-                                  />
-                                </Show>
-                                <Show when={isSelected()}>
-                                  <div class="absolute inset-0 bg-primary/40 flex items-center justify-center">
-                                    <IconCheck class="h-4 w-4 text-white" />
-                                  </div>
-                                </Show>
-                              </div>
-                              <div class="flex-1 min-w-0">
-                                <Tooltip>
-                                  <TooltipTrigger as="span">
-                                    <span class="font-medium text-sm line-clamp-2 leading-tight block">
-                                      {candidate.title.romaji}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {candidate.title.romaji}
-                                  </TooltipContent>
-                                </Tooltip>
-                                <div class="flex items-center gap-1.5 mt-1">
-                                  <Show when={!isLocal()}>
-                                    <Badge
-                                      variant="secondary"
-                                      class="h-4 px-1 text-[9px] bg-info/10 text-info"
-                                    >
-                                      New
-                                    </Badge>
-                                  </Show>
-                                  <Show when={isManual()}>
-                                    <Badge
-                                      variant="secondary"
-                                      class="h-4 px-1 text-[9px] bg-accent/10 text-accent"
-                                    >
-                                      Manual
-                                    </Badge>
-                                  </Show>
-                                  <span class="text-[10px] text-muted-foreground font-mono">
-                                    {candidate.id}
-                                  </span>
-                                </div>
-                              </div>
-                            </button>
+                            <CandidateCard
+                              candidate={candidate}
+                              libraryIds={libraryIds()}
+                              isSelected={isSelected()}
+                              isLocal={Boolean(isLocal())}
+                              isManual={isManual()}
+                              onToggle={() => toggleCandidate(candidate)}
+                              class="rounded-lg"
+                            />
                           );
                         }}
                       </For>

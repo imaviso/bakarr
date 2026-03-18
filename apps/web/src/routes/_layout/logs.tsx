@@ -14,10 +14,19 @@ import {
   IconTag,
   IconTrash,
 } from "@tabler/icons-solidjs";
-import { createFileRoute } from "@tanstack/solid-router";
+import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { format } from "date-fns";
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
+import { toast } from "solid-sonner";
+import * as v from "valibot";
 import {
   Filter,
   type FilterColumnConfig,
@@ -25,6 +34,7 @@ import {
 } from "~/components/filters";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
+import { DownloadEventDetailsDialog } from "~/components/download-event-details-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +48,7 @@ import {
 } from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { DownloadEventCard } from "~/components/download-event-card";
 import { Card } from "~/components/ui/card";
 import {
   Dialog,
@@ -55,6 +66,11 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
 import {
+  TextField,
+  TextFieldInput,
+  TextFieldLabel,
+} from "~/components/ui/text-field";
+import {
   Table,
   TableBody,
   TableCell,
@@ -63,19 +79,46 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import {
   type BackgroundJobStatus,
   createClearLogsMutation,
+  createDownloadEventsQuery,
   createInfiniteLogsQuery,
   createSystemDashboardQuery,
   createSystemJobsQuery,
   type DownloadEvent,
+  type DownloadEventsExportInput,
+  type DownloadEventsExportResult,
+  exportDownloadEvents,
   getExportLogsUrl,
   infiniteLogsQueryOptions,
   type SystemLog,
 } from "~/lib/api";
+import {
+  formatDateTimeLocalInput,
+  getDateRangePresetHours,
+} from "~/lib/date-presets";
 import { cn } from "~/lib/utils";
 
+const LogsSearchSchema = v.object({
+  download_anime_id: v.optional(v.string(), ""),
+  download_cursor: v.optional(v.string(), ""),
+  download_direction: v.optional(v.picklist(["next", "prev"]), "next"),
+  download_download_id: v.optional(v.string(), ""),
+  download_end_date: v.optional(v.string(), ""),
+  download_event_type: v.optional(v.string(), "all"),
+  download_start_date: v.optional(v.string(), ""),
+  download_status: v.optional(v.string(), ""),
+});
+
 export const Route = createFileRoute("/_layout/logs")({
+  validateSearch: (search) => v.parse(LogsSearchSchema, search),
   loader: ({ context: { queryClient } }) => {
     return queryClient.ensureInfiniteQueryData(
       infiniteLogsQueryOptions(undefined, undefined, undefined, undefined),
@@ -102,7 +145,15 @@ function formatLogTimestamp(createdAt: string): string {
 
 function LogsPage() {
   let logsScrollRef!: HTMLDivElement;
+  const search = Route.useSearch();
+  const navigate = useNavigate();
   const [autoRefresh, setAutoRefresh] = createSignal(false);
+  const [lastDownloadEventsExport, setLastDownloadEventsExport] = createSignal<
+    DownloadEventsExportResult | undefined
+  >(undefined);
+  const [selectedDownloadEvent, setSelectedDownloadEvent] = createSignal<
+    DownloadEvent | null
+  >(null);
   const [selectedLog, setSelectedLog] = createSignal<SystemLog | null>(null);
   const [filterStates, setFilterStates] = createSignal<FilterState[]>([]);
 
@@ -147,6 +198,7 @@ function LogsPage() {
         { value: "Scan", label: "Scan" },
         { value: "Download", label: "Download" },
         { value: "Import", label: "Import" },
+        { value: "Metadata", label: "Metadata" },
         { value: "RSS", label: "RSS" },
         { value: "Error", label: "Error" },
       ],
@@ -199,8 +251,47 @@ function LogsPage() {
     () => apiParams().endDate,
   );
   const clearLogs = createClearLogsMutation();
+  const downloadEventsQuery = createDownloadEventsQuery(() => ({
+    animeId: parseOptionalPositiveInt(search().download_anime_id),
+    cursor: search().download_cursor || undefined,
+    downloadId: parseOptionalPositiveInt(search().download_download_id),
+    direction: search().download_direction,
+    endDate: search().download_end_date || undefined,
+    eventType: search().download_event_type === "all"
+      ? undefined
+      : search().download_event_type,
+    limit: 24,
+    startDate: search().download_start_date || undefined,
+    status: search().download_status || undefined,
+  }));
   const jobsQuery = createSystemJobsQuery();
   const dashboardQuery = createSystemDashboardQuery();
+  const updateDownloadEventSearch = (
+    patch: Partial<ReturnType<typeof search>>,
+  ) => {
+    navigate({
+      to: ".",
+      search: { ...search(), ...patch },
+      replace: true,
+    });
+  };
+  const activeDownloadEventsPreset = createMemo(() =>
+    getDateRangePresetHours(
+      search().download_start_date,
+      search().download_end_date,
+    )
+  );
+
+  const applyDownloadEventsDateRangePreset = (hours: number) => {
+    const end = new Date();
+    const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
+    updateDownloadEventSearch({
+      download_cursor: "",
+      download_direction: "next",
+      download_end_date: formatDateTimeLocalInput(end),
+      download_start_date: formatDateTimeLocalInput(start),
+    });
+  };
 
   // Flatten all pages of logs
   const allLogs = createMemo(
@@ -209,13 +300,13 @@ function LogsPage() {
 
   // Auto-refresh logic
   createEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (autoRefresh()) {
-      interval = setInterval(() => {
-        logsQuery.refetch();
-      }, 3000);
-    }
-    return () => clearInterval(interval);
+    if (!autoRefresh()) return;
+    const interval = setInterval(() => {
+      logsQuery.refetch();
+      downloadEventsQuery.refetch();
+      dashboardQuery.refetch();
+    }, 3000);
+    onCleanup(() => clearInterval(interval));
   });
 
   const rowVirtualizer = createVirtualizer({
@@ -261,6 +352,35 @@ function LogsPage() {
       format,
     );
     globalThis.open(url, "_blank");
+  };
+
+  const handleDownloadEventsExport = (format: "json" | "csv") => {
+    const input: DownloadEventsExportInput = {
+      animeId: parseOptionalPositiveInt(search().download_anime_id),
+      downloadId: parseOptionalPositiveInt(search().download_download_id),
+      endDate: search().download_end_date || undefined,
+      eventType: search().download_event_type === "all"
+        ? undefined
+        : search().download_event_type,
+      limit: 10_000,
+      order: "desc",
+      startDate: search().download_start_date || undefined,
+      status: search().download_status || undefined,
+    };
+
+    const exportPromise = exportDownloadEvents(input, format).then((result) => {
+      setLastDownloadEventsExport(result);
+      return result;
+    });
+
+    toast.promise(exportPromise, {
+      loading: `Exporting ${format.toUpperCase()} download events...`,
+      success: (result) =>
+        result.truncated
+          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
+          : `Exported ${result.exported} download events`,
+      error: (error) => `Failed to export download events: ${error.message}`,
+    });
   };
 
   // Custom color classes
@@ -317,7 +437,11 @@ function LogsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => logsQuery.refetch()}
+            onClick={() => {
+              logsQuery.refetch();
+              downloadEventsQuery.refetch();
+              dashboardQuery.refetch();
+            }}
             disabled={logsQuery.isRefetching}
           >
             <IconRefresh
@@ -468,24 +592,252 @@ function LogsPage() {
 
       <Card class="border-dashed">
         <div class="p-4 border-b border-border/60">
-          <h2 class="text-sm font-medium text-foreground">
-            Recent Download Events
-          </h2>
-          <p class="text-xs text-muted-foreground mt-1">
-            Latest queued, retried, reconciled, and imported download actions
-          </p>
+          <div class="flex flex-col gap-3">
+            <div>
+              <h2 class="text-sm font-medium text-foreground">
+                Recent Download Events
+              </h2>
+              <p class="text-xs text-muted-foreground mt-1">
+                Latest queued, retried, reconciled, and imported download
+                actions
+              </p>
+            </div>
+            <div class="grid gap-3 md:grid-cols-[1fr_1fr_220px_auto]">
+              <TextField>
+                <TextFieldLabel>Anime ID</TextFieldLabel>
+                <TextFieldInput
+                  type="number"
+                  value={search().download_anime_id}
+                  onInput={(event) =>
+                    updateDownloadEventSearch({
+                      download_cursor: "",
+                      download_direction: "next",
+                      download_anime_id: event.currentTarget.value,
+                    })}
+                  placeholder="Any anime"
+                />
+              </TextField>
+              <TextField>
+                <TextFieldLabel>Download ID</TextFieldLabel>
+                <TextFieldInput
+                  type="number"
+                  value={search().download_download_id}
+                  onInput={(event) =>
+                    updateDownloadEventSearch({
+                      download_cursor: "",
+                      download_direction: "next",
+                      download_download_id: event.currentTarget.value,
+                    })}
+                  placeholder="Any download"
+                />
+              </TextField>
+              <div class="flex flex-col gap-1">
+                <label class="text-sm font-medium">Event Type</label>
+                <Select
+                  value={search().download_event_type}
+                  onChange={(value) =>
+                    value && updateDownloadEventSearch({
+                      download_cursor: "",
+                      download_direction: "next",
+                      download_event_type: value,
+                    })}
+                  options={[
+                    "all",
+                    "download.queued",
+                    "download.imported",
+                    "download.imported.batch",
+                    "download.retried",
+                    "download.status_changed",
+                    "download.coverage_refined",
+                    "download.deleted",
+                    "download.search_missing.queued",
+                    "download.rss.queued",
+                  ]}
+                  itemComponent={(props) => (
+                    <SelectItem item={props.item}>
+                      {props.item.rawValue}
+                    </SelectItem>
+                  )}
+                >
+                  <SelectTrigger>
+                    <SelectValue<string>>
+                      {(state) => state.selectedOption() ?? "all"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent />
+                </Select>
+              </div>
+              <div class="flex items-end justify-end gap-2 flex-wrap">
+                <Button
+                  variant={activeDownloadEventsPreset() === 24
+                    ? "default"
+                    : "outline"}
+                  size="sm"
+                  onClick={() => applyDownloadEventsDateRangePreset(24)}
+                >
+                  24h
+                </Button>
+                <Button
+                  variant={activeDownloadEventsPreset() === 168
+                    ? "default"
+                    : "outline"}
+                  size="sm"
+                  onClick={() => applyDownloadEventsDateRangePreset(24 * 7)}
+                >
+                  7d
+                </Button>
+                <Button
+                  variant={activeDownloadEventsPreset() === 720
+                    ? "default"
+                    : "outline"}
+                  size="sm"
+                  onClick={() => applyDownloadEventsDateRangePreset(24 * 30)}
+                >
+                  30d
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    updateDownloadEventSearch({
+                      download_anime_id: "",
+                      download_cursor: "",
+                      download_direction: "next",
+                      download_download_id: "",
+                      download_end_date: "",
+                      download_event_type: "all",
+                      download_start_date: "",
+                      download_status: "",
+                    })}
+                >
+                  Reset
+                </Button>
+              </div>
+            </div>
+            <div class="grid gap-3 md:grid-cols-[220px_220px_220px_auto]">
+              <TextField>
+                <TextFieldLabel>Status</TextFieldLabel>
+                <TextFieldInput
+                  value={search().download_status}
+                  onInput={(event) =>
+                    updateDownloadEventSearch({
+                      download_cursor: "",
+                      download_direction: "next",
+                      download_status: event.currentTarget.value,
+                    })}
+                  placeholder="Any status"
+                />
+              </TextField>
+              <TextField>
+                <TextFieldLabel>Start Date</TextFieldLabel>
+                <TextFieldInput
+                  type="datetime-local"
+                  value={search().download_start_date}
+                  onInput={(event) =>
+                    updateDownloadEventSearch({
+                      download_cursor: "",
+                      download_direction: "next",
+                      download_start_date: event.currentTarget.value,
+                    })}
+                />
+              </TextField>
+              <TextField>
+                <TextFieldLabel>End Date</TextFieldLabel>
+                <TextFieldInput
+                  type="datetime-local"
+                  value={search().download_end_date}
+                  onInput={(event) =>
+                    updateDownloadEventSearch({
+                      download_cursor: "",
+                      download_direction: "next",
+                      download_end_date: event.currentTarget.value,
+                    })}
+                />
+              </TextField>
+              <div class="flex items-end justify-end gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger as={Button} variant="outline">
+                    <IconDownload class="h-4 w-4" />
+                    Export
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem
+                      onClick={() => handleDownloadEventsExport("json")}
+                    >
+                      <IconJson class="h-4 w-4 mr-2" />
+                      Export as JSON
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDownloadEventsExport("csv")}
+                    >
+                      <IconFileSpreadsheet class="h-4 w-4 mr-2" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    updateDownloadEventSearch({
+                      download_cursor: downloadEventsQuery.data?.prev_cursor ??
+                        "",
+                      download_direction: "prev",
+                    })}
+                  disabled={!downloadEventsQuery.data?.prev_cursor}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    updateDownloadEventSearch({
+                      download_cursor: downloadEventsQuery.data?.next_cursor ??
+                        "",
+                      download_direction: "next",
+                    })}
+                  disabled={!downloadEventsQuery.data?.has_more}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+            <Show when={lastDownloadEventsExport()?.truncated}>
+              <div class="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
+                Last export was truncated: exported
+                {lastDownloadEventsExport()?.exported} of
+                {lastDownloadEventsExport()?.total} events (limit{" "}
+                {lastDownloadEventsExport()?.limit}).
+              </div>
+            </Show>
+          </div>
         </div>
         <div class="p-4 space-y-3">
           <Show
-            when={dashboardQuery.data?.recent_download_events?.length}
+            when={downloadEventsQuery.data?.events.length}
             fallback={
               <div class="text-sm text-muted-foreground">
                 No recent download events
               </div>
             }
           >
-            <For each={dashboardQuery.data?.recent_download_events ?? []}>
-              {(event) => <DownloadEventRow event={event} />}
+            <div class="text-xs text-muted-foreground">
+              Showing {downloadEventsQuery.data?.events.length ?? 0} of{" "}
+              {downloadEventsQuery.data?.total ?? 0} events
+            </div>
+            <For each={downloadEventsQuery.data?.events ?? []}>
+              {(event) => (
+                <div class="space-y-2">
+                  <DownloadEventRow event={event} />
+                  <div class="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedDownloadEvent(event)}
+                    >
+                      Details
+                    </Button>
+                  </div>
+                </div>
+              )}
             </For>
           </Show>
         </div>
@@ -566,54 +918,56 @@ function LogsPage() {
                 </Show>
                 <For each={rowVirtualizer.getVirtualItems()}>
                   {(vRow) => {
-                    const log = allLogs()[vRow.index];
+                    const log = () => allLogs()[vRow.index];
                     return (
-                      <TableRow class="group">
-                        <TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                          {formatLogTimestamp(log.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            class={cn(
-                              "text-xs capitalize pl-1 pr-2 py-0.5",
-                              getLevelColorClass(log.level),
-                            )}
-                          >
-                            {getLevelIcon(log.level)}
-                            {log.level}
-                          </Badge>
-                        </TableCell>
-                        <TableCell class="text-xs font-medium text-muted-foreground capitalize">
-                          {log.event_type}
-                        </TableCell>
-                        <TableCell class="text-sm max-w-[500px]">
-                          <div class="truncate" title={log.message}>
-                            {log.message}
-                          </div>
-                          <Show when={log.details}>
-                            <div
-                              class="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
-                              title={log.details}
+                      <Show when={log()}>
+                        <TableRow class="group">
+                          <TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                            {formatLogTimestamp(log()!.created_at)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="outline"
+                              class={cn(
+                                "text-xs capitalize pl-1 pr-2 py-0.5",
+                                getLevelColorClass(log()!.level),
+                              )}
                             >
-                              {log.details}
+                              {getLevelIcon(log()!.level)}
+                              {log()!.level}
+                            </Badge>
+                          </TableCell>
+                          <TableCell class="text-xs font-medium text-muted-foreground capitalize">
+                            {log()!.event_type}
+                          </TableCell>
+                          <TableCell class="text-sm max-w-[500px]">
+                            <div class="truncate" title={log()!.message}>
+                              {log()!.message}
                             </div>
-                          </Show>
-                        </TableCell>
-                        <TableCell>
-                          <Show when={log.details}>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              class="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => setSelectedLog(log)}
-                              aria-label="View details"
-                            >
-                              <IconEye class="h-4 w-4" />
-                            </Button>
-                          </Show>
-                        </TableCell>
-                      </TableRow>
+                            <Show when={log()!.details}>
+                              <div
+                                class="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
+                                title={log()!.details}
+                              >
+                                {log()!.details}
+                              </div>
+                            </Show>
+                          </TableCell>
+                          <TableCell>
+                            <Show when={log()!.details}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                class="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+                                onClick={() => setSelectedLog(log()!)}
+                                aria-label="View details"
+                              >
+                                <IconEye class="h-4 w-4" />
+                              </Button>
+                            </Show>
+                          </TableCell>
+                        </TableRow>
+                      </Show>
                     );
                   }}
                 </For>
@@ -701,15 +1055,26 @@ function LogsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DownloadEventDetailsDialog
+        event={selectedDownloadEvent()}
+        formatTimestamp={formatLogTimestamp}
+        onOpenChange={(open) => !open && setSelectedDownloadEvent(null)}
+      />
     </div>
   );
 }
 
 function BackgroundJobCard(props: { job: BackgroundJobStatus }) {
+  const displayName = () =>
+    props.job.name === "metadata_refresh"
+      ? "Metadata Refresh"
+      : props.job.name.replaceAll("_", " ");
+
   return (
     <div class="rounded-lg border border-border/60 bg-card p-3 space-y-2">
       <div class="flex items-center justify-between gap-2">
-        <div class="font-medium text-sm">{props.job.name}</div>
+        <div class="font-medium text-sm capitalize">{displayName()}</div>
         <Badge
           variant="outline"
           class={cn(props.job.is_running && "border-info/40 text-info")}
@@ -743,6 +1108,15 @@ function BackgroundJobCard(props: { job: BackgroundJobStatus }) {
   );
 }
 
+function parseOptionalPositiveInt(value: string) {
+  if (!value.trim()) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 function DashboardMetricCard(props: {
   label: string;
   value: number;
@@ -763,25 +1137,9 @@ function DashboardMetricCard(props: {
 
 function DownloadEventRow(props: { event: DownloadEvent }) {
   return (
-    <div class="rounded-lg border border-border/60 bg-card p-3 space-y-1">
-      <div class="flex items-center justify-between gap-2">
-        <div class="text-sm font-medium">{props.event.event_type}</div>
-        <div class="text-xs text-muted-foreground">
-          {formatLogTimestamp(props.event.created_at)}
-        </div>
-      </div>
-      <div class="text-sm text-foreground">{props.event.message}</div>
-      <div class="flex items-center gap-2 text-xs text-muted-foreground">
-        <Show when={props.event.from_status || props.event.to_status}>
-          <span>
-            {props.event.from_status || "-"} -&gt;{" "}
-            {props.event.to_status || "-"}
-          </span>
-        </Show>
-        <Show when={props.event.download_id !== undefined}>
-          <span>Download #{props.event.download_id}</span>
-        </Show>
-      </div>
-    </div>
+    <DownloadEventCard
+      event={props.event}
+      formatTimestamp={formatLogTimestamp}
+    />
   );
 }

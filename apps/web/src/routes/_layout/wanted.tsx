@@ -26,9 +26,15 @@ import {
 } from "~/components/ui/table";
 import {
   createSearchMissingMutation,
+  createSystemConfigQuery,
   createWantedQuery,
   type MissingEpisode,
 } from "~/lib/api";
+import {
+  formatAiringDateWithPreferences,
+  formatNextAiringEpisode,
+  getAiringDisplayPreferences,
+} from "~/lib/anime-metadata";
 
 const WantedSearchSchema = v.object({
   q: v.optional(v.string(), ""),
@@ -44,8 +50,12 @@ function WantedPage() {
   let scrollRef!: HTMLDivElement;
   const [limit] = createSignal(100);
   const wantedQuery = createWantedQuery(limit);
+  const configQuery = createSystemConfigQuery();
   const searchMissing = createSearchMissingMutation();
   const data = createMemo(() => wantedQuery.data ?? []);
+  const airingPreferences = createMemo(() =>
+    getAiringDisplayPreferences(configQuery.data?.library)
+  );
 
   const rowVirtualizer = createVirtualizer({
     get count() {
@@ -143,18 +153,23 @@ function WantedPage() {
                 </Show>
                 <For each={rowVirtualizer.getVirtualItems()}>
                   {(vRow) => {
-                    const item = data()[vRow.index];
+                    const item = () => data()[vRow.index];
                     return (
-                      <WantedRow
-                        item={item}
-                        onSearch={() =>
-                          setSearchModalState({
-                            open: true,
-                            animeId: item.anime_id,
-                            episodeNumber: item.episode_number,
-                            episodeTitle: item.episode_title,
-                          })}
-                      />
+                      <Show when={item()}>
+                        {(safeItem) => (
+                          <WantedRow
+                            item={safeItem()}
+                            airingPreferences={airingPreferences()}
+                            onSearch={() =>
+                              setSearchModalState({
+                                open: true,
+                                animeId: safeItem().anime_id,
+                                episodeNumber: safeItem().episode_number,
+                                episodeTitle: safeItem().episode_title,
+                              })}
+                          />
+                        )}
+                      </Show>
                     );
                   }}
                 </For>
@@ -188,7 +203,18 @@ function WantedPage() {
   );
 }
 
-function WantedRow(props: { item: MissingEpisode; onSearch: () => void }) {
+function WantedRow(props: {
+  item: MissingEpisode;
+  airingPreferences: ReturnType<typeof getAiringDisplayPreferences>;
+  onSearch: () => void;
+}) {
+  const statusLabel = () =>
+    props.item.airing_status === "future"
+      ? "Upcoming"
+      : props.item.airing_status === "aired"
+      ? "Missing"
+      : undefined;
+
   return (
     <TableRow>
       <TableCell>
@@ -210,19 +236,43 @@ function WantedRow(props: { item: MissingEpisode; onSearch: () => void }) {
         >
           {props.item.anime_title}
         </Link>
+        <Show when={props.item.next_airing_episode}>
+          <div class="mt-1 text-[11px] text-muted-foreground">
+            {formatNextAiringEpisode(
+              props.item.next_airing_episode,
+              props.airingPreferences,
+            ) ||
+              "Next airing scheduled"}
+          </div>
+        </Show>
       </TableCell>
       <TableCell>
-        <Badge variant="outline" class="font-mono font-normal">
-          {props.item.episode_number.toString().padStart(2, "0")}
-        </Badge>
+        <div class="flex flex-col items-start gap-1">
+          <Badge variant="outline" class="font-mono font-normal">
+            {props.item.episode_number.toString().padStart(2, "0")}
+          </Badge>
+          <Show when={statusLabel()}>
+            {(label) => (
+              <Badge
+                variant="secondary"
+                class={props.item.airing_status === "aired"
+                  ? "h-5 px-1.5 text-xs bg-warning/10 text-warning"
+                  : "h-5 px-1.5 text-xs bg-info/10 text-info"}
+              >
+                {label()}
+              </Badge>
+            )}
+          </Show>
+        </div>
       </TableCell>
       <TableCell class="hidden md:table-cell text-muted-foreground truncate max-w-[200px]">
         {props.item.episode_title || "-"}
       </TableCell>
       <TableCell class="text-sm">
-        {props.item.aired
-          ? new Date(props.item.aired).toLocaleDateString()
-          : "-"}
+        {formatAiringDateWithPreferences(
+          props.item.aired,
+          props.airingPreferences,
+        ) || "-"}
       </TableCell>
       <TableCell>
         <DropdownMenu placement="bottom-end">
@@ -230,7 +280,7 @@ function WantedRow(props: { item: MissingEpisode; onSearch: () => void }) {
             as={Button}
             variant="ghost"
             size="icon"
-            class="h-8 w-8"
+            class="relative after:absolute after:-inset-2 h-8 w-8"
             aria-label="Episode options"
           >
             <IconDots class="h-4 w-4" />

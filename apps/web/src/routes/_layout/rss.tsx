@@ -194,7 +194,7 @@ function FeedCard(props: {
             as={Button}
             size="icon"
             variant="ghost"
-            class="w-8 h-8 text-muted-foreground hover:text-destructive"
+            class="relative after:absolute after:-inset-2 w-8 h-8 text-muted-foreground hover:text-destructive"
             aria-label="Delete feed"
           >
             <IconTrash class="h-4 w-4" />

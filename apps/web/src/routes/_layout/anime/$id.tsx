@@ -29,6 +29,7 @@ import { createMemo, createSignal, For, Show, Suspense } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { AnimeError } from "~/components/anime-error";
+import { AnimeDiscoveryPopover } from "~/components/anime-discovery";
 import { ImportDialog } from "~/components/import-dialog";
 import { RenameDialog } from "~/components/rename-dialog";
 import { SearchDialog } from "~/components/search-dialog";
@@ -111,6 +112,7 @@ import {
   type VideoFile,
 } from "~/lib/api";
 import { cn, copyToClipboard } from "~/lib/utils";
+import { formatDurationSeconds } from "~/lib/scanned-file";
 
 const IdParamSchema = v.pipe(
   v.string(),
@@ -199,6 +201,9 @@ function AnimeDetailsPage() {
     () => episodesData().length || animeQuery.data?.episode_count || 0,
   );
   const isMonitored = () => animeQuery.data?.monitored ?? true;
+  const libraryIds = createMemo(() =>
+    new Set(animeQuery.data ? [animeQuery.data.id] : [])
+  );
 
   const handlePlayInMpv = async (episodeNumber: number) => {
     try {
@@ -309,7 +314,7 @@ function AnimeDetailsPage() {
                 </div>
               </div>
 
-              <div class="flex gap-2 overflow-x-auto pb-2 -mb-2 no-scrollbar md:overflow-visible md:pb-0 md:mb-0">
+              <div class="flex items-center gap-2 overflow-x-auto pb-2 -mb-2 no-scrollbar md:overflow-visible md:pb-0 md:mb-0">
                 <Tooltip>
                   <TooltipTrigger
                     as={Button}
@@ -443,6 +448,31 @@ function AnimeDetailsPage() {
                   </TooltipTrigger>
                   <TooltipContent>Manual Map Episodes</TooltipContent>
                 </Tooltip>
+
+                <Link
+                  to="/logs"
+                  search={{
+                    download_anime_id: String(animeId()),
+                    download_cursor: "",
+                    download_direction: "next",
+                    download_download_id: "",
+                    download_end_date: "",
+                    download_event_type: "all",
+                    download_start_date: "",
+                    download_status: "",
+                  }}
+                  class="shrink-0"
+                >
+                  <Button variant="outline" size="sm">
+                    <IconList class="min-[1670px]:mr-2 h-4 w-4" />
+                    <span class="hidden min-[1670px]:inline">Events</span>
+                  </Button>
+                </Link>
+
+                <AnimeDiscoveryPopover
+                  animeId={animeId()}
+                  libraryIds={libraryIds()}
+                />
 
                 <AlertDialog>
                   <Tooltip>
@@ -741,6 +771,11 @@ function AnimeDetailsPage() {
                                           ).toLocaleDateString()
                                           : "-"}
                                       </TableCell>
+                                      <TableCell class="hidden md:table-cell text-muted-foreground text-sm">
+                                        {formatDurationSeconds(
+                                          episode.duration_seconds,
+                                        ) || "-"}
+                                      </TableCell>
                                       <TableCell class="text-right">
                                         <div class="flex justify-end pr-2">
                                           <Show
@@ -801,7 +836,7 @@ function AnimeDetailsPage() {
                                             as={Button}
                                             variant="ghost"
                                             size="icon"
-                                            class="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                            class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-foreground"
                                           >
                                             <IconDots class="h-4 w-4" />
                                           </DropdownMenuTrigger>
@@ -1208,7 +1243,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
                             <Show when={rp.is_global}>
                               <Badge
                                 variant="outline"
-                                class="text-[10px] h-4 px-1"
+                                class="text-xs h-4 px-1"
                               >
                                 Global
                               </Badge>
@@ -1216,7 +1251,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
                             <Show when={!rp.enabled}>
                               <Badge
                                 variant="outline"
-                                class="text-[10px] h-4 px-1 text-muted-foreground"
+                                class="text-xs h-4 px-1 text-muted-foreground"
                               >
                                 Disabled
                               </Badge>
@@ -1230,7 +1265,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
               </div>
             )}
           </form.Field>
-          <p class="text-[10px] text-muted-foreground">
+          <p class="text-xs text-muted-foreground">
             Global profiles are applied automatically. Select specific profiles
             to apply them to this series.
           </p>

@@ -1,8 +1,10 @@
 import {
   IconAlertTriangle,
+  IconCalendarEvent,
   IconCheck,
   IconDeviceTv,
   IconFolder,
+  IconInfoCircle,
   IconLoader2,
   IconPlus,
   IconSearch,
@@ -20,6 +22,7 @@ import {
 } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
+import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import { GeneralError } from "~/components/general-error";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -59,6 +62,12 @@ import {
   releaseProfilesQueryOptions,
   systemConfigQueryOptions,
 } from "~/lib/api";
+import {
+  animeAltTitles,
+  animeDisplayTitle,
+  animeSearchSubtitle,
+} from "~/lib/anime-metadata";
+import { formatMatchConfidence } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 
 const searchSchema = v.object({
@@ -111,7 +120,12 @@ function AddAnimePage() {
   });
 
   const searchQuery = createAnimeSearchQuery(debouncedQuery);
+  const searchResults = createMemo(() => searchQuery.data?.results ?? []);
+  const searchDegraded = createMemo(() => searchQuery.data?.degraded ?? false);
   const animeListQuery = createAnimeListQuery();
+  const libraryIds = createMemo(() =>
+    new Set((animeListQuery.data ?? []).map((anime) => anime.id))
+  );
 
   const isAlreadyAdded = (id: number) => {
     return animeListQuery.data?.some((a) => a.id === id);
@@ -164,11 +178,22 @@ function AddAnimePage() {
             <div class="p-8 text-center text-destructive bg-destructive/10 rounded-lg">
               <p>Failed to search anime. Please try again.</p>
               <p class="text-sm mt-2 opacity-80">
-                {(searchQuery.error as Error).message}
+                {searchQuery.error instanceof Error
+                  ? searchQuery.error.message
+                  : String(searchQuery.error)}
               </p>
             </div>
           }
         >
+          <Show when={searchDegraded()}>
+            <div class="col-span-full flex items-start gap-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              <IconInfoCircle class="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                AniList is temporarily unavailable or rate-limited. Showing
+                local library matches only.
+              </p>
+            </div>
+          </Show>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
             <Show
               when={!searchQuery.isLoading}
@@ -187,7 +212,7 @@ function AddAnimePage() {
               }
             >
               <Show
-                when={searchQuery.data?.length !== 0}
+                when={searchResults().length !== 0}
                 fallback={
                   <div class="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground">
                     <IconAlertTriangle class="h-10 w-10 mb-3 opacity-50" />
@@ -195,9 +220,9 @@ function AddAnimePage() {
                   </div>
                 }
               >
-                <For each={searchQuery.data}>
+                <For each={searchResults()}>
                   {(anime) => {
-                    const added = isAlreadyAdded(anime.id);
+                    const added = () => isAlreadyAdded(anime.id);
                     return (
                       <Card class="overflow-hidden flex flex-col transition-all hover:border-primary/50 group">
                         <div class="relative aspect-[2/3] w-full bg-muted overflow-hidden">
@@ -219,13 +244,13 @@ function AddAnimePage() {
                           <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                             <Button
                               size="sm"
-                              variant={added ? "secondary" : "default"}
+                              variant={added() ? "secondary" : "default"}
                               class="w-full gap-2"
-                              disabled={added}
+                              disabled={added()}
                               onClick={() => setSelectedAnime(anime)}
                             >
                               <Show
-                                when={added}
+                                when={added()}
                                 fallback={
                                   <>
                                     <IconPlus class="h-4 w-4" />
@@ -244,23 +269,43 @@ function AddAnimePage() {
                             class="font-medium leading-tight line-clamp-2 mb-1"
                             title={anime.title.romaji}
                           >
-                            {anime.title.romaji}
+                            {animeDisplayTitle(anime)}
                           </h3>
                           <Show
-                            when={anime.title.english !== anime.title.romaji}
+                            when={animeAltTitles(anime).slice(1).join(" • ")}
                           >
                             <p
                               class="text-xs text-muted-foreground line-clamp-1 mb-2"
-                              title={anime.title.english}
+                              title={animeAltTitles(anime).slice(1).join(" • ")}
                             >
-                              {anime.title.english}
+                              {animeAltTitles(anime).slice(1).join(" • ")}
                             </p>
                           </Show>
                           <div class="flex flex-wrap gap-1.5 mt-auto">
+                            <Show when={searchDegraded()}>
+                              <Badge
+                                variant="outline"
+                                class="text-xs h-5 px-1.5 font-normal border-warning/20 bg-warning/5 text-warning"
+                              >
+                                Local only
+                              </Badge>
+                            </Show>
+                            <Show
+                              when={formatMatchConfidence(
+                                anime.match_confidence,
+                              )}
+                            >
+                              <Badge
+                                variant="outline"
+                                class="text-xs h-5 px-1.5 font-normal border-info/30 text-info"
+                              >
+                                {formatMatchConfidence(anime.match_confidence)}
+                              </Badge>
+                            </Show>
                             <Show when={anime.format}>
                               <Badge
                                 variant="outline"
-                                class="text-[10px] h-5 px-1.5 font-normal"
+                                class="text-xs h-5 px-1.5 font-normal"
                               >
                                 {anime.format}
                               </Badge>
@@ -268,7 +313,7 @@ function AddAnimePage() {
                             <Show when={anime.episode_count}>
                               <Badge
                                 variant="outline"
-                                class="text-[10px] h-5 px-1.5 font-normal"
+                                class="text-xs h-5 px-1.5 font-normal"
                               >
                                 {anime.episode_count} eps
                               </Badge>
@@ -277,7 +322,7 @@ function AddAnimePage() {
                               <Badge
                                 variant="outline"
                                 class={cn(
-                                  "text-[10px] h-5 px-1.5 font-normal capitalize",
+                                  "text-xs h-5 px-1.5 font-normal capitalize",
                                   anime.status?.toLowerCase() === "releasing"
                                     ? "text-success border-success/30"
                                     : "text-muted-foreground",
@@ -286,7 +331,66 @@ function AddAnimePage() {
                                 {anime.status?.replace("_", " ").toLowerCase()}
                               </Badge>
                             </Show>
+                            <Show when={animeSearchSubtitle(anime)}>
+                              {(startLabel) => (
+                                <Badge
+                                  variant="outline"
+                                  class="text-xs h-5 px-1.5 font-normal"
+                                >
+                                  <IconCalendarEvent class="mr-1 h-3 w-3" />
+                                  {startLabel()}
+                                </Badge>
+                              )}
+                            </Show>
+                            <Show when={anime.genres?.length}>
+                              <Badge
+                                variant="outline"
+                                class="text-xs h-5 px-1.5 font-normal"
+                              >
+                                {anime.genres?.slice(0, 2).join(" / ")}
+                              </Badge>
+                            </Show>
                           </div>
+                          <Show when={anime.description}>
+                            <p class="mt-2 text-xs text-muted-foreground line-clamp-3">
+                              {anime.description}
+                            </p>
+                          </Show>
+                          <Show when={anime.synonyms?.length}>
+                            <p class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                              Also known as{" "}
+                              {anime.synonyms?.slice(0, 3).join(" • ")}
+                            </p>
+                          </Show>
+                          <Show when={anime.related_anime?.length}>
+                            <div class="mt-2 space-y-2">
+                              <For each={anime.related_anime?.slice(0, 2)}>
+                                {(related) => (
+                                  <AnimeDiscoveryRow
+                                    entry={related}
+                                    libraryIds={libraryIds()}
+                                  />
+                                )}
+                              </For>
+                            </div>
+                          </Show>
+                          <Show when={anime.recommended_anime?.length}>
+                            <div class="mt-2 space-y-2">
+                              <For each={anime.recommended_anime?.slice(0, 2)}>
+                                {(recommended) => (
+                                  <AnimeDiscoveryRow
+                                    entry={recommended}
+                                    libraryIds={libraryIds()}
+                                  />
+                                )}
+                              </For>
+                            </div>
+                          </Show>
+                          <Show when={anime.match_reason}>
+                            <p class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                              {anime.match_reason}
+                            </p>
+                          </Show>
                         </CardContent>
                       </Card>
                     );
@@ -311,10 +415,9 @@ function AddAnimePage() {
             open={!!selectedAnime()}
             onOpenChange={(open) => !open && setSelectedAnime(null)}
             onSuccess={() => {
+              const title = selectedAnime()?.title.romaji ?? "anime";
               setSelectedAnime(null);
-              toast.success(
-                `Added ${selectedAnime()?.title.romaji} to library`,
-              );
+              toast.success(`Added ${title} to library`);
             }}
           />
         </Suspense>
@@ -493,7 +596,7 @@ function AddAnimeDialog(props: {
                               <Show when={profile.is_global}>
                                 <Badge
                                   variant="outline"
-                                  class="text-[10px] h-4 px-1"
+                                  class="text-xs h-4 px-1"
                                 >
                                   Global
                                 </Badge>
@@ -501,7 +604,7 @@ function AddAnimeDialog(props: {
                               <Show when={!profile.enabled}>
                                 <Badge
                                   variant="outline"
-                                  class="text-[10px] h-4 px-1 text-muted-foreground"
+                                  class="text-xs h-4 px-1 text-muted-foreground"
                                 >
                                   Disabled
                                 </Badge>
@@ -513,7 +616,7 @@ function AddAnimeDialog(props: {
                     </For>
                   </Show>
                 </div>
-                <p class="text-[10px] text-muted-foreground">
+                <p class="text-xs text-muted-foreground">
                   Global profiles are applied automatically unless disabled.
                   Select specific profiles to apply them to this series.
                 </p>

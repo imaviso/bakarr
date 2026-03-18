@@ -63,8 +63,15 @@ import {
   type Anime,
   animeListQueryOptions,
   createDeleteAnimeMutation,
+  createSystemConfigQuery,
+  systemConfigQueryOptions,
 } from "~/lib/api";
 import { createDebouncer } from "~/lib/debounce";
+import {
+  animeDateSubtitle,
+  formatNextAiringEpisode,
+  getAiringDisplayPreferences,
+} from "~/lib/anime-metadata";
 import { cn } from "~/lib/utils";
 
 const MonitorFilterSchema = v.fallback(
@@ -94,7 +101,10 @@ export const Route = createFileRoute("/_layout/anime/")({
     return v.parse(AnimeSearchSchema, { ...stored, ...search });
   },
   loader: async ({ context: { queryClient } }) => {
-    await queryClient.ensureQueryData(animeListQueryOptions());
+    await Promise.all([
+      queryClient.ensureQueryData(animeListQueryOptions()),
+      queryClient.ensureQueryData(systemConfigQueryOptions()),
+    ]);
   },
   component: AnimeIndexPage,
   errorComponent: GeneralError,
@@ -103,14 +113,22 @@ export const Route = createFileRoute("/_layout/anime/")({
 function AnimeIndexPage() {
   const deleteAnime = createDeleteAnimeMutation();
   const animeQuery = useQuery(animeListQueryOptions);
+  const configQuery = createSystemConfigQuery();
   const search = Route.useSearch();
   const navigate = useNavigate();
+  const airingPreferences = createMemo(() =>
+    getAiringDisplayPreferences(configQuery.data?.library)
+  );
 
   const [localQuery, setLocalQuery] = createSignal(search().q);
   const debouncer = createDebouncer((q: string) => {
     navigate({
       to: ".",
-      search: (prev) => ({ q, filter: prev.filter, view: prev.view }),
+      search: {
+        q,
+        filter: search().filter,
+        view: search().view,
+      },
       replace: true,
     });
   }, 250);
@@ -151,23 +169,27 @@ function AnimeIndexPage() {
   const updateFilter = (filter: "all" | "monitored" | "unmonitored") =>
     navigate({
       to: ".",
-      search: (prev) => ({
-        q: prev.q,
+      search: {
+        q: search().q,
         filter,
-        view: prev.view,
-      }),
+        view: search().view,
+      },
       replace: true,
     });
   const updateView = (view: "grid" | "list") =>
     navigate({
       to: ".",
-      search: (prev) => ({
-        q: prev.q,
-        filter: prev.filter,
+      search: {
+        q: search().q,
+        filter: search().filter,
         view,
-      }),
+      },
       replace: true,
     });
+
+  const libraryIds = createMemo(
+    () => new Set(filteredList().map((item) => item.id)),
+  );
 
   return (
     <div class="flex flex-col flex-1 min-h-0">
@@ -216,9 +238,7 @@ function AnimeIndexPage() {
               <DropdownMenuRadioGroup
                 value={search().filter}
                 onChange={(value) =>
-                  updateFilter(
-                    value as "all" | "monitored" | "unmonitored",
-                  )}
+                  updateFilter(value as "all" | "monitored" | "unmonitored")}
               >
                 <DropdownMenuRadioItem value="all">
                   All Anime
@@ -269,7 +289,7 @@ function AnimeIndexPage() {
                   variant="ghost"
                   size="icon"
                   class={cn(
-                    "h-7 w-7",
+                    "relative after:absolute after:-inset-2 h-7 w-7",
                     search().view === "grid"
                       ? "bg-background shadow-sm"
                       : "hover:bg-background/50",
@@ -288,7 +308,7 @@ function AnimeIndexPage() {
                   variant="ghost"
                   size="icon"
                   class={cn(
-                    "h-7 w-7",
+                    "relative after:absolute after:-inset-2 h-7 w-7",
                     search().view === "list"
                       ? "bg-background shadow-sm"
                       : "hover:bg-background/50",
@@ -305,18 +325,17 @@ function AnimeIndexPage() {
         </div>
       </div>
 
-      <Show
-        when={!animeQuery.isLoading}
-        fallback={<AnimeListSkeleton />}
-      >
+      <Show when={!animeQuery.isLoading} fallback={<AnimeListSkeleton />}>
         <Show
           when={filteredList().length > 0}
           fallback={
             <Show
-              when={!localQuery()}
+              when={!localQuery() && search().filter === "all"}
               fallback={
                 <p class="text-center text-muted-foreground py-8">
-                  No anime matching "{localQuery()}"
+                  {localQuery() ? <>No anime matching "{localQuery()}"</> : (
+                    `No ${search().filter} anime found`
+                  )}
                 </p>
               }
             >
@@ -343,13 +362,17 @@ function AnimeIndexPage() {
             fallback={
               <AnimeListView
                 anime={filteredList()}
+                airingPreferences={airingPreferences()}
                 deleteAnime={deleteAnime}
+                libraryIds={libraryIds()}
               />
             }
           >
             <AnimeGridView
               anime={filteredList()}
+              airingPreferences={airingPreferences()}
               deleteAnime={deleteAnime}
+              libraryIds={libraryIds()}
             />
           </Show>
         </Show>
@@ -360,7 +383,9 @@ function AnimeIndexPage() {
 
 interface AnimeViewProps {
   anime: Anime[];
+  airingPreferences: ReturnType<typeof getAiringDisplayPreferences>;
   deleteAnime: ReturnType<typeof createDeleteAnimeMutation>;
+  libraryIds: ReadonlySet<number>;
 }
 
 function getColCount() {
@@ -370,6 +395,48 @@ function getColCount() {
   if (w >= 1024) return 4;
   if (w >= 640) return 3;
   return 2;
+}
+
+function progressPercent(anime: Anime) {
+  return anime.progress.downloaded_percent ?? null;
+}
+
+function progressSummary(anime: Anime) {
+  const total = anime.progress.total;
+  const percent = anime.progress.downloaded_percent;
+
+  if (total) {
+    return percent !== undefined
+      ? `${anime.progress.downloaded}/${total} downloaded • ${percent}%`
+      : `${anime.progress.downloaded}/${total} downloaded`;
+  }
+
+  return `${anime.progress.downloaded} downloaded`;
+}
+
+function nextProgressLabel(anime: Anime) {
+  if (anime.progress.is_up_to_date) {
+    return "Up to date";
+  }
+
+  if (anime.progress.next_missing_episode) {
+    return `Next missing: Ep ${anime.progress.next_missing_episode}`;
+  }
+
+  if (anime.progress.latest_downloaded_episode) {
+    return `Latest: Ep ${anime.progress.latest_downloaded_episode}`;
+  }
+
+  return anime.progress.downloaded > 0
+    ? "Episodes available"
+    : "No downloads yet";
+}
+
+function statusTone(anime: Anime) {
+  if (anime.next_airing_episode) return "success" as const;
+  if (anime.progress.is_up_to_date) return "secondary" as const;
+  if (anime.progress.next_missing_episode) return "warning" as const;
+  return anime.monitored ? ("outline" as const) : ("secondary" as const);
 }
 
 function AnimeGridView(props: AnimeViewProps) {
@@ -413,10 +480,12 @@ function AnimeGridView(props: AnimeViewProps) {
   });
 
   return (
-    <div ref={scrollRef} class="overflow-y-auto flex-1 min-h-0">
-      <Show when={gridPaddingTop() > 0}>
-        <div style={{ height: `${gridPaddingTop()}px` }} aria-hidden="true" />
-      </Show>
+    <div
+      ref={scrollRef}
+      class="overflow-y-auto flex-1 min-h-0"
+      style={{ "overflow-anchor": "none" }}
+    >
+      <div style={{ height: `${gridPaddingTop()}px` }} aria-hidden="true" />
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 pb-4">
         <For each={rowVirtualizer.getVirtualItems()}>
           {(vRow) => {
@@ -454,7 +523,7 @@ function AnimeGridView(props: AnimeViewProps) {
                             as={Button}
                             size="icon"
                             variant="secondary"
-                            class="h-7 w-7 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
+                            class="relative after:absolute after:-inset-2 h-7 w-7 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
                           >
                             <IconTrash class="h-3.5 w-3.5" />
                           </AlertDialogTrigger>
@@ -489,13 +558,61 @@ function AnimeGridView(props: AnimeViewProps) {
                       >
                         {anime.title.english || anime.title.romaji}
                       </Link>
+                      <div class="space-y-2">
+                        <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Badge
+                            variant={statusTone(anime)}
+                            class="h-5 rounded-sm px-1.5 font-normal"
+                          >
+                            {anime.next_airing_episode
+                              ? "Airing"
+                              : anime.monitored
+                              ? "Monitored"
+                              : "Unmonitored"}
+                          </Badge>
+                          <Show when={animeDateSubtitle(anime)}>
+                            <span>{animeDateSubtitle(anime)}</span>
+                          </Show>
+                        </div>
+                        <div class="space-y-1">
+                          <div class="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                            <span>{progressSummary(anime)}</span>
+                            <Show when={progressPercent(anime) !== null}>
+                              <span>{progressPercent(anime)}%</span>
+                            </Show>
+                          </div>
+                          <div class="h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div
+                              class={cn(
+                                "h-full rounded-full transition-all",
+                                anime.progress.next_missing_episode
+                                  ? "bg-warning"
+                                  : anime.monitored
+                                  ? "bg-primary"
+                                  : "bg-muted-foreground/40",
+                              )}
+                              style={{
+                                width: `${progressPercent(anime) ?? 0}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div class="line-clamp-1 text-[11px] text-muted-foreground">
+                          {formatNextAiringEpisode(
+                            anime.next_airing_episode,
+                            props.airingPreferences,
+                          ) || nextProgressLabel(anime)}
+                        </div>
+                      </div>
                       <div class="mt-auto flex items-center justify-between gap-2">
-                        <Badge
-                          variant="outline"
-                          class="h-5 rounded-sm border-border/50 px-1.5 text-[10px] font-normal text-muted-foreground/80 hover:bg-muted hover:text-foreground"
-                        >
-                          {anime.profile_name}
-                        </Badge>
+                        <div class="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            class="h-5 rounded-sm border-border/50 px-1.5 text-xs font-normal text-muted-foreground/80 hover:bg-muted hover:text-foreground"
+                          >
+                            {anime.profile_name}
+                          </Badge>
+                        </div>
                         <Tooltip>
                           <TooltipTrigger
                             as={Button}
@@ -526,12 +643,7 @@ function AnimeGridView(props: AnimeViewProps) {
           }}
         </For>
       </div>
-      <Show when={gridPaddingBottom() > 0}>
-        <div
-          style={{ height: `${gridPaddingBottom()}px` }}
-          aria-hidden="true"
-        />
-      </Show>
+      <div style={{ height: `${gridPaddingBottom()}px` }} aria-hidden="true" />
     </div>
   );
 }
@@ -562,29 +674,30 @@ function AnimeListView(props: AnimeViewProps) {
     <div
       ref={scrollRef}
       class="flex-1 min-h-0 overflow-y-auto rounded-md border"
+      style={{ "overflow-anchor": "none" }}
     >
       <Table>
         <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
           <TableRow class="hover:bg-transparent border-none">
             <TableHead class="w-[80px]">Cover</TableHead>
             <TableHead>Title</TableHead>
+            <TableHead class="hidden lg:table-cell">Schedule</TableHead>
+            <TableHead class="hidden md:table-cell">Progress</TableHead>
             <TableHead>Status</TableHead>
             <TableHead class="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          <Show when={paddingTop() > 0}>
-            <tr aria-hidden="true">
-              <td
-                colSpan={4}
-                style={{
-                  height: `${paddingTop()}px`,
-                  padding: "0",
-                  border: "none",
-                }}
-              />
-            </tr>
-          </Show>
+          <tr aria-hidden="true">
+            <td
+              colSpan={6}
+              style={{
+                height: `${paddingTop()}px`,
+                padding: "0",
+                border: "none",
+              }}
+            />
+          </tr>
           <For each={rowVirtualizer.getVirtualItems()}>
             {(vRow) => {
               const anime = props.anime[vRow.index];
@@ -624,67 +737,96 @@ function AnimeListView(props: AnimeViewProps) {
                       <div class="text-xs text-muted-foreground">
                         {anime.profile_name}
                       </div>
+                      <div class="text-xs text-muted-foreground mt-1">
+                        {animeDateSubtitle(anime) || "No date metadata"}
+                      </div>
                     </Link>
                   </TableCell>
+                  <TableCell class="hidden lg:table-cell">
+                    <div class="text-sm">
+                      {formatNextAiringEpisode(
+                        anime.next_airing_episode,
+                        props.airingPreferences,
+                      ) || "No upcoming airing"}
+                    </div>
+                  </TableCell>
+                  <TableCell class="hidden md:table-cell">
+                    <div class="space-y-1">
+                      <div class="text-sm">{progressSummary(anime)}</div>
+                      <div class="text-xs text-muted-foreground">
+                        {nextProgressLabel(anime)}
+                      </div>
+                    </div>
+                  </TableCell>
                   <TableCell>
-                    <div class="flex items-center gap-2">
-                      <div
-                        class={`h-2 w-2 rounded-full ${
-                          anime.monitored ? "bg-success" : "bg-warning"
-                        }`}
-                      />
-                      <span class="text-sm">
-                        {anime.monitored ? "Monitored" : "Unmonitored"}
-                      </span>
+                    <div class="flex flex-col items-start gap-1">
+                      <div class="flex items-center gap-2">
+                        <div
+                          class={`h-2 w-2 rounded-full ${
+                            anime.monitored ? "bg-success" : "bg-warning"
+                          }`}
+                        />
+                        <span class="text-sm">
+                          {anime.monitored ? "Monitored" : "Unmonitored"}
+                        </span>
+                      </div>
+                      <Show when={anime.next_airing_episode}>
+                        <Badge
+                          variant="success"
+                          class="px-1.5 py-0 text-xs"
+                        >
+                          Airing
+                        </Badge>
+                      </Show>
                     </div>
                   </TableCell>
                   <TableCell class="text-right">
-                    <AlertDialog>
-                      <AlertDialogTrigger
-                        as={Button}
-                        variant="ghost"
-                        size="icon"
-                        class="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={(e: Event) => e.stopPropagation()}
-                      >
-                        <IconTrash class="h-4 w-4" />
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Anime</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete "
-                            {anime.title.english || anime.title.romaji}
-                            "? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => props.deleteAnime.mutate(anime.id)}
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <div class="flex items-center justify-end gap-1">
+                      <AlertDialog>
+                        <AlertDialogTrigger
+                          as={Button}
+                          variant="ghost"
+                          size="icon"
+                          class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={(e: Event) => e.stopPropagation()}
+                        >
+                          <IconTrash class="h-4 w-4" />
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Anime</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "
+                              {anime.title.english || anime.title.romaji}
+                              "? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => props.deleteAnime.mutate(anime.id)}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
             }}
           </For>
-          <Show when={paddingBottom() > 0}>
-            <tr aria-hidden="true">
-              <td
-                colSpan={4}
-                style={{
-                  height: `${paddingBottom()}px`,
-                  padding: "0",
-                  border: "none",
-                }}
-              />
-            </tr>
-          </Show>
+          <tr aria-hidden="true">
+            <td
+              colSpan={6}
+              style={{
+                height: `${paddingBottom()}px`,
+                padding: "0",
+                border: "none",
+              }}
+            />
+          </tr>
         </TableBody>
       </Table>
     </div>

@@ -54,72 +54,94 @@ function DashboardPage() {
       </PageHeader>
 
       {/* Stats Grid */}
-      <Show when={statsQuery.data} fallback={<DashboardLoading />}>
-        {(stats) => (
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <Card class="card-hover">
-              <CardHeader class="flex flex-row items-center justify-between pb-2">
-                <CardTitle class="text-sm font-medium text-muted-foreground">
-                  Total Anime
-                </CardTitle>
-                <IconDeviceTv class="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div class="text-2xl font-bold">{stats().total_anime}</div>
-              </CardContent>
-            </Card>
+      <Show
+        when={!statsQuery.isError}
+        fallback={
+          <Card class="p-6 text-center text-destructive">
+            Failed to load dashboard stats. Please refresh the page.
+          </Card>
+        }
+      >
+        <Show when={statsQuery.data} fallback={<DashboardLoading />}>
+          {(stats) => (
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <Card class="card-hover">
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                  <CardTitle class="text-sm font-medium text-muted-foreground">
+                    Total Anime
+                  </CardTitle>
+                  <IconDeviceTv class="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div class="text-2xl font-bold">{stats().total_anime}</div>
+                </CardContent>
+              </Card>
 
-            <Card class="card-hover">
-              <CardHeader class="flex flex-row items-center justify-between pb-2">
-                <CardTitle class="text-sm font-medium text-muted-foreground">
-                  Monitored
-                </CardTitle>
-                <IconEye class="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div class="text-2xl font-bold">{stats().monitored_anime}</div>
-              </CardContent>
-            </Card>
+              <Card class="card-hover">
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                  <CardTitle class="text-sm font-medium text-muted-foreground">
+                    Monitored
+                  </CardTitle>
+                  <IconEye class="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div class="text-2xl font-bold">
+                    {stats().monitored_anime}
+                  </div>
+                  <div class="text-xs text-muted-foreground mt-1">
+                    {stats().up_to_date_anime} up to date
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card class="card-hover">
-              <CardHeader class="flex flex-row items-center justify-between pb-2">
-                <CardTitle class="text-sm font-medium text-muted-foreground">
-                  Total Episodes
-                </CardTitle>
-                <IconDeviceTv class="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div class="text-2xl font-bold">{stats().total_episodes}</div>
-              </CardContent>
-            </Card>
+              <Card class="card-hover">
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                  <CardTitle class="text-sm font-medium text-muted-foreground">
+                    Total Episodes
+                  </CardTitle>
+                  <IconDeviceTv class="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div class="text-2xl font-bold">{stats().total_episodes}</div>
+                </CardContent>
+              </Card>
 
-            <Card class="card-hover">
-              <CardHeader class="flex flex-row items-center justify-between pb-2">
-                <CardTitle class="text-sm font-medium text-muted-foreground">
-                  Downloaded
-                </CardTitle>
-                <IconCheck class="h-4 w-4 text-success" />
-              </CardHeader>
-              <CardContent>
-                <div class="text-2xl font-bold">
-                  {stats().downloaded_episodes}
-                </div>
-              </CardContent>
-            </Card>
+              <Card class="card-hover">
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                  <CardTitle class="text-sm font-medium text-muted-foreground">
+                    Downloaded
+                  </CardTitle>
+                  <IconCheck class="h-4 w-4 text-success" />
+                </CardHeader>
+                <CardContent>
+                  <div class="text-2xl font-bold">
+                    {stats().downloaded_episodes}
+                  </div>
+                  <div class="text-xs text-muted-foreground mt-1">
+                    {stats().downloaded_percent}% of episodes
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card class="card-hover">
-              <CardHeader class="flex flex-row items-center justify-between pb-2">
-                <CardTitle class="text-sm font-medium text-muted-foreground">
-                  Missing
-                </CardTitle>
-                <IconCloudDownload class="h-4 w-4 text-warning" />
-              </CardHeader>
-              <CardContent>
-                <div class="text-2xl font-bold">{stats().missing_episodes}</div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              <Card class="card-hover">
+                <CardHeader class="flex flex-row items-center justify-between pb-2">
+                  <CardTitle class="text-sm font-medium text-muted-foreground">
+                    Not Downloaded
+                  </CardTitle>
+                  <IconCloudDownload class="h-4 w-4 text-info" />
+                </CardHeader>
+                <CardContent>
+                  <div class="text-2xl font-bold">
+                    {stats().missing_episodes}
+                  </div>
+                  <div class="text-xs text-muted-foreground mt-1">
+                    Remaining episodes
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </Show>
       </Show>
 
       {/* Quick Stats Row */}
@@ -148,7 +170,20 @@ function DashboardPage() {
             <span class="text-2xl font-bold">
               {statsQuery.data?.recent_downloads ?? 0}
             </span>
-            <Link to="/downloads">
+            <Link
+              to="/downloads"
+              search={{
+                events_anime_id: "",
+                events_cursor: "",
+                events_direction: "next",
+                events_download_id: "",
+                events_end_date: "",
+                events_event_type: "all",
+                events_start_date: "",
+                events_status: "",
+                tab: "queue",
+              }}
+            >
               <Button variant="ghost" size="sm">
                 View All
                 <IconArrowRight class="ml-1 h-4 w-4" />
@@ -164,7 +199,20 @@ function DashboardPage() {
           <div class="flex items-center justify-between">
             <CardTitle class="text-base">Recent Activity</CardTitle>
             <Show when={activityQuery.data && activityQuery.data?.length > 5}>
-              <Link to="/downloads">
+              <Link
+                to="/downloads"
+                search={{
+                  events_anime_id: "",
+                  events_cursor: "",
+                  events_direction: "next",
+                  events_download_id: "",
+                  events_end_date: "",
+                  events_event_type: "all",
+                  events_start_date: "",
+                  events_status: "",
+                  tab: "queue",
+                }}
+              >
                 <Button variant="ghost" size="sm">
                   View All
                 </Button>

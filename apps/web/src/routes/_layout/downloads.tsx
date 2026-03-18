@@ -4,25 +4,36 @@ import {
   IconCheck,
   IconClock,
   IconDownload,
+  IconExternalLink,
+  IconFileSpreadsheet,
+  IconJson,
   IconPlayerPause,
   IconPlayerPlay,
   IconRefresh,
   IconSearch,
+  IconSparkles,
   IconTrash,
-  IconX,
 } from "@tabler/icons-solidjs";
-import { createFileRoute } from "@tanstack/solid-router";
-import { createMemo, For, Show } from "solid-js";
+import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
+import { DownloadEventCard } from "~/components/download-event-card";
 import { PageHeader } from "~/components/page-header";
+import { DownloadEventsDialog } from "~/components/download-events-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Progress } from "~/components/ui/progress";
 import { Skeleton } from "~/components/ui/skeleton";
+import {
+  TextField,
+  TextFieldInput,
+  TextFieldLabel,
+} from "~/components/ui/text-field";
 import {
   Table,
   TableBody,
@@ -32,9 +43,23 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
 import { useActiveDownloads } from "~/hooks/use-active-downloads";
 import {
   createDeleteDownloadMutation,
+  createDownloadEventsQuery,
   createDownloadHistoryQuery,
   createPauseDownloadMutation,
   createReconcileDownloadMutation,
@@ -43,49 +68,78 @@ import {
   createSearchMissingMutation,
   createSyncDownloadsMutation,
   type Download,
+  type DownloadEventsExportInput,
+  type DownloadEventsExportResult,
   downloadHistoryQueryOptions,
   type DownloadStatus,
+  exportDownloadEvents,
 } from "~/lib/api";
+import {
+  formatSelectionDetail,
+  releaseConfidenceBadgeClass,
+  selectionKindBadgeClass,
+  selectionKindLabel,
+} from "~/lib/release-selection";
+import {
+  formatCoverageMeta,
+  formatDownloadDecisionBadge,
+  formatDownloadDecisionSummary,
+  formatDownloadParsedMeta,
+  formatDownloadRankingMeta,
+  formatDownloadReleaseMeta,
+  formatEpisodeCoverage,
+  getDownloadReleaseConfidence,
+} from "~/lib/download-metadata";
+import {
+  formatDateTimeLocalInput,
+  getDateRangePresetHours,
+} from "~/lib/date-presets";
+import { getDownloadStatusPresentation } from "~/lib/download-status";
 
-function formatEpisodeCoverage(
-  episodeNumber: number,
-  coveredEpisodes?: number[],
-  coveragePending?: boolean,
-) {
-  if (coveragePending) {
-    return "Batch pending";
-  }
-
-  if (!coveredEpisodes || coveredEpisodes.length === 0) {
-    return `Ep ${episodeNumber.toString().padStart(2, "0")}`;
-  }
-
-  if (coveredEpisodes.length === 1) {
-    return `Ep ${coveredEpisodes[0].toString().padStart(2, "0")}`;
-  }
-
-  return `Batch ${coveredEpisodes[0].toString().padStart(2, "0")}-${
-    coveredEpisodes[coveredEpisodes.length - 1].toString().padStart(2, "0")
-  }`;
+function animeInitials(title: string) {
+  return title.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0])
+    .join("").toUpperCase();
 }
 
-function formatCoverageMeta(
-  coveredEpisodes?: number[],
-  coveragePending?: boolean,
-) {
-  if (coveragePending) {
-    return "Waiting for qBittorrent file metadata";
-  }
+const DownloadsSearchSchema = v.object({
+  events_anime_id: v.optional(v.string(), ""),
+  events_cursor: v.optional(v.string(), ""),
+  events_direction: v.optional(v.picklist(["next", "prev"]), "next"),
+  events_download_id: v.optional(v.string(), ""),
+  events_end_date: v.optional(v.string(), ""),
+  events_event_type: v.optional(v.string(), "all"),
+  events_start_date: v.optional(v.string(), ""),
+  events_status: v.optional(v.string(), ""),
+  tab: v.optional(v.picklist(["events", "history", "queue"]), "queue"),
+});
 
-  if (!coveredEpisodes || coveredEpisodes.length <= 1) {
-    return undefined;
-  }
+function DownloadStatusIcon(props: { status?: string }) {
+  const presentation = createMemo(() =>
+    getDownloadStatusPresentation(props.status)
+  );
 
-  return `${coveredEpisodes.length} episodes: ${coveredEpisodes.join(", ")}`;
+  const icon = () => {
+    switch (presentation().icon) {
+      case "alert":
+        return <IconAlertTriangle class="h-4 w-4 text-destructive shrink-0" />;
+      case "arrow-down":
+        return (
+          <IconArrowDown class="h-4 w-4 text-info shrink-0 animate-pulse" />
+        );
+      case "check":
+        return <IconCheck class="h-4 w-4 text-success shrink-0" />;
+      case "pause":
+        return <IconPlayerPause class="h-4 w-4 text-warning shrink-0" />;
+      default:
+        return <IconClock class="h-4 w-4 text-muted-foreground shrink-0" />;
+    }
+  };
+
+  return <>{icon()}</>;
 }
 
 export const Route = createFileRoute("/_layout/downloads")({
-  validateSearch: (search) => v.parse(v.object({}), search),
+  validateSearch: (search) => v.parse(DownloadsSearchSchema, search),
   loader: async ({ context: { queryClient } }) => {
     await queryClient.ensureQueryData(downloadHistoryQueryOptions());
   },
@@ -113,12 +167,39 @@ function formatEta(seconds: number): string {
   return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
 
+function parseOptionalPositiveInt(value: string) {
+  if (!value.trim()) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 function DownloadsPage() {
   let queueScrollRef!: HTMLDivElement;
   let historyScrollRef!: HTMLDivElement;
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const [lastDownloadEventsExport, setLastDownloadEventsExport] = createSignal<
+    DownloadEventsExportResult | undefined
+  >(undefined);
 
   const queue = useActiveDownloads();
   const historyQuery = createDownloadHistoryQuery();
+  const downloadEventsQuery = createDownloadEventsQuery(() => ({
+    animeId: parseOptionalPositiveInt(search().events_anime_id),
+    cursor: search().events_cursor || undefined,
+    downloadId: parseOptionalPositiveInt(search().events_download_id),
+    direction: search().events_direction,
+    endDate: search().events_end_date || undefined,
+    eventType: search().events_event_type === "all"
+      ? undefined
+      : search().events_event_type,
+    limit: 24,
+    startDate: search().events_start_date || undefined,
+    status: search().events_status || undefined,
+  }));
   const searchMissing = createSearchMissingMutation();
   const syncDownloads = createSyncDownloadsMutation();
 
@@ -163,6 +244,62 @@ function DownloadsPage() {
       : 0;
   });
 
+  const updateSearch = (
+    patch: Partial<ReturnType<typeof search>>,
+  ) => {
+    navigate({
+      to: ".",
+      search: { ...search(), ...patch },
+      replace: true,
+    });
+  };
+  const activeEventsPreset = createMemo(() =>
+    getDateRangePresetHours(
+      search().events_start_date,
+      search().events_end_date,
+    )
+  );
+
+  const applyEventsDateRangePreset = (hours: number) => {
+    const end = new Date();
+    const start = new Date(end.getTime() - hours * 60 * 60 * 1000);
+    updateSearch({
+      events_cursor: "",
+      events_direction: "next",
+      events_end_date: formatDateTimeLocalInput(end),
+      events_start_date: formatDateTimeLocalInput(start),
+    });
+  };
+
+  const handleDownloadEventsExport = (format: "json" | "csv") => {
+    const input: DownloadEventsExportInput = {
+      animeId: parseOptionalPositiveInt(search().events_anime_id),
+      downloadId: parseOptionalPositiveInt(search().events_download_id),
+      endDate: search().events_end_date || undefined,
+      eventType: search().events_event_type === "all"
+        ? undefined
+        : search().events_event_type,
+      limit: 10_000,
+      order: "desc",
+      startDate: search().events_start_date || undefined,
+      status: search().events_status || undefined,
+    };
+
+    const exportPromise = exportDownloadEvents(input, format).then((result) => {
+      setLastDownloadEventsExport(result);
+      return result;
+    });
+
+    toast.promise(exportPromise, {
+      loading: `Exporting ${format.toUpperCase()} download events...`,
+      success: (result) =>
+        result.truncated
+          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
+          : `Exported ${result.exported} download events`,
+      error: (error) => `Failed to export download events: ${error.message}`,
+    });
+  };
+
   return (
     <div class="flex flex-col flex-1 min-h-0 gap-4">
       <PageHeader
@@ -170,6 +307,16 @@ function DownloadsPage() {
         subtitle="Manage active downloads and history"
       >
         <div class="flex items-center gap-2">
+          <DownloadEventsDialog
+            description="Recent queue, retry, status, and import events across all downloads."
+            formatTimestamp={(value) => new Date(value).toLocaleString()}
+            limit={50}
+            showTriggerLabel
+            title="Download Event Feed"
+            triggerLabel="Browse Events"
+            triggerSize="sm"
+            triggerVariant="outline"
+          />
           <Button
             variant="outline"
             size="sm"
@@ -202,7 +349,14 @@ function DownloadsPage() {
       </PageHeader>
 
       <Card class="flex-1 overflow-hidden flex flex-col">
-        <Tabs defaultValue="queue" class="h-full flex flex-col">
+        <Tabs
+          value={search().tab}
+          onChange={(value) =>
+            updateSearch({
+              tab: (value as "events" | "history" | "queue") ?? "queue",
+            })}
+          class="h-full flex flex-col"
+        >
           <div class="px-4 pt-3 border-b">
             <TabsList class="w-full justify-start h-auto p-0 pb-px bg-transparent border-b-0 space-x-6">
               <TabsTrigger
@@ -213,7 +367,7 @@ function DownloadsPage() {
                 <Show when={queueCount() > 0}>
                   <Badge
                     variant="secondary"
-                    class="ml-2 h-5 px-1.5 min-w-[1.25rem] text-[10px]"
+                    class="ml-2 h-5 px-1.5 min-w-[1.25rem] text-xs"
                   >
                     {queueCount()}
                   </Badge>
@@ -225,6 +379,12 @@ function DownloadsPage() {
               >
                 History
               </TabsTrigger>
+              <TabsTrigger
+                value="events"
+                class="h-9 px-0 pb-3 rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent data-[selected]:bg-transparent"
+              >
+                Events
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -233,10 +393,12 @@ function DownloadsPage() {
             class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col"
           >
             <div ref={queueScrollRef} class="overflow-y-auto flex-1">
-              <Table class="table-fixed">
+              <Table class="table-fixed min-w-[820px] md:min-w-0">
                 <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
                   <TableRow class="hover:bg-transparent border-none">
-                    <TableHead class="w-[50px]"></TableHead>
+                    <TableHead class="w-[50px]">
+                      <span class="sr-only">Status</span>
+                    </TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead class="w-[200px]">Progress</TableHead>
                     <TableHead class="w-[100px] hidden md:table-cell">
@@ -276,7 +438,16 @@ function DownloadsPage() {
                       </tr>
                     </Show>
                     <For each={queueVirtualizer.getVirtualItems()}>
-                      {(vRow) => <ActiveDownloadRow item={queue[vRow.index]} />}
+                      {(vRow) => {
+                        const item = () => queue[vRow.index];
+                        return (
+                          <Show when={item()}>
+                            {(safeItem) => (
+                              <ActiveDownloadRow item={safeItem()} />
+                            )}
+                          </Show>
+                        );
+                      }}
                     </For>
                     <Show when={queuePaddingBottom() > 0}>
                       <tr aria-hidden="true">
@@ -297,14 +468,258 @@ function DownloadsPage() {
           </TabsContent>
 
           <TabsContent
+            value="events"
+            class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col"
+          >
+            <div class="p-4 border-b border-border/60 space-y-3">
+              <div class="grid gap-3 md:grid-cols-[1fr_1fr_240px_auto]">
+                <TextField>
+                  <TextFieldLabel>Anime ID</TextFieldLabel>
+                  <TextFieldInput
+                    type="number"
+                    value={search().events_anime_id}
+                    onInput={(event) =>
+                      updateSearch({
+                        events_cursor: "",
+                        events_direction: "next",
+                        events_anime_id: event.currentTarget.value,
+                      })}
+                    placeholder="Any anime"
+                  />
+                </TextField>
+                <TextField>
+                  <TextFieldLabel>Download ID</TextFieldLabel>
+                  <TextFieldInput
+                    type="number"
+                    value={search().events_download_id}
+                    onInput={(event) =>
+                      updateSearch({
+                        events_cursor: "",
+                        events_direction: "next",
+                        events_download_id: event.currentTarget.value,
+                      })}
+                    placeholder="Any download"
+                  />
+                </TextField>
+                <div class="flex flex-col gap-1">
+                  <TextFieldLabel>Event Type</TextFieldLabel>
+                  <Select
+                    value={search().events_event_type}
+                    onChange={(value) =>
+                      value && updateSearch({
+                        events_cursor: "",
+                        events_direction: "next",
+                        events_event_type: value,
+                      })}
+                    options={[
+                      "all",
+                      "download.queued",
+                      "download.imported",
+                      "download.imported.batch",
+                      "download.retried",
+                      "download.status_changed",
+                      "download.coverage_refined",
+                      "download.deleted",
+                      "download.search_missing.queued",
+                      "download.rss.queued",
+                    ]}
+                    itemComponent={(props) => (
+                      <SelectItem item={props.item}>
+                        {props.item.rawValue}
+                      </SelectItem>
+                    )}
+                  >
+                    <SelectTrigger>
+                      <SelectValue<string>>
+                        {(state) => state.selectedOption() ?? "all"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent />
+                  </Select>
+                </div>
+                <div class="flex items-end gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger as={Button} variant="outline">
+                      <IconDownload class="h-4 w-4" />
+                      Export
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onClick={() => handleDownloadEventsExport("json")}
+                      >
+                        <IconJson class="h-4 w-4 mr-2" />
+                        Export as JSON
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => handleDownloadEventsExport("csv")}
+                      >
+                        <IconFileSpreadsheet class="h-4 w-4 mr-2" />
+                        Export as CSV
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+              <div class="grid gap-3 md:grid-cols-[220px_220px_220px_auto]">
+                <TextField>
+                  <TextFieldLabel>Status</TextFieldLabel>
+                  <TextFieldInput
+                    value={search().events_status}
+                    onInput={(event) =>
+                      updateSearch({
+                        events_cursor: "",
+                        events_direction: "next",
+                        events_status: event.currentTarget.value,
+                      })}
+                    placeholder="Any status"
+                  />
+                </TextField>
+                <TextField>
+                  <TextFieldLabel>Start Date</TextFieldLabel>
+                  <TextFieldInput
+                    type="datetime-local"
+                    value={search().events_start_date}
+                    onInput={(event) =>
+                      updateSearch({
+                        events_cursor: "",
+                        events_direction: "next",
+                        events_start_date: event.currentTarget.value,
+                      })}
+                  />
+                </TextField>
+                <TextField>
+                  <TextFieldLabel>End Date</TextFieldLabel>
+                  <TextFieldInput
+                    type="datetime-local"
+                    value={search().events_end_date}
+                    onInput={(event) =>
+                      updateSearch({
+                        events_cursor: "",
+                        events_direction: "next",
+                        events_end_date: event.currentTarget.value,
+                      })}
+                  />
+                </TextField>
+                <div class="flex items-end justify-end gap-2 flex-wrap">
+                  <Button
+                    variant={activeEventsPreset() === 24
+                      ? "default"
+                      : "outline"}
+                    size="sm"
+                    onClick={() => applyEventsDateRangePreset(24)}
+                  >
+                    24h
+                  </Button>
+                  <Button
+                    variant={activeEventsPreset() === 168
+                      ? "default"
+                      : "outline"}
+                    size="sm"
+                    onClick={() => applyEventsDateRangePreset(24 * 7)}
+                  >
+                    7d
+                  </Button>
+                  <Button
+                    variant={activeEventsPreset() === 720
+                      ? "default"
+                      : "outline"}
+                    size="sm"
+                    onClick={() => applyEventsDateRangePreset(24 * 30)}
+                  >
+                    30d
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      updateSearch({
+                        events_anime_id: "",
+                        events_cursor: "",
+                        events_direction: "next",
+                        events_download_id: "",
+                        events_end_date: "",
+                        events_event_type: "all",
+                        events_start_date: "",
+                        events_status: "",
+                      })}
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <Show when={lastDownloadEventsExport()?.truncated}>
+              <div class="mx-4 mt-4 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
+                Last export was truncated: exported
+                {lastDownloadEventsExport()?.exported} of
+                {lastDownloadEventsExport()?.total} events (limit{" "}
+                {lastDownloadEventsExport()?.limit}).
+              </div>
+            </Show>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+              <Show
+                when={!downloadEventsQuery.isLoading}
+                fallback={<Skeleton class="h-28 w-full" />}
+              >
+                <Show
+                  when={(downloadEventsQuery.data?.events.length ?? 0) > 0}
+                  fallback={
+                    <div class="text-sm text-muted-foreground">
+                      No download events found.
+                    </div>
+                  }
+                >
+                  <div class="text-xs text-muted-foreground">
+                    Showing {downloadEventsQuery.data?.events.length ?? 0} of
+                    {" "}
+                    {downloadEventsQuery.data?.total ?? 0} events
+                  </div>
+                  <For each={downloadEventsQuery.data?.events ?? []}>
+                    {(event) => (
+                      <DownloadEventCard
+                        event={event}
+                        formatTimestamp={(value) =>
+                          new Date(value).toLocaleString()}
+                      />
+                    )}
+                  </For>
+                </Show>
+              </Show>
+            </div>
+            <div class="p-4 border-t border-border/60 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => updateSearch({
+                  events_cursor: downloadEventsQuery.data?.prev_cursor ?? "",
+                  events_direction: "prev",
+                })}
+                disabled={!downloadEventsQuery.data?.prev_cursor}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => updateSearch({
+                  events_cursor: downloadEventsQuery.data?.next_cursor ?? "",
+                  events_direction: "next",
+                })}
+                disabled={!downloadEventsQuery.data?.has_more}
+              >
+                Next
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent
             value="history"
             class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col"
           >
             <div ref={historyScrollRef} class="overflow-y-auto flex-1">
-              <Table class="table-fixed">
+              <Table class="table-fixed min-w-[860px] md:min-w-0">
                 <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
                   <TableRow class="hover:bg-transparent border-none">
-                    <TableHead class="w-[50px]"></TableHead>
+                    <TableHead class="w-[50px]">
+                      <span class="sr-only">Status</span>
+                    </TableHead>
                     <TableHead>Anime</TableHead>
                     <TableHead class="w-[100px]">Episode</TableHead>
                     <TableHead class="w-[180px] hidden md:table-cell">
@@ -367,9 +782,16 @@ function DownloadsPage() {
                         </tr>
                       </Show>
                       <For each={historyVirtualizer.getVirtualItems()}>
-                        {(vRow) => (
-                          <DownloadRow item={history()[vRow.index]} isHistory />
-                        )}
+                        {(vRow) => {
+                          const item = () => history()[vRow.index];
+                          return (
+                            <Show when={item()}>
+                              {(safeItem) => (
+                                <DownloadRow item={safeItem()} isHistory />
+                              )}
+                            </Show>
+                          );
+                        }}
                       </For>
                       <Show when={historyPaddingBottom() > 0}>
                         <tr aria-hidden="true">
@@ -399,6 +821,9 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
   const pauseDownload = createPauseDownloadMutation();
   const resumeDownload = createResumeDownloadMutation();
   const retryDownload = createRetryDownloadMutation();
+  const releaseConfidence = () => getDownloadReleaseConfidence(props.item);
+  const statusPresentation = () =>
+    getDownloadStatusPresentation(props.item.state);
 
   const handlePause = () => {
     if (!props.item.id) return;
@@ -431,43 +856,176 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
   };
 
   return (
-    <TableRow class="group h-12">
-      <TableCell class="py-2 pl-4">
-        <Show
-          when={!props.item.state.includes("Error")}
-          fallback={<IconAlertTriangle class="w-4 h-4 text-error shrink-0" />}
-        >
-          <Show
-            when={!props.item.state.includes("Paused")}
-            fallback={<IconPlayerPause class="w-4 h-4 text-warning shrink-0" />}
-          >
-            <IconDownload class="w-4 h-4 text-info shrink-0 animate-pulse" />
-          </Show>
-        </Show>
+    <TableRow class="group h-12 align-top">
+      <TableCell class="py-2 pl-4 w-[42px]">
+        <DownloadStatusIcon status={props.item.state} />
       </TableCell>
-      <TableCell class="font-medium">
-        <div class="flex flex-col justify-center">
-          <span class="line-clamp-1 text-sm" title={props.item.name}>
-            {props.item.name}
-          </span>
-          <Show
-            when={props.item.is_batch || props.item.covered_episodes?.length ||
-              props.item.coverage_pending}
-          >
-            <span class="text-xs text-muted-foreground line-clamp-1">
-              {formatEpisodeCoverage(
-                props.item.episode_number ?? 1,
-                props.item.covered_episodes,
-                props.item.coverage_pending,
-              )}
+      <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
+        <div class="flex items-start gap-3">
+          <Avatar class="size-8 rounded-md">
+            <AvatarImage src={props.item.anime_image} alt="" />
+            <AvatarFallback class="rounded-md text-xs font-medium">
+              {animeInitials(props.item.anime_title ?? props.item.name)}
+            </AvatarFallback>
+          </Avatar>
+          <div class="flex flex-col justify-center min-w-0">
+            <div class="flex items-center gap-2 min-w-0 flex-wrap">
+              <Show when={props.item.anime_id && props.item.anime_title}>
+                <Link
+                  to="/anime/$id"
+                  params={{ id: props.item.anime_id!.toString() }}
+                  class="line-clamp-1 text-sm hover:underline min-w-0 max-w-full"
+                  title={props.item.anime_title}
+                >
+                  {props.item.anime_title}
+                </Link>
+              </Show>
+              <Show when={formatDownloadDecisionBadge(props.item)}>
+                {(badge) => (
+                  <Badge
+                    variant="secondary"
+                    class="h-5 px-1.5 text-xs shrink-0"
+                  >
+                    <IconSparkles class="h-3 w-3" />
+                    {badge()}
+                  </Badge>
+                )}
+              </Show>
+            </div>
+            <span
+              class="line-clamp-1 text-xs text-muted-foreground"
+              title={props.item.name}
+            >
+              {props.item.name}
             </span>
-          </Show>
-          <Show when={props.item.id !== undefined}>
-            <span class="text-xs text-muted-foreground">#{props.item.id}</span>
-          </Show>
+            <Show
+              when={formatDownloadReleaseMeta({
+                group: props.item.source_metadata?.group,
+                indexer: props.item.source_metadata?.indexer,
+                quality: props.item.source_metadata?.quality,
+                resolution: props.item.source_metadata?.resolution,
+              })}
+            >
+              {(meta) => (
+                <span class="text-xs text-muted-foreground line-clamp-1">
+                  {meta()}
+                </span>
+              )}
+            </Show>
+            <Show when={formatDownloadDecisionSummary(props.item)}>
+              {(summary) => (
+                <span class="text-[11px] text-muted-foreground line-clamp-1">
+                  {summary()}
+                </span>
+              )}
+            </Show>
+            <Show when={formatDownloadParsedMeta(props.item)}>
+              {(parsedMeta) => (
+                <span class="text-[11px] text-muted-foreground line-clamp-1">
+                  {parsedMeta()}
+                </span>
+              )}
+            </Show>
+            <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+              <Show when={props.item.source_metadata?.trusted}>
+                <Badge
+                  variant="outline"
+                  class="h-4 px-1.5 border-success/20 bg-success/5 text-success"
+                >
+                  Trusted
+                </Badge>
+              </Show>
+              <Show when={props.item.source_metadata?.remake}>
+                <Badge
+                  variant="outline"
+                  class="h-4 px-1.5 border-warning/20 bg-warning/5 text-warning"
+                >
+                  Remake
+                </Badge>
+              </Show>
+              <Show when={props.item.source_metadata?.source_url}>
+                {(sourceUrl) => (
+                  <a
+                    href={sourceUrl()}
+                    target="_blank"
+                    rel="noreferrer"
+                    class="inline-flex items-center gap-1 text-primary hover:text-primary/80"
+                  >
+                    <IconExternalLink class="h-3 w-3" /> Source
+                  </a>
+                )}
+              </Show>
+            </div>
+            <Show when={formatDownloadRankingMeta(props.item)}>
+              <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+                <Show
+                  when={selectionKindLabel(
+                    props.item.source_metadata?.selection_kind,
+                  )}
+                >
+                  {(label) => (
+                    <Badge
+                      variant="secondary"
+                      class={`h-4 px-1.5 ${
+                        selectionKindBadgeClass(
+                          props.item.source_metadata?.selection_kind,
+                        )
+                      }`}
+                    >
+                      {label()}
+                    </Badge>
+                  )}
+                </Show>
+                <Show
+                  when={formatSelectionDetail(props.item.source_metadata ?? {})}
+                >
+                  {(detail) => (
+                    <span class="text-muted-foreground/80 line-clamp-1">
+                      {detail()}
+                    </span>
+                  )}
+                </Show>
+              </div>
+            </Show>
+            <Show when={releaseConfidence()}>
+              {(confidence) => (
+                <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+                  <Badge
+                    variant="secondary"
+                    class={`h-4 px-1.5 ${
+                      releaseConfidenceBadgeClass(confidence().tone)
+                    }`}
+                  >
+                    {confidence().label}
+                  </Badge>
+                  <span class="text-muted-foreground/80 line-clamp-1">
+                    {confidence().reason}
+                  </span>
+                </div>
+              )}
+            </Show>
+            <Show
+              when={props.item.is_batch ||
+                props.item.covered_episodes?.length ||
+                props.item.coverage_pending}
+            >
+              <span class="text-xs text-muted-foreground line-clamp-1">
+                {formatEpisodeCoverage(
+                  props.item.episode_number ?? 1,
+                  props.item.covered_episodes,
+                  props.item.coverage_pending,
+                )}
+              </span>
+            </Show>
+            <Show when={props.item.id !== undefined}>
+              <span class="text-xs text-muted-foreground">
+                #{props.item.id}
+              </span>
+            </Show>
+          </div>
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell class="py-2 min-w-[160px] md:min-w-[180px]">
         <div class="flex items-center gap-2">
           <Progress
             value={props.item.progress * 100}
@@ -484,24 +1042,24 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
       <TableCell class="text-sm text-muted-foreground whitespace-nowrap tabular-nums hidden md:table-cell">
         {formatEta(props.item.eta)}
       </TableCell>
-      <TableCell>
+      <TableCell class="py-2">
         <div class="flex items-center gap-2">
           <span class="capitalize text-sm text-muted-foreground">
-            {props.item.state}
+            {statusPresentation().label}
           </span>
         </div>
       </TableCell>
-      <TableCell class="text-right">
-        <div class="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      <TableCell class="text-right py-2 pr-4">
+        <div class="flex items-center justify-end gap-1 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <Show
-            when={props.item.state.toLowerCase().includes("paused") ||
-              props.item.state.toLowerCase().includes("queued") ||
-              props.item.state.toLowerCase().includes("error")}
+            when={statusPresentation().label.toLowerCase().includes("paused") ||
+              statusPresentation().label.toLowerCase().includes("queued") ||
+              statusPresentation().tone === "destructive"}
             fallback={
               <Button
                 variant="ghost"
                 size="icon"
-                class="h-7 w-7"
+                class="relative after:absolute after:-inset-2 h-7 w-7"
                 aria-label="Pause download"
                 onClick={handlePause}
                 disabled={!props.item.id || pauseDownload.isPending}
@@ -513,7 +1071,7 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
             <Button
               variant="ghost"
               size="icon"
-              class="h-7 w-7"
+              class="relative after:absolute after:-inset-2 h-7 w-7"
               aria-label="Resume download"
               onClick={handleResume}
               disabled={!props.item.id || resumeDownload.isPending}
@@ -521,11 +1079,20 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
               <IconPlayerPlay class="h-4 w-4" />
             </Button>
           </Show>
-          <Show when={props.item.state.toLowerCase().includes("error")}>
+          <DownloadEventsDialog
+            description="Timeline of queue, status, and import events for this download."
+            downloadId={props.item.id}
+            formatTimestamp={(value) => new Date(value).toLocaleString()}
+            title={`Download Events${
+              props.item.anime_title ? ` - ${props.item.anime_title}` : ""
+            }`}
+            triggerLabel="View download events"
+          />
+          <Show when={statusPresentation().tone === "destructive"}>
             <Button
               variant="ghost"
               size="icon"
-              class="h-7 w-7"
+              class="relative after:absolute after:-inset-2 h-7 w-7"
               aria-label="Retry download"
               onClick={handleRetry}
               disabled={!props.item.id || retryDownload.isPending}
@@ -543,6 +1110,9 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
   const retryDownload = createRetryDownloadMutation();
   const reconcileDownload = createReconcileDownloadMutation();
   const deleteDownload = createDeleteDownloadMutation();
+  const releaseConfidence = () => getDownloadReleaseConfidence(props.item);
+  const statusPresentation = () =>
+    getDownloadStatusPresentation(props.item.status);
 
   const handleRetry = () => {
     toast.promise(retryDownload.mutateAsync(props.item.id), {
@@ -568,44 +1138,169 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
     });
   };
 
-  const getStatusIcon = (status?: string) => {
-    if (!status) return <IconClock class="h-4 w-4 text-muted-foreground" />;
-
-    switch (status.toLowerCase()) {
-      case "completed":
-        return <IconCheck class="h-4 w-4 text-success" />;
-      case "downloading":
-        return <IconArrowDown class="h-4 w-4 text-info animate-pulse" />;
-      case "failed":
-        return <IconX class="h-4 w-4 text-destructive" />;
-      case "paused":
-        return <IconPlayerPause class="h-4 w-4 text-warning" />;
-      default:
-        return <IconClock class="h-4 w-4 text-muted-foreground" />;
-    }
-  };
-
   const dateStr = props.item.download_date || props.item.added_at;
 
   return (
-    <TableRow class="group h-12">
-      <TableCell class="py-2 pl-4">
-        {getStatusIcon(props.item.status)}
+    <TableRow class="group h-12 align-top">
+      <TableCell class="py-2 pl-4 w-[42px]">
+        <DownloadStatusIcon status={props.item.status} />
       </TableCell>
-      <TableCell class="font-medium">
-        <div class="flex flex-col justify-center">
-          <span class="line-clamp-1">{props.item.anime_title}</span>
-          <span class="text-xs text-muted-foreground line-clamp-1">
-            {props.item.torrent_name}
-          </span>
-          <Show when={props.item.error_message}>
-            <span class="text-xs text-destructive line-clamp-1">
-              {props.item.error_message}
+      <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
+        <div class="flex items-start gap-3">
+          <Avatar class="size-8 rounded-md">
+            <AvatarImage src={props.item.anime_image} alt="" />
+            <AvatarFallback class="rounded-md text-xs font-medium">
+              {animeInitials(props.item.anime_title)}
+            </AvatarFallback>
+          </Avatar>
+          <div class="flex flex-col justify-center min-w-0">
+            <div class="flex items-center gap-2 min-w-0 flex-wrap">
+              <Link
+                to="/anime/$id"
+                params={{ id: props.item.anime_id.toString() }}
+                class="line-clamp-1 hover:underline min-w-0 max-w-full"
+                title={props.item.anime_title}
+              >
+                {props.item.anime_title}
+              </Link>
+              <Show when={formatDownloadDecisionBadge(props.item)}>
+                {(badge) => (
+                  <Badge
+                    variant="secondary"
+                    class="h-5 px-1.5 text-xs shrink-0"
+                  >
+                    <IconSparkles class="h-3 w-3" />
+                    {badge()}
+                  </Badge>
+                )}
+              </Show>
+            </div>
+            <span class="text-xs text-muted-foreground line-clamp-1">
+              {props.item.torrent_name}
             </span>
-          </Show>
+            <Show
+              when={formatDownloadReleaseMeta({
+                group: props.item.source_metadata?.group ??
+                  props.item.group_name,
+                indexer: props.item.source_metadata?.indexer,
+                quality: props.item.source_metadata?.quality,
+                resolution: props.item.source_metadata?.resolution,
+              })}
+            >
+              {(meta) => (
+                <span class="text-xs text-muted-foreground line-clamp-1">
+                  {meta()}
+                </span>
+              )}
+            </Show>
+            <Show when={formatDownloadDecisionSummary(props.item)}>
+              {(summary) => (
+                <span class="text-[11px] text-muted-foreground line-clamp-1">
+                  {summary()}
+                </span>
+              )}
+            </Show>
+            <Show when={formatDownloadParsedMeta(props.item)}>
+              {(parsedMeta) => (
+                <span class="text-[11px] text-muted-foreground line-clamp-1">
+                  {parsedMeta()}
+                </span>
+              )}
+            </Show>
+            <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+              <Show when={props.item.source_metadata?.trusted}>
+                <Badge
+                  variant="outline"
+                  class="h-4 px-1.5 border-success/20 bg-success/5 text-success"
+                >
+                  Trusted
+                </Badge>
+              </Show>
+              <Show when={props.item.source_metadata?.remake}>
+                <Badge
+                  variant="outline"
+                  class="h-4 px-1.5 border-warning/20 bg-warning/5 text-warning"
+                >
+                  Remake
+                </Badge>
+              </Show>
+            </div>
+            <Show when={formatDownloadRankingMeta(props.item)}>
+              <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+                <Show
+                  when={selectionKindLabel(
+                    props.item.source_metadata?.selection_kind,
+                  )}
+                >
+                  {(label) => (
+                    <Badge
+                      variant="secondary"
+                      class={`h-4 px-1.5 ${
+                        selectionKindBadgeClass(
+                          props.item.source_metadata?.selection_kind,
+                        )
+                      }`}
+                    >
+                      {label()}
+                    </Badge>
+                  )}
+                </Show>
+                <Show
+                  when={formatSelectionDetail(props.item.source_metadata ?? {})}
+                >
+                  {(detail) => (
+                    <span class="text-muted-foreground/80 line-clamp-1">
+                      {detail()}
+                    </span>
+                  )}
+                </Show>
+              </div>
+            </Show>
+            <Show when={releaseConfidence()}>
+              {(confidence) => (
+                <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
+                  <Badge
+                    variant="secondary"
+                    class={`h-4 px-1.5 ${
+                      releaseConfidenceBadgeClass(confidence().tone)
+                    }`}
+                  >
+                    {confidence().label}
+                  </Badge>
+                  <span class="text-muted-foreground/80 line-clamp-1">
+                    {confidence().reason}
+                  </span>
+                </div>
+              )}
+            </Show>
+            <Show when={props.item.imported_path}>
+              {(importedPath) => (
+                <span class="text-[11px] text-muted-foreground line-clamp-1">
+                  Imported to {importedPath()}
+                </span>
+              )}
+            </Show>
+            <Show when={props.item.source_metadata?.source_url}>
+              {(sourceUrl) => (
+                <a
+                  href={sourceUrl()}
+                  target="_blank"
+                  rel="noreferrer"
+                  class="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 w-fit"
+                >
+                  <IconExternalLink class="h-3 w-3" /> Source
+                </a>
+              )}
+            </Show>
+            <Show when={props.item.error_message}>
+              <span class="text-xs text-destructive line-clamp-1">
+                {props.item.error_message}
+              </span>
+            </Show>
+          </div>
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell class="py-2 min-w-[110px] md:min-w-[120px]">
         <Badge variant="outline" class="font-normal font-mono text-xs">
           {formatEpisodeCoverage(
             props.item.episode_number,
@@ -634,7 +1329,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
           </TableCell>
         }
       >
-        <TableCell>
+        <TableCell class="py-2 min-w-[140px] md:min-w-[180px]">
           <Show
             when={props.item.status?.toLowerCase() === "downloading" &&
               props.item.progress !== undefined}
@@ -652,15 +1347,22 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
           </Show>
         </TableCell>
       </Show>
-      <TableCell>
+      <TableCell class="py-2">
         <div class="flex items-center gap-2">
           <span class="capitalize text-sm text-muted-foreground">
-            {props.item.status || "Unknown"}
+            {statusPresentation().label}
           </span>
         </div>
       </TableCell>
-      <TableCell class="text-right">
-        <div class="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+      <TableCell class="text-right py-2 pr-4">
+        <div class="flex items-center justify-end gap-1 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+          <DownloadEventsDialog
+            description="Timeline of queue, status, retry, and import events for this historical download."
+            downloadId={props.item.id}
+            formatTimestamp={(value) => new Date(value).toLocaleString()}
+            title={`Download Events - ${props.item.anime_title}`}
+            triggerLabel="View download events"
+          />
           <Show
             when={props.item.status?.toLowerCase() === "completed" &&
               !props.item.reconciled_at}
@@ -668,7 +1370,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
             <Button
               variant="ghost"
               size="icon"
-              class="h-7 w-7"
+              class="relative after:absolute after:-inset-2 h-7 w-7"
               aria-label="Mark as reconciled"
               onClick={handleReconcile}
               disabled={reconcileDownload.isPending}
@@ -683,7 +1385,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
             <Button
               variant="ghost"
               size="icon"
-              class="h-7 w-7"
+              class="relative after:absolute after:-inset-2 h-7 w-7"
               aria-label="Retry download"
               onClick={handleRetry}
               disabled={retryDownload.isPending}
@@ -694,7 +1396,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
           <Button
             variant="ghost"
             size="icon"
-            class="h-7 w-7"
+            class="relative after:absolute after:-inset-2 h-7 w-7"
             aria-label="Remove download"
             onClick={handleDelete}
             disabled={deleteDownload.isPending}
