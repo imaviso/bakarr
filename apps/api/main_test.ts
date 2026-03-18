@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertMatch } from "@std/assert";
+import { assert, assertEquals, assertExists, assertMatch } from "@std/assert";
 import { createClient } from "@libsql/client";
 import { Effect, Layer, Redacted } from "effect";
 import { AniListClient } from "./src/features/anime/anilist.ts";
@@ -475,12 +475,14 @@ integrationTest(
       assertEquals(statsResponse.status, 200);
       assertEquals(await statsResponse.json(), {
         downloaded_episodes: 0,
+        downloaded_percent: 0,
         missing_episodes: 0,
         monitored_anime: 0,
         recent_downloads: 0,
         rss_feeds: 0,
         total_anime: 0,
         total_episodes: 0,
+        up_to_date_anime: 0,
       });
     } finally {
       await ctx.dispose();
@@ -3284,9 +3286,10 @@ integrationTest(
       );
       assertEquals(searchResponse.status, 200);
       const searchResults = await searchResponse.json();
-      assertEquals(searchResults.length > 0, true);
+      assertEquals(searchResults.degraded, false);
+      assertEquals(searchResults.results.length > 0, true);
       assertEquals(
-        searchResults.some((item: { id: number }) => item.id === 20),
+        searchResults.results.some((item: { id: number }) => item.id === 20),
         true,
       );
 
@@ -3565,12 +3568,14 @@ integrationTest("anime CRUD and episode scan flow works", async () => {
 
       assertEquals(await statsResponse.json(), {
         downloaded_episodes: 1,
+        downloaded_percent: 0,
         missing_episodes: 219,
         monitored_anime: 1,
         recent_downloads: 0,
         rss_feeds: 0,
         total_anime: 1,
         total_episodes: 220,
+        up_to_date_anime: 0,
       });
     } finally {
       await Deno.remove(rootFolder, { recursive: true });
@@ -3897,7 +3902,139 @@ integrationTest(
 
         assertEquals(eventsResponse.status, 200);
         const events = await eventsResponse.json();
-        assertEquals(events.length >= 1, true);
+        assertEquals(Array.isArray(events.events), true);
+        assertEquals(typeof events.total, "number");
+        assertEquals(typeof events.has_more, "boolean");
+        assertEquals(
+          typeof events.next_cursor === "string" ||
+            events.next_cursor === undefined,
+          true,
+        );
+        assertEquals(events.events.length >= 1, true);
+        assertEquals(
+          events.events.some((event: {
+            anime_title?: string;
+            download_id?: number;
+            torrent_name?: string;
+          }) =>
+            event.download_id === downloadId &&
+            typeof event.anime_title === "string" &&
+            typeof event.torrent_name === "string"
+          ),
+          true,
+        );
+
+        const filteredEventsResponse = await ctx.app.request(
+          `/api/downloads/events?download_id=${downloadId}&limit=5`,
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(filteredEventsResponse.status, 200);
+        const filteredEvents = await filteredEventsResponse.json();
+        assertEquals(filteredEvents.limit, 5);
+        assertEquals(filteredEvents.events.length >= 1, true);
+        assertEquals(
+          filteredEvents.events.every((event: { download_id?: number }) =>
+            event.download_id === downloadId
+          ),
+          true,
+        );
+
+        const cursorFilteredEventsResponse = filteredEvents.next_cursor
+          ? await ctx.app.request(
+            `/api/downloads/events?download_id=${downloadId}&limit=5&cursor=${filteredEvents.next_cursor}&direction=next`,
+            {
+              headers: { Cookie: sessionCookie },
+            },
+          )
+          : undefined;
+
+        if (cursorFilteredEventsResponse) {
+          assertEquals(cursorFilteredEventsResponse.status, 200);
+          const cursorFilteredEvents = await cursorFilteredEventsResponse
+            .json();
+          assertEquals(Array.isArray(cursorFilteredEvents.events), true);
+        }
+
+        const statusFilteredEventsResponse = await ctx.app.request(
+          "/api/downloads/events?status=queued&limit=10",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(statusFilteredEventsResponse.status, 200);
+        const statusFilteredEvents = await statusFilteredEventsResponse.json();
+        assertEquals(statusFilteredEvents.events.length >= 1, true);
+        assertEquals(
+          statusFilteredEvents.events.every((event: {
+            from_status?: string;
+            to_status?: string;
+          }) => event.from_status === "queued" || event.to_status === "queued"),
+          true,
+        );
+        assertEquals(
+          typeof statusFilteredEvents.next_cursor === "string" ||
+            statusFilteredEvents.next_cursor === undefined,
+          true,
+        );
+
+        const exportEventsJsonResponse = await ctx.app.request(
+          `/api/downloads/events/export?download_id=${downloadId}&limit=5&order=asc&format=json`,
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(exportEventsJsonResponse.status, 200);
+        assertEquals(
+          exportEventsJsonResponse.headers.get("content-type"),
+          "application/json; charset=utf-8",
+        );
+        assertEquals(
+          exportEventsJsonResponse.headers.get("x-bakarr-export-order"),
+          "asc",
+        );
+        const exportEventsJson = await exportEventsJsonResponse.json();
+        assertEquals(Array.isArray(exportEventsJson.events), true);
+        assertEquals(typeof exportEventsJson.total, "number");
+        assertEquals(typeof exportEventsJson.exported, "number");
+        assertEquals(typeof exportEventsJson.truncated, "boolean");
+        assertEquals(typeof exportEventsJson.generated_at, "string");
+        assertEquals(
+          exportEventsJson.events.every((event: { download_id?: number }) =>
+            event.download_id === downloadId
+          ),
+          true,
+        );
+
+        const exportEventsCsvResponse = await ctx.app.request(
+          `/api/downloads/events/export?download_id=${downloadId}&limit=5&format=csv`,
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(exportEventsCsvResponse.status, 200);
+        assertEquals(
+          exportEventsCsvResponse.headers.get("content-type"),
+          "text/csv; charset=utf-8",
+        );
+        assertEquals(
+          exportEventsCsvResponse.headers.get("x-bakarr-export-limit"),
+          "5",
+        );
+        const exportEventsCsvBody = await exportEventsCsvResponse.text();
+        assertEquals(
+          exportEventsCsvBody.includes("id,created_at,event_type"),
+          true,
+        );
+        assertEquals(
+          exportEventsCsvBody.split("\n").length >= 2,
+          true,
+        );
 
         const dashboardResponse = await ctx.app.request(
           "/api/system/dashboard",
@@ -3910,6 +4047,16 @@ integrationTest(
         const dashboard = await dashboardResponse.json();
         assertEquals(typeof dashboard.queued_downloads, "number");
         assertEquals(Array.isArray(dashboard.recent_download_events), true);
+        assertEquals(
+          dashboard.recent_download_events.some((event: {
+            anime_title?: string;
+            torrent_name?: string;
+          }) =>
+            typeof event.anime_title === "string" &&
+            typeof event.torrent_name === "string"
+          ),
+          true,
+        );
 
         const deleteResponse = await ctx.app.request(
           `/api/downloads/${downloadId}`,
@@ -4079,6 +4226,44 @@ integrationTest(
 
         const historyBody = await history.json();
         assert(historyBody.length >= 1);
+
+        const eventFeedResponse = await ctx.app.request(
+          "/api/downloads/events?download_id=1&limit=20",
+          {
+            headers: { Cookie: sessionCookie },
+          },
+        );
+
+        assertEquals(eventFeedResponse.status, 200);
+        const eventFeed = await eventFeedResponse.json();
+        assertEquals(Array.isArray(eventFeed.events), true);
+        const rssOrMissingEvent = eventFeed.events.find((event: {
+          event_type: string;
+          metadata_json?: {
+            source_metadata?: {
+              indexer?: string;
+              source_url?: string;
+              trusted?: boolean;
+            };
+          };
+        }) =>
+          event.event_type === "download.rss.queued" ||
+          event.event_type === "download.search_missing.queued"
+        );
+        assertExists(rssOrMissingEvent);
+        assertEquals(
+          rssOrMissingEvent?.metadata_json?.source_metadata?.indexer,
+          "Nyaa",
+        );
+        assertEquals(
+          typeof rssOrMissingEvent?.metadata_json?.source_metadata?.trusted,
+          "boolean",
+        );
+        assertEquals(
+          rssOrMissingEvent?.metadata_json?.source_metadata?.source_url
+            ?.startsWith("https://nyaa.si/view/"),
+          true,
+        );
 
         const scanTask = await ctx.app.request("/api/system/tasks/scan", {
           headers: { Cookie: sessionCookie },
