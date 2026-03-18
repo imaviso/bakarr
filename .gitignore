@@ -8,6 +8,7 @@
 build.log
 node_modules/
 data/
+dist/
 bakarr.sqlite
 bakarr.sqlite-shm
 bakarr.sqlite-wal

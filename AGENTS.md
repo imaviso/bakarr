@@ -16,7 +16,8 @@ explicitly requested.
   references.
 - Use typescript-magician skill when encountering type-issues.
 - Prefer small, focused modules over large mixed files
-- Preserve existing Effect patterns in `apps/api`
+- Follow and Preserve existing Effect patterns in `apps/api/EFFECT_GUIDE.md`,
+  follow
 - Preserve Solid reactivity rules in `apps/web` (do not destructure props)
 - Use shared contracts from `packages/shared` when touching API/UI boundaries
 
