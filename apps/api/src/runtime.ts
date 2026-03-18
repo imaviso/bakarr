@@ -25,6 +25,7 @@ import {
 import { OperationsServiceLive } from "./features/operations/service.ts";
 import { SystemServiceLive } from "./features/system/service.ts";
 import { FileSystemLive } from "./lib/filesystem.ts";
+import { MediaProbeLive } from "./lib/media-probe.ts";
 import { RuntimeLoggerLayer } from "./lib/logging.ts";
 
 export interface RuntimeOptions {
@@ -76,26 +77,37 @@ export function makeApiLayer(
     backgroundMonitorLayer,
     externalClientsLayer,
     FileSystemLive,
+    MediaProbeLive,
   );
   const operationsLayer = OperationsServiceLive.pipe(
     Layer.provide(platformLayer),
   );
+  const animeServiceLayer = AnimeServiceLive.pipe(
+    Layer.provide(platformLayer),
+  );
   const controllerLayer = BackgroundWorkerControllerLive.pipe(
-    Layer.provide(Layer.mergeAll(platformLayer, operationsLayer)),
+    Layer.provide(
+      Layer.mergeAll(platformLayer, operationsLayer, animeServiceLayer),
+    ),
   );
   const servicesLayer = Layer.mergeAll(
     AuthServiceLive,
-    AnimeServiceLive,
     SystemServiceLive,
   ).pipe(
     Layer.provide(
-      Layer.mergeAll(platformLayer, operationsLayer, controllerLayer),
+      Layer.mergeAll(
+        platformLayer,
+        operationsLayer,
+        controllerLayer,
+        animeServiceLayer,
+      ),
     ),
   );
 
   return Layer.mergeAll(
     platformLayer,
     operationsLayer,
+    animeServiceLayer,
     controllerLayer,
     servicesLayer,
   );

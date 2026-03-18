@@ -1165,9 +1165,11 @@ function looksLikeMetadataTag(value: string): boolean {
     /\b\d{3,4}p\b/i,
     /\b\d{3,4}x\d{3,4}\b/i,
     /\bv\d+\b/i,
-    /\b(?:web(?:[ .-]?dl)?|webdl|webrip|bluray|blu-ray|bdrip|bdremux|remux|hdtv|dvd|sdtv)\b/i,
-    /\b(?:x264|x265|h[ .-]?264|h[ .-]?265|hevc|avc|av1|vp9)\b/i,
-    /\b(?:aac|flac|opus|ac3|eac3|ddp|dts(?:-hd)?)(?:[ .-]?\d(?:[ .]?\d))?\b/i,
+    /\b(?:web(?:[ .-]?dl)?|webdl|webrip|web-?rip|web-?dl)\b/i,
+    /\b(?:bluray|blu-ray|bd(?:remux|rip|mux)?|remux|hdtv|dvD|sdtv)\b/i,
+    /\b(?:x264|x265|h[ .-]?264|h[ .-]?265|hevc|avc|av1|vp9|vp10|mpeg-?2?|vc-?1?)\b/i,
+    /\b(?:aac|flac|opus|ac3|e-?ac3|ddp|dd[ .+]?\d(?:[ .]?\d)?)\b/i,
+    /\b(?:true?hd|dts(?:-?hd)?(?:-?ma)?|pcm|l?pcm)\b/i,
     /\b(?:dual(?:[ .-]?audio)?|multi(?:[ .-]?audio)?|proper|repack|complete|batch)\b/i,
   ].some((pattern) => pattern.test(lower));
 }

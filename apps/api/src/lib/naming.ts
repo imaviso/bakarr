@@ -86,7 +86,9 @@ export function renderEpisodeFilename(
     /\{season(?::(\d+))?\}/g,
     (_, padStr) => {
       const pad = padStr ? Number(padStr) : 2;
-      return String(input.season ?? 1).padStart(pad, "0");
+      return input.season === undefined
+        ? ""
+        : String(input.season).padStart(pad, "0");
     },
   );
 

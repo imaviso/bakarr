@@ -132,8 +132,8 @@ Deno.test("naming: {season:02} pads to 2 digits", () => {
   );
 });
 
-Deno.test("naming: {season} defaults to 1 when not provided", () => {
-  assertEquals(renderEpisodeFilename("{season}", makeInput()), "01");
+Deno.test("naming: {season} renders empty when not provided", () => {
+  assertEquals(renderEpisodeFilename("{season}", makeInput()), "");
 });
 
 Deno.test("naming: {air_date} renders date", () => {
