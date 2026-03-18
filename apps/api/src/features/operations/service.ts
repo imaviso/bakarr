@@ -10,6 +10,7 @@ import { makeSearchOrchestration } from "./search-orchestration.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
 import { makeCatalogOrchestration } from "./catalog-orchestration.ts";
 import { FileSystem } from "../../lib/filesystem.ts";
+import { MediaProbe } from "../../lib/media-probe.ts";
 import {
   dbError,
   maybeQBitConfig,
@@ -47,6 +48,11 @@ export {
   resolveCompletedContentPath,
 } from "./download-lifecycle.ts";
 
+export {
+  buildDownloadSourceMetadataFromRelease,
+  mergeDownloadSourceMetadata,
+} from "./naming-support.ts";
+
 const makeOperationsService = Effect.gen(function* () {
   const { db } = yield* Database;
   const eventBus = yield* EventBus;
@@ -55,6 +61,7 @@ const makeOperationsService = Effect.gen(function* () {
   const rssClient = yield* RssClient;
   const seadexClient = yield* SeaDexClient;
   const fs = yield* FileSystem;
+  const mediaProbe = yield* MediaProbe;
 
   const { triggerSemaphore, unmappedScanRunning } =
     yield* makeOperationsSharedState();
@@ -64,6 +71,7 @@ const makeOperationsService = Effect.gen(function* () {
     dbError,
     eventBus,
     fs,
+    mediaProbe,
     maybeQBitConfig,
     qbitClient,
     tryDatabasePromise,
@@ -88,6 +96,7 @@ const makeOperationsService = Effect.gen(function* () {
     dbError,
     eventBus,
     fs,
+    mediaProbe,
     maybeQBitConfig,
     publishDownloadProgress,
     publishRssCheckProgress,
@@ -128,6 +137,7 @@ const makeOperationsService = Effect.gen(function* () {
     dbError,
     eventBus,
     fs,
+    mediaProbe,
     publishDownloadProgress,
     publishLibraryScanProgress,
     reconcileDownloadByIdEffect,
@@ -144,6 +154,7 @@ const makeOperationsService = Effect.gen(function* () {
     getDownloadProgress,
     getRenamePreview,
     getWantedMissing,
+    exportDownloadEvents,
     importFiles,
     listAnimeRssFeeds,
     listDownloadEvents,
@@ -181,6 +192,7 @@ const makeOperationsService = Effect.gen(function* () {
     listDownloadQueue,
     listDownloadHistory,
     getDownloadProgress,
+    exportDownloadEvents,
     pauseDownload,
     resumeDownload,
     removeDownload,

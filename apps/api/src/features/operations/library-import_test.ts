@@ -26,6 +26,7 @@ Deno.test("analyzeScannedFile strips release noise and extracts metadata", () =>
   const parsed = result.scanned;
 
   assertEquals(parsed.episode_number, 3);
+  assertEquals(parsed.coverage_summary, undefined);
   assertEquals(parsed.group, "SubsPlease");
   assertEquals(parsed.resolution, "1080p");
   assertEquals(parsed.season, 2);
@@ -41,8 +42,18 @@ Deno.test("analyzeScannedFile handles Sonarr and Plex style episode names", () =
   const parsed = result.scanned;
 
   assertEquals(parsed.episode_number, 1);
+  assertEquals(parsed.coverage_summary, undefined);
+  assertEquals(
+    parsed.episode_title,
+    "Good Day to You♡ Quit Playing the Guitar!!!",
+  );
+  assertEquals(parsed.audio_channels, "2.0");
+  assertEquals(parsed.audio_codec, "AAC");
+  assertEquals(parsed.match_reason, "Parsed S01E01 from the filename");
+  assertEquals(parsed.quality, "WEB-DL");
   assertEquals(parsed.resolution, "1080p");
   assertEquals(parsed.season, 1);
+  assertEquals(parsed.video_codec, "AVC");
 });
 
 Deno.test("analyzeScannedFile preserves multi-episode local ranges", () => {
@@ -53,8 +64,12 @@ Deno.test("analyzeScannedFile preserves multi-episode local ranges", () => {
   const parsed = result.scanned;
 
   assertEquals(parsed.episode_number, 1);
+  assertEquals(parsed.coverage_summary, "Episodes 1-2");
   assertEquals(parsed.episode_numbers, [1, 2]);
+  assertEquals(parsed.episode_title, undefined);
+  assertEquals(parsed.match_reason, "Parsed S01E01-E02 from the filename");
   assertEquals(parsed.season, 1);
+  assertEquals(parsed.warnings, undefined);
 });
 
 Deno.test("analyzeScannedFile skips extras and samples", () => {
@@ -95,8 +110,17 @@ Deno.test("analyzeScannedFile populates source_identity for daily episodes", () 
   const parsed = result.scanned;
 
   assertEquals(parsed.source_identity?.scheme, "daily");
+  assertEquals(parsed.air_date, "2025-03-14");
+  assertEquals(parsed.coverage_summary, "Air date 2025-03-14");
+  assertEquals(
+    parsed.match_reason,
+    "Parsed a daily air date from the filename; choose the episode mapping before import",
+  );
   assertEquals(parsed.source_identity?.air_dates, ["2025-03-14"]);
   assertEquals(parsed.needs_manual_mapping, true);
+  assertEquals(parsed.warnings, [
+    "Parsed a daily air date; set the episode number before import",
+  ]);
 });
 
 Deno.test("analyzeScannedFile marks unknown files as needing manual mapping", () => {
@@ -108,6 +132,13 @@ Deno.test("analyzeScannedFile marks unknown files as needing manual mapping", ()
 
   assertEquals(parsed.needs_manual_mapping, true);
   assertEquals(parsed.episode_number, 0);
+  assertEquals(
+    parsed.match_reason,
+    "No reliable episode identity found in the filename; review this file before import",
+  );
+  assertEquals(parsed.warnings, [
+    "No reliable episode identity found in filename",
+  ]);
 });
 
 Deno.test("buildRenamePreview fills naming tokens from existing file metadata", async () => {
@@ -152,6 +183,103 @@ Deno.test("buildRenamePreview fills naming tokens from existing file metadata", 
       preview[0].new_filename,
       "Nisemonogatari - S01E01 - Karen Bee, Part 1 [1080p][HEVC][AAC][MTBB].mkv",
     );
+    assertEquals(preview[0].fallback_used, undefined);
+    assertEquals(preview[0].format_used, namingFormat);
+    assertEquals(
+      preview[0].metadata_snapshot?.episode_title,
+      "Karen Bee, Part 1",
+    );
+    assertEquals(
+      preview[0].metadata_snapshot?.title_source,
+      "preferred_romaji",
+    );
+    assertEquals(preview[0].metadata_snapshot?.video_codec, "HEVC");
+  });
+});
+
+Deno.test("buildRenamePreview respects preferred English title and movie naming format", async () => {
+  await withTestDb(async (db, databaseFile) => {
+    await db.insert(appConfig).values({
+      id: 1,
+      data: encodeConfigCore({
+        ...makeDefaultConfig(databaseFile),
+        library: {
+          ...makeDefaultConfig(databaseFile).library,
+          movie_naming_format: "{title} ({year})",
+          preferred_title: "english",
+        },
+      }),
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+
+    await db.insert(anime).values(makeAnimeRow({
+      format: "MOVIE",
+      rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
+      startDate: "2016-08-26",
+      titleEnglish: "Your Name.",
+      titleNative: "君の名は。",
+      titleRomaji: "Kimi no Na wa.",
+    }));
+
+    await db.insert(episodes).values({
+      aired: null,
+      animeId: 1,
+      downloaded: true,
+      filePath: "/mnt/media2/Movies/Kimi no Na wa./movie-source-file.mkv",
+      number: 1,
+      title: null,
+    });
+
+    const preview = await buildRenamePreview(db, 1);
+
+    assertEquals(preview.length, 1);
+    assertEquals(preview[0].new_filename, "Your Name. (2016).mkv");
+    assertEquals(preview[0].format_used, "{title} ({year})");
+    assertEquals(preview[0].metadata_snapshot?.title, "Your Name.");
+    assertEquals(
+      preview[0].metadata_snapshot?.title_source,
+      "preferred_english",
+    );
+  });
+});
+
+Deno.test("buildRenamePreview reports fallback when season metadata is missing", async () => {
+  await withTestDb(async (db, databaseFile) => {
+    const namingFormat = "{title} - S{season:02}E{episode:02}";
+
+    await db.insert(appConfig).values({
+      id: 1,
+      data: encodeConfigCore({
+        ...makeDefaultConfig(databaseFile),
+        library: {
+          ...makeDefaultConfig(databaseFile).library,
+          naming_format: namingFormat,
+        },
+      }),
+      updatedAt: "2024-01-01T00:00:00.000Z",
+    });
+
+    await db.insert(anime).values(makeAnimeRow({
+      rootFolder: "/library/Show",
+      titleRomaji: "Show",
+    }));
+
+    await db.insert(episodes).values({
+      aired: null,
+      animeId: 1,
+      downloaded: true,
+      filePath: "/downloads/Show - 01.mkv",
+      number: 1,
+      title: null,
+    });
+
+    const preview = await buildRenamePreview(db, 1);
+
+    assertEquals(preview[0].new_filename, "Show - 01.mkv");
+    assertEquals(preview[0].fallback_used, true);
+    assertEquals(preview[0].missing_fields, ["season"]);
+    assertEquals(preview[0].warnings?.length, 2);
+    assertEquals(preview[0].metadata_snapshot?.source_identity?.label, "01");
   });
 });
 
@@ -200,21 +328,25 @@ Deno.test("findBestLocalAnimeMatch handles title normalization and rejects weak 
 Deno.test("titlesMatch checks normalized candidate titles", () => {
   const candidate = toAnimeSearchCandidate(makeAnimeRow({
     addedAt: "2024-01-01T00:00:00.000Z",
-    bannerImage: null,
+    bannerImage: "/images/banner.jpg",
     coverImage: null,
-    description: null,
-    endDate: null,
+    description: "Hero school",
+    endDate: "2020-06-01",
+    endYear: 2020,
     episodeCount: 12,
     format: "TV",
-    genres: "Action",
+    genres: '["Action","School"]',
     id: 30,
     malId: null,
     monitored: true,
+    nextAiringAt: null,
+    nextAiringEpisode: null,
     profileName: "Default",
     releaseProfileIds: "[]",
     rootFolder: "/library/My Hero Academia",
     score: null,
-    startDate: null,
+    startDate: "2019-04-06",
+    startYear: 2019,
     status: "FINISHED",
     studios: "Bones",
     titleEnglish: "My Hero Academia Season 2",
@@ -224,6 +356,15 @@ Deno.test("titlesMatch checks normalized candidate titles", () => {
 
   assertEquals(titlesMatch("My Hero Academia 2", candidate), true);
   assertEquals(titlesMatch("One Piece", candidate), false);
+  assertEquals(candidate.banner_image, "/images/banner.jpg");
+  assertEquals(candidate.description, "Hero school");
+  assertEquals(candidate.end_date, "2020-06-01");
+  assertEquals(candidate.end_year, 2020);
+  assertEquals(candidate.genres, ["Action", "School"]);
+  assertEquals(candidate.season, "spring");
+  assertEquals(candidate.season_year, 2019);
+  assertEquals(candidate.start_date, "2019-04-06");
+  assertEquals(candidate.start_year, 2019);
 });
 
 function makeAnimeRow(
@@ -246,11 +387,18 @@ function makeAnimeRow(
     rootFolder: "/library/Anime",
     score: null,
     startDate: null,
+    startYear: null,
+    endYear: null,
+    nextAiringAt: null,
+    nextAiringEpisode: null,
     status: "FINISHED",
     studios: "Studio",
     titleEnglish: null,
     titleNative: null,
     titleRomaji: "Anime",
+    synonyms: null,
+    relatedAnime: null,
+    recommendedAnime: null,
     ...overrides,
   };
 }

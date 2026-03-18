@@ -32,6 +32,7 @@ import {
   decideDownloadAction,
   parseReleaseName,
 } from "./release-ranking.ts";
+import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
 import {
   ExternalCallError,
   type OperationsError,
@@ -44,11 +45,13 @@ import type {
 } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
+import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { makeUnmappedOrchestrationSupport } from "./unmapped-orchestration-support.ts";
 
 export function makeSearchOrchestration(input: {
   db: AppDatabase;
   fs: FileSystemShape;
+  mediaProbe: MediaProbeShape;
   aniList: typeof AniListClient.Service;
   rssClient: typeof RssClient.Service;
   seadexClient: typeof SeaDexClient.Service;
@@ -73,6 +76,7 @@ export function makeSearchOrchestration(input: {
   const {
     db,
     fs,
+    mediaProbe,
     aniList,
     rssClient,
     seadexClient,
@@ -273,31 +277,49 @@ export function makeSearchOrchestration(input: {
       Effect.mapError(wrapOperationsError("Failed to search episode releases")),
     );
 
-    return results.map((item) => ({
-      download_action: decideDownloadAction(
-        profile,
-        rules,
-        currentEpisode,
-        item,
-        runtimeConfig,
-      ),
-      group: item.group,
-      is_seadex: item.isSeaDex || undefined,
-      is_seadex_best: item.isSeaDexBest || undefined,
-      indexer: "Nyaa",
-      info_hash: item.infoHash,
-      leechers: item.leechers,
-      link: item.magnet,
-      publish_date: item.pubDate,
-      quality: parseReleaseName(item.title).quality.name,
-      seadex_comparison: item.seaDexComparison,
-      seadex_dual_audio: item.seaDexDualAudio,
-      seadex_notes: item.seaDexNotes,
-      seadex_tags: item.seaDexTags ? [...item.seaDexTags] : undefined,
-      seeders: item.seeders,
-      size: item.sizeBytes,
-      title: item.title,
-    })).sort(compareEpisodeSearchResults) as EpisodeSearchResult[];
+    return results.map((item) => {
+      const parsedIdentity =
+        parseReleaseSourceIdentity(item.title).source_identity;
+
+      return {
+        download_action: decideDownloadAction(
+          profile,
+          rules,
+          currentEpisode,
+          item,
+          runtimeConfig,
+        ),
+        group: item.group,
+        indexer: "Nyaa",
+        info_hash: item.infoHash,
+        is_seadex: item.isSeaDex || undefined,
+        is_seadex_best: item.isSeaDexBest || undefined,
+        leechers: item.leechers,
+        link: item.magnet,
+        parsed_air_date: parsedIdentity?.scheme === "daily"
+          ? parsedIdentity.air_dates[0]
+          : undefined,
+        parsed_episode_label: parsedIdentity?.label,
+        parsed_episode_numbers:
+          parsedIdentity && parsedIdentity.scheme !== "daily"
+            ? [...parsedIdentity.episode_numbers]
+            : undefined,
+        parsed_resolution: item.resolution,
+        publish_date: item.pubDate,
+        quality: parseReleaseName(item.title).quality.name,
+        remake: item.remake,
+        seadex_comparison: item.seaDexComparison,
+        seadex_dual_audio: item.seaDexDualAudio,
+        seadex_notes: item.seaDexNotes,
+        seadex_release_group: item.seaDexReleaseGroup,
+        seadex_tags: item.seaDexTags ? [...item.seaDexTags] : undefined,
+        seeders: item.seeders,
+        size: item.sizeBytes,
+        title: item.title,
+        trusted: item.trusted,
+        view_url: item.viewUrl,
+      };
+    }).sort(compareEpisodeSearchResults) as EpisodeSearchResult[];
   });
   const backgroundSearchSupport = makeBackgroundSearchSupport({
     db,
@@ -339,6 +361,7 @@ export function makeSearchOrchestration(input: {
       animeId,
       db,
       fs,
+      mediaProbe,
       path,
       tryDatabasePromise,
       tryOperationsPromise,

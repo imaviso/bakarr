@@ -3,6 +3,7 @@ import type { NyaaSearchResult } from "../../../../../packages/shared/src/index.
 import type { ParsedRelease } from "./rss-client.ts";
 import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
 import { nowIso, randomHex } from "./job-support.ts";
+import { parseReleaseName } from "./release-ranking.ts";
 
 export function mapSearchCategory(
   category: string | undefined,
@@ -37,6 +38,7 @@ export function mapSearchFilter(filter: string | undefined, fallback: string) {
 
 export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
   const parsed = parseReleaseSourceIdentity(item.title);
+  const parsedRelease = parseReleaseName(item.title);
   const identity = parsed.source_identity;
   let parsedEpisode: string | undefined;
   let parsedEpisodeNumbers: number[] | undefined;
@@ -54,6 +56,7 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
   }
 
   return {
+    indexer: "Nyaa",
     info_hash: item.infoHash,
     is_seadex: item.isSeaDex,
     is_seadex_best: item.isSeaDexBest,
@@ -61,6 +64,7 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
     magnet: item.magnet,
     parsed_episode: parsedEpisode,
     parsed_group: item.group,
+    parsed_quality: parsedRelease.quality.name,
     parsed_resolution: item.resolution,
     parsed_episode_label: parsedEpisodeLabel,
     parsed_episode_numbers: parsedEpisodeNumbers,

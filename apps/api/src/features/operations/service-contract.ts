@@ -3,7 +3,9 @@ import { Context, Effect } from "effect";
 import type {
   CalendarEvent,
   Download,
-  DownloadEvent,
+  DownloadEventsExport,
+  DownloadEventsPage,
+  DownloadSourceMetadata,
   DownloadStatus,
   EpisodeSearchResult,
   ImportResult,
@@ -85,7 +87,9 @@ export interface LibraryServiceShape {
       source_path: string;
       anime_id: number;
       episode_number: number;
+      episode_numbers?: readonly number[];
       season?: number;
+      source_metadata?: DownloadSourceMetadata;
     }[],
   ) => Effect.Effect<ImportResult, DatabaseError>;
   readonly runLibraryScan: () => Effect.Effect<
@@ -120,10 +124,25 @@ export interface DownloadServiceShape {
   readonly syncDownloads: () => Effect.Effect<void, DatabaseError>;
   readonly listDownloadEvents: (input?: {
     readonly animeId?: number;
+    readonly cursor?: string;
     readonly downloadId?: number;
+    readonly direction?: "next" | "prev";
+    readonly endDate?: string;
     readonly eventType?: string;
     readonly limit?: number;
-  }) => Effect.Effect<DownloadEvent[], DatabaseError>;
+    readonly startDate?: string;
+    readonly status?: string;
+  }) => Effect.Effect<DownloadEventsPage, DatabaseError>;
+  readonly exportDownloadEvents: (input?: {
+    readonly animeId?: number;
+    readonly downloadId?: number;
+    readonly endDate?: string;
+    readonly eventType?: string;
+    readonly limit?: number;
+    readonly order?: "asc" | "desc";
+    readonly startDate?: string;
+    readonly status?: string;
+  }) => Effect.Effect<DownloadEventsExport, DatabaseError>;
   readonly triggerDownload: (
     input: {
       anime_id: number;
@@ -133,6 +152,8 @@ export interface DownloadServiceShape {
       group?: string;
       info_hash?: string;
       is_batch?: boolean;
+      decision_reason?: string;
+      release_metadata?: DownloadSourceMetadata;
     },
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly triggerSearchMissing: (

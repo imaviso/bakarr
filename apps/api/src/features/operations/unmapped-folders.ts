@@ -5,6 +5,7 @@ import type {
   ScannerState,
   UnmappedFolder,
 } from "../../../../../packages/shared/src/index.ts";
+import { scoreAnimeSearchResultMatch } from "./library-import.ts";
 
 type UnmappedFolderInput = Pick<
   ScannerState["folders"][number],
@@ -80,8 +81,10 @@ export const suggestUnmappedFolders = Effect.fn(
   return folders.map((folder) => ({
     name: folder.name,
     path: folder.path,
+    search_queries: queriesByFolder.get(folder.path) ?? [],
     size: 0,
     suggested_matches: firstMatchingSuggestions(
+      folder.name,
       queriesByFolder.get(folder.path) ?? [],
       queryResults,
     ),
@@ -201,6 +204,7 @@ function normalizeSearchText(value: string) {
 }
 
 function firstMatchingSuggestions(
+  folderName: string,
   queries: readonly string[],
   queryResults: ReadonlyMap<string, readonly AnimeSearchResult[]>,
 ) {
@@ -208,9 +212,43 @@ function firstMatchingSuggestions(
     const matches = queryResults.get(query);
 
     if (matches && matches.length > 0) {
-      return [...matches];
+      return annotateUnmappedSuggestions(
+        folderName,
+        query,
+        queries[0],
+        matches,
+      );
     }
   }
 
   return [];
+}
+
+function annotateUnmappedSuggestions(
+  folderName: string,
+  query: string,
+  primaryQuery: string | undefined,
+  matches: readonly AnimeSearchResult[],
+) {
+  return [...matches]
+    .map((candidate) => ({
+      ...candidate,
+      match_confidence: roundConfidence(
+        scoreAnimeSearchResultMatch(query, candidate),
+      ),
+      match_reason: query === primaryQuery
+        ? `Matched AniList search for the normalized folder title from ${
+          JSON.stringify(folderName)
+        }`
+        : `Matched AniList search after removing season or release noise from ${
+          JSON.stringify(folderName)
+        }`,
+    }))
+    .sort((left, right) =>
+      (right.match_confidence ?? 0) - (left.match_confidence ?? 0)
+    );
+}
+
+function roundConfidence(value: number) {
+  return Math.round(value * 100) / 100;
 }

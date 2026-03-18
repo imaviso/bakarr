@@ -75,7 +75,16 @@ Deno.test("suggestUnmappedFolders reuses normalized queries and falls back when 
   );
 
   assertEquals(calls, ["Scissor Seven Season 4", "Scissor Seven", "Mono"]);
+  assertEquals(suggestions[0].search_queries, [
+    "Scissor Seven Season 4",
+    "Scissor Seven",
+  ]);
   assertEquals(suggestions[0].suggested_matches[0]?.id, 1);
+  assertEquals(suggestions[0].suggested_matches[0]?.match_confidence, 1);
+  assertEquals(
+    suggestions[0].suggested_matches[0]?.match_reason,
+    'Matched AniList search after removing season or release noise from "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG"',
+  );
   assertEquals(suggestions[1].suggested_matches[0]?.id, 2);
 });
 
@@ -85,6 +94,7 @@ Deno.test("unmapped folder helpers track matching status transitions", () => {
     match_attempts: 0,
     name: "Naruto Archive",
     path: "/library/Naruto Archive",
+    search_queries: ["Naruto Archive"],
     size: 0,
     suggested_matches: [] as AnimeSearchResult[],
   };
@@ -93,6 +103,9 @@ Deno.test("unmapped folder helpers track matching status transitions", () => {
   const done = mergeUnmappedFolderSuggestions(base, [{
     already_in_library: true,
     id: 20,
+    match_confidence: 0.98,
+    match_reason:
+      'Matched a library title from the normalized folder name "Naruto Archive"',
     title: { romaji: "Naruto" },
   }]);
   const failed = markUnmappedFolderFailed(base, "rate limited");
@@ -102,6 +115,7 @@ Deno.test("unmapped folder helpers track matching status transitions", () => {
   assertEquals(done.match_status, "done");
   assertEquals(done.match_attempts, 0);
   assertEquals(done.suggested_matches[0]?.id, 20);
+  assertEquals(done.suggested_matches[0]?.match_confidence, 0.98);
   assertEquals(typeof done.last_matched_at, "string");
   assertEquals(failed.match_status, "failed");
   assertEquals(failed.match_attempts, 1);
@@ -119,6 +133,7 @@ Deno.test("unmapped folder helpers support pause and reset controls", () => {
     match_status: "failed" as const,
     name: "Naruto Archive",
     path: "/library/Naruto Archive",
+    search_queries: ["Naruto Archive"],
     size: 0,
     suggested_matches: [{
       already_in_library: true,

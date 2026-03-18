@@ -11,6 +11,7 @@ export { parseEpisodeNumbers };
 export interface ScannedVideoFile {
   readonly name: string;
   readonly path: string;
+  readonly size: number;
 }
 
 export const scanVideoFiles = Effect.fn("Operations.scanVideoFiles")(
@@ -67,7 +68,13 @@ export function scanVideoFilesStream(
         }
 
         if (entry.isFile && isVideoFile(entry.name)) {
-          files.push({ name: entry.name, path: fullPath });
+          const stats = yield* fs.stat(fullPath).pipe(
+            Effect.catchTag(
+              "FileSystemError",
+              () => Effect.succeed({ size: 0 } as { size: number }),
+            ),
+          );
+          files.push({ name: entry.name, path: fullPath, size: stats.size });
         }
       }
 

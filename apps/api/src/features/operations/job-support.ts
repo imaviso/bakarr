@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 
+import type { DownloadSourceMetadata } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import {
   backgroundJobs,
@@ -8,6 +9,7 @@ import {
   episodes,
   systemLogs,
 } from "../../db/schema.ts";
+import { encodeDownloadEventMetadata } from "./repository.ts";
 
 export function nowIso() {
   return new Date().toISOString();
@@ -38,6 +40,11 @@ export async function recordDownloadEvent(
     toStatus?: string | null;
     message: string;
     metadata?: string | null;
+    metadataJson?: {
+      covered_episodes?: readonly number[];
+      imported_path?: string;
+      source_metadata?: DownloadSourceMetadata;
+    };
   },
 ) {
   await db.insert(downloadEvents).values({
@@ -47,7 +54,9 @@ export async function recordDownloadEvent(
     eventType: input.eventType,
     fromStatus: input.fromStatus ?? null,
     message: input.message,
-    metadata: input.metadata ?? null,
+    metadata: input.metadataJson
+      ? encodeDownloadEventMetadata(input.metadataJson)
+      : (input.metadata ?? null),
     toStatus: input.toStatus ?? null,
   });
 }

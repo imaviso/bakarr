@@ -43,9 +43,16 @@ Deno.test("toNyaaSearchResult preserves release fields and parses episode number
   const result = toNyaaSearchResult(release);
 
   assertEquals(result.info_hash, release.infoHash);
+  assertEquals(result.indexer, "Nyaa");
   assertEquals(result.parsed_group, "SubsPlease");
+  assertEquals(result.parsed_quality, "WEB-DL 1080p");
   assertEquals(result.parsed_episode, "1");
+  assertEquals(result.parsed_episode_label, "01");
+  assertEquals(result.parsed_episode_numbers, [1]);
   assertEquals(result.parsed_resolution, "1080p");
+  assertEquals(result.trusted, true);
+  assertEquals(result.remake, false);
+  assertEquals(result.view_url, "https://nyaa.si/view/1");
   assertEquals(result.is_seadex, true);
   assertEquals(result.is_seadex_best, false);
   assertEquals(result.seadex_release_group, "SeaDexGroup");
@@ -58,6 +65,31 @@ Deno.test("toNyaaSearchResult preserves release fields and parses episode number
   assertEquals(result.seadex_dual_audio, true);
 });
 
+Deno.test("toNyaaSearchResult maps daily releases to parsed air date", () => {
+  const release: ParsedRelease = {
+    group: "Erai-raws",
+    infoHash: "fedcba1234567890fedcba1234567890fedcba12",
+    isSeaDex: false,
+    isSeaDexBest: false,
+    leechers: 2,
+    magnet: "magnet:?xt=urn:btih:fedcba1234567890fedcba1234567890fedcba12",
+    pubDate: "2024-01-01T00:00:00.000Z",
+    remake: false,
+    resolution: "1080p",
+    seeders: 50,
+    size: "1.4 GiB",
+    sizeBytes: 1503238554,
+    title: "[Erai-raws] Show - 2025-03-14 [1080p]",
+    trusted: true,
+    viewUrl: "https://nyaa.si/view/2",
+  };
+
+  const result = toNyaaSearchResult(release);
+
+  assertEquals(result.parsed_air_date, "2025-03-14");
+  assertEquals(result.parsed_episode_numbers, undefined);
+});
+
 Deno.test("fallbackReleases builds a trusted placeholder release from title", () => {
   const [release] = fallbackReleases("naruto", "Naruto Shippuden");
 
@@ -66,6 +98,7 @@ Deno.test("fallbackReleases builds a trusted placeholder release from title", ()
   assertEquals(release.isSeaDexBest, false);
   assertEquals(release.resolution, "1080p");
   assertEquals(release.trusted, true);
+  assertEquals(toNyaaSearchResult(release).indexer, "Nyaa");
   assertMatch(release.magnet, /^magnet:\?xt=urn:btih:[a-f0-9]+&dn=/);
   assertMatch(release.infoHash, /^[a-f0-9]+$/);
   assertEquals(release.title.includes("Naruto Shippuden"), true);

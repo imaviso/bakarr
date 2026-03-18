@@ -1,10 +1,24 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  lt,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import { Effect, Either, Stream } from "effect";
 
 import type {
   CalendarEvent,
   Download,
   DownloadEvent,
+  DownloadEventsExport,
+  DownloadEventsPage,
   DownloadStatus,
   ImportResult,
   MissingEpisode,
@@ -21,8 +35,14 @@ import {
   rssFeeds,
 } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
+import { deriveEpisodeTimelineMetadata } from "../anime/query-support.ts";
 import { buildRenamePreview } from "./library-import.ts";
-import { buildEpisodeNamingInputFromPath } from "./naming-support.ts";
+import {
+  buildEpisodeFilenamePlan,
+  hasMissingLocalMediaNamingFields,
+  selectNamingFormat,
+} from "./naming-support.ts";
+import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { scanVideoFilesStream } from "./file-scanner.ts";
 import { upsertEpisodeFile, upsertEpisodeFiles } from "./download-support.ts";
 import {
@@ -39,7 +59,9 @@ import {
 } from "./job-support.ts";
 import {
   currentImportMode,
-  currentNamingFormat,
+  currentNamingSettings,
+  loadDownloadEventPresentationContexts,
+  loadDownloadPresentationContexts,
   requireAnime,
   toDownload,
   toDownloadEvent,
@@ -52,12 +74,12 @@ import type {
   TryOperationsPromise,
 } from "./service-support.ts";
 import { type FileSystemShape } from "../../lib/filesystem.ts";
-import { renderEpisodeFilename } from "../../lib/naming.ts";
 import { OperationsPathError } from "./errors.ts";
 
 export function makeCatalogOrchestration(input: {
   db: AppDatabase;
   fs: FileSystemShape;
+  mediaProbe: MediaProbeShape;
   eventBus: typeof EventBus.Service;
   tryDatabasePromise: TryDatabasePromise;
   tryOperationsPromise: TryOperationsPromise;
@@ -80,6 +102,7 @@ export function makeCatalogOrchestration(input: {
   const {
     db,
     fs,
+    mediaProbe,
     eventBus,
     tryDatabasePromise,
     tryOperationsPromise,
@@ -119,7 +142,9 @@ export function makeCatalogOrchestration(input: {
                 db.update(episodes).set({ filePath: item.new_path }).where(
                   and(
                     eq(episodes.animeId, animeId),
-                    eq(episodes.number, item.episode_number),
+                    item.episode_numbers?.length
+                      ? inArray(episodes.number, item.episode_numbers)
+                      : eq(episodes.number, item.episode_number),
                   ),
                 ),
             ).pipe(
@@ -169,6 +194,8 @@ export function makeCatalogOrchestration(input: {
       episode_number: number;
       episode_numbers?: readonly number[];
       season?: number;
+      source_metadata?:
+        import("../../../../../packages/shared/src/index.ts").DownloadSourceMetadata;
     }[],
   ) {
     const importedFiles: ImportResult["imported_files"] = [];
@@ -178,9 +205,9 @@ export function makeCatalogOrchestration(input: {
       "Failed to import files",
       () => currentImportMode(db),
     );
-    const namingFormat = yield* tryDatabasePromise(
+    const namingSettings = yield* tryDatabasePromise(
       "Failed to import files",
-      () => currentNamingFormat(db),
+      () => currentNamingSettings(db),
     );
 
     for (const file of files) {
@@ -197,23 +224,54 @@ export function makeCatalogOrchestration(input: {
           "Failed to import files",
           () => requireAnime(db, file.anime_id),
         );
+        const namingFormat = selectNamingFormat(animeRow, namingSettings);
         const allEpisodeNumbers = file.episode_numbers?.length
           ? file.episode_numbers
           : [file.episode_number];
+        const episodeRows = yield* tryDatabasePromise(
+          "Failed to import files",
+          () =>
+            db.select({ aired: episodes.aired, title: episodes.title }).from(
+              episodes,
+            ).where(
+              and(
+                eq(episodes.animeId, file.anime_id),
+                inArray(episodes.number, allEpisodeNumbers as number[]),
+              ),
+            ),
+        );
         const extension = file.source_path.includes(".")
           ? file.source_path.slice(file.source_path.lastIndexOf("."))
           : ".mkv";
-        const destinationBaseName = renderEpisodeFilename(
+        const initialNamingPlan = buildEpisodeFilenamePlan({
+          animeRow,
+          downloadSourceMetadata: file.source_metadata,
+          episodeNumbers: allEpisodeNumbers,
+          episodeRows,
+          filePath: file.source_path,
           namingFormat,
-          buildEpisodeNamingInputFromPath({
-            animeStartDate: animeRow.startDate,
-            animeTitle: animeRow.titleRomaji,
+          preferredTitle: namingSettings.preferredTitle,
+          season: file.season,
+        });
+        const localMediaMetadata = hasMissingLocalMediaNamingFields(
+            initialNamingPlan.missingFields,
+          )
+          ? yield* mediaProbe.probeVideoFile(file.source_path)
+          : undefined;
+        const namingPlan = localMediaMetadata
+          ? buildEpisodeFilenamePlan({
+            animeRow,
+            downloadSourceMetadata: file.source_metadata,
             episodeNumbers: allEpisodeNumbers,
+            episodeRows,
             filePath: file.source_path,
-            rootFolder: animeRow.rootFolder,
+            localMediaMetadata,
+            namingFormat,
+            preferredTitle: namingSettings.preferredTitle,
             season: file.season,
-          }),
-        );
+          })
+          : initialNamingPlan;
+        const destinationBaseName = namingPlan.baseName;
         const destination = `${
           animeRow.rootFolder.replace(/\/$/, "")
         }/${destinationBaseName}${extension}`;
@@ -276,6 +334,15 @@ export function makeCatalogOrchestration(input: {
           episode_number: file.episode_number,
           episode_numbers: file.episode_numbers
             ? [...file.episode_numbers]
+            : undefined,
+          naming_fallback_used: namingPlan.fallbackUsed || undefined,
+          naming_format_used: namingPlan.formatUsed,
+          naming_metadata_snapshot: namingPlan.metadataSnapshot,
+          naming_missing_fields: namingPlan.missingFields.length > 0
+            ? [...namingPlan.missingFields]
+            : undefined,
+          naming_warnings: namingPlan.warnings.length > 0
+            ? [...namingPlan.warnings]
             : undefined,
           source_path: file.source_path,
         });
@@ -422,6 +489,8 @@ export function makeCatalogOrchestration(input: {
             animeId: anime.id,
             animeTitle: anime.titleRomaji,
             coverImage: anime.coverImage,
+            nextAiringAt: anime.nextAiringAt,
+            nextAiringEpisode: anime.nextAiringEpisode,
             episodeNumber: episodes.number,
             title: episodes.title,
             aired: episodes.aired,
@@ -433,17 +502,31 @@ export function makeCatalogOrchestration(input: {
                 sql`${episodes.aired} is not null`,
                 sql`${episodes.aired} <= ${nowIso()}`,
               ),
-            ).limit(Math.max(1, limit)),
+            ).orderBy(episodes.aired, anime.titleRomaji).limit(
+              Math.max(1, limit),
+            ),
       );
 
-      return rows.map((row) => ({
-        aired: row.aired ?? undefined,
-        anime_id: row.animeId,
-        anime_image: row.coverImage ?? undefined,
-        anime_title: row.animeTitle,
-        episode_number: row.episodeNumber,
-        episode_title: row.title ?? undefined,
-      })) as MissingEpisode[];
+      return rows.map((row) => {
+        const timeline = deriveEpisodeTimelineMetadata(row.aired ?? undefined);
+
+        return {
+          aired: row.aired ?? undefined,
+          airing_status: timeline.airing_status,
+          anime_id: row.animeId,
+          anime_image: row.coverImage ?? undefined,
+          anime_title: row.animeTitle,
+          episode_number: row.episodeNumber,
+          episode_title: row.title ?? undefined,
+          is_future: timeline.is_future,
+          next_airing_episode: row.nextAiringAt && row.nextAiringEpisode
+            ? {
+              airing_at: row.nextAiringAt,
+              episode: row.nextAiringEpisode,
+            }
+            : undefined,
+        } satisfies MissingEpisode;
+      });
     },
   );
 
@@ -460,23 +543,32 @@ export function makeCatalogOrchestration(input: {
               sql`${episodes.aired} >= ${start}`,
               sql`${episodes.aired} <= ${end}`,
             ),
-          ),
+          ).orderBy(episodes.aired, anime.titleRomaji),
       );
 
-      return rows.map(({ anime: animeRow, episodes: episodeRow }) => ({
-        all_day: true,
-        end: episodeRow.aired ?? new Date().toISOString(),
-        extended_props: {
-          anime_id: animeRow.id,
-          anime_image: animeRow.coverImage ?? undefined,
-          anime_title: animeRow.titleRomaji,
-          downloaded: episodeRow.downloaded,
-          episode_number: episodeRow.number,
-        },
-        id: `${animeRow.id}-${episodeRow.number}`,
-        start: episodeRow.aired ?? new Date().toISOString(),
-        title: `${animeRow.titleRomaji} - Episode ${episodeRow.number}`,
-      })) as CalendarEvent[];
+      return rows.map(({ anime: animeRow, episodes: episodeRow }) => {
+        const timeline = deriveEpisodeTimelineMetadata(
+          episodeRow.aired ?? undefined,
+        );
+
+        return {
+          all_day: isAllDayAiring(episodeRow.aired),
+          end: episodeRow.aired ?? new Date().toISOString(),
+          extended_props: {
+            airing_status: timeline.airing_status,
+            anime_id: animeRow.id,
+            anime_image: animeRow.coverImage ?? undefined,
+            anime_title: animeRow.titleRomaji,
+            downloaded: episodeRow.downloaded,
+            episode_number: episodeRow.number,
+            episode_title: episodeRow.title ?? undefined,
+            is_future: timeline.is_future,
+          },
+          id: `${animeRow.id}-${episodeRow.number}`,
+          start: episodeRow.aired ?? new Date().toISOString(),
+          title: buildCalendarEventTitle(animeRow.titleRomaji, episodeRow),
+        } satisfies CalendarEvent;
+      });
     },
   );
 
@@ -498,32 +590,212 @@ export function makeCatalogOrchestration(input: {
   const listDownloadEvents = Effect.fn("OperationsService.listDownloadEvents")(
     function* (input: {
       animeId?: number;
+      cursor?: string;
       downloadId?: number;
+      direction?: "next" | "prev";
+      endDate?: string;
       eventType?: string;
       limit?: number;
+      startDate?: string;
+      status?: string;
     } = {}) {
       const limit = Math.max(1, Math.min(input.limit ?? 100, 1000));
-      const conditions = [
+      const cursorId = input.cursor && /^\d+$/.test(input.cursor)
+        ? Number(input.cursor)
+        : undefined;
+      const baseConditions = [
         input.animeId ? eq(downloadEvents.animeId, input.animeId) : undefined,
         input.downloadId
           ? eq(downloadEvents.downloadId, input.downloadId)
           : undefined,
+        input.endDate
+          ? lte(downloadEvents.createdAt, input.endDate)
+          : undefined,
         input.eventType
           ? eq(downloadEvents.eventType, input.eventType)
+          : undefined,
+        input.startDate
+          ? gte(downloadEvents.createdAt, input.startDate)
+          : undefined,
+        input.status
+          ? or(
+            eq(downloadEvents.fromStatus, input.status),
+            eq(downloadEvents.toStatus, input.status),
+          )
           : undefined,
       ].filter((value): value is Exclude<typeof value, undefined> =>
         value !== undefined
       );
+      const cursorCondition = cursorId
+        ? input.direction === "prev"
+          ? gt(downloadEvents.id, cursorId)
+          : lt(downloadEvents.id, cursorId)
+        : undefined;
+      const conditions = cursorCondition
+        ? [...baseConditions, cursorCondition]
+        : baseConditions;
       const query = db.select().from(downloadEvents).orderBy(
-        desc(downloadEvents.id),
-      ).limit(limit);
+        input.direction === "prev"
+          ? asc(downloadEvents.id)
+          : desc(downloadEvents.id),
+      ).limit(limit + 1);
       const rows = yield* tryDatabasePromise(
         "Failed to load download events",
         () => conditions.length > 0 ? query.where(and(...conditions)) : query,
       );
-      return rows.map(toDownloadEvent) as DownloadEvent[];
+      const totalRows = yield* tryDatabasePromise(
+        "Failed to count download events",
+        () => {
+          const totalQuery = db.select({ count: sql<number>`count(*)` }).from(
+            downloadEvents,
+          );
+          return baseConditions.length > 0
+            ? totalQuery.where(and(...baseConditions))
+            : totalQuery;
+        },
+      );
+      const hasExtraRow = rows.length > limit;
+      const pageRows = hasExtraRow ? rows.slice(0, limit) : rows;
+      const orderedRows = input.direction === "prev"
+        ? [...pageRows].reverse()
+        : pageRows;
+      const contexts = yield* tryDatabasePromise(
+        "Failed to load download events",
+        () => loadDownloadEventPresentationContexts(db, orderedRows),
+      );
+      const events = orderedRows.map((row) =>
+        toDownloadEvent(row, contexts.get(row.id))
+      ) as DownloadEvent[];
+      const total = Number(totalRows[0]?.count ?? 0);
+      const firstRowId = orderedRows[0]?.id;
+      const lastRowId = orderedRows[orderedRows.length - 1]?.id;
+      const newerExists = firstRowId
+        ? yield* hasAdjacentDownloadEvent(
+          db,
+          baseConditions,
+          gt(downloadEvents.id, firstRowId),
+        )
+        : false;
+      const olderExists = lastRowId
+        ? yield* hasAdjacentDownloadEvent(
+          db,
+          baseConditions,
+          lt(downloadEvents.id, lastRowId),
+        )
+        : false;
+
+      return {
+        events,
+        has_more: olderExists,
+        limit,
+        next_cursor: olderExists && lastRowId ? String(lastRowId) : undefined,
+        prev_cursor: newerExists && firstRowId ? String(firstRowId) : undefined,
+        total,
+      } satisfies DownloadEventsPage;
     },
   );
+
+  const exportDownloadEvents = Effect.fn(
+    "OperationsService.exportDownloadEvents",
+  )(
+    function* (input: {
+      animeId?: number;
+      downloadId?: number;
+      endDate?: string;
+      eventType?: string;
+      limit?: number;
+      order?: "asc" | "desc";
+      startDate?: string;
+      status?: string;
+    } = {}) {
+      const limit = Math.max(1, Math.min(input.limit ?? 10_000, 50_000));
+      const order = input.order === "asc" ? "asc" : "desc";
+      const baseConditions = [
+        input.animeId ? eq(downloadEvents.animeId, input.animeId) : undefined,
+        input.downloadId
+          ? eq(downloadEvents.downloadId, input.downloadId)
+          : undefined,
+        input.endDate
+          ? lte(downloadEvents.createdAt, input.endDate)
+          : undefined,
+        input.eventType
+          ? eq(downloadEvents.eventType, input.eventType)
+          : undefined,
+        input.startDate
+          ? gte(downloadEvents.createdAt, input.startDate)
+          : undefined,
+        input.status
+          ? or(
+            eq(downloadEvents.fromStatus, input.status),
+            eq(downloadEvents.toStatus, input.status),
+          )
+          : undefined,
+      ].filter((value): value is Exclude<typeof value, undefined> =>
+        value !== undefined
+      );
+
+      const query = db.select().from(downloadEvents).orderBy(
+        order === "asc" ? asc(downloadEvents.id) : desc(downloadEvents.id),
+      ).limit(limit + 1);
+      const rows = yield* tryDatabasePromise(
+        "Failed to export download events",
+        () =>
+          baseConditions.length > 0
+            ? query.where(and(...baseConditions))
+            : query,
+      );
+      const totalRows = yield* tryDatabasePromise(
+        "Failed to count download events",
+        () => {
+          const totalQuery = db.select({ count: sql<number>`count(*)` }).from(
+            downloadEvents,
+          );
+          return baseConditions.length > 0
+            ? totalQuery.where(and(...baseConditions))
+            : totalQuery;
+        },
+      );
+
+      const truncated = rows.length > limit;
+      const exportRows = truncated ? rows.slice(0, limit) : rows;
+      const contexts = yield* tryDatabasePromise(
+        "Failed to export download events",
+        () => loadDownloadEventPresentationContexts(db, exportRows),
+      );
+      const events = exportRows.map((row) =>
+        toDownloadEvent(row, contexts.get(row.id))
+      ) as DownloadEvent[];
+      const total = Number(totalRows[0]?.count ?? 0);
+
+      return {
+        events,
+        total,
+        exported: events.length,
+        truncated,
+        limit,
+        order,
+        generated_at: nowIso(),
+      } satisfies DownloadEventsExport;
+    },
+  );
+
+  const hasAdjacentDownloadEvent = Effect.fn(
+    "OperationsService.hasAdjacentDownloadEvent",
+  )(function* (
+    db: AppDatabase,
+    baseConditions: ReadonlyArray<Parameters<typeof and>[number]>,
+    cursorCondition: Parameters<typeof and>[number],
+  ) {
+    const rows = yield* tryDatabasePromise(
+      "Failed to load download events",
+      () =>
+        db.select({ id: downloadEvents.id }).from(downloadEvents).where(
+          and(...baseConditions, cursorCondition),
+        ).limit(1),
+    );
+
+    return rows.length > 0;
+  });
 
   const listDownloadQueue = Effect.fn("OperationsService.listDownloadQueue")(
     function* () {
@@ -534,7 +806,13 @@ export function makeCatalogOrchestration(input: {
             inArray(downloads.status, ["queued", "downloading", "paused"]),
           ).orderBy(desc(downloads.id)),
       );
-      return rows.map(toDownload) as Download[];
+      const contexts = yield* tryDatabasePromise(
+        "Failed to list download queue",
+        () => loadDownloadPresentationContexts(db, rows),
+      );
+      return rows.map((row) =>
+        toDownload(row, contexts.get(row.id))
+      ) as Download[];
     },
   );
 
@@ -546,7 +824,13 @@ export function makeCatalogOrchestration(input: {
         "Failed to list download history",
         () => db.select().from(downloads).orderBy(desc(downloads.id)),
       );
-      return rows.map(toDownload) as Download[];
+      const contexts = yield* tryDatabasePromise(
+        "Failed to list download history",
+        () => loadDownloadPresentationContexts(db, rows),
+      );
+      return rows.map((row) =>
+        toDownload(row, contexts.get(row.id))
+      ) as Download[];
     },
   );
 
@@ -561,8 +845,12 @@ export function makeCatalogOrchestration(input: {
             inArray(downloads.status, ["queued", "downloading", "paused"]),
           ).orderBy(desc(downloads.id)),
       );
+      const contexts = yield* tryDatabasePromise(
+        "Failed to build download progress snapshot",
+        () => loadDownloadPresentationContexts(db, rows),
+      );
       return rows.map((row) =>
-        toDownloadStatus(row, () => randomHex(20))
+        toDownloadStatus(row, () => randomHex(20), contexts.get(row.id))
       ) as DownloadStatus[];
     },
   );
@@ -699,6 +987,7 @@ export function makeCatalogOrchestration(input: {
     getWantedMissing,
     importFiles,
     listAnimeRssFeeds,
+    exportDownloadEvents,
     listDownloadEvents,
     listDownloadHistory,
     listDownloadQueue,
@@ -713,4 +1002,17 @@ export function makeCatalogOrchestration(input: {
     syncDownloads,
     toggleRssFeed,
   };
+}
+
+function isAllDayAiring(aired?: string | null) {
+  return !aired?.includes("T");
+}
+
+function buildCalendarEventTitle(
+  animeTitle: string,
+  episodeRow: { number: number; title: string | null },
+) {
+  return episodeRow.title
+    ? `${animeTitle} - Episode ${episodeRow.number}: ${episodeRow.title}`
+    : `${animeTitle} - Episode ${episodeRow.number}`;
 }

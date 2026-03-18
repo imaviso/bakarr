@@ -20,8 +20,10 @@ import {
 } from "./unmapped-folders.ts";
 import {
   findBestLocalAnimeMatch,
+  scoreAnimeRowMatch,
   toAnimeSearchCandidate,
 } from "./library-import.ts";
+import { scanVideoFiles } from "./file-scanner.ts";
 import { getConfigLibraryPath } from "./repository.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
 
@@ -29,11 +31,23 @@ export function findLocalFolderAnimeMatch(
   folderName: string,
   animeRows: ReadonlyArray<typeof anime.$inferSelect>,
 ) {
-  for (const query of buildUnmappedFolderSearchQueries(folderName)) {
+  const queries = buildUnmappedFolderSearchQueries(folderName);
+
+  for (const [index, query] of queries.entries()) {
     const match = findBestLocalAnimeMatch(query, [...animeRows]);
 
     if (match) {
-      return toAnimeSearchCandidate(match);
+      return {
+        ...toAnimeSearchCandidate(match),
+        match_confidence: roundConfidence(scoreAnimeRowMatch(query, match)),
+        match_reason: index === 0
+          ? `Matched a library title from the normalized folder name ${
+            JSON.stringify(folderName)
+          }`
+          : `Matched a library title after removing season or release noise from ${
+            JSON.stringify(folderName)
+          }`,
+      };
     }
   }
 
@@ -61,6 +75,10 @@ export function mergeLocalFolderMatch(
   };
 }
 
+function roundConfidence(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 export function listUnmappedFolderEntries(
   root: string,
   entries: readonly Deno.DirEntry[],
@@ -81,6 +99,7 @@ export function listUnmappedFolderEntries(
       match_status: "pending" as const,
       name: entry.name,
       path: fullPath,
+      search_queries: buildUnmappedFolderSearchQueries(entry.name),
       size: 0,
       suggested_matches: [],
     }];
@@ -101,6 +120,7 @@ export function ensureFolderMatchStatus(
     last_match_error: cached.last_match_error,
     last_matched_at: cached.last_matched_at,
     match_status: cached.match_status,
+    search_queries: folder.search_queries,
     suggested_matches: cached.suggested_matches,
   };
 }
@@ -210,14 +230,35 @@ export function loadUnmappedFolderSnapshot(input: {
     const folders = listUnmappedFolderEntries(root, entries, mappedRoots).map((
       folder,
     ) => ensureFolderMatchStatus(folder, cachedByPath.get(folder.path)));
+    const sizedFolders = yield* Effect.forEach(
+      folders,
+      (folder) =>
+        loadUnmappedFolderVideoSize(input.fs, folder.path).pipe(
+          Effect.map((size) => ({
+            ...folder,
+            size,
+          })),
+        ),
+      { concurrency: 4 },
+    );
 
     return {
       animeRows,
       cachedByPath,
-      folders,
+      folders: sizedFolders,
     };
   });
 }
+
+export const loadUnmappedFolderVideoSize = Effect.fn(
+  "OperationsService.loadUnmappedFolderVideoSize",
+)(function* (fs: FileSystemShape, path: string) {
+  const files = yield* scanVideoFiles(fs, path).pipe(
+    Effect.catchTag("FileSystemError", () => Effect.succeed([])),
+  );
+
+  return files.reduce((total, file) => total + file.size, 0);
+});
 
 export const matchSingleUnmappedFolder = Effect.fn(
   "OperationsService.matchSingleUnmappedFolder",

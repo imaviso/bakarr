@@ -1,11 +1,14 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
+import type { DownloadSourceMetadata } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { anime, downloads } from "../../db/schema.ts";
 import type { ExternalCallError, OperationsError } from "./errors.ts";
 import { nowIso, recordDownloadEvent } from "./job-support.ts";
+import { parseCoveredEpisodes } from "./download-lifecycle.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
+import { encodeDownloadSourceMetadata } from "./repository.ts";
 import type { ParsedRelease } from "./rss-client.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
 
@@ -21,6 +24,7 @@ export const queueParsedReleaseDownload = Effect.fn(
   eventType: string;
   isBatch: boolean;
   item: ParsedRelease;
+  sourceMetadata: DownloadSourceMetadata;
   qbitClient: typeof QBitTorrentClient.Service;
   qbitConfig: QBitConfig | null;
   tryDatabasePromise: TryDatabasePromise;
@@ -51,6 +55,7 @@ export const queueParsedReleaseDownload = Effect.fn(
         progress: 0,
         savePath: null,
         speedBytes: 0,
+        sourceMetadata: encodeDownloadSourceMetadata(input.sourceMetadata),
         status: "queued",
         torrentName: input.item.title,
         totalBytes: input.item.sizeBytes,
@@ -104,6 +109,10 @@ export const queueParsedReleaseDownload = Effect.fn(
         eventType: input.eventType,
         message: input.eventMessage,
         metadata: input.coveredEpisodes,
+        metadataJson: {
+          covered_episodes: parseCoveredEpisodes(input.coveredEpisodes),
+          source_metadata: input.sourceMetadata,
+        },
         toStatus: status,
       }),
   );

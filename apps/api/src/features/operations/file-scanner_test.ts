@@ -44,7 +44,10 @@ const mockFs: FileSystemShape = {
       )
       : Effect.succeed(tree.get(toPathString(path)) ?? []),
   realPath: (path) => Effect.succeed(toPathString(path)),
-  stat: () => Effect.die("unused"),
+  stat: (path) =>
+    Effect.succeed({
+      size: toPathString(path).endsWith("episode-01.mkv") ? 100 : 200,
+    } as Deno.FileInfo),
   mkdir: () => Effect.die("unused"),
   rename: () => Effect.die("unused"),
   copyFile: () => Effect.die("unused"),
@@ -69,10 +72,18 @@ Deno.test("scanVideoFiles collects iterator output", async () => {
   const files = await Effect.runPromise(scanVideoFiles(mockFs, "/library"));
 
   assertEquals(
-    files.map((file) => file.path),
+    files,
     [
-      "/library/show/episode-01.mkv",
-      "/library/show/season-2/episode-02.mp4",
+      {
+        name: "episode-01.mkv",
+        path: "/library/show/episode-01.mkv",
+        size: 100,
+      },
+      {
+        name: "episode-02.mp4",
+        path: "/library/show/season-2/episode-02.mp4",
+        size: 200,
+      },
     ],
   );
 });

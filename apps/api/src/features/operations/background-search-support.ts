@@ -1,7 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
+import type {
+  Config,
+  DownloadAction,
+} from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { anime, downloads, episodes, rssFeeds } from "../../db/schema.ts";
@@ -27,6 +30,11 @@ import {
   parseEpisodeFromTitle,
   parseReleaseName,
 } from "./release-ranking.ts";
+import {
+  buildDownloadSelectionMetadata,
+  buildDownloadSourceMetadataFromRelease,
+  mergeDownloadSourceMetadata,
+} from "./naming-support.ts";
 import {
   loadCurrentEpisodeState,
   loadQualityProfile,
@@ -89,6 +97,8 @@ export function makeBackgroundSearchSupport(input: {
   )(function* (input: {
     animeRow: typeof anime.$inferSelect;
     contextMessage: string;
+    decisionReason?: string;
+    action?: DownloadAction;
     episodeNumber: number;
     eventMessage: string;
     eventType: string;
@@ -134,6 +144,25 @@ export function makeBackgroundSearchSupport(input: {
         eventType: input.eventType,
         isBatch: parsedRelease.isBatch,
         item: input.item,
+        sourceMetadata: mergeDownloadSourceMetadata(
+          buildDownloadSourceMetadataFromRelease({
+            ...buildDownloadSelectionMetadata(input.action),
+            decisionReason: input.decisionReason,
+            group: input.item.group,
+            indexer: "Nyaa",
+            isSeadex: input.item.isSeaDex,
+            isSeadexBest: input.item.isSeaDexBest,
+            remake: input.item.remake,
+            seadexComparison: input.item.seaDexComparison,
+            seadexDualAudio: input.item.seaDexDualAudio,
+            seadexNotes: input.item.seaDexNotes,
+            seadexReleaseGroup: input.item.seaDexReleaseGroup,
+            seadexTags: input.item.seaDexTags,
+            sourceUrl: input.item.viewUrl,
+            title: input.item.title,
+            trusted: input.item.trusted,
+          }),
+        ),
         qbitClient,
         qbitConfig: input.qbitConfig,
         tryDatabasePromise,
@@ -224,8 +253,13 @@ export function makeBackgroundSearchSupport(input: {
         }
 
         const queueResult = yield* queueReleaseIfEligible({
+          action: best.action,
           animeRow: row.anime,
           contextMessage: "Failed to queue missing-episode search",
+          decisionReason: best.action.Upgrade?.reason ??
+            (best.action.Accept
+              ? `Accepted (${best.action.Accept.quality.name}, score ${best.action.Accept.score})`
+              : undefined),
           episodeNumber: row.episodes.number,
           eventMessage: `Queued ${best.item.title}`,
           eventType: "download.search_missing.queued",
@@ -365,7 +399,13 @@ export function makeBackgroundSearchSupport(input: {
                 continue;
               }
 
+              const decisionReason = action.Upgrade?.reason ??
+                (action.Accept
+                  ? `Accepted (${action.Accept.quality.name}, score ${action.Accept.score})`
+                  : undefined);
+
               const queueResult = yield* queueReleaseIfEligible({
+                action,
                 animeRow,
                 contextMessage: "Failed to run RSS check",
                 episodeNumber,
@@ -377,6 +417,7 @@ export function makeBackgroundSearchSupport(input: {
                   () => loadMissingEpisodeNumbers(db, animeRow.id),
                 ),
                 qbitConfig: maybeQBitConfig(runtimeConfig),
+                decisionReason,
               });
 
               if (queueResult._tag === "skipped") {
