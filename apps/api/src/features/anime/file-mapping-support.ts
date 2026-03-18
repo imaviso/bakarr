@@ -5,6 +5,11 @@ import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import { isWithinPathRoot } from "../../lib/filesystem.ts";
+import {
+  type MediaProbeShape,
+  mergeProbedMediaMetadata,
+  shouldProbeDetailedMediaMetadata,
+} from "../../lib/media-probe.ts";
 import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
 import {
   classifyMediaArtifact,
@@ -12,7 +17,10 @@ import {
 } from "../../lib/media-identity.ts";
 import { collectVideoFiles } from "./files.ts";
 import { AnimePathError, type AnimeServiceError } from "./errors.ts";
+import { buildScannedFileMetadata } from "../operations/naming-support.ts";
+import { summarizeEpisodeCoverage } from "../operations/library-import.ts";
 import {
+  buildAiringScheduleMap,
   clearEpisodeMapping,
   getAnimeRowOrThrow,
   getEpisodeRowOrThrow,
@@ -84,6 +92,14 @@ export const scanAnimeFolderEffect = Effect.fn(
   );
   const files = yield* loadAnimeFiles(input.fs, animeRow.rootFolder);
   let found = 0;
+  const airingScheduleByEpisode = buildAiringScheduleMap(
+    animeRow.nextAiringAt && animeRow.nextAiringEpisode
+      ? [{
+        airingAt: animeRow.nextAiringAt,
+        episode: animeRow.nextAiringEpisode,
+      }]
+      : undefined,
+  );
 
   for (const file of files) {
     const classification = classifyMediaArtifact(file.path, file.name);
@@ -113,6 +129,7 @@ export const scanAnimeFolderEffect = Effect.fn(
               animeRow.episodeCount ?? undefined,
               animeRow.startDate ?? undefined,
               animeRow.endDate ?? undefined,
+              airingScheduleByEpisode,
             ),
             downloaded: true,
             filePath: file.path,
@@ -297,6 +314,7 @@ export const listAnimeFilesEffect = Effect.fn(
     animeId: number;
     db: AppDatabase;
     fs: FileSystemShape;
+    mediaProbe: MediaProbeShape;
   }) {
     const animeRow = yield* tryAnimePromise(
       "Failed to list video files",
@@ -304,22 +322,86 @@ export const listAnimeFilesEffect = Effect.fn(
     );
     const files = yield* loadAnimeFiles(input.fs, animeRow.rootFolder);
 
-    return files.map((file): VideoFile => {
-      const parsed = parseFileSourceIdentity(file.path);
-      const identity = parsed.source_identity;
-      const episodeNumber = identity && identity.scheme !== "daily"
-        ? identity.episode_numbers[0]
-        : undefined;
+    return yield* Effect.forEach(
+      files,
+      (file) =>
+        Effect.gen(function* () {
+          const parsed = parseFileSourceIdentity(file.path);
+          const identity = parsed.source_identity;
+          const sharedIdentity = toSharedParsedEpisodeIdentity(identity);
+          const episodeNumber = identity && identity.scheme !== "daily"
+            ? identity.episode_numbers[0]
+            : undefined;
+          const metadata = buildScannedFileMetadata({
+            filePath: file.path,
+            group: parsed.group,
+            sourceIdentity: sharedIdentity,
+          });
+          const baseFile: VideoFile = {
+            air_date: metadata.air_date,
+            audio_channels: metadata.audio_channels,
+            audio_codec: metadata.audio_codec,
+            coverage_summary: summarizeEpisodeCoverage({
+              airDate: metadata.air_date,
+              episodeNumbers: identity && identity.scheme !== "daily"
+                ? identity.episode_numbers
+                : undefined,
+            }),
+            episode_number: episodeNumber,
+            episode_numbers: identity && identity.scheme !== "daily"
+              ? [...identity.episode_numbers]
+              : undefined,
+            episode_title: metadata.episode_title,
+            group: parsed.group ?? undefined,
+            duration_seconds: metadata.duration_seconds,
+            name: file.name,
+            path: file.path,
+            quality: metadata.quality,
+            resolution: parsed.resolution ?? undefined,
+            size: file.size,
+            source_identity: sharedIdentity,
+            video_codec: metadata.video_codec,
+          };
+          const probedMetadata = shouldProbeDetailedMediaMetadata(baseFile)
+            ? yield* input.mediaProbe.probeVideoFile(file.path)
+            : undefined;
 
-      return {
-        episode_number: episodeNumber,
-        name: file.name,
-        path: file.path,
-        size: file.size,
-      };
-    });
+          return mergeProbedMediaMetadata(baseFile, probedMetadata);
+        }),
+      { concurrency: 4 },
+    );
   },
 );
+
+function toSharedParsedEpisodeIdentity(
+  identity: ReturnType<typeof parseFileSourceIdentity>["source_identity"],
+) {
+  if (!identity) {
+    return undefined;
+  }
+
+  switch (identity.scheme) {
+    case "season":
+      return {
+        episode_numbers: [...identity.episode_numbers],
+        label: identity.label,
+        scheme: "season" as const,
+        season: identity.season,
+      };
+    case "absolute":
+      return {
+        episode_numbers: [...identity.episode_numbers],
+        label: identity.label,
+        scheme: "absolute" as const,
+      };
+    case "daily":
+      return {
+        air_dates: [...identity.air_dates],
+        label: identity.label,
+        scheme: "daily" as const,
+      };
+  }
+}
 
 export const resolveEpisodeFileEffect = Effect.fn(
   "AnimeService.resolveEpisodeFileEffect",

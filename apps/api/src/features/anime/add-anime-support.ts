@@ -138,19 +138,33 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
       coverImage: cachedImages.coverImage ?? null,
       description: metadata.description ?? null,
       endDate: metadata.endDate ?? null,
+      endYear: metadata.endYear ?? null,
       episodeCount: metadata.episodeCount ?? null,
       format: metadata.format,
       genres: encodeStringList(metadata.genres ?? []),
       id: metadata.id,
       malId: metadata.malId ?? null,
       monitored: input.animeInput.monitored,
+      nextAiringAt: metadata.nextAiringEpisode?.airingAt ?? null,
+      nextAiringEpisode: metadata.nextAiringEpisode?.episode ?? null,
       profileName: input.animeInput.profile_name,
       releaseProfileIds: encodeNumberList(input.animeInput.release_profile_ids),
       rootFolder,
       score: metadata.score ?? null,
       startDate: metadata.startDate ?? null,
+      startYear: metadata.startYear ?? null,
       status: metadata.status,
       studios: encodeStringList(metadata.studios ?? []),
+      synonyms: metadata.synonyms && metadata.synonyms.length > 0
+        ? JSON.stringify(metadata.synonyms)
+        : null,
+      relatedAnime: metadata.relatedAnime && metadata.relatedAnime.length > 0
+        ? JSON.stringify(metadata.relatedAnime)
+        : null,
+      recommendedAnime:
+        metadata.recommendedAnime && metadata.recommendedAnime.length > 0
+          ? JSON.stringify(metadata.recommendedAnime)
+          : null,
       titleEnglish: metadata.title.english ?? null,
       titleNative: metadata.title.native ?? null,
       titleRomaji: metadata.title.romaji,
@@ -161,6 +175,7 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
       episodeCount: metadata.episodeCount,
       endDate: metadata.endDate ?? undefined,
       existingRows: [],
+      futureAiringSchedule: metadata.futureAiringSchedule,
       resetMissingOnly: true,
       startDate: metadata.startDate ?? undefined,
       status: metadata.status,
