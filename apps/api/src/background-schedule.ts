@@ -8,6 +8,7 @@ export interface BackgroundSchedule {
   readonly initialDelayMs: number;
   readonly downloadSyncMs: number;
   readonly libraryScanMs: number | null;
+  readonly metadataRefreshMs: number | null;
   readonly rssCronExpression: string | null;
   readonly rssCheckMs: number | null;
 }
@@ -26,6 +27,10 @@ export function buildBackgroundSchedule(config: Config): BackgroundSchedule {
     downloadSyncMs: DEFAULT_DOWNLOAD_SYNC_MS,
     libraryScanMs: config.library.auto_scan_interval_hours > 0
       ? config.library.auto_scan_interval_hours * 60 * 60 * 1000
+      : null,
+    metadataRefreshMs: config.scheduler.enabled &&
+        config.scheduler.metadata_refresh_hours > 0
+      ? config.scheduler.metadata_refresh_hours * 60 * 60 * 1000
       : null,
     rssCronExpression,
     rssCheckMs: config.scheduler.enabled && !rssCronExpression &&

@@ -2,6 +2,7 @@ export const BACKGROUND_WORKER_NAMES = [
   "download_sync",
   "rss",
   "library_scan",
+  "metadata_refresh",
 ] as const;
 
 export const BACKGROUND_JOB_NAMES = [
@@ -46,6 +47,7 @@ export function initialBackgroundWorkerSnapshot(): BackgroundWorkerSnapshot {
   return {
     download_sync: emptyBackgroundWorkerStats(),
     library_scan: emptyBackgroundWorkerStats(),
+    metadata_refresh: emptyBackgroundWorkerStats(),
     rss: emptyBackgroundWorkerStats(),
   };
 }

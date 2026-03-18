@@ -2,9 +2,9 @@
   "tasks": {
     "build": "deno task check",
     "check": "deno check main.ts main_test.ts",
-    "dev": "deno run --watch --allow-env --allow-ffi --allow-net --allow-read --allow-sys --allow-write main.ts",
-    "start": "deno run --allow-env --allow-ffi --allow-net --allow-read --allow-sys --allow-write main.ts",
-    "test": "deno test --allow-env --allow-ffi --allow-read --allow-sys --allow-write",
+    "dev": "deno run --watch --allow-env --allow-ffi --allow-net --allow-read --allow-run=ffprobe --allow-sys --allow-write main.ts",
+    "start": "deno run --allow-env --allow-ffi --allow-net --allow-read --allow-run=ffprobe --allow-sys --allow-write main.ts",
+    "test": "deno test --allow-env --allow-ffi --allow-read --allow-run=ffprobe --allow-sys --allow-write",
     "lint": "deno lint",
     "fmt": "deno fmt",
     "db:generate": "drizzle-kit generate",
