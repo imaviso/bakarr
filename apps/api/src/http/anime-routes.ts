@@ -3,6 +3,7 @@ import { Hono } from "hono";
 
 import type {
   Anime,
+  AnimeListResponse,
   AnimeSearchResponse,
   AnimeSearchResult,
   Episode,
@@ -19,6 +20,7 @@ import {
   BulkEpisodeMappingsBodySchema,
   FilePathBodySchema,
   IdParamsSchema,
+  ListAnimeQuerySchema,
   MonitoredBodySchema,
   PathBodySchema,
   ProfileNameBodySchema,
@@ -57,8 +59,15 @@ export function registerAnimeRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(AnimeService, (service) => service.listAnime()),
-      (value: Anime[]) => c.json(value),
+      withQuery(c, ListAnimeQuerySchema, "list anime", (query) =>
+        Effect.flatMap(AnimeService, (service) =>
+          service.listAnime({
+            limit: query.limit,
+            monitored: query.monitored,
+            offset: query.offset,
+          }))),
+      (value: AnimeListResponse) =>
+        c.json(value),
     ));
 
   app.get("/api/anime/search", (c) =>

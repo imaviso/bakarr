@@ -6,6 +6,7 @@ import {
   DownloadIdFromStringSchema,
   EpisodeNumberFromStringSchema,
   EpisodeNumberSchema,
+  NonNegativeIntFromStringSchema,
   PositiveIntFromStringSchema,
   ReleaseProfileIdSchema,
 } from "../lib/domain-schema.ts";
@@ -165,6 +166,14 @@ export const SearchAnimeQuerySchema = Schema.Struct({
   q: Schema.optional(Schema.String),
 });
 
+export const ListAnimeQuerySchema = Schema.Struct({
+  limit: Schema.optional(
+    PositiveIntFromStringSchema.pipe(Schema.lessThanOrEqualTo(500)),
+  ),
+  offset: Schema.optional(NonNegativeIntFromStringSchema),
+  monitored: Schema.optional(Schema.BooleanFromString),
+});
+
 export const DownloadEventsQuerySchema = Schema.Struct({
   anime_id: Schema.optional(AnimeIdFromStringSchema),
   cursor: Schema.optional(Schema.String),
@@ -206,6 +215,8 @@ export const SearchReleasesQuerySchema = Schema.Struct({
 });
 
 export const BrowseQuerySchema = Schema.Struct({
+  limit: Schema.optional(PositiveIntFromStringSchema),
+  offset: Schema.optional(NonNegativeIntFromStringSchema),
   path: Schema.optional(Schema.String),
 });
 
