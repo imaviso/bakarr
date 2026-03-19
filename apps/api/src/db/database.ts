@@ -85,15 +85,40 @@ export class Database extends Context.Tag("@bakarr/api/Database")<
   DatabaseService
 >() {}
 
+async function setAndVerifyPragmas(client: Client): Promise<void> {
+  await client.execute("PRAGMA journal_mode = WAL");
+  await client.execute("PRAGMA foreign_keys = ON");
+
+  const journalMode = await client.execute("PRAGMA journal_mode");
+  const foreignKeys = await client.execute("PRAGMA foreign_keys");
+
+  const journalModeValue = String(journalMode.rows[0]?.[0] ?? "");
+  const foreignKeysValue = String(foreignKeys.rows[0]?.[0] ?? "");
+
+  if (journalModeValue.toLowerCase() !== "wal") {
+    console.warn(
+      `[Database] Warning: journal_mode is '${journalModeValue}', expected 'wal'`,
+    );
+  }
+
+  if (foreignKeysValue !== "1") {
+    console.error(
+      `[Database] Error: foreign_keys is '${foreignKeysValue}', expected '1'. Data integrity may be compromised.`,
+    );
+  }
+}
+
 const makeDatabase = Effect.gen(function* () {
   const config = yield* AppConfig;
 
   return yield* Effect.acquireRelease(
-    Effect.try({
-      try: () => {
+    Effect.tryPromise({
+      try: async () => {
         const client = createClient({
           url: toDatabaseUrl(config.databaseFile),
         });
+
+        await setAndVerifyPragmas(client);
 
         return {
           client,

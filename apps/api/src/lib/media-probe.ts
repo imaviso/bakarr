@@ -11,6 +11,11 @@ export interface ProbedMediaMetadata {
   readonly audio_channels?: string;
 }
 
+class FFProbeError extends Schema.TaggedError<FFProbeError>()(
+  "FFProbeError",
+  { cause: Schema.Defect, message: Schema.String },
+) {}
+
 const FFProbeStreamSchema = Schema.Struct({
   codec_type: Schema.String,
   codec_name: Schema.optional(Schema.String),
@@ -316,13 +321,16 @@ function runFfprobeCommand(
             stdout: "piped",
           }).output(),
         catch: (cause) =>
-          cause instanceof Error ? cause : new Error(String(cause)),
+          new FFProbeError({
+            cause,
+            message: "ffprobe command failed",
+          }),
       }).pipe(
-        Effect.tapError((cause) =>
+        Effect.tapError((error) =>
           Effect.logWarning("ffprobe command failed").pipe(
             Effect.annotateLogs({
               args: args.join(" "),
-              error: String(cause),
+              error: error.message,
             }),
           )
         ),
