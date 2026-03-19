@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import type {
   Anime,
   AnimeDiscoveryEntry,
@@ -10,6 +11,26 @@ interface AnimeDiscoveryMetadata {
   related_anime?: AnimeDiscoveryEntry[];
   synonyms?: string[];
 }
+
+interface DecodeLogContext {
+  readonly anime_id: number;
+}
+
+const warnDecodeFailure = Effect.fn("AnimeDto.warnDecodeFailure")(
+  function* (input: {
+    context: DecodeLogContext;
+    error: unknown;
+    field: string;
+  }) {
+    yield* Effect.logWarning("Failed to decode anime JSON field").pipe(
+      Effect.annotateLogs({
+        anime_id: input.context.anime_id,
+        error: String(input.error),
+        field: input.field,
+      }),
+    );
+  },
+);
 
 function safeDecodeStringList(value: string | null): string[] {
   if (!value) return [];
@@ -31,18 +52,26 @@ function safeDecodeNumberList(value: string | null): number[] {
 
 function safeDecodeDiscoveryEntries(
   value: string | null,
+  field: "recommendedAnime" | "relatedAnime",
+  context: DecodeLogContext,
 ): AnimeDiscoveryEntry[] | undefined {
   if (!value) return undefined;
   try {
     const parsed = JSON.parse(value);
     if (!Array.isArray(parsed)) return undefined;
     return parsed;
-  } catch {
+  } catch (error) {
+    Effect.runFork(
+      warnDecodeFailure({ context, error, field }),
+    );
     return undefined;
   }
 }
 
-function safeDecodeSynonyms(value: string | null): string[] | undefined {
+function safeDecodeSynonyms(
+  value: string | null,
+  context: DecodeLogContext,
+): string[] | undefined {
   if (!value) return undefined;
   try {
     const parsed = JSON.parse(value);
@@ -51,7 +80,14 @@ function safeDecodeSynonyms(value: string | null): string[] | undefined {
       typeof entry === "string" && entry.length > 0
     );
     return filtered.length > 0 ? filtered : undefined;
-  } catch {
+  } catch (error) {
+    Effect.runFork(
+      warnDecodeFailure({
+        context,
+        error,
+        field: "synonyms",
+      }),
+    );
     return undefined;
   }
 }
@@ -90,6 +126,9 @@ export function toAnimeDto(
   episodeRows: Array<typeof episodes.$inferSelect>,
   discovery?: AnimeDiscoveryMetadata,
 ): Anime {
+  const decodeLogContext: DecodeLogContext = {
+    anime_id: row.id,
+  };
   const downloadedEpisodes = episodeRows.filter((episode) => episode.downloaded)
     .map((episode) => episode.number).sort((left, right) => left - right);
   const total = row.episodeCount ?? undefined;
@@ -107,11 +146,19 @@ export function toAnimeDto(
   const seasonYear = row.startYear ?? extractYearFromDate(row.startDate);
 
   const recommendedAnime = discovery?.recommended_anime ??
-    safeDecodeDiscoveryEntries(row.recommendedAnime);
+    safeDecodeDiscoveryEntries(
+      row.recommendedAnime,
+      "recommendedAnime",
+      decodeLogContext,
+    );
   const relatedAnime = discovery?.related_anime ??
-    safeDecodeDiscoveryEntries(row.relatedAnime);
+    safeDecodeDiscoveryEntries(
+      row.relatedAnime,
+      "relatedAnime",
+      decodeLogContext,
+    );
   const synonyms = discovery?.synonyms ??
-    safeDecodeSynonyms(row.synonyms);
+    safeDecodeSynonyms(row.synonyms, decodeLogContext);
 
   return {
     added_at: row.addedAt,

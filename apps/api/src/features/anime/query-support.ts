@@ -547,7 +547,7 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(
               },
             ] as const;
           }),
-        { concurrency: 8 },
+        { concurrency: 4 },
       ),
     );
 
