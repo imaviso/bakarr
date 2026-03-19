@@ -260,7 +260,11 @@ Deno.test("shared dashboard and browse schemas accept canonical payloads", () =>
         size: 5,
       },
     ],
+    has_more: false,
+    limit: 100,
+    offset: 0,
     parent_path: "/",
+    total: 2,
   });
   const backgroundJobStatus = Schema.decodeUnknownEither(
     BackgroundJobStatusSchema,
