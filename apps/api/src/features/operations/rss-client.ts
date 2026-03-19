@@ -1,5 +1,9 @@
-import { HttpClient, HttpClientRequest } from "@effect/platform";
-import { Context, Effect, Layer, Schema, Stream } from "effect";
+import {
+  FetchHttpClient,
+  HttpClient,
+  HttpClientRequest,
+} from "@effect/platform";
+import { Context, Effect, Either, Layer, Schema, Stream } from "effect";
 import { XMLParser } from "fast-xml-parser";
 import ipaddr from "ipaddr.js";
 
@@ -12,6 +16,18 @@ class RssStreamReadError extends Schema.TaggedError<RssStreamReadError>()(
   "RssStreamReadError",
   { message: Schema.String },
 ) {}
+
+class RssPayloadTooLargeError
+  extends Schema.TaggedError<RssPayloadTooLargeError>()(
+    "RssPayloadTooLargeError",
+    { maxBytes: Schema.Number, actualBytes: Schema.Number },
+  ) {}
+
+class InvalidRedirectUrlError
+  extends Schema.TaggedError<InvalidRedirectUrlError>()(
+    "InvalidRedirectUrlError",
+    { location: Schema.String },
+  ) {}
 
 export interface ParsedRelease {
   readonly group?: string;
@@ -71,6 +87,39 @@ const PRIVATE_IPV6_CIDRS: readonly [ipaddr.IPv6, number][] = [
   ipaddr.IPv6.parseCIDR("fe80::/10"),
 ];
 
+const MAX_REDIRECT_HOPS = 5;
+
+const ALLOWED_PORTS = new Set(["80", "443", ""]);
+
+const BLOCKED_HOSTNAME_SUFFIXES = [
+  ".local",
+  ".internal",
+  ".localhost",
+  ".localdomain",
+];
+const BLOCKED_HOSTNAMES = new Set([
+  "localhost",
+  "ip6-localhost",
+  "ip6-loopback",
+]);
+
+function isAllowedPort(port: string): boolean {
+  return ALLOWED_PORTS.has(port);
+}
+
+function isBlockedHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  if (BLOCKED_HOSTNAMES.has(normalized)) {
+    return true;
+  }
+  for (const suffix of BLOCKED_HOSTNAME_SUFFIXES) {
+    if (normalized.endsWith(suffix)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const makeFetchItems = (client: HttpClient.HttpClient) =>
   Effect.fn("RssClient.fetchItems")(function* (url: string) {
     const parsedUrl = yield* Effect.sync(() => {
@@ -92,54 +141,119 @@ const makeFetchItems = (client: HttpClient.HttpClient) =>
       return [];
     }
 
-    if (
-      parsedUrl.port && parsedUrl.port !== "80" &&
-      parsedUrl.port !== "443"
-    ) {
+    if (!isAllowedPort(parsedUrl.port)) {
       return [];
     }
 
-    const hostname = normalizeHostname(parsedUrl.hostname);
-    if (
-      hostname === "localhost" ||
-      hostname.endsWith(".local") ||
-      hostname.endsWith(".internal")
-    ) {
-      return [];
-    }
+    const visitedUrls = new Set<string>();
+    let currentUrl = url;
 
-    if (isIpLiteral(hostname)) {
-      if (isPrivateIpAddress(hostname)) {
+    for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
+      if (visitedUrls.has(currentUrl)) {
+        yield* Effect.logWarning("RSS feed rejected: redirect loop detected")
+          .pipe(
+            Effect.annotateLogs({ url: currentUrl, hop }),
+          );
         return [];
       }
-    } else {
-      const resolvedAddrs = yield* Effect.promise(() =>
-        resolveFeedAddresses(hostname)
+      visitedUrls.add(currentUrl);
+
+      const validationResult = yield* validateUrlForSsrf(currentUrl);
+      if (validationResult._tag === "Rejected") {
+        yield* Effect.logWarning("RSS feed rejected by SSRF guardrail").pipe(
+          Effect.annotateLogs({
+            url: currentUrl,
+            reason: validationResult.reason,
+            hop,
+          }),
+        );
+        return [];
+      }
+
+      const request = HttpClientRequest.get(currentUrl).pipe(
+        HttpClientRequest.setHeader(
+          "Accept",
+          "application/rss+xml, application/xml, text/xml",
+        ),
+        HttpClientRequest.setHeader("User-Agent", "bakarr/1.0"),
       );
 
-      if (resolvedAddrs.length === 0) {
-        return [];
-      }
+      const response = yield* tryExternalEffect(
+        "rss.fetch",
+        Effect.serviceOption(FetchHttpClient.RequestInit).pipe(
+          Effect.flatMap((requestInitOption) =>
+            client.execute(request).pipe(
+              Effect.provideService(
+                FetchHttpClient.RequestInit,
+                requestInitOption._tag === "Some"
+                  ? { ...requestInitOption.value, redirect: "manual" }
+                  : { redirect: "manual" },
+              ),
+            )
+          ),
+        ),
+      )();
 
-      for (const addr of resolvedAddrs) {
-        if (isPrivateIpAddress(addr)) {
+      if (response.status >= 200 && response.status < 300) {
+        const itemsResult = yield* Effect.either(readRssItems(response.stream));
+        if (Either.isLeft(itemsResult)) {
+          if (itemsResult.left.operation !== "rss.stream.size") {
+            return yield* Effect.fail(itemsResult.left);
+          }
+          yield* Effect.logWarning(
+            "RSS feed rejected: payload size exceeded limit",
+          ).pipe(
+            Effect.annotateLogs({ url: currentUrl }),
+          );
           return [];
         }
+        return itemsResult.right;
       }
-    }
 
-    const request = HttpClientRequest.get(url).pipe(
-      HttpClientRequest.setHeader(
-        "Accept",
-        "application/rss+xml, application/xml, text/xml",
-      ),
-    );
-    const response = yield* tryExternalEffect(
-      "rss.fetch",
-      client.execute(request),
-    )();
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers["location"];
+        if (!location || typeof location !== "string") {
+          return yield* ExternalCallError.make({
+            cause: new Error(`Redirect without location header`),
+            message:
+              `RSS feed returned redirect ${response.status} without location`,
+            operation: "rss.fetch.redirect",
+          });
+        }
 
-    if (response.status < 200 || response.status >= 300) {
+        const redirectResult = yield* Effect.try({
+          try: () => new URL(location, currentUrl),
+          catch: () => new InvalidRedirectUrlError({ location }),
+        }).pipe(Effect.either);
+
+        if (Either.isLeft(redirectResult)) {
+          return yield* ExternalCallError.make({
+            cause: redirectResult.left,
+            message: `RSS feed returned invalid redirect URL`,
+            operation: "rss.fetch.redirect",
+          });
+        }
+
+        const redirectUrl = redirectResult.right;
+
+        if (
+          redirectUrl.protocol !== "http:" && redirectUrl.protocol !== "https:"
+        ) {
+          yield* Effect.logWarning(
+            "RSS feed rejected: redirect to disallowed scheme",
+          ).pipe(
+            Effect.annotateLogs({
+              url: currentUrl,
+              redirectUrl: redirectUrl.href,
+            }),
+          );
+          return [];
+        }
+
+        currentUrl = redirectUrl.href;
+        continue;
+      }
+
       return yield* ExternalCallError.make({
         cause: new Error(`RSS feed returned HTTP ${response.status}`),
         message: `RSS feed returned HTTP ${response.status}`,
@@ -147,7 +261,80 @@ const makeFetchItems = (client: HttpClient.HttpClient) =>
       });
     }
 
-    return yield* readRssItems(response.stream);
+    yield* Effect.logWarning("RSS feed rejected: too many redirects").pipe(
+      Effect.annotateLogs({ url, redirectCount: MAX_REDIRECT_HOPS }),
+    );
+    return [];
+  });
+
+type SsrfValidationResult =
+  | { _tag: "Accepted" }
+  | { _tag: "Rejected"; reason: string };
+
+const validateUrlForSsrf = (
+  urlString: string,
+): Effect.Effect<SsrfValidationResult, never, never> =>
+  Effect.gen(function* () {
+    const parseResult = yield* Effect.try({
+      try: () => new URL(urlString),
+      catch: () => ({
+        _tag: "Rejected" as const,
+        reason: "Invalid URL format",
+      }),
+    }).pipe(Effect.either);
+
+    if (Either.isLeft(parseResult)) {
+      return parseResult.left;
+    }
+    const parsedUrl = parseResult.right;
+
+    if (!isAllowedPort(parsedUrl.port)) {
+      return {
+        _tag: "Rejected" as const,
+        reason: `Port ${parsedUrl.port} not allowed`,
+      };
+    }
+
+    const hostname = normalizeHostname(parsedUrl.hostname);
+
+    if (isBlockedHostname(hostname)) {
+      return {
+        _tag: "Rejected" as const,
+        reason: `Hostname ${hostname} is blocked`,
+      };
+    }
+
+    if (isIpLiteral(hostname)) {
+      if (isPrivateIpAddress(hostname)) {
+        return {
+          _tag: "Rejected" as const,
+          reason: `IP ${hostname} is private/reserved`,
+        };
+      }
+      return { _tag: "Accepted" as const };
+    }
+
+    const resolvedAddrs = yield* Effect.promise(() =>
+      resolveFeedAddresses(hostname)
+    );
+
+    if (resolvedAddrs.length === 0) {
+      return {
+        _tag: "Rejected" as const,
+        reason: `DNS resolution failed for ${hostname}`,
+      };
+    }
+
+    for (const addr of resolvedAddrs) {
+      if (isPrivateIpAddress(addr)) {
+        return {
+          _tag: "Rejected" as const,
+          reason: `${hostname} resolves to private IP ${addr}`,
+        };
+      }
+    }
+
+    return { _tag: "Accepted" as const };
   });
 
 export const RssClientLive = Layer.effect(
@@ -161,24 +348,47 @@ export const RssClientLive = Layer.effect(
   }),
 );
 
+const MAX_RSS_BYTES = 10 * 1024 * 1024;
+
 const readRssItems = Effect.fn("RssClient.readRssItems")(
   (body: Stream.Stream<Uint8Array, unknown>) => {
     const decoder = new TextDecoder();
+    let totalBytes = 0;
+    let chunks = "";
 
     return body.pipe(
       Stream.mapError(() =>
         new RssStreamReadError({ message: "Failed to read RSS stream" })
       ),
-      Stream.map((chunk) => decoder.decode(chunk, { stream: true })),
-      Stream.runFold("", (acc, chunk) => acc + chunk),
-      Effect.map((xml) => parseRssXml(xml)),
-      Effect.mapError((error) =>
-        ExternalCallError.make({
+      Stream.runForEach((chunk) => {
+        totalBytes += chunk.byteLength;
+        if (totalBytes > MAX_RSS_BYTES) {
+          return Effect.fail(
+            new RssPayloadTooLargeError({
+              actualBytes: totalBytes,
+              maxBytes: MAX_RSS_BYTES,
+            }),
+          );
+        }
+        chunks += decoder.decode(chunk, { stream: true });
+        return Effect.void;
+      }),
+      Effect.map(() => parseRssXml(chunks)),
+      Effect.mapError((error) => {
+        if (error instanceof RssPayloadTooLargeError) {
+          return ExternalCallError.make({
+            cause: error,
+            message:
+              `RSS payload exceeded maximum size of ${MAX_RSS_BYTES} bytes`,
+            operation: "rss.stream.size",
+          });
+        }
+        return ExternalCallError.make({
           cause: error,
           message: "Failed to read RSS stream",
           operation: "rss.stream",
-        })
-      ),
+        });
+      }),
     );
   },
 );

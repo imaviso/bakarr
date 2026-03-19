@@ -631,7 +631,19 @@ export function makeUnmappedOrchestrationSupport(input: {
 
       if (previousEntries.length === 0) {
         yield* fs.remove(animeRow.rootFolder, { recursive: true }).pipe(
-          Effect.catchTag("FileSystemError", () => Effect.void),
+          Effect.catchTag(
+            "FileSystemError",
+            (fsError) =>
+              Effect.logWarning(
+                "Failed to remove empty anime folder after import",
+              ).pipe(
+                Effect.annotateLogs({
+                  error: String(fsError),
+                  folder_path: animeRow.rootFolder,
+                }),
+                Effect.asVoid,
+              ),
+          ),
         );
       }
     }

@@ -26,6 +26,7 @@ import type {
 } from "./types.ts";
 
 const SQLITE_IN_LIST_CHUNK_SIZE = 900;
+const CHUNK_LOAD_CONCURRENCY = 4;
 
 type DownloadRow = typeof downloads.$inferSelect;
 type DownloadEventRow = typeof downloadEvents.$inferSelect;
@@ -371,13 +372,20 @@ async function loadRowsByChunk<TId, TRow>(
     return [];
   }
 
-  const rows = await Promise.all(
-    chunkValues(ids, SQLITE_IN_LIST_CHUNK_SIZE).map((chunk) =>
-      loadChunk(chunk)
-    ),
-  );
+  const chunks = chunkValues(ids, SQLITE_IN_LIST_CHUNK_SIZE);
+  const results: TRow[][] = [];
 
-  return rows.flatMap((chunk) => [...chunk]);
+  for (let i = 0; i < chunks.length; i += CHUNK_LOAD_CONCURRENCY) {
+    const batch = chunks.slice(i, i + CHUNK_LOAD_CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map((chunk) => loadChunk(chunk)),
+    );
+    for (const chunkResult of batchResults) {
+      results.push([...chunkResult]);
+    }
+  }
+
+  return results.flatMap((chunk) => chunk);
 }
 
 function chunkValues<T>(values: readonly T[], size: number) {
