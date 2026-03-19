@@ -5,6 +5,10 @@ import { FileSystem } from "../../lib/filesystem.ts";
 import { MediaProbe } from "../../lib/media-probe.ts";
 import { AniListClient } from "../anime/anilist.ts";
 import { EventBus } from "../events/event-bus.ts";
+import {
+  type CatalogLibraryReadSupportShape,
+  makeCatalogLibraryReadSupport,
+} from "./catalog-library-read-support.ts";
 import { makeCatalogOrchestration } from "./catalog-orchestration.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
 import {
@@ -102,6 +106,10 @@ class CatalogOrchestration extends Context.Tag(
   "@bakarr/api/CatalogOrchestration",
 )<CatalogOrchestration, CatalogOrchestrationShape>() {}
 
+class CatalogLibraryReadSupport extends Context.Tag(
+  "@bakarr/api/CatalogLibraryReadSupport",
+)<CatalogLibraryReadSupport, CatalogLibraryReadSupportShape>() {}
+
 const operationsSharedStateLayer = Layer.scoped(
   OperationsSharedState,
   makeOperationsSharedState(),
@@ -197,6 +205,19 @@ const searchRuntimeLayer = searchOrchestrationLayer.pipe(
   ),
 );
 
+const catalogLibraryReadSupportLayer = Layer.effect(
+  CatalogLibraryReadSupport,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+
+    return makeCatalogLibraryReadSupport({
+      db,
+      tryDatabasePromise,
+      tryOperationsPromise,
+    });
+  }),
+);
+
 const catalogOrchestrationLayer = Layer.effect(
   CatalogOrchestration,
   Effect.gen(function* () {
@@ -206,6 +227,7 @@ const catalogOrchestrationLayer = Layer.effect(
     const mediaProbe = yield* MediaProbe;
     const downloadOrchestration = yield* DownloadOrchestration;
     const progress = yield* OperationsProgress;
+    const libraryReadSupport = yield* CatalogLibraryReadSupport;
 
     return makeCatalogOrchestration({
       applyDownloadActionEffect:
@@ -223,12 +245,19 @@ const catalogOrchestrationLayer = Layer.effect(
       syncDownloadState: downloadOrchestration.syncDownloadState,
       tryDatabasePromise,
       tryOperationsPromise,
+      libraryReadSupport,
     });
   }),
 );
 
 const catalogRuntimeLayer = catalogOrchestrationLayer.pipe(
-  Layer.provide(Layer.mergeAll(downloadRuntimeLayer, progressRuntimeLayer)),
+  Layer.provide(
+    Layer.mergeAll(
+      downloadRuntimeLayer,
+      progressRuntimeLayer,
+      catalogLibraryReadSupportLayer,
+    ),
+  ),
 );
 
 const rssServiceProjectionLayer = Layer.effect(

@@ -1,4 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
+import { Either, Schema } from "effect";
 
 import type {
   AnimeSearchResult,
@@ -21,6 +22,17 @@ import {
 } from "./naming-support.ts";
 import { parseResolution } from "./release-ranking.ts";
 import { currentNamingSettings, requireAnime } from "./repository.ts";
+
+const AnimeGenresJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
+
+function decodeAnimeGenres(value: string | null): string[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const decoded = Schema.decodeUnknownEither(AnimeGenresJsonSchema)(value);
+  return Either.isRight(decoded) ? [...decoded.right] : undefined;
+}
 
 export async function buildRenamePreview(
   db: AppDatabase,
@@ -212,13 +224,7 @@ export function toAnimeSearchCandidate(
     end_year: row.endYear ?? undefined,
     episode_count: row.episodeCount ?? undefined,
     format: row.format,
-    genres: (() => {
-      try {
-        return row.genres ? JSON.parse(row.genres) as string[] : undefined;
-      } catch {
-        return undefined;
-      }
-    })(),
+    genres: decodeAnimeGenres(row.genres),
     id: row.id,
     season: deriveAnimeSeason(row.startDate),
     season_year: row.startYear ?? extractYear(row.startDate),

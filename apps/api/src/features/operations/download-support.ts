@@ -9,7 +9,7 @@ import { episodes } from "../../db/schema.ts";
 import { anime } from "../../db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
 import type { ProbedMediaMetadata } from "../../lib/media-probe.ts";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { buildEpisodeFilenamePlan } from "./naming-support.ts";
 import type { PreferredTitle } from "../../../../../packages/shared/src/index.ts";
 
@@ -46,6 +46,15 @@ export class ImportFileError {
   readonly _tag = "ImportFileError";
   constructor(readonly message: string, readonly cause?: unknown) {}
 }
+
+export class UpsertEpisodeFileError extends Schema.TaggedError<
+  UpsertEpisodeFileError
+>()("UpsertEpisodeFileError", {
+  anime_id: Schema.Number,
+  episode_number: Schema.Number,
+  message: Schema.String,
+  cause: Schema.optional(Schema.Defect),
+}) {}
 
 export function importDownloadedFile(
   fs: FileSystemShape,
@@ -235,7 +244,7 @@ export async function upsertEpisodeFilesAtomic(
             number: episodeNumber,
             title: null,
           });
-        } catch {
+        } catch (cause) {
           const existingRows = await tx.select().from(episodes).where(
             and(
               eq(episodes.animeId, animeId),
@@ -244,7 +253,12 @@ export async function upsertEpisodeFilesAtomic(
           ).limit(1);
 
           if (!existingRows[0]) {
-            throw new Error("Failed to upsert episode file");
+            throw new UpsertEpisodeFileError({
+              anime_id: animeId,
+              episode_number: episodeNumber,
+              message: "Failed to upsert episode file",
+              cause,
+            });
           }
 
           await tx.update(episodes).set({
@@ -292,13 +306,18 @@ export async function upsertEpisodeFile(
       number: episodeNumber,
       title: null,
     });
-  } catch {
+  } catch (cause) {
     const existingRows = await db.select().from(episodes).where(
       and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
     ).limit(1);
 
     if (!existingRows[0]) {
-      throw new Error("Failed to upsert episode file");
+      throw new UpsertEpisodeFileError({
+        anime_id: animeId,
+        episode_number: episodeNumber,
+        message: "Failed to upsert episode file",
+        cause,
+      });
     }
 
     await db.update(episodes).set({
