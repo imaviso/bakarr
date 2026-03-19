@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { Schema } from "effect";
 
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -15,6 +16,17 @@ import {
 } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 import { AnimeNotFoundError } from "./errors.ts";
+
+export class UpsertEpisodeError
+  extends Schema.TaggedError<UpsertEpisodeError>()(
+    "UpsertEpisodeError",
+    {
+      anime_id: Schema.Number,
+      episode_number: Schema.Number,
+      message: Schema.String,
+      cause: Schema.optional(Schema.Defect),
+    },
+  ) {}
 
 export async function getAnimeRowOrThrow(db: AppDatabase, animeId: number) {
   const rows = await db.select().from(anime).where(eq(anime.id, animeId)).limit(
@@ -111,13 +123,18 @@ export async function upsertEpisode(
       number: episodeNumber,
       title: patch.title ?? null,
     });
-  } catch {
+  } catch (cause) {
     const existingRows = await db.select().from(episodes).where(
       and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
     ).limit(1);
 
     if (!existingRows[0]) {
-      throw new Error("Failed to upsert episode");
+      throw new UpsertEpisodeError({
+        anime_id: animeId,
+        episode_number: episodeNumber,
+        message: "Failed to upsert episode",
+        cause,
+      });
     }
 
     await db.update(episodes).set({

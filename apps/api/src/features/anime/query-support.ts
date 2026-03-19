@@ -1,6 +1,10 @@
 import { and, count, eq, inArray, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Either, Schema } from "effect";
 
+import {
+  AnimeDiscoveryEntrySchema,
+  StringListSchema,
+} from "../../../../../packages/shared/src/index.ts";
 import type {
   Anime,
   AnimeDiscoveryEntry,
@@ -29,6 +33,12 @@ import {
   markSearchResultsAlreadyInLibrary,
 } from "./repository.ts";
 import { tryAnimePromise, tryDatabasePromise } from "./service-support.ts";
+
+const StringListJsonSchema = Schema.parseJson(StringListSchema);
+const NumberListJsonSchema = Schema.parseJson(Schema.Array(Schema.Number));
+const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(
+  Schema.Array(AnimeDiscoveryEntrySchema),
+);
 
 export const listAnimeEffect = Effect.fn("AnimeService.listAnimeEffect")(
   function* (db: AppDatabase, params: AnimeListQueryParams = {}) {
@@ -328,21 +338,13 @@ function safeParseStringList(value: string | null): string[] | undefined {
     return undefined;
   }
 
-  try {
-    const parsed = JSON.parse(value);
-
-    if (!Array.isArray(parsed)) {
-      return undefined;
-    }
-
-    const normalized = parsed.filter((entry): entry is string =>
-      typeof entry === "string" && entry.length > 0
-    );
-
-    return normalized.length > 0 ? normalized : undefined;
-  } catch {
+  const decoded = Schema.decodeUnknownEither(StringListJsonSchema)(value);
+  if (Either.isLeft(decoded)) {
     return undefined;
   }
+
+  const normalized = decoded.right.filter((entry) => entry.length > 0);
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function safeParseNumberList(value: string | null): number[] {
@@ -350,18 +352,12 @@ function safeParseNumberList(value: string | null): number[] {
     return [];
   }
 
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter((entry): entry is number =>
-      typeof entry === "number" && Number.isFinite(entry)
-    );
-  } catch {
+  const decoded = Schema.decodeUnknownEither(NumberListJsonSchema)(value);
+  if (Either.isLeft(decoded)) {
     return [];
   }
+
+  return [...decoded.right];
 }
 
 function safeParseDiscoveryEntries(
@@ -371,15 +367,15 @@ function safeParseDiscoveryEntries(
     return undefined;
   }
 
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) {
-      return undefined;
-    }
-    return parsed as AnimeDiscoveryEntry[];
-  } catch {
+  const decoded = Schema.decodeUnknownEither(AnimeDiscoveryEntryListJsonSchema)(
+    value,
+  );
+
+  if (Either.isLeft(decoded)) {
     return undefined;
   }
+
+  return [...decoded.right];
 }
 
 function deriveAnimeSeasonFromDate(date: string | undefined) {

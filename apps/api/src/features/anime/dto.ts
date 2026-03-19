@@ -1,4 +1,5 @@
-import { Effect } from "effect";
+import { Effect, Either, Schema } from "effect";
+import { AnimeDiscoveryEntrySchema } from "../../../../../packages/shared/src/index.ts";
 import type {
   Anime,
   AnimeDiscoveryEntry,
@@ -15,6 +16,11 @@ interface AnimeDiscoveryMetadata {
 interface DecodeLogContext {
   readonly anime_id: number;
 }
+
+const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(
+  Schema.Array(AnimeDiscoveryEntrySchema),
+);
+const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 
 const warnDecodeFailure = Effect.fn("AnimeDto.warnDecodeFailure")(
   function* (input: {
@@ -56,16 +62,18 @@ function safeDecodeDiscoveryEntries(
   context: DecodeLogContext,
 ): AnimeDiscoveryEntry[] | undefined {
   if (!value) return undefined;
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return undefined;
-    return parsed;
-  } catch (error) {
+  const decoded = Schema.decodeUnknownEither(AnimeDiscoveryEntryListJsonSchema)(
+    value,
+  );
+
+  if (Either.isLeft(decoded)) {
     Effect.runFork(
-      warnDecodeFailure({ context, error, field }),
+      warnDecodeFailure({ context, error: decoded.left, field }),
     );
     return undefined;
   }
+
+  return [...decoded.right];
 }
 
 function safeDecodeSynonyms(
@@ -73,23 +81,21 @@ function safeDecodeSynonyms(
   context: DecodeLogContext,
 ): string[] | undefined {
   if (!value) return undefined;
-  try {
-    const parsed = JSON.parse(value);
-    if (!Array.isArray(parsed)) return undefined;
-    const filtered = parsed.filter((entry): entry is string =>
-      typeof entry === "string" && entry.length > 0
-    );
-    return filtered.length > 0 ? filtered : undefined;
-  } catch (error) {
+  const decoded = Schema.decodeUnknownEither(AnimeSynonymsJsonSchema)(value);
+
+  if (Either.isLeft(decoded)) {
     Effect.runFork(
       warnDecodeFailure({
         context,
-        error,
+        error: decoded.left,
         field: "synonyms",
       }),
     );
     return undefined;
   }
+
+  const filtered = decoded.right.filter((entry) => entry.length > 0);
+  return filtered.length > 0 ? filtered : undefined;
 }
 
 function deriveAnimeSeason(date?: string | null) {
