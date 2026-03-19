@@ -278,6 +278,36 @@ export const AnimeSchema: Schema.Schema<Anime> = Schema.mutable(
   }),
 );
 
+export interface AnimeListQueryParams {
+  limit?: number;
+  offset?: number;
+  monitored?: boolean;
+}
+
+export const AnimeListQueryParamsSchema: Schema.Schema<AnimeListQueryParams> =
+  Schema.Struct({
+    limit: Schema.optional(Schema.Number.pipe(Schema.between(1, 500))),
+    offset: Schema.optional(Schema.Number.pipe(Schema.nonNegative())),
+    monitored: Schema.optional(Schema.Boolean),
+  });
+
+export interface AnimeListResponse {
+  items: Anime[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
+export const AnimeListResponseSchema: Schema.Schema<AnimeListResponse> = Schema
+  .Struct({
+    items: Schema.mutable(Schema.Array(AnimeSchema)),
+    total: Schema.Number,
+    limit: Schema.Number,
+    offset: Schema.Number,
+    has_more: Schema.Boolean,
+  });
+
 export interface Episode {
   number: number;
   title?: string;
@@ -1010,6 +1040,10 @@ export interface BrowseResult {
   current_path: string;
   parent_path?: string;
   entries: BrowseEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
 }
 
 export const BrowseResultSchema: Schema.Schema<BrowseResult> = Schema.mutable(
@@ -1017,6 +1051,10 @@ export const BrowseResultSchema: Schema.Schema<BrowseResult> = Schema.mutable(
     current_path: Schema.String,
     parent_path: Schema.optional(Schema.String),
     entries: Schema.mutable(Schema.Array(BrowseEntrySchema)),
+    total: Schema.Number,
+    limit: Schema.Number,
+    offset: Schema.Number,
+    has_more: Schema.Boolean,
   }),
 );
 

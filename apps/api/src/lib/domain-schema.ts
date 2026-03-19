@@ -10,6 +10,11 @@ export const PositiveIntFromStringSchema = Schema.NumberFromString.pipe(
   Schema.greaterThan(0),
 );
 
+export const NonNegativeIntFromStringSchema = Schema.NumberFromString.pipe(
+  Schema.int(),
+  Schema.nonNegative(),
+);
+
 export const AnimeIdSchema = PositiveIntSchema.pipe(Schema.brand("AnimeId"));
 export const AnimeIdFromStringSchema = PositiveIntFromStringSchema.pipe(
   Schema.brand("AnimeId"),

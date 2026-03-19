@@ -44,7 +44,7 @@ import {
 } from "./naming-support.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { scanVideoFilesStream } from "./file-scanner.ts";
-import { upsertEpisodeFile, upsertEpisodeFiles } from "./download-support.ts";
+import { upsertEpisodeFilesAtomic } from "./download-support.ts";
 import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
@@ -150,7 +150,20 @@ export function makeCatalogOrchestration(input: {
             ).pipe(
               Effect.catchAll((error) =>
                 fs.rename(item.new_path, item.current_path).pipe(
-                  Effect.catchTag("FileSystemError", () => Effect.void),
+                  Effect.catchTag(
+                    "FileSystemError",
+                    (fsError) =>
+                      Effect.logWarning(
+                        "Failed to rollback rename after DB error",
+                      ).pipe(
+                        Effect.annotateLogs({
+                          current_path: item.current_path,
+                          error: String(fsError),
+                          new_path: item.new_path,
+                        }),
+                        Effect.asVoid,
+                      ),
+                  ),
                   Effect.zipRight(Effect.fail(error)),
                 )
               ),
@@ -305,27 +318,43 @@ export function makeCatalogOrchestration(input: {
           );
         }
 
-        // Upsert all covered episode numbers (multi-episode support)
-        for (const epNum of allEpisodeNumbers) {
-          yield* tryDatabasePromise(
-            "Failed to import files",
-            () =>
-              upsertEpisodeFile(
-                db,
-                file.anime_id,
-                epNum,
-                destination,
-              ),
-          ).pipe(
-            Effect.catchAll((error) =>
-              (importMode === "move"
-                ? fs.rename(destination, resolvedSource)
-                : fs.remove(destination)).pipe(
-                  Effect.catchTag("FileSystemError", () => Effect.void),
-                  Effect.zipRight(Effect.fail(error)),
-                )
+        const dbResult = yield* Effect.tryPromise({
+          try: () =>
+            upsertEpisodeFilesAtomic(
+              db,
+              file.anime_id,
+              allEpisodeNumbers,
+              destination,
+            ),
+          catch: (cause) =>
+            new DatabaseError({
+              cause,
+              message: "Failed to import episode files atomically",
+            }),
+        }).pipe(Effect.either);
+
+        if (Either.isLeft(dbResult)) {
+          const rollbackEffect = importMode === "move"
+            ? fs.rename(destination, resolvedSource)
+            : fs.remove(destination);
+
+          yield* rollbackEffect.pipe(
+            Effect.catchTag(
+              "FileSystemError",
+              (error) =>
+                Effect.logWarning(
+                  "Failed to rollback filesystem after DB error",
+                ).pipe(
+                  Effect.annotateLogs({
+                    destination_path: destination,
+                    source_path: file.source_path,
+                    error: String(error),
+                  }),
+                ),
             ),
           );
+
+          return yield* dbResult.left;
         }
 
         importedFiles.push({
@@ -925,7 +954,7 @@ export function makeCatalogOrchestration(input: {
                   yield* tryDatabasePromise(
                     "Failed to run library scan",
                     () =>
-                      upsertEpisodeFiles(
+                      upsertEpisodeFilesAtomic(
                         db,
                         animeRow.id,
                         episodeNumbers,

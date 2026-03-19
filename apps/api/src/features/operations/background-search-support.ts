@@ -105,7 +105,6 @@ export function makeBackgroundSearchSupport(input: {
     item: ParsedRelease;
     missingEpisodes: readonly number[];
     qbitConfig: QBitConfig | null;
-    semaphore?: Effect.Semaphore;
   }) {
     const parsedRelease = parseReleaseName(input.item.title);
     const coveredEpisodes = toCoveredEpisodesJson(
@@ -170,9 +169,7 @@ export function makeBackgroundSearchSupport(input: {
       });
     });
 
-    return input.semaphore
-      ? yield* input.semaphore.withPermits(1)(queueEffect)
-      : yield* queueEffect;
+    return yield* triggerSemaphore.withPermits(1)(queueEffect);
   });
 
   const triggerSearchMissingRaw = Effect.fn(
@@ -268,7 +265,6 @@ export function makeBackgroundSearchSupport(input: {
             .filter((entry) => entry.anime.id === row.anime.id)
             .map((entry) => entry.episodes.number),
           qbitConfig: maybeQBitConfig(runtimeConfig),
-          semaphore: triggerSemaphore,
         });
 
         if (queueResult._tag === "skipped") {

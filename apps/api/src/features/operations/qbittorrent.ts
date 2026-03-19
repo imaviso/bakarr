@@ -3,7 +3,7 @@ import {
   HttpClientRequest,
   HttpClientResponse,
 } from "@effect/platform";
-import { Context, Effect, Either, Layer, Schema } from "effect";
+import { Context, Effect, Either, Layer, Ref, Schema } from "effect";
 
 import {
   ExternalCallError,
@@ -41,6 +41,11 @@ export interface QBitTorrentFile {
   readonly is_seed: boolean;
   readonly piece_range?: readonly number[];
   readonly availability?: number;
+}
+
+interface SessionEntry {
+  readonly cookie: string;
+  readonly createdAt: number;
 }
 
 interface QBitTorrentClientShape {
@@ -119,30 +124,92 @@ const QBitTorrentFileSchema = Schema.Struct({
 
 const QBitTorrentFileArraySchema = Schema.Array(QBitTorrentFileSchema);
 
+const SESSION_TTL_MS = 30 * 60 * 1000;
+
+function isUnauthorizedStatus(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
+function getSessionKey(config: QBitConfig): string {
+  return `${config.baseUrl}:${config.username}`;
+}
+
+function withSessionCache(
+  client: HttpClient.HttpClient,
+  sessionsRef: Ref.Ref<Map<string, SessionEntry>>,
+) {
+  return Effect.fn("QBitTorrentClient.withSessionCache")(function* (
+    config: QBitConfig,
+    operation: (
+      cookie: string,
+    ) => Effect.Effect<
+      HttpClientResponse.HttpClientResponse,
+      ExternalCallError | QBitTorrentClientError
+    >,
+  ) {
+    const sessionKey = getSessionKey(config);
+    const now = Date.now();
+
+    const sessions = yield* Ref.get(sessionsRef);
+    const cached = sessions.get(sessionKey);
+
+    if (cached && now - cached.createdAt < SESSION_TTL_MS) {
+      const response = yield* Effect.either(operation(cached.cookie));
+
+      if (Either.isRight(response)) {
+        if (!isUnauthorizedStatus(response.right.status)) {
+          return response.right;
+        }
+      } else {
+        const error = response.left;
+        const errorText = String(error.cause ?? error.message);
+        if (!errorText.includes("401") && !errorText.includes("403")) {
+          return yield* error;
+        }
+      }
+    }
+
+    const newCookie = yield* login(client, config);
+    yield* Ref.update(sessionsRef, (map) => {
+      const newMap = new Map(map);
+      newMap.set(sessionKey, { cookie: newCookie, createdAt: Date.now() });
+      return newMap;
+    });
+
+    return yield* operation(newCookie);
+  });
+}
+
 export const QBitTorrentClientLive = Layer.effect(
   QBitTorrentClient,
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
+    const sessionsRef = yield* Ref.make<Map<string, SessionEntry>>(new Map());
+
+    const withSession = withSessionCache(client, sessionsRef);
 
     const addTorrentUrl = Effect.fn("QBitTorrentClient.addTorrentUrl")(
       function* (config: QBitConfig, url: string) {
-        const cookie = yield* login(client, config);
-        const response = yield* execute(
-          client,
-          "qbit.addTorrentUrl",
-          authorizedRequest(
-            config,
-            cookie,
-            HttpClientRequest.post(
-              resolveUrl(config.baseUrl, "/api/v2/torrents/add"),
-            ).pipe(
-              HttpClientRequest.bodyUrlParams({
-                category: config.category,
-                urls: url,
-              }),
+        const response = yield* withSession(
+          config,
+          (cookie) =>
+            execute(
+              client,
+              "qbit.addTorrentUrl",
+              authorizedRequest(
+                config,
+                cookie,
+                HttpClientRequest.post(
+                  resolveUrl(config.baseUrl, "/api/v2/torrents/add"),
+                ).pipe(
+                  HttpClientRequest.bodyUrlParams({
+                    category: config.category,
+                    urls: url,
+                  }),
+                ),
+              ),
+              { idempotent: false },
             ),
-          ),
-          { idempotent: false },
         );
 
         yield* ensureOk(
@@ -154,17 +221,20 @@ export const QBitTorrentClientLive = Layer.effect(
 
     const listTorrents = Effect.fn("QBitTorrentClient.listTorrents")(
       function* (config: QBitConfig) {
-        const cookie = yield* login(client, config);
-        const response = yield* execute(
-          client,
-          "qbit.listTorrents",
-          authorizedRequest(
-            config,
-            cookie,
-            HttpClientRequest.get(
-              resolveUrl(config.baseUrl, "/api/v2/torrents/info"),
+        const response = yield* withSession(
+          config,
+          (cookie) =>
+            execute(
+              client,
+              "qbit.listTorrents",
+              authorizedRequest(
+                config,
+                cookie,
+                HttpClientRequest.get(
+                  resolveUrl(config.baseUrl, "/api/v2/torrents/info"),
+                ),
+              ),
             ),
-          ),
         );
 
         yield* ensureOk(
@@ -183,17 +253,23 @@ export const QBitTorrentClientLive = Layer.effect(
     const listTorrentContents = Effect.fn(
       "QBitTorrentClient.listTorrentContents",
     )(function* (config: QBitConfig, hash: string) {
-      const cookie = yield* login(client, config);
-      const response = yield* execute(
-        client,
-        "qbit.listTorrentContents",
-        authorizedRequest(
-          config,
-          cookie,
-          HttpClientRequest.get(
-            resolveUrl(config.baseUrl, `/api/v2/torrents/files?hash=${hash}`),
+      const response = yield* withSession(
+        config,
+        (cookie) =>
+          execute(
+            client,
+            "qbit.listTorrentContents",
+            authorizedRequest(
+              config,
+              cookie,
+              HttpClientRequest.get(
+                resolveUrl(
+                  config.baseUrl,
+                  `/api/v2/torrents/files?hash=${hash}`,
+                ),
+              ),
+            ),
           ),
-        ),
       );
 
       yield* ensureOk(
@@ -210,7 +286,13 @@ export const QBitTorrentClientLive = Layer.effect(
 
     const pauseTorrent = Effect.fn("QBitTorrentClient.pauseTorrent")(
       function* (config: QBitConfig, hash: string) {
-        yield* postHashesAction(client, config, "/api/v2/torrents/pause", hash);
+        yield* postHashesAction(
+          client,
+          sessionsRef,
+          config,
+          "/api/v2/torrents/pause",
+          hash,
+        );
       },
     );
 
@@ -218,6 +300,7 @@ export const QBitTorrentClientLive = Layer.effect(
       function* (config: QBitConfig, hash: string) {
         yield* postHashesAction(
           client,
+          sessionsRef,
           config,
           "/api/v2/torrents/resume",
           hash,
@@ -227,23 +310,26 @@ export const QBitTorrentClientLive = Layer.effect(
 
     const deleteTorrent = Effect.fn("QBitTorrentClient.deleteTorrent")(
       function* (config: QBitConfig, hash: string, deleteFiles: boolean) {
-        const cookie = yield* login(client, config);
-        const response = yield* execute(
-          client,
-          "qbit.deleteTorrent",
-          authorizedRequest(
-            config,
-            cookie,
-            HttpClientRequest.post(
-              resolveUrl(config.baseUrl, "/api/v2/torrents/delete"),
-            ).pipe(
-              HttpClientRequest.bodyUrlParams({
-                deleteFiles: deleteFiles ? "true" : "false",
-                hashes: hash,
-              }),
+        const response = yield* withSession(
+          config,
+          (cookie) =>
+            execute(
+              client,
+              "qbit.deleteTorrent",
+              authorizedRequest(
+                config,
+                cookie,
+                HttpClientRequest.post(
+                  resolveUrl(config.baseUrl, "/api/v2/torrents/delete"),
+                ).pipe(
+                  HttpClientRequest.bodyUrlParams({
+                    deleteFiles: deleteFiles ? "true" : "false",
+                    hashes: hash,
+                  }),
+                ),
+              ),
+              { idempotent: false },
             ),
-          ),
-          { idempotent: false },
         );
 
         yield* ensureOk(
@@ -310,22 +396,27 @@ const login = Effect.fn("QBitTorrentClient.login")(
 const postHashesAction = Effect.fn("QBitTorrentClient.postHashesAction")(
   function* (
     client: HttpClient.HttpClient,
+    sessionsRef: Ref.Ref<Map<string, SessionEntry>>,
     config: QBitConfig,
     path: string,
     hash: string,
   ) {
-    const cookie = yield* login(client, config);
-    const response = yield* execute(
-      client,
-      "qbit.postHashesAction",
-      authorizedRequest(
-        config,
-        cookie,
-        HttpClientRequest.post(resolveUrl(config.baseUrl, path)).pipe(
-          HttpClientRequest.bodyUrlParams({ hashes: hash }),
+    const withSession = withSessionCache(client, sessionsRef);
+    const response = yield* withSession(
+      config,
+      (cookie) =>
+        execute(
+          client,
+          "qbit.postHashesAction",
+          authorizedRequest(
+            config,
+            cookie,
+            HttpClientRequest.post(resolveUrl(config.baseUrl, path)).pipe(
+              HttpClientRequest.bodyUrlParams({ hashes: hash }),
+            ),
+          ),
+          { idempotent: false },
         ),
-      ),
-      { idempotent: false },
     );
 
     yield* ensureOk(

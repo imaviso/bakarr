@@ -1,12 +1,23 @@
 import { Chunk, Effect, Option, Stream } from "effect";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import {
-  parseEpisodeNumber,
-  parseEpisodeNumbers,
-} from "../../lib/episode-parser.ts";
+import { parseFileSourceIdentity } from "../../lib/media-identity.ts";
 
-export { parseEpisodeNumber };
-export { parseEpisodeNumbers };
+const SCAN_STAT_CONCURRENCY = 16;
+
+export function parseEpisodeNumbers(path: string): readonly number[] {
+  const result = parseFileSourceIdentity(path);
+  if (!result.source_identity) return [];
+
+  if (result.source_identity.scheme === "daily") {
+    return [];
+  }
+
+  return result.source_identity.episode_numbers;
+}
+
+export function parseEpisodeNumber(path: string): number | undefined {
+  return parseEpisodeNumbers(path)[0];
+}
 
 export interface ScannedVideoFile {
   readonly name: string;
@@ -24,67 +35,164 @@ export const scanVideoFiles = Effect.fn("Operations.scanVideoFiles")(
   },
 );
 
+interface ScannerEntry {
+  readonly name: string;
+  readonly isDirectory: boolean;
+  readonly isFile: boolean;
+  readonly isSymlink: boolean;
+}
+
 export function scanVideoFilesStream(
   fs: FileSystemShape,
   path: string,
 ): Stream.Stream<ScannedVideoFile, FileSystemError> {
-  return Stream.unfoldChunkEffect([path], (stack) =>
-    Effect.gen(function* () {
-      if (stack.length === 0) {
-        return Option.none();
-      }
-
-      const nextStack = [...stack];
-      const current = nextStack.pop();
-
-      if (!current) {
-        return Option.none();
-      }
-
-      const isRoot = current === path;
-
-      const entries = yield* fs.readDir(current).pipe(
-        Effect.catchTag("FileSystemError", (error) =>
-          isRoot
-            ? Effect.fail(error)
-            : isNotFoundError(error)
-            ? Effect.succeed<Deno.DirEntry[]>([])
-            : Effect.logWarning("Skipping inaccessible directory during scan")
-              .pipe(
-                Effect.annotateLogs({ path: current, error: String(error) }),
-                Effect.map(() =>
-                  [] as Deno.DirEntry[]
-                ),
-              )),
-      );
-      const files: ScannedVideoFile[] = [];
-
-      for (const entry of entries) {
-        const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
-
-        if (entry.isDirectory) {
-          nextStack.push(fullPath);
-          continue;
+  return Stream.unfoldChunkEffect(
+    { stack: [path], visited: new Set<string>() },
+    (state) =>
+      Effect.gen(function* () {
+        if (state.stack.length === 0) {
+          return Option.none();
         }
 
-        if (entry.isFile && isVideoFile(entry.name)) {
-          const stats = yield* fs.stat(fullPath).pipe(
-            Effect.catchTag(
-              "FileSystemError",
-              () => Effect.succeed({ size: 0 } as { size: number }),
+        const nextStack = [...state.stack];
+        const current = nextStack.pop();
+
+        if (!current) {
+          return Option.none();
+        }
+
+        const nextVisited = new Set(state.visited);
+
+        const readDirectoryEffect: Effect.Effect<
+          ScannerEntry[],
+          FileSystemError,
+          never
+        > = fs.readDirStream
+          ? Stream.runCollect(
+            fs.readDirStream(current).pipe(
+              Stream.map((entry) => entry as ScannerEntry),
             ),
-          );
-          files.push({ name: entry.name, path: fullPath, size: stats.size });
-        }
-      }
+          ).pipe(Effect.map((chunk) => Array.from(chunk)))
+          : fs.readDir(current);
 
-      return Option.some(
-        [
-          Chunk.fromIterable(files),
-          nextStack,
-        ] as const,
-      );
-    })).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
+        const entries = yield* readDirectoryEffect.pipe(
+          Effect.catchTag(
+            "FileSystemError",
+            (error) =>
+              current === path
+                ? Effect.fail(error)
+                : isNotFoundError(error)
+                ? Effect.succeed([] as ScannerEntry[])
+                : Effect.logWarning(
+                  "Skipping inaccessible directory during scan",
+                ).pipe(
+                  Effect.annotateLogs({ path: current, error: String(error) }),
+                  Effect.as([] as ScannerEntry[]),
+                ),
+          ),
+        );
+
+        const symlinkEntries: ScannerEntry[] = [];
+        const fileEntries: ScannerEntry[] = [];
+        const dirEntries: ScannerEntry[] = [];
+
+        for (const entry of entries) {
+          if (entry.isSymlink) {
+            symlinkEntries.push(entry);
+          } else if (entry.isDirectory) {
+            dirEntries.push(entry);
+          } else if (entry.isFile && isVideoFile(entry.name)) {
+            fileEntries.push(entry);
+          }
+        }
+
+        for (const entry of dirEntries) {
+          const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+          nextStack.push(fullPath);
+        }
+
+        const processSymlink = (entry: ScannerEntry) =>
+          Effect.gen(function* () {
+            const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+            const realPath = yield* fs.realPath(fullPath).pipe(
+              Effect.catchTag("FileSystemError", () => Effect.succeed(null)),
+            );
+
+            if (realPath === null || nextVisited.has(realPath)) {
+              return null;
+            }
+
+            nextVisited.add(realPath);
+
+            const realInfo = yield* fs.stat(fullPath).pipe(
+              Effect.catchTag("FileSystemError", () =>
+                Effect.succeed({
+                  isDirectory: false,
+                  isFile: false,
+                  size: 0,
+                })),
+            );
+
+            if (realInfo.isDirectory) {
+              nextStack.push(fullPath);
+              return null;
+            }
+
+            if (realInfo.isFile && isVideoFile(entry.name)) {
+              return {
+                name: entry.name,
+                path: fullPath,
+                size: realInfo.size,
+              } satisfies ScannedVideoFile;
+            }
+
+            return null;
+          });
+
+        const processFile = (entry: ScannerEntry) =>
+          Effect.gen(function* () {
+            const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+            const stats = yield* fs.stat(fullPath).pipe(
+              Effect.catchTag("FileSystemError", () =>
+                Effect.succeed({
+                  isDirectory: false,
+                  isFile: false,
+                  isSymlink: false,
+                  size: 0,
+                })),
+            );
+            return {
+              name: entry.name,
+              path: fullPath,
+              size: stats.size,
+            } satisfies ScannedVideoFile;
+          });
+
+        const symlinkResults = yield* Effect.forEach(
+          symlinkEntries,
+          processSymlink,
+          { concurrency: SCAN_STAT_CONCURRENCY },
+        );
+
+        const fileResults = yield* Effect.forEach(
+          fileEntries,
+          processFile,
+          { concurrency: SCAN_STAT_CONCURRENCY },
+        );
+
+        const files: ScannedVideoFile[] = [
+          ...symlinkResults.filter((r): r is ScannedVideoFile => r !== null),
+          ...fileResults,
+        ];
+
+        return Option.some(
+          [
+            Chunk.fromIterable(files),
+            { stack: nextStack, visited: nextVisited },
+          ] as const,
+        );
+      }),
+  ).pipe(Stream.withSpan("Operations.scanVideoFilesStream"));
 }
 
 function isVideoFile(name: string) {

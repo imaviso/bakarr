@@ -124,6 +124,91 @@ Deno.test("cacheAnimeMetadataImages falls back to original URLs on unsupported i
   }
 });
 
+Deno.test("cacheAnimeMetadataImages rejects oversized images by Content-Length", async () => {
+  const dir = await Deno.makeTempDir();
+  const originalFetch = globalThis.fetch;
+
+  try {
+    const fs = makeTestFileSystem();
+
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response("x".repeat(100), {
+          headers: {
+            "content-type": "image/png",
+            "content-length": "15000000",
+          },
+          status: 200,
+        }),
+      );
+
+    const coverUrl = "https://example.com/huge.png";
+    const result = await Effect.runPromise(
+      cacheAnimeMetadataImages(fs, clientFromFetch(), dir, 77, {
+        coverImage: coverUrl,
+      }) as Effect.Effect<
+        { bannerImage?: string; coverImage?: string },
+        FileSystemError,
+        never
+      >,
+    );
+
+    assertEquals(result.coverImage, coverUrl);
+    assertEquals(
+      await exists(`${dir}/anime/77/cover.png`),
+      false,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("cacheAnimeMetadataImages rejects oversized images by streamed bytes", async () => {
+  const dir = await Deno.makeTempDir();
+  const originalFetch = globalThis.fetch;
+
+  try {
+    const fs = makeTestFileSystem();
+
+    const largeBody = new Uint8Array(11 * 1024 * 1024);
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(largeBody);
+        controller.close();
+      },
+    });
+
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response(stream, {
+          headers: { "content-type": "image/png" },
+          status: 200,
+        }),
+      );
+
+    const coverUrl = "https://example.com/huge-stream.png";
+    const result = await Effect.runPromise(
+      cacheAnimeMetadataImages(fs, clientFromFetch(), dir, 77, {
+        coverImage: coverUrl,
+      }) as Effect.Effect<
+        { bannerImage?: string; coverImage?: string },
+        FileSystemError,
+        never
+      >,
+    );
+
+    assertEquals(result.coverImage, coverUrl);
+    assertEquals(
+      await exists(`${dir}/anime/77/cover.png`),
+      false,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
 async function exists(path: string) {
   try {
     await Deno.stat(path);

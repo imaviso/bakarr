@@ -1,34 +1,43 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
-export interface ProbedMediaMetadata {
-  duration_seconds?: number;
-  resolution?: string;
-  video_codec?: string;
-  audio_codec?: string;
-  audio_channels?: string;
-}
-
-type MediaMetadataInput = {
-  duration_seconds?: number;
-  resolution?: string;
-  video_codec?: string;
-  audio_codec?: string;
-  audio_channels?: string;
-};
-
 const FFPROBE_VERSION_TIMEOUT_MS = 3_000;
 const FFPROBE_PROBE_TIMEOUT_MS = 10_000;
 
-type FfprobeCommandResult =
-  | { readonly ok: true; readonly output: Deno.CommandOutput }
-  | { readonly ok: false; readonly reason: "aborted" | "failed" };
+export const FFPROBE_CONCURRENCY_LIMIT = 2;
 
-class FfprobeCommandError extends Schema.TaggedError<FfprobeCommandError>()(
-  "FfprobeCommandError",
-  {
-    cause: Schema.Defect,
-  },
+export interface ProbedMediaMetadata {
+  readonly duration_seconds?: number;
+  readonly resolution?: string;
+  readonly video_codec?: string;
+  readonly audio_codec?: string;
+  readonly audio_channels?: string;
+}
+
+class FFProbeError extends Schema.TaggedError<FFProbeError>()(
+  "FFProbeError",
+  { cause: Schema.Defect, message: Schema.String },
 ) {}
+
+const FFProbeStreamSchema = Schema.Struct({
+  codec_type: Schema.String,
+  codec_name: Schema.optional(Schema.String),
+  duration: Schema.optional(Schema.String),
+  width: Schema.optional(Schema.Number),
+  height: Schema.optional(Schema.Number),
+  channels: Schema.optional(Schema.Number),
+  channel_layout: Schema.optional(Schema.String),
+});
+
+const FFProbeFormatSchema = Schema.Struct({
+  duration: Schema.optional(Schema.String),
+});
+
+const FFProbeOutputSchema = Schema.Struct({
+  streams: Schema.Array(FFProbeStreamSchema),
+  format: Schema.optional(FFProbeFormatSchema),
+});
+
+type FFProbeOutput = Schema.Schema.Type<typeof FFProbeOutputSchema>;
 
 export interface MediaProbeShape {
   readonly probeVideoFile: (
@@ -41,19 +50,36 @@ export class MediaProbe extends Context.Tag("@bakarr/api/MediaProbe")<
   MediaProbeShape
 >() {}
 
-export function shouldProbeMediaMetadata(input: MediaMetadataInput) {
+export function shouldProbeMediaMetadata(input: {
+  duration_seconds?: number;
+  resolution?: string;
+  video_codec?: string;
+  audio_codec?: string;
+  audio_channels?: string;
+}) {
   return !input.resolution || !input.video_codec || !input.audio_codec ||
     !input.audio_channels;
 }
 
-export function shouldProbeDetailedMediaMetadata(input: MediaMetadataInput) {
+export function shouldProbeDetailedMediaMetadata(input: {
+  duration_seconds?: number;
+  resolution?: string;
+  video_codec?: string;
+  audio_codec?: string;
+  audio_channels?: string;
+}) {
   return !input.duration_seconds || shouldProbeMediaMetadata(input);
 }
 
-export function mergeProbedMediaMetadata<T extends MediaMetadataInput>(
-  input: T,
-  probed?: ProbedMediaMetadata,
-): T {
+export function mergeProbedMediaMetadata<
+  T extends {
+    duration_seconds?: number;
+    resolution?: string;
+    video_codec?: string;
+    audio_codec?: string;
+    audio_channels?: string;
+  },
+>(input: T, probed?: ProbedMediaMetadata): T {
   if (!probed) {
     return input;
   }
@@ -68,82 +94,27 @@ export function mergeProbedMediaMetadata<T extends MediaMetadataInput>(
   };
 }
 
-export function parseFfprobeJson(json: string) {
-  try {
-    return parseFfprobePayload(JSON.parse(json));
-  } catch {
-    return undefined;
-  }
-}
+function normalizeResolution(stream?: {
+  width?: number;
+  height?: number;
+}) {
+  const height = stream?.height ?? stream?.width;
 
-export function parseFfprobePayload(
-  payload: unknown,
-): ProbedMediaMetadata | undefined {
-  const root = asRecord(payload);
-  const streams = Array.isArray(root?.streams) ? root.streams : [];
-  const videoStream = streams.map(asRecord).find((stream) =>
-    stream?.codec_type === "video"
-  );
-  const audioStream = streams.map(asRecord).find((stream) =>
-    stream?.codec_type === "audio"
-  );
-  const format = asRecord(root?.format);
-  const metadata: ProbedMediaMetadata = {
-    duration_seconds: normalizeDurationSeconds(
-      asString(videoStream?.duration) ?? asString(format?.duration),
-    ),
-    resolution: normalizeResolution(videoStream),
-    video_codec: normalizeVideoCodec(asString(videoStream?.codec_name)),
-    audio_codec: normalizeAudioCodec(asString(audioStream?.codec_name)),
-    audio_channels: normalizeAudioChannels({
-      channels: asNumber(audioStream?.channels),
-      layout: asString(audioStream?.channel_layout),
-    }),
-  };
-
-  return metadata.duration_seconds || metadata.resolution ||
-      metadata.video_codec ||
-      metadata.audio_codec || metadata.audio_channels
-    ? metadata
-    : undefined;
-}
-
-function asRecord(value: unknown) {
-  return typeof value === "object" && value !== null
-    ? value as Record<string, unknown>
-    : undefined;
-}
-
-function asNumber(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
-function asString(value: unknown) {
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-function normalizeResolution(stream?: Record<string, unknown>) {
-  const width = asNumber(stream?.width);
-  const height = asNumber(stream?.height);
-  const candidate = height ?? width;
-
-  if (!candidate) {
+  if (!height) {
     return undefined;
   }
 
-  if (candidate >= 2160) return "2160p";
-  if (candidate >= 1440) return "1440p";
-  if (candidate >= 1080) return "1080p";
-  if (candidate >= 720) return "720p";
-  if (candidate >= 480) return "480p";
+  if (height >= 2160) return "2160p";
+  if (height >= 1440) return "1440p";
+  if (height >= 1080) return "1080p";
+  if (height >= 720) return "720p";
+  if (height >= 480) return "480p";
 
-  return `${candidate}p`;
+  return `${height}p`;
 }
 
 function normalizeVideoCodec(codec?: string) {
-  const normalized = normalizeCodecName(codec);
+  const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
   switch (normalized) {
     case "h264":
@@ -169,7 +140,7 @@ function normalizeVideoCodec(codec?: string) {
 }
 
 function normalizeAudioCodec(codec?: string) {
-  const normalized = normalizeCodecName(codec);
+  const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
   switch (normalized) {
     case "aac":
@@ -200,15 +171,11 @@ function normalizeAudioCodec(codec?: string) {
   }
 }
 
-function normalizeCodecName(codec?: string) {
-  return codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
-
 function normalizeAudioChannels(input: {
   channels?: number;
-  layout?: string;
+  channel_layout?: string;
 }) {
-  const layout = input.layout?.toLowerCase();
+  const layout = input.channel_layout?.toLowerCase();
 
   if (layout === "mono") return "1.0";
   if (layout === "stereo") return "2.0";
@@ -249,49 +216,138 @@ function normalizeDurationSeconds(value?: string) {
   return Math.round(parsed);
 }
 
-function isAbortError(cause: unknown) {
-  return cause instanceof Error && cause.name === "AbortError";
+export function parseFfprobeJson(
+  json: string,
+): ProbedMediaMetadata | undefined {
+  try {
+    return parseFfprobePayload(JSON.parse(json));
+  } catch {
+    return undefined;
+  }
 }
 
-function runFfprobeCommand(input: {
-  readonly args: readonly string[];
-  readonly stdout: "null" | "piped";
-  readonly timeoutMs: number;
-}) {
-  return Effect.gen(function* () {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), input.timeoutMs);
+export function parseFfprobePayload(
+  payload: unknown,
+): ProbedMediaMetadata | undefined {
+  const root = asRecord(payload);
+  const streams = Array.isArray(root?.streams) ? root.streams : [];
+  const videoStream = streams.map(asRecord).find((s) =>
+    s?.codec_type === "video"
+  );
+  const audioStream = streams.map(asRecord).find((s) =>
+    s?.codec_type === "audio"
+  );
+  const format = asRecord(root?.format);
 
-    try {
-      return yield* Effect.tryPromise({
+  const metadata: ProbedMediaMetadata = {
+    duration_seconds: normalizeDurationSeconds(
+      asString(videoStream?.duration) ?? asString(format?.duration),
+    ),
+    resolution: normalizeResolution(videoStream),
+    video_codec: normalizeVideoCodec(asString(videoStream?.codec_name)),
+    audio_codec: normalizeAudioCodec(asString(audioStream?.codec_name)),
+    audio_channels: normalizeAudioChannels({
+      channels: asNumber(audioStream?.channels),
+      channel_layout: asString(audioStream?.channel_layout),
+    }),
+  };
+
+  return metadata.duration_seconds || metadata.resolution ||
+      metadata.video_codec ||
+      metadata.audio_codec || metadata.audio_channels
+    ? metadata
+    : undefined;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function parseFFProbeOutput(
+  output: FFProbeOutput,
+): ProbedMediaMetadata | undefined {
+  const streams = output.streams;
+  const videoStream = streams.find((s) => s.codec_type === "video");
+  const audioStream = streams.find((s) => s.codec_type === "audio");
+  const format = output.format;
+
+  const metadata: ProbedMediaMetadata = {
+    duration_seconds: normalizeDurationSeconds(
+      videoStream?.duration ?? format?.duration,
+    ),
+    resolution: normalizeResolution(videoStream),
+    video_codec: normalizeVideoCodec(videoStream?.codec_name),
+    audio_codec: normalizeAudioCodec(audioStream?.codec_name),
+    audio_channels: normalizeAudioChannels({
+      channels: audioStream?.channels,
+      channel_layout: audioStream?.channel_layout,
+    }),
+  };
+
+  return metadata.duration_seconds || metadata.resolution ||
+      metadata.video_codec ||
+      metadata.audio_codec || metadata.audio_channels
+    ? metadata
+    : undefined;
+}
+
+function runFfprobeCommand(
+  args: readonly string[],
+  timeoutMs: number,
+): Effect.Effect<Deno.CommandOutput | null, never> {
+  return Effect.sync(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    return { controller, timer };
+  }).pipe(
+    Effect.flatMap(({ controller, timer }) =>
+      Effect.tryPromise({
         try: () =>
           new Deno.Command("ffprobe", {
-            args: [...input.args],
+            args: [...args],
             signal: controller.signal,
             stderr: "null",
-            stdout: input.stdout,
+            stdout: "piped",
           }).output(),
-        catch: (cause) => new FfprobeCommandError({ cause }),
+        catch: (cause) =>
+          new FFProbeError({
+            cause,
+            message: "ffprobe command failed",
+          }),
       }).pipe(
-        Effect.map((output) =>
-          ({ ok: true, output }) satisfies FfprobeCommandResult
+        Effect.tapError((error) =>
+          Effect.logWarning("ffprobe command failed").pipe(
+            Effect.annotateLogs({
+              args: args.join(" "),
+              error: error.message,
+            }),
+          )
         ),
-        Effect.catchTag("FfprobeCommandError", (error) =>
-          Effect.succeed(
-            {
-              ok: false,
-              reason: isAbortError(error.cause) ? "aborted" : "failed",
-            } satisfies FfprobeCommandResult,
-          )),
-      );
-    } finally {
-      clearTimeout(timer);
-    }
-  });
+        Effect.catchAll(() => Effect.succeed(null)),
+        Effect.ensuring(Effect.sync(() => clearTimeout(timer))),
+      )
+    ),
+  );
 }
 
+const ffprobeSemaphore = Effect.runSync(
+  Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT),
+);
+
 const makeMediaProbe = (): MediaProbeShape => {
-  const decoder = new TextDecoder();
   let availability: boolean | undefined;
 
   const resolveAvailability = Effect.fn("MediaProbe.resolveAvailability")(
@@ -309,13 +365,17 @@ const makeMediaProbe = (): MediaProbeShape => {
         return availability;
       }
 
-      const version = yield* runFfprobeCommand({
-        args: ["-version"],
-        stdout: "null",
-        timeoutMs: FFPROBE_VERSION_TIMEOUT_MS,
-      });
+      const output = yield* runFfprobeCommand(
+        ["-version"],
+        FFPROBE_VERSION_TIMEOUT_MS,
+      );
 
-      availability = version.ok ? version.output.success : false;
+      if (!output) {
+        availability = false;
+        return availability;
+      }
+
+      availability = output.success;
       return availability;
     },
   );
@@ -328,33 +388,47 @@ const makeMediaProbe = (): MediaProbeShape => {
         return undefined;
       }
 
-      const output = yield* runFfprobeCommand({
-        args: [
-          "-v",
-          "error",
-          "-print_format",
-          "json",
-          "-show_format",
-          "-show_streams",
-          path,
-        ],
-        stdout: "piped",
-        timeoutMs: FFPROBE_PROBE_TIMEOUT_MS,
-      });
+      // Use semaphore to enforce global ffprobe concurrency limit
+      const output = yield* ffprobeSemaphore.withPermits(1)(
+        runFfprobeCommand(
+          [
+            "-v",
+            "error",
+            "-print_format",
+            "json",
+            "-show_format",
+            "-show_streams",
+            path,
+          ],
+          FFPROBE_PROBE_TIMEOUT_MS,
+        ),
+      );
 
-      if (!output.ok) {
-        if (output.reason === "failed") {
-          availability = false;
-        }
-
+      if (!output || !output.success) {
         return undefined;
       }
 
-      if (!output.output.success) {
+      const decoder = new TextDecoder();
+      const jsonText = decoder.decode(output.stdout);
+
+      const parsed = yield* Effect.try({
+        try: () => JSON.parse(jsonText) as unknown,
+        catch: () => undefined,
+      }).pipe(Effect.orElse(() => Effect.void));
+
+      if (!parsed) {
         return undefined;
       }
 
-      return parseFfprobeJson(decoder.decode(output.output.stdout));
+      const decoded = yield* Effect.either(
+        Schema.decodeUnknown(FFProbeOutputSchema)(parsed),
+      );
+
+      if (decoded._tag === "Left") {
+        return undefined;
+      }
+
+      return parseFFProbeOutput(decoded.right);
     },
   );
 

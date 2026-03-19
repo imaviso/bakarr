@@ -315,18 +315,31 @@ export function registerOperationsRoutes(
             });
           }
         } else if (requestedPath === ".") {
+          const entries = allowedPrefixes.map((path) => ({
+            is_directory: true,
+            name: path,
+            path: path,
+          }));
+          const requestedLimit = query.limit ?? 100;
+          const limit = Math.min(Math.max(1, requestedLimit), 500);
+          const offset = Math.max(0, query.offset ?? 0);
+          const total = entries.length;
+
           return {
             current_path: ".",
-            entries: allowedPrefixes.map((path) => ({
-              is_directory: true,
-              name: path,
-              path: path,
-            })),
+            entries: entries.slice(offset, offset + limit),
+            has_more: offset + limit < total,
+            limit,
+            offset,
             parent_path: undefined,
+            total,
           };
         }
 
-        return yield* browsePath(fs, requestedPath);
+        return yield* browsePath(fs, requestedPath, {
+          limit: query.limit,
+          offset: query.offset,
+        });
       }),
       (value) => c.json(value),
     ));

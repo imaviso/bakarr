@@ -425,7 +425,37 @@ Deno.test("BackgroundWorkerController reload spawns new workers and stops old", 
   );
 });
 
-Deno.test("BackgroundWorkerController keeps old workers if new spawn fails", async () => {
+Deno.test("BackgroundWorkerController reload stops old workers before spawning new", async () => {
+  await runTestEffect(
+    Effect.gen(function* () {
+      const events: string[] = [];
+      let handleId = 0;
+      const monitor = yield* makeBackgroundWorkerMonitor();
+      const controller = yield* makeBackgroundWorkerController({
+        monitor,
+        spawnWorkers: () =>
+          Effect.sync(() => {
+            handleId += 1;
+            const id = handleId;
+            events.push(`spawn-${id}`);
+
+            return {
+              stop: Effect.sync(() => {
+                events.push(`stop-${id}`);
+              }),
+            };
+          }),
+      });
+
+      yield* controller.start(baseConfig);
+      yield* controller.reload(baseConfig);
+
+      assertEquals(events, ["spawn-1", "stop-1", "spawn-2"]);
+    }),
+  );
+});
+
+Deno.test("BackgroundWorkerController stops workers when reload spawn fails", async () => {
   await runTestEffect(
     Effect.gen(function* () {
       const stoppedHandles: number[] = [];
@@ -453,9 +483,9 @@ Deno.test("BackgroundWorkerController keeps old workers if new spawn fails", asy
       const exitResult = yield* Effect.exit(controller.reload(baseConfig));
       assertEquals(exitResult._tag, "Failure");
 
-      assertEquals(stoppedHandles.length, 0);
+      assertEquals(stoppedHandles.length, 1);
       const started = yield* controller.isStarted();
-      assertEquals(started, true);
+      assertEquals(started, false);
     }),
   );
 });

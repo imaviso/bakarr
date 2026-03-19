@@ -3,7 +3,7 @@
  *
  * Single source of truth for parsing episode identities from both local
  * filenames and release titles. Replaces scattered regex sets across
- * episode-parser.ts, release-ranking.ts, and library-import.ts.
+ * file-scanner.ts, release-ranking.ts, and library-import.ts.
  */
 
 // ---------------------------------------------------------------------------
@@ -1154,6 +1154,18 @@ function extractGroup(value: string): string | undefined {
   return undefined;
 }
 
+const METADATA_TAG_PATTERNS: readonly RegExp[] = [
+  /\b\d{3,4}p\b/i,
+  /\b\d{3,4}x\d{3,4}\b/i,
+  /\bv\d+\b/i,
+  /\b(?:web(?:[ .-]?dl)?|webdl|webrip|web-?rip|web-?dl)\b/i,
+  /\b(?:bluray|blu-ray|bd(?:remux|rip|mux)?|remux|hdtv|dvd|sdtv)\b/i,
+  /\b(?:x264|x265|h[ .-]?264|h[ .-]?265|hevc|avc|av1|vp9|vp10|mpeg-?2?|vc-?1?)\b/i,
+  /\b(?:aac|flac|opus|ac3|e-?ac3|ddp|dd[ .+]?\d(?:[ .]?\d)?)\b/i,
+  /\b(?:true?hd|dts(?:-?hd)?(?:-?ma)?|pcm|l?pcm)\b/i,
+  /\b(?:dual(?:[ .-]?audio)?|multi(?:[ .-]?audio)?|proper|repack|complete|batch)\b/i,
+];
+
 function looksLikeMetadataTag(value: string): boolean {
   const lower = value.trim().toLowerCase();
 
@@ -1161,17 +1173,7 @@ function looksLikeMetadataTag(value: string): boolean {
     return true;
   }
 
-  return [
-    /\b\d{3,4}p\b/i,
-    /\b\d{3,4}x\d{3,4}\b/i,
-    /\bv\d+\b/i,
-    /\b(?:web(?:[ .-]?dl)?|webdl|webrip|web-?rip|web-?dl)\b/i,
-    /\b(?:bluray|blu-ray|bd(?:remux|rip|mux)?|remux|hdtv|dvD|sdtv)\b/i,
-    /\b(?:x264|x265|h[ .-]?264|h[ .-]?265|hevc|avc|av1|vp9|vp10|mpeg-?2?|vc-?1?)\b/i,
-    /\b(?:aac|flac|opus|ac3|e-?ac3|ddp|dd[ .+]?\d(?:[ .]?\d)?)\b/i,
-    /\b(?:true?hd|dts(?:-?hd)?(?:-?ma)?|pcm|l?pcm)\b/i,
-    /\b(?:dual(?:[ .-]?audio)?|multi(?:[ .-]?audio)?|proper|repack|complete|batch)\b/i,
-  ].some((pattern) => pattern.test(lower));
+  return METADATA_TAG_PATTERNS.some((pattern) => pattern.test(lower));
 }
 
 function extractResolution(value: string): string | undefined {

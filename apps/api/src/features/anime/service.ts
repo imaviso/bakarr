@@ -3,6 +3,8 @@ import { Context, Deferred, Effect, Layer, Ref } from "effect";
 
 import type {
   Anime,
+  AnimeListQueryParams,
+  AnimeListResponse,
   AnimeSearchResponse,
   AnimeSearchResult,
   Episode,
@@ -54,7 +56,9 @@ export interface AddAnimeInput {
 }
 
 export interface AnimeServiceShape {
-  readonly listAnime: () => Effect.Effect<Anime[], DatabaseError>;
+  readonly listAnime: (
+    params?: AnimeListQueryParams,
+  ) => Effect.Effect<AnimeListResponse, DatabaseError>;
   readonly getAnime: (
     id: number,
   ) => Effect.Effect<Anime, AnimeServiceError | DatabaseError>;
@@ -178,7 +182,8 @@ const makeAnimeService = Effect.gen(function* () {
     });
   });
 
-  const listAnime: AnimeServiceShape["listAnime"] = () => listAnimeEffect(db);
+  const listAnime: AnimeServiceShape["listAnime"] = (params) =>
+    listAnimeEffect(db, params);
   const getAnime: AnimeServiceShape["getAnime"] = (id) =>
     getAnimeEffect({ db, id });
   const searchAnime: AnimeServiceShape["searchAnime"] = (query) =>

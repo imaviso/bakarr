@@ -11,6 +11,7 @@ import {
 import type {
   ActivityItem,
   Anime,
+  AnimeListResponse,
   AnimeSearchResponse,
   AnimeSearchResult,
   ApiKeyLoginRequest,
@@ -300,7 +301,8 @@ export const animeKeys = {
   },
   calendar: (start: string, end: string) => ["calendar", start, end] as const,
   wanted: (limit: number) => ["wanted", limit] as const,
-  browse: (path: string) => ["browse", path] as const,
+  browse: (path: string, offset?: number, limit?: number) =>
+    ["browse", path, { offset: offset ?? 0, limit: limit ?? 0 }] as const,
   auth: {
     all: ["auth"] as const,
     me: () => ["auth", "me"] as const,
@@ -364,8 +366,29 @@ export function createActivityQuery() {
 export function animeListQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.lists(),
-    queryFn: ({ signal }) =>
-      fetchApi<Anime[]>(`${API_BASE}/anime`, undefined, signal),
+    queryFn: async ({ signal }) => {
+      const pageLimit = 500;
+      const items: Anime[] = [];
+      let offset = 0;
+
+      while (true) {
+        const res = await fetchApi<AnimeListResponse>(
+          `${API_BASE}/anime?limit=${pageLimit}&offset=${offset}`,
+          undefined,
+          signal,
+        );
+
+        items.push(...res.items);
+
+        if (!res.has_more || res.items.length === 0) {
+          break;
+        }
+
+        offset += res.items.length;
+      }
+
+      return items;
+    },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
@@ -1738,12 +1761,20 @@ export function createImportFilesMutation() {
   }));
 }
 
-export function browsePathQueryOptions(path: string) {
+export function browsePathQueryOptions(
+  path: string,
+  pagination?: { limit: number; offset: number },
+) {
+  const params = new URLSearchParams({ path });
+  if (pagination) {
+    params.set("limit", String(pagination.limit));
+    if (pagination.offset) params.set("offset", String(pagination.offset));
+  }
   return queryOptions({
-    queryKey: animeKeys.browse(path),
+    queryKey: animeKeys.browse(path, pagination?.offset, pagination?.limit),
     queryFn: ({ signal }) =>
       fetchApi<BrowseResult>(
-        `${API_BASE}/library/browse?path=${encodeURIComponent(path)}`,
+        `${API_BASE}/library/browse?${params.toString()}`,
         undefined,
         signal,
       ),
@@ -1752,8 +1783,13 @@ export function browsePathQueryOptions(path: string) {
   });
 }
 
-export function createBrowsePathQuery(path: () => string) {
-  return useQuery(() => ({ ...browsePathQueryOptions(path()) }));
+export function createBrowsePathQuery(
+  path: () => string,
+  pagination?: () => { limit: number; offset: number },
+) {
+  return useQuery(() => ({
+    ...browsePathQueryOptions(path(), pagination?.()),
+  }));
 }
 
 // ==================== Auth API ====================

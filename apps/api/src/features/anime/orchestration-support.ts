@@ -191,43 +191,48 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
     );
     let refreshed = 0;
 
-    for (const animeRow of animeRows) {
-      const { metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
-        aniList: input.aniList,
-        animeId: animeRow.id,
-        db: input.db,
-        eventPublisher: quietAnimeEventPublisher,
-      });
+    yield* Effect.forEach(
+      animeRows,
+      (animeRow) =>
+        Effect.gen(function* () {
+          const { metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
+            aniList: input.aniList,
+            animeId: animeRow.id,
+            db: input.db,
+            eventPublisher: quietAnimeEventPublisher,
+          });
 
-      yield* tryAnimePromise(
-        "Failed to refresh metadata",
-        () =>
-          ensureEpisodes(
-            input.db,
-            animeRow.id,
-            nextAnimeRow.episodeCount ?? undefined,
-            nextAnimeRow.status,
-            nextAnimeRow.startDate ?? undefined,
-            nextAnimeRow.endDate ?? undefined,
-            metadata?.futureAiringSchedule,
-            false,
-          ),
-      );
-      yield* tryAnimePromise(
-        "Failed to refresh metadata",
-        () =>
-          updateAnimeEpisodeAirDates(
-            input.db,
-            animeRow.id,
-            nextAnimeRow.episodeCount ?? undefined,
-            nextAnimeRow.status,
-            nextAnimeRow.startDate ?? undefined,
-            nextAnimeRow.endDate ?? undefined,
-            metadata?.futureAiringSchedule,
-          ),
-      );
-      refreshed += 1;
-    }
+          yield* tryAnimePromise(
+            "Failed to refresh metadata",
+            () =>
+              ensureEpisodes(
+                input.db,
+                animeRow.id,
+                nextAnimeRow.episodeCount ?? undefined,
+                nextAnimeRow.status,
+                nextAnimeRow.startDate ?? undefined,
+                nextAnimeRow.endDate ?? undefined,
+                metadata?.futureAiringSchedule,
+                false,
+              ),
+          );
+          yield* tryAnimePromise(
+            "Failed to refresh metadata",
+            () =>
+              updateAnimeEpisodeAirDates(
+                input.db,
+                animeRow.id,
+                nextAnimeRow.episodeCount ?? undefined,
+                nextAnimeRow.status,
+                nextAnimeRow.startDate ?? undefined,
+                nextAnimeRow.endDate ?? undefined,
+                metadata?.futureAiringSchedule,
+              ),
+          );
+          refreshed += 1;
+        }),
+      { concurrency: 4, discard: true },
+    );
 
     const message = `Refreshed ${refreshed} monitored anime`;
 

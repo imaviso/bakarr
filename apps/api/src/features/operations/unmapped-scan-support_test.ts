@@ -2,7 +2,10 @@ import { assertEquals } from "@std/assert";
 import { Effect } from "effect";
 
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import { loadUnmappedFolderVideoSize } from "./unmapped-scan-support.ts";
+import {
+  ensureFolderMatchStatus,
+  loadUnmappedFolderVideoSize,
+} from "./unmapped-scan-support.ts";
 
 Deno.test("loadUnmappedFolderVideoSize sums nested video files", async () => {
   const root = await Deno.makeTempDir();
@@ -21,6 +24,34 @@ Deno.test("loadUnmappedFolderVideoSize sums nested video files", async () => {
   } finally {
     await Deno.remove(root, { recursive: true });
   }
+});
+
+Deno.test("ensureFolderMatchStatus preserves cached size", () => {
+  const folder = {
+    match_status: "pending" as const,
+    name: "Series",
+    path: "/library/Series",
+    search_queries: ["Series"],
+    size: 0,
+    suggested_matches: [],
+  };
+
+  const merged = ensureFolderMatchStatus(folder, {
+    ...folder,
+    match_attempts: 2,
+    match_status: "failed",
+    size: 2048,
+    suggested_matches: [{
+      format: "TV",
+      id: 42,
+      status: "RELEASING",
+      title: { romaji: "Series" },
+    }],
+  });
+
+  assertEquals(merged.size, 2048);
+  assertEquals(merged.match_status, "failed");
+  assertEquals(merged.match_attempts, 2);
 });
 
 function makeScanFs(): FileSystemShape {

@@ -131,7 +131,7 @@ export const SeaDexClientLive = Layer.effect(
           });
         }
 
-        const entry = decoded.right.items[0];
+        const entry = decoded.right.items.at(0);
         if (!entry) {
           return null;
         }

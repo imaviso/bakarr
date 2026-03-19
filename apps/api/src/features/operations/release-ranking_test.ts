@@ -538,6 +538,87 @@ Deno.test("compare episode search results prefers accepted higher-seeder entries
   assertEquals(Math.sign(compareEpisodeSearchResults(left, right)), 1);
 });
 
+Deno.test("cutoff blocks better-quality upgrades once cutoff is met", () => {
+  const profileWith4kAllowed: QualityProfile = {
+    ...baseProfile,
+    allowed_qualities: ["2160p", "1080p", "720p"],
+  };
+
+  const decision = decideDownloadAction(
+    profileWith4kAllowed,
+    [],
+    {
+      downloaded: true,
+      filePath: "[Group] Show - 01 [1080p WEB-DL].mkv",
+      isSeaDex: false,
+      isSeaDexBest: false,
+    },
+    {
+      group: "SubsPlease",
+      isSeaDex: false,
+      isSeaDexBest: false,
+      remake: false,
+      seeders: 50,
+      sizeBytes: 1024 ** 3,
+      title: "[SubsPlease] Show - 01 [2160p BluRay]",
+      trusted: true,
+    },
+    baseConfig,
+  );
+
+  assertEquals(decision.Reject?.reason, "already at quality cutoff");
+});
+
+Deno.test("compare episode search results prefers better quality over seeders when score ties", () => {
+  const lowQualityMoreSeeders = {
+    download_action: {
+      Accept: {
+        is_seadex: false,
+        quality: parseQualityFromTitle("480p SDTV"),
+        score: 10,
+      },
+    },
+    indexer: "Nyaa",
+    info_hash: "a",
+    leechers: 1,
+    link: "magnet:?a",
+    publish_date: new Date().toISOString(),
+    quality: "480p",
+    seeders: 100,
+    size: 100,
+    title: "left",
+  };
+
+  const highQualityFewerSeeders = {
+    download_action: {
+      Accept: {
+        is_seadex: false,
+        quality: parseQualityFromTitle("1080p BluRay"),
+        score: 10,
+      },
+    },
+    indexer: "Nyaa",
+    info_hash: "b",
+    leechers: 1,
+    link: "magnet:?b",
+    publish_date: new Date().toISOString(),
+    quality: "1080p",
+    seeders: 2,
+    size: 100,
+    title: "right",
+  };
+
+  assertEquals(
+    Math.sign(
+      compareEpisodeSearchResults(
+        lowQualityMoreSeeders,
+        highQualityFewerSeeders,
+      ),
+    ),
+    1,
+  );
+});
+
 Deno.test("episode parser handles sxxexx and dash patterns", () => {
   assertEquals(parseEpisodeFromTitle("Show.S01E07.1080p.WEB.mkv"), 7);
   assertEquals(parseEpisodeFromTitle("[Group] Show - 12 [1080p]"), 12);

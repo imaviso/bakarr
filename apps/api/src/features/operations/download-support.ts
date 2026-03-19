@@ -13,6 +13,15 @@ import { Effect } from "effect";
 import { buildEpisodeFilenamePlan } from "./naming-support.ts";
 import type { PreferredTitle } from "../../../../../packages/shared/src/index.ts";
 
+export class ImportRollbackError {
+  readonly _tag = "ImportRollbackError";
+  constructor(
+    readonly message: string,
+    readonly cause: unknown,
+    readonly rolledBack: boolean,
+  ) {}
+}
+
 function isCrossFilesystemError(error: { cause?: unknown }): boolean {
   const cause = error.cause;
   if (cause instanceof Error && "code" in cause) {
@@ -135,11 +144,34 @@ export function importDownloadedFile(
     if (renameResult._tag === "Left") {
       if (hasExisting) {
         yield* fs.rename(backupDestination, destination).pipe(
-          Effect.catchTag("FileSystemError", () => Effect.void),
+          Effect.catchTag(
+            "FileSystemError",
+            (fsError) =>
+              Effect.logWarning("Failed to restore backup after rename failure")
+                .pipe(
+                  Effect.annotateLogs({
+                    backup_path: backupDestination,
+                    destination_path: destination,
+                    error: String(fsError),
+                  }),
+                  Effect.asVoid,
+                ),
+          ),
         );
       }
       yield* fs.remove(tempDestination).pipe(
-        Effect.catchTag("FileSystemError", () => Effect.void),
+        Effect.catchTag(
+          "FileSystemError",
+          (fsError) =>
+            Effect.logWarning("Failed to remove temp file after rename failure")
+              .pipe(
+                Effect.annotateLogs({
+                  error: String(fsError),
+                  temp_path: tempDestination,
+                }),
+                Effect.asVoid,
+              ),
+        ),
       );
       return yield* Effect.fail(
         new ImportFileError(
@@ -151,11 +183,77 @@ export function importDownloadedFile(
 
     if (hasExisting) {
       yield* fs.remove(backupDestination).pipe(
-        Effect.catchTag("FileSystemError", () => Effect.void),
+        Effect.catchTag(
+          "FileSystemError",
+          (fsError) =>
+            Effect.logWarning(
+              "Failed to remove backup file after successful import",
+            ).pipe(
+              Effect.annotateLogs({
+                backup_path: backupDestination,
+                error: String(fsError),
+              }),
+              Effect.asVoid,
+            ),
+        ),
       );
     }
 
     return destination;
+  });
+}
+
+export async function upsertEpisodeFilesAtomic(
+  db: AppDatabase,
+  animeId: number,
+  episodeNumbers: readonly number[],
+  destination: string,
+): Promise<void> {
+  if (episodeNumbers.length === 0) {
+    return;
+  }
+
+  await db.transaction(async (tx) => {
+    for (const episodeNumber of episodeNumbers) {
+      const rows = await tx.select().from(episodes).where(
+        and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
+      ).limit(1);
+
+      if (rows[0]) {
+        await tx.update(episodes).set({
+          downloaded: true,
+          filePath: destination,
+        })
+          .where(eq(episodes.id, rows[0].id));
+      } else {
+        try {
+          await tx.insert(episodes).values({
+            aired: null,
+            animeId,
+            downloaded: true,
+            filePath: destination,
+            number: episodeNumber,
+            title: null,
+          });
+        } catch {
+          const existingRows = await tx.select().from(episodes).where(
+            and(
+              eq(episodes.animeId, animeId),
+              eq(episodes.number, episodeNumber),
+            ),
+          ).limit(1);
+
+          if (!existingRows[0]) {
+            throw new Error("Failed to upsert episode file");
+          }
+
+          await tx.update(episodes).set({
+            downloaded: true,
+            filePath: destination,
+          }).where(eq(episodes.id, existingRows[0].id));
+        }
+      }
+    }
   });
 }
 

@@ -1,5 +1,6 @@
 import {
   IconArrowUp,
+  IconChevronLeft,
   IconChevronRight,
   IconFile,
   IconFolder,
@@ -7,12 +8,14 @@ import {
   IconHome,
   IconLoader2,
 } from "@tabler/icons-solidjs";
-import { createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
 import { type BrowseEntry, createBrowsePathQuery } from "~/lib/api";
 import { cn } from "~/lib/utils";
+
+const BROWSE_PAGE_SIZE = 100;
 
 interface FileBrowserProps {
   /** Callback when a path is selected */
@@ -33,13 +36,26 @@ export function FileBrowser(props: FileBrowserProps) {
   const [currentPath, setCurrentPath] = createSignal(initialPath());
   const [manualPath, setManualPath] = createSignal(initialPath());
   const [selectedPath, setSelectedPath] = createSignal<string | null>(null);
+  const [pageOffset, setPageOffset] = createSignal(0);
 
-  const browserQuery = createBrowsePathQuery(currentPath);
+  const browserQuery = createBrowsePathQuery(currentPath, () => ({
+    limit: BROWSE_PAGE_SIZE,
+    offset: pageOffset(),
+  }));
+
+  const pageInfo = createMemo(() => {
+    const data = browserQuery.data;
+    if (!data) return null;
+    const start = data.offset + 1;
+    const end = data.offset + data.entries.length;
+    return { start, end, total: data.total, hasMore: data.has_more };
+  });
 
   const handleNavigate = (path: string) => {
     setCurrentPath(path);
     setManualPath(path);
     setSelectedPath(null);
+    setPageOffset(0);
   };
 
   const handleSelect = (entry: BrowseEntry) => {
@@ -72,6 +88,7 @@ export function FileBrowser(props: FileBrowserProps) {
   const handleManualNavigate = () => {
     setCurrentPath(manualPath());
     setSelectedPath(null);
+    setPageOffset(0);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -238,6 +255,44 @@ export function FileBrowser(props: FileBrowserProps) {
           </Show>
         </Show>
       </div>
+
+      {/* Pagination controls */}
+      <Show when={pageInfo() && pageInfo()!.total > BROWSE_PAGE_SIZE}>
+        {(_) => {
+          const info = () => pageInfo()!;
+          return (
+            <div class="flex items-center justify-between px-3 py-1.5 border-t bg-muted/30 text-xs text-muted-foreground shrink-0">
+              <span>
+                {info().start}–{info().end} of {info().total}
+              </span>
+              <div class="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-6 w-6"
+                  disabled={pageOffset() === 0}
+                  onClick={() =>
+                    setPageOffset((prev) =>
+                      Math.max(0, prev - BROWSE_PAGE_SIZE)
+                    )}
+                >
+                  <IconChevronLeft class="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-6 w-6"
+                  disabled={!info().hasMore}
+                  onClick={() =>
+                    setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
+                >
+                  <IconChevronRight class="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          );
+        }}
+      </Show>
 
       {/* Selected path indicator */}
       <Show when={selectedPath()}>

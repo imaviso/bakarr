@@ -6,7 +6,7 @@ import {
   type QBitTorrent,
   QBitTorrentClient,
 } from "./src/features/operations/qbittorrent.ts";
-import { mapQBitState } from "./src/features/operations/download-orchestration.ts";
+import { mapQBitState } from "./src/features/operations/download-orchestration-shared.ts";
 import {
   type ParsedRelease,
   RssClient,
@@ -724,6 +724,23 @@ integrationTest("library browse returns sorted entries and sizes", async () => {
       assertEquals(browse.entries[1].name, "notes.txt");
       assertEquals(browse.entries[1].is_directory, false);
       assertEquals(browse.entries[1].size, 5);
+      assertEquals(browse.total, 2);
+      assertEquals(browse.limit, 100);
+      assertEquals(browse.offset, 0);
+      assertEquals(browse.has_more, false);
+
+      const browseWithPagination = await ctx.app.request(
+        `/api/library/browse?path=${encodeURIComponent(root)}&limit=1&offset=1`,
+        { headers: { Cookie: sessionCookie } },
+      );
+      assertEquals(browseWithPagination.status, 200);
+      const paged = await browseWithPagination.json();
+      assertEquals(paged.entries.length, 1);
+      assertEquals(paged.entries[0].name, "notes.txt");
+      assertEquals(paged.total, 2);
+      assertEquals(paged.limit, 1);
+      assertEquals(paged.offset, 1);
+      assertEquals(paged.has_more, false);
     } finally {
       await Deno.remove(root, { recursive: true });
     }
@@ -3092,7 +3109,7 @@ integrationTest(
         const animeListAfterDelete = await ctx.app.request("/api/anime", {
           headers: { Cookie: apiKeySessionCookie },
         });
-        assertEquals((await animeListAfterDelete.json()).length, 0);
+        assertEquals((await animeListAfterDelete.json()).total, 0);
       } finally {
         await Deno.remove(rootFolder, { recursive: true });
         await Deno.remove(updatedFolder, { recursive: true });
@@ -3507,7 +3524,20 @@ integrationTest("anime CRUD and episode scan flow works", async () => {
 
       assertEquals(listResponse.status, 200);
       const list = await listResponse.json();
-      assertEquals(list.length, 1);
+      assertEquals(list.total, 1);
+
+      const paginatedListResponse = await ctx.app.request(
+        "/api/anime?limit=1&offset=0&monitored=true",
+        {
+          headers: { Cookie: sessionCookie },
+        },
+      );
+      assertEquals(paginatedListResponse.status, 200);
+      const paginatedList = await paginatedListResponse.json();
+      assertEquals(paginatedList.limit, 1);
+      assertEquals(paginatedList.offset, 0);
+      assertEquals(paginatedList.total, 1);
+      assertEquals(paginatedList.items.length, 1);
 
       const detailResponse = await ctx.app.request("/api/anime/20", {
         headers: { Cookie: sessionCookie },

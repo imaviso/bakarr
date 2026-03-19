@@ -1,5 +1,5 @@
 import { HttpClient } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { Effect, Schema, Stream } from "effect";
 
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 
@@ -8,9 +8,16 @@ export interface CachedAnimeImages {
   readonly coverImage?: string;
 }
 
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
 class ImageCacheError extends Schema.TaggedError<ImageCacheError>()(
   "ImageCacheError",
   { cause: Schema.Defect, message: Schema.String },
+) {}
+
+class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()(
+  "ImageTooLargeError",
+  { contentLength: Schema.optional(Schema.Number), maxBytes: Schema.Number },
 ) {}
 
 export const cacheAnimeMetadataImages = Effect.fn(
@@ -59,12 +66,42 @@ const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(
       return undefined;
     }
 
+    const cachedPath = yield* findCachedImagePath(fs, baseDir, animeId, kind);
+
+    if (cachedPath) {
+      return cachedPath;
+    }
+
     const download = yield* downloadImage(client, url);
     const filename = `${kind}.${download.extension}`;
 
     yield* fs.writeFile(`${baseDir}/${filename}`, download.bytes);
 
     return `/api/images/anime/${animeId}/${filename}`;
+  },
+);
+
+const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(
+  function* (
+    fs: FileSystemShape,
+    baseDir: string,
+    animeId: number,
+    kind: "banner" | "cover",
+  ) {
+    const entries = yield* fs.readDir(baseDir).pipe(
+      Effect.catchAll(() => Effect.succeed([])),
+    );
+
+    const existing = entries
+      .filter((entry) => entry.isFile && entry.name.startsWith(`${kind}.`))
+      .map((entry) => entry.name)
+      .sort()[0];
+
+    if (!existing) {
+      return undefined;
+    }
+
+    return `/api/images/anime/${animeId}/${existing}`;
   },
 );
 
@@ -85,12 +122,46 @@ const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
     });
   }
 
-  const bytes = yield* response.arrayBuffer.pipe(
-    Effect.map((buffer: ArrayBuffer) => new Uint8Array(buffer)),
-    Effect.mapError((cause) =>
-      new ImageCacheError({ cause, message: "Failed to read image bytes" })
+  const contentLength = response.headers["content-length"];
+  if (contentLength) {
+    const length = Number.parseInt(contentLength, 10);
+    if (!Number.isNaN(length) && length > MAX_IMAGE_BYTES) {
+      return yield* new ImageTooLargeError({
+        contentLength: length,
+        maxBytes: MAX_IMAGE_BYTES,
+      });
+    }
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  yield* response.stream.pipe(
+    Stream.mapError((cause) =>
+      new ImageCacheError({ cause, message: "Failed to read image stream" })
     ),
+    Stream.runForEach((chunk) => {
+      totalBytes += chunk.byteLength;
+      if (totalBytes > MAX_IMAGE_BYTES) {
+        return Effect.fail(
+          new ImageTooLargeError({
+            contentLength: undefined,
+            maxBytes: MAX_IMAGE_BYTES,
+          }),
+        );
+      }
+      chunks.push(chunk);
+      return Effect.void;
+    }),
   );
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
   const extension = inferImageExtension(
     url,
     response.headers["content-type"] ?? null,

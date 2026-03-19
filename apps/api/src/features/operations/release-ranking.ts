@@ -50,25 +50,100 @@ type QualitySource =
   | "SDTV"
   | "Unknown";
 
+const QUALITY_ID = {
+  BLURAY_2160P: 1,
+  WEBDL_2160P: 2,
+  BLURAY_1080P: 3,
+  WEBDL_1080P: 4,
+  BLURAY_720P: 5,
+  WEBDL_720P: 6,
+  HDTV_1080P: 7,
+  HDTV_720P: 8,
+  DVD_576P: 9,
+  SDTV_480P: 10,
+  BLURAY_2160P_REMUX: 11,
+  BLURAY_1080P_REMUX: 12,
+  WEBRIP_2160P: 13,
+  WEBRIP_1080P: 14,
+  WEBRIP_720P: 15,
+  UNKNOWN: 99,
+} as const;
+
 const QUALITY_DEFS: ReadonlyArray<
   Quality & { readonly sourceKind: QualitySource }
 > = [
-  makeQuality(11, "BluRay 2160p Remux", "remux", 2160, 1, "BluRayRemux"),
-  makeQuality(1, "BluRay 2160p", "bluray", 2160, 2, "BluRay"),
-  makeQuality(2, "WEB-DL 2160p", "web", 2160, 3, "WebDl"),
-  makeQuality(13, "WEBRip 2160p", "webrip", 2160, 4, "WebRip"),
-  makeQuality(12, "BluRay 1080p Remux", "remux", 1080, 5, "BluRayRemux"),
-  makeQuality(3, "BluRay 1080p", "bluray", 1080, 6, "BluRay"),
-  makeQuality(4, "WEB-DL 1080p", "web", 1080, 7, "WebDl"),
-  makeQuality(14, "WEBRip 1080p", "webrip", 1080, 8, "WebRip"),
-  makeQuality(5, "BluRay 720p", "bluray", 720, 9, "BluRay"),
-  makeQuality(6, "WEB-DL 720p", "web", 720, 10, "WebDl"),
-  makeQuality(15, "WEBRip 720p", "webrip", 720, 11, "WebRip"),
-  makeQuality(7, "HDTV 1080p", "hdtv", 1080, 12, "HDTV"),
-  makeQuality(8, "HDTV 720p", "hdtv", 720, 13, "HDTV"),
-  makeQuality(9, "DVD 576p", "dvd", 576, 14, "DVD"),
-  makeQuality(10, "SDTV 480p", "sdtv", 480, 15, "SDTV"),
-  makeQuality(99, "Unknown", "unknown", 0, 99, "Unknown"),
+  makeQuality(
+    QUALITY_ID.BLURAY_2160P_REMUX,
+    "BluRay 2160p Remux",
+    "remux",
+    2160,
+    1,
+    "BluRayRemux",
+  ),
+  makeQuality(
+    QUALITY_ID.BLURAY_2160P,
+    "BluRay 2160p",
+    "bluray",
+    2160,
+    2,
+    "BluRay",
+  ),
+  makeQuality(QUALITY_ID.WEBDL_2160P, "WEB-DL 2160p", "web", 2160, 3, "WebDl"),
+  makeQuality(
+    QUALITY_ID.WEBRIP_2160P,
+    "WEBRip 2160p",
+    "webrip",
+    2160,
+    4,
+    "WebRip",
+  ),
+  makeQuality(
+    QUALITY_ID.BLURAY_1080P_REMUX,
+    "BluRay 1080p Remux",
+    "remux",
+    1080,
+    5,
+    "BluRayRemux",
+  ),
+  makeQuality(
+    QUALITY_ID.BLURAY_1080P,
+    "BluRay 1080p",
+    "bluray",
+    1080,
+    6,
+    "BluRay",
+  ),
+  makeQuality(QUALITY_ID.WEBDL_1080P, "WEB-DL 1080p", "web", 1080, 7, "WebDl"),
+  makeQuality(
+    QUALITY_ID.WEBRIP_1080P,
+    "WEBRip 1080p",
+    "webrip",
+    1080,
+    8,
+    "WebRip",
+  ),
+  makeQuality(
+    QUALITY_ID.BLURAY_720P,
+    "BluRay 720p",
+    "bluray",
+    720,
+    9,
+    "BluRay",
+  ),
+  makeQuality(QUALITY_ID.WEBDL_720P, "WEB-DL 720p", "web", 720, 10, "WebDl"),
+  makeQuality(
+    QUALITY_ID.WEBRIP_720P,
+    "WEBRip 720p",
+    "webrip",
+    720,
+    11,
+    "WebRip",
+  ),
+  makeQuality(QUALITY_ID.HDTV_1080P, "HDTV 1080p", "hdtv", 1080, 12, "HDTV"),
+  makeQuality(QUALITY_ID.HDTV_720P, "HDTV 720p", "hdtv", 720, 13, "HDTV"),
+  makeQuality(QUALITY_ID.DVD_576P, "DVD 576p", "dvd", 576, 14, "DVD"),
+  makeQuality(QUALITY_ID.SDTV_480P, "SDTV 480p", "sdtv", 480, 15, "SDTV"),
+  makeQuality(QUALITY_ID.UNKNOWN, "Unknown", "unknown", 0, 99, "Unknown"),
 ];
 
 export function parseReleaseName(title: string): ParsedReleaseName {
@@ -266,21 +341,6 @@ export function decideDownloadAction(
       };
     }
 
-    if (releaseQuality.rank < currentQuality.rank) {
-      return {
-        Upgrade: {
-          quality: releaseQuality,
-          is_seadex: release.isSeaDex,
-          is_seadex_best: release.isSeaDexBest || undefined,
-          score,
-          reason: "better quality available",
-          old_file_path: current.filePath,
-          old_quality: currentQuality,
-          old_score: currentScore,
-        },
-      };
-    }
-
     return { Reject: { reason: "already at quality cutoff" } };
   }
 
@@ -324,6 +384,8 @@ export function compareEpisodeSearchResults(
   return actionWeight(right.download_action) -
       actionWeight(left.download_action) ||
     actionScore(right.download_action) - actionScore(left.download_action) ||
+    actionQualityRank(left.download_action) -
+      actionQualityRank(right.download_action) ||
     right.seeders - left.seeders ||
     right.size - left.size;
 }
@@ -337,6 +399,11 @@ function actionWeight(action: DownloadAction): number {
 function actionScore(action: DownloadAction): number {
   return action.Accept?.score ?? action.Upgrade?.score ??
     Number.NEGATIVE_INFINITY;
+}
+
+function actionQualityRank(action: DownloadAction): number {
+  return action.Accept?.quality.rank ?? action.Upgrade?.quality.rank ??
+    Number.POSITIVE_INFINITY;
 }
 
 function calculateScore(
@@ -437,7 +504,7 @@ function isQualityAllowed(profile: QualityProfile, quality: Quality): boolean {
 
 function cutoffQuality(label: string): Quality {
   const parsed = parseQualityFromTitle(label);
-  if (parsed.id !== 99) {
+  if (parsed.id !== QUALITY_ID.UNKNOWN) {
     return parsed;
   }
 

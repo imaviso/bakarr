@@ -1,6 +1,10 @@
 import { assertEquals } from "@std/assert";
+import { Effect, Layer } from "effect";
 
 import {
+  FFPROBE_CONCURRENCY_LIMIT,
+  MediaProbe,
+  MediaProbeLive,
   mergeProbedMediaMetadata,
   parseFfprobeJson,
   shouldProbeMediaMetadata,
@@ -84,4 +88,87 @@ Deno.test("shouldProbeMediaMetadata checks for unresolved media details", () => 
     }),
     true,
   );
+});
+
+Deno.test("FFPROBE_CONCURRENCY_LIMIT is defined and reasonable", () => {
+  assertEquals(FFPROBE_CONCURRENCY_LIMIT > 0, true);
+  assertEquals(FFPROBE_CONCURRENCY_LIMIT <= 4, true);
+});
+
+Deno.test("MediaProbe enforces global ffprobe concurrency limit", async () => {
+  const originalCommand = Deno.Command;
+  const originalPermissionQuery = Deno.permissions.query;
+  let active = 0;
+  let maxActive = 0;
+
+  class CommandStub {
+    readonly #args: readonly string[];
+
+    constructor(
+      _command: string,
+      options: { readonly args?: readonly string[] },
+    ) {
+      this.#args = options.args ?? [];
+    }
+
+    output() {
+      if (this.#args.includes("-version")) {
+        return Promise.resolve(
+          {
+            code: 0,
+            signal: null,
+            stderr: new Uint8Array(0),
+            stdout: new TextEncoder().encode("ffprobe version test"),
+            success: true,
+          } satisfies Deno.CommandOutput,
+        );
+      }
+
+      active += 1;
+      if (active > maxActive) {
+        maxActive = active;
+      }
+
+      return new Promise<Deno.CommandOutput>((resolve) => {
+        setTimeout(() => {
+          active -= 1;
+
+          resolve({
+            code: 0,
+            signal: null,
+            stderr: new Uint8Array(0),
+            stdout: new TextEncoder().encode(
+              '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080}],"format":{"duration":"24"}}',
+            ),
+            success: true,
+          });
+        }, 25);
+      });
+    }
+  }
+
+  try {
+    Deno.permissions.query = (() =>
+      Promise.resolve({
+        name: "run",
+        state: "granted",
+      } as unknown as Deno.PermissionStatus)) as typeof Deno.permissions.query;
+    Deno.Command = CommandStub as unknown as typeof Deno.Command;
+
+    await Effect.runPromise(
+      Effect.flatMap(MediaProbe, (mediaProbe) =>
+        Effect.forEach(
+          Array.from({ length: 10 }, (_, index) =>
+            `/tmp/media-probe-${index}.mkv`),
+          (path) =>
+            mediaProbe.probeVideoFile(path),
+          { concurrency: "unbounded" },
+        )).pipe(Effect.provide(Layer.mergeAll(MediaProbeLive))),
+    );
+
+    assertEquals(maxActive <= FFPROBE_CONCURRENCY_LIMIT, true);
+  } finally {
+    Deno.Command = originalCommand;
+    Deno.permissions.query = originalPermissionQuery;
+  }
 });

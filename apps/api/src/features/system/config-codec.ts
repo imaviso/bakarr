@@ -340,7 +340,12 @@ export function decodeOptionalNumberList(
 
   try {
     return decodeNumberList(value);
-  } catch {
+  } catch (cause) {
+    console.warn(
+      `[config-codec] decodeOptionalNumberList failed; returning empty list. value=${value}. error=${
+        String(cause)
+      }`,
+    );
     return [];
   }
 }

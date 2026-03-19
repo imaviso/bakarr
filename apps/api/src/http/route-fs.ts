@@ -1,11 +1,38 @@
 import { Effect } from "effect";
 import type { FileSystemShape } from "../lib/filesystem.ts";
 
-export function browsePath(fs: FileSystemShape, path: string) {
+const MAX_BROWSE_LIMIT = 500;
+
+interface BrowseEntry {
+  is_directory: boolean;
+  name: string;
+  path: string;
+  size?: number;
+}
+
+interface BrowseResult {
+  current_path: string;
+  entries: BrowseEntry[];
+  has_more: boolean;
+  limit: number;
+  offset: number;
+  parent_path?: string;
+  total: number;
+}
+
+export function browsePath(
+  fs: FileSystemShape,
+  path: string,
+  options?: { limit?: number; offset?: number },
+): Effect.Effect<BrowseResult, never, never> {
   return Effect.gen(function* () {
-    const entries: Array<
-      { is_directory: boolean; name: string; path: string; size?: number }
-    > = [];
+    const requestedLimit = options?.limit;
+    const limit = requestedLimit === undefined
+      ? undefined
+      : Math.min(Math.max(1, requestedLimit), MAX_BROWSE_LIMIT);
+    const offset = Math.max(0, options?.offset ?? 0);
+
+    const allEntries: BrowseEntry[] = [];
 
     const dirEntries = yield* fs.readDir(path).pipe(
       Effect.catchTag(
@@ -25,7 +52,7 @@ export function browsePath(fs: FileSystemShape, path: string) {
             } as unknown as Deno.FileInfo,
           )),
       );
-      entries.push({
+      allEntries.push({
         is_directory: entry.isDirectory,
         name: entry.name,
         path: fullPath,
@@ -33,17 +60,28 @@ export function browsePath(fs: FileSystemShape, path: string) {
       });
     }
 
-    entries.sort((left, right) =>
+    allEntries.sort((left, right) =>
       Number(right.is_directory) - Number(left.is_directory) ||
       left.name.localeCompare(right.name)
     );
 
+    const total = allEntries.length;
+    const paginatedEntries = limit === undefined
+      ? allEntries.slice(offset)
+      : allEntries.slice(offset, offset + limit);
+    const hasMore = limit === undefined ? false : offset + limit < total;
+    const responseLimit = limit ?? paginatedEntries.length;
+
     return {
       current_path: path,
-      entries,
+      entries: paginatedEntries,
+      has_more: hasMore,
+      limit: responseLimit,
+      offset,
       parent_path: path === "."
         ? undefined
         : path.split("/").slice(0, -1).join("/") || "/",
+      total,
     };
   });
 }

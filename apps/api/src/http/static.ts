@@ -1,9 +1,10 @@
-import { Effect } from "effect";
+import { Chunk, Effect, Option, Stream } from "effect";
 
-import { FileSystem } from "../lib/filesystem.ts";
+import { FileSystem, FileSystemError } from "../lib/filesystem.ts";
 import type { RunEffect } from "./route-types.ts";
 
 const DEFAULT_WEB_DIST_URL = new URL("../../../web/dist/", import.meta.url);
+const STATIC_STREAM_CHUNK_SIZE = 64 * 1024;
 
 export function createAppFetchHandler(
   appFetch: (request: Request) => Response | Promise<Response>,
@@ -23,6 +24,7 @@ export function createAppFetchHandler(
 
     const staticResponse = await serveStaticAsset(
       runEffect,
+      request.method,
       url.pathname,
       webDistUrl,
     );
@@ -31,12 +33,13 @@ export function createAppFetchHandler(
       return staticResponse;
     }
 
-    return await serveIndexHtml(runEffect, webDistUrl);
+    return await serveIndexHtml(runEffect, request.method, webDistUrl);
   };
 }
 
 async function serveStaticAsset(
   runEffect: RunEffect,
+  method: string,
   pathname: string,
   webDistUrl: URL,
 ): Promise<Response | null> {
@@ -53,18 +56,16 @@ async function serveStaticAsset(
   }
 
   try {
-    const file = await runEffect(
-      Effect.flatMap(FileSystem, (fs) => fs.readFile(fileUrl)),
-    );
-
-    return new Response(new Uint8Array(file), {
-      headers: {
-        "Cache-Control": normalized.startsWith("assets/")
+    return await runEffect(
+      createFileResponse({
+        cacheControl: normalized.startsWith("assets/")
           ? "public, max-age=31536000, immutable"
           : "public, max-age=300",
-        "Content-Type": contentTypeForPath(normalized),
-      },
-    });
+        contentType: contentTypeForPath(normalized),
+        fileUrl,
+        method,
+      }),
+    );
   } catch {
     return null;
   }
@@ -72,22 +73,18 @@ async function serveStaticAsset(
 
 async function serveIndexHtml(
   runEffect: RunEffect,
+  method: string,
   webDistUrl: URL,
 ): Promise<Response> {
   try {
-    const file = await runEffect(
-      Effect.flatMap(
-        FileSystem,
-        (fs) => fs.readFile(new URL("index.html", webDistUrl)),
-      ),
+    return await runEffect(
+      createFileResponse({
+        cacheControl: "no-cache",
+        contentType: "text/html; charset=utf-8",
+        fileUrl: new URL("index.html", webDistUrl),
+        method,
+      }),
     );
-
-    return new Response(new Uint8Array(file), {
-      headers: {
-        "Cache-Control": "no-cache",
-        "Content-Type": "text/html; charset=utf-8",
-      },
-    });
   } catch {
     return new Response(
       "Frontend bundle not found. Run `deno task --cwd=apps/web build` first.",
@@ -99,6 +96,82 @@ async function serveIndexHtml(
       },
     );
   }
+}
+
+const createFileResponse = Effect.fn("Static.createFileResponse")(
+  function* (input: {
+    cacheControl: string;
+    contentType: string;
+    fileUrl: URL;
+    method: string;
+  }) {
+    const fs = yield* FileSystem;
+    const stat = yield* fs.stat(input.fileUrl);
+
+    const headers = {
+      "Cache-Control": input.cacheControl,
+      "Content-Length": String(stat.size),
+      "Content-Type": input.contentType,
+    };
+
+    if (input.method === "HEAD") {
+      return new Response(null, { headers });
+    }
+
+    const body = createFileReadableStream(fs, input.fileUrl);
+    return new Response(body, { headers });
+  },
+);
+
+function createFileReadableStream(
+  fs: typeof FileSystem.Service,
+  path: URL,
+): ReadableStream<Uint8Array> {
+  return Stream.toReadableStream<Uint8Array>({})(
+    createFileChunkStream(fs, path),
+  );
+}
+
+function createFileChunkStream(
+  fs: typeof FileSystem.Service,
+  path: URL,
+): Stream.Stream<Uint8Array, FileSystemError> {
+  return Stream.unwrapScoped(
+    Effect.map(
+      fs.openFile(path, { read: true }),
+      (file) =>
+        Stream.paginateChunkEffect(
+          0,
+          (offset) =>
+            Effect.tryPromise({
+              try: async () => {
+                const buffer = new Uint8Array(STATIC_STREAM_CHUNK_SIZE);
+
+                await file.seek(offset, Deno.SeekMode.Start);
+                const read = await file.read(buffer);
+
+                if (read === null || read === 0) {
+                  return [
+                    Chunk.empty<Uint8Array>(),
+                    Option.none<number>(),
+                  ] as const;
+                }
+
+                return [
+                  Chunk.of(buffer.subarray(0, read)),
+                  Option.some(offset + read),
+                ] as const;
+              },
+              catch: (cause) =>
+                new FileSystemError({
+                  cause,
+                  message: "Failed to read static file",
+                  path: path.toString(),
+                }),
+            }),
+        ),
+    ),
+  );
 }
 
 function contentTypeForPath(path: string): string {

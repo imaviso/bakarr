@@ -64,6 +64,187 @@ export class AniListClient extends Context.Tag("@bakarr/api/AniListClient")<
 
 const ANILIST_URL = "https://graphql.anilist.co";
 
+const SEARCH_ANIME_QUERY = `query ($search: String) {
+  Page(page: 1, perPage: 10) {
+    media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+      id
+      format
+      status
+      episodes
+      description(asHtml: false)
+      genres
+      synonyms
+      startDate {
+        year
+        month
+        day
+      }
+      endDate {
+        year
+        month
+        day
+      }
+      title {
+        romaji
+        english
+        native
+      }
+      coverImage {
+        extraLarge
+        large
+      }
+      bannerImage
+      relations {
+        edges {
+          relationType
+          node {
+            id
+            format
+            status
+            averageScore
+            startDate {
+              year
+              month
+              day
+            }
+            title {
+              romaji
+              english
+              native
+            }
+            coverImage {
+              extraLarge
+              large
+            }
+          }
+        }
+      }
+      recommendations(perPage: 6, sort: RATING_DESC) {
+        nodes {
+          mediaRecommendation {
+            id
+            format
+            status
+            averageScore
+            startDate {
+              year
+              month
+              day
+            }
+            title {
+              romaji
+              english
+              native
+            }
+            coverImage {
+              extraLarge
+              large
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+const DETAIL_ANIME_QUERY = `query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    id
+    idMal
+    format
+    status
+    episodes
+    startDate {
+      year
+      month
+      day
+    }
+    endDate {
+      year
+      month
+      day
+    }
+    description(asHtml: false)
+    averageScore
+    genres
+    synonyms
+    nextAiringEpisode {
+      episode
+      airingAt
+    }
+    airingSchedule(notYetAired: true, perPage: 32) {
+      nodes {
+        episode
+        airingAt
+      }
+    }
+    title {
+      romaji
+      english
+      native
+    }
+    coverImage {
+      extraLarge
+      large
+    }
+    bannerImage
+    studios(isMain: true) {
+      nodes {
+        name
+      }
+    }
+    relations {
+      edges {
+        relationType
+        node {
+          id
+          format
+          status
+          averageScore
+          startDate {
+            year
+            month
+            day
+          }
+          title {
+            romaji
+            english
+            native
+          }
+          coverImage {
+            extraLarge
+            large
+          }
+        }
+      }
+    }
+    recommendations(perPage: 8, sort: RATING_DESC) {
+      nodes {
+        mediaRecommendation {
+          id
+          format
+          status
+          averageScore
+          startDate {
+            year
+            month
+            day
+          }
+          title {
+            romaji
+            english
+            native
+          }
+          coverImage {
+            extraLarge
+            large
+          }
+        }
+      }
+    }
+  }
+}`;
+
 const AniListTitleSchema = Schema.Struct({
   english: Schema.optional(Schema.NullOr(Schema.String)),
   native: Schema.optional(Schema.NullOr(Schema.String)),
@@ -251,88 +432,7 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
     const request = HttpClientRequest.post(ANILIST_URL).pipe(
       HttpClientRequest.setHeader("Content-Type", "application/json"),
       HttpClientRequest.bodyUnsafeJson({
-        query: `query ($search: String) {
-        Page(page: 1, perPage: 10) {
-          media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
-            id
-            format
-            status
-            episodes
-            description(asHtml: false)
-            genres
-            synonyms
-            startDate {
-              year
-              month
-              day
-            }
-            endDate {
-              year
-              month
-              day
-            }
-            title {
-              romaji
-              english
-              native
-            }
-            coverImage {
-              extraLarge
-              large
-            }
-            bannerImage
-            relations {
-              edges {
-                relationType
-                node {
-                  id
-                  format
-                  status
-                  averageScore
-                  startDate {
-                    year
-                    month
-                    day
-                  }
-                  title {
-                    romaji
-                    english
-                    native
-                  }
-                  coverImage {
-                    extraLarge
-                    large
-                  }
-                }
-              }
-            }
-            recommendations(perPage: 6, sort: RATING_DESC) {
-              nodes {
-                mediaRecommendation {
-                  id
-                  format
-                  status
-                  averageScore
-                  startDate {
-                    year
-                    month
-                    day
-                  }
-                  title {
-                    romaji
-                    english
-                    native
-                  }
-                  coverImage {
-                    extraLarge
-                    large
-                  }
-                }
-              }
-            }
-          }
-        }
-      }`,
+        query: SEARCH_ANIME_QUERY,
         variables: { search: trimmed },
       }),
     );
@@ -391,103 +491,7 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
     const request = HttpClientRequest.post(ANILIST_URL).pipe(
       HttpClientRequest.setHeader("Content-Type", "application/json"),
       HttpClientRequest.bodyUnsafeJson({
-        query: `query ($id: Int) {
-        Media(id: $id, type: ANIME) {
-          id
-          idMal
-          format
-          status
-          episodes
-          startDate {
-            year
-            month
-            day
-          }
-          endDate {
-            year
-            month
-            day
-          }
-          description(asHtml: false)
-          averageScore
-          genres
-          synonyms
-          nextAiringEpisode {
-            episode
-            airingAt
-          }
-          airingSchedule(notYetAired: true, perPage: 32) {
-            nodes {
-              episode
-              airingAt
-            }
-          }
-          title {
-            romaji
-            english
-            native
-          }
-          coverImage {
-            extraLarge
-            large
-          }
-          bannerImage
-          studios(isMain: true) {
-            nodes {
-              name
-            }
-          }
-          relations {
-            edges {
-              relationType
-              node {
-                id
-                format
-                status
-                averageScore
-                startDate {
-                  year
-                  month
-                  day
-                }
-                title {
-                  romaji
-                  english
-                  native
-                }
-                coverImage {
-                  extraLarge
-                  large
-                }
-              }
-            }
-          }
-          recommendations(perPage: 8, sort: RATING_DESC) {
-            nodes {
-              mediaRecommendation {
-                id
-                format
-                status
-                averageScore
-                startDate {
-                  year
-                  month
-                  day
-                }
-                title {
-                  romaji
-                  english
-                  native
-                }
-                coverImage {
-                  extraLarge
-                  large
-                }
-              }
-            }
-          }
-        }
-      }`,
+        query: DETAIL_ANIME_QUERY,
         variables: { id },
       }),
     );
