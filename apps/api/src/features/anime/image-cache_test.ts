@@ -124,6 +124,44 @@ Deno.test("cacheAnimeMetadataImages falls back to original URLs on unsupported i
   }
 });
 
+Deno.test("cacheAnimeMetadataImages reuses existing cached image without downloading", async () => {
+  const dir = await Deno.makeTempDir();
+
+  try {
+    await Deno.mkdir(`${dir}/anime/88`, { recursive: true });
+    await Deno.writeFile(
+      `${dir}/anime/88/cover.jpg`,
+      Uint8Array.from([255, 216, 255]),
+    );
+
+    const fs = makeTestFileSystem();
+    let requests = 0;
+    const client = HttpClient.make((request) => {
+      requests += 1;
+      return Effect.succeed(
+        HttpClientResponse.fromWeb(
+          request,
+          new Response(Uint8Array.from([137, 80, 78, 71]), {
+            headers: { "content-type": "image/png" },
+            status: 200,
+          }),
+        ),
+      );
+    });
+
+    const result = await runTestEffect(
+      cacheAnimeMetadataImages(fs, client, dir, 88, {
+        coverImage: "https://example.com/cover.png",
+      }),
+    );
+
+    assertEquals(result.coverImage, "/api/images/anime/88/cover.jpg");
+    assertEquals(requests, 0);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
 async function exists(path: string) {
   try {
     await Deno.stat(path);

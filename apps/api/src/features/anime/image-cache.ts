@@ -59,12 +59,42 @@ const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(
       return undefined;
     }
 
+    const cachedPath = yield* findCachedImagePath(fs, baseDir, animeId, kind);
+
+    if (cachedPath) {
+      return cachedPath;
+    }
+
     const download = yield* downloadImage(client, url);
     const filename = `${kind}.${download.extension}`;
 
     yield* fs.writeFile(`${baseDir}/${filename}`, download.bytes);
 
     return `/api/images/anime/${animeId}/${filename}`;
+  },
+);
+
+const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(
+  function* (
+    fs: FileSystemShape,
+    baseDir: string,
+    animeId: number,
+    kind: "banner" | "cover",
+  ) {
+    const entries = yield* fs.readDir(baseDir).pipe(
+      Effect.catchAll(() => Effect.succeed([])),
+    );
+
+    const existing = entries
+      .filter((entry) => entry.isFile && entry.name.startsWith(`${kind}.`))
+      .map((entry) => entry.name)
+      .sort()[0];
+
+    if (!existing) {
+      return undefined;
+    }
+
+    return `/api/images/anime/${animeId}/${existing}`;
   },
 );
 
