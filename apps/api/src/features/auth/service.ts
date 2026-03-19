@@ -160,11 +160,11 @@ const makeAuthService = Effect.gen(function* () {
         typeof Deno !== "undefined" && Deno.stderr &&
         (Deno.stderr as { isTerminal?: () => boolean }).isTerminal?.()
       ) {
-        console.error(
+        yield* Effect.logInfo(
           `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${config.bootstrapUsername}\n* Password: ${bootstrapPassword}\n* Please log in and change your password.\n*************************************************************\n`,
         );
       } else {
-        console.error(
+        yield* Effect.logInfo(
           "\n* INITIAL SETUP: Bootstrap user created. Log in with the configured credentials and change your password.\n",
         );
       }
