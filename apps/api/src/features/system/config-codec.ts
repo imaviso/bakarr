@@ -27,6 +27,7 @@ const NumberListJsonSchema = Schema.parseJson(NumberListSchema);
 const ReleaseProfileRulesJsonSchema = Schema.parseJson(
   ReleaseProfileRulesSchema,
 );
+const UnknownJsonSchema = Schema.parseJson(Schema.Unknown);
 const ConfigCoreJsonSchema = Schema.parseJson(ConfigCoreSchema);
 const LibraryConfigJsonSchema = Schema.parseJson(LibraryConfigSchema);
 const PartialLibraryConfigSchema = Schema.Struct({
@@ -53,7 +54,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function normalizeStoredConfigSections(value: string): unknown {
-  const parsed = JSON.parse(value);
+  const parsed = Schema.decodeUnknownSync(UnknownJsonSchema)(value);
 
   if (!isRecord(parsed)) {
     return parsed;
@@ -338,16 +339,8 @@ export function decodeOptionalNumberList(
     return [];
   }
 
-  try {
-    return decodeNumberList(value);
-  } catch (cause) {
-    console.warn(
-      `[config-codec] decodeOptionalNumberList failed; returning empty list. value=${value}. error=${
-        String(cause)
-      }`,
-    );
-    return [];
-  }
+  const decoded = Schema.decodeUnknownEither(NumberListJsonSchema)(value);
+  return decoded._tag === "Left" ? [] : [...decoded.right];
 }
 
 export function effectDecodeStringList(

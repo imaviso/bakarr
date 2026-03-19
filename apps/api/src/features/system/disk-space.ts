@@ -56,11 +56,13 @@ export function getDiskSpaceSafe(
 ): Effect.Effect<DiskSpace, never, never> {
   return getDiskSpace(path).pipe(
     Effect.tapError((error) =>
-      Effect.logWarning("Failed to inspect storage volume").pipe(
+      Effect.logError("Failed to inspect storage volume; using fallback").pipe(
         Effect.annotateLogs({
           component: "system",
           diskPath: path,
           error: error.message,
+          fallback_free: 0,
+          fallback_total: 0,
         }),
       )
     ),
