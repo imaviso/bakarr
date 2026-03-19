@@ -315,12 +315,21 @@ function runFfprobeCommand(
             stderr: "null",
             stdout: "piped",
           }).output(),
-        catch: () => null,
+        catch: (cause) =>
+          cause instanceof Error ? cause : new Error(String(cause)),
       }).pipe(
+        Effect.tapError((cause) =>
+          Effect.logWarning("ffprobe command failed").pipe(
+            Effect.annotateLogs({
+              args: args.join(" "),
+              error: String(cause),
+            }),
+          )
+        ),
+        Effect.catchAll(() => Effect.succeed(null)),
         Effect.ensuring(Effect.sync(() => clearTimeout(timer))),
       )
     ),
-    Effect.catchAll(() => Effect.succeed(null)),
   );
 }
 

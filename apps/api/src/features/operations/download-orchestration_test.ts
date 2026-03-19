@@ -247,8 +247,9 @@ Deno.test("triggerDownload prevents overlapping episode queue races across concu
       });
 
       const orchestrations = await Promise.all(
-        Array.from({ length: 8 }, () =>
-          createDownloadOrchestrationForTest(db, [])
+        Array.from(
+          { length: 8 },
+          () => createDownloadOrchestrationForTest(db, []),
         ),
       );
 
@@ -260,15 +261,18 @@ Deno.test("triggerDownload prevents overlapping episode queue races across concu
               episode_number: 1,
               group: "SubsPlease",
               info_hash: `${(index + 1).toString(16).padStart(40, "0")}`,
-              magnet:
-                `magnet:?xt=urn:btih:${(index + 1).toString(16).padStart(40, "0")}&dn=Show`,
+              magnet: `magnet:?xt=urn:btih:${
+                (index + 1).toString(16).padStart(40, "0")
+              }&dn=Show`,
               title: `[SubsPlease] Show - 01 (1080p) [attempt ${index + 1}]`,
             }),
           )
         ),
       );
 
-      const rows = await db.select().from(downloads).where(eq(downloads.animeId, 1));
+      const rows = await db.select().from(downloads).where(
+        eq(downloads.animeId, 1),
+      );
 
       assertEquals(rows.length, 1);
       assertEquals(rows[0]?.episodeNumber, 1);

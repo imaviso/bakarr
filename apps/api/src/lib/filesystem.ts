@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schema, Scope } from "effect";
+import { Context, Effect, Layer, Schema, Scope, Stream } from "effect";
 import { relative, resolve } from "node:path";
 
 export class FileSystemError extends Schema.TaggedError<FileSystemError>()(
@@ -48,6 +48,9 @@ export interface FileSystemShape {
   readonly readDir: (
     path: string | URL,
   ) => Effect.Effect<DirEntry[], FileSystemError>;
+  readonly readDirStream?: (
+    path: string | URL,
+  ) => Stream.Stream<DirEntry, FileSystemError>;
   readonly realPath: (
     path: string | URL,
   ) => Effect.Effect<string, FileSystemError>;
@@ -162,6 +165,16 @@ const makeFileSystem: FileSystemShape = {
         return entries.map(toDirEntry);
       },
     ),
+  readDirStream: (path) =>
+    Stream.fromAsyncIterable(
+      Deno.readDir(path),
+      (cause) =>
+        new FileSystemError({
+          cause,
+          message: "Failed to read directory",
+          path: path.toString(),
+        }),
+    ).pipe(Stream.map(toDirEntry)),
   realPath: (path) =>
     wrap(path, "Failed to resolve path", () => Deno.realPath(path)),
   stat: (path) =>
