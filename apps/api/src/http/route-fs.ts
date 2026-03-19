@@ -1,7 +1,6 @@
 import { Effect } from "effect";
 import type { FileSystemShape } from "../lib/filesystem.ts";
 
-const DEFAULT_BROWSE_LIMIT = 100;
 const MAX_BROWSE_LIMIT = 500;
 
 interface BrowseEntry {
@@ -27,8 +26,10 @@ export function browsePath(
   options?: { limit?: number; offset?: number },
 ): Effect.Effect<BrowseResult, never, never> {
   return Effect.gen(function* () {
-    const requestedLimit = options?.limit ?? DEFAULT_BROWSE_LIMIT;
-    const limit = Math.min(Math.max(1, requestedLimit), MAX_BROWSE_LIMIT);
+    const requestedLimit = options?.limit;
+    const limit = requestedLimit === undefined
+      ? undefined
+      : Math.min(Math.max(1, requestedLimit), MAX_BROWSE_LIMIT);
     const offset = Math.max(0, options?.offset ?? 0);
 
     const allEntries: BrowseEntry[] = [];
@@ -65,14 +66,17 @@ export function browsePath(
     );
 
     const total = allEntries.length;
-    const paginatedEntries = allEntries.slice(offset, offset + limit);
-    const hasMore = offset + limit < total;
+    const paginatedEntries = limit === undefined
+      ? allEntries.slice(offset)
+      : allEntries.slice(offset, offset + limit);
+    const hasMore = limit === undefined ? false : offset + limit < total;
+    const responseLimit = limit ?? paginatedEntries.length;
 
     return {
       current_path: path,
       entries: paginatedEntries,
       has_more: hasMore,
-      limit,
+      limit: responseLimit,
       offset,
       parent_path: path === "."
         ? undefined

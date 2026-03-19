@@ -15,11 +15,27 @@ Deno.test("browsePath returns paginated entries with defaults", async () => {
 
   assertEquals(result.current_path, "/test");
   assertEquals(result.total, 3);
-  assertEquals(result.limit, 100);
+  assertEquals(result.limit, 3);
   assertEquals(result.offset, 0);
   assertEquals(result.has_more, false);
   assertEquals(result.entries.length, 3);
   assertEquals(result.parent_path, "/");
+});
+
+Deno.test("browsePath returns all entries when limit is omitted", async () => {
+  const fs = makeMockFileSystem(
+    Array.from({ length: 600 }, (_, index) => ({
+      isDirectory: false,
+      name: `file-${index}.mkv`,
+    })),
+  );
+
+  const result = await Effect.runPromise(browsePath(fs, "/test"));
+
+  assertEquals(result.entries.length, 600);
+  assertEquals(result.total, 600);
+  assertEquals(result.has_more, false);
+  assertEquals(result.limit, 600);
 });
 
 Deno.test("browsePath respects limit and offset", async () => {

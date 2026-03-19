@@ -85,54 +85,74 @@ export class Database extends Context.Tag("@bakarr/api/Database")<
   DatabaseService
 >() {}
 
-async function setAndVerifyPragmas(client: Client): Promise<void> {
-  await client.execute("PRAGMA journal_mode = WAL");
-  await client.execute("PRAGMA foreign_keys = ON");
+const sqliteSetupError = (cause: unknown) =>
+  new DatabaseError({
+    cause,
+    message: "Failed to open the SQLite database",
+  });
 
-  const journalMode = await client.execute("PRAGMA journal_mode");
-  const foreignKeys = await client.execute("PRAGMA foreign_keys");
+const executeSql = Effect.fn("Database.executeSql")(
+  function* (client: Client, statement: string) {
+    return yield* Effect.tryPromise({
+      try: () => client.execute(statement),
+      catch: sqliteSetupError,
+    });
+  },
+);
 
-  const journalModeValue = String(journalMode.rows[0]?.[0] ?? "");
-  const foreignKeysValue = String(foreignKeys.rows[0]?.[0] ?? "");
+const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(
+  function* (client: Client) {
+    yield* executeSql(client, "PRAGMA journal_mode = WAL");
+    yield* executeSql(client, "PRAGMA foreign_keys = ON");
 
-  if (journalModeValue.toLowerCase() !== "wal") {
-    console.warn(
-      `[Database] Warning: journal_mode is '${journalModeValue}', expected 'wal'`,
-    );
-  }
+    const journalMode = yield* executeSql(client, "PRAGMA journal_mode");
+    const foreignKeys = yield* executeSql(client, "PRAGMA foreign_keys");
 
-  if (foreignKeysValue !== "1") {
-    console.error(
-      `[Database] Error: foreign_keys is '${foreignKeysValue}', expected '1'. Data integrity may be compromised.`,
-    );
-  }
-}
+    const journalModeValue = String(journalMode.rows[0]?.[0] ?? "");
+    const foreignKeysValue = String(foreignKeys.rows[0]?.[0] ?? "");
+
+    if (journalModeValue.toLowerCase() !== "wal") {
+      yield* Effect.logWarning("SQLite pragma mismatch").pipe(
+        Effect.annotateLogs({
+          actual: journalModeValue,
+          expected: "wal",
+          pragma: "journal_mode",
+        }),
+      );
+    }
+
+    if (foreignKeysValue !== "1") {
+      yield* Effect.logError("SQLite pragma mismatch").pipe(
+        Effect.annotateLogs({
+          actual: foreignKeysValue,
+          expected: "1",
+          pragma: "foreign_keys",
+          risk: "Data integrity may be compromised",
+        }),
+      );
+    }
+  },
+);
 
 const makeDatabase = Effect.gen(function* () {
   const config = yield* AppConfig;
-
-  return yield* Effect.acquireRelease(
-    Effect.tryPromise({
-      try: async () => {
-        const client = createClient({
+  const client = yield* Effect.acquireRelease(
+    Effect.try({
+      try: () =>
+        createClient({
           url: toDatabaseUrl(config.databaseFile),
-        });
-
-        await setAndVerifyPragmas(client);
-
-        return {
-          client,
-          db: drizzle({ client, schema }),
-        };
-      },
-      catch: (cause) =>
-        new DatabaseError({
-          cause,
-          message: "Failed to open the SQLite database",
         }),
+      catch: sqliteSetupError,
     }),
-    ({ client }) => Effect.sync(() => client.close()),
+    (client) => Effect.sync(() => client.close()),
   );
+
+  yield* setAndVerifyPragmas(client);
+
+  return {
+    client,
+    db: drizzle({ client, schema }),
+  };
 });
 
 export const DatabaseLive = Layer.scoped(Database, makeDatabase);
