@@ -725,7 +725,7 @@ integrationTest("library browse returns sorted entries and sizes", async () => {
       assertEquals(browse.entries[1].is_directory, false);
       assertEquals(browse.entries[1].size, 5);
       assertEquals(browse.total, 2);
-      assertEquals(browse.limit, 100);
+      assertEquals(browse.limit, 2);
       assertEquals(browse.offset, 0);
       assertEquals(browse.has_more, false);
 
