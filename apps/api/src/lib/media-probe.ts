@@ -3,6 +3,8 @@ import { Context, Effect, Layer, Schema } from "effect";
 const FFPROBE_VERSION_TIMEOUT_MS = 3_000;
 const FFPROBE_PROBE_TIMEOUT_MS = 10_000;
 
+export const FFPROBE_CONCURRENCY_LIMIT = 2;
+
 export interface ProbedMediaMetadata {
   readonly duration_seconds?: number;
   readonly resolution?: string;
@@ -341,6 +343,10 @@ function runFfprobeCommand(
   );
 }
 
+const ffprobeSemaphore = Effect.runSync(
+  Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT),
+);
+
 const makeMediaProbe = (): MediaProbeShape => {
   let availability: boolean | undefined;
 
@@ -382,17 +388,20 @@ const makeMediaProbe = (): MediaProbeShape => {
         return undefined;
       }
 
-      const output = yield* runFfprobeCommand(
-        [
-          "-v",
-          "error",
-          "-print_format",
-          "json",
-          "-show_format",
-          "-show_streams",
-          path,
-        ],
-        FFPROBE_PROBE_TIMEOUT_MS,
+      // Use semaphore to enforce global ffprobe concurrency limit
+      const output = yield* ffprobeSemaphore.withPermits(1)(
+        runFfprobeCommand(
+          [
+            "-v",
+            "error",
+            "-print_format",
+            "json",
+            "-show_format",
+            "-show_streams",
+            path,
+          ],
+          FFPROBE_PROBE_TIMEOUT_MS,
+        ),
       );
 
       if (!output || !output.success) {
