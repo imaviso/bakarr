@@ -338,7 +338,11 @@ export function makeUnmappedOrchestrationSupport(input: {
           yield* Effect.sleep("3 seconds");
         }
       }).pipe(
-        Effect.catchAllCause(() => Effect.void),
+        Effect.catchAllCause((cause) =>
+          Effect.logError("Unmapped scan loop failed").pipe(
+            Effect.annotateLogs({ error: cause.toString() }),
+          )
+        ),
         Effect.ensuring(Ref.set(unmappedScanRunning, false)),
       );
 

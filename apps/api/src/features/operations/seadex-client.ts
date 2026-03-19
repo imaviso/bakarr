@@ -38,30 +38,36 @@ export class SeaDexClient extends Context.Tag("@bakarr/api/SeaDexClient")<
 
 const SEADEX_API_BASE = "https://releases.moe/api/collections";
 
-const SeaDexTorrentSchema = Schema.Struct({
-  dualAudio: Schema.Boolean,
-  groupedUrl: Schema.String,
-  infoHash: Schema.optional(Schema.String),
-  isBest: Schema.Boolean,
-  releaseGroup: Schema.String,
-  tags: Schema.Array(Schema.String),
-  tracker: Schema.String,
-  url: Schema.String,
-});
+class SeaDexTorrentSchema
+  extends Schema.Class<SeaDexTorrentSchema>("SeaDexTorrentSchema")({
+    dualAudio: Schema.Boolean,
+    groupedUrl: Schema.String,
+    infoHash: Schema.optional(Schema.String),
+    isBest: Schema.Boolean,
+    releaseGroup: Schema.String,
+    tags: Schema.Array(Schema.String),
+    tracker: Schema.String,
+    url: Schema.String,
+  }) {}
 
-const SeaDexEntrySchema = Schema.Struct({
-  alID: Schema.Number,
-  comparison: Schema.optional(Schema.String),
-  incomplete: Schema.Boolean,
-  notes: Schema.optional(Schema.String),
-  expand: Schema.Struct({
+class SeaDexEntryExpandSchema
+  extends Schema.Class<SeaDexEntryExpandSchema>("SeaDexEntryExpandSchema")({
     trs: Schema.Array(SeaDexTorrentSchema),
-  }),
-});
+  }) {}
 
-const SeaDexEntryListSchema = Schema.Struct({
-  items: Schema.Array(SeaDexEntrySchema),
-});
+class SeaDexEntrySchema
+  extends Schema.Class<SeaDexEntrySchema>("SeaDexEntrySchema")({
+    alID: Schema.Number,
+    comparison: Schema.optional(Schema.String),
+    incomplete: Schema.Boolean,
+    notes: Schema.optional(Schema.String),
+    expand: SeaDexEntryExpandSchema,
+  }) {}
+
+class SeaDexEntryListSchema
+  extends Schema.Class<SeaDexEntryListSchema>("SeaDexEntryListSchema")({
+    items: Schema.Array(SeaDexEntrySchema),
+  }) {}
 
 export const SeaDexClientLive = Layer.effect(
   SeaDexClient,

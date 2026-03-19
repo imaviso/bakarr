@@ -17,6 +17,7 @@ import { makeDefaultConfig } from "../system/defaults.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { QBitTorrentClient } from "./qbittorrent.ts";
 import {
+  decodeDownloadEventMetadata,
   decodeDownloadSourceMetadata,
   encodeDownloadSourceMetadata,
   loadDownloadPresentationContexts,
@@ -195,7 +196,9 @@ Deno.test("triggerDownload stores source metadata in queued download event paylo
       const event = events[0];
       assertExists(event);
 
-      const parsed = event.metadata ? JSON.parse(event.metadata) : undefined;
+      const parsed = event.metadata
+        ? decodeDownloadEventMetadata(event.metadata)
+        : undefined;
       assertExists(parsed);
       assertEquals(Array.isArray(parsed.covered_episodes), true);
       assertEquals(parsed.covered_episodes, [1]);
@@ -373,10 +376,10 @@ Deno.test("applyDownloadActionEffect stores structured metadata on pause and res
       assertExists(resumeEvent);
 
       const pauseMetadata = pauseEvent.metadata
-        ? JSON.parse(pauseEvent.metadata)
+        ? decodeDownloadEventMetadata(pauseEvent.metadata)
         : undefined;
       const resumeMetadata = resumeEvent.metadata
-        ? JSON.parse(resumeEvent.metadata)
+        ? decodeDownloadEventMetadata(resumeEvent.metadata)
         : undefined;
       assertExists(pauseMetadata);
       assertExists(resumeMetadata);
@@ -488,7 +491,7 @@ Deno.test("retryDownloadById stores structured metadata in retried events", asyn
       assertExists(retriedEvent);
 
       const metadata = retriedEvent.metadata
-        ? JSON.parse(retriedEvent.metadata)
+        ? decodeDownloadEventMetadata(retriedEvent.metadata)
         : undefined;
       assertExists(metadata);
       assertEquals(metadata.covered_episodes, [3]);
@@ -597,7 +600,7 @@ Deno.test("applyDownloadActionEffect stores structured metadata on delete events
       assertEquals(deleteEvent.toStatus, "deleted");
 
       const metadata = deleteEvent.metadata
-        ? JSON.parse(deleteEvent.metadata)
+        ? decodeDownloadEventMetadata(deleteEvent.metadata)
         : undefined;
       assertExists(metadata);
       assertEquals(metadata.covered_episodes, [4, 5]);
@@ -757,7 +760,7 @@ Deno.test("reconcileDownloadByIdEffect imports lone generic batch files using st
       const importedBatchEvent = importedBatchEvents[0];
       assertExists(importedBatchEvent);
       const importedBatchMetadata = importedBatchEvent.metadata
-        ? JSON.parse(importedBatchEvent.metadata)
+        ? decodeDownloadEventMetadata(importedBatchEvent.metadata)
         : undefined;
       assertExists(importedBatchMetadata);
       assertEquals(importedBatchMetadata.covered_episodes, [1, 2]);
@@ -924,10 +927,10 @@ Deno.test("syncDownloadsWithQBitEffect stores structured metadata for status and
       assertExists(coverageEvent);
 
       const statusMetadata = statusEvent.metadata
-        ? JSON.parse(statusEvent.metadata)
+        ? decodeDownloadEventMetadata(statusEvent.metadata)
         : undefined;
       const coverageMetadata = coverageEvent.metadata
-        ? JSON.parse(coverageEvent.metadata)
+        ? decodeDownloadEventMetadata(coverageEvent.metadata)
         : undefined;
       assertExists(statusMetadata);
       assertExists(coverageMetadata);
@@ -1153,7 +1156,7 @@ Deno.test("reconcileDownloadByIdEffect imports generic completed files using sto
       const importedEvent = importedEvents[0];
       assertExists(importedEvent);
       const importedMetadata = importedEvent.metadata
-        ? JSON.parse(importedEvent.metadata)
+        ? decodeDownloadEventMetadata(importedEvent.metadata)
         : undefined;
       assertExists(importedMetadata);
       assertEquals(importedMetadata.covered_episodes, [1]);

@@ -143,7 +143,7 @@ Deno.test("SearchDownloadBodySchema rejects non-positive and fractional identifi
       group: "SubsPlease",
     },
     title: "Example release",
-  });
+  }, { errors: "all" });
 
   assertEquals(result._tag, "Left");
 
@@ -191,7 +191,7 @@ Deno.test("AddAnimeInputSchema and ImportFilesBodySchema require positive intege
     release_profile_ids: [1, 2.5],
     root_folder: "/library",
     use_existing_root: true,
-  });
+  }, { errors: "all" });
 
   const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)({
     files: [{
@@ -199,7 +199,7 @@ Deno.test("AddAnimeInputSchema and ImportFilesBodySchema require positive intege
       episode_number: 0,
       source_path: "/downloads/file.mkv",
     }],
-  });
+  }, { errors: "all" });
 
   assertEquals(addAnime._tag, "Left");
   assertEquals(importFiles._tag, "Left");

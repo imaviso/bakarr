@@ -28,7 +28,7 @@ Deno.test("QBitTorrentClient uses provided HttpClient", async () => {
         ),
     );
 
-    assertEquals(torrents, [
+    assertEquals(torrents.map((t) => ({ ...t })), [
       {
         added_on: 123,
         downloaded: 512,
@@ -68,7 +68,7 @@ Deno.test("QBitTorrentClient can load torrent contents", async () => {
       ),
   );
 
-  assertEquals(files, [{
+  assertEquals(files.map((f) => ({ ...f })), [{
     index: 0,
     is_seed: false,
     name: "Chainsaw Man/Chainsaw Man - 01.mkv",

@@ -41,22 +41,27 @@ Deno.test("SeaDexClient fetches and decodes entry by AniList ID", async () => {
       ),
   );
 
-  assertEquals(result, {
-    alID: 20,
-    comparison: "https://releases.moe/compare/naruto",
-    incomplete: false,
-    notes: "Recommended release",
-    releases: [{
-      dualAudio: true,
-      groupedUrl: "https://releases.moe/collections/naruto",
-      infoHash: "abcdef0123456789abcdef0123456789abcdef01",
-      isBest: true,
-      releaseGroup: "SubsPlease",
-      tags: ["Best", "Dual Audio"],
-      tracker: "Nyaa",
-      url: "https://nyaa.si/view/123456",
-    }],
-  });
+  assertEquals(
+    result
+      ? { ...result, releases: result.releases.map((r) => ({ ...r })) }
+      : result,
+    {
+      alID: 20,
+      comparison: "https://releases.moe/compare/naruto",
+      incomplete: false,
+      notes: "Recommended release",
+      releases: [{
+        dualAudio: true,
+        groupedUrl: "https://releases.moe/collections/naruto",
+        infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+        isBest: true,
+        releaseGroup: "SubsPlease",
+        tags: ["Best", "Dual Audio"],
+        tracker: "Nyaa",
+        url: "https://nyaa.si/view/123456",
+      }],
+    },
+  );
 });
 
 Deno.test("SeaDexClient returns null when entry is missing", async () => {

@@ -11,25 +11,27 @@ export function toDatabaseError(message: string) {
       : new DatabaseError({ cause, message });
 }
 
-export function tryDatabasePromise<A>(
-  message: string,
-  try_: () => Promise<A>,
-): Effect.Effect<A, DatabaseError> {
-  const attempt = (remaining: number): Effect.Effect<A, DatabaseError> =>
-    Effect.tryPromise({
-      try: try_,
-      catch: toDatabaseError(message),
-    }).pipe(
-      Effect.catchTag(
-        "DatabaseError",
-        (error) =>
-          error.isBusyLock() && remaining > 0
-            ? Effect.sleep("25 millis").pipe(
-              Effect.zipRight(attempt(remaining - 1)),
-            )
-            : Effect.fail(error),
-      ),
-    );
+export const tryDatabasePromise = Effect.fn("Database.tryDatabasePromise")(
+  <A>(
+    message: string,
+    try_: () => Promise<A>,
+  ): Effect.Effect<A, DatabaseError> => {
+    const attempt = (remaining: number): Effect.Effect<A, DatabaseError> =>
+      Effect.tryPromise({
+        try: try_,
+        catch: toDatabaseError(message),
+      }).pipe(
+        Effect.catchTag(
+          "DatabaseError",
+          (error) =>
+            error.isBusyLock() && remaining > 0
+              ? Effect.sleep("25 millis").pipe(
+                Effect.zipRight(attempt(remaining - 1)),
+              )
+              : Effect.fail(error),
+        ),
+      );
 
-  return attempt(DATABASE_BUSY_RETRY_COUNT);
-}
+    return attempt(DATABASE_BUSY_RETRY_COUNT);
+  },
+);

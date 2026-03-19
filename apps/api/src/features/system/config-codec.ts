@@ -30,11 +30,14 @@ const ReleaseProfileRulesJsonSchema = Schema.parseJson(
 const UnknownJsonSchema = Schema.parseJson(Schema.Unknown);
 const ConfigCoreJsonSchema = Schema.parseJson(ConfigCoreSchema);
 const LibraryConfigJsonSchema = Schema.parseJson(LibraryConfigSchema);
-const PartialLibraryConfigSchema = Schema.Struct({
-  library: Schema.optional(
-    Schema.partialWith({ exact: true })(LibraryConfigSchema),
-  ),
-});
+class PartialLibraryConfigSchema
+  extends Schema.Class<PartialLibraryConfigSchema>(
+    "PartialLibraryConfigSchema",
+  )({
+    library: Schema.optional(
+      Schema.partialWith({ exact: true })(LibraryConfigSchema),
+    ),
+  }) {}
 const PartialLibraryConfigJsonSchema = Schema.parseJson(
   PartialLibraryConfigSchema,
 );
@@ -49,27 +52,29 @@ function storedConfigCorrupt(message: string, cause?: unknown) {
   });
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function normalizeStoredConfigSections(value: string): unknown {
   const parsed = Schema.decodeUnknownSync(UnknownJsonSchema)(value);
 
-  if (!isRecord(parsed)) {
+  const decoded = Schema.decodeUnknownEither(
+    Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+  )(parsed);
+  if (decoded._tag === "Left") {
     return parsed;
   }
 
   const defaults = makeDefaultConfig(":memory:");
+  const record = decoded.right as Record<string, unknown>;
 
   return {
-    ...parsed,
-    library: isRecord(parsed.library)
-      ? { ...defaults.library, ...parsed.library }
-      : parsed.library,
-    scheduler: isRecord(parsed.scheduler)
-      ? { ...defaults.scheduler, ...parsed.scheduler }
-      : parsed.scheduler,
+    ...record,
+    library:
+      typeof record.library === "object" && record.library !== null
+        ? { ...defaults.library, ...record.library }
+        : { ...defaults.library },
+    scheduler:
+      typeof record.scheduler === "object" && record.scheduler !== null
+        ? { ...defaults.scheduler, ...record.scheduler }
+        : { ...defaults.scheduler },
   };
 }
 

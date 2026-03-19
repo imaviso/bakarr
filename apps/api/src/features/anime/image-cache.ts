@@ -40,7 +40,14 @@ export const cacheAnimeMetadataImages = Effect.fn(
     animeId,
     "cover",
     images.coverImage,
-  ).pipe(Effect.catchAllCause(() => Effect.succeed(images.coverImage)));
+  ).pipe(
+    Effect.tapError((error) =>
+      Effect.logWarning("Failed to cache cover image").pipe(
+        Effect.annotateLogs({ animeId, error }),
+      )
+    ),
+    Effect.catchAll(() => Effect.succeed(images.coverImage)),
+  );
   const bannerImage = yield* cacheAnimeImage(
     fs,
     client,
@@ -48,7 +55,14 @@ export const cacheAnimeMetadataImages = Effect.fn(
     animeId,
     "banner",
     images.bannerImage,
-  ).pipe(Effect.catchAllCause(() => Effect.succeed(images.bannerImage)));
+  ).pipe(
+    Effect.tapError((error) =>
+      Effect.logWarning("Failed to cache banner image").pipe(
+        Effect.annotateLogs({ animeId, error }),
+      )
+    ),
+    Effect.catchAll(() => Effect.succeed(images.bannerImage)),
+  );
 
   return { bannerImage, coverImage } satisfies CachedAnimeImages;
 });

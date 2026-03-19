@@ -41,34 +41,36 @@ export function mapStatFsToDiskSpace(stat: StatFsShape): DiskSpace {
   };
 }
 
-export function getDiskSpace(
-  path: string,
-): Effect.Effect<DiskSpace, DiskSpaceError, never> {
-  return Effect.tryPromise({
-    catch: (cause) =>
-      DiskSpaceError(`Failed to get disk space for ${path}`, cause),
-    try: async () => mapStatFsToDiskSpace(await statfs(path, { bigint: true })),
-  });
-}
+export const getDiskSpace = Effect.fn("System.getDiskSpace")(
+  (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> => {
+    return Effect.tryPromise({
+      catch: (cause) =>
+        DiskSpaceError(`Failed to get disk space for ${path}`, cause),
+      try: async () =>
+        mapStatFsToDiskSpace(await statfs(path, { bigint: true })),
+    });
+  },
+);
 
-export function getDiskSpaceSafe(
-  path: string,
-): Effect.Effect<DiskSpace, never, never> {
-  return getDiskSpace(path).pipe(
-    Effect.tapError((error) =>
-      Effect.logError("Failed to inspect storage volume; using fallback").pipe(
-        Effect.annotateLogs({
-          component: "system",
-          diskPath: path,
-          error: error.message,
-          fallback_free: 0,
-          fallback_total: 0,
-        }),
-      )
-    ),
-    Effect.catchAll(() => Effect.succeed({ free: 0, total: 0 })),
-  );
-}
+export const getDiskSpaceSafe = Effect.fn("System.getDiskSpaceSafe")(
+  (path: string): Effect.Effect<DiskSpace, never, never> => {
+    return getDiskSpace(path).pipe(
+      Effect.tapError((error) =>
+        Effect.logError("Failed to inspect storage volume; using fallback")
+          .pipe(
+            Effect.annotateLogs({
+              component: "system",
+              diskPath: path,
+              error: error.message,
+              fallback_free: 0,
+              fallback_total: 0,
+            }),
+          )
+      ),
+      Effect.catchAll(() => Effect.succeed({ free: 0, total: 0 })),
+    );
+  },
+);
 
 export function selectStoragePath(
   config: Config,

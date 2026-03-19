@@ -39,10 +39,11 @@ import {
 } from "./route-helpers.ts";
 import { requireViewerEffect } from "./route-auth.ts";
 
-const StreamQuerySchema = Schema.Struct({
-  exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
-  sig: Schema.String.pipe(Schema.minLength(1)),
-});
+class StreamQuerySchema
+  extends Schema.Class<StreamQuerySchema>("StreamQuerySchema")({
+    exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
+    sig: Schema.String.pipe(Schema.minLength(1)),
+  }) {}
 
 interface ByteRange {
   readonly end: number;

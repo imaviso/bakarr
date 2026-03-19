@@ -18,24 +18,27 @@ class FFProbeError extends Schema.TaggedError<FFProbeError>()(
   { cause: Schema.Defect, message: Schema.String },
 ) {}
 
-const FFProbeStreamSchema = Schema.Struct({
-  codec_type: Schema.String,
-  codec_name: Schema.optional(Schema.String),
-  duration: Schema.optional(Schema.String),
-  width: Schema.optional(Schema.Number),
-  height: Schema.optional(Schema.Number),
-  channels: Schema.optional(Schema.Number),
-  channel_layout: Schema.optional(Schema.String),
-});
+class FFProbeStreamSchema
+  extends Schema.Class<FFProbeStreamSchema>("FFProbeStreamSchema")({
+    codec_type: Schema.String,
+    codec_name: Schema.optional(Schema.String),
+    duration: Schema.optional(Schema.String),
+    width: Schema.optional(Schema.Number),
+    height: Schema.optional(Schema.Number),
+    channels: Schema.optional(Schema.Number),
+    channel_layout: Schema.optional(Schema.String),
+  }) {}
 
-const FFProbeFormatSchema = Schema.Struct({
-  duration: Schema.optional(Schema.String),
-});
+class FFProbeFormatSchema
+  extends Schema.Class<FFProbeFormatSchema>("FFProbeFormatSchema")({
+    duration: Schema.optional(Schema.String),
+  }) {}
 
-const FFProbeOutputSchema = Schema.Struct({
-  streams: Schema.Array(FFProbeStreamSchema),
-  format: Schema.optional(FFProbeFormatSchema),
-});
+class FFProbeOutputSchema
+  extends Schema.Class<FFProbeOutputSchema>("FFProbeOutputSchema")({
+    streams: Schema.Array(FFProbeStreamSchema),
+    format: Schema.optional(FFProbeFormatSchema),
+  }) {}
 const FFProbeOutputJsonSchema = Schema.parseJson(FFProbeOutputSchema);
 
 type FFProbeOutput = Schema.Schema.Type<typeof FFProbeOutputSchema>;
@@ -224,55 +227,6 @@ export function parseFfprobeJson(
   return decoded._tag === "Left"
     ? undefined
     : parseFFProbeOutput(decoded.right);
-}
-
-export function parseFfprobePayload(
-  payload: unknown,
-): ProbedMediaMetadata | undefined {
-  const root = asRecord(payload);
-  const streams = Array.isArray(root?.streams) ? root.streams : [];
-  const videoStream = streams.map(asRecord).find((s) =>
-    s?.codec_type === "video"
-  );
-  const audioStream = streams.map(asRecord).find((s) =>
-    s?.codec_type === "audio"
-  );
-  const format = asRecord(root?.format);
-
-  const metadata: ProbedMediaMetadata = {
-    duration_seconds: normalizeDurationSeconds(
-      asString(videoStream?.duration) ?? asString(format?.duration),
-    ),
-    resolution: normalizeResolution(videoStream),
-    video_codec: normalizeVideoCodec(asString(videoStream?.codec_name)),
-    audio_codec: normalizeAudioCodec(asString(audioStream?.codec_name)),
-    audio_channels: normalizeAudioChannels({
-      channels: asNumber(audioStream?.channels),
-      channel_layout: asString(audioStream?.channel_layout),
-    }),
-  };
-
-  return metadata.duration_seconds || metadata.resolution ||
-      metadata.video_codec ||
-      metadata.audio_codec || metadata.audio_channels
-    ? metadata
-    : undefined;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null
-    ? value as Record<string, unknown>
-    : undefined;
-}
-
-function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
-function asString(value: unknown): string | undefined {
-  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function parseFFProbeOutput(

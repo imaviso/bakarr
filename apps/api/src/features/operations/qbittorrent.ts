@@ -94,33 +94,35 @@ export class QBitTorrentClient extends Context.Tag(
   "@bakarr/api/QBitTorrentClient",
 )<QBitTorrentClient, QBitTorrentClientShape>() {}
 
-const QBitTorrentSchema = Schema.Struct({
-  added_on: Schema.optional(Schema.Number),
-  category: Schema.optional(Schema.String),
-  content_path: Schema.optional(Schema.String),
-  downloaded: Schema.Number,
-  dlspeed: Schema.Number,
-  eta: Schema.Number,
-  hash: Schema.String,
-  name: Schema.String,
-  progress: Schema.Number,
-  save_path: Schema.optional(Schema.String),
-  size: Schema.Number,
-  state: Schema.String,
-});
+class QBitTorrentSchema
+  extends Schema.Class<QBitTorrentSchema>("QBitTorrentSchema")({
+    added_on: Schema.optional(Schema.Number),
+    category: Schema.optional(Schema.String),
+    content_path: Schema.optional(Schema.String),
+    downloaded: Schema.Number,
+    dlspeed: Schema.Number,
+    eta: Schema.Number,
+    hash: Schema.String,
+    name: Schema.String,
+    progress: Schema.Number,
+    save_path: Schema.optional(Schema.String),
+    size: Schema.Number,
+    state: Schema.String,
+  }) {}
 
 const QBitTorrentArraySchema = Schema.Array(QBitTorrentSchema);
 
-const QBitTorrentFileSchema = Schema.Struct({
-  availability: Schema.optional(Schema.Number),
-  index: Schema.optional(Schema.Number),
-  is_seed: Schema.Boolean,
-  name: Schema.String,
-  piece_range: Schema.optional(Schema.Array(Schema.Number)),
-  priority: Schema.Number,
-  progress: Schema.Number,
-  size: Schema.Number,
-});
+class QBitTorrentFileSchema
+  extends Schema.Class<QBitTorrentFileSchema>("QBitTorrentFileSchema")({
+    availability: Schema.optional(Schema.Number),
+    index: Schema.optional(Schema.Number),
+    is_seed: Schema.Boolean,
+    name: Schema.String,
+    piece_range: Schema.optional(Schema.Array(Schema.Number)),
+    priority: Schema.Number,
+    progress: Schema.Number,
+    size: Schema.Number,
+  }) {}
 
 const QBitTorrentFileArraySchema = Schema.Array(QBitTorrentFileSchema);
 

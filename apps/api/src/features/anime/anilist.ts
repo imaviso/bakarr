@@ -245,155 +245,166 @@ const DETAIL_ANIME_QUERY = `query ($id: Int) {
   }
 }`;
 
-const AniListTitleSchema = Schema.Struct({
-  english: Schema.optional(Schema.NullOr(Schema.String)),
-  native: Schema.optional(Schema.NullOr(Schema.String)),
-  romaji: Schema.optional(Schema.NullOr(Schema.String)),
-});
+class AniListTitleSchema
+  extends Schema.Class<AniListTitleSchema>("AniListTitleSchema")({
+    english: Schema.optional(Schema.NullOr(Schema.String)),
+    native: Schema.optional(Schema.NullOr(Schema.String)),
+    romaji: Schema.optional(Schema.NullOr(Schema.String)),
+  }) {}
 
-const AniListDateSchema = Schema.Struct({
-  day: Schema.optional(Schema.NullOr(Schema.Number)),
-  month: Schema.optional(Schema.NullOr(Schema.Number)),
-  year: Schema.optional(Schema.NullOr(Schema.Number)),
-});
+class AniListDateSchema
+  extends Schema.Class<AniListDateSchema>("AniListDateSchema")({
+    day: Schema.optional(Schema.NullOr(Schema.Number)),
+    month: Schema.optional(Schema.NullOr(Schema.Number)),
+    year: Schema.optional(Schema.NullOr(Schema.Number)),
+  }) {}
 
-const AniListSearchMediaSchema = Schema.Struct({
-  coverImage: Schema.optional(Schema.Struct({
+class AniListCoverImageSchema
+  extends Schema.Class<AniListCoverImageSchema>("AniListCoverImageSchema")({
     extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
     large: Schema.optional(Schema.NullOr(Schema.String)),
-  })),
-  episodes: Schema.optional(Schema.NullOr(Schema.Number)),
-  format: Schema.optional(Schema.NullOr(Schema.String)),
-  id: Schema.Number,
-  endDate: Schema.optional(AniListDateSchema),
-  description: Schema.optional(Schema.NullOr(Schema.String)),
-  startDate: Schema.optional(AniListDateSchema),
-  genres: Schema.optional(Schema.Array(Schema.String)),
-  synonyms: Schema.optional(Schema.Array(Schema.String)),
-  status: Schema.optional(Schema.NullOr(Schema.String)),
-  title: Schema.optional(AniListTitleSchema),
-  bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
-  relations: Schema.optional(Schema.Struct({
-    edges: Schema.Array(Schema.Struct({
-      relationType: Schema.optional(Schema.NullOr(Schema.String)),
-      node: Schema.optional(Schema.NullOr(Schema.Struct({
-        coverImage: Schema.optional(Schema.Struct({
-          extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
-          large: Schema.optional(Schema.NullOr(Schema.String)),
-        })),
-        format: Schema.optional(Schema.NullOr(Schema.String)),
-        id: Schema.Number,
-        averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
-        startDate: Schema.optional(AniListDateSchema),
-        status: Schema.optional(Schema.NullOr(Schema.String)),
-        title: Schema.optional(AniListTitleSchema),
-      }))),
-    })),
-  })),
-  recommendations: Schema.optional(Schema.Struct({
-    nodes: Schema.Array(Schema.Struct({
-      mediaRecommendation: Schema.optional(Schema.NullOr(Schema.Struct({
-        coverImage: Schema.optional(Schema.Struct({
-          extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
-          large: Schema.optional(Schema.NullOr(Schema.String)),
-        })),
-        format: Schema.optional(Schema.NullOr(Schema.String)),
-        id: Schema.Number,
-        averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
-        startDate: Schema.optional(AniListDateSchema),
-        status: Schema.optional(Schema.NullOr(Schema.String)),
-        title: Schema.optional(AniListTitleSchema),
-      }))),
-    })),
-  })),
-});
+  }) {}
 
-const AniListAiringScheduleSchema = Schema.Struct({
-  airingAt: Schema.Number,
-  episode: Schema.Number,
-});
+class AniListRelationNodeSchema
+  extends Schema.Class<AniListRelationNodeSchema>("AniListRelationNodeSchema")({
+    coverImage: Schema.optional(AniListCoverImageSchema),
+    format: Schema.optional(Schema.NullOr(Schema.String)),
+    id: Schema.Number,
+    averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
+    startDate: Schema.optional(AniListDateSchema),
+    status: Schema.optional(Schema.NullOr(Schema.String)),
+    title: Schema.optional(AniListTitleSchema),
+  }) {}
 
-const AniListAiringConnectionSchema = Schema.Struct({
-  nodes: Schema.Array(AniListAiringScheduleSchema),
-});
+class AniListRelationEdgeSchema
+  extends Schema.Class<AniListRelationEdgeSchema>("AniListRelationEdgeSchema")({
+    relationType: Schema.optional(Schema.NullOr(Schema.String)),
+    node: Schema.optional(Schema.NullOr(AniListRelationNodeSchema)),
+  }) {}
 
-const AniListSearchPayloadSchema = Schema.Struct({
-  data: Schema.Struct({
-    Page: Schema.Struct({
-      media: Schema.Array(AniListSearchMediaSchema),
-    }),
-  }),
-});
+class AniListRelationConnectionSchema
+  extends Schema.Class<AniListRelationConnectionSchema>(
+    "AniListRelationConnectionSchema",
+  )({
+    edges: Schema.Array(AniListRelationEdgeSchema),
+  }) {}
 
-const AniListDetailMediaSchema = Schema.Struct({
-  averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
-  bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
-  coverImage: Schema.optional(Schema.Struct({
-    extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
-    large: Schema.optional(Schema.NullOr(Schema.String)),
-  })),
-  description: Schema.optional(Schema.NullOr(Schema.String)),
-  endDate: Schema.optional(AniListDateSchema),
-  episodes: Schema.optional(Schema.NullOr(Schema.Number)),
-  format: Schema.optional(Schema.NullOr(Schema.String)),
-  genres: Schema.optional(Schema.Array(Schema.String)),
-  id: Schema.Number,
-  idMal: Schema.optional(Schema.NullOr(Schema.Number)),
-  synonyms: Schema.optional(Schema.Array(Schema.String)),
-  nextAiringEpisode: Schema.optional(
-    Schema.NullOr(AniListAiringScheduleSchema),
-  ),
-  airingSchedule: Schema.optional(
-    Schema.NullOr(AniListAiringConnectionSchema),
-  ),
-  startDate: Schema.optional(AniListDateSchema),
-  status: Schema.optional(Schema.NullOr(Schema.String)),
-  studios: Schema.optional(Schema.Struct({
-    nodes: Schema.Array(Schema.Struct({
-      name: Schema.optional(Schema.NullOr(Schema.String)),
-    })),
-  })),
-  title: Schema.optional(AniListTitleSchema),
-  relations: Schema.optional(Schema.Struct({
-    edges: Schema.Array(Schema.Struct({
-      relationType: Schema.optional(Schema.NullOr(Schema.String)),
-      node: Schema.optional(Schema.NullOr(Schema.Struct({
-        coverImage: Schema.optional(Schema.Struct({
-          extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
-          large: Schema.optional(Schema.NullOr(Schema.String)),
-        })),
-        format: Schema.optional(Schema.NullOr(Schema.String)),
-        id: Schema.Number,
-        averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
-        startDate: Schema.optional(AniListDateSchema),
-        status: Schema.optional(Schema.NullOr(Schema.String)),
-        title: Schema.optional(AniListTitleSchema),
-      }))),
-    })),
-  })),
-  recommendations: Schema.optional(Schema.Struct({
-    nodes: Schema.Array(Schema.Struct({
-      mediaRecommendation: Schema.optional(Schema.NullOr(Schema.Struct({
-        coverImage: Schema.optional(Schema.Struct({
-          extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
-          large: Schema.optional(Schema.NullOr(Schema.String)),
-        })),
-        format: Schema.optional(Schema.NullOr(Schema.String)),
-        id: Schema.Number,
-        averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
-        startDate: Schema.optional(AniListDateSchema),
-        status: Schema.optional(Schema.NullOr(Schema.String)),
-        title: Schema.optional(AniListTitleSchema),
-      }))),
-    })),
-  })),
-});
+class AniListRecommendationNodeSchema
+  extends Schema.Class<AniListRecommendationNodeSchema>(
+    "AniListRecommendationNodeSchema",
+  )({
+    mediaRecommendation: Schema.optional(
+      Schema.NullOr(AniListRelationNodeSchema),
+    ),
+  }) {}
 
-const AniListDetailPayloadSchema = Schema.Struct({
-  data: Schema.Struct({
+class AniListRecommendationConnectionSchema
+  extends Schema.Class<AniListRecommendationConnectionSchema>(
+    "AniListRecommendationConnectionSchema",
+  )({
+    nodes: Schema.Array(AniListRecommendationNodeSchema),
+  }) {}
+
+class AniListStudioNodeSchema
+  extends Schema.Class<AniListStudioNodeSchema>("AniListStudioNodeSchema")({
+    name: Schema.optional(Schema.NullOr(Schema.String)),
+  }) {}
+
+class AniListStudioConnectionSchema
+  extends Schema.Class<AniListStudioConnectionSchema>(
+    "AniListStudioConnectionSchema",
+  )({
+    nodes: Schema.Array(AniListStudioNodeSchema),
+  }) {}
+
+class AniListSearchMediaSchema
+  extends Schema.Class<AniListSearchMediaSchema>("AniListSearchMediaSchema")({
+    coverImage: Schema.optional(AniListCoverImageSchema),
+    episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+    format: Schema.optional(Schema.NullOr(Schema.String)),
+    id: Schema.Number,
+    endDate: Schema.optional(AniListDateSchema),
+    description: Schema.optional(Schema.NullOr(Schema.String)),
+    startDate: Schema.optional(AniListDateSchema),
+    genres: Schema.optional(Schema.Array(Schema.String)),
+    synonyms: Schema.optional(Schema.Array(Schema.String)),
+    status: Schema.optional(Schema.NullOr(Schema.String)),
+    title: Schema.optional(AniListTitleSchema),
+    bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
+    relations: Schema.optional(AniListRelationConnectionSchema),
+    recommendations: Schema.optional(AniListRecommendationConnectionSchema),
+  }) {}
+
+class AniListAiringScheduleSchema
+  extends Schema.Class<AniListAiringScheduleSchema>(
+    "AniListAiringScheduleSchema",
+  )({
+    airingAt: Schema.Number,
+    episode: Schema.Number,
+  }) {}
+
+class AniListAiringConnectionSchema
+  extends Schema.Class<AniListAiringConnectionSchema>(
+    "AniListAiringConnectionSchema",
+  )({
+    nodes: Schema.Array(AniListAiringScheduleSchema),
+  }) {}
+
+class AniListSearchPageSchema
+  extends Schema.Class<AniListSearchPageSchema>("AniListSearchPageSchema")({
+    media: Schema.Array(AniListSearchMediaSchema),
+  }) {}
+
+class AniListSearchDataSchema
+  extends Schema.Class<AniListSearchDataSchema>("AniListSearchDataSchema")({
+    Page: AniListSearchPageSchema,
+  }) {}
+
+class AniListSearchPayloadSchema
+  extends Schema.Class<AniListSearchPayloadSchema>(
+    "AniListSearchPayloadSchema",
+  )({
+    data: AniListSearchDataSchema,
+  }) {}
+
+class AniListDetailMediaSchema
+  extends Schema.Class<AniListDetailMediaSchema>("AniListDetailMediaSchema")({
+    averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
+    bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
+    coverImage: Schema.optional(AniListCoverImageSchema),
+    description: Schema.optional(Schema.NullOr(Schema.String)),
+    endDate: Schema.optional(AniListDateSchema),
+    episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+    format: Schema.optional(Schema.NullOr(Schema.String)),
+    genres: Schema.optional(Schema.Array(Schema.String)),
+    id: Schema.Number,
+    idMal: Schema.optional(Schema.NullOr(Schema.Number)),
+    synonyms: Schema.optional(Schema.Array(Schema.String)),
+    nextAiringEpisode: Schema.optional(
+      Schema.NullOr(AniListAiringScheduleSchema),
+    ),
+    airingSchedule: Schema.optional(
+      Schema.NullOr(AniListAiringConnectionSchema),
+    ),
+    startDate: Schema.optional(AniListDateSchema),
+    status: Schema.optional(Schema.NullOr(Schema.String)),
+    studios: Schema.optional(AniListStudioConnectionSchema),
+    title: Schema.optional(AniListTitleSchema),
+    relations: Schema.optional(AniListRelationConnectionSchema),
+    recommendations: Schema.optional(AniListRecommendationConnectionSchema),
+  }) {}
+
+class AniListDetailDataSchema
+  extends Schema.Class<AniListDetailDataSchema>("AniListDetailDataSchema")({
     Media: Schema.optional(Schema.NullOr(AniListDetailMediaSchema)),
-  }),
-});
+  }) {}
+
+class AniListDetailPayloadSchema
+  extends Schema.Class<AniListDetailPayloadSchema>(
+    "AniListDetailPayloadSchema",
+  )({
+    data: AniListDetailDataSchema,
+  }) {}
 
 export const AniListClientLive = Layer.effect(
   AniListClient,
@@ -544,7 +555,11 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
       startYear: media.startDate?.year ?? undefined,
       status: media.status ?? "UNKNOWN",
       studios: Array.isArray(media.studios?.nodes)
-        ? [...media.studios.nodes.map((entry) => entry.name).filter(isString)]
+        ? media.studios.nodes
+            .map((entry) => entry.name)
+            .filter((name): name is string =>
+              typeof name === "string" && name.length > 0,
+            )
         : [],
       synonyms: normalizeSynonyms(media.synonyms),
       title: {
@@ -793,8 +808,4 @@ function normalizeSynonyms(synonyms: ReadonlyArray<string> | undefined) {
   ];
 
   return unique.length > 0 ? unique : undefined;
-}
-
-function isString(value: string | null | undefined): value is string {
-  return typeof value === "string" && value.length > 0;
 }

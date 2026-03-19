@@ -178,11 +178,12 @@ const makeFetchItems = (client: HttpClient.HttpClient) =>
         HttpClientRequest.setHeader("User-Agent", "bakarr/1.0"),
       );
 
-      const response = yield* tryExternalEffect(
-        "rss.fetch",
+      const executeWithManualRedirect = <A, E, R>(
+        effect: Effect.Effect<A, E, R>,
+      ) =>
         Effect.serviceOption(FetchHttpClient.RequestInit).pipe(
           Effect.flatMap((requestInitOption) =>
-            client.execute(request).pipe(
+            effect.pipe(
               Effect.provideService(
                 FetchHttpClient.RequestInit,
                 requestInitOption._tag === "Some"
@@ -191,7 +192,11 @@ const makeFetchItems = (client: HttpClient.HttpClient) =>
               ),
             )
           ),
-        ),
+        );
+
+      const response = yield* tryExternalEffect(
+        "rss.fetch",
+        executeWithManualRedirect(client.execute(request)),
       )();
 
       if (response.status >= 200 && response.status < 300) {
@@ -393,6 +398,33 @@ const readRssItems = Effect.fn("RssClient.readRssItems")(
   },
 );
 
+class RssItemSchema extends Schema.Class<RssItemSchema>("RssItemSchema")({
+  title: Schema.optional(Schema.String),
+  link: Schema.optional(Schema.String),
+  "nyaa:infoHash": Schema.optional(Schema.String),
+  "nyaa:size": Schema.optional(Schema.String),
+  "nyaa:seeders": Schema.optional(Schema.String),
+  "nyaa:leechers": Schema.optional(Schema.String),
+  "nyaa:trusted": Schema.optional(Schema.String),
+  "nyaa:remake": Schema.optional(Schema.String),
+  pubDate: Schema.optional(Schema.String),
+}) {}
+
+const ItemsSchema = Schema.transform(
+  Schema.Union(Schema.Array(RssItemSchema), RssItemSchema),
+  Schema.Array(RssItemSchema),
+  {
+    decode: (value) => (Array.isArray(value) ? value : [value]),
+    encode: (value) => value,
+  },
+);
+
+class RssChannelSchema extends Schema.Class<RssChannelSchema>(
+  "RssChannelSchema",
+)({
+  item: ItemsSchema,
+}) {}
+
 function parseRssXml(xml: string): ParsedRelease[] {
   let parsed: unknown;
   try {
@@ -401,48 +433,22 @@ function parseRssXml(xml: string): ParsedRelease[] {
     return [];
   }
 
-  if (!isRssRoot(parsed)) {
+  const decoded = Schema.decodeUnknownEither(
+    Schema.Struct({
+      rss: Schema.Struct({
+        channel: RssChannelSchema,
+      }),
+    }),
+  )(parsed);
+
+  if (decoded._tag === "Left") {
     return [];
   }
 
-  const channel = parsed.rss?.channel;
-  if (!channel) {
-    return [];
-  }
-
-  const items = Array.isArray(channel.item)
-    ? channel.item
-    : channel.item
-    ? [channel.item]
-    : [];
-  return items.map((item) => parseRssItem(item));
+  return decoded.right.rss.channel.item.map((item) => parseRssItem(item));
 }
 
-interface RssRoot {
-  rss?: {
-    channel?: {
-      item?: RssItem | RssItem[];
-    };
-  };
-}
-
-interface RssItem {
-  title?: string;
-  link?: string;
-  "nyaa:infoHash"?: string;
-  "nyaa:size"?: string;
-  "nyaa:seeders"?: string;
-  "nyaa:leechers"?: string;
-  "nyaa:trusted"?: string;
-  "nyaa:remake"?: string;
-  pubDate?: string;
-}
-
-function isRssRoot(value: unknown): value is RssRoot {
-  return typeof value === "object" && value !== null;
-}
-
-function parseRssItem(item: RssItem): ParsedRelease {
+function parseRssItem(item: Schema.Schema.Type<typeof RssItemSchema>): ParsedRelease {
   const title = item.title ?? "Unknown release";
   const link = item.link ?? "";
   const infoHash = item["nyaa:infoHash"] ?? randomHex(20);
