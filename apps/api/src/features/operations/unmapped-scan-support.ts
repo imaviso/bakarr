@@ -121,6 +121,7 @@ export function ensureFolderMatchStatus(
     last_matched_at: cached.last_matched_at,
     match_status: cached.match_status,
     search_queries: folder.search_queries,
+    size: cached.size,
     suggested_matches: cached.suggested_matches,
   };
 }
@@ -230,22 +231,11 @@ export function loadUnmappedFolderSnapshot(input: {
     const folders = listUnmappedFolderEntries(root, entries, mappedRoots).map((
       folder,
     ) => ensureFolderMatchStatus(folder, cachedByPath.get(folder.path)));
-    const sizedFolders = yield* Effect.forEach(
-      folders,
-      (folder) =>
-        loadUnmappedFolderVideoSize(input.fs, folder.path).pipe(
-          Effect.map((size) => ({
-            ...folder,
-            size,
-          })),
-        ),
-      { concurrency: 4 },
-    );
 
     return {
       animeRows,
       cachedByPath,
-      folders: sizedFolders,
+      folders,
     };
   });
 }

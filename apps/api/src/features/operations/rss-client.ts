@@ -198,7 +198,7 @@ const makeFetchItems = (client: HttpClient.HttpClient) =>
         const itemsResult = yield* Effect.either(readRssItems(response.stream));
         if (Either.isLeft(itemsResult)) {
           if (itemsResult.left.operation !== "rss.stream.size") {
-            return yield* Effect.fail(itemsResult.left);
+            return yield* itemsResult.left;
           }
           yield* Effect.logWarning(
             "RSS feed rejected: payload size exceeded limit",
