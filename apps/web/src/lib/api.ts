@@ -11,6 +11,7 @@ import {
 import type {
   ActivityItem,
   Anime,
+  AnimeListResponse,
   AnimeSearchResponse,
   AnimeSearchResult,
   ApiKeyLoginRequest,
@@ -364,8 +365,14 @@ export function createActivityQuery() {
 export function animeListQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.lists(),
-    queryFn: ({ signal }) =>
-      fetchApi<Anime[]>(`${API_BASE}/anime`, undefined, signal),
+    queryFn: async ({ signal }) => {
+      const res = await fetchApi<AnimeListResponse>(
+        `${API_BASE}/anime?limit=500`,
+        undefined,
+        signal,
+      );
+      return res.items;
+    },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
