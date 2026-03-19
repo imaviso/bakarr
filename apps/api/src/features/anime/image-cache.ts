@@ -1,5 +1,5 @@
 import { HttpClient } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { Effect, Schema, Stream } from "effect";
 
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 
@@ -8,9 +8,16 @@ export interface CachedAnimeImages {
   readonly coverImage?: string;
 }
 
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+
 class ImageCacheError extends Schema.TaggedError<ImageCacheError>()(
   "ImageCacheError",
   { cause: Schema.Defect, message: Schema.String },
+) {}
+
+class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()(
+  "ImageTooLargeError",
+  { contentLength: Schema.optional(Schema.Number), maxBytes: Schema.Number },
 ) {}
 
 export const cacheAnimeMetadataImages = Effect.fn(
@@ -115,12 +122,46 @@ const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
     });
   }
 
-  const bytes = yield* response.arrayBuffer.pipe(
-    Effect.map((buffer: ArrayBuffer) => new Uint8Array(buffer)),
-    Effect.mapError((cause) =>
-      new ImageCacheError({ cause, message: "Failed to read image bytes" })
+  const contentLength = response.headers["content-length"];
+  if (contentLength) {
+    const length = Number.parseInt(contentLength, 10);
+    if (!Number.isNaN(length) && length > MAX_IMAGE_BYTES) {
+      return yield* new ImageTooLargeError({
+        contentLength: length,
+        maxBytes: MAX_IMAGE_BYTES,
+      });
+    }
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  yield* response.stream.pipe(
+    Stream.mapError((cause) =>
+      new ImageCacheError({ cause, message: "Failed to read image stream" })
     ),
+    Stream.runForEach((chunk) => {
+      totalBytes += chunk.byteLength;
+      if (totalBytes > MAX_IMAGE_BYTES) {
+        return Effect.fail(
+          new ImageTooLargeError({
+            contentLength: undefined,
+            maxBytes: MAX_IMAGE_BYTES,
+          }),
+        );
+      }
+      chunks.push(chunk);
+      return Effect.void;
+    }),
   );
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
   const extension = inferImageExtension(
     url,
     response.headers["content-type"] ?? null,

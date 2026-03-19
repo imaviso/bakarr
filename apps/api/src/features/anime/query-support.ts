@@ -1,8 +1,11 @@
-import { eq } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type {
   Anime,
+  AnimeDiscoveryEntry,
+  AnimeListQueryParams,
+  AnimeListResponse,
   AnimeSearchResponse,
   AnimeSearchResult,
   Episode,
@@ -27,41 +30,177 @@ import {
 } from "./repository.ts";
 import { tryAnimePromise, tryDatabasePromise } from "./service-support.ts";
 
-function indexEpisodesByAnimeId(
-  rows: ReadonlyArray<typeof episodes.$inferSelect>,
-) {
-  const rowsByAnimeId = new Map<number, Array<typeof episodes.$inferSelect>>();
-
-  for (const row of rows) {
-    const bucket = rowsByAnimeId.get(row.animeId);
-
-    if (bucket) {
-      bucket.push(row);
-    } else {
-      rowsByAnimeId.set(row.animeId, [row]);
-    }
-  }
-
-  return rowsByAnimeId;
-}
-
 export const listAnimeEffect = Effect.fn("AnimeService.listAnimeEffect")(
-  function* (db: AppDatabase) {
-    const animeRows = yield* tryDatabasePromise(
-      "Failed to list anime",
-      () => db.select().from(anime),
-    );
-    const episodeRows = yield* tryDatabasePromise(
-      "Failed to list anime",
-      () => db.select().from(episodes),
-    );
-    const episodesByAnimeId = indexEpisodesByAnimeId(episodeRows);
+  function* (db: AppDatabase, params: AnimeListQueryParams = {}) {
+    const limit = Math.min(Math.max(params.limit ?? 100, 1), 500);
+    const offset = Math.max(params.offset ?? 0, 0);
 
-    return animeRows.map((row): Anime =>
-      toAnimeDto(row, episodesByAnimeId.get(row.id) ?? [])
+    const monitoredCondition = params.monitored !== undefined
+      ? eq(anime.monitored, params.monitored)
+      : undefined;
+
+    const [animeRows, totalCountResult] = yield* Effect.all([
+      tryDatabasePromise("Failed to list anime", () => {
+        const baseQuery = db.select().from(anime);
+        const query = monitoredCondition
+          ? baseQuery.where(monitoredCondition)
+          : baseQuery;
+        return query.orderBy(anime.id).limit(limit).offset(offset);
+      }),
+      tryDatabasePromise("Failed to count anime", () => {
+        const countQuery = db.select({ count: count() }).from(anime);
+        return monitoredCondition
+          ? countQuery.where(monitoredCondition)
+          : countQuery;
+      }),
+    ]);
+
+    const animeIds = animeRows.map((row) => row.id);
+    const episodeStatsByAnimeId = new Map<
+      number,
+      { downloaded: number; latestDownloadedEpisode?: number }
+    >();
+
+    if (animeIds.length > 0) {
+      const episodeStats = yield* tryDatabasePromise(
+        "Failed to list anime",
+        () =>
+          db.select({
+            animeId: episodes.animeId,
+            downloadedCount: sql<
+              number
+            >`coalesce(sum(case when ${episodes.downloaded} then 1 else 0 end), 0)`,
+            latestDownloadedEpisode: sql<
+              number | null
+            >`max(case when ${episodes.downloaded} then ${episodes.number} else null end)`,
+          }).from(episodes).where(
+            inArray(episodes.animeId, animeIds),
+          ).groupBy(episodes.animeId),
+      );
+
+      for (const stat of episodeStats) {
+        episodeStatsByAnimeId.set(stat.animeId, {
+          downloaded: Number(stat.downloadedCount ?? 0),
+          latestDownloadedEpisode: stat.latestDownloadedEpisode === null
+            ? undefined
+            : Number(stat.latestDownloadedEpisode),
+        });
+      }
+    }
+
+    const airedEpisodeRows = animeIds.length === 0
+      ? []
+      : yield* tryDatabasePromise(
+        "Failed to list anime",
+        () =>
+          db.select({
+            animeId: episodes.animeId,
+            number: episodes.number,
+          }).from(episodes).where(
+            and(
+              inArray(episodes.animeId, animeIds),
+              eq(episodes.downloaded, false),
+            ),
+          ),
+      );
+
+    const missingNumbersByAnimeId = new Map<number, number[]>();
+    for (const row of airedEpisodeRows) {
+      const existing = missingNumbersByAnimeId.get(row.animeId);
+      if (existing) {
+        existing.push(row.number);
+      } else {
+        missingNumbersByAnimeId.set(row.animeId, [row.number]);
+      }
+    }
+
+    const animeProgressRows = animeRows.map((row): Anime =>
+      toAnimeDtoProgress(
+        row,
+        episodeStatsByAnimeId.get(row.id),
+        missingNumbersByAnimeId.get(row.id),
+      )
     );
+
+    const total = totalCountResult[0]?.count ?? 0;
+
+    return {
+      has_more: offset + limit < total,
+      items: animeProgressRows,
+      limit,
+      offset,
+      total,
+    } satisfies AnimeListResponse;
   },
 );
+
+function toAnimeDtoProgress(
+  row: typeof anime.$inferSelect,
+  progress?: {
+    downloaded: number;
+    latestDownloadedEpisode?: number;
+  },
+  missingNumbers: readonly number[] = [],
+): Anime {
+  const downloaded = progress?.downloaded ?? 0;
+  const total = row.episodeCount ?? undefined;
+  const sortedMissing = total
+    ? [...missingNumbers].filter((number) => number >= 1 && number <= total)
+      .sort((left, right) => left - right)
+    : [];
+  const downloadedPercent = total && total > 0
+    ? Math.min(100, Math.round((downloaded / total) * 100))
+    : undefined;
+  const latestDownloadedEpisode = progress?.latestDownloadedEpisode;
+
+  return {
+    added_at: row.addedAt,
+    banner_image: row.bannerImage ?? undefined,
+    cover_image: row.coverImage ?? undefined,
+    description: row.description ?? undefined,
+    end_date: row.endDate ?? undefined,
+    end_year: row.endYear ?? undefined,
+    episode_count: row.episodeCount ?? undefined,
+    format: row.format,
+    genres: safeParseStringList(row.genres) ?? [],
+    id: row.id,
+    mal_id: row.malId ?? undefined,
+    monitored: row.monitored,
+    next_airing_episode: row.nextAiringAt && row.nextAiringEpisode
+      ? {
+        airing_at: row.nextAiringAt,
+        episode: row.nextAiringEpisode,
+      }
+      : undefined,
+    score: row.score ?? undefined,
+    profile_name: row.profileName,
+    progress: {
+      downloaded,
+      downloaded_percent: downloadedPercent,
+      is_up_to_date: total ? sortedMissing.length === 0 : undefined,
+      latest_downloaded_episode: latestDownloadedEpisode,
+      missing: sortedMissing,
+      next_missing_episode: sortedMissing[0],
+      total,
+    },
+    recommended_anime: safeParseDiscoveryEntries(row.recommendedAnime),
+    related_anime: safeParseDiscoveryEntries(row.relatedAnime),
+    release_profile_ids: safeParseNumberList(row.releaseProfileIds),
+    root_folder: row.rootFolder,
+    season: deriveAnimeSeasonFromDate(row.startDate ?? undefined),
+    season_year: row.startYear ?? extractYearFromDate(row.startDate),
+    start_date: row.startDate ?? undefined,
+    start_year: row.startYear ?? undefined,
+    status: row.status,
+    studios: safeParseStringList(row.studios) ?? [],
+    synonyms: safeParseStringList(row.synonyms),
+    title: {
+      english: row.titleEnglish ?? undefined,
+      native: row.titleNative ?? undefined,
+      romaji: row.titleRomaji,
+    },
+  };
+}
 
 const searchLocalAnimeEffect = Effect.fn("AnimeService.searchLocalAnimeEffect")(
   function* (input: {
@@ -206,6 +345,43 @@ function safeParseStringList(value: string | null): string[] | undefined {
   }
 }
 
+function safeParseNumberList(value: string | null): number[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter((entry): entry is number =>
+      typeof entry === "number" && Number.isFinite(entry)
+    );
+  } catch {
+    return [];
+  }
+}
+
+function safeParseDiscoveryEntries(
+  value: string | null,
+): AnimeDiscoveryEntry[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return undefined;
+    }
+    return parsed as AnimeDiscoveryEntry[];
+  } catch {
+    return undefined;
+  }
+}
+
 function deriveAnimeSeasonFromDate(date: string | undefined) {
   if (!date) {
     return undefined;
@@ -221,6 +397,15 @@ function deriveAnimeSeasonFromDate(date: string | undefined) {
   if (month <= 5) return "spring" as const;
   if (month <= 8) return "summer" as const;
   return "fall" as const;
+}
+
+function extractYearFromDate(date?: string | null) {
+  if (!date) {
+    return undefined;
+  }
+
+  const year = Number.parseInt(date.slice(0, 4), 10);
+  return Number.isFinite(year) ? year : undefined;
 }
 
 export const getAnimeByAnilistIdEffect = Effect.fn(
