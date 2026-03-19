@@ -1,0 +1,114 @@
+import { desc, eq } from "drizzle-orm";
+import { Effect } from "effect";
+
+import type { RssFeed } from "../../../../../packages/shared/src/index.ts";
+import type { AppDatabase, DatabaseError } from "../../db/database.ts";
+import { rssFeeds } from "../../db/schema.ts";
+import { appendLog, nowIso } from "./job-support.ts";
+import { type OperationsError } from "./errors.ts";
+import { requireAnime, toRssFeed } from "./repository.ts";
+import type {
+  TryDatabasePromise,
+  TryOperationsPromise,
+} from "./service-support.ts";
+
+export interface CatalogRssSupportShape {
+  readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
+  readonly listAnimeRssFeeds: (animeId: number) => Effect.Effect<
+    RssFeed[],
+    DatabaseError
+  >;
+  readonly addRssFeed: (input: {
+    anime_id: number;
+    url: string;
+    name?: string;
+  }) => Effect.Effect<RssFeed, OperationsError | DatabaseError>;
+  readonly deleteRssFeed: (id: number) => Effect.Effect<void, DatabaseError>;
+  readonly toggleRssFeed: (
+    id: number,
+    enabled: boolean,
+  ) => Effect.Effect<void, DatabaseError>;
+}
+
+export function makeCatalogRssSupport(input: {
+  db: AppDatabase;
+  tryDatabasePromise: TryDatabasePromise;
+  tryOperationsPromise: TryOperationsPromise;
+}): CatalogRssSupportShape {
+  const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(
+    function* () {
+      const rows = yield* input.tryDatabasePromise(
+        "Failed to list RSS feeds",
+        () => input.db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),
+      );
+      return rows.map(toRssFeed) as RssFeed[];
+    },
+  );
+
+  const listAnimeRssFeeds = Effect.fn(
+    "OperationsService.listAnimeRssFeeds",
+  )(function* (animeId: number) {
+    const rows = yield* input.tryDatabasePromise(
+      "Failed to list anime RSS feeds",
+      () =>
+        input.db.select().from(rssFeeds).where(eq(rssFeeds.animeId, animeId)),
+    );
+    return rows.map(toRssFeed) as RssFeed[];
+  });
+
+  const addRssFeed = Effect.fn("OperationsService.addRssFeed")(
+    function* (rssInput: { anime_id: number; url: string; name?: string }) {
+      yield* input.tryOperationsPromise(
+        "Failed to add RSS feed",
+        () => requireAnime(input.db, rssInput.anime_id),
+      );
+      const [row] = yield* input.tryOperationsPromise(
+        "Failed to add RSS feed",
+        () =>
+          input.db.insert(rssFeeds).values({
+            animeId: rssInput.anime_id,
+            createdAt: nowIso(),
+            enabled: true,
+            lastChecked: null,
+            name: rssInput.name ?? null,
+            url: rssInput.url,
+          }).returning(),
+      );
+      yield* input.tryDatabasePromise("Failed to add RSS feed", () =>
+        appendLog(
+          input.db,
+          "rss.created",
+          "success",
+          `RSS feed added for anime ${rssInput.anime_id}`,
+        ));
+      return toRssFeed(row);
+    },
+  );
+
+  const deleteRssFeed = Effect.fn("OperationsService.deleteRssFeed")(
+    function* (id: number) {
+      yield* input.tryDatabasePromise(
+        "Failed to delete RSS feed",
+        () => input.db.delete(rssFeeds).where(eq(rssFeeds.id, id)),
+      );
+    },
+  );
+
+  const toggleRssFeed = Effect.fn("OperationsService.toggleRssFeed")(
+    function* (id: number, enabled: boolean) {
+      yield* input.tryDatabasePromise(
+        "Failed to toggle RSS feed",
+        () =>
+          input.db.update(rssFeeds).set({ enabled }).where(eq(rssFeeds.id, id)),
+      );
+    },
+  );
+
+  return {
+    addRssFeed,
+    deleteRssFeed,
+    listAnimeRssFeeds,
+    listRssFeeds,
+    toggleRssFeed,
+  };
+}
