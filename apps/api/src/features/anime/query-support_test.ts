@@ -15,6 +15,7 @@ import {
   deriveEpisodeTimelineMetadata,
   getAnimeByAnilistIdEffect,
   getAnimeEffect,
+  listAnimeEffect,
   listEpisodesEffect,
   searchAnimeEffect,
 } from "./query-support.ts";
@@ -470,3 +471,260 @@ async function withTestDb(
     await Deno.remove(databaseFile).catch(() => undefined);
   }
 }
+
+Deno.test("listAnimeEffect returns paginated results with defaults", async () => {
+  await withTestDb(async (db) => {
+    for (let i = 1; i <= 5; i++) {
+      await db.insert(schema.anime).values({
+        id: i,
+        titleRomaji: `Show ${i}`,
+        rootFolder: `/test/${i}`,
+        format: "TV",
+        status: "FINISHED",
+        genres: "[]",
+        studios: "[]",
+        profileName: "Default",
+        releaseProfileIds: "[]",
+        addedAt: "2024-01-01T00:00:00Z",
+        monitored: true,
+      });
+    }
+
+    const result = await Effect.runPromise(listAnimeEffect(db));
+
+    assertEquals(result.total, 5);
+    assertEquals(result.offset, 0);
+    assertEquals(result.limit, 100);
+    assertEquals(result.items.length, 5);
+    assertEquals(result.has_more, false);
+  });
+});
+
+Deno.test("listAnimeEffect respects limit and offset", async () => {
+  await withTestDb(async (db) => {
+    for (let i = 1; i <= 10; i++) {
+      await db.insert(schema.anime).values({
+        id: i,
+        titleRomaji: `Show ${i}`,
+        rootFolder: `/test/${i}`,
+        format: "TV",
+        status: "FINISHED",
+        genres: "[]",
+        studios: "[]",
+        profileName: "Default",
+        releaseProfileIds: "[]",
+        addedAt: "2024-01-01T00:00:00Z",
+        monitored: true,
+      });
+    }
+
+    const page1 = await Effect.runPromise(
+      listAnimeEffect(db, { limit: 3, offset: 0 }),
+    );
+    assertEquals(page1.items.length, 3);
+    assertEquals(page1.items[0].id, 1);
+    assertEquals(page1.has_more, true);
+    assertEquals(page1.total, 10);
+
+    const page2 = await Effect.runPromise(
+      listAnimeEffect(db, { limit: 3, offset: 3 }),
+    );
+    assertEquals(page2.items.length, 3);
+    assertEquals(page2.items[0].id, 4);
+    assertEquals(page2.has_more, true);
+
+    const page4 = await Effect.runPromise(
+      listAnimeEffect(db, { limit: 3, offset: 9 }),
+    );
+    assertEquals(page4.items.length, 1);
+    assertEquals(page4.items[0].id, 10);
+    assertEquals(page4.has_more, false);
+  });
+});
+
+Deno.test("listAnimeEffect caps limit at 500", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(schema.anime).values({
+      id: 1,
+      titleRomaji: "Show",
+      rootFolder: "/test",
+      format: "TV",
+      status: "FINISHED",
+      genres: "[]",
+      studios: "[]",
+      profileName: "Default",
+      releaseProfileIds: "[]",
+      addedAt: "2024-01-01T00:00:00Z",
+      monitored: true,
+    });
+
+    const result = await Effect.runPromise(
+      listAnimeEffect(db, { limit: 1000 }),
+    );
+    assertEquals(result.limit, 500);
+  });
+});
+
+Deno.test("listAnimeEffect floors limit at 1", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(schema.anime).values({
+      id: 1,
+      titleRomaji: "Show",
+      rootFolder: "/test",
+      format: "TV",
+      status: "FINISHED",
+      genres: "[]",
+      studios: "[]",
+      profileName: "Default",
+      releaseProfileIds: "[]",
+      addedAt: "2024-01-01T00:00:00Z",
+      monitored: true,
+    });
+
+    const result = await Effect.runPromise(listAnimeEffect(db, { limit: 0 }));
+    assertEquals(result.limit, 1);
+  });
+});
+
+Deno.test("listAnimeEffect floors negative offset at 0", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(schema.anime).values({
+      id: 1,
+      titleRomaji: "Show",
+      rootFolder: "/test",
+      format: "TV",
+      status: "FINISHED",
+      genres: "[]",
+      studios: "[]",
+      profileName: "Default",
+      releaseProfileIds: "[]",
+      addedAt: "2024-01-01T00:00:00Z",
+      monitored: true,
+    });
+
+    const result = await Effect.runPromise(
+      listAnimeEffect(db, { offset: -10 }),
+    );
+    assertEquals(result.offset, 0);
+  });
+});
+
+Deno.test("listAnimeEffect aggregates episode download counts", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(schema.anime).values({
+      id: 1,
+      titleRomaji: "Show",
+      rootFolder: "/test",
+      format: "TV",
+      status: "FINISHED",
+      genres: "[]",
+      studios: "[]",
+      profileName: "Default",
+      releaseProfileIds: "[]",
+      addedAt: "2024-01-01T00:00:00Z",
+      monitored: true,
+      episodeCount: 3,
+    });
+
+    await db.insert(schema.episodes).values([
+      { animeId: 1, number: 1, downloaded: true, filePath: "/ep1.mkv" },
+      { animeId: 1, number: 2, downloaded: true, filePath: "/ep2.mkv" },
+      { animeId: 1, number: 3, downloaded: false, filePath: null },
+    ]);
+
+    const result = await Effect.runPromise(listAnimeEffect(db));
+    assertEquals(result.items.length, 1);
+    assertEquals(result.items[0].progress.downloaded, 2);
+  });
+});
+
+Deno.test("listAnimeEffect filters by monitored status", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(schema.anime).values([
+      {
+        id: 1,
+        titleRomaji: "Monitored Show",
+        rootFolder: "/test/1",
+        format: "TV",
+        status: "FINISHED",
+        genres: "[]",
+        studios: "[]",
+        profileName: "Default",
+        releaseProfileIds: "[]",
+        addedAt: "2024-01-01T00:00:00Z",
+        monitored: true,
+      },
+      {
+        id: 2,
+        titleRomaji: "Unmonitored Show",
+        rootFolder: "/test/2",
+        format: "TV",
+        status: "FINISHED",
+        genres: "[]",
+        studios: "[]",
+        profileName: "Default",
+        releaseProfileIds: "[]",
+        addedAt: "2024-01-01T00:00:00Z",
+        monitored: false,
+      },
+    ]);
+
+    const allResults = await Effect.runPromise(listAnimeEffect(db));
+    assertEquals(allResults.total, 2);
+    assertEquals(allResults.items.length, 2);
+
+    const monitoredOnly = await Effect.runPromise(
+      listAnimeEffect(db, { monitored: true }),
+    );
+    assertEquals(monitoredOnly.total, 1);
+    assertEquals(monitoredOnly.items[0].id, 1);
+
+    const unmonitoredOnly = await Effect.runPromise(
+      listAnimeEffect(db, { monitored: false }),
+    );
+    assertEquals(unmonitoredOnly.total, 1);
+    assertEquals(unmonitoredOnly.items[0].id, 2);
+  });
+});
+
+Deno.test("listAnimeEffect includes progress and metadata fields needed by list UI", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(schema.anime).values({
+      id: 10,
+      titleRomaji: "Detailed Show",
+      rootFolder: "/test/10",
+      format: "TV",
+      status: "RELEASING",
+      genres: '["Action"]',
+      studios: '["Studio A"]',
+      score: 87,
+      profileName: "Default",
+      releaseProfileIds: "[1,2]",
+      addedAt: "2024-01-01T00:00:00Z",
+      monitored: true,
+      episodeCount: 3,
+    });
+
+    await db.insert(schema.episodes).values([
+      { animeId: 10, number: 1, downloaded: true, filePath: "/ep1.mkv" },
+      { animeId: 10, number: 2, downloaded: false, filePath: null },
+      { animeId: 10, number: 3, downloaded: false, filePath: null },
+    ]);
+
+    const result = await Effect.runPromise(listAnimeEffect(db));
+    assertEquals(result.items.length, 1);
+
+    const anime = result.items[0];
+    assertEquals(anime.progress.downloaded, 1);
+    assertEquals(anime.progress.total, 3);
+    assertEquals(anime.progress.downloaded_percent, 33);
+    assertEquals(anime.progress.is_up_to_date, false);
+    assertEquals(anime.progress.latest_downloaded_episode, 1);
+    assertEquals(anime.progress.next_missing_episode, 2);
+    assertEquals(anime.progress.missing, [2, 3]);
+    assertEquals(anime.score, 87);
+    assertEquals(anime.studios, ["Studio A"]);
+    assertEquals(anime.release_profile_ids, [1, 2]);
+    assertEquals(anime.genres, ["Action"]);
+  });
+});

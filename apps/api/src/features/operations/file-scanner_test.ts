@@ -137,6 +137,143 @@ Deno.test("scanVideoFilesStream uses streaming dir reader when available", async
   assertEquals(streamed > 0, true);
 });
 
+Deno.test("scanVideoFilesStream handles symlink cycles without infinite recursion", async () => {
+  const symlinksTree = new Map<string, Deno.DirEntry[]>([
+    [
+      "/library",
+      [
+        entry("show", { isDirectory: true }),
+        entry("link-to-show", { isSymlink: true }),
+        entry("cycle", { isSymlink: true }),
+      ],
+    ],
+    [
+      "/library/show",
+      [
+        entry("episode.mkv", { isFile: true }),
+      ],
+    ],
+  ]);
+
+  const symlinkFs: FileSystemShape = {
+    openFile: () => Effect.die("unused"),
+    readFile: () => Effect.die("unused"),
+    readDir: (path) =>
+      Effect.succeed(symlinksTree.get(toPathString(path)) ?? []),
+    readDirStream: (path) =>
+      Stream.fromIterable(symlinksTree.get(toPathString(path)) ?? []),
+    realPath: (path) => {
+      const pathStr = toPathString(path);
+      if (pathStr.endsWith("/link-to-show")) {
+        return Effect.succeed("/library/show");
+      }
+      if (pathStr.endsWith("/cycle")) {
+        return Effect.succeed("/library/cycle");
+      }
+      return Effect.succeed(pathStr);
+    },
+    stat: (path) =>
+      Effect.succeed({
+        size: 100,
+        isFile: toPathString(path).endsWith(".mkv"),
+        isDirectory: !toPathString(path).endsWith(".mkv"),
+        isSymlink: false,
+      } as Deno.FileInfo),
+    mkdir: () => Effect.die("unused"),
+    rename: () => Effect.die("unused"),
+    copyFile: () => Effect.die("unused"),
+    writeFile: () => Effect.die("unused"),
+    remove: () => Effect.die("unused"),
+  };
+
+  const files = await runTestEffect(
+    Stream.runCollect(scanVideoFilesStream(symlinkFs, "/library")).pipe(
+      Effect.map((items) => Array.from(items, (file) => file.path)),
+    ),
+  );
+
+  assertEquals(files.length, 1);
+  assertEquals(files[0], "/library/show/episode.mkv");
+});
+
+Deno.test("scanVideoFilesStream continues scanning after encountering inaccessible subdirectory", async () => {
+  const inaccessibleTree = new Map<string, Deno.DirEntry[]>([
+    [
+      "/library",
+      [
+        entry("show1", { isDirectory: true }),
+        entry("show2", { isDirectory: true }),
+        entry("show3", { isDirectory: true }),
+      ],
+    ],
+    [
+      "/library/show1",
+      [
+        entry("video1.mkv", { isFile: true }),
+      ],
+    ],
+    [
+      "/library/show2",
+      [], // Will cause error
+    ],
+    [
+      "/library/show3",
+      [
+        entry("video2.mp4", { isFile: true }),
+      ],
+    ],
+  ]);
+
+  const inaccessibleFs: FileSystemShape = {
+    openFile: () => Effect.die("unused"),
+    readFile: () => Effect.die("unused"),
+    readDir: (path) =>
+      toPathString(path) === "/library/show2"
+        ? Effect.fail(
+          new FileSystemError({
+            cause: { code: "EACCES" },
+            message: "Permission denied",
+            path: toPathString(path),
+          }),
+        )
+        : Effect.succeed(inaccessibleTree.get(toPathString(path)) ?? []),
+    readDirStream: (path) =>
+      toPathString(path) === "/library/show2"
+        ? Stream.fail(
+          new FileSystemError({
+            cause: { code: "EACCES" },
+            message: "Permission denied",
+            path: toPathString(path),
+          }),
+        )
+        : Stream.fromIterable(inaccessibleTree.get(toPathString(path)) ?? []),
+    realPath: (path) => Effect.succeed(toPathString(path)),
+    stat: (path) =>
+      Effect.succeed({
+        size: 100,
+        isFile: toPathString(path).includes("video"),
+        isDirectory: !toPathString(path).includes("video"),
+        isSymlink: false,
+      } as Deno.FileInfo),
+    mkdir: () => Effect.die("unused"),
+    rename: () => Effect.die("unused"),
+    copyFile: () => Effect.die("unused"),
+    writeFile: () => Effect.die("unused"),
+    remove: () => Effect.die("unused"),
+  };
+
+  const files = await runTestEffect(
+    Stream.runCollect(scanVideoFilesStream(inaccessibleFs, "/library")).pipe(
+      Effect.map((items) => Array.from(items, (file) => file.path)),
+    ),
+  );
+
+  assertEquals(files.length, 2);
+  const paths = files.sort();
+  assertEquals(paths[0], "/library/show1/video1.mkv");
+  assertEquals(paths[1], "/library/show3/video2.mp4");
+});
+
 function entry(
   name: string,
   options: { isDirectory?: boolean; isFile?: boolean; isSymlink?: boolean },

@@ -124,40 +124,87 @@ Deno.test("cacheAnimeMetadataImages falls back to original URLs on unsupported i
   }
 });
 
-Deno.test("cacheAnimeMetadataImages reuses existing cached image without downloading", async () => {
+Deno.test("cacheAnimeMetadataImages rejects oversized images by Content-Length", async () => {
   const dir = await Deno.makeTempDir();
+  const originalFetch = globalThis.fetch;
 
   try {
-    await Deno.mkdir(`${dir}/anime/88`, { recursive: true });
-    await Deno.writeFile(
-      `${dir}/anime/88/cover.jpg`,
-      Uint8Array.from([255, 216, 255]),
+    const fs = makeTestFileSystem();
+
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response("x".repeat(100), {
+          headers: {
+            "content-type": "image/png",
+            "content-length": "15000000",
+          },
+          status: 200,
+        }),
+      );
+
+    const coverUrl = "https://example.com/huge.png";
+    const result = await Effect.runPromise(
+      cacheAnimeMetadataImages(fs, clientFromFetch(), dir, 77, {
+        coverImage: coverUrl,
+      }) as Effect.Effect<
+        { bannerImage?: string; coverImage?: string },
+        FileSystemError,
+        never
+      >,
     );
 
+    assertEquals(result.coverImage, coverUrl);
+    assertEquals(
+      await exists(`${dir}/anime/77/cover.png`),
+      false,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("cacheAnimeMetadataImages rejects oversized images by streamed bytes", async () => {
+  const dir = await Deno.makeTempDir();
+  const originalFetch = globalThis.fetch;
+
+  try {
     const fs = makeTestFileSystem();
-    let requests = 0;
-    const client = HttpClient.make((request) => {
-      requests += 1;
-      return Effect.succeed(
-        HttpClientResponse.fromWeb(
-          request,
-          new Response(Uint8Array.from([137, 80, 78, 71]), {
-            headers: { "content-type": "image/png" },
-            status: 200,
-          }),
-        ),
-      );
+
+    const largeBody = new Uint8Array(11 * 1024 * 1024);
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(largeBody);
+        controller.close();
+      },
     });
 
-    const result = await runTestEffect(
-      cacheAnimeMetadataImages(fs, client, dir, 88, {
-        coverImage: "https://example.com/cover.png",
-      }),
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response(stream, {
+          headers: { "content-type": "image/png" },
+          status: 200,
+        }),
+      );
+
+    const coverUrl = "https://example.com/huge-stream.png";
+    const result = await Effect.runPromise(
+      cacheAnimeMetadataImages(fs, clientFromFetch(), dir, 77, {
+        coverImage: coverUrl,
+      }) as Effect.Effect<
+        { bannerImage?: string; coverImage?: string },
+        FileSystemError,
+        never
+      >,
     );
 
-    assertEquals(result.coverImage, "/api/images/anime/88/cover.jpg");
-    assertEquals(requests, 0);
+    assertEquals(result.coverImage, coverUrl);
+    assertEquals(
+      await exists(`${dir}/anime/77/cover.png`),
+      false,
+    );
   } finally {
+    globalThis.fetch = originalFetch;
     await Deno.remove(dir, { recursive: true });
   }
 });
