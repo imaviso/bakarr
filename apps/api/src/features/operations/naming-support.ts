@@ -1035,6 +1035,17 @@ function stripExtension(value: string) {
   return value.replace(/\.[^.]+$/, "");
 }
 
+const METADATA_TAG_PATTERNS: readonly RegExp[] = [
+  /\b\d{3,4}p\b/i,
+  /\b\d{3,4}x\d{3,4}\b/i,
+  /\bv\d+\b/i,
+  /\b(?:web(?:[ .-]?dl)?|webdl|webrip|bluray|blu-ray|bdrip|bdremux|bdmv|bd|remux|hdtv|dvd|sdtv)\b/i,
+  /\b(?:x264|x265|h[ .-]?264|h[ .-]?265|hevc|avc|av1|vp9)\b/i,
+  /\b(?:aac|flac|opus|ac3|eac3|ddp|truehd|dts(?:-hd)?)(?:[ .-]?\d(?:[ .]?\d))?\b/i,
+  /\b(?:1|2|6|8)\s*ch\b/i,
+  /\b(?:dual(?:[ .-]?audio)?|multi(?:[ .-]?audio)?|proper|repack|complete|batch)\b/i,
+];
+
 function looksLikeMetadataTag(value: string): boolean {
   const lower = value.trim().toLowerCase();
 
@@ -1042,16 +1053,7 @@ function looksLikeMetadataTag(value: string): boolean {
     return true;
   }
 
-  return [
-    /\b\d{3,4}p\b/i,
-    /\b\d{3,4}x\d{3,4}\b/i,
-    /\bv\d+\b/i,
-    /\b(?:web(?:[ .-]?dl)?|webdl|webrip|bluray|blu-ray|bdrip|bdremux|bdmv|bd|remux|hdtv|dvd|sdtv)\b/i,
-    /\b(?:x264|x265|h[ .-]?264|h[ .-]?265|hevc|avc|av1|vp9)\b/i,
-    /\b(?:aac|flac|opus|ac3|eac3|ddp|truehd|dts(?:-hd)?)(?:[ .-]?\d(?:[ .]?\d))?\b/i,
-    /\b(?:1|2|6|8)\s*ch\b/i,
-    /\b(?:dual(?:[ .-]?audio)?|multi(?:[ .-]?audio)?|proper|repack|complete|batch)\b/i,
-  ].some((pattern) => pattern.test(lower));
+  return METADATA_TAG_PATTERNS.some((pattern) => pattern.test(lower));
 }
 
 function escapeRegex(value: string) {

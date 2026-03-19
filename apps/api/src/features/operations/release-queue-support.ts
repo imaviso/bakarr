@@ -6,7 +6,10 @@ import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { anime, downloads } from "../../db/schema.ts";
 import type { ExternalCallError, OperationsError } from "./errors.ts";
 import { nowIso, recordDownloadEvent } from "./job-support.ts";
-import { hasOverlappingDownload, parseCoveredEpisodes } from "./download-lifecycle.ts";
+import {
+  hasOverlappingDownload,
+  parseCoveredEpisodes,
+} from "./download-lifecycle.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import { encodeDownloadSourceMetadata } from "./repository.ts";
 import type { ParsedRelease } from "./rss-client.ts";

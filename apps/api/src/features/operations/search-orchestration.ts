@@ -34,6 +34,10 @@ import {
 } from "./release-ranking.ts";
 import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
 import {
+  compactLogAnnotations,
+  errorLogAnnotations,
+} from "../../lib/logging.ts";
+import {
   ExternalCallError,
   type OperationsError,
   OperationsInputError,
@@ -171,6 +175,21 @@ export function makeSearchOrchestration(input: {
     }
 
     const entry = yield* seadexClient.getEntryByAniListId(animeRow.id).pipe(
+      Effect.tapError((error) =>
+        Effect.logWarning(
+          "SeaDex enrichment failed, continuing without SeaDex metadata",
+        ).pipe(
+          Effect.annotateLogs(
+            compactLogAnnotations({
+              animeId: animeRow.id,
+              animeTitle: animeRow.titleRomaji,
+              component: "operations",
+              event: "operations.seadex.enrichment.failed",
+              ...errorLogAnnotations(error),
+            }),
+          ),
+        )
+      ),
       Effect.catchAll(() => Effect.succeed(null)),
     );
 

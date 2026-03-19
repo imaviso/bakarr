@@ -43,6 +43,18 @@ const mockFs: FileSystemShape = {
         }),
       )
       : Effect.succeed(tree.get(toPathString(path)) ?? []),
+  readDirStream: (path) =>
+    toPathString(path) === "/library/show/season-2/broken"
+      ? Stream.fail(
+        new FileSystemError({
+          cause: new Error("denied"),
+          message: "Failed to read directory",
+          path: toPathString(path),
+        }),
+      )
+      : Stream.fromIterable(tree.get(toPathString(path)) ?? []).pipe(
+        Stream.map((entry) => entry),
+      ),
   realPath: (path) => Effect.succeed(toPathString(path)),
   stat: (path) =>
     Effect.succeed({
@@ -94,6 +106,35 @@ Deno.test("scanVideoFiles fails when the root path is inaccessible", async () =>
   );
 
   assertEquals(exit._tag, "Failure");
+});
+
+Deno.test("scanVideoFilesStream uses streaming dir reader when available", async () => {
+  let streamed = 0;
+  const readDirError = new FileSystemError({
+    cause: new Error("readDir should not be used"),
+    message: "readDir should not be used",
+    path: "/library",
+  });
+  const streamingFs: FileSystemShape = {
+    ...mockFs,
+    readDir: () => Effect.fail(readDirError),
+    readDirStream: (path) => {
+      streamed += 1;
+      return Stream.fromIterable(tree.get(toPathString(path)) ?? []);
+    },
+  };
+
+  const files = await runTestEffect(
+    Stream.runCollect(scanVideoFilesStream(streamingFs, "/library")).pipe(
+      Effect.map((items) => Array.from(items, (file) => file.path)),
+    ),
+  );
+
+  assertEquals(files, [
+    "/library/show/episode-01.mkv",
+    "/library/show/season-2/episode-02.mp4",
+  ]);
+  assertEquals(streamed > 0, true);
 });
 
 function entry(
