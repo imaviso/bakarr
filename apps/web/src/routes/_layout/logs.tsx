@@ -810,37 +810,23 @@ function LogsPage() {
             </Show>
           </div>
         </div>
-        <div class="p-4 space-y-3">
-          <Show
-            when={downloadEventsQuery.data?.events.length}
-            fallback={
-              <div class="text-sm text-muted-foreground">
-                No recent download events
-              </div>
-            }
-          >
-            <div class="text-xs text-muted-foreground">
-              Showing {downloadEventsQuery.data?.events.length ?? 0} of{" "}
-              {downloadEventsQuery.data?.total ?? 0} events
+        <Show
+          when={downloadEventsQuery.data?.events.length}
+          fallback={
+            <div class="p-4 text-sm text-muted-foreground">
+              No recent download events
             </div>
-            <For each={downloadEventsQuery.data?.events ?? []}>
-              {(event) => (
-                <div class="space-y-2">
-                  <DownloadEventRow event={event} />
-                  <div class="flex justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedDownloadEvent(event)}
-                    >
-                      Details
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </For>
-          </Show>
-        </div>
+          }
+        >
+          <div class="px-4 pt-3 pb-1 text-xs text-muted-foreground">
+            Showing {downloadEventsQuery.data?.events.length ?? 0} of{" "}
+            {downloadEventsQuery.data?.total ?? 0} events
+          </div>
+          <DownloadEventsList
+            events={downloadEventsQuery.data?.events ?? []}
+            onSelectEvent={setSelectedDownloadEvent}
+          />
+        </Show>
       </Card>
 
       <Card class="border-primary/20 flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -1141,5 +1127,70 @@ function DownloadEventRow(props: { event: DownloadEvent }) {
       event={props.event}
       formatTimestamp={formatLogTimestamp}
     />
+  );
+}
+
+const EVENT_ROW_HEIGHT_ESTIMATE = 140;
+const EVENT_LIST_MAX_HEIGHT = 600;
+
+function DownloadEventsList(props: {
+  events: DownloadEvent[];
+  onSelectEvent: (event: DownloadEvent) => void;
+}) {
+  let scrollRef!: HTMLDivElement;
+
+  const virtualizer = createVirtualizer({
+    get count() {
+      return props.events.length;
+    },
+    estimateSize: () => EVENT_ROW_HEIGHT_ESTIMATE,
+    getScrollElement: () => scrollRef,
+    overscan: 4,
+  });
+
+  const paddingTop = createMemo(() => {
+    const items = virtualizer.getVirtualItems();
+    return items.length > 0 ? items[0].start : 0;
+  });
+  const paddingBottom = createMemo(() => {
+    const items = virtualizer.getVirtualItems();
+    return items.length > 0
+      ? virtualizer.getTotalSize() - items[items.length - 1].end
+      : 0;
+  });
+
+  return (
+    <div
+      ref={scrollRef}
+      class="overflow-y-auto px-4 pb-4"
+      style={{
+        "max-height": `${EVENT_LIST_MAX_HEIGHT}px`,
+        "overflow-anchor": "none",
+      }}
+    >
+      <div style={{ height: `${paddingTop()}px` }} aria-hidden="true" />
+      <div class="space-y-3">
+        <For each={virtualizer.getVirtualItems()}>
+          {(vRow) => {
+            const event = props.events[vRow.index];
+            return (
+              <div class="space-y-2">
+                <DownloadEventRow event={event} />
+                <div class="flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => props.onSelectEvent(event)}
+                  >
+                    Details
+                  </Button>
+                </div>
+              </div>
+            );
+          }}
+        </For>
+      </div>
+      <div style={{ height: `${paddingBottom()}px` }} aria-hidden="true" />
+    </div>
   );
 }

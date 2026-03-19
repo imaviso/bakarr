@@ -153,7 +153,6 @@ function AnimeDetailsPage() {
   const updatePath = createUpdateAnimePathMutation();
   const updateProfile = createUpdateAnimeProfileMutation();
   const updateReleaseProfiles = createUpdateAnimeReleaseProfilesMutation();
-  // const _mapEpisode = createMapEpisodeMutation();
 
   const [renameDialogOpen, setRenameDialogOpen] = createSignal(false);
   const [editPathOpen, setEditPathOpen] = createSignal(false);
@@ -243,7 +242,9 @@ function AnimeDetailsPage() {
               <div class="w-full h-48 md:h-64 overflow-hidden rounded-none relative border-b border-border">
                 <img
                   src={anime().banner_image}
-                  alt="Banner"
+                  alt={`${
+                    anime().title.english || anime().title.romaji
+                  } banner`}
                   class="w-full h-full object-cover"
                 />
                 <div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
@@ -278,7 +279,7 @@ function AnimeDetailsPage() {
                       {anime().format}
                     </Badge>
                     <Tooltip>
-                      <TooltipTrigger>
+                      <TooltipTrigger aria-label={anime().status}>
                         <Show when={anime().status === "RELEASING"}>
                           <IconBroadcast class="w-4 h-4 text-success" />
                         </Show>
@@ -679,42 +680,49 @@ function AnimeDetailsPage() {
                             </div>
                           </Show>
                           <Show when={episodesData().length > 0}>
-                            <div class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1.5">
+                            <div
+                              role="list"
+                              aria-label="Episode status overview"
+                              class="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-1.5"
+                            >
                               <For each={episodesData()}>
-                                {(episode) => (
-                                  <div
-                                    class={cn(
-                                      "aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-all",
-                                      episode.downloaded
-                                        ? "bg-success/20 text-success border border-success/30"
-                                        : isAired(episode.aired)
-                                        ? "bg-warning/10 text-warning/70 border border-warning/20"
-                                        : "bg-muted/30 text-muted-foreground/40 border border-transparent",
-                                    )}
-                                    title={`Episode ${episode.number}: ${
-                                      episode.downloaded
-                                        ? "Downloaded"
-                                        : isAired(episode.aired)
-                                        ? "Missing"
-                                        : "Upcoming"
-                                    }${
-                                      episode.aired
-                                        ? ` (Aired: ${episode.aired})`
-                                        : ""
-                                    }`}
-                                  >
-                                    {episode.number}
-                                  </div>
-                                )}
+                                {(episode) => {
+                                  const status = episode.downloaded
+                                    ? "Downloaded"
+                                    : isAired(episode.aired)
+                                    ? "Missing"
+                                    : "Upcoming";
+                                  return (
+                                    <div
+                                      role="listitem"
+                                      aria-label={`Episode ${episode.number}: ${status}`}
+                                      class={cn(
+                                        "aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-all",
+                                        episode.downloaded
+                                          ? "bg-success/20 text-success border border-success/30"
+                                          : isAired(episode.aired)
+                                          ? "bg-warning/10 text-warning/70 border border-warning/20"
+                                          : "bg-muted/30 text-muted-foreground/40 border border-transparent",
+                                      )}
+                                      title={`Episode ${episode.number}: ${status}${
+                                        episode.aired
+                                          ? ` (Aired: ${episode.aired})`
+                                          : ""
+                                      }`}
+                                    >
+                                      {episode.number}
+                                    </div>
+                                  );
+                                }}
                               </For>
                             </div>
                           </Show>
                         </TabsContent>
 
                         <TabsContent value="table">
-                          <div class="border rounded-md overflow-x-auto">
+                          <div class="border rounded-md overflow-auto max-h-[600px]">
                             <Table>
-                              <TableHeader>
+                              <TableHeader class="sticky top-0 bg-card z-10">
                                 <TableRow>
                                   <TableHead class="w-[60px] text-center">
                                     #
@@ -722,6 +730,9 @@ function AnimeDetailsPage() {
                                   <TableHead>Title</TableHead>
                                   <TableHead class="hidden sm:table-cell w-[120px]">
                                     Aired
+                                  </TableHead>
+                                  <TableHead class="hidden md:table-cell w-[80px]">
+                                    Duration
                                   </TableHead>
                                   <TableHead class="w-[80px] text-right">
                                     Status
@@ -736,7 +747,7 @@ function AnimeDetailsPage() {
                                 <Show when={episodesData().length === 0}>
                                   <TableRow>
                                     <TableCell
-                                      colSpan={6}
+                                      colSpan={7}
                                       class="h-24 text-center"
                                     >
                                       No episodes found.
@@ -831,6 +842,7 @@ function AnimeDetailsPage() {
                                             as={Button}
                                             variant="ghost"
                                             size="icon"
+                                            aria-label={`Actions for episode ${episode.number}`}
                                             class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-foreground"
                                           >
                                             <IconDots class="h-4 w-4" />
@@ -888,10 +900,9 @@ function AnimeDetailsPage() {
                                               </DropdownMenuItem>
                                               <DropdownMenuSeparator />
                                               <DropdownMenuItem
-                                                onClick={() =>
-                                                  handlePlayInMpv(
-                                                    episode.number,
-                                                  )}
+                                                onClick={() => handlePlayInMpv(
+                                                  episode.number,
+                                                )}
                                               >
                                                 <IconPlayerPlay class="h-4 w-4 mr-2" />
                                                 Play in MPV
@@ -1035,12 +1046,6 @@ function AnimeDetailsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <BulkMappingDialog
-        animeId={animeId()}
-        open={bulkMappingOpen()}
-        onOpenChange={setBulkMappingOpen}
-      />
 
       <EditPathDialog
         open={editPathOpen()}
