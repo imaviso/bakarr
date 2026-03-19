@@ -36,6 +36,7 @@ const FFProbeOutputSchema = Schema.Struct({
   streams: Schema.Array(FFProbeStreamSchema),
   format: Schema.optional(FFProbeFormatSchema),
 });
+const FFProbeOutputJsonSchema = Schema.parseJson(FFProbeOutputSchema);
 
 type FFProbeOutput = Schema.Schema.Type<typeof FFProbeOutputSchema>;
 
@@ -219,11 +220,10 @@ function normalizeDurationSeconds(value?: string) {
 export function parseFfprobeJson(
   json: string,
 ): ProbedMediaMetadata | undefined {
-  try {
-    return parseFfprobePayload(JSON.parse(json));
-  } catch {
-    return undefined;
-  }
+  const decoded = Schema.decodeUnknownEither(FFProbeOutputJsonSchema)(json);
+  return decoded._tag === "Left"
+    ? undefined
+    : parseFFProbeOutput(decoded.right);
 }
 
 export function parseFfprobePayload(
@@ -336,7 +336,7 @@ function runFfprobeCommand(
             }),
           )
         ),
-        Effect.catchAll(() => Effect.succeed(null)),
+        Effect.catchTag("FFProbeError", () => Effect.succeed(null)),
         Effect.ensuring(Effect.sync(() => clearTimeout(timer))),
       )
     ),
@@ -409,19 +409,10 @@ const makeMediaProbe = (): MediaProbeShape => {
       }
 
       const decoder = new TextDecoder();
-      const jsonText = decoder.decode(output.stdout);
-
-      const parsed = yield* Effect.try({
-        try: () => JSON.parse(jsonText) as unknown,
-        catch: () => undefined,
-      }).pipe(Effect.orElse(() => Effect.void));
-
-      if (!parsed) {
-        return undefined;
-      }
-
       const decoded = yield* Effect.either(
-        Schema.decodeUnknown(FFProbeOutputSchema)(parsed),
+        Schema.decodeUnknown(FFProbeOutputJsonSchema)(
+          decoder.decode(output.stdout),
+        ),
       );
 
       if (decoded._tag === "Left") {
