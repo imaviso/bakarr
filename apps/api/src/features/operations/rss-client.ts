@@ -432,6 +432,16 @@ class RssChannelSchema extends Schema.Class<RssChannelSchema>(
   item: ItemsSchema,
 }) {}
 
+class RssRootInnerSchema extends Schema.Class<RssRootInnerSchema>(
+  "RssRootInnerSchema",
+)({
+  channel: RssChannelSchema,
+}) {}
+
+class RssRootSchema extends Schema.Class<RssRootSchema>("RssRootSchema")({
+  rss: RssRootInnerSchema,
+}) {}
+
 function parseRssXml(xml: string): ParsedRelease[] {
   let parsed: unknown;
   try {
@@ -440,13 +450,7 @@ function parseRssXml(xml: string): ParsedRelease[] {
     return [];
   }
 
-  const decoded = Schema.decodeUnknownEither(
-    Schema.Struct({
-      rss: Schema.Struct({
-        channel: RssChannelSchema,
-      }),
-    }),
-  )(parsed);
+  const decoded = Schema.decodeUnknownEither(RssRootSchema)(parsed);
 
   if (decoded._tag === "Left") {
     return [];

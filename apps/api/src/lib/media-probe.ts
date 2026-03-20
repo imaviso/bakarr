@@ -18,6 +18,12 @@ class FFProbeError extends Schema.TaggedError<FFProbeError>()(
   { cause: Schema.Defect, message: Schema.String },
 ) {}
 
+class MediaProbePermissionQueryError
+  extends Schema.TaggedError<MediaProbePermissionQueryError>()(
+    "MediaProbePermissionQueryError",
+    { cause: Schema.Defect, message: Schema.String },
+  ) {}
+
 class FFProbeStreamSchema
   extends Schema.Class<FFProbeStreamSchema>("FFProbeStreamSchema")({
     codec_type: Schema.String,
@@ -261,39 +267,37 @@ function runFfprobeCommand(
   args: readonly string[],
   timeoutMs: number,
 ): Effect.Effect<Deno.CommandOutput | null, never> {
-  return Effect.sync(() => {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-    return { controller, timer };
+  return Effect.tryPromise({
+    try: (signal) =>
+      new Deno.Command("ffprobe", {
+        args: [...args],
+        signal,
+        stderr: "null",
+        stdout: "piped",
+      }).output(),
+    catch: (cause) =>
+      new FFProbeError({
+        cause,
+        message: "ffprobe command failed",
+      }),
   }).pipe(
-    Effect.flatMap(({ controller, timer }) =>
-      Effect.tryPromise({
-        try: () =>
-          new Deno.Command("ffprobe", {
-            args: [...args],
-            signal: controller.signal,
-            stderr: "null",
-            stdout: "piped",
-          }).output(),
-        catch: (cause) =>
-          new FFProbeError({
-            cause,
-            message: "ffprobe command failed",
-          }),
-      }).pipe(
-        Effect.tapError((error) =>
-          Effect.logWarning("ffprobe command failed").pipe(
-            Effect.annotateLogs({
-              args: args.join(" "),
-              error: error.message,
-            }),
-          )
-        ),
-        Effect.catchTag("FFProbeError", () => Effect.succeed(null)),
-        Effect.ensuring(Effect.sync(() => clearTimeout(timer))),
+    Effect.timeout(timeoutMs),
+    Effect.catchTag("TimeoutException", () =>
+      Effect.fail(
+        new FFProbeError({
+          cause: "Timeout",
+          message: `ffprobe timed out after ${timeoutMs}ms`,
+        }),
+      )),
+    Effect.tapError((error) =>
+      Effect.logWarning("ffprobe command failed").pipe(
+        Effect.annotateLogs({
+          args: args.join(" "),
+          error: error.message,
+        }),
       )
     ),
+    Effect.catchTag("FFProbeError", () => Effect.succeed(null)),
   );
 }
 
@@ -310,8 +314,18 @@ const makeMediaProbe = (): MediaProbeShape => {
         return availability;
       }
 
-      const permission = yield* Effect.promise(() =>
-        Deno.permissions.query({ name: "run", command: "ffprobe" })
+      const permission = yield* Effect.tryPromise({
+        try: () => Deno.permissions.query({ name: "run", command: "ffprobe" }),
+        catch: (cause) =>
+          new MediaProbePermissionQueryError({
+            cause,
+            message: "Failed to query permissions",
+          }),
+      }).pipe(
+        Effect.catchTag(
+          "MediaProbePermissionQueryError",
+          () => Effect.succeed({ state: "denied" as const }),
+        ),
       );
 
       if (permission.state !== "granted") {
