@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type {
   Config,
@@ -12,6 +12,8 @@ import type { ProbedMediaMetadata } from "../../lib/media-probe.ts";
 import { Effect, Schema } from "effect";
 import { buildEpisodeFilenamePlan } from "./naming-support.ts";
 import type { PreferredTitle } from "../../../../../packages/shared/src/index.ts";
+
+const SQLITE_BUSY_RETRY_COUNT = 8;
 
 export class ImportRollbackError {
   readonly _tag = "ImportRollbackError";
@@ -212,117 +214,142 @@ export function importDownloadedFile(
   });
 }
 
-export async function upsertEpisodeFilesAtomic(
+export const upsertEpisodeFilesAtomic = Effect.fn(
+  "Operations.upsertEpisodeFilesAtomic",
+)(function* (
   db: AppDatabase,
   animeId: number,
   episodeNumbers: readonly number[],
   destination: string,
-): Promise<void> {
+) {
   if (episodeNumbers.length === 0) {
     return;
   }
 
-  await db.transaction(async (tx) => {
-    for (const episodeNumber of episodeNumbers) {
-      const rows = await tx.select().from(episodes).where(
-        and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
-      ).limit(1);
+  const upsertOnce = Effect.tryPromise({
+    try: () =>
+      db.transaction(async (tx) => {
+        const episodeNumbersArr = [...episodeNumbers];
 
-      if (rows[0]) {
-        await tx.update(episodes).set({
-          downloaded: true,
-          filePath: destination,
-        })
-          .where(eq(episodes.id, rows[0].id));
-      } else {
-        try {
-          await tx.insert(episodes).values({
+        const existingRows = await tx.select().from(episodes).where(
+          and(
+            eq(episodes.animeId, animeId),
+            inArray(episodes.number, episodeNumbersArr),
+          ),
+        );
+
+        const existingEpisodeNumbers = new Set(
+          existingRows.map((r) => r.number),
+        );
+        const missingEpisodeNumbers = episodeNumbersArr.filter(
+          (n) => !existingEpisodeNumbers.has(n),
+        );
+
+        if (existingEpisodeNumbers.size > 0) {
+          await tx.update(episodes).set({
+            downloaded: true,
+            filePath: destination,
+          }).where(
+            and(
+              eq(episodes.animeId, animeId),
+              inArray(episodes.number, [...existingEpisodeNumbers]),
+            ),
+          );
+        }
+
+        if (missingEpisodeNumbers.length > 0) {
+          const valuesToInsert = missingEpisodeNumbers.map((num) => ({
             aired: null,
             animeId,
             downloaded: true,
             filePath: destination,
-            number: episodeNumber,
+            number: num,
             title: null,
+          }));
+
+          await tx.insert(episodes).values(valuesToInsert).onConflictDoUpdate({
+            target: [episodes.animeId, episodes.number],
+            set: {
+              downloaded: true,
+              filePath: destination,
+            },
           });
-        } catch (cause) {
-          const existingRows = await tx.select().from(episodes).where(
-            and(
-              eq(episodes.animeId, animeId),
-              eq(episodes.number, episodeNumber),
-            ),
-          ).limit(1);
-
-          if (!existingRows[0]) {
-            throw new UpsertEpisodeFileError({
-              anime_id: animeId,
-              episode_number: episodeNumber,
-              message: "Failed to upsert episode file",
-              cause,
-            });
-          }
-
-          await tx.update(episodes).set({
-            downloaded: true,
-            filePath: destination,
-          }).where(eq(episodes.id, existingRows[0].id));
         }
-      }
-    }
-  });
-}
-
-export async function upsertEpisodeFiles(
-  db: AppDatabase,
-  animeId: number,
-  episodeNumbers: readonly number[],
-  destination: string,
-) {
-  for (const episodeNumber of episodeNumbers) {
-    await upsertEpisodeFile(db, animeId, episodeNumber, destination);
-  }
-}
-
-export async function upsertEpisodeFile(
-  db: AppDatabase,
-  animeId: number,
-  episodeNumber: number,
-  destination: string,
-) {
-  const rows = await db.select().from(episodes).where(
-    and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
-  ).limit(1);
-  if (rows[0]) {
-    await db.update(episodes).set({ downloaded: true, filePath: destination })
-      .where(eq(episodes.id, rows[0].id));
-    return;
-  }
-
-  try {
-    await db.insert(episodes).values({
-      aired: null,
-      animeId,
-      downloaded: true,
-      filePath: destination,
-      number: episodeNumber,
-      title: null,
-    });
-  } catch (cause) {
-    const existingRows = await db.select().from(episodes).where(
-      and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
-    ).limit(1);
-
-    if (!existingRows[0]) {
-      throw new UpsertEpisodeFileError({
+      }),
+    catch: (cause) =>
+      new UpsertEpisodeFileError({
         anime_id: animeId,
-        episode_number: episodeNumber,
-        message: "Failed to upsert episode file",
+        episode_number: episodeNumbers[0] ?? 0,
+        message: "Failed to upsert episode files",
         cause,
-      });
+      }),
+  });
+
+  const attempt = (
+    remaining: number,
+  ): Effect.Effect<void, UpsertEpisodeFileError> =>
+    upsertOnce.pipe(
+      Effect.catchTag("UpsertEpisodeFileError", (error) =>
+        isBusySqliteCause(error.cause) && remaining > 0
+          ? Effect.sleep("25 millis").pipe(
+            Effect.zipRight(attempt(remaining - 1)),
+          )
+          : Effect.fail(error)),
+    );
+
+  yield* attempt(SQLITE_BUSY_RETRY_COUNT);
+});
+
+export const upsertEpisodeFiles = Effect.fn("Operations.upsertEpisodeFiles")(
+  function* (
+    db: AppDatabase,
+    animeId: number,
+    episodeNumbers: readonly number[],
+    destination: string,
+  ) {
+    yield* upsertEpisodeFilesAtomic(db, animeId, episodeNumbers, destination);
+  },
+);
+
+export const upsertEpisodeFile = Effect.fn("Operations.upsertEpisodeFile")(
+  function* (
+    db: AppDatabase,
+    animeId: number,
+    episodeNumber: number,
+    destination: string,
+  ) {
+    yield* upsertEpisodeFilesAtomic(db, animeId, [episodeNumber], destination);
+  },
+);
+
+function isBusySqliteCause(cause: unknown): boolean {
+  const seen = new Set<unknown>();
+  let current: unknown = cause;
+
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+
+    const code = typeof (current as { code?: unknown }).code === "string"
+      ? (current as { code?: string }).code
+      : String(
+        (current as { code?: unknown; errno?: unknown }).code ??
+          (current as { errno?: unknown }).errno ??
+          "",
+      );
+    const message = String((current as { message?: unknown }).message ?? "");
+
+    if (
+      code === "SQLITE_BUSY" ||
+      code === "5" ||
+      message.includes("database is locked")
+    ) {
+      return true;
     }
 
-    await db.update(episodes).set({
-      downloaded: true,
-      filePath: destination,
-    }).where(eq(episodes.id, existingRows[0].id));
+    current = "cause" in current
+      ? (current as { cause?: unknown }).cause
+      : undefined;
   }
+
+  return false;
 }

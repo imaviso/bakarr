@@ -3,6 +3,7 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { eq } from "drizzle-orm";
+import { Effect } from "effect";
 
 import { upsertEpisodeFilesAtomic } from "./download-support.ts";
 import * as schema from "../../db/schema.ts";
@@ -25,7 +26,9 @@ Deno.test("upsertEpisodeFilesAtomic inserts multiple episodes atomically", async
       monitored: true,
     });
 
-    await upsertEpisodeFilesAtomic(db, 1, [1, 2, 3], "/test/episode.mkv");
+    await Effect.runPromise(
+      upsertEpisodeFilesAtomic(db, 1, [1, 2, 3], "/test/episode.mkv"),
+    );
 
     const rows = await db.select().from(schema.episodes).where(
       eq(schema.episodes.animeId, 1),
@@ -61,7 +64,9 @@ Deno.test("upsertEpisodeFilesAtomic updates existing episodes", async () => {
       { animeId: 1, number: 2, downloaded: true, filePath: "/old.mkv" },
     ]);
 
-    await upsertEpisodeFilesAtomic(db, 1, [1, 2], "/new.mkv");
+    await Effect.runPromise(
+      upsertEpisodeFilesAtomic(db, 1, [1, 2], "/new.mkv"),
+    );
 
     const rows = await db.select().from(schema.episodes).where(
       eq(schema.episodes.animeId, 1),
@@ -91,7 +96,9 @@ Deno.test("upsertEpisodeFilesAtomic handles empty episode list", async () => {
       monitored: true,
     });
 
-    await upsertEpisodeFilesAtomic(db, 1, [], "/test/episode.mkv");
+    await Effect.runPromise(
+      upsertEpisodeFilesAtomic(db, 1, [], "/test/episode.mkv"),
+    );
 
     const rows = await db.select().from(schema.episodes);
     assertEquals(rows.length, 0);
