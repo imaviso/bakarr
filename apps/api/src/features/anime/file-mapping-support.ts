@@ -287,24 +287,20 @@ export const bulkMapEpisodeFilesEffect = Effect.fn(
     });
   }
 
-  for (const entry of validated) {
-    if (entry.clear) {
-      yield* tryAnimePromise(
-        "Failed to bulk-map episode files",
-        () =>
-          clearEpisodeMapping(input.db, input.animeId, entry.episode_number),
-      );
-    } else {
-      yield* tryAnimePromise(
-        "Failed to bulk-map episode files",
-        () =>
-          upsertEpisode(input.db, input.animeId, entry.episode_number, {
+  yield* tryAnimePromise("Failed to bulk-map episode files", async () => {
+    await input.db.transaction(async (tx) => {
+      for (const entry of validated) {
+        if (entry.clear) {
+          await clearEpisodeMapping(tx, input.animeId, entry.episode_number);
+        } else {
+          await upsertEpisode(tx, input.animeId, entry.episode_number, {
             downloaded: true,
             filePath: entry.file_path,
-          }),
-      );
-    }
-  }
+          });
+        }
+      }
+    });
+  });
 });
 
 export const listAnimeFilesEffect = Effect.fn(

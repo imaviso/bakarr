@@ -17,6 +17,8 @@ import {
 import { makeDefaultConfig } from "../system/defaults.ts";
 import { AnimeNotFoundError } from "./errors.ts";
 
+type EpisodeWriteDb = Pick<AppDatabase, "insert" | "select" | "update">;
+
 export class UpsertEpisodeError
   extends Schema.TaggedError<UpsertEpisodeError>()(
     "UpsertEpisodeError",
@@ -90,7 +92,7 @@ export async function ensureEpisodes(
 }
 
 export async function upsertEpisode(
-  db: AppDatabase,
+  db: EpisodeWriteDb,
   animeId: number,
   episodeNumber: number,
   patch: {
@@ -147,7 +149,7 @@ export async function upsertEpisode(
 }
 
 export async function clearEpisodeMapping(
-  db: AppDatabase,
+  db: EpisodeWriteDb,
   animeId: number,
   episodeNumber: number,
 ) {
