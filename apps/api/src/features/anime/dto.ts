@@ -1,11 +1,10 @@
-import { Effect, Either, Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { AnimeDiscoveryEntrySchema } from "../../../../../packages/shared/src/index.ts";
 import type {
   Anime,
   AnimeDiscoveryEntry,
 } from "../../../../../packages/shared/src/index.ts";
 import { anime, episodes } from "../../db/schema.ts";
-import { decodeNumberList, decodeStringList } from "../system/config-codec.ts";
 
 interface AnimeDiscoveryMetadata {
   recommended_anime?: AnimeDiscoveryEntry[];
@@ -13,88 +12,110 @@ interface AnimeDiscoveryMetadata {
   synonyms?: string[];
 }
 
-interface DecodeLogContext {
-  readonly anime_id: number;
-}
-
 const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(
   Schema.Array(AnimeDiscoveryEntrySchema),
 );
 const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
+const StringListJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
+const NumberListJsonSchema = Schema.parseJson(Schema.Array(Schema.Number));
 
-const warnDecodeFailure = Effect.fn("AnimeDto.warnDecodeFailure")(
-  function* (input: {
-    context: DecodeLogContext;
-    error: unknown;
-    field: string;
-  }) {
-    yield* Effect.logWarning("Failed to decode anime JSON field").pipe(
-      Effect.annotateLogs({
-        anime_id: input.context.anime_id,
-        error: String(input.error),
-        field: input.field,
-      }),
+function decodeStringListSync(
+  value: string | null,
+  context: { anime_id: number; field: string },
+): string[] {
+  if (!value) return [];
+
+  const result = Schema.decodeUnknownEither(StringListJsonSchema)(value);
+
+  if (result._tag === "Left") {
+    Effect.runFork(
+      Effect.logWarning("Failed to decode anime JSON field").pipe(
+        Effect.annotateLogs({
+          anime_id: context.anime_id,
+          error: String(result.left),
+          field: context.field,
+        }),
+      ),
     );
-  },
-);
-
-function safeDecodeStringList(value: string | null): string[] {
-  if (!value) return [];
-  try {
-    return decodeStringList(value);
-  } catch {
     return [];
   }
+
+  return [...result.right];
 }
 
-function safeDecodeNumberList(value: string | null): number[] {
+function decodeNumberListSync(
+  value: string | null,
+  context: { anime_id: number; field: string },
+): number[] {
   if (!value) return [];
-  try {
-    return decodeNumberList(value);
-  } catch {
+
+  const result = Schema.decodeUnknownEither(NumberListJsonSchema)(value);
+
+  if (result._tag === "Left") {
+    Effect.runFork(
+      Effect.logWarning("Failed to decode anime JSON field").pipe(
+        Effect.annotateLogs({
+          anime_id: context.anime_id,
+          error: String(result.left),
+          field: context.field,
+        }),
+      ),
+    );
     return [];
   }
+
+  return [...result.right];
 }
 
-function safeDecodeDiscoveryEntries(
+function decodeDiscoveryEntriesSync(
   value: string | null,
   field: "recommendedAnime" | "relatedAnime",
-  context: DecodeLogContext,
+  context: { anime_id: number },
 ): AnimeDiscoveryEntry[] | undefined {
   if (!value) return undefined;
-  const decoded = Schema.decodeUnknownEither(AnimeDiscoveryEntryListJsonSchema)(
+
+  const result = Schema.decodeUnknownEither(AnimeDiscoveryEntryListJsonSchema)(
     value,
   );
 
-  if (Either.isLeft(decoded)) {
+  if (result._tag === "Left") {
     Effect.runFork(
-      warnDecodeFailure({ context, error: decoded.left, field }),
+      Effect.logWarning("Failed to decode anime JSON field").pipe(
+        Effect.annotateLogs({
+          anime_id: context.anime_id,
+          error: String(result.left),
+          field,
+        }),
+      ),
     );
     return undefined;
   }
 
-  return [...decoded.right];
+  return [...result.right];
 }
 
-function safeDecodeSynonyms(
+function decodeSynonymsSync(
   value: string | null,
-  context: DecodeLogContext,
+  context: { anime_id: number },
 ): string[] | undefined {
   if (!value) return undefined;
-  const decoded = Schema.decodeUnknownEither(AnimeSynonymsJsonSchema)(value);
 
-  if (Either.isLeft(decoded)) {
+  const result = Schema.decodeUnknownEither(AnimeSynonymsJsonSchema)(value);
+
+  if (result._tag === "Left") {
     Effect.runFork(
-      warnDecodeFailure({
-        context,
-        error: decoded.left,
-        field: "synonyms",
-      }),
+      Effect.logWarning("Failed to decode anime JSON field").pipe(
+        Effect.annotateLogs({
+          anime_id: context.anime_id,
+          error: String(result.left),
+          field: "synonyms",
+        }),
+      ),
     );
     return undefined;
   }
 
-  const filtered = decoded.right.filter((entry) => entry.length > 0);
+  const filtered = result.right.filter((entry) => entry.length > 0);
   return filtered.length > 0 ? filtered : undefined;
 }
 
@@ -132,9 +153,7 @@ export function toAnimeDto(
   episodeRows: Array<typeof episodes.$inferSelect>,
   discovery?: AnimeDiscoveryMetadata,
 ): Anime {
-  const decodeLogContext: DecodeLogContext = {
-    anime_id: row.id,
-  };
+  const decodeContext = { anime_id: row.id };
   const downloadedEpisodes = episodeRows.filter((episode) => episode.downloaded)
     .map((episode) => episode.number).sort((left, right) => left - right);
   const total = row.episodeCount ?? undefined;
@@ -152,19 +171,19 @@ export function toAnimeDto(
   const seasonYear = row.startYear ?? extractYearFromDate(row.startDate);
 
   const recommendedAnime = discovery?.recommended_anime ??
-    safeDecodeDiscoveryEntries(
+    decodeDiscoveryEntriesSync(
       row.recommendedAnime,
       "recommendedAnime",
-      decodeLogContext,
+      decodeContext,
     );
   const relatedAnime = discovery?.related_anime ??
-    safeDecodeDiscoveryEntries(
+    decodeDiscoveryEntriesSync(
       row.relatedAnime,
       "relatedAnime",
-      decodeLogContext,
+      decodeContext,
     );
   const synonyms = discovery?.synonyms ??
-    safeDecodeSynonyms(row.synonyms, decodeLogContext);
+    decodeSynonymsSync(row.synonyms, decodeContext);
 
   return {
     added_at: row.addedAt,
@@ -175,7 +194,10 @@ export function toAnimeDto(
     end_year: row.endYear ?? undefined,
     episode_count: row.episodeCount ?? undefined,
     format: row.format,
-    genres: safeDecodeStringList(row.genres),
+    genres: decodeStringListSync(row.genres, {
+      ...decodeContext,
+      field: "genres",
+    }),
     id: row.id,
     mal_id: row.malId ?? undefined,
     monitored: row.monitored,
@@ -196,7 +218,10 @@ export function toAnimeDto(
       next_missing_episode: missing[0],
       total,
     },
-    release_profile_ids: safeDecodeNumberList(row.releaseProfileIds),
+    release_profile_ids: decodeNumberListSync(row.releaseProfileIds, {
+      ...decodeContext,
+      field: "releaseProfileIds",
+    }),
     root_folder: row.rootFolder,
     related_anime: relatedAnime,
     score: row.score ?? undefined,
@@ -205,7 +230,10 @@ export function toAnimeDto(
     start_date: row.startDate ?? undefined,
     start_year: row.startYear ?? undefined,
     status: row.status,
-    studios: safeDecodeStringList(row.studios),
+    studios: decodeStringListSync(row.studios, {
+      ...decodeContext,
+      field: "studios",
+    }),
     synonyms: synonyms,
     title: {
       english: row.titleEnglish ?? undefined,

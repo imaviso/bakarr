@@ -13,7 +13,6 @@ import {
 } from "./errors.ts";
 import {
   ConfigCoreSchema,
-  LibraryConfigSchema,
   NumberListSchema,
   ReleaseProfileRulesSchema,
   StringListSchema,
@@ -29,18 +28,6 @@ const ReleaseProfileRulesJsonSchema = Schema.parseJson(
 );
 const UnknownJsonSchema = Schema.parseJson(Schema.Unknown);
 const ConfigCoreJsonSchema = Schema.parseJson(ConfigCoreSchema);
-const LibraryConfigJsonSchema = Schema.parseJson(LibraryConfigSchema);
-class PartialLibraryConfigSchema
-  extends Schema.Class<PartialLibraryConfigSchema>(
-    "PartialLibraryConfigSchema",
-  )({
-    library: Schema.optional(
-      Schema.partialWith({ exact: true })(LibraryConfigSchema),
-    ),
-  }) {}
-const PartialLibraryConfigJsonSchema = Schema.parseJson(
-  PartialLibraryConfigSchema,
-);
 
 function storedConfigCorrupt(message: string, cause?: unknown) {
   const detail = cause && ParseResult.isParseError(cause)
@@ -52,30 +39,8 @@ function storedConfigCorrupt(message: string, cause?: unknown) {
   });
 }
 
-function normalizeStoredConfigSections(value: string): unknown {
-  const parsed = Schema.decodeUnknownSync(UnknownJsonSchema)(value);
-
-  const decoded = Schema.decodeUnknownEither(
-    Schema.Record({ key: Schema.String, value: Schema.Unknown }),
-  )(parsed);
-  if (decoded._tag === "Left") {
-    return parsed;
-  }
-
-  const defaults = makeDefaultConfig(":memory:");
-  const record = decoded.right as Record<string, unknown>;
-
-  return {
-    ...record,
-    library:
-      typeof record.library === "object" && record.library !== null
-        ? { ...defaults.library, ...record.library }
-        : { ...defaults.library },
-    scheduler:
-      typeof record.scheduler === "object" && record.scheduler !== null
-        ? { ...defaults.scheduler, ...record.scheduler }
-        : { ...defaults.scheduler },
-  };
+function parseConfigJson(value: string): unknown {
+  return Schema.decodeUnknownSync(UnknownJsonSchema)(value);
 }
 
 function cloneConfigCore(decoded: ConfigCore): ConfigCore {
@@ -173,32 +138,12 @@ export function decodeStoredConfigRowOrThrow(
 export function decodeStoredLibraryConfigOrThrow(
   row: { data: string } | undefined,
 ): ConfigCore["library"] {
-  const defaults = makeDefaultConfig(":memory:").library;
-
   if (!row) {
-    return { ...defaults };
+    return { ...makeDefaultConfig(":memory:").library };
   }
 
-  const decoded = tryDecodeConfigCore(row.data);
-  if (decoded) {
-    return { ...decoded.library };
-  }
-
-  try {
-    const partial = Schema.decodeUnknownSync(PartialLibraryConfigJsonSchema)(
-      row.data,
-    );
-
-    return {
-      ...defaults,
-      ...partial.library,
-    };
-  } catch (cause) {
-    throw storedConfigCorrupt(
-      "Stored library config is corrupt and could not be decoded",
-      cause,
-    );
-  }
+  const config = decodeConfigCoreOrThrow(row.data);
+  return { ...config.library };
 }
 
 export function decodeStoredImagePathOrThrow(
@@ -272,20 +217,10 @@ export function encodeConfigCore(core: ConfigCore): string {
 
 export function decodeConfigCore(value: string): ConfigCore {
   const decoded = Schema.decodeUnknownSync(ConfigCoreSchema)(
-    normalizeStoredConfigSections(value),
+    parseConfigJson(value),
   );
 
   return cloneConfigCore(decoded);
-}
-
-export function tryDecodeConfigCore(
-  value: string,
-): ConfigCore | null {
-  try {
-    return decodeConfigCore(value);
-  } catch {
-    return null;
-  }
 }
 
 export function encodeStringList(values: readonly string[]) {
@@ -345,7 +280,22 @@ export function decodeOptionalNumberList(
   }
 
   const decoded = Schema.decodeUnknownEither(NumberListJsonSchema)(value);
-  return decoded._tag === "Left" ? [] : [...decoded.right];
+
+  if (decoded._tag === "Left") {
+    return [];
+  }
+
+  return [...decoded.right];
+}
+
+export function decodeOptionalNumberListOrThrow(
+  value: string | null | undefined,
+): number[] {
+  if (!value) {
+    return [];
+  }
+
+  return [...Schema.decodeUnknownSync(NumberListJsonSchema)(value)];
 }
 
 export function effectDecodeStringList(
@@ -410,34 +360,18 @@ export function effectDecodeConfigCore(
   value: string,
 ): Effect.Effect<ConfigCore, StoredConfigCorruptError> {
   return Effect.try({
-    try: () => normalizeStoredConfigSections(value),
+    try: () => parseConfigJson(value),
     catch: (cause) =>
       storedConfigCorrupt(
         "Stored configuration is corrupt and could not be decoded",
         cause,
       ),
   }).pipe(
-    Effect.flatMap((normalized) =>
-      Schema.decodeUnknown(ConfigCoreSchema)(normalized)
-    ),
+    Effect.flatMap((parsed) => Schema.decodeUnknown(ConfigCoreSchema)(parsed)),
     Effect.map(cloneConfigCore),
     Effect.mapError((cause) =>
       storedConfigCorrupt(
         "Stored configuration is corrupt and could not be decoded",
-        cause,
-      )
-    ),
-  );
-}
-
-export function effectDecodeLibraryConfig(
-  value: string,
-): Effect.Effect<ConfigCore["library"], StoredConfigCorruptError> {
-  return Schema.decodeUnknown(LibraryConfigJsonSchema)(value).pipe(
-    Effect.map((library) => ({ ...library })),
-    Effect.mapError((cause) =>
-      storedConfigCorrupt(
-        "Stored library config is corrupt and could not be decoded",
         cause,
       )
     ),
@@ -472,20 +406,6 @@ export function effectDecodeStoredLibraryConfig(
         cause,
       ),
   });
-}
-
-export function decodeStoredLibraryConfigOrDefault(
-  row: { data: string } | undefined,
-): ConfigCore["library"] {
-  try {
-    return decodeStoredLibraryConfigOrThrow(row);
-  } catch (error) {
-    if (error instanceof StoredConfigCorruptError) {
-      return { ...makeDefaultConfig(":memory:").library };
-    }
-
-    throw error;
-  }
 }
 
 export function effectDecodeImagePath(

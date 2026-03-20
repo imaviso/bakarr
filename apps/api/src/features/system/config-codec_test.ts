@@ -9,7 +9,6 @@ import {
   decodeReleaseProfileRow,
   decodeReleaseProfileRules,
   decodeStoredConfigRowOrThrow,
-  decodeStoredLibraryConfigOrThrow,
   encodeConfigCore,
   encodeOptionalNumberList,
   encodeQualityProfileRow,
@@ -160,71 +159,4 @@ Deno.test("stored config row decoder throws typed errors for missing and corrupt
     StoredConfigCorruptError,
     "Stored configuration is corrupt and could not be decoded",
   );
-});
-
-Deno.test("stored library config decoder merges partial rows with defaults", () => {
-  const library = decodeStoredLibraryConfigOrThrow({
-    data: JSON.stringify({
-      library: {
-        library_path: "/anime-library",
-      },
-    }),
-  });
-
-  assertEquals(library.library_path, "/anime-library");
-  assertEquals(library.import_mode, "copy");
-});
-
-Deno.test("config core decoder backfills missing scheduler fields for stored rows", () => {
-  const decoded = decodeConfigCore(JSON.stringify({
-    downloads: {
-      create_anime_folders: true,
-      delete_download_files_after_import: false,
-      max_size_gb: 8,
-      prefer_dual_audio: false,
-      preferred_codec: null,
-      preferred_groups: [],
-      reconcile_completed_downloads: true,
-      remote_path_mappings: [],
-      remove_torrent_on_import: true,
-      root_path: "./downloads",
-      use_seadex: true,
-    },
-    general: {
-      database_path: "./bakarr.sqlite",
-      images_path: "./data/images",
-      log_level: "info",
-      max_db_connections: 4,
-      min_db_connections: 1,
-      suppress_connection_errors: true,
-      worker_threads: 4,
-    },
-    library: {
-      library_path: "/anime-library",
-    },
-    nyaa: {
-      base_url: "https://nyaa.si",
-      default_category: "1_2",
-      filter_remakes: true,
-      min_seeders: 1,
-      preferred_resolution: "1080p",
-    },
-    qbittorrent: {
-      default_category: "anime",
-      enabled: false,
-      password: null,
-      url: "http://localhost:8080",
-      username: "admin",
-    },
-    scheduler: {
-      check_delay_seconds: 5,
-      check_interval_minutes: 30,
-      cron_expression: null,
-      enabled: true,
-      max_concurrent_checks: 2,
-    },
-  }));
-
-  assertEquals(decoded.library.import_mode, "copy");
-  assertEquals(decoded.scheduler.metadata_refresh_hours, 24);
 });
