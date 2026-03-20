@@ -1,65 +1,13 @@
+import { Effect, Schema } from "effect";
+
 const PASSWORD_SCHEME = "pbkdf2_sha256";
 const ITERATIONS = 310_000;
 const KEY_LENGTH = 32;
 
-export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16);
-  const hash = await derivePasswordHash(password, salt, ITERATIONS);
-
-  return [PASSWORD_SCHEME, String(ITERATIONS), toHex(salt), toHex(hash)].join(
-    "$",
-  );
-}
-
-export async function verifyPassword(
-  password: string,
-  storedHash: string,
-): Promise<boolean> {
-  const [scheme, iterationsValue, saltHex, hashHex] = storedHash.split("$");
-
-  if (scheme !== PASSWORD_SCHEME || !iterationsValue || !saltHex || !hashHex) {
-    return false;
-  }
-
-  const iterations = Number(iterationsValue);
-
-  if (!Number.isInteger(iterations) || iterations <= 0) {
-    return false;
-  }
-
-  const salt = fromHex(saltHex);
-  const expected = fromHex(hashHex);
-  const actual = await derivePasswordHash(password, salt, iterations);
-
-  return timingSafeEqual(expected, actual);
-}
-
-async function derivePasswordHash(
-  password: string,
-  salt: Uint8Array,
-  iterations: number,
-): Promise<Uint8Array> {
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"],
-  );
-
-  const bits = await crypto.subtle.deriveBits(
-    {
-      hash: "SHA-256",
-      iterations,
-      name: "PBKDF2",
-      salt: toArrayBuffer(salt),
-    },
-    keyMaterial,
-    KEY_LENGTH * 8,
-  );
-
-  return new Uint8Array(bits);
-}
+export class PasswordError extends Schema.TaggedError<PasswordError>()(
+  "PasswordError",
+  { message: Schema.String },
+) {}
 
 function randomBytes(length: number): Uint8Array {
   const bytes = new Uint8Array(length);
@@ -106,3 +54,108 @@ function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
 
   return result === 0;
 }
+
+const deriveKeyMaterial = Effect.fn("Password.deriveKeyMaterial")(
+  function* (password: string) {
+    const keyMaterial = yield* Effect.tryPromise({
+      try: () =>
+        crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(password),
+          "PBKDF2",
+          false,
+          ["deriveBits"],
+        ),
+      catch: () =>
+        new PasswordError({ message: "Failed to import key material" }),
+    });
+    return keyMaterial;
+  },
+);
+
+const deriveBits = Effect.fn("Password.deriveBits")(
+  function* (
+    keyMaterial: CryptoKey,
+    salt: ArrayBuffer,
+    iterations: number,
+  ) {
+    const bits = yield* Effect.tryPromise({
+      try: () =>
+        crypto.subtle.deriveBits(
+          {
+            hash: "SHA-256",
+            iterations,
+            name: "PBKDF2",
+            salt,
+          },
+          keyMaterial,
+          KEY_LENGTH * 8,
+        ),
+      catch: () =>
+        new PasswordError({ message: "Failed to derive password hash" }),
+    });
+    return new Uint8Array(bits);
+  },
+);
+
+export const hashPassword = Effect.fn("Password.hash")(
+  function* (password: string) {
+    const salt = randomBytes(16);
+    const keyMaterial = yield* deriveKeyMaterial(password);
+    const hash = yield* deriveBits(
+      keyMaterial,
+      toArrayBuffer(salt),
+      ITERATIONS,
+    );
+
+    return [
+      PASSWORD_SCHEME,
+      String(ITERATIONS),
+      toHex(salt),
+      toHex(hash),
+    ].join("$");
+  },
+);
+
+export const verifyPassword = Effect.fn("Password.verify")(
+  function* (password: string, storedHash: string) {
+    const parts = storedHash.split("$");
+
+    if (parts.length !== 4) {
+      return false;
+    }
+
+    const [scheme, iterationsValue, saltHex, hashHex] = parts;
+
+    if (
+      scheme !== PASSWORD_SCHEME || !iterationsValue || !saltHex || !hashHex
+    ) {
+      return false;
+    }
+
+    const iterations = Number(iterationsValue);
+
+    if (!Number.isInteger(iterations) || iterations <= 0) {
+      return false;
+    }
+
+    const salt = yield* Effect.try({
+      try: () => fromHex(saltHex),
+      catch: () => new PasswordError({ message: "Invalid salt format" }),
+    });
+
+    const expected = yield* Effect.try({
+      try: () => fromHex(hashHex),
+      catch: () => new PasswordError({ message: "Invalid hash format" }),
+    });
+
+    const keyMaterial = yield* deriveKeyMaterial(password);
+    const actual = yield* deriveBits(
+      keyMaterial,
+      toArrayBuffer(salt),
+      iterations,
+    );
+
+    return timingSafeEqual(expected, actual);
+  },
+);
