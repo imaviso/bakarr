@@ -1,3 +1,5 @@
+import { Schema } from "effect";
+
 import type { RouteErrorResponse } from "./route-types.ts";
 import { DatabaseError } from "../db/database.ts";
 import {
@@ -94,6 +96,29 @@ const taggedRouteErrorMappers: {
   }),
 };
 
+const KnownRouteErrorSchema = Schema.Union(
+  AnimeConflictError,
+  AnimeNotFoundError,
+  AnimePathError,
+  AuthError,
+  ConfigValidationError,
+  DatabaseError,
+  DownloadConflictError,
+  DownloadNotFoundError,
+  EpisodeStreamRangeError,
+  ExternalCallError,
+  OperationsAnimeNotFoundError,
+  OperationsConflictError,
+  OperationsInputError,
+  OperationsPathError,
+  ProfileNotFoundError,
+  RequestValidationError,
+  StoredConfigCorruptError,
+  StoredConfigMissingError,
+);
+
+const isKnownTaggedRouteError = Schema.is(KnownRouteErrorSchema);
+
 export function mapRouteError(error: unknown): RouteErrorResponse {
   if (isKnownTaggedRouteError(error)) {
     return mapTaggedRouteError(error);
@@ -114,12 +139,4 @@ function mapTaggedRouteError<E extends TaggedRouteError>(
   ) => RouteErrorResponse;
 
   return mapper(error);
-}
-
-function isKnownTaggedRouteError(error: unknown): error is TaggedRouteError {
-  return typeof error === "object" &&
-    error !== null &&
-    "_tag" in error &&
-    typeof error._tag === "string" &&
-    Object.prototype.hasOwnProperty.call(taggedRouteErrorMappers, error._tag);
 }

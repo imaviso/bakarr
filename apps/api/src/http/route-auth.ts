@@ -1,7 +1,10 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import { setCookie } from "hono/cookie";
 
-import type { AuthUser } from "../../../../packages/shared/src/index.ts";
+import {
+  type AuthUser,
+  AuthUserSchema,
+} from "../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../config.ts";
 import { AuthError } from "../features/auth/service.ts";
 import type { RunEffect } from "./route-types.ts";
@@ -76,7 +79,28 @@ export function getOptionalViewer(
 }
 
 export function isAuthUser(value: unknown): value is AuthUser {
-  return Boolean(
-    value && typeof value === "object" && "id" in value && "username" in value,
-  );
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as {
+    created_at?: unknown;
+    id?: unknown;
+    must_change_password?: unknown;
+    updated_at?: unknown;
+    username?: unknown;
+  };
+
+  if (
+    typeof candidate.id !== "number" || !Number.isFinite(candidate.id) ||
+    typeof candidate.username !== "string" ||
+    typeof candidate.created_at !== "string" ||
+    typeof candidate.updated_at !== "string" ||
+    typeof candidate.must_change_password !== "boolean"
+  ) {
+    return false;
+  }
+
+  const result = Schema.decodeUnknownEither(AuthUserSchema)(value);
+  return result._tag === "Right";
 }

@@ -1,4 +1,4 @@
-import { Effect, Metric, MetricBoundaries } from "effect";
+import { Effect, Metric, MetricBoundaries, Schema } from "effect";
 
 import type { BackgroundWorkerName } from "../background-worker-model.ts";
 
@@ -314,25 +314,20 @@ function formatNumber(value: number | bigint) {
     : "0";
 }
 
-function isCounterState(
-  state: unknown,
-): state is { readonly count: number | bigint } {
-  return typeof state === "object" && state !== null && "count" in state &&
-    !isHistogramState(state);
-}
+const HistogramStateSchema = Schema.Struct({
+  buckets: Schema.Array(Schema.Tuple(Schema.Number, Schema.Number)),
+  count: Schema.Number,
+  sum: Schema.Number,
+});
 
-function isGaugeState(
-  state: unknown,
-): state is { readonly value: number | bigint } {
-  return typeof state === "object" && state !== null && "value" in state;
-}
+const GaugeStateSchema = Schema.Struct({
+  value: Schema.Union(Schema.Number, Schema.BigInt),
+});
 
-function isHistogramState(
-  state: unknown,
-): state is {
-  readonly buckets: ReadonlyArray<readonly [number, number]>;
-  readonly count: number;
-  readonly sum: number;
-} {
-  return typeof state === "object" && state !== null && "buckets" in state;
-}
+const CounterStateSchema = Schema.Struct({
+  count: Schema.Union(Schema.Number, Schema.BigInt),
+});
+
+const isHistogramState = Schema.is(HistogramStateSchema);
+const isGaugeState = Schema.is(GaugeStateSchema);
+const isCounterState = Schema.is(CounterStateSchema);
