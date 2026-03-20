@@ -29,6 +29,15 @@ class InvalidRedirectUrlError
     { location: Schema.String },
   ) {}
 
+class RssDnsLookupError extends Schema.TaggedError<RssDnsLookupError>()(
+  "RssDnsLookupError",
+  {
+    cause: Schema.Defect,
+    hostname: Schema.String,
+    recordType: Schema.Literal("A", "AAAA"),
+  },
+) {}
+
 export interface ParsedRelease {
   readonly group?: string;
   readonly infoHash: string;
@@ -319,9 +328,7 @@ const validateUrlForSsrf = (
       return { _tag: "Accepted" as const };
     }
 
-    const resolvedAddrs = yield* Effect.promise(() =>
-      resolveFeedAddresses(hostname)
-    );
+    const resolvedAddrs = yield* resolveFeedAddresses(hostname);
 
     if (resolvedAddrs.length === 0) {
       return {
@@ -448,7 +455,9 @@ function parseRssXml(xml: string): ParsedRelease[] {
   return decoded.right.rss.channel.item.map((item) => parseRssItem(item));
 }
 
-function parseRssItem(item: Schema.Schema.Type<typeof RssItemSchema>): ParsedRelease {
+function parseRssItem(
+  item: Schema.Schema.Type<typeof RssItemSchema>,
+): ParsedRelease {
   const title = item.title ?? "Unknown release";
   const link = item.link ?? "";
   const infoHash = item["nyaa:infoHash"] ?? randomHex(20);
@@ -568,33 +577,66 @@ function isPrivateIpv6Address(ip: ipaddr.IPv6): boolean {
   return false;
 }
 
-async function resolveFeedAddresses(hostname: string): Promise<string[]> {
-  const dns = Deno as unknown as {
-    resolveDns: (name: string, type: "A" | "AAAA") => Promise<string[]>;
-  };
-  const lookups = await Promise.allSettled([
-    dns.resolveDns(hostname, "A"),
-    dns.resolveDns(hostname, "AAAA"),
-  ]);
-  const addresses: string[] = [];
-  let hadLookupFailure = false;
+const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(
+  function* (hostname: string) {
+    const dns = Deno as unknown as {
+      resolveDns: (name: string, type: "A" | "AAAA") => Promise<string[]>;
+    };
 
-  for (const lookup of lookups) {
-    if (lookup.status === "fulfilled") {
-      addresses.push(...lookup.value);
-      continue;
+    const aLookup = yield* Effect.tryPromise({
+      try: () => dns.resolveDns(hostname, "A"),
+      catch: (cause) =>
+        new RssDnsLookupError({
+          cause,
+          hostname,
+          recordType: "A",
+        }),
+    }).pipe(Effect.either);
+
+    const aaaaLookup = yield* Effect.tryPromise({
+      try: () => dns.resolveDns(hostname, "AAAA"),
+      catch: (cause) =>
+        new RssDnsLookupError({
+          cause,
+          hostname,
+          recordType: "AAAA",
+        }),
+    }).pipe(Effect.either);
+
+    if (
+      (Either.isLeft(aLookup) && !isDnsNoRecordError(aLookup.left.cause)) ||
+      (Either.isLeft(aaaaLookup) && !isDnsNoRecordError(aaaaLookup.left.cause))
+    ) {
+      return [];
     }
 
-    if (!isNoRecordDnsError(lookup.reason)) {
-      hadLookupFailure = true;
+    const addresses: string[] = [];
+
+    if (Either.isRight(aLookup)) {
+      addresses.push(...aLookup.right);
     }
+    if (Either.isRight(aaaaLookup)) {
+      addresses.push(...aaaaLookup.right);
+    }
+
+    return addresses;
+  },
+);
+
+function isDnsNoRecordError(cause: unknown): boolean {
+  if (!(cause instanceof Error)) {
+    return false;
   }
 
-  return hadLookupFailure || addresses.length === 0 ? [] : addresses;
-}
+  const name = cause.name;
+  const code = (cause as { code?: unknown }).code;
+  const message = cause.message.toLowerCase();
 
-function isNoRecordDnsError(error: unknown) {
-  return error instanceof Deno.errors.NotFound ||
-    (error instanceof Error &&
-      /no data|no records|not found|nxdomain/i.test(error.message));
+  return name === "NotFound" ||
+    code === "NotFound" ||
+    code === "ENOTFOUND" ||
+    code === "ENODATA" ||
+    message.includes("not found") ||
+    message.includes("enodata") ||
+    message.includes("enotfound");
 }
