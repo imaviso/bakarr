@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type {
@@ -360,16 +360,28 @@ export function makeBackgroundSearchSupport(input: {
             );
             let queuedForFeed = 0;
 
-            for (const item of items.slice(0, 10)) {
-              const exists = yield* tryDatabasePromise(
-                "Failed to run RSS check",
-                () =>
-                  db.select({ id: downloads.id }).from(downloads).where(
-                    sql`${downloads.infoHash} = ${item.infoHash}`,
-                  ).limit(1),
-              );
+            const slice = items.slice(0, 10);
+            if (slice.length === 0) {
+              return 0;
+            }
 
-              if (exists[0]) {
+            const existingDownloads = yield* tryDatabasePromise(
+              "Failed to run RSS check",
+              () =>
+                db.select({ infoHash: downloads.infoHash }).from(downloads)
+                  .where(
+                    inArray(
+                      downloads.infoHash,
+                      slice.map((item) => item.infoHash),
+                    ),
+                  ),
+            );
+            const existingHashes = new Set(
+              existingDownloads.map((d) => d.infoHash?.toLowerCase()),
+            );
+
+            for (const item of slice) {
+              if (existingHashes.has(item.infoHash.toLowerCase())) {
                 continue;
               }
 

@@ -1,4 +1,4 @@
-import { Effect, Stream } from "effect";
+import { Effect, Ref, Stream } from "effect";
 
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { DatabaseError as DatabaseErrorTag } from "../../db/database.ts";
@@ -46,80 +46,97 @@ export function makeCatalogLibraryScanSupport(input: {
           "Failed to run library scan",
           () => input.db.select().from(anime),
         );
-        let scanned = 0;
-        let matched = 0;
+        const scannedRef = yield* Ref.make(0);
+        const matchedRef = yield* Ref.make(0);
 
         yield* input.eventBus.publish({ type: "LibraryScanStarted" });
 
-        for (const animeRow of animeRows) {
-          const { scannedFiles, matchedFiles } = yield* scanVideoFilesStream(
-            input.fs,
-            animeRow.rootFolder,
-          ).pipe(
-            Stream.mapError(() =>
-              new OperationsPathError({
-                message:
-                  `Anime library folder is inaccessible: ${animeRow.rootFolder}`,
-              })
-            ),
-            Stream.runFoldEffect(
-              { matchedFiles: 0, scannedFiles: 0 },
-              (counts, file) =>
-                Effect.gen(function* () {
-                  const classification = classifyMediaArtifact(
-                    file.path,
-                    file.name,
-                  );
-                  if (
-                    classification.kind === "extra" ||
-                    classification.kind === "sample"
-                  ) {
-                    return {
-                      matchedFiles: counts.matchedFiles,
-                      scannedFiles: counts.scannedFiles + 1,
-                    };
-                  }
+        yield* Effect.forEach(
+          animeRows,
+          (animeRow) =>
+            Effect.gen(function* () {
+              const { scannedFiles, matchedFiles } =
+                yield* scanVideoFilesStream(
+                  input.fs,
+                  animeRow.rootFolder,
+                ).pipe(
+                  Stream.mapError(() =>
+                    new OperationsPathError({
+                      message:
+                        `Anime library folder is inaccessible: ${animeRow.rootFolder}`,
+                    })
+                  ),
+                  Stream.runFoldEffect(
+                    { matchedFiles: 0, scannedFiles: 0 },
+                    (counts, file) =>
+                      Effect.gen(function* () {
+                        const classification = classifyMediaArtifact(
+                          file.path,
+                          file.name,
+                        );
+                        if (
+                          classification.kind === "extra" ||
+                          classification.kind === "sample"
+                        ) {
+                          return {
+                            matchedFiles: counts.matchedFiles,
+                            scannedFiles: counts.scannedFiles + 1,
+                          };
+                        }
 
-                  const parsed = parseFileSourceIdentity(file.path);
-                  const identity = parsed.source_identity;
+                        const parsed = parseFileSourceIdentity(file.path);
+                        const identity = parsed.source_identity;
 
-                  if (!identity || identity.scheme === "daily") {
-                    return {
-                      matchedFiles: counts.matchedFiles,
-                      scannedFiles: counts.scannedFiles + 1,
-                    };
-                  }
+                        if (!identity || identity.scheme === "daily") {
+                          return {
+                            matchedFiles: counts.matchedFiles,
+                            scannedFiles: counts.scannedFiles + 1,
+                          };
+                        }
 
-                  const episodeNumbers = identity.episode_numbers;
-                  if (episodeNumbers.length === 0) {
-                    return {
-                      matchedFiles: counts.matchedFiles,
-                      scannedFiles: counts.scannedFiles + 1,
-                    };
-                  }
+                        const episodeNumbers = identity.episode_numbers;
+                        if (episodeNumbers.length === 0) {
+                          return {
+                            matchedFiles: counts.matchedFiles,
+                            scannedFiles: counts.scannedFiles + 1,
+                          };
+                        }
 
-                  yield* input.tryDatabasePromise(
-                    "Failed to run library scan",
-                    () =>
-                      upsertEpisodeFilesAtomic(
-                        input.db,
-                        animeRow.id,
-                        episodeNumbers,
-                        file.path,
-                      ),
-                  );
+                        yield* upsertEpisodeFilesAtomic(
+                          input.db,
+                          animeRow.id,
+                          episodeNumbers,
+                          file.path,
+                        ).pipe(
+                          Effect.mapError((cause) =>
+                            new DatabaseErrorTag({
+                              message: "Failed to run library scan",
+                              cause,
+                            })
+                          ),
+                        );
 
-                  return {
-                    matchedFiles: counts.matchedFiles + episodeNumbers.length,
-                    scannedFiles: counts.scannedFiles + 1,
-                  };
-                }),
-            ),
-          );
-          scanned += scannedFiles;
-          matched += matchedFiles;
-          yield* input.publishLibraryScanProgress(scanned);
-        }
+                        return {
+                          matchedFiles: counts.matchedFiles +
+                            episodeNumbers.length,
+                          scannedFiles: counts.scannedFiles + 1,
+                        };
+                      }),
+                  ),
+                );
+
+              const newScanned = yield* Ref.updateAndGet(
+                scannedRef,
+                (n) => n + scannedFiles,
+              );
+              yield* Ref.update(matchedRef, (n) => n + matchedFiles);
+              yield* input.publishLibraryScanProgress(newScanned);
+            }),
+          { concurrency: 5 },
+        );
+
+        const scanned = yield* Ref.get(scannedRef);
+        const matched = yield* Ref.get(matchedRef);
 
         yield* input.tryDatabasePromise(
           "Failed to run library scan",

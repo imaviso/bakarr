@@ -277,20 +277,21 @@ export function makeCatalogOrchestration(input: {
           );
         }
 
-        const dbResult = yield* Effect.tryPromise({
-          try: () =>
-            upsertEpisodeFilesAtomic(
-              db,
-              file.anime_id,
-              allEpisodeNumbers,
-              destination,
-            ),
-          catch: (cause) =>
-            new DatabaseError({
-              cause,
-              message: "Failed to import episode files atomically",
-            }),
-        }).pipe(Effect.either);
+        const dbResult = yield* upsertEpisodeFilesAtomic(
+          db,
+          file.anime_id,
+          allEpisodeNumbers,
+          destination,
+        ).pipe(
+          Effect.mapError(
+            (cause) =>
+              new DatabaseError({
+                cause,
+                message: "Failed to import episode files atomically",
+              }),
+          ),
+          Effect.either,
+        );
 
         if (Either.isLeft(dbResult)) {
           const rollbackEffect = importMode === "move"

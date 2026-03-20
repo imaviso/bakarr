@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type {
@@ -163,16 +163,27 @@ export function makeDownloadTorrentLifecycleService(input: {
 
       const torrents = torrentsResult.right;
 
+      if (torrents.length === 0) {
+        return;
+      }
+
+      const infoHashes = torrents.map((t) => t.hash.toLowerCase());
+      const allExistingDownloads = yield* tryDatabasePromise(
+        "Failed to sync downloads with qBittorrent",
+        () =>
+          db.select().from(downloads).where(
+            inArray(downloads.infoHash, infoHashes),
+          ),
+      );
+
+      const existingDownloadsMap = new Map(
+        allExistingDownloads.map((d) => [d.infoHash?.toLowerCase(), d]),
+      );
+
       for (const torrent of torrents) {
         const status = mapQBitState(torrent.state);
-        const existingRows = yield* tryDatabasePromise(
-          "Failed to sync downloads with qBittorrent",
-          () =>
-            db.select().from(downloads).where(
-              eq(downloads.infoHash, torrent.hash.toLowerCase()),
-            ).limit(1),
-        );
-        const existing = existingRows[0];
+        const hash = torrent.hash.toLowerCase();
+        const existing = existingDownloadsMap.get(hash);
         const preservedImported = Boolean(existing?.reconciledAt);
         const nextStatus = preservedImported ? "imported" : status;
         const nextExternalState = preservedImported
