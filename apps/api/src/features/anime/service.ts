@@ -191,14 +191,20 @@ const makeAnimeService = Effect.gen(function* () {
   const getAnimeByAnilistId: AnimeServiceShape["getAnimeByAnilistId"] = (id) =>
     getAnimeByAnilistIdEffect({ aniList, db, id });
   const listEpisodes: AnimeServiceShape["listEpisodes"] = (animeId) =>
-    listEpisodesEffect({ animeId, db, fs, mediaProbe });
+    listEpisodesEffect({ animeId, db });
   const refreshEpisodes: AnimeServiceShape["refreshEpisodes"] = (animeId) =>
     refreshEpisodesEffect({ aniList, animeId, db, eventPublisher });
   const refreshMetadataForMonitoredAnime:
     AnimeServiceShape["refreshMetadataForMonitoredAnime"] = () =>
       metadataRefreshTrigger();
   const scanFolder: AnimeServiceShape["scanFolder"] = (animeId) =>
-    scanAnimeFolderOrchestrationEffect({ animeId, db, eventPublisher, fs });
+    scanAnimeFolderOrchestrationEffect({
+      animeId,
+      db,
+      eventPublisher,
+      fs,
+      mediaProbe,
+    });
   const deleteAnime: AnimeServiceShape["deleteAnime"] = (id) =>
     deleteAnimeEffect(db, id);
 

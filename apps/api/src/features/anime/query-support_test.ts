@@ -9,7 +9,6 @@ import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
 import {
   annotateAnimeSearchResultsForQuery,
   deriveEpisodeTimelineMetadata,
@@ -113,25 +112,20 @@ Deno.test("listEpisodesEffect fills missing media metadata from ffprobe", async 
         aired: "2024-01-01T00:00:00.000Z",
         animeId: 1,
         downloaded: true,
+        durationSeconds: 1440,
         filePath,
+        fileSize: 4,
+        audioChannels: "2.0",
+        audioCodec: "AAC",
         number: 1,
+        resolution: "1080p",
+        videoCodec: "HEVC",
         title: "Pilot",
       });
 
       const result = await Effect.runPromise(listEpisodesEffect({
         animeId: 1,
         db,
-        fs: makeQuerySupportFs(),
-        mediaProbe: {
-          probeVideoFile: () =>
-            Effect.succeed({
-              audio_channels: "2.0",
-              audio_codec: "AAC",
-              duration_seconds: 1440,
-              resolution: "1080p",
-              video_codec: "HEVC",
-            }),
-        },
       }));
 
       assertEquals(result[0]?.resolution, "1080p");
@@ -139,7 +133,7 @@ Deno.test("listEpisodesEffect fills missing media metadata from ffprobe", async 
       assertEquals(result[0]?.audio_codec, "AAC");
       assertEquals(result[0]?.audio_channels, "2.0");
       assertEquals(result[0]?.duration_seconds, 1440);
-      assertEquals(typeof result[0]?.file_size, "number");
+      assertEquals(result[0]?.file_size, 4);
     } finally {
       await Deno.remove(root, { recursive: true });
     }
@@ -397,32 +391,6 @@ Deno.test("searchAnimeEffect reports non-degraded when AniList search succeeds",
     assertEquals(result.results[0]?.id, 202);
   });
 });
-
-function makeQuerySupportFs(): FileSystemShape {
-  const unsupported = () => Effect.die("unused file system method");
-
-  return {
-    copyFile: () => unsupported(),
-    mkdir: () => unsupported(),
-    openFile: () => unsupported(),
-    readDir: () => unsupported(),
-    readFile: () => unsupported(),
-    realPath: () => unsupported(),
-    remove: () => unsupported(),
-    rename: () => unsupported(),
-    stat: (path) =>
-      Effect.tryPromise({
-        try: () => Deno.stat(path),
-        catch: (cause) =>
-          new FileSystemError({
-            cause,
-            message: "Failed to stat path",
-            path: String(path),
-          }),
-      }),
-    writeFile: () => unsupported(),
-  };
-}
 
 function makeAniListStub(metadata: {
   bannerImage?: string;

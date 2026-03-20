@@ -16,15 +16,7 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import {
-  type MediaProbeShape,
-  mergeProbedMediaMetadata,
-  shouldProbeDetailedMediaMetadata,
-} from "../../lib/media-probe.ts";
-import { parseFileSourceIdentity } from "../../lib/media-identity.ts";
 import type { AniListClient } from "./anilist.ts";
-import { buildScannedFileMetadata } from "../operations/naming-support.ts";
 import { scoreAnimeSearchResultMatch } from "../operations/library-import.ts";
 import { toAnimeDto } from "./dto.ts";
 import { AnimeNotFoundError } from "./errors.ts";
@@ -467,8 +459,6 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(
   function* (input: {
     animeId: number;
     db: AppDatabase;
-    fs: FileSystemShape;
-    mediaProbe: MediaProbeShape;
   }) {
     const rows = yield* tryDatabasePromise(
       "Failed to list episodes",
@@ -476,75 +466,6 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(
         input.db.select().from(episodes).where(
           eq(episodes.animeId, input.animeId),
         ),
-    );
-    const metadataByPath = new Map(
-      yield* Effect.forEach(
-        [
-          ...new Set(
-            rows.map((row) => row.filePath).filter((value): value is string =>
-              Boolean(value)
-            ),
-          ),
-        ],
-        (filePath) =>
-          Effect.gen(function* () {
-            const parsed = parseFileSourceIdentity(filePath);
-            const metadata = buildScannedFileMetadata({
-              filePath,
-              group: parsed.group,
-              sourceIdentity: toSharedParsedEpisodeIdentity(
-                parsed.source_identity,
-              ),
-            });
-            const fileSize = yield* input.fs.stat(filePath).pipe(
-              Effect.map((info) => info.size),
-              Effect.catchTag(
-                "FileSystemError",
-                () => Effect.void,
-              ),
-              Effect.map((size) => size ?? undefined),
-            );
-            const enrichedMetadata = shouldProbeDetailedMediaMetadata({
-                duration_seconds: metadata.duration_seconds,
-                audio_channels: metadata.audio_channels,
-                audio_codec: metadata.audio_codec,
-                resolution: parsed.resolution ?? undefined,
-                video_codec: metadata.video_codec,
-              })
-              ? mergeProbedMediaMetadata(
-                {
-                  duration_seconds: metadata.duration_seconds,
-                  audio_channels: metadata.audio_channels,
-                  audio_codec: metadata.audio_codec,
-                  resolution: parsed.resolution ?? undefined,
-                  video_codec: metadata.video_codec,
-                },
-                yield* input.mediaProbe.probeVideoFile(filePath),
-              )
-              : {
-                duration_seconds: metadata.duration_seconds,
-                audio_channels: metadata.audio_channels,
-                audio_codec: metadata.audio_codec,
-                resolution: parsed.resolution ?? undefined,
-                video_codec: metadata.video_codec,
-              };
-
-            return [
-              filePath,
-              {
-                audio_channels: enrichedMetadata.audio_channels,
-                audio_codec: enrichedMetadata.audio_codec,
-                duration_seconds: enrichedMetadata.duration_seconds,
-                file_size: fileSize,
-                group: parsed.group ?? undefined,
-                quality: metadata.quality,
-                resolution: enrichedMetadata.resolution,
-                video_codec: enrichedMetadata.video_codec,
-              },
-            ] as const;
-          }),
-        { concurrency: 4 },
-      ),
     );
 
     return rows.sort((left, right) => left.number - right.number).map((
@@ -555,35 +476,19 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(
       return {
         aired: row.aired ?? undefined,
         airing_status: timeline.airing_status,
-        audio_channels: row.filePath
-          ? metadataByPath.get(row.filePath)?.audio_channels
-          : undefined,
-        audio_codec: row.filePath
-          ? metadataByPath.get(row.filePath)?.audio_codec
-          : undefined,
+        audio_channels: row.audioChannels ?? undefined,
+        audio_codec: row.audioCodec ?? undefined,
         downloaded: row.downloaded,
-        duration_seconds: row.filePath
-          ? metadataByPath.get(row.filePath)?.duration_seconds
-          : undefined,
+        duration_seconds: row.durationSeconds ?? undefined,
         file_path: row.filePath ?? undefined,
-        file_size: row.filePath
-          ? metadataByPath.get(row.filePath)?.file_size
-          : undefined,
-        group: row.filePath
-          ? metadataByPath.get(row.filePath)?.group
-          : undefined,
+        file_size: row.fileSize ?? undefined,
+        group: row.groupName ?? undefined,
         is_future: timeline.is_future,
         number: row.number,
-        quality: row.filePath
-          ? metadataByPath.get(row.filePath)?.quality
-          : undefined,
-        resolution: row.filePath
-          ? metadataByPath.get(row.filePath)?.resolution
-          : undefined,
+        quality: row.quality ?? undefined,
+        resolution: row.resolution ?? undefined,
         title: row.title ?? undefined,
-        video_codec: row.filePath
-          ? metadataByPath.get(row.filePath)?.video_codec
-          : undefined,
+        video_codec: row.videoCodec ?? undefined,
       };
     });
   },
@@ -613,36 +518,6 @@ export function deriveEpisodeTimelineMetadata(
     airing_status: "aired",
     is_future: false,
   };
-}
-
-function toSharedParsedEpisodeIdentity(
-  identity: ReturnType<typeof parseFileSourceIdentity>["source_identity"],
-) {
-  if (!identity) {
-    return undefined;
-  }
-
-  switch (identity.scheme) {
-    case "season":
-      return {
-        episode_numbers: [...identity.episode_numbers],
-        label: identity.label,
-        scheme: "season" as const,
-        season: identity.season,
-      };
-    case "absolute":
-      return {
-        episode_numbers: [...identity.episode_numbers],
-        label: identity.label,
-        scheme: "absolute" as const,
-      };
-    case "daily":
-      return {
-        air_dates: [...identity.air_dates],
-        label: identity.label,
-        scheme: "daily" as const,
-      };
-  }
 }
 
 export function annotateAnimeSearchResultsForQuery(

@@ -85,6 +85,7 @@ export const scanAnimeFolderEffect = Effect.fn(
   animeId: number;
   db: AppDatabase;
   fs: FileSystemShape;
+  mediaProbe: MediaProbeShape;
 }) {
   const animeRow = yield* tryAnimePromise(
     "Failed to scan anime folder",
@@ -108,6 +109,24 @@ export const scanAnimeFolderEffect = Effect.fn(
     }
 
     const parsed = parseFileSourceIdentity(file.path);
+    const metadata = buildScannedFileMetadata({
+      filePath: file.path,
+      group: parsed.group,
+      sourceIdentity: toSharedParsedEpisodeIdentity(parsed.source_identity),
+    });
+    const probeInput = {
+      audio_channels: metadata.audio_channels,
+      audio_codec: metadata.audio_codec,
+      duration_seconds: metadata.duration_seconds,
+      resolution: parsed.resolution ?? undefined,
+      video_codec: metadata.video_codec,
+    };
+    const mergedMetadata = shouldProbeDetailedMediaMetadata(probeInput)
+      ? mergeProbedMediaMetadata(
+        probeInput,
+        yield* input.mediaProbe.probeVideoFile(file.path),
+      )
+      : probeInput;
     const identity = parsed.source_identity;
     if (!identity || identity.scheme === "daily") {
       continue;
@@ -133,6 +152,14 @@ export const scanAnimeFolderEffect = Effect.fn(
             ),
             downloaded: true,
             filePath: file.path,
+            fileSize: file.size,
+            durationSeconds: mergedMetadata.duration_seconds,
+            groupName: parsed.group ?? null,
+            resolution: mergedMetadata.resolution,
+            quality: metadata.quality,
+            videoCodec: mergedMetadata.video_codec,
+            audioCodec: mergedMetadata.audio_codec,
+            audioChannels: mergedMetadata.audio_channels,
             title: null,
           }),
       );
@@ -192,7 +219,18 @@ export const deleteEpisodeFileEffect = Effect.fn(
   yield* tryAnimePromise(
     "Failed to delete episode file",
     () =>
-      input.db.update(episodes).set({ downloaded: false, filePath: null })
+      input.db.update(episodes).set({
+        downloaded: false,
+        filePath: null,
+        fileSize: null,
+        durationSeconds: null,
+        groupName: null,
+        resolution: null,
+        quality: null,
+        videoCodec: null,
+        audioCodec: null,
+        audioChannels: null,
+      })
         .where(
           and(
             eq(episodes.animeId, input.animeId),

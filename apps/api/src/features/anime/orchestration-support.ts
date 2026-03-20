@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
+import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import {
   markJobFailed,
@@ -283,11 +284,13 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
   db: AppDatabase;
   eventPublisher: AnimeEventPublisher;
   fs: FileSystemShape;
+  mediaProbe: MediaProbeShape;
 }) {
   const { animeRow, found, total } = yield* scanAnimeFolderEffect({
     animeId: input.animeId,
     db: input.db,
     fs: input.fs,
+    mediaProbe: input.mediaProbe,
   });
 
   yield* tryDatabasePromise(

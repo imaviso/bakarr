@@ -99,6 +99,14 @@ export async function upsertEpisode(
     aired?: string | null;
     downloaded?: boolean;
     filePath?: string | null;
+    fileSize?: number | null;
+    durationSeconds?: number | null;
+    groupName?: string | null;
+    resolution?: string | null;
+    quality?: string | null;
+    videoCodec?: string | null;
+    audioCodec?: string | null;
+    audioChannels?: string | null;
     title?: string | null;
   },
 ) {
@@ -111,6 +119,14 @@ export async function upsertEpisode(
       aired: patch.aired ?? rows[0].aired,
       downloaded: patch.downloaded ?? rows[0].downloaded,
       filePath: patch.filePath ?? rows[0].filePath,
+      fileSize: patch.fileSize ?? rows[0].fileSize,
+      durationSeconds: patch.durationSeconds ?? rows[0].durationSeconds,
+      groupName: patch.groupName ?? rows[0].groupName,
+      resolution: patch.resolution ?? rows[0].resolution,
+      quality: patch.quality ?? rows[0].quality,
+      videoCodec: patch.videoCodec ?? rows[0].videoCodec,
+      audioCodec: patch.audioCodec ?? rows[0].audioCodec,
+      audioChannels: patch.audioChannels ?? rows[0].audioChannels,
       title: patch.title ?? rows[0].title,
     }).where(eq(episodes.id, rows[0].id));
     return;
@@ -122,6 +138,14 @@ export async function upsertEpisode(
       animeId,
       downloaded: patch.downloaded ?? false,
       filePath: patch.filePath ?? null,
+      fileSize: patch.fileSize ?? null,
+      durationSeconds: patch.durationSeconds ?? null,
+      groupName: patch.groupName ?? null,
+      resolution: patch.resolution ?? null,
+      quality: patch.quality ?? null,
+      videoCodec: patch.videoCodec ?? null,
+      audioCodec: patch.audioCodec ?? null,
+      audioChannels: patch.audioChannels ?? null,
       number: episodeNumber,
       title: patch.title ?? null,
     });
@@ -143,6 +167,14 @@ export async function upsertEpisode(
       aired: patch.aired ?? existingRows[0].aired,
       downloaded: patch.downloaded ?? existingRows[0].downloaded,
       filePath: patch.filePath ?? existingRows[0].filePath,
+      fileSize: patch.fileSize ?? existingRows[0].fileSize,
+      durationSeconds: patch.durationSeconds ?? existingRows[0].durationSeconds,
+      groupName: patch.groupName ?? existingRows[0].groupName,
+      resolution: patch.resolution ?? existingRows[0].resolution,
+      quality: patch.quality ?? existingRows[0].quality,
+      videoCodec: patch.videoCodec ?? existingRows[0].videoCodec,
+      audioCodec: patch.audioCodec ?? existingRows[0].audioCodec,
+      audioChannels: patch.audioChannels ?? existingRows[0].audioChannels,
       title: patch.title ?? existingRows[0].title,
     }).where(eq(episodes.id, existingRows[0].id));
   }
@@ -156,6 +188,14 @@ export async function clearEpisodeMapping(
   await db.update(episodes).set({
     downloaded: false,
     filePath: null,
+    fileSize: null,
+    durationSeconds: null,
+    groupName: null,
+    resolution: null,
+    quality: null,
+    videoCodec: null,
+    audioCodec: null,
+    audioChannels: null,
   }).where(
     and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
   );

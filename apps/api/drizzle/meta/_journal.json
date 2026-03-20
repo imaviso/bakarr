@@ -148,6 +148,13 @@
       "when": 1773809000000,
       "tag": "0020_anime_discovery_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1773900000000,
+      "tag": "0021_episode_media_metadata",
+      "breakpoints": true
     }
   ]
 }
