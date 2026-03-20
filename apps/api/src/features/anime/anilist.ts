@@ -556,10 +556,10 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
       status: media.status ?? "UNKNOWN",
       studios: Array.isArray(media.studios?.nodes)
         ? media.studios.nodes
-            .map((entry) => entry.name)
-            .filter((name): name is string =>
-              typeof name === "string" && name.length > 0,
-            )
+          .map((entry) => entry.name)
+          .filter((name): name is string =>
+            typeof name === "string" && name.length > 0
+          )
         : [],
       synonyms: normalizeSynonyms(media.synonyms),
       title: {
