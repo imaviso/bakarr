@@ -57,7 +57,6 @@ import {
   encodeConfigCore,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
-  tryDecodeConfigCore,
 } from "./config-codec.ts";
 import { appendSystemLog, normalizeLevel, nowIso } from "./support.ts";
 import { getDiskSpaceSafe, selectStoragePath } from "./disk-space.ts";
@@ -95,7 +94,10 @@ import {
 
 export interface SystemServiceShape {
   readonly ensureInitialized: () => Effect.Effect<void, DatabaseError>;
-  readonly getSystemStatus: () => Effect.Effect<SystemStatus, DatabaseError>;
+  readonly getSystemStatus: () => Effect.Effect<
+    SystemStatus,
+    DatabaseError | StoredConfigCorruptError
+  >;
   readonly getLibraryStats: () => Effect.Effect<LibraryStats, DatabaseError>;
   readonly getActivity: () => Effect.Effect<ActivityItem[], DatabaseError>;
   readonly getJobs: () => Effect.Effect<
@@ -411,20 +413,11 @@ const makeSystemService = Effect.gen(function* () {
         "Failed to build system status",
         () => loadSystemConfigRow(db),
       );
-      let core: ConfigCore;
-      if (storedConfig) {
-        const decoded = tryDecodeConfigCore(storedConfig.data);
-        if (decoded) {
-          core = decoded;
-        } else {
-          yield* Effect.logWarning(
-            "Stored system config is corrupt, using defaults for status view",
-          );
-          core = makeDefaultConfig(config.databaseFile);
-        }
-      } else {
-        core = makeDefaultConfig(config.databaseFile);
-      }
+
+      const core = storedConfig
+        ? yield* effectDecodeConfigCore(storedConfig.data)
+        : makeDefaultConfig(config.databaseFile);
+
       const storagePath = selectStoragePath({
         ...core,
         profiles: [],

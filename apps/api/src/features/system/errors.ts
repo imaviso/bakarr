@@ -28,12 +28,9 @@ export type StoredConfigReadError =
   | StoredConfigCorruptError
   | StoredConfigMissingError;
 
-export function isStoredConfigReadError(
-  cause: unknown,
-): cause is StoredConfigReadError {
-  return cause instanceof StoredConfigCorruptError ||
-    cause instanceof StoredConfigMissingError;
-}
+export const isStoredConfigReadError = Schema.is(
+  Schema.Union(StoredConfigCorruptError, StoredConfigMissingError),
+);
 
 export type SystemServiceError =
   | ConfigValidationError
