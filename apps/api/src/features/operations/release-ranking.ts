@@ -522,6 +522,7 @@ const SOURCE_MARKERS = [
   "bluray",
   "blu-ray",
   "bdremux",
+  "bdmv",
   "bdrip",
   "webrip",
   "amzn",
@@ -574,14 +575,16 @@ function inferSource(lower: string): QualitySource {
   if (lower.includes("remux")) return "BluRayRemux";
   if (
     lower.includes("bluray") || lower.includes("blu-ray") ||
-    lower.includes("bdremux") || lower.includes("bdrip")
+    lower.includes("bdremux") || lower.includes("bdrip") ||
+    lower.includes("bdmv") ||
+    /(?:^|[\s._\-\[\]()])bd(?:$|[\s._\-\[\]()])/i.test(lower)
   ) return "BluRay";
   if (lower.includes("webrip")) return "WebRip";
   if (
     lower.includes("amzn") || lower.includes("amazon") ||
-    lower.includes("cr") || lower.includes("crunchyroll") ||
+    /\bcr\b/i.test(lower) || lower.includes("crunchyroll") ||
     lower.includes("dsnp") || lower.includes("disney") ||
-    lower.includes("nf") || lower.includes("netflix") ||
+    /\bnf\b/i.test(lower) || lower.includes("netflix") ||
     lower.includes("hmax") || lower.includes("hulu") || lower.includes("web")
   ) return "WebDl";
   if (lower.includes("hdtv")) return "HDTV";

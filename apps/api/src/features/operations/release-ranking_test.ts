@@ -95,6 +95,11 @@ Deno.test("parse quality prefers bluray remux over webdl", () => {
     parseQualityFromTitle("[Group] Show - 01 [1080p Remux]").name,
     "BluRay 1080p Remux",
   );
+  assertEquals(
+    parseQualityFromTitle("[Group] Show S01 (BD 1080p HEVC Opus) [Dual-Audio]")
+      .name,
+    "BluRay 1080p",
+  );
 });
 
 Deno.test("decide download accepts new release and upgrades higher quality", () => {

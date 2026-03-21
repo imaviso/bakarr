@@ -286,6 +286,16 @@ Deno.test("buildDownloadSourceMetadataFromRelease expands heuristic coverage for
   assertEquals(metadata.audio_channels, "5.1");
 });
 
+Deno.test("buildDownloadSourceMetadataFromRelease marks BD releases as BluRay", () => {
+  const metadata = buildDownloadSourceMetadataFromRelease({
+    title: "Jigokuraku - S01E01 v2 (BD 1080p HEVC) [Vodes]",
+  });
+
+  assertEquals(metadata.quality, "BluRay");
+  assertEquals(metadata.resolution, "1080p");
+  assertEquals(metadata.video_codec, "HEVC");
+});
+
 Deno.test("buildEpisodeNamingInputFromPath recognizes plain WEB releases and 2ch audio", () => {
   const input = buildEpisodeNamingInputFromPath({
     animeTitle: "Show Name",

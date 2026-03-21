@@ -131,3 +131,45 @@ Deno.test("buildScannedFileNamingPlan exposes naming details for matched anime f
     "preferred_romaji",
   );
 });
+
+Deno.test("buildScannedFileNamingPlan avoids duplicate resolution when quality already includes it", () => {
+  const result = buildScannedFileNamingPlan({
+    animeRow: {
+      format: "TV",
+      rootFolder: "/library/Jigokuraku",
+      startDate: "2023-04-01",
+      startYear: 2023,
+      titleRomaji: "Jigokuraku",
+    },
+    episodeRows: [{ aired: "2023-04-01", title: "Hell and Paradise" }],
+    file: {
+      audio_channels: "2.0",
+      audio_codec: "Opus",
+      episode_number: 1,
+      group: "Vodes",
+      quality: "WEB-DL 1080p",
+      resolution: "1080p",
+      season: 1,
+      source_path:
+        "/imports/Jigokuraku - S01E01 v2 (BD 1080p HEVC) [Vodes].mkv",
+      source_identity: {
+        episode_numbers: [1],
+        label: "S01E01",
+        scheme: "season",
+        season: 1,
+      },
+      video_codec: "HEVC",
+    },
+    namingSettings: {
+      movieNamingFormat: "{title} ({year})",
+      namingFormat:
+        "{title} - S{season:02}E{episode:02} [{quality} {resolution}]",
+      preferredTitle: "romaji",
+    },
+  });
+
+  assertEquals(
+    result.naming_filename,
+    "Jigokuraku - S01E01 [WEB-DL 1080p].mkv",
+  );
+});

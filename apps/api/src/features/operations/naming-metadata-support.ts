@@ -365,7 +365,7 @@ function extractQualitySourceLabel(value: string) {
   if (
     lower.includes("bluray") || lower.includes("blu-ray") ||
     lower.includes("bdrip") || lower.includes("bdmv") ||
-    /(?:^|[\s._\-\[\]])bd(?:$|[\s._\-\[\]])/i.test(value)
+    /(?:^|[\s._\-\[\]()])bd(?:$|[\s._\-\[\]()])/i.test(value)
   ) {
     return "BluRay";
   }

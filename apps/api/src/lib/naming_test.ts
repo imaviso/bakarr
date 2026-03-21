@@ -429,6 +429,34 @@ Deno.test("naming: {quality} empty when not provided", () => {
   );
 });
 
+Deno.test("naming: {quality} omits duplicated resolution when {resolution} is present", () => {
+  assertEquals(
+    renderEpisodeFilename(
+      "{title} - [{quality} {resolution}]",
+      makeInput({
+        title: "Jigokuraku",
+        quality: "WEB-DL 1080p",
+        resolution: "1080p",
+      }),
+    ),
+    "Jigokuraku - [WEB-DL 1080p]",
+  );
+});
+
+Deno.test("naming: {quality} can become empty when it only repeats resolution", () => {
+  assertEquals(
+    renderEpisodeFilename(
+      "{title} - [{quality} {resolution}]",
+      makeInput({
+        title: "Show",
+        quality: "1080p",
+        resolution: "1080p",
+      }),
+    ),
+    "Show - [1080p]",
+  );
+});
+
 Deno.test("naming: {video_codec} renders codec", () => {
   assertEquals(
     renderEpisodeFilename("[{video_codec}]", makeInput({ videoCodec: "x265" })),

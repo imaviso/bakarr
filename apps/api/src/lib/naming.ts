@@ -45,6 +45,7 @@ export function renderEpisodeFilename(
   format: string,
   input: NamingInput,
 ): string {
+  const formatHasResolutionToken = /\{resolution\}/.test(format);
   const primaryEpisode = input.episodeNumbers[0] ?? 0;
   const segment = formatEpisodeSegment({
     episode_numbers: input.episodeNumbers,
@@ -114,7 +115,11 @@ export function renderEpisodeFilename(
 
   result = result.replace(
     /\{quality\}/g,
-    input.quality ?? "",
+    normalizeQualityForFormat({
+      formatHasResolutionToken,
+      quality: input.quality,
+      resolution: input.resolution,
+    }) ?? "",
   );
 
   result = result.replace(
@@ -164,4 +169,40 @@ function normalizeWrappedSegments(
     const normalized = inner.replace(/\s+/g, " ").trim();
     return normalized.length > 0 ? `${open}${normalized}${close}` : "";
   });
+}
+
+function normalizeQualityForFormat(input: {
+  quality?: string;
+  resolution?: string;
+  formatHasResolutionToken: boolean;
+}) {
+  const quality = input.quality?.trim();
+  if (!quality) {
+    return undefined;
+  }
+
+  if (!input.formatHasResolutionToken) {
+    return quality;
+  }
+
+  const resolution = input.resolution?.trim();
+  if (!resolution) {
+    return quality;
+  }
+
+  const stripped = quality.replace(
+    new RegExp(
+      `(^|[\\s_-])${escapeRegex(resolution)}(?=$|[\\s_-])`,
+      "ig",
+    ),
+    " ",
+  )
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return stripped.length > 0 ? stripped : undefined;
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
