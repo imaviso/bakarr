@@ -245,6 +245,7 @@ function AnimeDetailsPage() {
                   alt={`${
                     anime().title.english || anime().title.romaji
                   } banner`}
+                  loading="lazy"
                   class="w-full h-full object-cover"
                 />
                 <div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
@@ -529,6 +530,7 @@ function AnimeDetailsPage() {
                     <img
                       src={anime().cover_image}
                       alt={anime().title.english || anime().title.romaji}
+                      loading="lazy"
                       class="w-full aspect-[2/3] object-cover"
                     />
                   </Show>
@@ -547,9 +549,9 @@ function AnimeDetailsPage() {
                   when={anime().studios && (anime().studios?.length ?? 0) > 0}
                 >
                   <div class="space-y-1.5">
-                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Studios
-                    </h3>
+                    </h2>
                     <div class="flex flex-wrap gap-1">
                       <For each={anime().studios}>
                         {(studio) => (
@@ -566,9 +568,9 @@ function AnimeDetailsPage() {
                   when={anime().genres && (anime().genres?.length ?? 0) > 0}
                 >
                   <div class="space-y-1.5">
-                    <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Genres
-                    </h3>
+                    </h2>
                     <div class="flex flex-wrap gap-1">
                       <For each={anime().genres}>
                         {(genre) => (
@@ -697,7 +699,7 @@ function AnimeDetailsPage() {
                                       role="listitem"
                                       aria-label={`Episode ${episode.number}: ${status}`}
                                       class={cn(
-                                        "aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-all",
+                                        "aspect-square rounded-md flex items-center justify-center text-xs font-mono transition-colors",
                                         episode.downloaded
                                           ? "bg-success/20 text-success border border-success/30"
                                           : isAired(episode.aired)
@@ -955,6 +957,7 @@ function AnimeDetailsPage() {
                             size="icon"
                             class="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() => setEditPathOpen(true)}
+                            aria-label="Edit path"
                           >
                             <IconPencil class="h-3 w-3" />
                           </Button>
