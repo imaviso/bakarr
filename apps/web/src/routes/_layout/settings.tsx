@@ -123,10 +123,7 @@ function SettingsPage() {
 
   return (
     <div class="space-y-6">
-      <PageHeader
-        title="Settings"
-        subtitle="Manage your application configuration"
-      >
+      <PageHeader title="Settings">
         <SystemStatus />
       </PageHeader>
 
@@ -136,7 +133,7 @@ function SettingsPage() {
         onChange={setActiveTab}
         class="w-full space-y-6"
       >
-        <TabsList class="w-full justify-start border-b rounded-none p-0 h-auto bg-transparent mb-6 overflow-x-auto">
+        <TabsList class="w-full justify-start border-b rounded-none p-0 h-auto bg-transparent mb-6 overflow-x-auto [-webkit-mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] [mask-image:linear-gradient(to_right,black_calc(100%-2rem),transparent)] sm:[-webkit-mask-image:none] sm:[mask-image:none]">
           <TabsTrigger
             value="general"
             class="rounded-none border-b-2 border-transparent data-[selected]:border-primary data-[selected]:shadow-none bg-transparent px-4 py-2"
@@ -265,7 +262,7 @@ function SettingsPage() {
               <div class="grid gap-4">
                 <For each={profilesQuery.data}>
                   {(profile) => (
-                    <Card class="group transition-all duration-200 hover:border-primary/50">
+                    <Card class="group transition-colors duration-200 hover:border-primary/50">
                       <CardHeader class="pb-3">
                         <div class="flex justify-between items-start">
                           <div class="space-y-1">
@@ -303,6 +300,7 @@ function SettingsPage() {
                               variant="ghost"
                               class="relative after:absolute after:-inset-2 h-8 w-8"
                               onClick={() => setEditingProfile(profile)}
+                              aria-label="Edit profile"
                             >
                               <IconEdit class="h-4 w-4" />
                             </Button>
@@ -312,6 +310,7 @@ function SettingsPage() {
                                 variant="ghost"
                                 size="icon"
                                 class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                                aria-label="Delete profile"
                               >
                                 <IconTrash class="h-4 w-4" />
                               </AlertDialogTrigger>
@@ -468,7 +467,7 @@ function SettingsPage() {
               <div class="grid gap-4">
                 <For each={releaseProfilesQuery.data}>
                   {(profile) => (
-                    <Card class="group transition-all duration-200 hover:border-primary/50">
+                    <Card class="group transition-colors duration-200 hover:border-primary/50">
                       <CardHeader class="pb-3">
                         <div class="flex justify-between items-start">
                           <div class="space-y-1">
@@ -510,6 +509,7 @@ function SettingsPage() {
                               variant="ghost"
                               class="relative after:absolute after:-inset-2 h-8 w-8"
                               onClick={() => setEditingReleaseProfile(profile)}
+                              aria-label="Edit release profile"
                             >
                               <IconEdit class="h-4 w-4" />
                             </Button>
@@ -519,6 +519,7 @@ function SettingsPage() {
                                 variant="ghost"
                                 size="icon"
                                 class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                                aria-label="Delete release profile"
                               >
                                 <IconTrash class="h-4 w-4" />
                               </AlertDialogTrigger>
@@ -676,6 +677,7 @@ function SortableQualityList(props: {
                 size="icon"
                 class="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                 onClick={() => removeQuality(quality)}
+                aria-label={`Remove ${quality}`}
               >
                 <IconX class="h-3.5 w-3.5" />
               </Button>
@@ -1273,6 +1275,7 @@ function ReleaseProfileForm(props: {
                           size="icon"
                           class="mt-0.5 text-muted-foreground hover:text-destructive"
                           onClick={() => field().removeValue(index)}
+                          aria-label="Remove rule"
                         >
                           <IconTrash class="h-4 w-4" />
                         </Button>
@@ -2648,6 +2651,9 @@ function AccountSettingsForm() {
                       class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                       onClick={() =>
                         setShowCurrentPassword(!showCurrentPassword())}
+                      aria-label={showCurrentPassword()
+                        ? "Hide password"
+                        : "Show password"}
                     >
                       <Show
                         when={showCurrentPassword()}
@@ -2684,6 +2690,9 @@ function AccountSettingsForm() {
                       size="icon"
                       class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                       onClick={() => setShowNewPassword(!showNewPassword())}
+                      aria-label={showNewPassword()
+                        ? "Hide password"
+                        : "Show password"}
                     >
                       <Show
                         when={showNewPassword()}
@@ -2766,6 +2775,7 @@ function AccountSettingsForm() {
                   class="relative after:absolute after:-inset-2 h-7 w-7"
                   onClick={() => setShowApiKey(!showApiKey())}
                   title={showApiKey() ? "Hide API key" : "Show API key"}
+                  aria-label={showApiKey() ? "Hide API key" : "Show API key"}
                 >
                   <Show
                     when={showApiKey()}
@@ -2784,6 +2794,7 @@ function AccountSettingsForm() {
                   onClick={copyApiKey}
                   disabled={!currentApiKey()}
                   title="Copy API key"
+                  aria-label="Copy API key"
                 >
                   <IconCopy class="h-4 w-4 text-muted-foreground" />
                 </Button>

@@ -18,7 +18,11 @@ export function GlobalSpinner() {
 
   return (
     <Show when={isRouting()}>
-      <div class="fixed inset-0 z-[100] flex items-center justify-center bg-background/40 backdrop-blur-[2px] transition-all duration-300 animate-in fade-in">
+      <div
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-background/40 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in"
+        role="status"
+        aria-label="Loading application"
+      >
         <div class="relative flex flex-col items-center gap-4">
           <div class="linear-spinner text-primary">
             <svg viewBox="0 0 40 40">

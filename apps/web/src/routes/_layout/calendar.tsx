@@ -30,7 +30,11 @@ function CalendarPage() {
   return (
     <Suspense
       fallback={
-        <div class="flex h-[400px] items-center justify-center">
+        <div
+          class="flex h-[400px] items-center justify-center"
+          role="status"
+          aria-label="Loading calendar"
+        >
           <IconLoader2 class="h-8 w-8 animate-spin text-primary" />
         </div>
       }

@@ -128,7 +128,7 @@ export function AppSidebar() {
                         <SidebarMenuButton
                           tooltip={item.title}
                           isActive={isActive(item.url)}
-                          class="h-9 transition-all"
+                          class="h-9 transition-colors"
                         >
                           <item.icon
                             class={`h-4 w-4 shrink-0 transition-opacity ${
@@ -164,7 +164,7 @@ export function AppSidebar() {
                         <SidebarMenuButton
                           tooltip={item.title}
                           isActive={isActive(item.url)}
-                          class="h-9 transition-all"
+                          class="h-9 transition-colors"
                         >
                           <item.icon
                             class={`h-4 w-4 shrink-0 transition-opacity ${
@@ -191,7 +191,7 @@ export function AppSidebar() {
             <SidebarMenuButton
               onClick={() => logout()}
               tooltip="Sign out"
-              class="h-9 transition-all"
+              class="h-9 transition-colors"
             >
               <IconLogout class="h-4 w-4 shrink-0 opacity-50" />
               <span>Sign out</span>

@@ -100,7 +100,7 @@ function WantedPage() {
     <div class="flex flex-col flex-1 min-h-0 gap-6">
       <PageHeader
         title="Wanted"
-        subtitle="Missing episodes that have aired but haven't been downloaded yet."
+        subtitle={`${data().length} missing episodes`}
       >
         <Button
           variant="default"
@@ -223,6 +223,7 @@ function WantedRow(props: {
             <img
               src={props.item.anime_image}
               alt={props.item.anime_title}
+              loading="lazy"
               class="h-full w-full object-cover"
             />
           </Show>

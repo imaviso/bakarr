@@ -4,8 +4,8 @@ import { Button } from "~/components/ui/button";
 
 export function GeneralError() {
   return (
-    <div class="h-screen w-screen fixed inset-0 z-50 flex flex-col items-center justify-center bg-background">
-      <div class="flex flex-col items-center text-center space-y-8 px-4 animate-in fade-in zoom-in duration-500">
+    <div class="flex flex-1 flex-col items-center justify-center min-h-[400px] bg-background">
+      <div class="flex flex-col items-center text-center space-y-8 px-4">
         <IconAlertCircle
           class="h-24 w-24 text-destructive/80"
           stroke-width={1}

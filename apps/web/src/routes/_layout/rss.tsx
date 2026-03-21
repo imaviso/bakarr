@@ -78,10 +78,7 @@ function RssPage() {
 
   return (
     <div class="space-y-6">
-      <PageHeader
-        title="RSS Feeds"
-        subtitle="Manage RSS feeds for automatic episode detection"
-      >
+      <PageHeader title="RSS Feeds">
         <Button
           size="sm"
           onClick={() => setIsAdding(true)}
@@ -149,7 +146,7 @@ function FeedCard(props: {
   onDelete: () => void;
 }) {
   return (
-    <Card class="transition-all duration-150 hover:shadow-sm">
+    <Card class="transition-colors duration-150 hover:shadow-sm">
       <CardContent class="flex items-center gap-4 p-4">
         <Button
           variant="ghost"
