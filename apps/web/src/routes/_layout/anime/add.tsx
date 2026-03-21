@@ -165,7 +165,7 @@ function AddAnimePage() {
         fallback={
           <div class="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
             <IconSearch class="h-12 w-12 mb-4 opacity-50" />
-            <h3 class="font-medium text-lg">Search for your next anime</h3>
+            <h2 class="font-medium text-lg">Search for your next anime</h2>
             <p class="text-sm mt-1">
               Type in the search bar above to calculate metadata
             </p>
@@ -194,209 +194,214 @@ function AddAnimePage() {
               </p>
             </div>
           </Show>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-            <Show
-              when={!searchQuery.isLoading}
-              fallback={
-                <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>
-                  {() => (
-                    <div class="space-y-3">
-                      <Skeleton class="aspect-[2/3] w-full rounded-lg" />
-                      <div class="space-y-2">
-                        <Skeleton class="h-4 w-3/4" />
-                        <Skeleton class="h-3 w-1/2" />
-                      </div>
+          <div
+            class={cn(
+              "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 transition-opacity duration-200",
+              searchQuery.isFetching && searchResults().length > 0 &&
+                "opacity-60",
+            )}
+          >
+            {/* Skeletons: only when fetching with no results to show */}
+            <Show when={searchQuery.isFetching && searchResults().length === 0}>
+              <For each={[1, 2, 3, 4, 5, 6, 7, 8]}>
+                {() => (
+                  <div class="space-y-3">
+                    <Skeleton class="aspect-[2/3] w-full rounded-lg" />
+                    <div class="space-y-2">
+                      <Skeleton class="h-4 w-3/4" />
+                      <Skeleton class="h-3 w-1/2" />
                     </div>
-                  )}
-                </For>
-              }
-            >
-              <Show
-                when={searchResults().length !== 0}
-                fallback={
-                  <div class="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <IconAlertTriangle class="h-10 w-10 mb-3 opacity-50" />
-                    <p>No results found for "{debouncedQuery()}"</p>
                   </div>
-                }
-              >
-                <For each={searchResults()}>
-                  {(anime) => {
-                    const added = () => isAlreadyAdded(anime.id);
-                    return (
-                      <Card class="overflow-hidden flex flex-col transition-all hover:border-primary/50 group">
-                        <div class="relative aspect-[2/3] w-full bg-muted overflow-hidden">
+                )}
+              </For>
+            </Show>
+
+            {/* Results: stay mounted while new search loads */}
+            <For each={searchResults()}>
+              {(anime) => {
+                const added = () => isAlreadyAdded(anime.id);
+                return (
+                  <Card class="overflow-hidden flex flex-col transition-colors hover:border-primary/50 group">
+                    <div class="relative aspect-[2/3] w-full bg-muted overflow-hidden">
+                      <Show
+                        when={anime.cover_image}
+                        fallback={
+                          <div class="absolute inset-0 flex items-center justify-center">
+                            <IconDeviceTv class="h-12 w-12 text-muted-foreground/30" />
+                          </div>
+                        }
+                      >
+                        <img
+                          src={anime.cover_image}
+                          alt={anime.title.romaji}
+                          class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      </Show>
+                      <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
+                        <Button
+                          size="sm"
+                          variant={added() ? "secondary" : "default"}
+                          class="w-full gap-2"
+                          disabled={added()}
+                          onClick={() => setSelectedAnime(anime)}
+                        >
                           <Show
-                            when={anime.cover_image}
+                            when={added()}
                             fallback={
-                              <div class="absolute inset-0 flex items-center justify-center">
-                                <IconDeviceTv class="h-12 w-12 text-muted-foreground/30" />
-                              </div>
+                              <>
+                                <IconPlus class="h-4 w-4" />
+                                Add to Library
+                              </>
                             }
                           >
-                            <img
-                              src={anime.cover_image}
-                              alt={anime.title.romaji}
-                              class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                              loading="lazy"
-                            />
+                            <IconCheck class="h-4 w-4" />
+                            Already Added
                           </Show>
-                          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                            <Button
-                              size="sm"
-                              variant={added() ? "secondary" : "default"}
-                              class="w-full gap-2"
-                              disabled={added()}
-                              onClick={() => setSelectedAnime(anime)}
+                        </Button>
+                      </div>
+                    </div>
+                    <CardContent class="p-4 flex-1">
+                      <h3
+                        class="font-medium leading-tight line-clamp-2 mb-1"
+                        title={anime.title.romaji}
+                      >
+                        {animeDisplayTitle(anime)}
+                      </h3>
+                      <Show
+                        when={animeAltTitles(anime).slice(1).join(" • ")}
+                      >
+                        <p
+                          class="text-xs text-muted-foreground line-clamp-1 mb-2"
+                          title={animeAltTitles(anime).slice(1).join(" • ")}
+                        >
+                          {animeAltTitles(anime).slice(1).join(" • ")}
+                        </p>
+                      </Show>
+                      <div class="flex flex-wrap gap-1.5 mt-auto">
+                        <Show when={searchDegraded()}>
+                          <Badge
+                            variant="outline"
+                            class="text-xs h-5 px-1.5 font-normal border-warning/20 bg-warning/5 text-warning"
+                          >
+                            Local only
+                          </Badge>
+                        </Show>
+                        <Show
+                          when={formatMatchConfidence(
+                            anime.match_confidence,
+                          )}
+                        >
+                          <Badge
+                            variant="outline"
+                            class="text-xs h-5 px-1.5 font-normal border-info/30 text-info"
+                          >
+                            {formatMatchConfidence(anime.match_confidence)}
+                          </Badge>
+                        </Show>
+                        <Show when={anime.format}>
+                          <Badge
+                            variant="outline"
+                            class="text-xs h-5 px-1.5 font-normal"
+                          >
+                            {anime.format}
+                          </Badge>
+                        </Show>
+                        <Show when={anime.episode_count}>
+                          <Badge
+                            variant="outline"
+                            class="text-xs h-5 px-1.5 font-normal"
+                          >
+                            {anime.episode_count} eps
+                          </Badge>
+                        </Show>
+                        <Show when={anime.status}>
+                          <Badge
+                            variant="outline"
+                            class={cn(
+                              "text-xs h-5 px-1.5 font-normal capitalize",
+                              anime.status?.toLowerCase() === "releasing"
+                                ? "text-success border-success/30"
+                                : "text-muted-foreground",
+                            )}
+                          >
+                            {anime.status?.replace("_", " ").toLowerCase()}
+                          </Badge>
+                        </Show>
+                        <Show when={animeSearchSubtitle(anime)}>
+                          {(startLabel) => (
+                            <Badge
+                              variant="outline"
+                              class="text-xs h-5 px-1.5 font-normal"
                             >
-                              <Show
-                                when={added()}
-                                fallback={
-                                  <>
-                                    <IconPlus class="h-4 w-4" />
-                                    Add to Library
-                                  </>
-                                }
-                              >
-                                <IconCheck class="h-4 w-4" />
-                                Already Added
-                              </Show>
-                            </Button>
-                          </div>
+                              <IconCalendarEvent class="mr-1 h-3 w-3" />
+                              {startLabel()}
+                            </Badge>
+                          )}
+                        </Show>
+                        <Show when={anime.genres?.length}>
+                          <Badge
+                            variant="outline"
+                            class="text-xs h-5 px-1.5 font-normal"
+                          >
+                            {anime.genres?.slice(0, 2).join(" / ")}
+                          </Badge>
+                        </Show>
+                      </div>
+                      <Show when={anime.description}>
+                        <p class="mt-2 text-xs text-muted-foreground line-clamp-3">
+                          {anime.description}
+                        </p>
+                      </Show>
+                      <Show when={anime.synonyms?.length}>
+                        <p class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                          Also known as{" "}
+                          {anime.synonyms?.slice(0, 3).join(" • ")}
+                        </p>
+                      </Show>
+                      <Show when={anime.related_anime?.length}>
+                        <div class="mt-2 space-y-2">
+                          <For each={anime.related_anime?.slice(0, 2)}>
+                            {(related) => (
+                              <AnimeDiscoveryRow
+                                entry={related}
+                                libraryIds={libraryIds()}
+                              />
+                            )}
+                          </For>
                         </div>
-                        <CardContent class="p-4 flex-1">
-                          <h3
-                            class="font-medium leading-tight line-clamp-2 mb-1"
-                            title={anime.title.romaji}
-                          >
-                            {animeDisplayTitle(anime)}
-                          </h3>
-                          <Show
-                            when={animeAltTitles(anime).slice(1).join(" • ")}
-                          >
-                            <p
-                              class="text-xs text-muted-foreground line-clamp-1 mb-2"
-                              title={animeAltTitles(anime).slice(1).join(" • ")}
-                            >
-                              {animeAltTitles(anime).slice(1).join(" • ")}
-                            </p>
-                          </Show>
-                          <div class="flex flex-wrap gap-1.5 mt-auto">
-                            <Show when={searchDegraded()}>
-                              <Badge
-                                variant="outline"
-                                class="text-xs h-5 px-1.5 font-normal border-warning/20 bg-warning/5 text-warning"
-                              >
-                                Local only
-                              </Badge>
-                            </Show>
-                            <Show
-                              when={formatMatchConfidence(
-                                anime.match_confidence,
-                              )}
-                            >
-                              <Badge
-                                variant="outline"
-                                class="text-xs h-5 px-1.5 font-normal border-info/30 text-info"
-                              >
-                                {formatMatchConfidence(anime.match_confidence)}
-                              </Badge>
-                            </Show>
-                            <Show when={anime.format}>
-                              <Badge
-                                variant="outline"
-                                class="text-xs h-5 px-1.5 font-normal"
-                              >
-                                {anime.format}
-                              </Badge>
-                            </Show>
-                            <Show when={anime.episode_count}>
-                              <Badge
-                                variant="outline"
-                                class="text-xs h-5 px-1.5 font-normal"
-                              >
-                                {anime.episode_count} eps
-                              </Badge>
-                            </Show>
-                            <Show when={anime.status}>
-                              <Badge
-                                variant="outline"
-                                class={cn(
-                                  "text-xs h-5 px-1.5 font-normal capitalize",
-                                  anime.status?.toLowerCase() === "releasing"
-                                    ? "text-success border-success/30"
-                                    : "text-muted-foreground",
-                                )}
-                              >
-                                {anime.status?.replace("_", " ").toLowerCase()}
-                              </Badge>
-                            </Show>
-                            <Show when={animeSearchSubtitle(anime)}>
-                              {(startLabel) => (
-                                <Badge
-                                  variant="outline"
-                                  class="text-xs h-5 px-1.5 font-normal"
-                                >
-                                  <IconCalendarEvent class="mr-1 h-3 w-3" />
-                                  {startLabel()}
-                                </Badge>
-                              )}
-                            </Show>
-                            <Show when={anime.genres?.length}>
-                              <Badge
-                                variant="outline"
-                                class="text-xs h-5 px-1.5 font-normal"
-                              >
-                                {anime.genres?.slice(0, 2).join(" / ")}
-                              </Badge>
-                            </Show>
-                          </div>
-                          <Show when={anime.description}>
-                            <p class="mt-2 text-xs text-muted-foreground line-clamp-3">
-                              {anime.description}
-                            </p>
-                          </Show>
-                          <Show when={anime.synonyms?.length}>
-                            <p class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
-                              Also known as{" "}
-                              {anime.synonyms?.slice(0, 3).join(" • ")}
-                            </p>
-                          </Show>
-                          <Show when={anime.related_anime?.length}>
-                            <div class="mt-2 space-y-2">
-                              <For each={anime.related_anime?.slice(0, 2)}>
-                                {(related) => (
-                                  <AnimeDiscoveryRow
-                                    entry={related}
-                                    libraryIds={libraryIds()}
-                                  />
-                                )}
-                              </For>
-                            </div>
-                          </Show>
-                          <Show when={anime.recommended_anime?.length}>
-                            <div class="mt-2 space-y-2">
-                              <For each={anime.recommended_anime?.slice(0, 2)}>
-                                {(recommended) => (
-                                  <AnimeDiscoveryRow
-                                    entry={recommended}
-                                    libraryIds={libraryIds()}
-                                  />
-                                )}
-                              </For>
-                            </div>
-                          </Show>
-                          <Show when={anime.match_reason}>
-                            <p class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
-                              {anime.match_reason}
-                            </p>
-                          </Show>
-                        </CardContent>
-                      </Card>
-                    );
-                  }}
-                </For>
-              </Show>
+                      </Show>
+                      <Show when={anime.recommended_anime?.length}>
+                        <div class="mt-2 space-y-2">
+                          <For each={anime.recommended_anime?.slice(0, 2)}>
+                            {(recommended) => (
+                              <AnimeDiscoveryRow
+                                entry={recommended}
+                                libraryIds={libraryIds()}
+                              />
+                            )}
+                          </For>
+                        </div>
+                      </Show>
+                      <Show when={anime.match_reason}>
+                        <p class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                          {anime.match_reason}
+                        </p>
+                      </Show>
+                    </CardContent>
+                  </Card>
+                );
+              }}
+            </For>
+
+            {/* No results: only after fetch completes with empty results */}
+            <Show
+              when={!searchQuery.isFetching && searchResults().length === 0}
+            >
+              <div class="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <IconAlertTriangle class="h-10 w-10 mb-3 opacity-50" />
+                <p>No results found for "{debouncedQuery()}"</p>
+              </div>
             </Show>
           </div>
         </Show>

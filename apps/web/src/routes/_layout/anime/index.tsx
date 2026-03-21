@@ -23,18 +23,8 @@ import {
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
+import { DeleteAnimeDialog } from "~/components/delete-anime-dialog";
 import { GeneralError } from "~/components/general-error";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
@@ -200,7 +190,7 @@ function AnimeIndexPage() {
               Library
             </h1>
             <p class="text-sm text-muted-foreground mt-1">
-              Manage your anime collection
+              {animeQuery.data?.length ?? 0} titles
             </p>
           </div>
           <Link
@@ -343,7 +333,7 @@ function AnimeIndexPage() {
                 <div class="flex flex-col items-center gap-4">
                   <IconDeviceTv class="h-12 w-12 text-muted-foreground/50" />
                   <div>
-                    <h3 class="font-medium">No anime yet</h3>
+                    <h2 class="font-medium">No anime yet</h2>
                     <p class="text-sm text-muted-foreground mt-1">
                       Add your first anime to start monitoring
                     </p>
@@ -444,9 +434,16 @@ function AnimeGridView(props: AnimeViewProps) {
   const [colCount, setColCount] = createSignal(getColCount());
 
   onMount(() => {
-    const handler = () => setColCount(getColCount());
+    let rafId: number;
+    const handler = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => setColCount(getColCount()));
+    };
     globalThis.addEventListener("resize", handler);
-    onCleanup(() => globalThis.removeEventListener("resize", handler));
+    onCleanup(() => {
+      globalThis.removeEventListener("resize", handler);
+      cancelAnimationFrame(rafId);
+    });
   });
 
   const rowCount = createMemo(() => Math.ceil(props.anime.length / colCount()));
@@ -512,41 +509,26 @@ function AnimeGridView(props: AnimeViewProps) {
                           <img
                             src={anime.cover_image}
                             alt={anime.title.english || anime.title.romaji}
+                            loading="lazy"
                             class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           />
                         </Show>
                         <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </Link>
                       <div class="absolute right-2 top-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
-                        <AlertDialog>
-                          <AlertDialogTrigger
-                            as={Button}
-                            size="icon"
-                            variant="secondary"
-                            class="relative after:absolute after:-inset-2 h-7 w-7 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
-                          >
-                            <IconTrash class="h-3.5 w-3.5" />
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Anime</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "
-                                {anime.title.english || anime.title.romaji}
-                                "? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() =>
-                                  props.deleteAnime.mutate(anime.id)}
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <DeleteAnimeDialog
+                          title={anime.title.english || anime.title.romaji}
+                          onConfirm={() => props.deleteAnime.mutate(anime.id)}
+                          trigger={
+                            <Button
+                              size="icon"
+                              variant="secondary"
+                              class="relative after:absolute after:-inset-3 h-8 w-8 shadow-sm bg-background/90 hover:bg-destructive hover:text-destructive-foreground"
+                            >
+                              <IconTrash class="h-3.5 w-3.5" />
+                            </Button>
+                          }
+                        />
                       </div>
                     </div>
                     <div class="flex flex-1 flex-col gap-2 p-3">
@@ -581,10 +563,10 @@ function AnimeGridView(props: AnimeViewProps) {
                               <span>{progressPercent(anime)}%</span>
                             </Show>
                           </div>
-                          <div class="h-1.5 overflow-hidden rounded-full bg-muted">
+                          <div class="h-1.5 overflow-hidden bg-muted">
                             <div
                               class={cn(
-                                "h-full rounded-full transition-all",
+                                "h-full transition-[width]",
                                 anime.progress.next_missing_episode
                                   ? "bg-warning"
                                   : anime.monitored
@@ -624,7 +606,7 @@ function AnimeGridView(props: AnimeViewProps) {
                                 class={cn(
                                   "h-1.5 w-1.5 rounded-full",
                                   anime.monitored
-                                    ? "bg-success shadow-[0_0_4px_rgba(16,185,129,0.4)]"
+                                    ? "bg-success shadow-[0_0_4px_hsl(var(--success)/0.4)]"
                                     : "bg-muted-foreground/40",
                                 )}
                               />
@@ -707,7 +689,7 @@ function AnimeListView(props: AnimeViewProps) {
                     <Link
                       to="/anime/$id"
                       params={{ id: anime.id.toString() }}
-                      class="block w-12 h-16 rounded-md overflow-hidden bg-muted"
+                      class="block w-12 h-16 overflow-hidden bg-muted"
                     >
                       <Show
                         when={anime.cover_image}
@@ -720,6 +702,7 @@ function AnimeListView(props: AnimeViewProps) {
                         <img
                           src={anime.cover_image}
                           alt={anime.title.english || anime.title.romaji}
+                          loading="lazy"
                           class="w-full h-full object-cover"
                         />
                       </Show>
@@ -782,35 +765,20 @@ function AnimeListView(props: AnimeViewProps) {
                   </TableCell>
                   <TableCell class="text-right">
                     <div class="flex items-center justify-end gap-1">
-                      <AlertDialog>
-                        <AlertDialogTrigger
-                          as={Button}
-                          variant="ghost"
-                          size="icon"
-                          class="relative after:absolute after:-inset-2 h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={(e: Event) => e.stopPropagation()}
-                        >
-                          <IconTrash class="h-4 w-4" />
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Anime</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete "
-                              {anime.title.english || anime.title.romaji}
-                              "? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => props.deleteAnime.mutate(anime.id)}
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <DeleteAnimeDialog
+                        title={anime.title.english || anime.title.romaji}
+                        onConfirm={() => props.deleteAnime.mutate(anime.id)}
+                        trigger={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            class="relative after:absolute after:-inset-3 h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={(e: Event) => e.stopPropagation()}
+                          >
+                            <IconTrash class="h-4 w-4" />
+                          </Button>
+                        }
+                      />
                     </div>
                   </TableCell>
                 </TableRow>
