@@ -114,7 +114,8 @@ export function ManualSearch(props: ManualSearchProps) {
                         <Show when={anime.cover_image}>
                           <img
                             src={anime.cover_image}
-                            alt=""
+                            alt={animeDisplayTitle(anime)}
+                            loading="lazy"
                             class="h-full w-full object-cover"
                           />
                         </Show>

@@ -176,7 +176,7 @@ export function AnimeCalendar() {
                               >
                                 <div
                                   class={cn(
-                                    "flex items-center gap-1.5 rounded-none px-1.5 py-1 text-xs transition-all",
+                                    "flex items-center gap-1.5 rounded-none px-1.5 py-1 text-xs transition-colors",
                                     "hover:bg-accent/80 cursor-pointer",
                                     event.extended_props.downloaded
                                       ? "bg-success/10 text-success"

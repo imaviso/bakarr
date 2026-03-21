@@ -15,9 +15,9 @@ export function PageHeader(props: PageHeaderProps) {
           {props.title}
         </h1>
         <Show when={props.subtitle}>
-          <div class="text-sm text-muted-foreground mt-1">
+          <p class="text-sm text-muted-foreground mt-1">
             {props.subtitle}
-          </div>
+          </p>
         </Show>
       </div>
       {props.children}

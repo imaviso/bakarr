@@ -464,6 +464,7 @@ export function ImportDialog(props: ImportDialogProps) {
                     size="icon"
                     onClick={() => setPath("")}
                     class="shrink-0"
+                    aria-label="Clear path"
                   >
                     <IconX class="h-3 w-3" />
                   </Button>

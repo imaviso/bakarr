@@ -123,9 +123,7 @@ function DownloadStatusIcon(props: { status?: string }) {
       case "alert":
         return <IconAlertTriangle class="h-4 w-4 text-destructive shrink-0" />;
       case "arrow-down":
-        return (
-          <IconArrowDown class="h-4 w-4 text-info shrink-0 animate-pulse" />
-        );
+        return <IconArrowDown class="h-4 w-4 text-info shrink-0" />;
       case "check":
         return <IconCheck class="h-4 w-4 text-success shrink-0" />;
       case "pause":
@@ -863,7 +861,10 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
       <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <div class="flex items-start gap-3">
           <Avatar class="size-8 rounded-md">
-            <AvatarImage src={props.item.anime_image} alt="" />
+            <AvatarImage
+              src={props.item.anime_image}
+              alt={props.item.anime_title ?? props.item.name}
+            />
             <AvatarFallback class="rounded-md text-xs font-medium">
               {animeInitials(props.item.anime_title ?? props.item.name)}
             </AvatarFallback>
@@ -1148,7 +1149,10 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
       <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <div class="flex items-start gap-3">
           <Avatar class="size-8 rounded-md">
-            <AvatarImage src={props.item.anime_image} alt="" />
+            <AvatarImage
+              src={props.item.anime_image}
+              alt={props.item.anime_title}
+            />
             <AvatarFallback class="rounded-md text-xs font-medium">
               {animeInitials(props.item.anime_title)}
             </AvatarFallback>

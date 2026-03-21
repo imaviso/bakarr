@@ -1,10 +1,14 @@
 import {
+  IconCalendar,
   IconChevronRight,
   IconCommand,
-  IconExternalLink,
-  IconInfoCircle,
-  IconPlus,
+  IconDeviceTv,
+  IconDownload,
+  IconHome,
+  IconList,
+  IconRss,
   IconSearch,
+  IconSettings,
 } from "@tabler/icons-solidjs";
 import { useNavigate } from "@tanstack/solid-router";
 import {
@@ -16,8 +20,6 @@ import {
   Show,
   Suspense,
 } from "solid-js";
-import { AddAnimeDialog } from "~/components/add-anime-dialog";
-import { Button } from "~/components/ui/button";
 import {
   Command,
   CommandDialog,
@@ -29,25 +31,26 @@ import {
   CommandSeparator,
 } from "~/components/ui/command";
 import { Skeleton } from "~/components/ui/skeleton";
-import {
-  type AnimeSearchResult,
-  createAnimeListQuery,
-  createAnimeSearchQuery,
-} from "~/lib/api";
-import { animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
-import { formatMatchConfidence } from "~/lib/scanned-file";
+import { createAnimeListQuery } from "~/lib/api";
+import { animeSearchSubtitle } from "~/lib/anime-metadata";
 
-// Separate component for the search results to isolate re-renders
+const navigationRoutes = [
+  { title: "Dashboard", url: "/", icon: IconHome },
+  { title: "Anime Library", url: "/anime", icon: IconDeviceTv },
+  { title: "Add Anime", url: "/anime/add", icon: IconDeviceTv },
+  { title: "RSS Feeds", url: "/rss", icon: IconRss },
+  { title: "Wanted", url: "/wanted", icon: IconSearch },
+  { title: "Calendar", url: "/calendar", icon: IconCalendar },
+  { title: "Downloads", url: "/downloads", icon: IconDownload },
+  { title: "System Logs", url: "/logs", icon: IconList },
+  { title: "Settings", url: "/settings", icon: IconSettings },
+];
+
 function SearchResults(props: {
   inputValue: () => string;
-  debouncedSearch: () => string;
   animeList: ReturnType<typeof createAnimeListQuery>;
-  anilistSearch: ReturnType<typeof createAnimeSearchQuery>;
   onSelect: (path: string) => void;
-  onAddAnime: (anime: AnimeSearchResult) => void;
-  onOpenAddPage: (animeId: number) => void;
 }) {
-  // Filter library anime based on search - uses input value for instant feedback
   const filteredLibrary = createMemo(() => {
     const query = props.inputValue().toLowerCase().trim();
     const data = props.animeList.data;
@@ -68,12 +71,14 @@ function SearchResults(props: {
       })
       .slice(0, 10);
   });
-  const anilistResults = createMemo(() =>
-    props.anilistSearch.data?.results ?? []
-  );
-  const anilistSearchDegraded = createMemo(() =>
-    props.anilistSearch.data?.degraded ?? false
-  );
+
+  const filteredRoutes = createMemo(() => {
+    const query = props.inputValue().toLowerCase().trim();
+    if (!query) return navigationRoutes;
+    return navigationRoutes.filter((route) =>
+      route.title.toLowerCase().includes(query)
+    );
+  });
 
   return (
     <CommandList>
@@ -86,41 +91,38 @@ function SearchResults(props: {
           </CommandEmpty>
         }
       >
-        {/* Show loading state */}
         <Show when={props.animeList.isLoading}>
           <CommandEmpty>Loading library...</CommandEmpty>
         </Show>
 
-        {/* Show no results when library is empty */}
         <Show
-          when={!props.animeList.isLoading && filteredLibrary().length === 0}
+          when={!props.animeList.isLoading &&
+            filteredLibrary().length === 0 &&
+            filteredRoutes().length === 0}
         >
-          <CommandEmpty>
-            <Show
-              when={props.debouncedSearch().length >= 3 &&
-                !props.anilistSearch.isLoading &&
-                !anilistSearchDegraded()}
-            >
-              No results in library. Check AniList results below.
-            </Show>
-            <Show
-              when={props.debouncedSearch().length >= 3 &&
-                anilistSearchDegraded()}
-            >
-              No results in library. AniList is rate-limited, so only local
-              matches are shown.
-            </Show>
-            <Show when={props.debouncedSearch().length < 3}>
-              No anime found in library.
-            </Show>
-            <Show when={props.anilistSearch.isLoading}>
-              Searching AniList...
-            </Show>
-          </CommandEmpty>
+          <CommandEmpty>No results found.</CommandEmpty>
+        </Show>
+
+        {/* Navigation Routes */}
+        <Show when={filteredRoutes().length > 0}>
+          <CommandGroup heading="Navigation">
+            <For each={filteredRoutes()}>
+              {(route) => (
+                <CommandItem
+                  value={`nav-${route.url}`}
+                  onSelect={() => props.onSelect(route.url)}
+                >
+                  <route.icon class="mr-2 h-4 w-4 text-muted-foreground" />
+                  <span>{route.title}</span>
+                </CommandItem>
+              )}
+            </For>
+          </CommandGroup>
         </Show>
 
         {/* Library Section */}
         <Show when={!props.animeList.isLoading && filteredLibrary().length > 0}>
+          <CommandSeparator />
           <CommandGroup heading="Library">
             <For each={filteredLibrary()}>
               {(anime) => (
@@ -131,7 +133,8 @@ function SearchResults(props: {
                   <Show when={anime.cover_image}>
                     <img
                       src={anime.cover_image}
-                      alt=""
+                      alt={anime.title.romaji}
+                      loading="lazy"
                       class="mr-2 h-8 w-6 object-cover"
                     />
                   </Show>
@@ -161,98 +164,6 @@ function SearchResults(props: {
             </For>
           </CommandGroup>
         </Show>
-
-        {/* AniList Search Section - for adding new anime */}
-        <Show
-          when={props.debouncedSearch().length >= 3 && anilistSearchDegraded()}
-        >
-          <CommandSeparator />
-          <CommandGroup heading="Search Mode">
-            <CommandItem value="anilist-degraded" disabled>
-              <IconInfoCircle class="mr-2 h-4 w-4" />
-              AniList is rate-limited. Showing local matches only.
-            </CommandItem>
-          </CommandGroup>
-        </Show>
-        <Show
-          when={props.debouncedSearch().length >= 3 &&
-            anilistResults().length > 0}
-        >
-          <CommandSeparator />
-          <CommandGroup heading="AniList - Add New Anime">
-            <For
-              each={anilistResults()
-                ?.filter((a) => !a.already_in_library)
-                .slice(0, 5)}
-            >
-              {(anime) => (
-                <CommandItem
-                  value={`anilist-${anime.id}`}
-                  onSelect={() => props.onAddAnime(anime)}
-                >
-                  <Show when={anime.cover_image}>
-                    <img
-                      src={anime.cover_image}
-                      alt=""
-                      class="mr-2 h-8 w-6 object-cover"
-                    />
-                  </Show>
-                  <div class="flex flex-col">
-                    <span class="font-medium">{animeDisplayTitle(anime)}</span>
-                    <Show
-                      when={anime.title.english &&
-                        anime.title.english !== anime.title.romaji}
-                    >
-                      <span class="text-xs text-muted-foreground">
-                        {anime.title.english}
-                      </span>
-                    </Show>
-                    <Show
-                      when={animeSearchSubtitle(anime) ||
-                        formatMatchConfidence(anime.match_confidence)}
-                    >
-                      <span class="text-xs text-muted-foreground">
-                        {[
-                          animeSearchSubtitle(anime),
-                          formatMatchConfidence(anime.match_confidence),
-                        ]
-                          .filter((value): value is string => Boolean(value))
-                          .join(" • ")}
-                      </span>
-                    </Show>
-                    <Show when={anilistSearchDegraded()}>
-                      <span class="text-xs text-warning">
-                        Local only
-                      </span>
-                    </Show>
-                    <Show when={anime.match_reason}>
-                      <span class="max-w-[18rem] truncate text-xs text-muted-foreground">
-                        {anime.match_reason}
-                      </span>
-                    </Show>
-                  </div>
-                  <div class="ml-auto flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      class="h-8 px-2 text-xs"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        props.onOpenAddPage(anime.id);
-                      }}
-                    >
-                      <IconPlus class="h-3 w-3" />
-                      Add
-                    </Button>
-                    <IconExternalLink class="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </CommandItem>
-              )}
-            </For>
-          </CommandGroup>
-        </Show>
       </Suspense>
     </CommandList>
   );
@@ -261,13 +172,8 @@ function SearchResults(props: {
 export function CommandPalette() {
   const [open, setOpen] = createSignal(false);
   const [inputValue, setInputValue] = createSignal("");
-  const [debouncedSearch, setDebouncedSearch] = createSignal("");
-  const [selectedAnimeForAdd, setSelectedAnimeForAdd] = createSignal<
-    AnimeSearchResult | null
-  >(null);
   const navigate = useNavigate();
 
-  // Keyboard shortcut to open command palette
   createEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -280,42 +186,15 @@ export function CommandPalette() {
     onCleanup(() => document.removeEventListener("keydown", handleKeyDown));
   });
 
-  // Debounce search input to prevent excessive re-renders
-  createEffect(() => {
-    const value = inputValue();
-    const timeout = setTimeout(() => {
-      setDebouncedSearch(value);
-    }, 150);
-    onCleanup(() => clearTimeout(timeout));
-  });
-
-  // Fetch library anime - fetch once and don't track updates while dialog is open
   const animeList = createAnimeListQuery();
-
-  // Fetch AniList search for adding new anime - uses debounced value
-  const anilistSearch = createAnimeSearchQuery(() => debouncedSearch());
 
   const handleSelect = (path: string) => {
     setOpen(false);
     navigate({ to: path });
   };
 
-  const handleAddAnime = (anime: AnimeSearchResult) => {
-    setSelectedAnimeForAdd(anime);
-  };
-  const handleOpenAddPage = (animeId: number) => {
-    setOpen(false);
-    navigate({ to: "/anime/add", search: { id: animeId.toString() } });
-  };
-
-  const handleAddSuccess = () => {
-    setSelectedAnimeForAdd(null);
-    setOpen(false);
-  };
-
   return (
     <>
-      {/* Search Button in Header - Static, never re-renders */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -328,38 +207,21 @@ export function CommandPalette() {
         </kbd>
       </button>
 
-      {/* Dialog with isolated rendering */}
       <CommandDialog open={open()} onOpenChange={setOpen}>
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search library or add anime..."
+            placeholder="Search library or navigate..."
             value={inputValue()}
             onValueChange={setInputValue}
             class="focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 border-0"
           />
           <SearchResults
             inputValue={inputValue}
-            debouncedSearch={debouncedSearch}
             animeList={animeList}
-            anilistSearch={anilistSearch}
             onSelect={handleSelect}
-            onAddAnime={handleAddAnime}
-            onOpenAddPage={handleOpenAddPage}
           />
         </Command>
       </CommandDialog>
-
-      {/* Add Anime Dialog - opens inline without navigating */}
-      <Show when={selectedAnimeForAdd()}>
-        <Suspense>
-          <AddAnimeDialog
-            anime={selectedAnimeForAdd()!}
-            open={!!selectedAnimeForAdd()}
-            onOpenChange={(open) => !open && setSelectedAnimeForAdd(null)}
-            onSuccess={handleAddSuccess}
-          />
-        </Suspense>
-      </Show>
     </>
   );
 }

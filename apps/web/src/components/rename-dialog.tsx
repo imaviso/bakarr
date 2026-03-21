@@ -4,7 +4,7 @@ import {
   IconInfoCircle,
   IconLoader2,
 } from "@tabler/icons-solidjs";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
@@ -89,9 +89,14 @@ export function RenameDialog(props: RenameDialogProps) {
   createEffect(() => {
     if (props.open) {
       setResult(null);
+      executeRename.reset();
       previewQuery.refetch();
     }
   });
+
+  const previewCount = createMemo(
+    () => previewQuery.data?.length ?? 0,
+  );
 
   const handleRename = () => {
     executeRename.mutate(props.animeId, {
@@ -136,10 +141,29 @@ export function RenameDialog(props: RenameDialogProps) {
               </div>
             }
           >
+            <Show when={previewQuery.isError}>
+              <Alert variant="destructive">
+                <IconAlertTriangle class="h-4 w-4" />
+                <AlertTitle>Failed to load preview</AlertTitle>
+                <AlertDescription>
+                  {previewQuery.error?.message ?? "An unknown error occurred."}
+                </AlertDescription>
+              </Alert>
+            </Show>
+            <Show when={executeRename.isError}>
+              <Alert variant="destructive">
+                <IconAlertTriangle class="h-4 w-4" />
+                <AlertTitle>Rename failed</AlertTitle>
+                <AlertDescription>
+                  {executeRename.error?.message ??
+                    "An unknown error occurred."}
+                </AlertDescription>
+              </Alert>
+            </Show>
             <Show
               when={!result()}
               fallback={
-                <div class="space-y-4">
+                <div class="space-y-4" aria-live="polite">
                   <Show when={(result()?.failed ?? 0) > 0}>
                     <Alert variant="destructive">
                       <IconAlertTriangle class="h-4 w-4" />
@@ -153,33 +177,36 @@ export function RenameDialog(props: RenameDialogProps) {
                       </AlertDescription>
                     </Alert>
                   </Show>
-                  <Show when={(result()?.renamed ?? 0) > 0}>
-                    <div class="flex flex-col items-center justify-center py-8 text-center">
-                      <IconCheck class="h-16 w-16 text-success mb-4" />
-                      <h3 class="text-xl font-semibold">Rename Complete</h3>
-                      <p class="text-muted-foreground">
-                        Successfully renamed {result()?.renamed} files.
-                      </p>
-                    </div>
-                  </Show>
+                  <div class="flex flex-col items-center justify-center py-8 text-center">
+                    <IconCheck class="h-16 w-16 text-success mb-4" />
+                    <h3 class="text-xl font-semibold">Rename Complete</h3>
+                    <p class="text-muted-foreground">
+                      {result()?.renamed === 0
+                        ? "No files needed renaming."
+                        : `Successfully renamed ${result()?.renamed} files.`}
+                    </p>
+                  </div>
                 </div>
               }
             >
               <Show
-                when={previewQuery.data && previewQuery.data.length > 0}
+                when={!previewQuery.isError && previewQuery.data &&
+                  previewQuery.data.length > 0}
                 fallback={
-                  <div class="flex items-center justify-center h-full text-muted-foreground">
-                    No files need renaming.
-                  </div>
+                  <Show when={!previewQuery.isError}>
+                    <div class="flex items-center justify-center h-full text-muted-foreground">
+                      No files need renaming.
+                    </div>
+                  </Show>
                 }
               >
-                <Table>
+                <Table aria-label="Rename preview" class="min-w-[900px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead class="w-[100px]">Episode</TableHead>
-                      <TableHead>Current Filename</TableHead>
-                      <TableHead>New Filename</TableHead>
-                      <TableHead class="w-[220px]">Notes</TableHead>
+                      <TableHead class="w-[80px]">Episode</TableHead>
+                      <TableHead class="w-[30%]">Current Filename</TableHead>
+                      <TableHead class="w-[30%]">New Filename</TableHead>
+                      <TableHead class="min-w-[280px]">Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -315,13 +342,19 @@ export function RenameDialog(props: RenameDialogProps) {
             <Button
               onClick={handleRename}
               disabled={executeRename.isPending ||
+                previewQuery.isError ||
                 !previewQuery.data ||
                 previewQuery.data.length === 0}
+              aria-busy={executeRename.isPending}
             >
               <Show when={executeRename.isPending}>
                 <IconLoader2 class="mr-2 h-4 w-4 animate-spin" />
               </Show>
-              Rename Files
+              {executeRename.isPending
+                ? "Renaming…"
+                : previewCount() > 0
+                ? `Rename ${previewCount()} Files`
+                : "Rename Files"}
             </Button>
           </Show>
         </DialogFooter>

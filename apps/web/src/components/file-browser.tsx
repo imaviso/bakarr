@@ -118,6 +118,7 @@ export function FileBrowser(props: FileBrowserProps) {
           size="icon"
           onClick={handleGoHome}
           title="Go to root"
+          aria-label="Go to root directory"
         >
           <IconHome class="h-4 w-4" />
         </Button>
@@ -127,6 +128,7 @@ export function FileBrowser(props: FileBrowserProps) {
           onClick={handleGoUp}
           disabled={!browserQuery.data?.parent_path}
           title="Go up"
+          aria-label="Go up one directory"
         >
           <IconArrowUp class="h-4 w-4" />
         </Button>
@@ -271,6 +273,7 @@ export function FileBrowser(props: FileBrowserProps) {
                   size="icon"
                   class="h-6 w-6"
                   disabled={pageOffset() === 0}
+                  aria-label="Previous page"
                   onClick={() =>
                     setPageOffset((prev) =>
                       Math.max(0, prev - BROWSE_PAGE_SIZE)
@@ -283,6 +286,7 @@ export function FileBrowser(props: FileBrowserProps) {
                   size="icon"
                   class="h-6 w-6"
                   disabled={!info().hasMore}
+                  aria-label="Next page"
                   onClick={() =>
                     setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
                 >

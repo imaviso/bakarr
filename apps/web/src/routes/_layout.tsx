@@ -32,6 +32,12 @@ function LayoutComponent() {
 
   return (
     <SidebarProvider>
+      <a
+        href="#main-content"
+        class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[200] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
       <AppSidebar />
       <SidebarInset>
         <div class="h-0.5 w-full bg-transparent overflow-hidden fixed top-0 left-0 z-[100] pointer-events-none">
@@ -50,7 +56,10 @@ function LayoutComponent() {
             <ModeToggle />
           </div>
         </header>
-        <main class="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden min-h-0 overflow-y-auto">
+        <main
+          id="main-content"
+          class="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden min-h-0 overflow-y-auto"
+        >
           <Outlet />
         </main>
         <SseToastListener />

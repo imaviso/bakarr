@@ -25,7 +25,7 @@ export function CandidateCard(props: CandidateCardProps) {
   return (
     <div
       class={cn(
-        "relative overflow-hidden border bg-background transition-all hover:shadow-sm",
+        "relative overflow-hidden border bg-background transition-colors hover:shadow-sm",
         props.isSelected
           ? "border-primary bg-primary/5 ring-1 ring-primary/20"
           : "border-border hover:border-primary/50",

@@ -173,6 +173,7 @@ export function FilterItem(props: FilterItemProps) {
         size="icon"
         class="h-6 w-6 ml-1 text-muted-foreground hover:text-foreground"
         onClick={() => ctx.removeFilter(props.index)}
+        aria-label="Remove filter"
       >
         <IconX class="h-3 w-3" />
       </Button>
