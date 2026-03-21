@@ -2,9 +2,6 @@ import { useIsFetching } from "@tanstack/solid-query";
 import { createFileRoute, Outlet, redirect } from "@tanstack/solid-router";
 import { Show } from "solid-js";
 import { AppSidebar } from "~/components/app-sidebar";
-import { Breadcrumb } from "~/components/breadcrumb";
-import { CommandPalette } from "~/components/command-palette";
-import { ModeToggle } from "~/components/mode-toggle";
 import { SseToastListener } from "~/components/sse-toast-listener";
 import {
   SidebarInset,
@@ -45,17 +42,10 @@ function LayoutComponent() {
             <div class="h-full bg-primary animate-progress-indeterminate w-full origin-left" />
           </Show>
         </div>
-        <header class="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-sm px-4 border-b border-border">
-          <SidebarTrigger class="-ml-1" />
-          <div class="h-4 w-px bg-border/50 mx-1 hidden md:block" />
-          <Breadcrumb />
-          <div class="flex-1" />
-          <div class="flex items-center gap-2">
-            <CommandPalette />
-            <div class="h-4 w-px bg-border/50 mx-1" />
-            <ModeToggle />
-          </div>
-        </header>
+        {/* Mobile-only sidebar trigger */}
+        <div class="sticky top-0 z-10 flex h-12 items-center px-4 md:hidden">
+          <SidebarTrigger />
+        </div>
         <main
           id="main-content"
           class="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 min-w-0 overflow-x-hidden min-h-0 overflow-y-auto"

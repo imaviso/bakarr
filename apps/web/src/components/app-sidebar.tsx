@@ -11,6 +11,8 @@ import {
 } from "@tabler/icons-solidjs";
 import { Link, useLocation } from "@tanstack/solid-router";
 import { For, Show } from "solid-js";
+import { CommandPalette } from "~/components/command-palette";
+import { ModeToggle } from "~/components/mode-toggle";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -25,6 +27,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
   SidebarSeparator,
   useSidebar,
 } from "~/components/ui/sidebar";
@@ -105,6 +108,11 @@ export function AppSidebar() {
           </DropdownMenuTrigger>
         </DropdownMenu>
       </SidebarHeader>
+
+      {/* Search */}
+      <div class="px-3 pb-1 group-data-[collapsible=icon]:px-1.5">
+        <CommandPalette />
+      </div>
 
       <SidebarContent class="px-3 group-data-[collapsible=icon]:px-0">
         {/* Main Navigation */}
@@ -188,6 +196,9 @@ export function AppSidebar() {
         <SidebarSeparator class="mb-2 mx-0 group-data-[collapsible=icon]:mx-0 bg-border/50" />
         <SidebarMenu class="gap-1 group-data-[collapsible=icon]:items-center">
           <SidebarMenuItem>
+            <ModeToggle />
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => logout()}
               tooltip="Sign out"
@@ -199,6 +210,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }
