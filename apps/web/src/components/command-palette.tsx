@@ -351,12 +351,14 @@ export function CommandPalette() {
 
       {/* Add Anime Dialog - opens inline without navigating */}
       <Show when={selectedAnimeForAdd()}>
-        <AddAnimeDialog
-          anime={selectedAnimeForAdd()!}
-          open={!!selectedAnimeForAdd()}
-          onOpenChange={(open) => !open && setSelectedAnimeForAdd(null)}
-          onSuccess={handleAddSuccess}
-        />
+        <Suspense>
+          <AddAnimeDialog
+            anime={selectedAnimeForAdd()!}
+            open={!!selectedAnimeForAdd()}
+            onOpenChange={(open) => !open && setSelectedAnimeForAdd(null)}
+            onSuccess={handleAddSuccess}
+          />
+        </Suspense>
       </Show>
     </>
   );
