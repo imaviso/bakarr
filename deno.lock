@@ -3,12 +3,11 @@
   "specifiers": {
     "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/assert@^1.0.19": "1.0.19",
-    "jsr:@std/dotenv@~0.225.6": "0.225.6",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:@ark-ui/solid@^5.34.1": "5.34.1_solid-js@1.9.11__seroval@1.5.1",
     "npm:@effect/language-service@0.79": "0.79.0",
-    "npm:@effect/platform-node@0.106": "0.106.0_@effect+platform@0.95.0__effect@3.21.0_effect@3.21.0",
-    "npm:@effect/platform@0.95": "0.95.0_effect@3.21.0",
+    "npm:@effect/platform-node@0.106": "0.106.0_@effect+platform@0.96.0__effect@3.21.0_effect@3.21.0",
+    "npm:@effect/platform@0.96": "0.96.0_effect@3.21.0",
     "npm:@fontsource-variable/geist-mono@^5.2.7": "5.2.7",
     "npm:@fontsource-variable/geist@^5.2.8": "5.2.8",
     "npm:@kobalte/core@~0.13.11": "0.13.11_solid-js@1.9.11__seroval@1.5.1",
@@ -52,9 +51,6 @@
       "dependencies": [
         "jsr:@std/internal"
       ]
-    },
-    "@std/dotenv@0.225.6": {
-      "integrity": "1d6f9db72f565bd26790fa034c26e45ecb260b5245417be76c2279e5734c421b"
     },
     "@std/internal@1.0.12": {
       "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
@@ -288,7 +284,7 @@
     "@drizzle-team/brocli@0.10.2": {
       "integrity": "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="
     },
-    "@effect/cluster@0.58.0_@effect+platform@0.95.0__effect@3.21.0_@effect+rpc@0.75.0__@effect+platform@0.95.0___effect@3.21.0__effect@3.21.0_@effect+sql@0.51.0__@effect+platform@0.95.0___effect@3.21.0__effect@3.21.0_effect@3.21.0": {
+    "@effect/cluster@0.58.0_@effect+platform@0.96.0__effect@3.21.0_@effect+rpc@0.75.0__@effect+platform@0.96.0___effect@3.21.0__effect@3.21.0_@effect+sql@0.51.0__@effect+platform@0.96.0___effect@3.21.0__effect@3.21.0_effect@3.21.0": {
       "integrity": "sha512-0Zog7s7XdntWcTqdqWPoj6nc7hPaWIzp0k0DsFUWyCynXNPK9dAtgFrSce04NhddNqqbhtZck/lhuqJwNBrprQ==",
       "dependencies": [
         "@effect/platform",
@@ -299,7 +295,7 @@
         "kubernetes-types"
       ]
     },
-    "@effect/experimental@0.60.0_@effect+platform@0.95.0__effect@3.21.0_effect@3.21.0": {
+    "@effect/experimental@0.60.0_@effect+platform@0.96.0__effect@3.21.0_effect@3.21.0": {
       "integrity": "sha512-i5zIg7Xup2KgHyqHlYtkgqSE1bNzCL0GbbTQxrpIzKF0q/ebknOk/ox8B/gIq2vImjoEE81h/oxU+6i1NH210g==",
       "dependencies": [
         "@effect/platform",
@@ -311,7 +307,7 @@
       "integrity": "sha512-DEmIOsg1GjjP6s9HXH1oJrW+gDmzkhVv9WOZl6to5eNyyCrjz1S2PDqQ7aYrW/HuifhfwI5Bik1pK4pj7Z+lrg==",
       "bin": true
     },
-    "@effect/platform-node-shared@0.59.0_@effect+cluster@0.58.0__@effect+platform@0.95.0___effect@3.21.0__@effect+rpc@0.75.0___@effect+platform@0.95.0____effect@3.21.0___effect@3.21.0__@effect+sql@0.51.0___@effect+platform@0.95.0____effect@3.21.0___effect@3.21.0__effect@3.21.0_@effect+platform@0.95.0__effect@3.21.0_@effect+rpc@0.75.0__@effect+platform@0.95.0___effect@3.21.0__effect@3.21.0_@effect+sql@0.51.0__@effect+platform@0.95.0___effect@3.21.0__effect@3.21.0_effect@3.21.0": {
+    "@effect/platform-node-shared@0.59.0_@effect+cluster@0.58.0__@effect+platform@0.96.0___effect@3.21.0__@effect+rpc@0.75.0___@effect+platform@0.96.0____effect@3.21.0___effect@3.21.0__@effect+sql@0.51.0___@effect+platform@0.96.0____effect@3.21.0___effect@3.21.0__effect@3.21.0_@effect+platform@0.96.0__effect@3.21.0_@effect+rpc@0.75.0__@effect+platform@0.96.0___effect@3.21.0__effect@3.21.0_@effect+sql@0.51.0__@effect+platform@0.96.0___effect@3.21.0__effect@3.21.0_effect@3.21.0": {
       "integrity": "sha512-3bq2YKKfLY7UFauZSxqZUneCXoA3SMSls82V+0RKunvRlfPuPQW0hVn6t1RkvEdh0PDoygWG2mZXYQa6Iqgp9A==",
       "dependencies": [
         "@effect/cluster",
@@ -324,7 +320,7 @@
         "ws"
       ]
     },
-    "@effect/platform-node@0.106.0_@effect+platform@0.95.0__effect@3.21.0_effect@3.21.0": {
+    "@effect/platform-node@0.106.0_@effect+platform@0.96.0__effect@3.21.0_effect@3.21.0": {
       "integrity": "sha512-mpsJK2jNLVd0jQAjHKBo8j3wdKWznSGvfnKBcAuG/9Rr4mb8bMRZFLXHHT9wUP7EvnZ0tDZJgEDxkC+j+ByRag==",
       "dependencies": [
         "@effect/cluster",
@@ -338,8 +334,8 @@
         "ws"
       ]
     },
-    "@effect/platform@0.95.0_effect@3.21.0": {
-      "integrity": "sha512-WDlRiWRSWlmhCPq09bvAofK0qr5vM4yNklXjoJdZHmugKRRTpN/Okn3ODnjgM/Kb/4hjMrRyrsUeH/Brieq7KA==",
+    "@effect/platform@0.96.0_effect@3.21.0": {
+      "integrity": "sha512-U7PLhkVzg7zzrgFvyWATOzD6reL87KG/fcdOxgLWBQ/J5CCU6qdPAVG+0o6o+IxcsLoqGwxs+rFxaFzrdtDV1A==",
       "dependencies": [
         "effect",
         "find-my-way-ts",
@@ -347,7 +343,7 @@
         "multipasta"
       ]
     },
-    "@effect/rpc@0.75.0_@effect+platform@0.95.0__effect@3.21.0_effect@3.21.0": {
+    "@effect/rpc@0.75.0_@effect+platform@0.96.0__effect@3.21.0_effect@3.21.0": {
       "integrity": "sha512-VFeJ16cZUXqiIzG9UHOVKGuiBPJ7fV+0lEbJU6xi12JnnxXe/19BQPpOwiRawCUbPOR3/xIURDUgGxU+Ft0pvQ==",
       "dependencies": [
         "@effect/platform",
@@ -355,7 +351,7 @@
         "msgpackr"
       ]
     },
-    "@effect/sql@0.51.0_@effect+platform@0.95.0__effect@3.21.0_effect@3.21.0": {
+    "@effect/sql@0.51.0_@effect+platform@0.96.0__effect@3.21.0_effect@3.21.0": {
       "integrity": "sha512-e7hWe46QD15eMCr4kNBMVdItIVK/WLHJG+d8DLL1FjVf5Ra82k2mwUYIXplJewVbHjt3my6GSKPPd1ZrQjVd5A==",
       "dependencies": [
         "@effect/experimental",
@@ -364,7 +360,7 @@
         "uuid"
       ]
     },
-    "@effect/workflow@0.18.0_@effect+platform@0.95.0__effect@3.21.0_@effect+rpc@0.75.0__@effect+platform@0.95.0___effect@3.21.0__effect@3.21.0_effect@3.21.0": {
+    "@effect/workflow@0.18.0_@effect+platform@0.96.0__effect@3.21.0_@effect+rpc@0.75.0__@effect+platform@0.96.0___effect@3.21.0__effect@3.21.0_effect@3.21.0": {
       "integrity": "sha512-9Zp+x9ADtR0H6CRhU6wLyPcIRjO1PXjvSpUlFlBQ8piw7ldjPmnUWEY8YQuH6eExV2dalQ4z2LMiZ5Bd7XAJbA==",
       "dependencies": [
         "@effect/experimental",
@@ -3495,10 +3491,9 @@
       "apps/api": {
         "dependencies": [
           "jsr:@std/assert@^1.0.19",
-          "jsr:@std/dotenv@~0.225.6",
           "npm:@effect/language-service@0.79",
           "npm:@effect/platform-node@0.106",
-          "npm:@effect/platform@0.95",
+          "npm:@effect/platform@0.96",
           "npm:@libsql/client@~0.17.2",
           "npm:drizzle-kit@~0.31.10",
           "npm:drizzle-orm@~0.45.1",
