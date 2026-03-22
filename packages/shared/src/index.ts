@@ -1730,6 +1730,8 @@ export const UnmappedFolderMatchStatusSchema: Schema.Schema<
   UnmappedFolderMatchStatus
 > = Schema.Literal(...UNMAPPED_FOLDER_MATCH_STATUS_VALUES);
 
+export const MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS = 3;
+
 export interface UnmappedFolder {
   match_attempts?: number;
   last_match_error?: string;

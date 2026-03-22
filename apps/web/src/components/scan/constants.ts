@@ -1,1 +1,1 @@
-export const MAX_AUTO_MATCH_ATTEMPTS = 3;
+export { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS as MAX_AUTO_MATCH_ATTEMPTS } from "@bakarr/shared";
