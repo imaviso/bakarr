@@ -126,22 +126,18 @@ export const queueParsedReleaseDownload = Effect.fn(
     );
   }
 
-  yield* input.tryDatabasePromise(
-    "Failed to record download event",
-    () =>
-      recordDownloadEvent(input.db, {
-        animeId: input.animeRow.id,
-        downloadId: insertedId,
-        eventType: input.eventType,
-        message: input.eventMessage,
-        metadata: input.coveredEpisodes,
-        metadataJson: {
-          covered_episodes: coveredEpisodeNumbers,
-          source_metadata: input.sourceMetadata,
-        },
-        toStatus: status,
-      }),
-  );
+  yield* recordDownloadEvent(input.db, {
+    animeId: input.animeRow.id,
+    downloadId: insertedId,
+    eventType: input.eventType,
+    message: input.eventMessage,
+    metadata: input.coveredEpisodes,
+    metadataJson: {
+      covered_episodes: coveredEpisodeNumbers,
+      source_metadata: input.sourceMetadata,
+    },
+    toStatus: status,
+  });
 
   return {
     _tag: "queued",

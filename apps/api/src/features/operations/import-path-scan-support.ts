@@ -29,10 +29,7 @@ import {
 } from "./library-import.ts";
 import { buildEpisodeFilenamePlan } from "./naming-support.ts";
 import { currentNamingSettings, requireAnime } from "./repository.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 
 export const scanImportPathEffect = Effect.fn(
   "OperationsService.scanImportPathEffect",
@@ -44,7 +41,6 @@ export const scanImportPathEffect = Effect.fn(
   mediaProbe: MediaProbeShape;
   path: string;
   tryDatabasePromise: TryDatabasePromise;
-  tryOperationsPromise: TryOperationsPromise;
 }) {
   const canonicalPath = yield* input.fs.realPath(input.path).pipe(
     Effect.mapError(() =>
@@ -65,8 +61,7 @@ export const scanImportPathEffect = Effect.fn(
   ].sort((a, b) => a.path.localeCompare(b.path));
   const animeRows = input.animeId
     ? [
-      yield* input.tryOperationsPromise("Failed to scan import path", () =>
-        requireAnime(input.db, input.animeId!)),
+      yield* requireAnime(input.db, input.animeId!),
     ]
     : yield* input.tryDatabasePromise(
       "Failed to scan import path",

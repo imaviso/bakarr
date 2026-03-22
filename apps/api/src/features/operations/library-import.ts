@@ -10,6 +10,7 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,
@@ -34,15 +35,21 @@ function decodeAnimeGenres(value: string | null): string[] | undefined {
   return Either.isRight(decoded) ? [...decoded.right] : undefined;
 }
 
-export async function buildRenamePreview(
-  db: AppDatabase,
-  animeId: number,
-): Promise<RenamePreviewItem[]> {
-  const animeRow = await requireAnime(db, animeId);
-  const namingSettings = await Effect.runPromise(currentNamingSettings(db));
+export const buildRenamePreview = Effect.fn(
+  "OperationsService.buildRenamePreview",
+)(function* (db: AppDatabase, animeId: number) {
+  const animeRow = yield* requireAnime(db, animeId);
+  const namingSettings = yield* currentNamingSettings(db);
   const namingFormat = selectNamingFormat(animeRow, namingSettings);
-  const rows = await db.select().from(episodes).where(
-    and(eq(episodes.animeId, animeId), sql`${episodes.filePath} is not null`),
+  const rows = yield* tryDatabasePromise(
+    "Failed to load episodes for rename preview",
+    () =>
+      db.select().from(episodes).where(
+        and(
+          eq(episodes.animeId, animeId),
+          sql`${episodes.filePath} is not null`,
+        ),
+      ),
   );
 
   // Group rows by file path to handle multi-episode files
@@ -87,7 +94,7 @@ export async function buildRenamePreview(
   }
 
   return results;
-}
+});
 
 export interface AnalyzedFile {
   scanned: ScannedFile;

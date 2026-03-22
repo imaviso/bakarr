@@ -1,4 +1,5 @@
 import { assertEquals } from "@std/assert";
+import { Effect } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -174,7 +175,7 @@ Deno.test("buildRenamePreview fills naming tokens from existing file metadata", 
       title: null,
     });
 
-    const preview = await buildRenamePreview(db, 1);
+    const preview = await Effect.runPromise(buildRenamePreview(db, 1));
 
     assertEquals(preview.length, 1);
     assertEquals(
@@ -228,7 +229,7 @@ Deno.test("buildRenamePreview respects preferred English title and movie naming 
       title: null,
     });
 
-    const preview = await buildRenamePreview(db, 1);
+    const preview = await Effect.runPromise(buildRenamePreview(db, 1));
 
     assertEquals(preview.length, 1);
     assertEquals(preview[0].new_filename, "Your Name. (2016).mkv");
@@ -271,7 +272,7 @@ Deno.test("buildRenamePreview reports fallback when season metadata is missing",
       title: null,
     });
 
-    const preview = await buildRenamePreview(db, 1);
+    const preview = await Effect.runPromise(buildRenamePreview(db, 1));
 
     assertEquals(preview[0].new_filename, "Show - 01.mkv");
     assertEquals(preview[0].fallback_used, true);
