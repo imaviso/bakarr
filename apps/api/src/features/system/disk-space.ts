@@ -1,6 +1,6 @@
-import { statfs } from "node:fs/promises";
+import { Command, CommandExecutor } from "@effect/platform";
 
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 
@@ -24,13 +24,13 @@ export const DiskSpaceError = (
   message,
 });
 
-export interface StatFsShape {
+export interface BlockStatsShape {
   readonly bavail: bigint | number;
   readonly blocks: bigint | number;
   readonly bsize: bigint | number;
 }
 
-export function mapStatFsToDiskSpace(stat: StatFsShape): DiskSpace {
+export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
   const blockSize = toSafeNumber(stat.bsize);
   const availableBlocks = toSafeNumber(stat.bavail);
   const totalBlocks = toSafeNumber(stat.blocks);
@@ -42,14 +42,37 @@ export function mapStatFsToDiskSpace(stat: StatFsShape): DiskSpace {
 }
 
 export const getDiskSpace = Effect.fn("System.getDiskSpace")(
-  (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> => {
-    return Effect.tryPromise({
-      catch: (cause) =>
-        DiskSpaceError(`Failed to get disk space for ${path}`, cause),
-      try: async () =>
-        mapStatFsToDiskSpace(await statfs(path, { bigint: true })),
-    });
-  },
+  (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> =>
+    Effect.gen(function* () {
+      const executorOption = yield* Effect.serviceOption(
+        CommandExecutor.CommandExecutor,
+      );
+
+      if (Option.isNone(executorOption)) {
+        return yield* Effect.fail(
+          DiskSpaceError(
+            `Failed to get disk space for ${path}: command executor unavailable`,
+          ),
+        );
+      }
+
+      const output = yield* Command.make("df", "-Pk", path).pipe(
+        Command.string,
+        Effect.mapError((cause) =>
+          DiskSpaceError(`Failed to get disk space for ${path}`, cause)
+        ),
+        Effect.provideService(
+          CommandExecutor.CommandExecutor,
+          executorOption.value,
+        ),
+      );
+
+      return yield* Effect.try({
+        try: () => mapDfOutputToDiskSpace(path, output),
+        catch: (cause) =>
+          DiskSpaceError(`Failed to parse disk space for ${path}`, cause),
+      });
+    }),
 );
 
 export const getDiskSpaceSafe = Effect.fn("System.getDiskSpaceSafe")(
@@ -93,6 +116,39 @@ function clampDiskBytes(value: number) {
   }
 
   return Math.min(value, Number.MAX_SAFE_INTEGER);
+}
+
+function mapDfOutputToDiskSpace(path: string, output: string): DiskSpace {
+  const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(
+    Boolean,
+  );
+  const dataLine = lines.at(-1);
+
+  if (!dataLine) {
+    throw new Error(`df returned no data for path: ${path}`);
+  }
+
+  const columns = dataLine.split(/\s+/);
+
+  if (columns.length < 4) {
+    throw new Error(`Unexpected df output for path: ${path}`);
+  }
+
+  const total = Number(columns[1]);
+  const available = Number(columns[3]);
+
+  if (!Number.isFinite(total) || total <= 0) {
+    throw new Error(`Invalid total blocks from df for path: ${path}`);
+  }
+
+  if (!Number.isFinite(available) || available < 0) {
+    throw new Error(`Invalid available blocks from df for path: ${path}`);
+  }
+
+  return {
+    free: clampDiskBytes(available * 1024),
+    total: clampDiskBytes(total * 1024),
+  };
 }
 
 function toSafeNumber(value: bigint | number) {
