@@ -301,11 +301,9 @@ function runFfprobeCommand(
   );
 }
 
-const ffprobeSemaphore = Effect.runSync(
-  Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT),
-);
-
-const makeMediaProbe = (): MediaProbeShape => {
+const makeMediaProbe = (
+  ffprobeSemaphore: Effect.Semaphore,
+): MediaProbeShape => {
   let availability: boolean | undefined;
 
   const resolveAvailability = Effect.fn("MediaProbe.resolveAvailability")(
@@ -394,4 +392,10 @@ const makeMediaProbe = (): MediaProbeShape => {
   return { probeVideoFile };
 };
 
-export const MediaProbeLive = Layer.succeed(MediaProbe, makeMediaProbe());
+export const MediaProbeLive = Layer.effect(
+  MediaProbe,
+  Effect.map(
+    Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT),
+    makeMediaProbe,
+  ),
+);

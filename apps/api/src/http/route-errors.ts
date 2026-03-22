@@ -26,25 +26,30 @@ import {
 import { EpisodeStreamRangeError } from "./streaming-errors.ts";
 import { RequestValidationError } from "./route-validation.ts";
 
-export type KnownRouteError =
-  | AnimeConflictError
-  | AnimeNotFoundError
-  | AnimePathError
-  | AuthError
-  | ConfigValidationError
-  | DatabaseError
-  | DownloadConflictError
-  | DownloadNotFoundError
-  | EpisodeStreamRangeError
-  | ExternalCallError
-  | OperationsAnimeNotFoundError
-  | OperationsConflictError
-  | OperationsInputError
-  | OperationsPathError
-  | ProfileNotFoundError
-  | RequestValidationError
-  | StoredConfigCorruptError
-  | StoredConfigMissingError;
+const knownTaggedRouteErrorSchemas = [
+  AnimeConflictError,
+  AnimeNotFoundError,
+  AnimePathError,
+  AuthError,
+  ConfigValidationError,
+  DatabaseError,
+  DownloadConflictError,
+  DownloadNotFoundError,
+  EpisodeStreamRangeError,
+  ExternalCallError,
+  OperationsAnimeNotFoundError,
+  OperationsConflictError,
+  OperationsInputError,
+  OperationsPathError,
+  ProfileNotFoundError,
+  RequestValidationError,
+  StoredConfigCorruptError,
+  StoredConfigMissingError,
+] as const;
+
+type KnownRouteError = Schema.Schema.Type<
+  Schema.Union<[...typeof knownTaggedRouteErrorSchemas]>
+>;
 
 type TaggedRouteError = Extract<KnownRouteError, { _tag: string }>;
 type TaggedRouteErrorTag = TaggedRouteError["_tag"];
@@ -96,26 +101,7 @@ const taggedRouteErrorMappers: {
   }),
 };
 
-const KnownRouteErrorSchema = Schema.Union(
-  AnimeConflictError,
-  AnimeNotFoundError,
-  AnimePathError,
-  AuthError,
-  ConfigValidationError,
-  DatabaseError,
-  DownloadConflictError,
-  DownloadNotFoundError,
-  EpisodeStreamRangeError,
-  ExternalCallError,
-  OperationsAnimeNotFoundError,
-  OperationsConflictError,
-  OperationsInputError,
-  OperationsPathError,
-  ProfileNotFoundError,
-  RequestValidationError,
-  StoredConfigCorruptError,
-  StoredConfigMissingError,
-);
+const KnownRouteErrorSchema = Schema.Union(...knownTaggedRouteErrorSchemas);
 
 const isKnownTaggedRouteError = Schema.is(KnownRouteErrorSchema);
 

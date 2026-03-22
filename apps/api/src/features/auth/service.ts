@@ -10,14 +10,22 @@ import type {
   LoginResponse,
 } from "../../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../../config.ts";
-import {
-  type AppDatabase,
-  Database,
-  DatabaseError,
-} from "../../db/database.ts";
+import { Database, DatabaseError } from "../../db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "../../db/schema.ts";
 import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
 import { hashPassword, verifyPassword } from "../../security/password.ts";
+import {
+  announceBootstrapCredentials,
+  createSession,
+  expiresAtIso,
+  findUserByApiKey,
+  findUserById,
+  findUserByUsername,
+  hashToken,
+  nowIso,
+  randomHex,
+  writeLog,
+} from "./service-support.ts";
 
 export class AuthError extends Schema.TaggedError<AuthError>()("AuthError", {
   message: Schema.String,
@@ -67,8 +75,6 @@ export class AuthService extends Context.Tag("@bakarr/api/AuthService")<
   AuthServiceShape
 >() {}
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 const makeAuthService = Effect.gen(function* () {
   const { db } = yield* Database;
   const config = yield* AppConfig;
@@ -84,40 +90,7 @@ const makeAuthService = Effect.gen(function* () {
         return;
       }
 
-      let bootstrapPassword: string;
-
-      if (config.bootstrapPasswordIsEnvOverride) {
-        bootstrapPassword = Redacted.value(config.bootstrapPassword);
-      } else {
-        const storedRow = yield* tryDatabasePromise(
-          "Failed to ensure bootstrap user",
-          () =>
-            db.select({ bootstrapPassword: appConfig.bootstrapPassword })
-              .from(appConfig)
-              .where(eq(appConfig.id, 1))
-              .limit(1),
-        );
-        const stored = storedRow[0]?.bootstrapPassword ?? null;
-
-        if (stored) {
-          bootstrapPassword = stored;
-        } else {
-          bootstrapPassword = Redacted.value(config.bootstrapPassword);
-          yield* tryDatabasePromise(
-            "Failed to ensure bootstrap user",
-            () =>
-              db.insert(appConfig).values({
-                bootstrapPassword,
-                data: "{}",
-                id: 1,
-                updatedAt: nowIso(),
-              }).onConflictDoUpdate({
-                target: appConfig.id,
-                set: { bootstrapPassword },
-              }),
-          );
-        }
-      }
+      const bootstrapPassword = Redacted.value(config.bootstrapPassword);
 
       const now = nowIso();
       const passwordHash = yield* hashPassword(bootstrapPassword).pipe(
@@ -150,18 +123,10 @@ const makeAuthService = Effect.gen(function* () {
         message: `Bootstrap user '${config.bootstrapUsername}' created`,
       });
 
-      if (
-        typeof Deno !== "undefined" && Deno.stderr &&
-        (Deno.stderr as { isTerminal?: () => boolean }).isTerminal?.()
-      ) {
-        yield* Effect.logInfo(
-          `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${config.bootstrapUsername}\n* Password: ${bootstrapPassword}\n* Please log in and change your password.\n*************************************************************\n`,
-        );
-      } else {
-        yield* Effect.logInfo(
-          "\n* INITIAL SETUP: Bootstrap user created. Log in with the configured credentials and change your password.\n",
-        );
-      }
+      yield* announceBootstrapCredentials({
+        username: config.bootstrapUsername,
+        password: bootstrapPassword,
+      });
     },
   );
 
@@ -191,7 +156,7 @@ const makeAuthService = Effect.gen(function* () {
       });
     }
 
-    const userRow = row!;
+    const userRow = row;
     const token = yield* createSession(
       db,
       config.sessionDurationDays,
@@ -226,7 +191,7 @@ const makeAuthService = Effect.gen(function* () {
       return yield* AuthError.make({ message: "Invalid API key", status: 401 });
     }
 
-    const userRow = row!;
+    const userRow = row;
     const token = yield* createSession(
       db,
       config.sessionDurationDays,
@@ -335,7 +300,7 @@ const makeAuthService = Effect.gen(function* () {
       return yield* AuthError.make({ message: "User not found", status: 404 });
     }
 
-    const userRow = row!;
+    const userRow = row;
     const verified = yield* verifyPassword(
       request.current_password,
       userRow.passwordHash,
@@ -421,7 +386,7 @@ const makeAuthService = Effect.gen(function* () {
         });
       }
 
-      const userRow = row!;
+      const userRow = row;
       const apiKey = randomHex(24);
       const hashedApiKey = yield* hashToken(apiKey);
 
@@ -473,108 +438,4 @@ function toAuthUser(row: typeof users.$inferSelect): AuthUser {
     updated_at: row.updatedAt,
     username: row.username,
   };
-}
-
-const hashToken = Effect.fn("Auth.hashToken")(function* (token: string) {
-  const data = new TextEncoder().encode(token);
-  const hashBuffer = yield* Effect.tryPromise({
-    try: () => crypto.subtle.digest("SHA-256", data),
-    catch: toDatabaseError("Failed to hash token"),
-  });
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-});
-
-const findUserByUsername = Effect.fn("Auth.findUserByUsername")(
-  function* (db: AppDatabase, username: string) {
-    const rows = yield* tryDatabasePromise(
-      "Failed to find user by username",
-      () =>
-        db.select().from(users).where(eq(users.username, username)).limit(1),
-    );
-    return rows[0] ?? null;
-  },
-);
-
-const findUserByApiKey = Effect.fn("Auth.findUserByApiKey")(
-  function* (db: AppDatabase, apiKey: string) {
-    const rows = yield* tryDatabasePromise(
-      "Failed to find user by API key",
-      () => db.select().from(users).where(eq(users.apiKey, apiKey)).limit(1),
-    );
-    return rows[0] ?? null;
-  },
-);
-
-const findUserById = Effect.fn("Auth.findUserById")(
-  function* (db: AppDatabase, userId: number) {
-    const rows = yield* tryDatabasePromise(
-      "Failed to find user by ID",
-      () => db.select().from(users).where(eq(users.id, userId)).limit(1),
-    );
-    return rows[0] ?? null;
-  },
-);
-
-const createSession = Effect.fn("Auth.createSession")(
-  function* (db: AppDatabase, durationDays: number, userId: number) {
-    const token = randomHex(32);
-    const tokenHash = yield* hashToken(token);
-    const now = nowIso();
-
-    yield* tryDatabasePromise(
-      "Failed to create session",
-      () =>
-        db.insert(sessions).values({
-          createdAt: now,
-          expiresAt: expiresAtIso(durationDays),
-          lastSeenAt: now,
-          token: tokenHash,
-          userId,
-        }),
-    );
-
-    return token;
-  },
-);
-
-const writeLog = Effect.fn("Auth.writeLog")(
-  function* (
-    db: AppDatabase,
-    input: {
-      eventType: string;
-      level: string;
-      message: string;
-      details?: string;
-    },
-  ) {
-    yield* tryDatabasePromise(
-      "Failed to write log",
-      () =>
-        db.insert(systemLogs).values({
-          createdAt: nowIso(),
-          details: input.details ?? null,
-          eventType: input.eventType,
-          level: input.level,
-          message: input.message,
-        }),
-    );
-  },
-);
-
-function expiresAtIso(durationDays: number) {
-  return new Date(Date.now() + durationDays * DAY_MS).toISOString();
-}
-
-function nowIso() {
-  return new Date().toISOString();
-}
-
-function randomHex(bytes: number): string {
-  const value = new Uint8Array(bytes);
-  crypto.getRandomValues(value);
-  return Array.from(value, (entry) => entry.toString(16).padStart(2, "0")).join(
-    "",
-  );
 }
