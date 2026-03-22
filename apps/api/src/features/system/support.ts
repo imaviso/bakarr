@@ -1,5 +1,5 @@
 import * as Cron from "effect/Cron";
-import { Either } from "effect";
+import { Effect, Either } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { eq, sql } from "drizzle-orm";
@@ -7,6 +7,7 @@ import { eq, sql } from "drizzle-orm";
 import { BACKGROUND_JOB_NAMES } from "../../background-worker-model.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { systemLogs } from "../../db/schema.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 
 export function normalizeLevel(
   level: string,
@@ -37,20 +38,26 @@ export function eventTypeCondition(eventType: string) {
   }
 }
 
-export async function appendSystemLog(
-  db: AppDatabase,
-  eventType: string,
-  level: string,
-  message: string,
-) {
-  await db.insert(systemLogs).values({
-    createdAt: nowIso(),
-    details: null,
-    eventType,
-    level,
-    message,
-  });
-}
+export const appendSystemLog = Effect.fn("SystemSupport.appendSystemLog")(
+  function* (
+    db: AppDatabase,
+    eventType: string,
+    level: string,
+    message: string,
+  ) {
+    yield* tryDatabasePromise(
+      "Failed to append system log",
+      () =>
+        db.insert(systemLogs).values({
+          createdAt: nowIso(),
+          details: null,
+          eventType,
+          level,
+          message,
+        }),
+    );
+  },
+);
 
 export function nowIso() {
   return new Date().toISOString();

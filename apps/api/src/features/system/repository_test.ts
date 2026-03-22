@@ -1,4 +1,5 @@
 import { assertEquals, assertRejects } from "@std/assert";
+import { Effect } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -40,16 +41,16 @@ import {
 
 Deno.test("system repository config helpers insert and upsert config rows", async () => {
   await withTestDb(async (db, databaseFile) => {
-    await insertSystemConfigRow(db, {
+    await Effect.runPromise(insertSystemConfigRow(db, {
       id: 1,
       data: encodeConfigCore(makeDefaultConfig(databaseFile)),
       updatedAt: "2024-01-01T00:00:00.000Z",
-    });
+    }));
 
-    const initial = await loadSystemConfigRow(db);
+    const initial = await Effect.runPromise(loadSystemConfigRow(db));
     assertEquals(initial?.id, 1);
 
-    await upsertSystemConfigRow(db, {
+    await Effect.runPromise(upsertSystemConfigRow(db, {
       id: 1,
       data: encodeConfigCore({
         ...makeDefaultConfig(databaseFile),
@@ -59,9 +60,9 @@ Deno.test("system repository config helpers insert and upsert config rows", asyn
         },
       }),
       updatedAt: "2024-01-02T00:00:00.000Z",
-    });
+    }));
 
-    const updated = await loadSystemConfigRow(db);
+    const updated = await Effect.runPromise(loadSystemConfigRow(db));
     assertEquals(updated?.updatedAt, "2024-01-02T00:00:00.000Z");
     assertEquals(updated?.data.includes("/new-library"), true);
   });
@@ -308,34 +309,37 @@ Deno.test("system repository query helpers filter logs and count system state", 
       createdAt: "2024-01-01T00:00:00.000Z",
     });
 
-    const scanPage = await loadSystemLogPage(db, {
+    const scanPage = await Effect.runPromise(loadSystemLogPage(db, {
       eventType: "Scan",
       page: 1,
       pageSize: 10,
-    });
+    }));
     assertEquals(scanPage.total, 1);
     assertEquals(scanPage.rows[0].message, "scan start");
 
-    const errorPage = await loadSystemLogPage(db, {
+    const errorPage = await Effect.runPromise(loadSystemLogPage(db, {
       level: "error",
       page: 1,
       pageSize: 10,
       startDate: "2024-01-02T00:00:00.000Z",
-    });
+    }));
     assertEquals(errorPage.total, 1);
     assertEquals(errorPage.rows[0].eventType, "downloads.error");
 
-    assertEquals(await countQueuedOrDownloadingDownloads(db), 1);
-    assertEquals(await countQueuedDownloads(db), 1);
-    assertEquals(await countActiveDownloads(db), 1);
-    assertEquals(await countFailedDownloads(db), 1);
-    assertEquals(await countCompletedDownloads(db), 1);
-    assertEquals(await countImportedDownloads(db), 1);
-    assertEquals(await countRunningBackgroundJobs(db), 1);
-    assertEquals(await countAnimeRows(db), 1);
-    assertEquals(await countEpisodeRows(db), 2);
-    assertEquals(await countDownloadedEpisodeRows(db), 1);
-    assertEquals(await countRssFeedRows(db), 1);
+    assertEquals(
+      await Effect.runPromise(countQueuedOrDownloadingDownloads(db)),
+      1,
+    );
+    assertEquals(await Effect.runPromise(countQueuedDownloads(db)), 1);
+    assertEquals(await Effect.runPromise(countActiveDownloads(db)), 1);
+    assertEquals(await Effect.runPromise(countFailedDownloads(db)), 1);
+    assertEquals(await Effect.runPromise(countCompletedDownloads(db)), 1);
+    assertEquals(await Effect.runPromise(countImportedDownloads(db)), 1);
+    assertEquals(await Effect.runPromise(countRunningBackgroundJobs(db)), 1);
+    assertEquals(await Effect.runPromise(countAnimeRows(db)), 1);
+    assertEquals(await Effect.runPromise(countEpisodeRows(db)), 2);
+    assertEquals(await Effect.runPromise(countDownloadedEpisodeRows(db)), 1);
+    assertEquals(await Effect.runPromise(countRssFeedRows(db)), 1);
   });
 });
 
@@ -352,7 +356,7 @@ Deno.test("replaceQualityProfileRows rolls back when replacement insert fails", 
     });
 
     await assertRejects(() =>
-      replaceQualityProfileRows(db, [
+      Effect.runPromise(replaceQualityProfileRows(db, [
         {
           name: "Duplicate",
           cutoff: "1080p",
@@ -371,10 +375,10 @@ Deno.test("replaceQualityProfileRows rolls back when replacement insert fails", 
           minSize: null,
           maxSize: null,
         },
-      ])
+      ]))
     );
 
-    const rows = await listQualityProfileRows(db);
+    const rows = await Effect.runPromise(listQualityProfileRows(db));
     assertEquals(rows.length, 1);
     assertEquals(rows[0]?.name, "Existing");
   });
@@ -382,7 +386,7 @@ Deno.test("replaceQualityProfileRows rolls back when replacement insert fails", 
 
 Deno.test("unmapped folder match rows persist cached suggestions", async () => {
   await withTestDb(async (db) => {
-    await upsertUnmappedFolderMatchRows(db, [{
+    await Effect.runPromise(upsertUnmappedFolderMatchRows(db, [{
       last_matched_at: "2024-01-01T00:00:00.000Z",
       match_status: "done",
       name: "Naruto Archive",
@@ -396,9 +400,9 @@ Deno.test("unmapped folder match rows persist cached suggestions", async () => {
           'Matched a library title from the normalized folder name "Naruto Archive"',
         title: { romaji: "Naruto" },
       }],
-    }]);
+    }]));
 
-    const rows = await listUnmappedFolderMatchRows(db);
+    const rows = await Effect.runPromise(listUnmappedFolderMatchRows(db));
     assertEquals(rows.length, 1);
     assertEquals(rows[0]?.path, "/library/Naruto Archive");
 
@@ -412,15 +416,17 @@ Deno.test("unmapped folder match rows persist cached suggestions", async () => {
 
 Deno.test("loadUnmappedFolderMatchRow returns a row by folder path", async () => {
   await withTestDb(async (db) => {
-    await upsertUnmappedFolderMatchRows(db, [{
+    await Effect.runPromise(upsertUnmappedFolderMatchRows(db, [{
       match_status: "paused",
       name: "Naruto Archive",
       path: "/library/Naruto Archive",
       size: 0,
       suggested_matches: [],
-    }]);
+    }]));
 
-    const row = await loadUnmappedFolderMatchRow(db, "/library/Naruto Archive");
+    const row = await Effect.runPromise(
+      loadUnmappedFolderMatchRow(db, "/library/Naruto Archive"),
+    );
 
     assertEquals(row?.path, "/library/Naruto Archive");
     assertEquals(row?.matchStatus, "paused");

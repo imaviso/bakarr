@@ -178,29 +178,19 @@ const makeSystemService = Effect.gen(function* () {
   const backgroundWorkerMonitor = yield* BackgroundWorkerMonitor;
 
   const listProfiles = Effect.fn("SystemService.listProfiles")(function* () {
-    const rows = yield* tryDatabasePromise(
-      "Failed to load quality profiles",
-      () => listQualityProfileRows(db),
-    );
+    const rows = yield* listQualityProfileRows(db);
     return yield* Effect.forEach(rows, effectDecodeQualityProfileRow);
   });
 
   const createProfile = Effect.fn("SystemService.createProfile")(function* (
     profile: QualityProfile,
   ) {
-    yield* tryDatabasePromise(
-      "Failed to create quality profile",
-      () => insertQualityProfileRow(db, encodeQualityProfileRow(profile)),
-    );
-    yield* tryDatabasePromise(
-      "Failed to create quality profile",
-      () =>
-        appendSystemLog(
-          db,
-          "profiles.created",
-          "success",
-          `Quality profile '${profile.name}' created`,
-        ),
+    yield* insertQualityProfileRow(db, encodeQualityProfileRow(profile));
+    yield* appendSystemLog(
+      db,
+      "profiles.created",
+      "success",
+      `Quality profile '${profile.name}' created`,
     );
     return profile;
   });
@@ -208,10 +198,7 @@ const makeSystemService = Effect.gen(function* () {
   const deleteProfile = Effect.fn("SystemService.deleteProfile")(function* (
     name: string,
   ) {
-    const referencingAnime = yield* tryDatabasePromise(
-      "Failed to delete quality profile",
-      () => countAnimeUsingProfile(db, name),
-    );
+    const referencingAnime = yield* countAnimeUsingProfile(db, name);
 
     if (referencingAnime > 0) {
       return yield* new ConfigValidationError({
@@ -220,29 +207,19 @@ const makeSystemService = Effect.gen(function* () {
       });
     }
 
-    yield* tryDatabasePromise(
-      "Failed to delete quality profile",
-      () => deleteQualityProfileRow(db, name),
-    );
-    yield* tryDatabasePromise(
-      "Failed to delete quality profile",
-      () =>
-        appendSystemLog(
-          db,
-          "profiles.deleted",
-          "success",
-          `Quality profile '${name}' deleted`,
-        ),
+    yield* deleteQualityProfileRow(db, name);
+    yield* appendSystemLog(
+      db,
+      "profiles.deleted",
+      "success",
+      `Quality profile '${name}' deleted`,
     );
   });
 
   const listReleaseProfiles = Effect.fn(
     "SystemService.listReleaseProfiles",
   )(function* () {
-    const rows = yield* tryDatabasePromise(
-      "Failed to load release profiles",
-      () => listReleaseProfileRows(db),
-    );
+    const rows = yield* listReleaseProfileRows(db);
     return yield* Effect.forEach(rows, effectDecodeReleaseProfileRow);
   });
 
@@ -251,26 +228,18 @@ const makeSystemService = Effect.gen(function* () {
   )(function* (
     input: Omit<ReleaseProfile, "id" | "enabled"> & { enabled?: boolean },
   ) {
-    const created = yield* tryDatabasePromise(
-      "Failed to create release profile",
-      () =>
-        insertReleaseProfileRow(db, {
-          enabled: input.enabled ?? true,
-          isGlobal: input.is_global,
-          name: input.name,
-          rules: encodeReleaseProfileRules(input.rules),
-        }),
-    );
+    const created = yield* insertReleaseProfileRow(db, {
+      enabled: input.enabled ?? true,
+      isGlobal: input.is_global,
+      name: input.name,
+      rules: encodeReleaseProfileRules(input.rules),
+    });
 
-    yield* tryDatabasePromise(
-      "Failed to create release profile",
-      () =>
-        appendSystemLog(
-          db,
-          "release_profiles.created",
-          "success",
-          `Release profile '${input.name}' created`,
-        ),
+    yield* appendSystemLog(
+      db,
+      "release_profiles.created",
+      "success",
+      `Release profile '${input.name}' created`,
     );
     return yield* effectDecodeReleaseProfileRow(created);
   });
@@ -278,45 +247,30 @@ const makeSystemService = Effect.gen(function* () {
   const updateReleaseProfile = Effect.fn(
     "SystemService.updateReleaseProfile",
   )(function* (id: number, input: Omit<ReleaseProfile, "id">) {
-    yield* tryDatabasePromise(
-      "Failed to update release profile",
-      () =>
-        updateReleaseProfileRow(db, id, {
-          enabled: input.enabled,
-          isGlobal: input.is_global,
-          name: input.name,
-          rules: encodeReleaseProfileRules(input.rules),
-        }),
-    );
+    yield* updateReleaseProfileRow(db, id, {
+      enabled: input.enabled,
+      isGlobal: input.is_global,
+      name: input.name,
+      rules: encodeReleaseProfileRules(input.rules),
+    });
 
-    yield* tryDatabasePromise(
-      "Failed to update release profile",
-      () =>
-        appendSystemLog(
-          db,
-          "release_profiles.updated",
-          "success",
-          `Release profile '${input.name}' updated`,
-        ),
+    yield* appendSystemLog(
+      db,
+      "release_profiles.updated",
+      "success",
+      `Release profile '${input.name}' updated`,
     );
   });
 
   const deleteReleaseProfile = Effect.fn(
     "SystemService.deleteReleaseProfile",
   )(function* (id: number) {
-    yield* tryDatabasePromise(
-      "Failed to delete release profile",
-      () => deleteReleaseProfileRow(db, id),
-    );
-    yield* tryDatabasePromise(
-      "Failed to delete release profile",
-      () =>
-        appendSystemLog(
-          db,
-          "release_profiles.deleted",
-          "success",
-          `Release profile ${id} deleted`,
-        ),
+    yield* deleteReleaseProfileRow(db, id);
+    yield* appendSystemLog(
+      db,
+      "release_profiles.deleted",
+      "success",
+      `Release profile ${id} deleted`,
     );
   });
 
@@ -329,10 +283,7 @@ const makeSystemService = Effect.gen(function* () {
 
   const triggerInfoEvent = Effect.fn("SystemService.triggerInfoEvent")(
     function* (message: string, eventType: string) {
-      yield* tryDatabasePromise(
-        "Failed to write system log",
-        () => appendSystemLog(db, eventType, "info", message),
-      );
+      yield* appendSystemLog(db, eventType, "info", message);
       yield* eventPublisher.publishInfo(message);
     },
   );
@@ -351,49 +302,26 @@ const makeSystemService = Effect.gen(function* () {
    */
   const ensureInitialized = Effect.fn("SystemService.ensureInitialized")(
     function* () {
-      const configRows = yield* tryDatabasePromise(
-        "Failed to initialize system configuration",
-        async () => {
-          const row = await loadSystemConfigRow(db);
-          return row ? [row] : [];
-        },
-      );
+      const configRow = yield* loadSystemConfigRow(db);
 
-      if (configRows.length === 0) {
-        yield* tryDatabasePromise(
-          "Failed to initialize system configuration",
-          () =>
-            insertSystemConfigRow(db, {
-              data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
-              id: 1,
-              updatedAt: nowIso(),
-            }),
+      if (!configRow) {
+        yield* insertSystemConfigRow(db, {
+          data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
+          id: 1,
+          updatedAt: nowIso(),
+        });
+      }
+
+      const existingProfile = yield* loadAnyQualityProfileRow(db);
+
+      if (!existingProfile) {
+        yield* insertQualityProfileRows(
+          db,
+          DEFAULT_PROFILES.map(encodeQualityProfileRow),
         );
       }
 
-      const existingProfiles = yield* tryDatabasePromise(
-        "Failed to initialize system configuration",
-        async () => {
-          const row = await loadAnyQualityProfileRow(db);
-          return row ? [row] : [];
-        },
-      );
-
-      if (existingProfiles.length === 0) {
-        yield* tryDatabasePromise(
-          "Failed to initialize system configuration",
-          () =>
-            insertQualityProfileRows(
-              db,
-              DEFAULT_PROFILES.map(encodeQualityProfileRow),
-            ),
-        );
-      }
-
-      const storedConfig = yield* tryDatabasePromise(
-        "Failed to initialize system configuration",
-        () => loadSystemConfigRow(db),
-      );
+      const storedConfig = yield* loadSystemConfigRow(db);
 
       if (storedConfig) {
         const decoded = yield* effectDecodeConfigCore(storedConfig.data).pipe(
@@ -409,11 +337,8 @@ const makeSystemService = Effect.gen(function* () {
 
   const loadComposedBackgroundJobs = Effect.fn(
     "SystemService.loadComposedBackgroundJobs",
-  )(function* (currentConfig: Config, message: string) {
-    const rows = yield* tryDatabasePromise(
-      message,
-      () => listBackgroundJobRows(db),
-    );
+  )(function* (currentConfig: Config) {
+    const rows = yield* listBackgroundJobRows(db);
     const liveSnapshot = yield* backgroundWorkerMonitor.snapshot();
 
     return composeBackgroundJobStatuses(currentConfig, liveSnapshot, rows);
@@ -421,10 +346,7 @@ const makeSystemService = Effect.gen(function* () {
 
   const getSystemStatus = Effect.fn("SystemService.getSystemStatus")(
     function* () {
-      const storedConfig = yield* tryDatabasePromise(
-        "Failed to build system status",
-        () => loadSystemConfigRow(db),
-      );
+      const storedConfig = yield* loadSystemConfigRow(db);
 
       const core = storedConfig
         ? yield* effectDecodeConfigCore(storedConfig.data)
@@ -435,20 +357,13 @@ const makeSystemService = Effect.gen(function* () {
         profiles: [],
       } as Config, config.databaseFile);
       const diskSpace = yield* getDiskSpaceSafe(storagePath);
-      const queuedDownloads = yield* tryDatabasePromise(
-        "Failed to build system status",
-        () => countQueuedDownloads(db),
-      );
-      const activeDownloads = yield* tryDatabasePromise(
-        "Failed to build system status",
-        () => countActiveDownloads(db),
-      );
+      const queuedDownloads = yield* countQueuedDownloads(db);
+      const activeDownloads = yield* countActiveDownloads(db);
       const jobs = yield* loadComposedBackgroundJobs(
         {
           ...core,
           profiles: [],
         } as Config,
-        "Failed to build system status",
       );
       const rssJob = findBackgroundJobStatus(jobs, "rss");
       const scanJob = findBackgroundJobStatus(jobs, "library_scan");
@@ -477,30 +392,12 @@ const makeSystemService = Effect.gen(function* () {
 
   const getLibraryStats = Effect.fn("SystemService.getLibraryStats")(
     function* () {
-      const totalAnime = yield* tryDatabasePromise(
-        "Failed to load library stats",
-        () => countAnimeRows(db),
-      );
-      const monitoredAnime = yield* tryDatabasePromise(
-        "Failed to load library stats",
-        () => countMonitoredAnimeRows(db),
-      );
-      const totalEpisodes = yield* tryDatabasePromise(
-        "Failed to load library stats",
-        () => countEpisodeRows(db),
-      );
-      const downloadedEpisodes = yield* tryDatabasePromise(
-        "Failed to load library stats",
-        () => countDownloadedEpisodeRows(db),
-      );
-      const totalRssFeeds = yield* tryDatabasePromise(
-        "Failed to load library stats",
-        () => countRssFeedRows(db),
-      );
-      const completedDownloads = yield* tryDatabasePromise(
-        "Failed to load library stats",
-        () => countCompletedDownloads(db),
-      );
+      const totalAnime = yield* countAnimeRows(db);
+      const monitoredAnime = yield* countMonitoredAnimeRows(db);
+      const totalEpisodes = yield* countEpisodeRows(db);
+      const downloadedEpisodes = yield* countDownloadedEpisodeRows(db);
+      const totalRssFeeds = yield* countRssFeedRows(db);
+      const completedDownloads = yield* countCompletedDownloads(db);
       const animeRows = yield* tryDatabasePromise(
         "Failed to load library stats",
         () => db.select().from(anime),
@@ -553,10 +450,7 @@ const makeSystemService = Effect.gen(function* () {
   );
 
   const getActivity = Effect.fn("SystemService.getActivity")(function* () {
-    const rows = yield* tryDatabasePromise(
-      "Failed to load recent activity",
-      () => listRecentSystemLogRows(db, 20),
-    );
+    const rows = yield* listRecentSystemLogRows(db, 20);
 
     return rows.map((row) => ({
       activity_type: row.eventType,
@@ -570,38 +464,17 @@ const makeSystemService = Effect.gen(function* () {
 
   const getJobs = Effect.fn("SystemService.getJobs")(function* () {
     const currentConfig = yield* getConfig();
-    return yield* loadComposedBackgroundJobs(
-      currentConfig,
-      "Failed to load background jobs",
-    );
+    return yield* loadComposedBackgroundJobs(currentConfig);
   });
 
   const getDashboard = Effect.fn("SystemService.getDashboard")(function* () {
     const currentConfig = yield* getConfig();
-    const queuedDownloads = yield* tryDatabasePromise(
-      "Failed to load ops dashboard",
-      () => countQueuedDownloads(db),
-    );
-    const activeDownloads = yield* tryDatabasePromise(
-      "Failed to load ops dashboard",
-      () => countActiveDownloads(db),
-    );
-    const failedDownloads = yield* tryDatabasePromise(
-      "Failed to load ops dashboard",
-      () => countFailedDownloads(db),
-    );
-    const importedDownloads = yield* tryDatabasePromise(
-      "Failed to load ops dashboard",
-      () => countImportedDownloads(db),
-    );
-    const jobs = yield* loadComposedBackgroundJobs(
-      currentConfig,
-      "Failed to load ops dashboard",
-    );
-    const events = yield* tryDatabasePromise(
-      "Failed to load ops dashboard",
-      () => listRecentDownloadEventRows(db, 12),
-    );
+    const queuedDownloads = yield* countQueuedDownloads(db);
+    const activeDownloads = yield* countActiveDownloads(db);
+    const failedDownloads = yield* countFailedDownloads(db);
+    const importedDownloads = yield* countImportedDownloads(db);
+    const jobs = yield* loadComposedBackgroundJobs(currentConfig);
+    const events = yield* listRecentDownloadEventRows(db, 12);
     const eventContexts = yield* tryDatabasePromise(
       "Failed to load ops dashboard",
       () => loadDownloadEventPresentationContexts(db, events),
@@ -638,14 +511,8 @@ const makeSystemService = Effect.gen(function* () {
    * corruption.
    */
   const getConfig = Effect.fn("SystemService.getConfig")(function* () {
-    const storedConfig = yield* tryDatabasePromise(
-      "Failed to load system configuration",
-      () => loadSystemConfigRow(db),
-    );
-    const profiles = yield* tryDatabasePromise(
-      "Failed to load system configuration",
-      () => listQualityProfileRows(db),
-    );
+    const storedConfig = yield* loadSystemConfigRow(db);
+    const profiles = yield* listQualityProfileRows(db);
 
     const core = yield* effectDecodeStoredConfigRow(storedConfig).pipe(
       Effect.catchTag(
@@ -690,10 +557,7 @@ const makeSystemService = Effect.gen(function* () {
       }
     }
 
-    const existingProfileRows = yield* tryDatabasePromise(
-      "Failed to update system configuration",
-      () => listQualityProfileRows(db),
-    );
+    const existingProfileRows = yield* listQualityProfileRows(db);
 
     // Guard: ensure no anime still references profiles being removed
     const keptProfileNames = new Set(nextConfig.profiles.map((p) => p.name));
@@ -702,9 +566,9 @@ const makeSystemService = Effect.gen(function* () {
       .filter((name) => !keptProfileNames.has(name));
 
     for (const removedProfileName of removedProfileNames) {
-      const referencingAnime = yield* tryDatabasePromise(
-        "Failed to update system configuration",
-        () => countAnimeUsingProfile(db, removedProfileName),
+      const referencingAnime = yield* countAnimeUsingProfile(
+        db,
+        removedProfileName,
       );
 
       if (referencingAnime > 0) {
@@ -725,10 +589,7 @@ const makeSystemService = Effect.gen(function* () {
     };
 
     const updatedAt = nowIso();
-    const previousConfigRow = yield* tryDatabasePromise(
-      "Failed to update system configuration",
-      () => loadSystemConfigRow(db),
-    );
+    const previousConfigRow = yield* loadSystemConfigRow(db);
     const previousState: PersistedSystemConfigState = {
       coreRow: previousConfigRow
         ? {
@@ -765,22 +626,15 @@ const makeSystemService = Effect.gen(function* () {
       nextConfig,
       nextState,
       persistState: (state) =>
-        tryDatabasePromise(
-          "Failed to update system configuration",
-          () => updateSystemConfigAtomic(db, state.coreRow, state.profileRows),
-        ),
+        updateSystemConfigAtomic(db, state.coreRow, state.profileRows),
       previousState,
     });
 
-    yield* tryDatabasePromise(
-      "Failed to update system configuration",
-      () =>
-        appendSystemLog(
-          db,
-          "system.config.updated",
-          "success",
-          "System configuration updated",
-        ),
+    yield* appendSystemLog(
+      db,
+      "system.config.updated",
+      "success",
+      "System configuration updated",
     );
 
     setRuntimeLogLevel(nextConfig.general.log_level);
@@ -792,38 +646,24 @@ const makeSystemService = Effect.gen(function* () {
     name: string,
     profile: QualityProfile,
   ) {
-    const existing = yield* tryDatabasePromise(
-      "Failed to update quality profile",
-      async () => {
-        const row = await loadQualityProfileRow(db, name);
-        return row ? [row] : [];
-      },
-    );
+    const existing = yield* loadQualityProfileRow(db, name);
 
-    if (!existing[0]) {
+    if (!existing) {
       return yield* new ProfileNotFoundError({
         message: "Quality profile not found",
       });
     }
 
-    yield* tryDatabasePromise(
-      "Failed to update quality profile",
-      () =>
-        renameQualityProfileWithCascade(
-          db,
-          name,
-          encodeQualityProfileRow(profile),
-        ),
+    yield* renameQualityProfileWithCascade(
+      db,
+      name,
+      encodeQualityProfileRow(profile),
     );
-    yield* tryDatabasePromise(
-      "Failed to update quality profile",
-      () =>
-        appendSystemLog(
-          db,
-          "profiles.updated",
-          "success",
-          `Quality profile '${name}' updated`,
-        ),
+    yield* appendSystemLog(
+      db,
+      "profiles.updated",
+      "success",
+      `Quality profile '${name}' updated`,
     );
 
     return profile;
@@ -842,18 +682,14 @@ const makeSystemService = Effect.gen(function* () {
       1,
       Math.min(input.pageSize ?? PAGE_SIZE, 10_000),
     );
-    const { rows, total } = yield* tryDatabasePromise(
-      "Failed to load system logs",
-      () =>
-        loadSystemLogPage(db, {
-          endDate: input.endDate,
-          eventType: input.eventType,
-          level: input.level,
-          page: safePage,
-          pageSize: safePageSize,
-          startDate: input.startDate,
-        }),
-    );
+    const { rows, total } = yield* loadSystemLogPage(db, {
+      endDate: input.endDate,
+      eventType: input.eventType,
+      level: input.level,
+      page: safePage,
+      pageSize: safePageSize,
+      startDate: input.startDate,
+    });
 
     return {
       logs: rows.map((row) => ({
