@@ -12,7 +12,7 @@ import {
   SystemLogSchema,
 } from "../../../../packages/shared/src/index.ts";
 import { EventBus } from "../features/events/event-bus.ts";
-import { FileSystem } from "../lib/filesystem.ts";
+import { FileSystem, isWithinPathRoot } from "../lib/filesystem.ts";
 import {
   recordHttpRequestMetrics,
   renderBakarrPrometheusMetrics,
@@ -100,7 +100,14 @@ export function registerSystemRoutes(
   );
 
   app.get("/api/images/*", async (c) => {
-    const relativePath = c.req.path.slice("/api/images/".length)
+    const rawRelativePath = c.req.path.slice("/api/images/".length);
+    let decodedRelativePath: string;
+    try {
+      decodedRelativePath = decodeURIComponent(rawRelativePath);
+    } catch {
+      return c.text("Not Found", 404);
+    }
+    const relativePath = decodedRelativePath
       .split("/")
       .filter((segment) => segment.length > 0);
 
@@ -116,9 +123,17 @@ export function registerSystemRoutes(
     const config = await runEffect(
       Effect.flatMap(SystemService, (service) => service.getConfig()),
     );
-    const filePath = `${config.general.images_path.replace(/\/$/, "")}/${
-      relativePath.join("/")
-    }`;
+    const imagesRoot = config.general.images_path.replace(/\/$/, "");
+    const filePath = `${imagesRoot}/${relativePath.join("/")}`;
+
+    if (!isWithinPathRoot(filePath, imagesRoot)) {
+      return c.text("Not Found", 404);
+    }
+
+    if (!isSupportedImagePath(filePath)) {
+      return c.text("Not Found", 404);
+    }
+
     const bytes = await runEffect(
       Effect.flatMap(FileSystem, (fs) => fs.readFile(filePath)),
     ).catch(() => null);
@@ -584,4 +599,14 @@ function contentTypeForPath(path: string): string {
   if (lower.endsWith(".svg")) return "image/svg+xml";
 
   return "application/octet-stream";
+}
+
+function isSupportedImagePath(path: string): boolean {
+  const lower = path.toLowerCase();
+  return lower.endsWith(".png") ||
+    lower.endsWith(".jpg") ||
+    lower.endsWith(".jpeg") ||
+    lower.endsWith(".webp") ||
+    lower.endsWith(".gif") ||
+    lower.endsWith(".svg");
 }

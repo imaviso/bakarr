@@ -31,6 +31,21 @@ const PUBLIC_API_PATHS = new Set([
   "/api/system/health/ready",
 ]);
 
+const reportMiddlewareEffectFailure = Effect.fn(
+  "Http.reportMiddlewareEffectFailure",
+)(function* (context: string, error: unknown) {
+  yield* Effect.logWarning("http middleware effect failed").pipe(
+    Effect.annotateLogs(
+      compactLogAnnotations({
+        component: "http",
+        context,
+        event: "http.middleware.effect.failed",
+        ...errorLogAnnotations(error),
+      }),
+    ),
+  );
+});
+
 export function createApp(runEffect: RunEffect) {
   const app = new Hono<{ Variables: AppVariables }>();
 
@@ -72,7 +87,11 @@ export function createApp(runEffect: RunEffect) {
             ),
           ),
         ),
-      ).catch(() => undefined);
+      ).catch((error) =>
+        runEffect(reportMiddlewareEffectFailure("request-log", error)).catch(
+          () => undefined,
+        )
+      );
 
       if (c.req.path !== "/api/metrics") {
         await runEffect(
@@ -85,7 +104,10 @@ export function createApp(runEffect: RunEffect) {
               status: statusCode,
             }),
           ),
-        ).catch(() => undefined);
+        ).catch((error) =>
+          runEffect(reportMiddlewareEffectFailure("request-metrics", error))
+            .catch(() => undefined)
+        );
       }
     }
   });
