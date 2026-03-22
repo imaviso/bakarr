@@ -19,7 +19,7 @@ Deno.test("RssClient uses provided HttpClient for feed fetches", async () => {
       (_name, type) =>
         type === "A"
           ? Promise.resolve(["93.184.216.34"])
-          : Promise.reject(new Deno.errors.NotFound()),
+          : Promise.reject(makeNotFoundError()),
       () =>
         Effect.runPromise(
           Effect.flatMap(
@@ -69,7 +69,7 @@ Deno.test("RssClient blocks feeds that resolve to private IPv6 addresses", async
     (_name, type) =>
       type === "AAAA"
         ? Promise.resolve(["fd00::1"])
-        : Promise.reject(new Deno.errors.NotFound()),
+        : Promise.reject(makeNotFoundError()),
     () =>
       Effect.runPromise(
         Effect.flatMap(
@@ -134,7 +134,7 @@ Deno.test("RssClient blocks public URL redirecting to private IP", async () => {
     (_name, type) =>
       type === "A"
         ? Promise.resolve(["93.184.216.34"])
-        : Promise.reject(new Deno.errors.NotFound()),
+        : Promise.reject(makeNotFoundError()),
     () =>
       Effect.runPromise(
         Effect.flatMap(
@@ -175,11 +175,11 @@ Deno.test("RssClient blocks chained redirect where second hop becomes private", 
       if (name === "private.example") {
         return type === "A"
           ? Promise.resolve(["10.0.0.1"])
-          : Promise.reject(new Deno.errors.NotFound());
+          : Promise.reject(makeNotFoundError());
       }
       return type === "A"
         ? Promise.resolve(["93.184.216.34"])
-        : Promise.reject(new Deno.errors.NotFound());
+        : Promise.reject(makeNotFoundError());
     },
     () =>
       Effect.runPromise(
@@ -420,9 +420,22 @@ async function withMockResolveDns<T>(
   mock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
   run: () => Promise<T>,
 ) {
-  const descriptor = Object.getOwnPropertyDescriptor(Deno, "resolveDns");
+  const denoLike = globalThis as unknown as {
+    Deno?: {
+      resolveDns?: (name: string, type: "A" | "AAAA") => Promise<string[]>;
+    };
+  };
 
-  Object.defineProperty(Deno, "resolveDns", {
+  if (!denoLike.Deno) {
+    denoLike.Deno = {};
+  }
+
+  const descriptor = Object.getOwnPropertyDescriptor(
+    denoLike.Deno,
+    "resolveDns",
+  );
+
+  Object.defineProperty(denoLike.Deno, "resolveDns", {
     configurable: true,
     value: mock,
     writable: true,
@@ -432,9 +445,18 @@ async function withMockResolveDns<T>(
     return await run();
   } finally {
     if (descriptor) {
-      Object.defineProperty(Deno, "resolveDns", descriptor);
+      Object.defineProperty(denoLike.Deno, "resolveDns", descriptor);
+    } else {
+      delete denoLike.Deno.resolveDns;
     }
   }
+}
+
+function makeNotFoundError() {
+  const error = new Error("Not found") as Error & { code?: string };
+  error.name = "NotFound";
+  error.code = "NotFound";
+  return error;
 }
 
 Deno.test("RssClient accepts feeds under byte cap", async () => {

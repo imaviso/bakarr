@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import type { ScannerState } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
 import type { AniListClient } from "../anime/anilist.ts";
 import { markSearchResultsAlreadyInLibrary } from "../anime/repository.ts";
 import {
@@ -81,7 +81,7 @@ function roundConfidence(value: number) {
 
 export function listUnmappedFolderEntries(
   root: string,
-  entries: readonly Deno.DirEntry[],
+  entries: readonly DirEntry[],
   mappedRoots: ReadonlySet<string>,
 ) {
   return entries.flatMap((entry) => {

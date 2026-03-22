@@ -15,17 +15,28 @@ import {
   SeaDexClient,
   type SeaDexEntry,
 } from "./src/features/operations/seadex-client.ts";
+import { platformFsTest } from "./src/test/platform-filesystem-test.ts";
 import type { AnimeSearchResult } from "../../packages/shared/src/index.ts";
+
+const {
+  makeTempDir,
+  makeTempFile,
+  mkdirPath,
+  removePath,
+  statPath,
+  writeBinaryFile,
+  writeTextFile,
+} = platformFsTest;
 
 const NARUTO_RELEASE_TITLE = "[SubsPlease] Naruto - 01 (1080p) [ABC123].mkv";
 
-const integrationTestPermissions: Deno.PermissionOptions = {
+const integrationTestPermissions = {
   env: true,
   ffi: true,
   read: true,
   sys: true,
   write: true,
-};
+} as const;
 
 function integrationTest(
   name: string,
@@ -61,7 +72,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const baseRoot = await Deno.makeTempDir();
+      const baseRoot = await makeTempDir();
 
       try {
         const addResponse = await ctx.app.request("/api/anime", {
@@ -104,7 +115,7 @@ integrationTest(
         assertEquals(body.results[0].seadex_tags, ["Best", "Dual Audio"]);
         assertEquals(body.results[0].seadex_dual_audio, true);
       } finally {
-        await Deno.remove(baseRoot, { recursive: true });
+        await removePath(baseRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -155,7 +166,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const baseRoot = await Deno.makeTempDir();
+      const baseRoot = await makeTempDir();
 
       try {
         const addResponse = await ctx.app.request("/api/anime", {
@@ -193,7 +204,7 @@ integrationTest(
           "Matched by Nyaa URL fallback.",
         );
       } finally {
-        await Deno.remove(baseRoot, { recursive: true });
+        await removePath(baseRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -249,7 +260,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const baseRoot = await Deno.makeTempDir();
+      const baseRoot = await makeTempDir();
 
       try {
         const addResponse = await ctx.app.request("/api/anime", {
@@ -290,7 +301,7 @@ integrationTest(
         assertEquals(ember?.is_seadex, false);
         assertEquals(ember?.is_seadex_best, false);
       } finally {
-        await Deno.remove(baseRoot, { recursive: true });
+        await removePath(baseRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -312,7 +323,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const baseRoot = await Deno.makeTempDir();
+      const baseRoot = await makeTempDir();
 
       try {
         const addResponse = await ctx.app.request("/api/anime", {
@@ -354,7 +365,7 @@ integrationTest(
         assertEquals(body[0].seadex_tags, ["Best", "Dual Audio"]);
         assertEquals(body[0].download_action.Accept?.is_seadex_best, true);
       } finally {
-        await Deno.remove(baseRoot, { recursive: true });
+        await removePath(baseRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -377,7 +388,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const imagesPath = await Deno.makeTempDir();
+      const imagesPath = await makeTempDir();
 
       try {
         const currentConfigResponse = await ctx.app.request(
@@ -401,9 +412,9 @@ integrationTest(
           method: "PUT",
         });
 
-        await Deno.mkdir(`${imagesPath}/anime/20`, { recursive: true });
+        await mkdirPath(`${imagesPath}/anime/20`, { recursive: true });
         const body = new TextEncoder().encode("cached-image");
-        await Deno.writeFile(`${imagesPath}/anime/20/cover.png`, body);
+        await writeBinaryFile(`${imagesPath}/anime/20/cover.png`, body);
 
         const response = await ctx.app.request(
           "/api/images/anime/20/cover.png",
@@ -416,7 +427,7 @@ integrationTest(
         assertEquals(response.headers.get("content-type"), "image/png");
         assertEquals(await response.text(), "cached-image");
       } finally {
-        await Deno.remove(imagesPath, { recursive: true });
+        await removePath(imagesPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -688,7 +699,7 @@ integrationTest("library browse returns sorted entries and sizes", async () => {
     const sessionCookie = loginResponse.headers.get("set-cookie");
     assert(sessionCookie);
 
-    const root = await Deno.makeTempDir();
+    const root = await makeTempDir();
 
     try {
       const configRes = await ctx.app.request("/api/system/config", {
@@ -702,8 +713,8 @@ integrationTest("library browse returns sorted entries and sizes", async () => {
         body: JSON.stringify(config),
       });
 
-      await Deno.mkdir(`${root}/anime`, { recursive: true });
-      await Deno.writeTextFile(`${root}/notes.txt`, "hello");
+      await mkdirPath(`${root}/anime`, { recursive: true });
+      await writeTextFile(`${root}/notes.txt`, "hello");
 
       const browseResponse = await ctx.app.request(
         `/api/library/browse?path=${encodeURIComponent(root)}`,
@@ -742,7 +753,7 @@ integrationTest("library browse returns sorted entries and sizes", async () => {
       assertEquals(paged.offset, 1);
       assertEquals(paged.has_more, false);
     } finally {
-      await Deno.remove(root, { recursive: true });
+      await removePath(root, { recursive: true });
     }
   } finally {
     await ctx.dispose();
@@ -1003,7 +1014,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const baseRoot = await Deno.makeTempDir();
+      const baseRoot = await makeTempDir();
 
       try {
         const addResponse = await ctx.app.request("/api/anime", {
@@ -1025,7 +1036,7 @@ integrationTest(
         const anime = await addResponse.json();
 
         const filePath = `${anime.root_folder}/Naruto - 001.mkv`;
-        await Deno.writeTextFile(filePath, "video");
+        await writeTextFile(filePath, "video");
 
         const scanTaskResponse = await ctx.app.request(
           "/api/system/tasks/scan",
@@ -1056,7 +1067,7 @@ integrationTest(
           true,
         );
       } finally {
-        await Deno.remove(baseRoot, { recursive: true });
+        await removePath(baseRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -1157,11 +1168,11 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
-        await Deno.mkdir(`${libraryPath}/Alpha Archive`, { recursive: true });
-        await Deno.mkdir(`${libraryPath}/Beta Archive`, { recursive: true });
+        await mkdirPath(`${libraryPath}/Alpha Archive`, { recursive: true });
+        await mkdirPath(`${libraryPath}/Beta Archive`, { recursive: true });
 
         const currentConfigResponse = await ctx.app.request(
           "/api/system/config",
@@ -1279,7 +1290,7 @@ integrationTest(
           client.close();
         }
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -1301,7 +1312,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const currentConfigResponse = await ctx.app.request(
@@ -1343,7 +1354,7 @@ integrationTest(
 
         assertEquals(addResponse.status, 200);
 
-        await Deno.mkdir(`${libraryPath}/Naruto Archive`, { recursive: true });
+        await mkdirPath(`${libraryPath}/Naruto Archive`, { recursive: true });
 
         const scanResponse = await ctx.app.request(
           "/api/library/unmapped/scan",
@@ -1388,7 +1399,7 @@ integrationTest(
         assertEquals(folder.suggested_matches[0].id, 20);
         assertEquals(folder.suggested_matches[0].already_in_library, true);
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -1410,10 +1421,10 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
-        await Deno.mkdir(`${libraryPath}/Naruto Archive`, { recursive: true });
+        await mkdirPath(`${libraryPath}/Naruto Archive`, { recursive: true });
 
         const currentConfigResponse = await ctx.app.request(
           "/api/system/config",
@@ -1478,7 +1489,7 @@ integrationTest(
           client.close();
         }
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -1500,11 +1511,11 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const folderPath = `${libraryPath}/Naruto Archive`;
-        await Deno.mkdir(folderPath, { recursive: true });
+        await mkdirPath(folderPath, { recursive: true });
 
         const currentConfigResponse = await ctx.app.request(
           "/api/system/config",
@@ -1571,7 +1582,7 @@ integrationTest(
         assertEquals(state.has_outstanding_matches, false);
         assertEquals(folder.match_status, "done");
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -1593,11 +1604,11 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const folderPath = `${libraryPath}/Naruto Archive`;
-        await Deno.mkdir(folderPath, { recursive: true });
+        await mkdirPath(folderPath, { recursive: true });
 
         const currentConfigResponse = await ctx.app.request(
           "/api/system/config",
@@ -1673,7 +1684,7 @@ integrationTest(
         assertEquals(folder.match_status, "done");
         assertEquals(folder.match_attempts, 0);
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -1695,11 +1706,11 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const folderPath = `${libraryPath}/Naruto Archive`;
-        await Deno.mkdir(folderPath, { recursive: true });
+        await mkdirPath(folderPath, { recursive: true });
 
         const currentConfigResponse = await ctx.app.request(
           "/api/system/config",
@@ -1776,7 +1787,7 @@ integrationTest(
         assertEquals(folder.match_status, "failed");
         assertEquals(folder.match_attempts, 3);
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -1798,11 +1809,11 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const folderPath = `${libraryPath}/Naruto Archive`;
-        await Deno.mkdir(folderPath, { recursive: true });
+        await mkdirPath(folderPath, { recursive: true });
 
         const currentConfigResponse = await ctx.app.request(
           "/api/system/config",
@@ -1929,7 +1940,7 @@ integrationTest(
           client.close();
         }
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -1951,13 +1962,13 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const pausedFolderPath = `${libraryPath}/Paused Archive`;
         const failedFolderPath = `${libraryPath}/Naruto Archive`;
-        await Deno.mkdir(pausedFolderPath, { recursive: true });
-        await Deno.mkdir(failedFolderPath, { recursive: true });
+        await mkdirPath(pausedFolderPath, { recursive: true });
+        await mkdirPath(failedFolderPath, { recursive: true });
 
         const currentConfigResponse = await ctx.app.request(
           "/api/system/config",
@@ -2068,7 +2079,7 @@ integrationTest(
           client.close();
         }
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -2090,13 +2101,13 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const queuedFolderPath = `${libraryPath}/Queued Archive`;
         const failedFolderPath = `${libraryPath}/Failed Archive`;
-        await Deno.mkdir(queuedFolderPath, { recursive: true });
-        await Deno.mkdir(failedFolderPath, { recursive: true });
+        await mkdirPath(queuedFolderPath, { recursive: true });
+        await mkdirPath(failedFolderPath, { recursive: true });
 
         const currentConfigResponse = await ctx.app.request(
           "/api/system/config",
@@ -2191,7 +2202,7 @@ integrationTest(
           client.close();
         }
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -2213,8 +2224,8 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const animeRoot = await Deno.makeTempDir();
-      const completedRoot = await Deno.makeTempDir();
+      const animeRoot = await makeTempDir();
+      const completedRoot = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -2254,7 +2265,7 @@ integrationTest(
         assertEquals(triggerDownloadResponse.status, 200);
 
         const completedFile = `${completedRoot}/Naruto - 01.mkv`;
-        await Deno.writeTextFile(completedFile, "completed-download");
+        await writeTextFile(completedFile, "completed-download");
 
         const client = createClient({ url: `file:${ctx.databaseFile}` });
         try {
@@ -2306,8 +2317,8 @@ integrationTest(
         const history = await historyResponse.json();
         assertEquals(history[0].status, "imported");
       } finally {
-        await Deno.remove(animeRoot, { recursive: true });
-        await Deno.remove(completedRoot, { recursive: true });
+        await removePath(animeRoot, { recursive: true });
+        await removePath(completedRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -2318,11 +2329,11 @@ integrationTest(
 integrationTest(
   "download sync auto-imports paused seeding torrents",
   async () => {
-    const animeRoot = await Deno.makeTempDir();
-    const completedRoot = await Deno.makeTempDir();
+    const animeRoot = await makeTempDir();
+    const completedRoot = await makeTempDir();
     const magnetHash = "1234567890abcdef1234567890abcdef12345678";
     const completedFile = `${completedRoot}/Naruto - 01.mkv`;
-    await Deno.writeTextFile(completedFile, "completed-download");
+    await writeTextFile(completedFile, "completed-download");
 
     const qbitLayer = Layer.succeed(QBitTorrentClient, {
       addTorrentUrl: () => Effect.void,
@@ -2459,8 +2470,8 @@ integrationTest(
       );
     } finally {
       await ctx.dispose();
-      await Deno.remove(animeRoot, { recursive: true });
-      await Deno.remove(completedRoot, { recursive: true });
+      await removePath(animeRoot, { recursive: true });
+      await removePath(completedRoot, { recursive: true });
     }
   },
 );
@@ -2479,7 +2490,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -2532,7 +2543,7 @@ integrationTest(
         assertEquals(history[0].covered_episodes, undefined);
         assertEquals(history[0].episode_number, 1);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -2630,7 +2641,7 @@ integrationTest(
       );
       assertEquals(updatedConfigResponse.status, 200);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -2689,7 +2700,7 @@ integrationTest(
         assertEquals(history[0].is_batch, true);
         assertEquals(history[0].coverage_pending, undefined);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -2730,7 +2741,7 @@ integrationTest(
       assertEquals(missingPause.status, 404);
       assertEquals(await missingPause.text(), "Download not found");
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -2801,7 +2812,7 @@ integrationTest(
           "Download has no reconciliable content path",
         );
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -2823,7 +2834,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -2910,7 +2921,7 @@ integrationTest(
         );
         assertEquals((await historyAfterDelete.json()).length, 0);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -2954,8 +2965,8 @@ integrationTest(
       const apiKeySessionCookie = apiKeyLoginResponse.headers.get("set-cookie");
       assert(apiKeySessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
-      const updatedFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
+      const updatedFolder = await makeTempDir();
 
       try {
         const releaseProfileResponse = await ctx.app.request(
@@ -3038,7 +3049,7 @@ integrationTest(
         assertEquals(releaseProfilesResponse.status, 200);
 
         const filePath = `${updatedFolder}/Naruto - 001.mkv`;
-        await Deno.writeTextFile(filePath, "streamable");
+        await writeTextFile(filePath, "streamable");
 
         const mapResponse = await ctx.app.request(
           "/api/anime/20/episodes/1/map",
@@ -3111,8 +3122,8 @@ integrationTest(
         });
         assertEquals((await animeListAfterDelete.json()).total, 0);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
-        await Deno.remove(updatedFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
+        await removePath(updatedFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -3134,8 +3145,8 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const initialRoot = await Deno.makeTempDir();
-      const updatedRoot = await Deno.makeTempDir();
+      const initialRoot = await makeTempDir();
+      const updatedRoot = await makeTempDir();
 
       try {
         const addResponse = await ctx.app.request("/api/anime", {
@@ -3157,7 +3168,7 @@ integrationTest(
         const anime = await addResponse.json();
 
         const filePath = `${anime.root_folder}/Naruto - 001.mkv`;
-        await Deno.writeTextFile(filePath, "stale-stream");
+        await writeTextFile(filePath, "stale-stream");
 
         const mapResponse = await ctx.app.request(
           "/api/anime/20/episodes/1/map",
@@ -3196,8 +3207,8 @@ integrationTest(
         const staleStreamResponse = await ctx.app.request(signedStreamUrl);
         assertEquals(staleStreamResponse.status, 404);
       } finally {
-        await Deno.remove(initialRoot, { recursive: true });
-        await Deno.remove(updatedRoot, { recursive: true });
+        await removePath(initialRoot, { recursive: true });
+        await removePath(updatedRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -3219,7 +3230,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addResponse = await ctx.app.request("/api/anime", {
@@ -3241,7 +3252,7 @@ integrationTest(
 
         const anime = await addResponse.json();
         const filePath = `${anime.root_folder}/Naruto - 001.mkv`;
-        await Deno.writeTextFile(filePath, "episode-bytes");
+        await writeTextFile(filePath, "episode-bytes");
 
         const mapResponse = await ctx.app.request(
           "/api/anime/20/episodes/1/map",
@@ -3267,13 +3278,13 @@ integrationTest(
 
         let removed = false;
         try {
-          await Deno.stat(filePath);
+          await statPath(filePath);
         } catch {
           removed = true;
         }
         assertEquals(removed, true);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -3337,7 +3348,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -3419,7 +3430,7 @@ integrationTest(
           false,
         );
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -3491,7 +3502,7 @@ integrationTest("anime CRUD and episode scan flow works", async () => {
     const sessionCookie = loginResponse.headers.get("set-cookie");
     assert(sessionCookie);
 
-    const rootFolder = await Deno.makeTempDir();
+    const rootFolder = await makeTempDir();
 
     try {
       const addResponse = await ctx.app.request("/api/anime", {
@@ -3557,7 +3568,7 @@ integrationTest("anime CRUD and episode scan flow works", async () => {
       assertEquals(episodes[0].number, 1);
       assertEquals(episodes[0].downloaded, false);
 
-      await Deno.writeTextFile(
+      await writeTextFile(
         `${anime.root_folder}/Naruto - 001.mkv`,
         "fake video data",
       );
@@ -3608,7 +3619,7 @@ integrationTest("anime CRUD and episode scan flow works", async () => {
         up_to_date_anime: 0,
       });
     } finally {
-      await Deno.remove(rootFolder, { recursive: true });
+      await removePath(rootFolder, { recursive: true });
     }
   } finally {
     await ctx.dispose();
@@ -3630,8 +3641,8 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
-      const importFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
+      const importFolder = await makeTempDir();
 
       try {
         const currentConfigResponse = await ctx.app.request(
@@ -3672,7 +3683,7 @@ integrationTest(
         });
         const addedAnime = await addAnimeResponse.json();
 
-        await Deno.writeTextFile(
+        await writeTextFile(
           `${addedAnime.root_folder}/Hunter x Hunter (2011) - 001.mkv`,
           "episode file",
         );
@@ -3759,7 +3770,7 @@ integrationTest(
         assertEquals(renameExec.status, 200);
         assertEquals((await renameExec.json()).renamed, 1);
 
-        await Deno.writeTextFile(
+        await writeTextFile(
           `${importFolder}/import-me-002.mkv`,
           "video import",
         );
@@ -4121,8 +4132,8 @@ integrationTest(
         assertEquals(calendar.status, 200);
         assert((await calendar.json()).length >= 1);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
-        await Deno.remove(importFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
+        await removePath(importFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -4145,7 +4156,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         await ctx.app.request("/api/anime", {
@@ -4325,7 +4336,7 @@ integrationTest(
             episodeSearchBody[0].download_action.Reject,
         );
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -4348,7 +4359,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         await ctx.app.request("/api/anime", {
@@ -4421,7 +4432,7 @@ integrationTest(
           false,
         );
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -4444,7 +4455,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -4525,7 +4536,7 @@ integrationTest(
         assertEquals(downloads.length > 0, true);
         assertEquals(downloads[0].anime_id, 20);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -4548,8 +4559,8 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
-      const importFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
+      const importFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -4571,7 +4582,7 @@ integrationTest(
         assertEquals(addAnimeResponse.status, 200);
 
         const sourcePath = `${importFolder}/manual-import-001.mkv`;
-        await Deno.writeTextFile(sourcePath, "video import");
+        await writeTextFile(sourcePath, "video import");
 
         const importScan = await ctx.app.request("/api/library/import/scan", {
           body: JSON.stringify({ anime_id: 20, path: importFolder }),
@@ -4606,8 +4617,8 @@ integrationTest(
         assertEquals(importBody.imported, 1);
         assertEquals(importBody.failed, 0);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
-        await Deno.remove(importFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
+        await removePath(importFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -4632,7 +4643,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -4700,7 +4711,7 @@ integrationTest(
           /"type":"DownloadStarted"|"type":"DownloadProgress"/,
         );
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await reader?.cancel().catch(() => undefined);
@@ -4727,7 +4738,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -4799,7 +4810,7 @@ integrationTest(
           /"type":"DownloadStarted"|"type":"DownloadProgress"/,
         );
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await firstReader?.cancel().catch(() => undefined);
@@ -4826,7 +4837,7 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -4847,7 +4858,7 @@ integrationTest(
 
         assertEquals(addAnimeResponse.status, 200);
 
-        await Deno.writeTextFile(`${rootFolder}/Naruto - 001.mkv`, "video");
+        await writeTextFile(`${rootFolder}/Naruto - 001.mkv`, "video");
 
         const rssXml =
           `<?xml version="1.0"?><rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item><title>[SubsPlease] Naruto - 001 (1080p)</title><link>https://nyaa.si/download/1.torrent</link><pubDate>${
@@ -4902,7 +4913,7 @@ integrationTest(
         );
         assertMatch(scanProgress, /"type":"LibraryScanProgress"/);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await reader?.cancel().catch(() => undefined);
@@ -4925,8 +4936,8 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const animeRoot = await Deno.makeTempDir();
-      const completedRoot = await Deno.makeTempDir();
+      const animeRoot = await makeTempDir();
+      const completedRoot = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -4967,12 +4978,12 @@ integrationTest(
         assertEquals(triggerDownloadResponse.status, 200);
 
         const batchFolder = `${completedRoot}/batch`;
-        await Deno.mkdir(batchFolder, { recursive: true });
-        await Deno.writeTextFile(
+        await mkdirPath(batchFolder, { recursive: true });
+        await writeTextFile(
           `${batchFolder}/Naruto - 001.mkv`,
           "episode-1",
         );
-        await Deno.writeTextFile(
+        await writeTextFile(
           `${batchFolder}/Naruto - 002.mkv`,
           "episode-2",
         );
@@ -5033,8 +5044,8 @@ integrationTest(
         assertEquals(history[0].status, "imported");
         assertEquals(history[0].is_batch, true);
       } finally {
-        await Deno.remove(animeRoot, { recursive: true });
-        await Deno.remove(completedRoot, { recursive: true });
+        await removePath(animeRoot, { recursive: true });
+        await removePath(completedRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -5056,8 +5067,8 @@ integrationTest(
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
 
-      const animeRoot = await Deno.makeTempDir();
-      const completedRoot = await Deno.makeTempDir();
+      const animeRoot = await makeTempDir();
+      const completedRoot = await makeTempDir();
 
       try {
         const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -5080,8 +5091,8 @@ integrationTest(
 
         const existingEpisodeOne = `${anime.root_folder}/Naruto - 001.mkv`;
         const existingEpisodeTwo = `${anime.root_folder}/Naruto - 002.mkv`;
-        await Deno.writeTextFile(existingEpisodeOne, "episode-1");
-        await Deno.writeTextFile(existingEpisodeTwo, "episode-2");
+        await writeTextFile(existingEpisodeOne, "episode-1");
+        await writeTextFile(existingEpisodeTwo, "episode-2");
 
         const mapEpisodeOne = await ctx.app.request(
           "/api/anime/20/episodes/1/map",
@@ -5130,12 +5141,12 @@ integrationTest(
         assertEquals(triggerDownloadResponse.status, 200);
 
         const batchFolder = `${completedRoot}/batch`;
-        await Deno.mkdir(batchFolder, { recursive: true });
-        await Deno.writeTextFile(
+        await mkdirPath(batchFolder, { recursive: true });
+        await writeTextFile(
           `${batchFolder}/Naruto - 001.mkv`,
           "episode-1",
         );
-        await Deno.writeTextFile(
+        await writeTextFile(
           `${batchFolder}/Naruto - 002.mkv`,
           "episode-2",
         );
@@ -5181,8 +5192,8 @@ integrationTest(
           verifyClient.close();
         }
       } finally {
-        await Deno.remove(animeRoot, { recursive: true });
-        await Deno.remove(completedRoot, { recursive: true });
+        await removePath(animeRoot, { recursive: true });
+        await removePath(completedRoot, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -5203,7 +5214,7 @@ integrationTest(
       });
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const currentConfigResponse = await ctx.app.request(
@@ -5250,7 +5261,7 @@ integrationTest(
         assertEquals(anime.root_folder.startsWith(libraryPath), true);
         assertEquals(anime.root_folder, `${libraryPath}/Naruto`);
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -5271,7 +5282,7 @@ integrationTest(
       });
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const currentConfigResponse = await ctx.app.request(
@@ -5297,8 +5308,8 @@ integrationTest(
 
         const folderName = "Naruto Fansub";
         const folderPath = `${libraryPath}/${folderName}`;
-        await Deno.mkdir(folderPath, { recursive: true });
-        await Deno.writeTextFile(
+        await mkdirPath(folderPath, { recursive: true });
+        await writeTextFile(
           `${folderPath}/[SubsPlease] Naruto - 001.mkv`,
           "test",
         );
@@ -5377,7 +5388,7 @@ integrationTest(
         const afterState = await afterImport.json();
         assertEquals(afterState.folders.length, 0);
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -5398,11 +5409,11 @@ integrationTest(
       });
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const existingFolder = `${libraryPath}/Naruto Fansub`;
-        await Deno.mkdir(existingFolder, { recursive: true });
+        await mkdirPath(existingFolder, { recursive: true });
 
         const addResponse = await ctx.app.request("/api/anime", {
           body: JSON.stringify({
@@ -5425,7 +5436,7 @@ integrationTest(
         const anime = await addResponse.json();
         assertEquals(anime.root_folder, existingFolder);
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -5446,11 +5457,11 @@ integrationTest(
       });
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
-      const libraryPath = await Deno.makeTempDir();
+      const libraryPath = await makeTempDir();
 
       try {
         const existingFolder = `${libraryPath}/Naruto Fansub`;
-        await Deno.mkdir(existingFolder, { recursive: true });
+        await mkdirPath(existingFolder, { recursive: true });
 
         const firstAddResponse = await ctx.app.request("/api/anime", {
           body: JSON.stringify({
@@ -5490,7 +5501,7 @@ integrationTest(
 
         assertEquals(secondAddResponse.status, 409);
       } finally {
-        await Deno.remove(libraryPath, { recursive: true });
+        await removePath(libraryPath, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -5511,7 +5522,7 @@ integrationTest(
       });
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
-      const rootFolder = await Deno.makeTempDir();
+      const rootFolder = await makeTempDir();
 
       try {
         const addResponse = await ctx.app.request("/api/anime", {
@@ -5534,10 +5545,10 @@ integrationTest(
         const anime = await addResponse.json();
         assertEquals(anime.root_folder, `${rootFolder}/Hunter x Hunter (2011)`);
 
-        const stats = await Deno.stat(anime.root_folder);
-        assertEquals(stats.isDirectory, true);
+        const stats = await statPath(anime.root_folder);
+        assertEquals(stats.type === "Directory", true);
       } finally {
-        await Deno.remove(rootFolder, { recursive: true });
+        await removePath(rootFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -5558,9 +5569,9 @@ integrationTest(
       });
       const sessionCookie = loginResponse.headers.get("set-cookie");
       assert(sessionCookie);
-      const narutoFolder = await Deno.makeTempDir();
-      const hxhFolder = await Deno.makeTempDir();
-      const importFolder = await Deno.makeTempDir();
+      const narutoFolder = await makeTempDir();
+      const hxhFolder = await makeTempDir();
+      const importFolder = await makeTempDir();
 
       try {
         await ctx.app.request("/api/anime", {
@@ -5609,11 +5620,11 @@ integrationTest(
           method: "POST",
         });
 
-        await Deno.writeTextFile(
+        await writeTextFile(
           `${importFolder}/[SubsPlease] Hunter x Hunter (2011) - 002 [1080p].mkv`,
           "video",
         );
-        await Deno.writeTextFile(
+        await writeTextFile(
           `${importFolder}/[SubsPlease] Spy x Family Season 2 - 03 [1080p].mkv`,
           "video",
         );
@@ -5634,12 +5645,12 @@ integrationTest(
         assertEquals(scanBody.files[0].suggested_candidate_id, 11061);
         assertEquals(scanBody.files[1].suggested_candidate_id, 140960);
       } finally {
-        await Deno.remove(narutoFolder, { recursive: true });
-        await Deno.remove(hxhFolder, { recursive: true });
-        await Deno.remove(`${hxhFolder}-spy`, { recursive: true }).catch(() =>
+        await removePath(narutoFolder, { recursive: true });
+        await removePath(hxhFolder, { recursive: true });
+        await removePath(`${hxhFolder}-spy`, { recursive: true }).catch(() =>
           undefined
         );
-        await Deno.remove(importFolder, { recursive: true });
+        await removePath(importFolder, { recursive: true });
       }
     } finally {
       await ctx.dispose();
@@ -5658,7 +5669,7 @@ integrationTest("bulk map accepts empty file path as unmap", async () => {
     });
     const sessionCookie = loginResponse.headers.get("set-cookie");
     assert(sessionCookie);
-    const rootFolder = await Deno.makeTempDir();
+    const rootFolder = await makeTempDir();
 
     try {
       await ctx.app.request("/api/anime", {
@@ -5675,7 +5686,7 @@ integrationTest("bulk map accepts empty file path as unmap", async () => {
       });
 
       const filePath = `${rootFolder}/Naruto - 001.mkv`;
-      await Deno.writeTextFile(filePath, "video");
+      await writeTextFile(filePath, "video");
 
       await ctx.app.request("/api/anime/20/episodes/map/bulk", {
         body: JSON.stringify({
@@ -5700,7 +5711,7 @@ integrationTest("bulk map accepts empty file path as unmap", async () => {
       assertEquals(episodes[0].downloaded, false);
       assertEquals(episodes[0].file_path, undefined);
     } finally {
-      await Deno.remove(rootFolder, { recursive: true });
+      await removePath(rootFolder, { recursive: true });
     }
   } finally {
     await ctx.dispose();
@@ -5884,7 +5895,7 @@ async function createTestContext(options?: {
   seadexLayer?: Layer.Layer<SeaDexClient>;
 }) {
   const { bootstrap } = await import("./main.ts");
-  const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
+  const databaseFile = await makeTempFile({ suffix: ".sqlite" });
   const { app, runtime } = await bootstrap(
     {
       bootstrapPassword: Redacted.make("admin"),
@@ -5905,7 +5916,7 @@ async function createTestContext(options?: {
     databaseFile,
     dispose: async () => {
       await runtime.dispose();
-      await Deno.remove(databaseFile);
+      await removePath(databaseFile);
     },
   };
 }

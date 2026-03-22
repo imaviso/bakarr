@@ -1,5 +1,5 @@
 import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
 import { Effect } from "effect";
 import {
   classifyMediaArtifact,
@@ -38,7 +38,7 @@ export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
           "FileSystemError",
           (error) =>
             !isCurrentRoot && isNotFoundError(error)
-              ? Effect.succeed<Deno.DirEntry[]>([])
+              ? Effect.succeed<DirEntry[]>([])
               : Effect.fail(error),
         ),
       );

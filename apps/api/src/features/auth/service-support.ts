@@ -1,3 +1,4 @@
+import { Terminal } from "@effect/platform";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -98,16 +99,20 @@ export const writeLog = Effect.fn("Auth.writeLog")(
 export const announceBootstrapCredentials = Effect.fn(
   "Auth.announceBootstrapCredentials",
 )(function* (input: { username: string; password: string }) {
-  if (
-    typeof Deno !== "undefined" && Deno.stderr &&
-    (Deno.stderr as { isTerminal?: () => boolean }).isTerminal?.()
-  ) {
-    yield* Effect.sync(() => {
+  const terminal = yield* Effect.serviceOption(Terminal.Terminal);
+
+  if (terminal._tag === "Some") {
+    const isTTY = yield* terminal.value.isTTY;
+
+    if (isTTY) {
       const text =
         `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${input.username}\n* Password: ${input.password}\n* Please log in and change your password.\n*************************************************************\n`;
-      Deno.stderr.writeSync(new TextEncoder().encode(text));
-    });
-    return;
+
+      yield* terminal.value.display(text).pipe(
+        Effect.catchAll(() => Effect.void),
+      );
+      return;
+    }
   }
 
   yield* Effect.logInfo(

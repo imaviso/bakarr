@@ -1,4 +1,5 @@
 import { assertEquals } from "@std/assert";
+import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
@@ -21,6 +22,7 @@ import {
   listEpisodesEffect,
   searchAnimeEffect,
 } from "./query-support.ts";
+import { listAnimeFilesEffect } from "./file-mapping-support.ts";
 
 Deno.test("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
   const results = annotateAnimeSearchResultsForQuery(
@@ -135,6 +137,85 @@ Deno.test("listEpisodesEffect fills missing media metadata from ffprobe", async 
       assertEquals(result[0]?.audio_channels, "2.0");
       assertEquals(result[0]?.duration_seconds, 1440);
       assertEquals(result[0]?.file_size, 4);
+    });
+  });
+});
+
+Deno.test("listAnimeFilesEffect caches probed metadata to episode rows", async () => {
+  await withTestDb(async (db) => {
+    await withFileSystemSandbox(async ({ root, fs }) => {
+      const filePath = `${root}/Episode 1.mkv`;
+      await runTestEffect(writeTextFile(fs, filePath, "test"));
+
+      await db.insert(schema.anime).values({
+        addedAt: "2024-01-01T00:00:00.000Z",
+        episodeCount: 1,
+        format: "TV",
+        genres: "[]",
+        id: 101,
+        monitored: true,
+        profileName: "Default",
+        releaseProfileIds: "[]",
+        rootFolder: root,
+        status: "RELEASING",
+        studios: "[]",
+        titleRomaji: "Probe Cache Show",
+      });
+
+      await db.insert(schema.episodes).values({
+        aired: "2024-01-01T00:00:00.000Z",
+        animeId: 101,
+        downloaded: true,
+        filePath,
+        fileSize: 4,
+        number: 1,
+        title: "Pilot",
+      });
+
+      let probeCalls = 0;
+      const mediaProbe = {
+        probeVideoFile: (_path: string) => {
+          probeCalls += 1;
+          return Effect.succeed({
+            audio_channels: "2.0",
+            audio_codec: "AAC",
+            duration_seconds: 1440,
+            resolution: "1080p",
+            video_codec: "HEVC",
+          });
+        },
+      };
+
+      const first = await Effect.runPromise(
+        listAnimeFilesEffect({ animeId: 101, db, fs, mediaProbe }),
+      );
+
+      const episodeRows = await db.select().from(schema.episodes).where(
+        eq(schema.episodes.animeId, 101),
+      );
+      const row = episodeRows[0];
+
+      assertEquals(first[0]?.resolution, "1080p");
+      assertEquals(first[0]?.video_codec, "HEVC");
+      assertEquals(first[0]?.audio_codec, "AAC");
+      assertEquals(first[0]?.audio_channels, "2.0");
+      assertEquals(first[0]?.duration_seconds, 1440);
+      assertEquals(row?.resolution, "1080p");
+      assertEquals(row?.videoCodec, "HEVC");
+      assertEquals(row?.audioCodec, "AAC");
+      assertEquals(row?.audioChannels, "2.0");
+      assertEquals(row?.durationSeconds, 1440);
+
+      const second = await Effect.runPromise(
+        listAnimeFilesEffect({ animeId: 101, db, fs, mediaProbe }),
+      );
+
+      assertEquals(second[0]?.resolution, "1080p");
+      assertEquals(second[0]?.video_codec, "HEVC");
+      assertEquals(second[0]?.audio_codec, "AAC");
+      assertEquals(second[0]?.audio_channels, "2.0");
+      assertEquals(second[0]?.duration_seconds, 1440);
+      assertEquals(probeCalls, 1);
     });
   });
 });

@@ -51,6 +51,7 @@ interface ByteRange {
 }
 
 const STREAM_CHUNK_SIZE = 64 * 1024;
+const SEEK_FROM_START = 0;
 
 export function registerAnimeRoutes(
   app: Hono<{ Variables: AppVariables }>,
@@ -625,7 +626,7 @@ function createFileChunkStream(
                   : STREAM_CHUNK_SIZE;
                 const buffer = new Uint8Array(requestedLength);
 
-                await file.seek(current.start, Deno.SeekMode.Start);
+                await file.seek(current.start, SEEK_FROM_START);
                 const read = await file.read(buffer);
 
                 if (read === null || read === 0) {

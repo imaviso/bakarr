@@ -5,6 +5,7 @@ import type { RunEffect } from "./route-types.ts";
 
 const DEFAULT_WEB_DIST_URL = new URL("../../../web/dist/", import.meta.url);
 const STATIC_STREAM_CHUNK_SIZE = 64 * 1024;
+const SEEK_FROM_START = 0;
 
 export function createAppFetchHandler(
   appFetch: (request: Request) => Response | Promise<Response>,
@@ -147,7 +148,7 @@ function createFileChunkStream(
               try: async () => {
                 const buffer = new Uint8Array(STATIC_STREAM_CHUNK_SIZE);
 
-                await file.seek(offset, Deno.SeekMode.Start);
+                await file.seek(offset, SEEK_FROM_START);
                 const read = await file.read(buffer);
 
                 if (read === null || read === 0) {

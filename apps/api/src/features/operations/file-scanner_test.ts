@@ -2,12 +2,12 @@ import { assertEquals } from "@std/assert";
 
 import { Effect, Stream } from "effect";
 
-import { FileSystemError } from "../../lib/filesystem.ts";
+import { type DirEntry, FileSystemError } from "../../lib/filesystem.ts";
 import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 import { makeNoopTestFileSystemWithOverrides } from "../../test/filesystem-test.ts";
 import { scanVideoFiles, scanVideoFilesStream } from "./file-scanner.ts";
 
-const tree = new Map<string, Deno.DirEntry[]>([
+const tree = new Map<string, DirEntry[]>([
   [
     "/library",
     [
@@ -107,7 +107,7 @@ Deno.test("scanVideoFilesStream uses streaming dir reader when available", async
 });
 
 Deno.test("scanVideoFilesStream handles symlink cycles without infinite recursion", async () => {
-  const symlinksTree = new Map<string, Deno.DirEntry[]>([
+  const symlinksTree = new Map<string, DirEntry[]>([
     [
       "/library",
       [
@@ -159,7 +159,7 @@ Deno.test("scanVideoFilesStream handles symlink cycles without infinite recursio
 });
 
 Deno.test("scanVideoFilesStream continues scanning after encountering inaccessible subdirectory", async () => {
-  const inaccessibleTree = new Map<string, Deno.DirEntry[]>([
+  const inaccessibleTree = new Map<string, DirEntry[]>([
     [
       "/library",
       [
@@ -232,7 +232,7 @@ Deno.test("scanVideoFilesStream continues scanning after encountering inaccessib
 function entry(
   name: string,
   options: { isDirectory?: boolean; isFile?: boolean; isSymlink?: boolean },
-): Deno.DirEntry {
+): DirEntry {
   return {
     isDirectory: options.isDirectory ?? false,
     isFile: options.isFile ?? false,

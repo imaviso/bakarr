@@ -583,12 +583,14 @@ function isPrivateIpv6Address(ip: ipaddr.IPv6): boolean {
 
 const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(
   function* (hostname: string) {
-    const dns = Deno as unknown as {
-      resolveDns: (name: string, type: "A" | "AAAA") => Promise<string[]>;
-    };
+    const resolveDns = getResolveDns();
+
+    if (!resolveDns) {
+      return [];
+    }
 
     const aLookup = yield* Effect.tryPromise({
-      try: () => dns.resolveDns(hostname, "A"),
+      try: () => resolveDns(hostname, "A"),
       catch: (cause) =>
         new RssDnsLookupError({
           cause,
@@ -598,7 +600,7 @@ const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(
     }).pipe(Effect.either);
 
     const aaaaLookup = yield* Effect.tryPromise({
-      try: () => dns.resolveDns(hostname, "AAAA"),
+      try: () => resolveDns(hostname, "AAAA"),
       catch: (cause) =>
         new RssDnsLookupError({
           cause,
@@ -626,6 +628,24 @@ const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(
     return addresses;
   },
 );
+
+type ResolveDns = (name: string, type: "A" | "AAAA") => Promise<string[]>;
+
+function getResolveDns(): ResolveDns | undefined {
+  const denoResolver = (globalThis as {
+    Deno?: { resolveDns?: ResolveDns };
+  }).Deno?.resolveDns;
+
+  if (denoResolver) {
+    return denoResolver;
+  }
+
+  const globalResolver = (globalThis as {
+    resolveDns?: ResolveDns;
+  }).resolveDns;
+
+  return globalResolver;
+}
 
 function isDnsNoRecordError(cause: unknown): boolean {
   if (!(cause instanceof Error)) {

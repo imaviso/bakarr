@@ -5,6 +5,7 @@ import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { anime, backgroundJobs } from "../../db/schema.ts";
 import {
+  type DirEntry,
   type FileSystemShape,
   isWithinPathRoot,
   sanitizePathSegment,
@@ -629,7 +630,7 @@ export function makeUnmappedOrchestrationSupport(input: {
       const previousEntries = yield* fs.readDir(animeRow.rootFolder).pipe(
         Effect.catchTag(
           "FileSystemError",
-          () => Effect.succeed<Deno.DirEntry[]>([]),
+          () => Effect.succeed<DirEntry[]>([]),
         ),
       );
 

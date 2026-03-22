@@ -18,10 +18,10 @@ import {
   writeTextFile,
 } from "../../test/filesystem-test.ts";
 
-const filesystemTestPermissions: Deno.PermissionOptions = {
+const filesystemTestPermissions = {
   read: true,
   write: true,
-};
+} as const;
 
 function filesystemTest(name: string, fn: () => void | Promise<void>) {
   Deno.test({ fn, name, permissions: filesystemTestPermissions });

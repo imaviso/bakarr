@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
@@ -8,6 +8,7 @@ import { isWithinPathRoot } from "../../lib/filesystem.ts";
 import {
   type MediaProbeShape,
   mergeProbedMediaMetadata,
+  type ProbedMediaMetadata,
   shouldProbeDetailedMediaMetadata,
 } from "../../lib/media-probe.ts";
 import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
@@ -355,11 +356,42 @@ export const listAnimeFilesEffect = Effect.fn(
       () => getAnimeRowOrThrow(input.db, input.animeId),
     );
     const files = yield* loadAnimeFiles(input.fs, animeRow.rootFolder);
+    const cachedEpisodeRows = yield* tryAnimePromise(
+      "Failed to list video files",
+      () =>
+        input.db.select({
+          audioChannels: episodes.audioChannels,
+          audioCodec: episodes.audioCodec,
+          durationSeconds: episodes.durationSeconds,
+          filePath: episodes.filePath,
+          id: episodes.id,
+          resolution: episodes.resolution,
+          videoCodec: episodes.videoCodec,
+        }).from(episodes).where(
+          and(
+            eq(episodes.animeId, input.animeId),
+            isNotNull(episodes.filePath),
+          ),
+        ),
+    );
+    const cachedEpisodeRowsByPath = new Map<string, EpisodeMediaCacheRow[]>();
+
+    for (const row of cachedEpisodeRows) {
+      if (!row.filePath) {
+        continue;
+      }
+
+      const current = cachedEpisodeRowsByPath.get(row.filePath) ?? [];
+      current.push(row);
+      cachedEpisodeRowsByPath.set(row.filePath, current);
+    }
 
     return yield* Effect.forEach(
       files,
       (file) =>
         Effect.gen(function* () {
+          const cachedRowsForFile = cachedEpisodeRowsByPath.get(file.path) ??
+            [];
           const parsed = parseFileSourceIdentity(file.path);
           const identity = parsed.source_identity;
           const sharedIdentity = toSharedParsedEpisodeIdentity(identity);
@@ -396,16 +428,115 @@ export const listAnimeFilesEffect = Effect.fn(
             source_identity: sharedIdentity,
             video_codec: metadata.video_codec,
           };
-          const probedMetadata = shouldProbeDetailedMediaMetadata(baseFile)
+          const mergedWithCachedMetadata = mergeProbedMediaMetadata(
+            baseFile,
+            mergeEpisodeCachedMetadata(cachedRowsForFile),
+          );
+          const probedMetadata = shouldProbeDetailedMediaMetadata(
+              mergedWithCachedMetadata,
+            )
             ? yield* input.mediaProbe.probeVideoFile(file.path)
             : undefined;
+          const mergedMetadata = mergeProbedMediaMetadata(
+            mergedWithCachedMetadata,
+            probedMetadata,
+          );
 
-          return mergeProbedMediaMetadata(baseFile, probedMetadata);
+          if (probedMetadata && cachedRowsForFile.length > 0) {
+            yield* tryAnimePromise(
+              "Failed to cache probed media metadata",
+              async () => {
+                for (const row of cachedRowsForFile) {
+                  const patch = toEpisodeProbeCachePatch(row, mergedMetadata);
+                  if (!hasEpisodeProbeCachePatch(patch)) {
+                    continue;
+                  }
+
+                  await input.db.update(episodes).set(patch).where(
+                    eq(episodes.id, row.id),
+                  );
+                }
+              },
+            );
+          }
+
+          return mergedMetadata;
         }),
       { concurrency: 4 },
     );
   },
 );
+
+interface EpisodeMediaCacheRow {
+  readonly audioChannels: string | null;
+  readonly audioCodec: string | null;
+  readonly durationSeconds: number | null;
+  readonly filePath: string | null;
+  readonly id: number;
+  readonly resolution: string | null;
+  readonly videoCodec: string | null;
+}
+
+function mergeEpisodeCachedMetadata(
+  rows: ReadonlyArray<EpisodeMediaCacheRow>,
+): ProbedMediaMetadata | undefined {
+  let audio_channels: string | undefined;
+  let audio_codec: string | undefined;
+  let duration_seconds: number | undefined;
+  let resolution: string | undefined;
+  let video_codec: string | undefined;
+
+  for (const row of rows) {
+    audio_channels = audio_channels ?? row.audioChannels ?? undefined;
+    audio_codec = audio_codec ?? row.audioCodec ?? undefined;
+    duration_seconds = duration_seconds ?? row.durationSeconds ?? undefined;
+    resolution = resolution ?? row.resolution ?? undefined;
+    video_codec = video_codec ?? row.videoCodec ?? undefined;
+  }
+
+  if (
+    audio_channels === undefined && audio_codec === undefined &&
+    duration_seconds === undefined && resolution === undefined &&
+    video_codec === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    audio_channels,
+    audio_codec,
+    duration_seconds,
+    resolution,
+    video_codec,
+  };
+}
+
+function toEpisodeProbeCachePatch(
+  row: EpisodeMediaCacheRow,
+  metadata: {
+    readonly audio_channels?: string;
+    readonly audio_codec?: string;
+    readonly duration_seconds?: number;
+    readonly resolution?: string;
+    readonly video_codec?: string;
+  },
+) {
+  return {
+    audioChannels: row.audioChannels ?? metadata.audio_channels,
+    audioCodec: row.audioCodec ?? metadata.audio_codec,
+    durationSeconds: row.durationSeconds ?? metadata.duration_seconds,
+    resolution: row.resolution ?? metadata.resolution,
+    videoCodec: row.videoCodec ?? metadata.video_codec,
+  };
+}
+
+function hasEpisodeProbeCachePatch(
+  patch: ReturnType<typeof toEpisodeProbeCachePatch>,
+) {
+  return patch.audioChannels !== undefined || patch.audioCodec !== undefined ||
+    patch.durationSeconds !== undefined || patch.resolution !== undefined ||
+    patch.videoCodec !== undefined;
+}
 
 function toSharedParsedEpisodeIdentity(
   identity: ReturnType<typeof parseFileSourceIdentity>["source_identity"],
