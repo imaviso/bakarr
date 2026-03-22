@@ -10,7 +10,8 @@ This plan covers all currently identified debt in the API layer related to:
 - Startup/bootstrap/repair operational transitions
 - Cross-layer constant duplication
 
-This repository is pre-release alpha, so we can prefer clean, breaking internal refactors over preserving legacy helper APIs.
+This repository is pre-release alpha, so we can prefer clean, breaking internal
+refactors over preserving legacy helper APIs.
 
 ---
 
@@ -20,13 +21,15 @@ This repository is pre-release alpha, so we can prefer clean, breaking internal 
 
 1. `apps/api/src/features/anime/repository.ts`
    - `runEffectOrThrow(...)`
-   - async wrapper exports: `getAnimeRowOrThrow`, `getEpisodeRowOrThrow`, `upsertEpisode`, `ensureEpisodes`, `updateAnimeEpisodeAirDates`, etc.
+   - async wrapper exports: `getAnimeRowOrThrow`, `getEpisodeRowOrThrow`,
+     `upsertEpisode`, `ensureEpisodes`, `updateAnimeEpisodeAirDates`, etc.
 2. `apps/api/src/features/operations/repository/config-repository.ts`
    - `runDecodeOrThrow(...)` sync bridge around Effect decoders
 3. `apps/api/src/features/anime/add-anime-support.ts`
    - `tryAnimePromise(...)` wrapping `resolveAnimeRootFolder(...)`
 4. `apps/api/src/features/anime/file-mapping-support.ts`
-   - remaining Promise-wrapped db work (`tryAnimePromise`) in delete/bulk-map/cache-update paths
+   - remaining Promise-wrapped db work (`tryAnimePromise`) in
+     delete/bulk-map/cache-update paths
 
 ### B) Compatibility Debt
 
@@ -37,7 +40,8 @@ This repository is pre-release alpha, so we can prefer clean, breaking internal 
 7. `apps/api/src/features/operations/repository/profile-repository.ts`
    - still uses `decode*OrThrow`
 8. `apps/api/src/features/anime/repository.ts`
-   - `resolveAnimeRootFolder(...)` still Promise/throw style with `decodeConfigCoreOrThrow`
+   - `resolveAnimeRootFolder(...)` still Promise/throw style with
+     `decodeConfigCoreOrThrow`
 
 ### C) Fallback / Degrade Debt
 
@@ -73,9 +77,12 @@ This repository is pre-release alpha, so we can prefer clean, breaking internal 
 ## Target State
 
 1. Feature/service modules are Effect-first end-to-end.
-2. `*OrThrow` compatibility wrappers are removed unless absolutely required by external interfaces.
-3. `decode*OrThrow` APIs are removed from live paths and limited to test-only helpers (or fully removed).
-4. Fallback behavior is explicit, observable, and policy-driven (not ad hoc silent recovery).
+2. `*OrThrow` compatibility wrappers are removed unless absolutely required by
+   external interfaces.
+3. `decode*OrThrow` APIs are removed from live paths and limited to test-only
+   helpers (or fully removed).
+4. Fallback behavior is explicit, observable, and policy-driven (not ad hoc
+   silent recovery).
 5. Startup/bootstrap/repair paths are documented and intentionally bounded.
 6. Shared constants are sourced from one place across API/Web.
 
@@ -94,8 +101,10 @@ Tasks:
 
 1. Replace async wrapper exports with pure Effect exports in callsites.
 2. Remove `runEffectOrThrow(...)`.
-3. Remove `getAnimeRowOrThrow`, `getEpisodeRowOrThrow`, and wrapper variants once all callsites are migrated.
-4. Keep domain errors typed (`Schema.TaggedError` / `DatabaseError`) in effect channels.
+3. Remove `getAnimeRowOrThrow`, `getEpisodeRowOrThrow`, and wrapper variants
+   once all callsites are migrated.
+4. Keep domain errors typed (`Schema.TaggedError` / `DatabaseError`) in effect
+   channels.
 
 Acceptance:
 
@@ -114,8 +123,10 @@ Files:
 
 Tasks:
 
-1. Replace Promise-returning repository functions with Effect-returning equivalents.
-2. Remove `runDecodeOrThrow(...)` and all `Effect.runSync(Effect.either(...))` bridging.
+1. Replace Promise-returning repository functions with Effect-returning
+   equivalents.
+2. Remove `runDecodeOrThrow(...)` and all `Effect.runSync(Effect.either(...))`
+   bridging.
 3. Map typed decode failures into operation-level typed errors.
 
 Acceptance:
@@ -175,15 +186,18 @@ Files:
 
 Tasks:
 
-1. Convert `resolveAnimeRootFolder(...)` path to Effect (or move logic into Effect-native helper).
-2. Replace remaining `tryAnimePromise(...)` db operations with Effect db helpers (`tryDatabasePromise` / repository effects).
+1. Convert `resolveAnimeRootFolder(...)` path to Effect (or move logic into
+   Effect-native helper).
+2. Replace remaining `tryAnimePromise(...)` db operations with Effect db helpers
+   (`tryDatabasePromise` / repository effects).
 3. For transactional segments, choose one pattern:
    - keep Promise transaction boundary but isolate adapter layer, or
    - create Effect-friendly transaction helper and migrate callsites.
 
 Acceptance:
 
-- `tryAnimePromise(...)` only used for true external Promise boundaries (if any), not routine db paths.
+- `tryAnimePromise(...)` only used for true external Promise boundaries (if
+  any), not routine db paths.
 
 ---
 
@@ -203,7 +217,8 @@ Tasks:
    - hard-fail
    - degrade with explicit flag
    - fallback with observable annotation
-2. `disk-space.ts`: decide whether zero-value fallback remains or becomes typed soft-failure with richer readiness payload.
+2. `disk-space.ts`: decide whether zero-value fallback remains or becomes typed
+   soft-failure with richer readiness payload.
 3. Ensure all fallbacks/degrades emit consistent structured logs/annotations.
 4. Ensure API responses expose enough metadata for UI/operator clarity.
 
@@ -225,8 +240,10 @@ Files:
 
 Tasks:
 
-1. Document and codify corrupt-config repair flow contract (trigger, response, audit log).
-2. Document bootstrap-user lifecycle and bootstrap password nulling behavior; enforce one-way transition semantics.
+1. Document and codify corrupt-config repair flow contract (trigger, response,
+   audit log).
+2. Document bootstrap-user lifecycle and bootstrap password nulling behavior;
+   enforce one-way transition semantics.
 3. Validate startup migration strategy for LAN/single-user deployment:
    - blocking startup behavior
    - failure handling and rollback expectations
