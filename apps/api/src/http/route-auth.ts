@@ -24,16 +24,6 @@ export function getApiKey(
   return undefined;
 }
 
-export function requireViewer(c: { get: (key: "viewer") => AuthUser | null }) {
-  const viewer = c.get("viewer");
-
-  if (!viewer) {
-    throw new AuthError({ message: "Unauthorized", status: 401 });
-  }
-
-  return viewer;
-}
-
 export function requireViewerEffect(
   c: { get: (key: "viewer") => AuthUser | null },
 ): Effect.Effect<AuthUser, AuthError> {
