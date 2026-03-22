@@ -1,9 +1,11 @@
 import { assertEquals } from "@std/assert";
+import { CommandExecutor } from "@effect/platform";
 import { Effect, Layer } from "effect";
 
 import {
   FFPROBE_CONCURRENCY_LIMIT,
   MediaProbe,
+  type MediaProbeCommandOutput,
   MediaProbeLive,
   mergeProbedMediaMetadata,
   parseFfprobeJson,
@@ -96,79 +98,85 @@ Deno.test("FFPROBE_CONCURRENCY_LIMIT is defined and reasonable", () => {
 });
 
 Deno.test("MediaProbe enforces global ffprobe concurrency limit", async () => {
-  const originalCommand = Deno.Command;
-  const originalPermissionQuery = Deno.permissions.query;
   let active = 0;
   let maxActive = 0;
 
-  class CommandStub {
-    readonly #args: readonly string[];
-
-    constructor(
-      _command: string,
-      options: { readonly args?: readonly string[] },
-    ) {
-      this.#args = options.args ?? [];
+  const commandExecutorStub = makeCommandExecutorStub((command) => {
+    if (command.args.includes("-version")) {
+      return Effect.succeed("ffprobe version test");
     }
 
-    output() {
-      if (this.#args.includes("-version")) {
-        return Promise.resolve(
-          {
-            code: 0,
-            signal: null,
-            stderr: new Uint8Array(0),
-            stdout: new TextEncoder().encode("ffprobe version test"),
-            success: true,
-          } satisfies Deno.CommandOutput,
-        );
-      }
+    active += 1;
+    if (active > maxActive) {
+      maxActive = active;
+    }
 
-      active += 1;
-      if (active > maxActive) {
-        maxActive = active;
-      }
-
-      return new Promise<Deno.CommandOutput>((resolve) => {
+    return Effect.promise(() =>
+      new Promise<string>((resolve) => {
         setTimeout(() => {
           active -= 1;
-
-          resolve({
-            code: 0,
-            signal: null,
-            stderr: new Uint8Array(0),
-            stdout: new TextEncoder().encode(
-              '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080}],"format":{"duration":"24"}}',
-            ),
-            success: true,
-          });
+          resolve(
+            '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080}],"format":{"duration":"24"}}',
+          );
         }, 25);
-      });
-    }
-  }
-
-  try {
-    Deno.permissions.query = (() =>
-      Promise.resolve({
-        name: "run",
-        state: "granted",
-      } as unknown as Deno.PermissionStatus)) as typeof Deno.permissions.query;
-    Deno.Command = CommandStub as unknown as typeof Deno.Command;
-
-    await Effect.runPromise(
-      Effect.flatMap(MediaProbe, (mediaProbe) =>
-        Effect.forEach(
-          Array.from({ length: 10 }, (_, index) =>
-            `/tmp/media-probe-${index}.mkv`),
-          (path) =>
-            mediaProbe.probeVideoFile(path),
-          { concurrency: "unbounded" },
-        )).pipe(Effect.provide(Layer.mergeAll(MediaProbeLive))),
+      })
     );
+  });
 
-    assertEquals(maxActive <= FFPROBE_CONCURRENCY_LIMIT, true);
-  } finally {
-    Deno.Command = originalCommand;
-    Deno.permissions.query = originalPermissionQuery;
-  }
+  await Effect.runPromise(
+    Effect.flatMap(MediaProbe, (mediaProbe) =>
+      Effect.forEach(
+        Array.from(
+          { length: 10 },
+          (_, index) => `/tmp/media-probe-${index}.mkv`,
+        ),
+        (path) => mediaProbe.probeVideoFile(path),
+        { concurrency: "unbounded" },
+      )).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            MediaProbeLive,
+            Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub),
+          ),
+        ),
+      ),
+  );
+
+  assertEquals(maxActive <= FFPROBE_CONCURRENCY_LIMIT, true);
 });
+
+function makeCommandExecutorStub(
+  runAsString: (
+    command: {
+      readonly args: ReadonlyArray<string>;
+      readonly command: string;
+    },
+  ) => Effect.Effect<string, never>,
+): CommandExecutor.CommandExecutor {
+  const parseOutput = (output: string): MediaProbeCommandOutput => ({
+    stdout: output,
+  });
+
+  return {
+    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
+    exitCode: () => Effect.die("exitCode not implemented for test"),
+    lines: (command, _encoding) =>
+      runAsString(command as { args: ReadonlyArray<string>; command: string })
+        .pipe(
+          Effect.map((value) =>
+            parseOutput(value).stdout.split(/\r?\n/).filter((line) =>
+              line.length > 0
+            )
+          ),
+        ),
+    start: () => Effect.die("start not implemented for test"),
+    stream: () => Effect.die("stream not implemented for test") as never,
+    streamLines: () =>
+      Effect.die("streamLines not implemented for test") as never,
+    string: (command, _encoding) =>
+      runAsString(command as { args: ReadonlyArray<string>; command: string })
+        .pipe(
+          Effect.map((value) => parseOutput(value).stdout),
+        ),
+  };
+}

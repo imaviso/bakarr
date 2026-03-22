@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Command, CommandExecutor } from "@effect/platform";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 const FFPROBE_VERSION_TIMEOUT_MS = 3_000;
 const FFPROBE_PROBE_TIMEOUT_MS = 10_000;
@@ -17,12 +18,6 @@ class FFProbeError extends Schema.TaggedError<FFProbeError>()(
   "FFProbeError",
   { cause: Schema.Defect, message: Schema.String },
 ) {}
-
-class MediaProbePermissionQueryError
-  extends Schema.TaggedError<MediaProbePermissionQueryError>()(
-    "MediaProbePermissionQueryError",
-    { cause: Schema.Defect, message: Schema.String },
-  ) {}
 
 class FFProbeStreamSchema
   extends Schema.Class<FFProbeStreamSchema>("FFProbeStreamSchema")({
@@ -263,24 +258,27 @@ function parseFFProbeOutput(
     : undefined;
 }
 
+export interface MediaProbeCommandOutput {
+  readonly stdout: string;
+}
+
 function runFfprobeCommand(
   args: readonly string[],
   timeoutMs: number,
-): Effect.Effect<Deno.CommandOutput | null, never> {
-  return Effect.tryPromise({
-    try: (signal) =>
-      new Deno.Command("ffprobe", {
-        args: [...args],
-        signal,
-        stderr: "null",
-        stdout: "piped",
-      }).output(),
-    catch: (cause) =>
+): Effect.Effect<
+  MediaProbeCommandOutput | null,
+  never,
+  CommandExecutor.CommandExecutor
+> {
+  return Command.make("ffprobe", ...args).pipe(
+    Command.string,
+    Effect.map((stdout) => ({ stdout } satisfies MediaProbeCommandOutput)),
+    Effect.mapError((cause) =>
       new FFProbeError({
         cause,
         message: "ffprobe command failed",
-      }),
-  }).pipe(
+      })
+    ),
     Effect.timeout(timeoutMs),
     Effect.catchTag("TimeoutException", () =>
       Effect.fail(
@@ -305,6 +303,7 @@ const makeMediaProbe = (
   ffprobeSemaphore: Effect.Semaphore,
 ): MediaProbeShape => {
   let availability: boolean | undefined;
+  let executor: CommandExecutor.CommandExecutor | undefined;
 
   const resolveAvailability = Effect.fn("MediaProbe.resolveAvailability")(
     function* () {
@@ -312,28 +311,28 @@ const makeMediaProbe = (
         return availability;
       }
 
-      const permission = yield* Effect.tryPromise({
-        try: () => Deno.permissions.query({ name: "run", command: "ffprobe" }),
-        catch: (cause) =>
-          new MediaProbePermissionQueryError({
-            cause,
-            message: "Failed to query permissions",
-          }),
-      }).pipe(
-        Effect.catchTag(
-          "MediaProbePermissionQueryError",
-          () => Effect.succeed({ state: "denied" as const }),
-        ),
-      );
+      if (!executor) {
+        const executorOption = yield* Effect.serviceOption(
+          CommandExecutor.CommandExecutor,
+        );
 
-      if (permission.state !== "granted") {
+        if (Option.isNone(executorOption)) {
+          availability = false;
+          return availability;
+        }
+
+        executor = executorOption.value;
+      }
+
+      if (!executor) {
         availability = false;
         return availability;
       }
 
-      const output = yield* runFfprobeCommand(
-        ["-version"],
-        FFPROBE_VERSION_TIMEOUT_MS,
+      const output = yield* runFfprobeCommand([
+        "-version",
+      ], FFPROBE_VERSION_TIMEOUT_MS).pipe(
+        Effect.provideService(CommandExecutor.CommandExecutor, executor),
       );
 
       if (!output) {
@@ -341,7 +340,7 @@ const makeMediaProbe = (
         return availability;
       }
 
-      availability = output.success;
+      availability = true;
       return availability;
     },
   );
@@ -350,7 +349,7 @@ const makeMediaProbe = (
     function* (path: string) {
       const available = yield* resolveAvailability();
 
-      if (!available) {
+      if (!available || !executor) {
         return undefined;
       }
 
@@ -368,16 +367,17 @@ const makeMediaProbe = (
           ],
           FFPROBE_PROBE_TIMEOUT_MS,
         ),
+      ).pipe(
+        Effect.provideService(CommandExecutor.CommandExecutor, executor),
       );
 
-      if (!output || !output.success) {
+      if (!output) {
         return undefined;
       }
 
-      const decoder = new TextDecoder();
       const decoded = yield* Effect.either(
         Schema.decodeUnknown(FFProbeOutputJsonSchema)(
-          decoder.decode(output.stdout),
+          output.stdout,
         ),
       );
 
