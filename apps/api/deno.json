@@ -20,7 +20,7 @@
     "@libsql/client": "npm:@libsql/client@^0.17.2",
     "drizzle-orm": "npm:drizzle-orm@^0.45.1",
     "effect": "npm:effect@^3.21.0",
-    "hono": "npm:hono@^4.12.8",
+    "hono": "jsr:@hono/hono@^4.12.8",
     "fast-xml-parser": "npm:fast-xml-parser@^5.5.8",
     "ipaddr.js": "npm:ipaddr.js@^2.3.0",
     "drizzle-kit": "npm:drizzle-kit@^0.31.10",
