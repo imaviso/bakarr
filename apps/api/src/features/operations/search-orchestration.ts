@@ -214,10 +214,7 @@ export function makeSearchOrchestration(input: {
         )
         : null;
       const searchQuery = (query || animeRow?.titleRomaji || "Search").trim();
-      const runtimeConfig = yield* tryOperationsPromise(
-        "Failed to search releases",
-        () => loadRuntimeConfig(db),
-      );
+      const runtimeConfig = yield* loadRuntimeConfig(db);
       const results = yield* searchNyaaReleases(
         searchQuery,
         runtimeConfig,
@@ -265,14 +262,8 @@ export function makeSearchOrchestration(input: {
       "Failed to search episode releases",
       () => requireAnime(db, animeId),
     );
-    const runtimeConfig = yield* tryOperationsPromise(
-      "Failed to search episode releases",
-      () => loadRuntimeConfig(db),
-    );
-    const profile = yield* tryDatabasePromise(
-      "Failed to search episode releases",
-      () => loadQualityProfile(db, animeRow.profileName),
-    );
+    const runtimeConfig = yield* loadRuntimeConfig(db);
+    const profile = yield* loadQualityProfile(db, animeRow.profileName);
 
     if (!profile) {
       return yield* new OperationsInputError({
@@ -280,10 +271,7 @@ export function makeSearchOrchestration(input: {
       });
     }
 
-    const rules = yield* tryDatabasePromise(
-      "Failed to search episode releases",
-      () => loadReleaseRules(db, animeRow),
-    );
+    const rules = yield* loadReleaseRules(db, animeRow);
     const currentEpisode = yield* tryDatabasePromise(
       "Failed to search episode releases",
       () => loadCurrentEpisodeState(db, animeId, episodeNumber),

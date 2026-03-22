@@ -103,10 +103,7 @@ export const scanImportPathEffect = Effect.fn(
     )
     : [];
   const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
-  const namingSettings = yield* input.tryDatabasePromise(
-    "Failed to scan import path",
-    () => currentNamingSettings(input.db),
-  );
+  const namingSettings = yield* currentNamingSettings(input.db);
   const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
   const episodeNumberCandidates = [
     ...new Set(

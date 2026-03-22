@@ -173,14 +173,8 @@ export function makeCatalogOrchestration(input: {
     const importedFiles: ImportResult["imported_files"] = [];
     const failedFiles: ImportResult["failed_files"] = [];
 
-    const importMode = yield* tryDatabasePromise(
-      "Failed to import files",
-      () => currentImportMode(db),
-    );
-    const namingSettings = yield* tryDatabasePromise(
-      "Failed to import files",
-      () => currentNamingSettings(db),
-    );
+    const importMode = yield* currentImportMode(db);
+    const namingSettings = yield* currentNamingSettings(db);
 
     for (const file of files) {
       const result = yield* Effect.gen(function* () {

@@ -138,10 +138,7 @@ export function makeDownloadTorrentLifecycleService(input: {
     "OperationsService.syncDownloadsWithQBit",
   )(function* () {
     return yield* Effect.gen(function* () {
-      const config = yield* tryDatabasePromise(
-        "Failed to sync downloads with qBittorrent",
-        () => loadRuntimeConfig(db),
-      );
+      const config = yield* loadRuntimeConfig(db);
       const qbitConfig = maybeQBitConfig(config);
 
       if (!qbitConfig) {
@@ -289,10 +286,7 @@ export function makeDownloadTorrentLifecycleService(input: {
       });
     }
 
-    const runtimeConfig = yield* tryDatabasePromise(
-      `Failed to ${action} download`,
-      () => loadRuntimeConfig(db),
-    );
+    const runtimeConfig = yield* loadRuntimeConfig(db);
     const qbitConfig = maybeQBitConfig(runtimeConfig);
 
     if (qbitConfig && row.infoHash) {
@@ -389,10 +383,7 @@ export function makeDownloadTorrentLifecycleService(input: {
         });
       }
 
-      const runtimeConfig = yield* tryDatabasePromise(
-        "Failed to retry download",
-        () => loadRuntimeConfig(db),
-      );
+      const runtimeConfig = yield* loadRuntimeConfig(db);
       const qbitConfig = maybeQBitConfig(runtimeConfig);
 
       if (qbitConfig) {

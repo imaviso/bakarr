@@ -125,10 +125,7 @@ export function makeDownloadTriggerService(input: {
           );
 
           const now = nowIso();
-          const runtimeConfig = yield* tryOperationsPromise(
-            "Failed to trigger download",
-            () => loadRuntimeConfig(db),
-          );
+          const runtimeConfig = yield* loadRuntimeConfig(db);
           const parsedRelease = parseReleaseName(input.title);
           const effectiveIsBatch = input.is_batch ?? parsedRelease.isBatch;
           const requestedEpisode = resolveRequestedEpisodeNumber({

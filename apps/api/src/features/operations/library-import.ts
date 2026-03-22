@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Either, Schema } from "effect";
+import { Effect, Either, Schema } from "effect";
 
 import type {
   AnimeSearchResult,
@@ -39,7 +39,7 @@ export async function buildRenamePreview(
   animeId: number,
 ): Promise<RenamePreviewItem[]> {
   const animeRow = await requireAnime(db, animeId);
-  const namingSettings = await currentNamingSettings(db);
+  const namingSettings = await Effect.runPromise(currentNamingSettings(db));
   const namingFormat = selectNamingFormat(animeRow, namingSettings);
   const rows = await db.select().from(episodes).where(
     and(eq(episodes.animeId, animeId), sql`${episodes.filePath} is not null`),

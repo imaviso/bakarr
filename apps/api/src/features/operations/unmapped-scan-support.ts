@@ -5,7 +5,7 @@ import type { AppDatabase } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
 import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
 import type { AniListClient } from "../anime/anilist.ts";
-import { markSearchResultsAlreadyInLibrary } from "../anime/repository.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "../anime/repository.ts";
 import {
   decodeUnmappedFolderMatchRow,
   listUnmappedFolderMatchRows,
@@ -202,10 +202,7 @@ export function loadUnmappedFolderSnapshot(input: {
   tryDatabasePromise: TryDatabasePromise;
 }) {
   return Effect.gen(function* () {
-    const root = yield* input.tryDatabasePromise(
-      "Failed to scan unmapped folders",
-      () => getConfigLibraryPath(input.db),
-    );
+    const root = yield* getConfigLibraryPath(input.db);
     const animeRows = yield* input.tryDatabasePromise(
       "Failed to scan unmapped folders",
       () => input.db.select().from(anime),
@@ -257,7 +254,6 @@ export const matchSingleUnmappedFolder = Effect.fn(
   animeRows: ReadonlyArray<typeof anime.$inferSelect>;
   db: AppDatabase;
   folder: ScannerState["folders"][number];
-  tryDatabasePromise: TryDatabasePromise;
 }) {
   const queries = buildUnmappedFolderSearchQueries(input.folder.name);
   const suggestions = yield* Effect.forEach(
@@ -275,13 +271,9 @@ export const matchSingleUnmappedFolder = Effect.fn(
     suggested_matches: suggestions,
   }, input.animeRows);
 
-  const annotatedSuggestions = yield* input.tryDatabasePromise(
-    "Failed to scan unmapped folders",
-    () =>
-      markSearchResultsAlreadyInLibrary(
-        input.db,
-        withLocal.suggested_matches,
-      ),
+  const annotatedSuggestions = yield* markSearchResultsAlreadyInLibraryEffect(
+    input.db,
+    withLocal.suggested_matches,
   );
 
   return mergeUnmappedFolderSuggestions(withLocal, annotatedSuggestions);

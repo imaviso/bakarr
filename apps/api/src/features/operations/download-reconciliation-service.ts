@@ -152,14 +152,8 @@ export function makeDownloadReconciliationService(input: {
       "Failed to reconcile completed download",
       () => requireAnime(db, row.animeId),
     );
-    const importMode = yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      () => currentImportMode(db),
-    );
-    const runtimeConfig = yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      () => loadRuntimeConfig(db),
-    );
+    const importMode = yield* currentImportMode(db);
+    const runtimeConfig = yield* loadRuntimeConfig(db);
     const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
       fs,
       contentPath,

@@ -16,8 +16,8 @@ import {
 } from "../../lib/media-identity.ts";
 import {
   inferAiredAt,
-  resolveAnimeRootFolder,
-  upsertEpisode,
+  resolveAnimeRootFolderEffect,
+  upsertEpisodeEffect,
 } from "../anime/repository.ts";
 import type { AniListClient } from "../anime/anilist.ts";
 import {
@@ -215,7 +215,6 @@ export function makeUnmappedOrchestrationSupport(input: {
           animeRows: snapshot.animeRows,
           db,
           folder: matchingFolder,
-          tryDatabasePromise,
         }));
 
         if (matchResult._tag === "Left") {
@@ -438,7 +437,6 @@ export function makeUnmappedOrchestrationSupport(input: {
         animeRows: snapshot.animeRows,
         db,
         folder: matchingFolder,
-        tryDatabasePromise,
       }));
 
       if (matchResult._tag === "Left") {
@@ -558,10 +556,7 @@ export function makeUnmappedOrchestrationSupport(input: {
       "Failed to import unmapped folder",
       () => requireAnime(db, input.anime_id),
     );
-    const libraryPath = yield* tryDatabasePromise(
-      "Failed to import unmapped folder",
-      () => getConfigLibraryPath(db),
-    );
+    const libraryPath = yield* getConfigLibraryPath(db);
     const folderName = yield* Effect.try({
       try: () => sanitizePathSegment(input.folder_name),
       catch: () =>
@@ -593,12 +588,19 @@ export function makeUnmappedOrchestrationSupport(input: {
       });
     }
 
-    const rootFolder = yield* tryOperationsPromise(
-      "Failed to import unmapped folder",
-      () =>
-        resolveAnimeRootFolder(db, folderPath, animeRow.titleRomaji, {
-          useExistingRoot: true,
-        }),
+    const rootFolder = yield* resolveAnimeRootFolderEffect(
+      db,
+      folderPath,
+      animeRow.titleRomaji,
+      { useExistingRoot: true },
+    ).pipe(
+      Effect.catchTag("StoredConfigCorruptError", (e) =>
+        Effect.fail(
+          new DatabaseError({
+            message: "Failed to import unmapped folder",
+            cause: e,
+          }),
+        )),
     );
 
     const requestedProfileName = input.profile_name?.trim();
@@ -675,21 +677,25 @@ export function makeUnmappedOrchestrationSupport(input: {
       }
 
       for (const episodeNumber of episodeNumbers) {
-        yield* tryDatabasePromise(
-          "Failed to import unmapped folder",
-          () =>
-            upsertEpisode(db, input.anime_id, episodeNumber, {
-              aired: inferAiredAt(
-                animeRow.status,
-                episodeNumber,
-                animeRow.episodeCount ?? undefined,
-                animeRow.startDate ?? undefined,
-                animeRow.endDate ?? undefined,
-              ),
-              downloaded: true,
-              filePath: file.path,
-              title: null,
-            }),
+        yield* upsertEpisodeEffect(db, input.anime_id, episodeNumber, {
+          aired: inferAiredAt(
+            animeRow.status,
+            episodeNumber,
+            animeRow.episodeCount ?? undefined,
+            animeRow.startDate ?? undefined,
+            animeRow.endDate ?? undefined,
+          ),
+          downloaded: true,
+          filePath: file.path,
+          title: null,
+        }).pipe(
+          Effect.catchTag("UpsertEpisodeError", (e) =>
+            Effect.fail(
+              new DatabaseError({
+                message: "Failed to import unmapped folder",
+                cause: e,
+              }),
+            )),
         );
       }
       imported += episodeNumbers.length;

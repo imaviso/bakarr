@@ -1,9 +1,10 @@
 import { Effect } from "effect";
 
-import type {
-  AnimeSearchResult,
-  ScannerState,
-  UnmappedFolder,
+import {
+  type AnimeSearchResult,
+  MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
+  type ScannerState,
+  type UnmappedFolder,
 } from "../../../../../packages/shared/src/index.ts";
 import { scoreAnimeSearchResultMatch } from "./library-import.ts";
 
@@ -13,7 +14,6 @@ type UnmappedFolderInput = Pick<
 >;
 
 const DEFAULT_SEARCH_CONCURRENCY = 4;
-export const MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS = 3;
 const NOISE_PATTERNS = [
   /\b(?:19|20)\d{2}\b/gi,
   /\b(?:2160|1080|720|480)p\b/gi,

@@ -203,26 +203,17 @@ export function makeBackgroundSearchSupport(input: {
           )
             .where(and(...missingConditions)),
       );
-      const runtimeConfig = yield* tryOperationsPromise(
-        "Failed to queue missing-episode search",
-        () => loadRuntimeConfig(db),
-      );
+      const runtimeConfig = yield* loadRuntimeConfig(db);
       let queued = 0;
 
       for (const row of missingRows.slice(0, 10)) {
-        const profile = yield* tryDatabasePromise(
-          "Failed to queue missing-episode search",
-          () => loadQualityProfile(db, row.anime.profileName),
-        );
+        const profile = yield* loadQualityProfile(db, row.anime.profileName);
 
         if (!profile) {
           continue;
         }
 
-        const rules = yield* tryDatabasePromise(
-          "Failed to queue missing-episode search",
-          () => loadReleaseRules(db, row.anime),
-        );
+        const rules = yield* loadReleaseRules(db, row.anime);
         const currentEpisode = yield* tryDatabasePromise(
           "Failed to queue missing-episode search",
           () => loadCurrentEpisodeState(db, row.anime.id, row.episodes.number),
@@ -303,10 +294,7 @@ export function makeBackgroundSearchSupport(input: {
           "Failed to run RSS check",
           () => db.select().from(rssFeeds).where(eq(rssFeeds.enabled, true)),
         );
-        const runtimeConfig = yield* tryOperationsPromise(
-          "Failed to run RSS check",
-          () => loadRuntimeConfig(db),
-        );
+        const runtimeConfig = yield* loadRuntimeConfig(db);
         let newItems = 0;
 
         yield* eventBus.publish({ type: "RssCheckStarted" });
@@ -345,19 +333,13 @@ export function makeBackgroundSearchSupport(input: {
               return 0;
             }
 
-            const profile = yield* tryDatabasePromise(
-              "Failed to run RSS check",
-              () => loadQualityProfile(db, animeRow.profileName),
-            );
+            const profile = yield* loadQualityProfile(db, animeRow.profileName);
 
             if (!profile) {
               return 0;
             }
 
-            const rules = yield* tryDatabasePromise(
-              "Failed to run RSS check",
-              () => loadReleaseRules(db, animeRow),
-            );
+            const rules = yield* loadReleaseRules(db, animeRow);
             let queuedForFeed = 0;
 
             const slice = items.slice(0, 10);
