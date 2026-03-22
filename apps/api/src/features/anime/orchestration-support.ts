@@ -162,19 +162,12 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   aniList: typeof AniListClient.Service;
   db: AppDatabase;
 }) {
-  yield* tryDatabasePromise(
-    "Failed to refresh metadata",
-    () => markJobStarted(input.db, "metadata_refresh"),
-  );
-  yield* tryDatabasePromise(
-    "Failed to refresh metadata",
-    () =>
-      appendSystemLog(
-        input.db,
-        "system.task.metadata_refresh.started",
-        "info",
-        "Metadata refresh started",
-      ),
+  yield* markJobStarted(input.db, "metadata_refresh");
+  yield* appendSystemLog(
+    input.db,
+    "system.task.metadata_refresh.started",
+    "info",
+    "Metadata refresh started",
   );
 
   return yield* Effect.gen(function* () {
@@ -225,38 +218,24 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
 
     const message = `Refreshed ${refreshed} monitored anime`;
 
-    yield* tryDatabasePromise(
-      "Failed to refresh metadata",
-      () => markJobSucceeded(input.db, "metadata_refresh", message),
-    );
-    yield* tryDatabasePromise(
-      "Failed to refresh metadata",
-      () =>
-        appendSystemLog(
-          input.db,
-          "system.task.metadata_refresh.completed",
-          "success",
-          message,
-        ),
+    yield* markJobSucceeded(input.db, "metadata_refresh", message);
+    yield* appendSystemLog(
+      input.db,
+      "system.task.metadata_refresh.completed",
+      "success",
+      message,
     );
 
     return { refreshed };
   }).pipe(
     Effect.catchAll((cause) =>
-      tryDatabasePromise(
-        "Failed to refresh metadata",
-        () => markJobFailed(input.db, "metadata_refresh", cause),
-      ).pipe(
+      markJobFailed(input.db, "metadata_refresh", cause).pipe(
         Effect.zipRight(
-          tryDatabasePromise(
-            "Failed to refresh metadata",
-            () =>
-              appendSystemLog(
-                input.db,
-                "system.task.metadata_refresh.failed",
-                "error",
-                cause instanceof Error ? cause.message : String(cause),
-              ),
+          appendSystemLog(
+            input.db,
+            "system.task.metadata_refresh.failed",
+            "error",
+            cause instanceof Error ? cause.message : String(cause),
           ),
         ),
         Effect.zipRight(Effect.fail(cause)),
