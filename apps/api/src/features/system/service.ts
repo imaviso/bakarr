@@ -337,6 +337,18 @@ const makeSystemService = Effect.gen(function* () {
     },
   );
 
+  /**
+   * First-run initialization (idempotent):
+   *
+   * - Inserts default system config row if none exists.
+   * - Inserts default quality profiles if none exist.
+   * - Applies the stored log level when config is decodable.
+   *
+   * Does NOT repair corrupt config — a corrupt row is silently skipped here
+   * (log level stays at default). The corrupt-config repair contract is
+   * handled by {@link getConfig} which surfaces StoredConfigCorruptError to
+   * the caller so the operator can re-save via the UI.
+   */
   const ensureInitialized = Effect.fn("SystemService.ensureInitialized")(
     function* () {
       const configRows = yield* tryDatabasePromise(
@@ -608,6 +620,23 @@ const makeSystemService = Effect.gen(function* () {
     } as OpsDashboard;
   });
 
+  /**
+   * Corrupt-config repair contract:
+   *
+   * - **Missing config** → returns defaults silently (first-run or wiped DB).
+   * - **Corrupt config** → fails with {@link StoredConfigCorruptError}.
+   *   The error message tells the operator to "re-save config to repair".
+   *   The caller (main.ts, route handlers) decides the degradation policy:
+   *   - At startup: skip background workers, start the API so the UI is
+   *     reachable for config re-save.
+   *   - In request handlers: return the error to the client.
+   * - **Valid config** → merge stored values over defaults (library section
+   *   uses spread to pick up new default keys added in later versions).
+   *
+   * The repair action itself is {@link updateConfig}: any successful save
+   * overwrites the stored row with a freshly-encoded value, clearing
+   * corruption.
+   */
   const getConfig = Effect.fn("SystemService.getConfig")(function* () {
     const storedConfig = yield* tryDatabasePromise(
       "Failed to load system configuration",

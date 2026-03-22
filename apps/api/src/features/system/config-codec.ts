@@ -112,90 +112,6 @@ export function decodeReleaseProfileRules(value: string): ReleaseProfileRule[] {
   return [...Schema.decodeUnknownSync(ReleaseProfileRulesJsonSchema)(value)];
 }
 
-export function decodeConfigCoreOrThrow(value: string): ConfigCore {
-  try {
-    return decodeConfigCore(value);
-  } catch (cause) {
-    throw storedConfigCorrupt(
-      "Stored configuration is corrupt and could not be decoded",
-      cause,
-    );
-  }
-}
-
-export function decodeStoredConfigRowOrThrow(
-  row: { data: string } | undefined,
-): ConfigCore {
-  if (!row) {
-    throw new StoredConfigMissingError({
-      message: "Stored configuration is missing",
-    });
-  }
-
-  return decodeConfigCoreOrThrow(row.data);
-}
-
-export function decodeStoredLibraryConfigOrThrow(
-  row: { data: string } | undefined,
-): ConfigCore["library"] {
-  if (!row) {
-    return { ...makeDefaultConfig(":memory:").library };
-  }
-
-  const config = decodeConfigCoreOrThrow(row.data);
-  return { ...config.library };
-}
-
-export function decodeStoredImagePathOrThrow(
-  row: { data: string } | undefined,
-): string {
-  if (!row) {
-    return "./data/images";
-  }
-
-  const config = decodeConfigCoreOrThrow(row.data);
-  return config.general.images_path.trim() || "./data/images";
-}
-
-export function decodeQualityProfileRowOrThrow(
-  row: typeof qualityProfiles.$inferSelect,
-): QualityProfile {
-  try {
-    return decodeQualityProfileRow(row);
-  } catch (cause) {
-    throw storedConfigCorrupt(
-      "Stored quality profile is corrupt and could not be decoded",
-      cause,
-    );
-  }
-}
-
-export function decodeReleaseProfileRulesOrThrow(
-  value: string,
-): ReleaseProfileRule[] {
-  try {
-    return decodeReleaseProfileRules(value);
-  } catch (cause) {
-    throw storedConfigCorrupt(
-      "Stored release profile rules are corrupt and could not be decoded",
-      cause,
-    );
-  }
-}
-
-export function decodeReleaseProfileRowOrThrow(
-  row: typeof releaseProfiles.$inferSelect,
-): ReleaseProfile {
-  try {
-    return decodeReleaseProfileRow(row);
-  } catch (cause) {
-    throw storedConfigCorrupt(
-      "Stored release profile is corrupt and could not be decoded",
-      cause,
-    );
-  }
-}
-
 export function encodeConfigCore(core: ConfigCore): string {
   return Schema.encodeSync(ConfigCoreJsonSchema)({
     downloads: {
@@ -231,17 +147,6 @@ export function decodeStringList(value: string): string[] {
   return [...Schema.decodeUnknownSync(StringListJsonSchema)(value)];
 }
 
-export function decodeStringListOrThrow(value: string): string[] {
-  try {
-    return decodeStringList(value);
-  } catch (cause) {
-    throw storedConfigCorrupt(
-      "Stored string list is corrupt and could not be decoded",
-      cause,
-    );
-  }
-}
-
 export function encodeNumberList(values: readonly number[]) {
   return Schema.encodeSync(NumberListJsonSchema)([...values]);
 }
@@ -250,15 +155,18 @@ export function decodeNumberList(value: string): number[] {
   return [...Schema.decodeUnknownSync(NumberListJsonSchema)(value)];
 }
 
-export function decodeNumberListOrThrow(value: string): number[] {
-  try {
-    return decodeNumberList(value);
-  } catch (cause) {
-    throw storedConfigCorrupt(
-      "Stored number list is corrupt and could not be decoded",
-      cause,
-    );
-  }
+export function effectDecodeNumberList(
+  value: string,
+): Effect.Effect<number[], StoredConfigCorruptError> {
+  return Schema.decodeUnknown(NumberListJsonSchema)(value).pipe(
+    Effect.map((arr) => [...arr]),
+    Effect.mapError((cause) =>
+      storedConfigCorrupt(
+        "Stored number list is corrupt and could not be decoded",
+        cause,
+      )
+    ),
+  );
 }
 
 export function encodeOptionalNumberList(
@@ -286,16 +194,6 @@ export function decodeOptionalNumberList(
   }
 
   return [...decoded.right];
-}
-
-export function decodeOptionalNumberListOrThrow(
-  value: string | null | undefined,
-): number[] {
-  if (!value) {
-    return [];
-  }
-
-  return [...Schema.decodeUnknownSync(NumberListJsonSchema)(value)];
 }
 
 export function effectDecodeStringList(
@@ -398,25 +296,25 @@ export function effectDecodeStoredConfigRow(
 export function effectDecodeStoredLibraryConfig(
   row: { data: string } | undefined,
 ): Effect.Effect<ConfigCore["library"], StoredConfigCorruptError> {
-  return Effect.try({
-    try: () => decodeStoredLibraryConfigOrThrow(row),
-    catch: (cause) =>
-      cause instanceof StoredConfigCorruptError ? cause : storedConfigCorrupt(
-        "Stored library config is corrupt and could not be decoded",
-        cause,
-      ),
-  });
+  if (!row) {
+    return Effect.succeed({ ...makeDefaultConfig(":memory:").library });
+  }
+
+  return effectDecodeConfigCore(row.data).pipe(
+    Effect.map((config) => ({ ...config.library })),
+  );
 }
 
 export function effectDecodeImagePath(
   row: { data: string } | undefined,
 ): Effect.Effect<string, StoredConfigCorruptError> {
-  return Effect.try({
-    try: () => decodeStoredImagePathOrThrow(row),
-    catch: (cause) =>
-      cause instanceof StoredConfigCorruptError ? cause : storedConfigCorrupt(
-        "Stored configuration is corrupt and could not be decoded",
-        cause,
-      ),
-  });
+  if (!row) {
+    return Effect.succeed("./data/images");
+  }
+
+  return effectDecodeConfigCore(row.data).pipe(
+    Effect.map((config) =>
+      config.general.images_path.trim() || "./data/images"
+    ),
+  );
 }

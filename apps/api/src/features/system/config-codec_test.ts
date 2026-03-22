@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { assertThrows } from "@std/assert";
+import { Cause, Effect, Exit } from "effect";
 
 import { qualityProfiles, releaseProfiles } from "../../db/schema.ts";
 import {
@@ -8,16 +8,12 @@ import {
   decodeQualityProfileRow,
   decodeReleaseProfileRow,
   decodeReleaseProfileRules,
-  decodeStoredConfigRowOrThrow,
+  effectDecodeStoredConfigRow,
   encodeConfigCore,
   encodeOptionalNumberList,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
 } from "./config-codec.ts";
-import {
-  StoredConfigCorruptError,
-  StoredConfigMissingError,
-} from "./errors.ts";
 
 Deno.test("config codec round-trips config core without mutating arrays", () => {
   const encoded = encodeConfigCore({
@@ -148,15 +144,28 @@ Deno.test("optional number list codec normalizes duplicates and invalid values",
   assertEquals(decodeOptionalNumberList("not-json"), []);
 });
 
-Deno.test("stored config row decoder throws typed errors for missing and corrupt rows", () => {
-  assertThrows(
-    () => decodeStoredConfigRowOrThrow(undefined),
-    StoredConfigMissingError,
-    "Stored configuration is missing",
+Deno.test("stored config row decoder fails with typed errors for missing and corrupt rows", async () => {
+  const missingExit = await Effect.runPromiseExit(
+    effectDecodeStoredConfigRow(undefined),
   );
-  assertThrows(
-    () => decodeStoredConfigRowOrThrow({ data: "{not-json" }),
-    StoredConfigCorruptError,
-    "Stored configuration is corrupt and could not be decoded",
+  assertEquals(Exit.isFailure(missingExit), true);
+  if (Exit.isFailure(missingExit)) {
+    const failure = Cause.failureOption(missingExit.cause);
+    assertEquals(failure._tag, "Some");
+    if (failure._tag === "Some") {
+      assertEquals(failure.value._tag, "StoredConfigMissingError");
+    }
+  }
+
+  const corruptExit = await Effect.runPromiseExit(
+    effectDecodeStoredConfigRow({ data: "{not-json" }),
   );
+  assertEquals(Exit.isFailure(corruptExit), true);
+  if (Exit.isFailure(corruptExit)) {
+    const failure = Cause.failureOption(corruptExit.cause);
+    assertEquals(failure._tag, "Some");
+    if (failure._tag === "Some") {
+      assertEquals(failure.value._tag, "StoredConfigCorruptError");
+    }
+  }
 });
