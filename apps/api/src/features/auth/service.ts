@@ -79,6 +79,27 @@ const makeAuthService = Effect.gen(function* () {
   const { db } = yield* Database;
   const config = yield* AppConfig;
 
+  /**
+   * Bootstrap user lifecycle (one-way transition):
+   *
+   * 1. On first run (no users in DB), creates an admin user with:
+   *    - username/password from env config (BOOTSTRAP_USERNAME/PASSWORD)
+   *    - `mustChangePassword: true` — UI forces a password change on first login
+   *    - a generated API key
+   *    - credentials printed to stdout so the operator can log in
+   *
+   * 2. When the user changes their password via {@link changePassword}:
+   *    - `mustChangePassword` is set to `false`
+   *    - all sessions are invalidated (forces re-login with new password)
+   *    - `bootstrapPassword` is nulled in the appConfig table
+   *    This is a ONE-WAY transition: the bootstrap password is permanently
+   *    erased from the database. Re-running ensureBootstrapUser after this
+   *    point is a no-op because a user already exists.
+   *
+   * 3. Idempotency: if any user row exists, this function returns immediately.
+   *    The `onConflictDoNothing()` guard prevents duplicate inserts even under
+   *    concurrent startup races.
+   */
   const ensureBootstrapUser = Effect.fn("AuthService.ensureBootstrapUser")(
     function* () {
       const existing = yield* tryDatabasePromise(
@@ -336,6 +357,9 @@ const makeAuthService = Effect.gen(function* () {
       ),
     );
 
+    // One-way bootstrap transition: password change clears mustChangePassword,
+    // invalidates all sessions, and permanently nulls the bootstrap password
+    // from the appConfig table. See ensureBootstrapUser for lifecycle docs.
     yield* tryDatabasePromise(
       "Failed to update password",
       () =>

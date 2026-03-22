@@ -15,6 +15,25 @@ import {
 } from "./src/lib/logging.ts";
 import { makeApiRuntime, runApi, type RuntimeOptions } from "./src/runtime.ts";
 
+/**
+ * Startup sequence (blocking, ordered, fail-fast):
+ *
+ * 1. **Migrate** — Run pending Drizzle migrations. Fails the process on error;
+ *    no rollback or retry. See {@link migrateDatabase}.
+ * 2. **Initialize config** — Insert default system config and quality profiles
+ *    if the database is empty (first run). If config already exists it is left
+ *    untouched — corrupt config is NOT repaired here; see getConfig for the
+ *    repair contract. Applies stored log level if config is decodable.
+ * 3. **Bootstrap user** — Create the initial admin user if no users exist.
+ *    See {@link ensureBootstrapUser} in auth/service.ts for lifecycle details.
+ * 4. **Return AppConfig** — Hand the resolved env config to the caller so it
+ *    can bind the HTTP server.
+ *
+ * After bootstrap, main.ts loads the full Config via getConfig to start
+ * background workers. If the stored config is corrupt at that point,
+ * StoredConfigCorruptError is caught and background workers are skipped with a
+ * warning — the API still starts so the operator can re-save config via the UI.
+ */
 const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   yield* migrateDatabase();
 
