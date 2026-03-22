@@ -2,8 +2,9 @@ import { assertEquals } from "@std/assert";
 
 import { Effect, Stream } from "effect";
 
-import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
+import { FileSystemError } from "../../lib/filesystem.ts";
 import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
+import { makeNoopTestFileSystemWithOverrides } from "../../test/filesystem-test.ts";
 import { scanVideoFiles, scanVideoFilesStream } from "./file-scanner.ts";
 
 const tree = new Map<string, Deno.DirEntry[]>([
@@ -30,44 +31,9 @@ const tree = new Map<string, Deno.DirEntry[]>([
   ],
 ]);
 
-const mockFs: FileSystemShape = {
-  openFile: () => Effect.die("unused"),
-  readFile: () => Effect.die("unused"),
-  readDir: (path) =>
-    toPathString(path) === "/library/show/season-2/broken"
-      ? Effect.fail(
-        new FileSystemError({
-          cause: new Error("denied"),
-          message: "Failed to read directory",
-          path: toPathString(path),
-        }),
-      )
-      : Effect.succeed(tree.get(toPathString(path)) ?? []),
-  readDirStream: (path) =>
-    toPathString(path) === "/library/show/season-2/broken"
-      ? Stream.fail(
-        new FileSystemError({
-          cause: new Error("denied"),
-          message: "Failed to read directory",
-          path: toPathString(path),
-        }),
-      )
-      : Stream.fromIterable(tree.get(toPathString(path)) ?? []).pipe(
-        Stream.map((entry) => entry),
-      ),
-  realPath: (path) => Effect.succeed(toPathString(path)),
-  stat: (path) =>
-    Effect.succeed({
-      size: toPathString(path).endsWith("episode-01.mkv") ? 100 : 200,
-    } as Deno.FileInfo),
-  mkdir: () => Effect.die("unused"),
-  rename: () => Effect.die("unused"),
-  copyFile: () => Effect.die("unused"),
-  writeFile: () => Effect.die("unused"),
-  remove: () => Effect.die("unused"),
-};
-
 Deno.test("scanVideoFilesStream streams matching files and skips bad dirs", async () => {
+  const mockFs = await makeMockFs();
+
   const files = await runTestEffect(
     Stream.runCollect(scanVideoFilesStream(mockFs, "/library")).pipe(
       Effect.map((items) => Array.from(items, (file) => file.path)),
@@ -81,6 +47,7 @@ Deno.test("scanVideoFilesStream streams matching files and skips bad dirs", asyn
 });
 
 Deno.test("scanVideoFiles collects iterator output", async () => {
+  const mockFs = await makeMockFs();
   const files = await Effect.runPromise(scanVideoFiles(mockFs, "/library"));
 
   assertEquals(
@@ -101,6 +68,7 @@ Deno.test("scanVideoFiles collects iterator output", async () => {
 });
 
 Deno.test("scanVideoFiles fails when the root path is inaccessible", async () => {
+  const mockFs = await makeMockFs();
   const exit = await runTestEffectExit(
     scanVideoFiles(mockFs, "/library/show/season-2/broken"),
   );
@@ -109,16 +77,17 @@ Deno.test("scanVideoFiles fails when the root path is inaccessible", async () =>
 });
 
 Deno.test("scanVideoFilesStream uses streaming dir reader when available", async () => {
+  const mockFs = await makeMockFs();
   let streamed = 0;
   const readDirError = new FileSystemError({
     cause: new Error("readDir should not be used"),
     message: "readDir should not be used",
     path: "/library",
   });
-  const streamingFs: FileSystemShape = {
+  const streamingFs = {
     ...mockFs,
     readDir: () => Effect.fail(readDirError),
-    readDirStream: (path) => {
+    readDirStream: (path: string | URL) => {
       streamed += 1;
       return Stream.fromIterable(tree.get(toPathString(path)) ?? []);
     },
@@ -155,9 +124,7 @@ Deno.test("scanVideoFilesStream handles symlink cycles without infinite recursio
     ],
   ]);
 
-  const symlinkFs: FileSystemShape = {
-    openFile: () => Effect.die("unused"),
-    readFile: () => Effect.die("unused"),
+  const symlinkFs = await makeNoopTestFileSystemWithOverrides({
     readDir: (path) =>
       Effect.succeed(symlinksTree.get(toPathString(path)) ?? []),
     readDirStream: (path) =>
@@ -178,13 +145,8 @@ Deno.test("scanVideoFilesStream handles symlink cycles without infinite recursio
         isFile: toPathString(path).endsWith(".mkv"),
         isDirectory: !toPathString(path).endsWith(".mkv"),
         isSymlink: false,
-      } as Deno.FileInfo),
-    mkdir: () => Effect.die("unused"),
-    rename: () => Effect.die("unused"),
-    copyFile: () => Effect.die("unused"),
-    writeFile: () => Effect.die("unused"),
-    remove: () => Effect.die("unused"),
-  };
+      }),
+  });
 
   const files = await runTestEffect(
     Stream.runCollect(scanVideoFilesStream(symlinkFs, "/library")).pipe(
@@ -224,9 +186,7 @@ Deno.test("scanVideoFilesStream continues scanning after encountering inaccessib
     ],
   ]);
 
-  const inaccessibleFs: FileSystemShape = {
-    openFile: () => Effect.die("unused"),
-    readFile: () => Effect.die("unused"),
+  const inaccessibleFs = await makeNoopTestFileSystemWithOverrides({
     readDir: (path) =>
       toPathString(path) === "/library/show2"
         ? Effect.fail(
@@ -254,13 +214,8 @@ Deno.test("scanVideoFilesStream continues scanning after encountering inaccessib
         isFile: toPathString(path).includes("video"),
         isDirectory: !toPathString(path).includes("video"),
         isSymlink: false,
-      } as Deno.FileInfo),
-    mkdir: () => Effect.die("unused"),
-    rename: () => Effect.die("unused"),
-    copyFile: () => Effect.die("unused"),
-    writeFile: () => Effect.die("unused"),
-    remove: () => Effect.die("unused"),
-  };
+      }),
+  });
 
   const files = await runTestEffect(
     Stream.runCollect(scanVideoFilesStream(inaccessibleFs, "/library")).pipe(
@@ -288,4 +243,37 @@ function entry(
 
 function toPathString(path: string | URL) {
   return typeof path === "string" ? path : path.toString();
+}
+
+function makeMockFs() {
+  return makeNoopTestFileSystemWithOverrides({
+    readDir: (path) =>
+      toPathString(path) === "/library/show/season-2/broken"
+        ? Effect.fail(
+          new FileSystemError({
+            cause: new Error("denied"),
+            message: "Failed to read directory",
+            path: toPathString(path),
+          }),
+        )
+        : Effect.succeed(tree.get(toPathString(path)) ?? []),
+    readDirStream: (path) =>
+      toPathString(path) === "/library/show/season-2/broken"
+        ? Stream.fail(
+          new FileSystemError({
+            cause: new Error("denied"),
+            message: "Failed to read directory",
+            path: toPathString(path),
+          }),
+        )
+        : Stream.fromIterable(tree.get(toPathString(path)) ?? []),
+    realPath: (path) => Effect.succeed(toPathString(path)),
+    stat: (path) =>
+      Effect.succeed({
+        isDirectory: false,
+        isFile: true,
+        isSymlink: false,
+        size: toPathString(path).endsWith("episode-01.mkv") ? 100 : 200,
+      }),
+  });
 }

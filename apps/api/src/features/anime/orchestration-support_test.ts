@@ -1,14 +1,12 @@
 import { assertEquals } from "@std/assert";
-import { createClient } from "@libsql/client";
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
 import { Effect } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
+import { withSqliteTestDb } from "../../test/database-test.ts";
 import { refreshEpisodesEffect } from "./orchestration-support.ts";
 
 Deno.test("refreshEpisodesEffect falls back to stored metadata when AniList fails", async () => {
@@ -74,15 +72,9 @@ Deno.test("refreshEpisodesEffect falls back to stored metadata when AniList fail
 });
 
 async function withTestDb(run: (db: AppDatabase) => Promise<void>) {
-  const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
-  const client = createClient({ url: `file:${databaseFile}` });
-  const db = drizzle({ client, schema });
-
-  try {
-    await migrate(db, { migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER });
-    await run(db);
-  } finally {
-    client.close();
-    await Deno.remove(databaseFile).catch(() => undefined);
-  }
+  await withSqliteTestDb({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) => run(db as AppDatabase),
+    schema,
+  });
 }

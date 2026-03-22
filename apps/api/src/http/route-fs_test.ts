@@ -1,11 +1,11 @@
 import { assertEquals } from "@std/assert";
 import { Effect } from "effect";
 
-import type { FileSystemShape } from "../lib/filesystem.ts";
+import { makeNoopTestFileSystemWithOverrides } from "../test/filesystem-test.ts";
 import { browsePath } from "./route-fs.ts";
 
 Deno.test("browsePath returns paginated entries with defaults", async () => {
-  const fs = makeMockFileSystem([
+  const fs = await makeMockFileSystem([
     { isDirectory: false, name: "file1.mkv" },
     { isDirectory: false, name: "file2.mkv" },
     { isDirectory: true, name: "subdir" },
@@ -23,7 +23,7 @@ Deno.test("browsePath returns paginated entries with defaults", async () => {
 });
 
 Deno.test("browsePath returns all entries when limit is omitted", async () => {
-  const fs = makeMockFileSystem(
+  const fs = await makeMockFileSystem(
     Array.from({ length: 600 }, (_, index) => ({
       isDirectory: false,
       name: `file-${index}.mkv`,
@@ -39,7 +39,7 @@ Deno.test("browsePath returns all entries when limit is omitted", async () => {
 });
 
 Deno.test("browsePath respects limit and offset", async () => {
-  const fs = makeMockFileSystem([
+  const fs = await makeMockFileSystem([
     { isDirectory: false, name: "a.mkv" },
     { isDirectory: false, name: "b.mkv" },
     { isDirectory: false, name: "c.mkv" },
@@ -73,7 +73,7 @@ Deno.test("browsePath respects limit and offset", async () => {
 });
 
 Deno.test("browsePath caps limit at MAX_BROWSE_LIMIT", async () => {
-  const fs = makeMockFileSystem([]);
+  const fs = await makeMockFileSystem([]);
 
   const result = await Effect.runPromise(
     browsePath(fs, "/test", { limit: 10000 }),
@@ -82,14 +82,14 @@ Deno.test("browsePath caps limit at MAX_BROWSE_LIMIT", async () => {
 });
 
 Deno.test("browsePath floors limit at 1", async () => {
-  const fs = makeMockFileSystem([]);
+  const fs = await makeMockFileSystem([]);
 
   const result = await Effect.runPromise(browsePath(fs, "/test", { limit: 0 }));
   assertEquals(result.limit, 1);
 });
 
 Deno.test("browsePath floors negative offset at 0", async () => {
-  const fs = makeMockFileSystem([]);
+  const fs = await makeMockFileSystem([]);
 
   const result = await Effect.runPromise(
     browsePath(fs, "/test", { offset: -10 }),
@@ -98,7 +98,7 @@ Deno.test("browsePath floors negative offset at 0", async () => {
 });
 
 Deno.test("browsePath sorts directories before files", async () => {
-  const fs = makeMockFileSystem([
+  const fs = await makeMockFileSystem([
     { isDirectory: false, name: "zfile.mkv" },
     { isDirectory: true, name: "adir" },
     { isDirectory: false, name: "afile.mkv" },
@@ -114,7 +114,7 @@ Deno.test("browsePath sorts directories before files", async () => {
 });
 
 Deno.test("browsePath returns empty page when offset exceeds total", async () => {
-  const fs = makeMockFileSystem([
+  const fs = await makeMockFileSystem([
     { isDirectory: false, name: "a.mkv" },
   ]);
 
@@ -130,34 +130,28 @@ Deno.test("browsePath returns empty page when offset exceeds total", async () =>
 
 function makeMockFileSystem(
   entries: Array<{ isDirectory: boolean; name: string; size?: number }>,
-): FileSystemShape {
-  return {
-    copyFile: () => Effect.die("unused"),
-    mkdir: () => Effect.void,
-    openFile: () => Effect.die("unused"),
+) {
+  return makeNoopTestFileSystemWithOverrides({
     readDir: () =>
       Effect.succeed(
-        entries.map((e) => ({ ...e, isFile: !e.isDirectory } as Deno.DirEntry)),
-      ),
-    readFile: () => Effect.die("unused"),
-    realPath: (p) => Effect.succeed(typeof p === "string" ? p : p.toString()),
-    remove: () => Effect.die("unused"),
-    rename: () => Effect.die("unused"),
-    stat: (p) => {
-      const path = typeof p === "string" ? p : p.toString();
-      const name = path.split("/").pop() ?? "";
-      const entry = entries.find((e) => e.name === name);
-      if (entry) {
-        return Effect.succeed({
-          isFile: !entry.isDirectory,
+        entries.map((entry) => ({
           isDirectory: entry.isDirectory,
-          size: entry.size ?? 0,
-        } as Deno.FileInfo);
-      }
-      return Effect.succeed(
-        { isFile: false, isDirectory: false, size: 0 } as Deno.FileInfo,
-      );
+          isFile: !entry.isDirectory,
+          isSymlink: false,
+          name: entry.name,
+        })),
+      ),
+    stat: (path) => {
+      const pathString = typeof path === "string" ? path : path.toString();
+      const name = pathString.split("/").pop() ?? "";
+      const entry = entries.find((candidate) => candidate.name === name);
+
+      return Effect.succeed({
+        isDirectory: entry?.isDirectory ?? false,
+        isFile: entry ? !entry.isDirectory : false,
+        isSymlink: false,
+        size: entry?.size ?? 0,
+      });
     },
-    writeFile: () => Effect.die("unused"),
-  };
+  });
 }

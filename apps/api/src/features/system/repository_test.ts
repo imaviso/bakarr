@@ -1,10 +1,9 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
+import { withSqliteTestDb } from "../../test/database-test.ts";
 import {
   anime,
   backgroundJobs,
@@ -431,15 +430,9 @@ Deno.test("loadUnmappedFolderMatchRow returns a row by folder path", async () =>
 async function withTestDb(
   run: (db: AppDatabase, databaseFile: string) => Promise<void>,
 ) {
-  const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
-  const client = createClient({ url: `file:${databaseFile}` });
-  const db = drizzle({ client, schema });
-
-  try {
-    await migrate(db, { migrationsFolder: "./drizzle" });
-    await run(db, databaseFile);
-  } finally {
-    client.close();
-    await Deno.remove(databaseFile).catch(() => undefined);
-  }
+  await withSqliteTestDb({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
+    schema,
+  });
 }

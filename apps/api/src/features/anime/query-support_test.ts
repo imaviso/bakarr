@@ -1,7 +1,4 @@
-import { createClient } from "@libsql/client";
 import { assertEquals } from "@std/assert";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
 import { Effect } from "effect";
 
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
@@ -9,6 +6,12 @@ import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
+import { withSqliteTestDb } from "../../test/database-test.ts";
+import { runTestEffect } from "../../test/effect-test.ts";
+import {
+  withFileSystemSandbox,
+  writeTextFile,
+} from "../../test/filesystem-test.ts";
 import {
   annotateAnimeSearchResultsForQuery,
   deriveEpisodeTimelineMetadata,
@@ -88,11 +91,9 @@ Deno.test("deriveEpisodeTimelineMetadata marks future and aired episodes", () =>
 
 Deno.test("listEpisodesEffect fills missing media metadata from ffprobe", async () => {
   await withTestDb(async (db) => {
-    const root = await Deno.makeTempDir();
-    const filePath = `${root}/Episode 1.mkv`;
-
-    try {
-      await Deno.writeTextFile(filePath, "test");
+    await withFileSystemSandbox(async ({ root, fs }) => {
+      const filePath = `${root}/Episode 1.mkv`;
+      await runTestEffect(writeTextFile(fs, filePath, "test"));
 
       await db.insert(schema.anime).values({
         addedAt: "2024-01-01T00:00:00.000Z",
@@ -134,9 +135,7 @@ Deno.test("listEpisodesEffect fills missing media metadata from ffprobe", async 
       assertEquals(result[0]?.audio_channels, "2.0");
       assertEquals(result[0]?.duration_seconds, 1440);
       assertEquals(result[0]?.file_size, 4);
-    } finally {
-      await Deno.remove(root, { recursive: true });
-    }
+    });
   });
 });
 
@@ -427,17 +426,11 @@ function makeAniListStub(metadata: {
 async function withTestDb(
   run: (db: AppDatabase) => Promise<void>,
 ): Promise<void> {
-  const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
-  const client = createClient({ url: `file:${databaseFile}` });
-  const db = drizzle({ client, schema });
-
-  try {
-    await migrate(db, { migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER });
-    await run(db);
-  } finally {
-    client.close();
-    await Deno.remove(databaseFile).catch(() => undefined);
-  }
+  await withSqliteTestDb({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) => run(db as AppDatabase),
+    schema,
+  });
 }
 
 Deno.test("listAnimeEffect returns paginated results with defaults", async () => {

@@ -1,5 +1,4 @@
 import { assertEquals } from "@std/assert";
-import { Effect } from "effect";
 
 import {
   applyRemotePathMappings,
@@ -13,8 +12,11 @@ import {
   resolveReconciledBatchEpisodeNumbers,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
-import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
 import { runTestEffect } from "../../test/effect-test.ts";
+import {
+  withFileSystemSandbox,
+  writeTextFile,
+} from "../../test/filesystem-test.ts";
 
 const filesystemTestPermissions: Deno.PermissionOptions = {
   read: true,
@@ -23,109 +25,6 @@ const filesystemTestPermissions: Deno.PermissionOptions = {
 
 function filesystemTest(name: string, fn: () => void | Promise<void>) {
   Deno.test({ fn, name, permissions: filesystemTestPermissions });
-}
-
-/** Real filesystem for integration tests */
-const fs: FileSystemShape = {
-  openFile: (path, options) =>
-    Effect.acquireRelease(
-      Effect.tryPromise({
-        try: () => Deno.open(path, options),
-        catch: (cause) =>
-          new FileSystemError({
-            cause,
-            message: "openFile failed",
-            path: toPathString(path),
-          }),
-      }),
-      (file) => Effect.sync(() => file.close()),
-    ),
-  readFile: (path) =>
-    Effect.tryPromise({
-      try: () => Deno.readFile(path),
-      catch: (cause) =>
-        new FileSystemError({
-          cause,
-          message: "readFile failed",
-          path: toPathString(path),
-        }),
-    }),
-  readDir: (path) =>
-    Effect.tryPromise({
-      try: () => Array.fromAsync(Deno.readDir(path)),
-      catch: (cause) =>
-        new FileSystemError({
-          cause,
-          message: "readDir failed",
-          path: toPathString(path),
-        }),
-    }),
-  realPath: (path) =>
-    Effect.tryPromise({
-      try: () => Deno.realPath(path),
-      catch: (cause) =>
-        new FileSystemError({
-          cause,
-          message: "realPath failed",
-          path: toPathString(path),
-        }),
-    }),
-  stat: (path) =>
-    Effect.tryPromise({
-      try: () => Deno.stat(path),
-      catch: (cause) =>
-        new FileSystemError({
-          cause,
-          message: "stat failed",
-          path: toPathString(path),
-        }),
-    }),
-  mkdir: (path, options) =>
-    Effect.tryPromise({
-      try: () => Deno.mkdir(path, options),
-      catch: (cause) =>
-        new FileSystemError({
-          cause,
-          message: "mkdir failed",
-          path: toPathString(path),
-        }),
-    }),
-  rename: (from, to) =>
-    Effect.tryPromise({
-      try: () => Deno.rename(from, to),
-      catch: (cause) =>
-        new FileSystemError({ cause, message: "rename failed", path: from }),
-    }),
-  copyFile: (from, to) =>
-    Effect.tryPromise({
-      try: () => Deno.copyFile(from, to),
-      catch: (cause) =>
-        new FileSystemError({ cause, message: "copyFile failed", path: from }),
-    }),
-  writeFile: (path, data) =>
-    Effect.tryPromise({
-      try: () => Deno.writeFile(path, data),
-      catch: (cause) =>
-        new FileSystemError({
-          cause,
-          message: "writeFile failed",
-          path: toPathString(path),
-        }),
-    }),
-  remove: (path, options) =>
-    Effect.tryPromise({
-      try: () => Deno.remove(path, options),
-      catch: (cause) =>
-        new FileSystemError({
-          cause,
-          message: "remove failed",
-          path: toPathString(path),
-        }),
-    }),
-};
-
-function toPathString(path: string | URL) {
-  return typeof path === "string" ? path : path.toString();
 }
 
 filesystemTest("parseMagnetInfoHash extracts btih from magnet links", () => {
@@ -139,13 +38,13 @@ filesystemTest("parseMagnetInfoHash extracts btih from magnet links", () => {
 filesystemTest(
   "resolveCompletedContentPath prefers matching episode files inside directories",
   async () => {
-    const dir = await Deno.makeTempDir();
-
-    try {
+    await withFileSystemSandbox(async ({ fs, root }) => {
+      const dir = `${root}/completed`;
+      await runTestEffect(fs.mkdir(dir, { recursive: true }));
       const first = `${dir}/Show - 01.mkv`;
       const second = `${dir}/Show - 02.mkv`;
-      await Deno.writeTextFile(first, "one");
-      await Deno.writeTextFile(second, "two");
+      await runTestEffect(writeTextFile(fs, first, "one"));
+      await runTestEffect(writeTextFile(fs, second, "two"));
 
       assertEquals(
         await runTestEffect(resolveCompletedContentPath(fs, dir, 2)),
@@ -155,22 +54,20 @@ filesystemTest(
         await runTestEffect(resolveCompletedContentPath(fs, first, 1)),
         first,
       );
-    } finally {
-      await Deno.remove(dir, { recursive: true });
-    }
+    });
   },
 );
 
 filesystemTest(
   "resolveCompletedContentPath matches daily files by expected air date",
   async () => {
-    const dir = await Deno.makeTempDir();
-
-    try {
+    await withFileSystemSandbox(async ({ fs, root }) => {
+      const dir = `${root}/daily`;
+      await runTestEffect(fs.mkdir(dir, { recursive: true }));
       const first = `${dir}/Show - 2025-03-14.mkv`;
       const second = `${dir}/Show - 2025-03-21.mkv`;
-      await Deno.writeTextFile(first, "one");
-      await Deno.writeTextFile(second, "two");
+      await runTestEffect(writeTextFile(fs, first, "one"));
+      await runTestEffect(writeTextFile(fs, second, "two"));
 
       assertEquals(
         await runTestEffect(
@@ -180,69 +77,59 @@ filesystemTest(
         ),
         second,
       );
-    } finally {
-      await Deno.remove(dir, { recursive: true });
-    }
+    });
   },
 );
 
 filesystemTest(
   "resolveCompletedContentPath falls back to a lone generic video file",
   async () => {
-    const dir = await Deno.makeTempDir();
-
-    try {
+    await withFileSystemSandbox(async ({ fs, root }) => {
+      const dir = `${root}/generic`;
+      await runTestEffect(fs.mkdir(dir, { recursive: true }));
       const file = `${dir}/download.mkv`;
-      await Deno.writeTextFile(file, "video");
+      await runTestEffect(writeTextFile(fs, file, "video"));
 
       assertEquals(
         await runTestEffect(resolveCompletedContentPath(fs, dir, 7)),
         file,
       );
-    } finally {
-      await Deno.remove(dir, { recursive: true });
-    }
+    });
   },
 );
 
 filesystemTest(
   "resolveBatchContentPaths collects video files from completed batch directories",
   async () => {
-    const dir = await Deno.makeTempDir();
-
-    try {
+    await withFileSystemSandbox(async ({ fs, root }) => {
+      const dir = `${root}/batch-dir`;
+      await runTestEffect(fs.mkdir(dir, { recursive: true }));
       const first = `${dir}/Show - 01.mkv`;
       const second = `${dir}/Show - 02.mp4`;
       const ignored = `${dir}/note.txt`;
-      await Deno.writeTextFile(first, "one");
-      await Deno.writeTextFile(second, "two");
-      await Deno.writeTextFile(ignored, "ignore");
+      await runTestEffect(writeTextFile(fs, first, "one"));
+      await runTestEffect(writeTextFile(fs, second, "two"));
+      await runTestEffect(writeTextFile(fs, ignored, "ignore"));
 
       assertEquals(await runTestEffect(resolveBatchContentPaths(fs, dir)), [
         first,
         second,
       ]);
-    } finally {
-      await Deno.remove(dir, { recursive: true });
-    }
+    });
   },
 );
 
 filesystemTest(
   "resolveBatchContentPaths returns a single file for batch torrents stored as one file",
   async () => {
-    const dir = await Deno.makeTempDir();
-
-    try {
-      const file = `${dir}/Show Season Pack.mkv`;
-      await Deno.writeTextFile(file, "season");
+    await withFileSystemSandbox(async ({ fs, root }) => {
+      const file = `${root}/Show Season Pack.mkv`;
+      await runTestEffect(writeTextFile(fs, file, "season"));
 
       assertEquals(await runTestEffect(resolveBatchContentPaths(fs, file)), [
         file,
       ]);
-    } finally {
-      await Deno.remove(dir, { recursive: true });
-    }
+    });
   },
 );
 
@@ -405,13 +292,11 @@ filesystemTest(
 filesystemTest(
   "resolveAccessibleDownloadPath uses mapped local paths when remote path is unavailable",
   async () => {
-    const dir = await Deno.makeTempDir();
-
-    try {
-      const localRoot = `${dir}/local`;
-      await Deno.mkdir(`${localRoot}/show`, { recursive: true });
+    await withFileSystemSandbox(async ({ fs, root }) => {
+      const localRoot = `${root}/local`;
+      await runTestEffect(fs.mkdir(`${localRoot}/show`, { recursive: true }));
       const localFile = `${localRoot}/show/episode.mkv`;
-      await Deno.writeTextFile(localFile, "video");
+      await runTestEffect(writeTextFile(fs, localFile, "video"));
 
       assertEquals(
         await runTestEffect(
@@ -423,8 +308,6 @@ filesystemTest(
         ),
         localFile,
       );
-    } finally {
-      await Deno.remove(dir, { recursive: true });
-    }
+    });
   },
 );

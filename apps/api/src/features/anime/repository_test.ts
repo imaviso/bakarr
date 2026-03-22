@@ -1,12 +1,11 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { createClient } from "@libsql/client";
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { anime, appConfig, episodes, systemLogs } from "../../db/schema.ts";
+import { withSqliteTestDb } from "../../test/database-test.ts";
 import { encodeConfigCore } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 import { StoredConfigCorruptError } from "../system/errors.ts";
@@ -419,15 +418,9 @@ async function insertAnimeWithRoot(
 }
 
 async function withTestDb(run: (db: AppDatabase) => Promise<void>) {
-  const databaseFile = await Deno.makeTempFile({ suffix: ".sqlite" });
-  const client = createClient({ url: `file:${databaseFile}` });
-  const db = drizzle({ client, schema });
-
-  try {
-    await migrate(db, { migrationsFolder: "./drizzle" });
-    await run(db);
-  } finally {
-    client.close();
-    await Deno.remove(databaseFile).catch(() => undefined);
-  }
+  await withSqliteTestDb({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) => run(db as AppDatabase),
+    schema,
+  });
 }
