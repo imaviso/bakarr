@@ -1,8 +1,10 @@
-import { Effect, Either } from "effect";
+import { Effect } from "effect";
 
 import type { Config } from "../../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../../db/database.ts";
+import { DatabaseError } from "../../../db/database.ts";
 import { appConfig, qualityProfiles } from "../../../db/schema.ts";
+import { tryDatabasePromise } from "../../../lib/effect-db.ts";
 import {
   effectDecodeQualityProfileRow,
   effectDecodeStoredConfigRow,
@@ -10,53 +12,83 @@ import {
 } from "../../system/config-codec.ts";
 import type { NamingSettings } from "./types.ts";
 
-function runDecodeOrThrow<A, E>(effect: Effect.Effect<A, E>) {
-  const decoded = Effect.runSync(Effect.either(effect));
+const mapConfigError = (message: string) =>
+  Effect.mapError((cause: unknown) =>
+    cause instanceof DatabaseError
+      ? cause
+      : new DatabaseError({ message, cause })
+  );
 
-  if (Either.isLeft(decoded)) {
-    throw decoded.left;
-  }
-
-  return decoded.right;
-}
-
-export async function loadRuntimeConfig(db: AppDatabase): Promise<Config> {
-  const rows = await db.select().from(appConfig).limit(1);
-  const core = runDecodeOrThrow(effectDecodeStoredConfigRow(rows[0]));
-  const profileRows = await db.select().from(qualityProfiles);
-  const profiles = profileRows.map((row) =>
-    runDecodeOrThrow(effectDecodeQualityProfileRow(row))
+export const loadRuntimeConfig = Effect.fn(
+  "ConfigRepository.loadRuntimeConfig",
+)(function* (db: AppDatabase) {
+  const rows = yield* tryDatabasePromise(
+    "Failed to load runtime config",
+    () => db.select().from(appConfig).limit(1),
+  );
+  const core = yield* effectDecodeStoredConfigRow(rows[0]).pipe(
+    mapConfigError("Failed to load runtime config"),
+  );
+  const profileRows = yield* tryDatabasePromise(
+    "Failed to load runtime config",
+    () => db.select().from(qualityProfiles),
+  );
+  const profiles = yield* Effect.forEach(
+    profileRows,
+    (row) =>
+      effectDecodeQualityProfileRow(row).pipe(
+        mapConfigError("Failed to load runtime config"),
+      ),
   );
 
   return {
     ...core,
-    profiles,
-  };
-}
+    profiles: [...profiles],
+  } satisfies Config;
+});
 
-export async function getConfigLibraryPath(db: AppDatabase) {
-  const rows = await db.select().from(appConfig).limit(1);
-  const library = runDecodeOrThrow(effectDecodeStoredLibraryConfig(rows[0]));
+export const getConfigLibraryPath = Effect.fn(
+  "ConfigRepository.getConfigLibraryPath",
+)(function* (db: AppDatabase) {
+  const rows = yield* tryDatabasePromise(
+    "Failed to load config library path",
+    () => db.select().from(appConfig).limit(1),
+  );
+  const library = yield* effectDecodeStoredLibraryConfig(rows[0]).pipe(
+    mapConfigError("Failed to load config library path"),
+  );
 
   return library.library_path;
-}
+});
 
-export async function currentImportMode(db: AppDatabase) {
-  const rows = await db.select().from(appConfig).limit(1);
-  const library = runDecodeOrThrow(effectDecodeStoredLibraryConfig(rows[0]));
+export const currentImportMode = Effect.fn(
+  "ConfigRepository.currentImportMode",
+)(function* (db: AppDatabase) {
+  const rows = yield* tryDatabasePromise(
+    "Failed to load current import mode",
+    () => db.select().from(appConfig).limit(1),
+  );
+  const library = yield* effectDecodeStoredLibraryConfig(rows[0]).pipe(
+    mapConfigError("Failed to load current import mode"),
+  );
 
   return library.import_mode;
-}
+});
 
-export async function currentNamingSettings(
-  db: AppDatabase,
-): Promise<NamingSettings> {
-  const rows = await db.select().from(appConfig).limit(1);
-  const library = runDecodeOrThrow(effectDecodeStoredLibraryConfig(rows[0]));
+export const currentNamingSettings = Effect.fn(
+  "ConfigRepository.currentNamingSettings",
+)(function* (db: AppDatabase) {
+  const rows = yield* tryDatabasePromise(
+    "Failed to load naming settings",
+    () => db.select().from(appConfig).limit(1),
+  );
+  const library = yield* effectDecodeStoredLibraryConfig(rows[0]).pipe(
+    mapConfigError("Failed to load naming settings"),
+  );
 
   return {
     movieNamingFormat: library.movie_naming_format,
     namingFormat: library.naming_format,
     preferredTitle: library.preferred_title,
-  };
-}
+  } satisfies NamingSettings;
+});

@@ -1,4 +1,5 @@
 import { assertEquals, assertNotEquals, assertRejects } from "@std/assert";
+import { Effect } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -62,16 +63,19 @@ Deno.test("operations repository helpers load runtime config and config-backed l
       }),
     );
 
-    const runtimeConfig = await loadRuntimeConfig(db);
+    const runtimeConfig = await Effect.runPromise(loadRuntimeConfig(db));
     assertEquals(runtimeConfig.library.library_path, "/anime-library");
     assertEquals(runtimeConfig.library.import_mode, "move");
     assertEquals(runtimeConfig.profiles.length, 1);
     assertEquals(runtimeConfig.profiles[0].name, "Default");
 
-    assertEquals(await getConfigLibraryPath(db), "/anime-library");
-    assertEquals(await currentImportMode(db), "move");
+    assertEquals(
+      await Effect.runPromise(getConfigLibraryPath(db)),
+      "/anime-library",
+    );
+    assertEquals(await Effect.runPromise(currentImportMode(db)), "move");
 
-    const namingSettings = await currentNamingSettings(db);
+    const namingSettings = await Effect.runPromise(currentNamingSettings(db));
     assertEquals(namingSettings.namingFormat, defaults.library.naming_format);
     assertEquals(
       namingSettings.movieNamingFormat,
@@ -82,11 +86,15 @@ Deno.test("operations repository helpers load runtime config and config-backed l
       defaults.library.preferred_title,
     );
 
-    const storedProfile = await loadQualityProfile(db, "Default");
+    const storedProfile = await Effect.runPromise(
+      loadQualityProfile(db, "Default"),
+    );
     assertNotEquals(storedProfile, null);
     assertEquals(storedProfile!.max_size, "4GB");
 
-    const fallbackProfile = await loadQualityProfile(db, "Missing");
+    const fallbackProfile = await Effect.runPromise(
+      loadQualityProfile(db, "Missing"),
+    );
     assertEquals(fallbackProfile, null);
   });
 });
@@ -161,7 +169,9 @@ Deno.test("operations repository helpers load anime release rules and episode st
     const animeRow = await requireAnime(db, 20);
     assertEquals(animeRow.titleRomaji, "Naruto");
 
-    const releaseRules = await loadReleaseRules(db, animeRow);
+    const releaseRules = await Effect.runPromise(
+      loadReleaseRules(db, animeRow),
+    );
     assertEquals(releaseRules, [
       { rule_type: "preferred", score: 10, term: "SubsPlease" },
       { rule_type: "must", score: 0, term: "1080p" },
