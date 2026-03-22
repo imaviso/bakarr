@@ -2,6 +2,7 @@ import { Effect } from "effect";
 
 import { BackgroundWorkerController } from "./src/background.ts";
 import { AppConfig, type AppConfigShape } from "./src/config.ts";
+import { makeDotenvConfigProvider } from "./src/config-provider.ts";
 import { migrateDatabase } from "./src/db/migrate.ts";
 import { AuthService } from "./src/features/auth/service.ts";
 import { StoredConfigCorruptError } from "./src/features/system/errors.ts";
@@ -46,8 +47,10 @@ export async function bootstrap(
 }
 
 if (import.meta.main) {
-  await import("@std/dotenv/load");
-  const { app, config, runtime } = await bootstrap();
+  const dotenvProvider = await Effect.runPromise(makeDotenvConfigProvider());
+  const { app, config, runtime } = await bootstrap({}, {
+    configProvider: dotenvProvider,
+  });
   await runApi(
     runtime,
     Effect.flatMap(
@@ -115,16 +118,36 @@ if (import.meta.main) {
     await runtime.dispose();
   };
 
-  Deno.addSignalListener("SIGINT", () => {
-    void shutdown().finally(() => Deno.exit(0));
+  let shutdownPromise: Promise<void> | undefined;
+  const shutdownOnce = () => {
+    if (!shutdownPromise) {
+      shutdownPromise = shutdown();
+    }
+
+    return shutdownPromise;
+  };
+
+  const abortController = new AbortController();
+  const requestShutdown = () => {
+    void shutdownOnce().finally(() => {
+      abortController.abort();
+    });
+  };
+
+  Deno.addSignalListener("SIGINT", requestShutdown);
+  Deno.addSignalListener("SIGTERM", requestShutdown);
+
+  const server = Deno.serve({
+    handler: createAppFetchHandler(
+      app.fetch,
+      (effect) => runApi(runtime, effect),
+    ),
+    port: config.port,
+    signal: abortController.signal,
   });
 
-  Deno.addSignalListener("SIGTERM", () => {
-    void shutdown().finally(() => Deno.exit(0));
-  });
-
-  Deno.serve(
-    { port: config.port },
-    createAppFetchHandler(app.fetch, (effect) => runApi(runtime, effect)),
-  );
+  await server.finished;
+  Deno.removeSignalListener("SIGINT", requestShutdown);
+  Deno.removeSignalListener("SIGTERM", requestShutdown);
+  await shutdownOnce();
 }
