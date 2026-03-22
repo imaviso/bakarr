@@ -1,8 +1,9 @@
-import { FileSystem as PlatformFileSystem } from "@effect/platform";
-import { NodeFileSystem } from "@effect/platform-node";
+import {
+  FileSystem as PlatformFileSystem,
+  Path as PlatformPath,
+} from "@effect/platform";
+import { NodeFileSystem, NodePath } from "@effect/platform-node";
 import { Context, Effect, Layer, Schema, Scope, Stream } from "effect";
-import { join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 export class FileSystemError extends Schema.TaggedError<FileSystemError>()(
   "FileSystemError",
@@ -40,11 +41,17 @@ export interface RemoveOptions {
   readonly recursive?: boolean;
 }
 
+export interface FileHandle {
+  readonly close: () => void;
+  readonly read: (buffer: Uint8Array) => Promise<number | null>;
+  readonly seek: (offset: number, mode: number) => Promise<void>;
+}
+
 export interface FileSystemShape {
   readonly openFile: (
     path: string | URL,
     options: OpenFileOptions,
-  ) => Effect.Effect<Deno.FsFile, FileSystemError, Scope.Scope>;
+  ) => Effect.Effect<FileHandle, FileSystemError, Scope.Scope>;
   readonly readFile: (
     path: string | URL,
   ) => Effect.Effect<Uint8Array, FileSystemError>;
@@ -87,6 +94,14 @@ export class FileSystem extends Context.Tag("@bakarr/api/FileSystem")<
   FileSystemShape
 >() {}
 
+const PathForUtilities: PlatformPath.Path = Effect.runSync(
+  Effect.scoped(
+    Layer.build(PlatformPath.layer).pipe(
+      Effect.map((context) => Context.get(context, PlatformPath.Path)),
+    ),
+  ),
+);
+
 function wrap<A, R>(
   path: string | URL,
   message: string,
@@ -97,18 +112,6 @@ function wrap<A, R>(
       new FileSystemError({ cause, message, path: path.toString() })
     ),
   );
-}
-
-function toPath(path: string | URL): string {
-  if (typeof path === "string") {
-    return path;
-  }
-
-  if (path.protocol === "file:") {
-    return fileURLToPath(path);
-  }
-
-  return path.toString();
 }
 
 function toOpenFlag(options: OpenFileOptions): PlatformFileSystem.OpenFlag {
@@ -175,18 +178,18 @@ function toDirEntry(
 }
 
 function toSeekMode(mode: number): "current" | "start" {
-  if (mode === Deno.SeekMode.Start || mode === 0) {
+  if (mode === 0) {
     return "start";
   }
 
-  if (mode === Deno.SeekMode.Current || mode === 1) {
+  if (mode === 1) {
     return "current";
   }
 
   throw new Error(`Unsupported seek mode: ${mode}`);
 }
 
-function toOpenFileHandle(file: PlatformFileSystem.File): Deno.FsFile {
+function toOpenFileHandle(file: PlatformFileSystem.File): FileHandle {
   return {
     close: () => {
       // Closed by scope.
@@ -198,61 +201,84 @@ function toOpenFileHandle(file: PlatformFileSystem.File): Deno.FsFile {
       }),
     seek: (offset: number, mode: number) =>
       Effect.runPromise(file.seek(BigInt(offset), toSeekMode(mode))),
-  } as unknown as Deno.FsFile;
+  };
 }
 
 function makeFileSystem(
   platformFs: PlatformFileSystem.FileSystem,
+  pathService: PlatformPath.Path,
 ): FileSystemShape {
   return {
     openFile: (path, options) =>
-      wrap(
-        path,
-        "Failed to open file",
-        platformFs.open(toPath(path), {
-          flag: toOpenFlag(options),
-        }),
+      Effect.flatMap(
+        resolvePath(pathService, path),
+        (resolvedPath) =>
+          wrap(
+            path,
+            "Failed to open file",
+            platformFs.open(resolvedPath, {
+              flag: toOpenFlag(options),
+            }),
+          ),
       ).pipe(
         Effect.map(toOpenFileHandle),
       ),
     readFile: (path) =>
-      wrap(
-        path,
-        "Failed to read file",
-        Effect.scoped(platformFs.readFile(toPath(path))),
+      Effect.flatMap(
+        resolvePath(pathService, path),
+        (resolvedPath) =>
+          wrap(
+            path,
+            "Failed to read file",
+            Effect.scoped(platformFs.readFile(resolvedPath)),
+          ),
       ),
     readDir: (path) =>
-      wrap(
-        path,
-        "Failed to read directory",
-        Effect.scoped(platformFs.readDirectory(toPath(path))).pipe(
-          Effect.flatMap((names) =>
-            Effect.forEach(
-              names,
-              (name) =>
-                Effect.scoped(platformFs.stat(join(toPath(path), name))).pipe(
-                  Effect.map((info) => toDirEntry(name, info)),
-                ),
-              { concurrency: "unbounded" },
-            )
+      Effect.flatMap(
+        resolvePath(pathService, path),
+        (resolvedPath) =>
+          wrap(
+            path,
+            "Failed to read directory",
+            Effect.scoped(platformFs.readDirectory(resolvedPath)).pipe(
+              Effect.flatMap((names) =>
+                Effect.forEach(
+                  names,
+                  (name) =>
+                    Effect.scoped(
+                      platformFs.stat(pathService.join(resolvedPath, name)),
+                    ).pipe(
+                      Effect.map((info) => toDirEntry(name, info)),
+                    ),
+                  { concurrency: "unbounded" },
+                )
+              ),
+            ),
           ),
-        ),
       ),
     readDirStream: (path) =>
       Stream.fromEffect(
-        wrap(
-          path,
-          "Failed to read directory",
-          Effect.scoped(platformFs.readDirectory(toPath(path))),
+        Effect.flatMap(
+          resolvePath(pathService, path),
+          (resolvedPath) =>
+            wrap(
+              path,
+              "Failed to read directory",
+              Effect.scoped(platformFs.readDirectory(resolvedPath)),
+            ).pipe(
+              Effect.map((names) => ({ names, resolvedPath })),
+            ),
         ),
       ).pipe(
-        Stream.flatMap((names) =>
+        Stream.flatMap(({ names, resolvedPath }) =>
           Stream.fromIterable(names).pipe(
             Stream.mapEffect((name) =>
               wrap(
-                join(toPath(path), name),
+                pathService.join(resolvedPath, name),
                 "Failed to read directory",
-                Effect.scoped(platformFs.stat(join(toPath(path), name))),
+                Effect.scoped(
+                  platformFs.stat(pathService.join(resolvedPath, name)),
+                ),
               ).pipe(
                 Effect.map((info) => toDirEntry(name, info)),
               )
@@ -261,26 +287,38 @@ function makeFileSystem(
         ),
       ),
     realPath: (path) =>
-      wrap(
-        path,
-        "Failed to resolve path",
-        Effect.scoped(platformFs.realPath(toPath(path))),
+      Effect.flatMap(
+        resolvePath(pathService, path),
+        (resolvedPath) =>
+          wrap(
+            path,
+            "Failed to resolve path",
+            Effect.scoped(platformFs.realPath(resolvedPath)),
+          ),
       ),
     stat: (path) =>
-      wrap(
-        path,
-        "Failed to stat path",
-        Effect.scoped(platformFs.stat(toPath(path))),
+      Effect.flatMap(
+        resolvePath(pathService, path),
+        (resolvedPath) =>
+          wrap(
+            path,
+            "Failed to stat path",
+            Effect.scoped(platformFs.stat(resolvedPath)),
+          ),
       ).pipe(
         Effect.map(toFileInfo),
       ),
     mkdir: (path, options) =>
-      wrap(
-        path,
-        "Failed to create directory",
-        Effect.scoped(
-          platformFs.makeDirectory(toPath(path), toMkdirOptions(options)),
-        ),
+      Effect.flatMap(
+        resolvePath(pathService, path),
+        (resolvedPath) =>
+          wrap(
+            path,
+            "Failed to create directory",
+            Effect.scoped(
+              platformFs.makeDirectory(resolvedPath, toMkdirOptions(options)),
+            ),
+          ),
       ),
     rename: (from, to) =>
       wrap(
@@ -295,18 +333,26 @@ function makeFileSystem(
         Effect.scoped(platformFs.copyFile(from, to)),
       ),
     writeFile: (path, data) =>
-      wrap(
-        path,
-        "Failed to write file",
-        Effect.scoped(platformFs.writeFile(toPath(path), data)),
+      Effect.flatMap(
+        resolvePath(pathService, path),
+        (resolvedPath) =>
+          wrap(
+            path,
+            "Failed to write file",
+            Effect.scoped(platformFs.writeFile(resolvedPath, data)),
+          ),
       ),
     remove: (path, options) =>
-      wrap(
-        path,
-        "Failed to remove",
-        Effect.scoped(
-          platformFs.remove(toPath(path), toRemoveOptions(options)),
-        ),
+      Effect.flatMap(
+        resolvePath(pathService, path),
+        (resolvedPath) =>
+          wrap(
+            path,
+            "Failed to remove",
+            Effect.scoped(
+              platformFs.remove(resolvedPath, toRemoveOptions(options)),
+            ),
+          ),
       ),
   };
 }
@@ -315,35 +361,40 @@ const FileSystemFromPlatform = Layer.effect(
   FileSystem,
   Effect.gen(function* () {
     const platformFs = yield* PlatformFileSystem.FileSystem;
-    return makeFileSystem(platformFs);
+    const pathService = yield* PlatformPath.Path;
+    return makeFileSystem(platformFs, pathService);
   }),
 );
 
 export const FileSystemLive = FileSystemFromPlatform.pipe(
-  Layer.provide(NodeFileSystem.layer),
+  Layer.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
 );
 
 export const FileSystemNoop = FileSystemFromPlatform.pipe(
-  Layer.provide(PlatformFileSystem.layerNoop({})),
+  Layer.provide(
+    Layer.mergeAll(PlatformFileSystem.layerNoop({}), NodePath.layer),
+  ),
 );
 
 export function makeFileSystemNoopLayer(
   overrides: Partial<PlatformFileSystem.FileSystem>,
 ) {
   return FileSystemFromPlatform.pipe(
-    Layer.provide(PlatformFileSystem.layerNoop(overrides)),
+    Layer.provide(
+      Layer.mergeAll(PlatformFileSystem.layerNoop(overrides), NodePath.layer),
+    ),
   );
 }
 
 export function isWithinPathRoot(path: string, root: string) {
-  const resolvedPath = resolve(path.replace(/[\\/]+/g, "/"));
-  const resolvedRoot = resolve(root.replace(/[\\/]+/g, "/"));
+  const resolvedPath = PathForUtilities.resolve(path.replace(/[\\/]+/g, "/"));
+  const resolvedRoot = PathForUtilities.resolve(root.replace(/[\\/]+/g, "/"));
 
   if (resolvedPath === resolvedRoot) {
     return true;
   }
 
-  const relativePath = relative(resolvedRoot, resolvedPath);
+  const relativePath = PathForUtilities.relative(resolvedRoot, resolvedPath);
 
   if (relativePath === "") {
     return true;
@@ -358,6 +409,29 @@ export function isWithinPathRoot(path: string, root: string) {
 
   return true;
 }
+
+const resolvePath = (
+  pathService: PlatformPath.Path,
+  path: string | URL,
+): Effect.Effect<string, FileSystemError> => {
+  if (typeof path === "string") {
+    return Effect.succeed(path);
+  }
+
+  if (path.protocol === "file:") {
+    return pathService.fromFileUrl(path).pipe(
+      Effect.mapError((cause) =>
+        new FileSystemError({
+          cause,
+          message: "Failed to convert file URL",
+          path: path.toString(),
+        })
+      ),
+    );
+  }
+
+  return Effect.succeed(path.toString());
+};
 
 export function sanitizePathSegment(value: string) {
   const trimmed = value.trim();
