@@ -1,5 +1,6 @@
 import { FetchHttpClient } from "@effect/platform";
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { NodeContext } from "@effect/platform-node";
+import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
 
 import { AppRuntime } from "./app-runtime.ts";
 import {
@@ -30,6 +31,7 @@ import { RuntimeLoggerLayer } from "./lib/logging.ts";
 
 export interface RuntimeOptions {
   aniListLayer?: Layer.Layer<AniListClient>;
+  configProvider?: ConfigProvider.ConfigProvider;
   qbitLayer?: Layer.Layer<QBitTorrentClient>;
   rssLayer?: Layer.Layer<RssClient>;
   seadexLayer?: Layer.Layer<SeaDexClient>;
@@ -39,7 +41,11 @@ export function makeApiLayer(
   overrides: Partial<AppConfigShape> = {},
   options?: RuntimeOptions,
 ) {
-  const configLayer = AppConfig.layer(overrides);
+  const configLayer = options?.configProvider
+    ? AppConfig.layer(overrides).pipe(
+      Layer.provide(Layer.setConfigProvider(options.configProvider)),
+    )
+    : AppConfig.layer(overrides);
   const runtimeLayer = AppRuntime.layer();
   const httpClientLayer = FetchHttpClient.layer;
   const databaseLayer = DatabaseLive.pipe(Layer.provide(configLayer));
@@ -67,6 +73,7 @@ export function makeApiLayer(
     seadexLayer,
   ).pipe(Layer.provide(httpClientLayer));
   const platformLayer = Layer.mergeAll(
+    NodeContext.layer,
     configLayer,
     runtimeLayer,
     RuntimeLoggerLayer,
