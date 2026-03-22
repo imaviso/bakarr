@@ -49,12 +49,20 @@ Deno.test("ensureEpisodes rejects duplicate episode inserts for same anime", asy
   await withTestDb(async (db) => {
     await insertAnime(db, 2, 1);
     await db.insert(episodes).values({
+      audioChannels: null,
+      audioCodec: null,
       animeId: 2,
+      durationSeconds: null,
       number: 1,
+      fileSize: null,
+      groupName: null,
+      quality: null,
+      resolution: null,
       title: null,
       aired: null,
       downloaded: false,
       filePath: null,
+      videoCodec: null,
     });
 
     await ensureEpisodes(
@@ -70,12 +78,20 @@ Deno.test("ensureEpisodes rejects duplicate episode inserts for same anime", asy
 
     await assertRejects(() =>
       db.insert(episodes).values({
+        audioChannels: null,
+        audioCodec: null,
         animeId: 2,
+        durationSeconds: null,
         number: 1,
+        fileSize: null,
+        groupName: null,
+        quality: null,
+        resolution: null,
         title: null,
         aired: null,
         downloaded: false,
         filePath: null,
+        videoCodec: null,
       })
     );
   });
@@ -114,20 +130,36 @@ Deno.test("insertAnimeAggregateAtomic rolls back anime inserts when a later writ
         },
         episodeRows: [
           {
+            audioChannels: null,
+            audioCodec: null,
             animeId: 77,
+            durationSeconds: null,
             number: 1,
+            fileSize: null,
+            groupName: null,
+            quality: null,
+            resolution: null,
             title: null,
             aired: null,
             downloaded: false,
             filePath: null,
+            videoCodec: null,
           },
           {
+            audioChannels: null,
+            audioCodec: null,
             animeId: 77,
+            durationSeconds: null,
             number: 2,
+            fileSize: null,
+            groupName: null,
+            quality: null,
+            resolution: null,
             title: null,
             aired: null,
             downloaded: false,
             filePath: null,
+            videoCodec: null,
           },
         ],
         log: {
@@ -163,13 +195,21 @@ Deno.test("buildMissingEpisodeRows creates rows only for missing episodes", () =
     futureAiringSchedule: undefined,
     resetMissingOnly: true,
     existingRows: [{
+      audioChannels: null,
+      audioCodec: null,
       id: 1,
       animeId: 15,
+      durationSeconds: null,
       number: 1,
+      fileSize: null,
+      groupName: null,
+      quality: null,
+      resolution: null,
       title: null,
       aired: null,
       downloaded: true,
       filePath: "/library/Show 15/Show 15 - 01.mkv",
+      videoCodec: null,
     }],
   });
 
