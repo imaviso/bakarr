@@ -32,33 +32,24 @@ export function browsePath(
       : Math.min(Math.max(1, requestedLimit), MAX_BROWSE_LIMIT);
     const offset = Math.max(0, options?.offset ?? 0);
 
-    const allEntries: BrowseEntry[] = [];
-
     const dirEntries = yield* fs.readDir(path).pipe(
       Effect.catchTag(
         "FileSystemError",
-        () => Effect.succeed<Deno.DirEntry[]>([]),
+        () => Effect.succeed([]),
       ),
     );
 
-    for (const entry of dirEntries) {
-      const fullPath = `${path.replace(/\/$/, "")}/${entry.name}`;
-      const stats = yield* fs.stat(fullPath).pipe(
-        Effect.catchTag("FileSystemError", () =>
-          Effect.succeed(
-            {
-              isFile: false,
-              isDirectory: entry.isDirectory,
-            } as unknown as Deno.FileInfo,
-          )),
-      );
-      allEntries.push({
+    const normalizedBasePath = path.replace(/\/$/, "");
+    const allEntries = dirEntries.map((entry) => {
+      const fullPath = `${normalizedBasePath}/${entry.name}`;
+
+      return {
         is_directory: entry.isDirectory,
         name: entry.name,
         path: fullPath,
-        size: stats.isFile ? stats.size : undefined,
-      });
-    }
+        size: undefined,
+      } satisfies BrowseEntry;
+    });
 
     allEntries.sort((left, right) =>
       Number(right.is_directory) - Number(left.is_directory) ||
@@ -66,11 +57,24 @@ export function browsePath(
     );
 
     const total = allEntries.length;
-    const paginatedEntries = limit === undefined
+    const paginatedEntriesBase = limit === undefined
       ? allEntries.slice(offset)
       : allEntries.slice(offset, offset + limit);
     const hasMore = limit === undefined ? false : offset + limit < total;
-    const responseLimit = limit ?? paginatedEntries.length;
+    const responseLimit = limit ?? paginatedEntriesBase.length;
+
+    const paginatedEntries = yield* Effect.forEach(
+      paginatedEntriesBase,
+      (entry) =>
+        entry.is_directory ? Effect.succeed(entry) : fs.stat(entry.path).pipe(
+          Effect.map((stats) => ({
+            ...entry,
+            size: stats.isFile ? stats.size : undefined,
+          })),
+          Effect.catchTag("FileSystemError", () => Effect.succeed(entry)),
+        ),
+      { concurrency: "unbounded" },
+    );
 
     return {
       current_path: path,
