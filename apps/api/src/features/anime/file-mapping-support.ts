@@ -1,5 +1,5 @@
 import { and, eq, isNotNull } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Runtime } from "effect";
 
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
@@ -22,14 +22,14 @@ import { buildScannedFileMetadata } from "../operations/naming-support.ts";
 import { summarizeEpisodeCoverage } from "../operations/library-import.ts";
 import {
   buildAiringScheduleMap,
-  clearEpisodeMapping,
+  clearEpisodeMappingEffect,
   getAnimeRowEffect,
   getEpisodeRowEffect,
   inferAiredAt,
-  upsertEpisode,
   upsertEpisodeEffect,
 } from "./repository.ts";
-import { tryAnimePromise, wrapAnimeError } from "./service-support.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
+import { wrapAnimeError } from "./service-support.ts";
 
 const mapAnimeDbError = (message: string) =>
   Effect.mapError(wrapAnimeError(message));
@@ -216,28 +216,8 @@ export const deleteEpisodeFileEffect = Effect.fn(
     }
   }
 
-  yield* tryAnimePromise(
-    "Failed to delete episode file",
-    () =>
-      input.db.update(episodes).set({
-        downloaded: false,
-        filePath: null,
-        fileSize: null,
-        durationSeconds: null,
-        groupName: null,
-        resolution: null,
-        quality: null,
-        videoCodec: null,
-        audioCodec: null,
-        audioChannels: null,
-      })
-        .where(
-          and(
-            eq(episodes.animeId, input.animeId),
-            eq(episodes.number, input.episodeNumber),
-          ),
-        ),
-  );
+  yield* clearEpisodeMappingEffect(input.db, input.animeId, input.episodeNumber)
+    .pipe(mapAnimeDbError("Failed to delete episode file"));
 });
 
 export const mapEpisodeFileEffect = Effect.fn(
@@ -254,10 +234,12 @@ export const mapEpisodeFileEffect = Effect.fn(
   );
 
   if (input.filePath.trim().length === 0) {
-    yield* tryAnimePromise(
-      "Failed to map episode file",
-      () => clearEpisodeMapping(input.db, input.animeId, input.episodeNumber),
-    );
+    yield* clearEpisodeMappingEffect(
+      input.db,
+      input.animeId,
+      input.episodeNumber,
+    )
+      .pipe(mapAnimeDbError("Failed to map episode file"));
     return;
   }
 
@@ -319,20 +301,31 @@ export const bulkMapEpisodeFilesEffect = Effect.fn(
     });
   }
 
-  yield* tryAnimePromise("Failed to bulk-map episode files", async () => {
-    await input.db.transaction(async (tx) => {
-      for (const entry of validated) {
-        if (entry.clear) {
-          await clearEpisodeMapping(tx, input.animeId, entry.episode_number);
-        } else {
-          await upsertEpisode(tx, input.animeId, entry.episode_number, {
-            downloaded: true,
-            filePath: entry.file_path,
-          });
+  const rt = yield* Effect.runtime<never>();
+  yield* tryDatabasePromise(
+    "Failed to bulk-map episode files",
+    () =>
+      input.db.transaction(async (tx) => {
+        for (const entry of validated) {
+          if (entry.clear) {
+            await Runtime.runPromise(rt)(
+              clearEpisodeMappingEffect(
+                tx,
+                input.animeId,
+                entry.episode_number,
+              ),
+            );
+          } else {
+            await Runtime.runPromise(rt)(
+              upsertEpisodeEffect(tx, input.animeId, entry.episode_number, {
+                downloaded: true,
+                filePath: entry.file_path,
+              }),
+            );
+          }
         }
-      }
-    });
-  });
+      }),
+  ).pipe(mapAnimeDbError("Failed to bulk-map episode files"));
 });
 
 export const listAnimeFilesEffect = Effect.fn(
@@ -348,7 +341,7 @@ export const listAnimeFilesEffect = Effect.fn(
       mapAnimeDbError("Failed to list video files"),
     );
     const files = yield* loadAnimeFiles(input.fs, animeRow.rootFolder);
-    const cachedEpisodeRows = yield* tryAnimePromise(
+    const cachedEpisodeRows = yield* tryDatabasePromise(
       "Failed to list video files",
       () =>
         input.db.select({
@@ -435,7 +428,7 @@ export const listAnimeFilesEffect = Effect.fn(
           );
 
           if (probedMetadata && cachedRowsForFile.length > 0) {
-            yield* tryAnimePromise(
+            yield* tryDatabasePromise(
               "Failed to cache probed media metadata",
               async () => {
                 for (const row of cachedRowsForFile) {
@@ -586,6 +579,14 @@ export const resolveEpisodeFileEffect = Effect.fn(
   );
 
   if (animeRootResult._tag === "Left") {
+    yield* Effect.logDebug("Anime root folder not accessible, returning null")
+      .pipe(
+        Effect.annotateLogs({
+          animeId: input.animeId,
+          episodeNumber: input.episodeNumber,
+          rootFolder: animeRow.rootFolder,
+        }),
+      );
     return null;
   }
 
@@ -594,12 +595,29 @@ export const resolveEpisodeFileEffect = Effect.fn(
   );
 
   if (filePathResult._tag === "Left") {
+    yield* Effect.logDebug("Episode file path not accessible, returning null")
+      .pipe(
+        Effect.annotateLogs({
+          animeId: input.animeId,
+          episodeNumber: input.episodeNumber,
+          filePath: episodeRow.filePath,
+        }),
+      );
     return null;
   }
 
   const filePath = filePathResult.right;
 
   if (!isWithinPathRoot(filePath, animeRootResult.right)) {
+    yield* Effect.logDebug("Episode file outside anime root, returning null")
+      .pipe(
+        Effect.annotateLogs({
+          animeId: input.animeId,
+          episodeNumber: input.episodeNumber,
+          filePath,
+          animeRoot: animeRootResult.right,
+        }),
+      );
     return null;
   }
 

@@ -24,15 +24,11 @@ import {
   buildMissingEpisodeRows,
   findAnimeRootFolderOwnerEffect,
   getConfiguredImagesPathEffect,
-  insertAnimeAggregateAtomic,
+  insertAnimeAggregateAtomicEffect,
   qualityProfileExistsEffect,
-  resolveAnimeRootFolder,
+  resolveAnimeRootFolderEffect,
 } from "./repository.ts";
-import {
-  tryAnimePromise,
-  tryDatabasePromise,
-  wrapAnimeError,
-} from "./service-support.ts";
+import { tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
 
 export interface AddAnimeEffectInput {
   readonly id: number;
@@ -88,16 +84,12 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
       });
     }
 
-    const rootFolder = yield* tryAnimePromise(
-      "Failed to add anime",
-      () =>
-        resolveAnimeRootFolder(
-          input.db,
-          input.animeInput.root_folder,
-          metadata.title.romaji,
-          { useExistingRoot: input.animeInput.use_existing_root },
-        ),
-    );
+    const rootFolder = yield* resolveAnimeRootFolderEffect(
+      input.db,
+      input.animeInput.root_folder,
+      metadata.title.romaji,
+      { useExistingRoot: input.animeInput.use_existing_root },
+    ).pipe(Effect.mapError(wrapAnimeError("Failed to add anime")));
 
     const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(
       input.db,
@@ -181,21 +173,17 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
       status: metadata.status,
     });
 
-    yield* tryDatabasePromise(
-      "Failed to add anime",
-      () =>
-        insertAnimeAggregateAtomic(input.db, {
-          animeRow,
-          episodeRows,
-          log: {
-            createdAt: new Date().toISOString(),
-            details: null,
-            eventType: "anime.created",
-            level: "success",
-            message: `Added ${animeRow.titleRomaji} to library`,
-          },
-        }),
-    );
+    yield* insertAnimeAggregateAtomicEffect(input.db, {
+      animeRow,
+      episodeRows,
+      log: {
+        createdAt: new Date().toISOString(),
+        details: null,
+        eventType: "anime.created",
+        level: "success",
+        message: `Added ${animeRow.titleRomaji} to library`,
+      },
+    });
 
     yield* input.eventPublisher.publishInfo(
       `Added ${animeRow.titleRomaji} to library`,

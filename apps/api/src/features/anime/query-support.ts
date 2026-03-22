@@ -272,12 +272,24 @@ export const searchAnimeEffect = Effect.fn("AnimeService.searchAnimeEffect")(
       })),
       Effect.catchTag(
         "ExternalCallError",
-        () =>
-          searchLocalAnimeEffect({ db: input.db, query: input.query }).pipe(
-            Effect.map((localResults) => ({
-              degraded: true,
-              results: localResults,
-            })),
+        (error) =>
+          Effect.logWarning(
+            "AniList search unavailable, falling back to local library search",
+          ).pipe(
+            Effect.annotateLogs({
+              component: "anime",
+              event: "anime.search.degraded",
+              query: input.query,
+              error: error.message,
+            }),
+            Effect.zipRight(
+              searchLocalAnimeEffect({ db: input.db, query: input.query }).pipe(
+                Effect.map((localResults) => ({
+                  degraded: true,
+                  results: localResults,
+                })),
+              ),
+            ),
           ),
       ),
     );

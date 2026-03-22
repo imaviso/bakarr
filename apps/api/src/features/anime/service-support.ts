@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
-import { toDatabaseError } from "../../lib/effect-db.ts";
+import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
 export { tryDatabasePromise } from "../../lib/effect-db.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import {
@@ -54,7 +54,7 @@ export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(
     yield* requireAnimeExistsEffect(db, animeId).pipe(
       Effect.mapError(wrapAnimeError("Failed to update anime")),
     );
-    yield* tryAnimePromise(
+    yield* tryDatabasePromise(
       "Failed to update anime",
       () => db.update(anime).set(patch).where(eq(anime.id, animeId)),
     );

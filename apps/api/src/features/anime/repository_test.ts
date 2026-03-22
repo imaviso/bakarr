@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { eq } from "drizzle-orm";
+import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -8,32 +9,32 @@ import { anime, appConfig, episodes, systemLogs } from "../../db/schema.ts";
 import { withSqliteTestDb } from "../../test/database-test.ts";
 import { encodeConfigCore } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
-import { StoredConfigCorruptError } from "../system/errors.ts";
+
 import {
   buildMissingEpisodeRows,
-  ensureEpisodes,
-  findAnimeRootFolderOwner,
-  getConfiguredImagesPath,
+  ensureEpisodesEffect,
+  findAnimeRootFolderOwnerEffect,
+  getConfiguredImagesPathEffect,
   inferAiredAt,
-  insertAnimeAggregateAtomic,
-  markSearchResultsAlreadyInLibrary,
-  resolveAnimeRootFolder,
-  upsertEpisode,
+  insertAnimeAggregateAtomicEffect,
+  markSearchResultsAlreadyInLibraryEffect,
+  resolveAnimeRootFolderEffect,
+  upsertEpisodeEffect,
 } from "./repository.ts";
 
 Deno.test("upsertEpisode prevents duplicate anime episode rows", async () => {
   await withTestDb(async (db) => {
     await insertAnime(db, 1, 12);
 
-    await upsertEpisode(db, 1, 1, {
+    await Effect.runPromise(upsertEpisodeEffect(db, 1, 1, {
       downloaded: true,
       filePath: "/library/Test Show/Test Show - 01.mkv",
       title: "Episode 1",
-    });
-    await upsertEpisode(db, 1, 1, {
+    }));
+    await Effect.runPromise(upsertEpisodeEffect(db, 1, 1, {
       downloaded: false,
       title: "Episode 1 updated",
-    });
+    }));
 
     const rows = await db.select().from(episodes).where(
       eq(episodes.animeId, 1),
@@ -64,7 +65,7 @@ Deno.test("ensureEpisodes rejects duplicate episode inserts for same anime", asy
       videoCodec: null,
     });
 
-    await ensureEpisodes(
+    await Effect.runPromise(ensureEpisodesEffect(
       db,
       2,
       1,
@@ -73,7 +74,7 @@ Deno.test("ensureEpisodes rejects duplicate episode inserts for same anime", asy
       undefined,
       undefined,
       false,
-    );
+    ));
 
     await assertRejects(() =>
       db.insert(episodes).values({
@@ -99,7 +100,7 @@ Deno.test("ensureEpisodes rejects duplicate episode inserts for same anime", asy
 Deno.test("insertAnimeAggregateAtomic rolls back anime inserts when a later write fails", async () => {
   await withTestDb(async (db) => {
     await assertRejects(() =>
-      insertAnimeAggregateAtomic(db, {
+      Effect.runPromise(insertAnimeAggregateAtomicEffect(db, {
         animeRow: {
           id: 77,
           malId: null,
@@ -167,7 +168,7 @@ Deno.test("insertAnimeAggregateAtomic rolls back anime inserts when a later writ
           message: "This should fail",
           createdAt: "2024-01-01T00:00:00.000Z",
         },
-      })
+      }))
     );
 
     const animeRows = await db.select().from(anime).where(eq(anime.id, 77));
@@ -231,12 +232,12 @@ Deno.test("inferAiredAt prefers AniList future schedule over heuristics", () => 
 
 Deno.test("resolveAnimeRootFolder can preserve an existing folder root", async () => {
   await withTestDb(async (db) => {
-    const rootFolder = await resolveAnimeRootFolder(
+    const rootFolder = await Effect.runPromise(resolveAnimeRootFolderEffect(
       db,
       "/library/Naruto Fansub",
       "Naruto",
       { useExistingRoot: true },
-    );
+    ));
 
     assertEquals(rootFolder, "/library/Naruto Fansub");
   });
@@ -250,16 +251,29 @@ Deno.test("anime repository helpers fail explicitly on corrupt stored config", a
       updatedAt: "2024-01-01T00:00:00.000Z",
     });
 
-    await assertRejects(
-      () => resolveAnimeRootFolder(db, "", "Naruto"),
-      StoredConfigCorruptError,
-      "Stored configuration is corrupt and could not be decoded",
+    const rootFolderExit = await Effect.runPromiseExit(
+      resolveAnimeRootFolderEffect(db, "", "Naruto"),
     );
-    await assertRejects(
-      () => getConfiguredImagesPath(db),
-      StoredConfigCorruptError,
-      "Stored configuration is corrupt and could not be decoded",
+    assertEquals(Exit.isFailure(rootFolderExit), true);
+    if (Exit.isFailure(rootFolderExit)) {
+      const failure = Cause.failureOption(rootFolderExit.cause);
+      assertEquals(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assertEquals(failure.value._tag, "StoredConfigCorruptError");
+      }
+    }
+
+    const imagesPathExit = await Effect.runPromiseExit(
+      getConfiguredImagesPathEffect(db),
     );
+    assertEquals(Exit.isFailure(imagesPathExit), true);
+    if (Exit.isFailure(imagesPathExit)) {
+      const failure = Cause.failureOption(imagesPathExit.cause);
+      assertEquals(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assertEquals(failure.value._tag, "StoredConfigCorruptError");
+      }
+    }
   });
 });
 
@@ -286,10 +300,13 @@ Deno.test("anime repository helpers use stored config when available", async () 
     });
 
     assertEquals(
-      await resolveAnimeRootFolder(db, "", "Naruto"),
+      await Effect.runPromise(resolveAnimeRootFolderEffect(db, "", "Naruto")),
       "/anime-library",
     );
-    assertEquals(await getConfiguredImagesPath(db), "./custom-images");
+    assertEquals(
+      await Effect.runPromise(getConfiguredImagesPathEffect(db)),
+      "./custom-images",
+    );
   });
 });
 
@@ -297,44 +314,46 @@ Deno.test("markSearchResultsAlreadyInLibrary annotates local matches", async () 
   await withTestDb(async (db) => {
     await insertAnime(db, 20, 12);
 
-    const results = await markSearchResultsAlreadyInLibrary(db, [
-      {
-        already_in_library: false,
-        banner_image: undefined,
-        cover_image: undefined,
-        description: undefined,
-        end_date: undefined,
-        end_year: undefined,
-        episode_count: 12,
-        format: "TV",
-        genres: undefined,
-        id: 20,
-        season: undefined,
-        season_year: undefined,
-        start_date: undefined,
-        start_year: undefined,
-        status: "RELEASING",
-        title: { romaji: "Naruto" },
-      },
-      {
-        already_in_library: false,
-        banner_image: undefined,
-        cover_image: undefined,
-        description: undefined,
-        end_date: undefined,
-        end_year: undefined,
-        episode_count: 24,
-        format: "TV",
-        genres: undefined,
-        id: 21,
-        season: undefined,
-        season_year: undefined,
-        start_date: undefined,
-        start_year: undefined,
-        status: "RELEASING",
-        title: { romaji: "Bleach" },
-      },
-    ]);
+    const results = await Effect.runPromise(
+      markSearchResultsAlreadyInLibraryEffect(db, [
+        {
+          already_in_library: false,
+          banner_image: undefined,
+          cover_image: undefined,
+          description: undefined,
+          end_date: undefined,
+          end_year: undefined,
+          episode_count: 12,
+          format: "TV",
+          genres: undefined,
+          id: 20,
+          season: undefined,
+          season_year: undefined,
+          start_date: undefined,
+          start_year: undefined,
+          status: "RELEASING",
+          title: { romaji: "Naruto" },
+        },
+        {
+          already_in_library: false,
+          banner_image: undefined,
+          cover_image: undefined,
+          description: undefined,
+          end_date: undefined,
+          end_year: undefined,
+          episode_count: 24,
+          format: "TV",
+          genres: undefined,
+          id: 21,
+          season: undefined,
+          season_year: undefined,
+          start_date: undefined,
+          start_year: undefined,
+          status: "RELEASING",
+          title: { romaji: "Bleach" },
+        },
+      ]),
+    );
 
     assertEquals(results[0]?.already_in_library, true);
     assertEquals(results[1]?.already_in_library, false);
@@ -345,7 +364,9 @@ Deno.test("findAnimeRootFolderOwner returns the mapped anime for a root", async 
   await withTestDb(async (db) => {
     await insertAnime(db, 20, 12);
 
-    const owner = await findAnimeRootFolderOwner(db, "/library/Show-20");
+    const owner = await Effect.runPromise(
+      findAnimeRootFolderOwnerEffect(db, "/library/Show-20"),
+    );
     assertEquals(owner?.id, 20);
     assertEquals(owner?.titleRomaji, "Show 20");
   });
@@ -355,10 +376,10 @@ Deno.test("findAnimeRootFolderOwner handles trailing slash parents", async () =>
   await withTestDb(async (db) => {
     await insertAnimeWithRoot(db, 21, 12, "/library/Naruto/");
 
-    const owner = await findAnimeRootFolderOwner(
+    const owner = await Effect.runPromise(findAnimeRootFolderOwnerEffect(
       db,
       "/library/Naruto/Season 1",
-    );
+    ));
 
     assertEquals(owner?.id, 21);
   });
