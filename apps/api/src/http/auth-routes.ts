@@ -12,7 +12,7 @@ import {
 import type { AppVariables, RunEffect } from "./route-helpers.ts";
 import {
   persistSession,
-  requireViewer,
+  requireViewerEffect,
   runRoute,
   withJsonBody,
 } from "./route-helpers.ts";
@@ -74,16 +74,23 @@ export function registerAuthRoutes(
       () => c.json({ data: null, success: true }),
     ));
 
-  app.get("/api/auth/me", (c) => c.json(requireViewer(c)));
+  app.get("/api/auth/me", (c) =>
+    runRoute(
+      c,
+      runEffect,
+      requireViewerEffect(c),
+      (viewer) => c.json(viewer),
+    ));
 
   app.get("/api/auth/api-key", (c) =>
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(
-        AuthService,
-        (auth) => auth.getApiKey(requireViewer(c).id),
-      ),
+      Effect.flatMap(requireViewerEffect(c), (viewer) =>
+        Effect.flatMap(
+          AuthService,
+          (auth) => auth.getApiKey(viewer.id),
+        )),
       (value) => c.json(value),
     ));
 
@@ -91,8 +98,9 @@ export function registerAuthRoutes(
     runRoute(
       c,
       runEffect,
-      Effect.flatMap(AuthService, (auth) =>
-        auth.regenerateApiKey(requireViewer(c).id)),
+      Effect.flatMap(requireViewerEffect(c), (viewer) =>
+        Effect.flatMap(AuthService, (auth) =>
+          auth.regenerateApiKey(viewer.id))),
       (value) =>
         c.json(value),
     ));
@@ -106,10 +114,11 @@ export function registerAuthRoutes(
         ChangePasswordRequestSchema,
         "change password",
         (body) =>
-          Effect.flatMap(
-            AuthService,
-            (auth) => auth.changePassword(requireViewer(c).id, body),
-          ),
+          Effect.flatMap(requireViewerEffect(c), (viewer) =>
+            Effect.flatMap(
+              AuthService,
+              (auth) => auth.changePassword(viewer.id, body),
+            )),
       ),
       () => c.json({ data: null, success: true }),
     );

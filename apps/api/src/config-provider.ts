@@ -109,25 +109,21 @@ function parseDotenvText(
       const equalsIndex = normalized.indexOf("=");
 
       if (equalsIndex <= 0) {
-        return yield* Effect.fail(
-          new DotenvParseError({
-            line: lineNumber,
-            message: "Invalid dotenv entry: expected KEY=VALUE",
-            path,
-          }),
-        );
+        return yield* new DotenvParseError({
+          line: lineNumber,
+          message: "Invalid dotenv entry: expected KEY=VALUE",
+          path,
+        });
       }
 
       const key = normalized.slice(0, equalsIndex).trim();
 
       if (!DOTENV_KEY_PATTERN.test(key)) {
-        return yield* Effect.fail(
-          new DotenvParseError({
-            line: lineNumber,
-            message: `Invalid dotenv key: ${key}`,
-            path,
-          }),
-        );
+        return yield* new DotenvParseError({
+          line: lineNumber,
+          message: `Invalid dotenv key: ${key}`,
+          path,
+        });
       }
 
       const value = yield* parseDotenvValue(
