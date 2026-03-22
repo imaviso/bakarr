@@ -619,41 +619,33 @@ function createFileChunkStream(
         Stream.paginateChunkEffect(
           initialRange,
           (current) =>
-            Effect.tryPromise({
-              try: async () => {
-                const requestedLength = range
-                  ? Math.min(STREAM_CHUNK_SIZE, current.end - current.start + 1)
-                  : STREAM_CHUNK_SIZE;
-                const buffer = new Uint8Array(requestedLength);
+            Effect.gen(function* () {
+              const requestedLength = range
+                ? Math.min(STREAM_CHUNK_SIZE, current.end - current.start + 1)
+                : STREAM_CHUNK_SIZE;
+              const buffer = new Uint8Array(requestedLength);
 
-                await file.seek(current.start, SEEK_FROM_START);
-                const read = await file.read(buffer);
+              yield* file.seek(current.start, SEEK_FROM_START);
+              const read = yield* file.read(buffer);
 
-                if (read === null || read === 0) {
-                  return [
-                    Chunk.empty<Uint8Array>(),
-                    Option.none<ByteRange>(),
-                  ] as const;
-                }
-
-                const nextStart = current.start + read;
-
+              if (read === null || read === 0) {
                 return [
-                  Chunk.of(buffer.subarray(0, read)),
-                  range && nextStart > current.end
-                    ? Option.none<ByteRange>()
-                    : Option.some({
-                      ...current,
-                      start: nextStart,
-                    }),
+                  Chunk.empty<Uint8Array>(),
+                  Option.none<ByteRange>(),
                 ] as const;
-              },
-              catch: (cause) =>
-                new FileSystemError({
-                  cause,
-                  message: "Failed to read stream file",
-                  path,
-                }),
+              }
+
+              const nextStart = current.start + read;
+
+              return [
+                Chunk.of(buffer.subarray(0, read)),
+                range && nextStart > current.end
+                  ? Option.none<ByteRange>()
+                  : Option.some({
+                    ...current,
+                    start: nextStart,
+                  }),
+              ] as const;
             }),
         ),
     ),

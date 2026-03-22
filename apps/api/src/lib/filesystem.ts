@@ -43,8 +43,13 @@ export interface RemoveOptions {
 
 export interface FileHandle {
   readonly close: () => void;
-  readonly read: (buffer: Uint8Array) => Promise<number | null>;
-  readonly seek: (offset: number, mode: number) => Promise<void>;
+  readonly read: (
+    buffer: Uint8Array,
+  ) => Effect.Effect<number | null, FileSystemError>;
+  readonly seek: (
+    offset: number,
+    mode: number,
+  ) => Effect.Effect<void, FileSystemError>;
 }
 
 export interface FileSystemShape {
@@ -189,18 +194,31 @@ function toSeekMode(mode: number): "current" | "start" {
   throw new Error(`Unsupported seek mode: ${mode}`);
 }
 
-function toOpenFileHandle(file: PlatformFileSystem.File): FileHandle {
+function toOpenFileHandle(
+  file: PlatformFileSystem.File,
+  path: string | URL,
+): FileHandle {
   return {
     close: () => {
       // Closed by scope.
     },
     read: (buffer: Uint8Array) =>
-      Effect.runPromise(file.read(buffer)).then((size) => {
-        const bytesRead = Number(size);
-        return bytesRead === 0 ? null : bytesRead;
-      }),
+      wrap(
+        path,
+        "Failed to read file",
+        file.read(buffer),
+      ).pipe(
+        Effect.map((size) => {
+          const bytesRead = Number(size);
+          return bytesRead === 0 ? null : bytesRead;
+        }),
+      ),
     seek: (offset: number, mode: number) =>
-      Effect.runPromise(file.seek(BigInt(offset), toSeekMode(mode))),
+      wrap(
+        path,
+        "Failed to seek file",
+        file.seek(BigInt(offset), toSeekMode(mode)),
+      ),
   };
 }
 
@@ -221,7 +239,7 @@ function makeFileSystem(
             }),
           ),
       ).pipe(
-        Effect.map(toOpenFileHandle),
+        Effect.map((file) => toOpenFileHandle(file, path)),
       ),
     readFile: (path) =>
       Effect.flatMap(

@@ -144,31 +144,23 @@ function createFileChunkStream(
         Stream.paginateChunkEffect(
           0,
           (offset) =>
-            Effect.tryPromise({
-              try: async () => {
-                const buffer = new Uint8Array(STATIC_STREAM_CHUNK_SIZE);
+            Effect.gen(function* () {
+              const buffer = new Uint8Array(STATIC_STREAM_CHUNK_SIZE);
 
-                await file.seek(offset, SEEK_FROM_START);
-                const read = await file.read(buffer);
+              yield* file.seek(offset, SEEK_FROM_START);
+              const read = yield* file.read(buffer);
 
-                if (read === null || read === 0) {
-                  return [
-                    Chunk.empty<Uint8Array>(),
-                    Option.none<number>(),
-                  ] as const;
-                }
-
+              if (read === null || read === 0) {
                 return [
-                  Chunk.of(buffer.subarray(0, read)),
-                  Option.some(offset + read),
+                  Chunk.empty<Uint8Array>(),
+                  Option.none<number>(),
                 ] as const;
-              },
-              catch: (cause) =>
-                new FileSystemError({
-                  cause,
-                  message: "Failed to read static file",
-                  path: path.toString(),
-                }),
+              }
+
+              return [
+                Chunk.of(buffer.subarray(0, read)),
+                Option.some(offset + read),
+              ] as const;
             }),
         ),
     ),
