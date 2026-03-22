@@ -12,7 +12,6 @@ import {
 import {
   maybeQBitConfig,
   tryDatabasePromise,
-  tryOperationsPromise,
   wrapOperationsError,
 } from "./service-support.ts";
 
@@ -65,12 +64,4 @@ Deno.test("operations service support preserves known errors and wraps unknown o
     tryDatabasePromise("db failed", () => Promise.reject(new Error("boom"))),
   );
   assertEquals(dbExit._tag, "Failure");
-
-  const operationsExit = await runTestEffectExit(
-    tryOperationsPromise(
-      "operations failed",
-      () => Promise.reject(new Error("boom")),
-    ),
-  );
-  assertEquals(operationsExit._tag, "Failure");
 });

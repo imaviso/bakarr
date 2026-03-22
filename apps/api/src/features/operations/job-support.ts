@@ -1,4 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
+import { Effect } from "effect";
 
 import type { DownloadSourceMetadata } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -9,199 +10,236 @@ import {
   episodes,
   systemLogs,
 } from "../../db/schema.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { encodeDownloadEventMetadata } from "./repository.ts";
 
 export function nowIso() {
   return new Date().toISOString();
 }
 
-export async function appendLog(
-  db: AppDatabase,
-  eventType: string,
-  level: string,
-  message: string,
-) {
-  await db.insert(systemLogs).values({
-    createdAt: nowIso(),
-    details: null,
-    eventType,
-    level,
-    message,
-  });
-}
-
-export async function recordDownloadEvent(
-  db: AppDatabase,
-  input: {
-    animeId?: number;
-    downloadId?: number;
-    eventType: string;
-    fromStatus?: string | null;
-    toStatus?: string | null;
-    message: string;
-    metadata?: string | null;
-    metadataJson?: {
-      covered_episodes?: readonly number[];
-      imported_path?: string;
-      source_metadata?: DownloadSourceMetadata;
-    };
+export const appendLog = Effect.fn("JobSupport.appendLog")(
+  function* (
+    db: AppDatabase,
+    eventType: string,
+    level: string,
+    message: string,
+  ) {
+    yield* tryDatabasePromise(
+      "Failed to append log",
+      () =>
+        db.insert(systemLogs).values({
+          createdAt: nowIso(),
+          details: null,
+          eventType,
+          level,
+          message,
+        }),
+    );
   },
-) {
-  await db.insert(downloadEvents).values({
-    animeId: input.animeId ?? null,
-    createdAt: nowIso(),
-    downloadId: input.downloadId ?? null,
-    eventType: input.eventType,
-    fromStatus: input.fromStatus ?? null,
-    message: input.message,
-    metadata: input.metadataJson
-      ? encodeDownloadEventMetadata(input.metadataJson)
-      : (input.metadata ?? null),
-    toStatus: input.toStatus ?? null,
-  });
-}
+);
 
-export async function markDownloadImported(
-  db: AppDatabase,
-  downloadId: number,
-) {
-  await db.update(downloads).set({
-    externalState: "imported",
-    progress: 100,
-    status: "imported",
-  }).where(eq(downloads.id, downloadId));
-}
-
-export async function markJobStarted(db: AppDatabase, name: string) {
-  const now = nowIso();
-
-  await db.insert(backgroundJobs).values({
-    isRunning: true,
-    lastMessage: null,
-    lastRunAt: now,
-    lastStatus: "running",
-    lastSuccessAt: null,
-    name,
-    progressCurrent: null,
-    progressTotal: null,
-    runCount: 1,
-  }).onConflictDoUpdate({
-    target: backgroundJobs.name,
-    set: {
-      isRunning: true,
-      lastMessage: null,
-      lastRunAt: now,
-      lastStatus: "running",
-      progressCurrent: null,
-      progressTotal: null,
-      runCount: sql`${backgroundJobs.runCount} + 1`,
+export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(
+  function* (
+    db: AppDatabase,
+    input: {
+      animeId?: number;
+      downloadId?: number;
+      eventType: string;
+      fromStatus?: string | null;
+      toStatus?: string | null;
+      message: string;
+      metadata?: string | null;
+      metadataJson?: {
+        covered_episodes?: readonly number[];
+        imported_path?: string;
+        source_metadata?: DownloadSourceMetadata;
+      };
     },
-  });
-}
+  ) {
+    yield* tryDatabasePromise(
+      "Failed to record download event",
+      () =>
+        db.insert(downloadEvents).values({
+          animeId: input.animeId ?? null,
+          createdAt: nowIso(),
+          downloadId: input.downloadId ?? null,
+          eventType: input.eventType,
+          fromStatus: input.fromStatus ?? null,
+          message: input.message,
+          metadata: input.metadataJson
+            ? encodeDownloadEventMetadata(input.metadataJson)
+            : (input.metadata ?? null),
+          toStatus: input.toStatus ?? null,
+        }),
+    );
+  },
+);
 
-export async function markJobSucceeded(
-  db: AppDatabase,
-  name: string,
-  message: string,
-) {
-  const now = nowIso();
+export const markDownloadImported = Effect.fn(
+  "JobSupport.markDownloadImported",
+)(
+  function* (db: AppDatabase, downloadId: number) {
+    yield* tryDatabasePromise(
+      "Failed to mark download imported",
+      () =>
+        db.update(downloads).set({
+          externalState: "imported",
+          progress: 100,
+          status: "imported",
+        }).where(eq(downloads.id, downloadId)),
+    );
+  },
+);
 
-  await db.insert(backgroundJobs).values({
-    isRunning: false,
-    lastMessage: message,
-    lastRunAt: now,
-    lastStatus: "success",
-    lastSuccessAt: now,
-    name,
-    progressCurrent: null,
-    progressTotal: null,
-    runCount: 1,
-  }).onConflictDoUpdate({
-    target: backgroundJobs.name,
-    set: {
-      isRunning: false,
-      lastMessage: message,
-      lastRunAt: now,
-      lastStatus: "success",
-      lastSuccessAt: now,
-      progressCurrent: null,
-      progressTotal: null,
-    },
-  });
-}
+export const markJobStarted = Effect.fn("JobSupport.markJobStarted")(
+  function* (db: AppDatabase, name: string) {
+    const now = nowIso();
 
-export async function markJobFailed(
-  db: AppDatabase,
-  name: string,
-  cause: unknown,
-) {
-  const now = nowIso();
-  const message = cause instanceof Error ? cause.message : String(cause);
+    yield* tryDatabasePromise(
+      "Failed to mark job started",
+      () =>
+        db.insert(backgroundJobs).values({
+          isRunning: true,
+          lastMessage: null,
+          lastRunAt: now,
+          lastStatus: "running",
+          lastSuccessAt: null,
+          name,
+          progressCurrent: null,
+          progressTotal: null,
+          runCount: 1,
+        }).onConflictDoUpdate({
+          target: backgroundJobs.name,
+          set: {
+            isRunning: true,
+            lastMessage: null,
+            lastRunAt: now,
+            lastStatus: "running",
+            progressCurrent: null,
+            progressTotal: null,
+            runCount: sql`${backgroundJobs.runCount} + 1`,
+          },
+        }),
+    );
+  },
+);
 
-  await db.insert(backgroundJobs).values({
-    isRunning: false,
-    lastMessage: message,
-    lastRunAt: now,
-    lastStatus: "failed",
-    lastSuccessAt: null,
-    name,
-    progressCurrent: null,
-    progressTotal: null,
-    runCount: 1,
-  }).onConflictDoUpdate({
-    target: backgroundJobs.name,
-    set: {
-      isRunning: false,
-      lastMessage: message,
-      lastRunAt: now,
-      lastStatus: "failed",
-      progressCurrent: null,
-      progressTotal: null,
-    },
-  });
-}
+export const markJobSucceeded = Effect.fn("JobSupport.markJobSucceeded")(
+  function* (db: AppDatabase, name: string, message: string) {
+    const now = nowIso();
 
-export async function updateJobProgress(
-  db: AppDatabase,
-  name: string,
-  progressCurrent: number,
-  progressTotal: number,
-  message?: string,
-) {
-  const now = nowIso();
+    yield* tryDatabasePromise(
+      "Failed to mark job succeeded",
+      () =>
+        db.insert(backgroundJobs).values({
+          isRunning: false,
+          lastMessage: message,
+          lastRunAt: now,
+          lastStatus: "success",
+          lastSuccessAt: now,
+          name,
+          progressCurrent: null,
+          progressTotal: null,
+          runCount: 1,
+        }).onConflictDoUpdate({
+          target: backgroundJobs.name,
+          set: {
+            isRunning: false,
+            lastMessage: message,
+            lastRunAt: now,
+            lastStatus: "success",
+            lastSuccessAt: now,
+            progressCurrent: null,
+            progressTotal: null,
+          },
+        }),
+    );
+  },
+);
 
-  await db.insert(backgroundJobs).values({
-    isRunning: true,
-    lastMessage: message ?? null,
-    lastRunAt: now,
-    lastStatus: "running",
-    lastSuccessAt: null,
-    name,
-    progressCurrent,
-    progressTotal,
-    runCount: 1,
-  }).onConflictDoUpdate({
-    target: backgroundJobs.name,
-    set: {
-      isRunning: true,
-      lastMessage: message ?? null,
-      lastRunAt: now,
-      lastStatus: "running",
-      progressCurrent,
-      progressTotal,
-    },
-  });
-}
+export const markJobFailed = Effect.fn("JobSupport.markJobFailed")(
+  function* (db: AppDatabase, name: string, cause: unknown) {
+    const now = nowIso();
+    const message = cause instanceof Error ? cause.message : String(cause);
 
-export async function loadMissingEpisodeNumbers(
-  db: AppDatabase,
-  animeId: number,
-): Promise<number[]> {
-  const rows = await db.select().from(episodes).where(
-    and(eq(episodes.animeId, animeId), eq(episodes.downloaded, false)),
+    yield* tryDatabasePromise(
+      "Failed to mark job failed",
+      () =>
+        db.insert(backgroundJobs).values({
+          isRunning: false,
+          lastMessage: message,
+          lastRunAt: now,
+          lastStatus: "failed",
+          lastSuccessAt: null,
+          name,
+          progressCurrent: null,
+          progressTotal: null,
+          runCount: 1,
+        }).onConflictDoUpdate({
+          target: backgroundJobs.name,
+          set: {
+            isRunning: false,
+            lastMessage: message,
+            lastRunAt: now,
+            lastStatus: "failed",
+            progressCurrent: null,
+            progressTotal: null,
+          },
+        }),
+    );
+  },
+);
+
+export const updateJobProgress = Effect.fn("JobSupport.updateJobProgress")(
+  function* (
+    db: AppDatabase,
+    name: string,
+    progressCurrent: number,
+    progressTotal: number,
+    message?: string,
+  ) {
+    const now = nowIso();
+
+    yield* tryDatabasePromise(
+      "Failed to update job progress",
+      () =>
+        db.insert(backgroundJobs).values({
+          isRunning: true,
+          lastMessage: message ?? null,
+          lastRunAt: now,
+          lastStatus: "running",
+          lastSuccessAt: null,
+          name,
+          progressCurrent,
+          progressTotal,
+          runCount: 1,
+        }).onConflictDoUpdate({
+          target: backgroundJobs.name,
+          set: {
+            isRunning: true,
+            lastMessage: message ?? null,
+            lastRunAt: now,
+            lastStatus: "running",
+            progressCurrent,
+            progressTotal,
+          },
+        }),
+    );
+  },
+);
+
+export const loadMissingEpisodeNumbers = Effect.fn(
+  "JobSupport.loadMissingEpisodeNumbers",
+)(function* (db: AppDatabase, animeId: number) {
+  const rows = yield* tryDatabasePromise(
+    "Failed to load missing episode numbers",
+    () =>
+      db.select().from(episodes).where(
+        and(eq(episodes.animeId, animeId), eq(episodes.downloaded, false)),
+      ),
   );
   return rows.map((row) => row.number).sort((left, right) => left - right);
-}
+});
 
 export function randomHex(bytes: number) {
   const data = new Uint8Array(bytes);

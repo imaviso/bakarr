@@ -16,7 +16,6 @@ import {
   ExternalCallError,
   OperationsAnimeNotFoundError,
   OperationsConflictError,
-  type OperationsError,
   OperationsInputError,
   OperationsPathError,
 } from "./errors.ts";
@@ -26,11 +25,6 @@ export type TryDatabasePromise = <A>(
   message: string,
   try_: () => Promise<A>,
 ) => Effect.Effect<A, DatabaseError>;
-
-export type TryOperationsPromise = <A>(
-  message: string,
-  try_: () => Promise<A>,
-) => Effect.Effect<A, ExternalCallError | OperationsError | DatabaseError>;
 
 export function maybeQBitConfig(config: Config): QBitConfig | null {
   if (!config.qbittorrent.enabled || !config.qbittorrent.password) {
@@ -70,11 +64,5 @@ export function wrapOperationsError(message: string) {
 
 export const tryDatabasePromiseEffect: TryDatabasePromise = (message, try_) =>
   baseTryDatabasePromise(message, try_);
-
-export const tryOperationsPromise: TryOperationsPromise = (message, try_) =>
-  Effect.tryPromise({
-    try: try_,
-    catch: wrapOperationsError(message),
-  });
 
 export { tryDatabasePromiseEffect as tryDatabasePromise };

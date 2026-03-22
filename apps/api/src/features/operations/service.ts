@@ -25,7 +25,6 @@ import {
   dbError,
   maybeQBitConfig,
   tryDatabasePromise,
-  tryOperationsPromise,
   wrapOperationsError,
 } from "./service-support.ts";
 import {
@@ -134,7 +133,7 @@ const downloadOrchestrationLayer = Layer.effect(
       maybeQBitConfig,
       qbitClient,
       tryDatabasePromise,
-      tryOperationsPromise,
+
       wrapOperationsError,
       triggerSemaphore: sharedState.triggerSemaphore,
     });
@@ -192,7 +191,6 @@ const searchOrchestrationLayer = Layer.effect(
       seadexClient,
       triggerSemaphore: sharedState.triggerSemaphore,
       tryDatabasePromise,
-      tryOperationsPromise,
       unmappedScanRunning: sharedState.unmappedScanRunning,
       wrapOperationsError,
     });
@@ -213,7 +211,6 @@ const catalogLibraryReadSupportLayer = Layer.effect(
     return makeCatalogLibraryReadSupport({
       db,
       tryDatabasePromise,
-      tryOperationsPromise,
     });
   }),
 );
@@ -244,7 +241,7 @@ const catalogOrchestrationLayer = Layer.effect(
       retryDownloadById: downloadOrchestration.retryDownloadById,
       syncDownloadState: downloadOrchestration.syncDownloadState,
       tryDatabasePromise,
-      tryOperationsPromise,
+
       libraryReadSupport,
     });
   }),

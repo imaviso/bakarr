@@ -1,29 +1,41 @@
 import { and, eq } from "drizzle-orm";
+import { Effect } from "effect";
 
 import type { AppDatabase } from "../../../db/database.ts";
 import { anime, episodes } from "../../../db/schema.ts";
+import { tryDatabasePromise } from "../../../lib/effect-db.ts";
 import { OperationsAnimeNotFoundError } from "../errors.ts";
-import type { CurrentEpisodeState } from "./types.ts";
 
-export async function requireAnime(db: AppDatabase, animeId: number) {
-  const rows = await db.select().from(anime).where(eq(anime.id, animeId)).limit(
-    1,
-  );
-  const row = rows[0];
-  if (!row) {
-    throw new OperationsAnimeNotFoundError({ message: "Anime not found" });
-  }
-  return row;
-}
+export const requireAnime = Effect.fn("AnimeRepository.requireAnime")(
+  function* (db: AppDatabase, animeId: number) {
+    const rows = yield* tryDatabasePromise(
+      "Failed to load anime",
+      () => db.select().from(anime).where(eq(anime.id, animeId)).limit(1),
+    );
+    const row = rows[0];
+    if (!row) {
+      return yield* new OperationsAnimeNotFoundError({
+        message: "Anime not found",
+      });
+    }
+    return row;
+  },
+);
 
-export async function loadCurrentEpisodeState(
+export const loadCurrentEpisodeState = Effect.fn(
+  "AnimeRepository.loadCurrentEpisodeState",
+)(function* (
   db: AppDatabase,
   animeId: number,
   episodeNumber: number,
-): Promise<CurrentEpisodeState | null> {
-  const rows = await db.select().from(episodes).where(
-    and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
-  ).limit(1);
+) {
+  const rows = yield* tryDatabasePromise(
+    "Failed to load episode state",
+    () =>
+      db.select().from(episodes).where(
+        and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
+      ).limit(1),
+  );
 
   if (!rows[0]) {
     return null;
@@ -33,4 +45,4 @@ export async function loadCurrentEpisodeState(
     downloaded: rows[0].downloaded,
     filePath: rows[0].filePath ?? undefined,
   };
-}
+});
