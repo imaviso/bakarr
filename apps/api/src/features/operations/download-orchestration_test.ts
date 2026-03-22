@@ -29,7 +29,6 @@ import {
   dbError,
   maybeQBitConfig,
   tryDatabasePromise,
-  tryOperationsPromise,
   wrapOperationsError,
 } from "./service-support.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
@@ -893,7 +892,7 @@ Deno.test("syncDownloadsWithQBitEffect stores structured metadata for status and
         } as unknown as typeof QBitTorrentClient.Service,
         triggerSemaphore: await runTestEffect(Effect.makeSemaphore(1)),
         tryDatabasePromise,
-        tryOperationsPromise,
+
         wrapOperationsError,
       });
 
@@ -1205,7 +1204,6 @@ async function createDownloadOrchestrationForTest(
     } as unknown as typeof QBitTorrentClient.Service,
     triggerSemaphore: await runTestEffect(Effect.makeSemaphore(1)),
     tryDatabasePromise,
-    tryOperationsPromise,
     wrapOperationsError,
   });
 }

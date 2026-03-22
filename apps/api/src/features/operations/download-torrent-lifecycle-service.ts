@@ -25,10 +25,7 @@ import {
   ExternalCallError,
   type OperationsError,
 } from "./errors.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import { mapQBitState } from "./download-orchestration-shared.ts";
 
@@ -36,7 +33,6 @@ export function makeDownloadTorrentLifecycleService(input: {
   readonly db: AppDatabase;
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly tryOperationsPromise: TryOperationsPromise;
   readonly wrapOperationsError: (
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
@@ -115,23 +111,19 @@ export function makeDownloadTorrentLifecycleService(input: {
         }).where(eq(downloads.id, input.downloadId)),
     );
 
-    yield* tryDatabasePromise(
-      "Failed to sync downloads with qBittorrent",
-      () =>
-        recordDownloadEvent(db, {
-          animeId: input.animeId,
-          downloadId: input.downloadId,
-          eventType: "download.coverage_refined",
-          metadataJson: {
-            covered_episodes: inferredEpisodes,
-            source_metadata: input.sourceMetadata,
-          },
-          message: `Refined batch episodes from qBittorrent file list: ${
-            inferredEpisodes.join(", ")
-          }`,
-          metadata: toCoveredEpisodesJson(inferredEpisodes),
-        }),
-    );
+    yield* recordDownloadEvent(db, {
+      animeId: input.animeId,
+      downloadId: input.downloadId,
+      eventType: "download.coverage_refined",
+      metadataJson: {
+        covered_episodes: inferredEpisodes,
+        source_metadata: input.sourceMetadata,
+      },
+      message: `Refined batch episodes from qBittorrent file list: ${
+        inferredEpisodes.join(", ")
+      }`,
+      metadata: toCoveredEpisodesJson(inferredEpisodes),
+    });
   });
 
   const syncDownloadsWithQBitEffect = Effect.fn(
@@ -233,26 +225,22 @@ export function makeDownloadTorrentLifecycleService(input: {
         }
 
         if (existing && existing.status !== nextStatus) {
-          yield* tryDatabasePromise(
-            "Failed to sync downloads with qBittorrent",
-            () =>
-              recordDownloadEvent(db, {
-                animeId: existing.animeId,
-                downloadId: existing.id,
-                eventType: "download.status_changed",
-                fromStatus: existing.status,
-                metadataJson: {
-                  covered_episodes: parseCoveredEpisodes(
-                    existing.coveredEpisodes,
-                  ),
-                  source_metadata: decodeDownloadSourceMetadata(
-                    existing.sourceMetadata,
-                  ),
-                },
-                message: `${existing.torrentName} moved to ${nextStatus}`,
-                toStatus: nextStatus,
-              }),
-          );
+          yield* recordDownloadEvent(db, {
+            animeId: existing.animeId,
+            downloadId: existing.id,
+            eventType: "download.status_changed",
+            fromStatus: existing.status,
+            metadataJson: {
+              covered_episodes: parseCoveredEpisodes(
+                existing.coveredEpisodes,
+              ),
+              source_metadata: decodeDownloadSourceMetadata(
+                existing.sourceMetadata,
+              ),
+            },
+            message: `${existing.torrentName} moved to ${nextStatus}`,
+            toStatus: nextStatus,
+          });
         }
 
         if (
@@ -307,24 +295,20 @@ export function makeDownloadTorrentLifecycleService(input: {
     }
 
     if (action === "delete") {
-      yield* tryDatabasePromise(
-        "Failed to remove download",
-        () =>
-          recordDownloadEvent(db, {
-            animeId: row.animeId,
-            downloadId: row.id,
-            eventType: "download.deleted",
-            fromStatus: row.status,
-            metadataJson: {
-              covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
-              source_metadata: decodeDownloadSourceMetadata(
-                row.sourceMetadata,
-              ),
-            },
-            message: `Deleted ${row.torrentName}`,
-            toStatus: "deleted",
-          }),
-      );
+      yield* recordDownloadEvent(db, {
+        animeId: row.animeId,
+        downloadId: row.id,
+        eventType: "download.deleted",
+        fromStatus: row.status,
+        metadataJson: {
+          covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+          source_metadata: decodeDownloadSourceMetadata(
+            row.sourceMetadata,
+          ),
+        },
+        message: `Deleted ${row.torrentName}`,
+        toStatus: "deleted",
+      });
       yield* tryDatabasePromise(
         "Failed to remove download",
         () => db.delete(downloads).where(eq(downloads.id, id)),
@@ -341,26 +325,22 @@ export function makeDownloadTorrentLifecycleService(input: {
         }).where(eq(downloads.id, id)),
     );
 
-    yield* tryDatabasePromise(
-      `Failed to ${action} download`,
-      () =>
-        recordDownloadEvent(db, {
-          animeId: row.animeId,
-          downloadId: row.id,
-          eventType: `download.${action}d`,
-          fromStatus: row.status,
-          metadataJson: {
-            covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
-            source_metadata: decodeDownloadSourceMetadata(
-              row.sourceMetadata,
-            ),
-          },
-          message: `${
-            action === "pause" ? "Paused" : "Resumed"
-          } ${row.torrentName}`,
-          toStatus: action === "pause" ? "paused" : "downloading",
-        }),
-    );
+    yield* recordDownloadEvent(db, {
+      animeId: row.animeId,
+      downloadId: row.id,
+      eventType: `download.${action}d`,
+      fromStatus: row.status,
+      metadataJson: {
+        covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+        source_metadata: decodeDownloadSourceMetadata(
+          row.sourceMetadata,
+        ),
+      },
+      message: `${
+        action === "pause" ? "Paused" : "Resumed"
+      } ${row.torrentName}`,
+      toStatus: action === "pause" ? "paused" : "downloading",
+    });
   });
 
   const retryDownloadById = Effect.fn("OperationsService.retryDownloadById")(
@@ -406,24 +386,20 @@ export function makeDownloadTorrentLifecycleService(input: {
           }).where(eq(downloads.id, id)),
       );
 
-      yield* tryDatabasePromise(
-        "Failed to retry download",
-        () =>
-          recordDownloadEvent(db, {
-            animeId: row.animeId,
-            downloadId: row.id,
-            eventType: "download.retried",
-            fromStatus: row.status,
-            metadataJson: {
-              covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
-              source_metadata: decodeDownloadSourceMetadata(
-                row.sourceMetadata,
-              ),
-            },
-            message: `Retried ${row.torrentName}`,
-            toStatus: qbitConfig ? "downloading" : "queued",
-          }),
-      );
+      yield* recordDownloadEvent(db, {
+        animeId: row.animeId,
+        downloadId: row.id,
+        eventType: "download.retried",
+        fromStatus: row.status,
+        metadataJson: {
+          covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+          source_metadata: decodeDownloadSourceMetadata(
+            row.sourceMetadata,
+          ),
+        },
+        message: `Retried ${row.torrentName}`,
+        toStatus: qbitConfig ? "downloading" : "queued",
+      });
     },
   );
 

@@ -7,10 +7,7 @@ import { EventBus } from "../events/event-bus.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { ExternalCallError, type OperationsError } from "./errors.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 
 export interface TriggerDownloadInput {
@@ -33,7 +30,6 @@ export interface DownloadOrchestrationInput {
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly tryOperationsPromise: TryOperationsPromise;
   readonly wrapOperationsError: (
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;

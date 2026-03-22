@@ -36,10 +36,7 @@ import {
   type OperationsError,
   OperationsInputError,
 } from "./errors.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import type { TriggerDownloadInput } from "./download-orchestration-shared.ts";
 import {
@@ -51,7 +48,6 @@ export function makeDownloadTriggerService(input: {
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly tryOperationsPromise: TryOperationsPromise;
   readonly wrapOperationsError: (
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
@@ -70,7 +66,6 @@ export function makeDownloadTriggerService(input: {
     qbitClient,
     eventBus,
     tryDatabasePromise,
-    tryOperationsPromise,
     wrapOperationsError,
     dbError,
     maybeQBitConfig,
@@ -119,10 +114,7 @@ export function makeDownloadTriggerService(input: {
     function* (input: TriggerDownloadInput) {
       return yield* triggerSemaphore.withPermits(1)(
         Effect.gen(function* () {
-          const animeRow = yield* tryOperationsPromise(
-            "Failed to trigger download",
-            () => requireAnime(db, input.anime_id),
-          );
+          const animeRow = yield* requireAnime(db, input.anime_id);
 
           const now = nowIso();
           const runtimeConfig = yield* loadRuntimeConfig(db);
@@ -141,9 +133,9 @@ export function makeDownloadTriggerService(input: {
             });
           }
 
-          const missingEpisodes = yield* tryDatabasePromise(
-            "Failed to trigger download",
-            () => loadMissingEpisodeNumbers(db, animeRow.id),
+          const missingEpisodes = yield* loadMissingEpisodeNumbers(
+            db,
+            animeRow.id,
           );
           const shouldDeferBatchCoverage = effectiveIsBatch &&
             parsedRelease.episodeNumbers.length === 0;
@@ -275,33 +267,25 @@ export function makeDownloadTriggerService(input: {
                   .where(eq(downloads.id, insertedId)),
             );
           }
-          yield* tryDatabasePromise(
-            "Failed to trigger download",
-            () =>
-              recordDownloadEvent(db, {
-                animeId: animeRow.id,
-                downloadId: insertedId,
-                eventType: "download.queued",
-                metadataJson: {
-                  covered_episodes: inferredCoveredEpisodes,
-                  source_metadata: sourceMetadata,
-                },
-                message: `Queued ${input.title}`,
-                metadata: coveredEpisodes,
-                toStatus: status,
-              }),
-          );
-          yield* tryDatabasePromise(
-            "Failed to trigger download",
-            () =>
-              appendLog(
-                db,
-                "downloads.triggered",
-                "success",
-                shouldDeferBatchCoverage
-                  ? `Queued batch download for ${animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered episodes`
-                  : `Queued download for ${animeRow.titleRomaji} episode ${requestedEpisode}`,
-              ),
+          yield* recordDownloadEvent(db, {
+            animeId: animeRow.id,
+            downloadId: insertedId,
+            eventType: "download.queued",
+            metadataJson: {
+              covered_episodes: inferredCoveredEpisodes,
+              source_metadata: sourceMetadata,
+            },
+            message: `Queued ${input.title}`,
+            metadata: coveredEpisodes,
+            toStatus: status,
+          });
+          yield* appendLog(
+            db,
+            "downloads.triggered",
+            "success",
+            shouldDeferBatchCoverage
+              ? `Queued batch download for ${animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered episodes`
+              : `Queued download for ${animeRow.titleRomaji} episode ${requestedEpisode}`,
           );
           yield* eventBus.publish({
             type: "DownloadStarted",

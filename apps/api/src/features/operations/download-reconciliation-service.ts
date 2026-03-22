@@ -48,10 +48,7 @@ import {
   OperationsPathError,
 } from "./errors.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 
 export function makeDownloadReconciliationService(input: {
@@ -61,7 +58,6 @@ export function makeDownloadReconciliationService(input: {
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly tryOperationsPromise: TryOperationsPromise;
   readonly wrapOperationsError: (
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
@@ -74,7 +70,6 @@ export function makeDownloadReconciliationService(input: {
     qbitClient,
     eventBus,
     tryDatabasePromise,
-    tryOperationsPromise,
     wrapOperationsError,
     maybeQBitConfig,
   } = input;
@@ -148,10 +143,7 @@ export function makeDownloadReconciliationService(input: {
       row.sourceMetadata,
     );
 
-    const animeRow = yield* tryOperationsPromise(
-      "Failed to reconcile completed download",
-      () => requireAnime(db, row.animeId),
-    );
+    const animeRow = yield* requireAnime(db, row.animeId);
     const importMode = yield* currentImportMode(db);
     const runtimeConfig = yield* loadRuntimeConfig(db);
     const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
