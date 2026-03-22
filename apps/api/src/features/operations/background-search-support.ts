@@ -43,10 +43,7 @@ import {
   requireAnime,
 } from "./repository.ts";
 import { type ParsedRelease, RssClient } from "./rss-client.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 
 export function makeBackgroundSearchSupport(input: {
   db: AppDatabase;
@@ -54,7 +51,6 @@ export function makeBackgroundSearchSupport(input: {
   rssClient: typeof RssClient.Service;
   qbitClient: typeof QBitTorrentClient.Service;
   tryDatabasePromise: TryDatabasePromise;
-  tryOperationsPromise: TryOperationsPromise;
   wrapOperationsError: (
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
@@ -82,7 +78,6 @@ export function makeBackgroundSearchSupport(input: {
     rssClient,
     qbitClient,
     tryDatabasePromise,
-    tryOperationsPromise,
     wrapOperationsError,
     dbError,
     maybeQBitConfig,
@@ -177,10 +172,7 @@ export function makeBackgroundSearchSupport(input: {
   )(function* (animeId?: number) {
     return yield* Effect.gen(function* () {
       const title = animeId
-        ? (yield* tryOperationsPromise(
-          "Failed to queue missing-episode search",
-          () => requireAnime(db, animeId),
-        )).titleRomaji
+        ? (yield* requireAnime(db, animeId)).titleRomaji
         : "all anime";
 
       yield* eventBus.publish({
@@ -214,9 +206,10 @@ export function makeBackgroundSearchSupport(input: {
         }
 
         const rules = yield* loadReleaseRules(db, row.anime);
-        const currentEpisode = yield* tryDatabasePromise(
-          "Failed to queue missing-episode search",
-          () => loadCurrentEpisodeState(db, row.anime.id, row.episodes.number),
+        const currentEpisode = yield* loadCurrentEpisodeState(
+          db,
+          row.anime.id,
+          row.episodes.number,
         );
         const candidates = yield* searchEpisodeReleases(
           row.anime,
@@ -284,10 +277,7 @@ export function makeBackgroundSearchSupport(input: {
 
   const runRssCheckRaw = Effect.fn("OperationsService.runRssCheck")(
     function* () {
-      yield* tryDatabasePromise(
-        "Failed to run RSS check",
-        () => markJobStarted(db, "rss"),
-      );
+      yield* markJobStarted(db, "rss");
 
       return yield* Effect.gen(function* () {
         const feeds = yield* tryDatabasePromise(
@@ -324,10 +314,7 @@ export function makeBackgroundSearchSupport(input: {
             }
 
             const items = itemsResult.right;
-            const animeRow = yield* tryOperationsPromise(
-              "Failed to run RSS check",
-              () => requireAnime(db, feed.animeId),
-            );
+            const animeRow = yield* requireAnime(db, feed.animeId);
 
             if (!animeRow.monitored) {
               return 0;
@@ -373,9 +360,10 @@ export function makeBackgroundSearchSupport(input: {
                 continue;
               }
 
-              const currentEpisode = yield* tryDatabasePromise(
-                "Failed to run RSS check",
-                () => loadCurrentEpisodeState(db, animeRow.id, episodeNumber),
+              const currentEpisode = yield* loadCurrentEpisodeState(
+                db,
+                animeRow.id,
+                episodeNumber,
               );
               const action = decideDownloadAction(
                 profile,
@@ -402,9 +390,9 @@ export function makeBackgroundSearchSupport(input: {
                 eventMessage: `Queued ${item.title} from RSS`,
                 eventType: "download.rss.queued",
                 item,
-                missingEpisodes: yield* tryDatabasePromise(
-                  "Failed to run RSS check",
-                  () => loadMissingEpisodeNumbers(db, animeRow.id),
+                missingEpisodes: yield* loadMissingEpisodeNumbers(
+                  db,
+                  animeRow.id,
                 ),
                 qbitConfig: maybeQBitConfig(runtimeConfig),
                 decisionReason,
@@ -429,10 +417,7 @@ export function makeBackgroundSearchSupport(input: {
           }).pipe(Effect.withSpan("operations.rss.feed"));
         }
 
-        yield* tryDatabasePromise(
-          "Failed to run RSS check",
-          () => markJobSucceeded(db, "rss", `Queued ${newItems} release(s)`),
-        );
+        yield* markJobSucceeded(db, "rss", `Queued ${newItems} release(s)`);
         yield* eventBus.publish({
           type: "RssCheckFinished",
           payload: { new_items: newItems, total_feeds: feeds.length },
@@ -443,10 +428,7 @@ export function makeBackgroundSearchSupport(input: {
       }).pipe(
         Effect.withSpan("operations.rss.check"),
         Effect.catchAll((cause) =>
-          tryDatabasePromise(
-            "Failed to run RSS check",
-            () => markJobFailed(db, "rss", cause),
-          ).pipe(
+          markJobFailed(db, "rss", cause).pipe(
             Effect.zipRight(
               Effect.fail(dbError("Failed to run RSS check")(cause)),
             ),

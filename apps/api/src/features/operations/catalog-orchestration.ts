@@ -23,10 +23,7 @@ import {
   requireAnime,
 } from "./repository.ts";
 import { type OperationsError } from "./errors.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 import { type FileSystemShape } from "../../lib/filesystem.ts";
 import { OperationsPathError } from "./errors.ts";
 import type { CatalogLibraryReadSupportShape } from "./catalog-library-read-support.ts";
@@ -40,7 +37,6 @@ export function makeCatalogOrchestration(input: {
   mediaProbe: MediaProbeShape;
   eventBus: typeof EventBus.Service;
   tryDatabasePromise: TryDatabasePromise;
-  tryOperationsPromise: TryOperationsPromise;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   applyDownloadActionEffect: (
     id: number,
@@ -64,7 +60,6 @@ export function makeCatalogOrchestration(input: {
     mediaProbe,
     eventBus,
     tryDatabasePromise,
-    tryOperationsPromise,
     dbError,
     applyDownloadActionEffect,
     retryDownloadById,
@@ -76,14 +71,8 @@ export function makeCatalogOrchestration(input: {
 
   const renameFiles = Effect.fn("OperationsService.renameFiles")(
     function* (animeId: number) {
-      const animeRow = yield* tryOperationsPromise(
-        "Failed to rename files",
-        () => requireAnime(db, animeId),
-      );
-      const preview = yield* tryOperationsPromise(
-        "Failed to rename files",
-        () => buildRenamePreview(db, animeId),
-      );
+      const animeRow = yield* requireAnime(db, animeId);
+      const preview = yield* buildRenamePreview(db, animeId);
       let renamed = 0;
       const failures: string[] = [];
 
@@ -95,7 +84,7 @@ export function makeCatalogOrchestration(input: {
             })
           ),
           Effect.zipRight(
-            tryOperationsPromise(
+            tryDatabasePromise(
               "Failed to rename files",
               () =>
                 db.update(episodes).set({ filePath: item.new_path }).where(
@@ -186,10 +175,7 @@ export function makeCatalogOrchestration(input: {
           ),
         );
 
-        const animeRow = yield* tryOperationsPromise(
-          "Failed to import files",
-          () => requireAnime(db, file.anime_id),
-        );
+        const animeRow = yield* requireAnime(db, file.anime_id);
         const namingFormat = selectNamingFormat(animeRow, namingSettings);
         const allEpisodeNumbers = file.episode_numbers?.length
           ? file.episode_numbers
@@ -399,7 +385,6 @@ export function makeCatalogOrchestration(input: {
   const rssSupport = makeCatalogRssSupport({
     db,
     tryDatabasePromise,
-    tryOperationsPromise,
   });
   const listRssFeeds = rssSupport.listRssFeeds;
   const listAnimeRssFeeds = rssSupport.listAnimeRssFeeds;

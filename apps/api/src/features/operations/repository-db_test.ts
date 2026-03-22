@@ -1,5 +1,5 @@
-import { assertEquals, assertNotEquals, assertRejects } from "@std/assert";
-import { Effect } from "effect";
+import { assertEquals, assertNotEquals } from "@std/assert";
+import { Cause, Effect } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -166,7 +166,7 @@ Deno.test("operations repository helpers load anime release rules and episode st
       filePath: "/library/Naruto/Naruto - 01.mkv",
     });
 
-    const animeRow = await requireAnime(db, 20);
+    const animeRow = await Effect.runPromise(requireAnime(db, 20));
     assertEquals(animeRow.titleRomaji, "Naruto");
 
     const releaseRules = await Effect.runPromise(
@@ -177,18 +177,30 @@ Deno.test("operations repository helpers load anime release rules and episode st
       { rule_type: "must", score: 0, term: "1080p" },
     ]);
 
-    const episodeState = await loadCurrentEpisodeState(db, 20, 1);
+    const episodeState = await Effect.runPromise(
+      loadCurrentEpisodeState(db, 20, 1),
+    );
     assertEquals(episodeState, {
       downloaded: true,
       filePath: "/library/Naruto/Naruto - 01.mkv",
     });
-    assertEquals(await loadCurrentEpisodeState(db, 20, 2), null);
-
-    await assertRejects(
-      () => requireAnime(db, 999),
-      OperationsAnimeNotFoundError,
-      "Anime not found",
+    assertEquals(
+      await Effect.runPromise(loadCurrentEpisodeState(db, 20, 2)),
+      null,
     );
+
+    const notFoundExit = await Effect.runPromiseExit(requireAnime(db, 999));
+    assertEquals(notFoundExit._tag, "Failure");
+    if (notFoundExit._tag === "Failure") {
+      const failure = Cause.failureOption(notFoundExit.cause);
+      assertNotEquals(failure._tag, "None");
+      if (failure._tag === "Some") {
+        assertEquals(
+          failure.value instanceof OperationsAnimeNotFoundError,
+          true,
+        );
+      }
+    }
   });
 });
 

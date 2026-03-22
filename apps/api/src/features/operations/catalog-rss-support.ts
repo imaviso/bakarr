@@ -5,12 +5,9 @@ import type { RssFeed } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { rssFeeds } from "../../db/schema.ts";
 import { appendLog, nowIso } from "./job-support.ts";
-import { type OperationsError } from "./errors.ts";
+import type { OperationsError } from "./errors.ts";
 import { requireAnime, toRssFeed } from "./repository.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 
 export interface CatalogRssSupportShape {
   readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
@@ -33,7 +30,6 @@ export interface CatalogRssSupportShape {
 export function makeCatalogRssSupport(input: {
   db: AppDatabase;
   tryDatabasePromise: TryDatabasePromise;
-  tryOperationsPromise: TryOperationsPromise;
 }): CatalogRssSupportShape {
   const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(
     function* () {
@@ -58,11 +54,8 @@ export function makeCatalogRssSupport(input: {
 
   const addRssFeed = Effect.fn("OperationsService.addRssFeed")(
     function* (rssInput: { anime_id: number; url: string; name?: string }) {
-      yield* input.tryOperationsPromise(
-        "Failed to add RSS feed",
-        () => requireAnime(input.db, rssInput.anime_id),
-      );
-      const [row] = yield* input.tryOperationsPromise(
+      yield* requireAnime(input.db, rssInput.anime_id);
+      const [row] = yield* input.tryDatabasePromise(
         "Failed to add RSS feed",
         () =>
           input.db.insert(rssFeeds).values({
@@ -74,13 +67,12 @@ export function makeCatalogRssSupport(input: {
             url: rssInput.url,
           }).returning(),
       );
-      yield* input.tryDatabasePromise("Failed to add RSS feed", () =>
-        appendLog(
-          input.db,
-          "rss.created",
-          "success",
-          `RSS feed added for anime ${rssInput.anime_id}`,
-        ));
+      yield* appendLog(
+        input.db,
+        "rss.created",
+        "success",
+        `RSS feed added for anime ${rssInput.anime_id}`,
+      );
       return toRssFeed(row);
     },
   );

@@ -12,10 +12,7 @@ import { anime, episodes } from "../../db/schema.ts";
 import { deriveEpisodeTimelineMetadata } from "../anime/query-support.ts";
 import type { OperationsError } from "./errors.ts";
 import { buildRenamePreview } from "./library-import.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 
 export interface CatalogLibraryReadSupportShape {
   readonly getWantedMissing: (
@@ -33,7 +30,6 @@ export interface CatalogLibraryReadSupportShape {
 export function makeCatalogLibraryReadSupport(input: {
   db: AppDatabase;
   tryDatabasePromise: TryDatabasePromise;
-  tryOperationsPromise: TryOperationsPromise;
 }): CatalogLibraryReadSupportShape {
   const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(
     function* (limit: number) {
@@ -129,10 +125,7 @@ export function makeCatalogLibraryReadSupport(input: {
 
   const getRenamePreview = Effect.fn("OperationsService.getRenamePreview")(
     function* (animeId: number) {
-      return yield* input.tryOperationsPromise(
-        "Failed to build rename preview",
-        () => buildRenamePreview(input.db, animeId),
-      );
+      return yield* buildRenamePreview(input.db, animeId);
     },
   );
 

@@ -43,10 +43,7 @@ import {
   OperationsInputError,
   OperationsPathError,
 } from "./errors.ts";
-import type {
-  TryDatabasePromise,
-  TryOperationsPromise,
-} from "./service-support.ts";
+import type { TryDatabasePromise } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
@@ -62,7 +59,6 @@ export function makeSearchOrchestration(input: {
   qbitClient: typeof QBitTorrentClient.Service;
   eventBus: typeof EventBus.Service;
   tryDatabasePromise: TryDatabasePromise;
-  tryOperationsPromise: TryOperationsPromise;
   wrapOperationsError: (
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
@@ -87,7 +83,6 @@ export function makeSearchOrchestration(input: {
     qbitClient,
     eventBus,
     tryDatabasePromise,
-    tryOperationsPromise,
     wrapOperationsError,
     dbError,
     maybeQBitConfig,
@@ -207,12 +202,7 @@ export function makeSearchOrchestration(input: {
       category?: string,
       filter?: string,
     ) {
-      const animeRow = animeId
-        ? yield* tryOperationsPromise(
-          "Failed to search releases",
-          () => requireAnime(db, animeId),
-        )
-        : null;
+      const animeRow = animeId ? yield* requireAnime(db, animeId) : null;
       const searchQuery = (query || animeRow?.titleRomaji || "Search").trim();
       const runtimeConfig = yield* loadRuntimeConfig(db);
       const results = yield* searchNyaaReleases(
@@ -258,10 +248,7 @@ export function makeSearchOrchestration(input: {
     animeId: number,
     episodeNumber: number,
   ) {
-    const animeRow = yield* tryOperationsPromise(
-      "Failed to search episode releases",
-      () => requireAnime(db, animeId),
-    );
+    const animeRow = yield* requireAnime(db, animeId);
     const runtimeConfig = yield* loadRuntimeConfig(db);
     const profile = yield* loadQualityProfile(db, animeRow.profileName);
 
@@ -272,9 +259,10 @@ export function makeSearchOrchestration(input: {
     }
 
     const rules = yield* loadReleaseRules(db, animeRow);
-    const currentEpisode = yield* tryDatabasePromise(
-      "Failed to search episode releases",
-      () => loadCurrentEpisodeState(db, animeId, episodeNumber),
+    const currentEpisode = yield* loadCurrentEpisodeState(
+      db,
+      animeId,
+      episodeNumber,
     );
     const results = yield* searchEpisodeReleases(
       animeRow,
@@ -340,7 +328,6 @@ export function makeSearchOrchestration(input: {
     searchEpisodeReleases,
     triggerSemaphore,
     tryDatabasePromise,
-    tryOperationsPromise,
     wrapOperationsError,
   });
 
@@ -351,7 +338,6 @@ export function makeSearchOrchestration(input: {
     dbError,
     fs,
     tryDatabasePromise,
-    tryOperationsPromise,
     unmappedScanRunning,
   });
 
@@ -371,7 +357,6 @@ export function makeSearchOrchestration(input: {
       mediaProbe,
       path,
       tryDatabasePromise,
-      tryOperationsPromise,
     });
 
   const scanImportPath = (path: string, animeId?: number) =>

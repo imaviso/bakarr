@@ -208,10 +208,7 @@ export function loadUnmappedFolderSnapshot(input: {
       () => input.db.select().from(anime),
     );
     const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
-    const cachedRows = yield* input.tryDatabasePromise(
-      "Failed to scan unmapped folders",
-      () => listUnmappedFolderMatchRows(input.db),
-    );
+    const cachedRows = yield* listUnmappedFolderMatchRows(input.db);
     const cachedByPath = new Map(
       cachedRows.map((row) => {
         const decoded = decodeUnmappedFolderMatchRow(row);

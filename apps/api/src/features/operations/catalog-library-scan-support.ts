@@ -36,10 +36,7 @@ export function makeCatalogLibraryScanSupport(input: {
 }): CatalogLibraryScanSupportShape {
   const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(
     function* () {
-      yield* input.tryDatabasePromise(
-        "Failed to run library scan",
-        () => markJobStarted(input.db, "library_scan"),
-      );
+      yield* markJobStarted(input.db, "library_scan");
 
       return yield* Effect.gen(function* () {
         const animeRows = yield* input.tryDatabasePromise(
@@ -138,14 +135,10 @@ export function makeCatalogLibraryScanSupport(input: {
         const scanned = yield* Ref.get(scannedRef);
         const matched = yield* Ref.get(matchedRef);
 
-        yield* input.tryDatabasePromise(
-          "Failed to run library scan",
-          () =>
-            markJobSucceeded(
-              input.db,
-              "library_scan",
-              `Scanned ${scanned} file(s), matched ${matched}`,
-            ),
+        yield* markJobSucceeded(
+          input.db,
+          "library_scan",
+          `Scanned ${scanned} file(s), matched ${matched}`,
         );
         yield* input.eventBus.publish({
           type: "LibraryScanFinished",
@@ -155,10 +148,7 @@ export function makeCatalogLibraryScanSupport(input: {
         return { matched, scanned };
       }).pipe(
         Effect.catchAll((cause) =>
-          input.tryDatabasePromise(
-            "Failed to run library scan",
-            () => markJobFailed(input.db, "library_scan", cause),
-          ).pipe(
+          markJobFailed(input.db, "library_scan", cause).pipe(
             Effect.zipRight(
               cause instanceof DatabaseErrorTag ||
                 cause instanceof OperationsPathError
