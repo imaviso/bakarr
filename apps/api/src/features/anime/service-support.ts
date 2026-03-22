@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
-import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
+import { toDatabaseError } from "../../lib/effect-db.ts";
 export { tryDatabasePromise } from "../../lib/effect-db.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import {
@@ -13,7 +13,10 @@ import {
   AnimePathError,
   type AnimeServiceError,
 } from "./errors.ts";
-import { appendAnimeLog, requireAnimeExists } from "./repository.ts";
+import {
+  appendAnimeLogEffect,
+  requireAnimeExistsEffect,
+} from "./repository.ts";
 
 export function wrapAnimeError(message: string) {
   return (cause: unknown) => {
@@ -48,18 +51,14 @@ export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(
     message: string,
     eventPublisher: Pick<EventPublisherShape, "publishInfo">,
   ) {
-    yield* tryAnimePromise(
-      "Failed to update anime",
-      () => requireAnimeExists(db, animeId),
+    yield* requireAnimeExistsEffect(db, animeId).pipe(
+      Effect.mapError(wrapAnimeError("Failed to update anime")),
     );
     yield* tryAnimePromise(
       "Failed to update anime",
       () => db.update(anime).set(patch).where(eq(anime.id, animeId)),
     );
-    yield* tryDatabasePromise(
-      "Failed to update anime",
-      () => appendAnimeLog(db, "anime.updated", "success", message),
-    );
+    yield* appendAnimeLogEffect(db, "anime.updated", "success", message);
     yield* eventPublisher.publishInfo(message);
   },
 );

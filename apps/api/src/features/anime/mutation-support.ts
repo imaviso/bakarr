@@ -9,15 +9,15 @@ import { ProfileNotFoundError } from "../system/errors.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import { AnimeConflictError, AnimePathError } from "./errors.ts";
 import {
-  appendAnimeLog,
-  findAnimeRootFolderOwner,
-  qualityProfileExists,
-  requireAnimeExists,
+  appendAnimeLogEffect,
+  findAnimeRootFolderOwnerEffect,
+  qualityProfileExistsEffect,
+  requireAnimeExistsEffect,
 } from "./repository.ts";
 import {
-  tryAnimePromise,
   tryDatabasePromise,
   updateAnimeRow,
+  wrapAnimeError,
 } from "./service-support.ts";
 
 type AnimeInfoPublisher = Pick<EventPublisherShape, "publishInfo">;
@@ -31,9 +31,8 @@ export const updateAnimePathEffect = Effect.fn(
   path: string;
 }) {
   const trimmedPath = input.path.trim();
-  yield* tryAnimePromise(
-    "Failed to update anime path",
-    () => requireAnimeExists(input.db, input.id),
+  yield* requireAnimeExistsEffect(input.db, input.id).pipe(
+    Effect.mapError(wrapAnimeError("Failed to update anime path")),
   );
 
   yield* input.fs.mkdir(trimmedPath, { recursive: true }).pipe(
@@ -52,9 +51,9 @@ export const updateAnimePathEffect = Effect.fn(
     ),
   );
 
-  const existingRootOwner = yield* tryDatabasePromise(
-    "Failed to update anime path",
-    () => findAnimeRootFolderOwner(input.db, canonicalPath),
+  const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(
+    input.db,
+    canonicalPath,
   );
 
   if (existingRootOwner && existingRootOwner.id !== input.id) {
@@ -63,22 +62,18 @@ export const updateAnimePathEffect = Effect.fn(
     });
   }
 
-  yield* tryAnimePromise(
+  yield* tryDatabasePromise(
     "Failed to update anime path",
     () =>
       input.db.update(anime).set({ rootFolder: canonicalPath }).where(
         eq(anime.id, input.id),
       ),
   );
-  yield* tryDatabasePromise(
-    "Failed to update anime path",
-    () =>
-      appendAnimeLog(
-        input.db,
-        "anime.path.updated",
-        "success",
-        `Updated path for anime ${input.id}`,
-      ),
+  yield* appendAnimeLogEffect(
+    input.db,
+    "anime.path.updated",
+    "success",
+    `Updated path for anime ${input.id}`,
   );
 });
 
@@ -90,9 +85,9 @@ export const updateAnimeProfileEffect = Effect.fn(
   id: number;
   profileName: string;
 }) {
-  const profileExists = yield* tryDatabasePromise(
-    "Failed to update anime profile",
-    () => qualityProfileExists(input.db, input.profileName),
+  const profileExists = yield* qualityProfileExistsEffect(
+    input.db,
+    input.profileName,
   );
 
   if (!profileExists) {

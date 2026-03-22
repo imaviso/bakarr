@@ -23,12 +23,16 @@ import { summarizeEpisodeCoverage } from "../operations/library-import.ts";
 import {
   buildAiringScheduleMap,
   clearEpisodeMapping,
-  getAnimeRowOrThrow,
-  getEpisodeRowOrThrow,
+  getAnimeRowEffect,
+  getEpisodeRowEffect,
   inferAiredAt,
   upsertEpisode,
+  upsertEpisodeEffect,
 } from "./repository.ts";
-import { tryAnimePromise } from "./service-support.ts";
+import { tryAnimePromise, wrapAnimeError } from "./service-support.ts";
+
+const mapAnimeDbError = (message: string) =>
+  Effect.mapError(wrapAnimeError(message));
 
 export const loadAnimeRoot = Effect.fn("AnimeService.loadAnimeRoot")(function* (
   fs: FileSystemShape,
@@ -88,9 +92,8 @@ export const scanAnimeFolderEffect = Effect.fn(
   fs: FileSystemShape;
   mediaProbe: MediaProbeShape;
 }) {
-  const animeRow = yield* tryAnimePromise(
-    "Failed to scan anime folder",
-    () => getAnimeRowOrThrow(input.db, input.animeId),
+  const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
+    mapAnimeDbError("Failed to scan anime folder"),
   );
   const files = yield* loadAnimeFiles(input.fs, animeRow.rootFolder);
   let found = 0;
@@ -139,31 +142,27 @@ export const scanAnimeFolderEffect = Effect.fn(
     }
 
     for (const episodeNumber of episodeNumbers) {
-      yield* tryAnimePromise(
-        "Failed to scan anime folder",
-        () =>
-          upsertEpisode(input.db, input.animeId, episodeNumber, {
-            aired: inferAiredAt(
-              animeRow.status,
-              episodeNumber,
-              animeRow.episodeCount ?? undefined,
-              animeRow.startDate ?? undefined,
-              animeRow.endDate ?? undefined,
-              airingScheduleByEpisode,
-            ),
-            downloaded: true,
-            filePath: file.path,
-            fileSize: file.size,
-            durationSeconds: mergedMetadata.duration_seconds,
-            groupName: parsed.group ?? null,
-            resolution: mergedMetadata.resolution,
-            quality: metadata.quality,
-            videoCodec: mergedMetadata.video_codec,
-            audioCodec: mergedMetadata.audio_codec,
-            audioChannels: mergedMetadata.audio_channels,
-            title: null,
-          }),
-      );
+      yield* upsertEpisodeEffect(input.db, input.animeId, episodeNumber, {
+        aired: inferAiredAt(
+          animeRow.status,
+          episodeNumber,
+          animeRow.episodeCount ?? undefined,
+          animeRow.startDate ?? undefined,
+          animeRow.endDate ?? undefined,
+          airingScheduleByEpisode,
+        ),
+        downloaded: true,
+        filePath: file.path,
+        fileSize: file.size,
+        durationSeconds: mergedMetadata.duration_seconds,
+        groupName: parsed.group ?? null,
+        resolution: mergedMetadata.resolution,
+        quality: metadata.quality,
+        videoCodec: mergedMetadata.video_codec,
+        audioCodec: mergedMetadata.audio_codec,
+        audioChannels: mergedMetadata.audio_channels,
+        title: null,
+      }).pipe(mapAnimeDbError("Failed to scan anime folder"));
     }
     found += episodeNumbers.length;
   }
@@ -183,14 +182,14 @@ export const deleteEpisodeFileEffect = Effect.fn(
   episodeNumber: number;
   fs: FileSystemShape;
 }) {
-  const animeRow = yield* tryAnimePromise(
-    "Failed to delete episode file",
-    () => getAnimeRowOrThrow(input.db, input.animeId),
+  const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
+    mapAnimeDbError("Failed to delete episode file"),
   );
-  const episodeRow = yield* tryAnimePromise(
-    "Failed to delete episode file",
-    () => getEpisodeRowOrThrow(input.db, input.animeId, input.episodeNumber),
-  );
+  const episodeRow = yield* getEpisodeRowEffect(
+    input.db,
+    input.animeId,
+    input.episodeNumber,
+  ).pipe(mapAnimeDbError("Failed to delete episode file"));
 
   if (episodeRow.filePath) {
     const filePath = episodeRow.filePath;
@@ -250,9 +249,8 @@ export const mapEpisodeFileEffect = Effect.fn(
   filePath: string;
   fs: FileSystemShape;
 }) {
-  const animeRow = yield* tryAnimePromise(
-    "Failed to map episode file",
-    () => getAnimeRowOrThrow(input.db, input.animeId),
+  const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
+    mapAnimeDbError("Failed to map episode file"),
   );
 
   if (input.filePath.trim().length === 0) {
@@ -271,14 +269,10 @@ export const mapEpisodeFileEffect = Effect.fn(
     outOfRootMessage: "File path is not within the anime root folder",
   });
 
-  yield* tryAnimePromise(
-    "Failed to map episode file",
-    () =>
-      upsertEpisode(input.db, input.animeId, input.episodeNumber, {
-        downloaded: true,
-        filePath: input.filePath,
-      }),
-  );
+  yield* upsertEpisodeEffect(input.db, input.animeId, input.episodeNumber, {
+    downloaded: true,
+    filePath: input.filePath,
+  }).pipe(mapAnimeDbError("Failed to map episode file"));
 });
 
 export const bulkMapEpisodeFilesEffect = Effect.fn(
@@ -289,9 +283,8 @@ export const bulkMapEpisodeFilesEffect = Effect.fn(
   fs: FileSystemShape;
   mappings: readonly { episode_number: number; file_path: string }[];
 }) {
-  const animeRow = yield* tryAnimePromise(
-    "Failed to bulk-map episode files",
-    () => getAnimeRowOrThrow(input.db, input.animeId),
+  const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
+    mapAnimeDbError("Failed to bulk-map episode files"),
   );
   const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
 
@@ -351,9 +344,8 @@ export const listAnimeFilesEffect = Effect.fn(
     fs: FileSystemShape;
     mediaProbe: MediaProbeShape;
   }) {
-    const animeRow = yield* tryAnimePromise(
-      "Failed to list video files",
-      () => getAnimeRowOrThrow(input.db, input.animeId),
+    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
+      mapAnimeDbError("Failed to list video files"),
     );
     const files = yield* loadAnimeFiles(input.fs, animeRow.rootFolder);
     const cachedEpisodeRows = yield* tryAnimePromise(
@@ -576,14 +568,14 @@ export const resolveEpisodeFileEffect = Effect.fn(
   episodeNumber: number;
   fs: FileSystemShape;
 }) {
-  const animeRow = yield* tryAnimePromise(
-    "Failed to resolve episode file",
-    () => getAnimeRowOrThrow(input.db, input.animeId),
+  const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
+    mapAnimeDbError("Failed to resolve episode file"),
   );
-  const episodeRow = yield* tryAnimePromise(
-    "Failed to resolve episode file",
-    () => getEpisodeRowOrThrow(input.db, input.animeId, input.episodeNumber),
-  );
+  const episodeRow = yield* getEpisodeRowEffect(
+    input.db,
+    input.animeId,
+    input.episodeNumber,
+  ).pipe(mapAnimeDbError("Failed to resolve episode file"));
 
   if (!episodeRow.filePath) {
     return null;

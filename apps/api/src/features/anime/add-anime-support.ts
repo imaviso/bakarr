@@ -22,13 +22,17 @@ import {
 import { cacheAnimeMetadataImages } from "./image-cache.ts";
 import {
   buildMissingEpisodeRows,
-  findAnimeRootFolderOwner,
-  getConfiguredImagesPath,
+  findAnimeRootFolderOwnerEffect,
+  getConfiguredImagesPathEffect,
   insertAnimeAggregateAtomic,
-  qualityProfileExists,
+  qualityProfileExistsEffect,
   resolveAnimeRootFolder,
 } from "./repository.ts";
-import { tryAnimePromise, tryDatabasePromise } from "./service-support.ts";
+import {
+  tryAnimePromise,
+  tryDatabasePromise,
+  wrapAnimeError,
+} from "./service-support.ts";
 
 export interface AddAnimeEffectInput {
   readonly id: number;
@@ -73,9 +77,9 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
       });
     }
 
-    const profileExists = yield* tryDatabasePromise(
-      "Failed to add anime",
-      () => qualityProfileExists(input.db, input.animeInput.profile_name),
+    const profileExists = yield* qualityProfileExistsEffect(
+      input.db,
+      input.animeInput.profile_name,
     );
 
     if (!profileExists) {
@@ -95,9 +99,9 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
         ),
     );
 
-    const existingRootOwner = yield* tryDatabasePromise(
-      "Failed to add anime",
-      () => findAnimeRootFolderOwner(input.db, rootFolder),
+    const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(
+      input.db,
+      rootFolder,
     );
 
     if (existingRootOwner) {
@@ -114,9 +118,8 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
       ),
     );
 
-    const imagesPath = yield* tryAnimePromise(
-      "Failed to add anime",
-      () => getConfiguredImagesPath(input.db),
+    const imagesPath = yield* getConfiguredImagesPathEffect(input.db).pipe(
+      Effect.mapError(wrapAnimeError("Failed to add anime")),
     );
     const cachedImages = yield* cacheAnimeMetadataImages(
       input.fs,

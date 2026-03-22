@@ -21,10 +21,10 @@ import { scoreAnimeSearchResultMatch } from "../operations/library-import.ts";
 import { toAnimeDto } from "./dto.ts";
 import { AnimeNotFoundError } from "./errors.ts";
 import {
-  getAnimeRowOrThrow,
-  markSearchResultsAlreadyInLibrary,
+  getAnimeRowEffect,
+  markSearchResultsAlreadyInLibraryEffect,
 } from "./repository.ts";
-import { tryAnimePromise, tryDatabasePromise } from "./service-support.ts";
+import { tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
 
 const StringListJsonSchema = Schema.parseJson(StringListSchema);
 const NumberListJsonSchema = Schema.parseJson(Schema.Array(Schema.Number));
@@ -244,11 +244,10 @@ const searchLocalAnimeEffect = Effect.fn("AnimeService.searchLocalAnimeEffect")(
 
 export const getAnimeEffect = Effect.fn("AnimeService.getAnimeEffect")(
   function* (input: { db: AppDatabase; id: number }) {
-    const row = yield* tryAnimePromise(
-      "Failed to load anime",
-      () => getAnimeRowOrThrow(input.db, input.id),
+    const row = yield* getAnimeRowEffect(input.db, input.id).pipe(
+      Effect.mapError(wrapAnimeError("Failed to load anime")),
     );
-    const episodeRows = yield* tryAnimePromise(
+    const episodeRows = yield* tryDatabasePromise(
       "Failed to load anime",
       () =>
         input.db.select().from(episodes).where(eq(episodes.animeId, input.id)),
@@ -285,9 +284,9 @@ export const searchAnimeEffect = Effect.fn("AnimeService.searchAnimeEffect")(
 
     const annotated = annotateAnimeSearchResultsForQuery(input.query, results);
 
-    const marked = yield* tryDatabasePromise(
-      "Failed to check library status",
-      () => markSearchResultsAlreadyInLibrary(input.db, annotated),
+    const marked = yield* markSearchResultsAlreadyInLibraryEffect(
+      input.db,
+      annotated,
     );
 
     return {
