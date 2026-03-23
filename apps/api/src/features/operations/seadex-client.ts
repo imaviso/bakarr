@@ -1,29 +1,14 @@
-import { HttpClient, HttpClientRequest } from "@effect/platform";
+import {
+  HttpClient,
+  HttpClientRequest,
+  HttpClientResponse,
+} from "@effect/platform";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import {
   ExternalCallError,
   tryExternalEffect,
 } from "../../lib/effect-retry.ts";
-
-export interface SeaDexRelease {
-  readonly dualAudio: boolean;
-  readonly groupedUrl: string;
-  readonly infoHash?: string;
-  readonly isBest: boolean;
-  readonly releaseGroup: string;
-  readonly tags: readonly string[];
-  readonly tracker: string;
-  readonly url: string;
-}
-
-export interface SeaDexEntry {
-  readonly alID: number;
-  readonly comparison?: string;
-  readonly incomplete: boolean;
-  readonly notes?: string;
-  readonly releases: readonly SeaDexRelease[];
-}
 
 interface SeaDexClientShape {
   readonly getEntryByAniListId: (
@@ -50,24 +35,38 @@ class SeaDexTorrentSchema
     url: Schema.String,
   }) {}
 
-class SeaDexEntryExpandSchema
-  extends Schema.Class<SeaDexEntryExpandSchema>("SeaDexEntryExpandSchema")({
+class SeaDexApiEntryExpandSchema
+  extends Schema.Class<SeaDexApiEntryExpandSchema>(
+    "SeaDexApiEntryExpandSchema",
+  )({
     trs: Schema.Array(SeaDexTorrentSchema),
   }) {}
 
-class SeaDexEntrySchema
-  extends Schema.Class<SeaDexEntrySchema>("SeaDexEntrySchema")({
+class SeaDexApiEntrySchema
+  extends Schema.Class<SeaDexApiEntrySchema>("SeaDexApiEntrySchema")({
     alID: Schema.Number,
     comparison: Schema.optional(Schema.String),
     incomplete: Schema.Boolean,
     notes: Schema.optional(Schema.String),
-    expand: SeaDexEntryExpandSchema,
+    expand: SeaDexApiEntryExpandSchema,
   }) {}
 
-class SeaDexEntryListSchema
-  extends Schema.Class<SeaDexEntryListSchema>("SeaDexEntryListSchema")({
-    items: Schema.Array(SeaDexEntrySchema),
+class SeaDexApiEntryListSchema
+  extends Schema.Class<SeaDexApiEntryListSchema>("SeaDexApiEntryListSchema")({
+    items: Schema.Array(SeaDexApiEntrySchema),
   }) {}
+
+export type SeaDexRelease = Schema.Schema.Type<typeof SeaDexTorrentSchema>;
+
+export const SeaDexEntrySchema = Schema.Struct({
+  alID: Schema.Number,
+  comparison: Schema.optional(Schema.String),
+  incomplete: Schema.Boolean,
+  notes: Schema.optional(Schema.String),
+  releases: Schema.Array(SeaDexTorrentSchema),
+});
+
+export type SeaDexEntry = Schema.Schema.Type<typeof SeaDexEntrySchema>;
 
 export const SeaDexClientLive = Layer.effect(
   SeaDexClient,
@@ -116,28 +115,19 @@ export const SeaDexClientLive = Layer.effect(
           });
         }
 
-        const payload = yield* response.json.pipe(
+        const decoded = yield* HttpClientResponse.schemaBodyJson(
+          SeaDexApiEntryListSchema,
+        )(response).pipe(
           Effect.mapError((cause) =>
             ExternalCallError.make({
               cause,
-              message: "Failed to decode SeaDex JSON response",
+              message: "SeaDex response decode failed",
               operation: "seadex.entry.json",
             })
           ),
         );
 
-        const decoded = Schema.decodeUnknownEither(SeaDexEntryListSchema)(
-          payload,
-        );
-        if (decoded._tag === "Left") {
-          return yield* ExternalCallError.make({
-            cause: decoded.left,
-            message: "SeaDex response schema mismatch",
-            operation: "seadex.entry.schema",
-          });
-        }
-
-        const entry = decoded.right.items.at(0);
+        const entry = decoded.items.at(0);
         if (!entry) {
           return null;
         }

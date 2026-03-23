@@ -5,43 +5,22 @@ import {
 } from "@effect/platform";
 import { Context, Effect, Either, Layer, Ref, Schema } from "effect";
 
+import { currentTimeMillis } from "../../lib/clock.ts";
 import {
   ExternalCallError,
   tryExternalEffect,
 } from "../../lib/effect-retry.ts";
 
-export interface QBitConfig {
-  readonly baseUrl: string;
-  readonly username: string;
-  readonly password: string;
-  readonly category?: string;
-}
+export class QBitConfigModel extends Schema.Class<QBitConfigModel>(
+  "QBitConfigModel",
+)({
+  baseUrl: Schema.String,
+  category: Schema.optional(Schema.String),
+  password: Schema.String,
+  username: Schema.String,
+}) {}
 
-export interface QBitTorrent {
-  readonly hash: string;
-  readonly name: string;
-  readonly state: string;
-  readonly progress: number;
-  readonly size: number;
-  readonly downloaded: number;
-  readonly dlspeed: number;
-  readonly eta: number;
-  readonly save_path?: string;
-  readonly category?: string;
-  readonly content_path?: string;
-  readonly added_on?: number;
-}
-
-export interface QBitTorrentFile {
-  readonly index?: number;
-  readonly name: string;
-  readonly size: number;
-  readonly progress: number;
-  readonly priority: number;
-  readonly is_seed: boolean;
-  readonly piece_range?: readonly number[];
-  readonly availability?: number;
-}
+export type QBitConfig = Schema.Schema.Type<typeof QBitConfigModel>;
 
 interface SessionEntry {
   readonly cookie: string;
@@ -110,6 +89,8 @@ class QBitTorrentSchema
     state: Schema.String,
   }) {}
 
+export type QBitTorrent = Schema.Schema.Type<typeof QBitTorrentSchema>;
+
 const QBitTorrentArraySchema = Schema.Array(QBitTorrentSchema);
 
 class QBitTorrentFileSchema
@@ -123,6 +104,8 @@ class QBitTorrentFileSchema
     progress: Schema.Number,
     size: Schema.Number,
   }) {}
+
+export type QBitTorrentFile = Schema.Schema.Type<typeof QBitTorrentFileSchema>;
 
 const QBitTorrentFileArraySchema = Schema.Array(QBitTorrentFileSchema);
 
@@ -150,7 +133,7 @@ function withSessionCache(
     >,
   ) {
     const sessionKey = getSessionKey(config);
-    const now = Date.now();
+    const now = yield* currentTimeMillis;
 
     const sessions = yield* Ref.get(sessionsRef);
     const cached = sessions.get(sessionKey);
@@ -172,9 +155,10 @@ function withSessionCache(
     }
 
     const newCookie = yield* login(client, config);
+    const createdAt = yield* currentTimeMillis;
     yield* Ref.update(sessionsRef, (map) => {
       const newMap = new Map(map);
-      newMap.set(sessionKey, { cookie: newCookie, createdAt: Date.now() });
+      newMap.set(sessionKey, { cookie: newCookie, createdAt });
       return newMap;
     });
 
@@ -244,10 +228,15 @@ export const QBitTorrentClientLive = Layer.effect(
           `qBittorrent list failed with status ${response.status}`,
         );
 
-        return yield* decodeJson(
-          response,
+        return yield* HttpClientResponse.schemaBodyJson(
           QBitTorrentArraySchema,
-          "qbit.listTorrents.json",
+        )(response).pipe(
+          Effect.mapError((cause) =>
+            QBitTorrentClientError.make({
+              cause,
+              message: "Failed to decode qBittorrent list response",
+            })
+          ),
         );
       },
     );
@@ -279,10 +268,15 @@ export const QBitTorrentClientLive = Layer.effect(
         `qBittorrent torrent contents failed with status ${response.status}`,
       );
 
-      return yield* decodeJson(
-        response,
+      return yield* HttpClientResponse.schemaBodyJson(
         QBitTorrentFileArraySchema,
-        "qbit.listTorrentContents.json",
+      )(response).pipe(
+        Effect.mapError((cause) =>
+          QBitTorrentClientError.make({
+            cause,
+            message: "Failed to decode qBittorrent torrent contents response",
+          })
+        ),
       );
     });
 
@@ -444,33 +438,6 @@ function ensureOk(
   return response.status >= 200 && response.status < 300
     ? Effect.void
     : Effect.fail(QBitTorrentClientError.make({ message }));
-}
-
-function decodeJson<A, I>(
-  response: HttpClientResponse.HttpClientResponse,
-  schema: Schema.Schema<A, I>,
-  operation: string,
-) {
-  return Effect.gen(function* () {
-    const payload = yield* response.json.pipe(
-      Effect.mapError((cause) =>
-        QBitTorrentClientError.make({
-          cause,
-          message: "Failed to decode qBittorrent JSON response",
-        })
-      ),
-    );
-    const decoded = Schema.decodeUnknownEither(schema)(payload);
-
-    if (Either.isLeft(decoded)) {
-      return yield* QBitTorrentClientError.make({
-        cause: decoded.left,
-        message: "qBittorrent response schema mismatch",
-      });
-    }
-
-    return decoded.right;
-  }).pipe(Effect.withSpan(`QBitTorrentClient.${operation}`));
 }
 
 function resolveUrl(baseUrl: string, path: string) {

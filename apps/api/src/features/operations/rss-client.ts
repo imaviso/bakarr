@@ -7,21 +7,12 @@ import { Context, Effect, Either, Layer, Schema, Stream } from "effect";
 import { XMLParser } from "fast-xml-parser";
 import ipaddr from "ipaddr.js";
 
+import { collectBoundedText } from "../../lib/bounded-stream.ts";
+import { DnsResolver, isDnsNoRecordError } from "../../lib/dns-resolver.ts";
 import {
   ExternalCallError,
   tryExternalEffect,
 } from "../../lib/effect-retry.ts";
-
-class RssStreamReadError extends Schema.TaggedError<RssStreamReadError>()(
-  "RssStreamReadError",
-  { message: Schema.String },
-) {}
-
-class RssPayloadTooLargeError
-  extends Schema.TaggedError<RssPayloadTooLargeError>()(
-    "RssPayloadTooLargeError",
-    { maxBytes: Schema.Number, actualBytes: Schema.Number },
-  ) {}
 
 class InvalidRedirectUrlError
   extends Schema.TaggedError<InvalidRedirectUrlError>()(
@@ -29,37 +20,30 @@ class InvalidRedirectUrlError
     { location: Schema.String },
   ) {}
 
-class RssDnsLookupError extends Schema.TaggedError<RssDnsLookupError>()(
-  "RssDnsLookupError",
-  {
-    cause: Schema.Defect,
-    hostname: Schema.String,
-    recordType: Schema.Literal("A", "AAAA"),
-  },
-) {}
+export const ParsedReleaseSchema = Schema.Struct({
+  group: Schema.optional(Schema.String),
+  infoHash: Schema.String,
+  isSeaDex: Schema.Boolean,
+  isSeaDexBest: Schema.Boolean,
+  leechers: Schema.Number,
+  magnet: Schema.String,
+  pubDate: Schema.String,
+  remake: Schema.Boolean,
+  resolution: Schema.optional(Schema.String),
+  seaDexComparison: Schema.optional(Schema.String),
+  seaDexDualAudio: Schema.optional(Schema.Boolean),
+  seaDexNotes: Schema.optional(Schema.String),
+  seaDexReleaseGroup: Schema.optional(Schema.String),
+  seaDexTags: Schema.optional(Schema.Array(Schema.String)),
+  seeders: Schema.Number,
+  size: Schema.String,
+  sizeBytes: Schema.Number,
+  title: Schema.String,
+  trusted: Schema.Boolean,
+  viewUrl: Schema.String,
+});
 
-export interface ParsedRelease {
-  readonly group?: string;
-  readonly infoHash: string;
-  readonly isSeaDex: boolean;
-  readonly isSeaDexBest: boolean;
-  readonly seaDexComparison?: string;
-  readonly seaDexDualAudio?: boolean;
-  readonly seaDexNotes?: string;
-  readonly seaDexReleaseGroup?: string;
-  readonly seaDexTags?: readonly string[];
-  readonly leechers: number;
-  readonly magnet: string;
-  readonly pubDate: string;
-  readonly remake: boolean;
-  readonly resolution?: string;
-  readonly seeders: number;
-  readonly size: string;
-  readonly sizeBytes: number;
-  readonly title: string;
-  readonly trusted: boolean;
-  readonly viewUrl: string;
-}
+export type ParsedRelease = Schema.Schema.Type<typeof ParsedReleaseSchema>;
 
 interface RssClientShape {
   readonly fetchItems: (
@@ -129,7 +113,10 @@ function isBlockedHostname(hostname: string): boolean {
   return false;
 }
 
-const makeFetchItems = (client: HttpClient.HttpClient) =>
+const makeFetchItems = (
+  client: HttpClient.HttpClient,
+  dns: typeof DnsResolver.Service,
+) =>
   Effect.fn("RssClient.fetchItems")(function* (url: string) {
     const parsedUrl = yield* Effect.sync(() => {
       try {
@@ -167,7 +154,7 @@ const makeFetchItems = (client: HttpClient.HttpClient) =>
       }
       visitedUrls.add(currentUrl);
 
-      const validationResult = yield* validateUrlForSsrf(currentUrl);
+      const validationResult = yield* validateUrlForSsrf(currentUrl, dns);
       if (validationResult._tag === "Rejected") {
         yield* Effect.logWarning("RSS feed rejected by SSRF guardrail").pipe(
           Effect.annotateLogs({
@@ -187,25 +174,9 @@ const makeFetchItems = (client: HttpClient.HttpClient) =>
         HttpClientRequest.setHeader("User-Agent", "bakarr/1.0"),
       );
 
-      const executeWithManualRedirect = <A, E, R>(
-        effect: Effect.Effect<A, E, R>,
-      ) =>
-        Effect.serviceOption(FetchHttpClient.RequestInit).pipe(
-          Effect.flatMap((requestInitOption) =>
-            effect.pipe(
-              Effect.provideService(
-                FetchHttpClient.RequestInit,
-                requestInitOption._tag === "Some"
-                  ? { ...requestInitOption.value, redirect: "manual" }
-                  : { redirect: "manual" },
-              ),
-            )
-          ),
-        );
-
       const response = yield* tryExternalEffect(
         "rss.fetch",
-        executeWithManualRedirect(client.execute(request)),
+        client.execute(request),
       )();
 
       if (response.status >= 200 && response.status < 300) {
@@ -287,6 +258,7 @@ type SsrfValidationResult =
 
 const validateUrlForSsrf = (
   urlString: string,
+  dns: typeof DnsResolver.Service,
 ): Effect.Effect<SsrfValidationResult, never, never> =>
   Effect.gen(function* () {
     const parseResult = yield* Effect.try({
@@ -328,7 +300,7 @@ const validateUrlForSsrf = (
       return { _tag: "Accepted" as const };
     }
 
-    const resolvedAddrs = yield* resolveFeedAddresses(hostname);
+    const resolvedAddrs = yield* resolveFeedAddresses(hostname, dns);
 
     if (resolvedAddrs.length === 0) {
       return {
@@ -352,10 +324,21 @@ const validateUrlForSsrf = (
 export const RssClientLive = Layer.effect(
   RssClient,
   Effect.gen(function* () {
-    const client = yield* HttpClient.HttpClient;
+    const baseClient = yield* HttpClient.HttpClient;
+    const dns = yield* DnsResolver;
+
+    // Configure redirect: "manual" once at the layer boundary so the RSS
+    // client handles redirects explicitly (SSRF validation on each hop).
+    const client = baseClient.pipe(
+      HttpClient.transformResponse(
+        Effect.provideService(FetchHttpClient.RequestInit, {
+          redirect: "manual",
+        }),
+      ),
+    );
 
     return {
-      fetchItems: makeFetchItems(client),
+      fetchItems: makeFetchItems(client, dns),
     } satisfies RssClientShape;
   }),
 );
@@ -363,46 +346,18 @@ export const RssClientLive = Layer.effect(
 const MAX_RSS_BYTES = 10 * 1024 * 1024;
 
 const readRssItems = Effect.fn("RssClient.readRssItems")(
-  (body: Stream.Stream<Uint8Array, unknown>) => {
-    const decoder = new TextDecoder();
-    let totalBytes = 0;
-    let chunks = "";
-
-    return body.pipe(
-      Stream.mapError(() =>
-        new RssStreamReadError({ message: "Failed to read RSS stream" })
-      ),
-      Stream.runForEach((chunk) => {
-        totalBytes += chunk.byteLength;
-        if (totalBytes > MAX_RSS_BYTES) {
-          return Effect.fail(
-            new RssPayloadTooLargeError({
-              actualBytes: totalBytes,
-              maxBytes: MAX_RSS_BYTES,
-            }),
-          );
-        }
-        chunks += decoder.decode(chunk, { stream: true });
-        return Effect.void;
-      }),
-      Effect.map(() => parseRssXml(chunks)),
-      Effect.mapError((error) => {
-        if (error instanceof RssPayloadTooLargeError) {
-          return ExternalCallError.make({
-            cause: error,
-            message:
-              `RSS payload exceeded maximum size of ${MAX_RSS_BYTES} bytes`,
-            operation: "rss.stream.size",
-          });
-        }
-        return ExternalCallError.make({
+  (body: Stream.Stream<Uint8Array, unknown>) =>
+    collectBoundedText(body, MAX_RSS_BYTES).pipe(
+      Effect.map(parseRssXml),
+      Effect.mapError((error) =>
+        ExternalCallError.make({
           cause: error,
-          message: "Failed to read RSS stream",
-          operation: "rss.stream",
-        });
-      }),
-    );
-  },
+          message:
+            `RSS payload exceeded maximum size of ${MAX_RSS_BYTES} bytes`,
+          operation: "rss.stream.size",
+        })
+      ),
+    ),
 );
 
 class RssItemSchema extends Schema.Class<RssItemSchema>("RssItemSchema")({
@@ -442,6 +397,59 @@ class RssRootSchema extends Schema.Class<RssRootSchema>("RssRootSchema")({
   rss: RssRootInnerSchema,
 }) {}
 
+const ParsedReleaseFromRssItemSchema = Schema.transform(
+  RssItemSchema,
+  ParsedReleaseSchema,
+  {
+    decode: (item) => {
+      const title = item.title ?? "Unknown release";
+      const link = item.link ?? "";
+      const infoHash = item["nyaa:infoHash"] ?? fallbackInfoHash(title, link);
+      const groupMatch = title.match(/^\[(.*?)\]/);
+      const size = item["nyaa:size"] ?? "0 B";
+      const pubDate = item.pubDate ?? "1970-01-01T00:00:00.000Z";
+      const seeders = Number.parseInt(item["nyaa:seeders"] ?? "0", 10) || 0;
+      const leechers = Number.parseInt(item["nyaa:leechers"] ?? "0", 10) || 0;
+      const trusted = /^yes$/i.test(item["nyaa:trusted"] ?? "no");
+      const remake = /^yes$/i.test(item["nyaa:remake"] ?? "no");
+
+      return {
+        group: groupMatch?.[1],
+        infoHash,
+        isSeaDex: false,
+        isSeaDexBest: false,
+        leechers,
+        magnet: `magnet:?xt=urn:btih:${infoHash}&dn=${
+          encodeURIComponent(title)
+        }`,
+        pubDate,
+        remake,
+        resolution: parseResolution(title),
+        seeders,
+        size,
+        sizeBytes: parseSizeToBytes(size),
+        title,
+        trusted,
+        viewUrl: link.replace("/download/", "/view/").replace(
+          /\.torrent$/i,
+          "",
+        ),
+      } satisfies ParsedRelease;
+    },
+    encode: (release) => ({
+      link: release.viewUrl.replace("/view/", "/download/") + ".torrent",
+      pubDate: release.pubDate,
+      title: release.title,
+      "nyaa:infoHash": release.infoHash,
+      "nyaa:leechers": String(release.leechers),
+      "nyaa:remake": release.remake ? "Yes" : "No",
+      "nyaa:seeders": String(release.seeders),
+      "nyaa:size": release.size,
+      "nyaa:trusted": release.trusted ? "Yes" : "No",
+    }),
+  },
+);
+
 function parseRssXml(xml: string): ParsedRelease[] {
   let parsed: unknown;
   try {
@@ -456,40 +464,9 @@ function parseRssXml(xml: string): ParsedRelease[] {
     return [];
   }
 
-  return decoded.right.rss.channel.item.map((item) => parseRssItem(item));
-}
-
-function parseRssItem(
-  item: Schema.Schema.Type<typeof RssItemSchema>,
-): ParsedRelease {
-  const title = item.title ?? "Unknown release";
-  const link = item.link ?? "";
-  const infoHash = item["nyaa:infoHash"] ?? randomHex(20);
-  const groupMatch = title.match(/^\[(.*?)\]/);
-  const size = item["nyaa:size"] ?? "0 B";
-  const pubDate = item.pubDate ?? new Date().toISOString();
-  const seeders = Number.parseInt(item["nyaa:seeders"] ?? "0", 10) || 0;
-  const leechers = Number.parseInt(item["nyaa:leechers"] ?? "0", 10) || 0;
-  const trusted = /^yes$/i.test(item["nyaa:trusted"] ?? "no");
-  const remake = /^yes$/i.test(item["nyaa:remake"] ?? "no");
-
-  return {
-    group: groupMatch?.[1],
-    infoHash,
-    isSeaDex: false,
-    isSeaDexBest: false,
-    leechers,
-    magnet: `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`,
-    pubDate,
-    remake,
-    resolution: parseResolution(title),
-    seeders,
-    size,
-    sizeBytes: parseSizeToBytes(size),
-    title,
-    trusted,
-    viewUrl: link.replace("/download/", "/view/").replace(/\.torrent$/i, ""),
-  };
+  return decoded.right.rss.channel.item.map((item) =>
+    Schema.decodeSync(ParsedReleaseFromRssItemSchema)(item)
+  );
 }
 
 function parseSizeToBytes(size: string): number {
@@ -519,10 +496,16 @@ function parseResolution(value: string) {
   return match?.[1]?.toLowerCase();
 }
 
-function randomHex(bytes: number) {
-  const data = new Uint8Array(bytes);
-  crypto.getRandomValues(data);
-  return Array.from(data, (v) => v.toString(16).padStart(2, "0")).join("");
+function fallbackInfoHash(title: string, link: string): string {
+  const source = `${title}|${link}`;
+  let hash = 0;
+
+  for (let index = 0; index < source.length; index += 1) {
+    hash = (hash * 31 + source.charCodeAt(index)) >>> 0;
+  }
+
+  const hex = hash.toString(16).padStart(8, "0");
+  return hex.repeat(5).slice(0, 40);
 }
 
 function normalizeHostname(hostname: string) {
@@ -582,36 +565,19 @@ function isPrivateIpv6Address(ip: ipaddr.IPv6): boolean {
 }
 
 const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(
-  function* (hostname: string) {
-    const resolveDns = getResolveDns();
-
-    if (!resolveDns) {
-      return [];
-    }
-
-    const aLookup = yield* Effect.tryPromise({
-      try: () => resolveDns(hostname, "A"),
-      catch: (cause) =>
-        new RssDnsLookupError({
-          cause,
-          hostname,
-          recordType: "A",
-        }),
-    }).pipe(Effect.either);
-
-    const aaaaLookup = yield* Effect.tryPromise({
-      try: () => resolveDns(hostname, "AAAA"),
-      catch: (cause) =>
-        new RssDnsLookupError({
-          cause,
-          hostname,
-          recordType: "AAAA",
-        }),
-    }).pipe(Effect.either);
+  function* (hostname: string, dns: typeof DnsResolver.Service) {
+    const [aLookup, aaaaLookup] = yield* Effect.all(
+      [
+        dns.resolve(hostname, "A").pipe(Effect.either),
+        dns.resolve(hostname, "AAAA").pipe(Effect.either),
+      ],
+      { concurrency: 2 },
+    );
 
     if (
       (Either.isLeft(aLookup) && !isDnsNoRecordError(aLookup.left.cause)) ||
-      (Either.isLeft(aaaaLookup) && !isDnsNoRecordError(aaaaLookup.left.cause))
+      (Either.isLeft(aaaaLookup) &&
+        !isDnsNoRecordError(aaaaLookup.left.cause))
     ) {
       return [];
     }
@@ -628,39 +594,3 @@ const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(
     return addresses;
   },
 );
-
-type ResolveDns = (name: string, type: "A" | "AAAA") => Promise<string[]>;
-
-function getResolveDns(): ResolveDns | undefined {
-  const denoResolver = (globalThis as {
-    Deno?: { resolveDns?: ResolveDns };
-  }).Deno?.resolveDns;
-
-  if (denoResolver) {
-    return denoResolver;
-  }
-
-  const globalResolver = (globalThis as {
-    resolveDns?: ResolveDns;
-  }).resolveDns;
-
-  return globalResolver;
-}
-
-function isDnsNoRecordError(cause: unknown): boolean {
-  if (!(cause instanceof Error)) {
-    return false;
-  }
-
-  const name = cause.name;
-  const code = (cause as { code?: unknown }).code;
-  const message = cause.message.toLowerCase();
-
-  return name === "NotFound" ||
-    code === "NotFound" ||
-    code === "ENOTFOUND" ||
-    code === "ENODATA" ||
-    message.includes("not found") ||
-    message.includes("enodata") ||
-    message.includes("enotfound");
-}

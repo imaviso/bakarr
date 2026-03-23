@@ -3,8 +3,12 @@ import {
   HttpClientRequest,
   HttpClientResponse,
 } from "@effect/platform";
-import { Context, Effect, Either, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 
+import {
+  AnimeDiscoveryEntrySchema,
+  AnimeSearchResultSchema,
+} from "../../../../../packages/shared/src/index.ts";
 import type {
   AnimeDiscoveryEntry,
   AnimeSearchResult,
@@ -14,39 +18,44 @@ import {
   tryExternalEffect,
 } from "../../lib/effect-retry.ts";
 
-export interface AnimeMetadata {
-  id: number;
-  malId?: number;
-  title: {
-    romaji: string;
-    english?: string;
-    native?: string;
-  };
-  format: string;
-  description?: string;
-  score?: number;
-  genres?: string[];
-  studios?: string[];
-  coverImage?: string;
-  bannerImage?: string;
-  status: string;
-  episodeCount?: number;
-  synonyms?: string[];
-  relatedAnime?: AnimeDiscoveryEntry[];
-  recommendedAnime?: AnimeDiscoveryEntry[];
-  startDate?: string;
-  endDate?: string;
-  startYear?: number;
-  endYear?: number;
-  nextAiringEpisode?: {
-    episode: number;
-    airingAt: string;
-  };
-  futureAiringSchedule?: ReadonlyArray<{
-    episode: number;
-    airingAt: string;
-  }>;
-}
+const AnimeMetadataTitleSchema = Schema.Struct({
+  english: Schema.optional(Schema.String),
+  native: Schema.optional(Schema.String),
+  romaji: Schema.String,
+});
+
+const AnimeMetadataAiringScheduleItemSchema = Schema.Struct({
+  airingAt: Schema.String,
+  episode: Schema.Number,
+});
+
+export const AnimeMetadataSchema = Schema.Struct({
+  bannerImage: Schema.optional(Schema.String),
+  coverImage: Schema.optional(Schema.String),
+  description: Schema.optional(Schema.String),
+  endDate: Schema.optional(Schema.String),
+  endYear: Schema.optional(Schema.Number),
+  episodeCount: Schema.optional(Schema.Number),
+  format: Schema.String,
+  futureAiringSchedule: Schema.optional(
+    Schema.Array(AnimeMetadataAiringScheduleItemSchema),
+  ),
+  genres: Schema.optional(Schema.Array(Schema.String)),
+  id: Schema.Number,
+  malId: Schema.optional(Schema.Number),
+  nextAiringEpisode: Schema.optional(AnimeMetadataAiringScheduleItemSchema),
+  recommendedAnime: Schema.optional(Schema.Array(AnimeDiscoveryEntrySchema)),
+  relatedAnime: Schema.optional(Schema.Array(AnimeDiscoveryEntrySchema)),
+  score: Schema.optional(Schema.Number),
+  startDate: Schema.optional(Schema.String),
+  startYear: Schema.optional(Schema.Number),
+  status: Schema.String,
+  studios: Schema.optional(Schema.Array(Schema.String)),
+  synonyms: Schema.optional(Schema.Array(Schema.String)),
+  title: AnimeMetadataTitleSchema,
+});
+
+export type AnimeMetadata = Schema.Schema.Type<typeof AnimeMetadataSchema>;
 
 interface AniListClientShape {
   readonly searchAnimeMetadata: (
@@ -406,6 +415,131 @@ class AniListDetailPayloadSchema
     data: AniListDetailDataSchema,
   }) {}
 
+const AnimeSearchResultFromAniListSchema = Schema.transform(
+  AniListSearchMediaSchema,
+  AnimeSearchResultSchema,
+  {
+    decode: (entry) => ({
+      already_in_library: false,
+      banner_image: entry.bannerImage ?? undefined,
+      cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ??
+        undefined,
+      description: entry.description ?? undefined,
+      end_date: toIsoDate(entry.endDate),
+      end_year: entry.endDate?.year ?? undefined,
+      episode_count: entry.episodes ?? undefined,
+      format: entry.format ?? undefined,
+      genres: entry.genres ? [...entry.genres] : undefined,
+      id: entry.id,
+      recommended_anime: normalizeRecommendations(entry.recommendations?.nodes),
+      related_anime: normalizeDiscoveryEntries(entry.relations?.edges),
+      season: deriveAnimeSeason(entry.startDate),
+      season_year: entry.startDate?.year ?? undefined,
+      start_date: toIsoDate(entry.startDate),
+      start_year: entry.startDate?.year ?? undefined,
+      status: entry.status ?? undefined,
+      synonyms: normalizeSynonyms(entry.synonyms),
+      title: {
+        english: entry.title?.english ?? undefined,
+        native: entry.title?.native ?? undefined,
+        romaji: entry.title?.romaji ?? undefined,
+      },
+    }),
+    encode: (entry) => ({
+      bannerImage: entry.banner_image,
+      coverImage: entry.cover_image
+        ? { extraLarge: entry.cover_image, large: entry.cover_image }
+        : undefined,
+      description: entry.description,
+      endDate: undefined,
+      episodes: entry.episode_count,
+      format: entry.format,
+      genres: entry.genres,
+      id: entry.id,
+      recommendations: undefined,
+      relations: undefined,
+      startDate: undefined,
+      status: entry.status,
+      synonyms: entry.synonyms,
+      title: {
+        english: entry.title.english,
+        native: entry.title.native,
+        romaji: entry.title.romaji,
+      },
+    }),
+  },
+);
+
+const AnimeMetadataFromAniListSchema = Schema.transform(
+  AniListDetailMediaSchema,
+  AnimeMetadataSchema,
+  {
+    decode: (media) => ({
+      bannerImage: media.bannerImage ?? undefined,
+      coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ??
+        undefined,
+      description: media.description ?? undefined,
+      endDate: toIsoDate(media.endDate),
+      endYear: media.endDate?.year ?? undefined,
+      episodeCount: media.episodes ?? undefined,
+      format: media.format ?? "TV",
+      futureAiringSchedule: normalizeFutureAiringSchedule(
+        media.airingSchedule?.nodes,
+      ),
+      genres: [...(media.genres ?? [])],
+      id: media.id,
+      malId: media.idMal ?? undefined,
+      nextAiringEpisode: toNextAiringEpisode(media.nextAiringEpisode),
+      recommendedAnime: normalizeRecommendations(media.recommendations?.nodes),
+      relatedAnime: normalizeDiscoveryEntries(media.relations?.edges),
+      score: media.averageScore ?? undefined,
+      startDate: toIsoDate(media.startDate),
+      startYear: media.startDate?.year ?? undefined,
+      status: media.status ?? "UNKNOWN",
+      studios: Array.isArray(media.studios?.nodes)
+        ? media.studios.nodes
+          .map((entry) => entry.name)
+          .filter((name): name is string =>
+            typeof name === "string" && name.length > 0
+          )
+        : [],
+      synonyms: normalizeSynonyms(media.synonyms),
+      title: {
+        english: media.title?.english ?? undefined,
+        native: media.title?.native ?? undefined,
+        romaji: media.title?.romaji ?? `Anime ${media.id}`,
+      },
+    }),
+    encode: (metadata) => ({
+      airingSchedule: undefined,
+      averageScore: metadata.score,
+      bannerImage: metadata.bannerImage,
+      coverImage: metadata.coverImage
+        ? { extraLarge: metadata.coverImage, large: metadata.coverImage }
+        : undefined,
+      description: metadata.description,
+      endDate: undefined,
+      episodes: metadata.episodeCount,
+      format: metadata.format,
+      genres: metadata.genres,
+      id: metadata.id,
+      idMal: metadata.malId,
+      nextAiringEpisode: undefined,
+      recommendations: undefined,
+      relations: undefined,
+      startDate: undefined,
+      status: metadata.status,
+      studios: undefined,
+      synonyms: metadata.synonyms,
+      title: {
+        english: metadata.title.english,
+        native: metadata.title.native,
+        romaji: metadata.title.romaji,
+      },
+    }),
+  },
+);
+
 export const AniListClientLive = Layer.effect(
   AniListClient,
   Effect.gen(function* () {
@@ -440,12 +574,18 @@ export const AniListClientLive = Layer.effect(
 
 const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
   function* (client: HttpClient.HttpClient, trimmed: string) {
-    const request = HttpClientRequest.post(ANILIST_URL).pipe(
-      HttpClientRequest.setHeader("Content-Type", "application/json"),
-      HttpClientRequest.bodyUnsafeJson({
+    const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
+      HttpClientRequest.bodyJson({
         query: SEARCH_ANIME_QUERY,
         variables: { search: trimmed },
       }),
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Failed to encode AniList search request body",
+          operation: "anilist.search.request",
+        })
+      ),
     );
     const response = yield* tryExternalEffect(
       "anilist.search",
@@ -462,49 +602,48 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
       });
     }
 
-    const payload = yield* decodeJsonResponse(
-      response,
-      "anilist.search.json",
+    const payload = yield* HttpClientResponse.schemaBodyJson(
       AniListSearchPayloadSchema,
+    )(response).pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "AniList search response decode failed",
+          operation: "anilist.search.json",
+        })
+      ),
     );
 
-    return payload.data.Page.media.map((entry) => ({
-      already_in_library: false,
-      banner_image: entry.bannerImage ?? undefined,
-      cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ??
-        undefined,
-      description: entry.description ?? undefined,
-      end_date: toIsoDate(entry.endDate),
-      end_year: entry.endDate?.year ?? undefined,
-      episode_count: entry.episodes ?? undefined,
-      format: entry.format ?? undefined,
-      genres: entry.genres ? [...entry.genres] : undefined,
-      id: entry.id,
-      recommended_anime: normalizeRecommendations(entry.recommendations?.nodes),
-      related_anime: normalizeDiscoveryEntries(entry.relations?.edges),
-      season: deriveAnimeSeason(entry.startDate),
-      season_year: entry.startDate?.year ?? undefined,
-      start_date: toIsoDate(entry.startDate),
-      start_year: entry.startDate?.year ?? undefined,
-      status: entry.status ?? undefined,
-      synonyms: normalizeSynonyms(entry.synonyms),
-      title: {
-        english: entry.title?.english ?? undefined,
-        native: entry.title?.native ?? undefined,
-        romaji: entry.title?.romaji ?? undefined,
-      },
-    }));
+    return yield* Effect.forEach(
+      payload.data.Page.media,
+      (entry) =>
+        Schema.decodeUnknown(AnimeSearchResultFromAniListSchema)(entry).pipe(
+          Effect.mapError((cause) =>
+            ExternalCallError.make({
+              cause,
+              message: "AniList search result normalization failed",
+              operation: "anilist.search.normalize",
+            })
+          ),
+        ),
+    );
   },
 );
 
 const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
   function* (client: HttpClient.HttpClient, id: number) {
-    const request = HttpClientRequest.post(ANILIST_URL).pipe(
-      HttpClientRequest.setHeader("Content-Type", "application/json"),
-      HttpClientRequest.bodyUnsafeJson({
+    const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
+      HttpClientRequest.bodyJson({
         query: DETAIL_ANIME_QUERY,
         variables: { id },
       }),
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Failed to encode AniList detail request body",
+          operation: "anilist.detail.request",
+        })
+      ),
     );
     const response = yield* tryExternalEffect(
       "anilist.detail",
@@ -521,10 +660,16 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
       });
     }
 
-    const payload = yield* decodeJsonResponse(
-      response,
-      "anilist.detail.json",
+    const payload = yield* HttpClientResponse.schemaBodyJson(
       AniListDetailPayloadSchema,
+    )(response).pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "AniList detail response decode failed",
+          operation: "anilist.detail.json",
+        })
+      ),
     );
     const media = payload.data.Media;
 
@@ -532,74 +677,18 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
       return null;
     }
 
-    return {
-      bannerImage: media.bannerImage ?? undefined,
-      coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ??
-        undefined,
-      description: media.description ?? undefined,
-      endDate: toIsoDate(media.endDate),
-      endYear: media.endDate?.year ?? undefined,
-      episodeCount: media.episodes ?? undefined,
-      format: media.format ?? "TV",
-      futureAiringSchedule: normalizeFutureAiringSchedule(
-        media.airingSchedule?.nodes,
-      ),
-      genres: [...(media.genres ?? [])],
-      id: media.id,
-      malId: media.idMal ?? undefined,
-      nextAiringEpisode: toNextAiringEpisode(media.nextAiringEpisode),
-      recommendedAnime: normalizeRecommendations(media.recommendations?.nodes),
-      relatedAnime: normalizeDiscoveryEntries(media.relations?.edges),
-      score: media.averageScore ?? undefined,
-      startDate: toIsoDate(media.startDate),
-      startYear: media.startDate?.year ?? undefined,
-      status: media.status ?? "UNKNOWN",
-      studios: Array.isArray(media.studios?.nodes)
-        ? media.studios.nodes
-          .map((entry) => entry.name)
-          .filter((name): name is string =>
-            typeof name === "string" && name.length > 0
-          )
-        : [],
-      synonyms: normalizeSynonyms(media.synonyms),
-      title: {
-        english: media.title?.english ?? undefined,
-        native: media.title?.native ?? undefined,
-        romaji: media.title?.romaji ?? `Anime ${id}`,
-      },
-    } satisfies AnimeMetadata;
+    return yield* Schema.decodeUnknown(AnimeMetadataFromAniListSchema)(media)
+      .pipe(
+        Effect.mapError((cause) =>
+          ExternalCallError.make({
+            cause,
+            message: "AniList detail normalization failed",
+            operation: "anilist.detail.normalize",
+          })
+        ),
+      );
   },
 );
-
-function decodeJsonResponse<A, I>(
-  response: HttpClientResponse.HttpClientResponse,
-  operation: string,
-  schema: Schema.Schema<A, I>,
-) {
-  return Effect.gen(function* () {
-    const payload = yield* response.json.pipe(
-      Effect.mapError((cause) =>
-        ExternalCallError.make({
-          cause,
-          message: "Failed to decode AniList JSON response",
-          operation,
-        })
-      ),
-    );
-
-    const decoded = Schema.decodeUnknownEither(schema)(payload);
-
-    if (Either.isLeft(decoded)) {
-      return yield* ExternalCallError.make({
-        cause: decoded.left,
-        message: "AniList response schema mismatch",
-        operation,
-      });
-    }
-
-    return decoded.right;
-  }).pipe(Effect.withSpan(`AniListClient.${operation}`));
-}
 
 function deriveAnimeSeason(
   date:

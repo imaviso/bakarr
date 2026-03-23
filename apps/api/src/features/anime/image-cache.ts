@@ -1,5 +1,7 @@
 import { HttpClient } from "@effect/platform";
-import { Effect, Schema, Stream } from "effect";
+import { Effect, Schema } from "effect";
+
+import { collectBoundedBytes } from "../../lib/bounded-stream.ts";
 
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 
@@ -10,15 +12,16 @@ export interface CachedAnimeImages {
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-class ImageCacheError extends Schema.TaggedError<ImageCacheError>()(
+export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()(
   "ImageCacheError",
   { cause: Schema.Defect, message: Schema.String },
 ) {}
 
-class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()(
-  "ImageTooLargeError",
-  { contentLength: Schema.optional(Schema.Number), maxBytes: Schema.Number },
-) {}
+export class ImageTooLargeError
+  extends Schema.TaggedError<ImageTooLargeError>()(
+    "ImageTooLargeError",
+    { contentLength: Schema.optional(Schema.Number), maxBytes: Schema.Number },
+  ) {}
 
 export const cacheAnimeMetadataImages = Effect.fn(
   "AnimeService.cacheAnimeMetadataImages",
@@ -46,7 +49,6 @@ export const cacheAnimeMetadataImages = Effect.fn(
         Effect.annotateLogs({ animeId, error }),
       )
     ),
-    Effect.catchAll(() => Effect.succeed(images.coverImage)),
   );
   const bannerImage = yield* cacheAnimeImage(
     fs,
@@ -61,7 +63,6 @@ export const cacheAnimeMetadataImages = Effect.fn(
         Effect.annotateLogs({ animeId, error }),
       )
     ),
-    Effect.catchAll(() => Effect.succeed(images.bannerImage)),
   );
 
   return { bannerImage, coverImage } satisfies CachedAnimeImages;
@@ -102,9 +103,7 @@ const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(
     animeId: number,
     kind: "banner" | "cover",
   ) {
-    const entries = yield* fs.readDir(baseDir).pipe(
-      Effect.catchAll(() => Effect.succeed([])),
-    );
+    const entries = yield* fs.readDir(baseDir);
 
     const existing = entries
       .filter((entry) => entry.isFile && entry.name.startsWith(`${kind}.`))
@@ -147,34 +146,15 @@ const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
     }
   }
 
-  const chunks: Uint8Array[] = [];
-  let totalBytes = 0;
-
-  yield* response.stream.pipe(
-    Stream.mapError((cause) =>
-      new ImageCacheError({ cause, message: "Failed to read image stream" })
-    ),
-    Stream.runForEach((chunk) => {
-      totalBytes += chunk.byteLength;
-      if (totalBytes > MAX_IMAGE_BYTES) {
-        return Effect.fail(
-          new ImageTooLargeError({
-            contentLength: undefined,
-            maxBytes: MAX_IMAGE_BYTES,
-          }),
-        );
-      }
-      chunks.push(chunk);
-      return Effect.void;
-    }),
-  );
-
-  const bytes = new Uint8Array(totalBytes);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  const bytes = yield* collectBoundedBytes(response.stream, MAX_IMAGE_BYTES)
+    .pipe(
+      Effect.mapError(() =>
+        new ImageTooLargeError({
+          contentLength: undefined,
+          maxBytes: MAX_IMAGE_BYTES,
+        })
+      ),
+    );
 
   const extension = inferImageExtension(
     url,
