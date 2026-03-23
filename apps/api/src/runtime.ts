@@ -1,4 +1,4 @@
-import { FetchHttpClient } from "@effect/platform";
+import { CommandExecutor, FetchHttpClient } from "@effect/platform";
 import { NodeContext } from "@effect/platform-node";
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
 
@@ -25,12 +25,16 @@ import {
 } from "./features/operations/seadex-client.ts";
 import { OperationsServiceLive } from "./features/operations/service.ts";
 import { SystemServiceLive } from "./features/system/service.ts";
+import { DnsResolverLive } from "./lib/dns-resolver.ts";
 import { FileSystemLive } from "./lib/filesystem.ts";
+import { ClockServiceLive } from "./lib/clock.ts";
 import { MediaProbeLive } from "./lib/media-probe.ts";
 import { RuntimeLoggerLayer } from "./lib/logging.ts";
+import { RandomServiceLive } from "./lib/random.ts";
 
 export interface RuntimeOptions {
   aniListLayer?: Layer.Layer<AniListClient>;
+  commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor>;
   configProvider?: ConfigProvider.ConfigProvider;
   qbitLayer?: Layer.Layer<QBitTorrentClient>;
   rssLayer?: Layer.Layer<RssClient>;
@@ -46,20 +50,21 @@ export function makeApiLayer(
       Layer.provide(Layer.setConfigProvider(options.configProvider)),
     )
     : AppConfig.layer(overrides);
-  const runtimeLayer = AppRuntime.layer();
+  const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(ClockServiceLive));
   const httpClientLayer = FetchHttpClient.layer;
   const databaseLayer = DatabaseLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
   const eventPublisherLayer = EventPublisherLive.pipe(
-    Layer.provide(eventBusLayer),
+    Layer.provide(Layer.mergeAll(eventBusLayer, ClockServiceLive)),
   );
   const backgroundMonitorLayer = BackgroundWorkerMonitorLive;
   const aniListLayer = options?.aniListLayer
     ? options.aniListLayer
     : AniListClientLive.pipe(Layer.provide(httpClientLayer));
-  const rssLayer = options?.rssLayer
-    ? options.rssLayer
-    : RssClientLive.pipe(Layer.provide(httpClientLayer));
+  const dnsLayer = DnsResolverLive;
+  const rssLayer = options?.rssLayer ? options.rssLayer : RssClientLive.pipe(
+    Layer.provide(Layer.mergeAll(httpClientLayer, dnsLayer)),
+  );
   const qbitLayer = options?.qbitLayer
     ? options.qbitLayer
     : QBitTorrentClientLive.pipe(Layer.provide(httpClientLayer));
@@ -72,7 +77,7 @@ export function makeApiLayer(
     qbitLayer,
     seadexLayer,
   ).pipe(Layer.provide(httpClientLayer));
-  const platformLayer = Layer.mergeAll(
+  const basePlatformLayer = Layer.mergeAll(
     NodeContext.layer,
     configLayer,
     runtimeLayer,
@@ -83,9 +88,14 @@ export function makeApiLayer(
     eventPublisherLayer,
     backgroundMonitorLayer,
     externalClientsLayer,
+    ClockServiceLive,
     FileSystemLive,
     MediaProbeLive,
+    RandomServiceLive,
   );
+  const platformLayer = options?.commandExecutorLayer
+    ? Layer.mergeAll(basePlatformLayer, options.commandExecutorLayer)
+    : basePlatformLayer;
   const operationsLayer = OperationsServiceLive.pipe(
     Layer.provide(platformLayer),
   );

@@ -1,19 +1,32 @@
-import { Effect, Ref } from "effect";
+import { Effect } from "effect";
 
 import type { DatabaseError } from "../../db/database.ts";
 import {
   makeCoalescedEffectRunner,
   makeLatestValuePublisher,
+  makeSerializedFlagCoordinator,
 } from "../../lib/effect-coalescing.ts";
 import { EventBus } from "../events/event-bus.ts";
+
+export interface OperationsCoordinationShape {
+  readonly finishUnmappedScan: () => Effect.Effect<void>;
+  readonly runSerializedTrigger: <A, E, R>(
+    effect: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>;
+  readonly tryStartUnmappedScan: () => Effect.Effect<boolean>;
+}
 
 export const makeOperationsSharedState = Effect.fn(
   "OperationsService.makeSharedState",
 )(function* () {
-  const triggerSemaphore = yield* Effect.makeSemaphore(1);
-  const unmappedScanRunning = yield* Ref.make(false);
+  const coordinator = yield* makeSerializedFlagCoordinator();
 
-  return { triggerSemaphore, unmappedScanRunning };
+  return {
+    finishUnmappedScan: () => coordinator.finish,
+    runSerializedTrigger: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+      coordinator.runSerialized(effect),
+    tryStartUnmappedScan: () => coordinator.tryStart,
+  } satisfies OperationsCoordinationShape;
 });
 
 export const makeOperationsProgressPublishers = Effect.fn(
@@ -38,6 +51,13 @@ export const makeOperationsProgressPublishers = Effect.fn(
         type: "RssCheckProgress",
         payload,
       }),
+  );
+
+  yield* Effect.addFinalizer(() =>
+    Effect.all([
+      libraryScanProgressPublisher.shutdown,
+      rssCheckProgressPublisher.shutdown,
+    ], { concurrency: "unbounded", discard: true })
   );
 
   return {

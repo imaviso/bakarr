@@ -1,4 +1,4 @@
-import { Deferred, Effect, Exit, Ref, Scope } from "effect";
+import { Deferred, Effect, Exit, Option, Ref, Scope } from "effect";
 
 export interface CoalescedEffectRunner<E, R = never> {
   readonly trigger: Effect.Effect<void, E, R>;
@@ -8,6 +8,22 @@ export interface LatestValuePublisher<A, E, R = never> {
   readonly flush: Effect.Effect<void, E>;
   readonly offer: (value: A) => Effect.Effect<void, never, R>;
   readonly shutdown: Effect.Effect<void>;
+}
+
+export interface SingleFlightEffectRunner<A, E, R = never> {
+  readonly trigger: Effect.Effect<A, E, R>;
+}
+
+export interface SkippingSerializedEffectRunner<A, E, R = never> {
+  readonly trigger: Effect.Effect<Option.Option<A>, E, R>;
+}
+
+export interface SerializedFlagCoordinator {
+  readonly finish: Effect.Effect<void>;
+  readonly runSerialized: <A, E, R>(
+    effect: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>;
+  readonly tryStart: Effect.Effect<boolean>;
 }
 
 export function makeCoalescedEffectRunner<E, R>(
@@ -244,5 +260,114 @@ export function makeLatestValuePublisher<A, E, R>(
     const shutdown = Scope.close(scope, Exit.succeed(void 0));
 
     return { flush, offer, shutdown } satisfies LatestValuePublisher<A, E, R>;
+  });
+}
+
+export function makeSingleFlightEffectRunner<A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<SingleFlightEffectRunner<A, E, R>, never, R> {
+  return Effect.gen(function* () {
+    const currentRunRef = yield* Ref.make<Deferred.Deferred<A, E> | null>(null);
+    const stateSemaphore = yield* Effect.makeSemaphore(1);
+
+    const clearCurrentRun = stateSemaphore.withPermits(1)(
+      Ref.set(currentRunRef, null),
+    );
+
+    const trigger = Effect.gen(function* () {
+      const current = yield* stateSemaphore.withPermits(1)(
+        Ref.get(currentRunRef),
+      );
+
+      if (current !== null) {
+        return yield* Deferred.await(current);
+      }
+
+      const deferred = yield* Deferred.make<A, E>();
+      const started = yield* stateSemaphore.withPermits(1)(
+        Effect.gen(function* () {
+          const existing = yield* Ref.get(currentRunRef);
+
+          if (existing !== null) {
+            return existing;
+          }
+
+          yield* Ref.set(currentRunRef, deferred);
+          return deferred;
+        }),
+      );
+
+      if (started !== deferred) {
+        return yield* Deferred.await(started);
+      }
+
+      const exit = yield* Effect.exit(effect);
+      yield* clearCurrentRun;
+
+      if (exit._tag === "Success") {
+        yield* Deferred.succeed(deferred, exit.value);
+      } else {
+        yield* Deferred.failCause(deferred, exit.cause);
+      }
+
+      return yield* Deferred.await(deferred);
+    });
+
+    return { trigger } satisfies SingleFlightEffectRunner<A, E, R>;
+  });
+}
+
+export function makeSkippingSerializedEffectRunner<A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<SkippingSerializedEffectRunner<A, E, R>, never, R> {
+  return Effect.gen(function* () {
+    const semaphore = yield* Effect.makeSemaphore(1);
+    const runningRef = yield* Ref.make(false);
+
+    const trigger = Effect.gen(function* () {
+      const shouldRun = yield* semaphore.withPermits(1)(
+        Effect.gen(function* () {
+          const running = yield* Ref.get(runningRef);
+
+          if (running) {
+            return false;
+          }
+
+          yield* Ref.set(runningRef, true);
+          return true;
+        }),
+      );
+
+      if (!shouldRun) {
+        return Option.none<A>();
+      }
+
+      const exit = yield* Effect.exit(effect);
+      yield* semaphore.withPermits(1)(Ref.set(runningRef, false));
+
+      if (exit._tag === "Failure") {
+        return yield* Effect.failCause(exit.cause);
+      }
+
+      return Option.some(exit.value);
+    });
+
+    return { trigger } satisfies SkippingSerializedEffectRunner<A, E, R>;
+  });
+}
+
+export function makeSerializedFlagCoordinator(): Effect.Effect<
+  SerializedFlagCoordinator
+> {
+  return Effect.gen(function* () {
+    const semaphore = yield* Effect.makeSemaphore(1);
+    const runningRef = yield* Ref.make(false);
+
+    return {
+      finish: Ref.set(runningRef, false),
+      runSerialized: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+        semaphore.withPermits(1)(effect),
+      tryStart: Ref.modify(runningRef, (running) => [running, true] as const),
+    } satisfies SerializedFlagCoordinator;
   });
 }
