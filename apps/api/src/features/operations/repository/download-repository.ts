@@ -1,5 +1,5 @@
 import { and, inArray, sql } from "drizzle-orm";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 
 import type {
   Download,
@@ -161,19 +161,9 @@ export function decodeDownloadSourceMetadata(
     value,
   );
 
-  if (decoded._tag === "Left") {
-    Effect.runFork(
-      Effect.logWarning("Failed to decode download source metadata").pipe(
-        Effect.annotateLogs({
-          error: String(decoded.left),
-          field: "sourceMetadata",
-        }),
-      ),
-    );
-    return undefined;
-  }
-
-  return cloneDownloadSourceMetadata(decoded.right);
+  return decoded._tag === "Right"
+    ? cloneDownloadSourceMetadata(decoded.right)
+    : undefined;
 }
 
 function cloneDownloadSourceMetadata(
@@ -245,19 +235,7 @@ export function decodeDownloadEventMetadata(
     value,
   );
 
-  if (decoded._tag === "Left") {
-    Effect.runFork(
-      Effect.logWarning("Failed to decode download event metadata").pipe(
-        Effect.annotateLogs({
-          error: String(decoded.left),
-          field: "metadata",
-        }),
-      ),
-    );
-    return undefined;
-  }
-
-  return decoded.right;
+  return decoded._tag === "Right" ? decoded.right : undefined;
 }
 
 export async function loadDownloadPresentationContexts(

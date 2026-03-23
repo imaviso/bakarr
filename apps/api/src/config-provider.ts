@@ -1,4 +1,6 @@
+import { FileSystem } from "@effect/platform";
 import { ConfigProvider, Effect, Option, Schema } from "effect";
+import { isSystemNotFoundError } from "./lib/fs-errors.ts";
 
 const DEFAULT_DOTENV_PATH = ".env";
 
@@ -32,7 +34,7 @@ export const makeDotenvConfigProvider = Effect.fn(
   ): Effect.Effect<
     ConfigProvider.ConfigProvider,
     DotenvReadError | DotenvParseError,
-    never
+    FileSystem.FileSystem
   > =>
     Effect.gen(function* () {
       const dotenvPath = options.path ?? DEFAULT_DOTENV_PATH;
@@ -63,25 +65,54 @@ export const makeDotenvConfigProvider = Effect.fn(
 const readDotenvFile = Effect.fn("Config.readDotenvFile")(
   (
     path: string,
-  ): Effect.Effect<Option.Option<string>, DotenvReadError, never> =>
-    Effect.tryPromise({
-      try: () => Deno.readTextFile(path),
+  ): Effect.Effect<
+    Option.Option<string>,
+    DotenvReadError,
+    FileSystem.FileSystem
+  > =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      return yield* fs.readFile(path).pipe(
+        Effect.flatMap((bytes) => decodeDotenvBytes(path, bytes)),
+        Effect.map(Option.some),
+        Effect.catchTags({
+          SystemError: (error) =>
+            isSystemNotFoundError(error)
+              ? Effect.succeed(Option.none<string>())
+              : Effect.fail(
+                new DotenvReadError({
+                  cause: error,
+                  message: `Failed to read dotenv file: ${path}`,
+                  path,
+                }),
+              ),
+          BadArgument: (error) =>
+            Effect.fail(
+              new DotenvReadError({
+                cause: error,
+                message: `Invalid path for dotenv file: ${path}`,
+                path,
+              }),
+            ),
+        }),
+      );
+    }),
+);
+
+const decodeDotenvBytes = Effect.fn("Config.decodeDotenvBytes")(
+  (
+    path: string,
+    bytes: Uint8Array,
+  ): Effect.Effect<string, DotenvReadError, never> =>
+    Effect.try({
+      try: () => new TextDecoder().decode(bytes),
       catch: (cause) =>
         new DotenvReadError({
           cause,
-          message: `Failed to read dotenv file: ${path}`,
+          message: `Failed to decode dotenv file: ${path}`,
           path,
         }),
-    }).pipe(
-      Effect.map(Option.some),
-      Effect.catchTag(
-        "DotenvReadError",
-        (error) =>
-          isNotFoundError(error.cause)
-            ? Effect.succeed(Option.none())
-            : Effect.fail(error),
-      ),
-    ),
+    }),
 );
 
 const DOTENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -187,14 +218,4 @@ function parseDotenvValue(
   const value = commentIndex >= 0 ? input.slice(0, commentIndex) : input;
 
   return Effect.succeed(value.trimEnd());
-}
-
-function isNotFoundError(cause: unknown) {
-  if (!(cause instanceof Error)) {
-    return false;
-  }
-
-  const code = (cause as { code?: unknown }).code;
-
-  return cause.name === "NotFound" || code === "ENOENT";
 }

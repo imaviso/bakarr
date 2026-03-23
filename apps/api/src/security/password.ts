@@ -1,4 +1,5 @@
 import { Effect, Schema } from "effect";
+import { randomBytes } from "../lib/random.ts";
 
 const PASSWORD_SCHEME = "pbkdf2_sha256";
 const ITERATIONS = 310_000;
@@ -8,12 +9,6 @@ export class PasswordError extends Schema.TaggedError<PasswordError>()(
   "PasswordError",
   { message: Schema.String },
 ) {}
-
-function randomBytes(length: number): Uint8Array {
-  const bytes = new Uint8Array(length);
-  crypto.getRandomValues(bytes);
-  return bytes;
-}
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(bytes.length);
@@ -100,7 +95,7 @@ const deriveBits = Effect.fn("Password.deriveBits")(
 
 export const hashPassword = Effect.fn("Password.hash")(
   function* (password: string) {
-    const salt = randomBytes(16);
+    const salt = yield* randomBytes(16);
     const keyMaterial = yield* deriveKeyMaterial(password);
     const hash = yield* deriveBits(
       keyMaterial,

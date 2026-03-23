@@ -6,13 +6,17 @@ const FFPROBE_PROBE_TIMEOUT_MS = 10_000;
 
 export const FFPROBE_CONCURRENCY_LIMIT = 2;
 
-export interface ProbedMediaMetadata {
-  readonly duration_seconds?: number;
-  readonly resolution?: string;
-  readonly video_codec?: string;
-  readonly audio_codec?: string;
-  readonly audio_channels?: string;
-}
+export const ProbedMediaMetadataSchema = Schema.Struct({
+  audio_channels: Schema.optional(Schema.String),
+  audio_codec: Schema.optional(Schema.String),
+  duration_seconds: Schema.optional(Schema.Number),
+  resolution: Schema.optional(Schema.String),
+  video_codec: Schema.optional(Schema.String),
+});
+
+export type ProbedMediaMetadata = Schema.Schema.Type<
+  typeof ProbedMediaMetadataSchema
+>;
 
 class FFProbeError extends Schema.TaggedError<FFProbeError>()(
   "FFProbeError",
@@ -42,7 +46,191 @@ class FFProbeOutputSchema
   }) {}
 const FFProbeOutputJsonSchema = Schema.parseJson(FFProbeOutputSchema);
 
-type FFProbeOutput = Schema.Schema.Type<typeof FFProbeOutputSchema>;
+const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
+  FFProbeOutputSchema,
+  Schema.NullOr(ProbedMediaMetadataSchema),
+  {
+    decode: (output) => {
+      const normalizeResolution = (stream?: {
+        width?: number;
+        height?: number;
+      }) => {
+        const height = stream?.height ?? stream?.width;
+
+        if (!height) {
+          return undefined;
+        }
+
+        if (height >= 2160) return "2160p";
+        if (height >= 1440) return "1440p";
+        if (height >= 1080) return "1080p";
+        if (height >= 720) return "720p";
+        if (height >= 480) return "480p";
+
+        return `${height}p`;
+      };
+
+      const normalizeVideoCodec = (codec?: string) => {
+        const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+        switch (normalized) {
+          case "h264":
+          case "avc":
+          case "avc1":
+          case "x264":
+            return "AVC";
+          case "h265":
+          case "hevc":
+          case "x265":
+            return "HEVC";
+          case "av1":
+            return "AV1";
+          case "vp9":
+            return "VP9";
+          case "mpeg2video":
+            return "MPEG-2";
+          case "vc1":
+            return "VC-1";
+          default:
+            return codec?.toUpperCase();
+        }
+      };
+
+      const normalizeAudioCodec = (codec?: string) => {
+        const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+        switch (normalized) {
+          case "aac":
+            return "AAC";
+          case "ac3":
+            return "AC3";
+          case "eac3":
+            return "E-AC3";
+          case "flac":
+            return "FLAC";
+          case "mp3":
+            return "MP3";
+          case "opus":
+            return "Opus";
+          case "vorbis":
+            return "Vorbis";
+          case "truehd":
+            return "TrueHD";
+          case "dts":
+          case "dtshdma":
+            return "DTS";
+          case "pcm":
+          case "pcms16le":
+          case "pcms24le":
+            return "PCM";
+          default:
+            return codec?.toUpperCase();
+        }
+      };
+
+      const normalizeAudioChannels = (input: {
+        channels?: number;
+        channel_layout?: string;
+      }) => {
+        const layout = input.channel_layout?.toLowerCase();
+
+        if (layout === "mono") return "1.0";
+        if (layout === "stereo") return "2.0";
+        if (layout === "2.1") return "2.1";
+        if (layout === "5.1") return "5.1";
+        if (layout === "7.1") return "7.1";
+
+        switch (input.channels) {
+          case 1:
+            return "1.0";
+          case 2:
+            return "2.0";
+          case 3:
+            return "3.0";
+          case 4:
+            return "4.0";
+          case 5:
+            return "5.0";
+          case 6:
+            return "5.1";
+          case 8:
+            return "7.1";
+          default:
+            return input.channels ? `${input.channels}.0` : undefined;
+        }
+      };
+
+      const normalizeDurationSeconds = (value?: string) => {
+        if (!value) {
+          return undefined;
+        }
+
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+          return undefined;
+        }
+
+        return Math.round(parsed);
+      };
+
+      const streams = output.streams;
+      const videoStream = streams.find((s) => s.codec_type === "video");
+      const audioStream = streams.find((s) => s.codec_type === "audio");
+      const format = output.format;
+
+      const metadata = {
+        duration_seconds: normalizeDurationSeconds(
+          videoStream?.duration ?? format?.duration,
+        ),
+        resolution: normalizeResolution(videoStream),
+        video_codec: normalizeVideoCodec(videoStream?.codec_name),
+        audio_codec: normalizeAudioCodec(audioStream?.codec_name),
+        audio_channels: normalizeAudioChannels({
+          channels: audioStream?.channels,
+          channel_layout: audioStream?.channel_layout,
+        }),
+      } satisfies ProbedMediaMetadata;
+
+      return metadata.duration_seconds || metadata.resolution ||
+          metadata.video_codec ||
+          metadata.audio_codec || metadata.audio_channels
+        ? metadata
+        : null;
+    },
+    encode: (metadata) =>
+      metadata === null ? { streams: [] } : {
+        format: metadata.duration_seconds
+          ? { duration: String(metadata.duration_seconds) }
+          : undefined,
+        streams: [
+          {
+            channel_layout: metadata.audio_channels,
+            channels: undefined,
+            codec_name: metadata.audio_codec,
+            codec_type: "audio",
+            duration: metadata.duration_seconds
+              ? String(metadata.duration_seconds)
+              : undefined,
+            height: undefined,
+            width: undefined,
+          },
+          {
+            channel_layout: undefined,
+            channels: undefined,
+            codec_name: metadata.video_codec,
+            codec_type: "video",
+            duration: metadata.duration_seconds
+              ? String(metadata.duration_seconds)
+              : undefined,
+            height: metadata.resolution
+              ? Number.parseInt(metadata.resolution, 10)
+              : undefined,
+            width: undefined,
+          },
+        ],
+      },
+  },
+);
 
 export interface MediaProbeShape {
   readonly probeVideoFile: (
@@ -99,168 +287,24 @@ export function mergeProbedMediaMetadata<
   };
 }
 
-function normalizeResolution(stream?: {
-  width?: number;
-  height?: number;
-}) {
-  const height = stream?.height ?? stream?.width;
-
-  if (!height) {
-    return undefined;
-  }
-
-  if (height >= 2160) return "2160p";
-  if (height >= 1440) return "1440p";
-  if (height >= 1080) return "1080p";
-  if (height >= 720) return "720p";
-  if (height >= 480) return "480p";
-
-  return `${height}p`;
-}
-
-function normalizeVideoCodec(codec?: string) {
-  const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
-
-  switch (normalized) {
-    case "h264":
-    case "avc":
-    case "avc1":
-    case "x264":
-      return "AVC";
-    case "h265":
-    case "hevc":
-    case "x265":
-      return "HEVC";
-    case "av1":
-      return "AV1";
-    case "vp9":
-      return "VP9";
-    case "mpeg2video":
-      return "MPEG-2";
-    case "vc1":
-      return "VC-1";
-    default:
-      return codec?.toUpperCase();
-  }
-}
-
-function normalizeAudioCodec(codec?: string) {
-  const normalized = codec?.toLowerCase().replace(/[^a-z0-9]+/g, "");
-
-  switch (normalized) {
-    case "aac":
-      return "AAC";
-    case "ac3":
-      return "AC3";
-    case "eac3":
-      return "E-AC3";
-    case "flac":
-      return "FLAC";
-    case "mp3":
-      return "MP3";
-    case "opus":
-      return "Opus";
-    case "vorbis":
-      return "Vorbis";
-    case "truehd":
-      return "TrueHD";
-    case "dts":
-    case "dtshdma":
-      return "DTS";
-    case "pcm":
-    case "pcms16le":
-    case "pcms24le":
-      return "PCM";
-    default:
-      return codec?.toUpperCase();
-  }
-}
-
-function normalizeAudioChannels(input: {
-  channels?: number;
-  channel_layout?: string;
-}) {
-  const layout = input.channel_layout?.toLowerCase();
-
-  if (layout === "mono") return "1.0";
-  if (layout === "stereo") return "2.0";
-  if (layout === "2.1") return "2.1";
-  if (layout === "5.1") return "5.1";
-  if (layout === "7.1") return "7.1";
-
-  switch (input.channels) {
-    case 1:
-      return "1.0";
-    case 2:
-      return "2.0";
-    case 3:
-      return "3.0";
-    case 4:
-      return "4.0";
-    case 5:
-      return "5.0";
-    case 6:
-      return "5.1";
-    case 8:
-      return "7.1";
-    default:
-      return input.channels ? `${input.channels}.0` : undefined;
-  }
-}
-
-function normalizeDurationSeconds(value?: string) {
-  if (!value) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return undefined;
-  }
-
-  return Math.round(parsed);
-}
-
 export function parseFfprobeJson(
   json: string,
 ): ProbedMediaMetadata | undefined {
   const decoded = Schema.decodeUnknownEither(FFProbeOutputJsonSchema)(json);
   return decoded._tag === "Left"
     ? undefined
-    : parseFFProbeOutput(decoded.right);
+    : Schema.decodeSync(ProbedMediaMetadataFromFFProbeOutputSchema)(
+      decoded.right,
+    ) ?? undefined;
 }
 
-function parseFFProbeOutput(
-  output: FFProbeOutput,
-): ProbedMediaMetadata | undefined {
-  const streams = output.streams;
-  const videoStream = streams.find((s) => s.codec_type === "video");
-  const audioStream = streams.find((s) => s.codec_type === "audio");
-  const format = output.format;
+export const MediaProbeCommandOutputSchema = Schema.Struct({
+  stdout: Schema.String,
+});
 
-  const metadata: ProbedMediaMetadata = {
-    duration_seconds: normalizeDurationSeconds(
-      videoStream?.duration ?? format?.duration,
-    ),
-    resolution: normalizeResolution(videoStream),
-    video_codec: normalizeVideoCodec(videoStream?.codec_name),
-    audio_codec: normalizeAudioCodec(audioStream?.codec_name),
-    audio_channels: normalizeAudioChannels({
-      channels: audioStream?.channels,
-      channel_layout: audioStream?.channel_layout,
-    }),
-  };
-
-  return metadata.duration_seconds || metadata.resolution ||
-      metadata.video_codec ||
-      metadata.audio_codec || metadata.audio_channels
-    ? metadata
-    : undefined;
-}
-
-export interface MediaProbeCommandOutput {
-  readonly stdout: string;
-}
+export type MediaProbeCommandOutput = Schema.Schema.Type<
+  typeof MediaProbeCommandOutputSchema
+>;
 
 function runFfprobeCommand(
   args: readonly string[],
@@ -385,7 +429,15 @@ const makeMediaProbe = (
         return undefined;
       }
 
-      return parseFFProbeOutput(decoded.right);
+      const normalized = yield* Effect.either(
+        Schema.decodeUnknown(ProbedMediaMetadataFromFFProbeOutputSchema)(
+          decoded.right,
+        ),
+      );
+
+      return normalized._tag === "Left"
+        ? undefined
+        : normalized.right ?? undefined;
     },
   );
 

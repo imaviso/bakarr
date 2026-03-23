@@ -3,6 +3,7 @@ import { type Client, createClient } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 
 import { AppConfig } from "../config.ts";
+import { isSqliteBusyLock, isSqliteUniqueConstraint } from "./sqlite-errors.ts";
 import * as schema from "./schema.ts";
 
 export type AppDatabase = LibSQLDatabase<typeof schema>;
@@ -15,64 +16,17 @@ export class DatabaseError extends Schema.TaggedError<DatabaseError>()(
   },
 ) {
   isUniqueConstraint(): boolean {
-    return someCauseInChain(this.cause, (error) => {
-      const code = typeof error.code === "string"
-        ? error.code
-        : String(error.code ?? error.errno ?? "");
-      const message = String(error.message ?? "");
-      return code === "SQLITE_CONSTRAINT" ||
-        code === "SQLITE_CONSTRAINT_UNIQUE" ||
-        code === "2067" ||
-        code === "19" ||
-        code.includes("UNIQUE constraint failed") ||
-        message.includes("UNIQUE constraint failed");
-    });
+    return isSqliteUniqueConstraint(this.cause);
   }
 
   isBusyLock(): boolean {
-    return someCauseInChain(this.cause, (error) => {
-      const code = typeof error.code === "string"
-        ? error.code
-        : String(error.code ?? error.errno ?? "");
-      const message = String(error.message ?? "");
-      return code === "SQLITE_BUSY" || code === "5" ||
-        message.includes("database is locked");
-    });
+    return isSqliteBusyLock(this.cause);
   }
 }
 
-function someCauseInChain(
-  cause: unknown,
-  predicate: (error: {
-    code?: string | number;
-    errno?: number;
-    message?: string;
-  }) => boolean,
-): boolean {
-  const seen = new Set<unknown>();
-  let current: unknown = cause;
-
-  while (current && typeof current === "object" && !seen.has(current)) {
-    seen.add(current);
-
-    if (
-      predicate(
-        current as {
-          code?: string | number;
-          errno?: number;
-          message?: string;
-        },
-      )
-    ) {
-      return true;
-    }
-
-    current = "cause" in current
-      ? (current as { cause?: unknown }).cause
-      : undefined;
-  }
-
-  return false;
+/** Check if a raw error cause represents an SQLite busy/lock condition. */
+export function isBusySqliteCause(cause: unknown): boolean {
+  return isSqliteBusyLock(cause);
 }
 
 export interface DatabaseService {
