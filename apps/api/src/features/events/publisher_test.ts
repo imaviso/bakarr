@@ -1,6 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { Deferred, Effect, Fiber, Ref, TestClock } from "effect";
 
+import { ClockServiceLive } from "../../lib/clock.ts";
 import { runTestEffect } from "../../test/effect-test.ts";
 import { makeEventPublisher } from "./publisher.ts";
 
@@ -30,7 +31,7 @@ Deno.test("event publisher coalesces rapid info messages to the newest message",
       yield* publisher.shutdown;
 
       return yield* Ref.get(state);
-    }),
+    }).pipe(Effect.provide(ClockServiceLive)),
   );
 
   assertEquals(published, ["three"]);

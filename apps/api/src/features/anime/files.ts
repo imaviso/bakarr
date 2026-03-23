@@ -1,5 +1,6 @@
 import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
 import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
+import { isNotFoundError } from "../../lib/fs-errors.ts";
 import { Effect } from "effect";
 import {
   classifyMediaArtifact,
@@ -88,13 +89,4 @@ function isVideoFile(name: string) {
   return [".mkv", ".mp4", ".avi", ".mov", ".webm"].some((extension) =>
     name.toLowerCase().endsWith(extension)
   );
-}
-
-function isNotFoundError(error: { cause?: unknown }): boolean {
-  const cause = error.cause;
-  if (cause instanceof Error && "code" in cause) {
-    return (cause as { code?: string }).code === "ENOENT" ||
-      (cause as { code?: string }).code === "NotFound";
-  }
-  return false;
 }

@@ -3,6 +3,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
+import { makeSingleFlightEffectRunner } from "../../lib/effect-coalescing.ts";
 import { anime } from "../../db/schema.ts";
 import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
 export { tryDatabasePromise } from "../../lib/effect-db.ts";
@@ -17,6 +18,8 @@ import {
   appendAnimeLogEffect,
   requireAnimeExistsEffect,
 } from "./repository.ts";
+import { AniListClient } from "./anilist.ts";
+import { refreshMetadataForMonitoredAnimeEffect } from "./orchestration-support.ts";
 
 export function wrapAnimeError(message: string) {
   return (cause: unknown) => {
@@ -62,3 +65,14 @@ export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(
     yield* eventPublisher.publishInfo(message);
   },
 );
+
+export const makeMetadataRefreshRunner = Effect.fn(
+  "AnimeService.makeMetadataRefreshRunner",
+)(function* (input: {
+  aniList: typeof AniListClient.Service;
+  db: AppDatabase;
+}) {
+  return yield* makeSingleFlightEffectRunner(
+    refreshMetadataForMonitoredAnimeEffect(input),
+  );
+});

@@ -1,6 +1,7 @@
-import { Clock, Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
+import { ClockService } from "../../lib/clock.ts";
 import {
   type LatestValuePublisher,
   makeLatestValuePublisher,
@@ -37,6 +38,7 @@ export function makeEventPublisher(options?: {
 
   return Effect.gen(function* () {
     const publish = options?.publish ?? (yield* EventBus).publish;
+    const clock = yield* ClockService;
     const infoPublisher: LatestValuePublisher<
       CoalescedInfoEvent,
       never,
@@ -45,7 +47,7 @@ export function makeEventPublisher(options?: {
       value,
     ) =>
       Effect.gen(function* () {
-        const now = yield* Clock.currentTimeMillis;
+        const now = yield* clock.currentTimeMillis;
         const remainingMs = value.emitAt - now;
 
         if (remainingMs > 0) {
@@ -60,7 +62,7 @@ export function makeEventPublisher(options?: {
       publish,
       publishInfo: (message: string) =>
         Effect.gen(function* () {
-          const now = yield* Clock.currentTimeMillis;
+          const now = yield* clock.currentTimeMillis;
 
           yield* infoPublisher.offer({
             emitAt: now + infoEventToastWindowMs,

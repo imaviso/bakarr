@@ -6,6 +6,8 @@ import { encodeNumberList, encodeStringList } from "../system/config-codec.ts";
 import { ProfileNotFoundError } from "../system/errors.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
+import { nowIso } from "../../lib/clock.ts";
+import { ExternalCallError } from "../../lib/effect-retry.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import type { AniListClient } from "./anilist.ts";
@@ -123,16 +125,19 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
         coverImage: metadata.coverImage,
       },
     ).pipe(
-      Effect.catchAllCause(() =>
-        Effect.succeed({
-          bannerImage: metadata.bannerImage,
-          coverImage: metadata.coverImage,
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Failed to cache anime metadata images",
+          operation: "anime.image-cache",
         })
       ),
     );
 
+    const createdAt = yield* nowIso;
+
     const animeRow = {
-      addedAt: new Date().toISOString(),
+      addedAt: createdAt,
       bannerImage: cachedImages.bannerImage ?? null,
       coverImage: cachedImages.coverImage ?? null,
       description: metadata.description ?? null,
@@ -168,6 +173,7 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
       endDate: metadata.endDate ?? undefined,
       existingRows: [],
       futureAiringSchedule: metadata.futureAiringSchedule,
+      nowIso: createdAt,
       resetMissingOnly: true,
       startDate: metadata.startDate ?? undefined,
       status: metadata.status,
@@ -177,7 +183,7 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(
       animeRow,
       episodeRows,
       log: {
-        createdAt: new Date().toISOString(),
+        createdAt,
         details: null,
         eventType: "anime.created",
         level: "success",

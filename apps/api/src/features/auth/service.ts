@@ -113,7 +113,7 @@ const makeAuthService = Effect.gen(function* () {
 
       const bootstrapPassword = Redacted.value(config.bootstrapPassword);
 
-      const now = nowIso();
+      const now = yield* nowIso;
       const passwordHash = yield* hashPassword(bootstrapPassword).pipe(
         Effect.mapError((error) =>
           toDatabaseError(`Failed to hash password: ${error.message}`)(
@@ -122,7 +122,7 @@ const makeAuthService = Effect.gen(function* () {
         ),
       );
 
-      const rawApiKey = randomHex(24);
+      const rawApiKey = yield* randomHex(24);
       const hashedApiKey = yield* hashToken(rawApiKey);
 
       yield* tryDatabasePromise(
@@ -242,6 +242,7 @@ const makeAuthService = Effect.gen(function* () {
   ) {
     if (sessionToken) {
       const hashedSessionToken = yield* hashToken(sessionToken);
+      const sessionNow = yield* nowIso;
 
       const result = yield* tryDatabasePromise(
         "Failed to resolve the current user",
@@ -259,19 +260,20 @@ const makeAuthService = Effect.gen(function* () {
             .where(
               and(
                 eq(sessions.token, hashedSessionToken),
-                gt(sessions.expiresAt, nowIso()),
+                gt(sessions.expiresAt, sessionNow),
               ),
             )
             .limit(1),
       );
 
       if (result[0]) {
+        const expiresAt = yield* expiresAtIso(config.sessionDurationDays);
         yield* tryDatabasePromise("Failed to resolve the current user", () =>
           db
             .update(sessions)
             .set({
-              expiresAt: expiresAtIso(config.sessionDurationDays),
-              lastSeenAt: nowIso(),
+              expiresAt,
+              lastSeenAt: sessionNow,
             })
             .where(eq(sessions.token, hashedSessionToken)));
 
@@ -360,6 +362,7 @@ const makeAuthService = Effect.gen(function* () {
     // One-way bootstrap transition: password change clears mustChangePassword,
     // invalidates all sessions, and permanently nulls the bootstrap password
     // from the appConfig table. See ensureBootstrapUser for lifecycle docs.
+    const changeNow = yield* nowIso;
     yield* tryDatabasePromise(
       "Failed to update password",
       () =>
@@ -369,7 +372,7 @@ const makeAuthService = Effect.gen(function* () {
             .set({
               mustChangePassword: false,
               passwordHash,
-              updatedAt: nowIso(),
+              updatedAt: changeNow,
             })
             .where(eq(users.id, userId));
           await tx.delete(sessions).where(eq(sessions.userId, userId));
@@ -377,7 +380,7 @@ const makeAuthService = Effect.gen(function* () {
             eq(appConfig.id, 1),
           );
           await tx.insert(systemLogs).values({
-            createdAt: nowIso(),
+            createdAt: changeNow,
             details: null,
             eventType: "auth.password.changed",
             level: "success",
@@ -411,8 +414,9 @@ const makeAuthService = Effect.gen(function* () {
       }
 
       const userRow = row;
-      const apiKey = randomHex(24);
+      const apiKey = yield* randomHex(24);
       const hashedApiKey = yield* hashToken(apiKey);
+      const regenNow = yield* nowIso;
 
       yield* tryDatabasePromise(
         "Failed to regenerate API key",
@@ -422,12 +426,12 @@ const makeAuthService = Effect.gen(function* () {
               .update(users)
               .set({
                 apiKey: hashedApiKey,
-                updatedAt: nowIso(),
+                updatedAt: regenNow,
               })
               .where(eq(users.id, userId));
             await tx.delete(sessions).where(eq(sessions.userId, userId));
             await tx.insert(systemLogs).values({
-              createdAt: nowIso(),
+              createdAt: regenNow,
               details: null,
               eventType: "auth.api_key.regenerated",
               level: "success",

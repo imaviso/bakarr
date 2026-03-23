@@ -10,6 +10,7 @@ import {
   qualityProfiles,
   systemLogs,
 } from "../../db/schema.ts";
+import { nowIso } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import {
   effectDecodeConfigCore,
@@ -216,6 +217,7 @@ export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(
     futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
     resetMissingOnly: boolean,
   ) {
+    const now = yield* nowIso;
     const existingRows = !episodeCount || episodeCount <= 0
       ? []
       : yield* tryDatabasePromise(
@@ -228,6 +230,7 @@ export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(
       endDate,
       existingRows,
       futureAiringSchedule,
+      nowIso: now,
       resetMissingOnly,
       startDate,
       status,
@@ -342,6 +345,7 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
     () => db.select().from(episodes).where(eq(episodes.animeId, animeId)),
   );
   const scheduleMap = buildAiringScheduleMap(futureAiringSchedule);
+  const now = yield* nowIso;
 
   for (const row of existingRows) {
     const inferred = inferAiredAt(
@@ -351,6 +355,7 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
       startDate,
       endDate,
       scheduleMap,
+      now,
     );
 
     if (row.aired === inferred) {
@@ -462,11 +467,12 @@ export const appendAnimeLogEffect = Effect.fn("AnimeRepository.appendAnimeLog")(
     level: string,
     message: string,
   ) {
+    const createdAt = yield* nowIso;
     yield* tryDatabasePromise(
       "Failed to append anime log",
       () =>
         db.insert(systemLogs).values({
-          createdAt: new Date().toISOString(),
+          createdAt,
           details: null,
           eventType,
           level,
@@ -508,6 +514,7 @@ export function buildMissingEpisodeRows(input: {
   startDate: string | undefined;
   endDate: string | undefined;
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined;
+  nowIso?: string;
   resetMissingOnly: boolean;
   existingRows: readonly typeof episodes.$inferSelect[];
 }) {
@@ -542,6 +549,7 @@ export function buildMissingEpisodeRows(input: {
           input.startDate,
           input.endDate,
           airingScheduleByEpisode,
+          input.nowIso,
         ),
         animeId: input.animeId,
         downloaded: false,
@@ -560,6 +568,7 @@ export function inferAiredAt(
   startDate: string | undefined,
   endDate: string | undefined,
   futureAiringSchedule?: ReadonlyMap<number, string>,
+  fallbackNowIso?: string,
 ) {
   const scheduledAiringAt = futureAiringSchedule?.get(episodeNumber);
 
@@ -568,13 +577,13 @@ export function inferAiredAt(
   }
 
   if (!startDate) {
-    return status === "FINISHED" ? new Date().toISOString() : null;
+    return status === "FINISHED" ? (fallbackNowIso ?? null) : null;
   }
 
   const start = new Date(`${startDate}T00:00:00Z`);
 
   if (Number.isNaN(start.getTime())) {
-    return status === "FINISHED" ? new Date().toISOString() : null;
+    return status === "FINISHED" ? (fallbackNowIso ?? null) : null;
   }
 
   if (status === "FINISHED" && endDate && episodeCount && episodeCount > 1) {

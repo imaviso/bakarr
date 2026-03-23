@@ -1,5 +1,5 @@
 import { HttpClient } from "@effect/platform";
-import { Context, Deferred, Effect, Layer, Ref } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type {
   Anime,
@@ -18,6 +18,7 @@ import {
   AnimeNotFoundError,
   AnimePathError,
   type AnimeServiceError,
+  AnimeStoredDataError,
 } from "./errors.ts";
 import { ProfileNotFoundError } from "../system/errors.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
@@ -25,6 +26,7 @@ import { FileSystem } from "../../lib/filesystem.ts";
 import { MediaProbe } from "../../lib/media-probe.ts";
 import { addAnimeEffect } from "./add-anime-support.ts";
 import { deleteAnimeEffect } from "./delete-support.ts";
+import type { EpisodeFileResolution } from "./file-mapping-support.ts";
 import {
   setAnimeMonitoredEffect,
   updateAnimePathEffect,
@@ -33,7 +35,6 @@ import {
 } from "./mutation-support.ts";
 import {
   refreshEpisodesEffect,
-  refreshMetadataForMonitoredAnimeEffect,
   scanAnimeFolderOrchestrationEffect,
 } from "./orchestration-support.ts";
 import {
@@ -43,6 +44,7 @@ import {
   listEpisodesEffect,
   searchAnimeEffect,
 } from "./query-support.ts";
+import { makeMetadataRefreshRunner } from "./service-support.ts";
 import { makeAnimeFileOperations } from "./service-wiring.ts";
 
 export interface AddAnimeInput {
@@ -58,13 +60,16 @@ export interface AddAnimeInput {
 export interface AnimeServiceShape {
   readonly listAnime: (
     params?: AnimeListQueryParams,
-  ) => Effect.Effect<AnimeListResponse, DatabaseError>;
+  ) => Effect.Effect<AnimeListResponse, DatabaseError | AnimeStoredDataError>;
   readonly getAnime: (
     id: number,
   ) => Effect.Effect<Anime, AnimeServiceError | DatabaseError>;
   readonly searchAnime: (
     query: string,
-  ) => Effect.Effect<AnimeSearchResponse, DatabaseError | ExternalCallError>;
+  ) => Effect.Effect<
+    AnimeSearchResponse,
+    DatabaseError | ExternalCallError | AnimeStoredDataError
+  >;
   readonly getAnimeByAnilistId: (
     id: number,
   ) => Effect.Effect<
@@ -109,7 +114,7 @@ export interface AnimeServiceShape {
     animeId: number,
     episodeNumber: number,
   ) => Effect.Effect<
-    { fileName: string; filePath: string } | null,
+    EpisodeFileResolution,
     AnimeServiceError | DatabaseError
   >;
   readonly refreshEpisodes: (
@@ -158,9 +163,10 @@ const makeAnimeService = Effect.gen(function* () {
   const fs = yield* FileSystem;
   const mediaProbe = yield* MediaProbe;
   const httpClient = yield* HttpClient.HttpClient;
-  const metadataRefreshTrigger = yield* makeSingleFlightTrigger(
-    refreshMetadataForMonitoredAnimeEffect({ aniList, db }),
-  );
+  const metadataRefreshRunner = yield* makeMetadataRefreshRunner({
+    aniList,
+    db,
+  });
   const {
     bulkMapEpisodes,
     deleteEpisodeFile,
@@ -196,7 +202,7 @@ const makeAnimeService = Effect.gen(function* () {
     refreshEpisodesEffect({ aniList, animeId, db, eventPublisher });
   const refreshMetadataForMonitoredAnime:
     AnimeServiceShape["refreshMetadataForMonitoredAnime"] = () =>
-      metadataRefreshTrigger();
+      metadataRefreshRunner.trigger;
   const scanFolder: AnimeServiceShape["scanFolder"] = (animeId) =>
     scanAnimeFolderOrchestrationEffect({
       animeId,
@@ -249,56 +255,3 @@ const makeAnimeService = Effect.gen(function* () {
 });
 
 export const AnimeServiceLive = Layer.effect(AnimeService, makeAnimeService);
-
-function makeSingleFlightTrigger<A, E, R>(
-  effect: Effect.Effect<A, E, R>,
-): Effect.Effect<() => Effect.Effect<A, E, R>, never, R> {
-  return Effect.gen(function* () {
-    const currentRunRef = yield* Ref.make<Deferred.Deferred<A, E> | null>(null);
-    const stateSemaphore = yield* Effect.makeSemaphore(1);
-
-    const clearCurrentRun = stateSemaphore.withPermits(1)(
-      Ref.set(currentRunRef, null),
-    );
-
-    return () =>
-      Effect.gen(function* () {
-        const current = yield* stateSemaphore.withPermits(1)(
-          Ref.get(currentRunRef),
-        );
-
-        if (current !== null) {
-          return yield* Deferred.await(current);
-        }
-
-        const deferred = yield* Deferred.make<A, E>();
-        const started = yield* stateSemaphore.withPermits(1)(
-          Effect.gen(function* () {
-            const existing = yield* Ref.get(currentRunRef);
-
-            if (existing !== null) {
-              return existing;
-            }
-
-            yield* Ref.set(currentRunRef, deferred);
-            return deferred;
-          }),
-        );
-
-        if (started !== deferred) {
-          return yield* Deferred.await(started);
-        }
-
-        const exit = yield* Effect.exit(effect);
-        yield* clearCurrentRun;
-
-        if (exit._tag === "Success") {
-          yield* Deferred.succeed(deferred, exit.value);
-        } else {
-          yield* Deferred.failCause(deferred, exit.cause);
-        }
-
-        return yield* Deferred.await(deferred);
-      });
-  });
-}

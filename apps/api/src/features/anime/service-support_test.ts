@@ -2,6 +2,7 @@ import { assertEquals, assertInstanceOf } from "@std/assert";
 import { Deferred, Effect, Fiber, Ref, TestClock } from "effect";
 
 import { DatabaseError } from "../../db/database.ts";
+import { ClockServiceLive } from "../../lib/clock.ts";
 import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 import { makeEventPublisher } from "../events/publisher.ts";
 import {
@@ -64,7 +65,7 @@ Deno.test("anime service support can publish coalesced info messages", async () 
       yield* publisher.shutdown;
 
       return yield* Ref.get(state);
-    }),
+    }).pipe(Effect.provide(ClockServiceLive)),
   );
 
   assertEquals(published, ["second"]);

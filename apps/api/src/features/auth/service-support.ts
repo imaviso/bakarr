@@ -4,7 +4,11 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
 import { sessions, systemLogs, users } from "../../db/schema.ts";
+import { currentTimeMillis, nowIso } from "../../lib/clock.ts";
 import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
+import { randomHex } from "../../lib/random.ts";
+
+export { nowIso, randomHex };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -52,16 +56,17 @@ export const findUserById = Effect.fn("Auth.findUserById")(
 
 export const createSession = Effect.fn("Auth.createSession")(
   function* (db: AppDatabase, durationDays: number, userId: number) {
-    const token = randomHex(32);
+    const token = yield* randomHex(32);
     const tokenHash = yield* hashToken(token);
-    const now = nowIso();
+    const now = yield* nowIso;
+    const expiresAt = yield* expiresAtIso(durationDays);
 
     yield* tryDatabasePromise(
       "Failed to create session",
       () =>
         db.insert(sessions).values({
           createdAt: now,
-          expiresAt: expiresAtIso(durationDays),
+          expiresAt,
           lastSeenAt: now,
           token: tokenHash,
           userId,
@@ -82,11 +87,12 @@ export const writeLog = Effect.fn("Auth.writeLog")(
       details?: string;
     },
   ) {
+    const now = yield* nowIso;
     yield* tryDatabasePromise(
       "Failed to write log",
       () =>
         db.insert(systemLogs).values({
-          createdAt: nowIso(),
+          createdAt: now,
           details: input.details ?? null,
           eventType: input.eventType,
           level: input.level,
@@ -120,18 +126,9 @@ export const announceBootstrapCredentials = Effect.fn(
   );
 });
 
-export function expiresAtIso(durationDays: number) {
-  return new Date(Date.now() + durationDays * DAY_MS).toISOString();
-}
-
-export function nowIso() {
-  return new Date().toISOString();
-}
-
-export function randomHex(bytes: number): string {
-  const value = new Uint8Array(bytes);
-  crypto.getRandomValues(value);
-  return Array.from(value, (entry) => entry.toString(16).padStart(2, "0")).join(
-    "",
-  );
-}
+export const expiresAtIso = Effect.fn("Auth.expiresAtIso")(
+  function* (durationDays: number) {
+    const now = yield* currentTimeMillis;
+    return new Date(now + durationDays * DAY_MS).toISOString();
+  },
+);
