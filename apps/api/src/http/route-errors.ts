@@ -6,6 +6,7 @@ import {
   AnimeConflictError,
   AnimeNotFoundError,
   AnimePathError,
+  AnimeStoredDataError,
 } from "../features/anime/errors.ts";
 import { AuthError } from "../features/auth/service.ts";
 import {
@@ -23,6 +24,7 @@ import {
   StoredConfigCorruptError,
   StoredConfigMissingError,
 } from "../features/system/errors.ts";
+import { DiskSpaceError } from "../features/system/disk-space.ts";
 import { EpisodeStreamRangeError } from "./streaming-errors.ts";
 import { RequestValidationError } from "./route-validation.ts";
 
@@ -30,9 +32,11 @@ const knownTaggedRouteErrorSchemas = [
   AnimeConflictError,
   AnimeNotFoundError,
   AnimePathError,
+  AnimeStoredDataError,
   AuthError,
   ConfigValidationError,
   DatabaseError,
+  DiskSpaceError,
   DownloadConflictError,
   DownloadNotFoundError,
   EpisodeStreamRangeError,
@@ -62,9 +66,11 @@ const taggedRouteErrorMappers: {
   AnimeConflictError: (error) => ({ message: error.message, status: 409 }),
   AnimeNotFoundError: (error) => ({ message: error.message, status: 404 }),
   AnimePathError: (error) => ({ message: error.message, status: 400 }),
+  AnimeStoredDataError: (error) => ({ message: error.message, status: 500 }),
   AuthError: (error) => ({ message: error.message, status: error.status }),
   ConfigValidationError: (error) => ({ message: error.message, status: 400 }),
   DatabaseError: (error) => ({ message: error.message, status: 500 }),
+  DiskSpaceError: (error) => ({ message: error.message, status: 500 }),
   DownloadConflictError: (error) => ({ message: error.message, status: 409 }),
   DownloadNotFoundError: (error) => ({ message: error.message, status: 404 }),
   EpisodeStreamRangeError: (error) => ({

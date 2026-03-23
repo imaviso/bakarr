@@ -1,13 +1,12 @@
+import { HttpServerRequest } from "@effect/platform";
 import { Effect, Schema } from "effect";
-import { setCookie } from "hono/cookie";
 
 import {
   type AuthUser,
   AuthUserSchema,
 } from "../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../config.ts";
-import { AuthError } from "../features/auth/service.ts";
-import type { RunEffect } from "./route-types.ts";
+import { AuthError, AuthService } from "../features/auth/service.ts";
 
 export function getApiKey(
   headerApiKey: string | undefined,
@@ -24,49 +23,27 @@ export function getApiKey(
   return undefined;
 }
 
-export function requireViewerEffect(
-  c: { get: (key: "viewer") => AuthUser | null },
-): Effect.Effect<AuthUser, AuthError> {
-  const viewer = c.get("viewer");
+export const requireViewerFromHttpRequest = Effect.fn(
+  "Http.requireViewerFromHttpRequest",
+)(function* () {
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  const config = yield* AppConfig;
+  const sessionToken = request.cookies[config.sessionCookieName];
+  const apiKey = getApiKey(
+    request.headers["x-api-key"],
+    request.headers["authorization"],
+  );
+  const viewer = yield* Effect.flatMap(
+    AuthService,
+    (auth) => auth.resolveViewer(sessionToken, apiKey),
+  );
 
   if (!viewer) {
-    return Effect.fail(new AuthError({ message: "Unauthorized", status: 401 }));
-  }
-
-  return Effect.succeed(viewer);
-}
-
-export async function persistSession(
-  c: Parameters<typeof setCookie>[0],
-  runEffect: RunEffect,
-  token: string,
-) {
-  const config = await runEffect(Effect.map(AppConfig, (value) => value));
-
-  const forwardedProto = c.req.header("x-forwarded-proto");
-  const isSecure = forwardedProto === "https" ||
-    c.req.url.startsWith("https://");
-
-  setCookie(c, config.sessionCookieName, token, {
-    httpOnly: true,
-    maxAge: config.sessionDurationDays * 24 * 60 * 60,
-    path: "/",
-    sameSite: "Lax",
-    secure: isSecure,
-  });
-}
-
-export function getOptionalViewer(
-  c: { get: (key: string) => unknown },
-): AuthUser | null {
-  const viewer = c.get("viewer");
-
-  if (!isAuthUser(viewer)) {
-    return null;
+    return yield* new AuthError({ message: "Unauthorized", status: 401 });
   }
 
   return viewer;
-}
+});
 
 export function isAuthUser(value: unknown): value is AuthUser {
   if (!value || typeof value !== "object") {
