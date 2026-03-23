@@ -1,7 +1,10 @@
+import { NodeFileSystem } from "@effect/platform-node";
 import { assertEquals } from "@std/assert";
 import { Cause, Config, Effect, Exit, Redacted } from "effect";
 
 import { makeDotenvConfigProvider } from "./config-provider.ts";
+
+const withNodeFs = Effect.provide(NodeFileSystem.layer);
 
 const ENV_KEYS = [
   "PORT",
@@ -25,7 +28,7 @@ Deno.test("dotenv provider uses .env values when env vars are missing", async ()
     );
 
     const provider = await Effect.runPromise(
-      makeDotenvConfigProvider({ path: dotenvFile }),
+      makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
     );
 
     const program = Effect.gen(function* () {
@@ -57,7 +60,7 @@ Deno.test("dotenv provider prioritizes environment variables over .env", async (
     await Deno.writeTextFile(dotenvFile, "PORT=9200\n");
 
     const provider = await Effect.runPromise(
-      makeDotenvConfigProvider({ path: dotenvFile }),
+      makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
     );
 
     const program = Config.number("PORT").pipe(
@@ -74,7 +77,9 @@ Deno.test("dotenv provider prioritizes environment variables over .env", async (
 
 Deno.test("dotenv provider handles missing dotenv file", async () => {
   const provider = await Effect.runPromise(
-    makeDotenvConfigProvider({ path: "./missing-dotenv-file.env" }),
+    makeDotenvConfigProvider({ path: "./missing-dotenv-file.env" }).pipe(
+      withNodeFs,
+    ),
   );
 
   const value = await withTemporaryEnv(
@@ -104,7 +109,7 @@ Deno.test("dotenv provider parses export comments and quoted values", async () =
     );
 
     const provider = await Effect.runPromise(
-      makeDotenvConfigProvider({ path: dotenvFile }),
+      makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
     );
 
     const result = await withTemporaryEnv({}, () =>
@@ -144,7 +149,7 @@ Deno.test("dotenv provider fails with line information on parse errors", async (
     );
 
     const exit = await Effect.runPromiseExit(
-      makeDotenvConfigProvider({ path: dotenvFile }),
+      makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
     );
 
     assertEquals(Exit.isFailure(exit), true);

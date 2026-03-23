@@ -4,9 +4,9 @@ import {
   HttpClient,
   HttpClientResponse,
 } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Exit } from "effect";
 
-import { runTestEffect } from "../../test/effect-test.ts";
+import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 import { exists, withFileSystemSandbox } from "../../test/filesystem-test.ts";
 import { cacheAnimeMetadataImages } from "./image-cache.ts";
 
@@ -71,7 +71,7 @@ Deno.test("cacheAnimeMetadataImages saves cover and banner files locally", async
   });
 });
 
-Deno.test("cacheAnimeMetadataImages falls back to original URLs on unsupported image types", async () => {
+Deno.test("cacheAnimeMetadataImages fails on unsupported image types", async () => {
   const originalFetch = globalThis.fetch;
 
   try {
@@ -86,15 +86,14 @@ Deno.test("cacheAnimeMetadataImages falls back to original URLs on unsupported i
     await withFileSystemSandbox(async ({ fs, root }) => {
       const coverUrl = "https://example.com/cover";
       const bannerUrl = "https://example.com/banner";
-      const result = await runTestEffect(
+      const result = await runTestEffectExit(
         cacheAnimeMetadataImages(fs, clientFromFetch(), root, 77, {
           bannerImage: bannerUrl,
           coverImage: coverUrl,
         }),
       );
 
-      assertEquals(result.coverImage, coverUrl);
-      assertEquals(result.bannerImage, bannerUrl);
+      assertEquals(Exit.isFailure(result), true);
       assertEquals(
         await runTestEffect(exists(fs, `${root}/anime/77/cover.png`)),
         false,
@@ -109,7 +108,7 @@ Deno.test("cacheAnimeMetadataImages falls back to original URLs on unsupported i
   }
 });
 
-Deno.test("cacheAnimeMetadataImages rejects oversized images by Content-Length", async () => {
+Deno.test("cacheAnimeMetadataImages fails oversized images by Content-Length", async () => {
   const originalFetch = globalThis.fetch;
 
   try {
@@ -126,13 +125,13 @@ Deno.test("cacheAnimeMetadataImages rejects oversized images by Content-Length",
 
     await withFileSystemSandbox(async ({ fs, root }) => {
       const coverUrl = "https://example.com/huge.png";
-      const result = await runTestEffect(
+      const result = await runTestEffectExit(
         cacheAnimeMetadataImages(fs, clientFromFetch(), root, 77, {
           coverImage: coverUrl,
         }),
       );
 
-      assertEquals(result.coverImage, coverUrl);
+      assertEquals(Exit.isFailure(result), true);
       assertEquals(
         await runTestEffect(exists(fs, `${root}/anime/77/cover.png`)),
         false,
@@ -143,7 +142,7 @@ Deno.test("cacheAnimeMetadataImages rejects oversized images by Content-Length",
   }
 });
 
-Deno.test("cacheAnimeMetadataImages rejects oversized images by streamed bytes", async () => {
+Deno.test("cacheAnimeMetadataImages fails oversized images by streamed bytes", async () => {
   const originalFetch = globalThis.fetch;
 
   try {
@@ -165,13 +164,13 @@ Deno.test("cacheAnimeMetadataImages rejects oversized images by streamed bytes",
 
     await withFileSystemSandbox(async ({ fs, root }) => {
       const coverUrl = "https://example.com/huge-stream.png";
-      const result = await runTestEffect(
+      const result = await runTestEffectExit(
         cacheAnimeMetadataImages(fs, clientFromFetch(), root, 77, {
           coverImage: coverUrl,
         }),
       );
 
-      assertEquals(result.coverImage, coverUrl);
+      assertEquals(Exit.isFailure(result), true);
       assertEquals(
         await runTestEffect(exists(fs, `${root}/anime/77/cover.png`)),
         false,

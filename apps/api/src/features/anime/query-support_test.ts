@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Exit } from "effect";
 
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
 import * as schema from "../../db/schema.ts";
@@ -8,7 +8,7 @@ import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
 import { withSqliteTestDb } from "../../test/database-test.ts";
-import { runTestEffect } from "../../test/effect-test.ts";
+import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 import {
   withFileSystemSandbox,
   writeTextFile,
@@ -338,25 +338,9 @@ Deno.test("getAnimeEffect uses stored discovery metadata from database", async (
   });
 });
 
-Deno.test("searchAnimeEffect falls back to local matches when AniList search fails", async () => {
+Deno.test("searchAnimeEffect fails when AniList search fails", async () => {
   await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
-      addedAt: "2024-01-01T00:00:00.000Z",
-      episodeCount: 15,
-      format: "TV",
-      genres: '["Mystery", "Supernatural"]',
-      id: 101,
-      monitored: true,
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      rootFolder: "/library/Bakemonogatari",
-      status: "FINISHED",
-      studios: '["Shaft"]',
-      titleEnglish: "Bakemonogatari",
-      titleRomaji: "Bakemonogatari",
-    });
-
-    const result = await Effect.runPromise(searchAnimeEffect({
+    const result = await runTestEffectExit(searchAnimeEffect({
       aniList: {
         getAnimeMetadataById: () => Effect.succeed(null),
         searchAnimeMetadata: () =>
@@ -372,79 +356,7 @@ Deno.test("searchAnimeEffect falls back to local matches when AniList search fai
       query: "bake",
     }));
 
-    assertEquals(result.degraded, true);
-    assertEquals(result.results.length, 1);
-    assertEquals(result.results[0]?.id, 101);
-    assertEquals(result.results[0]?.already_in_library, true);
-    assertEquals(
-      result.results[0]?.match_reason,
-      'Strong title match for "bake"',
-    );
-  });
-});
-
-Deno.test("searchAnimeEffect local fallback matches stored synonyms", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
-      addedAt: "2024-01-01T00:00:00.000Z",
-      episodeCount: 12,
-      format: "TV",
-      genres: "[]",
-      id: 111,
-      monitored: true,
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      rootFolder: "/library/Kizumonogatari",
-      status: "FINISHED",
-      studios: "[]",
-      synonyms: '["Bake"]',
-      titleEnglish: "Kizumonogatari",
-      titleRomaji: "Kizumonogatari",
-    });
-
-    const result = await Effect.runPromise(searchAnimeEffect({
-      aniList: {
-        getAnimeMetadataById: () => Effect.succeed(null),
-        searchAnimeMetadata: () =>
-          Effect.fail(
-            new ExternalCallError({
-              cause: new Error("rate limited"),
-              message: "AniList search failed",
-              operation: "anilist.search.response",
-            }),
-          ),
-      },
-      db,
-      query: "bake",
-    }));
-
-    assertEquals(result.degraded, true);
-    assertEquals(result.results.length, 1);
-    assertEquals(result.results[0]?.id, 111);
-    assertEquals(result.results[0]?.synonyms, ["Bake"]);
-  });
-});
-
-Deno.test("searchAnimeEffect returns empty list when AniList search fails and no local match", async () => {
-  await withTestDb(async (db) => {
-    const result = await Effect.runPromise(searchAnimeEffect({
-      aniList: {
-        getAnimeMetadataById: () => Effect.succeed(null),
-        searchAnimeMetadata: () =>
-          Effect.fail(
-            new ExternalCallError({
-              cause: new Error("rate limited"),
-              message: "AniList search failed",
-              operation: "anilist.search.response",
-            }),
-          ),
-      },
-      db,
-      query: "bake",
-    }));
-
-    assertEquals(result.degraded, true);
-    assertEquals(result.results, []);
+    assertEquals(Exit.isFailure(result), true);
   });
 });
 
@@ -768,5 +680,26 @@ Deno.test("listAnimeEffect includes progress and metadata fields needed by list 
     assertEquals(anime.studios, ["Studio A"]);
     assertEquals(anime.release_profile_ids, [1, 2]);
     assertEquals(anime.genres, ["Action"]);
+  });
+});
+
+Deno.test("listAnimeEffect fails when stored anime JSON metadata is corrupt", async () => {
+  await withTestDb(async (db) => {
+    await db.insert(schema.anime).values({
+      id: 10,
+      titleRomaji: "Broken Show",
+      rootFolder: "/test/10",
+      format: "TV",
+      status: "RELEASING",
+      genres: "not-json",
+      monitored: true,
+      profileName: "Default",
+      releaseProfileIds: "[]",
+      addedAt: "2024-01-01T00:00:00Z",
+      studios: "[]",
+    });
+
+    const result = await runTestEffectExit(listAnimeEffect(db));
+    assertEquals(Exit.isFailure(result), true);
   });
 });

@@ -10,6 +10,7 @@ import {
 import {
   makeCoalescedEffectRunner,
   makeLatestValuePublisher,
+  makeSkippingSerializedEffectRunner,
 } from "./features/operations/service-support.ts";
 import { runTestEffect } from "./test/effect-test.ts";
 
@@ -358,10 +359,8 @@ function findMetric(
 Deno.test("BackgroundWorkerController starts workers with config", async () => {
   await runTestEffect(
     Effect.gen(function* () {
-      const monitor = yield* makeBackgroundWorkerMonitor();
       const controller = yield* makeBackgroundWorkerController({
-        monitor,
-        spawnWorkers: () => Effect.succeed({ stop: Effect.void }),
+        spawnWorkers: () => Effect.void,
       });
 
       const started = yield* controller.isStarted();
@@ -379,13 +378,10 @@ Deno.test("BackgroundWorkerController start is idempotent", async () => {
   await runTestEffect(
     Effect.gen(function* () {
       const spawnCalls: Config[] = [];
-      const monitor = yield* makeBackgroundWorkerMonitor();
       const controller = yield* makeBackgroundWorkerController({
-        monitor,
         spawnWorkers: (config: Config) =>
           Effect.sync(() => {
             spawnCalls.push(config);
-            return { stop: Effect.void };
           }),
       });
 
@@ -402,15 +398,13 @@ Deno.test("BackgroundWorkerController reload spawns new workers and stops old", 
   await runTestEffect(
     Effect.gen(function* () {
       const stoppedHandles: string[] = [];
-      const monitor = yield* makeBackgroundWorkerMonitor();
       const controller = yield* makeBackgroundWorkerController({
-        monitor,
         spawnWorkers: () =>
-          Effect.succeed({
-            stop: Effect.sync(() => {
+          Effect.addFinalizer(() =>
+            Effect.sync(() => {
               stoppedHandles.push("handle");
-            }),
-          }),
+            })
+          ),
       });
 
       yield* controller.start(baseConfig);
@@ -430,20 +424,18 @@ Deno.test("BackgroundWorkerController reload stops old workers before spawning n
     Effect.gen(function* () {
       const events: string[] = [];
       let handleId = 0;
-      const monitor = yield* makeBackgroundWorkerMonitor();
       const controller = yield* makeBackgroundWorkerController({
-        monitor,
         spawnWorkers: () =>
-          Effect.sync(() => {
+          Effect.gen(function* () {
             handleId += 1;
             const id = handleId;
             events.push(`spawn-${id}`);
 
-            return {
-              stop: Effect.sync(() => {
+            yield* Effect.addFinalizer(() =>
+              Effect.sync(() => {
                 events.push(`stop-${id}`);
-              }),
-            };
+              })
+            );
           }),
       });
 
@@ -460,20 +452,18 @@ Deno.test("BackgroundWorkerController stops workers when reload spawn fails", as
     Effect.gen(function* () {
       const stoppedHandles: number[] = [];
       let spawnCallCount = 0;
-      const monitor = yield* makeBackgroundWorkerMonitor();
       const controller = yield* makeBackgroundWorkerController({
-        monitor,
         spawnWorkers: () =>
-          Effect.sync(() => {
+          Effect.gen(function* () {
             spawnCallCount++;
             if (spawnCallCount === 2) {
-              throw new Error("spawn failed");
+              return yield* Effect.die(new Error("spawn failed"));
             }
-            return {
-              stop: Effect.sync(() => {
+            yield* Effect.addFinalizer(() =>
+              Effect.sync(() => {
                 stoppedHandles.push(spawnCallCount);
-              }),
-            };
+              })
+            );
           }),
       });
 
@@ -494,15 +484,13 @@ Deno.test("BackgroundWorkerController stop shuts down workers", async () => {
   await runTestEffect(
     Effect.gen(function* () {
       const stoppedHandles: string[] = [];
-      const monitor = yield* makeBackgroundWorkerMonitor();
       const controller = yield* makeBackgroundWorkerController({
-        monitor,
         spawnWorkers: () =>
-          Effect.succeed({
-            stop: Effect.sync(() => {
+          Effect.addFinalizer(() =>
+            Effect.sync(() => {
               stoppedHandles.push("handle");
-            }),
-          }),
+            })
+          ),
       });
 
       yield* controller.start(baseConfig);
@@ -521,15 +509,13 @@ Deno.test("BackgroundWorkerController stop is idempotent", async () => {
   await runTestEffect(
     Effect.gen(function* () {
       const stoppedHandles: string[] = [];
-      const monitor = yield* makeBackgroundWorkerMonitor();
       const controller = yield* makeBackgroundWorkerController({
-        monitor,
         spawnWorkers: () =>
-          Effect.succeed({
-            stop: Effect.sync(() => {
+          Effect.addFinalizer(() =>
+            Effect.sync(() => {
               stoppedHandles.push("handle");
-            }),
-          }),
+            })
+          ),
       });
 
       yield* controller.start(baseConfig);
@@ -548,19 +534,13 @@ Deno.test("BackgroundWorkerController serializes concurrent starts", async () =>
   let spawnCallCount = 0;
 
   const controller = await runTestEffect(
-    Effect.gen(function* () {
-      const monitor = yield* makeBackgroundWorkerMonitor();
-
-      return yield* makeBackgroundWorkerController({
-        monitor,
-        spawnWorkers: () =>
-          Effect.promise(async () => {
-            spawnCallCount += 1;
-            firstSpawnEntered.resolve();
-            await releaseSpawn.promise;
-            return { stop: Effect.void };
-          }),
-      });
+    makeBackgroundWorkerController({
+      spawnWorkers: () =>
+        Effect.gen(function* () {
+          spawnCallCount += 1;
+          firstSpawnEntered.resolve();
+          yield* Effect.promise(() => releaseSpawn.promise);
+        }),
     }),
   );
 
@@ -582,31 +562,26 @@ Deno.test("BackgroundWorkerController serializes concurrent reloads", async () =
   let spawnCallCount = 0;
 
   const controller = await runTestEffect(
-    Effect.gen(function* () {
-      const monitor = yield* makeBackgroundWorkerMonitor();
+    makeBackgroundWorkerController({
+      spawnWorkers: () =>
+        Effect.gen(function* () {
+          spawnCallCount += 1;
+          const handleId = `handle-${spawnCallCount}`;
 
-      return yield* makeBackgroundWorkerController({
-        monitor,
-        spawnWorkers: () =>
-          Effect.promise(async () => {
-            spawnCallCount += 1;
-            const handleId = `handle-${spawnCallCount}`;
+          if (spawnCallCount === 2) {
+            firstReloadEntered.resolve();
+          }
 
-            if (spawnCallCount === 2) {
-              firstReloadEntered.resolve();
-            }
+          if (spawnCallCount >= 2) {
+            yield* Effect.promise(() => releaseReload.promise);
+          }
 
-            if (spawnCallCount >= 2) {
-              await releaseReload.promise;
-            }
-
-            return {
-              stop: Effect.sync(() => {
-                stoppedHandles.push(handleId);
-              }),
-            };
-          }),
-      });
+          yield* Effect.addFinalizer(() =>
+            Effect.sync(() => {
+              stoppedHandles.push(handleId);
+            })
+          );
+        }),
     }),
   );
 
@@ -701,6 +676,40 @@ Deno.test("latest value publisher keeps only the newest pending update", async (
   );
 
   assertEquals(published, [1, 3]);
+});
+
+Deno.test("skipping serialized runner drops overlapping trigger attempts", async () => {
+  await runTestEffect(
+    Effect.gen(function* () {
+      const firstRunStarted = yield* Deferred.make<void>();
+      const releaseFirstRun = yield* Deferred.make<void>();
+      const runCount = yield* Effect.sync(() => ({ value: 0 }));
+
+      const runner = yield* makeSkippingSerializedEffectRunner(
+        Effect.gen(function* () {
+          runCount.value += 1;
+          yield* Deferred.succeed(firstRunStarted, void 0);
+          yield* Deferred.await(releaseFirstRun);
+          return runCount.value;
+        }),
+      );
+
+      const firstTrigger = yield* Effect.fork(runner.trigger);
+      yield* Deferred.await(firstRunStarted);
+
+      const secondResult = yield* runner.trigger;
+      assertEquals(secondResult._tag, "None");
+      assertEquals(runCount.value, 1);
+
+      yield* Deferred.succeed(releaseFirstRun, void 0);
+
+      const firstResult = yield* Fiber.join(firstTrigger);
+      assertEquals(firstResult._tag, "Some");
+      if (firstResult._tag === "Some") {
+        assertEquals(firstResult.value, 1);
+      }
+    }),
+  );
 });
 
 function deferred<A>() {
