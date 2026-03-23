@@ -17,7 +17,14 @@ export class AnimePathError extends Schema.TaggedError<AnimePathError>()(
   { message: Schema.String },
 ) {}
 
+export class AnimeStoredDataError
+  extends Schema.TaggedError<AnimeStoredDataError>()(
+    "AnimeStoredDataError",
+    { message: Schema.String },
+  ) {}
+
 export type AnimeServiceError =
   | AnimeNotFoundError
   | AnimeConflictError
-  | AnimePathError;
+  | AnimePathError
+  | AnimeStoredDataError;

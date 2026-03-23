@@ -8,17 +8,29 @@ import {
   Schema,
 } from "effect";
 
-export interface AppConfigShape {
-  readonly databaseFile: string;
-  readonly port: number;
-  readonly bootstrapUsername: string;
-  readonly bootstrapPassword: Redacted.Redacted<string>;
-  /** True when the bootstrap password was explicitly set via env var or override (not randomly generated). */
-  readonly bootstrapPasswordIsEnvOverride: boolean;
-  readonly sessionCookieName: string;
-  readonly sessionDurationDays: number;
-  readonly appVersion: string;
-}
+import { randomHex } from "./lib/random.ts";
+
+const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
+
+const PositiveIntSchema = Schema.Number.pipe(
+  Schema.int(),
+  Schema.greaterThan(0),
+);
+
+export class AppConfigModel extends Schema.Class<AppConfigModel>(
+  "AppConfigModel",
+)({
+  appVersion: Schema.String,
+  bootstrapPassword: Schema.Redacted(Schema.String),
+  bootstrapPasswordIsEnvOverride: Schema.Boolean,
+  bootstrapUsername: Schema.String,
+  databaseFile: Schema.String,
+  port: PortSchema,
+  sessionCookieName: Schema.String,
+  sessionDurationDays: PositiveIntSchema,
+}) {}
+
+export type AppConfigShape = Schema.Schema.Type<typeof AppConfigModel>;
 
 export interface AppConfigOverrides {
   readonly databaseFile?: string;
@@ -30,30 +42,24 @@ export interface AppConfigOverrides {
   readonly appVersion?: string;
 }
 
-const PortSchema = Schema.NumberFromString.pipe(
-  Schema.int(),
-  Schema.between(1, 65_535),
+const PortConfigSchema = Schema.NumberFromString.pipe(
+  Schema.compose(PortSchema),
 );
 
-const PositiveIntSchema = Schema.NumberFromString.pipe(
-  Schema.int(),
-  Schema.greaterThan(0),
+const PositiveIntConfigSchema = Schema.NumberFromString.pipe(
+  Schema.compose(PositiveIntSchema),
 );
 
-export const defaultAppConfig: AppConfigShape = {
+export const defaultAppConfig = new AppConfigModel({
   appVersion: "0.1.0",
-  bootstrapPassword: Redacted.make(
-    Array.from(crypto.getRandomValues(new Uint8Array(32)))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join(""),
-  ),
+  bootstrapPassword: Redacted.make("generated-at-runtime"),
   bootstrapPasswordIsEnvOverride: false,
   bootstrapUsername: "admin",
   databaseFile: "./bakarr.sqlite",
   port: 8000,
   sessionCookieName: "bakarr_session",
   sessionDurationDays: 30,
-};
+});
 
 export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
   AppConfig,
@@ -80,9 +86,10 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
               Effect.map(Option.some),
               Effect.orElse(() => Effect.succeed(Option.none())),
             );
+        const generatedBootstrapPassword = Redacted.make(yield* randomHex(32));
         const bootstrapPassword = Option.getOrElse(
           bootstrapPasswordFromEnv,
-          () => defaultAppConfig.bootstrapPassword,
+          () => generatedBootstrapPassword,
         );
         const bootstrapPasswordIsEnvOverride = Option.isSome(
           bootstrapPasswordFromEnv,
@@ -105,7 +112,7 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
         );
         const port = yield* readConfigValue(
           overrides.port,
-          Schema.Config("PORT", PortSchema).pipe(
+          Schema.Config("PORT", PortConfigSchema).pipe(
             EffectConfig.orElse(() =>
               EffectConfig.succeed(defaultAppConfig.port)
             ),
@@ -121,14 +128,14 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
         );
         const sessionDurationDays = yield* readConfigValue(
           overrides.sessionDurationDays,
-          Schema.Config("SESSION_DURATION_DAYS", PositiveIntSchema).pipe(
+          Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema).pipe(
             EffectConfig.orElse(() =>
               EffectConfig.succeed(defaultAppConfig.sessionDurationDays)
             ),
           ),
         );
 
-        return {
+        return new AppConfigModel({
           appVersion,
           bootstrapPassword,
           bootstrapPasswordIsEnvOverride,
@@ -137,7 +144,7 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
           port,
           sessionCookieName,
           sessionDurationDays,
-        } satisfies AppConfigShape;
+        });
       }),
     );
   }

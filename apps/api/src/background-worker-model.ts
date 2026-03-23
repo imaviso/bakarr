@@ -1,3 +1,5 @@
+import { Schema } from "effect";
+
 export const BACKGROUND_WORKER_NAMES = [
   "download_sync",
   "rss",
@@ -10,27 +12,51 @@ export const BACKGROUND_JOB_NAMES = [
   "unmapped_scan",
 ] as const;
 
-export type BackgroundWorkerName = (typeof BACKGROUND_WORKER_NAMES)[number];
+export const BackgroundWorkerNameSchema = Schema.Literal(
+  ...BACKGROUND_WORKER_NAMES,
+);
 
-export interface BackgroundWorkerStats {
-  readonly daemonRunning: boolean;
-  readonly failureCount: number;
-  readonly lastErrorMessage: string | null;
-  readonly lastFailedAt: string | null;
-  readonly lastStartedAt: string | null;
-  readonly lastSucceededAt: string | null;
-  readonly runRunning: boolean;
-  readonly skipCount: number;
-  readonly successCount: number;
-}
+export type BackgroundWorkerName = Schema.Schema.Type<
+  typeof BackgroundWorkerNameSchema
+>;
 
-export type BackgroundWorkerSnapshot = Record<
-  BackgroundWorkerName,
-  BackgroundWorkerStats
+export class BackgroundWorkerStatsModel extends Schema.Class<
+  BackgroundWorkerStatsModel
+>("BackgroundWorkerStatsModel")({
+  daemonRunning: Schema.Boolean,
+  failureCount: Schema.Number,
+  lastErrorMessage: Schema.NullOr(Schema.String),
+  lastFailedAt: Schema.NullOr(Schema.String),
+  lastStartedAt: Schema.NullOr(Schema.String),
+  lastSucceededAt: Schema.NullOr(Schema.String),
+  runRunning: Schema.Boolean,
+  skipCount: Schema.Number,
+  successCount: Schema.Number,
+}) {}
+
+export const BackgroundWorkerStatsSchema = BackgroundWorkerStatsModel;
+
+export type BackgroundWorkerStats = Schema.Schema.Type<
+  typeof BackgroundWorkerStatsSchema
+>;
+
+export class BackgroundWorkerSnapshotModel extends Schema.Class<
+  BackgroundWorkerSnapshotModel
+>("BackgroundWorkerSnapshotModel")({
+  download_sync: BackgroundWorkerStatsSchema,
+  library_scan: BackgroundWorkerStatsSchema,
+  metadata_refresh: BackgroundWorkerStatsSchema,
+  rss: BackgroundWorkerStatsSchema,
+}) {}
+
+export const BackgroundWorkerSnapshotSchema = BackgroundWorkerSnapshotModel;
+
+export type BackgroundWorkerSnapshot = Schema.Schema.Type<
+  typeof BackgroundWorkerSnapshotSchema
 >;
 
 export function emptyBackgroundWorkerStats(): BackgroundWorkerStats {
-  return {
+  return new BackgroundWorkerStatsModel({
     daemonRunning: false,
     failureCount: 0,
     lastErrorMessage: null,
@@ -40,14 +66,14 @@ export function emptyBackgroundWorkerStats(): BackgroundWorkerStats {
     runRunning: false,
     skipCount: 0,
     successCount: 0,
-  };
+  });
 }
 
 export function initialBackgroundWorkerSnapshot(): BackgroundWorkerSnapshot {
-  return {
+  return new BackgroundWorkerSnapshotModel({
     download_sync: emptyBackgroundWorkerStats(),
     library_scan: emptyBackgroundWorkerStats(),
     metadata_refresh: emptyBackgroundWorkerStats(),
     rss: emptyBackgroundWorkerStats(),
-  };
+  });
 }

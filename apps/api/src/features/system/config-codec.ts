@@ -1,7 +1,6 @@
 import { Effect, ParseResult, Schema } from "effect";
 
 import type {
-  Config,
   QualityProfile,
   ReleaseProfile,
   ReleaseProfileRule,
@@ -14,19 +13,40 @@ import {
 import {
   ConfigCoreSchema,
   NumberListSchema,
+  QualityProfileSchema,
   ReleaseProfileRulesSchema,
+  ReleaseProfileSchema,
   StringListSchema,
 } from "./config-schema.ts";
 import { makeDefaultConfig } from "./defaults.ts";
 
-export type ConfigCore = Omit<Config, "profiles">;
+export type ConfigCore = Schema.Schema.Type<typeof ConfigCoreSchema>;
 
 const StringListJsonSchema = Schema.parseJson(StringListSchema);
 const NumberListJsonSchema = Schema.parseJson(NumberListSchema);
+const OptionalNumberListJsonSchema = Schema.transform(
+  Schema.NullOr(Schema.String),
+  NumberListSchema,
+  {
+    decode: (value) => {
+      if (value === null) {
+        return [];
+      }
+
+      const decoded = Schema.decodeUnknownEither(NumberListJsonSchema)(value);
+      return decoded._tag === "Left" ? [] : [...decoded.right];
+    },
+    encode: (value) => {
+      const normalized = [
+        ...new Set(value.filter((item) => Number.isInteger(item) && item > 0)),
+      ].sort((left, right) => left - right);
+      return normalized.length > 0 ? JSON.stringify(normalized) : null;
+    },
+  },
+);
 const ReleaseProfileRulesJsonSchema = Schema.parseJson(
   ReleaseProfileRulesSchema,
 );
-const UnknownJsonSchema = Schema.parseJson(Schema.Unknown);
 const ConfigCoreJsonSchema = Schema.parseJson(ConfigCoreSchema);
 
 function storedConfigCorrupt(message: string, cause?: unknown) {
@@ -37,29 +57,6 @@ function storedConfigCorrupt(message: string, cause?: unknown) {
   return new StoredConfigCorruptError({
     message: detail ? `${message}: ${detail}` : message,
   });
-}
-
-function parseConfigJson(value: string): unknown {
-  return Schema.decodeUnknownSync(UnknownJsonSchema)(value);
-}
-
-function cloneConfigCore(decoded: ConfigCore): ConfigCore {
-  return {
-    downloads: {
-      ...decoded.downloads,
-      preferred_groups: [...decoded.downloads.preferred_groups],
-      remote_path_mappings: decoded.downloads.remote_path_mappings.map((
-        mapping,
-      ) => [
-        ...mapping,
-      ]),
-    },
-    general: { ...decoded.general },
-    library: { ...decoded.library },
-    nyaa: { ...decoded.nyaa },
-    qbittorrent: { ...decoded.qbittorrent },
-    scheduler: { ...decoded.scheduler },
-  };
 }
 
 export function encodeQualityProfileRow(profile: QualityProfile) {
@@ -77,7 +74,7 @@ export function encodeQualityProfileRow(profile: QualityProfile) {
 export function decodeQualityProfileRow(
   row: typeof qualityProfiles.$inferSelect,
 ): QualityProfile {
-  return {
+  return Schema.decodeUnknownSync(QualityProfileSchema)({
     allowed_qualities: decodeStringList(row.allowedQualities),
     cutoff: row.cutoff,
     max_size: row.maxSize ?? null,
@@ -85,19 +82,19 @@ export function decodeQualityProfileRow(
     name: row.name,
     seadex_preferred: row.seadexPreferred,
     upgrade_allowed: row.upgradeAllowed,
-  };
+  });
 }
 
 export function decodeReleaseProfileRow(
   row: typeof releaseProfiles.$inferSelect,
 ): ReleaseProfile {
-  return {
+  return Schema.decodeUnknownSync(ReleaseProfileSchema)({
     enabled: row.enabled,
     id: row.id,
     is_global: row.isGlobal,
     name: row.name,
     rules: decodeReleaseProfileRules(row.rules),
-  };
+  });
 }
 
 export function encodeReleaseProfileRules(
@@ -113,30 +110,11 @@ export function decodeReleaseProfileRules(value: string): ReleaseProfileRule[] {
 }
 
 export function encodeConfigCore(core: ConfigCore): string {
-  return Schema.encodeSync(ConfigCoreJsonSchema)({
-    downloads: {
-      ...core.downloads,
-      preferred_groups: [...core.downloads.preferred_groups],
-      remote_path_mappings: core.downloads.remote_path_mappings.map((
-        mapping,
-      ) => [
-        ...mapping,
-      ]),
-    },
-    general: { ...core.general },
-    library: { ...core.library },
-    nyaa: { ...core.nyaa },
-    qbittorrent: { ...core.qbittorrent },
-    scheduler: { ...core.scheduler },
-  });
+  return Schema.encodeSync(ConfigCoreJsonSchema)(core);
 }
 
 export function decodeConfigCore(value: string): ConfigCore {
-  const decoded = Schema.decodeUnknownSync(ConfigCoreSchema)(
-    parseConfigJson(value),
-  );
-
-  return cloneConfigCore(decoded);
+  return Schema.decodeUnknownSync(ConfigCoreJsonSchema)(value);
 }
 
 export function encodeStringList(values: readonly string[]) {
@@ -172,28 +150,15 @@ export function effectDecodeNumberList(
 export function encodeOptionalNumberList(
   values: readonly number[],
 ): string | null {
-  const normalized = [
-    ...new Set(values.filter((value) => Number.isInteger(value) && value > 0)),
-  ]
-    .sort((left, right) => left - right);
-
-  return normalized.length > 0 ? encodeNumberList(normalized) : null;
+  return Schema.encodeSync(OptionalNumberListJsonSchema)([...values]);
 }
 
 export function decodeOptionalNumberList(
   value: string | null | undefined,
 ): number[] {
-  if (!value) {
-    return [];
-  }
-
-  const decoded = Schema.decodeUnknownEither(NumberListJsonSchema)(value);
-
-  if (decoded._tag === "Left") {
-    return [];
-  }
-
-  return [...decoded.right];
+  return [
+    ...Schema.decodeUnknownSync(OptionalNumberListJsonSchema)(value ?? null),
+  ];
 }
 
 export function effectDecodeStringList(
@@ -228,15 +193,24 @@ export function effectDecodeQualityProfileRow(
   row: typeof qualityProfiles.$inferSelect,
 ): Effect.Effect<QualityProfile, StoredConfigCorruptError> {
   return effectDecodeStringList(row.allowedQualities).pipe(
-    Effect.map((allowed_qualities) => ({
-      allowed_qualities,
-      cutoff: row.cutoff,
-      max_size: row.maxSize ?? null,
-      min_size: row.minSize ?? null,
-      name: row.name,
-      seadex_preferred: row.seadexPreferred,
-      upgrade_allowed: row.upgradeAllowed,
-    })),
+    Effect.flatMap((allowed_qualities) =>
+      Schema.decodeUnknown(QualityProfileSchema)({
+        allowed_qualities,
+        cutoff: row.cutoff,
+        max_size: row.maxSize ?? null,
+        min_size: row.minSize ?? null,
+        name: row.name,
+        seadex_preferred: row.seadexPreferred,
+        upgrade_allowed: row.upgradeAllowed,
+      }).pipe(
+        Effect.mapError((cause) =>
+          storedConfigCorrupt(
+            "Stored quality profile row is corrupt and could not be decoded",
+            cause,
+          )
+        ),
+      )
+    ),
   );
 }
 
@@ -244,29 +218,29 @@ export function effectDecodeReleaseProfileRow(
   row: typeof releaseProfiles.$inferSelect,
 ): Effect.Effect<ReleaseProfile, StoredConfigCorruptError> {
   return effectDecodeReleaseProfileRules(row.rules).pipe(
-    Effect.map((rules) => ({
-      enabled: row.enabled,
-      id: row.id,
-      is_global: row.isGlobal,
-      name: row.name,
-      rules,
-    })),
+    Effect.flatMap((rules) =>
+      Schema.decodeUnknown(ReleaseProfileSchema)({
+        enabled: row.enabled,
+        id: row.id,
+        is_global: row.isGlobal,
+        name: row.name,
+        rules,
+      }).pipe(
+        Effect.mapError((cause) =>
+          storedConfigCorrupt(
+            "Stored release profile row is corrupt and could not be decoded",
+            cause,
+          )
+        ),
+      )
+    ),
   );
 }
 
 export function effectDecodeConfigCore(
   value: string,
 ): Effect.Effect<ConfigCore, StoredConfigCorruptError> {
-  return Effect.try({
-    try: () => parseConfigJson(value),
-    catch: (cause) =>
-      storedConfigCorrupt(
-        "Stored configuration is corrupt and could not be decoded",
-        cause,
-      ),
-  }).pipe(
-    Effect.flatMap((parsed) => Schema.decodeUnknown(ConfigCoreSchema)(parsed)),
-    Effect.map(cloneConfigCore),
+  return Schema.decodeUnknown(ConfigCoreJsonSchema)(value).pipe(
     Effect.mapError((cause) =>
       storedConfigCorrupt(
         "Stored configuration is corrupt and could not be decoded",
