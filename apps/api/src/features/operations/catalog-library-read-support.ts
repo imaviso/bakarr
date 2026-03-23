@@ -9,6 +9,7 @@ import type {
 import { DatabaseError } from "../../db/database.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
+import { currentTimeMillis } from "../../lib/clock.ts";
 import { deriveEpisodeTimelineMetadata } from "../anime/query-support.ts";
 import type { OperationsError } from "./errors.ts";
 import { buildRenamePreview } from "./library-import.ts";
@@ -33,6 +34,7 @@ export function makeCatalogLibraryReadSupport(input: {
 }): CatalogLibraryReadSupportShape {
   const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(
     function* (limit: number) {
+      const nowIso = new Date(yield* currentTimeMillis).toISOString();
       const rows = yield* input.tryDatabasePromise(
         "Failed to load wanted episodes",
         () =>
@@ -51,7 +53,7 @@ export function makeCatalogLibraryReadSupport(input: {
                 eq(anime.monitored, true),
                 eq(episodes.downloaded, false),
                 sql`${episodes.aired} is not null`,
-                sql`${episodes.aired} <= ${new Date().toISOString()}`,
+                sql`${episodes.aired} <= ${nowIso}`,
               ),
             ).orderBy(episodes.aired, anime.titleRomaji).limit(
               Math.max(1, limit),
@@ -83,6 +85,7 @@ export function makeCatalogLibraryReadSupport(input: {
 
   const getCalendar = Effect.fn("OperationsService.getCalendar")(
     function* (start: string, end: string) {
+      const nowIso = new Date(yield* currentTimeMillis).toISOString();
       const rows = yield* input.tryDatabasePromise(
         "Failed to load calendar events",
         () =>
@@ -104,7 +107,7 @@ export function makeCatalogLibraryReadSupport(input: {
 
         return {
           all_day: isAllDayAiring(episodeRow.aired),
-          end: episodeRow.aired ?? new Date().toISOString(),
+          end: episodeRow.aired ?? nowIso,
           extended_props: {
             airing_status: timeline.airing_status,
             anime_id: animeRow.id,
@@ -116,7 +119,7 @@ export function makeCatalogLibraryReadSupport(input: {
             is_future: timeline.is_future,
           },
           id: `${animeRow.id}-${episodeRow.number}`,
-          start: episodeRow.aired ?? new Date().toISOString(),
+          start: episodeRow.aired ?? nowIso,
           title: buildCalendarEventTitle(animeRow.titleRomaji, episodeRow),
         } satisfies CalendarEvent;
       });

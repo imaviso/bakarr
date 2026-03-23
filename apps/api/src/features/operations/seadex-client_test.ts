@@ -113,7 +113,7 @@ Deno.test("SeaDexClient wraps schema mismatches as ExternalCallError", async () 
   assertEquals(Either.isLeft(result), true);
   if (Either.isLeft(result)) {
     assertEquals(result.left instanceof ExternalCallError, true);
-    assertEquals(result.left.message, "SeaDex response schema mismatch");
+    assertEquals(result.left.message, "SeaDex response decode failed");
   }
 });
 

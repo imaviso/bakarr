@@ -31,8 +31,8 @@ const tree = new Map<string, DirEntry[]>([
   ],
 ]);
 
-Deno.test("scanVideoFilesStream streams matching files and skips bad dirs", async () => {
-  const mockFs = await makeMockFs();
+Deno.test("scanVideoFilesStream streams matching files from accessible tree", async () => {
+  const mockFs = await makeAccessibleMockFs();
 
   const files = await runTestEffect(
     Stream.runCollect(scanVideoFilesStream(mockFs, "/library")).pipe(
@@ -47,7 +47,7 @@ Deno.test("scanVideoFilesStream streams matching files and skips bad dirs", asyn
 });
 
 Deno.test("scanVideoFiles collects iterator output", async () => {
-  const mockFs = await makeMockFs();
+  const mockFs = await makeAccessibleMockFs();
   const files = await Effect.runPromise(scanVideoFiles(mockFs, "/library"));
 
   assertEquals(
@@ -158,7 +158,7 @@ Deno.test("scanVideoFilesStream handles symlink cycles without infinite recursio
   assertEquals(files[0], "/library/show/episode.mkv");
 });
 
-Deno.test("scanVideoFilesStream continues scanning after encountering inaccessible subdirectory", async () => {
+Deno.test("scanVideoFilesStream fails when encountering inaccessible subdirectory", async () => {
   const inaccessibleTree = new Map<string, DirEntry[]>([
     [
       "/library",
@@ -217,16 +217,11 @@ Deno.test("scanVideoFilesStream continues scanning after encountering inaccessib
       }),
   });
 
-  const files = await runTestEffect(
-    Stream.runCollect(scanVideoFilesStream(inaccessibleFs, "/library")).pipe(
-      Effect.map((items) => Array.from(items, (file) => file.path)),
-    ),
+  const exit = await runTestEffectExit(
+    Stream.runCollect(scanVideoFilesStream(inaccessibleFs, "/library")),
   );
 
-  assertEquals(files.length, 2);
-  const paths = files.sort();
-  assertEquals(paths[0], "/library/show1/video1.mkv");
-  assertEquals(paths[1], "/library/show3/video2.mp4");
+  assertEquals(exit._tag, "Failure");
 });
 
 function entry(
@@ -267,6 +262,22 @@ function makeMockFs() {
           }),
         )
         : Stream.fromIterable(tree.get(toPathString(path)) ?? []),
+    realPath: (path) => Effect.succeed(toPathString(path)),
+    stat: (path) =>
+      Effect.succeed({
+        isDirectory: false,
+        isFile: true,
+        isSymlink: false,
+        size: toPathString(path).endsWith("episode-01.mkv") ? 100 : 200,
+      }),
+  });
+}
+
+function makeAccessibleMockFs() {
+  return makeNoopTestFileSystemWithOverrides({
+    readDir: (path) => Effect.succeed(tree.get(toPathString(path)) ?? []),
+    readDirStream: (path) =>
+      Stream.fromIterable(tree.get(toPathString(path)) ?? []),
     realPath: (path) => Effect.succeed(toPathString(path)),
     stat: (path) =>
       Effect.succeed({

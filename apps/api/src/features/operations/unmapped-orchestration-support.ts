@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Effect, Ref } from "effect";
+import { Effect } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
@@ -60,22 +60,23 @@ import {
   prepareUnmappedFoldersForScan,
   toUnmappedMatchErrorMessage,
 } from "./unmapped-scan-support.ts";
+import type { OperationsCoordinationShape } from "./runtime-support.ts";
 
 export function makeUnmappedOrchestrationSupport(input: {
   aniList: typeof AniListClient.Service;
   db: AppDatabase;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
+  coordination: OperationsCoordinationShape;
   fs: FileSystemShape;
   tryDatabasePromise: TryDatabasePromise;
-  unmappedScanRunning: Ref.Ref<boolean>;
 }) {
   const {
     aniList,
     db,
     dbError,
+    coordination,
     fs,
     tryDatabasePromise,
-    unmappedScanRunning,
   } = input;
 
   const loadQueuedUnmappedFolders = Effect.fn(
@@ -128,12 +129,13 @@ export function makeUnmappedOrchestrationSupport(input: {
       );
 
       const hasOutstandingMatches = folders.some(isUnmappedFolderOutstanding);
+      const now = yield* nowIso;
 
       return {
         has_outstanding_matches: hasOutstandingMatches,
         folders,
         is_scanning: Boolean(job?.isRunning),
-        last_updated: job?.lastRunAt ?? nowIso(),
+        last_updated: job?.lastRunAt ?? now,
       };
     },
   );
@@ -185,9 +187,11 @@ export function makeUnmappedOrchestrationSupport(input: {
 
         if (matchResult._tag === "Left") {
           const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
+          const now = yield* nowIso;
           const failedFolder = markUnmappedFolderFailed(
             matchingFolder,
             errorMessage,
+            now,
           );
           yield* upsertUnmappedFolderMatchRows(db, [failedFolder]);
           yield* markJobFailed(
@@ -246,10 +250,7 @@ export function makeUnmappedOrchestrationSupport(input: {
   const startUnmappedScanLoop = Effect.fn(
     "OperationsService.startUnmappedScanLoop",
   )(function* () {
-    const alreadyRunning = yield* Ref.modify(
-      unmappedScanRunning,
-      (running) => [running, true] as const,
-    );
+    const alreadyRunning = yield* coordination.tryStartUnmappedScan();
 
     if (alreadyRunning) {
       return { folderCount: 0 };
@@ -284,7 +285,7 @@ export function makeUnmappedOrchestrationSupport(input: {
             Effect.annotateLogs({ error: cause.toString() }),
           )
         ),
-        Effect.ensuring(Ref.set(unmappedScanRunning, false)),
+        Effect.ensuring(coordination.finishUnmappedScan()),
       );
 
       yield* Effect.forkDaemon(loop);
@@ -293,7 +294,7 @@ export function makeUnmappedOrchestrationSupport(input: {
       return { folderCount };
     } finally {
       if (!forked) {
-        yield* Ref.set(unmappedScanRunning, false);
+        yield* coordination.finishUnmappedScan();
       }
     }
   });
@@ -373,9 +374,11 @@ export function makeUnmappedOrchestrationSupport(input: {
 
       if (matchResult._tag === "Left") {
         const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
+        const now = yield* nowIso;
         const failedFolder = markUnmappedFolderFailed(
           matchingFolder,
           errorMessage,
+          now,
         );
         yield* upsertUnmappedFolderMatchRows(db, [failedFolder]);
 
@@ -581,6 +584,8 @@ export function makeUnmappedOrchestrationSupport(input: {
         continue;
       }
 
+      const currentIso = yield* nowIso;
+
       for (const episodeNumber of episodeNumbers) {
         yield* upsertEpisodeEffect(db, input.anime_id, episodeNumber, {
           aired: inferAiredAt(
@@ -589,6 +594,8 @@ export function makeUnmappedOrchestrationSupport(input: {
             animeRow.episodeCount ?? undefined,
             animeRow.startDate ?? undefined,
             animeRow.endDate ?? undefined,
+            undefined,
+            currentIso,
           ),
           downloaded: true,
           filePath: file.path,

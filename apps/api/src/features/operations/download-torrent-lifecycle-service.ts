@@ -170,6 +170,7 @@ export function makeDownloadTorrentLifecycleService(input: {
       );
 
       for (const torrent of torrents) {
+        const syncNow = yield* nowIso;
         const status = mapQBitState(torrent.state);
         const hash = torrent.hash.toLowerCase();
         const existing = existingDownloadsMap.get(hash);
@@ -179,9 +180,9 @@ export function makeDownloadTorrentLifecycleService(input: {
           ? (existing?.externalState ?? "imported")
           : torrent.state;
         const nextDownloadDate = preservedImported
-          ? (existing?.downloadDate ?? nowIso())
+          ? (existing?.downloadDate ?? syncNow)
           : status === "completed"
-          ? nowIso()
+          ? syncNow
           : null;
 
         yield* tryDatabasePromise(
@@ -200,8 +201,8 @@ export function makeDownloadTorrentLifecycleService(input: {
               externalState: nextExternalState,
               lastErrorAt: preservedImported || status !== "error"
                 ? null
-                : nowIso(),
-              lastSyncedAt: nowIso(),
+                : syncNow,
+              lastSyncedAt: syncNow,
               progress: Math.round(torrent.progress * 100),
               savePath: torrent.save_path ?? null,
               speedBytes: torrent.dlspeed,
@@ -372,6 +373,7 @@ export function makeDownloadTorrentLifecycleService(input: {
         );
       }
 
+      const retryNow = yield* nowIso;
       yield* tryDatabasePromise(
         "Failed to retry download",
         () =>
@@ -379,7 +381,7 @@ export function makeDownloadTorrentLifecycleService(input: {
             errorMessage: null,
             externalState: qbitConfig ? "downloading" : "queued",
             lastErrorAt: null,
-            lastSyncedAt: nowIso(),
+            lastSyncedAt: retryNow,
             progress: 0,
             retryCount: sql`${downloads.retryCount} + 1`,
             status: qbitConfig ? "downloading" : "queued",

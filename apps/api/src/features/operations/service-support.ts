@@ -9,6 +9,7 @@ import {
 export {
   makeCoalescedEffectRunner,
   makeLatestValuePublisher,
+  makeSkippingSerializedEffectRunner,
 } from "../../lib/effect-coalescing.ts";
 import {
   DownloadConflictError,
@@ -19,7 +20,7 @@ import {
   OperationsInputError,
   OperationsPathError,
 } from "./errors.ts";
-import type { QBitConfig } from "./qbittorrent.ts";
+import { type QBitConfig, QBitConfigModel } from "./qbittorrent.ts";
 
 export type TryDatabasePromise = <A>(
   message: string,
@@ -31,12 +32,12 @@ export function maybeQBitConfig(config: Config): QBitConfig | null {
     return null;
   }
 
-  return {
+  return new QBitConfigModel({
     baseUrl: config.qbittorrent.url,
     category: config.qbittorrent.default_category,
     password: config.qbittorrent.password,
     username: config.qbittorrent.username,
-  };
+  });
 }
 
 export function dbError(message: string) {

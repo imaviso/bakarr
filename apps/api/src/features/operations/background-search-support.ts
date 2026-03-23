@@ -15,7 +15,11 @@ import {
   parseCoveredEpisodes,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
-import { ExternalCallError, type OperationsError } from "./errors.ts";
+import {
+  ExternalCallError,
+  type OperationsError,
+  OperationsInputError,
+} from "./errors.ts";
 import {
   loadMissingEpisodeNumbers,
   markJobFailed,
@@ -43,6 +47,7 @@ import {
   requireAnime,
 } from "./repository.ts";
 import { type ParsedRelease, RssClient } from "./rss-client.ts";
+import type { OperationsCoordinationShape } from "./runtime-support.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
 
 export function makeBackgroundSearchSupport(input: {
@@ -70,7 +75,7 @@ export function makeBackgroundSearchSupport(input: {
     readonly ParsedRelease[],
     ExternalCallError | OperationsError | DatabaseError
   >;
-  triggerSemaphore: Effect.Semaphore;
+  coordination: OperationsCoordinationShape;
 }) {
   const {
     db,
@@ -84,8 +89,36 @@ export function makeBackgroundSearchSupport(input: {
     publishDownloadProgress,
     publishRssCheckProgress,
     searchEpisodeReleases,
-    triggerSemaphore,
+    coordination,
   } = input;
+
+  const logSearchMissingSkip = (input: {
+    animeId: number;
+    episodeNumber: number;
+    reason: string;
+  }) =>
+    Effect.logDebug("Skipping missing-episode background action").pipe(
+      Effect.annotateLogs({
+        animeId: input.animeId,
+        episodeNumber: input.episodeNumber,
+        reason: input.reason,
+      }),
+    );
+
+  const logRssSkip = (input: {
+    animeId?: number;
+    feedId: number;
+    feedName: string;
+    reason: string;
+  }) =>
+    Effect.logDebug("Skipping RSS background action").pipe(
+      Effect.annotateLogs({
+        animeId: input.animeId,
+        feedId: input.feedId,
+        feedName: input.feedName,
+        reason: input.reason,
+      }),
+    );
 
   const queueReleaseIfEligible = Effect.fn(
     "OperationsService.queueReleaseIfEligible",
@@ -164,7 +197,21 @@ export function makeBackgroundSearchSupport(input: {
       });
     });
 
-    return yield* triggerSemaphore.withPermits(1)(queueEffect);
+    return yield* coordination.runSerializedTrigger(queueEffect);
+  });
+
+  const requireQualityProfile = Effect.fn(
+    "OperationsService.requireQualityProfile",
+  )(function* (profileName: string) {
+    const profile = yield* loadQualityProfile(db, profileName);
+
+    if (!profile) {
+      return yield* new OperationsInputError({
+        message: `Quality profile '${profileName}' not found`,
+      });
+    }
+
+    return profile;
   });
 
   const triggerSearchMissingRaw = Effect.fn(
@@ -180,10 +227,11 @@ export function makeBackgroundSearchSupport(input: {
         payload: { anime_id: animeId ?? 0, title },
       });
 
+      const now = yield* nowIso;
       const missingConditions = [
         eq(episodes.downloaded, false),
         sql`${episodes.aired} is not null`,
-        sql`${episodes.aired} <= ${nowIso()}`,
+        sql`${episodes.aired} <= ${now}`,
         animeId ? eq(episodes.animeId, animeId) : eq(anime.monitored, true),
       ];
       const missingRows = yield* tryDatabasePromise(
@@ -199,11 +247,7 @@ export function makeBackgroundSearchSupport(input: {
       let queued = 0;
 
       for (const row of missingRows.slice(0, 10)) {
-        const profile = yield* loadQualityProfile(db, row.anime.profileName);
-
-        if (!profile) {
-          continue;
-        }
+        const profile = yield* requireQualityProfile(row.anime.profileName);
 
         const rules = yield* loadReleaseRules(db, row.anime);
         const currentEpisode = yield* loadCurrentEpisodeState(
@@ -230,6 +274,11 @@ export function makeBackgroundSearchSupport(input: {
           .find((entry) => entry.action.Accept || entry.action.Upgrade);
 
         if (!best) {
+          yield* logSearchMissingSkip({
+            animeId: row.anime.id,
+            episodeNumber: row.episodes.number,
+            reason: "no acceptable release candidates",
+          });
           continue;
         }
 
@@ -252,6 +301,11 @@ export function makeBackgroundSearchSupport(input: {
         });
 
         if (queueResult._tag === "skipped") {
+          yield* logSearchMissingSkip({
+            animeId: row.anime.id,
+            episodeNumber: row.episodes.number,
+            reason: "overlapping download already queued",
+          });
           continue;
         }
 
@@ -297,40 +351,38 @@ export function makeBackgroundSearchSupport(input: {
           });
 
           newItems += yield* Effect.gen(function* () {
-            const itemsResult = yield* rssClient.fetchItems(feed.url).pipe(
-              Effect.either,
+            const items = yield* rssClient.fetchItems(feed.url).pipe(
+              Effect.mapError((error) =>
+                wrapOperationsError(
+                  `Failed to fetch RSS feed '${feed.name ?? feed.url}'`,
+                )(error)
+              ),
             );
-
-            if (itemsResult._tag === "Left") {
-              yield* Effect.logWarning("RSS feed fetch failed, skipping feed")
-                .pipe(
-                  Effect.annotateLogs({
-                    feedName: feed.name ?? feed.url,
-                    feedUrl: feed.url,
-                    error: String(itemsResult.left),
-                  }),
-                );
-              return 0;
-            }
-
-            const items = itemsResult.right;
             const animeRow = yield* requireAnime(db, feed.animeId);
 
             if (!animeRow.monitored) {
+              yield* logRssSkip({
+                animeId: animeRow.id,
+                feedId: feed.id,
+                feedName: feed.name ?? feed.url,
+                reason: "anime is not monitored",
+              });
               return 0;
             }
 
-            const profile = yield* loadQualityProfile(db, animeRow.profileName);
-
-            if (!profile) {
-              return 0;
-            }
+            const profile = yield* requireQualityProfile(animeRow.profileName);
 
             const rules = yield* loadReleaseRules(db, animeRow);
             let queuedForFeed = 0;
 
             const slice = items.slice(0, 10);
             if (slice.length === 0) {
+              yield* logRssSkip({
+                animeId: animeRow.id,
+                feedId: feed.id,
+                feedName: feed.name ?? feed.url,
+                reason: "feed returned no items",
+              });
               return 0;
             }
 
@@ -351,12 +403,24 @@ export function makeBackgroundSearchSupport(input: {
 
             for (const item of slice) {
               if (existingHashes.has(item.infoHash.toLowerCase())) {
+                yield* logRssSkip({
+                  animeId: animeRow.id,
+                  feedId: feed.id,
+                  feedName: feed.name ?? feed.url,
+                  reason: `item already queued: ${item.infoHash}`,
+                });
                 continue;
               }
 
               const episodeNumber = parseEpisodeFromTitle(item.title);
 
               if (episodeNumber == null) {
+                yield* logRssSkip({
+                  animeId: animeRow.id,
+                  feedId: feed.id,
+                  feedName: feed.name ?? feed.url,
+                  reason: `could not parse episode number: ${item.title}`,
+                });
                 continue;
               }
 
@@ -374,6 +438,12 @@ export function makeBackgroundSearchSupport(input: {
               );
 
               if (!(action.Accept || action.Upgrade)) {
+                yield* logRssSkip({
+                  animeId: animeRow.id,
+                  feedId: feed.id,
+                  feedName: feed.name ?? feed.url,
+                  reason: `release not accepted: ${item.title}`,
+                });
                 continue;
               }
 
@@ -399,16 +469,24 @@ export function makeBackgroundSearchSupport(input: {
               });
 
               if (queueResult._tag === "skipped") {
+                yield* logRssSkip({
+                  animeId: animeRow.id,
+                  feedId: feed.id,
+                  feedName: feed.name ?? feed.url,
+                  reason:
+                    `overlapping download already queued: ${item.infoHash}`,
+                });
                 continue;
               }
 
               queuedForFeed += 1;
             }
 
+            const feedCheckedAt = yield* nowIso;
             yield* tryDatabasePromise(
               "Failed to run RSS check",
               () =>
-                db.update(rssFeeds).set({ lastChecked: nowIso() }).where(
+                db.update(rssFeeds).set({ lastChecked: feedCheckedAt }).where(
                   eq(rssFeeds.id, feed.id),
                 ),
             );

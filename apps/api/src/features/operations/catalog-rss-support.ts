@@ -55,12 +55,13 @@ export function makeCatalogRssSupport(input: {
   const addRssFeed = Effect.fn("OperationsService.addRssFeed")(
     function* (rssInput: { anime_id: number; url: string; name?: string }) {
       yield* requireAnime(input.db, rssInput.anime_id);
+      const now = yield* nowIso;
       const [row] = yield* input.tryDatabasePromise(
         "Failed to add RSS feed",
         () =>
           input.db.insert(rssFeeds).values({
             animeId: rssInput.anime_id,
-            createdAt: nowIso(),
+            createdAt: now,
             enabled: true,
             lastChecked: null,
             name: rssInput.name ?? null,

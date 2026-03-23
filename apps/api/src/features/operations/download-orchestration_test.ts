@@ -890,7 +890,7 @@ Deno.test("syncDownloadsWithQBitEffect stores structured metadata for status and
           pauseTorrent: () => Effect.void,
           resumeTorrent: () => Effect.void,
         } as unknown as typeof QBitTorrentClient.Service,
-        triggerSemaphore: await runTestEffect(Effect.makeSemaphore(1)),
+        coordination: makeTestOperationsCoordination(),
         tryDatabasePromise,
 
         wrapOperationsError,
@@ -1175,7 +1175,7 @@ Deno.test("reconcileDownloadByIdEffect imports generic completed files using sto
   });
 });
 
-async function createDownloadOrchestrationForTest(
+function createDownloadOrchestrationForTest(
   db: AppDatabase,
   events: NotificationEvent[],
   fs: FileSystemShape,
@@ -1202,10 +1202,18 @@ async function createDownloadOrchestrationForTest(
       pauseTorrent: () => Effect.void,
       resumeTorrent: () => Effect.void,
     } as unknown as typeof QBitTorrentClient.Service,
-    triggerSemaphore: await runTestEffect(Effect.makeSemaphore(1)),
+    coordination: makeTestOperationsCoordination(),
     tryDatabasePromise,
     wrapOperationsError,
   });
+}
+
+function makeTestOperationsCoordination() {
+  return {
+    finishUnmappedScan: () => Effect.void,
+    runSerializedTrigger: <A, E, R>(effect: Effect.Effect<A, E, R>) => effect,
+    tryStartUnmappedScan: () => Effect.succeed(false),
+  };
 }
 
 async function seedConfig(

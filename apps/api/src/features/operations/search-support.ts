@@ -2,7 +2,6 @@ import type { NyaaSearchResult } from "../../../../../packages/shared/src/index.
 
 import type { ParsedRelease } from "./rss-client.ts";
 import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
-import { nowIso, randomHex } from "./job-support.ts";
 import { parseReleaseName } from "./release-ranking.ts";
 
 export function mapSearchCategory(
@@ -89,17 +88,16 @@ export function fallbackReleases(
   title?: string,
 ): ParsedRelease[] {
   const base = title || query || "Anime";
+  const infoHash = fallbackSearchInfoHash(base);
   return [
     {
       group: "SubsPlease",
-      infoHash: randomHex(20),
+      infoHash,
       isSeaDex: false,
       isSeaDexBest: false,
       leechers: 3,
-      magnet: `magnet:?xt=urn:btih:${randomHex(20)}&dn=${
-        encodeURIComponent(base)
-      }`,
-      pubDate: nowIso(),
+      magnet: `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(base)}`,
+      pubDate: "1970-01-01T00:00:00.000Z",
       remake: false,
       resolution: "1080p",
       seeders: 50,
@@ -110,4 +108,15 @@ export function fallbackReleases(
       viewUrl: "https://nyaa.si",
     },
   ];
+}
+
+function fallbackSearchInfoHash(value: string): string {
+  let hash = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 33 + value.charCodeAt(index)) >>> 0;
+  }
+
+  const hex = hash.toString(16).padStart(8, "0");
+  return hex.repeat(5).slice(0, 40);
 }

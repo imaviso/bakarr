@@ -26,9 +26,9 @@ import {
   appendLog,
   loadMissingEpisodeNumbers,
   nowIso,
-  randomHex,
   recordDownloadEvent,
 } from "./job-support.ts";
+import { randomHex } from "../../lib/random.ts";
 import { parseReleaseName } from "./release-ranking.ts";
 import {
   DownloadConflictError,
@@ -55,7 +55,8 @@ export function makeDownloadTriggerService(input: {
   readonly maybeQBitConfig: (
     config: import("../../../../../packages/shared/src/index.ts").Config,
   ) => QBitConfig | null;
-  readonly triggerSemaphore: Effect.Semaphore;
+  readonly coordination:
+    import("./runtime-support.ts").OperationsCoordinationShape;
   readonly syncDownloadsWithQBitEffect: () => Effect.Effect<
     void,
     ExternalCallError | OperationsError | DatabaseError
@@ -69,7 +70,7 @@ export function makeDownloadTriggerService(input: {
     wrapOperationsError,
     dbError,
     maybeQBitConfig,
-    triggerSemaphore,
+    coordination,
     syncDownloadsWithQBitEffect,
   } = input;
 
@@ -88,9 +89,12 @@ export function makeDownloadTriggerService(input: {
       "Failed to load download progress snapshot",
       () => loadDownloadPresentationContexts(db, rows),
     );
-    return rows.map((row) =>
-      toDownloadStatus(row, () => randomHex(20), contexts.get(row.id))
-    );
+    return yield* Effect.forEach(rows, (row) =>
+      randomHex(20).pipe(
+        Effect.map((fallbackHash) =>
+          toDownloadStatus(row, () => fallbackHash, contexts.get(row.id))
+        ),
+      ));
   });
 
   const publishDownloadProgress = Effect.fn(
@@ -112,11 +116,11 @@ export function makeDownloadTriggerService(input: {
 
   const triggerDownload = Effect.fn("OperationsService.triggerDownload")(
     function* (input: TriggerDownloadInput) {
-      return yield* triggerSemaphore.withPermits(1)(
+      return yield* coordination.runSerializedTrigger(
         Effect.gen(function* () {
           const animeRow = yield* requireAnime(db, input.anime_id);
 
-          const now = nowIso();
+          const now = yield* nowIso;
           const runtimeConfig = yield* loadRuntimeConfig(db);
           const parsedRelease = parseReleaseName(input.title);
           const effectiveIsBatch = input.is_batch ?? parsedRelease.isBatch;

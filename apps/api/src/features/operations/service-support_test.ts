@@ -14,6 +14,7 @@ import {
   tryDatabasePromise,
   wrapOperationsError,
 } from "./service-support.ts";
+import { QBitConfigModel } from "./qbittorrent.ts";
 
 Deno.test("operations service support builds qBittorrent config only when enabled", () => {
   const config = {
@@ -28,12 +29,15 @@ Deno.test("operations service support builds qBittorrent config only when enable
     },
   };
 
-  assertEquals(maybeQBitConfig(config), {
-    baseUrl: "http://localhost:8080",
-    category: "anime",
-    password: "secret",
-    username: "admin",
-  });
+  assertEquals(
+    maybeQBitConfig(config),
+    new QBitConfigModel({
+      baseUrl: "http://localhost:8080",
+      category: "anime",
+      password: "secret",
+      username: "admin",
+    }),
+  );
   assertEquals(
     maybeQBitConfig({
       ...config,

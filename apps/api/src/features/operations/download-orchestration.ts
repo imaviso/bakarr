@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 
+import { currentMonotonicMillis } from "../../lib/clock.ts";
 import { durationMsSince } from "../../lib/logging.ts";
 import { DatabaseError } from "../../db/database.ts";
 import {
@@ -32,7 +33,7 @@ export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
   const syncDownloadState = Effect.fn("OperationsService.syncDownloadState")(
     function* (trigger: string) {
       return yield* Effect.gen(function* () {
-        const startedAt = performance.now();
+        const startedAt = yield* currentMonotonicMillis;
 
         yield* torrentLifecycleService.syncDownloadsWithQBitEffect().pipe(
           Effect.catchAll((error) =>
@@ -42,10 +43,12 @@ export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
           ),
         );
 
+        const finishedAt = yield* currentMonotonicMillis;
+
         yield* Effect.logInfo("download state sync completed").pipe(
           Effect.annotateLogs({
             component: "downloads",
-            durationMs: durationMsSince(startedAt),
+            durationMs: durationMsSince(startedAt, finishedAt),
             syncTrigger: trigger,
           }),
         );

@@ -1,5 +1,3 @@
-import { Effect } from "effect";
-
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
@@ -7,6 +5,7 @@ import { EventBus } from "../events/event-bus.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { ExternalCallError, type OperationsError } from "./errors.ts";
+import type { OperationsCoordinationShape } from "./runtime-support.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 
@@ -35,7 +34,7 @@ export interface DownloadOrchestrationInput {
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   readonly dbError: (message: string) => (cause: unknown) => DatabaseError;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
-  readonly triggerSemaphore: Effect.Semaphore;
+  readonly coordination: OperationsCoordinationShape;
 }
 
 export function resolveRequestedEpisodeNumber(input: {

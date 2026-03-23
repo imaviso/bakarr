@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import type { ScannerState } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
+import { nowIso } from "../../lib/clock.ts";
 import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
 import type { AniListClient } from "../anime/anilist.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "../anime/repository.ts";
@@ -238,7 +239,11 @@ export const loadUnmappedFolderVideoSize = Effect.fn(
   "OperationsService.loadUnmappedFolderVideoSize",
 )(function* (fs: FileSystemShape, path: string) {
   const files = yield* scanVideoFiles(fs, path).pipe(
-    Effect.catchTag("FileSystemError", () => Effect.succeed([])),
+    Effect.mapError(() =>
+      new OperationsPathError({
+        message: `Unmapped folder is inaccessible: ${path}`,
+      })
+    ),
   );
 
   return files.reduce((total, file) => total + file.size, 0);
@@ -273,5 +278,7 @@ export const matchSingleUnmappedFolder = Effect.fn(
     withLocal.suggested_matches,
   );
 
-  return mergeUnmappedFolderSuggestions(withLocal, annotatedSuggestions);
+  const now = yield* nowIso;
+
+  return mergeUnmappedFolderSuggestions(withLocal, annotatedSuggestions, now);
 });

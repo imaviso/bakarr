@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { runTestEffect } from "../../test/effect-test.ts";
+import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 import {
   withFileSystemSandbox,
   writeTextFile,
@@ -28,6 +28,16 @@ Deno.test("loadUnmappedFolderVideoSize sums nested video files", async () => {
     );
 
     assertEquals(size, 25);
+  });
+});
+
+Deno.test("loadUnmappedFolderVideoSize fails when folder is inaccessible", async () => {
+  await withFileSystemSandbox(async ({ fs, root }) => {
+    const exit = await runTestEffectExit(
+      loadUnmappedFolderVideoSize(fs, `${root}/missing`),
+    );
+
+    assertEquals(exit._tag, "Failure");
   });
 });
 

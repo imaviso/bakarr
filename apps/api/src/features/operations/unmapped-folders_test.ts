@@ -107,8 +107,12 @@ Deno.test("unmapped folder helpers track matching status transitions", () => {
     match_reason:
       'Matched a library title from the normalized folder name "Naruto Archive"',
     title: { romaji: "Naruto" },
-  }]);
-  const failed = markUnmappedFolderFailed(base, "rate limited");
+  }], "2024-01-01T00:00:00.000Z");
+  const failed = markUnmappedFolderFailed(
+    base,
+    "rate limited",
+    "2024-01-01T00:00:00.000Z",
+  );
   const pending = markUnmappedFolderPending(done);
 
   assertEquals(matching.match_status, "matching");

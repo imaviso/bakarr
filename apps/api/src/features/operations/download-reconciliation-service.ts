@@ -357,6 +357,7 @@ export function makeDownloadReconciliationService(input: {
           return;
         }
 
+        const batchNow = yield* nowIso;
         yield* tryDatabasePromise(
           "Failed to reconcile completed download",
           async () => {
@@ -366,12 +367,12 @@ export function makeDownloadReconciliationService(input: {
                 progress: 100,
                 status: "imported",
               }).where(eq(downloads.id, row.id));
-              await tx.update(downloads).set({ reconciledAt: nowIso() }).where(
+              await tx.update(downloads).set({ reconciledAt: batchNow }).where(
                 eq(downloads.id, row.id),
               );
               await tx.insert(downloadEvents).values({
                 animeId: row.animeId,
-                createdAt: nowIso(),
+                createdAt: batchNow,
                 downloadId: row.id,
                 eventType: "download.imported.batch",
                 fromStatus: row.status,
@@ -386,7 +387,7 @@ export function makeDownloadReconciliationService(input: {
                 toStatus: "imported",
               });
               await tx.insert(systemLogs).values({
-                createdAt: nowIso(),
+                createdAt: batchNow,
                 details: null,
                 eventType: "downloads.reconciled.batch",
                 level: "success",
@@ -423,6 +424,7 @@ export function makeDownloadReconciliationService(input: {
     );
 
     if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
+      const alreadyImportedNow = yield* nowIso;
       yield* tryDatabasePromise(
         "Failed to reconcile completed download",
         async () => {
@@ -432,9 +434,10 @@ export function makeDownloadReconciliationService(input: {
               progress: 100,
               status: "imported",
             }).where(eq(downloads.id, row.id));
-            await tx.update(downloads).set({ reconciledAt: nowIso() }).where(
-              eq(downloads.id, row.id),
-            );
+            await tx.update(downloads).set({ reconciledAt: alreadyImportedNow })
+              .where(
+                eq(downloads.id, row.id),
+              );
           });
         },
       );
@@ -523,6 +526,7 @@ export function makeDownloadReconciliationService(input: {
           })
         ),
       );
+    const singleNow = yield* nowIso;
     yield* tryDatabasePromise(
       "Failed to reconcile completed download",
       async () => {
@@ -532,12 +536,12 @@ export function makeDownloadReconciliationService(input: {
             progress: 100,
             status: "imported",
           }).where(eq(downloads.id, row.id));
-          await tx.update(downloads).set({ reconciledAt: nowIso() }).where(
+          await tx.update(downloads).set({ reconciledAt: singleNow }).where(
             eq(downloads.id, row.id),
           );
           await tx.insert(downloadEvents).values({
             animeId: row.animeId,
-            createdAt: nowIso(),
+            createdAt: singleNow,
             downloadId: row.id,
             eventType: "download.imported",
             fromStatus: row.status,
@@ -550,7 +554,7 @@ export function makeDownloadReconciliationService(input: {
             toStatus: "imported",
           });
           await tx.insert(systemLogs).values({
-            createdAt: nowIso(),
+            createdAt: singleNow,
             details: null,
             eventType: "downloads.reconciled",
             level: "success",

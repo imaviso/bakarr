@@ -75,22 +75,7 @@ export function scanVideoFilesStream(
           ).pipe(Effect.map((chunk) => Array.from(chunk)))
           : fs.readDir(current);
 
-        const entries = yield* readDirectoryEffect.pipe(
-          Effect.catchTag(
-            "FileSystemError",
-            (error) =>
-              current === path
-                ? Effect.fail(error)
-                : isNotFoundError(error)
-                ? Effect.succeed([] as ScannerEntry[])
-                : Effect.logWarning(
-                  "Skipping inaccessible directory during scan",
-                ).pipe(
-                  Effect.annotateLogs({ path: current, error: String(error) }),
-                  Effect.as([] as ScannerEntry[]),
-                ),
-          ),
-        );
+        const entries = yield* readDirectoryEffect;
 
         const symlinkEntries: ScannerEntry[] = [];
         const fileEntries: ScannerEntry[] = [];
@@ -114,24 +99,15 @@ export function scanVideoFilesStream(
         const processSymlink = (entry: ScannerEntry) =>
           Effect.gen(function* () {
             const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
-            const realPath = yield* fs.realPath(fullPath).pipe(
-              Effect.catchTag("FileSystemError", () => Effect.succeed(null)),
-            );
+            const realPath = yield* fs.realPath(fullPath);
 
-            if (realPath === null || nextVisited.has(realPath)) {
+            if (nextVisited.has(realPath)) {
               return null;
             }
 
             nextVisited.add(realPath);
 
-            const realInfo = yield* fs.stat(fullPath).pipe(
-              Effect.catchTag("FileSystemError", () =>
-                Effect.succeed({
-                  isDirectory: false,
-                  isFile: false,
-                  size: 0,
-                })),
-            );
+            const realInfo = yield* fs.stat(fullPath);
 
             if (realInfo.isDirectory) {
               nextStack.push(fullPath);
@@ -152,15 +128,7 @@ export function scanVideoFilesStream(
         const processFile = (entry: ScannerEntry) =>
           Effect.gen(function* () {
             const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
-            const stats = yield* fs.stat(fullPath).pipe(
-              Effect.catchTag("FileSystemError", () =>
-                Effect.succeed({
-                  isDirectory: false,
-                  isFile: false,
-                  isSymlink: false,
-                  size: 0,
-                })),
-            );
+            const stats = yield* fs.stat(fullPath);
             return {
               name: entry.name,
               path: fullPath,
@@ -199,13 +167,4 @@ function isVideoFile(name: string) {
   return [".mkv", ".mp4", ".avi", ".mov", ".webm"].some((ext) =>
     name.toLowerCase().endsWith(ext)
   );
-}
-
-function isNotFoundError(error: { cause?: unknown }): boolean {
-  const cause = error.cause;
-  if (cause instanceof Error && "code" in cause) {
-    return (cause as { code?: string }).code === "ENOENT" ||
-      (cause as { code?: string }).code === "NotFound";
-  }
-  return false;
 }

@@ -22,7 +22,8 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { downloadEvents, downloads } from "../../db/schema.ts";
-import { nowIso, randomHex } from "./job-support.ts";
+import { randomHex } from "../../lib/random.ts";
+import { nowIso } from "./job-support.ts";
 import {
   loadDownloadEventPresentationContexts,
   loadDownloadPresentationContexts,
@@ -254,6 +255,7 @@ export function makeCatalogDownloadViewSupport(input: {
       ) as DownloadEvent[];
       const total = Number(totalRows[0]?.count ?? 0);
 
+      const generatedAt = yield* nowIso;
       return {
         events,
         total,
@@ -261,7 +263,7 @@ export function makeCatalogDownloadViewSupport(input: {
         truncated,
         limit,
         order,
-        generated_at: nowIso(),
+        generated_at: generatedAt,
       } satisfies DownloadEventsExport;
     },
   );
@@ -318,9 +320,12 @@ export function makeCatalogDownloadViewSupport(input: {
         "Failed to build download progress snapshot",
         () => loadDownloadPresentationContexts(input.db, rows),
       );
-      return rows.map((row) =>
-        toDownloadStatus(row, () => randomHex(20), contexts.get(row.id))
-      ) as DownloadStatus[];
+      return yield* Effect.forEach(rows, (row) =>
+        randomHex(20).pipe(
+          Effect.map((fallbackHash) =>
+            toDownloadStatus(row, () => fallbackHash, contexts.get(row.id))
+          ),
+        ));
     },
   );
 

@@ -94,12 +94,13 @@ export const suggestUnmappedFolders = Effect.fn(
 export function mergeUnmappedFolderSuggestions(
   folder: UnmappedFolder,
   suggestions: readonly AnimeSearchResult[],
+  nowIso: string,
 ): UnmappedFolder {
   return {
     ...folder,
     match_attempts: 0,
     last_match_error: undefined,
-    last_matched_at: new Date().toISOString(),
+    last_matched_at: nowIso,
     match_status: "done",
     suggested_matches: [...suggestions],
   };
@@ -163,6 +164,7 @@ export function markUnmappedFolderRetryPending(
 export function markUnmappedFolderFailed(
   folder: UnmappedFolder,
   error: string,
+  nowIso: string,
 ): UnmappedFolder {
   const matchAttempts = (folder.match_attempts ?? 0) + 1;
 
@@ -170,7 +172,7 @@ export function markUnmappedFolderFailed(
     ...folder,
     match_attempts: matchAttempts,
     last_match_error: error,
-    last_matched_at: new Date().toISOString(),
+    last_matched_at: nowIso,
     match_status: "failed",
   };
 }

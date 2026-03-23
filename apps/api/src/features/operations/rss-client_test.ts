@@ -6,90 +6,102 @@ import {
 } from "@effect/platform";
 import { Effect, Layer } from "effect";
 
+import { DnsLookupError, DnsResolver } from "../../lib/dns-resolver.ts";
 import { RssClient, RssClientLive } from "./rss-client.ts";
 
+function makeDnsLayer(
+  mock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
+) {
+  return Layer.succeed(DnsResolver, {
+    resolve: (hostname, recordType) =>
+      Effect.tryPromise({
+        try: () => mock(hostname, recordType),
+        catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
+      }),
+  });
+}
+
+function makeNotFoundError() {
+  const error = new Error("Not found") as Error & { code?: string };
+  error.name = "NotFound";
+  error.code = "NotFound";
+  return error;
+}
+
+function rssLayer(
+  httpClient: HttpClient.HttpClient,
+  dnsMock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
+) {
+  return RssClientLive.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        Layer.succeed(HttpClient.HttpClient, httpClient),
+        makeDnsLayer(dnsMock),
+      ),
+    ),
+  );
+}
+
 Deno.test("RssClient uses provided HttpClient for feed fetches", async () => {
-  const originalFetch = globalThis.fetch;
-
-  try {
-    globalThis.fetch = () =>
-      Promise.reject(new Error("unexpected global fetch"));
-
-    const items = await withMockResolveDns(
-      (_name, type) =>
-        type === "A"
-          ? Promise.resolve(["93.184.216.34"])
-          : Promise.reject(makeNotFoundError()),
-      () =>
-        Effect.runPromise(
-          Effect.flatMap(
-            RssClient,
-            (client) => client.fetchItems("https://feeds.example/releases.xml"),
-          ).pipe(
-            Effect.provide(
-              RssClientLive.pipe(
-                Layer.provide(
-                  Layer.succeed(HttpClient.HttpClient, makeRssHttpClient()),
-                ),
-              ),
-            ),
-          ),
+  const items = await Effect.runPromise(
+    Effect.flatMap(
+      RssClient,
+      (client) => client.fetchItems("https://feeds.example/releases.xml"),
+    ).pipe(
+      Effect.provide(
+        rssLayer(
+          makeRssHttpClient(),
+          (_name, type) =>
+            type === "A"
+              ? Promise.resolve(["93.184.216.34"])
+              : Promise.reject(makeNotFoundError()),
         ),
-    );
+      ),
+    ),
+  );
 
-    assertEquals(items, [
-      {
-        group: "SubsPlease",
-        infoHash: "abcdef0123456789abcdef0123456789abcdef01",
-        isSeaDex: false,
-        isSeaDexBest: false,
-        leechers: 12,
-        magnet:
-          "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=%5BSubsPlease%5D%20Example%20Show%20-%2001%20(1080p)%20%5BSeaDex%5D",
-        pubDate: "Mon, 01 Jan 2024 12:00:00 GMT",
-        remake: false,
-        resolution: "1080p",
-        seeders: 34,
-        size: "1.2 GiB",
-        sizeBytes: 1288490189,
-        title: "[SubsPlease] Example Show - 01 (1080p) [SeaDex]",
-        trusted: true,
-        viewUrl: "https://nyaa.si/view/123456",
-      },
-    ]);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assertEquals(items, [
+    {
+      group: "SubsPlease",
+      infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+      isSeaDex: false,
+      isSeaDexBest: false,
+      leechers: 12,
+      magnet:
+        "magnet:?xt=urn:btih:abcdef0123456789abcdef0123456789abcdef01&dn=%5BSubsPlease%5D%20Example%20Show%20-%2001%20(1080p)%20%5BSeaDex%5D",
+      pubDate: "Mon, 01 Jan 2024 12:00:00 GMT",
+      remake: false,
+      resolution: "1080p",
+      seeders: 34,
+      size: "1.2 GiB",
+      sizeBytes: 1288490189,
+      title: "[SubsPlease] Example Show - 01 (1080p) [SeaDex]",
+      trusted: true,
+      viewUrl: "https://nyaa.si/view/123456",
+    },
+  ]);
 });
 
 Deno.test("RssClient blocks feeds that resolve to private IPv6 addresses", async () => {
   let httpCalled = false;
 
-  const items = await withMockResolveDns(
-    (_name, type) =>
-      type === "AAAA"
-        ? Promise.resolve(["fd00::1"])
-        : Promise.reject(makeNotFoundError()),
-    () =>
-      Effect.runPromise(
-        Effect.flatMap(
-          RssClient,
-          (client) => client.fetchItems("https://feeds.example/releases.xml"),
-        ).pipe(
-          Effect.provide(
-            RssClientLive.pipe(
-              Layer.provide(
-                Layer.succeed(
-                  HttpClient.HttpClient,
-                  makeTrackingHttpClient(() => {
-                    httpCalled = true;
-                  }),
-                ),
-              ),
-            ),
-          ),
+  const items = await Effect.runPromise(
+    Effect.flatMap(
+      RssClient,
+      (client) => client.fetchItems("https://feeds.example/releases.xml"),
+    ).pipe(
+      Effect.provide(
+        rssLayer(
+          makeTrackingHttpClient(() => {
+            httpCalled = true;
+          }),
+          (_name, type) =>
+            type === "AAAA"
+              ? Promise.resolve(["fd00::1"])
+              : Promise.reject(makeNotFoundError()),
         ),
       ),
+    ),
   );
 
   assertEquals(items, []);
@@ -99,28 +111,20 @@ Deno.test("RssClient blocks feeds that resolve to private IPv6 addresses", async
 Deno.test("RssClient blocks feeds when DNS resolution fails", async () => {
   let httpCalled = false;
 
-  const items = await withMockResolveDns(
-    () => Promise.reject(new Error("SERVFAIL")),
-    () =>
-      Effect.runPromise(
-        Effect.flatMap(
-          RssClient,
-          (client) => client.fetchItems("https://feeds.example/releases.xml"),
-        ).pipe(
-          Effect.provide(
-            RssClientLive.pipe(
-              Layer.provide(
-                Layer.succeed(
-                  HttpClient.HttpClient,
-                  makeTrackingHttpClient(() => {
-                    httpCalled = true;
-                  }),
-                ),
-              ),
-            ),
-          ),
+  const items = await Effect.runPromise(
+    Effect.flatMap(
+      RssClient,
+      (client) => client.fetchItems("https://feeds.example/releases.xml"),
+    ).pipe(
+      Effect.provide(
+        rssLayer(
+          makeTrackingHttpClient(() => {
+            httpCalled = true;
+          }),
+          () => Promise.reject(new Error("SERVFAIL")),
         ),
       ),
+    ),
   );
 
   assertEquals(items, []);
@@ -130,32 +134,24 @@ Deno.test("RssClient blocks feeds when DNS resolution fails", async () => {
 Deno.test("RssClient blocks public URL redirecting to private IP", async () => {
   let requestCount = 0;
 
-  const items = await withMockResolveDns(
-    (_name, type) =>
-      type === "A"
-        ? Promise.resolve(["93.184.216.34"])
-        : Promise.reject(makeNotFoundError()),
-    () =>
-      Effect.runPromise(
-        Effect.flatMap(
-          RssClient,
-          (client) => client.fetchItems("https://feeds.example/releases.xml"),
-        ).pipe(
-          Effect.provide(
-            RssClientLive.pipe(
-              Layer.provide(
-                Layer.succeed(
-                  HttpClient.HttpClient,
-                  makeRedirectHttpClient(
-                    () => requestCount++,
-                    "http://192.168.1.1/private.xml",
-                  ),
-                ),
-              ),
-            ),
+  const items = await Effect.runPromise(
+    Effect.flatMap(
+      RssClient,
+      (client) => client.fetchItems("https://feeds.example/releases.xml"),
+    ).pipe(
+      Effect.provide(
+        rssLayer(
+          makeRedirectHttpClient(
+            () => requestCount++,
+            "http://192.168.1.1/private.xml",
           ),
+          (_name, type) =>
+            type === "A"
+              ? Promise.resolve(["93.184.216.34"])
+              : Promise.reject(makeNotFoundError()),
         ),
       ),
+    ),
   );
 
   assertEquals(items, []);
@@ -170,40 +166,32 @@ Deno.test("RssClient blocks chained redirect where second hop becomes private", 
   let requestCount = 0;
   const redirectChain: string[] = [];
 
-  const items = await withMockResolveDns(
-    (name, type) => {
-      if (name === "private.example") {
-        return type === "A"
-          ? Promise.resolve(["10.0.0.1"])
-          : Promise.reject(makeNotFoundError());
-      }
-      return type === "A"
-        ? Promise.resolve(["93.184.216.34"])
-        : Promise.reject(makeNotFoundError());
-    },
-    () =>
-      Effect.runPromise(
-        Effect.flatMap(
-          RssClient,
-          (client) => client.fetchItems("https://feeds.example/releases.xml"),
-        ).pipe(
-          Effect.provide(
-            RssClientLive.pipe(
-              Layer.provide(
-                Layer.succeed(
-                  HttpClient.HttpClient,
-                  makeChainedRedirectHttpClient(
-                    () => {
-                      requestCount++;
-                    },
-                    (url) => redirectChain.push(url),
-                  ),
-                ),
-              ),
-            ),
+  const items = await Effect.runPromise(
+    Effect.flatMap(
+      RssClient,
+      (client) => client.fetchItems("https://feeds.example/releases.xml"),
+    ).pipe(
+      Effect.provide(
+        rssLayer(
+          makeChainedRedirectHttpClient(
+            () => {
+              requestCount++;
+            },
+            (url) => redirectChain.push(url),
           ),
+          (name, type) => {
+            if (name === "private.example") {
+              return type === "A"
+                ? Promise.resolve(["10.0.0.1"])
+                : Promise.reject(makeNotFoundError());
+            }
+            return type === "A"
+              ? Promise.resolve(["93.184.216.34"])
+              : Promise.reject(makeNotFoundError());
+          },
         ),
       ),
+    ),
   );
 
   assertEquals(items, []);
@@ -218,31 +206,23 @@ Deno.test("RssClient aborts redirect loops safely", async () => {
   let requestCount = 0;
   const visitedUrls: string[] = [];
 
-  const items = await withMockResolveDns(
-    () => Promise.resolve(["93.184.216.34"]),
-    () =>
-      Effect.runPromise(
-        Effect.flatMap(
-          RssClient,
-          (client) => client.fetchItems("https://feeds.example/releases.xml"),
-        ).pipe(
-          Effect.provide(
-            RssClientLive.pipe(
-              Layer.provide(
-                Layer.succeed(
-                  HttpClient.HttpClient,
-                  makeLoopingRedirectHttpClient(
-                    () => {
-                      requestCount++;
-                    },
-                    (url) => visitedUrls.push(url),
-                  ),
-                ),
-              ),
-            ),
+  const items = await Effect.runPromise(
+    Effect.flatMap(
+      RssClient,
+      (client) => client.fetchItems("https://feeds.example/releases.xml"),
+    ).pipe(
+      Effect.provide(
+        rssLayer(
+          makeLoopingRedirectHttpClient(
+            () => {
+              requestCount++;
+            },
+            (url) => visitedUrls.push(url),
           ),
+          () => Promise.resolve(["93.184.216.34"]),
         ),
       ),
+    ),
   );
 
   assertEquals(items, []);
@@ -254,39 +234,25 @@ Deno.test("RssClient aborts redirect loops safely", async () => {
 });
 
 Deno.test("RssClient handles non-redirect valid feed", async () => {
-  const originalFetch = globalThis.fetch;
-
-  try {
-    globalThis.fetch = () =>
-      Promise.reject(new Error("unexpected global fetch"));
-
-    const items = await withMockResolveDns(
-      () => Promise.resolve(["93.184.216.34"]),
-      () =>
-        Effect.runPromise(
-          Effect.flatMap(
-            RssClient,
-            (client) => client.fetchItems("https://feeds.example/releases.xml"),
-          ).pipe(
-            Effect.provide(
-              RssClientLive.pipe(
-                Layer.provide(
-                  Layer.succeed(HttpClient.HttpClient, makeRssHttpClient()),
-                ),
-              ),
-            ),
-          ),
+  const items = await Effect.runPromise(
+    Effect.flatMap(
+      RssClient,
+      (client) => client.fetchItems("https://feeds.example/releases.xml"),
+    ).pipe(
+      Effect.provide(
+        rssLayer(
+          makeRssHttpClient(),
+          () => Promise.resolve(["93.184.216.34"]),
         ),
-    );
+      ),
+    ),
+  );
 
-    assertEquals(items.length, 1);
-    assertEquals(
-      items[0].title,
-      "[SubsPlease] Example Show - 01 (1080p) [SeaDex]",
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assertEquals(items.length, 1);
+  assertEquals(
+    items[0].title,
+    "[SubsPlease] Example Show - 01 (1080p) [SeaDex]",
+  );
 });
 
 function makeRssHttpClient() {
@@ -416,142 +382,65 @@ function makeLoopingRedirectHttpClient(
   });
 }
 
-async function withMockResolveDns<T>(
-  mock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
-  run: () => Promise<T>,
-) {
-  const denoLike = globalThis as unknown as {
-    Deno?: {
-      resolveDns?: (name: string, type: "A" | "AAAA") => Promise<string[]>;
-    };
-  };
+Deno.test("RssClient accepts feeds under byte cap", async () => {
+  const smallFeed =
+    `<?xml version="1.0"?><rss><channel><item><title>Test</title></item></channel></rss>`;
 
-  if (!denoLike.Deno) {
-    denoLike.Deno = {};
-  }
-
-  const descriptor = Object.getOwnPropertyDescriptor(
-    denoLike.Deno,
-    "resolveDns",
+  const items = await Effect.runPromise(
+    Effect.flatMap(
+      RssClient,
+      (client) => client.fetchItems("https://feeds.example/releases.xml"),
+    ).pipe(
+      Effect.provide(
+        rssLayer(
+          HttpClient.make((request) =>
+            Effect.succeed(
+              HttpClientResponse.fromWeb(
+                request,
+                new Response(smallFeed, {
+                  headers: { "content-type": "application/xml" },
+                  status: 200,
+                }),
+              ),
+            )
+          ),
+          () => Promise.resolve(["93.184.216.34"]),
+        ),
+      ),
+    ),
   );
 
-  Object.defineProperty(denoLike.Deno, "resolveDns", {
-    configurable: true,
-    value: mock,
-    writable: true,
-  });
-
-  try {
-    return await run();
-  } finally {
-    if (descriptor) {
-      Object.defineProperty(denoLike.Deno, "resolveDns", descriptor);
-    } else {
-      delete denoLike.Deno.resolveDns;
-    }
-  }
-}
-
-function makeNotFoundError() {
-  const error = new Error("Not found") as Error & { code?: string };
-  error.name = "NotFound";
-  error.code = "NotFound";
-  return error;
-}
-
-Deno.test("RssClient accepts feeds under byte cap", async () => {
-  const originalFetch = globalThis.fetch;
-
-  try {
-    globalThis.fetch = () =>
-      Promise.reject(new Error("unexpected global fetch"));
-
-    const smallFeed =
-      `<?xml version="1.0"?><rss><channel><item><title>Test</title></item></channel></rss>`;
-
-    const items = await withMockResolveDns(
-      () => Promise.resolve(["93.184.216.34"]),
-      () =>
-        Effect.runPromise(
-          Effect.flatMap(
-            RssClient,
-            (client) => client.fetchItems("https://feeds.example/releases.xml"),
-          ).pipe(
-            Effect.provide(
-              RssClientLive.pipe(
-                Layer.provide(
-                  Layer.succeed(
-                    HttpClient.HttpClient,
-                    HttpClient.make((request) =>
-                      Effect.succeed(
-                        HttpClientResponse.fromWeb(
-                          request,
-                          new Response(smallFeed, {
-                            headers: { "content-type": "application/xml" },
-                            status: 200,
-                          }),
-                        ),
-                      )
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-    );
-
-    assertEquals(items.length, 1);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assertEquals(items.length, 1);
 });
 
 Deno.test("RssClient rejects feeds over byte cap", async () => {
-  const originalFetch = globalThis.fetch;
+  const largeFeed = "x".repeat(11 * 1024 * 1024);
 
-  try {
-    globalThis.fetch = () =>
-      Promise.reject(new Error("unexpected global fetch"));
-
-    const largeFeed = "x".repeat(11 * 1024 * 1024);
-
-    const items = await withMockResolveDns(
-      () => Promise.resolve(["93.184.216.34"]),
-      () =>
-        Effect.runPromise(
-          Effect.flatMap(
-            RssClient,
-            (client) => client.fetchItems("https://feeds.example/releases.xml"),
-          ).pipe(
-            Effect.provide(
-              RssClientLive.pipe(
-                Layer.provide(
-                  Layer.succeed(
-                    HttpClient.HttpClient,
-                    HttpClient.make((request) =>
-                      Effect.succeed(
-                        HttpClientResponse.fromWeb(
-                          request,
-                          new Response(largeFeed, {
-                            headers: { "content-type": "application/xml" },
-                            status: 200,
-                          }),
-                        ),
-                      )
-                    ),
-                  ),
-                ),
+  const items = await Effect.runPromise(
+    Effect.flatMap(
+      RssClient,
+      (client) => client.fetchItems("https://feeds.example/releases.xml"),
+    ).pipe(
+      Effect.provide(
+        rssLayer(
+          HttpClient.make((request) =>
+            Effect.succeed(
+              HttpClientResponse.fromWeb(
+                request,
+                new Response(largeFeed, {
+                  headers: { "content-type": "application/xml" },
+                  status: 200,
+                }),
               ),
-            ),
+            )
           ),
+          () => Promise.resolve(["93.184.216.34"]),
         ),
-    );
+      ),
+    ),
+  );
 
-    assertEquals(items, []);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  assertEquals(items, []);
 });
 
 Deno.test("RssClient disables automatic redirect following for fetch client", async () => {
@@ -588,19 +477,24 @@ Deno.test("RssClient disables automatic redirect following for fetch client", as
       );
     };
 
-    const items = await withMockResolveDns(
-      () => Promise.resolve(["93.184.216.34"]),
-      () =>
-        Effect.runPromise(
-          Effect.flatMap(
-            RssClient,
-            (client) => client.fetchItems("https://feeds.example/releases.xml"),
-          ).pipe(
-            Effect.provide(
-              RssClientLive.pipe(Layer.provide(FetchHttpClient.layer)),
+    const items = await Effect.runPromise(
+      Effect.flatMap(
+        RssClient,
+        (client) => client.fetchItems("https://feeds.example/releases.xml"),
+      ).pipe(
+        Effect.provide(
+          RssClientLive.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                FetchHttpClient.layer,
+                makeDnsLayer(
+                  () => Promise.resolve(["93.184.216.34"]),
+                ),
+              ),
             ),
           ),
         ),
+      ),
     );
 
     assertEquals(items, []);

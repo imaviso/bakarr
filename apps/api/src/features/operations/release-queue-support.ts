@@ -36,6 +36,7 @@ export const queueParsedReleaseDownload = Effect.fn(
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
 }) {
   const coveredEpisodeNumbers = parseCoveredEpisodes(input.coveredEpisodes);
+  const now = yield* nowIso;
   const insertResult = yield* Effect.either(input.tryDatabasePromise(
     input.contextMessage,
     () =>
@@ -52,7 +53,7 @@ export const queueParsedReleaseDownload = Effect.fn(
         }
 
         const inserted = await tx.insert(downloads).values({
-          addedAt: nowIso(),
+          addedAt: now,
           animeId: input.animeRow.id,
           animeTitle: input.animeRow.titleRomaji,
           contentPath: null,
@@ -66,7 +67,7 @@ export const queueParsedReleaseDownload = Effect.fn(
           groupName: input.item.group ?? null,
           infoHash: input.item.infoHash,
           isBatch: input.isBatch,
-          lastSyncedAt: nowIso(),
+          lastSyncedAt: now,
           magnet: input.item.magnet,
           progress: 0,
           savePath: null,

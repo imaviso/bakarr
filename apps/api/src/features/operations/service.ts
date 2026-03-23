@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Ref } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { Database, DatabaseError } from "../../db/database.ts";
 import { FileSystem } from "../../lib/filesystem.ts";
@@ -64,8 +64,11 @@ export {
 } from "./naming-support.ts";
 
 interface OperationsSharedStateShape {
-  readonly triggerSemaphore: Effect.Semaphore;
-  readonly unmappedScanRunning: Ref.Ref<boolean>;
+  readonly finishUnmappedScan: () => Effect.Effect<void>;
+  readonly runSerializedTrigger: <A, E, R>(
+    effect: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>;
+  readonly tryStartUnmappedScan: () => Effect.Effect<boolean>;
 }
 
 interface OperationsProgressShape {
@@ -135,7 +138,7 @@ const downloadOrchestrationLayer = Layer.effect(
       tryDatabasePromise,
 
       wrapOperationsError,
-      triggerSemaphore: sharedState.triggerSemaphore,
+      coordination: sharedState,
     });
   }),
 );
@@ -189,9 +192,8 @@ const searchOrchestrationLayer = Layer.effect(
       qbitClient,
       rssClient,
       seadexClient,
-      triggerSemaphore: sharedState.triggerSemaphore,
+      coordination: sharedState,
       tryDatabasePromise,
-      unmappedScanRunning: sharedState.unmappedScanRunning,
       wrapOperationsError,
     });
   }),

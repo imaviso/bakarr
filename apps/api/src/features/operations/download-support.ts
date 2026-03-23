@@ -4,11 +4,13 @@ import type {
   Config,
   DownloadSourceMetadata,
 } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
+import { type AppDatabase, isBusySqliteCause } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import { anime } from "../../db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
+import { isCrossFilesystemError } from "../../lib/fs-errors.ts";
 import type { ProbedMediaMetadata } from "../../lib/media-probe.ts";
+import { randomUuid } from "../../lib/random.ts";
 import { Effect, Schema } from "effect";
 import { buildEpisodeFilenamePlan } from "./naming-support.ts";
 import type { PreferredTitle } from "../../../../../packages/shared/src/index.ts";
@@ -22,14 +24,6 @@ export class ImportRollbackError {
     readonly cause: unknown,
     readonly rolledBack: boolean,
   ) {}
-}
-
-function isCrossFilesystemError(error: { cause?: unknown }): boolean {
-  const cause = error.cause;
-  if (cause instanceof Error && "code" in cause) {
-    return (cause as { code?: string }).code === "EXDEV";
-  }
-  return false;
 }
 
 export function shouldReconcileCompletedDownloads(config: Config | null) {
@@ -104,7 +98,7 @@ export function importDownloadedFile(
     const destination = `${
       animeRow.rootFolder.replace(/\/$/, "")
     }/${baseName}${extension}`;
-    const tempDestination = `${destination}.tmp.${crypto.randomUUID()}`;
+    const tempDestination = `${destination}.tmp.${yield* randomUuid}`;
 
     yield* fs.mkdir(animeRow.rootFolder, { recursive: true });
 
@@ -133,7 +127,7 @@ export function importDownloadedFile(
       ),
     );
 
-    const backupDestination = `${destination}.bak.${crypto.randomUUID()}`;
+    const backupDestination = `${destination}.bak.${yield* randomUuid}`;
     const existingStat = yield* Effect.either(fs.stat(destination));
     const hasExisting = existingStat._tag === "Right";
 
@@ -321,35 +315,3 @@ export const upsertEpisodeFile = Effect.fn("Operations.upsertEpisodeFile")(
     yield* upsertEpisodeFilesAtomic(db, animeId, [episodeNumber], destination);
   },
 );
-
-function isBusySqliteCause(cause: unknown): boolean {
-  const seen = new Set<unknown>();
-  let current: unknown = cause;
-
-  while (current && typeof current === "object" && !seen.has(current)) {
-    seen.add(current);
-
-    const code = typeof (current as { code?: unknown }).code === "string"
-      ? (current as { code?: string }).code
-      : String(
-        (current as { code?: unknown; errno?: unknown }).code ??
-          (current as { errno?: unknown }).errno ??
-          "",
-      );
-    const message = String((current as { message?: unknown }).message ?? "");
-
-    if (
-      code === "SQLITE_BUSY" ||
-      code === "5" ||
-      message.includes("database is locked")
-    ) {
-      return true;
-    }
-
-    current = "cause" in current
-      ? (current as { cause?: unknown }).cause
-      : undefined;
-  }
-
-  return false;
-}
