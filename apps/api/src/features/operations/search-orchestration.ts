@@ -1,4 +1,4 @@
-import { Effect, Ref } from "effect";
+import { Effect } from "effect";
 
 import type {
   Config,
@@ -48,6 +48,7 @@ import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { makeUnmappedOrchestrationSupport } from "./unmapped-orchestration-support.ts";
+import type { OperationsCoordinationShape } from "./runtime-support.ts";
 
 export function makeSearchOrchestration(input: {
   db: AppDatabase;
@@ -70,8 +71,7 @@ export function makeSearchOrchestration(input: {
     total: number;
     feed_name: string;
   }) => Effect.Effect<void>;
-  triggerSemaphore: Effect.Semaphore;
-  unmappedScanRunning: Ref.Ref<boolean>;
+  coordination: OperationsCoordinationShape;
 }) {
   const {
     db,
@@ -88,8 +88,7 @@ export function makeSearchOrchestration(input: {
     maybeQBitConfig,
     publishDownloadProgress,
     publishRssCheckProgress,
-    triggerSemaphore,
-    unmappedScanRunning,
+    coordination,
   } = input;
 
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(
@@ -172,7 +171,7 @@ export function makeSearchOrchestration(input: {
     const entry = yield* seadexClient.getEntryByAniListId(animeRow.id).pipe(
       Effect.tapError((error) =>
         Effect.logWarning(
-          "SeaDex enrichment failed, continuing without SeaDex metadata",
+          "SeaDex enrichment failed",
         ).pipe(
           Effect.annotateLogs(
             compactLogAnnotations({
@@ -185,7 +184,6 @@ export function makeSearchOrchestration(input: {
           ),
         )
       ),
-      Effect.catchAll(() => Effect.succeed(null)),
     );
 
     if (!entry || entry.releases.length === 0) {
@@ -203,7 +201,14 @@ export function makeSearchOrchestration(input: {
       filter?: string,
     ) {
       const animeRow = animeId ? yield* requireAnime(db, animeId) : null;
-      const searchQuery = (query || animeRow?.titleRomaji || "Search").trim();
+      const searchQuery = (query || animeRow?.titleRomaji || "").trim();
+
+      if (searchQuery.length === 0) {
+        return yield* new OperationsInputError({
+          message: "Search query is required",
+        });
+      }
+
       const runtimeConfig = yield* loadRuntimeConfig(db);
       const results = yield* searchNyaaReleases(
         searchQuery,
@@ -326,7 +331,7 @@ export function makeSearchOrchestration(input: {
     qbitClient,
     rssClient,
     searchEpisodeReleases,
-    triggerSemaphore,
+    coordination,
     tryDatabasePromise,
     wrapOperationsError,
   });
@@ -338,7 +343,7 @@ export function makeSearchOrchestration(input: {
     dbError,
     fs,
     tryDatabasePromise,
-    unmappedScanRunning,
+    coordination,
   });
 
   const {

@@ -1,10 +1,11 @@
 import { and, eq, isNotNull } from "drizzle-orm";
-import { Effect, Runtime } from "effect";
+import { Effect, Runtime, Schema } from "effect";
 
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import { isWithinPathRoot } from "../../lib/filesystem.ts";
+import { nowIso } from "../../lib/clock.ts";
 import {
   type MediaProbeShape,
   mergeProbedMediaMetadata,
@@ -33,6 +34,45 @@ import { wrapAnimeError } from "./service-support.ts";
 
 const mapAnimeDbError = (message: string) =>
   Effect.mapError(wrapAnimeError(message));
+
+export class EpisodeFileResolved
+  extends Schema.TaggedClass<EpisodeFileResolved>()("EpisodeFileResolved", {
+    fileName: Schema.String,
+    filePath: Schema.String,
+  }) {}
+
+export class EpisodeFileUnmapped
+  extends Schema.TaggedClass<EpisodeFileUnmapped>()(
+    "EpisodeFileUnmapped",
+    {},
+  ) {}
+
+export class EpisodeFileRootInaccessible
+  extends Schema.TaggedClass<EpisodeFileRootInaccessible>()(
+    "EpisodeFileRootInaccessible",
+    { rootFolder: Schema.String },
+  ) {}
+
+export class EpisodeFileMissing
+  extends Schema.TaggedClass<EpisodeFileMissing>()("EpisodeFileMissing", {
+    filePath: Schema.String,
+  }) {}
+
+export class EpisodeFileOutsideRoot
+  extends Schema.TaggedClass<EpisodeFileOutsideRoot>()(
+    "EpisodeFileOutsideRoot",
+    {
+      animeRoot: Schema.String,
+      filePath: Schema.String,
+    },
+  ) {}
+
+export type EpisodeFileResolution =
+  | EpisodeFileResolved
+  | EpisodeFileUnmapped
+  | EpisodeFileRootInaccessible
+  | EpisodeFileMissing
+  | EpisodeFileOutsideRoot;
 
 export const loadAnimeRoot = Effect.fn("AnimeService.loadAnimeRoot")(function* (
   fs: FileSystemShape,
@@ -141,6 +181,8 @@ export const scanAnimeFolderEffect = Effect.fn(
       continue;
     }
 
+    const currentIso = yield* nowIso;
+
     for (const episodeNumber of episodeNumbers) {
       yield* upsertEpisodeEffect(input.db, input.animeId, episodeNumber, {
         aired: inferAiredAt(
@@ -150,6 +192,7 @@ export const scanAnimeFolderEffect = Effect.fn(
           animeRow.startDate ?? undefined,
           animeRow.endDate ?? undefined,
           airingScheduleByEpisode,
+          currentIso,
         ),
         downloaded: true,
         filePath: file.path,
@@ -193,27 +236,28 @@ export const deleteEpisodeFileEffect = Effect.fn(
 
   if (episodeRow.filePath) {
     const filePath = episodeRow.filePath;
-    const resolvedPathResult = yield* Effect.either(
-      input.fs.realPath(filePath),
+    const resolvedPath = yield* input.fs.realPath(filePath).pipe(
+      Effect.mapError(() =>
+        new AnimePathError({
+          message: "Episode file path does not exist or is inaccessible",
+        })
+      ),
     );
+    const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
 
-    if (resolvedPathResult._tag === "Right") {
-      const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
-
-      if (!isWithinPathRoot(resolvedPathResult.right, animeRoot)) {
-        return yield* new AnimePathError({
-          message: "File path is not within the anime root folder",
-        });
-      }
-
-      yield* input.fs.remove(filePath).pipe(
-        Effect.mapError(() =>
-          new AnimePathError({
-            message: "Failed to delete episode file from disk",
-          })
-        ),
-      );
+    if (!isWithinPathRoot(resolvedPath, animeRoot)) {
+      return yield* new AnimePathError({
+        message: "File path is not within the anime root folder",
+      });
     }
+
+    yield* input.fs.remove(filePath).pipe(
+      Effect.mapError(() =>
+        new AnimePathError({
+          message: "Failed to delete episode file from disk",
+        })
+      ),
+    );
   }
 
   yield* clearEpisodeMappingEffect(input.db, input.animeId, input.episodeNumber)
@@ -571,7 +615,7 @@ export const resolveEpisodeFileEffect = Effect.fn(
   ).pipe(mapAnimeDbError("Failed to resolve episode file"));
 
   if (!episodeRow.filePath) {
-    return null;
+    return new EpisodeFileUnmapped();
   }
 
   const animeRootResult = yield* Effect.either(
@@ -579,7 +623,7 @@ export const resolveEpisodeFileEffect = Effect.fn(
   );
 
   if (animeRootResult._tag === "Left") {
-    yield* Effect.logDebug("Anime root folder not accessible, returning null")
+    yield* Effect.logDebug("Anime root folder not accessible")
       .pipe(
         Effect.annotateLogs({
           animeId: input.animeId,
@@ -587,7 +631,9 @@ export const resolveEpisodeFileEffect = Effect.fn(
           rootFolder: animeRow.rootFolder,
         }),
       );
-    return null;
+    return new EpisodeFileRootInaccessible({
+      rootFolder: animeRow.rootFolder,
+    });
   }
 
   const filePathResult = yield* Effect.either(
@@ -595,7 +641,7 @@ export const resolveEpisodeFileEffect = Effect.fn(
   );
 
   if (filePathResult._tag === "Left") {
-    yield* Effect.logDebug("Episode file path not accessible, returning null")
+    yield* Effect.logDebug("Episode file path not accessible")
       .pipe(
         Effect.annotateLogs({
           animeId: input.animeId,
@@ -603,13 +649,15 @@ export const resolveEpisodeFileEffect = Effect.fn(
           filePath: episodeRow.filePath,
         }),
       );
-    return null;
+    return new EpisodeFileMissing({
+      filePath: episodeRow.filePath,
+    });
   }
 
   const filePath = filePathResult.right;
 
   if (!isWithinPathRoot(filePath, animeRootResult.right)) {
-    yield* Effect.logDebug("Episode file outside anime root, returning null")
+    yield* Effect.logDebug("Episode file outside anime root")
       .pipe(
         Effect.annotateLogs({
           animeId: input.animeId,
@@ -618,13 +666,16 @@ export const resolveEpisodeFileEffect = Effect.fn(
           animeRoot: animeRootResult.right,
         }),
       );
-    return null;
+    return new EpisodeFileOutsideRoot({
+      animeRoot: animeRootResult.right,
+      filePath,
+    });
   }
 
-  return {
+  return new EpisodeFileResolved({
     fileName: filePath.split("/").pop() ?? `episode-${input.episodeNumber}`,
     filePath,
-  };
+  });
 });
 
 export type AnimeFileMappingError = AnimeServiceError | DatabaseError;

@@ -1,39 +1,42 @@
 import { Command, CommandExecutor } from "@effect/platform";
 
-import { Effect, Option } from "effect";
+import { Effect, Option, Schema } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 
-export interface DiskSpace {
-  readonly free: number;
-  readonly total: number;
-}
-
-export interface DiskSpaceError {
-  readonly _tag: "DiskSpaceError";
-  readonly message: string;
-  readonly cause?: unknown;
-}
-
-export const DiskSpaceError = (
-  message: string,
-  cause?: unknown,
-): DiskSpaceError => ({
-  _tag: "DiskSpaceError",
-  cause,
-  message,
+export const DiskSpaceSchema = Schema.Struct({
+  free: Schema.Number,
+  total: Schema.Number,
 });
 
-export interface BlockStatsShape {
-  readonly bavail: bigint | number;
-  readonly blocks: bigint | number;
-  readonly bsize: bigint | number;
-}
+export type DiskSpace = Schema.Schema.Type<typeof DiskSpaceSchema>;
+
+export class DiskSpaceError extends Schema.TaggedError<DiskSpaceError>()(
+  "DiskSpaceError",
+  {
+    cause: Schema.optional(Schema.Defect),
+    message: Schema.String,
+  },
+) {}
+
+export const BlockStatsSchema = Schema.Struct({
+  bavail: Schema.Union(Schema.Number, Schema.BigInt),
+  blocks: Schema.Union(Schema.Number, Schema.BigInt),
+  bsize: Schema.Union(Schema.Number, Schema.BigInt),
+});
+
+export type BlockStatsShape = Schema.Schema.Type<typeof BlockStatsSchema>;
 
 export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
-  const blockSize = toSafeNumber(stat.bsize);
-  const availableBlocks = toSafeNumber(stat.bavail);
-  const totalBlocks = toSafeNumber(stat.blocks);
+  const blockSize = toPositiveNumber(stat.bsize, "Invalid block size");
+  const availableBlocks = toNonNegativeNumber(
+    stat.bavail,
+    "Invalid available block count",
+  );
+  const totalBlocks = toPositiveNumber(
+    stat.blocks,
+    "Invalid total block count",
+  );
 
   return {
     free: clampDiskBytes(availableBlocks * blockSize),
@@ -49,17 +52,19 @@ export const getDiskSpace = Effect.fn("System.getDiskSpace")(
       );
 
       if (Option.isNone(executorOption)) {
-        return yield* Effect.fail(
-          DiskSpaceError(
+        return yield* new DiskSpaceError({
+          message:
             `Failed to get disk space for ${path}: command executor unavailable`,
-          ),
-        );
+        });
       }
 
       const output = yield* Command.make("df", "-Pk", path).pipe(
         Command.string,
         Effect.mapError((cause) =>
-          DiskSpaceError(`Failed to get disk space for ${path}`, cause)
+          new DiskSpaceError({
+            cause,
+            message: `Failed to get disk space for ${path}`,
+          })
         ),
         Effect.provideService(
           CommandExecutor.CommandExecutor,
@@ -70,29 +75,27 @@ export const getDiskSpace = Effect.fn("System.getDiskSpace")(
       return yield* Effect.try({
         try: () => mapDfOutputToDiskSpace(path, output),
         catch: (cause) =>
-          DiskSpaceError(`Failed to parse disk space for ${path}`, cause),
+          new DiskSpaceError({
+            cause,
+            message: `Failed to parse disk space for ${path}`,
+          }),
       });
     }),
 );
 
 export const getDiskSpaceSafe = Effect.fn("System.getDiskSpaceSafe")(
-  (path: string): Effect.Effect<DiskSpace, never, never> => {
-    return getDiskSpace(path).pipe(
+  (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> =>
+    getDiskSpace(path).pipe(
       Effect.tapError((error) =>
-        Effect.logError("Failed to inspect storage volume; using fallback")
-          .pipe(
-            Effect.annotateLogs({
-              component: "system",
-              diskPath: path,
-              error: error.message,
-              fallback_free: 0,
-              fallback_total: 0,
-            }),
-          )
+        Effect.logError("Failed to inspect storage volume").pipe(
+          Effect.annotateLogs({
+            component: "system",
+            diskPath: path,
+            error: error.message,
+          }),
+        )
       ),
-      Effect.catchAll(() => Effect.succeed({ free: 0, total: 0 })),
-    );
-  },
+    ),
 );
 
 export function selectStoragePath(
@@ -111,8 +114,8 @@ export function selectStoragePath(
 }
 
 function clampDiskBytes(value: number) {
-  if (!Number.isFinite(value) || value <= 0) {
-    return 0;
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error("Invalid disk byte count");
   }
 
   return Math.min(value, Number.MAX_SAFE_INTEGER);
@@ -151,11 +154,21 @@ function mapDfOutputToDiskSpace(path: string, output: string): DiskSpace {
   };
 }
 
-function toSafeNumber(value: bigint | number) {
+function toPositiveNumber(value: bigint | number, message: string) {
   const numeric = typeof value === "bigint" ? Number(value) : value;
 
   if (!Number.isFinite(numeric) || numeric <= 0) {
-    return 0;
+    throw new Error(message);
+  }
+
+  return Math.min(numeric, Number.MAX_SAFE_INTEGER);
+}
+
+function toNonNegativeNumber(value: bigint | number, message: string) {
+  const numeric = typeof value === "bigint" ? Number(value) : value;
+
+  if (!Number.isFinite(numeric) || numeric < 0) {
+    throw new Error(message);
   }
 
   return Math.min(numeric, Number.MAX_SAFE_INTEGER);

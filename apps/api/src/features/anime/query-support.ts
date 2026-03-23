@@ -1,10 +1,11 @@
 import { and, count, eq, inArray, sql } from "drizzle-orm";
-import { Effect, Either, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import {
   AnimeDiscoveryEntrySchema,
   StringListSchema,
 } from "../../../../../packages/shared/src/index.ts";
+import { currentDateSync } from "../../lib/clock.ts";
 import type {
   Anime,
   AnimeDiscoveryEntry,
@@ -19,7 +20,7 @@ import { anime, episodes } from "../../db/schema.ts";
 import type { AniListClient } from "./anilist.ts";
 import { scoreAnimeSearchResultMatch } from "../operations/library-import.ts";
 import { toAnimeDto } from "./dto.ts";
-import { AnimeNotFoundError } from "./errors.ts";
+import { AnimeNotFoundError, AnimeStoredDataError } from "./errors.ts";
 import {
   getAnimeRowEffect,
   markSearchResultsAlreadyInLibraryEffect,
@@ -116,15 +117,23 @@ export const listAnimeEffect = Effect.fn("AnimeService.listAnimeEffect")(
       }
     }
 
-    const animeProgressRows = animeRows.map((row): Anime =>
-      toAnimeDtoProgress(
-        row,
-        episodeStatsByAnimeId.get(row.id),
-        missingNumbersByAnimeId.get(row.id),
-      )
+    const animeProgressRows = yield* Effect.forEach(
+      animeRows,
+      (row) =>
+        toAnimeDtoProgress(
+          row,
+          episodeStatsByAnimeId.get(row.id),
+          missingNumbersByAnimeId.get(row.id),
+        ),
     );
 
-    const total = totalCountResult[0]?.count ?? 0;
+    const total = totalCountResult[0]?.count;
+
+    if (total === undefined) {
+      return yield* new AnimeStoredDataError({
+        message: "Anime count query returned no rows",
+      });
+    }
 
     return {
       has_more: offset + limit < total,
@@ -143,7 +152,7 @@ function toAnimeDtoProgress(
     latestDownloadedEpisode?: number;
   },
   missingNumbers: readonly number[] = [],
-): Anime {
+): Effect.Effect<Anime, AnimeStoredDataError> {
   const downloaded = progress?.downloaded ?? 0;
   const total = row.episodeCount ?? undefined;
   const sortedMissing = total
@@ -155,92 +164,76 @@ function toAnimeDtoProgress(
     : undefined;
   const latestDownloadedEpisode = progress?.latestDownloadedEpisode;
 
-  return {
-    added_at: row.addedAt,
-    banner_image: row.bannerImage ?? undefined,
-    cover_image: row.coverImage ?? undefined,
-    description: row.description ?? undefined,
-    end_date: row.endDate ?? undefined,
-    end_year: row.endYear ?? undefined,
-    episode_count: row.episodeCount ?? undefined,
-    format: row.format,
-    genres: safeParseStringList(row.genres) ?? [],
-    id: row.id,
-    mal_id: row.malId ?? undefined,
-    monitored: row.monitored,
-    next_airing_episode: row.nextAiringAt && row.nextAiringEpisode
-      ? {
-        airing_at: row.nextAiringAt,
-        episode: row.nextAiringEpisode,
-      }
-      : undefined,
-    score: row.score ?? undefined,
-    profile_name: row.profileName,
-    progress: {
-      downloaded,
-      downloaded_percent: downloadedPercent,
-      is_up_to_date: total ? sortedMissing.length === 0 : undefined,
-      latest_downloaded_episode: latestDownloadedEpisode,
-      missing: sortedMissing,
-      next_missing_episode: sortedMissing[0],
-      total,
-    },
-    recommended_anime: safeParseDiscoveryEntries(row.recommendedAnime),
-    related_anime: safeParseDiscoveryEntries(row.relatedAnime),
-    release_profile_ids: safeParseNumberList(row.releaseProfileIds),
-    root_folder: row.rootFolder,
-    season: deriveAnimeSeasonFromDate(row.startDate ?? undefined),
-    season_year: row.startYear ?? extractYearFromDate(row.startDate),
-    start_date: row.startDate ?? undefined,
-    start_year: row.startYear ?? undefined,
-    status: row.status,
-    studios: safeParseStringList(row.studios) ?? [],
-    synonyms: safeParseStringList(row.synonyms),
-    title: {
-      english: row.titleEnglish ?? undefined,
-      native: row.titleNative ?? undefined,
-      romaji: row.titleRomaji,
-    },
-  };
-}
-
-const searchLocalAnimeEffect = Effect.fn("AnimeService.searchLocalAnimeEffect")(
-  function* (input: {
-    db: AppDatabase;
-    query: string;
-  }) {
-    const trimmed = input.query.trim();
-
-    if (trimmed.length === 0) {
-      return [] as AnimeSearchResult[];
-    }
-
-    const rows = yield* tryDatabasePromise(
-      "Failed to search anime",
-      () => input.db.select().from(anime),
+  return Effect.gen(function* () {
+    const genres = yield* decodeStoredStringList(row.genres, "genres").pipe(
+      Effect.map((value) => value ?? []),
     );
+    const recommendedAnime = yield* decodeStoredDiscoveryEntries(
+      row.recommendedAnime,
+      "recommendedAnime",
+    );
+    const relatedAnime = yield* decodeStoredDiscoveryEntries(
+      row.relatedAnime,
+      "relatedAnime",
+    );
+    const releaseProfileIds = yield* decodeStoredNumberList(
+      row.releaseProfileIds,
+      "releaseProfileIds",
+    );
+    const studios = yield* decodeStoredStringList(row.studios, "studios").pipe(
+      Effect.map((value) => value ?? []),
+    );
+    const synonyms = yield* decodeStoredStringList(row.synonyms, "synonyms");
 
-    return rows
-      .map((row) => {
-        const candidate = toLocalAnimeSearchResult(row);
-
-        return {
-          candidate,
-          score: scoreAnimeSearchResultMatch(trimmed, candidate),
-        };
-      })
-      .filter((entry) => entry.score >= 0.55)
-      .sort((left, right) => {
-        if (left.score !== right.score) {
-          return right.score - left.score;
+    return {
+      added_at: row.addedAt,
+      banner_image: row.bannerImage ?? undefined,
+      cover_image: row.coverImage ?? undefined,
+      description: row.description ?? undefined,
+      end_date: row.endDate ?? undefined,
+      end_year: row.endYear ?? undefined,
+      episode_count: row.episodeCount ?? undefined,
+      format: row.format,
+      genres,
+      id: row.id,
+      mal_id: row.malId ?? undefined,
+      monitored: row.monitored,
+      next_airing_episode: row.nextAiringAt && row.nextAiringEpisode
+        ? {
+          airing_at: row.nextAiringAt,
+          episode: row.nextAiringEpisode,
         }
-
-        return left.candidate.id - right.candidate.id;
-      })
-      .slice(0, 10)
-      .map((entry) => entry.candidate);
-  },
-);
+        : undefined,
+      score: row.score ?? undefined,
+      profile_name: row.profileName,
+      progress: {
+        downloaded,
+        downloaded_percent: downloadedPercent,
+        is_up_to_date: total ? sortedMissing.length === 0 : undefined,
+        latest_downloaded_episode: latestDownloadedEpisode,
+        missing: sortedMissing,
+        next_missing_episode: sortedMissing[0],
+        total,
+      },
+      recommended_anime: recommendedAnime,
+      related_anime: relatedAnime,
+      release_profile_ids: releaseProfileIds,
+      root_folder: row.rootFolder,
+      season: deriveAnimeSeasonFromDate(row.startDate ?? undefined),
+      season_year: row.startYear ?? extractYearFromDate(row.startDate),
+      start_date: row.startDate ?? undefined,
+      start_year: row.startYear ?? undefined,
+      status: row.status,
+      studios,
+      synonyms,
+      title: {
+        english: row.titleEnglish ?? undefined,
+        native: row.titleNative ?? undefined,
+        romaji: row.titleRomaji,
+      },
+    };
+  });
+}
 
 export const getAnimeEffect = Effect.fn("AnimeService.getAnimeEffect")(
   function* (input: { db: AppDatabase; id: number }) {
@@ -263,36 +256,7 @@ export const searchAnimeEffect = Effect.fn("AnimeService.searchAnimeEffect")(
     db: AppDatabase;
     query: string;
   }) {
-    const { degraded, results } = yield* input.aniList.searchAnimeMetadata(
-      input.query,
-    ).pipe(
-      Effect.map((remoteResults) => ({
-        degraded: false,
-        results: remoteResults,
-      })),
-      Effect.catchTag(
-        "ExternalCallError",
-        (error) =>
-          Effect.logWarning(
-            "AniList search unavailable, falling back to local library search",
-          ).pipe(
-            Effect.annotateLogs({
-              component: "anime",
-              event: "anime.search.degraded",
-              query: input.query,
-              error: error.message,
-            }),
-            Effect.zipRight(
-              searchLocalAnimeEffect({ db: input.db, query: input.query }).pipe(
-                Effect.map((localResults) => ({
-                  degraded: true,
-                  results: localResults,
-                })),
-              ),
-            ),
-          ),
-      ),
-    );
+    const results = yield* input.aniList.searchAnimeMetadata(input.query);
 
     const annotated = annotateAnimeSearchResultsForQuery(input.query, results);
 
@@ -302,83 +266,70 @@ export const searchAnimeEffect = Effect.fn("AnimeService.searchAnimeEffect")(
     );
 
     return {
-      degraded,
+      degraded: false,
       results: marked,
     } satisfies AnimeSearchResponse;
   },
 );
 
-function toLocalAnimeSearchResult(
-  row: typeof anime.$inferSelect,
-): AnimeSearchResult {
-  return {
-    already_in_library: true,
-    banner_image: row.bannerImage ?? undefined,
-    cover_image: row.coverImage ?? undefined,
-    description: row.description ?? undefined,
-    end_date: row.endDate ?? undefined,
-    end_year: row.endYear ?? undefined,
-    episode_count: row.episodeCount ?? undefined,
-    format: row.format,
-    genres: safeParseStringList(row.genres),
-    id: row.id,
-    season: deriveAnimeSeasonFromDate(row.startDate ?? undefined),
-    season_year: row.startYear ?? undefined,
-    start_date: row.startDate ?? undefined,
-    start_year: row.startYear ?? undefined,
-    status: row.status,
-    synonyms: safeParseStringList(row.synonyms),
-    title: {
-      english: row.titleEnglish ?? undefined,
-      native: row.titleNative ?? undefined,
-      romaji: row.titleRomaji,
-    },
-  } satisfies AnimeSearchResult;
-}
-
-function safeParseStringList(value: string | null): string[] | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const decoded = Schema.decodeUnknownEither(StringListJsonSchema)(value);
-  if (Either.isLeft(decoded)) {
-    return undefined;
-  }
-
-  const normalized = decoded.right.filter((entry) => entry.length > 0);
-  return normalized.length > 0 ? normalized : undefined;
-}
-
-function safeParseNumberList(value: string | null): number[] {
-  if (!value) {
-    return [];
-  }
-
-  const decoded = Schema.decodeUnknownEither(NumberListJsonSchema)(value);
-  if (Either.isLeft(decoded)) {
-    return [];
-  }
-
-  return [...decoded.right];
-}
-
-function safeParseDiscoveryEntries(
+function decodeStoredStringList(
   value: string | null,
-): AnimeDiscoveryEntry[] | undefined {
+  field: string,
+): Effect.Effect<string[] | undefined, AnimeStoredDataError> {
   if (!value) {
-    return undefined;
+    return Effect.as(Effect.void, undefined as string[] | undefined);
   }
 
-  const decoded = Schema.decodeUnknownEither(AnimeDiscoveryEntryListJsonSchema)(
-    value,
+  return Schema.decodeUnknown(StringListJsonSchema)(value).pipe(
+    Effect.map((decoded) => {
+      const normalized = decoded.filter((entry) => entry.length > 0);
+      return normalized.length > 0 ? normalized : undefined;
+    }),
+    Effect.mapError(() =>
+      new AnimeStoredDataError({
+        message: `Stored anime ${field} JSON is corrupt`,
+      })
+    ),
   );
+}
 
-  if (Either.isLeft(decoded)) {
-    return undefined;
+function decodeStoredNumberList(
+  value: string | null,
+  field: string,
+): Effect.Effect<number[], AnimeStoredDataError> {
+  if (!value) {
+    return Effect.succeed([]);
   }
 
-  return [...decoded.right];
+  return Schema.decodeUnknown(NumberListJsonSchema)(value).pipe(
+    Effect.map((decoded) => [...decoded]),
+    Effect.mapError(() =>
+      new AnimeStoredDataError({
+        message: `Stored anime ${field} JSON is corrupt`,
+      })
+    ),
+  );
+}
+
+function decodeStoredDiscoveryEntries(
+  value: string | null,
+  field: string,
+): Effect.Effect<AnimeDiscoveryEntry[] | undefined, AnimeStoredDataError> {
+  if (!value) {
+    return Effect.as(
+      Effect.void,
+      undefined as AnimeDiscoveryEntry[] | undefined,
+    );
+  }
+
+  return Schema.decodeUnknown(AnimeDiscoveryEntryListJsonSchema)(value).pipe(
+    Effect.map((decoded) => [...decoded]),
+    Effect.mapError(() =>
+      new AnimeStoredDataError({
+        message: `Stored anime ${field} JSON is corrupt`,
+      })
+    ),
+  );
 }
 
 function deriveAnimeSeasonFromDate(date: string | undefined) {
@@ -440,10 +391,14 @@ export const getAnimeByAnilistIdEffect = Effect.fn(
     end_year: metadata.endYear,
     episode_count: metadata.episodeCount,
     format: metadata.format,
-    genres: metadata.genres,
+    genres: metadata.genres ? [...metadata.genres] : undefined,
     id: metadata.id,
-    recommended_anime: metadata.recommendedAnime,
-    related_anime: metadata.relatedAnime,
+    recommended_anime: metadata.recommendedAnime
+      ? [...metadata.recommendedAnime]
+      : undefined,
+    related_anime: metadata.relatedAnime
+      ? [...metadata.relatedAnime]
+      : undefined,
     season: metadata.startDate
       ? (() => {
         const month = Number.parseInt(
@@ -461,7 +416,7 @@ export const getAnimeByAnilistIdEffect = Effect.fn(
     start_date: metadata.startDate,
     start_year: metadata.startYear,
     status: metadata.status,
-    synonyms: metadata.synonyms,
+    synonyms: metadata.synonyms ? [...metadata.synonyms] : undefined,
     title: metadata.title,
   } satisfies AnimeSearchResult;
 });
@@ -507,7 +462,7 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(
 
 export function deriveEpisodeTimelineMetadata(
   aired?: string,
-  now = new Date(),
+  now = currentDateSync(),
 ): Pick<Episode, "airing_status" | "is_future"> {
   if (!aired) {
     return { airing_status: "unknown" };
