@@ -617,7 +617,7 @@ export const QualitySchema: Schema.Schema<Quality> = Schema.Struct({
   rank: Schema.Number,
 });
 
-export interface QualityProfile {
+export const QualityProfileSchema: Schema.Schema<{
   cutoff: string;
   upgrade_allowed: boolean;
   seadex_preferred: boolean;
@@ -625,112 +625,51 @@ export interface QualityProfile {
   name: string;
   min_size?: string | null;
   max_size?: string | null;
-}
+}> = Schema.mutable(
+  Schema.Struct({
+    cutoff: Schema.String,
+    upgrade_allowed: Schema.Boolean,
+    seadex_preferred: Schema.Boolean,
+    allowed_qualities: Schema.mutable(Schema.Array(Schema.String)),
+    name: Schema.String,
+    min_size: Schema.optional(Schema.NullOr(Schema.String)),
+    max_size: Schema.optional(Schema.NullOr(Schema.String)),
+  }),
+);
 
-export const QualityProfileSchema: Schema.Schema<QualityProfile> = Schema
-  .mutable(
-    Schema.Struct({
-      cutoff: Schema.String,
-      upgrade_allowed: Schema.Boolean,
-      seadex_preferred: Schema.Boolean,
-      allowed_qualities: Schema.mutable(Schema.Array(Schema.String)),
-      name: Schema.String,
-      min_size: Schema.optional(Schema.NullOr(Schema.String)),
-      max_size: Schema.optional(Schema.NullOr(Schema.String)),
-    }),
-  );
+export type QualityProfile = Schema.Schema.Type<typeof QualityProfileSchema>;
 
-export interface ReleaseProfileRule {
+export const ReleaseProfileRuleSchema: Schema.Schema<{
   term: string;
   score: number;
   rule_type: RuleType;
-}
+}> = Schema.Struct({
+  term: Schema.String,
+  score: Schema.Number,
+  rule_type: RuleTypeSchema,
+});
 
-export const ReleaseProfileRuleSchema: Schema.Schema<ReleaseProfileRule> =
-  Schema.Struct({
-    term: Schema.String,
-    score: Schema.Number,
-    rule_type: RuleTypeSchema,
-  });
+export type ReleaseProfileRule = Schema.Schema.Type<
+  typeof ReleaseProfileRuleSchema
+>;
 
-export interface ReleaseProfile {
+export const ReleaseProfileSchema: Schema.Schema<{
   id: number;
   name: string;
   enabled: boolean;
   is_global: boolean;
-  rules: ReleaseProfileRule[];
-}
+  rules: Array<Schema.Schema.Type<typeof ReleaseProfileRuleSchema>>;
+}> = Schema.mutable(
+  Schema.Struct({
+    id: Schema.Number,
+    name: Schema.String,
+    enabled: Schema.Boolean,
+    is_global: Schema.Boolean,
+    rules: Schema.mutable(Schema.Array(ReleaseProfileRuleSchema)),
+  }),
+);
 
-export const ReleaseProfileSchema: Schema.Schema<ReleaseProfile> = Schema
-  .mutable(
-    Schema.Struct({
-      id: Schema.Number,
-      name: Schema.String,
-      enabled: Schema.Boolean,
-      is_global: Schema.Boolean,
-      rules: Schema.mutable(Schema.Array(ReleaseProfileRuleSchema)),
-    }),
-  );
-
-export interface Config {
-  general: {
-    database_path: string;
-    log_level: string;
-    images_path: string;
-    suppress_connection_errors: boolean;
-    worker_threads: number;
-    max_db_connections: number;
-    min_db_connections: number;
-  };
-  qbittorrent: {
-    enabled: boolean;
-    url: string;
-    username: string;
-    password?: string | null;
-    default_category: string;
-  };
-  nyaa: {
-    base_url: string;
-    default_category: string;
-    filter_remakes: boolean;
-    preferred_resolution?: string | null;
-    min_seeders: number;
-  };
-  scheduler: {
-    enabled: boolean;
-    check_interval_minutes: number;
-    cron_expression?: string | null;
-    max_concurrent_checks: number;
-    check_delay_seconds: number;
-    metadata_refresh_hours: number;
-  };
-  downloads: {
-    root_path: string;
-    create_anime_folders: boolean;
-    preferred_groups: string[];
-    use_seadex: boolean;
-    prefer_dual_audio: boolean;
-    preferred_codec?: string | null;
-    max_size_gb: number;
-    remote_path_mappings: string[][];
-    reconcile_completed_downloads?: boolean;
-    remove_torrent_on_import?: boolean;
-    delete_download_files_after_import?: boolean;
-  };
-  library: {
-    library_path: string;
-    recycle_path: string;
-    recycle_cleanup_days: number;
-    naming_format: string;
-    import_mode: ImportMode;
-    movie_naming_format: string;
-    auto_scan_interval_hours: number;
-    preferred_title: PreferredTitle;
-    airing_timezone?: string;
-    airing_day_start_hour?: number;
-  };
-  profiles: QualityProfile[];
-}
+export type ReleaseProfile = Schema.Schema.Type<typeof ReleaseProfileSchema>;
 
 export const StringListSchema: Schema.Schema<string[]> = Schema.mutable(
   Schema.Array(Schema.String),
@@ -740,27 +679,45 @@ export const RemotePathMappingSchema: Schema.Schema<string[]> = Schema.mutable(
   Schema.Array(Schema.String).pipe(Schema.itemsCount(2)),
 );
 
-export const GeneralConfigSchema: Schema.Schema<Config["general"]> = Schema
-  .Struct({
-    database_path: Schema.String,
-    log_level: Schema.String,
-    images_path: Schema.String,
-    suppress_connection_errors: Schema.Boolean,
-    worker_threads: Schema.Number,
-    max_db_connections: Schema.Number,
-    min_db_connections: Schema.Number,
-  });
+export const GeneralConfigSchema: Schema.Schema<{
+  database_path: string;
+  log_level: string;
+  images_path: string;
+  suppress_connection_errors: boolean;
+  worker_threads: number;
+  max_db_connections: number;
+  min_db_connections: number;
+}> = Schema.Struct({
+  database_path: Schema.String,
+  log_level: Schema.String,
+  images_path: Schema.String,
+  suppress_connection_errors: Schema.Boolean,
+  worker_threads: Schema.Number,
+  max_db_connections: Schema.Number,
+  min_db_connections: Schema.Number,
+});
 
-export const QbittorrentConfigSchema: Schema.Schema<Config["qbittorrent"]> =
-  Schema.Struct({
-    enabled: Schema.Boolean,
-    url: Schema.String,
-    username: Schema.String,
-    password: Schema.optional(Schema.NullOr(Schema.String)),
-    default_category: Schema.String,
-  });
+export const QbittorrentConfigSchema: Schema.Schema<{
+  enabled: boolean;
+  url: string;
+  username: string;
+  password?: string | null;
+  default_category: string;
+}> = Schema.Struct({
+  enabled: Schema.Boolean,
+  url: Schema.String,
+  username: Schema.String,
+  password: Schema.optional(Schema.NullOr(Schema.String)),
+  default_category: Schema.String,
+});
 
-export const NyaaConfigSchema: Schema.Schema<Config["nyaa"]> = Schema.Struct({
+export const NyaaConfigSchema: Schema.Schema<{
+  base_url: string;
+  default_category: string;
+  filter_remakes: boolean;
+  preferred_resolution?: string | null;
+  min_seeders: number;
+}> = Schema.Struct({
   base_url: Schema.String,
   default_category: Schema.String,
   filter_remakes: Schema.Boolean,
@@ -768,50 +725,85 @@ export const NyaaConfigSchema: Schema.Schema<Config["nyaa"]> = Schema.Struct({
   min_seeders: Schema.Number,
 });
 
-export const SchedulerConfigSchema: Schema.Schema<Config["scheduler"]> = Schema
-  .Struct({
-    enabled: Schema.Boolean,
-    check_interval_minutes: Schema.Number,
-    cron_expression: Schema.optional(Schema.NullOr(Schema.String)),
-    max_concurrent_checks: Schema.Number,
-    check_delay_seconds: Schema.Number,
-    metadata_refresh_hours: Schema.Number,
-  });
+export const SchedulerConfigSchema: Schema.Schema<{
+  enabled: boolean;
+  check_interval_minutes: number;
+  cron_expression?: string | null;
+  max_concurrent_checks: number;
+  check_delay_seconds: number;
+  metadata_refresh_hours: number;
+}> = Schema.Struct({
+  enabled: Schema.Boolean,
+  check_interval_minutes: Schema.Number,
+  cron_expression: Schema.optional(Schema.NullOr(Schema.String)),
+  max_concurrent_checks: Schema.Number,
+  check_delay_seconds: Schema.Number,
+  metadata_refresh_hours: Schema.Number,
+});
 
-export const DownloadsConfigSchema: Schema.Schema<Config["downloads"]> = Schema
-  .mutable(
-    Schema.Struct({
-      root_path: Schema.String,
-      create_anime_folders: Schema.Boolean,
-      preferred_groups: StringListSchema,
-      use_seadex: Schema.Boolean,
-      prefer_dual_audio: Schema.Boolean,
-      preferred_codec: Schema.optional(Schema.NullOr(Schema.String)),
-      max_size_gb: Schema.Number,
-      remote_path_mappings: Schema.mutable(
-        Schema.Array(RemotePathMappingSchema),
-      ),
-      reconcile_completed_downloads: Schema.optional(Schema.Boolean),
-      remove_torrent_on_import: Schema.optional(Schema.Boolean),
-      delete_download_files_after_import: Schema.optional(Schema.Boolean),
-    }),
-  );
+export const DownloadsConfigSchema: Schema.Schema<{
+  root_path: string;
+  create_anime_folders: boolean;
+  preferred_groups: string[];
+  use_seadex: boolean;
+  prefer_dual_audio: boolean;
+  preferred_codec?: string | null;
+  max_size_gb: number;
+  remote_path_mappings: string[][];
+  reconcile_completed_downloads?: boolean;
+  remove_torrent_on_import?: boolean;
+  delete_download_files_after_import?: boolean;
+}> = Schema.mutable(
+  Schema.Struct({
+    root_path: Schema.String,
+    create_anime_folders: Schema.Boolean,
+    preferred_groups: StringListSchema,
+    use_seadex: Schema.Boolean,
+    prefer_dual_audio: Schema.Boolean,
+    preferred_codec: Schema.optional(Schema.NullOr(Schema.String)),
+    max_size_gb: Schema.Number,
+    remote_path_mappings: Schema.mutable(
+      Schema.Array(RemotePathMappingSchema),
+    ),
+    reconcile_completed_downloads: Schema.optional(Schema.Boolean),
+    remove_torrent_on_import: Schema.optional(Schema.Boolean),
+    delete_download_files_after_import: Schema.optional(Schema.Boolean),
+  }),
+);
 
-export const LibraryConfigSchema: Schema.Schema<Config["library"]> = Schema
-  .Struct({
-    library_path: Schema.String,
-    recycle_path: Schema.String,
-    recycle_cleanup_days: Schema.Number,
-    naming_format: Schema.String,
-    import_mode: ImportModeSchema,
-    movie_naming_format: Schema.String,
-    auto_scan_interval_hours: Schema.Number,
-    preferred_title: PreferredTitleSchema,
-    airing_timezone: Schema.optional(Schema.String),
-    airing_day_start_hour: Schema.optional(Schema.Number),
-  });
+export const LibraryConfigSchema: Schema.Schema<{
+  library_path: string;
+  recycle_path: string;
+  recycle_cleanup_days: number;
+  naming_format: string;
+  import_mode: ImportMode;
+  movie_naming_format: string;
+  auto_scan_interval_hours: number;
+  preferred_title: PreferredTitle;
+  airing_timezone?: string;
+  airing_day_start_hour?: number;
+}> = Schema.Struct({
+  library_path: Schema.String,
+  recycle_path: Schema.String,
+  recycle_cleanup_days: Schema.Number,
+  naming_format: Schema.String,
+  import_mode: ImportModeSchema,
+  movie_naming_format: Schema.String,
+  auto_scan_interval_hours: Schema.Number,
+  preferred_title: PreferredTitleSchema,
+  airing_timezone: Schema.optional(Schema.String),
+  airing_day_start_hour: Schema.optional(Schema.Number),
+});
 
-export const ConfigSchema: Schema.Schema<Config> = Schema.mutable(
+export const ConfigSchema: Schema.Schema<{
+  general: Schema.Schema.Type<typeof GeneralConfigSchema>;
+  qbittorrent: Schema.Schema.Type<typeof QbittorrentConfigSchema>;
+  nyaa: Schema.Schema.Type<typeof NyaaConfigSchema>;
+  scheduler: Schema.Schema.Type<typeof SchedulerConfigSchema>;
+  downloads: Schema.Schema.Type<typeof DownloadsConfigSchema>;
+  library: Schema.Schema.Type<typeof LibraryConfigSchema>;
+  profiles: Array<Schema.Schema.Type<typeof QualityProfileSchema>>;
+}> = Schema.mutable(
   Schema.Struct({
     general: GeneralConfigSchema,
     qbittorrent: QbittorrentConfigSchema,
@@ -824,6 +816,8 @@ export const ConfigSchema: Schema.Schema<Config> = Schema.mutable(
     ),
   }),
 );
+
+export type Config = Schema.Schema.Type<typeof ConfigSchema>;
 
 export interface SystemLog {
   id: number;

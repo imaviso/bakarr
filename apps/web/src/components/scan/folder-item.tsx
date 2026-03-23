@@ -52,7 +52,7 @@ import { animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
 import { formatFileSize } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 import { runFolderBackgroundMatchAction } from "./background-matching-actions";
-import { MAX_AUTO_MATCH_ATTEMPTS } from "./constants";
+import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS } from "@bakarr/shared";
 import { ManualMatchSearch } from "./manual-match-search";
 
 export function FolderItem(props: { folder: UnmappedFolder }) {
@@ -519,8 +519,8 @@ function folderMatchHint(folder: UnmappedFolder) {
           ? `Last attempt failed: ${folder.last_match_error}. Another background pass is queued.`
           : "The last attempt failed. Another background pass is queued."
         : folder.last_match_error
-        ? `Automatic matching stopped after ${MAX_AUTO_MATCH_ATTEMPTS} failed attempts: ${folder.last_match_error}`
-        : `Automatic matching stopped after ${MAX_AUTO_MATCH_ATTEMPTS} failed attempts.`;
+        ? `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts: ${folder.last_match_error}`
+        : `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts.`;
     case "done":
       return folder.suggested_matches.length > 0
         ? "Automatic suggestions are ready. You can import immediately or change the match."
@@ -551,7 +551,7 @@ function emptyMatchMessage(folder: UnmappedFolder) {
 
 function hasAutomaticRetryRemaining(folder: UnmappedFolder) {
   return folder.match_status === "failed" &&
-    (folder.match_attempts ?? 0) < MAX_AUTO_MATCH_ATTEMPTS;
+    (folder.match_attempts ?? 0) < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS;
 }
 
 function normalizeApiErrorMessage(message: string) {

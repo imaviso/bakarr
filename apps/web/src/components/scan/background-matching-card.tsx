@@ -5,7 +5,7 @@ import {
   backgroundMatchingStatusLabel,
   backgroundMatchingStatusVariant,
 } from "./background-matching-state";
-import { MAX_AUTO_MATCH_ATTEMPTS } from "./constants";
+import { MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS } from "@bakarr/shared";
 
 export function BackgroundMatchingCard(props: {
   failedCount: number;
@@ -94,7 +94,7 @@ export function BackgroundMatchingCard(props: {
               : props.failedCount > 0 && props.hasOutstandingWork
               ? "Some folders failed their latest automatic match. They are queued to retry in the background, or you can choose a manual match now."
               : props.failedCount > 0
-              ? `Some folders hit the ${MAX_AUTO_MATCH_ATTEMPTS}-attempt automatic match limit. Choose a manual match to continue.`
+              ? `Some folders hit the ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS}-attempt automatic match limit. Choose a manual match to continue.`
               : "All discovered folders have finished their latest background match pass."}
           </p>
           <Show when={props.job?.last_message}>

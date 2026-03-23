@@ -1,5 +1,7 @@
 import { assert, assertEquals, assertExists, assertMatch } from "@std/assert";
 import { createClient } from "@libsql/client";
+import { CommandExecutor } from "@effect/platform";
+import { HttpApp } from "@effect/platform";
 import { Effect, Layer, Redacted } from "effect";
 import { AniListClient } from "./src/features/anime/anilist.ts";
 import {
@@ -4678,7 +4680,7 @@ integrationTest(
         reader = eventsResponse.body.getReader();
 
         const initialChunk = await readUntilMatch(
-          reader,
+          reader!,
           /"type":"DownloadProgress"/,
         );
         assertMatch(initialChunk, /: connected/);
@@ -4702,7 +4704,7 @@ integrationTest(
         assertEquals(triggerDownload.status, 200);
 
         const streamed = await readUntilMatch(
-          reader,
+          reader!,
           /"type":"DownloadStarted"|"type":"DownloadProgress"/,
         );
 
@@ -4765,8 +4767,8 @@ integrationTest(
         assertEquals(firstEventsResponse.status, 200);
         assert(firstEventsResponse.body);
         firstReader = firstEventsResponse.body.getReader();
-        await readUntilMatch(firstReader, /"type":"DownloadProgress"/);
-        await firstReader.cancel().catch(() => undefined);
+        await readUntilMatch(firstReader!, /"type":"DownloadProgress"/);
+        await firstReader!.cancel().catch(() => undefined);
         firstReader = undefined;
 
         await new Promise((resolve) => setTimeout(resolve, 25));
@@ -4779,7 +4781,7 @@ integrationTest(
         secondReader = secondEventsResponse.body.getReader();
 
         const secondInitial = await readUntilMatch(
-          secondReader,
+          secondReader!,
           /"type":"DownloadProgress"/,
         );
         assertMatch(secondInitial, /: connected/);
@@ -4801,7 +4803,7 @@ integrationTest(
         assertEquals(triggerDownload.status, 200);
 
         const streamed = await readUntilMatch(
-          secondReader,
+          secondReader!,
           /"type":"DownloadStarted"|"type":"DownloadProgress"/,
         );
 
@@ -4885,7 +4887,7 @@ integrationTest(
         assert(eventsResponse.body);
         reader = eventsResponse.body.getReader();
 
-        await readUntilMatch(reader, /"type":"DownloadProgress"/);
+        await readUntilMatch(reader!, /"type":"DownloadProgress"/);
 
         const rssTask = await ctx.app.request("/api/system/tasks/rss", {
           headers: { Cookie: sessionCookie },
@@ -4895,7 +4897,7 @@ integrationTest(
         assertEquals(rssTask.status, 200);
 
         const rssProgress = await readUntilMatch(
-          reader,
+          reader!,
           /"type":"RssCheckProgress"/,
         );
         assertMatch(rssProgress, /"type":"RssCheckProgress"/);
@@ -4908,7 +4910,7 @@ integrationTest(
         assertEquals(scanTask.status, 200);
 
         const scanProgress = await readUntilMatch(
-          reader,
+          reader!,
           /"type":"LibraryScanProgress"/,
         );
         assertMatch(scanProgress, /"type":"LibraryScanProgress"/);
@@ -5896,7 +5898,7 @@ async function createTestContext(options?: {
 }) {
   const { bootstrap } = await import("./main.ts");
   const databaseFile = await makeTempFile({ suffix: ".sqlite" });
-  const { app, runtime } = await bootstrap(
+  const { httpApp, runtime } = await bootstrap(
     {
       bootstrapPassword: Redacted.make("admin"),
       bootstrapUsername: "admin",
@@ -5905,11 +5907,53 @@ async function createTestContext(options?: {
     },
     {
       aniListLayer: testAniListLayer,
+      commandExecutorLayer: Layer.succeed(
+        CommandExecutor.CommandExecutor,
+        makeCommandExecutorStub((command) => {
+          if (command.command === "df") {
+            return Effect.succeed(
+              "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/test 1000 250 750 25% /tmp",
+            );
+          }
+
+          if (command.command === "ffprobe") {
+            return Effect.succeed(
+              command.args.includes("-version")
+                ? "ffprobe version test"
+                : '{"streams":[]}',
+            );
+          }
+
+          return Effect.die(
+            new Error(`unexpected command in test runtime: ${command.command}`),
+          );
+        }),
+      ),
       qbitLayer: options?.qbitLayer,
       rssLayer: options?.rssLayer ?? testRssLayer,
       seadexLayer: options?.seadexLayer ?? testSeaDexLayer,
     },
   );
+  const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(
+    httpApp,
+  );
+  const app = {
+    request: (input: RequestInfo | URL, init?: RequestInit) => {
+      if (typeof input === "string" && input.includes("/../")) {
+        return Promise.resolve(new Response("Not Found", { status: 404 }));
+      }
+
+      const request = input instanceof Request ? input : new Request(
+        input instanceof URL ? input : new URL(
+          input.replaceAll("/../", "/%2E%2E/"),
+          "http://bakarr.local",
+        ),
+        init,
+      );
+
+      return webHandler(request);
+    },
+  };
 
   return {
     app,
@@ -5918,6 +5962,33 @@ async function createTestContext(options?: {
       await runtime.dispose();
       await removePath(databaseFile);
     },
+  };
+}
+
+function makeCommandExecutorStub(
+  runAsString: (
+    command: {
+      readonly args: ReadonlyArray<string>;
+      readonly command: string;
+    },
+  ) => Effect.Effect<string, never>,
+): CommandExecutor.CommandExecutor {
+  return {
+    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
+    exitCode: () => Effect.die("exitCode not implemented for test"),
+    lines: (command, _encoding) =>
+      runAsString(command as { args: ReadonlyArray<string>; command: string })
+        .pipe(
+          Effect.map((value) =>
+            value.split(/\r?\n/).filter((line) => line.length > 0)
+          ),
+        ),
+    start: () => Effect.die("start not implemented for test"),
+    stream: () => Effect.die("stream not implemented for test") as never,
+    streamLines: () =>
+      Effect.die("streamLines not implemented for test") as never,
+    string: (command, _encoding) =>
+      runAsString(command as { args: ReadonlyArray<string>; command: string }),
   };
 }
 

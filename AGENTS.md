@@ -1,7 +1,9 @@
 # AGENTS
 
 Project status: pre-release alpha. Do not preserve backward compatibility unless
-explicitly requested.
+explicitly requested. We will prefer clean, breaking internal refactors over
+compatibility layers, graceful degradation, mixed Promise/Effect styles, and
+framework bridges that keep old patterns alive.
 
 ## Repo Overview
 

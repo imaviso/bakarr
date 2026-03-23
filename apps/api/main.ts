@@ -1,4 +1,8 @@
+import { NodeFileSystem } from "@effect/platform-node";
+import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import { Effect } from "effect";
+import { createServer } from "node:http";
+import process from "node:process";
 
 import { BackgroundWorkerController } from "./src/background.ts";
 import { AppConfig, type AppConfigShape } from "./src/config.ts";
@@ -7,8 +11,7 @@ import { migrateDatabase } from "./src/db/migrate.ts";
 import { AuthService } from "./src/features/auth/service.ts";
 import { StoredConfigCorruptError } from "./src/features/system/errors.ts";
 import { SystemService } from "./src/features/system/service.ts";
-import { createApp } from "./src/http/app.ts";
-import { createAppFetchHandler } from "./src/http/static.ts";
+import { createHttpApp } from "./src/http/http-app.ts";
 import {
   compactLogAnnotations,
   setRuntimeLogLevel,
@@ -56,20 +59,29 @@ export async function bootstrap(
     bootstrapProgram().pipe(Effect.withSpan("api.bootstrap")),
   );
 
-  const app = createApp((effect) => runApi(runtime, effect));
+  const httpApp = await runApi(
+    runtime,
+    createHttpApp(),
+  );
 
   return {
-    app,
     config,
+    httpApp,
     runtime,
   };
 }
 
 if (import.meta.main) {
-  const dotenvProvider = await Effect.runPromise(makeDotenvConfigProvider());
-  const { app, config, runtime } = await bootstrap({}, {
+  const dotenvProvider = await Effect.runPromise(
+    makeDotenvConfigProvider().pipe(Effect.provide(NodeFileSystem.layer)),
+  );
+  const { config, runtime } = await bootstrap({}, {
     configProvider: dotenvProvider,
   });
+  const httpApp = await runApi(
+    runtime,
+    createHttpApp(),
+  );
   await runApi(
     runtime,
     Effect.flatMap(
@@ -130,10 +142,6 @@ if (import.meta.main) {
         }),
       ),
     ).catch(() => undefined);
-    await runApi(
-      runtime,
-      Effect.flatMap(BackgroundWorkerController, (c) => c.stop()),
-    ).catch(() => undefined);
     await runtime.dispose();
   };
 
@@ -146,27 +154,32 @@ if (import.meta.main) {
     return shutdownPromise;
   };
 
-  const abortController = new AbortController();
+  const nodeHandler = await runApi(
+    runtime,
+    NodeHttpServer.makeHandler(httpApp),
+  );
+  const server = createServer(nodeHandler);
+  const serverClosed = new Promise<void>((resolve, reject) => {
+    server.once("close", resolve);
+    server.once("error", reject);
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(config.port, resolve);
+  });
+
   const requestShutdown = () => {
-    void shutdownOnce().finally(() => {
-      abortController.abort();
+    server.close(() => {
+      void shutdownOnce();
     });
   };
 
-  Deno.addSignalListener("SIGINT", requestShutdown);
-  Deno.addSignalListener("SIGTERM", requestShutdown);
+  process.on("SIGINT", requestShutdown);
+  process.on("SIGTERM", requestShutdown);
 
-  const server = Deno.serve({
-    handler: createAppFetchHandler(
-      app.fetch,
-      (effect) => runApi(runtime, effect),
-    ),
-    port: config.port,
-    signal: abortController.signal,
-  });
+  await serverClosed;
 
-  await server.finished;
-  Deno.removeSignalListener("SIGINT", requestShutdown);
-  Deno.removeSignalListener("SIGTERM", requestShutdown);
+  process.off("SIGINT", requestShutdown);
+  process.off("SIGTERM", requestShutdown);
   await shutdownOnce();
 }
