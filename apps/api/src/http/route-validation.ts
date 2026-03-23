@@ -1,7 +1,5 @@
 import { Effect, ParseResult, Schema } from "effect";
 
-import type { ApiEffect } from "../runtime.ts";
-
 const UnknownJsonSchema = Schema.parseJson(Schema.Unknown);
 
 export class RequestValidationError
@@ -149,55 +147,4 @@ export function parseQuery<A, I>(
     schema,
     `Invalid query parameters for ${label}`,
   );
-}
-
-export function withJsonBody<A, I, B, E>(
-  c: { req: { json: () => Promise<unknown> } },
-  schema: Schema.Schema<A, I>,
-  label: string,
-  effect: (body: A) => ApiEffect<B, E>,
-): ApiEffect<B, E | RequestValidationError> {
-  return parseJsonBody(c, schema, label).pipe(Effect.flatMap(effect));
-}
-
-export function withOptionalJsonBody<A, I, B, E>(
-  c: { req: { text: () => Promise<string> } },
-  schema: Schema.Schema<A, I>,
-  label: string,
-  effect: (body: A) => ApiEffect<B, E>,
-): ApiEffect<B, E | RequestValidationError> {
-  return parseOptionalJsonBody(c, schema, label).pipe(Effect.flatMap(effect));
-}
-
-export function withParams<A, I, B, E>(
-  c: { req: { param: () => Record<string, string> } },
-  schema: Schema.Schema<A, I>,
-  label: string,
-  effect: (params: A) => ApiEffect<B, E>,
-): ApiEffect<B, E | RequestValidationError> {
-  return parseParams(c, schema, label).pipe(Effect.flatMap(effect));
-}
-
-export function withQuery<A, I, B, E>(
-  c: { req: { url: string } },
-  schema: Schema.Schema<A, I>,
-  label: string,
-  effect: (query: A) => ApiEffect<B, E>,
-): ApiEffect<B, E | RequestValidationError> {
-  return parseQuery(c, schema, label).pipe(Effect.flatMap(effect));
-}
-
-export function withParamsAndBody<PA, PI, BA, BI, B, E>(
-  c: {
-    req: { json: () => Promise<unknown>; param: () => Record<string, string> };
-  },
-  paramsSchema: Schema.Schema<PA, PI>,
-  bodySchema: Schema.Schema<BA, BI>,
-  label: string,
-  effect: (params: PA, body: BA) => ApiEffect<B, E>,
-): ApiEffect<B, E | RequestValidationError> {
-  return Effect.all({
-    body: parseJsonBody(c, bodySchema, label),
-    params: parseParams(c, paramsSchema, label),
-  }).pipe(Effect.flatMap(({ body, params }) => effect(params, body)));
 }

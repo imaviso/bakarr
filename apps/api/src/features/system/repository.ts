@@ -7,6 +7,7 @@ import {
 } from "../../../../../packages/shared/src/index.ts";
 
 import type { AppDatabase } from "../../db/database.ts";
+import { nowIso } from "../../lib/clock.ts";
 import {
   anime,
   appConfig,
@@ -461,7 +462,7 @@ export const upsertUnmappedFolderMatchRows = Effect.fn(
     return;
   }
 
-  const updatedAt = new Date().toISOString();
+  const updatedAt = yield* nowIso;
 
   yield* tryDatabasePromise(
     "Failed to upsert unmapped folder matches",

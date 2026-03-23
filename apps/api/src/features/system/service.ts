@@ -21,6 +21,7 @@ import {
 } from "../../background.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { anime, episodes, systemLogs } from "../../db/schema.ts";
+import { currentTimeMillis } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { EventPublisher } from "../events/publisher.ts";
 import { toAnimeDto } from "../anime/dto.ts";
@@ -59,7 +60,11 @@ import {
   encodeReleaseProfileRules,
 } from "./config-codec.ts";
 import { appendSystemLog, normalizeLevel, nowIso } from "./support.ts";
-import { getDiskSpaceSafe, selectStoragePath } from "./disk-space.ts";
+import {
+  DiskSpaceError,
+  getDiskSpaceSafe,
+  selectStoragePath,
+} from "./disk-space.ts";
 import {
   countActiveDownloads,
   countAnimeRows,
@@ -96,7 +101,7 @@ export interface SystemServiceShape {
   readonly ensureInitialized: () => Effect.Effect<void, DatabaseError>;
   readonly getSystemStatus: () => Effect.Effect<
     SystemStatus,
-    DatabaseError | StoredConfigCorruptError
+    DatabaseError | StoredConfigCorruptError | DiskSpaceError
   >;
   readonly getLibraryStats: () => Effect.Effect<LibraryStats, DatabaseError>;
   readonly getActivity: () => Effect.Effect<ActivityItem[], DatabaseError>;
@@ -305,10 +310,11 @@ const makeSystemService = Effect.gen(function* () {
       const configRow = yield* loadSystemConfigRow(db);
 
       if (!configRow) {
+        const initNow = yield* nowIso;
         yield* insertSystemConfigRow(db, {
           data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
           id: 1,
-          updatedAt: nowIso(),
+          updatedAt: initNow,
         });
       }
 
@@ -371,6 +377,7 @@ const makeSystemService = Effect.gen(function* () {
         jobs,
         "metadata_refresh",
       );
+      const now = yield* currentTimeMillis;
 
       return {
         active_torrents: activeDownloads,
@@ -383,7 +390,7 @@ const makeSystemService = Effect.gen(function* () {
         pending_downloads: queuedDownloads,
         uptime: Math.max(
           0,
-          Math.floor((Date.now() - runtime.startedAt.getTime()) / 1000),
+          Math.floor((now - runtime.startedAt.getTime()) / 1000),
         ),
         version: config.appVersion,
       } satisfies SystemStatus;
@@ -588,7 +595,7 @@ const makeSystemService = Effect.gen(function* () {
       scheduler: nextConfig.scheduler,
     };
 
-    const updatedAt = nowIso();
+    const updatedAt = yield* nowIso;
     const previousConfigRow = yield* loadSystemConfigRow(db);
     const previousState: PersistedSystemConfigState = {
       coreRow: previousConfigRow

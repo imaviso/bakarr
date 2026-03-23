@@ -1,24 +1,28 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 import type { FileSystemShape } from "../lib/filesystem.ts";
 
 const MAX_BROWSE_LIMIT = 500;
 
-interface BrowseEntry {
-  is_directory: boolean;
-  name: string;
-  path: string;
-  size?: number;
-}
+export const BrowseEntrySchema = Schema.Struct({
+  is_directory: Schema.Boolean,
+  name: Schema.String,
+  path: Schema.String,
+  size: Schema.optional(Schema.Number),
+});
 
-interface BrowseResult {
-  current_path: string;
-  entries: BrowseEntry[];
-  has_more: boolean;
-  limit: number;
-  offset: number;
-  parent_path?: string;
-  total: number;
-}
+export type BrowseEntry = Schema.Schema.Type<typeof BrowseEntrySchema>;
+
+export const BrowseResultSchema = Schema.Struct({
+  current_path: Schema.String,
+  entries: Schema.Array(BrowseEntrySchema),
+  has_more: Schema.Boolean,
+  limit: Schema.Number,
+  offset: Schema.Number,
+  parent_path: Schema.optional(Schema.String),
+  total: Schema.Number,
+});
+
+export type BrowseResult = Schema.Schema.Type<typeof BrowseResultSchema>;
 
 export function browsePath(
   fs: FileSystemShape,

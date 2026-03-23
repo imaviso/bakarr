@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { DatabaseError } from "../../db/database.ts";
@@ -6,7 +6,6 @@ import {
   compactLogAnnotations,
   errorLogAnnotations,
 } from "../../lib/logging.ts";
-import type { QualityProfileInsert } from "./repository.ts";
 
 export type ConfigActivationEvent =
   | "config.validation"
@@ -15,14 +14,30 @@ export type ConfigActivationEvent =
   | "config.activation_failed"
   | "config.rollback_failed";
 
-export interface PersistedSystemConfigState {
-  readonly coreRow: {
-    readonly data: string;
-    readonly id: number;
-    readonly updatedAt: string;
-  };
-  readonly profileRows: readonly QualityProfileInsert[];
-}
+const PersistedSystemConfigCoreRowSchema = Schema.Struct({
+  data: Schema.String,
+  id: Schema.Number,
+  updatedAt: Schema.String,
+});
+
+const QualityProfileInsertSchema = Schema.Struct({
+  allowedQualities: Schema.String,
+  cutoff: Schema.String,
+  maxSize: Schema.NullOr(Schema.String),
+  minSize: Schema.NullOr(Schema.String),
+  name: Schema.String,
+  seadexPreferred: Schema.Boolean,
+  upgradeAllowed: Schema.Boolean,
+});
+
+export const PersistedSystemConfigStateSchema = Schema.Struct({
+  coreRow: PersistedSystemConfigCoreRowSchema,
+  profileRows: Schema.Array(QualityProfileInsertSchema),
+});
+
+export type PersistedSystemConfigState = Schema.Schema.Type<
+  typeof PersistedSystemConfigStateSchema
+>;
 
 export const persistAndActivateConfig = Effect.fn(
   "SystemService.persistAndActivateConfig",

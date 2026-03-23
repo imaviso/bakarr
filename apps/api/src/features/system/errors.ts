@@ -1,5 +1,7 @@
 import { Schema } from "effect";
 
+import { DiskSpaceError } from "./disk-space.ts";
+
 export class ConfigValidationError
   extends Schema.TaggedError<ConfigValidationError>()(
     "ConfigValidationError",
@@ -34,5 +36,6 @@ export const isStoredConfigReadError = Schema.is(
 
 export type SystemServiceError =
   | ConfigValidationError
+  | DiskSpaceError
   | StoredConfigReadError
   | ProfileNotFoundError;

@@ -7,7 +7,10 @@ import { eq, sql } from "drizzle-orm";
 import { BACKGROUND_JOB_NAMES } from "../../background-worker-model.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { systemLogs } from "../../db/schema.ts";
+import { nowIso } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
+
+export { nowIso };
 
 export function normalizeLevel(
   level: string,
@@ -45,11 +48,12 @@ export const appendSystemLog = Effect.fn("SystemSupport.appendSystemLog")(
     level: string,
     message: string,
   ) {
+    const now = yield* nowIso;
     yield* tryDatabasePromise(
       "Failed to append system log",
       () =>
         db.insert(systemLogs).values({
-          createdAt: nowIso(),
+          createdAt: now,
           details: null,
           eventType,
           level,
@@ -58,10 +62,6 @@ export const appendSystemLog = Effect.fn("SystemSupport.appendSystemLog")(
     );
   },
 );
-
-export function nowIso() {
-  return new Date().toISOString();
-}
 
 export function toBackgroundJobStatus(
   config: Config,

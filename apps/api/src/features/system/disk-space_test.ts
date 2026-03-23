@@ -1,6 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { CommandExecutor } from "@effect/platform";
-import { Effect, Layer } from "effect";
+import { Effect, Exit, Layer } from "effect";
 
 import { makeDefaultConfig } from "./defaults.ts";
 import {
@@ -8,7 +8,7 @@ import {
   mapBlockStatsToDiskSpace,
   selectStoragePath,
 } from "./disk-space.ts";
-import { runTestEffect } from "../../test/effect-test.ts";
+import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 
 const baseConfig = { ...makeDefaultConfig("./test.sqlite"), profiles: [] };
 
@@ -56,11 +56,11 @@ Deno.test("selectStoragePath falls back to runtime database path", () => {
   );
 });
 
-Deno.test("getDiskSpaceSafe returns zeros on error", async () => {
-  const result = await runTestEffect(
+Deno.test("getDiskSpaceSafe fails on error instead of fabricating zeros", async () => {
+  const result = await runTestEffectExit(
     getDiskSpaceSafe("/nonexistent/path/that/does/not/exist"),
   );
-  assertEquals(result, { free: 0, total: 0 });
+  assertEquals(Exit.isFailure(result), true);
 });
 
 Deno.test("getDiskSpaceSafe returns real values for valid path", async () => {

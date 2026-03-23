@@ -1,3 +1,4 @@
+import { Schema } from "effect";
 import type {
   BackgroundJobStatus,
   Config,
@@ -10,17 +11,21 @@ import {
 } from "../../background-worker-model.ts";
 import { toBackgroundJobStatus } from "./support.ts";
 
-export interface BackgroundJobHistoryRow {
-  readonly isRunning: boolean;
-  readonly lastMessage: string | null;
-  readonly lastRunAt: string | null;
-  readonly lastStatus: string | null;
-  readonly lastSuccessAt: string | null;
-  readonly name: string;
-  readonly progressCurrent: number | null;
-  readonly progressTotal: number | null;
-  readonly runCount: number;
-}
+export const BackgroundJobHistoryRowSchema = Schema.Struct({
+  isRunning: Schema.Boolean,
+  lastMessage: Schema.NullOr(Schema.String),
+  lastRunAt: Schema.NullOr(Schema.String),
+  lastStatus: Schema.NullOr(Schema.String),
+  lastSuccessAt: Schema.NullOr(Schema.String),
+  name: Schema.String,
+  progressCurrent: Schema.NullOr(Schema.Number),
+  progressTotal: Schema.NullOr(Schema.Number),
+  runCount: Schema.Number,
+});
+
+export type BackgroundJobHistoryRow = Schema.Schema.Type<
+  typeof BackgroundJobHistoryRowSchema
+>;
 
 export function composeBackgroundJobStatuses(
   config: Config,

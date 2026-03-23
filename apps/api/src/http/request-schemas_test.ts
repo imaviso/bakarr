@@ -1,7 +1,7 @@
 import { assertEquals, assertMatch } from "@std/assert";
 import { Effect, Schema } from "effect";
 
-import { parseJsonBody } from "./route-helpers.ts";
+import { parseJsonBody } from "./route-validation.ts";
 import {
   AddAnimeInputSchema,
   ConfigSchema,

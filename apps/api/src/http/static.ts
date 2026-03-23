@@ -1,103 +1,80 @@
-import { Chunk, Effect, Option, Stream } from "effect";
+import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
+import { Effect } from "effect";
 
-import { FileSystem, FileSystemError } from "../lib/filesystem.ts";
-import type { RunEffect } from "./route-types.ts";
+import { FileSystem } from "../lib/filesystem.ts";
+import { createFileChunkStream } from "./file-stream.ts";
 
 const DEFAULT_WEB_DIST_URL = new URL("../../../web/dist/", import.meta.url);
-const STATIC_STREAM_CHUNK_SIZE = 64 * 1024;
-const SEEK_FROM_START = 0;
-
-export function createAppFetchHandler(
-  appFetch: (request: Request) => Response | Promise<Response>,
-  runEffect: RunEffect,
-  webDistUrl = DEFAULT_WEB_DIST_URL,
-) {
-  return async (request: Request): Promise<Response> => {
-    const url = new URL(request.url);
-
-    if (url.pathname.startsWith("/api") || url.pathname === "/health") {
-      return appFetch(request);
-    }
+export function createStaticHttpApp(webDistUrl = DEFAULT_WEB_DIST_URL) {
+  return Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const url = new URL(request.url, "http://bakarr.local");
 
     if (request.method !== "GET" && request.method !== "HEAD") {
-      return new Response("Method Not Allowed", { status: 405 });
+      return HttpServerResponse.text("Method Not Allowed", { status: 405 });
     }
 
-    const staticResponse = await serveStaticAsset(
-      runEffect,
+    const staticResponse = yield* serveStaticAssetEffect(
       request.method,
       url.pathname,
       webDistUrl,
-    );
+    ).pipe(Effect.catchAll(() => Effect.succeed(null)));
 
     if (staticResponse) {
       return staticResponse;
     }
 
-    return await serveIndexHtml(runEffect, request.method, webDistUrl);
-  };
+    return yield* serveIndexHtmlEffect(request.method, webDistUrl).pipe(
+      Effect.catchAll(() =>
+        Effect.succeed(
+          HttpServerResponse.text(
+            "Frontend bundle not found. Run `deno task --cwd=apps/web build` first.",
+            {
+              headers: { "Content-Type": "text/plain; charset=utf-8" },
+              status: 503,
+            },
+          ),
+        )
+      ),
+    );
+  });
 }
 
-async function serveStaticAsset(
-  runEffect: RunEffect,
-  method: string,
-  pathname: string,
-  webDistUrl: URL,
-): Promise<Response | null> {
-  const normalized = pathname === "/" ? "index.html" : pathname.slice(1);
+const serveStaticAssetEffect = Effect.fn("Static.serveStaticAssetEffect")(
+  function* (method: string, pathname: string, webDistUrl: URL) {
+    const normalized = pathname === "/" ? "index.html" : pathname.slice(1);
 
-  if (normalized.length === 0) {
-    return null;
-  }
+    if (normalized.length === 0) {
+      return null;
+    }
 
-  const fileUrl = new URL(normalized, webDistUrl);
+    const fileUrl = new URL(normalized, webDistUrl);
 
-  if (!fileUrl.pathname.startsWith(webDistUrl.pathname)) {
-    return null;
-  }
+    if (!fileUrl.pathname.startsWith(webDistUrl.pathname)) {
+      return null;
+    }
 
-  try {
-    return await runEffect(
-      createFileResponse({
-        cacheControl: normalized.startsWith("assets/")
-          ? "public, max-age=31536000, immutable"
-          : "public, max-age=300",
-        contentType: contentTypeForPath(normalized),
-        fileUrl,
-        method,
-      }),
-    );
-  } catch {
-    return null;
-  }
-}
+    return yield* createFileResponse({
+      cacheControl: normalized.startsWith("assets/")
+        ? "public, max-age=31536000, immutable"
+        : "public, max-age=300",
+      contentType: contentTypeForPath(normalized),
+      fileUrl,
+      method,
+    });
+  },
+);
 
-async function serveIndexHtml(
-  runEffect: RunEffect,
-  method: string,
-  webDistUrl: URL,
-): Promise<Response> {
-  try {
-    return await runEffect(
-      createFileResponse({
-        cacheControl: "no-cache",
-        contentType: "text/html; charset=utf-8",
-        fileUrl: new URL("index.html", webDistUrl),
-        method,
-      }),
-    );
-  } catch {
-    return new Response(
-      "Frontend bundle not found. Run `deno task --cwd=apps/web build` first.",
-      {
-        status: 503,
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-        },
-      },
-    );
-  }
-}
+const serveIndexHtmlEffect = Effect.fn("Static.serveIndexHtmlEffect")(
+  function* (method: string, webDistUrl: URL) {
+    return yield* createFileResponse({
+      cacheControl: "no-cache",
+      contentType: "text/html; charset=utf-8",
+      fileUrl: new URL("index.html", webDistUrl),
+      method,
+    });
+  },
+);
 
 const createFileResponse = Effect.fn("Static.createFileResponse")(
   function* (input: {
@@ -116,57 +93,15 @@ const createFileResponse = Effect.fn("Static.createFileResponse")(
     };
 
     if (input.method === "HEAD") {
-      return new Response(null, { headers });
+      return HttpServerResponse.empty({ headers });
     }
 
-    const body = createFileReadableStream(fs, input.fileUrl);
-    return new Response(body, { headers });
+    return HttpServerResponse.stream(
+      createFileChunkStream(fs, input.fileUrl),
+      { headers },
+    );
   },
 );
-
-function createFileReadableStream(
-  fs: typeof FileSystem.Service,
-  path: URL,
-): ReadableStream<Uint8Array> {
-  return Stream.toReadableStream<Uint8Array>({})(
-    createFileChunkStream(fs, path),
-  );
-}
-
-function createFileChunkStream(
-  fs: typeof FileSystem.Service,
-  path: URL,
-): Stream.Stream<Uint8Array, FileSystemError> {
-  return Stream.unwrapScoped(
-    Effect.map(
-      fs.openFile(path, { read: true }),
-      (file) =>
-        Stream.paginateChunkEffect(
-          0,
-          (offset) =>
-            Effect.gen(function* () {
-              const buffer = new Uint8Array(STATIC_STREAM_CHUNK_SIZE);
-
-              yield* file.seek(offset, SEEK_FROM_START);
-              const read = yield* file.read(buffer);
-
-              if (read === null || read === 0) {
-                return [
-                  Chunk.empty<Uint8Array>(),
-                  Option.none<number>(),
-                ] as const;
-              }
-
-              return [
-                Chunk.of(buffer.subarray(0, read)),
-                Option.some(offset + read),
-              ] as const;
-            }),
-        ),
-    ),
-  );
-}
-
 function contentTypeForPath(path: string): string {
   if (path.endsWith(".html")) return "text/html; charset=utf-8";
   if (path.endsWith(".js")) return "text/javascript; charset=utf-8";

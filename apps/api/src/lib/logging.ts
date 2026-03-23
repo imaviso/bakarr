@@ -8,8 +8,8 @@ export function compactLogAnnotations(
   );
 }
 
-export function durationMsSince(startedAt: number): number {
-  return Math.max(0, Math.round(performance.now() - startedAt));
+export function durationMsSince(startedAt: number, finishedAt: number): number {
+  return Math.max(0, Math.round(finishedAt - startedAt));
 }
 
 export function errorLogAnnotations(

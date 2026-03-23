@@ -1,5 +1,6 @@
 import { Effect, Schedule, Schema } from "effect";
 
+import { currentMonotonicMillis } from "./clock.ts";
 import {
   compactLogAnnotations,
   durationMsSince,
@@ -28,7 +29,7 @@ export const tryExternal = <A>(
 ) =>
   Effect.fn(`external.${operation}`)(
     function* () {
-      const startedAt = performance.now();
+      const startedAt = yield* currentMonotonicMillis;
       const policy = options?.idempotent === false
         ? noRetryPolicy
         : retryPolicy;
@@ -43,20 +44,26 @@ export const tryExternal = <A>(
         Effect.mapError((cause) => toExternalCallError(operation, cause)),
         Effect.tapBoth({
           onSuccess: () =>
-            Effect.logInfo("external call completed").pipe(
-              Effect.annotateLogs({
-                durationMs: durationMsSince(startedAt),
-              }),
-            ),
-          onFailure: (error) =>
-            Effect.logError("external call failed").pipe(
-              Effect.annotateLogs(
-                compactLogAnnotations({
-                  durationMs: durationMsSince(startedAt),
-                  ...errorLogAnnotations(error),
+            Effect.gen(function* () {
+              const finishedAt = yield* currentMonotonicMillis;
+              yield* Effect.logInfo("external call completed").pipe(
+                Effect.annotateLogs({
+                  durationMs: durationMsSince(startedAt, finishedAt),
                 }),
-              ),
-            ),
+              );
+            }),
+          onFailure: (error) =>
+            Effect.gen(function* () {
+              const finishedAt = yield* currentMonotonicMillis;
+              yield* Effect.logError("external call failed").pipe(
+                Effect.annotateLogs(
+                  compactLogAnnotations({
+                    durationMs: durationMsSince(startedAt, finishedAt),
+                    ...errorLogAnnotations(error),
+                  }),
+                ),
+              );
+            }),
         }),
         Effect.withLogSpan(operation),
       );
@@ -76,7 +83,7 @@ export const tryExternalEffect = <A, E, R>(
 ) =>
   Effect.fn(`external.${operation}`)(
     function* () {
-      const startedAt = performance.now();
+      const startedAt = yield* currentMonotonicMillis;
       const policy = options?.idempotent === false
         ? noRetryPolicy
         : retryPolicy;
@@ -88,20 +95,26 @@ export const tryExternalEffect = <A, E, R>(
         Effect.mapError((cause) => toExternalCallError(operation, cause)),
         Effect.tapBoth({
           onSuccess: () =>
-            Effect.logInfo("external call completed").pipe(
-              Effect.annotateLogs({
-                durationMs: durationMsSince(startedAt),
-              }),
-            ),
-          onFailure: (error) =>
-            Effect.logError("external call failed").pipe(
-              Effect.annotateLogs(
-                compactLogAnnotations({
-                  durationMs: durationMsSince(startedAt),
-                  ...errorLogAnnotations(error),
+            Effect.gen(function* () {
+              const finishedAt = yield* currentMonotonicMillis;
+              yield* Effect.logInfo("external call completed").pipe(
+                Effect.annotateLogs({
+                  durationMs: durationMsSince(startedAt, finishedAt),
                 }),
-              ),
-            ),
+              );
+            }),
+          onFailure: (error) =>
+            Effect.gen(function* () {
+              const finishedAt = yield* currentMonotonicMillis;
+              yield* Effect.logError("external call failed").pipe(
+                Effect.annotateLogs(
+                  compactLogAnnotations({
+                    durationMs: durationMsSince(startedAt, finishedAt),
+                    ...errorLogAnnotations(error),
+                  }),
+                ),
+              );
+            }),
         }),
         Effect.withLogSpan(operation),
       );

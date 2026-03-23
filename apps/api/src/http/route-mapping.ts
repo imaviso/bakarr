@@ -4,6 +4,7 @@ import type {
   Config,
   QualityProfile,
 } from "../../../../packages/shared/src/index.ts";
+import { nowIso } from "../lib/clock.ts";
 import type { AddAnimeInput } from "../features/anime/service.ts";
 import {
   AddAnimeInputSchema,
@@ -12,6 +13,8 @@ import {
   QualityProfileSchema,
   UpdateReleaseProfileSchema,
 } from "./request-schemas.ts";
+
+export { nowIso };
 
 export function toAddAnimeInput(
   body: Schema.Schema.Type<typeof AddAnimeInputSchema>,
@@ -70,8 +73,4 @@ export function toConfig(
     qbittorrent: { ...body.qbittorrent },
     scheduler: { ...body.scheduler },
   };
-}
-
-export function nowIso() {
-  return new Date().toISOString();
 }
