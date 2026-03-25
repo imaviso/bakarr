@@ -1,15 +1,10 @@
 import type { DownloadEvent } from "@bakarr/shared";
-import {
-  formatDownloadDecisionSummary,
-  formatDownloadParsedMeta,
-} from "~/lib/download-metadata";
+import { formatDownloadDecisionSummary, formatDownloadParsedMeta } from "~/lib/download-metadata";
 import { formatReleaseSourceSummary } from "~/lib/release-metadata";
 
 type DownloadEventLike = Pick<DownloadEvent, "metadata_json">;
 
-export function formatDownloadEventCoverage(
-  coveredEpisodes?: readonly number[],
-) {
+export function formatDownloadEventCoverage(coveredEpisodes?: readonly number[]) {
   if (!coveredEpisodes?.length) {
     return undefined;
   }
@@ -23,9 +18,7 @@ export function getDownloadEventMetadataSummary(input: DownloadEventLike) {
   const sourceMetadata = input.metadata_json?.source_metadata;
 
   return {
-    coverage: formatDownloadEventCoverage(
-      input.metadata_json?.covered_episodes,
-    ),
+    coverage: formatDownloadEventCoverage(input.metadata_json?.covered_episodes),
     decision: formatDownloadDecisionSummary({
       decision_reason: sourceMetadata?.decision_reason,
       source_metadata: sourceMetadata,

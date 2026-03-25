@@ -25,17 +25,19 @@ it("background status composes persisted job rows with live running state", () =
     },
   };
 
-  const jobs = composeBackgroundJobStatuses(config, snapshot, [{
-    isRunning: false,
-    lastMessage: "Queued 1 release",
-    lastRunAt: "2024-01-02T00:00:00.000Z",
-    lastStatus: "success",
-    lastSuccessAt: "2024-01-02T00:00:00.000Z",
-    name: "rss",
-    progressCurrent: null,
-    progressTotal: null,
-    runCount: 4,
-  }]);
+  const jobs = composeBackgroundJobStatuses(config, snapshot, [
+    {
+      isRunning: false,
+      lastMessage: "Queued 1 release",
+      lastRunAt: "2024-01-02T00:00:00.000Z",
+      lastStatus: "success",
+      lastSuccessAt: "2024-01-02T00:00:00.000Z",
+      name: "rss",
+      progressCurrent: null,
+      progressTotal: null,
+      runCount: 4,
+    },
+  ]);
   const rssJob = findBackgroundJobStatus(jobs, "rss");
 
   assertEquals(rssJob?.is_running, true);

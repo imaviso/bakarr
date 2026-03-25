@@ -23,26 +23,20 @@ const portalVariants = cva("fixed inset-0 z-50 flex", {
   defaultVariants: { position: "right" },
 });
 
-type PortalProps =
-  & SheetPrimitive.DialogPortalProps
-  & VariantProps<typeof portalVariants>;
+type PortalProps = SheetPrimitive.DialogPortalProps & VariantProps<typeof portalVariants>;
 
 const SheetPortal: Component<PortalProps> = (props) => {
   const [local, others] = splitProps(props, ["position", "children"]);
   return (
     <SheetPrimitive.Portal {...others}>
-      <div class={portalVariants({ position: local.position })}>
-        {local.children}
-      </div>
+      <div class={portalVariants({ position: local.position })}>{local.children}</div>
     </SheetPrimitive.Portal>
   );
 };
 
-type DialogOverlayProps<T extends ValidComponent = "div"> =
-  & SheetPrimitive.DialogOverlayProps<T>
-  & {
-    class?: string | undefined;
-  };
+type DialogOverlayProps<T extends ValidComponent = "div"> = SheetPrimitive.DialogOverlayProps<T> & {
+  class?: string | undefined;
+};
 
 const SheetOverlay = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, DialogOverlayProps<T>>,
@@ -64,12 +58,10 @@ const sheetVariants = cva(
   {
     variants: {
       position: {
-        top:
-          "inset-x-0 top-0 border-b data-[closed=]:slide-out-to-top data-[expanded=]:slide-in-from-top",
+        top: "inset-x-0 top-0 border-b data-[closed=]:slide-out-to-top data-[expanded=]:slide-in-from-top",
         bottom:
           "inset-x-0 bottom-0 border-t data-[closed=]:slide-out-to-bottom data-[expanded=]:slide-in-from-bottom",
-        left:
-          "inset-y-0 left-0 h-full w-3/4 border-r data-[closed=]:slide-out-to-left data-[expanded=]:slide-in-from-left sm:max-w-sm",
+        left: "inset-y-0 left-0 h-full w-3/4 border-r data-[closed=]:slide-out-to-left data-[expanded=]:slide-in-from-left sm:max-w-sm",
         right:
           "inset-y-0 right-0 h-full w-3/4 border-l data-[closed=]:slide-out-to-right data-[expanded=]:slide-in-from-right sm:max-w-sm",
       },
@@ -80,10 +72,8 @@ const sheetVariants = cva(
   },
 );
 
-type DialogContentProps<T extends ValidComponent = "div"> =
-  & SheetPrimitive.DialogContentProps<T>
-  & VariantProps<typeof sheetVariants>
-  & { class?: string | undefined; children?: JSX.Element };
+type DialogContentProps<T extends ValidComponent = "div"> = SheetPrimitive.DialogContentProps<T> &
+  VariantProps<typeof sheetVariants> & { class?: string | undefined; children?: JSX.Element };
 
 const SheetContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, DialogContentProps<T>>,
@@ -129,13 +119,7 @@ const SheetContent = <T extends ValidComponent = "div">(
 const SheetHeader: Component<ComponentProps<"div">> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
   return (
-    <div
-      class={cn(
-        "flex flex-col space-y-2 text-center sm:text-left",
-        local.class,
-      )}
-      {...others}
-    />
+    <div class={cn("flex flex-col space-y-2 text-center sm:text-left", local.class)} {...others} />
   );
 };
 
@@ -143,20 +127,15 @@ const SheetFooter: Component<ComponentProps<"div">> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
   return (
     <div
-      class={cn(
-        "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
-        local.class,
-      )}
+      class={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", local.class)}
       {...others}
     />
   );
 };
 
-type DialogTitleProps<T extends ValidComponent = "h2"> =
-  & SheetPrimitive.DialogTitleProps<T>
-  & {
-    class?: string | undefined;
-  };
+type DialogTitleProps<T extends ValidComponent = "h2"> = SheetPrimitive.DialogTitleProps<T> & {
+  class?: string | undefined;
+};
 
 const SheetTitle = <T extends ValidComponent = "h2">(
   props: PolymorphicProps<T, DialogTitleProps<T>>,
@@ -171,15 +150,12 @@ const SheetTitle = <T extends ValidComponent = "h2">(
 };
 
 type DialogDescriptionProps<T extends ValidComponent = "p"> =
-  & SheetPrimitive.DialogDescriptionProps<T>
-  & { class?: string | undefined };
+  SheetPrimitive.DialogDescriptionProps<T> & { class?: string | undefined };
 
 const SheetDescription = <T extends ValidComponent = "p">(
   props: PolymorphicProps<T, DialogDescriptionProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as DialogDescriptionProps, [
-    "class",
-  ]);
+  const [local, others] = splitProps(props as DialogDescriptionProps, ["class"]);
   return (
     <SheetPrimitive.Description
       class={cn("text-sm text-muted-foreground", local.class)}

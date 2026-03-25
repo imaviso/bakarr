@@ -21,11 +21,7 @@ import {
   loadRuntimeConfig,
   requireAnime,
 } from "./repository.ts";
-import {
-  mapSearchCategory,
-  mapSearchFilter,
-  toNyaaSearchResult,
-} from "./search-support.ts";
+import { mapSearchCategory, mapSearchFilter, toNyaaSearchResult } from "./search-support.ts";
 import { scanImportPathEffect } from "./import-path-scan-support.ts";
 import {
   compareEpisodeSearchResults,
@@ -33,10 +29,7 @@ import {
   parseReleaseName,
 } from "./release-ranking.ts";
 import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
-import {
-  compactLogAnnotations,
-  errorLogAnnotations,
-} from "../../lib/logging.ts";
+import { compactLogAnnotations, errorLogAnnotations } from "../../lib/logging.ts";
 import {
   ExternalCallError,
   type OperationsError,
@@ -91,31 +84,21 @@ export function makeSearchOrchestration(input: {
     coordination,
   } = input;
 
-  const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(
-    function* (
-      query: string,
-      config: Config,
-      category?: string,
-      filter?: string,
-    ) {
-      const resolvedCategory = mapSearchCategory(
-        category,
-        config.nyaa.default_category || "1_2",
-      );
-      const resolvedFilter = mapSearchFilter(
-        filter,
-        config.nyaa.filter_remakes ? "1" : "0",
-      );
-      const url = `https://nyaa.si/?page=rss&q=${encodeURIComponent(query)}&c=${
-        encodeURIComponent(resolvedCategory)
-      }&f=${encodeURIComponent(resolvedFilter)}`;
-      return [...yield* rssClient.fetchItems(url)];
-    },
-  );
+  const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(function* (
+    query: string,
+    config: Config,
+    category?: string,
+    filter?: string,
+  ) {
+    const resolvedCategory = mapSearchCategory(category, config.nyaa.default_category || "1_2");
+    const resolvedFilter = mapSearchFilter(filter, config.nyaa.filter_remakes ? "1" : "0");
+    const url = `https://nyaa.si/?page=rss&q=${encodeURIComponent(query)}&c=${encodeURIComponent(
+      resolvedCategory,
+    )}&f=${encodeURIComponent(resolvedFilter)}`;
+    return [...(yield* rssClient.fetchItems(url))];
+  });
 
-  const searchEpisodeReleases = Effect.fn(
-    "OperationsService.searchEpisodeReleases",
-  )(function* (
+  const searchEpisodeReleases = Effect.fn("OperationsService.searchEpisodeReleases")(function* (
     animeRow: typeof anime.$inferSelect,
     episodeNumber: number,
     config: Config,
@@ -157,9 +140,7 @@ export function makeSearchOrchestration(input: {
     return yield* enrichSeaDexReleases(animeRow, results.slice(0, 10), config);
   });
 
-  const enrichSeaDexReleases = Effect.fn(
-    "OperationsService.enrichSeaDexReleases",
-  )(function* (
+  const enrichSeaDexReleases = Effect.fn("OperationsService.enrichSeaDexReleases")(function* (
     animeRow: typeof anime.$inferSelect,
     releases: readonly ParsedRelease[],
     config: Config,
@@ -170,9 +151,7 @@ export function makeSearchOrchestration(input: {
 
     const entry = yield* seadexClient.getEntryByAniListId(animeRow.id).pipe(
       Effect.tapError((error) =>
-        Effect.logWarning(
-          "SeaDex enrichment failed",
-        ).pipe(
+        Effect.logWarning("SeaDex enrichment failed").pipe(
           Effect.annotateLogs(
             compactLogAnnotations({
               animeId: animeRow.id,
@@ -182,7 +161,7 @@ export function makeSearchOrchestration(input: {
               ...errorLogAnnotations(error),
             }),
           ),
-        )
+        ),
       ),
     );
 
@@ -193,59 +172,47 @@ export function makeSearchOrchestration(input: {
     return releases.map((release) => applySeaDexMatch(release, entry));
   });
 
-  const searchReleasesRaw = Effect.fn("OperationsService.searchReleases")(
-    function* (
-      query: string,
-      animeId?: number,
-      category?: string,
-      filter?: string,
-    ) {
-      const animeRow = animeId ? yield* requireAnime(db, animeId) : null;
-      const searchQuery = (query || animeRow?.titleRomaji || "").trim();
-
-      if (searchQuery.length === 0) {
-        return yield* new OperationsInputError({
-          message: "Search query is required",
-        });
-      }
-
-      const runtimeConfig = yield* loadRuntimeConfig(db);
-      const results = yield* searchNyaaReleases(
-        searchQuery,
-        runtimeConfig,
-        category,
-        filter,
-      ).pipe(Effect.mapError(wrapOperationsError("Failed to search releases")));
-
-      const enrichedResults = animeRow
-        ? yield* enrichSeaDexReleases(animeRow, results, runtimeConfig)
-        : results;
-
-      return {
-        results: enrichedResults.map(toNyaaSearchResult),
-        seadex_groups: [
-          ...new Set(
-            enrichedResults
-              .filter((item) => item.isSeaDex)
-              .map((item) => item.seaDexReleaseGroup ?? item.group)
-              .filter((value): value is string => Boolean(value)),
-          ),
-        ],
-      } satisfies SearchResults;
-    },
-  );
-
-  const searchReleases = (
+  const searchReleasesRaw = Effect.fn("OperationsService.searchReleases")(function* (
     query: string,
     animeId?: number,
     category?: string,
     filter?: string,
-  ) =>
+  ) {
+    const animeRow = animeId ? yield* requireAnime(db, animeId) : null;
+    const searchQuery = (query || animeRow?.titleRomaji || "").trim();
+
+    if (searchQuery.length === 0) {
+      return yield* new OperationsInputError({
+        message: "Search query is required",
+      });
+    }
+
+    const runtimeConfig = yield* loadRuntimeConfig(db);
+    const results = yield* searchNyaaReleases(searchQuery, runtimeConfig, category, filter).pipe(
+      Effect.mapError(wrapOperationsError("Failed to search releases")),
+    );
+
+    const enrichedResults = animeRow
+      ? yield* enrichSeaDexReleases(animeRow, results, runtimeConfig)
+      : results;
+
+    return {
+      results: enrichedResults.map(toNyaaSearchResult),
+      seadex_groups: [
+        ...new Set(
+          enrichedResults
+            .filter((item) => item.isSeaDex)
+            .map((item) => item.seaDexReleaseGroup ?? item.group)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ],
+    } satisfies SearchResults;
+  });
+
+  const searchReleases = (query: string, animeId?: number, category?: string, filter?: string) =>
     searchReleasesRaw(query, animeId, category, filter).pipe(
       Effect.mapError((error) =>
-        error instanceof DatabaseError
-          ? error
-          : dbError("Failed to search releases")(error)
+        error instanceof DatabaseError ? error : dbError("Failed to search releases")(error),
       ),
     );
 
@@ -264,62 +231,54 @@ export function makeSearchOrchestration(input: {
     }
 
     const rules = yield* loadReleaseRules(db, animeRow);
-    const currentEpisode = yield* loadCurrentEpisodeState(
-      db,
-      animeId,
-      episodeNumber,
-    );
-    const results = yield* searchEpisodeReleases(
-      animeRow,
-      episodeNumber,
-      runtimeConfig,
-    ).pipe(
+    const currentEpisode = yield* loadCurrentEpisodeState(db, animeId, episodeNumber);
+    const results = yield* searchEpisodeReleases(animeRow, episodeNumber, runtimeConfig).pipe(
       Effect.mapError(wrapOperationsError("Failed to search episode releases")),
     );
 
-    return results.map((item) => {
-      const parsedIdentity =
-        parseReleaseSourceIdentity(item.title).source_identity;
+    return results
+      .map((item) => {
+        const parsedIdentity = parseReleaseSourceIdentity(item.title).source_identity;
 
-      return {
-        download_action: decideDownloadAction(
-          profile,
-          rules,
-          currentEpisode,
-          item,
-          runtimeConfig,
-        ),
-        group: item.group,
-        indexer: "Nyaa",
-        info_hash: item.infoHash,
-        is_seadex: item.isSeaDex || undefined,
-        is_seadex_best: item.isSeaDexBest || undefined,
-        leechers: item.leechers,
-        link: item.magnet,
-        parsed_air_date: parsedIdentity?.scheme === "daily"
-          ? parsedIdentity.air_dates[0]
-          : undefined,
-        parsed_episode_label: parsedIdentity?.label,
-        parsed_episode_numbers:
-          parsedIdentity && parsedIdentity.scheme !== "daily"
-            ? [...parsedIdentity.episode_numbers]
-            : undefined,
-        parsed_resolution: item.resolution,
-        publish_date: item.pubDate,
-        quality: parseReleaseName(item.title).quality.name,
-        remake: item.remake,
-        seadex_comparison: item.seaDexComparison,
-        seadex_dual_audio: item.seaDexDualAudio,
-        seadex_notes: item.seaDexNotes,
-        seadex_release_group: item.seaDexReleaseGroup,
-        seadex_tags: item.seaDexTags ? [...item.seaDexTags] : undefined,
-        seeders: item.seeders,
-        size: item.sizeBytes,
-        title: item.title,
-        trusted: item.trusted,
-        view_url: item.viewUrl,
-      };
-    }).sort(compareEpisodeSearchResults) as EpisodeSearchResult[];
+        return {
+          download_action: decideDownloadAction(
+            profile,
+            rules,
+            currentEpisode,
+            item,
+            runtimeConfig,
+          ),
+          group: item.group,
+          indexer: "Nyaa",
+          info_hash: item.infoHash,
+          is_seadex: item.isSeaDex || undefined,
+          is_seadex_best: item.isSeaDexBest || undefined,
+          leechers: item.leechers,
+          link: item.magnet,
+          parsed_air_date:
+            parsedIdentity?.scheme === "daily" ? parsedIdentity.air_dates[0] : undefined,
+          parsed_episode_label: parsedIdentity?.label,
+          parsed_episode_numbers:
+            parsedIdentity && parsedIdentity.scheme !== "daily"
+              ? [...parsedIdentity.episode_numbers]
+              : undefined,
+          parsed_resolution: item.resolution,
+          publish_date: item.pubDate,
+          quality: parseReleaseName(item.title).quality.name,
+          remake: item.remake,
+          seadex_comparison: item.seaDexComparison,
+          seadex_dual_audio: item.seaDexDualAudio,
+          seadex_notes: item.seaDexNotes,
+          seadex_release_group: item.seaDexReleaseGroup,
+          seadex_tags: item.seaDexTags ? [...item.seaDexTags] : undefined,
+          seeders: item.seeders,
+          size: item.sizeBytes,
+          title: item.title,
+          trusted: item.trusted,
+          view_url: item.viewUrl,
+        };
+      })
+      .sort(compareEpisodeSearchResults) as EpisodeSearchResult[];
   });
   const backgroundSearchSupport = makeBackgroundSearchSupport({
     db,
@@ -369,7 +328,7 @@ export function makeSearchOrchestration(input: {
       Effect.mapError((error) =>
         error instanceof DatabaseError || error instanceof OperationsPathError
           ? error
-          : dbError("Failed to scan import path")(error)
+          : dbError("Failed to scan import path")(error),
       ),
     );
 

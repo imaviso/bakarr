@@ -16,22 +16,11 @@ import {
 } from "@tabler/icons-solidjs";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { format } from "date-fns";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
-import {
-  Filter,
-  type FilterColumnConfig,
-  type FilterState,
-} from "~/components/filters";
+import { Filter, type FilterColumnConfig, type FilterState } from "~/components/filters";
 import { GeneralError } from "~/components/general-error";
 import { PageHeader } from "~/components/page-header";
 import { DownloadEventDetailsDialog } from "~/components/download-event-details-dialog";
@@ -65,11 +54,7 @@ import {
 } from "~/components/ui/dropdown-menu";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Switch } from "~/components/ui/switch";
-import {
-  TextField,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
+import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 import {
   Table,
   TableBody,
@@ -100,10 +85,7 @@ import {
   infiniteLogsQueryOptions,
   type SystemLog,
 } from "~/lib/api";
-import {
-  formatDateTimeLocalInput,
-  getDateRangePresetHours,
-} from "~/lib/date-presets";
+import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-presets";
 import { cn } from "~/lib/utils";
 
 const LogsSearchSchema = v.object({
@@ -129,9 +111,7 @@ export const Route = createFileRoute("/_layout/logs")({
 });
 
 function formatLogTimestamp(createdAt: string): string {
-  const normalized = createdAt.includes("T")
-    ? createdAt
-    : createdAt.replace(" ", "T");
+  const normalized = createdAt.includes("T") ? createdAt : createdAt.replace(" ", "T");
   const hasTimezone = /([zZ]|[+-]\d{2}:\d{2})$/.test(normalized);
   const candidate = hasTimezone ? normalized : `${normalized}Z`;
   const date = new Date(candidate);
@@ -151,9 +131,9 @@ function LogsPage() {
   const [lastDownloadEventsExport, setLastDownloadEventsExport] = createSignal<
     DownloadEventsExportResult | undefined
   >(undefined);
-  const [selectedDownloadEvent, setSelectedDownloadEvent] = createSignal<
-    DownloadEvent | null
-  >(null);
+  const [selectedDownloadEvent, setSelectedDownloadEvent] = createSignal<DownloadEvent | null>(
+    null,
+  );
   const [selectedLog, setSelectedLog] = createSignal<SystemLog | null>(null);
   const [filterStates, setFilterStates] = createSignal<FilterState[]>([]);
 
@@ -224,9 +204,7 @@ function LogsPage() {
     const params: Record<string, string | undefined> = {};
 
     for (const filter of filterStates()) {
-      const value = Array.isArray(filter.value)
-        ? filter.value[0]
-        : filter.value;
+      const value = Array.isArray(filter.value) ? filter.value[0] : filter.value;
       if (value) {
         if (filter.columnId === "endDate") {
           // Append end of day time to ensure inclusive filtering
@@ -257,18 +235,14 @@ function LogsPage() {
     downloadId: parseOptionalPositiveInt(search().download_download_id),
     direction: search().download_direction,
     endDate: search().download_end_date || undefined,
-    eventType: search().download_event_type === "all"
-      ? undefined
-      : search().download_event_type,
+    eventType: search().download_event_type === "all" ? undefined : search().download_event_type,
     limit: 24,
     startDate: search().download_start_date || undefined,
     status: search().download_status || undefined,
   }));
   const jobsQuery = createSystemJobsQuery();
   const dashboardQuery = createSystemDashboardQuery();
-  const updateDownloadEventSearch = (
-    patch: Partial<ReturnType<typeof search>>,
-  ) => {
+  const updateDownloadEventSearch = (patch: Partial<ReturnType<typeof search>>) => {
     navigate({
       to: ".",
       search: { ...search(), ...patch },
@@ -276,10 +250,7 @@ function LogsPage() {
     });
   };
   const activeDownloadEventsPreset = createMemo(() =>
-    getDateRangePresetHours(
-      search().download_start_date,
-      search().download_end_date,
-    )
+    getDateRangePresetHours(search().download_start_date, search().download_end_date),
   );
 
   const applyDownloadEventsDateRangePreset = (hours: number) => {
@@ -294,9 +265,7 @@ function LogsPage() {
   };
 
   // Flatten all pages of logs
-  const allLogs = createMemo(
-    () => logsQuery.data?.pages.flatMap((page) => page.logs) ?? [],
-  );
+  const allLogs = createMemo(() => logsQuery.data?.pages.flatMap((page) => page.logs) ?? []);
 
   // Auto-refresh logic
   createEffect(() => {
@@ -324,9 +293,7 @@ function LogsPage() {
   });
   const logsPaddingBottom = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0
-      ? rowVirtualizer.getTotalSize() - items[items.length - 1].end
-      : 0;
+    return items.length > 0 ? rowVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
   });
 
   // Auto-fetch next page when approaching the end
@@ -359,9 +326,7 @@ function LogsPage() {
       animeId: parseOptionalPositiveInt(search().download_anime_id),
       downloadId: parseOptionalPositiveInt(search().download_download_id),
       endDate: search().download_end_date || undefined,
-      eventType: search().download_event_type === "all"
-        ? undefined
-        : search().download_event_type,
+      eventType: search().download_event_type === "all" ? undefined : search().download_event_type,
       limit: 10_000,
       order: "desc",
       startDate: search().download_start_date || undefined,
@@ -416,17 +381,10 @@ function LogsPage() {
 
   return (
     <div class="flex flex-col flex-1 min-h-0 gap-6">
-      <PageHeader
-        title="System Logs"
-        subtitle="View, filter, and export system events and errors"
-      >
+      <PageHeader title="System Logs" subtitle="View, filter, and export system events and errors">
         <div class="flex items-center gap-2">
           <div class="flex items-center gap-2">
-            <Switch
-              checked={autoRefresh()}
-              onChange={setAutoRefresh}
-              id="auto-refresh"
-            />
+            <Switch checked={autoRefresh()} onChange={setAutoRefresh} id="auto-refresh" />
             <label
               for="auto-refresh"
               class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
@@ -444,12 +402,7 @@ function LogsPage() {
             }}
             disabled={logsQuery.isRefetching}
           >
-            <IconRefresh
-              class={cn(
-                "h-4 w-4",
-                logsQuery.isRefetching && "animate-spin",
-              )}
-            />
+            <IconRefresh class={cn("h-4 w-4", logsQuery.isRefetching && "animate-spin")} />
             Refresh
           </Button>
 
@@ -479,8 +432,8 @@ function LogsPage() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Clear All Logs?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete all
-                  system logs from the database.
+                  This action cannot be undone. This will permanently delete all system logs from
+                  the database.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -497,11 +450,7 @@ function LogsPage() {
         </div>
       </PageHeader>
 
-      <Filter.Provider
-        columns={filterColumns}
-        value={filterStates()}
-        onChange={setFilterStates}
-      >
+      <Filter.Provider columns={filterColumns} value={filterStates()} onChange={setFilterStates}>
         <Filter.Root>
           <div class="flex flex-wrap items-center gap-2">
             <Filter.Menu />
@@ -514,29 +463,17 @@ function LogsPage() {
       <Card class="border-dashed">
         <div class="p-4 border-b border-border/60">
           <h2 class="text-sm font-medium text-foreground">Ops Summary</h2>
-          <p class="text-xs text-muted-foreground mt-1">
-            High-level download and worker health
-          </p>
+          <p class="text-xs text-muted-foreground mt-1">High-level download and worker health</p>
         </div>
         <div class="p-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <Show
             when={dashboardQuery.data}
-            fallback={
-              <For each={[1, 2, 3, 4, 5]}>
-                {() => <Skeleton class="h-20 w-full" />}
-              </For>
-            }
+            fallback={<For each={[1, 2, 3, 4, 5]}>{() => <Skeleton class="h-20 w-full" />}</For>}
           >
             {(dashboard) => (
               <>
-                <DashboardMetricCard
-                  label="Queued"
-                  value={dashboard().queued_downloads}
-                />
-                <DashboardMetricCard
-                  label="Active"
-                  value={dashboard().active_downloads}
-                />
+                <DashboardMetricCard label="Queued" value={dashboard().queued_downloads} />
+                <DashboardMetricCard label="Active" value={dashboard().active_downloads} />
                 <DashboardMetricCard
                   label="Failed"
                   value={dashboard().failed_downloads}
@@ -561,30 +498,18 @@ function LogsPage() {
       <Card class="border-dashed">
         <div class="p-4 border-b border-border/60">
           <h2 class="text-sm font-medium text-foreground">Background Jobs</h2>
-          <p class="text-xs text-muted-foreground mt-1">
-            Current scheduler and worker visibility
-          </p>
+          <p class="text-xs text-muted-foreground mt-1">Current scheduler and worker visibility</p>
         </div>
         <div class="p-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <Show
             when={!jobsQuery.isLoading}
-            fallback={
-              <For each={[1, 2, 3, 4]}>
-                {() => <Skeleton class="h-24 w-full" />}
-              </For>
-            }
+            fallback={<For each={[1, 2, 3, 4]}>{() => <Skeleton class="h-24 w-full" />}</For>}
           >
             <Show
               when={(jobsQuery.data?.length ?? 0) > 0}
-              fallback={
-                <div class="text-sm text-muted-foreground">
-                  No background job data yet
-                </div>
-              }
+              fallback={<div class="text-sm text-muted-foreground">No background job data yet</div>}
             >
-              <For each={jobsQuery.data}>
-                {(job) => <BackgroundJobCard job={job} />}
-              </For>
+              <For each={jobsQuery.data}>{(job) => <BackgroundJobCard job={job} />}</For>
             </Show>
           </Show>
         </div>
@@ -594,12 +519,9 @@ function LogsPage() {
         <div class="p-4 border-b border-border/60">
           <div class="flex flex-col gap-3">
             <div>
-              <h2 class="text-sm font-medium text-foreground">
-                Recent Download Events
-              </h2>
+              <h2 class="text-sm font-medium text-foreground">Recent Download Events</h2>
               <p class="text-xs text-muted-foreground mt-1">
-                Latest queued, retried, reconciled, and imported download
-                actions
+                Latest queued, retried, reconciled, and imported download actions
               </p>
             </div>
             <div class="grid gap-3 md:grid-cols-[1fr_1fr_220px_auto]">
@@ -613,7 +535,8 @@ function LogsPage() {
                       download_cursor: "",
                       download_direction: "next",
                       download_anime_id: event.currentTarget.value,
-                    })}
+                    })
+                  }
                   placeholder="Any anime"
                 />
               </TextField>
@@ -627,7 +550,8 @@ function LogsPage() {
                       download_cursor: "",
                       download_direction: "next",
                       download_download_id: event.currentTarget.value,
-                    })}
+                    })
+                  }
                   placeholder="Any download"
                 />
               </TextField>
@@ -636,11 +560,13 @@ function LogsPage() {
                 <Select
                   value={search().download_event_type}
                   onChange={(value) =>
-                    value && updateDownloadEventSearch({
+                    value &&
+                    updateDownloadEventSearch({
                       download_cursor: "",
                       download_direction: "next",
                       download_event_type: value,
-                    })}
+                    })
+                  }
                   options={[
                     "all",
                     "download.queued",
@@ -654,42 +580,32 @@ function LogsPage() {
                     "download.rss.queued",
                   ]}
                   itemComponent={(props) => (
-                    <SelectItem item={props.item}>
-                      {props.item.rawValue}
-                    </SelectItem>
+                    <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
                   )}
                 >
                   <SelectTrigger>
-                    <SelectValue<string>>
-                      {(state) => state.selectedOption() ?? "all"}
-                    </SelectValue>
+                    <SelectValue<string>>{(state) => state.selectedOption() ?? "all"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent />
                 </Select>
               </div>
               <div class="flex items-end justify-end gap-2 flex-wrap">
                 <Button
-                  variant={activeDownloadEventsPreset() === 24
-                    ? "default"
-                    : "outline"}
+                  variant={activeDownloadEventsPreset() === 24 ? "default" : "outline"}
                   size="sm"
                   onClick={() => applyDownloadEventsDateRangePreset(24)}
                 >
                   24h
                 </Button>
                 <Button
-                  variant={activeDownloadEventsPreset() === 168
-                    ? "default"
-                    : "outline"}
+                  variant={activeDownloadEventsPreset() === 168 ? "default" : "outline"}
                   size="sm"
                   onClick={() => applyDownloadEventsDateRangePreset(24 * 7)}
                 >
                   7d
                 </Button>
                 <Button
-                  variant={activeDownloadEventsPreset() === 720
-                    ? "default"
-                    : "outline"}
+                  variant={activeDownloadEventsPreset() === 720 ? "default" : "outline"}
                   size="sm"
                   onClick={() => applyDownloadEventsDateRangePreset(24 * 30)}
                 >
@@ -707,7 +623,8 @@ function LogsPage() {
                       download_event_type: "all",
                       download_start_date: "",
                       download_status: "",
-                    })}
+                    })
+                  }
                 >
                   Reset
                 </Button>
@@ -723,7 +640,8 @@ function LogsPage() {
                       download_cursor: "",
                       download_direction: "next",
                       download_status: event.currentTarget.value,
-                    })}
+                    })
+                  }
                   placeholder="Any status"
                 />
               </TextField>
@@ -737,7 +655,8 @@ function LogsPage() {
                       download_cursor: "",
                       download_direction: "next",
                       download_start_date: event.currentTarget.value,
-                    })}
+                    })
+                  }
                 />
               </TextField>
               <TextField>
@@ -750,7 +669,8 @@ function LogsPage() {
                       download_cursor: "",
                       download_direction: "next",
                       download_end_date: event.currentTarget.value,
-                    })}
+                    })
+                  }
                 />
               </TextField>
               <div class="flex items-end justify-end gap-2">
@@ -760,15 +680,11 @@ function LogsPage() {
                     Export
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem
-                      onClick={() => handleDownloadEventsExport("json")}
-                    >
+                    <DropdownMenuItem onClick={() => handleDownloadEventsExport("json")}>
                       <IconJson class="h-4 w-4 mr-2" />
                       Export as JSON
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleDownloadEventsExport("csv")}
-                    >
+                    <DropdownMenuItem onClick={() => handleDownloadEventsExport("csv")}>
                       <IconFileSpreadsheet class="h-4 w-4 mr-2" />
                       Export as CSV
                     </DropdownMenuItem>
@@ -778,10 +694,10 @@ function LogsPage() {
                   variant="outline"
                   onClick={() =>
                     updateDownloadEventSearch({
-                      download_cursor: downloadEventsQuery.data?.prev_cursor ??
-                        "",
+                      download_cursor: downloadEventsQuery.data?.prev_cursor ?? "",
                       download_direction: "prev",
-                    })}
+                    })
+                  }
                   disabled={!downloadEventsQuery.data?.prev_cursor}
                 >
                   Previous
@@ -790,10 +706,10 @@ function LogsPage() {
                   variant="outline"
                   onClick={() =>
                     updateDownloadEventSearch({
-                      download_cursor: downloadEventsQuery.data?.next_cursor ??
-                        "",
+                      download_cursor: downloadEventsQuery.data?.next_cursor ?? "",
                       download_direction: "next",
-                    })}
+                    })
+                  }
                   disabled={!downloadEventsQuery.data?.has_more}
                 >
                   Next
@@ -812,11 +728,7 @@ function LogsPage() {
         </div>
         <Show
           when={downloadEventsQuery.data?.events.length}
-          fallback={
-            <div class="p-4 text-sm text-muted-foreground">
-              No recent download events
-            </div>
-          }
+          fallback={<div class="p-4 text-sm text-muted-foreground">No recent download events</div>}
         >
           <div class="px-4 pt-3 pb-1 text-xs text-muted-foreground">
             Showing {downloadEventsQuery.data?.events.length ?? 0} of{" "}
@@ -870,10 +782,7 @@ function LogsPage() {
               >
                 <Show when={logsQuery.isError}>
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      class="h-24 text-center text-destructive"
-                    >
+                    <TableCell colSpan={5} class="h-24 text-center text-destructive">
                       Error loading logs. Please try again.
                     </TableCell>
                   </TableRow>
@@ -881,10 +790,7 @@ function LogsPage() {
 
                 <Show when={allLogs().length === 0}>
                   <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      class="h-24 text-center text-muted-foreground"
-                    >
+                    <TableCell colSpan={5} class="h-24 text-center text-muted-foreground">
                       No logs found.
                     </TableCell>
                   </TableRow>
@@ -981,10 +887,7 @@ function LogsPage() {
               onClick={() => logsQuery.fetchNextPage()}
               disabled={logsQuery.isFetchingNextPage}
             >
-              <Show
-                when={logsQuery.isFetchingNextPage}
-                fallback="Load More Logs"
-              >
+              <Show when={logsQuery.isFetchingNextPage} fallback="Load More Logs">
                 <IconLoader class="h-4 w-4 animate-spin" />
                 Loading...
               </Show>
@@ -993,32 +896,24 @@ function LogsPage() {
         </Show>
       </Card>
 
-      <Dialog
-        open={!!selectedLog()}
-        onOpenChange={(open) => !open && setSelectedLog(null)}
-      >
+      <Dialog open={!!selectedLog()} onOpenChange={(open) => !open && setSelectedLog(null)}>
         <DialogContent class="max-w-3xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Log Details</DialogTitle>
             <DialogDescription>
-              {selectedLog() &&
-                formatLogTimestamp(selectedLog()?.created_at || "")}
+              {selectedLog() && formatLogTimestamp(selectedLog()?.created_at || "")}
             </DialogDescription>
           </DialogHeader>
           <div class="flex-1 overflow-auto space-y-4 py-4">
             <div class="space-y-1">
-              <div class="text-sm font-medium text-muted-foreground">
-                Message
-              </div>
+              <div class="text-sm font-medium text-muted-foreground">Message</div>
               <div class="p-3 rounded-md bg-muted text-sm font-mono whitespace-pre-wrap break-words">
                 {selectedLog()?.message}
               </div>
             </div>
             <Show when={selectedLog()?.details}>
               <div class="space-y-1">
-                <div class="text-sm font-medium text-muted-foreground">
-                  Details
-                </div>
+                <div class="text-sm font-medium text-muted-foreground">Details</div>
                 <div class="p-3 rounded-md bg-muted text-xs font-mono whitespace-pre-wrap break-words">
                   {selectedLog()?.details}
                 </div>
@@ -1027,15 +922,11 @@ function LogsPage() {
             <div class="grid grid-cols-2 gap-4 text-sm">
               <div class="flex gap-1 items-baseline">
                 <span class="text-muted-foreground">Level:</span>
-                <span class="capitalize font-medium">
-                  {selectedLog()?.level}
-                </span>
+                <span class="capitalize font-medium">{selectedLog()?.level}</span>
               </div>
               <div class="flex gap-1 items-baseline">
                 <span class="text-muted-foreground">Source:</span>
-                <span class="capitalize font-medium">
-                  {selectedLog()?.event_type}
-                </span>
+                <span class="capitalize font-medium">{selectedLog()?.event_type}</span>
               </div>
             </div>
           </div>
@@ -1061,11 +952,8 @@ function BackgroundJobCard(props: { job: BackgroundJobStatus }) {
     <div class="rounded-lg border border-border/60 bg-card p-3 space-y-2">
       <div class="flex items-center justify-between gap-2">
         <div class="font-medium text-sm capitalize">{displayName()}</div>
-        <Badge
-          variant="outline"
-          class={cn(props.job.is_running && "border-info/40 text-info")}
-        >
-          {props.job.is_running ? "Running" : props.job.last_status ?? "Idle"}
+        <Badge variant="outline" class={cn(props.job.is_running && "border-info/40 text-info")}>
+          {props.job.is_running ? "Running" : (props.job.last_status ?? "Idle")}
         </Badge>
       </div>
       <div class="space-y-1 text-xs text-muted-foreground">
@@ -1077,14 +965,11 @@ function BackgroundJobCard(props: { job: BackgroundJobStatus }) {
           </Show>
         </div>
         <div>
-          Last run: {props.job.last_run_at
-            ? formatLogTimestamp(props.job.last_run_at)
-            : "-"}
+          Last run: {props.job.last_run_at ? formatLogTimestamp(props.job.last_run_at) : "-"}
         </div>
         <div>
-          Last success: {props.job.last_success_at
-            ? formatLogTimestamp(props.job.last_success_at)
-            : "-"}
+          Last success:{" "}
+          {props.job.last_success_at ? formatLogTimestamp(props.job.last_success_at) : "-"}
         </div>
         <Show when={props.job.last_message}>
           <div class="line-clamp-2">{props.job.last_message}</div>
@@ -1103,31 +988,20 @@ function parseOptionalPositiveInt(value: string) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-function DashboardMetricCard(props: {
-  label: string;
-  value: number;
-  highlight?: string;
-}) {
+function DashboardMetricCard(props: { label: string; value: number; highlight?: string }) {
   return (
     <div
       aria-label={`${props.label}: ${props.value}`}
       class="rounded-lg border border-border/60 bg-card p-3 space-y-1"
     >
       <div class="text-xs text-muted-foreground">{props.label}</div>
-      <div class={cn("text-2xl font-semibold", props.highlight)}>
-        {props.value}
-      </div>
+      <div class={cn("text-2xl font-semibold", props.highlight)}>{props.value}</div>
     </div>
   );
 }
 
 function DownloadEventRow(props: { event: DownloadEvent }) {
-  return (
-    <DownloadEventCard
-      event={props.event}
-      formatTimestamp={formatLogTimestamp}
-    />
-  );
+  return <DownloadEventCard event={props.event} formatTimestamp={formatLogTimestamp} />;
 }
 
 const EVENT_ROW_HEIGHT_ESTIMATE = 140;
@@ -1154,9 +1028,7 @@ function DownloadEventsList(props: {
   });
   const paddingBottom = createMemo(() => {
     const items = virtualizer.getVirtualItems();
-    return items.length > 0
-      ? virtualizer.getTotalSize() - items[items.length - 1].end
-      : 0;
+    return items.length > 0 ? virtualizer.getTotalSize() - items[items.length - 1].end : 0;
   });
 
   return (
@@ -1177,11 +1049,7 @@ function DownloadEventsList(props: {
               <div class="space-y-2">
                 <DownloadEventRow event={event} />
                 <div class="flex justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => props.onSelectEvent(event)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => props.onSelectEvent(event)}>
                     Details
                   </Button>
                 </div>

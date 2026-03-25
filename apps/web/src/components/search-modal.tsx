@@ -86,9 +86,7 @@ export function SearchModal(props: SearchModalProps) {
   };
 
   const handleDownload = (release: EpisodeSearchResult) => {
-    const selection = selectionMetadataFromDownloadAction(
-      release.download_action,
-    );
+    const selection = selectionMetadataFromDownloadAction(release.download_action);
     const releaseSourceIdentity = (): ParsedEpisodeIdentity | undefined => {
       if (!release.parsed_episode_label) {
         return undefined;
@@ -253,13 +251,9 @@ export function SearchModal(props: SearchModalProps) {
                           const selectionSummary = () =>
                             formatSelectionSummary(selectionMetadata());
                           const selectionLabel = () =>
-                            selectionKindLabel(
-                              selectionMetadata().selection_kind,
-                            );
-                          const selectionDetail = () =>
-                            formatSelectionDetail(selectionMetadata());
-                          const releaseConfidence = () =>
-                            getReleaseConfidence(release);
+                            selectionKindLabel(selectionMetadata().selection_kind);
+                          const selectionDetail = () => formatSelectionDetail(selectionMetadata());
+                          const releaseConfidence = () => getReleaseConfidence(release);
                           const releaseFlags = () => getReleaseFlags(release);
                           const releaseSourceSummary = () =>
                             formatReleaseSourceSummary({
@@ -271,17 +265,11 @@ export function SearchModal(props: SearchModalProps) {
                           const releaseParsedSummary = () =>
                             formatReleaseParsedSummary({
                               parsed_air_date: release.parsed_air_date,
-                              parsed_episode_label:
-                                release.parsed_episode_label,
+                              parsed_episode_label: release.parsed_episode_label,
                             });
 
                           return (
-                            <TableRow
-                              class={cn(
-                                "group",
-                                isRejected && "opacity-60 bg-muted/20",
-                              )}
-                            >
+                            <TableRow class={cn("group", isRejected && "opacity-60 bg-muted/20")}>
                               <TableCell class="font-medium max-w-[300px]">
                                 <div class="flex flex-col gap-1">
                                   <a
@@ -295,10 +283,9 @@ export function SearchModal(props: SearchModalProps) {
                                   </a>
                                   <div class="text-xs text-muted-foreground">
                                     <span class="flex items-center gap-1">
-                                      {formatDistanceToNow(
-                                        new Date(release.publish_date),
-                                        { addSuffix: true },
-                                      )}
+                                      {formatDistanceToNow(new Date(release.publish_date), {
+                                        addSuffix: true,
+                                      })}
                                     </span>
                                     <ReleaseMetadataSummary
                                       compact
@@ -309,22 +296,19 @@ export function SearchModal(props: SearchModalProps) {
                                     />
                                   </div>
                                   <Show
-                                    when={release.seadex_notes ||
+                                    when={
+                                      release.seadex_notes ||
                                       release.seadex_tags?.length ||
-                                      release.seadex_comparison}
+                                      release.seadex_comparison
+                                    }
                                   >
                                     <div class="text-xs text-muted-foreground leading-tight flex flex-col gap-1">
                                       <Show when={release.seadex_notes}>
-                                        <div class="line-clamp-2">
-                                          {release.seadex_notes}
-                                        </div>
+                                        <div class="line-clamp-2">{release.seadex_notes}</div>
                                       </Show>
                                       <Show when={release.seadex_tags?.length}>
                                         <div class="flex flex-wrap gap-1">
-                                          <For
-                                            each={(release.seadex_tags || [])
-                                              .slice(0, 4)}
-                                          >
+                                          <For each={(release.seadex_tags || []).slice(0, 4)}>
                                             {(tag) => (
                                               <Badge
                                                 variant="secondary"
@@ -343,9 +327,7 @@ export function SearchModal(props: SearchModalProps) {
                                           rel="noreferrer"
                                           class="inline-flex items-center gap-1 text-primary hover:text-primary/80 w-fit"
                                         >
-                                          <IconExternalLink class="h-3 w-3" />
-                                          {" "}
-                                          Compare notes
+                                          <IconExternalLink class="h-3 w-3" /> Compare notes
                                         </a>
                                       </Show>
                                     </div>
@@ -359,8 +341,7 @@ export function SearchModal(props: SearchModalProps) {
                                             class={cn(
                                               "h-4 px-1.5 border-transparent",
                                               selectionKindBadgeClass(
-                                                selectionMetadata()
-                                                  .selection_kind,
+                                                selectionMetadata().selection_kind,
                                               ),
                                             )}
                                           >
@@ -370,9 +351,7 @@ export function SearchModal(props: SearchModalProps) {
                                       </Show>
                                       <Show when={selectionDetail()}>
                                         {(detail) => (
-                                          <div class="text-muted-foreground">
-                                            {detail()}
-                                          </div>
+                                          <div class="text-muted-foreground">{detail()}</div>
                                         )}
                                       </Show>
                                     </div>
@@ -384,9 +363,7 @@ export function SearchModal(props: SearchModalProps) {
                                           variant="secondary"
                                           class={cn(
                                             "h-4 px-1.5 border-transparent",
-                                            releaseConfidenceBadgeClass(
-                                              confidence().tone,
-                                            ),
+                                            releaseConfidenceBadgeClass(confidence().tone),
                                           )}
                                         >
                                           {confidence().label}
@@ -399,27 +376,18 @@ export function SearchModal(props: SearchModalProps) {
                                   </Show>
                                 </div>
                               </TableCell>
-                              <TableCell class="text-xs">
-                                {release.indexer}
-                              </TableCell>
+                              <TableCell class="text-xs">{release.indexer}</TableCell>
                               <TableCell class="text-xs font-mono">
                                 {formatSize(release.size)}
                               </TableCell>
                               <TableCell class="text-xs">
-                                <span class="text-success font-medium">
-                                  {release.seeders}
-                                </span>
+                                <span class="text-success font-medium">{release.seeders}</span>
                                 {" / "}
-                                <span class="text-error">
-                                  {release.leechers}
-                                </span>
+                                <span class="text-error">{release.leechers}</span>
                               </TableCell>
                               <TableCell>
                                 <div class="flex flex-col gap-1">
-                                  <Badge
-                                    variant="secondary"
-                                    class="w-fit text-xs"
-                                  >
+                                  <Badge variant="secondary" class="w-fit text-xs">
                                     {release.quality}
                                   </Badge>
                                 </div>
@@ -435,17 +403,14 @@ export function SearchModal(props: SearchModalProps) {
                                         "bg-success hover:bg-success text-success-foreground",
                                       action.Upgrade &&
                                         "bg-info hover:bg-info text-info-foreground",
-                                      isRejected &&
-                                        "text-muted-foreground border",
+                                      isRejected && "text-muted-foreground border",
                                     )}
                                     onClick={() => handleDownload(release)}
                                     disabled={grabRelease.isPending}
                                   >
                                     <Show
                                       when={!grabRelease.isPending}
-                                      fallback={
-                                        <IconPlug class="h-3 w-3 animate-spin" />
-                                      }
+                                      fallback={<IconPlug class="h-3 w-3 animate-spin" />}
                                     >
                                       <IconDownload class="h-3.5 w-3.5" />
                                     </Show>

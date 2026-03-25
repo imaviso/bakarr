@@ -1,8 +1,4 @@
-import {
-  HttpClient,
-  HttpClientRequest,
-  HttpClientResponse,
-} from "@effect/platform";
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Schema } from "effect";
 
 import {
@@ -13,10 +9,7 @@ import type {
   AnimeDiscoveryEntry,
   AnimeSearchResult,
 } from "../../../../../packages/shared/src/index.ts";
-import {
-  ExternalCallError,
-  tryExternalEffect,
-} from "../../lib/effect-retry.ts";
+import { ExternalCallError, tryExternalEffect } from "../../lib/effect-retry.ts";
 
 const AnimeMetadataTitleSchema = Schema.Struct({
   english: Schema.optional(Schema.String),
@@ -37,9 +30,7 @@ export const AnimeMetadataSchema = Schema.Struct({
   endYear: Schema.optional(Schema.Number),
   episodeCount: Schema.optional(Schema.Number),
   format: Schema.String,
-  futureAiringSchedule: Schema.optional(
-    Schema.Array(AnimeMetadataAiringScheduleItemSchema),
-  ),
+  futureAiringSchedule: Schema.optional(Schema.Array(AnimeMetadataAiringScheduleItemSchema)),
   genres: Schema.optional(Schema.Array(Schema.String)),
   id: Schema.Number,
   malId: Schema.optional(Schema.Number),
@@ -254,166 +245,159 @@ const DETAIL_ANIME_QUERY = `query ($id: Int) {
   }
 }`;
 
-class AniListTitleSchema
-  extends Schema.Class<AniListTitleSchema>("AniListTitleSchema")({
-    english: Schema.optional(Schema.NullOr(Schema.String)),
-    native: Schema.optional(Schema.NullOr(Schema.String)),
-    romaji: Schema.optional(Schema.NullOr(Schema.String)),
-  }) {}
+class AniListTitleSchema extends Schema.Class<AniListTitleSchema>("AniListTitleSchema")({
+  english: Schema.optional(Schema.NullOr(Schema.String)),
+  native: Schema.optional(Schema.NullOr(Schema.String)),
+  romaji: Schema.optional(Schema.NullOr(Schema.String)),
+}) {}
 
-class AniListDateSchema
-  extends Schema.Class<AniListDateSchema>("AniListDateSchema")({
-    day: Schema.optional(Schema.NullOr(Schema.Number)),
-    month: Schema.optional(Schema.NullOr(Schema.Number)),
-    year: Schema.optional(Schema.NullOr(Schema.Number)),
-  }) {}
+class AniListDateSchema extends Schema.Class<AniListDateSchema>("AniListDateSchema")({
+  day: Schema.optional(Schema.NullOr(Schema.Number)),
+  month: Schema.optional(Schema.NullOr(Schema.Number)),
+  year: Schema.optional(Schema.NullOr(Schema.Number)),
+}) {}
 
-class AniListCoverImageSchema
-  extends Schema.Class<AniListCoverImageSchema>("AniListCoverImageSchema")({
-    extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
-    large: Schema.optional(Schema.NullOr(Schema.String)),
-  }) {}
+class AniListCoverImageSchema extends Schema.Class<AniListCoverImageSchema>(
+  "AniListCoverImageSchema",
+)({
+  extraLarge: Schema.optional(Schema.NullOr(Schema.String)),
+  large: Schema.optional(Schema.NullOr(Schema.String)),
+}) {}
 
-class AniListRelationNodeSchema
-  extends Schema.Class<AniListRelationNodeSchema>("AniListRelationNodeSchema")({
-    coverImage: Schema.optional(AniListCoverImageSchema),
-    format: Schema.optional(Schema.NullOr(Schema.String)),
-    id: Schema.Number,
-    averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
-    startDate: Schema.optional(AniListDateSchema),
-    status: Schema.optional(Schema.NullOr(Schema.String)),
-    title: Schema.optional(AniListTitleSchema),
-  }) {}
+class AniListRelationNodeSchema extends Schema.Class<AniListRelationNodeSchema>(
+  "AniListRelationNodeSchema",
+)({
+  coverImage: Schema.optional(AniListCoverImageSchema),
+  format: Schema.optional(Schema.NullOr(Schema.String)),
+  id: Schema.Number,
+  averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
+  startDate: Schema.optional(AniListDateSchema),
+  status: Schema.optional(Schema.NullOr(Schema.String)),
+  title: Schema.optional(AniListTitleSchema),
+}) {}
 
-class AniListRelationEdgeSchema
-  extends Schema.Class<AniListRelationEdgeSchema>("AniListRelationEdgeSchema")({
-    relationType: Schema.optional(Schema.NullOr(Schema.String)),
-    node: Schema.optional(Schema.NullOr(AniListRelationNodeSchema)),
-  }) {}
+class AniListRelationEdgeSchema extends Schema.Class<AniListRelationEdgeSchema>(
+  "AniListRelationEdgeSchema",
+)({
+  relationType: Schema.optional(Schema.NullOr(Schema.String)),
+  node: Schema.optional(Schema.NullOr(AniListRelationNodeSchema)),
+}) {}
 
-class AniListRelationConnectionSchema
-  extends Schema.Class<AniListRelationConnectionSchema>(
-    "AniListRelationConnectionSchema",
-  )({
-    edges: Schema.Array(AniListRelationEdgeSchema),
-  }) {}
+class AniListRelationConnectionSchema extends Schema.Class<AniListRelationConnectionSchema>(
+  "AniListRelationConnectionSchema",
+)({
+  edges: Schema.Array(AniListRelationEdgeSchema),
+}) {}
 
-class AniListRecommendationNodeSchema
-  extends Schema.Class<AniListRecommendationNodeSchema>(
-    "AniListRecommendationNodeSchema",
-  )({
-    mediaRecommendation: Schema.optional(
-      Schema.NullOr(AniListRelationNodeSchema),
-    ),
-  }) {}
+class AniListRecommendationNodeSchema extends Schema.Class<AniListRecommendationNodeSchema>(
+  "AniListRecommendationNodeSchema",
+)({
+  mediaRecommendation: Schema.optional(Schema.NullOr(AniListRelationNodeSchema)),
+}) {}
 
-class AniListRecommendationConnectionSchema
-  extends Schema.Class<AniListRecommendationConnectionSchema>(
-    "AniListRecommendationConnectionSchema",
-  )({
-    nodes: Schema.Array(AniListRecommendationNodeSchema),
-  }) {}
+class AniListRecommendationConnectionSchema extends Schema.Class<AniListRecommendationConnectionSchema>(
+  "AniListRecommendationConnectionSchema",
+)({
+  nodes: Schema.Array(AniListRecommendationNodeSchema),
+}) {}
 
-class AniListStudioNodeSchema
-  extends Schema.Class<AniListStudioNodeSchema>("AniListStudioNodeSchema")({
-    name: Schema.optional(Schema.NullOr(Schema.String)),
-  }) {}
+class AniListStudioNodeSchema extends Schema.Class<AniListStudioNodeSchema>(
+  "AniListStudioNodeSchema",
+)({
+  name: Schema.optional(Schema.NullOr(Schema.String)),
+}) {}
 
-class AniListStudioConnectionSchema
-  extends Schema.Class<AniListStudioConnectionSchema>(
-    "AniListStudioConnectionSchema",
-  )({
-    nodes: Schema.Array(AniListStudioNodeSchema),
-  }) {}
+class AniListStudioConnectionSchema extends Schema.Class<AniListStudioConnectionSchema>(
+  "AniListStudioConnectionSchema",
+)({
+  nodes: Schema.Array(AniListStudioNodeSchema),
+}) {}
 
-class AniListSearchMediaSchema
-  extends Schema.Class<AniListSearchMediaSchema>("AniListSearchMediaSchema")({
-    coverImage: Schema.optional(AniListCoverImageSchema),
-    episodes: Schema.optional(Schema.NullOr(Schema.Number)),
-    format: Schema.optional(Schema.NullOr(Schema.String)),
-    id: Schema.Number,
-    endDate: Schema.optional(AniListDateSchema),
-    description: Schema.optional(Schema.NullOr(Schema.String)),
-    startDate: Schema.optional(AniListDateSchema),
-    genres: Schema.optional(Schema.Array(Schema.String)),
-    synonyms: Schema.optional(Schema.Array(Schema.String)),
-    status: Schema.optional(Schema.NullOr(Schema.String)),
-    title: Schema.optional(AniListTitleSchema),
-    bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
-    relations: Schema.optional(AniListRelationConnectionSchema),
-    recommendations: Schema.optional(AniListRecommendationConnectionSchema),
-  }) {}
+class AniListSearchMediaSchema extends Schema.Class<AniListSearchMediaSchema>(
+  "AniListSearchMediaSchema",
+)({
+  coverImage: Schema.optional(AniListCoverImageSchema),
+  episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+  format: Schema.optional(Schema.NullOr(Schema.String)),
+  id: Schema.Number,
+  endDate: Schema.optional(AniListDateSchema),
+  description: Schema.optional(Schema.NullOr(Schema.String)),
+  startDate: Schema.optional(AniListDateSchema),
+  genres: Schema.optional(Schema.Array(Schema.String)),
+  synonyms: Schema.optional(Schema.Array(Schema.String)),
+  status: Schema.optional(Schema.NullOr(Schema.String)),
+  title: Schema.optional(AniListTitleSchema),
+  bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
+  relations: Schema.optional(AniListRelationConnectionSchema),
+  recommendations: Schema.optional(AniListRecommendationConnectionSchema),
+}) {}
 
-class AniListAiringScheduleSchema
-  extends Schema.Class<AniListAiringScheduleSchema>(
-    "AniListAiringScheduleSchema",
-  )({
-    airingAt: Schema.Number,
-    episode: Schema.Number,
-  }) {}
+class AniListAiringScheduleSchema extends Schema.Class<AniListAiringScheduleSchema>(
+  "AniListAiringScheduleSchema",
+)({
+  airingAt: Schema.Number,
+  episode: Schema.Number,
+}) {}
 
-class AniListAiringConnectionSchema
-  extends Schema.Class<AniListAiringConnectionSchema>(
-    "AniListAiringConnectionSchema",
-  )({
-    nodes: Schema.Array(AniListAiringScheduleSchema),
-  }) {}
+class AniListAiringConnectionSchema extends Schema.Class<AniListAiringConnectionSchema>(
+  "AniListAiringConnectionSchema",
+)({
+  nodes: Schema.Array(AniListAiringScheduleSchema),
+}) {}
 
-class AniListSearchPageSchema
-  extends Schema.Class<AniListSearchPageSchema>("AniListSearchPageSchema")({
-    media: Schema.Array(AniListSearchMediaSchema),
-  }) {}
+class AniListSearchPageSchema extends Schema.Class<AniListSearchPageSchema>(
+  "AniListSearchPageSchema",
+)({
+  media: Schema.Array(AniListSearchMediaSchema),
+}) {}
 
-class AniListSearchDataSchema
-  extends Schema.Class<AniListSearchDataSchema>("AniListSearchDataSchema")({
-    Page: AniListSearchPageSchema,
-  }) {}
+class AniListSearchDataSchema extends Schema.Class<AniListSearchDataSchema>(
+  "AniListSearchDataSchema",
+)({
+  Page: AniListSearchPageSchema,
+}) {}
 
-class AniListSearchPayloadSchema
-  extends Schema.Class<AniListSearchPayloadSchema>(
-    "AniListSearchPayloadSchema",
-  )({
-    data: AniListSearchDataSchema,
-  }) {}
+class AniListSearchPayloadSchema extends Schema.Class<AniListSearchPayloadSchema>(
+  "AniListSearchPayloadSchema",
+)({
+  data: AniListSearchDataSchema,
+}) {}
 
-class AniListDetailMediaSchema
-  extends Schema.Class<AniListDetailMediaSchema>("AniListDetailMediaSchema")({
-    averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
-    bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
-    coverImage: Schema.optional(AniListCoverImageSchema),
-    description: Schema.optional(Schema.NullOr(Schema.String)),
-    endDate: Schema.optional(AniListDateSchema),
-    episodes: Schema.optional(Schema.NullOr(Schema.Number)),
-    format: Schema.optional(Schema.NullOr(Schema.String)),
-    genres: Schema.optional(Schema.Array(Schema.String)),
-    id: Schema.Number,
-    idMal: Schema.optional(Schema.NullOr(Schema.Number)),
-    synonyms: Schema.optional(Schema.Array(Schema.String)),
-    nextAiringEpisode: Schema.optional(
-      Schema.NullOr(AniListAiringScheduleSchema),
-    ),
-    airingSchedule: Schema.optional(
-      Schema.NullOr(AniListAiringConnectionSchema),
-    ),
-    startDate: Schema.optional(AniListDateSchema),
-    status: Schema.optional(Schema.NullOr(Schema.String)),
-    studios: Schema.optional(AniListStudioConnectionSchema),
-    title: Schema.optional(AniListTitleSchema),
-    relations: Schema.optional(AniListRelationConnectionSchema),
-    recommendations: Schema.optional(AniListRecommendationConnectionSchema),
-  }) {}
+class AniListDetailMediaSchema extends Schema.Class<AniListDetailMediaSchema>(
+  "AniListDetailMediaSchema",
+)({
+  averageScore: Schema.optional(Schema.NullOr(Schema.Number)),
+  bannerImage: Schema.optional(Schema.NullOr(Schema.String)),
+  coverImage: Schema.optional(AniListCoverImageSchema),
+  description: Schema.optional(Schema.NullOr(Schema.String)),
+  endDate: Schema.optional(AniListDateSchema),
+  episodes: Schema.optional(Schema.NullOr(Schema.Number)),
+  format: Schema.optional(Schema.NullOr(Schema.String)),
+  genres: Schema.optional(Schema.Array(Schema.String)),
+  id: Schema.Number,
+  idMal: Schema.optional(Schema.NullOr(Schema.Number)),
+  synonyms: Schema.optional(Schema.Array(Schema.String)),
+  nextAiringEpisode: Schema.optional(Schema.NullOr(AniListAiringScheduleSchema)),
+  airingSchedule: Schema.optional(Schema.NullOr(AniListAiringConnectionSchema)),
+  startDate: Schema.optional(AniListDateSchema),
+  status: Schema.optional(Schema.NullOr(Schema.String)),
+  studios: Schema.optional(AniListStudioConnectionSchema),
+  title: Schema.optional(AniListTitleSchema),
+  relations: Schema.optional(AniListRelationConnectionSchema),
+  recommendations: Schema.optional(AniListRecommendationConnectionSchema),
+}) {}
 
-class AniListDetailDataSchema
-  extends Schema.Class<AniListDetailDataSchema>("AniListDetailDataSchema")({
-    Media: Schema.optional(Schema.NullOr(AniListDetailMediaSchema)),
-  }) {}
+class AniListDetailDataSchema extends Schema.Class<AniListDetailDataSchema>(
+  "AniListDetailDataSchema",
+)({
+  Media: Schema.optional(Schema.NullOr(AniListDetailMediaSchema)),
+}) {}
 
-class AniListDetailPayloadSchema
-  extends Schema.Class<AniListDetailPayloadSchema>(
-    "AniListDetailPayloadSchema",
-  )({
-    data: AniListDetailDataSchema,
-  }) {}
+class AniListDetailPayloadSchema extends Schema.Class<AniListDetailPayloadSchema>(
+  "AniListDetailPayloadSchema",
+)({
+  data: AniListDetailDataSchema,
+}) {}
 
 const AnimeSearchResultFromAniListSchema = Schema.transform(
   AniListSearchMediaSchema,
@@ -422,8 +406,7 @@ const AnimeSearchResultFromAniListSchema = Schema.transform(
     decode: (entry) => ({
       already_in_library: false,
       banner_image: entry.bannerImage ?? undefined,
-      cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ??
-        undefined,
+      cover_image: entry.coverImage?.extraLarge ?? entry.coverImage?.large ?? undefined,
       description: entry.description ?? undefined,
       end_date: toIsoDate(entry.endDate),
       end_year: entry.endDate?.year ?? undefined,
@@ -476,16 +459,13 @@ const AnimeMetadataFromAniListSchema = Schema.transform(
   {
     decode: (media) => ({
       bannerImage: media.bannerImage ?? undefined,
-      coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ??
-        undefined,
+      coverImage: media.coverImage?.extraLarge ?? media.coverImage?.large ?? undefined,
       description: media.description ?? undefined,
       endDate: toIsoDate(media.endDate),
       endYear: media.endDate?.year ?? undefined,
       episodeCount: media.episodes ?? undefined,
       format: media.format ?? "TV",
-      futureAiringSchedule: normalizeFutureAiringSchedule(
-        media.airingSchedule?.nodes,
-      ),
+      futureAiringSchedule: normalizeFutureAiringSchedule(media.airingSchedule?.nodes),
       genres: [...(media.genres ?? [])],
       id: media.id,
       malId: media.idMal ?? undefined,
@@ -498,10 +478,8 @@ const AnimeMetadataFromAniListSchema = Schema.transform(
       status: media.status ?? "UNKNOWN",
       studios: Array.isArray(media.studios?.nodes)
         ? media.studios.nodes
-          .map((entry) => entry.name)
-          .filter((name): name is string =>
-            typeof name === "string" && name.length > 0
-          )
+            .map((entry) => entry.name)
+            .filter((name): name is string => typeof name === "string" && name.length > 0)
         : [],
       synonyms: normalizeSynonyms(media.synonyms),
       title: {
@@ -545,25 +523,23 @@ export const AniListClientLive = Layer.effect(
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
 
-    const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(
-      function* (query: string) {
-        const trimmed = query.trim();
+    const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(function* (
+      query: string,
+    ) {
+      const trimmed = query.trim();
 
-        if (trimmed.length === 0) {
-          return [];
-        }
+      if (trimmed.length === 0) {
+        return [];
+      }
 
-        return yield* trySearchRemote(client, trimmed);
-      },
-    );
+      return yield* trySearchRemote(client, trimmed);
+    });
 
-    const getAnimeMetadataById = Effect.fn(
-      "AniListClient.getAnimeMetadataById",
-    )(
-      function* (id: number) {
-        return yield* tryFetchDetail(client, id);
-      },
-    );
+    const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(function* (
+      id: number,
+    ) {
+      return yield* tryFetchDetail(client, id);
+    });
 
     return {
       getAnimeMetadataById,
@@ -572,128 +548,115 @@ export const AniListClientLive = Layer.effect(
   }),
 );
 
-const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(
-  function* (client: HttpClient.HttpClient, trimmed: string) {
-    const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
-      HttpClientRequest.bodyJson({
-        query: SEARCH_ANIME_QUERY,
-        variables: { search: trimmed },
+const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
+  client: HttpClient.HttpClient,
+  trimmed: string,
+) {
+  const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
+    HttpClientRequest.bodyJson({
+      query: SEARCH_ANIME_QUERY,
+      variables: { search: trimmed },
+    }),
+    Effect.mapError((cause) =>
+      ExternalCallError.make({
+        cause,
+        message: "Failed to encode AniList search request body",
+        operation: "anilist.search.request",
       }),
-      Effect.mapError((cause) =>
-        ExternalCallError.make({
-          cause,
-          message: "Failed to encode AniList search request body",
-          operation: "anilist.search.request",
-        })
-      ),
-    );
-    const response = yield* tryExternalEffect(
-      "anilist.search",
-      client.execute(request),
-    )();
+    ),
+  );
+  const response = yield* tryExternalEffect("anilist.search", client.execute(request))();
 
-    if (response.status < 200 || response.status >= 300) {
-      return yield* ExternalCallError.make({
-        cause: new Error(
-          `AniList search failed with status ${response.status}`,
-        ),
-        message: "AniList search failed",
-        operation: "anilist.search.response",
-      });
-    }
+  if (response.status < 200 || response.status >= 300) {
+    return yield* ExternalCallError.make({
+      cause: new Error(`AniList search failed with status ${response.status}`),
+      message: "AniList search failed",
+      operation: "anilist.search.response",
+    });
+  }
 
-    const payload = yield* HttpClientResponse.schemaBodyJson(
-      AniListSearchPayloadSchema,
-    )(response).pipe(
-      Effect.mapError((cause) =>
-        ExternalCallError.make({
-          cause,
-          message: "AniList search response decode failed",
-          operation: "anilist.search.json",
-        })
-      ),
-    );
-
-    return yield* Effect.forEach(
-      payload.data.Page.media,
-      (entry) =>
-        Schema.decodeUnknown(AnimeSearchResultFromAniListSchema)(entry).pipe(
-          Effect.mapError((cause) =>
-            ExternalCallError.make({
-              cause,
-              message: "AniList search result normalization failed",
-              operation: "anilist.search.normalize",
-            })
-          ),
-        ),
-    );
-  },
-);
-
-const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(
-  function* (client: HttpClient.HttpClient, id: number) {
-    const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
-      HttpClientRequest.bodyJson({
-        query: DETAIL_ANIME_QUERY,
-        variables: { id },
+  const payload = yield* HttpClientResponse.schemaBodyJson(AniListSearchPayloadSchema)(
+    response,
+  ).pipe(
+    Effect.mapError((cause) =>
+      ExternalCallError.make({
+        cause,
+        message: "AniList search response decode failed",
+        operation: "anilist.search.json",
       }),
+    ),
+  );
+
+  return yield* Effect.forEach(payload.data.Page.media, (entry) =>
+    Schema.decodeUnknown(AnimeSearchResultFromAniListSchema)(entry).pipe(
       Effect.mapError((cause) =>
         ExternalCallError.make({
           cause,
-          message: "Failed to encode AniList detail request body",
-          operation: "anilist.detail.request",
-        })
+          message: "AniList search result normalization failed",
+          operation: "anilist.search.normalize",
+        }),
       ),
-    );
-    const response = yield* tryExternalEffect(
-      "anilist.detail",
-      client.execute(request),
-    )();
+    ),
+  );
+});
 
-    if (response.status < 200 || response.status >= 300) {
-      return yield* ExternalCallError.make({
-        cause: new Error(
-          `AniList detail failed with status ${response.status}`,
-        ),
-        message: "AniList detail failed",
-        operation: "anilist.detail.response",
-      });
-    }
+const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
+  client: HttpClient.HttpClient,
+  id: number,
+) {
+  const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
+    HttpClientRequest.bodyJson({
+      query: DETAIL_ANIME_QUERY,
+      variables: { id },
+    }),
+    Effect.mapError((cause) =>
+      ExternalCallError.make({
+        cause,
+        message: "Failed to encode AniList detail request body",
+        operation: "anilist.detail.request",
+      }),
+    ),
+  );
+  const response = yield* tryExternalEffect("anilist.detail", client.execute(request))();
 
-    const payload = yield* HttpClientResponse.schemaBodyJson(
-      AniListDetailPayloadSchema,
-    )(response).pipe(
-      Effect.mapError((cause) =>
-        ExternalCallError.make({
-          cause,
-          message: "AniList detail response decode failed",
-          operation: "anilist.detail.json",
-        })
-      ),
-    );
-    const media = payload.data.Media;
+  if (response.status < 200 || response.status >= 300) {
+    return yield* ExternalCallError.make({
+      cause: new Error(`AniList detail failed with status ${response.status}`),
+      message: "AniList detail failed",
+      operation: "anilist.detail.response",
+    });
+  }
 
-    if (!media) {
-      return null;
-    }
+  const payload = yield* HttpClientResponse.schemaBodyJson(AniListDetailPayloadSchema)(
+    response,
+  ).pipe(
+    Effect.mapError((cause) =>
+      ExternalCallError.make({
+        cause,
+        message: "AniList detail response decode failed",
+        operation: "anilist.detail.json",
+      }),
+    ),
+  );
+  const media = payload.data.Media;
 
-    return yield* Schema.decodeUnknown(AnimeMetadataFromAniListSchema)(media)
-      .pipe(
-        Effect.mapError((cause) =>
-          ExternalCallError.make({
-            cause,
-            message: "AniList detail normalization failed",
-            operation: "anilist.detail.normalize",
-          })
-        ),
-      );
-  },
-);
+  if (!media) {
+    return null;
+  }
+
+  return yield* Schema.decodeUnknown(AnimeMetadataFromAniListSchema)(media).pipe(
+    Effect.mapError((cause) =>
+      ExternalCallError.make({
+        cause,
+        message: "AniList detail normalization failed",
+        operation: "anilist.detail.normalize",
+      }),
+    ),
+  );
+});
 
 function deriveAnimeSeason(
-  date:
-    | { year?: number | null; month?: number | null; day?: number | null }
-    | undefined,
+  date: { year?: number | null; month?: number | null; day?: number | null } | undefined,
 ) {
   const month = date?.month ?? undefined;
 
@@ -708,25 +671,19 @@ function deriveAnimeSeason(
 }
 
 function toIsoDate(
-  date:
-    | { year?: number | null; month?: number | null; day?: number | null }
-    | undefined,
+  date: { year?: number | null; month?: number | null; day?: number | null } | undefined,
 ): string | undefined {
   if (!date?.year || !date?.month || !date?.day) {
     return undefined;
   }
 
-  return `${String(date.year).padStart(4, "0")}-${
-    String(date.month).padStart(2, "0")
-  }-${String(date.day).padStart(2, "0")}`;
+  return `${String(date.year).padStart(4, "0")}-${String(date.month).padStart(
+    2,
+    "0",
+  )}-${String(date.day).padStart(2, "0")}`;
 }
 
-function toNextAiringEpisode(
-  airing:
-    | { airingAt: number; episode: number }
-    | null
-    | undefined,
-) {
+function toNextAiringEpisode(airing: { airingAt: number; episode: number } | null | undefined) {
   if (!airing) {
     return undefined;
   }
@@ -756,28 +713,28 @@ function normalizeFutureAiringSchedule(
 function normalizeDiscoveryEntries(
   edges:
     | ReadonlyArray<{
-      relationType?: string | null;
-      node?: {
-        averageScore?: number | null;
-        coverImage?: {
-          extraLarge?: string | null;
-          large?: string | null;
-        };
-        format?: string | null;
-        id: number;
-        startDate?: {
-          year?: number | null;
-          month?: number | null;
-          day?: number | null;
-        };
-        status?: string | null;
-        title?: {
-          english?: string | null;
-          native?: string | null;
-          romaji?: string | null;
-        };
-      } | null;
-    }>
+        relationType?: string | null;
+        node?: {
+          averageScore?: number | null;
+          coverImage?: {
+            extraLarge?: string | null;
+            large?: string | null;
+          };
+          format?: string | null;
+          id: number;
+          startDate?: {
+            year?: number | null;
+            month?: number | null;
+            day?: number | null;
+          };
+          status?: string | null;
+          title?: {
+            english?: string | null;
+            native?: string | null;
+            romaji?: string | null;
+          };
+        } | null;
+      }>
     | undefined,
 ) {
   if (!Array.isArray(edges) || edges.length === 0) {
@@ -802,27 +759,27 @@ function normalizeDiscoveryEntries(
 function normalizeRecommendations(
   nodes:
     | ReadonlyArray<{
-      mediaRecommendation?: {
-        averageScore?: number | null;
-        coverImage?: {
-          extraLarge?: string | null;
-          large?: string | null;
-        };
-        format?: string | null;
-        id: number;
-        startDate?: {
-          year?: number | null;
-          month?: number | null;
-          day?: number | null;
-        };
-        status?: string | null;
-        title?: {
-          english?: string | null;
-          native?: string | null;
-          romaji?: string | null;
-        };
-      } | null;
-    }>
+        mediaRecommendation?: {
+          averageScore?: number | null;
+          coverImage?: {
+            extraLarge?: string | null;
+            large?: string | null;
+          };
+          format?: string | null;
+          id: number;
+          startDate?: {
+            year?: number | null;
+            month?: number | null;
+            day?: number | null;
+          };
+          status?: string | null;
+          title?: {
+            english?: string | null;
+            native?: string | null;
+            romaji?: string | null;
+          };
+        } | null;
+      }>
     | undefined,
 ) {
   if (!Array.isArray(nodes) || nodes.length === 0) {
@@ -865,8 +822,7 @@ function toDiscoveryEntry(
   relationType?: string,
 ): AnimeDiscoveryEntry {
   return {
-    cover_image: node.coverImage?.extraLarge ?? node.coverImage?.large ??
-      undefined,
+    cover_image: node.coverImage?.extraLarge ?? node.coverImage?.large ?? undefined,
     format: node.format ?? undefined,
     id: node.id,
     rating: node.averageScore ?? undefined,
@@ -889,11 +845,7 @@ function normalizeSynonyms(synonyms: ReadonlyArray<string> | undefined) {
   }
 
   const unique = [
-    ...new Set(
-      synonyms.map((value) => value.trim()).filter((
-        value,
-      ) => value.length > 0),
-    ),
+    ...new Set(synonyms.map((value) => value.trim()).filter((value) => value.length > 0)),
   ];
 
   return unique.length > 0 ? unique : undefined;

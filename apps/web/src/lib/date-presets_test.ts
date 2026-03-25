@@ -1,8 +1,5 @@
 import { it } from "~/test/vitest";
-import {
-  formatDateTimeLocalInput,
-  getDateRangePresetHours,
-} from "./date-presets";
+import { formatDateTimeLocalInput, getDateRangePresetHours } from "./date-presets";
 
 function isoPlusMinutes(baseIso: string, minutes: number): string {
   const date = new Date(baseIso);
@@ -21,26 +18,17 @@ it("formatDateTimeLocalInput returns padded datetime-local format", () => {
 it("getDateRangePresetHours detects 24h, 7d, and 30d ranges", () => {
   const start = "2026-03-01T00:00:00.000Z";
 
-  const hours24 = getDateRangePresetHours(
-    start,
-    isoPlusMinutes(start, 24 * 60),
-  );
+  const hours24 = getDateRangePresetHours(start, isoPlusMinutes(start, 24 * 60));
   if (hours24 !== 24) {
     throw new Error(`Expected 24h preset, got ${hours24}`);
   }
 
-  const hours7d = getDateRangePresetHours(
-    start,
-    isoPlusMinutes(start, 24 * 7 * 60),
-  );
+  const hours7d = getDateRangePresetHours(start, isoPlusMinutes(start, 24 * 7 * 60));
   if (hours7d !== 168) {
     throw new Error(`Expected 7d preset, got ${hours7d}`);
   }
 
-  const hours30d = getDateRangePresetHours(
-    start,
-    isoPlusMinutes(start, 24 * 30 * 60),
-  );
+  const hours30d = getDateRangePresetHours(start, isoPlusMinutes(start, 24 * 30 * 60));
   if (hours30d !== 720) {
     throw new Error(`Expected 30d preset, got ${hours30d}`);
   }
@@ -49,30 +37,19 @@ it("getDateRangePresetHours detects 24h, 7d, and 30d ranges", () => {
 it("getDateRangePresetHours honors tolerance and rejects out-of-range values", () => {
   const start = "2026-03-01T00:00:00.000Z";
 
-  const plusTwoMinutes = getDateRangePresetHours(
-    start,
-    isoPlusMinutes(start, 24 * 60 + 2),
-  );
+  const plusTwoMinutes = getDateRangePresetHours(start, isoPlusMinutes(start, 24 * 60 + 2));
   if (plusTwoMinutes !== 24) {
     throw new Error(`Expected tolerance match for +2m, got ${plusTwoMinutes}`);
   }
 
-  const minusTwoMinutes = getDateRangePresetHours(
-    start,
-    isoPlusMinutes(start, 24 * 60 - 2),
-  );
+  const minusTwoMinutes = getDateRangePresetHours(start, isoPlusMinutes(start, 24 * 60 - 2));
   if (minusTwoMinutes !== 24) {
     throw new Error(`Expected tolerance match for -2m, got ${minusTwoMinutes}`);
   }
 
-  const plusThreeMinutes = getDateRangePresetHours(
-    start,
-    isoPlusMinutes(start, 24 * 60 + 3),
-  );
+  const plusThreeMinutes = getDateRangePresetHours(start, isoPlusMinutes(start, 24 * 60 + 3));
   if (plusThreeMinutes !== undefined) {
-    throw new Error(
-      `Expected no preset match for +3m, got ${plusThreeMinutes}`,
-    );
+    throw new Error(`Expected no preset match for +3m, got ${plusThreeMinutes}`);
   }
 });
 
@@ -81,9 +58,7 @@ it("getDateRangePresetHours returns undefined for invalid or non-positive ranges
     throw new Error("Expected undefined when start value is missing");
   }
 
-  if (
-    getDateRangePresetHours("invalid", "2026-03-01T00:00:00.000Z") !== undefined
-  ) {
+  if (getDateRangePresetHours("invalid", "2026-03-01T00:00:00.000Z") !== undefined) {
     throw new Error("Expected undefined when start value is invalid");
   }
 
@@ -92,9 +67,7 @@ it("getDateRangePresetHours returns undefined for invalid or non-positive ranges
     "2026-03-01T00:00:00.000Z",
   );
   if (sameTimestamp !== undefined) {
-    throw new Error(
-      `Expected undefined for zero-length range, got ${sameTimestamp}`,
-    );
+    throw new Error(`Expected undefined for zero-length range, got ${sameTimestamp}`);
   }
 
   const reverseRange = getDateRangePresetHours(
@@ -102,8 +75,6 @@ it("getDateRangePresetHours returns undefined for invalid or non-positive ranges
     "2026-03-01T00:00:00.000Z",
   );
   if (reverseRange !== undefined) {
-    throw new Error(
-      `Expected undefined for reverse range, got ${reverseRange}`,
-    );
+    throw new Error(`Expected undefined for reverse range, got ${reverseRange}`);
   }
 });

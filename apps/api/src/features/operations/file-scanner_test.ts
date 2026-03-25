@@ -7,26 +7,14 @@ import { makeNoopTestFileSystemWithOverridesEffect } from "../../test/filesystem
 import { scanVideoFiles, scanVideoFilesStream } from "./file-scanner.ts";
 
 const tree = new Map<string, DirEntry[]>([
-  [
-    "/library",
-    [
-      entry("show", { isDirectory: true }),
-      entry("notes.txt", { isFile: true }),
-    ],
-  ],
+  ["/library", [entry("show", { isDirectory: true }), entry("notes.txt", { isFile: true })]],
   [
     "/library/show",
-    [
-      entry("episode-01.mkv", { isFile: true }),
-      entry("season-2", { isDirectory: true }),
-    ],
+    [entry("episode-01.mkv", { isFile: true }), entry("season-2", { isDirectory: true })],
   ],
   [
     "/library/show/season-2",
-    [
-      entry("episode-02.mp4", { isFile: true }),
-      entry("broken", { isDirectory: true }),
-    ],
+    [entry("episode-02.mp4", { isFile: true }), entry("broken", { isDirectory: true })],
   ],
 ]);
 
@@ -38,11 +26,8 @@ it.effect("scanVideoFilesStream streams matching files from accessible tree", ()
       Effect.map((items) => Array.from(items, (file) => file.path)),
     );
 
-    assertEquals(files, [
-      "/library/show/episode-01.mkv",
-      "/library/show/season-2/episode-02.mp4",
-    ]);
-  })
+    assertEquals(files, ["/library/show/episode-01.mkv", "/library/show/season-2/episode-02.mp4"]);
+  }),
 );
 
 it.effect("scanVideoFiles collects iterator output", () =>
@@ -50,33 +35,28 @@ it.effect("scanVideoFiles collects iterator output", () =>
     const mockFs = yield* makeAccessibleMockFs();
     const files = yield* scanVideoFiles(mockFs, "/library");
 
-    assertEquals(
-      files,
-      [
-        {
-          name: "episode-01.mkv",
-          path: "/library/show/episode-01.mkv",
-          size: 100,
-        },
-        {
-          name: "episode-02.mp4",
-          path: "/library/show/season-2/episode-02.mp4",
-          size: 200,
-        },
-      ],
-    );
-  })
+    assertEquals(files, [
+      {
+        name: "episode-01.mkv",
+        path: "/library/show/episode-01.mkv",
+        size: 100,
+      },
+      {
+        name: "episode-02.mp4",
+        path: "/library/show/season-2/episode-02.mp4",
+        size: 200,
+      },
+    ]);
+  }),
 );
 
 it.effect("scanVideoFiles fails when the root path is inaccessible", () =>
   Effect.gen(function* () {
     const mockFs = yield* makeMockFs();
-    const exit = yield* Effect.exit(
-      scanVideoFiles(mockFs, "/library/show/season-2/broken"),
-    );
+    const exit = yield* Effect.exit(scanVideoFiles(mockFs, "/library/show/season-2/broken"));
 
     assertEquals(exit._tag, "Failure");
-  })
+  }),
 );
 
 it.effect("scanVideoFilesStream uses streaming dir reader when available", () =>
@@ -101,56 +81,46 @@ it.effect("scanVideoFilesStream uses streaming dir reader when available", () =>
       Effect.map((items) => Array.from(items, (file) => file.path)),
     );
 
-    assertEquals(files, [
-      "/library/show/episode-01.mkv",
-      "/library/show/season-2/episode-02.mp4",
-    ]);
+    assertEquals(files, ["/library/show/episode-01.mkv", "/library/show/season-2/episode-02.mp4"]);
     assertEquals(streamed > 0, true);
-  })
+  }),
 );
 
 it.effect("scanVideoFilesStream handles symlink cycles without infinite recursion", () =>
   Effect.gen(function* () {
-  const symlinksTree = new Map<string, DirEntry[]>([
-    [
-      "/library",
+    const symlinksTree = new Map<string, DirEntry[]>([
       [
-        entry("show", { isDirectory: true }),
-        entry("link-to-show", { isSymlink: true }),
-        entry("cycle", { isSymlink: true }),
+        "/library",
+        [
+          entry("show", { isDirectory: true }),
+          entry("link-to-show", { isSymlink: true }),
+          entry("cycle", { isSymlink: true }),
+        ],
       ],
-    ],
-    [
-      "/library/show",
-      [
-        entry("episode.mkv", { isFile: true }),
-      ],
-    ],
-  ]);
+      ["/library/show", [entry("episode.mkv", { isFile: true })]],
+    ]);
 
     const symlinkFs = yield* makeNoopTestFileSystemWithOverridesEffect({
-    readDir: (path) =>
-      Effect.succeed(symlinksTree.get(toPathString(path)) ?? []),
-    readDirStream: (path) =>
-      Stream.fromIterable(symlinksTree.get(toPathString(path)) ?? []),
-    realPath: (path) => {
-      const pathStr = toPathString(path);
-      if (pathStr.endsWith("/link-to-show")) {
-        return Effect.succeed("/library/show");
-      }
-      if (pathStr.endsWith("/cycle")) {
-        return Effect.succeed("/library/cycle");
-      }
-      return Effect.succeed(pathStr);
-    },
-    stat: (path) =>
-      Effect.succeed({
-        size: 100,
-        isFile: toPathString(path).endsWith(".mkv"),
-        isDirectory: !toPathString(path).endsWith(".mkv"),
-        isSymlink: false,
-      }),
-  });
+      readDir: (path) => Effect.succeed(symlinksTree.get(toPathString(path)) ?? []),
+      readDirStream: (path) => Stream.fromIterable(symlinksTree.get(toPathString(path)) ?? []),
+      realPath: (path) => {
+        const pathStr = toPathString(path);
+        if (pathStr.endsWith("/link-to-show")) {
+          return Effect.succeed("/library/show");
+        }
+        if (pathStr.endsWith("/cycle")) {
+          return Effect.succeed("/library/cycle");
+        }
+        return Effect.succeed(pathStr);
+      },
+      stat: (path) =>
+        Effect.succeed({
+          size: 100,
+          isFile: toPathString(path).endsWith(".mkv"),
+          isDirectory: !toPathString(path).endsWith(".mkv"),
+          isSymlink: false,
+        }),
+    });
 
     const files = yield* Stream.runCollect(scanVideoFilesStream(symlinkFs, "/library")).pipe(
       Effect.map((items) => Array.from(items, (file) => file.path)),
@@ -158,75 +128,65 @@ it.effect("scanVideoFilesStream handles symlink cycles without infinite recursio
 
     assertEquals(files.length, 1);
     assertEquals(files[0], "/library/show/episode.mkv");
-  })
+  }),
 );
 
 it.effect("scanVideoFilesStream fails when encountering inaccessible subdirectory", () =>
   Effect.gen(function* () {
-  const inaccessibleTree = new Map<string, DirEntry[]>([
-    [
-      "/library",
+    const inaccessibleTree = new Map<string, DirEntry[]>([
       [
-        entry("show1", { isDirectory: true }),
-        entry("show2", { isDirectory: true }),
-        entry("show3", { isDirectory: true }),
+        "/library",
+        [
+          entry("show1", { isDirectory: true }),
+          entry("show2", { isDirectory: true }),
+          entry("show3", { isDirectory: true }),
+        ],
       ],
-    ],
-    [
-      "/library/show1",
+      ["/library/show1", [entry("video1.mkv", { isFile: true })]],
       [
-        entry("video1.mkv", { isFile: true }),
+        "/library/show2",
+        [], // Will cause error
       ],
-    ],
-    [
-      "/library/show2",
-      [], // Will cause error
-    ],
-    [
-      "/library/show3",
-      [
-        entry("video2.mp4", { isFile: true }),
-      ],
-    ],
-  ]);
+      ["/library/show3", [entry("video2.mp4", { isFile: true })]],
+    ]);
 
     const inaccessibleFs = yield* makeNoopTestFileSystemWithOverridesEffect({
-    readDir: (path) =>
-      toPathString(path) === "/library/show2"
-        ? Effect.fail(
-          new FileSystemError({
-            cause: { code: "EACCES" },
-            message: "Permission denied",
-            path: toPathString(path),
-          }),
-        )
-        : Effect.succeed(inaccessibleTree.get(toPathString(path)) ?? []),
-    readDirStream: (path) =>
-      toPathString(path) === "/library/show2"
-        ? Stream.fail(
-          new FileSystemError({
-            cause: { code: "EACCES" },
-            message: "Permission denied",
-            path: toPathString(path),
-          }),
-        )
-        : Stream.fromIterable(inaccessibleTree.get(toPathString(path)) ?? []),
-    realPath: (path) => Effect.succeed(toPathString(path)),
-    stat: (path) =>
-      Effect.succeed({
-        size: 100,
-        isFile: toPathString(path).includes("video"),
-        isDirectory: !toPathString(path).includes("video"),
-        isSymlink: false,
-      }),
-  });
+      readDir: (path) =>
+        toPathString(path) === "/library/show2"
+          ? Effect.fail(
+              new FileSystemError({
+                cause: { code: "EACCES" },
+                message: "Permission denied",
+                path: toPathString(path),
+              }),
+            )
+          : Effect.succeed(inaccessibleTree.get(toPathString(path)) ?? []),
+      readDirStream: (path) =>
+        toPathString(path) === "/library/show2"
+          ? Stream.fail(
+              new FileSystemError({
+                cause: { code: "EACCES" },
+                message: "Permission denied",
+                path: toPathString(path),
+              }),
+            )
+          : Stream.fromIterable(inaccessibleTree.get(toPathString(path)) ?? []),
+      realPath: (path) => Effect.succeed(toPathString(path)),
+      stat: (path) =>
+        Effect.succeed({
+          size: 100,
+          isFile: toPathString(path).includes("video"),
+          isDirectory: !toPathString(path).includes("video"),
+          isSymlink: false,
+        }),
+    });
 
     const exit = yield* Effect.exit(
       Stream.runCollect(scanVideoFilesStream(inaccessibleFs, "/library")),
     );
 
     assertEquals(exit._tag, "Failure");
-  })
+  }),
 );
 
 function entry(
@@ -250,22 +210,22 @@ function makeMockFs() {
     readDir: (path) =>
       toPathString(path) === "/library/show/season-2/broken"
         ? Effect.fail(
-          new FileSystemError({
-            cause: new Error("denied"),
-            message: "Failed to read directory",
-            path: toPathString(path),
-          }),
-        )
+            new FileSystemError({
+              cause: new Error("denied"),
+              message: "Failed to read directory",
+              path: toPathString(path),
+            }),
+          )
         : Effect.succeed(tree.get(toPathString(path)) ?? []),
     readDirStream: (path) =>
       toPathString(path) === "/library/show/season-2/broken"
         ? Stream.fail(
-          new FileSystemError({
-            cause: new Error("denied"),
-            message: "Failed to read directory",
-            path: toPathString(path),
-          }),
-        )
+            new FileSystemError({
+              cause: new Error("denied"),
+              message: "Failed to read directory",
+              path: toPathString(path),
+            }),
+          )
         : Stream.fromIterable(tree.get(toPathString(path)) ?? []),
     realPath: (path) => Effect.succeed(toPathString(path)),
     stat: (path) =>
@@ -281,8 +241,7 @@ function makeMockFs() {
 function makeAccessibleMockFs() {
   return makeNoopTestFileSystemWithOverridesEffect({
     readDir: (path) => Effect.succeed(tree.get(toPathString(path)) ?? []),
-    readDirStream: (path) =>
-      Stream.fromIterable(tree.get(toPathString(path)) ?? []),
+    readDirStream: (path) => Stream.fromIterable(tree.get(toPathString(path)) ?? []),
     realPath: (path) => Effect.succeed(toPathString(path)),
     stat: (path) =>
       Effect.succeed({

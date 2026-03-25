@@ -13,17 +13,9 @@ import {
   DownloadSourceMetadataSchema,
 } from "../../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../../db/database.ts";
-import {
-  anime,
-  downloadEvents,
-  downloads,
-  episodes,
-} from "../../../db/schema.ts";
+import { anime, downloadEvents, downloads, episodes } from "../../../db/schema.ts";
 import { decodeOptionalNumberList } from "../../system/config-codec.ts";
-import type {
-  DownloadEventPresentationContext,
-  DownloadPresentationContext,
-} from "./types.ts";
+import type { DownloadEventPresentationContext, DownloadPresentationContext } from "./types.ts";
 
 const SQLITE_IN_LIST_CHUNK_SIZE = 900;
 const CHUNK_LOAD_CONCURRENCY = 4;
@@ -31,22 +23,15 @@ const CHUNK_LOAD_CONCURRENCY = 4;
 type DownloadRow = typeof downloads.$inferSelect;
 type DownloadEventRow = typeof downloadEvents.$inferSelect;
 
-const DownloadSourceMetadataJsonSchema = Schema.parseJson(
-  DownloadSourceMetadataSchema,
-);
-const DownloadEventMetadataJsonSchema = Schema.parseJson(
-  DownloadEventMetadataSchema,
-);
+const DownloadSourceMetadataJsonSchema = Schema.parseJson(DownloadSourceMetadataSchema);
+const DownloadEventMetadataJsonSchema = Schema.parseJson(DownloadEventMetadataSchema);
 
-export function toDownload(
-  row: DownloadRow,
-  context?: DownloadPresentationContext,
-): Download {
+export function toDownload(row: DownloadRow, context?: DownloadPresentationContext): Download {
   const coveredEpisodes = row.coveredEpisodes
     ? decodeOptionalNumberList(row.coveredEpisodes)
     : undefined;
-  const coveragePending = Boolean(row.isBatch) &&
-    (!coveredEpisodes || coveredEpisodes.length === 0);
+  const coveragePending =
+    Boolean(row.isBatch) && (!coveredEpisodes || coveredEpisodes.length === 0);
   const sourceMetadata = decodeDownloadSourceMetadata(row.sourceMetadata);
 
   return {
@@ -114,8 +99,8 @@ export function toDownloadStatus(
   const coveredEpisodes = row.coveredEpisodes
     ? decodeOptionalNumberList(row.coveredEpisodes)
     : undefined;
-  const coveragePending = Boolean(row.isBatch) &&
-    (!coveredEpisodes || coveredEpisodes.length === 0);
+  const coveragePending =
+    Boolean(row.isBatch) && (!coveredEpisodes || coveredEpisodes.length === 0);
   const sourceMetadata = decodeDownloadSourceMetadata(row.sourceMetadata);
 
   return {
@@ -141,9 +126,7 @@ export function toDownloadStatus(
   };
 }
 
-export function encodeDownloadSourceMetadata(
-  value: DownloadSourceMetadata,
-): string {
+export function encodeDownloadSourceMetadata(value: DownloadSourceMetadata): string {
   return Schema.encodeSync(DownloadSourceMetadataJsonSchema)({
     ...value,
     seadex_tags: value.seadex_tags ? [...value.seadex_tags] : undefined,
@@ -157,18 +140,12 @@ export function decodeDownloadSourceMetadata(
     return undefined;
   }
 
-  const decoded = Schema.decodeUnknownEither(DownloadSourceMetadataJsonSchema)(
-    value,
-  );
+  const decoded = Schema.decodeUnknownEither(DownloadSourceMetadataJsonSchema)(value);
 
-  return decoded._tag === "Right"
-    ? cloneDownloadSourceMetadata(decoded.right)
-    : undefined;
+  return decoded._tag === "Right" ? cloneDownloadSourceMetadata(decoded.right) : undefined;
 }
 
-function cloneDownloadSourceMetadata(
-  value: DownloadSourceMetadata,
-): DownloadSourceMetadata {
+function cloneDownloadSourceMetadata(value: DownloadSourceMetadata): DownloadSourceMetadata {
   return {
     ...value,
     ...(value.seadex_tags ? { seadex_tags: [...value.seadex_tags] } : {}),
@@ -186,17 +163,13 @@ function cloneParsedEpisodeIdentity(
       return {
         scheme: "season",
         season: value.season,
-        episode_numbers: value.episode_numbers
-          ? [...value.episode_numbers]
-          : [],
+        episode_numbers: value.episode_numbers ? [...value.episode_numbers] : [],
         label: value.label,
       };
     case "absolute":
       return {
         scheme: "absolute",
-        episode_numbers: value.episode_numbers
-          ? [...value.episode_numbers]
-          : [],
+        episode_numbers: value.episode_numbers ? [...value.episode_numbers] : [],
         label: value.label,
       };
     case "daily":
@@ -208,17 +181,13 @@ function cloneParsedEpisodeIdentity(
   }
 }
 
-export function encodeDownloadEventMetadata(
-  value: {
-    covered_episodes?: readonly number[];
-    imported_path?: string;
-    source_metadata?: DownloadSourceMetadata;
-  },
-): string {
+export function encodeDownloadEventMetadata(value: {
+  covered_episodes?: readonly number[];
+  imported_path?: string;
+  source_metadata?: DownloadSourceMetadata;
+}): string {
   return Schema.encodeSync(DownloadEventMetadataJsonSchema)({
-    covered_episodes: value.covered_episodes
-      ? [...value.covered_episodes]
-      : undefined,
+    covered_episodes: value.covered_episodes ? [...value.covered_episodes] : undefined,
     imported_path: value.imported_path,
     source_metadata: value.source_metadata,
   });
@@ -231,9 +200,7 @@ export function decodeDownloadEventMetadata(
     return undefined;
   }
 
-  const decoded = Schema.decodeUnknownEither(DownloadEventMetadataJsonSchema)(
-    value,
-  );
+  const decoded = Schema.decodeUnknownEither(DownloadEventMetadataJsonSchema)(value);
 
   return decoded._tag === "Right" ? decoded.right : undefined;
 }
@@ -248,61 +215,62 @@ export async function loadDownloadPresentationContexts(
 
   const animeIds = [...new Set(rows.map((row) => row.animeId))];
   const animeRows = await loadRowsByChunk(animeIds, (chunk) =>
-    db.select({
-      coverImage: anime.coverImage,
-      id: anime.id,
-    }).from(anime).where(inArray(anime.id, chunk)));
+    db
+      .select({
+        coverImage: anime.coverImage,
+        id: anime.id,
+      })
+      .from(anime)
+      .where(inArray(anime.id, chunk)),
+  );
   const animeImageById = new Map(
     animeRows.map((row) => [row.id, row.coverImage ?? undefined] as const),
   );
 
-  const importedRows = rows.filter((row) =>
-    row.status === "imported" || row.reconciledAt !== null
-  );
-  const episodeRows = importedRows.length > 0
-    ? await db.select({
-      animeId: episodes.animeId,
-      filePath: episodes.filePath,
-      number: episodes.number,
-    }).from(episodes).where(
-      and(
-        inArray(
-          episodes.animeId,
-          [...new Set(importedRows.map((row) => row.animeId))],
-        ),
-        sql`${episodes.filePath} is not null`,
-      ),
-    )
-    : [];
+  const importedRows = rows.filter((row) => row.status === "imported" || row.reconciledAt !== null);
+  const episodeRows =
+    importedRows.length > 0
+      ? await db
+          .select({
+            animeId: episodes.animeId,
+            filePath: episodes.filePath,
+            number: episodes.number,
+          })
+          .from(episodes)
+          .where(
+            and(
+              inArray(episodes.animeId, [...new Set(importedRows.map((row) => row.animeId))]),
+              sql`${episodes.filePath} is not null`,
+            ),
+          )
+      : [];
   const importedPathByEpisode = new Map(
     episodeRows.flatMap((row) =>
-      row.filePath
-        ? [[`${row.animeId}:${row.number}`, row.filePath] as const]
-        : []
+      row.filePath ? [[`${row.animeId}:${row.number}`, row.filePath] as const] : [],
     ),
   );
 
-  return new Map(rows.map((row) => {
-    const coveredEpisodes = row.coveredEpisodes
-      ? decodeOptionalNumberList(row.coveredEpisodes)
-      : [];
-    const episodeNumbers = coveredEpisodes.length > 0
-      ? coveredEpisodes
-      : [row.episodeNumber];
-    const importedPath = episodeNumbers.map((episodeNumber) =>
-      importedPathByEpisode.get(`${row.animeId}:${episodeNumber}`)
-    ).find((value): value is string =>
-      typeof value === "string"
-    ) ??
-      (row.reconciledAt
-        ? (row.contentPath ?? row.savePath ?? undefined)
-        : undefined);
+  return new Map(
+    rows.map((row) => {
+      const coveredEpisodes = row.coveredEpisodes
+        ? decodeOptionalNumberList(row.coveredEpisodes)
+        : [];
+      const episodeNumbers = coveredEpisodes.length > 0 ? coveredEpisodes : [row.episodeNumber];
+      const importedPath =
+        episodeNumbers
+          .map((episodeNumber) => importedPathByEpisode.get(`${row.animeId}:${episodeNumber}`))
+          .find((value): value is string => typeof value === "string") ??
+        (row.reconciledAt ? (row.contentPath ?? row.savePath ?? undefined) : undefined);
 
-    return [row.id, {
-      animeImage: animeImageById.get(row.animeId),
-      importedPath,
-    }] as const;
-  }));
+      return [
+        row.id,
+        {
+          animeImage: animeImageById.get(row.animeId),
+          importedPath,
+        },
+      ] as const;
+    }),
+  );
 }
 
 export async function loadDownloadEventPresentationContexts(
@@ -314,52 +282,53 @@ export async function loadDownloadEventPresentationContexts(
   }
 
   const animeIds = [
-    ...new Set(
-      rows.map((row) => row.animeId).filter((value): value is number =>
-        value !== null
-      ),
-    ),
+    ...new Set(rows.map((row) => row.animeId).filter((value): value is number => value !== null)),
   ];
   const downloadIds = [
     ...new Set(
-      rows.map((row) => row.downloadId).filter((value): value is number =>
-        value !== null
-      ),
+      rows.map((row) => row.downloadId).filter((value): value is number => value !== null),
     ),
   ];
 
   const animeRows = await loadRowsByChunk(animeIds, (chunk) =>
-    db.select({
-      coverImage: anime.coverImage,
-      id: anime.id,
-      titleEnglish: anime.titleEnglish,
-      titleRomaji: anime.titleRomaji,
-    }).from(anime).where(inArray(anime.id, chunk)));
+    db
+      .select({
+        coverImage: anime.coverImage,
+        id: anime.id,
+        titleEnglish: anime.titleEnglish,
+        titleRomaji: anime.titleRomaji,
+      })
+      .from(anime)
+      .where(inArray(anime.id, chunk)),
+  );
   const animeById = new Map(animeRows.map((row) => [row.id, row] as const));
 
   const downloadRows = await loadRowsByChunk(downloadIds, (chunk) =>
-    db.select({
-      id: downloads.id,
-      torrentName: downloads.torrentName,
-    }).from(downloads).where(inArray(downloads.id, chunk)));
-  const downloadById = new Map(
-    downloadRows.map((row) => [row.id, row] as const),
+    db
+      .select({
+        id: downloads.id,
+        torrentName: downloads.torrentName,
+      })
+      .from(downloads)
+      .where(inArray(downloads.id, chunk)),
   );
+  const downloadById = new Map(downloadRows.map((row) => [row.id, row] as const));
 
-  return new Map(rows.map((row) => {
-    const animeRow = row.animeId !== null
-      ? animeById.get(row.animeId)
-      : undefined;
-    const downloadRow = row.downloadId !== null
-      ? downloadById.get(row.downloadId)
-      : undefined;
+  return new Map(
+    rows.map((row) => {
+      const animeRow = row.animeId !== null ? animeById.get(row.animeId) : undefined;
+      const downloadRow = row.downloadId !== null ? downloadById.get(row.downloadId) : undefined;
 
-    return [row.id, {
-      animeImage: animeRow?.coverImage ?? undefined,
-      animeTitle: animeRow?.titleEnglish ?? animeRow?.titleRomaji,
-      torrentName: downloadRow?.torrentName ?? undefined,
-    }] as const;
-  }));
+      return [
+        row.id,
+        {
+          animeImage: animeRow?.coverImage ?? undefined,
+          animeTitle: animeRow?.titleEnglish ?? animeRow?.titleRomaji,
+          torrentName: downloadRow?.torrentName ?? undefined,
+        },
+      ] as const;
+    }),
+  );
 }
 
 async function loadRowsByChunk<TId, TRow>(
@@ -375,9 +344,7 @@ async function loadRowsByChunk<TId, TRow>(
 
   for (let i = 0; i < chunks.length; i += CHUNK_LOAD_CONCURRENCY) {
     const batch = chunks.slice(i, i + CHUNK_LOAD_CONCURRENCY);
-    const batchResults = await Promise.all(
-      batch.map((chunk) => loadChunk(chunk)),
-    );
+    const batchResults = await Promise.all(batch.map((chunk) => loadChunk(chunk)));
     for (const chunkResult of batchResults) {
       results.push([...chunkResult]);
     }

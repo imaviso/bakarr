@@ -10,83 +10,53 @@ function makeInput(overrides: Partial<NamingInput> = {}): NamingInput {
 }
 
 it("naming: {title} renders anime title", () => {
-  assertEquals(
-    renderEpisodeFilename("{title}", makeInput({ title: "Naruto" })),
-    "Naruto",
-  );
+  assertEquals(renderEpisodeFilename("{title}", makeInput({ title: "Naruto" })), "Naruto");
 });
 
 it("naming: {title} sanitizes filesystem-unsafe characters", () => {
   assertEquals(
-    renderEpisodeFilename(
-      "{title}",
-      makeInput({ title: 'Re:Zero / "Another"' }),
-    ),
+    renderEpisodeFilename("{title}", makeInput({ title: 'Re:Zero / "Another"' })),
     "Re Zero Another",
   );
 });
 
 it("naming: {episode} pads to 2 digits by default", () => {
-  assertEquals(
-    renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [5] })),
-    "05",
-  );
+  assertEquals(renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [5] })), "05");
 });
 
 it("naming: {episode:02} pads to 2 digits", () => {
-  assertEquals(
-    renderEpisodeFilename("{episode:02}", makeInput({ episodeNumbers: [3] })),
-    "03",
-  );
+  assertEquals(renderEpisodeFilename("{episode:02}", makeInput({ episodeNumbers: [3] })), "03");
 });
 
 it("naming: {episode:03} pads to 3 digits", () => {
-  assertEquals(
-    renderEpisodeFilename("{episode:03}", makeInput({ episodeNumbers: [5] })),
-    "005",
-  );
+  assertEquals(renderEpisodeFilename("{episode:03}", makeInput({ episodeNumbers: [5] })), "005");
 });
 
 it("naming: {episode} with large number does not truncate", () => {
-  assertEquals(
-    renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [142] })),
-    "142",
-  );
+  assertEquals(renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [142] })), "142");
 });
 
 it("naming: {episode} with no episodes uses 0", () => {
-  assertEquals(
-    renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [] })),
-    "00",
-  );
+  assertEquals(renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [] })), "00");
 });
 
 it("naming: {episode_segment} single episode", () => {
   assertEquals(
-    renderEpisodeFilename(
-      "{episode_segment}",
-      makeInput({ episodeNumbers: [3] }),
-    ),
+    renderEpisodeFilename("{episode_segment}", makeInput({ episodeNumbers: [3] })),
     "03",
   );
 });
 
 it("naming: {episode_segment} multi-episode range", () => {
   assertEquals(
-    renderEpisodeFilename(
-      "{episode_segment}",
-      makeInput({ episodeNumbers: [3, 4] }),
-    ),
+    renderEpisodeFilename("{episode_segment}", makeInput({ episodeNumbers: [3, 4] })),
     "03-04",
   );
 });
 
 it("naming: {episode_segment} episode >= 100 uses 3-digit pad", () => {
   assertEquals(
-    renderEpisodeFilename(
-      "{episode_segment}",
-      makeInput({ episodeNumbers: [142] }),
-    ),
+    renderEpisodeFilename("{episode_segment}", makeInput({ episodeNumbers: [142] })),
     "142",
   );
 });
@@ -110,26 +80,17 @@ it("naming: {source_episode_segment} uses source label when available", () => {
 
 it("naming: {source_episode_segment} falls back to segment when no source", () => {
   assertEquals(
-    renderEpisodeFilename(
-      "{source_episode_segment}",
-      makeInput({ episodeNumbers: [7] }),
-    ),
+    renderEpisodeFilename("{source_episode_segment}", makeInput({ episodeNumbers: [7] })),
     "07",
   );
 });
 
 it("naming: {season} pads to 2 digits by default", () => {
-  assertEquals(
-    renderEpisodeFilename("{season}", makeInput({ season: 2 })),
-    "02",
-  );
+  assertEquals(renderEpisodeFilename("{season}", makeInput({ season: 2 })), "02");
 });
 
 it("naming: {season:02} pads to 2 digits", () => {
-  assertEquals(
-    renderEpisodeFilename("{season:02}", makeInput({ season: 1 })),
-    "01",
-  );
+  assertEquals(renderEpisodeFilename("{season:02}", makeInput({ season: 1 })), "01");
 });
 
 it("naming: {season} renders empty when not provided", () => {
@@ -148,10 +109,7 @@ it("naming: {air_date} renders empty when not provided", () => {
 });
 
 it("naming: {group} renders release group", () => {
-  assertEquals(
-    renderEpisodeFilename("{group}", makeInput({ group: "SubsPlease" })),
-    "SubsPlease",
-  );
+  assertEquals(renderEpisodeFilename("{group}", makeInput({ group: "SubsPlease" })), "SubsPlease");
 });
 
 it("naming: {group} renders empty when not provided", () => {
@@ -159,10 +117,7 @@ it("naming: {group} renders empty when not provided", () => {
 });
 
 it("naming: {resolution} renders resolution", () => {
-  assertEquals(
-    renderEpisodeFilename("{resolution}", makeInput({ resolution: "1080p" })),
-    "1080p",
-  );
+  assertEquals(renderEpisodeFilename("{resolution}", makeInput({ resolution: "1080p" })), "1080p");
 });
 
 it("naming: {resolution} renders empty when not provided", () => {
@@ -247,10 +202,7 @@ it("naming: token used multiple times in format", () => {
 
 it("naming: unknown tokens are left as-is", () => {
   assertEquals(
-    renderEpisodeFilename(
-      "{title} - {unknown_token}",
-      makeInput({ title: "Naruto" }),
-    ),
+    renderEpisodeFilename("{title} - {unknown_token}", makeInput({ title: "Naruto" })),
     "Naruto - {unknown_token}",
   );
 });
@@ -413,18 +365,12 @@ it("naming: {year} empty cleans up parentheses", () => {
 });
 
 it("naming: {quality} renders quality source", () => {
-  assertEquals(
-    renderEpisodeFilename("{quality}", makeInput({ quality: "WEB-DL" })),
-    "WEB-DL",
-  );
+  assertEquals(renderEpisodeFilename("{quality}", makeInput({ quality: "WEB-DL" })), "WEB-DL");
 });
 
 it("naming: {quality} empty when not provided", () => {
   assertEquals(
-    renderEpisodeFilename(
-      "{title} - {quality}",
-      makeInput({ title: "Naruto" }),
-    ),
+    renderEpisodeFilename("{title} - {quality}", makeInput({ title: "Naruto" })),
     "Naruto",
   );
 });
@@ -466,10 +412,7 @@ it("naming: {video_codec} renders codec", () => {
 
 it("naming: {video_codec} empty cleans up brackets", () => {
   assertEquals(
-    renderEpisodeFilename(
-      "{title} [{video_codec}]",
-      makeInput({ title: "Naruto" }),
-    ),
+    renderEpisodeFilename("{title} [{video_codec}]", makeInput({ title: "Naruto" })),
     "Naruto",
   );
 });
@@ -483,10 +426,7 @@ it("naming: {audio_codec} renders codec", () => {
 
 it("naming: {audio_channels} renders channel layout", () => {
   assertEquals(
-    renderEpisodeFilename(
-      "[{audio_channels}]",
-      makeInput({ audioChannels: "2.0" }),
-    ),
+    renderEpisodeFilename("[{audio_channels}]", makeInput({ audioChannels: "2.0" })),
     "[2.0]",
   );
 });

@@ -2,24 +2,26 @@ import { Effect, ParseResult, Schema } from "effect";
 
 const UnknownJsonSchema = Schema.parseJson(Schema.Unknown);
 
-export class RequestValidationError
-  extends Schema.TaggedError<RequestValidationError>()(
-    "RequestValidationError",
-    {
-      message: Schema.String,
-      status: Schema.Literal(400),
-    },
-  ) {}
+export class RequestValidationError extends Schema.TaggedError<RequestValidationError>()(
+  "RequestValidationError",
+  {
+    message: Schema.String,
+    status: Schema.Literal(400),
+  },
+) {}
 
 export function formatValidationErrorMessage(message: string, error: unknown) {
   if (ParseResult.isParseError(error)) {
     const issues = ParseResult.ArrayFormatter.formatErrorSync(error);
 
     if (issues.length > 0) {
-      const details = issues.slice(0, 3).map((issue) => {
-        const path = issue.path.length > 0 ? issue.path.join(".") : "input";
-        return `${path}: ${issue.message}`;
-      }).join("; ");
+      const details = issues
+        .slice(0, 3)
+        .map((issue) => {
+          const path = issue.path.length > 0 ? issue.path.join(".") : "input";
+          return `${path}: ${issue.message}`;
+        })
+        .join("; ");
 
       return `${message}: ${details}`;
     }
@@ -47,7 +49,7 @@ export function decodeUnknownInput<A, I>(
       RequestValidationError.make({
         message: formatValidationErrorMessage(message, error),
         status: 400,
-      })
+      }),
     ),
   );
 }
@@ -69,14 +71,11 @@ export function parseJsonBody<A, I>(
       Schema.decodeUnknown(schema)(json).pipe(
         Effect.mapError((error) =>
           RequestValidationError.make({
-            message: formatValidationErrorMessage(
-              `Invalid request body for ${label}`,
-              error,
-            ),
+            message: formatValidationErrorMessage(`Invalid request body for ${label}`, error),
             status: 400,
-          })
+          }),
         ),
-      )
+      ),
     ),
   );
 }
@@ -104,7 +103,7 @@ export function parseOptionalJsonBody<A, I>(
           RequestValidationError.make({
             message: `Malformed JSON for ${label}`,
             status: 400,
-          })
+          }),
         ),
       );
     }),
@@ -112,14 +111,11 @@ export function parseOptionalJsonBody<A, I>(
       Schema.decodeUnknown(schema)(json).pipe(
         Effect.mapError((error) =>
           RequestValidationError.make({
-            message: formatValidationErrorMessage(
-              `Invalid request body for ${label}`,
-              error,
-            ),
+            message: formatValidationErrorMessage(`Invalid request body for ${label}`, error),
             status: 400,
-          })
+          }),
         ),
-      )
+      ),
     ),
   );
 }
@@ -129,11 +125,7 @@ export function parseParams<A, I>(
   schema: Schema.Schema<A, I>,
   label: string,
 ): Effect.Effect<A, RequestValidationError> {
-  return decodeUnknownInput(
-    c.req.param(),
-    schema,
-    `Invalid route params for ${label}`,
-  );
+  return decodeUnknownInput(c.req.param(), schema, `Invalid route params for ${label}`);
 }
 
 export function parseQuery<A, I>(

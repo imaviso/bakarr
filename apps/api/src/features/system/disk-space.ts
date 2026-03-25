@@ -11,13 +11,10 @@ export const DiskSpaceSchema = Schema.Struct({
 
 export type DiskSpace = Schema.Schema.Type<typeof DiskSpaceSchema>;
 
-export class DiskSpaceError extends Schema.TaggedError<DiskSpaceError>()(
-  "DiskSpaceError",
-  {
-    cause: Schema.optional(Schema.Defect),
-    message: Schema.String,
-  },
-) {}
+export class DiskSpaceError extends Schema.TaggedError<DiskSpaceError>()("DiskSpaceError", {
+  cause: Schema.optional(Schema.Defect),
+  message: Schema.String,
+}) {}
 
 export const BlockStatsSchema = Schema.Struct({
   bavail: Schema.Union(Schema.Number, Schema.BigInt),
@@ -29,14 +26,8 @@ export type BlockStatsShape = Schema.Schema.Type<typeof BlockStatsSchema>;
 
 export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
   const blockSize = toPositiveNumber(stat.bsize, "Invalid block size");
-  const availableBlocks = toNonNegativeNumber(
-    stat.bavail,
-    "Invalid available block count",
-  );
-  const totalBlocks = toPositiveNumber(
-    stat.blocks,
-    "Invalid total block count",
-  );
+  const availableBlocks = toNonNegativeNumber(stat.bavail, "Invalid available block count");
+  const totalBlocks = toPositiveNumber(stat.blocks, "Invalid total block count");
 
   return {
     free: clampDiskBytes(availableBlocks * blockSize),
@@ -47,29 +38,24 @@ export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
 export const getDiskSpace = Effect.fn("System.getDiskSpace")(
   (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> =>
     Effect.gen(function* () {
-      const executorOption = yield* Effect.serviceOption(
-        CommandExecutor.CommandExecutor,
-      );
+      const executorOption = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
 
       if (Option.isNone(executorOption)) {
         return yield* new DiskSpaceError({
-          message:
-            `Failed to get disk space for ${path}: command executor unavailable`,
+          message: `Failed to get disk space for ${path}: command executor unavailable`,
         });
       }
 
       const output = yield* Command.make("df", "-Pk", path).pipe(
         Command.string,
-        Effect.mapError((cause) =>
-          new DiskSpaceError({
-            cause,
-            message: `Failed to get disk space for ${path}`,
-          })
+        Effect.mapError(
+          (cause) =>
+            new DiskSpaceError({
+              cause,
+              message: `Failed to get disk space for ${path}`,
+            }),
         ),
-        Effect.provideService(
-          CommandExecutor.CommandExecutor,
-          executorOption.value,
-        ),
+        Effect.provideService(CommandExecutor.CommandExecutor, executorOption.value),
       );
 
       return yield* Effect.try({
@@ -93,15 +79,12 @@ export const getDiskSpaceSafe = Effect.fn("System.getDiskSpaceSafe")(
             diskPath: path,
             error: error.message,
           }),
-        )
+        ),
       ),
     ),
 );
 
-export function selectStoragePath(
-  config: Config,
-  databaseFile: string,
-): string {
+export function selectStoragePath(config: Config, databaseFile: string): string {
   const libraryPath = config.library.library_path.trim();
   if (libraryPath) {
     return libraryPath;
@@ -122,9 +105,10 @@ function clampDiskBytes(value: number) {
 }
 
 function mapDfOutputToDiskSpace(path: string, output: string): DiskSpace {
-  const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(
-    Boolean,
-  );
+  const lines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
   const dataLine = lines.at(-1);
 
   if (!dataLine) {

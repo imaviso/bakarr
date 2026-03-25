@@ -80,16 +80,8 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import {
-  TextField,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
+import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import {
   animeDetailsQueryOptions,
   createBulkMapEpisodesMutation,
@@ -190,19 +182,14 @@ function AnimeDetailsPage() {
 
   const episodesData = createMemo(() => episodesQuery.data ?? []);
   const missingCount = createMemo(
-    () =>
-      episodesData().filter((e) => !e.downloaded && isAired(e.aired)).length,
+    () => episodesData().filter((e) => !e.downloaded && isAired(e.aired)).length,
   );
-  const availableCount = createMemo(
-    () => episodesData().filter((e) => e.downloaded).length,
-  );
+  const availableCount = createMemo(() => episodesData().filter((e) => e.downloaded).length);
   const totalEpisodes = createMemo(
     () => episodesData().length || animeQuery.data?.episode_count || 0,
   );
   const isMonitored = () => animeQuery.data?.monitored ?? true;
-  const libraryIds = createMemo(() =>
-    new Set(animeQuery.data ? [animeQuery.data.id] : [])
-  );
+  const libraryIds = createMemo(() => new Set(animeQuery.data ? [animeQuery.data.id] : []));
 
   const handlePlayInMpv = async (episodeNumber: number) => {
     try {
@@ -242,9 +229,7 @@ function AnimeDetailsPage() {
               <div class="w-full h-48 md:h-64 overflow-hidden rounded-none relative border-b border-border">
                 <img
                   src={anime().banner_image}
-                  alt={`${
-                    anime().title.english || anime().title.romaji
-                  } banner`}
+                  alt={`${anime().title.english || anime().title.romaji} banner`}
                   loading="lazy"
                   class="w-full h-full object-cover"
                 />
@@ -294,12 +279,11 @@ function AnimeDetailsPage() {
                           <IconBan class="w-4 h-4 text-error" />
                         </Show>
                         <Show
-                          when={![
-                            "RELEASING",
-                            "FINISHED",
-                            "NOT_YET_RELEASED",
-                            "CANCELLED",
-                          ].includes(anime().status)}
+                          when={
+                            !["RELEASING", "FINISHED", "NOT_YET_RELEASED", "CANCELLED"].includes(
+                              anime().status,
+                            )
+                          }
                         >
                           <IconActivity class="w-4 h-4 text-muted-foreground" />
                         </Show>
@@ -308,9 +292,7 @@ function AnimeDetailsPage() {
                     </Tooltip>
                     <Show when={anime().title.native}>
                       <span>•</span>
-                      <span class="font-japanese opacity-75">
-                        {anime().title.native}
-                      </span>
+                      <span class="font-japanese opacity-75">{anime().title.native}</span>
                     </Show>
                   </div>
                 </div>
@@ -326,16 +308,12 @@ function AnimeDetailsPage() {
                       toggleMonitor.mutate({
                         id: animeId(),
                         monitored: !isMonitored(),
-                      })}
+                      })
+                    }
                     disabled={toggleMonitor.isPending}
-                    class={cn(
-                      "shrink-0",
-                      !isMonitored() && "text-muted-foreground bg-muted/50",
-                    )}
+                    class={cn("shrink-0", !isMonitored() && "text-muted-foreground bg-muted/50")}
                   >
-                    <IconBookmark
-                      class={cn("h-4 w-4", isMonitored() && "fill-current")}
-                    />
+                    <IconBookmark class={cn("h-4 w-4", isMonitored() && "fill-current")} />
                   </TooltipTrigger>
                   <TooltipContent>
                     {isMonitored() ? "Unmonitor Anime" : "Monitor Anime"}
@@ -380,14 +358,11 @@ function AnimeDetailsPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => searchMissing.mutate(animeId())}
-                    disabled={searchMissing.isPending || !isMonitored() ||
-                      missingCount() === 0}
+                    disabled={searchMissing.isPending || !isMonitored() || missingCount() === 0}
                     class="shrink-0"
                   >
                     <IconSearch class="min-[1670px]:mr-2 h-4 w-4" />
-                    <span class="hidden min-[1670px]:inline">
-                      Search Missing
-                    </span>
+                    <span class="hidden min-[1670px]:inline">Search Missing</span>
                   </TooltipTrigger>
                   <TooltipContent>Search Missing Episodes</TooltipContent>
                 </Tooltip>
@@ -400,10 +375,10 @@ function AnimeDetailsPage() {
                     onClick={() =>
                       toast.promise(scanFolder.mutateAsync(animeId()), {
                         loading: "Scanning folder...",
-                        success: (data) =>
-                          `Scan complete. Found ${data.found} new episodes.`,
+                        success: (data) => `Scan complete. Found ${data.found} new episodes.`,
                         error: (err) => `Scan failed: ${err.message}`,
-                      })}
+                      })
+                    }
                     class="shrink-0"
                   >
                     <IconFileImport class="min-[1670px]:mr-2 h-4 w-4" />
@@ -487,9 +462,8 @@ function AnimeDetailsPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete Anime?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will remove "
-                        {anime().title.english || anime().title.romaji}" from
-                        your library. This action cannot be undone.
+                        This will remove "{anime().title.english || anime().title.romaji}" from your
+                        library. This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -545,9 +519,7 @@ function AnimeDetailsPage() {
                   </Card>
                 </Show>
 
-                <Show
-                  when={anime().studios && (anime().studios?.length ?? 0) > 0}
-                >
+                <Show when={anime().studios && (anime().studios?.length ?? 0) > 0}>
                   <div class="space-y-1.5">
                     <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Studios
@@ -564,9 +536,7 @@ function AnimeDetailsPage() {
                   </div>
                 </Show>
 
-                <Show
-                  when={anime().genres && (anime().genres?.length ?? 0) > 0}
-                >
+                <Show when={anime().genres && (anime().genres?.length ?? 0) > 0}>
                   <div class="space-y-1.5">
                     <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Genres
@@ -610,17 +580,13 @@ function AnimeDetailsPage() {
                   </Card>
                   <Card>
                     <CardContent class="p-4 text-center">
-                      <p class="text-2xl font-bold text-success">
-                        {availableCount()}
-                      </p>
+                      <p class="text-2xl font-bold text-success">{availableCount()}</p>
                       <p class="text-xs text-muted-foreground">Downloaded</p>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent class="p-4 text-center">
-                      <p class="text-2xl font-bold text-warning">
-                        {missingCount()}
-                      </p>
+                      <p class="text-2xl font-bold text-warning">{missingCount()}</p>
                       <p class="text-xs text-muted-foreground">Missing</p>
                     </CardContent>
                   </Card>
@@ -643,9 +609,7 @@ function AnimeDetailsPage() {
                 <Suspense
                   fallback={
                     <div class="text-center py-8">
-                      <p class="text-sm text-muted-foreground">
-                        Loading episodes...
-                      </p>
+                      <p class="text-sm text-muted-foreground">Loading episodes...</p>
                     </div>
                   }
                 >
@@ -668,13 +632,10 @@ function AnimeDetailsPage() {
                         <TabsContent value="grid">
                           <Show when={episodesData().length === 0}>
                             <div class="text-center py-8">
-                              <p class="text-sm text-muted-foreground">
-                                No episodes found.
-                              </p>
+                              <p class="text-sm text-muted-foreground">No episodes found.</p>
                               <Button
                                 variant="link"
-                                onClick={() =>
-                                  refreshEpisodes.mutate(animeId())}
+                                onClick={() => refreshEpisodes.mutate(animeId())}
                                 class="mt-2"
                               >
                                 Refresh metadata
@@ -692,8 +653,8 @@ function AnimeDetailsPage() {
                                   const status = episode.downloaded
                                     ? "Downloaded"
                                     : isAired(episode.aired)
-                                    ? "Missing"
-                                    : "Upcoming";
+                                      ? "Missing"
+                                      : "Upcoming";
                                   return (
                                     <div
                                       role="listitem"
@@ -703,13 +664,11 @@ function AnimeDetailsPage() {
                                         episode.downloaded
                                           ? "bg-success/20 text-success border border-success/30"
                                           : isAired(episode.aired)
-                                          ? "bg-warning/10 text-warning/70 border border-warning/20"
-                                          : "bg-muted/30 text-muted-foreground/40 border border-transparent",
+                                            ? "bg-warning/10 text-warning/70 border border-warning/20"
+                                            : "bg-muted/30 text-muted-foreground/40 border border-transparent",
                                       )}
                                       title={`Episode ${episode.number}: ${status}${
-                                        episode.aired
-                                          ? ` (Aired: ${episode.aired})`
-                                          : ""
+                                        episode.aired ? ` (Aired: ${episode.aired})` : ""
                                       }`}
                                     >
                                       {episode.number}
@@ -726,9 +685,7 @@ function AnimeDetailsPage() {
                             <Table>
                               <TableHeader class="sticky top-0 bg-card z-10">
                                 <TableRow>
-                                  <TableHead class="w-[60px] text-center">
-                                    #
-                                  </TableHead>
+                                  <TableHead class="w-[60px] text-center">#</TableHead>
                                   <TableHead>Title</TableHead>
                                   <TableHead class="hidden sm:table-cell w-[120px]">
                                     Aired
@@ -736,22 +693,15 @@ function AnimeDetailsPage() {
                                   <TableHead class="hidden md:table-cell w-[80px]">
                                     Duration
                                   </TableHead>
-                                  <TableHead class="w-[80px] text-right">
-                                    Status
-                                  </TableHead>
-                                  <TableHead class="hidden md:table-cell">
-                                    Filename
-                                  </TableHead>
+                                  <TableHead class="w-[80px] text-right">Status</TableHead>
+                                  <TableHead class="hidden md:table-cell">Filename</TableHead>
                                   <TableHead class="w-[50px]"></TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 <Show when={episodesData().length === 0}>
                                   <TableRow>
-                                    <TableCell
-                                      colSpan={7}
-                                      class="h-24 text-center"
-                                    >
+                                    <TableCell colSpan={7} class="h-24 text-center">
                                       No episodes found.
                                     </TableCell>
                                   </TableRow>
@@ -765,24 +715,18 @@ function AnimeDetailsPage() {
                                       <TableCell class="font-medium max-w-[150px] sm:max-w-[250px] md:max-w-[350px]">
                                         <div
                                           class="truncate"
-                                          title={episode.title ||
-                                            `Episode ${episode.number}`}
+                                          title={episode.title || `Episode ${episode.number}`}
                                         >
-                                          {episode.title ||
-                                            `Episode ${episode.number}`}
+                                          {episode.title || `Episode ${episode.number}`}
                                         </div>
                                       </TableCell>
                                       <TableCell class="hidden sm:table-cell text-muted-foreground text-sm">
                                         {episode.aired
-                                          ? new Date(
-                                            episode.aired,
-                                          ).toLocaleDateString()
+                                          ? new Date(episode.aired).toLocaleDateString()
                                           : "-"}
                                       </TableCell>
                                       <TableCell class="hidden md:table-cell text-muted-foreground text-sm">
-                                        {formatDurationSeconds(
-                                          episode.duration_seconds,
-                                        ) || "-"}
+                                        {formatDurationSeconds(episode.duration_seconds) || "-"}
                                       </TableCell>
                                       <TableCell class="text-right">
                                         <div class="flex justify-end pr-2">
@@ -801,9 +745,7 @@ function AnimeDetailsPage() {
                                                   />
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                  {isAired(episode.aired)
-                                                    ? "Missing"
-                                                    : "Upcoming"}
+                                                  {isAired(episode.aired) ? "Missing" : "Upcoming"}
                                                 </TooltipContent>
                                               </Tooltip>
                                             }
@@ -813,28 +755,19 @@ function AnimeDetailsPage() {
                                                 <IconCircleCheck class="h-4 w-4 text-success" />
                                               </TooltipTrigger>
                                               <TooltipContent>
-                                                Downloaded - {episode.file_path
-                                                  ?.split("/")
-                                                  .pop()}
+                                                Downloaded - {episode.file_path?.split("/").pop()}
                                               </TooltipContent>
                                             </Tooltip>
                                           </Show>
                                         </div>
                                       </TableCell>
                                       <TableCell class="hidden md:table-cell text-sm text-muted-foreground font-mono truncate max-w-[200px]">
-                                        <Show
-                                          when={episode.file_path}
-                                          fallback="-"
-                                        >
+                                        <Show when={episode.file_path} fallback="-">
                                           <div
                                             class="truncate"
-                                            title={episode.file_path
-                                              ?.split("/")
-                                              .pop()}
+                                            title={episode.file_path?.split("/").pop()}
                                           >
-                                            {episode.file_path
-                                              ?.split("/")
-                                              .pop()}
+                                            {episode.file_path?.split("/").pop()}
                                           </div>
                                         </Show>
                                       </TableCell>
@@ -856,7 +789,8 @@ function AnimeDetailsPage() {
                                                   open: true,
                                                   episodeNumber: episode.number,
                                                   episodeTitle: episode.title,
-                                                })}
+                                                })
+                                              }
                                             >
                                               <Show
                                                 when={episode.downloaded}
@@ -876,9 +810,9 @@ function AnimeDetailsPage() {
                                                 onClick={() =>
                                                   setMappingDialogState({
                                                     open: true,
-                                                    episodeNumber:
-                                                      episode.number,
-                                                  })}
+                                                    episodeNumber: episode.number,
+                                                  })
+                                                }
                                               >
                                                 <IconLink class="h-4 w-4 mr-2" />
                                                 Manual Map
@@ -892,8 +826,7 @@ function AnimeDetailsPage() {
                                                   e.stopPropagation();
                                                   setDeleteEpisodeState({
                                                     open: true,
-                                                    episodeNumber:
-                                                      episode.number,
+                                                    episodeNumber: episode.number,
                                                   });
                                                 }}
                                               >
@@ -902,18 +835,13 @@ function AnimeDetailsPage() {
                                               </DropdownMenuItem>
                                               <DropdownMenuSeparator />
                                               <DropdownMenuItem
-                                                onClick={() => handlePlayInMpv(
-                                                  episode.number,
-                                                )}
+                                                onClick={() => handlePlayInMpv(episode.number)}
                                               >
                                                 <IconPlayerPlay class="h-4 w-4 mr-2" />
                                                 Play in MPV
                                               </DropdownMenuItem>
                                               <DropdownMenuItem
-                                                onClick={() =>
-                                                  handleCopyStreamLink(
-                                                    episode.number,
-                                                  )}
+                                                onClick={() => handleCopyStreamLink(episode.number)}
                                               >
                                                 <IconCopy class="h-4 w-4 mr-2" />
                                                 Copy Stream Link
@@ -934,10 +862,7 @@ function AnimeDetailsPage() {
                   </Tabs>
                 </Suspense>
 
-                <AnimeDiscoverySection
-                  anime={anime()}
-                  libraryIds={libraryIds()}
-                />
+                <AnimeDiscoverySection anime={anime()} libraryIds={libraryIds()} />
 
                 {/* Info */}
                 <Card>
@@ -965,9 +890,7 @@ function AnimeDetailsPage() {
                       </div>
                       <div>
                         <dt class="text-muted-foreground">Added</dt>
-                        <dd class="mt-1">
-                          {new Date(anime().added_at).toLocaleDateString()}
-                        </dd>
+                        <dd class="mt-1">{new Date(anime().added_at).toLocaleDateString()}</dd>
                       </div>
                     </dl>
                   </CardContent>
@@ -984,8 +907,7 @@ function AnimeDetailsPage() {
         episodeNumber={searchModalState().episodeNumber}
         episodeTitle={searchModalState().episodeTitle}
         open={searchModalState().open}
-        onOpenChange={(open) =>
-          setSearchModalState((prev) => ({ ...prev, open }))}
+        onOpenChange={(open) => setSearchModalState((prev) => ({ ...prev, open }))}
       />
 
       <RenameDialog
@@ -998,8 +920,7 @@ function AnimeDetailsPage() {
         animeId={animeId()}
         episodeNumber={mappingDialogState().episodeNumber}
         open={mappingDialogState().open}
-        onOpenChange={(open) =>
-          setMappingDialogState((prev) => ({ ...prev, open }))}
+        onOpenChange={(open) => setMappingDialogState((prev) => ({ ...prev, open }))}
       />
 
       <BulkMappingDialog
@@ -1010,8 +931,7 @@ function AnimeDetailsPage() {
 
       <AlertDialog
         open={deleteEpisodeState().open}
-        onOpenChange={(open) =>
-          setDeleteEpisodeState((prev) => ({ ...prev, open }))}
+        onOpenChange={(open) => setDeleteEpisodeState((prev) => ({ ...prev, open }))}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1139,8 +1059,8 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
       // Check if release profiles changed
       const currentIds = props.currentReleaseProfileIds.slice().sort();
       const newIds = value.releaseProfileIds.slice().sort();
-      const changed = currentIds.length !== newIds.length ||
-        currentIds.some((id, i) => id !== newIds[i]);
+      const changed =
+        currentIds.length !== newIds.length || currentIds.some((id, i) => id !== newIds[i]);
 
       if (changed) {
         promises.push(
@@ -1181,10 +1101,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
         <form.Field name="profile">
           {(field) => (
             <div class="space-y-2">
-              <label
-                class="text-sm font-medium leading-none"
-                for="profile-select"
-              >
+              <label class="text-sm font-medium leading-none" for="profile-select">
                 Quality Profile
               </label>
               <Select
@@ -1193,15 +1110,11 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
                 options={props.profiles.map((p) => p.name)}
                 placeholder="Select profile..."
                 itemComponent={(selectProps) => (
-                  <SelectItem item={selectProps.item}>
-                    {selectProps.item.rawValue}
-                  </SelectItem>
+                  <SelectItem item={selectProps.item}>{selectProps.item.rawValue}</SelectItem>
                 )}
               >
                 <SelectTrigger class="w-full">
-                  <SelectValue<string>>
-                    {(state) => state.selectedOption()}
-                  </SelectValue>
+                  <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
                 </SelectTrigger>
                 <SelectContent />
               </Select>
@@ -1210,15 +1123,12 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
         </form.Field>
 
         <div class="space-y-2">
-          <div class="text-sm font-medium leading-none">
-            Release Profiles (Optional)
-          </div>
+          <div class="text-sm font-medium leading-none">Release Profiles (Optional)</div>
           <form.Field name="releaseProfileIds">
             {(field) => (
               <div class="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
                 <Show
-                  when={props.releaseProfiles &&
-                    props.releaseProfiles.length > 0}
+                  when={props.releaseProfiles && props.releaseProfiles.length > 0}
                   fallback={
                     <div class="text-sm text-muted-foreground text-center py-2">
                       No release profiles available
@@ -1236,9 +1146,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
                             if (checked) {
                               field().handleChange([...currentIds, rp.id]);
                             } else {
-                              field().handleChange(
-                                currentIds.filter((id) => id !== rp.id),
-                              );
+                              field().handleChange(currentIds.filter((id) => id !== rp.id));
                             }
                           }}
                         />
@@ -1249,10 +1157,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
                           <span>{rp.name}</span>
                           <div class="flex gap-2">
                             <Show when={rp.is_global}>
-                              <Badge
-                                variant="outline"
-                                class="text-xs h-4 px-1"
-                              >
+                              <Badge variant="outline" class="text-xs h-4 px-1">
                                 Global
                               </Badge>
                             </Show>
@@ -1274,17 +1179,13 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
             )}
           </form.Field>
           <p class="text-xs text-muted-foreground">
-            Global profiles are applied automatically. Select specific profiles
-            to apply them to this series.
+            Global profiles are applied automatically. Select specific profiles to apply them to
+            this series.
           </p>
         </div>
 
         <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => props.onOpenChange(false)}
-          >
+          <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
             Cancel
           </Button>
           <form.Subscribe
@@ -1295,13 +1196,15 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
             {(state) => (
               <Button
                 type="submit"
-                disabled={state().isSubmitting ||
+                disabled={
+                  state().isSubmitting ||
                   props.updateMutation.isPending ||
-                  props.updateReleaseProfilesMutation.isPending}
+                  props.updateReleaseProfilesMutation.isPending
+                }
               >
                 {state().isSubmitting ||
-                    props.updateMutation.isPending ||
-                    props.updateReleaseProfilesMutation.isPending
+                props.updateMutation.isPending ||
+                props.updateReleaseProfilesMutation.isPending
                   ? "Saving..."
                   : "Save Changes"}
               </Button>
@@ -1394,25 +1297,18 @@ function BulkMappingDialog(props: {
                 <For each={allEpisodes()}>
                   {(episode) => (
                     <TableRow>
-                      <TableCell class="font-medium">
-                        Ep {episode.number}
-                      </TableCell>
+                      <TableCell class="font-medium">Ep {episode.number}</TableCell>
                       <TableCell>
                         <Select
-                          options={[
-                            { path: "", name: "(Unmap / No File)" },
-                            ...(files() || []),
-                          ]}
+                          options={[{ path: "", name: "(Unmap / No File)" }, ...(files() || [])]}
                           optionValue="path"
                           optionTextValue="name"
-                          value={files().find(
-                            (f) =>
-                              f.path ===
-                                (mappings()[episode.number] ??
-                                  episode.file_path),
-                          ) || { path: "", name: "(Unmap / No File)" }}
-                          onChange={(v) =>
-                            handleMap(episode.number, v?.path || "")}
+                          value={
+                            files().find(
+                              (f) => f.path === (mappings()[episode.number] ?? episode.file_path),
+                            ) || { path: "", name: "(Unmap / No File)" }
+                          }
+                          onChange={(v) => handleMap(episode.number, v?.path || "")}
                           placeholder="Select file..."
                           itemComponent={(props) => {
                             const item = props.item.rawValue as MappingOption;
@@ -1421,16 +1317,10 @@ function BulkMappingDialog(props: {
                                 {item.name}
                                 <Show when={"size" in item}>
                                   {" ("}
-                                  {(
-                                    (item as VideoFile).size /
-                                    1024 /
-                                    1024
-                                  ).toFixed(1)} MB)
+                                  {((item as VideoFile).size / 1024 / 1024).toFixed(1)} MB)
                                 </Show>
                                 <Show when={"episode_number" in item}>
-                                  {` [Ep ${
-                                    (item as VideoFile).episode_number
-                                  }]`}
+                                  {` [Ep ${(item as VideoFile).episode_number}]`}
                                 </Show>
                               </SelectItem>
                             );
@@ -1458,8 +1348,7 @@ function BulkMappingDialog(props: {
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={Object.keys(mappings()).length === 0 ||
-              bulkMapMutation.isPending}
+            disabled={Object.keys(mappings()).length === 0 || bulkMapMutation.isPending}
           >
             {bulkMapMutation.isPending ? "Mapping..." : "Save Mappings"}
           </Button>
@@ -1504,9 +1393,7 @@ function EditPathDialog(props: {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Root Path</DialogTitle>
-          <DialogDescription>
-            Change the folder path for this anime.
-          </DialogDescription>
+          <DialogDescription>Change the folder path for this anime.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} class="space-y-4">
           <div class="space-y-2">
@@ -1525,11 +1412,7 @@ function EditPathDialog(props: {
             </label>
           </div>
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => props.onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={props.updateMutation.isPending}>
@@ -1579,9 +1462,7 @@ function ManualMappingDialog(props: {
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent class="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>
-            Manual Mapping - Episode {props.episodeNumber}
-          </DialogTitle>
+          <DialogTitle>Manual Mapping - Episode {props.episodeNumber}</DialogTitle>
           <DialogDescription>
             Select a file from the anime directory to map to this episode.
           </DialogDescription>
@@ -1661,10 +1542,7 @@ function ManualMappingDialog(props: {
           <Button variant="outline" onClick={() => props.onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!selectedFile() || mapMutation.isPending}
-          >
+          <Button onClick={handleSubmit} disabled={!selectedFile() || mapMutation.isPending}>
             {mapMutation.isPending ? "Mapping..." : "Map File"}
           </Button>
         </DialogFooter>

@@ -33,30 +33,24 @@ export function makeEventPublisher(options?: {
   readonly infoEventToastWindowMs?: number;
   readonly publish?: (event: NotificationEvent) => Effect.Effect<void>;
 }) {
-  const infoEventToastWindowMs = options?.infoEventToastWindowMs ??
-    INFO_EVENT_TOAST_WINDOW_MS;
+  const infoEventToastWindowMs = options?.infoEventToastWindowMs ?? INFO_EVENT_TOAST_WINDOW_MS;
 
   return Effect.gen(function* () {
     const publish = options?.publish ?? (yield* EventBus).publish;
     const clock = yield* ClockService;
-    const infoPublisher: LatestValuePublisher<
-      CoalescedInfoEvent,
-      never,
-      never
-    > = yield* makeLatestValuePublisher<CoalescedInfoEvent, never, never>((
-      value,
-    ) =>
-      Effect.gen(function* () {
-        const now = yield* clock.currentTimeMillis;
-        const remainingMs = value.emitAt - now;
+    const infoPublisher: LatestValuePublisher<CoalescedInfoEvent, never, never> =
+      yield* makeLatestValuePublisher<CoalescedInfoEvent, never, never>((value) =>
+        Effect.gen(function* () {
+          const now = yield* clock.currentTimeMillis;
+          const remainingMs = value.emitAt - now;
 
-        if (remainingMs > 0) {
-          yield* Effect.sleep(`${remainingMs} millis`);
-        }
+          if (remainingMs > 0) {
+            yield* Effect.sleep(`${remainingMs} millis`);
+          }
 
-        yield* publish(value.event);
-      })
-    );
+          yield* publish(value.event);
+        }),
+      );
 
     return {
       publish,

@@ -35,21 +35,18 @@ function decodeAnimeGenres(value: string | null): string[] | undefined {
   return Either.isRight(decoded) ? [...decoded.right] : undefined;
 }
 
-export const buildRenamePreview = Effect.fn(
-  "OperationsService.buildRenamePreview",
-)(function* (db: AppDatabase, animeId: number) {
+export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePreview")(function* (
+  db: AppDatabase,
+  animeId: number,
+) {
   const animeRow = yield* requireAnime(db, animeId);
   const namingSettings = yield* currentNamingSettings(db);
   const namingFormat = selectNamingFormat(animeRow, namingSettings);
-  const rows = yield* tryDatabasePromise(
-    "Failed to load episodes for rename preview",
-    () =>
-      db.select().from(episodes).where(
-        and(
-          eq(episodes.animeId, animeId),
-          sql`${episodes.filePath} is not null`,
-        ),
-      ),
+  const rows = yield* tryDatabasePromise("Failed to load episodes for rename preview", () =>
+    db
+      .select()
+      .from(episodes)
+      .where(and(eq(episodes.animeId, animeId), sql`${episodes.filePath} is not null`)),
   );
 
   // Group rows by file path to handle multi-episode files
@@ -65,9 +62,7 @@ export const buildRenamePreview = Effect.fn(
   for (const [filePath, groupRows] of fileGroups) {
     const episodeNumbers = groupRows.map((r) => r.number).sort((a, b) => a - b);
     const primaryEpisode = episodeNumbers[0];
-    const extension = filePath.includes(".")
-      ? filePath.slice(filePath.lastIndexOf("."))
-      : ".mkv";
+    const extension = filePath.includes(".") ? filePath.slice(filePath.lastIndexOf(".")) : ".mkv";
     const plan = buildEpisodeFilenamePlan({
       animeRow,
       episodeNumbers,
@@ -84,9 +79,7 @@ export const buildRenamePreview = Effect.fn(
       fallback_used: plan.fallbackUsed || undefined,
       format_used: plan.formatUsed,
       metadata_snapshot: plan.metadataSnapshot,
-      missing_fields: plan.missingFields.length > 0
-        ? [...plan.missingFields]
-        : undefined,
+      missing_fields: plan.missingFields.length > 0 ? [...plan.missingFields] : undefined,
       new_filename: filename,
       new_path: `${animeRow.rootFolder.replace(/\/$/, "")}/${filename}`,
       warnings: plan.warnings.length > 0 ? [...plan.warnings] : undefined,
@@ -112,16 +105,11 @@ export function analyzeScannedFile(
   const isInSubfolder = rootPath
     ? fileDir.replace(/\/$/, "") !== rootPath.replace(/\/$/, "")
     : false;
-  const context = rootPath && isInSubfolder
-    ? buildPathParseContext(rootPath, file.path)
-    : undefined;
+  const context =
+    rootPath && isInSubfolder ? buildPathParseContext(rootPath, file.path) : undefined;
 
   // Classify first to detect extras/samples
-  const classification = classifyMediaArtifact(
-    file.path,
-    file.name,
-    context,
-  );
+  const classification = classifyMediaArtifact(file.path, file.name, context);
 
   if (classification.kind === "extra" || classification.kind === "sample") {
     return {
@@ -130,14 +118,12 @@ export function analyzeScannedFile(
         filename: file.name,
         parsed_title: "",
         source_path: file.path,
-        skip_reason: classification.skip_reason ??
-          `Detected as ${classification.kind}`,
+        skip_reason: classification.skip_reason ?? `Detected as ${classification.kind}`,
         needs_manual_mapping: false,
       },
       skipped: {
         path: file.path,
-        reason: classification.skip_reason ??
-          `Detected as ${classification.kind}`,
+        reason: classification.skip_reason ?? `Detected as ${classification.kind}`,
       },
     };
   }
@@ -171,13 +157,13 @@ export function analyzeScannedFile(
   }
 
   const primaryEpisode = episodeNumbers[0];
-  const needsManualMapping = !sourceIdentity ||
+  const needsManualMapping =
+    !sourceIdentity ||
     parsed.kind === "unknown" ||
     (sourceIdentity.scheme === "daily" && episodeNumbers.length === 0);
 
   // Fallback: extract group from filename if canonical parser didn't find one
-  const group = parsed.group ??
-    file.name.match(/^\[(.*?)\]/)?.[1];
+  const group = parsed.group ?? file.name.match(/^\[(.*?)\]/)?.[1];
   const metadata = buildScannedFileMetadata({
     filePath: file.path,
     group,
@@ -211,17 +197,13 @@ export function analyzeScannedFile(
       source_identity: sourceIdentityDto,
       skip_reason: parsed.skip_reason,
       video_codec: metadata.video_codec,
-      warnings: metadata.warnings.length > 0
-        ? [...metadata.warnings]
-        : undefined,
+      warnings: metadata.warnings.length > 0 ? [...metadata.warnings] : undefined,
       needs_manual_mapping: needsManualMapping || undefined,
     },
   };
 }
 
-export function toAnimeSearchCandidate(
-  row: typeof anime.$inferSelect,
-): AnimeSearchResult {
+export function toAnimeSearchCandidate(row: typeof anime.$inferSelect): AnimeSearchResult {
   return {
     already_in_library: true,
     banner_image: row.bannerImage ?? undefined,
@@ -311,14 +293,12 @@ export function summarizeEpisodeCoverage(input: {
     return undefined;
   }
 
-  const isContiguous = episodeNumbers.every((value, index) =>
-    index === 0 || value === episodeNumbers[index - 1] + 1
+  const isContiguous = episodeNumbers.every(
+    (value, index) => index === 0 || value === episodeNumbers[index - 1] + 1,
   );
 
   if (isContiguous) {
-    return `Episodes ${episodeNumbers[0]}-${
-      episodeNumbers[episodeNumbers.length - 1]
-    }`;
+    return `Episodes ${episodeNumbers[0]}-${episodeNumbers[episodeNumbers.length - 1]}`;
   }
 
   return `Episodes ${episodeNumbers.join(", ")}`;
@@ -334,21 +314,16 @@ export function scoreAnimeSearchResultMatch(
     candidate.title.english,
     candidate.title.native,
     ...(candidate.synonyms ?? []),
-  ].filter((value): value is string =>
-    typeof value === "string" && value.length > 0
-  );
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
 
-  return titles.length === 0 ? 0 : Math.max(
-    ...titles.map((title) => scoreTitleMatch(target, normalizeTitle(title))),
-  );
+  return titles.length === 0
+    ? 0
+    : Math.max(...titles.map((title) => scoreTitleMatch(target, normalizeTitle(title))));
 }
 
 export function scoreAnimeRowMatch(
   parsedTitle: string,
-  row: Pick<
-    typeof anime.$inferSelect,
-    "titleRomaji" | "titleEnglish" | "titleNative"
-  >,
+  row: Pick<typeof anime.$inferSelect, "titleRomaji" | "titleEnglish" | "titleNative">,
 ) {
   return scoreAnimeSearchResultMatch(parsedTitle, {
     title: {
@@ -403,8 +378,7 @@ function scoreTitleMatch(left: string, right: string) {
 
   const leftTokens = new Set(left.split(" ").filter(Boolean));
   const rightTokens = new Set(right.split(" ").filter(Boolean));
-  const intersection =
-    [...leftTokens].filter((token) => rightTokens.has(token)).length;
+  const intersection = [...leftTokens].filter((token) => rightTokens.has(token)).length;
   const union = new Set([...leftTokens, ...rightTokens]).size;
 
   return union === 0 ? 0 : intersection / union;

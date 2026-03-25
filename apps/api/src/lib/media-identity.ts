@@ -16,21 +16,21 @@ import { parseSeasonEpisodeIdentity } from "./media-identity-season.ts";
 
 export type ParsedEpisodeIdentity =
   | {
-    scheme: "season";
-    season: number;
-    episode_numbers: number[];
-    label: string;
-  }
+      scheme: "season";
+      season: number;
+      episode_numbers: number[];
+      label: string;
+    }
   | {
-    scheme: "absolute";
-    episode_numbers: number[];
-    label: string;
-  }
+      scheme: "absolute";
+      episode_numbers: number[];
+      label: string;
+    }
   | {
-    scheme: "daily";
-    air_dates: string[];
-    label: string;
-  };
+      scheme: "daily";
+      air_dates: string[];
+      label: string;
+    };
 
 export interface PathParseContext {
   /** Title inferred from nearest entry folder (e.g. "Overlord II") */
@@ -86,13 +86,7 @@ const EXTRA_FOLDER_NAMES = new Set([
 
 const SAMPLE_KEYWORDS = ["sample", "samples"];
 
-const SPECIALS_FOLDER_NAMES = new Set([
-  "specials",
-  "special",
-  "season 0",
-  "season 00",
-  "s00",
-]);
+const SPECIALS_FOLDER_NAMES = new Set(["specials", "special", "season 0", "season 00", "s00"]);
 
 const VIDEO_EXTENSIONS = new Set([".mkv", ".mp4", ".avi", ".mov", ".webm"]);
 
@@ -104,10 +98,7 @@ const VIDEO_EXTENSIONS = new Set([".mkv", ".mp4", ".avi", ".mov", ".webm"]);
  * Parse a local file path into a media identity. Uses folder context when the
  * filename alone is ambiguous.
  */
-export function parseFileSourceIdentity(
-  path: string,
-  context?: PathParseContext,
-): ParsedMediaFile {
+export function parseFileSourceIdentity(path: string, context?: PathParseContext): ParsedMediaFile {
   const filename = path.split("/").pop() ?? path;
   const extensionless = stripExtension(filename);
 
@@ -126,8 +117,10 @@ export function parseFileSourceIdentity(
   if (daily) {
     return {
       kind: "episode",
-      parsed_title: extractTitleBeforeIdentity(extensionless, daily.label) ||
-        context?.entry_folder_title || extensionless,
+      parsed_title:
+        extractTitleBeforeIdentity(extensionless, daily.label) ||
+        context?.entry_folder_title ||
+        extensionless,
       source_identity: daily,
       group,
       resolution,
@@ -139,8 +132,10 @@ export function parseFileSourceIdentity(
   if (seasonEp) {
     return {
       kind: "episode",
-      parsed_title: extractTitleBeforeIdentity(extensionless, seasonEp.label) ||
-        context?.entry_folder_title || extensionless,
+      parsed_title:
+        extractTitleBeforeIdentity(extensionless, seasonEp.label) ||
+        context?.entry_folder_title ||
+        extensionless,
       source_identity: seasonEp,
       group,
       resolution,
@@ -151,23 +146,21 @@ export function parseFileSourceIdentity(
   const absolute = parseAbsoluteIdentity(extensionless, filename);
   if (absolute) {
     // If folder context provides a season hint, promote to season scheme
-    if (
-      context?.season_hint !== undefined ||
-      context?.is_specials_folder
-    ) {
+    if (context?.season_hint !== undefined || context?.is_specials_folder) {
       const season = context.is_specials_folder ? 0 : context.season_hint!;
       const promoted: ParsedEpisodeIdentity = {
         scheme: "season",
         season,
         episode_numbers: absolute.episode_numbers,
-        label: season === 0
-          ? `S00E${absolute.label}`
-          : `S${String(season).padStart(2, "0")}E${absolute.label}`,
+        label:
+          season === 0
+            ? `S00E${absolute.label}`
+            : `S${String(season).padStart(2, "0")}E${absolute.label}`,
       };
       return {
         kind: "episode",
-        parsed_title: context?.entry_folder_title ||
-          extractTitleBeforeNumber(extensionless) || extensionless,
+        parsed_title:
+          context?.entry_folder_title || extractTitleBeforeNumber(extensionless) || extensionless,
         source_identity: promoted,
         group,
         resolution,
@@ -176,8 +169,8 @@ export function parseFileSourceIdentity(
 
     return {
       kind: "episode",
-      parsed_title: context?.entry_folder_title ||
-        extractTitleBeforeNumber(extensionless) || extensionless,
+      parsed_title:
+        context?.entry_folder_title || extractTitleBeforeNumber(extensionless) || extensionless,
       source_identity: absolute,
       group,
       resolution,
@@ -326,10 +319,7 @@ export function classifyMediaArtifact(
 /**
  * Build folder context from a root path and a full file path.
  */
-export function buildPathParseContext(
-  rootPath: string,
-  fullPath: string,
-): PathParseContext {
+export function buildPathParseContext(rootPath: string, fullPath: string): PathParseContext {
   const normalizedRoot = rootPath.replace(/\/+$/, "");
   const normalizedFull = fullPath.replace(/\/+$/, "");
 
@@ -361,9 +351,7 @@ export function buildPathParseContext(
     }
 
     // Check for season folder: "Season 1", "Season 01", "S01"
-    const seasonMatch = folder.match(
-      /^(?:season\s+(\d{1,2})|s(\d{1,2}))$/i,
-    );
+    const seasonMatch = folder.match(/^(?:season\s+(\d{1,2})|s(\d{1,2}))$/i);
     if (seasonMatch) {
       const num = Number(seasonMatch[1] ?? seasonMatch[2]);
       if (num === 0) {
@@ -412,14 +400,13 @@ export function formatEpisodeSegment(input: {
   }
 
   // Check if contiguous
-  const isContiguous = sorted.every(
-    (n, i) => i === 0 || n === sorted[i - 1] + 1,
-  );
+  const isContiguous = sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
 
   if (isContiguous) {
-    return `${String(sorted[0]).padStart(pad, "0")}-${
-      String(sorted[sorted.length - 1]).padStart(pad, "0")
-    }`;
+    return `${String(sorted[0]).padStart(pad, "0")}-${String(sorted[sorted.length - 1]).padStart(
+      pad,
+      "0",
+    )}`;
   }
 
   return sorted.map((n) => String(n).padStart(pad, "0")).join("-");
@@ -455,9 +442,7 @@ function extractSequelHint(folderName: string): string | undefined {
   if (romanMatch) return romanMatch[1].toUpperCase();
 
   // "2nd Season", "3rd Season"
-  const ordinalMatch = lower.match(
-    /(\d+)(?:st|nd|rd|th)\s+season/,
-  );
+  const ordinalMatch = lower.match(/(\d+)(?:st|nd|rd|th)\s+season/);
   if (ordinalMatch) return `Season ${ordinalMatch[1]}`;
 
   // "Season 2", "Season 3"
@@ -479,19 +464,13 @@ function extractSequelHint(folderName: string): string | undefined {
 // Title extraction helpers
 // ---------------------------------------------------------------------------
 
-function extractTitleBeforeIdentity(
-  value: string,
-  label: string,
-): string {
+function extractTitleBeforeIdentity(value: string, label: string): string {
   // Remove group prefix [Group]
   let cleaned = value.replace(/^\[[^\]]+\]\s*/g, "");
 
   // Find where the identity label (or its components) appear and take text before
   const labelEscaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const labelPattern = new RegExp(
-    `[\\s._-]+(?:${labelEscaped})(?:[\\s._-]|$)`,
-    "i",
-  );
+  const labelPattern = new RegExp(`[\\s._-]+(?:${labelEscaped})(?:[\\s._-]|$)`, "i");
   const match = cleaned.match(labelPattern);
   if (match?.index !== undefined) {
     cleaned = cleaned.slice(0, match.index);
@@ -499,30 +478,15 @@ function extractTitleBeforeIdentity(
 
   // Also try to strip common identity patterns
   cleaned = cleaned
-    .replace(
-      /[\s._-]+s\d{1,2}[\s._-]*e\d{1,4}(?:[\s._-]*e?\d{1,4})*.*/i,
-      "",
-    )
+    .replace(/[\s._-]+s\d{1,2}[\s._-]*e\d{1,4}(?:[\s._-]*e?\d{1,4})*.*/i, "")
     .replace(/[\s._-]+\d{1,2}x\d{1,3}.*/i, "")
-    .replace(
-      /[\s._-]+season[\s._-]*\d+[\s._-]*(?:ep|e|episode)[\s._-]*\d+.*/i,
-      "",
-    )
-    .replace(
-      /[\s._-]+season[\s._-]*\d+[\s._-]+(?:-[\s._-]*)?\d+.*/i,
-      "",
-    )
-    .replace(
-      /[\s._-]+\d{4}[\s._-]\d{2}[\s._-]\d{2}.*/,
-      "",
-    );
+    .replace(/[\s._-]+season[\s._-]*\d+[\s._-]*(?:ep|e|episode)[\s._-]*\d+.*/i, "")
+    .replace(/[\s._-]+season[\s._-]*\d+[\s._-]+(?:-[\s._-]*)?\d+.*/i, "")
+    .replace(/[\s._-]+\d{4}[\s._-]\d{2}[\s._-]\d{2}.*/, "");
 
   // Clean up quality/codec/bracket tags
   cleaned = cleaned
-    .replace(
-      /\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac)[^\]]*\]/gi,
-      "",
-    )
+    .replace(/\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac)[^\]]*\]/gi, "")
     .replace(
       /\b(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray|batch|complete)\b/gi,
       "",
@@ -540,10 +504,7 @@ function extractTitleBeforeNumber(value: string): string {
   // Strip from the last separator + number onward
   cleaned = cleaned
     .replace(/[\s._-]+\d{1,4}(?:v\d+)?(?:[\s._-].*)?$/, "")
-    .replace(
-      /\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac)[^\]]*\]/gi,
-      "",
-    )
+    .replace(/\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac)[^\]]*\]/gi, "")
     .replace(
       /\b(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray|batch|complete)\b/gi,
       "",
@@ -583,10 +544,7 @@ function extractGroup(value: string): string | undefined {
   const suffixMatch = extensionless.match(/-([A-Za-z0-9][A-Za-z0-9+_.&']*)$/);
   const suffixGroup = suffixMatch?.[1]?.trim();
 
-  if (
-    suffixGroup && /[A-Za-z]/.test(suffixGroup) &&
-    !looksLikeMetadataTag(suffixGroup)
-  ) {
+  if (suffixGroup && /[A-Za-z]/.test(suffixGroup) && !looksLikeMetadataTag(suffixGroup)) {
     return suffixGroup;
   }
 

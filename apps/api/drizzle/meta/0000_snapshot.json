@@ -32,9 +32,7 @@
       "indexes": {
         "library_roots_path_unique": {
           "name": "library_roots_path_unique",
-          "columns": [
-            "path"
-          ],
+          "columns": ["path"],
           "isUnique": true
         }
       },

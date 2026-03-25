@@ -61,21 +61,13 @@ export interface AnimeServiceShape {
   readonly listAnime: (
     params?: AnimeListQueryParams,
   ) => Effect.Effect<AnimeListResponse, DatabaseError | AnimeStoredDataError>;
-  readonly getAnime: (
-    id: number,
-  ) => Effect.Effect<Anime, AnimeServiceError | DatabaseError>;
+  readonly getAnime: (id: number) => Effect.Effect<Anime, AnimeServiceError | DatabaseError>;
   readonly searchAnime: (
     query: string,
-  ) => Effect.Effect<
-    AnimeSearchResponse,
-    DatabaseError | ExternalCallError | AnimeStoredDataError
-  >;
+  ) => Effect.Effect<AnimeSearchResponse, DatabaseError | ExternalCallError | AnimeStoredDataError>;
   readonly getAnimeByAnilistId: (
     id: number,
-  ) => Effect.Effect<
-    AnimeSearchResult,
-    AnimeNotFoundError | DatabaseError | ExternalCallError
-  >;
+  ) => Effect.Effect<AnimeSearchResult, AnimeNotFoundError | DatabaseError | ExternalCallError>;
   readonly addAnime: (
     input: AddAnimeInput,
   ) => Effect.Effect<
@@ -99,40 +91,26 @@ export interface AnimeServiceShape {
   readonly updateProfile: (
     id: number,
     profileName: string,
-  ) => Effect.Effect<
-    void,
-    AnimeServiceError | DatabaseError | ProfileNotFoundError
-  >;
+  ) => Effect.Effect<void, AnimeServiceError | DatabaseError | ProfileNotFoundError>;
   readonly updateReleaseProfiles: (
     id: number,
     releaseProfileIds: number[],
   ) => Effect.Effect<void, AnimeServiceError | DatabaseError>;
-  readonly listEpisodes: (
-    animeId: number,
-  ) => Effect.Effect<Episode[], DatabaseError>;
+  readonly listEpisodes: (animeId: number) => Effect.Effect<Episode[], DatabaseError>;
   readonly resolveEpisodeFile: (
     animeId: number,
     episodeNumber: number,
-  ) => Effect.Effect<
-    EpisodeFileResolution,
-    AnimeServiceError | DatabaseError
-  >;
+  ) => Effect.Effect<EpisodeFileResolution, AnimeServiceError | DatabaseError>;
   readonly refreshEpisodes: (
     animeId: number,
-  ) => Effect.Effect<
-    void,
-    AnimeServiceError | DatabaseError | ExternalCallError
-  >;
+  ) => Effect.Effect<void, AnimeServiceError | DatabaseError | ExternalCallError>;
   readonly refreshMetadataForMonitoredAnime: () => Effect.Effect<
     { refreshed: number },
     DatabaseError | ExternalCallError | AnimeServiceError
   >;
   readonly scanFolder: (
     animeId: number,
-  ) => Effect.Effect<
-    { found: number; total: number },
-    AnimeServiceError | DatabaseError
-  >;
+  ) => Effect.Effect<{ found: number; total: number }, AnimeServiceError | DatabaseError>;
   readonly deleteEpisodeFile: (
     animeId: number,
     episodeNumber: number,
@@ -167,17 +145,10 @@ const makeAnimeService = Effect.gen(function* () {
     aniList,
     db,
   });
-  const {
-    bulkMapEpisodes,
-    deleteEpisodeFile,
-    listFiles,
-    mapEpisode,
-    resolveEpisodeFile,
-  } = makeAnimeFileOperations({ db, fs, mediaProbe });
+  const { bulkMapEpisodes, deleteEpisodeFile, listFiles, mapEpisode, resolveEpisodeFile } =
+    makeAnimeFileOperations({ db, fs, mediaProbe });
 
-  const addAnime = Effect.fn("AnimeService.addAnime")(function* (
-    input: AddAnimeInput,
-  ) {
+  const addAnime = Effect.fn("AnimeService.addAnime")(function* (input: AddAnimeInput) {
     return yield* addAnimeEffect({
       aniList,
       animeInput: input,
@@ -188,10 +159,8 @@ const makeAnimeService = Effect.gen(function* () {
     });
   });
 
-  const listAnime: AnimeServiceShape["listAnime"] = (params) =>
-    listAnimeEffect(db, params);
-  const getAnime: AnimeServiceShape["getAnime"] = (id) =>
-    getAnimeEffect({ db, id });
+  const listAnime: AnimeServiceShape["listAnime"] = (params) => listAnimeEffect(db, params);
+  const getAnime: AnimeServiceShape["getAnime"] = (id) => getAnimeEffect({ db, id });
   const searchAnime: AnimeServiceShape["searchAnime"] = (query) =>
     searchAnimeEffect({ aniList, db, query });
   const getAnimeByAnilistId: AnimeServiceShape["getAnimeByAnilistId"] = (id) =>
@@ -200,9 +169,8 @@ const makeAnimeService = Effect.gen(function* () {
     listEpisodesEffect({ animeId, db });
   const refreshEpisodes: AnimeServiceShape["refreshEpisodes"] = (animeId) =>
     refreshEpisodesEffect({ aniList, animeId, db, eventPublisher });
-  const refreshMetadataForMonitoredAnime:
-    AnimeServiceShape["refreshMetadataForMonitoredAnime"] = () =>
-      metadataRefreshRunner.trigger;
+  const refreshMetadataForMonitoredAnime: AnimeServiceShape["refreshMetadataForMonitoredAnime"] =
+    () => metadataRefreshRunner.trigger;
   const scanFolder: AnimeServiceShape["scanFolder"] = (animeId) =>
     scanAnimeFolderOrchestrationEffect({
       animeId,
@@ -211,8 +179,7 @@ const makeAnimeService = Effect.gen(function* () {
       fs,
       mediaProbe,
     });
-  const deleteAnime: AnimeServiceShape["deleteAnime"] = (id) =>
-    deleteAnimeEffect(db, id);
+  const deleteAnime: AnimeServiceShape["deleteAnime"] = (id) => deleteAnimeEffect(db, id);
 
   const updatePath: AnimeServiceShape["updatePath"] = (id, path) =>
     updateAnimePathEffect({ db, fs, id, path });

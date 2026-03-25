@@ -1,13 +1,6 @@
 import { IconLoader2 } from "@tabler/icons-solidjs";
 import { createFileRoute } from "@tanstack/solid-router";
-import {
-  addMonths,
-  endOfMonth,
-  endOfWeek,
-  startOfMonth,
-  startOfWeek,
-  subMonths,
-} from "date-fns";
+import { addMonths, endOfMonth, endOfWeek, startOfMonth, startOfWeek, subMonths } from "date-fns";
 import { Suspense } from "solid-js";
 import { AnimeCalendar } from "~/components/anime-calendar";
 import { GeneralError } from "~/components/general-error";
@@ -18,9 +11,7 @@ export const Route = createFileRoute("/_layout/calendar")({
     const now = new Date();
     const fetchStart = subMonths(startOfWeek(startOfMonth(now)), 1);
     const fetchEnd = addMonths(endOfWeek(endOfMonth(now)), 1);
-    await queryClient.ensureQueryData(
-      calendarQueryOptions(fetchStart, fetchEnd),
-    );
+    await queryClient.ensureQueryData(calendarQueryOptions(fetchStart, fetchEnd));
   },
   component: CalendarPage,
   errorComponent: GeneralError,

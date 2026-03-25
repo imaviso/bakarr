@@ -1,8 +1,5 @@
 import type { DownloadSourceMetadata, NotificationEvent } from "@bakarr/shared";
-import {
-  formatDownloadDecisionSummary,
-  formatDownloadParsedMeta,
-} from "~/lib/download-metadata";
+import { formatDownloadDecisionSummary, formatDownloadParsedMeta } from "~/lib/download-metadata";
 import { formatReleaseSourceSummary } from "~/lib/release-metadata";
 
 export function formatDownloadNotificationDescription(input: {
@@ -28,9 +25,7 @@ export function formatDownloadNotificationDescription(input: {
     parsedSummary,
     decisionSummary,
     input.imported_path ? `Imported to ${input.imported_path}` : undefined,
-  ].filter((value): value is string =>
-    typeof value === "string" && value.length > 0
-  );
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
 
   return parts.length > 0 ? parts.join("\n") : undefined;
 }
@@ -49,11 +44,11 @@ export function getNotificationToastCopy(event: NotificationEvent) {
       };
     case "ImportFinished":
       return {
-        description: event.payload.failed > 0
-          ? `${event.payload.failed} failed while ${event.payload.imported} imported successfully`
-          : undefined,
-        message:
-          `Import finished. Imported ${event.payload.imported}, Failed ${event.payload.failed}`,
+        description:
+          event.payload.failed > 0
+            ? `${event.payload.failed} failed while ${event.payload.imported} imported successfully`
+            : undefined,
+        message: `Import finished. Imported ${event.payload.imported}, Failed ${event.payload.failed}`,
       };
     default:
       return undefined;

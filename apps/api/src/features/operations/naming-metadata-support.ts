@@ -28,26 +28,23 @@ export function buildScannedFileMetadata(input: {
   sourceIdentity?: SharedParsedEpisodeIdentity;
 }): ScannedFileMetadata {
   const warnings: string[] = [];
-  const multipleEpisodes = input.sourceIdentity?.scheme !== "daily" &&
+  const multipleEpisodes =
+    input.sourceIdentity?.scheme !== "daily" &&
     (input.sourceIdentity?.episode_numbers?.length ?? 0) > 1;
   const episodeTitle = input.sourceIdentity
     ? extractEpisodeTitleFromPath({
-      filePath: input.filePath,
-      group: input.group,
-      sourceIdentity: input.sourceIdentity,
-    })
+        filePath: input.filePath,
+        group: input.group,
+        sourceIdentity: input.sourceIdentity,
+      })
     : undefined;
 
   if (multipleEpisodes && episodeTitle) {
-    warnings.push(
-      "Skipped {episode_title} because the file covers multiple episodes",
-    );
+    warnings.push("Skipped {episode_title} because the file covers multiple episodes");
   }
 
   if (input.sourceIdentity?.scheme === "daily") {
-    warnings.push(
-      "Parsed a daily air date; set the episode number before import",
-    );
+    warnings.push("Parsed a daily air date; set the episode number before import");
   }
 
   if (!input.sourceIdentity) {
@@ -55,9 +52,10 @@ export function buildScannedFileMetadata(input: {
   }
 
   return {
-    air_date: input.sourceIdentity?.scheme === "daily"
-      ? normalizeAirDate(input.sourceIdentity.air_dates?.[0])
-      : undefined,
+    air_date:
+      input.sourceIdentity?.scheme === "daily"
+        ? normalizeAirDate(input.sourceIdentity.air_dates?.[0])
+        : undefined,
     audio_channels: extractAudioChannels(input.filePath),
     audio_codec: extractAudioCodec(input.filePath),
     episode_title: multipleEpisodes ? undefined : episodeTitle,
@@ -94,9 +92,10 @@ export function buildDownloadSourceMetadataFromRelease(input: {
   const group = normalizeText(input.group) ?? parsed.group;
 
   return {
-    air_date: sourceIdentity?.scheme === "daily"
-      ? normalizeAirDate(sourceIdentity.air_dates?.[0])
-      : undefined,
+    air_date:
+      sourceIdentity?.scheme === "daily"
+        ? normalizeAirDate(sourceIdentity.air_dates?.[0])
+        : undefined,
     audio_channels: extractAudioChannels(input.title),
     audio_codec: extractAudioCodec(input.title),
     decision_reason: normalizeText(input.decisionReason),
@@ -146,30 +145,12 @@ export function mergeDownloadSourceMetadata(
     air_date: pickOverride(override.air_date, base.air_date),
     audio_channels: pickOverride(override.audio_channels, base.audio_channels),
     audio_codec: pickOverride(override.audio_codec, base.audio_codec),
-    decision_reason: pickOverride(
-      override.decision_reason,
-      base.decision_reason,
-    ),
-    selection_kind: pickOverride(
-      override.selection_kind,
-      base.selection_kind,
-    ),
-    selection_score: pickOverride(
-      override.selection_score,
-      base.selection_score,
-    ),
-    previous_quality: pickOverride(
-      override.previous_quality,
-      base.previous_quality,
-    ),
-    previous_score: pickOverride(
-      override.previous_score,
-      base.previous_score,
-    ),
-    chosen_from_seadex: pickOverride(
-      override.chosen_from_seadex,
-      base.chosen_from_seadex,
-    ),
+    decision_reason: pickOverride(override.decision_reason, base.decision_reason),
+    selection_kind: pickOverride(override.selection_kind, base.selection_kind),
+    selection_score: pickOverride(override.selection_score, base.selection_score),
+    previous_quality: pickOverride(override.previous_quality, base.previous_quality),
+    previous_score: pickOverride(override.previous_score, base.previous_score),
+    chosen_from_seadex: pickOverride(override.chosen_from_seadex, base.chosen_from_seadex),
     episode_title: pickOverride(override.episode_title, base.episode_title),
     group: pickOverride(override.group, base.group),
     indexer: pickOverride(override.indexer, base.indexer),
@@ -179,27 +160,16 @@ export function mergeDownloadSourceMetadata(
     quality: pickOverride(override.quality, base.quality),
     remake: pickOverride(override.remake, base.remake),
     resolution: pickOverride(override.resolution, base.resolution),
-    seadex_comparison: pickOverride(
-      override.seadex_comparison,
-      base.seadex_comparison,
-    ),
-    seadex_dual_audio: pickOverride(
-      override.seadex_dual_audio,
-      base.seadex_dual_audio,
-    ),
+    seadex_comparison: pickOverride(override.seadex_comparison, base.seadex_comparison),
+    seadex_dual_audio: pickOverride(override.seadex_dual_audio, base.seadex_dual_audio),
     seadex_notes: pickOverride(override.seadex_notes, base.seadex_notes),
-    seadex_release_group: pickOverride(
-      override.seadex_release_group,
-      base.seadex_release_group,
-    ),
+    seadex_release_group: pickOverride(override.seadex_release_group, base.seadex_release_group),
     seadex_tags: override.seadex_tags
       ? [...override.seadex_tags]
       : base.seadex_tags
-      ? [...base.seadex_tags]
-      : undefined,
-    source_identity: cloneParsedEpisodeIdentity(
-      override.source_identity ?? base.source_identity,
-    ),
+        ? [...base.seadex_tags]
+        : undefined,
+    source_identity: cloneParsedEpisodeIdentity(override.source_identity ?? base.source_identity),
     source_url: pickOverride(override.source_url, base.source_url),
     trusted: pickOverride(override.trusted, base.trusted),
     video_codec: pickOverride(override.video_codec, base.video_codec),
@@ -216,12 +186,11 @@ export function buildEpisodeNamingInputFromPath(input: {
   rootFolder?: string;
   season?: number;
 }): NamingInput {
-  const context = input.rootFolder &&
-      input.filePath.replace(/\/+$/, "").startsWith(
-        input.rootFolder.replace(/\/+$/, "") + "/",
-      )
-    ? buildPathParseContext(input.rootFolder, input.filePath)
-    : undefined;
+  const context =
+    input.rootFolder &&
+    input.filePath.replace(/\/+$/, "").startsWith(input.rootFolder.replace(/\/+$/, "") + "/")
+      ? buildPathParseContext(input.rootFolder, input.filePath)
+      : undefined;
   const parsed = parseFileSourceIdentity(input.filePath, context);
   const sourceIdentity = parsed.source_identity;
   const group = parsed.group;
@@ -231,7 +200,8 @@ export function buildEpisodeNamingInputFromPath(input: {
     audioChannels: extractAudioChannels(input.filePath),
     audioCodec: extractAudioCodec(input.filePath),
     episodeNumbers: [...input.episodeNumbers],
-    episodeTitle: normalizeText(input.episodeTitle) ??
+    episodeTitle:
+      normalizeText(input.episodeTitle) ??
       extractEpisodeTitleFromPath({
         filePath: input.filePath,
         group,
@@ -240,9 +210,7 @@ export function buildEpisodeNamingInputFromPath(input: {
     group,
     quality: extractQualitySourceLabel(input.filePath),
     resolution: parsed.resolution,
-    season: sourceIdentity?.scheme === "season"
-      ? sourceIdentity.season
-      : input.season,
+    season: sourceIdentity?.scheme === "season" ? sourceIdentity.season : input.season,
     sourceIdentity,
     title: input.animeTitle,
     videoCodec: extractVideoCodec(input.filePath),
@@ -287,8 +255,12 @@ export function selectAnimeYearForNaming(input: {
   endYear?: number | null;
   endDate?: string | null;
 }) {
-  return input.startYear ?? extractYearFromIsoDate(input.startDate) ??
-    input.endYear ?? extractYearFromIsoDate(input.endDate);
+  return (
+    input.startYear ??
+    extractYearFromIsoDate(input.startDate) ??
+    input.endYear ??
+    extractYearFromIsoDate(input.endDate)
+  );
 }
 
 function extractEpisodeTitleFromPath(input: {
@@ -300,21 +272,15 @@ function extractEpisodeTitleFromPath(input: {
     return undefined;
   }
 
-  const extensionless = stripExtension(basename(input.filePath)).replace(
-    /^\[[^\]]+\]\s*/,
-    "",
-  );
-  const labelIndex = extensionless.toLowerCase().indexOf(
-    input.sourceIdentity.label.toLowerCase(),
-  );
+  const extensionless = stripExtension(basename(input.filePath)).replace(/^\[[^\]]+\]\s*/, "");
+  const labelIndex = extensionless.toLowerCase().indexOf(input.sourceIdentity.label.toLowerCase());
 
   if (labelIndex < 0) {
     return undefined;
   }
 
-  let remainder = extensionless.slice(
-    labelIndex + input.sourceIdentity.label.length,
-  )
+  let remainder = extensionless
+    .slice(labelIndex + input.sourceIdentity.label.length)
     .replace(/^[\s._-]+/, "")
     .trim();
 
@@ -341,10 +307,7 @@ function extractEpisodeTitleFromPath(input: {
   }
 
   if (input.group) {
-    remainder = remainder.replace(
-      new RegExp(`\\s*-\\s*${escapeRegex(input.group)}\\s*$`, "i"),
-      "",
-    );
+    remainder = remainder.replace(new RegExp(`\\s*-\\s*${escapeRegex(input.group)}\\s*$`, "i"), "");
   }
 
   remainder = remainder
@@ -363,8 +326,10 @@ function extractQualitySourceLabel(value: string) {
     return "BluRay Remux";
   }
   if (
-    lower.includes("bluray") || lower.includes("blu-ray") ||
-    lower.includes("bdrip") || lower.includes("bdmv") ||
+    lower.includes("bluray") ||
+    lower.includes("blu-ray") ||
+    lower.includes("bdrip") ||
+    lower.includes("bdmv") ||
     /(?:^|[\s._\-\[\]()])bd(?:$|[\s._\-\[\]()])/i.test(value)
   ) {
     return "BluRay";
@@ -373,12 +338,18 @@ function extractQualitySourceLabel(value: string) {
     return "WEBRip";
   }
   if (
-    lower.includes("web-dl") || lower.includes("webdl") ||
-    /\bamzn\b/i.test(value) || lower.includes("amazon") ||
-    lower.includes("crunchyroll") || /\bcr\b/i.test(value) ||
-    /\bdsnp\b/i.test(value) || lower.includes("disney") ||
-    /\bnf\b/i.test(value) || lower.includes("netflix") ||
-    /\bhmax\b/i.test(value) || lower.includes("hulu")
+    lower.includes("web-dl") ||
+    lower.includes("webdl") ||
+    /\bamzn\b/i.test(value) ||
+    lower.includes("amazon") ||
+    lower.includes("crunchyroll") ||
+    /\bcr\b/i.test(value) ||
+    /\bdsnp\b/i.test(value) ||
+    lower.includes("disney") ||
+    /\bnf\b/i.test(value) ||
+    lower.includes("netflix") ||
+    /\bhmax\b/i.test(value) ||
+    lower.includes("hulu")
   ) {
     return "WEB-DL";
   }
@@ -399,9 +370,7 @@ function extractQualitySourceLabel(value: string) {
 }
 
 function extractVideoCodec(value: string) {
-  const match = value.match(
-    /\b(x265|hevc|h[ .-]?265|x264|avc|h[ .-]?264|av1|vp9)\b/i,
-  );
+  const match = value.match(/\b(x265|hevc|h[ .-]?265|x264|avc|h[ .-]?264|av1|vp9)\b/i);
 
   if (!match) {
     return undefined;
@@ -432,9 +401,7 @@ function extractVideoCodec(value: string) {
 }
 
 function extractAudioCodec(value: string) {
-  const match = value.match(
-    /\b(truehd|eac3|ddp|ac3|dts(?:-hd)?|flac|opus|aac)\b/i,
-  );
+  const match = value.match(/\b(truehd|eac3|ddp|ac3|dts(?:-hd)?|flac|opus|aac)\b/i);
 
   if (!match) {
     return undefined;
@@ -467,9 +434,9 @@ function extractAudioCodec(value: string) {
 }
 
 function extractAudioChannels(value: string) {
-  const match = value.match(
-    /\b(?:aac|flac|opus|ac3|eac3|ddp|truehd|dts(?:-hd)?)\s*([1-9]\.\d)\b/i,
-  ) ?? value.match(/\b([1-9]\.\d)\b/);
+  const match =
+    value.match(/\b(?:aac|flac|opus|ac3|eac3|ddp|truehd|dts(?:-hd)?)\s*([1-9]\.\d)\b/i) ??
+    value.match(/\b([1-9]\.\d)\b/);
 
   if (match?.[1]) {
     return match[1];
@@ -549,9 +516,7 @@ function escapeRegex(value: string) {
 }
 
 function cloneParsedEpisodeIdentity(
-  identity?:
-    | DownloadSourceMetadata["source_identity"]
-    | LocalParsedEpisodeIdentity,
+  identity?: DownloadSourceMetadata["source_identity"] | LocalParsedEpisodeIdentity,
 ): SharedParsedEpisodeIdentity | undefined {
   if (!identity) {
     return undefined;
@@ -580,15 +545,10 @@ function cloneParsedEpisodeIdentity(
   }
 }
 
-function pickOverride<T>(
-  override: T | undefined,
-  base: T | undefined,
-): T | undefined {
+function pickOverride<T>(override: T | undefined, base: T | undefined): T | undefined {
   return override !== undefined ? override : base;
 }
 
 function normalizeFiniteNumber(value: number | undefined) {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : undefined;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }

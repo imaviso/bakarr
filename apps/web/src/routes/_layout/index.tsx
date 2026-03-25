@@ -29,9 +29,7 @@ function DashboardPage() {
   const statsQuery = createLibraryStatsQuery();
   const activityQuery = createActivityQuery();
 
-  const recentActivity = createMemo(
-    () => activityQuery.data?.slice(0, 5) ?? [],
-  );
+  const recentActivity = createMemo(() => activityQuery.data?.slice(0, 5) ?? []);
 
   const statsSummary = createMemo(() => {
     const s = statsQuery.data;
@@ -43,11 +41,7 @@ function DashboardPage() {
     <div class="space-y-6">
       <PageHeader title="Dashboard">
         <Show when={statsSummary()}>
-          {(summary) => (
-            <p class="text-xs font-mono text-muted-foreground">
-              {summary()}
-            </p>
-          )}
+          {(summary) => <p class="text-xs font-mono text-muted-foreground">{summary()}</p>}
         </Show>
       </PageHeader>
 
@@ -154,11 +148,7 @@ function DashboardPage() {
         >
           <Show
             when={activityQuery.data && activityQuery.data?.length > 0}
-            fallback={
-              <p class="text-center text-muted-foreground py-6">
-                No recent activity
-              </p>
-            }
+            fallback={<p class="text-center text-muted-foreground py-6">No recent activity</p>}
           >
             <ul role="list" class="divide-y divide-border">
               <For each={recentActivity()}>
@@ -176,12 +166,7 @@ function DashboardPage() {
   );
 }
 
-function StatItem(props: {
-  label: string;
-  value: number;
-  sub?: string;
-  tone?: "warning";
-}) {
+function StatItem(props: { label: string; value: number; sub?: string; tone?: "warning" }) {
   return (
     <div class="flex items-baseline gap-2">
       <span
@@ -226,11 +211,7 @@ function ActivityRow(props: { item: ActivityItem }) {
 
 function DashboardLoading() {
   return (
-    <div
-      class="flex gap-6 pb-4 border-b border-border"
-      role="status"
-      aria-label="Loading stats"
-    >
+    <div class="flex gap-6 pb-4 border-b border-border" role="status" aria-label="Loading stats">
       <For each={[1, 2, 3, 4, 5]}>
         {() => (
           <div class="flex items-baseline gap-2">

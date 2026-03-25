@@ -15,10 +15,7 @@ export const makeAnimeFileOperations = (input: {
   fs: FileSystemShape;
   mediaProbe: MediaProbeShape;
 }) => {
-  const deleteEpisodeFile: AnimeServiceShape["deleteEpisodeFile"] = (
-    animeId,
-    episodeNumber,
-  ) =>
+  const deleteEpisodeFile: AnimeServiceShape["deleteEpisodeFile"] = (animeId, episodeNumber) =>
     deleteEpisodeFileEffect({
       animeId,
       db: input.db,
@@ -26,11 +23,7 @@ export const makeAnimeFileOperations = (input: {
       fs: input.fs,
     });
 
-  const mapEpisode: AnimeServiceShape["mapEpisode"] = (
-    animeId,
-    episodeNumber,
-    filePath,
-  ) =>
+  const mapEpisode: AnimeServiceShape["mapEpisode"] = (animeId, episodeNumber, filePath) =>
     mapEpisodeFileEffect({
       animeId,
       db: input.db,
@@ -39,10 +32,7 @@ export const makeAnimeFileOperations = (input: {
       fs: input.fs,
     });
 
-  const bulkMapEpisodes: AnimeServiceShape["bulkMapEpisodes"] = (
-    animeId,
-    mappings,
-  ) =>
+  const bulkMapEpisodes: AnimeServiceShape["bulkMapEpisodes"] = (animeId, mappings) =>
     bulkMapEpisodeFilesEffect({
       animeId,
       db: input.db,
@@ -58,10 +48,7 @@ export const makeAnimeFileOperations = (input: {
       mediaProbe: input.mediaProbe,
     });
 
-  const resolveEpisodeFile: AnimeServiceShape["resolveEpisodeFile"] = (
-    animeId,
-    episodeNumber,
-  ) =>
+  const resolveEpisodeFile: AnimeServiceShape["resolveEpisodeFile"] = (animeId, episodeNumber) =>
     resolveEpisodeFileEffect({
       animeId,
       db: input.db,

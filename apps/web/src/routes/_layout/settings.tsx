@@ -16,14 +16,7 @@ import {
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute } from "@tanstack/solid-router";
-import {
-  createEffect,
-  createSignal,
-  For,
-  Index,
-  type JSX,
-  Show,
-} from "solid-js";
+import { createEffect, createSignal, For, Index, type JSX, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { GeneralError } from "~/components/general-error";
@@ -105,16 +98,12 @@ export const Route = createFileRoute("/_layout/settings")({
 
 function SettingsPage() {
   const [activeTab, setActiveTab] = createSignal("general");
-  const [editingProfile, setEditingProfile] = createSignal<
-    QualityProfile | null
-  >(null);
-  const [editingReleaseProfile, setEditingReleaseProfile] = createSignal<
-    ReleaseProfile | null
-  >(null);
-  const [isCreating, setIsCreating] = createSignal(false);
-  const [isCreatingReleaseProfile, setIsCreatingReleaseProfile] = createSignal(
-    false,
+  const [editingProfile, setEditingProfile] = createSignal<QualityProfile | null>(null);
+  const [editingReleaseProfile, setEditingReleaseProfile] = createSignal<ReleaseProfile | null>(
+    null,
   );
+  const [isCreating, setIsCreating] = createSignal(false);
+  const [isCreatingReleaseProfile, setIsCreatingReleaseProfile] = createSignal(false);
 
   const profilesQuery = createProfilesQuery();
   const deleteProfile = createDeleteProfileMutation();
@@ -219,11 +208,7 @@ function SettingsPage() {
                   Configure quality profiles for automatic downloads
                 </p>
               </div>
-              <Button
-                onClick={() => setIsCreating(true)}
-                disabled={isCreating()}
-                size="sm"
-              >
+              <Button onClick={() => setIsCreating(true)} disabled={isCreating()} size="sm">
                 <IconPlus class="mr-2 h-4 w-4" />
                 Add Profile
               </Button>
@@ -231,16 +216,11 @@ function SettingsPage() {
 
             <Show when={profilesQuery.isLoading}>
               <div class="space-y-4">
-                <For each={[1, 2]}>
-                  {() => <Skeleton class="h-32 rounded-lg" />}
-                </For>
+                <For each={[1, 2]}>{() => <Skeleton class="h-32 rounded-lg" />}</For>
               </div>
             </Show>
 
-            <Show
-              when={!profilesQuery.isLoading &&
-                profilesQuery.data?.length === 0}
-            >
+            <Show when={!profilesQuery.isLoading && profilesQuery.data?.length === 0}>
               <Card class="p-12 text-center border-dashed bg-transparent">
                 <div class="flex flex-col items-center gap-4">
                   <IconAdjustments class="h-12 w-12 text-muted-foreground/50" />
@@ -279,9 +259,7 @@ function SettingsPage() {
                             </CardTitle>
                             <div class="text-xs text-muted-foreground">
                               Cutoff:{" "}
-                              <span class="font-medium text-foreground">
-                                {profile.cutoff}
-                              </span>
+                              <span class="font-medium text-foreground">{profile.cutoff}</span>
                             </div>
                             <Show when={profile.min_size || profile.max_size}>
                               <div class="text-xs text-muted-foreground flex gap-2">
@@ -316,21 +294,17 @@ function SettingsPage() {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Delete Profile
-                                  </AlertDialogTitle>
+                                  <AlertDialogTitle>Delete Profile</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete profile "
-                                    {profile.name}"? This action cannot be
-                                    undone.
+                                    Are you sure you want to delete profile "{profile.name}"? This
+                                    action cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
                                     class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    onClick={() =>
-                                      deleteProfile.mutate(profile.name)}
+                                    onClick={() => deleteProfile.mutate(profile.name)}
                                   >
                                     Delete
                                   </AlertDialogAction>
@@ -360,11 +334,7 @@ function SettingsPage() {
                               disabled
                               class="pointer-events-none"
                             />
-                            <span
-                              class={profile.upgrade_allowed
-                                ? "text-foreground"
-                                : ""}
-                            >
+                            <span class={profile.upgrade_allowed ? "text-foreground" : ""}>
                               Upgrades
                             </span>
                           </span>
@@ -374,11 +344,7 @@ function SettingsPage() {
                               disabled
                               class="pointer-events-none"
                             />
-                            <span
-                              class={profile.seadex_preferred
-                                ? "text-foreground"
-                                : ""}
-                            >
+                            <span class={profile.seadex_preferred ? "text-foreground" : ""}>
                               SeaDex
                             </span>
                           </span>
@@ -432,24 +398,18 @@ function SettingsPage() {
 
             <Show when={releaseProfilesQuery.isLoading}>
               <div class="space-y-4">
-                <For each={[1, 2]}>
-                  {() => <Skeleton class="h-32 rounded-lg" />}
-                </For>
+                <For each={[1, 2]}>{() => <Skeleton class="h-32 rounded-lg" />}</For>
               </div>
             </Show>
 
-            <Show
-              when={!releaseProfilesQuery.isLoading &&
-                releaseProfilesQuery.data?.length === 0}
-            >
+            <Show when={!releaseProfilesQuery.isLoading && releaseProfilesQuery.data?.length === 0}>
               <Card class="p-12 text-center border-dashed bg-transparent">
                 <div class="flex flex-col items-center gap-4">
                   <IconListCheck class="h-12 w-12 text-muted-foreground/50" />
                   <div>
                     <h3 class="font-medium">No release profiles</h3>
                     <p class="text-sm text-muted-foreground mt-1">
-                      Create a profile to prefer certain groups or filter
-                      releases
+                      Create a profile to prefer certain groups or filter releases
                     </p>
                   </div>
                   <Button onClick={() => setIsCreatingReleaseProfile(true)}>
@@ -460,10 +420,7 @@ function SettingsPage() {
               </Card>
             </Show>
 
-            <Show
-              when={releaseProfilesQuery.data &&
-                releaseProfilesQuery.data.length > 0}
-            >
+            <Show when={releaseProfilesQuery.data && releaseProfilesQuery.data.length > 0}>
               <div class="grid gap-4">
                 <For each={releaseProfilesQuery.data}>
                   {(profile) => (
@@ -490,10 +447,7 @@ function SettingsPage() {
                                   </Badge>
                                 </Show>
                                 <Show when={profile.is_global}>
-                                  <Badge
-                                    variant="secondary"
-                                    class="text-xs h-5 px-1.5 font-normal"
-                                  >
+                                  <Badge variant="secondary" class="text-xs h-5 px-1.5 font-normal">
                                     Global
                                   </Badge>
                                 </Show>
@@ -525,21 +479,17 @@ function SettingsPage() {
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Delete Profile
-                                  </AlertDialogTitle>
+                                  <AlertDialogTitle>Delete Profile</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete profile "
-                                    {profile.name}"? This action cannot be
-                                    undone.
+                                    Are you sure you want to delete profile "{profile.name}"? This
+                                    action cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
                                     class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    onClick={() =>
-                                      deleteReleaseProfile.mutate(profile.id)}
+                                    onClick={() => deleteReleaseProfile.mutate(profile.id)}
                                   >
                                     Delete
                                   </AlertDialogAction>
@@ -554,20 +504,15 @@ function SettingsPage() {
                           <For each={profile.rules.slice(0, 5)}>
                             {(rule) => (
                               <Badge
-                                variant={rule.rule_type === "must_not"
-                                  ? "error"
-                                  : "secondary"}
+                                variant={rule.rule_type === "must_not" ? "error" : "secondary"}
                                 class="text-xs font-normal"
                               >
                                 <Show
                                   when={rule.rule_type === "preferred"}
-                                  fallback={rule.rule_type === "must"
-                                    ? "Must: "
-                                    : "Block: "}
+                                  fallback={rule.rule_type === "must" ? "Must: " : "Block: "}
                                 >
                                   {rule.score > 0 ? "+" : ""}
-                                  {rule.score}
-                                  {" "}
+                                  {rule.score}{" "}
                                 </Show>
                                 {rule.term}
                               </Badge>
@@ -591,9 +536,7 @@ function SettingsPage() {
         <TabsContent value="account" class="mt-0">
           <div class="mb-6">
             <h2 class="text-lg font-medium">Account</h2>
-            <p class="text-sm text-muted-foreground">
-              Manage your password and API access
-            </p>
+            <p class="text-sm text-muted-foreground">Manage your password and API access</p>
           </div>
           <AccountSettingsForm />
         </TabsContent>
@@ -646,16 +589,13 @@ function SortableQualityList(props: {
     }
   };
 
-  const unusedQualities = () =>
-    props.availableQualities.filter((q) => !props.value.includes(q));
+  const unusedQualities = () => props.availableQualities.filter((q) => !props.value.includes(q));
 
   return (
     <div class="space-y-3">
       <div class="space-y-1">
         <div class="text-sm font-medium leading-none">Allowed Qualities</div>
-        <p class="text-xs text-muted-foreground">
-          Drag to reorder. Top items are preferred.
-        </p>
+        <p class="text-xs text-muted-foreground">Drag to reorder. Top items are preferred.</p>
       </div>
 
       <ul class="border rounded-md divide-y bg-card overflow-hidden">
@@ -696,9 +636,7 @@ function SortableQualityList(props: {
         onChange={(val) => val && addQuality(val)}
         options={unusedQualities()}
         placeholder="Add quality..."
-        itemComponent={(props) => (
-          <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
-        )}
+        itemComponent={(props) => <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>}
       >
         <SelectTrigger class="w-full">
           <SelectValue<string>>
@@ -746,11 +684,7 @@ function SizeInput(props: {
     }
   };
 
-  const inputId = `size-input-${
-    props.label
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-  }`;
+  const inputId = `size-input-${props.label.toLowerCase().replace(/\s+/g, "-")}`;
 
   return (
     <div class="flex flex-col gap-1.5">
@@ -784,22 +718,16 @@ function SizeInput(props: {
           }}
           options={["MB", "GB"]}
           itemComponent={(itemProps) => (
-            <SelectItem item={itemProps.item}>
-              {itemProps.item.rawValue}
-            </SelectItem>
+            <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
           )}
         >
           <SelectTrigger class="w-20">
-            <SelectValue<string>>
-              {(state) => state.selectedOption()}
-            </SelectValue>
+            <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
           </SelectTrigger>
           <SelectContent />
         </Select>
       </div>
-      {props.error && (
-        <div class="text-[0.8rem] text-destructive">{props.error}</div>
-      )}
+      {props.error && <div class="text-[0.8rem] text-destructive">{props.error}</div>}
     </div>
   );
 }
@@ -830,10 +758,7 @@ function ProfileForm(props: {
       cutoff: props.profile?.cutoff || "BluRay 1080p",
       upgrade_allowed: props.profile?.upgrade_allowed ?? true,
       seadex_preferred: props.profile?.seadex_preferred ?? true,
-      allowed_qualities: props.profile?.allowed_qualities || [
-        "BluRay 1080p",
-        "WEB-DL 1080p",
-      ],
+      allowed_qualities: props.profile?.allowed_qualities || ["BluRay 1080p", "WEB-DL 1080p"],
       min_size: props.profile?.min_size || undefined,
       max_size: props.profile?.max_size || undefined,
     },
@@ -858,9 +783,7 @@ function ProfileForm(props: {
   return (
     <Card class="border-primary/20">
       <CardHeader class="pb-4">
-        <CardTitle class="text-base">
-          {isEditing() ? "Edit Profile" : "Create Profile"}
-        </CardTitle>
+        <CardTitle class="text-base">{isEditing() ? "Edit Profile" : "Create Profile"}</CardTitle>
       </CardHeader>
       <CardContent>
         <form
@@ -898,22 +821,16 @@ function ProfileForm(props: {
                 </label>
                 <Select
                   name={field().name}
-                  value={qualityNames().includes(field().state.value)
-                    ? field().state.value
-                    : null}
+                  value={qualityNames().includes(field().state.value) ? field().state.value : null}
                   onChange={(val) => val && field().handleChange(val)}
                   options={qualityNames()}
                   placeholder="Select cutoff..."
                   itemComponent={(props) => (
-                    <SelectItem item={props.item}>
-                      {props.item.rawValue}
-                    </SelectItem>
+                    <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
                   )}
                 >
                   <SelectTrigger class="w-full">
-                    <SelectValue<string>>
-                      {(state) => state.selectedOption()}
-                    </SelectValue>
+                    <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
                   </SelectTrigger>
                   <SelectContent />
                 </Select>
@@ -943,10 +860,7 @@ function ProfileForm(props: {
                 onChange: v.optional(
                   v.pipe(
                     v.string(),
-                    v.regex(
-                      /^\d+(\.\d+)?\s*(MB|GB)$/i,
-                      "Must be format like '500 MB' or '2.5 GB'",
-                    ),
+                    v.regex(/^\d+(\.\d+)?\s*(MB|GB)$/i, "Must be format like '500 MB' or '2.5 GB'"),
                   ),
                 ),
               }}
@@ -967,10 +881,7 @@ function ProfileForm(props: {
                 onChange: v.optional(
                   v.pipe(
                     v.string(),
-                    v.regex(
-                      /^\d+(\.\d+)?\s*(MB|GB)$/i,
-                      "Must be format like '500 MB' or '2.5 GB'",
-                    ),
+                    v.regex(/^\d+(\.\d+)?\s*(MB|GB)$/i, "Must be format like '500 MB' or '2.5 GB'"),
                   ),
                 ),
               }}
@@ -1028,15 +939,11 @@ function ProfileForm(props: {
             <Button type="button" variant="ghost" onClick={props.onCancel}>
               Cancel
             </Button>
-            <form.Subscribe
-              selector={(state) => [state.canSubmit, state.isSubmitting]}
-            >
+            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {(state) => (
                 <Button
                   type="submit"
-                  disabled={!state()[0] ||
-                    createProfile.isPending ||
-                    updateProfile.isPending}
+                  disabled={!state()[0] || createProfile.isPending || updateProfile.isPending}
                 >
                   {state()[1] ? "Saving..." : isEditing() ? "Update" : "Create"}
                 </Button>
@@ -1097,9 +1004,7 @@ function ReleaseProfileForm(props: {
   return (
     <Card class="border-primary/20">
       <CardHeader class="pb-4">
-        <CardTitle class="text-base">
-          {isEditing() ? "Edit Profile" : "Create Profile"}
-        </CardTitle>
+        <CardTitle class="text-base">{isEditing() ? "Edit Profile" : "Create Profile"}</CardTitle>
       </CardHeader>
       <CardContent>
         <form
@@ -1172,9 +1077,7 @@ function ReleaseProfileForm(props: {
             <div class="flex items-center justify-between">
               <div class="space-y-1">
                 <h4 class="text-sm font-medium">Rules</h4>
-                <p class="text-xs text-muted-foreground">
-                  Define terms to prefer or require/block
-                </p>
+                <p class="text-xs text-muted-foreground">Define terms to prefer or require/block</p>
               </div>
               <form.Field name="rules" mode="array">
                 {(field) => (
@@ -1187,7 +1090,8 @@ function ReleaseProfileForm(props: {
                         term: "",
                         rule_type: "preferred",
                         score: 10,
-                      })}
+                      })
+                    }
                   >
                     <IconPlus class="mr-2 h-3.5 w-3.5" />
                     Add Rule
@@ -1220,16 +1124,15 @@ function ReleaseProfileForm(props: {
                             <div class="w-[140px]">
                               <Select
                                 value={typeField().state.value}
-                                onChange={(val) =>
-                                  val && typeField().handleChange(val)}
+                                onChange={(val) => val && typeField().handleChange(val)}
                                 options={["preferred", "must", "must_not"]}
                                 itemComponent={(props) => (
                                   <SelectItem item={props.item}>
                                     {props.item.rawValue === "preferred"
                                       ? "Preferred"
                                       : props.item.rawValue === "must"
-                                      ? "Must Contain"
-                                      : "Must Not Contain"}
+                                        ? "Must Contain"
+                                        : "Must Not Contain"}
                                   </SelectItem>
                                 )}
                               >
@@ -1239,8 +1142,9 @@ function ReleaseProfileForm(props: {
                                       state.selectedOption() === "preferred"
                                         ? "Preferred"
                                         : state.selectedOption() === "must"
-                                        ? "Must Contain"
-                                        : "Must Not Contain"}
+                                          ? "Must Contain"
+                                          : "Must Not Contain"
+                                    }
                                   </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent />
@@ -1254,16 +1158,12 @@ function ReleaseProfileForm(props: {
                             <div class="w-[100px]">
                               <TextField
                                 value={scoreField().state.value.toString()}
-                                onChange={(v) =>
-                                  scoreField().handleChange(Number(v))}
-                                disabled={form.getFieldValue(
-                                  `rules[${index}].rule_type`,
-                                ) !== "preferred"}
+                                onChange={(v) => scoreField().handleChange(Number(v))}
+                                disabled={
+                                  form.getFieldValue(`rules[${index}].rule_type`) !== "preferred"
+                                }
                               >
-                                <TextFieldInput
-                                  type="number"
-                                  placeholder="Score"
-                                />
+                                <TextFieldInput type="number" placeholder="Score" />
                               </TextField>
                             </div>
                           )}
@@ -1296,15 +1196,11 @@ function ReleaseProfileForm(props: {
             <Button type="button" variant="ghost" onClick={props.onCancel}>
               Cancel
             </Button>
-            <form.Subscribe
-              selector={(state) => [state.canSubmit, state.isSubmitting]}
-            >
+            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {(state) => (
                 <Button
                   type="submit"
-                  disabled={!state()[0] ||
-                    createProfile.isPending ||
-                    updateProfile.isPending}
+                  disabled={!state()[0] || createProfile.isPending || updateProfile.isPending}
                 >
                   {state()[1] ? "Saving..." : isEditing() ? "Update" : "Create"}
                 </Button>
@@ -1415,10 +1311,7 @@ function GeneralSettingsForm(props: { mode: ConfigSettingsMode }) {
   const [hasLoaded, setHasLoaded] = createSignal(false);
 
   return (
-    <Show
-      when={configQuery.data || hasLoaded()}
-      fallback={<Skeleton class="h-96 rounded-lg" />}
-    >
+    <Show when={configQuery.data || hasLoaded()} fallback={<Skeleton class="h-96 rounded-lg" />}>
       <div
         ref={() => {
           if (configQuery.data) setHasLoaded(true);
@@ -1445,17 +1338,11 @@ function SettingRow(props: {
   class?: string;
 }) {
   return (
-    <div
-      class={`flex items-center justify-between py-3 gap-8 ${
-        props.class ?? ""
-      }`}
-    >
+    <div class={`flex items-center justify-between py-3 gap-8 ${props.class ?? ""}`}>
       <div class="flex-1 min-w-0">
         <div class="text-sm font-medium text-foreground">{props.label}</div>
         <Show when={props.description}>
-          <div class="text-xs text-muted-foreground mt-0.5">
-            {props.description}
-          </div>
+          <div class="text-xs text-muted-foreground mt-0.5">{props.description}</div>
         </Show>
       </div>
       <div class="shrink-0">{props.children}</div>
@@ -1643,10 +1530,7 @@ function SystemForm(props: {
         <SettingSection title="Application">
           <form.Field name="general.database_path">
             {(field) => (
-              <SettingRow
-                label="Database Path"
-                description="Current database file path"
-              >
+              <SettingRow label="Database Path" description="Current database file path">
                 <Input value={field().state.value} readOnly class="w-64" />
               </SettingRow>
             )}
@@ -1654,10 +1538,7 @@ function SystemForm(props: {
 
           <form.Field name="general.log_level">
             {(field) => (
-              <SettingRow
-                label="Log Level"
-                description="Control verbosity of application logs"
-              >
+              <SettingRow label="Log Level" description="Control verbosity of application logs">
                 <Select
                   name={field().name}
                   value={field().state.value}
@@ -1665,15 +1546,11 @@ function SystemForm(props: {
                   options={["error", "warn", "info", "debug", "trace"]}
                   placeholder="Select..."
                   itemComponent={(itemProps) => (
-                    <SelectItem item={itemProps.item}>
-                      {itemProps.item.rawValue}
-                    </SelectItem>
+                    <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
                   )}
                 >
                   <SelectTrigger class="w-32">
-                    <SelectValue<string>>
-                      {(state) => state.selectedOption()}
-                    </SelectValue>
+                    <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
                   </SelectTrigger>
                   <SelectContent />
                 </Select>
@@ -1683,10 +1560,7 @@ function SystemForm(props: {
 
           <form.Field name="general.images_path">
             {(field) => (
-              <SettingRow
-                label="Images Path"
-                description="Local cache for cover art and images"
-              >
+              <SettingRow label="Images Path" description="Local cache for cover art and images">
                 <Input
                   value={field().state.value}
                   onInput={(e) => field().handleChange(e.currentTarget.value)}
@@ -1706,8 +1580,7 @@ function SystemForm(props: {
                   type="number"
                   min="0"
                   value={field().state.value?.toString() ?? "2"}
-                  onInput={(e) =>
-                    field().handleChange(Number(e.currentTarget.value))}
+                  onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                   class="w-24"
                 />
               </SettingRow>
@@ -1724,8 +1597,7 @@ function SystemForm(props: {
                   type="number"
                   min="1"
                   value={field().state.value.toString()}
-                  onInput={(e) =>
-                    field().handleChange(Number(e.currentTarget.value))}
+                  onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                   class="w-24"
                 />
               </SettingRow>
@@ -1742,8 +1614,7 @@ function SystemForm(props: {
                   type="number"
                   min="1"
                   value={field().state.value.toString()}
-                  onInput={(e) =>
-                    field().handleChange(Number(e.currentTarget.value))}
+                  onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                   class="w-24"
                 />
               </SettingRow>
@@ -1771,10 +1642,7 @@ function SystemForm(props: {
         <SettingSection title="Library">
           <form.Field name="library.library_path">
             {(field) => (
-              <SettingRow
-                label="Library Path"
-                description="Root folder for your anime library"
-              >
+              <SettingRow label="Library Path" description="Root folder for your anime library">
                 <Input
                   value={field().state.value}
                   onInput={(e) => field().handleChange(e.currentTarget.value)}
@@ -1810,8 +1678,7 @@ function SystemForm(props: {
                     type="number"
                     min="0"
                     value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
+                    onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                     class="w-20"
                   />
                   <span class="text-xs text-muted-foreground">days</span>
@@ -1843,7 +1710,8 @@ function SystemForm(props: {
                       {(state) =>
                         state.selectedOption()
                           ? importModeLabel(state.selectedOption())
-                          : "Select..."}
+                          : "Select..."
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent />
@@ -1875,7 +1743,8 @@ function SystemForm(props: {
                       {(state) =>
                         state.selectedOption()
                           ? preferredTitleLabel(state.selectedOption())
-                          : "Select..."}
+                          : "Select..."
+                      }
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent />
@@ -1910,8 +1779,7 @@ function SystemForm(props: {
                     min="0"
                     max="23"
                     value={(field().state.value ?? 0).toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
+                    onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                     class="w-20"
                   />
                   <span class="text-xs text-muted-foreground">hour</span>
@@ -1930,8 +1798,7 @@ function SystemForm(props: {
                   <Input
                     type="number"
                     value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
+                    onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                     class="w-20"
                   />
                   <span class="text-xs text-muted-foreground">hours</span>
@@ -1949,9 +1816,7 @@ function SystemForm(props: {
             <form.Field name="library.naming_format">
               {(field) => (
                 <div class="space-y-2">
-                  <div class="text-sm font-medium text-foreground">
-                    TV Episodes
-                  </div>
+                  <div class="text-sm font-medium text-foreground">TV Episodes</div>
                   <Input
                     value={field().state.value}
                     onInput={(e) => field().handleChange(e.currentTarget.value)}
@@ -1959,7 +1824,9 @@ function SystemForm(props: {
                     class="font-mono text-xs"
                   />
                   <div class="text-xs text-muted-foreground">
-                    {"{title}, {episode}, {episode:02}, {episode:03}, {episode_segment}, {source_episode_segment}, {episode_title}, {season}, {season:02}, {year}, {air_date}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"}
+                    {
+                      "{title}, {episode}, {episode:02}, {episode:03}, {episode_segment}, {source_episode_segment}, {episode_title}, {season}, {season:02}, {year}, {air_date}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"
+                    }
                   </div>
                 </div>
               )}
@@ -1976,7 +1843,9 @@ function SystemForm(props: {
                     class="font-mono text-xs"
                   />
                   <div class="text-xs text-muted-foreground">
-                    {"{title}, {year}, {season}, {season:02}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"}
+                    {
+                      "{title}, {year}, {season}, {season:02}, {group}, {resolution}, {quality}, {video_codec}, {audio_codec}, {audio_channels}"
+                    }
                   </div>
                 </div>
               )}
@@ -2007,8 +1876,7 @@ function SystemForm(props: {
               <SettingRow label="URL" description="qBittorrent Web UI address">
                 <Input
                   value={field().state.value}
-                  onInput={(e) =>
-                    field().handleChange(e.currentTarget.value)}
+                  onInput={(e) => field().handleChange(e.currentTarget.value)}
                   placeholder="http://localhost:8080"
                   class="w-56"
                 />
@@ -2045,10 +1913,7 @@ function SystemForm(props: {
 
           <form.Field name="qbittorrent.default_category">
             {(field) => (
-              <SettingRow
-                label="Category"
-                description="qBittorrent category for downloads"
-              >
+              <SettingRow label="Category" description="qBittorrent category for downloads">
                 <Input
                   value={field().state.value}
                   onInput={(e) => field().handleChange(e.currentTarget.value)}
@@ -2066,10 +1931,7 @@ function SystemForm(props: {
         <SettingSection title="Scheduler">
           <form.Field name="scheduler.enabled">
             {(field) => (
-              <SettingRow
-                label="Enable Scheduler"
-                description="Run automated background tasks"
-              >
+              <SettingRow label="Enable Scheduler" description="Run automated background tasks">
                 <Switch
                   checked={field().state.value}
                   onChange={(checked) => field().handleChange(checked)}
@@ -2080,16 +1942,12 @@ function SystemForm(props: {
 
           <form.Field name="scheduler.check_interval_minutes">
             {(field) => (
-              <SettingRow
-                label="Check Interval"
-                description="Minutes between RSS checks"
-              >
+              <SettingRow label="Check Interval" description="Minutes between RSS checks">
                 <div class="flex items-center gap-2">
                   <Input
                     type="number"
                     value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
+                    onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                     class="w-20"
                   />
                   <span class="text-xs text-muted-foreground">min</span>
@@ -2100,15 +1958,11 @@ function SystemForm(props: {
 
           <form.Field name="scheduler.max_concurrent_checks">
             {(field) => (
-              <SettingRow
-                label="Max Concurrent Checks"
-                description="Parallel anime checks"
-              >
+              <SettingRow label="Max Concurrent Checks" description="Parallel anime checks">
                 <Input
                   type="number"
                   value={field().state.value.toString()}
-                  onInput={(e) =>
-                    field().handleChange(Number(e.currentTarget.value))}
+                  onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                   class="w-20"
                 />
               </SettingRow>
@@ -2126,8 +1980,7 @@ function SystemForm(props: {
                     type="number"
                     min="0"
                     value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
+                    onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                     class="w-20"
                   />
                   <span class="text-xs text-muted-foreground">sec</span>
@@ -2138,16 +1991,12 @@ function SystemForm(props: {
 
           <form.Field name="scheduler.metadata_refresh_hours">
             {(field) => (
-              <SettingRow
-                label="Metadata Refresh"
-                description="Hours between metadata updates"
-              >
+              <SettingRow label="Metadata Refresh" description="Hours between metadata updates">
                 <div class="flex items-center gap-2">
                   <Input
                     type="number"
                     value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
+                    onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                     class="w-20"
                   />
                   <span class="text-xs text-muted-foreground">hours</span>
@@ -2179,11 +2028,7 @@ function SystemForm(props: {
         <SettingSection title="Tasks">
           <SettingRow
             label="Library Scan"
-            description={`Last run: ${
-              formatLastRun(
-                systemStatus.data?.last_scan,
-              )
-            }`}
+            description={`Last run: ${formatLastRun(systemStatus.data?.last_scan)}`}
           >
             <Button
               variant="outline"
@@ -2197,11 +2042,7 @@ function SystemForm(props: {
 
           <SettingRow
             label="RSS Check"
-            description={`Last run: ${
-              formatLastRun(
-                systemStatus.data?.last_rss,
-              )
-            }`}
+            description={`Last run: ${formatLastRun(systemStatus.data?.last_rss)}`}
           >
             <Button
               variant="outline"
@@ -2213,10 +2054,7 @@ function SystemForm(props: {
             </Button>
           </SettingRow>
 
-          <SettingRow
-            label="Metadata Refresh"
-            description="Refresh anime metadata from AniList"
-          >
+          <SettingRow label="Metadata Refresh" description="Refresh anime metadata from AniList">
             <Button
               variant="outline"
               size="sm"
@@ -2237,8 +2075,7 @@ function SystemForm(props: {
               <SettingRow label="Nyaa URL" description="Base URL for Nyaa.si">
                 <Input
                   value={field().state.value}
-                  onInput={(e) =>
-                    field().handleChange(e.currentTarget.value)}
+                  onInput={(e) => field().handleChange(e.currentTarget.value)}
                   placeholder="https://nyaa.si"
                   class="w-48"
                 />
@@ -2248,15 +2085,11 @@ function SystemForm(props: {
 
           <form.Field name="nyaa.min_seeders">
             {(field) => (
-              <SettingRow
-                label="Minimum Seeders"
-                description="Skip releases with fewer seeders"
-              >
+              <SettingRow label="Minimum Seeders" description="Skip releases with fewer seeders">
                 <Input
                   type="number"
                   value={field().state.value.toString()}
-                  onInput={(e) =>
-                    field().handleChange(Number(e.currentTarget.value))}
+                  onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                   class="w-20"
                 />
               </SettingRow>
@@ -2297,10 +2130,7 @@ function SystemForm(props: {
 
           <form.Field name="nyaa.filter_remakes">
             {(field) => (
-              <SettingRow
-                label="Filter Remakes"
-                description="Exclude remakes from search results"
-              >
+              <SettingRow label="Filter Remakes" description="Exclude remakes from search results">
                 <Switch
                   checked={field().state.value}
                   onChange={(checked) => field().handleChange(checked)}
@@ -2316,10 +2146,7 @@ function SystemForm(props: {
         <SettingSection title="Global Download Defaults">
           <form.Field name="downloads.root_path">
             {(field) => (
-              <SettingRow
-                label="Download Path"
-                description="Where downloaded files are saved"
-              >
+              <SettingRow label="Download Path" description="Where downloaded files are saved">
                 <Input
                   value={field().state.value}
                   onInput={(e) => field().handleChange(e.currentTarget.value)}
@@ -2331,16 +2158,12 @@ function SystemForm(props: {
 
           <form.Field name="downloads.max_size_gb">
             {(field) => (
-              <SettingRow
-                label="Max Size"
-                description="Maximum file size for downloads"
-              >
+              <SettingRow label="Max Size" description="Maximum file size for downloads">
                 <div class="flex items-center gap-2">
                   <Input
                     type="number"
                     value={field().state.value.toString()}
-                    onInput={(e) =>
-                      field().handleChange(Number(e.currentTarget.value))}
+                    onInput={(e) => field().handleChange(Number(e.currentTarget.value))}
                     class="w-20"
                   />
                   <span class="text-xs text-muted-foreground">GB</span>
@@ -2365,10 +2188,7 @@ function SystemForm(props: {
 
           <form.Field name="downloads.use_seadex">
             {(field) => (
-              <SettingRow
-                label="Use SeaDex"
-                description="Prefer SeaDex best releases for scoring"
-              >
+              <SettingRow label="Use SeaDex" description="Prefer SeaDex best releases for scoring">
                 <Switch
                   checked={field().state.value}
                   onChange={(checked) => field().handleChange(checked)}
@@ -2445,8 +2265,7 @@ function SystemForm(props: {
                     rows={4}
                   />
                   <div class="text-xs text-muted-foreground">
-                    Used when qBittorrent reports a different path than Bakarr
-                    can see locally.
+                    Used when qBittorrent reports a different path than Bakarr can see locally.
                   </div>
                 </div>
               </SettingRow>
@@ -2499,19 +2318,9 @@ function SystemForm(props: {
 
       {/* Save Button - Sticky at bottom */}
       <div class="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-1 px-1">
-        <form.Subscribe
-          selector={(state) => [
-            state.canSubmit,
-            state.isSubmitting,
-            state.isDirty,
-          ]}
-        >
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting, state.isDirty]}>
           {(state) => (
-            <Button
-              type="submit"
-              disabled={!state()[0] || props.isSaving}
-              class="w-full sm:w-auto"
-            >
+            <Button type="submit" disabled={!state()[0] || props.isSaving} class="w-full sm:w-auto">
               {props.isSaving ? "Saving..." : "Save Changes"}
             </Button>
           )}
@@ -2522,18 +2331,9 @@ function SystemForm(props: {
 }
 
 const ChangePasswordSchema = v.object({
-  currentPassword: v.pipe(
-    v.string(),
-    v.minLength(1, "Current password is required"),
-  ),
-  newPassword: v.pipe(
-    v.string(),
-    v.minLength(8, "Password must be at least 8 characters"),
-  ),
-  confirmPassword: v.pipe(
-    v.string(),
-    v.minLength(1, "Please confirm your password"),
-  ),
+  currentPassword: v.pipe(v.string(), v.minLength(1, "Current password is required")),
+  newPassword: v.pipe(v.string(), v.minLength(8, "Password must be at least 8 characters")),
+  confirmPassword: v.pipe(v.string(), v.minLength(1, "Please confirm your password")),
 });
 
 type ChangePasswordFormData = v.InferOutput<typeof ChangePasswordSchema>;
@@ -2575,9 +2375,7 @@ function AccountSettingsForm() {
         toast.success("Password changed successfully");
         formApi.reset();
       } catch (err) {
-        const message = err instanceof Error
-          ? err.message
-          : "Failed to change password";
+        const message = err instanceof Error ? err.message : "Failed to change password";
         formApi.setFieldMeta("currentPassword", (prev) => ({
           ...prev,
           errors: [{ message }],
@@ -2596,9 +2394,7 @@ function AccountSettingsForm() {
       }
       toast.success("API key regenerated successfully");
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to regenerate API key",
-      );
+      toast.error(err instanceof Error ? err.message : "Failed to regenerate API key");
     }
   };
 
@@ -2634,10 +2430,7 @@ function AccountSettingsForm() {
           >
             <passwordForm.Field name="currentPassword">
               {(field) => (
-                <TextField
-                  value={field().state.value}
-                  onChange={field().handleChange}
-                >
+                <TextField value={field().state.value} onChange={field().handleChange}>
                   <TextFieldLabel>Current Password</TextFieldLabel>
                   <div class="relative">
                     <TextFieldInput
@@ -2649,17 +2442,12 @@ function AccountSettingsForm() {
                       variant="ghost"
                       size="icon"
                       class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                      onClick={() =>
-                        setShowCurrentPassword(!showCurrentPassword())}
-                      aria-label={showCurrentPassword()
-                        ? "Hide password"
-                        : "Show password"}
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword())}
+                      aria-label={showCurrentPassword() ? "Hide password" : "Show password"}
                     >
                       <Show
                         when={showCurrentPassword()}
-                        fallback={
-                          <IconEyeOff class="h-4 w-4 text-muted-foreground" />
-                        }
+                        fallback={<IconEyeOff class="h-4 w-4 text-muted-foreground" />}
                       >
                         <IconEye class="h-4 w-4 text-muted-foreground" />
                       </Show>
@@ -2674,10 +2462,7 @@ function AccountSettingsForm() {
 
             <passwordForm.Field name="newPassword">
               {(field) => (
-                <TextField
-                  value={field().state.value}
-                  onChange={field().handleChange}
-                >
+                <TextField value={field().state.value} onChange={field().handleChange}>
                   <TextFieldLabel>New Password</TextFieldLabel>
                   <div class="relative">
                     <TextFieldInput
@@ -2690,15 +2475,11 @@ function AccountSettingsForm() {
                       size="icon"
                       class="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                       onClick={() => setShowNewPassword(!showNewPassword())}
-                      aria-label={showNewPassword()
-                        ? "Hide password"
-                        : "Show password"}
+                      aria-label={showNewPassword() ? "Hide password" : "Show password"}
                     >
                       <Show
                         when={showNewPassword()}
-                        fallback={
-                          <IconEyeOff class="h-4 w-4 text-muted-foreground" />
-                        }
+                        fallback={<IconEyeOff class="h-4 w-4 text-muted-foreground" />}
                       >
                         <IconEye class="h-4 w-4 text-muted-foreground" />
                       </Show>
@@ -2713,10 +2494,7 @@ function AccountSettingsForm() {
 
             <passwordForm.Field name="confirmPassword">
               {(field) => (
-                <TextField
-                  value={field().state.value}
-                  onChange={field().handleChange}
-                >
+                <TextField value={field().state.value} onChange={field().handleChange}>
                   <TextFieldLabel>Confirm New Password</TextFieldLabel>
                   <TextFieldInput type="password" autocomplete="new-password" />
                   <TextFieldErrorMessage>
@@ -2726,17 +2504,10 @@ function AccountSettingsForm() {
               )}
             </passwordForm.Field>
 
-            <passwordForm.Subscribe
-              selector={(state) => [state.canSubmit, state.isSubmitting]}
-            >
+            <passwordForm.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {(state) => (
-                <Button
-                  type="submit"
-                  disabled={!state()[0] || changePassword.isPending}
-                >
-                  {state()[1] || changePassword.isPending
-                    ? "Changing..."
-                    : "Change Password"}
+                <Button type="submit" disabled={!state()[0] || changePassword.isPending}>
+                  {state()[1] || changePassword.isPending ? "Changing..." : "Change Password"}
                 </Button>
               )}
             </passwordForm.Subscribe>
@@ -2754,8 +2525,7 @@ function AccountSettingsForm() {
         </CardHeader>
         <CardContent class="space-y-4">
           <p class="text-sm text-muted-foreground">
-            Use this API key to authenticate external applications and streaming
-            clients.
+            Use this API key to authenticate external applications and streaming clients.
           </p>
 
           <div class="flex items-center gap-2 max-w-xl">
@@ -2779,9 +2549,7 @@ function AccountSettingsForm() {
                 >
                   <Show
                     when={showApiKey()}
-                    fallback={
-                      <IconEyeOff class="h-4 w-4 text-muted-foreground" />
-                    }
+                    fallback={<IconEyeOff class="h-4 w-4 text-muted-foreground" />}
                   >
                     <IconEye class="h-4 w-4 text-muted-foreground" />
                   </Show>
@@ -2803,9 +2571,8 @@ function AccountSettingsForm() {
           </div>
 
           <p class="text-xs text-muted-foreground">
-            Existing API keys are stored hashed and cannot be shown again.
-            Regenerate to reveal a new key for streaming links and external
-            clients.
+            Existing API keys are stored hashed and cannot be shown again. Regenerate to reveal a
+            new key for streaming links and external clients.
           </p>
 
           <AlertDialog>
@@ -2817,9 +2584,7 @@ function AccountSettingsForm() {
                   disabled={regenerateApiKey.isPending}
                 >
                   <IconRefresh class="mr-2 h-4 w-4" />
-                  {regenerateApiKey.isPending
-                    ? "Regenerating..."
-                    : "Regenerate API Key"}
+                  {regenerateApiKey.isPending ? "Regenerating..." : "Regenerate API Key"}
                 </Button>
               )}
             />
@@ -2827,16 +2592,13 @@ function AccountSettingsForm() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Regenerate API Key?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will invalidate your current API key. Any applications or
-                  services using the old key will need to be updated with the
-                  new one.
+                  This will invalidate your current API key. Any applications or services using the
+                  old key will need to be updated with the new one.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleRegenerateApiKey}>
-                  Regenerate
-                </AlertDialogAction>
+                <AlertDialogAction onClick={handleRegenerateApiKey}>Regenerate</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

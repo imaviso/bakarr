@@ -1,16 +1,8 @@
 import { IconPencil } from "@tabler/icons-solidjs";
 import { createSignal } from "solid-js";
 import { Button } from "~/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "~/components/ui/popover";
-import {
-  TextField,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 
 interface EditMappingPopoverProps {
   season?: number | null;
@@ -20,12 +12,8 @@ interface EditMappingPopoverProps {
 
 export function EditMappingPopover(props: EditMappingPopoverProps) {
   const [open, setOpen] = createSignal(false);
-  const [localSeason, setLocalSeason] = createSignal(
-    props.season?.toString() ?? "1",
-  );
-  const [localEpisode, setLocalEpisode] = createSignal(
-    props.episode.toString(),
-  );
+  const [localSeason, setLocalSeason] = createSignal(props.season?.toString() ?? "1");
+  const [localEpisode, setLocalEpisode] = createSignal(props.episode.toString());
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
@@ -62,9 +50,7 @@ export function EditMappingPopover(props: EditMappingPopoverProps) {
         <div class="space-y-4">
           <div class="space-y-2">
             <h4 class="font-medium leading-none">Edit Mapping</h4>
-            <p class="text-xs text-muted-foreground">
-              Override the detected season and episode.
-            </p>
+            <p class="text-xs text-muted-foreground">Override the detected season and episode.</p>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="space-y-2">

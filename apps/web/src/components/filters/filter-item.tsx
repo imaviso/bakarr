@@ -20,9 +20,7 @@ interface FilterItemProps {
 export function FilterItem(props: FilterItemProps) {
   const ctx = useFilterContext();
 
-  const column = createMemo(() =>
-    ctx.columns.find((c) => c.id === props.filter.columnId)
-  );
+  const column = createMemo(() => ctx.columns.find((c) => c.id === props.filter.columnId));
 
   const operatorOptions = createMemo(() => {
     const col = column();
@@ -81,9 +79,7 @@ export function FilterItem(props: FilterItemProps) {
 
   return (
     <div class="flex items-center gap-1.5 bg-muted/50 rounded-none p-1 pr-2">
-      <div class="text-sm font-medium text-muted-foreground px-2">
-        {column()?.label}
-      </div>
+      <div class="text-sm font-medium text-muted-foreground px-2">{column()?.label}</div>
 
       <Select
         value={props.filter.operator}
@@ -92,16 +88,16 @@ export function FilterItem(props: FilterItemProps) {
         placeholder="Select operator"
         itemComponent={(itemProps) => (
           <SelectItem item={itemProps.item}>
-            {operatorOptions().find((o) => o.value === itemProps.item.rawValue)
-              ?.label}
+            {operatorOptions().find((o) => o.value === itemProps.item.rawValue)?.label}
           </SelectItem>
         )}
       >
         <SelectTrigger class="w-[140px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
           <SelectValue<string>>
             {(state) =>
-              operatorOptions().find((o) => o.value === state.selectedOption())
-                ?.label || "Select operator"}
+              operatorOptions().find((o) => o.value === state.selectedOption())?.label ||
+              "Select operator"
+            }
           </SelectValue>
         </SelectTrigger>
         <SelectContent />
@@ -111,17 +107,13 @@ export function FilterItem(props: FilterItemProps) {
         when={column()?.type === "text" || column()?.type === "date"}
         fallback={
           <Select
-            value={Array.isArray(props.filter.value)
-              ? props.filter.value[0]
-              : props.filter.value}
+            value={Array.isArray(props.filter.value) ? props.filter.value[0] : props.filter.value}
             onChange={(val) => handleValueChange(val || "")}
             options={column()?.options?.map((o) => o.value) || []}
             placeholder="Select value"
             itemComponent={(itemProps) => {
               const option = () =>
-                column()?.options?.find(
-                  (o) => o.value === itemProps.item.rawValue,
-                );
+                column()?.options?.find((o) => o.value === itemProps.item.rawValue);
               return (
                 <SelectItem item={itemProps.item}>
                   <Show when={option()?.icon}>
@@ -135,9 +127,7 @@ export function FilterItem(props: FilterItemProps) {
             <SelectTrigger class="w-[160px] h-8 px-2 bg-background focus:ring-0 focus:ring-offset-0 border-muted-foreground/20">
               <SelectValue<string>>
                 {(state) => {
-                  const option = column()?.options?.find(
-                    (o) => o.value === state.selectedOption(),
-                  );
+                  const option = column()?.options?.find((o) => o.value === state.selectedOption());
                   return (
                     <Show when={option} fallback="Select value">
                       <div class="flex items-center">
@@ -158,9 +148,9 @@ export function FilterItem(props: FilterItemProps) {
         <TextField>
           <TextFieldInput
             type={column()?.type === "date" ? "date" : "text"}
-            value={Array.isArray(props.filter.value)
-              ? props.filter.value[0] || ""
-              : props.filter.value}
+            value={
+              Array.isArray(props.filter.value) ? props.filter.value[0] || "" : props.filter.value
+            }
             onInput={(e) => handleValueChange(e.currentTarget.value)}
             placeholder={column()?.placeholder || "Enter value"}
             class="h-8 w-[160px] px-2 bg-background focus-visible:ring-0 focus-visible:ring-offset-0 border-muted-foreground/20"

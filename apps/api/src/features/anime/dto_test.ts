@@ -34,8 +34,7 @@ it("toAnimeDto builds progress, metadata, and decoded arrays", () => {
       synonyms: '["Naruto Alt"]',
       relatedAnime:
         '[{"id":10,"relation_type":"PREQUEL","title":{"english":"Naruto Classic","romaji":"Naruto Classic"}}]',
-      recommendedAnime:
-        '[{"id":30,"title":{"english":"Boruto","romaji":"Boruto"}}]',
+      recommendedAnime: '[{"id":30,"title":{"english":"Boruto","romaji":"Boruto"}}]',
     } satisfies typeof anime.$inferSelect,
     [
       {

@@ -11,15 +11,7 @@ import {
 } from "@tabler/icons-solidjs";
 import { createForm } from "@tanstack/solid-form";
 import { createFileRoute } from "@tanstack/solid-router";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  Show,
-  Suspense,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show, Suspense } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
@@ -44,11 +36,7 @@ import {
   SelectValue,
 } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
-import {
-  TextField,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
+import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 import {
   type AnimeSearchResult,
   createAddAnimeMutation,
@@ -62,11 +50,7 @@ import {
   releaseProfilesQueryOptions,
   systemConfigQueryOptions,
 } from "~/lib/api";
-import {
-  animeAltTitles,
-  animeDisplayTitle,
-  animeSearchSubtitle,
-} from "~/lib/anime-metadata";
+import { animeAltTitles, animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
 import { formatMatchConfidence } from "~/lib/scanned-file";
 import { cn } from "~/lib/utils";
 
@@ -92,9 +76,7 @@ function AddAnimePage() {
   const search = Route.useSearch();
   const [query, setQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
-  const [selectedAnime, setSelectedAnime] = createSignal<
-    AnimeSearchResult | null
-  >(null);
+  const [selectedAnime, setSelectedAnime] = createSignal<AnimeSearchResult | null>(null);
 
   // Get ID from search params (now properly typed via Valibot transform)
   const anilistId = () => {
@@ -123,8 +105,8 @@ function AddAnimePage() {
   const searchResults = createMemo(() => searchQuery.data?.results ?? []);
   const searchDegraded = createMemo(() => searchQuery.data?.degraded ?? false);
   const animeListQuery = createAnimeListQuery();
-  const libraryIds = createMemo(() =>
-    new Set((animeListQuery.data ?? []).map((anime) => anime.id))
+  const libraryIds = createMemo(
+    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
   );
 
   const isAlreadyAdded = (id: number) => {
@@ -135,9 +117,7 @@ function AddAnimePage() {
     <div class="space-y-6">
       <div class="border-b border-border pb-4 mb-6 flex flex-col gap-4">
         <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-            Add New Anime
-          </h1>
+          <h1 class="text-2xl font-semibold tracking-tight text-foreground">Add New Anime</h1>
           <div class="text-sm text-muted-foreground mt-1">
             Search and add new anime to your library
           </div>
@@ -166,9 +146,7 @@ function AddAnimePage() {
           <div class="flex flex-col items-center justify-center py-20 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
             <IconSearch class="h-12 w-12 mb-4 opacity-50" />
             <h2 class="font-medium text-lg">Search for your next anime</h2>
-            <p class="text-sm mt-1">
-              Type in the search bar above to calculate metadata
-            </p>
+            <p class="text-sm mt-1">Type in the search bar above to calculate metadata</p>
           </div>
         }
       >
@@ -189,16 +167,15 @@ function AddAnimePage() {
             <div class="col-span-full flex items-start gap-2 rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
               <IconInfoCircle class="mt-0.5 h-4 w-4 shrink-0" />
               <p>
-                AniList is temporarily unavailable or rate-limited. Showing
-                local library matches only.
+                AniList is temporarily unavailable or rate-limited. Showing local library matches
+                only.
               </p>
             </div>
           </Show>
           <div
             class={cn(
               "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 transition-opacity duration-200",
-              searchQuery.isFetching && searchResults().length > 0 &&
-                "opacity-60",
+              searchQuery.isFetching && searchResults().length > 0 && "opacity-60",
             )}
           >
             {/* Skeletons: only when fetching with no results to show */}
@@ -268,9 +245,7 @@ function AddAnimePage() {
                       >
                         {animeDisplayTitle(anime)}
                       </h3>
-                      <Show
-                        when={animeAltTitles(anime).slice(1).join(" • ")}
-                      >
+                      <Show when={animeAltTitles(anime).slice(1).join(" • ")}>
                         <p
                           class="text-xs text-muted-foreground line-clamp-1 mb-2"
                           title={animeAltTitles(anime).slice(1).join(" • ")}
@@ -287,11 +262,7 @@ function AddAnimePage() {
                             Local only
                           </Badge>
                         </Show>
-                        <Show
-                          when={formatMatchConfidence(
-                            anime.match_confidence,
-                          )}
-                        >
+                        <Show when={formatMatchConfidence(anime.match_confidence)}>
                           <Badge
                             variant="outline"
                             class="text-xs h-5 px-1.5 font-normal border-info/30 text-info"
@@ -300,18 +271,12 @@ function AddAnimePage() {
                           </Badge>
                         </Show>
                         <Show when={anime.format}>
-                          <Badge
-                            variant="outline"
-                            class="text-xs h-5 px-1.5 font-normal"
-                          >
+                          <Badge variant="outline" class="text-xs h-5 px-1.5 font-normal">
                             {anime.format}
                           </Badge>
                         </Show>
                         <Show when={anime.episode_count}>
-                          <Badge
-                            variant="outline"
-                            class="text-xs h-5 px-1.5 font-normal"
-                          >
+                          <Badge variant="outline" class="text-xs h-5 px-1.5 font-normal">
                             {anime.episode_count} eps
                           </Badge>
                         </Show>
@@ -330,20 +295,14 @@ function AddAnimePage() {
                         </Show>
                         <Show when={animeSearchSubtitle(anime)}>
                           {(startLabel) => (
-                            <Badge
-                              variant="outline"
-                              class="text-xs h-5 px-1.5 font-normal"
-                            >
+                            <Badge variant="outline" class="text-xs h-5 px-1.5 font-normal">
                               <IconCalendarEvent class="mr-1 h-3 w-3" />
                               {startLabel()}
                             </Badge>
                           )}
                         </Show>
                         <Show when={anime.genres?.length}>
-                          <Badge
-                            variant="outline"
-                            class="text-xs h-5 px-1.5 font-normal"
-                          >
+                          <Badge variant="outline" class="text-xs h-5 px-1.5 font-normal">
                             {anime.genres?.slice(0, 2).join(" / ")}
                           </Badge>
                         </Show>
@@ -355,18 +314,14 @@ function AddAnimePage() {
                       </Show>
                       <Show when={anime.synonyms?.length}>
                         <p class="mt-2 text-[11px] text-muted-foreground line-clamp-2">
-                          Also known as{" "}
-                          {anime.synonyms?.slice(0, 3).join(" • ")}
+                          Also known as {anime.synonyms?.slice(0, 3).join(" • ")}
                         </p>
                       </Show>
                       <Show when={anime.related_anime?.length}>
                         <div class="mt-2 space-y-2">
                           <For each={anime.related_anime?.slice(0, 2)}>
                             {(related) => (
-                              <AnimeDiscoveryRow
-                                entry={related}
-                                libraryIds={libraryIds()}
-                              />
+                              <AnimeDiscoveryRow entry={related} libraryIds={libraryIds()} />
                             )}
                           </For>
                         </div>
@@ -375,10 +330,7 @@ function AddAnimePage() {
                         <div class="mt-2 space-y-2">
                           <For each={anime.recommended_anime?.slice(0, 2)}>
                             {(recommended) => (
-                              <AnimeDiscoveryRow
-                                entry={recommended}
-                                libraryIds={libraryIds()}
-                              />
+                              <AnimeDiscoveryRow entry={recommended} libraryIds={libraryIds()} />
                             )}
                           </For>
                         </div>
@@ -395,9 +347,7 @@ function AddAnimePage() {
             </For>
 
             {/* No results: only after fetch completes with empty results */}
-            <Show
-              when={!searchQuery.isFetching && searchResults().length === 0}
-            >
+            <Show when={!searchQuery.isFetching && searchResults().length === 0}>
               <div class="col-span-full flex flex-col items-center justify-center py-12 text-muted-foreground">
                 <IconAlertTriangle class="h-10 w-10 mb-3 opacity-50" />
                 <p>No results found for "{debouncedQuery()}"</p>
@@ -484,9 +434,7 @@ function AddAnimeDialog(props: {
           <DialogTitle>Add to Library</DialogTitle>
           <DialogDescription>
             Configure settings for{" "}
-            <span class="font-medium text-foreground">
-              {props.anime.title.romaji}
-            </span>
+            <span class="font-medium text-foreground">{props.anime.title.romaji}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -500,10 +448,7 @@ function AddAnimeDialog(props: {
         >
           <form.Field name="root_folder">
             {(field) => (
-              <TextField
-                value={field().state.value}
-                onChange={field().handleChange}
-              >
+              <TextField value={field().state.value} onChange={field().handleChange}>
                 <TextFieldLabel>Root Folder Path</TextFieldLabel>
                 <div class="relative">
                   <IconFolder class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -521,32 +466,25 @@ function AddAnimeDialog(props: {
           <form.Field name="profile_name">
             {(field) => (
               <div class="space-y-2">
-                <label
-                  class="text-sm font-medium leading-none"
-                  for={field().name}
-                >
+                <label class="text-sm font-medium leading-none" for={field().name}>
                   Quality Profile
                 </label>
                 <Select
                   name={field().name}
-                  value={profilesQuery.data
-                      ?.map((p) => p.name)
-                      .includes(field().state.value)
-                    ? field().state.value
-                    : null}
+                  value={
+                    profilesQuery.data?.map((p) => p.name).includes(field().state.value)
+                      ? field().state.value
+                      : null
+                  }
                   onChange={(val) => val && field().handleChange(val)}
                   options={profilesQuery.data?.map((p) => p.name) || []}
                   placeholder="Select profile..."
                   itemComponent={(props) => (
-                    <SelectItem item={props.item}>
-                      {props.item.rawValue}
-                    </SelectItem>
+                    <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
                   )}
                 >
                   <SelectTrigger>
-                    <SelectValue<string>>
-                      {(state) => state.selectedOption()}
-                    </SelectValue>
+                    <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
                   </SelectTrigger>
                   <SelectContent />
                 </Select>
@@ -562,13 +500,10 @@ function AddAnimeDialog(props: {
           <form.Field name="release_profile_ids" mode="array">
             {(field) => (
               <div class="space-y-2">
-                <div class="text-sm font-medium leading-none">
-                  Release Profiles (Optional)
-                </div>
+                <div class="text-sm font-medium leading-none">Release Profiles (Optional)</div>
                 <div class="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
                   <Show
-                    when={releaseProfilesQuery.data &&
-                      releaseProfilesQuery.data.length > 0}
+                    when={releaseProfilesQuery.data && releaseProfilesQuery.data.length > 0}
                     fallback={
                       <div class="text-sm text-muted-foreground text-center py-2">
                         No release profiles available
@@ -585,9 +520,7 @@ function AddAnimeDialog(props: {
                               if (checked) {
                                 field().pushValue(profile.id);
                               } else {
-                                const idx = field().state.value.indexOf(
-                                  profile.id,
-                                );
+                                const idx = field().state.value.indexOf(profile.id);
                                 if (idx !== -1) field().removeValue(idx);
                               }
                             }}
@@ -599,10 +532,7 @@ function AddAnimeDialog(props: {
                             <span>{profile.name}</span>
                             <div class="flex gap-2">
                               <Show when={profile.is_global}>
-                                <Badge
-                                  variant="outline"
-                                  class="text-xs h-4 px-1"
-                                >
+                                <Badge variant="outline" class="text-xs h-4 px-1">
                                   Global
                                 </Badge>
                               </Show>
@@ -622,8 +552,8 @@ function AddAnimeDialog(props: {
                   </Show>
                 </div>
                 <p class="text-xs text-muted-foreground">
-                  Global profiles are applied automatically unless disabled.
-                  Select specific profiles to apply them to this series.
+                  Global profiles are applied automatically unless disabled. Select specific
+                  profiles to apply them to this series.
                 </p>
               </div>
             )}
@@ -678,21 +608,12 @@ function AddAnimeDialog(props: {
           </div>
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => props.onOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
               Cancel
             </Button>
-            <form.Subscribe
-              selector={(state) => [state.canSubmit, state.isSubmitting]}
-            >
+            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {(state) => (
-                <Button
-                  type="submit"
-                  disabled={!state()[0] || addAnimeMutation.isPending}
-                >
+                <Button type="submit" disabled={!state()[0] || addAnimeMutation.isPending}>
                   <Show
                     when={!addAnimeMutation.isPending}
                     fallback={

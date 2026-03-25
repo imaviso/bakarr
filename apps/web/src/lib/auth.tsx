@@ -1,10 +1,4 @@
-import {
-  type Accessor,
-  createContext,
-  createSignal,
-  type JSX,
-  useContext,
-} from "solid-js";
+import { type Accessor, createContext, createSignal, type JSX, useContext } from "solid-js";
 
 export interface AuthState {
   username?: string;
@@ -107,9 +101,7 @@ export function AuthProvider(props: { children: JSX.Element }) {
     getAuthHeaders,
   };
 
-  return (
-    <AuthContext.Provider value={value}>{props.children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{props.children}</AuthContext.Provider>;
 }
 
 // Hook to use auth context in components

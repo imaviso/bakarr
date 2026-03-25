@@ -20,9 +20,7 @@ export interface SkippingSerializedEffectRunner<A, E, R = never> {
 
 export interface SerializedFlagCoordinator {
   readonly finish: Effect.Effect<void>;
-  readonly runSerialized: <A, E, R>(
-    effect: Effect.Effect<A, E, R>,
-  ) => Effect.Effect<A, E, R>;
+  readonly runSerialized: <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>;
   readonly tryStart: Effect.Effect<boolean>;
 }
 
@@ -37,9 +35,7 @@ export function makeCoalescedEffectRunner<E, R>(
       readonly running: boolean;
     }>({ completion: null, pending: false, running: false });
 
-    const runDrain = (
-      completion: Deferred.Deferred<void, E>,
-    ): Effect.Effect<void, never, R> =>
+    const runDrain = (completion: Deferred.Deferred<void, E>): Effect.Effect<void, never, R> =>
       Effect.gen(function* () {
         while (true) {
           const exit = yield* Effect.exit(effect);
@@ -248,9 +244,9 @@ export function makeLatestValuePublisher<A, E, R>(
       });
 
     const flush = Effect.gen(function* () {
-      const completion = yield* semaphore.withPermits(1)(Ref.get(state)).pipe(
-        Effect.map((current) => current.completion),
-      );
+      const completion = yield* semaphore
+        .withPermits(1)(Ref.get(state))
+        .pipe(Effect.map((current) => current.completion));
 
       if (completion !== null) {
         yield* Deferred.await(completion);
@@ -270,14 +266,10 @@ export function makeSingleFlightEffectRunner<A, E, R>(
     const currentRunRef = yield* Ref.make<Deferred.Deferred<A, E> | null>(null);
     const stateSemaphore = yield* Effect.makeSemaphore(1);
 
-    const clearCurrentRun = stateSemaphore.withPermits(1)(
-      Ref.set(currentRunRef, null),
-    );
+    const clearCurrentRun = stateSemaphore.withPermits(1)(Ref.set(currentRunRef, null));
 
     const trigger = Effect.gen(function* () {
-      const current = yield* stateSemaphore.withPermits(1)(
-        Ref.get(currentRunRef),
-      );
+      const current = yield* stateSemaphore.withPermits(1)(Ref.get(currentRunRef));
 
       if (current !== null) {
         return yield* Deferred.await(current);
@@ -356,17 +348,14 @@ export function makeSkippingSerializedEffectRunner<A, E, R>(
   });
 }
 
-export function makeSerializedFlagCoordinator(): Effect.Effect<
-  SerializedFlagCoordinator
-> {
+export function makeSerializedFlagCoordinator(): Effect.Effect<SerializedFlagCoordinator> {
   return Effect.gen(function* () {
     const semaphore = yield* Effect.makeSemaphore(1);
     const runningRef = yield* Ref.make(false);
 
     return {
       finish: Ref.set(runningRef, false),
-      runSerialized: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-        semaphore.withPermits(1)(effect),
+      runSerialized: <A, E, R>(effect: Effect.Effect<A, E, R>) => semaphore.withPermits(1)(effect),
       tryStart: Ref.modify(runningRef, (running) => [running, true] as const),
     } satisfies SerializedFlagCoordinator;
   });

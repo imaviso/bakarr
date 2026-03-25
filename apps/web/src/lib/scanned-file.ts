@@ -31,9 +31,9 @@ type NamingMetadataSnapshot = {
 };
 
 export function mediaMetadataBadges(input: MediaMetadataInput) {
-  const audio = [input.audio_codec, input.audio_channels].filter((value) =>
-    typeof value === "string" && value.length > 0
-  ).join(" ");
+  const audio = [input.audio_codec, input.audio_channels]
+    .filter((value) => typeof value === "string" && value.length > 0)
+    .join(" ");
 
   return [
     input.quality,
@@ -42,9 +42,7 @@ export function mediaMetadataBadges(input: MediaMetadataInput) {
     input.video_codec,
     audio || undefined,
     input.group,
-  ].filter((value): value is string =>
-    typeof value === "string" && value.length > 0
-  );
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
 export function formatDurationSeconds(value?: number) {
@@ -97,9 +95,7 @@ export function formatEpisodeNumberList(numbers?: readonly number[]) {
     return undefined;
   }
 
-  return numbers.length === 1
-    ? `Episode ${numbers[0]}`
-    : `Episodes ${numbers.join(", ")}`;
+  return numbers.length === 1 ? `Episode ${numbers[0]}` : `Episodes ${numbers.join(", ")}`;
 }
 
 export function formatFileEpisodeMapping(input?: {
@@ -112,9 +108,7 @@ export function formatFileEpisodeMapping(input?: {
 
   const episodeLabel = formatEpisodeNumberList(input.episode_numbers);
 
-  return episodeLabel
-    ? `${input.anime_title} (${episodeLabel})`
-    : input.anime_title;
+  return episodeLabel ? `${input.anime_title} (${episodeLabel})` : input.anime_title;
 }
 
 export function buildFileDecisionSummary(input: {
@@ -157,9 +151,7 @@ export function buildFileDecisionSummary(input: {
   return details;
 }
 
-export function formatNamingTitleSource(
-  value?: NamingMetadataSnapshot["title_source"],
-) {
+export function formatNamingTitleSource(value?: NamingMetadataSnapshot["title_source"]) {
   switch (value) {
     case "preferred_english":
       return "Preferred English";
@@ -189,14 +181,10 @@ export function namingMetadataBadges(snapshot?: NamingMetadataSnapshot) {
     snapshot.year !== undefined ? String(snapshot.year) : undefined,
     formatDurationSeconds(snapshot.duration_seconds),
     snapshot.group,
-    [snapshot.quality, snapshot.resolution].filter(Boolean).join(" ") ||
-    undefined,
+    [snapshot.quality, snapshot.resolution].filter(Boolean).join(" ") || undefined,
     snapshot.video_codec,
-    [snapshot.audio_codec, snapshot.audio_channels].filter(Boolean).join(" ") ||
-    undefined,
-  ].filter((value): value is string =>
-    typeof value === "string" && value.length > 0
-  );
+    [snapshot.audio_codec, snapshot.audio_channels].filter(Boolean).join(" ") || undefined,
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
 export function summarizeImportNamingOutcome(
@@ -209,12 +197,10 @@ export function summarizeImportNamingOutcome(
     return undefined;
   }
 
-  const fallbackCount =
-    importedFiles.filter((file) => file.naming_fallback_used)
-      .length;
-  const warningCount =
-    importedFiles.filter((file) => (file.naming_warnings?.length ?? 0) > 0)
-      .length;
+  const fallbackCount = importedFiles.filter((file) => file.naming_fallback_used).length;
+  const warningCount = importedFiles.filter(
+    (file) => (file.naming_warnings?.length ?? 0) > 0,
+  ).length;
   const details = [
     fallbackCount > 0 ? `${fallbackCount} used fallback naming` : undefined,
     warningCount > 0 ? `${warningCount} had naming warnings` : undefined,

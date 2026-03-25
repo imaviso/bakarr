@@ -131,19 +131,22 @@ it.effect("parseJsonBody formats schema validation errors as concise path summar
       assertMatch(parsed.left.message, /actual "Copy"/);
       assertEquals(parsed.left.message.includes("readonly downloads"), false);
     }
-  })
+  }),
 );
 
 it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", () => {
-  const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)({
-    anime_id: 0,
-    episode_number: 1.5,
-    magnet: "magnet:?xt=urn:btih:test",
-    release_metadata: {
-      group: "SubsPlease",
+  const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)(
+    {
+      anime_id: 0,
+      episode_number: 1.5,
+      magnet: "magnet:?xt=urn:btih:test",
+      release_metadata: {
+        group: "SubsPlease",
+      },
+      title: "Example release",
     },
-    title: "Example release",
-  }, { errors: "all" });
+    { errors: "all" },
+  );
 
   assertEquals(result._tag, "Left");
 
@@ -183,23 +186,31 @@ it("SearchDownloadBodySchema accepts structured release metadata", () => {
 });
 
 it("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids", () => {
-  const addAnime = Schema.decodeUnknownEither(AddAnimeInputSchema)({
-    id: -3,
-    monitor_and_search: false,
-    monitored: true,
-    profile_name: "Default",
-    release_profile_ids: [1, 2.5],
-    root_folder: "/library",
-    use_existing_root: true,
-  }, { errors: "all" });
+  const addAnime = Schema.decodeUnknownEither(AddAnimeInputSchema)(
+    {
+      id: -3,
+      monitor_and_search: false,
+      monitored: true,
+      profile_name: "Default",
+      release_profile_ids: [1, 2.5],
+      root_folder: "/library",
+      use_existing_root: true,
+    },
+    { errors: "all" },
+  );
 
-  const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)({
-    files: [{
-      anime_id: 2,
-      episode_number: 0,
-      source_path: "/downloads/file.mkv",
-    }],
-  }, { errors: "all" });
+  const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)(
+    {
+      files: [
+        {
+          anime_id: 2,
+          episode_number: 0,
+          source_path: "/downloads/file.mkv",
+        },
+      ],
+    },
+    { errors: "all" },
+  );
 
   assertEquals(addAnime._tag, "Left");
   assertEquals(importFiles._tag, "Left");
@@ -216,21 +227,23 @@ it("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids",
 
 it("ImportFilesBodySchema accepts source metadata for naming reuse", () => {
   const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)({
-    files: [{
-      anime_id: 2,
-      episode_number: 1,
-      source_metadata: {
-        quality: "WEB-DL",
-        resolution: "1080p",
-        source_identity: {
-          episode_numbers: [1],
-          label: "S01E01",
-          scheme: "season",
-          season: 1,
+    files: [
+      {
+        anime_id: 2,
+        episode_number: 1,
+        source_metadata: {
+          quality: "WEB-DL",
+          resolution: "1080p",
+          source_identity: {
+            episode_numbers: [1],
+            label: "S01E01",
+            scheme: "season",
+            season: 1,
+          },
         },
+        source_path: "/downloads/file.mkv",
       },
-      source_path: "/downloads/file.mkv",
-    }],
+    ],
   });
 
   assertEquals(importFiles._tag, "Right");

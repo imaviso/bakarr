@@ -1,14 +1,12 @@
-import {
-  FileSystem as PlatformFileSystem,
-  Path as PlatformPath,
-} from "@effect/platform";
+import { FileSystem as PlatformFileSystem, Path as PlatformPath } from "@effect/platform";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { Context, Effect, Layer, Schema, Scope, Stream } from "effect";
 
-export class FileSystemError extends Schema.TaggedError<FileSystemError>()(
-  "FileSystemError",
-  { cause: Schema.Defect, message: Schema.String, path: Schema.String },
-) {}
+export class FileSystemError extends Schema.TaggedError<FileSystemError>()("FileSystemError", {
+  cause: Schema.Defect,
+  message: Schema.String,
+  path: Schema.String,
+}) {}
 
 export interface FileInfo {
   readonly isDirectory: boolean;
@@ -43,13 +41,8 @@ export interface RemoveOptions {
 
 export interface FileHandle {
   readonly close: () => void;
-  readonly read: (
-    buffer: Uint8Array,
-  ) => Effect.Effect<number | null, FileSystemError>;
-  readonly seek: (
-    offset: number,
-    mode: number,
-  ) => Effect.Effect<void, FileSystemError>;
+  readonly read: (buffer: Uint8Array) => Effect.Effect<number | null, FileSystemError>;
+  readonly seek: (offset: number, mode: number) => Effect.Effect<void, FileSystemError>;
 }
 
 export interface FileSystemShape {
@@ -57,33 +50,17 @@ export interface FileSystemShape {
     path: string | URL,
     options: OpenFileOptions,
   ) => Effect.Effect<FileHandle, FileSystemError, Scope.Scope>;
-  readonly readFile: (
-    path: string | URL,
-  ) => Effect.Effect<Uint8Array, FileSystemError>;
-  readonly readDir: (
-    path: string | URL,
-  ) => Effect.Effect<DirEntry[], FileSystemError>;
-  readonly readDirStream?: (
-    path: string | URL,
-  ) => Stream.Stream<DirEntry, FileSystemError>;
-  readonly realPath: (
-    path: string | URL,
-  ) => Effect.Effect<string, FileSystemError>;
-  readonly stat: (
-    path: string | URL,
-  ) => Effect.Effect<FileInfo, FileSystemError>;
+  readonly readFile: (path: string | URL) => Effect.Effect<Uint8Array, FileSystemError>;
+  readonly readDir: (path: string | URL) => Effect.Effect<DirEntry[], FileSystemError>;
+  readonly readDirStream?: (path: string | URL) => Stream.Stream<DirEntry, FileSystemError>;
+  readonly realPath: (path: string | URL) => Effect.Effect<string, FileSystemError>;
+  readonly stat: (path: string | URL) => Effect.Effect<FileInfo, FileSystemError>;
   readonly mkdir: (
     path: string | URL,
     options?: MkdirOptions,
   ) => Effect.Effect<void, FileSystemError>;
-  readonly rename: (
-    from: string,
-    to: string,
-  ) => Effect.Effect<void, FileSystemError>;
-  readonly copyFile: (
-    from: string,
-    to: string,
-  ) => Effect.Effect<void, FileSystemError>;
+  readonly rename: (from: string, to: string) => Effect.Effect<void, FileSystemError>;
+  readonly copyFile: (from: string, to: string) => Effect.Effect<void, FileSystemError>;
   readonly writeFile: (
     path: string | URL,
     data: Uint8Array,
@@ -113,9 +90,7 @@ function wrap<A, R>(
   effect: Effect.Effect<A, unknown, R>,
 ): Effect.Effect<A, FileSystemError, R> {
   return effect.pipe(
-    Effect.mapError((cause) =>
-      new FileSystemError({ cause, message, path: path.toString() })
-    ),
+    Effect.mapError((cause) => new FileSystemError({ cause, message, path: path.toString() })),
   );
 }
 
@@ -151,9 +126,7 @@ function toMkdirOptions(
   };
 }
 
-function toRemoveOptions(
-  options?: RemoveOptions,
-): PlatformFileSystem.RemoveOptions | undefined {
+function toRemoveOptions(options?: RemoveOptions): PlatformFileSystem.RemoveOptions | undefined {
   if (!options) return undefined;
   return {
     force: true,
@@ -170,10 +143,7 @@ function toFileInfo(info: PlatformFileSystem.File.Info): FileInfo {
   };
 }
 
-function toDirEntry(
-  name: string,
-  info: PlatformFileSystem.File.Info,
-): DirEntry {
+function toDirEntry(name: string, info: PlatformFileSystem.File.Info): DirEntry {
   return {
     name,
     isDirectory: info.type === "Directory",
@@ -194,31 +164,20 @@ function toSeekMode(mode: number): "current" | "start" {
   throw new Error(`Unsupported seek mode: ${mode}`);
 }
 
-function toOpenFileHandle(
-  file: PlatformFileSystem.File,
-  path: string | URL,
-): FileHandle {
+function toOpenFileHandle(file: PlatformFileSystem.File, path: string | URL): FileHandle {
   return {
     close: () => {
       // Closed by scope.
     },
     read: (buffer: Uint8Array) =>
-      wrap(
-        path,
-        "Failed to read file",
-        file.read(buffer),
-      ).pipe(
+      wrap(path, "Failed to read file", file.read(buffer)).pipe(
         Effect.map((size) => {
           const bytesRead = Number(size);
           return bytesRead === 0 ? null : bytesRead;
         }),
       ),
     seek: (offset: number, mode: number) =>
-      wrap(
-        path,
-        "Failed to seek file",
-        file.seek(BigInt(offset), toSeekMode(mode)),
-      ),
+      wrap(path, "Failed to seek file", file.seek(BigInt(offset), toSeekMode(mode))),
   };
 }
 
@@ -228,64 +187,46 @@ function makeFileSystem(
 ): FileSystemShape {
   return {
     openFile: (path, options) =>
-      Effect.flatMap(
-        resolvePath(pathService, path),
-        (resolvedPath) =>
-          wrap(
-            path,
-            "Failed to open file",
-            platformFs.open(resolvedPath, {
-              flag: toOpenFlag(options),
-            }),
-          ),
-      ).pipe(
-        Effect.map((file) => toOpenFileHandle(file, path)),
-      ),
+      Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
+        wrap(
+          path,
+          "Failed to open file",
+          platformFs.open(resolvedPath, {
+            flag: toOpenFlag(options),
+          }),
+        ),
+      ).pipe(Effect.map((file) => toOpenFileHandle(file, path))),
     readFile: (path) =>
-      Effect.flatMap(
-        resolvePath(pathService, path),
-        (resolvedPath) =>
-          wrap(
-            path,
-            "Failed to read file",
-            Effect.scoped(platformFs.readFile(resolvedPath)),
-          ),
+      Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
+        wrap(path, "Failed to read file", Effect.scoped(platformFs.readFile(resolvedPath))),
       ),
     readDir: (path) =>
-      Effect.flatMap(
-        resolvePath(pathService, path),
-        (resolvedPath) =>
-          wrap(
-            path,
-            "Failed to read directory",
-            Effect.scoped(platformFs.readDirectory(resolvedPath)).pipe(
-              Effect.flatMap((names) =>
-                Effect.forEach(
-                  names,
-                  (name) =>
-                    Effect.scoped(
-                      platformFs.stat(pathService.join(resolvedPath, name)),
-                    ).pipe(
-                      Effect.map((info) => toDirEntry(name, info)),
-                    ),
-                  { concurrency: "unbounded" },
-                )
+      Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
+        wrap(
+          path,
+          "Failed to read directory",
+          Effect.scoped(platformFs.readDirectory(resolvedPath)).pipe(
+            Effect.flatMap((names) =>
+              Effect.forEach(
+                names,
+                (name) =>
+                  Effect.scoped(platformFs.stat(pathService.join(resolvedPath, name))).pipe(
+                    Effect.map((info) => toDirEntry(name, info)),
+                  ),
+                { concurrency: "unbounded" },
               ),
             ),
           ),
+        ),
       ),
     readDirStream: (path) =>
       Stream.fromEffect(
-        Effect.flatMap(
-          resolvePath(pathService, path),
-          (resolvedPath) =>
-            wrap(
-              path,
-              "Failed to read directory",
-              Effect.scoped(platformFs.readDirectory(resolvedPath)),
-            ).pipe(
-              Effect.map((names) => ({ names, resolvedPath })),
-            ),
+        Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
+          wrap(
+            path,
+            "Failed to read directory",
+            Effect.scoped(platformFs.readDirectory(resolvedPath)),
+          ).pipe(Effect.map((names) => ({ names, resolvedPath }))),
         ),
       ).pipe(
         Stream.flatMap(({ names, resolvedPath }) =>
@@ -294,83 +235,43 @@ function makeFileSystem(
               wrap(
                 pathService.join(resolvedPath, name),
                 "Failed to read directory",
-                Effect.scoped(
-                  platformFs.stat(pathService.join(resolvedPath, name)),
-                ),
-              ).pipe(
-                Effect.map((info) => toDirEntry(name, info)),
-              )
+                Effect.scoped(platformFs.stat(pathService.join(resolvedPath, name))),
+              ).pipe(Effect.map((info) => toDirEntry(name, info))),
             ),
-          )
+          ),
         ),
       ),
     realPath: (path) =>
-      Effect.flatMap(
-        resolvePath(pathService, path),
-        (resolvedPath) =>
-          wrap(
-            path,
-            "Failed to resolve path",
-            Effect.scoped(platformFs.realPath(resolvedPath)),
-          ),
+      Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
+        wrap(path, "Failed to resolve path", Effect.scoped(platformFs.realPath(resolvedPath))),
       ),
     stat: (path) =>
-      Effect.flatMap(
-        resolvePath(pathService, path),
-        (resolvedPath) =>
-          wrap(
-            path,
-            "Failed to stat path",
-            Effect.scoped(platformFs.stat(resolvedPath)),
-          ),
-      ).pipe(
-        Effect.map(toFileInfo),
-      ),
+      Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
+        wrap(path, "Failed to stat path", Effect.scoped(platformFs.stat(resolvedPath))),
+      ).pipe(Effect.map(toFileInfo)),
     mkdir: (path, options) =>
-      Effect.flatMap(
-        resolvePath(pathService, path),
-        (resolvedPath) =>
-          wrap(
-            path,
-            "Failed to create directory",
-            Effect.scoped(
-              platformFs.makeDirectory(resolvedPath, toMkdirOptions(options)),
-            ),
-          ),
+      Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
+        wrap(
+          path,
+          "Failed to create directory",
+          Effect.scoped(platformFs.makeDirectory(resolvedPath, toMkdirOptions(options))),
+        ),
       ),
     rename: (from, to) =>
-      wrap(
-        from,
-        "Failed to rename",
-        Effect.scoped(platformFs.rename(from, to)),
-      ),
+      wrap(from, "Failed to rename", Effect.scoped(platformFs.rename(from, to))),
     copyFile: (from, to) =>
-      wrap(
-        from,
-        "Failed to copy file",
-        Effect.scoped(platformFs.copyFile(from, to)),
-      ),
+      wrap(from, "Failed to copy file", Effect.scoped(platformFs.copyFile(from, to))),
     writeFile: (path, data) =>
-      Effect.flatMap(
-        resolvePath(pathService, path),
-        (resolvedPath) =>
-          wrap(
-            path,
-            "Failed to write file",
-            Effect.scoped(platformFs.writeFile(resolvedPath, data)),
-          ),
+      Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
+        wrap(path, "Failed to write file", Effect.scoped(platformFs.writeFile(resolvedPath, data))),
       ),
     remove: (path, options) =>
-      Effect.flatMap(
-        resolvePath(pathService, path),
-        (resolvedPath) =>
-          wrap(
-            path,
-            "Failed to remove",
-            Effect.scoped(
-              platformFs.remove(resolvedPath, toRemoveOptions(options)),
-            ),
-          ),
+      Effect.flatMap(resolvePath(pathService, path), (resolvedPath) =>
+        wrap(
+          path,
+          "Failed to remove",
+          Effect.scoped(platformFs.remove(resolvedPath, toRemoveOptions(options))),
+        ),
       ),
   };
 }
@@ -389,18 +290,12 @@ export const FileSystemLive = FileSystemFromPlatform.pipe(
 );
 
 export const FileSystemNoop = FileSystemFromPlatform.pipe(
-  Layer.provide(
-    Layer.mergeAll(PlatformFileSystem.layerNoop({}), BunPath.layer),
-  ),
+  Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop({}), BunPath.layer)),
 );
 
-export function makeFileSystemNoopLayer(
-  overrides: Partial<PlatformFileSystem.FileSystem>,
-) {
+export function makeFileSystemNoopLayer(overrides: Partial<PlatformFileSystem.FileSystem>) {
   return FileSystemFromPlatform.pipe(
-    Layer.provide(
-      Layer.mergeAll(PlatformFileSystem.layerNoop(overrides), BunPath.layer),
-    ),
+    Layer.provide(Layer.mergeAll(PlatformFileSystem.layerNoop(overrides), BunPath.layer)),
   );
 }
 
@@ -419,7 +314,8 @@ export function isWithinPathRoot(path: string, root: string) {
   }
 
   if (
-    relativePath.startsWith("..") || relativePath.startsWith("/") ||
+    relativePath.startsWith("..") ||
+    relativePath.startsWith("/") ||
     relativePath.startsWith("\\")
   ) {
     return false;
@@ -438,12 +334,13 @@ const resolvePath = (
 
   if (path.protocol === "file:") {
     return pathService.fromFileUrl(path).pipe(
-      Effect.mapError((cause) =>
-        new FileSystemError({
-          cause,
-          message: "Failed to convert file URL",
-          path: path.toString(),
-        })
+      Effect.mapError(
+        (cause) =>
+          new FileSystemError({
+            cause,
+            message: "Failed to convert file URL",
+            path: path.toString(),
+          }),
       ),
     );
   }
@@ -468,8 +365,9 @@ export function sanitizePathSegment(value: string) {
 }
 
 export function sanitizeFilename(name: string) {
-  return name.replace(/[\\/:]/g, " ").replace(/[*?"<>|]/g, "").replace(
-    /\s+/g,
-    " ",
-  ).trim();
+  return name
+    .replace(/[\\/:]/g, " ")
+    .replace(/[*?"<>|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }

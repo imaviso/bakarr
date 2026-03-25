@@ -65,23 +65,17 @@ export function SseToastListener() {
       case "DownloadStarted":
         {
           const copy = getNotificationToastCopy(event);
-          toast.info(
-            copy?.message ?? `Download started: ${event.payload.title}`,
-            {
-              description: copy?.description,
-            },
-          );
+          toast.info(copy?.message ?? `Download started: ${event.payload.title}`, {
+            description: copy?.description,
+          });
         }
         break;
       case "DownloadFinished":
         {
           const copy = getNotificationToastCopy(event);
-          toast.success(
-            copy?.message ?? `Download finished: ${event.payload.title}`,
-            {
-              description: copy?.description,
-            },
-          );
+          toast.success(copy?.message ?? `Download finished: ${event.payload.title}`, {
+            description: copy?.description,
+          });
         }
         queryClient.invalidateQueries({ queryKey: ["anime"] });
         if (event.payload.anime_id) {
@@ -171,9 +165,7 @@ export function SseToastListener() {
         toast.info("RSS check started");
         break;
       case "RssCheckFinished":
-        toast.success(
-          `RSS check finished. Found ${event.payload.new_items} new items.`,
-        );
+        toast.success(`RSS check finished. Found ${event.payload.new_items} new items.`);
         break;
       case "Error":
         toast.error(event.payload.message);

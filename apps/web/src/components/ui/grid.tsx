@@ -15,13 +15,7 @@ type GridProps = ComponentProps<"div"> & {
 
 const Grid: Component<GridProps> = (rawProps) => {
   const props = mergeProps({ cols: 1 } satisfies GridProps, rawProps);
-  const [local, others] = splitProps(props, [
-    "cols",
-    "colsSm",
-    "colsMd",
-    "colsLg",
-    "class",
-  ]);
+  const [local, others] = splitProps(props, ["cols", "colsSm", "colsMd", "colsLg", "class"]);
 
   return (
     <div
@@ -47,13 +41,7 @@ type ColProps = ComponentProps<"div"> & {
 
 const Col: Component<ColProps> = (rawProps) => {
   const props = mergeProps({ span: 1 as Span }, rawProps);
-  const [local, others] = splitProps(props, [
-    "span",
-    "spanSm",
-    "spanMd",
-    "spanLg",
-    "class",
-  ]);
+  const [local, others] = splitProps(props, ["span", "spanSm", "spanMd", "spanLg", "class"]);
 
   return (
     <div

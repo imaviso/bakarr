@@ -3,10 +3,7 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 
 import { Database, DatabaseError } from "./database.ts";
 
-export const DRIZZLE_MIGRATIONS_FOLDER = new URL(
-  "../../drizzle",
-  import.meta.url,
-).pathname;
+export const DRIZZLE_MIGRATIONS_FOLDER = new URL("../../drizzle", import.meta.url).pathname;
 
 /**
  * Startup migration strategy (blocking, fail-fast):

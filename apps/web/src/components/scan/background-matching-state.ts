@@ -8,16 +8,11 @@ export interface BackgroundMatchingStateInput {
   pausedCount: number;
 }
 
-export function isBackgroundMatchingRunning(
-  input: BackgroundMatchingStateInput,
-) {
-  return input.matchingCount > 0 ||
-    Boolean(input.job?.is_running && input.hasOutstandingWork);
+export function isBackgroundMatchingRunning(input: BackgroundMatchingStateInput) {
+  return input.matchingCount > 0 || Boolean(input.job?.is_running && input.hasOutstandingWork);
 }
 
-export function backgroundMatchingStatusLabel(
-  input: BackgroundMatchingStateInput,
-) {
+export function backgroundMatchingStatusLabel(input: BackgroundMatchingStateInput) {
   if (isBackgroundMatchingRunning(input)) {
     return "Running";
   }
@@ -44,10 +39,7 @@ export function backgroundMatchingStatusLabel(
 export function backgroundMatchingStatusVariant(
   input: BackgroundMatchingStateInput,
 ): "outline" | "warning" | "error" {
-  if (
-    isBackgroundMatchingRunning(input) || input.hasOutstandingWork ||
-    input.pausedCount > 0
-  ) {
+  if (isBackgroundMatchingRunning(input) || input.hasOutstandingWork || input.pausedCount > 0) {
     return "warning";
   }
 

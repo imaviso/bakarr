@@ -3,10 +3,7 @@ import { createMemo, For, Show } from "solid-js";
 import { buttonVariants } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import type { Anime } from "~/lib/api";
-import {
-  animeDiscoverySubtitle,
-  animeDisplayTitle,
-} from "~/lib/anime-metadata";
+import { animeDiscoverySubtitle, animeDisplayTitle } from "~/lib/anime-metadata";
 import { cn } from "~/lib/utils";
 
 type DiscoveryEntry = NonNullable<Anime["related_anime"]>[number];
@@ -19,9 +16,7 @@ interface AnimeDiscoveryRowProps {
 }
 
 export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
-  const subtitle = createMemo(() =>
-    animeDiscoverySubtitle(props.entry).join(" - ")
-  );
+  const subtitle = createMemo(() => animeDiscoverySubtitle(props.entry).join(" - "));
   const isInLibrary = createMemo(() => props.libraryIds.has(props.entry.id));
 
   return (
@@ -42,9 +37,7 @@ export function AnimeDiscoveryRow(props: AnimeDiscoveryRowProps) {
         />
       </Show>
       <div class="min-w-0 flex-1">
-        <div class="font-medium text-foreground">
-          {animeDisplayTitle(props.entry)}
-        </div>
+        <div class="font-medium text-foreground">{animeDisplayTitle(props.entry)}</div>
         <Show when={subtitle()}>
           <div class="mt-1 text-muted-foreground">{subtitle()}</div>
         </Show>
@@ -97,14 +90,10 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
   const recommended = createMemo(() => {
     const relatedIds = new Set(related().map((entry) => entry.id));
     const entries = props.anime.recommended_anime ?? [];
-    return entries.filter((entry) =>
-      entry.id !== props.anime.id && !relatedIds.has(entry.id)
-    );
+    return entries.filter((entry) => entry.id !== props.anime.id && !relatedIds.has(entry.id));
   });
 
-  const hasContent = createMemo(() =>
-    related().length > 0 || recommended().length > 0
-  );
+  const hasContent = createMemo(() => related().length > 0 || recommended().length > 0);
 
   return (
     <Show when={hasContent()}>
@@ -120,12 +109,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
               </div>
               <div class="space-y-2">
                 <For each={related()}>
-                  {(entry) => (
-                    <AnimeDiscoveryRow
-                      entry={entry}
-                      libraryIds={props.libraryIds}
-                    />
-                  )}
+                  {(entry) => <AnimeDiscoveryRow entry={entry} libraryIds={props.libraryIds} />}
                 </For>
               </div>
             </section>
@@ -138,12 +122,7 @@ export function AnimeDiscoverySection(props: AnimeDiscoverySectionProps) {
               </div>
               <div class="space-y-2">
                 <For each={recommended().slice(0, 6)}>
-                  {(entry) => (
-                    <AnimeDiscoveryRow
-                      entry={entry}
-                      libraryIds={props.libraryIds}
-                    />
-                  )}
+                  {(entry) => <AnimeDiscoveryRow entry={entry} libraryIds={props.libraryIds} />}
                 </For>
               </div>
             </section>

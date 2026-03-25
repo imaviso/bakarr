@@ -26,9 +26,7 @@ export function encodeAnimeDiscoveryEntries(
   );
 }
 
-export function encodeAnimeSynonyms(
-  synonyms: ReadonlyArray<string> | undefined,
-): string | null {
+export function encodeAnimeSynonyms(synonyms: ReadonlyArray<string> | undefined): string | null {
   if (!synonyms || synonyms.length === 0) {
     return null;
   }

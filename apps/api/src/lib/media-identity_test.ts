@@ -34,9 +34,7 @@ it("parseFileSourceIdentity: YYYY.MM.DD is a daily identity", () => {
 });
 
 it("parseReleaseSourceIdentity: daily release title", () => {
-  const result = parseReleaseSourceIdentity(
-    "[Group] Show Name - 2025.03.14 (1080p)",
-  );
+  const result = parseReleaseSourceIdentity("[Group] Show Name - 2025.03.14 (1080p)");
   assertEquals(result.kind, "episode");
   assertEquals(result.source_identity?.scheme, "daily");
   if (result.source_identity?.scheme === "daily") {
@@ -121,9 +119,7 @@ it("parseFileSourceIdentity: 1x01-1x02 multi-episode", () => {
 });
 
 it("parseFileSourceIdentity: Season 1 Episode 3 format", () => {
-  const result = parseFileSourceIdentity(
-    "Show Name - Season 1 Episode 3 - Episode Title.mkv",
-  );
+  const result = parseFileSourceIdentity("Show Name - Season 1 Episode 3 - Episode Title.mkv");
   assertEquals(result.kind, "episode");
   assertEquals(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
@@ -179,18 +175,12 @@ it("parseFileSourceIdentity: absolute range 03-04", () => {
 // ---------------------------------------------------------------------------
 
 it("parseFileSourceIdentity: folder-only 03.mkv with Specials context", () => {
-  const context = buildPathParseContext(
-    "/library/Show",
-    "/library/Show/Specials/03.mkv",
-  );
+  const context = buildPathParseContext("/library/Show", "/library/Show/Specials/03.mkv");
   assertEquals(context.is_specials_folder, true);
   assertEquals(context.season_hint, 0);
   assertEquals(context.entry_folder_title, "Show");
 
-  const result = parseFileSourceIdentity(
-    "/library/Show/Specials/03.mkv",
-    context,
-  );
+  const result = parseFileSourceIdentity("/library/Show/Specials/03.mkv", context);
   assertEquals(result.kind, "episode");
   assertEquals(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
@@ -200,17 +190,11 @@ it("parseFileSourceIdentity: folder-only 03.mkv with Specials context", () => {
 });
 
 it("parseFileSourceIdentity: folder-only 01.mkv with Season 1 context", () => {
-  const context = buildPathParseContext(
-    "/library",
-    "/library/Naruto/Season 1/01.mkv",
-  );
+  const context = buildPathParseContext("/library", "/library/Naruto/Season 1/01.mkv");
   assertEquals(context.season_hint, 1);
   assertEquals(context.entry_folder_title, "Naruto");
 
-  const result = parseFileSourceIdentity(
-    "/library/Naruto/Season 1/01.mkv",
-    context,
-  );
+  const result = parseFileSourceIdentity("/library/Naruto/Season 1/01.mkv", context);
   assertEquals(result.kind, "episode");
   assertEquals(result.parsed_title, "Naruto");
   assertEquals(result.source_identity?.scheme, "season");
@@ -221,28 +205,19 @@ it("parseFileSourceIdentity: folder-only 01.mkv with Season 1 context", () => {
 });
 
 it("buildPathParseContext: detects sequel hint from folder name", () => {
-  const context = buildPathParseContext(
-    "/library",
-    "/library/Overlord II/03.mkv",
-  );
+  const context = buildPathParseContext("/library", "/library/Overlord II/03.mkv");
   assertEquals(context.entry_folder_title, "Overlord II");
   assertEquals(context.sequel_hint, "II");
 });
 
 it("buildPathParseContext: detects Season 0 as specials", () => {
-  const context = buildPathParseContext(
-    "/library/Show",
-    "/library/Show/Season 0/03.mkv",
-  );
+  const context = buildPathParseContext("/library/Show", "/library/Show/Season 0/03.mkv");
   assertEquals(context.is_specials_folder, true);
   assertEquals(context.season_hint, 0);
 });
 
 it("buildPathParseContext: S01 folder notation", () => {
-  const context = buildPathParseContext(
-    "/library/Show",
-    "/library/Show/S01/01.mkv",
-  );
+  const context = buildPathParseContext("/library/Show", "/library/Show/S01/01.mkv");
   assertEquals(context.season_hint, 1);
 });
 
@@ -251,10 +226,7 @@ it("buildPathParseContext: S01 folder notation", () => {
 // ---------------------------------------------------------------------------
 
 it("classifyMediaArtifact: Featurette.mkv is extra", () => {
-  const result = classifyMediaArtifact(
-    "/library/Show/Featurette.mkv",
-    "Featurette.mkv",
-  );
+  const result = classifyMediaArtifact("/library/Show/Featurette.mkv", "Featurette.mkv");
   assertEquals(result.kind, "extra");
   assertEquals(typeof result.skip_reason, "string");
 });
@@ -277,10 +249,7 @@ it("classifyMediaArtifact: file inside Extras folder", () => {
 });
 
 it("classifyMediaArtifact: file inside sample folder", () => {
-  const result = classifyMediaArtifact(
-    "/downloads/Show/sample/clip.mkv",
-    "clip.mkv",
-  );
+  const result = classifyMediaArtifact("/downloads/Show/sample/clip.mkv", "clip.mkv");
   assertEquals(result.kind, "sample");
 });
 
@@ -291,26 +260,18 @@ it("parseFileSourceIdentity: Featurette.mkv is skipped as extra", () => {
 });
 
 it("parseFileSourceIdentity: sample-Show.S01E01.mkv is skipped as sample", () => {
-  const result = parseFileSourceIdentity(
-    "/library/Show/sample-Show.S01E01.mkv",
-  );
+  const result = parseFileSourceIdentity("/library/Show/sample-Show.S01E01.mkv");
   assertEquals(result.kind, "sample");
   assertEquals(typeof result.skip_reason, "string");
 });
 
 it("classifyMediaArtifact: Trailer.mkv is extra", () => {
-  const result = classifyMediaArtifact(
-    "/library/Show/Trailer.mkv",
-    "Trailer.mkv",
-  );
+  const result = classifyMediaArtifact("/library/Show/Trailer.mkv", "Trailer.mkv");
   assertEquals(result.kind, "extra");
 });
 
 it("classifyMediaArtifact: file in Deleted Scenes folder", () => {
-  const result = classifyMediaArtifact(
-    "/library/Show/Deleted Scenes/scene1.mkv",
-    "scene1.mkv",
-  );
+  const result = classifyMediaArtifact("/library/Show/Deleted Scenes/scene1.mkv", "scene1.mkv");
   assertEquals(result.kind, "extra");
 });
 
@@ -319,9 +280,7 @@ it("classifyMediaArtifact: file in Deleted Scenes folder", () => {
 // ---------------------------------------------------------------------------
 
 it("parseReleaseSourceIdentity: standard release with S01E07", () => {
-  const result = parseReleaseSourceIdentity(
-    "Show.Name.S01E07.1080p.WEB-DL.mkv",
-  );
+  const result = parseReleaseSourceIdentity("Show.Name.S01E07.1080p.WEB-DL.mkv");
   assertEquals(result.kind, "episode");
   assertEquals(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
@@ -340,9 +299,7 @@ it("parseReleaseSourceIdentity: 1x02 format", () => {
 });
 
 it("parseReleaseSourceIdentity: Season 1 Episode 3 format", () => {
-  const result = parseReleaseSourceIdentity(
-    "Show Name - Season 1 Episode 3 - Title",
-  );
+  const result = parseReleaseSourceIdentity("Show Name - Season 1 Episode 3 - Title");
   assertEquals(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
     assertEquals(result.source_identity.episode_numbers, [3]);
@@ -350,9 +307,7 @@ it("parseReleaseSourceIdentity: Season 1 Episode 3 format", () => {
 });
 
 it("parseReleaseSourceIdentity: fansub absolute number", () => {
-  const result = parseReleaseSourceIdentity(
-    "[SubsPlease] Show Name - 14 (1080p)",
-  );
+  const result = parseReleaseSourceIdentity("[SubsPlease] Show Name - 14 (1080p)");
   assertEquals(result.kind, "episode");
   assertEquals(result.source_identity?.scheme, "absolute");
   if (result.source_identity?.scheme === "absolute") {
@@ -370,16 +325,9 @@ it("parseFileSourceIdentity: trailing bracket group is detected", () => {
 });
 
 it("parseReleaseSourceIdentity: release and file parser agree on 1x02", () => {
-  const releaseResult = parseReleaseSourceIdentity(
-    "Show Name - 1x02 - Title",
-  );
-  const fileResult = parseFileSourceIdentity(
-    "Show Name - 1x02 - Title.mkv",
-  );
-  assertEquals(
-    releaseResult.source_identity?.scheme,
-    fileResult.source_identity?.scheme,
-  );
+  const releaseResult = parseReleaseSourceIdentity("Show Name - 1x02 - Title");
+  const fileResult = parseFileSourceIdentity("Show Name - 1x02 - Title.mkv");
+  assertEquals(releaseResult.source_identity?.scheme, fileResult.source_identity?.scheme);
   if (
     releaseResult.source_identity?.scheme === "season" &&
     fileResult.source_identity?.scheme === "season"
@@ -392,16 +340,9 @@ it("parseReleaseSourceIdentity: release and file parser agree on 1x02", () => {
 });
 
 it("parseReleaseSourceIdentity: release and file parser agree on Season 1 Episode 3", () => {
-  const releaseResult = parseReleaseSourceIdentity(
-    "Show Name - Season 1 Episode 3 - Title",
-  );
-  const fileResult = parseFileSourceIdentity(
-    "Show Name - Season 1 Episode 3 - Title.mkv",
-  );
-  assertEquals(
-    releaseResult.source_identity?.scheme,
-    fileResult.source_identity?.scheme,
-  );
+  const releaseResult = parseReleaseSourceIdentity("Show Name - Season 1 Episode 3 - Title");
+  const fileResult = parseFileSourceIdentity("Show Name - Season 1 Episode 3 - Title.mkv");
+  assertEquals(releaseResult.source_identity?.scheme, fileResult.source_identity?.scheme);
   if (
     releaseResult.source_identity?.scheme === "season" &&
     fileResult.source_identity?.scheme === "season"
@@ -423,14 +364,8 @@ it("parseFileSourceIdentity: extracts title before S01E07", () => {
 });
 
 it("parseFileSourceIdentity: extracts title from folder context for bare number", () => {
-  const context = buildPathParseContext(
-    "/library",
-    "/library/Overlord II/03.mkv",
-  );
-  const result = parseFileSourceIdentity(
-    "/library/Overlord II/03.mkv",
-    context,
-  );
+  const context = buildPathParseContext("/library", "/library/Overlord II/03.mkv");
+  const result = parseFileSourceIdentity("/library/Overlord II/03.mkv", context);
   assertEquals(result.parsed_title, "Overlord II");
 });
 
@@ -508,9 +443,7 @@ it("parseFileSourceIdentity: non-video file classified correctly", () => {
 });
 
 it("parseFileSourceIdentity: v2 version suffix handled", () => {
-  const result = parseFileSourceIdentity(
-    "Show.S01E01v2.1080p.mkv",
-  );
+  const result = parseFileSourceIdentity("Show.S01E01v2.1080p.mkv");
   assertEquals(result.kind, "episode");
   assertEquals(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
@@ -519,9 +452,7 @@ it("parseFileSourceIdentity: v2 version suffix handled", () => {
 });
 
 it("parseFileSourceIdentity: S01E01-E02 range via hyphen", () => {
-  const result = parseFileSourceIdentity(
-    "Show.Name.S01E01-E02.1080p.WEB-DL.mkv",
-  );
+  const result = parseFileSourceIdentity("Show.Name.S01E01-E02.1080p.WEB-DL.mkv");
   assertEquals(result.kind, "episode");
   assertEquals(result.source_identity?.scheme, "season");
   if (result.source_identity?.scheme === "season") {
@@ -530,14 +461,8 @@ it("parseFileSourceIdentity: S01E01-E02 range via hyphen", () => {
 });
 
 it("parseFileSourceIdentity: 01-02.mkv inside Season 1 folder", () => {
-  const context = buildPathParseContext(
-    "/library/Show",
-    "/library/Show/Season 1/01-02.mkv",
-  );
-  const result = parseFileSourceIdentity(
-    "/library/Show/Season 1/01-02.mkv",
-    context,
-  );
+  const context = buildPathParseContext("/library/Show", "/library/Show/Season 1/01-02.mkv");
+  const result = parseFileSourceIdentity("/library/Show/Season 1/01-02.mkv", context);
   assertEquals(result.kind, "episode");
   // Should have two episodes
   if (
@@ -657,14 +582,8 @@ it("rankAnimeCandidates: prefers OVA entry for S00 source", () => {
 });
 
 it("rankAnimeCandidates: folder sequel hint prefers matching entry", () => {
-  const context = buildPathParseContext(
-    "/library",
-    "/library/Overlord II/03.mkv",
-  );
-  const parsed = parseFileSourceIdentity(
-    "/library/Overlord II/03.mkv",
-    context,
-  );
+  const context = buildPathParseContext("/library", "/library/Overlord II/03.mkv");
+  const parsed = parseFileSourceIdentity("/library/Overlord II/03.mkv", context);
   const result = rankAnimeCandidates({
     parsed,
     candidates: [

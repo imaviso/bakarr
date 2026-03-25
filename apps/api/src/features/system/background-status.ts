@@ -1,8 +1,5 @@
 import { Schema } from "effect";
-import type {
-  BackgroundJobStatus,
-  Config,
-} from "../../../../../packages/shared/src/index.ts";
+import type { BackgroundJobStatus, Config } from "../../../../../packages/shared/src/index.ts";
 import {
   BACKGROUND_JOB_NAMES,
   BACKGROUND_WORKER_NAMES,
@@ -23,9 +20,7 @@ export const BackgroundJobHistoryRowSchema = Schema.Struct({
   runCount: Schema.Number,
 });
 
-export type BackgroundJobHistoryRow = Schema.Schema.Type<
-  typeof BackgroundJobHistoryRowSchema
->;
+export type BackgroundJobHistoryRow = Schema.Schema.Type<typeof BackgroundJobHistoryRowSchema>;
 
 export function composeBackgroundJobStatuses(
   config: Config,
@@ -33,12 +28,10 @@ export function composeBackgroundJobStatuses(
   rows: ReadonlyArray<BackgroundJobHistoryRow>,
 ): BackgroundJobStatus[] {
   const rowsByName = new Map(rows.map((row) => [row.name, row] as const));
-  const names = [
-    ...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)]),
-  ].sort();
+  const names = [...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)])].sort();
 
   return names.map((name) =>
-    composeBackgroundJobStatus(config, liveSnapshot, rowsByName.get(name), name)
+    composeBackgroundJobStatus(config, liveSnapshot, rowsByName.get(name), name),
   );
 }
 
@@ -56,10 +49,7 @@ export function composeBackgroundJobStatus(
   }
 
   const lastRunAt = maxIsoTimestamp(base.last_run_at, live.lastStartedAt);
-  const lastSuccessAt = maxIsoTimestamp(
-    base.last_success_at,
-    live.lastSucceededAt,
-  );
+  const lastSuccessAt = maxIsoTimestamp(base.last_success_at, live.lastSucceededAt);
   const latestStatusEvent = latestStatusCandidate(base, live);
 
   return {
@@ -67,27 +57,19 @@ export function composeBackgroundJobStatus(
     is_running: live.runRunning,
     last_message: live.runRunning
       ? base.last_message
-      : latestStatusEvent.message ?? base.last_message,
+      : (latestStatusEvent.message ?? base.last_message),
     last_run_at: lastRunAt,
-    last_status: live.runRunning
-      ? "running"
-      : latestStatusEvent.status ?? base.last_status,
+    last_status: live.runRunning ? "running" : (latestStatusEvent.status ?? base.last_status),
     last_success_at: lastSuccessAt,
-    run_count: row?.runCount ??
-      live.successCount + live.failureCount + live.skipCount,
+    run_count: row?.runCount ?? live.successCount + live.failureCount + live.skipCount,
   } satisfies BackgroundJobStatus;
 }
 
-export function countRunningBackgroundJobStatuses(
-  jobs: ReadonlyArray<BackgroundJobStatus>,
-) {
+export function countRunningBackgroundJobStatuses(jobs: ReadonlyArray<BackgroundJobStatus>) {
   return jobs.filter((job) => job.is_running).length;
 }
 
-export function findBackgroundJobStatus(
-  jobs: ReadonlyArray<BackgroundJobStatus>,
-  name: string,
-) {
+export function findBackgroundJobStatus(jobs: ReadonlyArray<BackgroundJobStatus>, name: string) {
   return jobs.find((job) => job.name === name);
 }
 
@@ -106,42 +88,38 @@ function latestStatusCandidate(
   };
 
   const candidates = [
-    base.last_run_at && base.last_status &&
-      (live.runRunning || base.last_status !== "running")
+    base.last_run_at && base.last_status && (live.runRunning || base.last_status !== "running")
       ? {
-        at: base.last_run_at,
-        message: base.last_message,
-        status: base.last_status,
-      }
+          at: base.last_run_at,
+          message: base.last_message,
+          status: base.last_status,
+        }
       : undefined,
     live.lastFailedAt
       ? {
-        at: live.lastFailedAt,
-        message: live.lastErrorMessage ?? undefined,
-        status: "failed",
-      }
+          at: live.lastFailedAt,
+          message: live.lastErrorMessage ?? undefined,
+          status: "failed",
+        }
       : undefined,
     live.lastSucceededAt
       ? {
-        at: live.lastSucceededAt,
-        message: undefined,
-        status: "success",
-      }
+          at: live.lastSucceededAt,
+          message: undefined,
+          status: "success",
+        }
       : undefined,
   ].filter((candidate): candidate is Candidate => candidate !== undefined);
 
-  return candidates.sort((left, right) =>
-    right!.at.localeCompare(left!.at)
-  )[0] ?? {
-    message: undefined,
-    status: undefined,
-  };
+  return (
+    candidates.sort((left, right) => right!.at.localeCompare(left!.at))[0] ?? {
+      message: undefined,
+      status: undefined,
+    }
+  );
 }
 
-function maxIsoTimestamp(
-  left: string | null | undefined,
-  right: string | null | undefined,
-) {
+function maxIsoTimestamp(left: string | null | undefined, right: string | null | undefined) {
   if (!left) {
     return right ?? undefined;
   }

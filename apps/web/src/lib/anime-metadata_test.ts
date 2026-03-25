@@ -20,28 +20,18 @@ it("getAiringDisplayPreferences normalizes system timezone", () => {
   });
 
   if (preferences.dayStartHour !== 4 || preferences.timeZone !== undefined) {
-    throw new Error(
-      `Expected system timezone preferences, got ${
-        JSON.stringify(preferences)
-      }`,
-    );
+    throw new Error(`Expected system timezone preferences, got ${JSON.stringify(preferences)}`);
   }
 });
 
 it("getAiringDisplayDateKey respects day start hour", () => {
   const preferences = { dayStartHour: 4, timeZone: "UTC" };
 
-  if (
-    getAiringDisplayDateKey("2024-01-10T02:30:00.000Z", preferences) !==
-      "2024-01-09"
-  ) {
+  if (getAiringDisplayDateKey("2024-01-10T02:30:00.000Z", preferences) !== "2024-01-09") {
     throw new Error("Expected early airing to roll back to the previous day");
   }
 
-  if (
-    getAiringDisplayDateKey("2024-01-10T05:30:00.000Z", preferences) !==
-      "2024-01-10"
-  ) {
+  if (getAiringDisplayDateKey("2024-01-10T05:30:00.000Z", preferences) !== "2024-01-10") {
     throw new Error("Expected airing after day start to stay on the same day");
   }
 });

@@ -1,10 +1,7 @@
 import { assertEquals, it } from "../../test/vitest.ts";
 
 import { defaultAppConfig } from "../../config.ts";
-import type {
-  Config,
-  QualityProfile,
-} from "../../../../../packages/shared/src/index.ts";
+import type { Config, QualityProfile } from "../../../../../packages/shared/src/index.ts";
 import {
   compareEpisodeSearchResults,
   decideDownloadAction,
@@ -87,17 +84,10 @@ it("parse release name extracts group, episode, and quality", () => {
 });
 
 it("parse quality prefers bluray remux over webdl", () => {
+  assertEquals(parseQualityFromTitle("[Group] Show - 01 [1080p BluRay]").name, "BluRay 1080p");
+  assertEquals(parseQualityFromTitle("[Group] Show - 01 [1080p Remux]").name, "BluRay 1080p Remux");
   assertEquals(
-    parseQualityFromTitle("[Group] Show - 01 [1080p BluRay]").name,
-    "BluRay 1080p",
-  );
-  assertEquals(
-    parseQualityFromTitle("[Group] Show - 01 [1080p Remux]").name,
-    "BluRay 1080p Remux",
-  );
-  assertEquals(
-    parseQualityFromTitle("[Group] Show S01 (BD 1080p HEVC Opus) [Dual-Audio]")
-      .name,
+    parseQualityFromTitle("[Group] Show S01 (BD 1080p HEVC Opus) [Dual-Audio]").name,
     "BluRay 1080p",
   );
 });
@@ -272,10 +262,7 @@ it("seadex tags and config preferences boost release score", () => {
 
   assertEquals(Boolean(preferred.Accept), true);
   assertEquals(Boolean(fallback.Accept), true);
-  assertEquals(
-    (preferred.Accept?.score ?? 0) > (fallback.Accept?.score ?? 0),
-    true,
-  );
+  assertEquals((preferred.Accept?.score ?? 0) > (fallback.Accept?.score ?? 0), true);
 });
 
 it("negative SeaDex notes can reduce release score", () => {
@@ -338,10 +325,7 @@ it("negative SeaDex notes can reduce release score", () => {
 
   assertEquals(Boolean(recommended.Accept), true);
   assertEquals(Boolean(problematic.Accept), true);
-  assertEquals(
-    (recommended.Accept?.score ?? 0) > (problematic.Accept?.score ?? 0),
-    true,
-  );
+  assertEquals((recommended.Accept?.score ?? 0) > (problematic.Accept?.score ?? 0), true);
 });
 
 it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
@@ -394,10 +378,7 @@ it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
 
   assertEquals(Boolean(seadex.Accept), true);
   assertEquals(Boolean(popular.Accept), true);
-  assertEquals(
-    (seadex.Accept?.score ?? 0) > (popular.Accept?.score ?? 0),
-    true,
-  );
+  assertEquals((seadex.Accept?.score ?? 0) > (popular.Accept?.score ?? 0), true);
 });
 
 it("SeaDex notes mentioning the release group boost the matching release", () => {
@@ -452,10 +433,7 @@ it("SeaDex notes mentioning the release group boost the matching release", () =>
 
   assertEquals(Boolean(matched.Accept), true);
   assertEquals(Boolean(unmatched.Accept), true);
-  assertEquals(
-    (matched.Accept?.score ?? 0) > (unmatched.Accept?.score ?? 0),
-    true,
-  );
+  assertEquals((matched.Accept?.score ?? 0) > (unmatched.Accept?.score ?? 0), true);
 });
 
 it("compare episode search results prefers higher scores before seeders", () => {
@@ -498,12 +476,7 @@ it("compare episode search results prefers higher scores before seeders", () => 
   };
 
   assertEquals(
-    Math.sign(
-      compareEpisodeSearchResults(
-        lowerScoreMoreSeeders,
-        higherScoreFewerSeeders,
-      ),
-    ),
+    Math.sign(compareEpisodeSearchResults(lowerScoreMoreSeeders, higherScoreFewerSeeders)),
     1,
   );
 });
@@ -614,12 +587,7 @@ it("compare episode search results prefers better quality over seeders when scor
   };
 
   assertEquals(
-    Math.sign(
-      compareEpisodeSearchResults(
-        lowQualityMoreSeeders,
-        highQualityFewerSeeders,
-      ),
-    ),
+    Math.sign(compareEpisodeSearchResults(lowQualityMoreSeeders, highQualityFewerSeeders)),
     1,
   );
 });
@@ -630,17 +598,8 @@ it("episode parser handles sxxexx and dash patterns", () => {
 });
 
 it("episode parser handles ranges and season packs", () => {
-  assertEquals(parseEpisodeNumbersFromTitle("[Group] Show - 01-03 [1080p]"), [
-    1,
-    2,
-    3,
-  ]);
-  assertEquals(parseEpisodeNumbersFromTitle("Show S01E01-E04 1080p"), [
-    1,
-    2,
-    3,
-    4,
-  ]);
+  assertEquals(parseEpisodeNumbersFromTitle("[Group] Show - 01-03 [1080p]"), [1, 2, 3]);
+  assertEquals(parseEpisodeNumbersFromTitle("Show S01E01-E04 1080p"), [1, 2, 3, 4]);
 
   const parsed = parseReleaseName("[Group] Show - 01-12 Batch [1080p]");
   assertEquals(parsed.isBatch, true);

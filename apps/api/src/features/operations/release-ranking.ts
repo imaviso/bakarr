@@ -69,76 +69,18 @@ const QUALITY_ID = {
   UNKNOWN: 99,
 } as const;
 
-const QUALITY_DEFS: ReadonlyArray<
-  Quality & { readonly sourceKind: QualitySource }
-> = [
-  makeQuality(
-    QUALITY_ID.BLURAY_2160P_REMUX,
-    "BluRay 2160p Remux",
-    "remux",
-    2160,
-    1,
-    "BluRayRemux",
-  ),
-  makeQuality(
-    QUALITY_ID.BLURAY_2160P,
-    "BluRay 2160p",
-    "bluray",
-    2160,
-    2,
-    "BluRay",
-  ),
+const QUALITY_DEFS: ReadonlyArray<Quality & { readonly sourceKind: QualitySource }> = [
+  makeQuality(QUALITY_ID.BLURAY_2160P_REMUX, "BluRay 2160p Remux", "remux", 2160, 1, "BluRayRemux"),
+  makeQuality(QUALITY_ID.BLURAY_2160P, "BluRay 2160p", "bluray", 2160, 2, "BluRay"),
   makeQuality(QUALITY_ID.WEBDL_2160P, "WEB-DL 2160p", "web", 2160, 3, "WebDl"),
-  makeQuality(
-    QUALITY_ID.WEBRIP_2160P,
-    "WEBRip 2160p",
-    "webrip",
-    2160,
-    4,
-    "WebRip",
-  ),
-  makeQuality(
-    QUALITY_ID.BLURAY_1080P_REMUX,
-    "BluRay 1080p Remux",
-    "remux",
-    1080,
-    5,
-    "BluRayRemux",
-  ),
-  makeQuality(
-    QUALITY_ID.BLURAY_1080P,
-    "BluRay 1080p",
-    "bluray",
-    1080,
-    6,
-    "BluRay",
-  ),
+  makeQuality(QUALITY_ID.WEBRIP_2160P, "WEBRip 2160p", "webrip", 2160, 4, "WebRip"),
+  makeQuality(QUALITY_ID.BLURAY_1080P_REMUX, "BluRay 1080p Remux", "remux", 1080, 5, "BluRayRemux"),
+  makeQuality(QUALITY_ID.BLURAY_1080P, "BluRay 1080p", "bluray", 1080, 6, "BluRay"),
   makeQuality(QUALITY_ID.WEBDL_1080P, "WEB-DL 1080p", "web", 1080, 7, "WebDl"),
-  makeQuality(
-    QUALITY_ID.WEBRIP_1080P,
-    "WEBRip 1080p",
-    "webrip",
-    1080,
-    8,
-    "WebRip",
-  ),
-  makeQuality(
-    QUALITY_ID.BLURAY_720P,
-    "BluRay 720p",
-    "bluray",
-    720,
-    9,
-    "BluRay",
-  ),
+  makeQuality(QUALITY_ID.WEBRIP_1080P, "WEBRip 1080p", "webrip", 1080, 8, "WebRip"),
+  makeQuality(QUALITY_ID.BLURAY_720P, "BluRay 720p", "bluray", 720, 9, "BluRay"),
   makeQuality(QUALITY_ID.WEBDL_720P, "WEB-DL 720p", "web", 720, 10, "WebDl"),
-  makeQuality(
-    QUALITY_ID.WEBRIP_720P,
-    "WEBRip 720p",
-    "webrip",
-    720,
-    11,
-    "WebRip",
-  ),
+  makeQuality(QUALITY_ID.WEBRIP_720P, "WEBRip 720p", "webrip", 720, 11, "WebRip"),
   makeQuality(QUALITY_ID.HDTV_1080P, "HDTV 1080p", "hdtv", 1080, 12, "HDTV"),
   makeQuality(QUALITY_ID.HDTV_720P, "HDTV 720p", "hdtv", 720, 13, "HDTV"),
   makeQuality(QUALITY_ID.DVD_576P, "DVD 576p", "dvd", 576, 14, "DVD"),
@@ -151,14 +93,7 @@ export function parseReleaseName(title: string): ParsedReleaseName {
   const groupMatch = title.match(/^\[(.*?)\]/);
   const resolution = parseResolution(title);
   const quality = parseQualityFromTitle(title);
-  const batchTerms = [
-    " batch",
-    "complete",
-    "全集",
-    "season pack",
-    "box",
-    "collection",
-  ];
+  const batchTerms = [" batch", "complete", "全集", "season pack", "box", "collection"];
   const episodeNumbers = parseEpisodeNumbersFromTitle(title);
   const seasonPack = looksLikeSeasonPack(title);
 
@@ -166,8 +101,8 @@ export function parseReleaseName(title: string): ParsedReleaseName {
     episodeNumber: episodeNumbers[0],
     episodeNumbers,
     group: groupMatch?.[1],
-    isBatch: episodeNumbers.length > 1 ||
-      batchTerms.some((term) => lower.includes(term)) || seasonPack,
+    isBatch:
+      episodeNumbers.length > 1 || batchTerms.some((term) => lower.includes(term)) || seasonPack,
     isSeaDex: false,
     isSeaDexBest: false,
     quality,
@@ -218,8 +153,8 @@ export function parseQualityFromTitle(title: string): Quality {
     : 1080;
   const source = inferSource(lower);
 
-  const exact = QUALITY_DEFS.find((quality) =>
-    quality.sourceKind === source && quality.resolution === resolution
+  const exact = QUALITY_DEFS.find(
+    (quality) => quality.sourceKind === source && quality.resolution === resolution,
   );
   if (exact) {
     return stripSourceKind(exact);
@@ -253,17 +188,11 @@ export function decideDownloadAction(
     return { Reject: { reason: "quality not allowed in profile" } };
   }
 
-  if (
-    profile.min_size &&
-    release.sizeBytes < parseSizeLabelToBytes(profile.min_size)
-  ) {
+  if (profile.min_size && release.sizeBytes < parseSizeLabelToBytes(profile.min_size)) {
     return { Reject: { reason: "size too small" } };
   }
 
-  if (
-    profile.max_size &&
-    release.sizeBytes > parseSizeLabelToBytes(profile.max_size)
-  ) {
+  if (profile.max_size && release.sizeBytes > parseSizeLabelToBytes(profile.max_size)) {
     return { Reject: { reason: "size too big" } };
   }
 
@@ -285,8 +214,8 @@ export function decideDownloadAction(
   }
 
   const currentFilePath = current.filePath ?? "";
-  const currentHasQualityInfo = Boolean(parseResolution(currentFilePath)) ||
-    hasSourceMarkers(currentFilePath);
+  const currentHasQualityInfo =
+    Boolean(parseResolution(currentFilePath)) || hasSourceMarkers(currentFilePath);
   const currentQuality = currentHasQualityInfo
     ? parseQualityFromTitle(currentFilePath)
     : stripSourceKind(QUALITY_DEFS[QUALITY_DEFS.length - 1]);
@@ -307,8 +236,7 @@ export function decideDownloadAction(
 
   const cutoffRank = cutoffQuality(profile.cutoff).rank;
   const currentMeetsCutoff = currentQuality.rank <= cutoffRank;
-  const seadexPreferred = profile.seadex_preferred &&
-    config.downloads.use_seadex;
+  const seadexPreferred = profile.seadex_preferred && config.downloads.use_seadex;
 
   if (seadexPreferred && release.isSeaDex && !current.isSeaDex) {
     return {
@@ -381,13 +309,13 @@ export function compareEpisodeSearchResults(
   left: EpisodeSearchResult,
   right: EpisodeSearchResult,
 ): number {
-  return actionWeight(right.download_action) -
-      actionWeight(left.download_action) ||
+  return (
+    actionWeight(right.download_action) - actionWeight(left.download_action) ||
     actionScore(right.download_action) - actionScore(left.download_action) ||
-    actionQualityRank(left.download_action) -
-      actionQualityRank(right.download_action) ||
+    actionQualityRank(left.download_action) - actionQualityRank(right.download_action) ||
     right.seeders - left.seeders ||
-    right.size - left.size;
+    right.size - left.size
+  );
 }
 
 function actionWeight(action: DownloadAction): number {
@@ -397,13 +325,11 @@ function actionWeight(action: DownloadAction): number {
 }
 
 function actionScore(action: DownloadAction): number {
-  return action.Accept?.score ?? action.Upgrade?.score ??
-    Number.NEGATIVE_INFINITY;
+  return action.Accept?.score ?? action.Upgrade?.score ?? Number.NEGATIVE_INFINITY;
 }
 
 function actionQualityRank(action: DownloadAction): number {
-  return action.Accept?.quality.rank ?? action.Upgrade?.quality.rank ??
-    Number.POSITIVE_INFINITY;
+  return action.Accept?.quality.rank ?? action.Upgrade?.quality.rank ?? Number.POSITIVE_INFINITY;
 }
 
 function calculateScore(
@@ -415,18 +341,15 @@ function calculateScore(
   let score = 0;
 
   for (const rule of rules) {
-    if (
-      rule.rule_type === "preferred" &&
-      titleLower.includes(rule.term.toLowerCase())
-    ) {
+    if (rule.rule_type === "preferred" && titleLower.includes(rule.term.toLowerCase())) {
       score += rule.score;
     }
   }
 
   if (
     release.group &&
-    config.downloads.preferred_groups.some((group: string) =>
-      group.toLowerCase() === release.group?.toLowerCase()
+    config.downloads.preferred_groups.some(
+      (group: string) => group.toLowerCase() === release.group?.toLowerCase(),
     )
   ) {
     score += 25;
@@ -461,10 +384,7 @@ function calculateScore(
         score += 4;
       }
 
-      if (
-        release.group &&
-        seaDexNotesMentionGroup(release.seaDexNotes, release.group)
-      ) {
+      if (release.group && seaDexNotesMentionGroup(release.seaDexNotes, release.group)) {
         score += 4;
       }
 
@@ -486,9 +406,7 @@ function calculateScore(
   if (release.remake && config.nyaa.filter_remakes) score -= 30;
 
   const parsed = parseReleaseName(release.title);
-  if (
-    parsed.resolution && parsed.resolution === config.nyaa.preferred_resolution
-  ) {
+  if (parsed.resolution && parsed.resolution === config.nyaa.preferred_resolution) {
     score += 10;
   }
 
@@ -496,10 +414,12 @@ function calculateScore(
 }
 
 function isQualityAllowed(profile: QualityProfile, quality: Quality): boolean {
-  return profile.allowed_qualities.length === 0 ||
+  return (
+    profile.allowed_qualities.length === 0 ||
     profile.allowed_qualities.includes(quality.name) ||
     profile.allowed_qualities.includes(`${quality.resolution}p`) ||
-    profile.allowed_qualities.includes(String(quality.resolution));
+    profile.allowed_qualities.includes(String(quality.resolution))
+  );
 }
 
 function cutoffQuality(label: string): Quality {
@@ -511,8 +431,8 @@ function cutoffQuality(label: string): Quality {
   const resolution = parseResolution(label)
     ? Number(parseResolution(label)!.replace("p", ""))
     : 1080;
-  const exact = QUALITY_DEFS.find((quality) =>
-    quality.resolution === resolution && quality.sourceKind === "BluRay"
+  const exact = QUALITY_DEFS.find(
+    (quality) => quality.resolution === resolution && quality.sourceKind === "BluRay",
   );
   return stripSourceKind(exact ?? QUALITY_DEFS[5]);
 }
@@ -574,19 +494,29 @@ function escapeRegex(value: string) {
 function inferSource(lower: string): QualitySource {
   if (lower.includes("remux")) return "BluRayRemux";
   if (
-    lower.includes("bluray") || lower.includes("blu-ray") ||
-    lower.includes("bdremux") || lower.includes("bdrip") ||
+    lower.includes("bluray") ||
+    lower.includes("blu-ray") ||
+    lower.includes("bdremux") ||
+    lower.includes("bdrip") ||
     lower.includes("bdmv") ||
     /(?:^|[\s._\-\[\]()])bd(?:$|[\s._\-\[\]()])/i.test(lower)
-  ) return "BluRay";
+  )
+    return "BluRay";
   if (lower.includes("webrip")) return "WebRip";
   if (
-    lower.includes("amzn") || lower.includes("amazon") ||
-    /\bcr\b/i.test(lower) || lower.includes("crunchyroll") ||
-    lower.includes("dsnp") || lower.includes("disney") ||
-    /\bnf\b/i.test(lower) || lower.includes("netflix") ||
-    lower.includes("hmax") || lower.includes("hulu") || lower.includes("web")
-  ) return "WebDl";
+    lower.includes("amzn") ||
+    lower.includes("amazon") ||
+    /\bcr\b/i.test(lower) ||
+    lower.includes("crunchyroll") ||
+    lower.includes("dsnp") ||
+    lower.includes("disney") ||
+    /\bnf\b/i.test(lower) ||
+    lower.includes("netflix") ||
+    lower.includes("hmax") ||
+    lower.includes("hulu") ||
+    lower.includes("web")
+  )
+    return "WebDl";
   if (lower.includes("hdtv")) return "HDTV";
   if (lower.includes("dvd")) return "DVD";
   if (lower.includes("sdtv")) return "SDTV";
@@ -600,21 +530,20 @@ function parseSizeLabelToBytes(value: string): number {
   }
   const amount = Number.parseFloat(match[1]);
   const unit = match[2].toUpperCase();
-  const multiplier = unit === "B"
-    ? 1
-    : unit === "KIB" || unit === "KB"
-    ? 1024
-    : unit === "MIB" || unit === "MB"
-    ? 1024 ** 2
-    : unit === "GIB" || unit === "GB"
-    ? 1024 ** 3
-    : 1024 ** 4;
+  const multiplier =
+    unit === "B"
+      ? 1
+      : unit === "KIB" || unit === "KB"
+        ? 1024
+        : unit === "MIB" || unit === "MB"
+          ? 1024 ** 2
+          : unit === "GIB" || unit === "GB"
+            ? 1024 ** 3
+            : 1024 ** 4;
   return Math.round(amount * multiplier);
 }
 
-function stripSourceKind(
-  quality: Quality & { readonly sourceKind?: QualitySource },
-): Quality {
+function stripSourceKind(quality: Quality & { readonly sourceKind?: QualitySource }): Quality {
   return {
     id: quality.id,
     name: quality.name,

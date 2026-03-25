@@ -7,10 +7,7 @@ import { nowIso } from "../../lib/clock.ts";
 import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
 import type { AniListClient } from "../anime/anilist.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "../anime/repository.ts";
-import {
-  decodeUnmappedFolderMatchRow,
-  listUnmappedFolderMatchRows,
-} from "../system/repository.ts";
+import { decodeUnmappedFolderMatchRow, listUnmappedFolderMatchRows } from "../system/repository.ts";
 import { OperationsPathError } from "./errors.ts";
 import {
   buildUnmappedFolderSearchQueries,
@@ -41,13 +38,14 @@ export function findLocalFolderAnimeMatch(
       return {
         ...toAnimeSearchCandidate(match),
         match_confidence: roundConfidence(scoreAnimeRowMatch(query, match)),
-        match_reason: index === 0
-          ? `Matched a library title from the normalized folder name ${
-            JSON.stringify(folderName)
-          }`
-          : `Matched a library title after removing season or release noise from ${
-            JSON.stringify(folderName)
-          }`,
+        match_reason:
+          index === 0
+            ? `Matched a library title from the normalized folder name ${JSON.stringify(
+                folderName,
+              )}`
+            : `Matched a library title after removing season or release noise from ${JSON.stringify(
+                folderName,
+              )}`,
       };
     }
   }
@@ -69,9 +67,7 @@ export function mergeLocalFolderMatch(
     ...folder,
     suggested_matches: [
       localMatch,
-      ...folder.suggested_matches.filter((candidate) =>
-        candidate.id !== localMatch.id
-      ),
+      ...folder.suggested_matches.filter((candidate) => candidate.id !== localMatch.id),
     ],
   };
 }
@@ -96,14 +92,16 @@ export function listUnmappedFolderEntries(
       return [];
     }
 
-    return [{
-      match_status: "pending" as const,
-      name: entry.name,
-      path: fullPath,
-      search_queries: buildUnmappedFolderSearchQueries(entry.name),
-      size: 0,
-      suggested_matches: [],
-    }];
+    return [
+      {
+        match_status: "pending" as const,
+        name: entry.name,
+        path: fullPath,
+        search_queries: buildUnmappedFolderSearchQueries(entry.name),
+        size: 0,
+        suggested_matches: [],
+      },
+    ];
   });
 }
 
@@ -127,21 +125,17 @@ export function ensureFolderMatchStatus(
   };
 }
 
-export function countCompletedUnmappedMatches(
-  folders: readonly ScannerState["folders"][number][],
-) {
-  return folders.filter((folder) =>
-    folder.match_status === "done" || folder.match_status === "paused" ||
-    (folder.match_status === "failed" &&
-      !hasUnmappedFolderRetryAttemptsRemaining(folder))
+export function countCompletedUnmappedMatches(folders: readonly ScannerState["folders"][number][]) {
+  return folders.filter(
+    (folder) =>
+      folder.match_status === "done" ||
+      folder.match_status === "paused" ||
+      (folder.match_status === "failed" && !hasUnmappedFolderRetryAttemptsRemaining(folder)),
   ).length;
 }
 
-export function isUnmappedFolderQueuedForMatch(
-  folder: ScannerState["folders"][number],
-) {
-  return folder.match_status === "pending" ||
-    folder.match_status === "matching";
+export function isUnmappedFolderQueuedForMatch(folder: ScannerState["folders"][number]) {
+  return folder.match_status === "pending" || folder.match_status === "matching";
 }
 
 export function prepareUnmappedFoldersForScan(
@@ -204,9 +198,8 @@ export function loadUnmappedFolderSnapshot(input: {
 }) {
   return Effect.gen(function* () {
     const root = yield* getConfigLibraryPath(input.db);
-    const animeRows = yield* input.tryDatabasePromise(
-      "Failed to scan unmapped folders",
-      () => input.db.select().from(anime),
+    const animeRows = yield* input.tryDatabasePromise("Failed to scan unmapped folders", () =>
+      input.db.select().from(anime),
     );
     const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
     const cachedRows = yield* listUnmappedFolderMatchRows(input.db);
@@ -217,15 +210,16 @@ export function loadUnmappedFolderSnapshot(input: {
       }),
     );
     const entries = yield* input.fs.readDir(root).pipe(
-      Effect.mapError(() =>
-        new OperationsPathError({
-          message: `Library root is inaccessible: ${root}`,
-        })
+      Effect.mapError(
+        () =>
+          new OperationsPathError({
+            message: `Library root is inaccessible: ${root}`,
+          }),
       ),
     );
-    const folders = listUnmappedFolderEntries(root, entries, mappedRoots).map((
-      folder,
-    ) => ensureFolderMatchStatus(folder, cachedByPath.get(folder.path)));
+    const folders = listUnmappedFolderEntries(root, entries, mappedRoots).map((folder) =>
+      ensureFolderMatchStatus(folder, cachedByPath.get(folder.path)),
+    );
 
     return {
       animeRows,
@@ -239,46 +233,46 @@ export const loadUnmappedFolderVideoSize = Effect.fn(
   "OperationsService.loadUnmappedFolderVideoSize",
 )(function* (fs: FileSystemShape, path: string) {
   const files = yield* scanVideoFiles(fs, path).pipe(
-    Effect.mapError(() =>
-      new OperationsPathError({
-        message: `Unmapped folder is inaccessible: ${path}`,
-      })
+    Effect.mapError(
+      () =>
+        new OperationsPathError({
+          message: `Unmapped folder is inaccessible: ${path}`,
+        }),
     ),
   );
 
   return files.reduce((total, file) => total + file.size, 0);
 });
 
-export const matchSingleUnmappedFolder = Effect.fn(
-  "OperationsService.matchSingleUnmappedFolder",
-)(function* (input: {
-  aniList: typeof AniListClient.Service;
-  animeRows: ReadonlyArray<typeof anime.$inferSelect>;
-  db: AppDatabase;
-  folder: ScannerState["folders"][number];
-}) {
-  const queries = buildUnmappedFolderSearchQueries(input.folder.name);
-  const suggestions = yield* Effect.forEach(
-    queries,
-    (query) => input.aniList.searchAnimeMetadata(query),
-    { concurrency: 1 },
-  ).pipe(
-    Effect.map((resultSets) =>
-      resultSets.find((results) => results.length > 0) ?? []
-    ),
-  );
+export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingleUnmappedFolder")(
+  function* (input: {
+    aniList: typeof AniListClient.Service;
+    animeRows: ReadonlyArray<typeof anime.$inferSelect>;
+    db: AppDatabase;
+    folder: ScannerState["folders"][number];
+  }) {
+    const queries = buildUnmappedFolderSearchQueries(input.folder.name);
+    const suggestions = yield* Effect.forEach(
+      queries,
+      (query) => input.aniList.searchAnimeMetadata(query),
+      { concurrency: 1 },
+    ).pipe(Effect.map((resultSets) => resultSets.find((results) => results.length > 0) ?? []));
 
-  const withLocal = mergeLocalFolderMatch({
-    ...input.folder,
-    suggested_matches: suggestions,
-  }, input.animeRows);
+    const withLocal = mergeLocalFolderMatch(
+      {
+        ...input.folder,
+        suggested_matches: suggestions,
+      },
+      input.animeRows,
+    );
 
-  const annotatedSuggestions = yield* markSearchResultsAlreadyInLibraryEffect(
-    input.db,
-    withLocal.suggested_matches,
-  );
+    const annotatedSuggestions = yield* markSearchResultsAlreadyInLibraryEffect(
+      input.db,
+      withLocal.suggested_matches,
+    );
 
-  const now = yield* nowIso;
+    const now = yield* nowIso;
 
-  return mergeUnmappedFolderSuggestions(withLocal, annotatedSuggestions, now);
-});
+    return mergeUnmappedFolderSuggestions(withLocal, annotatedSuggestions, now);
+  },
+);

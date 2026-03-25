@@ -58,15 +58,13 @@ function LibraryScanPage() {
 
   const [folders, setFolders] = createStore<UnmappedFolder[]>([]);
   createEffect(() => {
-    setFolders(
-      reconcile(scanState.data?.folders ?? [], { key: "path", merge: true }),
-    );
+    setFolders(reconcile(scanState.data?.folders ?? [], { key: "path", merge: true }));
   });
 
   const isScanning = () => scanState.data?.is_scanning;
   const hasOutstandingMatches = () => scanState.data?.has_outstanding_matches;
   const unmappedJob = createMemo(() =>
-    systemJobs.data?.find((job) => job.name === "unmapped_scan")
+    systemJobs.data?.find((job) => job.name === "unmapped_scan"),
   );
   const isWorkerRunning = () =>
     isBackgroundMatchingRunning({
@@ -107,11 +105,7 @@ function LibraryScanPage() {
     return { exact, queued, matching, matched, failed, paused };
   });
   const runBulkAction = (
-    action:
-      | "pause_queued"
-      | "resume_paused"
-      | "reset_failed"
-      | "retry_failed",
+    action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed",
   ) => {
     const labels: Record<typeof action, string> = {
       pause_queued: "Pausing queued folders",
@@ -139,25 +133,20 @@ function LibraryScanPage() {
     if (action === "pause_queued") {
       return {
         actionLabel: "Pause queued folders",
-        description: `This pauses ${counts().queued} queued ${
-          pluralizeFolderCount(counts().queued)
-        }. Folders already matching right now will keep running.`,
-        title: `Pause ${counts().queued} queued ${
-          pluralizeFolderCount(counts().queued)
-        }?`,
+        description: `This pauses ${counts().queued} queued ${pluralizeFolderCount(
+          counts().queued,
+        )}. Folders already matching right now will keep running.`,
+        title: `Pause ${counts().queued} queued ${pluralizeFolderCount(counts().queued)}?`,
       };
     }
 
     if (action === "reset_failed") {
       return {
         actionLabel: "Reset failed folders",
-        description:
-          `This clears the cached error state and suggestions for ${counts().failed} failed ${
-            pluralizeFolderCount(counts().failed)
-          }, then queues them for a fresh background match.`,
-        title: `Reset ${counts().failed} failed ${
-          pluralizeFolderCount(counts().failed)
-        }?`,
+        description: `This clears the cached error state and suggestions for ${counts().failed} failed ${pluralizeFolderCount(
+          counts().failed,
+        )}, then queues them for a fresh background match.`,
+        title: `Reset ${counts().failed} failed ${pluralizeFolderCount(counts().failed)}?`,
       };
     }
 
@@ -192,43 +181,30 @@ function LibraryScanPage() {
                   Map existing folders to anime and import episodes.
                 </p>
                 <p class="mt-1 max-w-3xl text-xs uppercase tracking-[0.18em] text-muted-foreground/80">
-                  Start a background pass to work through queued folders one by
-                  one. It stops automatically when the queue is empty.
+                  Start a background pass to work through queued folders one by one. It stops
+                  automatically when the queue is empty.
                 </p>
               </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-2 lg:justify-end">
               <StatChip label="Unmapped" value={String(folders.length)} />
-              <StatChip
-                label="Queued"
-                value={String(counts().queued + counts().matching)}
-              />
-              <StatChip
-                label="Paused"
-                value={String(counts().paused)}
-              />
-              <StatChip
-                label="Already in library"
-                value={String(counts().exact)}
-                tone="info"
-              />
+              <StatChip label="Queued" value={String(counts().queued + counts().matching)} />
+              <StatChip label="Paused" value={String(counts().paused)} />
+              <StatChip label="Already in library" value={String(counts().exact)} tone="info" />
               <Button
                 variant="outline"
                 size="sm"
                 disabled={isRescanning()}
                 onClick={() => scanMutation.mutate()}
               >
-                <IconRefresh
-                  class={cn("mr-2 h-4 w-4", isRescanning() && "animate-spin")}
-                />
+                <IconRefresh class={cn("mr-2 h-4 w-4", isRescanning() && "animate-spin")} />
                 {isRescanning() ? "Scanning..." : "Rescan"}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                disabled={bulkControlMutation.isPending ||
-                  counts().queued === 0}
+                disabled={bulkControlMutation.isPending || counts().queued === 0}
                 onClick={() => setConfirmBulkAction("pause_queued")}
               >
                 <IconPlayerPause class="mr-2 h-4 w-4" />
@@ -237,8 +213,7 @@ function LibraryScanPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={bulkControlMutation.isPending ||
-                  counts().paused === 0}
+                disabled={bulkControlMutation.isPending || counts().paused === 0}
                 onClick={() => runBulkAction("resume_paused")}
               >
                 <IconPlayerPlay class="mr-2 h-4 w-4" />
@@ -247,8 +222,7 @@ function LibraryScanPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={bulkControlMutation.isPending ||
-                  counts().failed === 0}
+                disabled={bulkControlMutation.isPending || counts().failed === 0}
                 onClick={() => runBulkAction("retry_failed")}
               >
                 <IconRefresh class="mr-2 h-4 w-4" />
@@ -257,8 +231,7 @@ function LibraryScanPage() {
               <Button
                 variant="outline"
                 size="sm"
-                disabled={bulkControlMutation.isPending ||
-                  counts().failed === 0}
+                disabled={bulkControlMutation.isPending || counts().failed === 0}
                 onClick={() => setConfirmBulkAction("reset_failed")}
               >
                 <IconTrash class="mr-2 h-4 w-4" />
@@ -271,7 +244,8 @@ function LibraryScanPage() {
                   navigate({
                     to: "/anime",
                     search: { q: "", filter: "all", view: "grid" },
-                  })}
+                  })
+                }
               >
                 Back
               </Button>
@@ -290,19 +264,17 @@ function LibraryScanPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmBulkMeta()?.title ?? ""}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmBulkMeta()?.description ?? ""}
-            </AlertDialogDescription>
+            <AlertDialogTitle>{confirmBulkMeta()?.title ?? ""}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmBulkMeta()?.description ?? ""}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              class={confirmBulkAction() === "reset_failed"
-                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                : undefined}
+              class={
+                confirmBulkAction() === "reset_failed"
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : undefined
+              }
               onClick={confirmBulkActionNow}
             >
               {confirmBulkMeta()?.actionLabel ?? "Confirm"}

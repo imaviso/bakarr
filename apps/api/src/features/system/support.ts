@@ -12,9 +12,7 @@ import { tryDatabasePromise } from "../../lib/effect-db.ts";
 
 export { nowIso };
 
-export function normalizeLevel(
-  level: string,
-): "info" | "warn" | "error" | "success" {
+export function normalizeLevel(level: string): "info" | "warn" | "error" | "success" {
   if (level === "warn" || level === "error" || level === "success") {
     return level;
   }
@@ -41,42 +39,38 @@ export function eventTypeCondition(eventType: string) {
   }
 }
 
-export const appendSystemLog = Effect.fn("SystemSupport.appendSystemLog")(
-  function* (
-    db: AppDatabase,
-    eventType: string,
-    level: string,
-    message: string,
-  ) {
-    const now = yield* nowIso;
-    yield* tryDatabasePromise(
-      "Failed to append system log",
-      () =>
-        db.insert(systemLogs).values({
-          createdAt: now,
-          details: null,
-          eventType,
-          level,
-          message,
-        }),
-    );
-  },
-);
+export const appendSystemLog = Effect.fn("SystemSupport.appendSystemLog")(function* (
+  db: AppDatabase,
+  eventType: string,
+  level: string,
+  message: string,
+) {
+  const now = yield* nowIso;
+  yield* tryDatabasePromise("Failed to append system log", () =>
+    db.insert(systemLogs).values({
+      createdAt: now,
+      details: null,
+      eventType,
+      level,
+      message,
+    }),
+  );
+});
 
 export function toBackgroundJobStatus(
   config: Config,
   row:
     | {
-      isRunning: boolean;
-      lastMessage: string | null;
-      progressCurrent: number | null;
-      progressTotal: number | null;
-      lastRunAt: string | null;
-      lastStatus: string | null;
-      lastSuccessAt: string | null;
-      name: string;
-      runCount: number;
-    }
+        isRunning: boolean;
+        lastMessage: string | null;
+        progressCurrent: number | null;
+        progressTotal: number | null;
+        lastRunAt: string | null;
+        lastStatus: string | null;
+        lastSuccessAt: string | null;
+        name: string;
+        runCount: number;
+      }
     | undefined,
   name: string,
 ) {
@@ -97,15 +91,8 @@ export function toBackgroundJobStatus(
   };
 }
 
-export function backgroundJobNames(
-  rows: ReadonlyArray<{ name: string }>,
-): string[] {
-  return [
-    ...new Set([
-      ...BACKGROUND_JOB_NAMES,
-      ...rows.map((row) => row.name),
-    ]),
-  ].sort();
+export function backgroundJobNames(rows: ReadonlyArray<{ name: string }>): string[] {
+  return [...new Set([...BACKGROUND_JOB_NAMES, ...rows.map((row) => row.name)])].sort();
 }
 
 function describeJobSchedule(config: Config, name: string) {

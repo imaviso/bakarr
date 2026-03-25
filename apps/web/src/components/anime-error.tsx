@@ -9,10 +9,7 @@ export function AnimeError() {
       <div class="relative z-10 flex flex-col items-center text-center space-y-8 px-4 animate-in fade-in zoom-in duration-500">
         {/* Icon/Visual */}
         <div class="relative">
-          <IconAlertTriangle
-            class="h-24 w-24 text-destructive/80 relative z-10"
-            stroke-width={1}
-          />
+          <IconAlertTriangle class="h-24 w-24 text-destructive/80 relative z-10" stroke-width={1} />
         </div>
 
         {/* Typography */}
@@ -21,8 +18,8 @@ export function AnimeError() {
             Anime Not Found
           </h1>
           <p class="text-sm text-muted-foreground max-w-[400px] mx-auto leading-relaxed">
-            The anime you are looking for does not exist in your library or an
-            error occurred while loading it.
+            The anime you are looking for does not exist in your library or an error occurred while
+            loading it.
           </p>
         </div>
 

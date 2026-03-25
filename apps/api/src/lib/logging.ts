@@ -3,18 +3,14 @@ import { Logger, LogLevel } from "effect";
 export function compactLogAnnotations(
   annotations: Record<string, unknown>,
 ): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(annotations).filter(([, value]) => value !== undefined),
-  );
+  return Object.fromEntries(Object.entries(annotations).filter(([, value]) => value !== undefined));
 }
 
 export function durationMsSince(startedAt: number, finishedAt: number): number {
   return Math.max(0, Math.round(finishedAt - startedAt));
 }
 
-export function errorLogAnnotations(
-  error: unknown,
-): Record<string, unknown> {
+export function errorLogAnnotations(error: unknown): Record<string, unknown> {
   if (error === undefined || error === null) {
     return {};
   }
@@ -73,10 +69,7 @@ export const RuntimeLogger = Logger.make<unknown, void>((options) => {
   }
 });
 
-export const RuntimeLoggerLayer = Logger.replace(
-  Logger.defaultLogger,
-  RuntimeLogger,
-);
+export const RuntimeLoggerLayer = Logger.replace(Logger.defaultLogger, RuntimeLogger);
 
 function parseRuntimeLogLevel(level: string | undefined) {
   switch (level?.toLowerCase()) {

@@ -3,10 +3,7 @@ import { Deferred, Effect, Fiber, Metric, type Scope } from "effect";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
-import {
-  makeBackgroundWorkerController,
-  makeBackgroundWorkerMonitor,
-} from "./background.ts";
+import { makeBackgroundWorkerController, makeBackgroundWorkerMonitor } from "./background.ts";
 import {
   makeCoalescedEffectRunner,
   makeLatestValuePublisher,
@@ -71,9 +68,7 @@ const baseConfig: Config = {
 type MetricSnapshotPair = {
   readonly metricKey: {
     readonly name: string;
-    readonly tags: ReadonlyArray<
-      { readonly key: string; readonly value: string }
-    >;
+    readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
   };
   readonly metricState: unknown;
 };
@@ -87,7 +82,7 @@ function addTrackedFinalizer<A>(
   return Effect.addFinalizer(() =>
     Effect.sync(() => {
       target.push(value);
-    })
+    }),
   );
 }
 
@@ -173,7 +168,7 @@ it.effect("background worker monitor tracks supervision state and counters", () 
     assertEquals(typeof snapshot.rss.lastStartedAt, "string");
     assertEquals(typeof snapshot.rss.lastSucceededAt, "string");
     assertEquals(typeof snapshot.rss.lastFailedAt, "string");
-  })
+  }),
 );
 
 it.effect("background worker monitor publishes Effect metrics", () =>
@@ -217,18 +212,13 @@ it.effect("background worker monitor publishes Effect metrics", () =>
       1,
     );
     assertEquals(
-      histogramCountDelta(
-        after,
-        before,
-        "bakarr_background_worker_run_duration_ms",
-        {
-          status: "failure",
-          worker: "rss",
-        },
-      ),
+      histogramCountDelta(after, before, "bakarr_background_worker_run_duration_ms", {
+        status: "failure",
+        worker: "rss",
+      }),
       1,
     );
-  })
+  }),
 );
 
 function counterDelta(
@@ -240,21 +230,12 @@ function counterDelta(
   return counterValue(after, name, labels) - counterValue(before, name, labels);
 }
 
-function counterValue(
-  snapshot: MetricSnapshot,
-  name: string,
-  labels: Record<string, string>,
-) {
+function counterValue(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   const pair = findMetric(snapshot, name, labels);
-  return (pair?.metricState as { readonly count: number } | undefined)?.count ??
-    0;
+  return (pair?.metricState as { readonly count: number } | undefined)?.count ?? 0;
 }
 
-function gaugeValue(
-  snapshot: MetricSnapshot,
-  name: string,
-  labels: Record<string, string>,
-) {
+function gaugeValue(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   const pair = findMetric(snapshot, name, labels);
   return (pair?.metricState as { readonly value: number } | undefined)?.value;
 }
@@ -265,30 +246,21 @@ function histogramCountDelta(
   name: string,
   labels: Record<string, string>,
 ) {
-  return histogramCount(after, name, labels) -
-    histogramCount(before, name, labels);
+  return histogramCount(after, name, labels) - histogramCount(before, name, labels);
 }
 
-function histogramCount(
-  snapshot: MetricSnapshot,
-  name: string,
-  labels: Record<string, string>,
-) {
+function histogramCount(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
   const pair = findMetric(snapshot, name, labels);
-  return (pair?.metricState as { readonly count: number } | undefined)?.count ??
-    0;
+  return (pair?.metricState as { readonly count: number } | undefined)?.count ?? 0;
 }
 
-function findMetric(
-  snapshot: MetricSnapshot,
-  name: string,
-  labels: Record<string, string>,
-) {
-  return snapshot.find((pair) =>
-    pair.metricKey.name === name &&
-    Object.entries(labels).every(([key, value]) =>
-      pair.metricKey.tags.some((tag) => tag.key === key && tag.value === value)
-    )
+function findMetric(snapshot: MetricSnapshot, name: string, labels: Record<string, string>) {
+  return snapshot.find(
+    (pair) =>
+      pair.metricKey.name === name &&
+      Object.entries(labels).every(([key, value]) =>
+        pair.metricKey.tags.some((tag) => tag.key === key && tag.value === value),
+      ),
   );
 }
 
@@ -305,7 +277,7 @@ it.effect("BackgroundWorkerController starts workers with config", () =>
 
     const startedAfter = yield* controller.isStarted();
     assertEquals(startedAfter, true);
-  })
+  }),
 );
 
 it.effect("BackgroundWorkerController start is idempotent", () =>
@@ -323,15 +295,14 @@ it.effect("BackgroundWorkerController start is idempotent", () =>
     yield* controller.start(baseConfig);
 
     assertEquals(spawnCalls.length, 1);
-  })
+  }),
 );
 
 it.effect("BackgroundWorkerController reload spawns new workers and stops old", () =>
   Effect.gen(function* () {
     const stoppedHandles: string[] = [];
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () =>
-        addTrackedFinalizer(stoppedHandles, "handle"),
+      spawnWorkers: () => addTrackedFinalizer(stoppedHandles, "handle"),
     });
 
     yield* controller.start(baseConfig);
@@ -342,7 +313,7 @@ it.effect("BackgroundWorkerController reload spawns new workers and stops old", 
 
     yield* controller.reload(baseConfig);
     assertEquals(stoppedHandles.length, 2);
-  })
+  }),
 );
 
 it.effect("BackgroundWorkerController reload stops old workers before spawning new", () =>
@@ -364,7 +335,7 @@ it.effect("BackgroundWorkerController reload stops old workers before spawning n
     yield* controller.reload(baseConfig);
 
     assertEquals(events, ["spawn-1", "stop-1", "spawn-2"]);
-  })
+  }),
 );
 
 it.effect("BackgroundWorkerController stops workers when reload spawn fails", () =>
@@ -391,15 +362,14 @@ it.effect("BackgroundWorkerController stops workers when reload spawn fails", ()
     assertEquals(stoppedHandles.length, 1);
     const started = yield* controller.isStarted();
     assertEquals(started, false);
-  })
+  }),
 );
 
 it.effect("BackgroundWorkerController stop shuts down workers", () =>
   Effect.gen(function* () {
     const stoppedHandles: string[] = [];
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () =>
-        addTrackedFinalizer(stoppedHandles, "handle"),
+      spawnWorkers: () => addTrackedFinalizer(stoppedHandles, "handle"),
     });
 
     yield* controller.start(baseConfig);
@@ -410,15 +380,14 @@ it.effect("BackgroundWorkerController stop shuts down workers", () =>
 
     const started = yield* controller.isStarted();
     assertEquals(started, false);
-  })
+  }),
 );
 
 it.effect("BackgroundWorkerController stop is idempotent", () =>
   Effect.gen(function* () {
     const stoppedHandles: string[] = [];
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () =>
-        addTrackedFinalizer(stoppedHandles, "handle"),
+      spawnWorkers: () => addTrackedFinalizer(stoppedHandles, "handle"),
     });
 
     yield* controller.start(baseConfig);
@@ -427,7 +396,7 @@ it.effect("BackgroundWorkerController stop is idempotent", () =>
     yield* controller.stop();
 
     assertEquals(stoppedHandles.length, 1);
-  })
+  }),
 );
 
 it.effect("BackgroundWorkerController serializes concurrent starts", () =>
@@ -455,7 +424,7 @@ it.effect("BackgroundWorkerController serializes concurrent starts", () =>
     yield* Fiber.join(secondStart);
 
     assertEquals(spawnCallCount, 1);
-  })
+  }),
 );
 
 it.effect("BackgroundWorkerController serializes concurrent reloads", () =>
@@ -495,7 +464,7 @@ it.effect("BackgroundWorkerController serializes concurrent reloads", () =>
     yield* Fiber.join(secondReload);
 
     assertEquals(stoppedHandles, ["handle-1", "handle-2"]);
-  })
+  }),
 );
 
 it.scoped("coalesced effect runner batches concurrent triggers into one follow-up run", () =>
@@ -540,7 +509,7 @@ it.scoped("coalesced effect runner batches concurrent triggers into one follow-u
     yield* Fiber.await(thirdTrigger);
 
     assertEquals(runCount.value, 2);
-  })
+  }),
 );
 
 it.scoped("latest value publisher keeps only the newest pending update", () =>
@@ -557,7 +526,7 @@ it.scoped("latest value publisher keeps only the newest pending update", () =>
           yield* Deferred.succeed(firstPublishStarted, void 0);
           yield* Deferred.await(releaseFirstPublish);
         }
-      })
+      }),
     );
 
     yield* publisher.offer(1);
@@ -570,7 +539,7 @@ it.scoped("latest value publisher keeps only the newest pending update", () =>
     yield* publisher.flush;
 
     assertEquals(published, [1, 3]);
-  })
+  }),
 );
 
 it.effect("skipping serialized runner drops overlapping trigger attempts", () =>
@@ -602,5 +571,5 @@ it.effect("skipping serialized runner drops overlapping trigger attempts", () =>
     if (firstResult._tag === "Some") {
       assertEquals(firstResult.value, 1);
     }
-  })
+  }),
 );

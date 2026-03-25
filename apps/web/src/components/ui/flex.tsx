@@ -3,13 +3,7 @@ import { mergeProps, splitProps } from "solid-js";
 
 import { cn } from "~/lib/utils";
 
-type JustifyContent =
-  | "start"
-  | "end"
-  | "center"
-  | "between"
-  | "around"
-  | "evenly";
+type JustifyContent = "start" | "end" | "center" | "between" | "around" | "evenly";
 type AlignItems = "start" | "end" | "center" | "baseline" | "stretch";
 type FlexDirection = "row" | "col" | "row-reverse" | "col-reverse";
 

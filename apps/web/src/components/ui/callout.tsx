@@ -20,18 +20,11 @@ const calloutVariants = cva("rounded-none border-l-4 p-2 pl-4", {
   },
 });
 
-type CalloutProps =
-  & ComponentProps<"div">
-  & VariantProps<typeof calloutVariants>;
+type CalloutProps = ComponentProps<"div"> & VariantProps<typeof calloutVariants>;
 
 const Callout: Component<CalloutProps> = (props) => {
   const [local, others] = splitProps(props, ["class", "variant"]);
-  return (
-    <div
-      class={cn(calloutVariants({ variant: local.variant }), local.class)}
-      {...others}
-    />
-  );
+  return <div class={cn(calloutVariants({ variant: local.variant }), local.class)} {...others} />;
 };
 
 const CalloutTitle: Component<ComponentProps<"h3">> = (props) => {

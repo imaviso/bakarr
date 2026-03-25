@@ -2,10 +2,7 @@ import type { AppDatabase } from "../../db/database.ts";
 import { downloads } from "../../db/schema.ts";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
-import {
-  decodeOptionalNumberList,
-  encodeOptionalNumberList,
-} from "../system/config-codec.ts";
+import { decodeOptionalNumberList, encodeOptionalNumberList } from "../system/config-codec.ts";
 import { scanVideoFiles } from "./file-scanner.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import {
@@ -15,9 +12,7 @@ import {
 } from "../../lib/media-identity.ts";
 import type { QBitTorrentFile } from "./qbittorrent.ts";
 
-export function parseMagnetInfoHash(
-  magnet: string | null | undefined,
-): string | undefined {
+export function parseMagnetInfoHash(magnet: string | null | undefined): string | undefined {
   if (!magnet) {
     return undefined;
   }
@@ -26,58 +21,51 @@ export function parseMagnetInfoHash(
   return match?.[1]?.toLowerCase();
 }
 
-export const resolveCompletedContentPath = Effect.fn(
-  "Operations.resolveCompletedContentPath",
-)(function* (
-  fs: FileSystemShape,
-  contentPath: string,
-  episodeNumber: number,
-  options?: { expectedAirDate?: string },
-) {
-  const statResult = yield* Effect.either(fs.stat(contentPath));
+export const resolveCompletedContentPath = Effect.fn("Operations.resolveCompletedContentPath")(
+  function* (
+    fs: FileSystemShape,
+    contentPath: string,
+    episodeNumber: number,
+    options?: { expectedAirDate?: string },
+  ) {
+    const statResult = yield* Effect.either(fs.stat(contentPath));
 
-  if (statResult._tag === "Left") {
+    if (statResult._tag === "Left") {
+      return undefined;
+    }
+
+    const stat = statResult.right;
+
+    if (stat.isFile) {
+      return contentPath;
+    }
+
+    if (!stat.isDirectory) {
+      return undefined;
+    }
+
+    const files = yield* scanVideoFiles(fs, contentPath);
+    const candidates = files.filter((file) => {
+      const classification = classifyMediaArtifact(file.path, file.name);
+      return classification.kind !== "extra" && classification.kind !== "sample";
+    });
+    const matching = candidates.find((file) =>
+      matchesCompletedDownloadFile(file.path, episodeNumber, options?.expectedAirDate),
+    );
+
+    if (matching) {
+      return matching.path;
+    }
+
+    if (candidates.length === 1) {
+      return candidates[0].path;
+    }
+
     return undefined;
-  }
+  },
+);
 
-  const stat = statResult.right;
-
-  if (stat.isFile) {
-    return contentPath;
-  }
-
-  if (!stat.isDirectory) {
-    return undefined;
-  }
-
-  const files = yield* scanVideoFiles(fs, contentPath);
-  const candidates = files.filter((file) => {
-    const classification = classifyMediaArtifact(file.path, file.name);
-    return classification.kind !== "extra" &&
-      classification.kind !== "sample";
-  });
-  const matching = candidates.find((file) =>
-    matchesCompletedDownloadFile(
-      file.path,
-      episodeNumber,
-      options?.expectedAirDate,
-    )
-  );
-
-  if (matching) {
-    return matching.path;
-  }
-
-  if (candidates.length === 1) {
-    return candidates[0].path;
-  }
-
-  return undefined;
-});
-
-export const resolveBatchContentPaths = Effect.fn(
-  "Operations.resolveBatchContentPaths",
-)(function* (
+export const resolveBatchContentPaths = Effect.fn("Operations.resolveBatchContentPaths")(function* (
   fs: FileSystemShape,
   contentPath: string,
 ) {
@@ -101,21 +89,16 @@ export const resolveBatchContentPaths = Effect.fn(
   return files
     .filter((file) => {
       const classification = classifyMediaArtifact(file.path, file.name);
-      return classification.kind !== "extra" &&
-        classification.kind !== "sample";
+      return classification.kind !== "extra" && classification.kind !== "sample";
     })
     .map((file) => file.path);
 });
 
-export function toCoveredEpisodesJson(
-  episodes: readonly number[],
-): string | null {
+export function toCoveredEpisodesJson(episodes: readonly number[]): string | null {
   return encodeOptionalNumberList(episodes);
 }
 
-export function parseCoveredEpisodes(
-  value: string | null | undefined,
-): number[] {
+export function parseCoveredEpisodes(value: string | null | undefined): number[] {
   return decodeOptionalNumberList(value);
 }
 
@@ -127,15 +110,16 @@ export async function hasOverlappingDownload(
   infoHash: string,
   coveredEpisodes: readonly number[],
 ): Promise<boolean> {
-  const existingByHash = await db.select({
-    id: downloads.id,
-    status: downloads.status,
-  }).from(downloads)
-    .where(eq(downloads.infoHash, infoHash)).limit(1);
+  const existingByHash = await db
+    .select({
+      id: downloads.id,
+      status: downloads.status,
+    })
+    .from(downloads)
+    .where(eq(downloads.infoHash, infoHash))
+    .limit(1);
 
-  if (
-    existingByHash[0] && IN_FLIGHT_STATUSES.includes(existingByHash[0].status)
-  ) {
+  if (existingByHash[0] && IN_FLIGHT_STATUSES.includes(existingByHash[0].status)) {
     return true;
   }
 
@@ -143,17 +127,13 @@ export async function hasOverlappingDownload(
     return false;
   }
 
-  const rows = await db.select().from(downloads).where(
-    eq(downloads.animeId, animeId),
-  );
+  const rows = await db.select().from(downloads).where(eq(downloads.animeId, animeId));
 
   return rows
     .filter((row) => IN_FLIGHT_STATUSES.includes(row.status))
     .some((row) => {
       const existingCovered = parseCoveredEpisodes(row.coveredEpisodes);
-      return existingCovered.some((episode) =>
-        coveredEpisodes.includes(episode)
-      );
+      return existingCovered.some((episode) => coveredEpisodes.includes(episode));
     });
 }
 
@@ -165,9 +145,7 @@ export function inferCoveredEpisodeNumbers(input: {
   readonly requestedEpisode: number;
 }): readonly number[] {
   if (input.explicitEpisodes.length > 0) {
-    return [...new Set(input.explicitEpisodes)].sort((left, right) =>
-      left - right
-    );
+    return [...new Set(input.explicitEpisodes)].sort((left, right) => left - right);
   }
 
   if (!input.isBatch) {
@@ -206,9 +184,7 @@ export function inferCoveredEpisodesFromTorrentContents(input: {
   const episodes = new Set<number>();
 
   for (const file of input.files) {
-    const fullPath = `${input.rootName.replace(/\/+$/, "")}/${
-      file.name.replace(/^\/+/, "")
-    }`;
+    const fullPath = `${input.rootName.replace(/\/+$/, "")}/${file.name.replace(/^\/+/, "")}`;
     const fileName = file.name.split("/").pop() ?? file.name;
     const classification = classifyMediaArtifact(fullPath, fileName);
 
@@ -260,28 +236,21 @@ function rangeArray(start: number, end: number): number[] {
   return values;
 }
 
-export const resolveAccessibleDownloadPath = Effect.fn(
-  "Operations.resolveAccessibleDownloadPath",
-)(function* (
-  fs: FileSystemShape,
-  contentPath: string,
-  remotePathMappings: readonly string[][],
-) {
-  const candidates = [
-    contentPath,
-    ...applyRemotePathMappings(contentPath, remotePathMappings),
-  ];
+export const resolveAccessibleDownloadPath = Effect.fn("Operations.resolveAccessibleDownloadPath")(
+  function* (fs: FileSystemShape, contentPath: string, remotePathMappings: readonly string[][]) {
+    const candidates = [contentPath, ...applyRemotePathMappings(contentPath, remotePathMappings)];
 
-  for (const candidate of candidates) {
-    const statResult = yield* Effect.either(fs.stat(candidate));
+    for (const candidate of candidates) {
+      const statResult = yield* Effect.either(fs.stat(candidate));
 
-    if (statResult._tag === "Right") {
-      return candidate;
+      if (statResult._tag === "Right") {
+        return candidate;
+      }
     }
-  }
 
-  return undefined;
-});
+    return undefined;
+  },
+);
 
 export function applyRemotePathMappings(
   contentPath: string,
@@ -305,9 +274,7 @@ export function applyRemotePathMappings(
     }
 
     if (contentPath.startsWith(`${normalizedRemote}/`)) {
-      results.push(
-        `${normalizedLocal}${contentPath.slice(normalizedRemote.length)}`,
-      );
+      results.push(`${normalizedLocal}${contentPath.slice(normalizedRemote.length)}`);
     }
   }
 
@@ -328,9 +295,7 @@ function matchesCompletedDownloadFile(
   }
 
   if (identity.scheme === "daily") {
-    return expectedAirDate
-      ? identity.air_dates.includes(expectedAirDate)
-      : false;
+    return expectedAirDate ? identity.air_dates.includes(expectedAirDate) : false;
   }
 
   return identity.episode_numbers.includes(episodeNumber);

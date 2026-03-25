@@ -1,10 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect, Either } from "effect";
 
-import type {
-  ImportResult,
-  RenameResult,
-} from "../../../../../packages/shared/src/index.ts";
+import type { ImportResult, RenameResult } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
@@ -17,11 +14,7 @@ import {
 } from "./naming-support.ts";
 import { upsertEpisodeFilesAtomic } from "./download-support.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import {
-  currentImportMode,
-  currentNamingSettings,
-  requireAnime,
-} from "./repository.ts";
+import { currentImportMode, currentNamingSettings, requireAnime } from "./repository.ts";
 import { type OperationsError } from "./errors.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
 import { type FileSystemShape } from "../../lib/filesystem.ts";
@@ -43,12 +36,8 @@ export function makeCatalogOrchestration(input: {
     action: "pause" | "resume" | "delete",
     deleteFiles?: boolean,
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
-  retryDownloadById: (
-    id: number,
-  ) => Effect.Effect<void, OperationsError | DatabaseError>;
-  reconcileDownloadByIdEffect: (
-    id: number,
-  ) => Effect.Effect<void, OperationsError | DatabaseError>;
+  retryDownloadById: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  reconcileDownloadByIdEffect: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
   syncDownloadState: (trigger: string) => Effect.Effect<void, DatabaseError>;
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
@@ -69,84 +58,76 @@ export function makeCatalogOrchestration(input: {
     publishLibraryScanProgress,
   } = input;
 
-  const renameFiles = Effect.fn("OperationsService.renameFiles")(
-    function* (animeId: number) {
-      const animeRow = yield* requireAnime(db, animeId);
-      const preview = yield* buildRenamePreview(db, animeId);
-      let renamed = 0;
-      const failures: string[] = [];
+  const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (animeId: number) {
+    const animeRow = yield* requireAnime(db, animeId);
+    const preview = yield* buildRenamePreview(db, animeId);
+    let renamed = 0;
+    const failures: string[] = [];
 
-      for (const item of preview) {
-        const result = yield* fs.rename(item.current_path, item.new_path).pipe(
-          Effect.mapError(() =>
+    for (const item of preview) {
+      const result = yield* fs.rename(item.current_path, item.new_path).pipe(
+        Effect.mapError(
+          () =>
             new OperationsPathError({
               message: `Failed to rename file ${item.current_path}`,
-            })
-          ),
-          Effect.zipRight(
-            tryDatabasePromise(
-              "Failed to rename files",
-              () =>
-                db.update(episodes).set({ filePath: item.new_path }).where(
-                  and(
-                    eq(episodes.animeId, animeId),
-                    item.episode_numbers?.length
-                      ? inArray(episodes.number, item.episode_numbers)
-                      : eq(episodes.number, item.episode_number),
+            }),
+        ),
+        Effect.zipRight(
+          tryDatabasePromise("Failed to rename files", () =>
+            db
+              .update(episodes)
+              .set({ filePath: item.new_path })
+              .where(
+                and(
+                  eq(episodes.animeId, animeId),
+                  item.episode_numbers?.length
+                    ? inArray(episodes.number, item.episode_numbers)
+                    : eq(episodes.number, item.episode_number),
+                ),
+              ),
+          ).pipe(
+            Effect.catchAll((error) =>
+              fs.rename(item.new_path, item.current_path).pipe(
+                Effect.catchTag("FileSystemError", (fsError) =>
+                  Effect.logWarning("Failed to rollback rename after DB error").pipe(
+                    Effect.annotateLogs({
+                      current_path: item.current_path,
+                      error: String(fsError),
+                      new_path: item.new_path,
+                    }),
+                    Effect.asVoid,
                   ),
                 ),
-            ).pipe(
-              Effect.catchAll((error) =>
-                fs.rename(item.new_path, item.current_path).pipe(
-                  Effect.catchTag(
-                    "FileSystemError",
-                    (fsError) =>
-                      Effect.logWarning(
-                        "Failed to rollback rename after DB error",
-                      ).pipe(
-                        Effect.annotateLogs({
-                          current_path: item.current_path,
-                          error: String(fsError),
-                          new_path: item.new_path,
-                        }),
-                        Effect.asVoid,
-                      ),
-                  ),
-                  Effect.zipRight(Effect.fail(error)),
-                )
+                Effect.zipRight(Effect.fail(error)),
               ),
             ),
           ),
-          Effect.either,
-        );
+        ),
+        Effect.either,
+      );
 
-        if (Either.isRight(result)) {
-          renamed += 1;
-        } else {
-          failures.push(
-            result.left instanceof Error
-              ? result.left.message
-              : String(result.left),
-          );
-        }
+      if (Either.isRight(result)) {
+        renamed += 1;
+      } else {
+        failures.push(result.left instanceof Error ? result.left.message : String(result.left));
       }
+    }
 
-      yield* eventBus.publish({
-        type: "RenameFinished",
-        payload: {
-          anime_id: animeId,
-          count: renamed,
-          title: animeRow.titleRomaji,
-        },
-      });
+    yield* eventBus.publish({
+      type: "RenameFinished",
+      payload: {
+        anime_id: animeId,
+        count: renamed,
+        title: animeRow.titleRomaji,
+      },
+    });
 
-      return {
-        failed: failures.length,
-        failures,
-        renamed,
-      } satisfies RenameResult;
-    },
-  );
+    return {
+      failed: failures.length,
+      failures,
+      renamed,
+    } satisfies RenameResult;
+  });
 
   const importFilesRaw = Effect.fn("OperationsService.importFiles")(function* (
     files: readonly {
@@ -155,8 +136,7 @@ export function makeCatalogOrchestration(input: {
       episode_number: number;
       episode_numbers?: readonly number[];
       season?: number;
-      source_metadata?:
-        import("../../../../../packages/shared/src/index.ts").DownloadSourceMetadata;
+      source_metadata?: import("../../../../../packages/shared/src/index.ts").DownloadSourceMetadata;
     }[],
   ) {
     const importedFiles: ImportResult["imported_files"] = [];
@@ -168,10 +148,11 @@ export function makeCatalogOrchestration(input: {
     for (const file of files) {
       const result = yield* Effect.gen(function* () {
         const resolvedSource = yield* fs.realPath(file.source_path).pipe(
-          Effect.mapError(() =>
-            new OperationsPathError({
-              message: `Source path is inaccessible: ${file.source_path}`,
-            })
+          Effect.mapError(
+            () =>
+              new OperationsPathError({
+                message: `Source path is inaccessible: ${file.source_path}`,
+              }),
           ),
         );
 
@@ -180,12 +161,11 @@ export function makeCatalogOrchestration(input: {
         const allEpisodeNumbers = file.episode_numbers?.length
           ? file.episode_numbers
           : [file.episode_number];
-        const episodeRows = yield* tryDatabasePromise(
-          "Failed to import files",
-          () =>
-            db.select({ aired: episodes.aired, title: episodes.title }).from(
-              episodes,
-            ).where(
+        const episodeRows = yield* tryDatabasePromise("Failed to import files", () =>
+          db
+            .select({ aired: episodes.aired, title: episodes.title })
+            .from(episodes)
+            .where(
               and(
                 eq(episodes.animeId, file.anime_id),
                 inArray(episodes.number, allEpisodeNumbers as number[]),
@@ -205,54 +185,53 @@ export function makeCatalogOrchestration(input: {
           preferredTitle: namingSettings.preferredTitle,
           season: file.season,
         });
-        const localMediaMetadata = hasMissingLocalMediaNamingFields(
-            initialNamingPlan.missingFields,
-          )
+        const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
           ? yield* mediaProbe.probeVideoFile(file.source_path)
           : undefined;
         const namingPlan = localMediaMetadata
           ? buildEpisodeFilenamePlan({
-            animeRow,
-            downloadSourceMetadata: file.source_metadata,
-            episodeNumbers: allEpisodeNumbers,
-            episodeRows,
-            filePath: file.source_path,
-            localMediaMetadata,
-            namingFormat,
-            preferredTitle: namingSettings.preferredTitle,
-            season: file.season,
-          })
+              animeRow,
+              downloadSourceMetadata: file.source_metadata,
+              episodeNumbers: allEpisodeNumbers,
+              episodeRows,
+              filePath: file.source_path,
+              localMediaMetadata,
+              namingFormat,
+              preferredTitle: namingSettings.preferredTitle,
+              season: file.season,
+            })
           : initialNamingPlan;
         const destinationBaseName = namingPlan.baseName;
-        const destination = `${
-          animeRow.rootFolder.replace(/\/$/, "")
-        }/${destinationBaseName}${extension}`;
+        const destination = `${animeRow.rootFolder.replace(
+          /\/$/,
+          "",
+        )}/${destinationBaseName}${extension}`;
 
         yield* fs.mkdir(animeRow.rootFolder, { recursive: true }).pipe(
-          Effect.mapError(() =>
-            new OperationsPathError({
-              message:
-                `Failed to create or access destination folder ${animeRow.rootFolder}`,
-            })
+          Effect.mapError(
+            () =>
+              new OperationsPathError({
+                message: `Failed to create or access destination folder ${animeRow.rootFolder}`,
+              }),
           ),
         );
 
         if (importMode === "move") {
           yield* fs.rename(resolvedSource, destination).pipe(
-            Effect.mapError(() =>
-              new OperationsPathError({
-                message:
-                  `Failed to move file into library: ${file.source_path}`,
-              })
+            Effect.mapError(
+              () =>
+                new OperationsPathError({
+                  message: `Failed to move file into library: ${file.source_path}`,
+                }),
             ),
           );
         } else {
           yield* fs.copyFile(resolvedSource, destination).pipe(
-            Effect.mapError(() =>
-              new OperationsPathError({
-                message:
-                  `Failed to copy file into library: ${file.source_path}`,
-              })
+            Effect.mapError(
+              () =>
+                new OperationsPathError({
+                  message: `Failed to copy file into library: ${file.source_path}`,
+                }),
             ),
           );
         }
@@ -274,23 +253,18 @@ export function makeCatalogOrchestration(input: {
         );
 
         if (Either.isLeft(dbResult)) {
-          const rollbackEffect = importMode === "move"
-            ? fs.rename(destination, resolvedSource)
-            : fs.remove(destination);
+          const rollbackEffect =
+            importMode === "move" ? fs.rename(destination, resolvedSource) : fs.remove(destination);
 
           yield* rollbackEffect.pipe(
-            Effect.catchTag(
-              "FileSystemError",
-              (error) =>
-                Effect.logWarning(
-                  "Failed to rollback filesystem after DB error",
-                ).pipe(
-                  Effect.annotateLogs({
-                    destination_path: destination,
-                    source_path: file.source_path,
-                    error: String(error),
-                  }),
-                ),
+            Effect.catchTag("FileSystemError", (error) =>
+              Effect.logWarning("Failed to rollback filesystem after DB error").pipe(
+                Effect.annotateLogs({
+                  destination_path: destination,
+                  source_path: file.source_path,
+                  error: String(error),
+                }),
+              ),
             ),
           );
 
@@ -301,18 +275,13 @@ export function makeCatalogOrchestration(input: {
           anime_id: file.anime_id,
           destination_path: destination,
           episode_number: file.episode_number,
-          episode_numbers: file.episode_numbers
-            ? [...file.episode_numbers]
-            : undefined,
+          episode_numbers: file.episode_numbers ? [...file.episode_numbers] : undefined,
           naming_fallback_used: namingPlan.fallbackUsed || undefined,
           naming_format_used: namingPlan.formatUsed,
           naming_metadata_snapshot: namingPlan.metadataSnapshot,
-          naming_missing_fields: namingPlan.missingFields.length > 0
-            ? [...namingPlan.missingFields]
-            : undefined,
-          naming_warnings: namingPlan.warnings.length > 0
-            ? [...namingPlan.warnings]
-            : undefined,
+          naming_missing_fields:
+            namingPlan.missingFields.length > 0 ? [...namingPlan.missingFields] : undefined,
+          naming_warnings: namingPlan.warnings.length > 0 ? [...namingPlan.warnings] : undefined,
           source_path: file.source_path,
         });
       }).pipe(Effect.either);
@@ -320,9 +289,7 @@ export function makeCatalogOrchestration(input: {
       if (Either.isLeft(result)) {
         failedFiles.push({
           source_path: file.source_path,
-          error: result.left instanceof Error
-            ? result.left.message
-            : String(result.left),
+          error: result.left instanceof Error ? result.left.message : String(result.left),
         });
       }
     }
@@ -355,32 +322,26 @@ export function makeCatalogOrchestration(input: {
   ) =>
     importFilesRaw(files).pipe(
       Effect.mapError((error) =>
-        error instanceof DatabaseError
-          ? error
-          : dbError("Failed to import files")(error)
+        error instanceof DatabaseError ? error : dbError("Failed to import files")(error),
       ),
     );
 
-  const retryDownload = Effect.fn("OperationsService.retryDownload")(
-    function* (id: number) {
-      yield* retryDownloadById(id);
-      yield* publishDownloadProgress();
-    },
-  );
+  const retryDownload = Effect.fn("OperationsService.retryDownload")(function* (id: number) {
+    yield* retryDownloadById(id);
+    yield* publishDownloadProgress();
+  });
 
-  const reconcileDownload = Effect.fn(
-    "OperationsService.reconcileDownload",
-  )(function* (id: number) {
+  const reconcileDownload = Effect.fn("OperationsService.reconcileDownload")(function* (
+    id: number,
+  ) {
     yield* reconcileDownloadByIdEffect(id);
     yield* publishDownloadProgress();
   });
 
-  const syncDownloads = Effect.fn("OperationsService.syncDownloads")(
-    function* () {
-      yield* syncDownloadState("downloads.manual_sync");
-      yield* publishDownloadProgress();
-    },
-  );
+  const syncDownloads = Effect.fn("OperationsService.syncDownloads")(function* () {
+    yield* syncDownloadState("downloads.manual_sync");
+    yield* publishDownloadProgress();
+  });
 
   const rssSupport = makeCatalogRssSupport({
     db,
@@ -397,8 +358,7 @@ export function makeCatalogOrchestration(input: {
   const getRenamePreview = input.libraryReadSupport.getRenamePreview;
 
   const pauseDownload = (id: number) => applyDownloadActionEffect(id, "pause");
-  const resumeDownload = (id: number) =>
-    applyDownloadActionEffect(id, "resume");
+  const resumeDownload = (id: number) => applyDownloadActionEffect(id, "resume");
   const removeDownload = (id: number, deleteFiles: boolean) =>
     applyDownloadActionEffect(id, "delete", deleteFiles);
 

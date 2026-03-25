@@ -18,11 +18,14 @@ it.effect("event bus fans out events to active subscribers", () =>
     yield* first.close;
     yield* second.close;
 
-    assertEquals([firstEvent, secondEvent], [
-      { type: "Info", payload: { message: "hello" } },
-      { type: "Info", payload: { message: "hello" } },
-    ]);
-  })
+    assertEquals(
+      [firstEvent, secondEvent],
+      [
+        { type: "Info", payload: { message: "hello" } },
+        { type: "Info", payload: { message: "hello" } },
+      ],
+    );
+  }),
 );
 
 it.effect("event bus uses sliding backpressure for slow subscribers", () =>
@@ -39,11 +42,14 @@ it.effect("event bus uses sliding backpressure for slow subscribers", () =>
 
     yield* subscription.close;
 
-    assertEquals([first, second], [
-      { type: "Info", payload: { message: "two" } },
-      { type: "Info", payload: { message: "three" } },
-    ]);
-  })
+    assertEquals(
+      [first, second],
+      [
+        { type: "Info", payload: { message: "two" } },
+        { type: "Info", payload: { message: "three" } },
+      ],
+    );
+  }),
 );
 
 it.effect("event bus subscriptions expose a stream view", () =>
@@ -54,9 +60,7 @@ it.effect("event bus subscriptions expose a stream view", () =>
     yield* eventBus.publish({ type: "Info", payload: { message: "one" } });
     yield* eventBus.publish({ type: "Info", payload: { message: "two" } });
 
-    const events = yield* Stream.runCollect(
-      subscription.stream.pipe(Stream.take(2)),
-    );
+    const events = yield* Stream.runCollect(subscription.stream.pipe(Stream.take(2)));
 
     yield* subscription.close;
 
@@ -64,5 +68,5 @@ it.effect("event bus subscriptions expose a stream view", () =>
       { type: "Info", payload: { message: "one" } },
       { type: "Info", payload: { message: "two" } },
     ]);
-  })
+  }),
 );

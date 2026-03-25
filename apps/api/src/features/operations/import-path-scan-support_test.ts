@@ -110,8 +110,7 @@ it("buildScannedFileNamingPlan exposes naming details for matched anime files", 
     },
     namingSettings: {
       movieNamingFormat: "{title} ({year})",
-      namingFormat:
-        "{title} - S{season:02}E{episode:02} [{quality} {resolution}]",
+      namingFormat: "{title} - S{season:02}E{episode:02} [{quality} {resolution}]",
       preferredTitle: "romaji",
     },
   });
@@ -122,14 +121,8 @@ it("buildScannedFileNamingPlan exposes naming details for matched anime files", 
     result.naming_format_used,
     "{title} - S{season:02}E{episode:02} [{quality} {resolution}]",
   );
-  assertEquals(
-    result.naming_metadata_snapshot?.episode_title,
-    "Enter Naruto Uzumaki!",
-  );
-  assertEquals(
-    result.naming_metadata_snapshot?.title_source,
-    "preferred_romaji",
-  );
+  assertEquals(result.naming_metadata_snapshot?.episode_title, "Enter Naruto Uzumaki!");
+  assertEquals(result.naming_metadata_snapshot?.title_source, "preferred_romaji");
 });
 
 it("buildScannedFileNamingPlan avoids duplicate resolution when quality already includes it", () => {
@@ -150,8 +143,7 @@ it("buildScannedFileNamingPlan avoids duplicate resolution when quality already 
       quality: "WEB-DL 1080p",
       resolution: "1080p",
       season: 1,
-      source_path:
-        "/imports/Jigokuraku - S01E01 v2 (BD 1080p HEVC) [Vodes].mkv",
+      source_path: "/imports/Jigokuraku - S01E01 v2 (BD 1080p HEVC) [Vodes].mkv",
       source_identity: {
         episode_numbers: [1],
         label: "S01E01",
@@ -162,14 +154,10 @@ it("buildScannedFileNamingPlan avoids duplicate resolution when quality already 
     },
     namingSettings: {
       movieNamingFormat: "{title} ({year})",
-      namingFormat:
-        "{title} - S{season:02}E{episode:02} [{quality} {resolution}]",
+      namingFormat: "{title} - S{season:02}E{episode:02} [{quality} {resolution}]",
       preferredTitle: "romaji",
     },
   });
 
-  assertEquals(
-    result.naming_filename,
-    "Jigokuraku - S01E01 [WEB-DL 1080p].mkv",
-  );
+  assertEquals(result.naming_filename, "Jigokuraku - S01E01 [WEB-DL 1080p].mkv");
 });

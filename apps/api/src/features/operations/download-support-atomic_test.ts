@@ -28,15 +28,13 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
             releaseProfileIds: "[]",
             addedAt: "2024-01-01T00:00:00Z",
             monitored: true,
-          })
+          }),
         );
 
         yield* upsertEpisodeFilesAtomic(appDb, 1, [1, 2, 3], "/test/episode.mkv");
 
         const rows = yield* Effect.tryPromise(() =>
-          appDb.select().from(schema.episodes).where(
-            eq(schema.episodes.animeId, 1),
-          )
+          appDb.select().from(schema.episodes).where(eq(schema.episodes.animeId, 1)),
         );
         assertEquals(rows.length, 3);
 
@@ -47,7 +45,7 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
         assertEquals(rows[0].filePath, "/test/episode.mkv");
       }),
     schema,
-  })
+  }),
 );
 
 it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
@@ -70,22 +68,24 @@ it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
             releaseProfileIds: "[]",
             addedAt: "2024-01-01T00:00:00Z",
             monitored: true,
-          })
+          }),
         );
 
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.episodes).values([
             { animeId: 1, number: 1, downloaded: false, filePath: null },
             { animeId: 1, number: 2, downloaded: true, filePath: "/old.mkv" },
-          ])
+          ]),
         );
 
         yield* upsertEpisodeFilesAtomic(appDb, 1, [1, 2], "/new.mkv");
 
         const rows = yield* Effect.tryPromise(() =>
-          appDb.select().from(schema.episodes).where(
-            eq(schema.episodes.animeId, 1),
-          ).orderBy(schema.episodes.number)
+          appDb
+            .select()
+            .from(schema.episodes)
+            .where(eq(schema.episodes.animeId, 1))
+            .orderBy(schema.episodes.number),
         );
 
         assertEquals(rows.length, 2);
@@ -95,7 +95,7 @@ it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
         assertEquals(rows[1].filePath, "/new.mkv");
       }),
     schema,
-  })
+  }),
 );
 
 it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
@@ -118,7 +118,7 @@ it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
             releaseProfileIds: "[]",
             addedAt: "2024-01-01T00:00:00Z",
             monitored: true,
-          })
+          }),
         );
 
         yield* upsertEpisodeFilesAtomic(appDb, 1, [], "/test/episode.mkv");
@@ -127,5 +127,5 @@ it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
         assertEquals(rows.length, 0);
       }),
     schema,
-  })
+  }),
 );

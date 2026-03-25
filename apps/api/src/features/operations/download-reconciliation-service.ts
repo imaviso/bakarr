@@ -4,12 +4,7 @@ import { Effect } from "effect";
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
-import {
-  downloadEvents,
-  downloads,
-  episodes,
-  systemLogs,
-} from "../../db/schema.ts";
+import { downloadEvents, downloads, episodes, systemLogs } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
 import {
   currentImportMode,
@@ -74,302 +69,274 @@ export function makeDownloadReconciliationService(input: {
     maybeQBitConfig,
   } = input;
 
-  const maybeCleanupImportedTorrent = Effect.fn(
-    "OperationsService.maybeCleanupImportedTorrent",
-  )(function* (
-    config: Config | null | undefined,
-    infoHash: string | null,
-  ) {
-    const qbitConfig = config ? maybeQBitConfig(config) : null;
+  const maybeCleanupImportedTorrent = Effect.fn("OperationsService.maybeCleanupImportedTorrent")(
+    function* (config: Config | null | undefined, infoHash: string | null) {
+      const qbitConfig = config ? maybeQBitConfig(config) : null;
 
-    if (!qbitConfig || !infoHash || !shouldRemoveTorrentOnImport(config)) {
-      return;
-    }
+      if (!qbitConfig || !infoHash || !shouldRemoveTorrentOnImport(config)) {
+        return;
+      }
 
-    yield* qbitClient.deleteTorrent(
-      qbitConfig,
-      infoHash,
-      shouldDeleteImportedData(config),
-    ).pipe(
-      Effect.catchTags({
-        ExternalCallError: (cause) =>
-          Effect.logWarning(
-            "Failed to delete imported torrent from qBittorrent",
-          )
-            .pipe(
+      yield* qbitClient.deleteTorrent(qbitConfig, infoHash, shouldDeleteImportedData(config)).pipe(
+        Effect.catchTags({
+          ExternalCallError: (cause) =>
+            Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
               Effect.annotateLogs({
                 infoHash,
                 error: String(cause),
               }),
             ),
-        QBitTorrentClientError: (cause) =>
-          Effect.logWarning(
-            "Failed to delete imported torrent from qBittorrent",
-          )
-            .pipe(
+          QBitTorrentClientError: (cause) =>
+            Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
               Effect.annotateLogs({
                 infoHash,
                 error: String(cause),
               }),
             ),
-      }),
-    );
-  });
+        }),
+      );
+    },
+  );
 
-  const reconcileCompletedTorrentEffect = Effect.fn(
-    "OperationsService.reconcileCompletedTorrent",
-  )(function* (infoHash: string, contentPath: string | undefined) {
-    if (!contentPath) {
-      return;
-    }
+  const reconcileCompletedTorrentEffect = Effect.fn("OperationsService.reconcileCompletedTorrent")(
+    function* (infoHash: string, contentPath: string | undefined) {
+      if (!contentPath) {
+        return;
+      }
 
-    const rows = yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      () =>
-        db.select().from(downloads).where(eq(downloads.infoHash, infoHash))
-          .limit(1),
-    );
-    const row = rows[0];
+      const rows = yield* tryDatabasePromise("Failed to reconcile completed download", () =>
+        db.select().from(downloads).where(eq(downloads.infoHash, infoHash)).limit(1),
+      );
+      const row = rows[0];
 
-    if (!row) {
-      return;
-    }
+      if (!row) {
+        return;
+      }
 
-    if (row.reconciledAt) {
-      return;
-    }
+      if (row.reconciledAt) {
+        return;
+      }
 
-    const storedSourceMetadata = decodeDownloadSourceMetadata(
-      row.sourceMetadata,
-    );
+      const storedSourceMetadata = decodeDownloadSourceMetadata(row.sourceMetadata);
 
-    const animeRow = yield* requireAnime(db, row.animeId);
-    const importMode = yield* currentImportMode(db);
-    const runtimeConfig = yield* loadRuntimeConfig(db);
-    const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
-      fs,
-      contentPath,
-      runtimeConfig.downloads.remote_path_mappings,
-    );
-
-    if (!resolvedContentRoot) {
-      return;
-    }
-
-    if (row.isBatch) {
-      const coveredEpisodes = parseCoveredEpisodes(row.coveredEpisodes);
-      const batchPaths = yield* resolveBatchContentPaths(
+      const animeRow = yield* requireAnime(db, row.animeId);
+      const importMode = yield* currentImportMode(db);
+      const runtimeConfig = yield* loadRuntimeConfig(db);
+      const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
         fs,
-        resolvedContentRoot,
-      ).pipe(
-        Effect.mapError(() =>
-          new OperationsPathError({
-            message:
-              `Download content path is inaccessible: ${resolvedContentRoot}`,
-          })
-        ),
+        contentPath,
+        runtimeConfig.downloads.remote_path_mappings,
       );
 
-      if (batchPaths.length > 0) {
-        const accountedEpisodes = new Set<number>();
-        const expectedEpisodeCount = coveredEpisodes.length > 0
-          ? new Set(coveredEpisodes).size
-          : undefined;
-        let alreadyImportedCount = 0;
-        let importedCount = 0;
+      if (!resolvedContentRoot) {
+        return;
+      }
 
-        const batchItems: Array<{
-          path: string;
-          relevantEpisodes: number[];
-          primaryEpisode: number;
-        }> = [];
-
-        const allRelevantEpisodes = new Set<number>();
-
-        for (const path of batchPaths) {
-          const fileName = path.substring(path.lastIndexOf("/") + 1);
-          const classification = classifyMediaArtifact(path, fileName);
-          if (
-            classification.kind === "extra" ||
-            classification.kind === "sample"
-          ) {
-            continue;
-          }
-
-          const episodeNumbers = resolveReconciledBatchEpisodeNumbers({
-            coveredEpisodes,
-            path,
-            totalCandidateCount: batchPaths.length,
-          });
-          if (episodeNumbers.length === 0) {
-            continue;
-          }
-
-          const relevantEpisodes = coveredEpisodes.length > 0
-            ? episodeNumbers.filter((ep) => coveredEpisodes.includes(ep))
-            : episodeNumbers;
-
-          if (relevantEpisodes.length === 0) {
-            continue;
-          }
-
-          for (const ep of relevantEpisodes) {
-            accountedEpisodes.add(ep);
-            allRelevantEpisodes.add(ep);
-          }
-
-          batchItems.push({
-            path,
-            relevantEpisodes,
-            primaryEpisode: relevantEpisodes[0] ?? 0,
-          });
-        }
-
-        const namingFormat = selectNamingFormat(animeRow, {
-          movieNamingFormat: runtimeConfig.library.movie_naming_format,
-          namingFormat: runtimeConfig.library.naming_format,
-        });
-
-        const allEpisodeRows = allRelevantEpisodes.size > 0
-          ? yield* tryDatabasePromise(
-            "Failed to reconcile completed download",
+      if (row.isBatch) {
+        const coveredEpisodes = parseCoveredEpisodes(row.coveredEpisodes);
+        const batchPaths = yield* resolveBatchContentPaths(fs, resolvedContentRoot).pipe(
+          Effect.mapError(
             () =>
-              db.select({
-                aired: episodes.aired,
-                downloaded: episodes.downloaded,
-                filePath: episodes.filePath,
-                number: episodes.number,
-                title: episodes.title,
-              }).from(episodes).where(
-                and(
-                  eq(episodes.animeId, row.animeId),
-                  inArray(episodes.number, [...allRelevantEpisodes]),
-                ),
-              ),
-          )
-          : [];
+              new OperationsPathError({
+                message: `Download content path is inaccessible: ${resolvedContentRoot}`,
+              }),
+          ),
+        );
 
-        const episodeMap = new Map<number, {
-          aired: string | null;
-          downloaded: boolean;
-          filePath: string | null;
-          number: number;
-          title: string | null;
-        }>();
-        for (const epRow of allEpisodeRows) {
-          episodeMap.set(epRow.number, epRow);
-        }
+        if (batchPaths.length > 0) {
+          const accountedEpisodes = new Set<number>();
+          const expectedEpisodeCount =
+            coveredEpisodes.length > 0 ? new Set(coveredEpisodes).size : undefined;
+          let alreadyImportedCount = 0;
+          let importedCount = 0;
 
-        for (const item of batchItems) {
-          const { path, relevantEpisodes, primaryEpisode } = item;
+          const batchItems: Array<{
+            path: string;
+            relevantEpisodes: number[];
+            primaryEpisode: number;
+          }> = [];
 
-          const episodeRowsForNaming = relevantEpisodes
-            .map((ep) => episodeMap.get(ep))
-            .filter((r): r is typeof allEpisodeRows[0] => r !== undefined)
-            .map((r) => ({ title: r.title, aired: r.aired }));
+          const allRelevantEpisodes = new Set<number>();
 
-          const existingEpisode = episodeMap.get(primaryEpisode);
+          for (const path of batchPaths) {
+            const fileName = path.substring(path.lastIndexOf("/") + 1);
+            const classification = classifyMediaArtifact(path, fileName);
+            if (classification.kind === "extra" || classification.kind === "sample") {
+              continue;
+            }
 
-          if (existingEpisode?.downloaded && existingEpisode?.filePath) {
-            alreadyImportedCount += 1;
-            continue;
-          }
+            const episodeNumbers = resolveReconciledBatchEpisodeNumbers({
+              coveredEpisodes,
+              path,
+              totalCandidateCount: batchPaths.length,
+            });
+            if (episodeNumbers.length === 0) {
+              continue;
+            }
 
-          const initialNamingPlan = buildEpisodeFilenamePlan({
-            animeRow,
-            downloadSourceMetadata: storedSourceMetadata,
-            episodeNumbers: relevantEpisodes,
-            episodeRows: episodeRowsForNaming,
-            filePath: path,
-            namingFormat,
-            preferredTitle: runtimeConfig.library.preferred_title,
-          });
-          const localMediaMetadata = hasMissingLocalMediaNamingFields(
-              initialNamingPlan.missingFields,
-            )
-            ? yield* mediaProbe.probeVideoFile(path)
-            : undefined;
+            const relevantEpisodes =
+              coveredEpisodes.length > 0
+                ? episodeNumbers.filter((ep) => coveredEpisodes.includes(ep))
+                : episodeNumbers;
 
-          const managedPath = yield* importDownloadedFile(
-            fs,
-            animeRow,
-            primaryEpisode,
-            path,
-            importMode,
-            {
-              downloadSourceMetadata: storedSourceMetadata,
-              episodeNumbers: relevantEpisodes,
-              episodeRows: episodeRowsForNaming,
-              localMediaMetadata,
-              namingFormat,
-              preferredTitle: runtimeConfig.library.preferred_title,
-            },
-          ).pipe(
-            Effect.mapError(
-              wrapOperationsError("Failed to reconcile completed download"),
-            ),
-          );
-          yield* upsertEpisodeFilesAtomic(
-            db,
-            row.animeId,
-            relevantEpisodes,
-            managedPath,
-          ).pipe(
-            Effect.mapError((cause) =>
-              new DatabaseError({
-                message: "Failed to reconcile completed download",
-                cause,
-              })
-            ),
-          );
+            if (relevantEpisodes.length === 0) {
+              continue;
+            }
 
-          for (const episodeNumber of relevantEpisodes) {
-            const existing = episodeMap.get(episodeNumber);
-            episodeMap.set(episodeNumber, {
-              aired: existing?.aired ?? null,
-              downloaded: true,
-              filePath: managedPath,
-              number: episodeNumber,
-              title: existing?.title ?? null,
+            for (const ep of relevantEpisodes) {
+              accountedEpisodes.add(ep);
+              allRelevantEpisodes.add(ep);
+            }
+
+            batchItems.push({
+              path,
+              relevantEpisodes,
+              primaryEpisode: relevantEpisodes[0] ?? 0,
             });
           }
 
-          importedCount += 1;
-        }
+          const namingFormat = selectNamingFormat(animeRow, {
+            movieNamingFormat: runtimeConfig.library.movie_naming_format,
+            namingFormat: runtimeConfig.library.naming_format,
+          });
 
-        const batchAlreadyImported = importedCount === 0 &&
-          accountedEpisodes.size > 0 &&
-          alreadyImportedCount === accountedEpisodes.size &&
-          (
-            expectedEpisodeCount === undefined ||
-            accountedEpisodes.size === expectedEpisodeCount
-          );
+          const allEpisodeRows =
+            allRelevantEpisodes.size > 0
+              ? yield* tryDatabasePromise("Failed to reconcile completed download", () =>
+                  db
+                    .select({
+                      aired: episodes.aired,
+                      downloaded: episodes.downloaded,
+                      filePath: episodes.filePath,
+                      number: episodes.number,
+                      title: episodes.title,
+                    })
+                    .from(episodes)
+                    .where(
+                      and(
+                        eq(episodes.animeId, row.animeId),
+                        inArray(episodes.number, [...allRelevantEpisodes]),
+                      ),
+                    ),
+                )
+              : [];
 
-        if (importedCount === 0 && !batchAlreadyImported) {
-          yield* Effect.logWarning(
-            "Batch reconciliation skipped all files; leaving unreconciled for retry",
-          ).pipe(
-            Effect.annotateLogs({
-              animeTitle: row.animeTitle,
-              downloadId: row.id,
-            }),
-          );
-          return;
-        }
+          const episodeMap = new Map<
+            number,
+            {
+              aired: string | null;
+              downloaded: boolean;
+              filePath: string | null;
+              number: number;
+              title: string | null;
+            }
+          >();
+          for (const epRow of allEpisodeRows) {
+            episodeMap.set(epRow.number, epRow);
+          }
 
-        const batchNow = yield* nowIso;
-        yield* tryDatabasePromise(
-          "Failed to reconcile completed download",
-          async () => {
+          for (const item of batchItems) {
+            const { path, relevantEpisodes, primaryEpisode } = item;
+
+            const episodeRowsForNaming = relevantEpisodes
+              .map((ep) => episodeMap.get(ep))
+              .filter((r): r is (typeof allEpisodeRows)[0] => r !== undefined)
+              .map((r) => ({ title: r.title, aired: r.aired }));
+
+            const existingEpisode = episodeMap.get(primaryEpisode);
+
+            if (existingEpisode?.downloaded && existingEpisode?.filePath) {
+              alreadyImportedCount += 1;
+              continue;
+            }
+
+            const initialNamingPlan = buildEpisodeFilenamePlan({
+              animeRow,
+              downloadSourceMetadata: storedSourceMetadata,
+              episodeNumbers: relevantEpisodes,
+              episodeRows: episodeRowsForNaming,
+              filePath: path,
+              namingFormat,
+              preferredTitle: runtimeConfig.library.preferred_title,
+            });
+            const localMediaMetadata = hasMissingLocalMediaNamingFields(
+              initialNamingPlan.missingFields,
+            )
+              ? yield* mediaProbe.probeVideoFile(path)
+              : undefined;
+
+            const managedPath = yield* importDownloadedFile(
+              fs,
+              animeRow,
+              primaryEpisode,
+              path,
+              importMode,
+              {
+                downloadSourceMetadata: storedSourceMetadata,
+                episodeNumbers: relevantEpisodes,
+                episodeRows: episodeRowsForNaming,
+                localMediaMetadata,
+                namingFormat,
+                preferredTitle: runtimeConfig.library.preferred_title,
+              },
+            ).pipe(Effect.mapError(wrapOperationsError("Failed to reconcile completed download")));
+            yield* upsertEpisodeFilesAtomic(db, row.animeId, relevantEpisodes, managedPath).pipe(
+              Effect.mapError(
+                (cause) =>
+                  new DatabaseError({
+                    message: "Failed to reconcile completed download",
+                    cause,
+                  }),
+              ),
+            );
+
+            for (const episodeNumber of relevantEpisodes) {
+              const existing = episodeMap.get(episodeNumber);
+              episodeMap.set(episodeNumber, {
+                aired: existing?.aired ?? null,
+                downloaded: true,
+                filePath: managedPath,
+                number: episodeNumber,
+                title: existing?.title ?? null,
+              });
+            }
+
+            importedCount += 1;
+          }
+
+          const batchAlreadyImported =
+            importedCount === 0 &&
+            accountedEpisodes.size > 0 &&
+            alreadyImportedCount === accountedEpisodes.size &&
+            (expectedEpisodeCount === undefined || accountedEpisodes.size === expectedEpisodeCount);
+
+          if (importedCount === 0 && !batchAlreadyImported) {
+            yield* Effect.logWarning(
+              "Batch reconciliation skipped all files; leaving unreconciled for retry",
+            ).pipe(
+              Effect.annotateLogs({
+                animeTitle: row.animeTitle,
+                downloadId: row.id,
+              }),
+            );
+            return;
+          }
+
+          const batchNow = yield* nowIso;
+          yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
             await db.transaction(async (tx) => {
-              await tx.update(downloads).set({
-                externalState: "imported",
-                progress: 100,
-                status: "imported",
-              }).where(eq(downloads.id, row.id));
-              await tx.update(downloads).set({ reconciledAt: batchNow }).where(
-                eq(downloads.id, row.id),
-              );
+              await tx
+                .update(downloads)
+                .set({
+                  externalState: "imported",
+                  progress: 100,
+                  status: "imported",
+                })
+                .where(eq(downloads.id, row.id));
+              await tx
+                .update(downloads)
+                .set({ reconciledAt: batchNow })
+                .where(eq(downloads.id, row.id));
               await tx.insert(downloadEvents).values({
                 animeId: row.animeId,
                 createdAt: batchNow,
@@ -396,149 +363,138 @@ export function makeDownloadReconciliationService(input: {
                   : `Mapped completed batch torrent for ${row.animeTitle}`,
               });
             });
-          },
-        );
-        yield* maybeCleanupImportedTorrent(runtimeConfig, row.infoHash);
-        yield* eventBus.publish({
-          type: "DownloadFinished",
-          payload: {
-            anime_id: row.animeId,
-            imported_path: animeRow.rootFolder,
-            source_metadata: storedSourceMetadata,
-            title: row.torrentName,
-          },
+          });
+          yield* maybeCleanupImportedTorrent(runtimeConfig, row.infoHash);
+          yield* eventBus.publish({
+            type: "DownloadFinished",
+            payload: {
+              anime_id: row.animeId,
+              imported_path: animeRow.rootFolder,
+              source_metadata: storedSourceMetadata,
+              title: row.torrentName,
+            },
+          });
+          return;
+        }
+      }
+
+      const existingEpisode = yield* tryDatabasePromise(
+        "Failed to reconcile completed download",
+        () =>
+          db
+            .select()
+            .from(episodes)
+            .where(and(eq(episodes.animeId, row.animeId), eq(episodes.number, row.episodeNumber)))
+            .limit(1),
+      );
+
+      if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
+        const alreadyImportedNow = yield* nowIso;
+        yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
+          await db.transaction(async (tx) => {
+            await tx
+              .update(downloads)
+              .set({
+                externalState: "imported",
+                progress: 100,
+                status: "imported",
+              })
+              .where(eq(downloads.id, row.id));
+            await tx
+              .update(downloads)
+              .set({ reconciledAt: alreadyImportedNow })
+              .where(eq(downloads.id, row.id));
+          });
         });
         return;
       }
-    }
 
-    const existingEpisode = yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      () =>
-        db.select().from(episodes).where(
-          and(
-            eq(episodes.animeId, row.animeId),
-            eq(episodes.number, row.episodeNumber),
-          ),
-        ).limit(1),
-    );
+      const expectedAirDate =
+        existingEpisode[0]?.aired ??
+        storedSourceMetadata?.air_date ??
+        (storedSourceMetadata?.source_identity?.scheme === "daily"
+          ? storedSourceMetadata.source_identity.air_dates?.[0]
+          : undefined);
 
-    if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
-      const alreadyImportedNow = yield* nowIso;
-      yield* tryDatabasePromise(
-        "Failed to reconcile completed download",
-        async () => {
-          await db.transaction(async (tx) => {
-            await tx.update(downloads).set({
+      const resolvedPath = yield* resolveCompletedContentPath(
+        fs,
+        resolvedContentRoot,
+        row.episodeNumber,
+        { expectedAirDate },
+      ).pipe(
+        Effect.mapError(
+          () =>
+            new OperationsPathError({
+              message: `Download content path is inaccessible: ${resolvedContentRoot}`,
+            }),
+        ),
+      );
+
+      if (!resolvedPath) {
+        return;
+      }
+
+      const namingFormat = selectNamingFormat(animeRow, {
+        movieNamingFormat: runtimeConfig.library.movie_naming_format,
+        namingFormat: runtimeConfig.library.naming_format,
+      });
+      const episodeRows = yield* tryDatabasePromise("Failed to reconcile completed download", () =>
+        db
+          .select({ aired: episodes.aired, title: episodes.title })
+          .from(episodes)
+          .where(and(eq(episodes.animeId, row.animeId), eq(episodes.number, row.episodeNumber))),
+      );
+      const initialNamingPlan = buildEpisodeFilenamePlan({
+        animeRow,
+        downloadSourceMetadata: storedSourceMetadata,
+        episodeNumbers: [row.episodeNumber],
+        episodeRows,
+        filePath: resolvedPath,
+        namingFormat,
+        preferredTitle: runtimeConfig.library.preferred_title,
+      });
+      const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
+        ? yield* mediaProbe.probeVideoFile(resolvedPath)
+        : undefined;
+
+      const managedPath = yield* importDownloadedFile(
+        fs,
+        animeRow,
+        row.episodeNumber,
+        resolvedPath,
+        importMode,
+        {
+          downloadSourceMetadata: storedSourceMetadata,
+          episodeRows,
+          localMediaMetadata,
+          namingFormat,
+          preferredTitle: runtimeConfig.library.preferred_title,
+        },
+      ).pipe(Effect.mapError(wrapOperationsError("Failed to reconcile completed download")));
+      yield* upsertEpisodeFile(db, row.animeId, row.episodeNumber, managedPath).pipe(
+        Effect.mapError(
+          (cause) =>
+            new DatabaseError({
+              message: "Failed to reconcile completed download",
+              cause,
+            }),
+        ),
+      );
+      const singleNow = yield* nowIso;
+      yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
+        await db.transaction(async (tx) => {
+          await tx
+            .update(downloads)
+            .set({
               externalState: "imported",
               progress: 100,
               status: "imported",
-            }).where(eq(downloads.id, row.id));
-            await tx.update(downloads).set({ reconciledAt: alreadyImportedNow })
-              .where(
-                eq(downloads.id, row.id),
-              );
-          });
-        },
-      );
-      return;
-    }
-
-    const expectedAirDate = existingEpisode[0]?.aired ??
-      storedSourceMetadata?.air_date ??
-      (storedSourceMetadata?.source_identity?.scheme === "daily"
-        ? storedSourceMetadata.source_identity.air_dates?.[0]
-        : undefined);
-
-    const resolvedPath = yield* resolveCompletedContentPath(
-      fs,
-      resolvedContentRoot,
-      row.episodeNumber,
-      { expectedAirDate },
-    ).pipe(
-      Effect.mapError(() =>
-        new OperationsPathError({
-          message:
-            `Download content path is inaccessible: ${resolvedContentRoot}`,
-        })
-      ),
-    );
-
-    if (!resolvedPath) {
-      return;
-    }
-
-    const namingFormat = selectNamingFormat(animeRow, {
-      movieNamingFormat: runtimeConfig.library.movie_naming_format,
-      namingFormat: runtimeConfig.library.naming_format,
-    });
-    const episodeRows = yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      () =>
-        db.select({ aired: episodes.aired, title: episodes.title }).from(
-          episodes,
-        ).where(
-          and(
-            eq(episodes.animeId, row.animeId),
-            eq(episodes.number, row.episodeNumber),
-          ),
-        ),
-    );
-    const initialNamingPlan = buildEpisodeFilenamePlan({
-      animeRow,
-      downloadSourceMetadata: storedSourceMetadata,
-      episodeNumbers: [row.episodeNumber],
-      episodeRows,
-      filePath: resolvedPath,
-      namingFormat,
-      preferredTitle: runtimeConfig.library.preferred_title,
-    });
-    const localMediaMetadata = hasMissingLocalMediaNamingFields(
-        initialNamingPlan.missingFields,
-      )
-      ? yield* mediaProbe.probeVideoFile(resolvedPath)
-      : undefined;
-
-    const managedPath = yield* importDownloadedFile(
-      fs,
-      animeRow,
-      row.episodeNumber,
-      resolvedPath,
-      importMode,
-      {
-        downloadSourceMetadata: storedSourceMetadata,
-        episodeRows,
-        localMediaMetadata,
-        namingFormat,
-        preferredTitle: runtimeConfig.library.preferred_title,
-      },
-    ).pipe(
-      Effect.mapError(
-        wrapOperationsError("Failed to reconcile completed download"),
-      ),
-    );
-    yield* upsertEpisodeFile(db, row.animeId, row.episodeNumber, managedPath)
-      .pipe(
-        Effect.mapError((cause) =>
-          new DatabaseError({
-            message: "Failed to reconcile completed download",
-            cause,
-          })
-        ),
-      );
-    const singleNow = yield* nowIso;
-    yield* tryDatabasePromise(
-      "Failed to reconcile completed download",
-      async () => {
-        await db.transaction(async (tx) => {
-          await tx.update(downloads).set({
-            externalState: "imported",
-            progress: 100,
-            status: "imported",
-          }).where(eq(downloads.id, row.id));
-          await tx.update(downloads).set({ reconciledAt: singleNow }).where(
-            eq(downloads.id, row.id),
-          );
+            })
+            .where(eq(downloads.id, row.id));
+          await tx
+            .update(downloads)
+            .set({ reconciledAt: singleNow })
+            .where(eq(downloads.id, row.id));
           await tx.insert(downloadEvents).values({
             animeId: row.animeId,
             createdAt: singleNow,
@@ -558,52 +514,47 @@ export function makeDownloadReconciliationService(input: {
             details: null,
             eventType: "downloads.reconciled",
             level: "success",
-            message:
-              `Mapped completed torrent for ${row.animeTitle} episode ${row.episodeNumber}`,
+            message: `Mapped completed torrent for ${row.animeTitle} episode ${row.episodeNumber}`,
           });
         });
-      },
-    );
-    yield* maybeCleanupImportedTorrent(runtimeConfig, row.infoHash);
-    yield* eventBus.publish({
-      type: "DownloadFinished",
-      payload: {
-        anime_id: row.animeId,
-        imported_path: managedPath,
-        source_metadata: storedSourceMetadata,
-        title: row.torrentName,
-      },
-    });
-  });
-
-  const reconcileDownloadByIdEffect = Effect.fn(
-    "OperationsService.reconcileDownloadById",
-  )(function* (id: number) {
-    const rows = yield* tryDatabasePromise(
-      "Failed to reconcile download",
-      () => db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
-    );
-    const row = rows[0];
-
-    if (!row) {
-      return yield* new DownloadNotFoundError({
-        message: "Download not found",
       });
-    }
-
-    const contentPath = row.contentPath ?? row.savePath;
-
-    if (!contentPath || !row.infoHash) {
-      return yield* new DownloadConflictError({
-        message: "Download has no reconciliable content path",
+      yield* maybeCleanupImportedTorrent(runtimeConfig, row.infoHash);
+      yield* eventBus.publish({
+        type: "DownloadFinished",
+        payload: {
+          anime_id: row.animeId,
+          imported_path: managedPath,
+          source_metadata: storedSourceMetadata,
+          title: row.torrentName,
+        },
       });
-    }
+    },
+  );
 
-    yield* reconcileCompletedTorrentEffect(
-      row.infoHash,
-      contentPath ?? undefined,
-    );
-  });
+  const reconcileDownloadByIdEffect = Effect.fn("OperationsService.reconcileDownloadById")(
+    function* (id: number) {
+      const rows = yield* tryDatabasePromise("Failed to reconcile download", () =>
+        db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
+      );
+      const row = rows[0];
+
+      if (!row) {
+        return yield* new DownloadNotFoundError({
+          message: "Download not found",
+        });
+      }
+
+      const contentPath = row.contentPath ?? row.savePath;
+
+      if (!contentPath || !row.infoHash) {
+        return yield* new DownloadConflictError({
+          message: "Download has no reconciliable content path",
+        });
+      }
+
+      yield* reconcileCompletedTorrentEffect(row.infoHash, contentPath ?? undefined);
+    },
+  );
 
   return {
     maybeCleanupImportedTorrent,

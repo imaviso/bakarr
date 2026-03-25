@@ -7,8 +7,7 @@ import * as ProgressPrimitive from "@kobalte/core/progress";
 import { Label } from "~/components/ui/label";
 
 type ProgressRootProps<T extends ValidComponent = "div"> =
-  & ProgressPrimitive.ProgressRootProps<T>
-  & { children?: JSX.Element };
+  ProgressPrimitive.ProgressRootProps<T> & { children?: JSX.Element };
 
 const Progress = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, ProgressRootProps<T>>,
@@ -24,15 +23,12 @@ const Progress = <T extends ValidComponent = "div">(
   );
 };
 
-const ProgressLabel: Component<ProgressPrimitive.ProgressLabelProps> = (
-  props,
-) => {
+const ProgressLabel: Component<ProgressPrimitive.ProgressLabelProps> = (props) => {
   return <ProgressPrimitive.Label as={Label} {...props} />;
 };
 
-const ProgressValueLabel: Component<ProgressPrimitive.ProgressValueLabelProps> =
-  (props) => {
-    return <ProgressPrimitive.ValueLabel as={Label} {...props} />;
-  };
+const ProgressValueLabel: Component<ProgressPrimitive.ProgressValueLabelProps> = (props) => {
+  return <ProgressPrimitive.ValueLabel as={Label} {...props} />;
+};
 
 export { Progress, ProgressLabel, ProgressValueLabel };

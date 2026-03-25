@@ -25,15 +25,12 @@ export function DeleteAnimeDialog(props: DeleteAnimeDialogProps) {
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Anime</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{props.title}"? This action cannot
-            be undone.
+            Are you sure you want to delete "{props.title}"? This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={props.onConfirm}>
-            Delete
-          </AlertDialogAction>
+          <AlertDialogAction onClick={props.onConfirm}>Delete</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

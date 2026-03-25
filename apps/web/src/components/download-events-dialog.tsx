@@ -46,9 +46,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
   const [lastExportResult, setLastExportResult] = createSignal<
     DownloadEventsExportResult | undefined
   >(undefined);
-  const [selectedEvent, setSelectedEvent] = createSignal<DownloadEvent | null>(
-    null,
-  );
+  const [selectedEvent, setSelectedEvent] = createSignal<DownloadEvent | null>(null);
   const query = createDownloadEventsQuery(() => ({
     animeId: props.animeId,
     cursor: cursor(),
@@ -65,12 +63,10 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     order: "desc" as const,
   }));
   const openExport = (format: "json" | "csv") => {
-    const exportPromise = exportDownloadEvents(exportBaseInput(), format).then(
-      (result) => {
-        setLastExportResult(result);
-        return result;
-      },
-    );
+    const exportPromise = exportDownloadEvents(exportBaseInput(), format).then((result) => {
+      setLastExportResult(result);
+      return result;
+    });
 
     toast.promise(exportPromise, {
       loading: `Exporting ${format.toUpperCase()} download events...`,
@@ -89,9 +85,9 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
       <Button
         variant={props.triggerVariant ?? "ghost"}
         size={props.triggerSize ?? "icon"}
-        class={props.showTriggerLabel
-          ? undefined
-          : "relative after:absolute after:-inset-2 h-7 w-7"}
+        class={
+          props.showTriggerLabel ? undefined : "relative after:absolute after:-inset-2 h-7 w-7"
+        }
         aria-label={props.triggerLabel ?? "View download events"}
         onClick={() => {
           setCursor(undefined);
@@ -111,23 +107,14 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
           <DialogHeader>
             <DialogTitle>{props.title}</DialogTitle>
             <DialogDescription>
-              {props.description ??
-                "Recent download lifecycle events for this item."}
+              {props.description ?? "Recent download lifecycle events for this item."}
             </DialogDescription>
             <div class="flex items-center justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openExport("json")}
-              >
+              <Button variant="outline" size="sm" onClick={() => openExport("json")}>
                 <IconJson class="h-4 w-4" />
                 Export JSON
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openExport("csv")}
-              >
+              <Button variant="outline" size="sm" onClick={() => openExport("csv")}>
                 <IconFileSpreadsheet class="h-4 w-4" />
                 Export CSV
               </Button>
@@ -136,10 +123,8 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
               <div class="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning">
                 <IconAlertTriangle class="h-4 w-4 shrink-0" />
                 <span>
-                  Last export was truncated: exported {lastExportResult()
-                    ?.exported} of {lastExportResult()?.total} events (limit
-                  {" "}
-                  {lastExportResult()?.limit}).
+                  Last export was truncated: exported {lastExportResult()?.exported} of{" "}
+                  {lastExportResult()?.total} events (limit {lastExportResult()?.limit}).
                 </span>
               </div>
             </Show>
@@ -169,16 +154,9 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
                 <For each={events()}>
                   {(event) => (
                     <div class="space-y-2">
-                      <DownloadEventCard
-                        event={event}
-                        formatTimestamp={props.formatTimestamp}
-                      />
+                      <DownloadEventCard event={event} formatTimestamp={props.formatTimestamp} />
                       <div class="flex justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedEvent(event)}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => setSelectedEvent(event)}>
                           Details
                         </Button>
                       </div>

@@ -3,17 +3,7 @@ import { Effect, Metric, MetricBoundaries, Schema } from "effect";
 import type { BackgroundWorkerName } from "../background-worker-model.ts";
 
 const histogramBoundaries = MetricBoundaries.fromIterable([
-  5,
-  10,
-  25,
-  50,
-  100,
-  250,
-  500,
-  1000,
-  2500,
-  5000,
-  10000,
+  5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000,
 ]);
 
 export const httpMetrics = {
@@ -46,68 +36,53 @@ export const backgroundMetrics = {
   }).register(),
 } as const;
 
-export const recordHttpRequestMetrics = Effect.fn("Metrics.recordHttpRequest")(
-  function* (input: {
-    readonly durationMs: number;
-    readonly method: string;
-    readonly route: string;
-    readonly status: number;
-  }) {
-    const taggedCounter = withHttpTags(httpMetrics.requestsTotal, input);
-    const taggedDuration = withHttpTags(httpMetrics.requestDuration, input);
+export const recordHttpRequestMetrics = Effect.fn("Metrics.recordHttpRequest")(function* (input: {
+  readonly durationMs: number;
+  readonly method: string;
+  readonly route: string;
+  readonly status: number;
+}) {
+  const taggedCounter = withHttpTags(httpMetrics.requestsTotal, input);
+  const taggedDuration = withHttpTags(httpMetrics.requestDuration, input);
 
-    yield* Effect.all([
-      Metric.update(taggedCounter, 1),
-      Metric.update(taggedDuration, input.durationMs),
-    ], { concurrency: "unbounded", discard: true });
-  },
-);
+  yield* Effect.all(
+    [Metric.update(taggedCounter, 1), Metric.update(taggedDuration, input.durationMs)],
+    { concurrency: "unbounded", discard: true },
+  );
+});
 
 export const setBackgroundWorkerDaemonRunning = Effect.fn(
   "Metrics.setBackgroundWorkerDaemonRunning",
 )(function* (worker: BackgroundWorkerName, running: boolean) {
-  yield* Metric.update(
-    withWorkerTag(backgroundMetrics.daemonRunning, worker),
-    running ? 1 : 0,
-  );
+  yield* Metric.update(withWorkerTag(backgroundMetrics.daemonRunning, worker), running ? 1 : 0);
 });
 
-export const setBackgroundWorkerRunRunning = Effect.fn(
-  "Metrics.setBackgroundWorkerRunRunning",
-)(function* (worker: BackgroundWorkerName, running: boolean) {
-  yield* Metric.update(
-    withWorkerTag(backgroundMetrics.runRunning, worker),
-    running ? 1 : 0,
-  );
-});
+export const setBackgroundWorkerRunRunning = Effect.fn("Metrics.setBackgroundWorkerRunRunning")(
+  function* (worker: BackgroundWorkerName, running: boolean) {
+    yield* Metric.update(withWorkerTag(backgroundMetrics.runRunning, worker), running ? 1 : 0);
+  },
+);
 
-export const recordBackgroundWorkerRun = Effect.fn(
-  "Metrics.recordBackgroundWorkerRun",
-)(function* (
-  input: {
+export const recordBackgroundWorkerRun = Effect.fn("Metrics.recordBackgroundWorkerRun")(
+  function* (input: {
     readonly durationMs?: number;
     readonly status: "failure" | "skipped" | "success";
     readonly worker: BackgroundWorkerName;
+  }) {
+    const taggedCounter = withWorkerStatusTags(backgroundMetrics.runsTotal, input);
+
+    yield* Metric.update(taggedCounter, 1);
+
+    if (input.durationMs !== undefined) {
+      yield* Metric.update(
+        withWorkerStatusTags(backgroundMetrics.runDuration, input),
+        input.durationMs,
+      );
+    }
   },
-) {
-  const taggedCounter = withWorkerStatusTags(
-    backgroundMetrics.runsTotal,
-    input,
-  );
+);
 
-  yield* Metric.update(taggedCounter, 1);
-
-  if (input.durationMs !== undefined) {
-    yield* Metric.update(
-      withWorkerStatusTags(backgroundMetrics.runDuration, input),
-      input.durationMs,
-    );
-  }
-});
-
-export function preRegisterBackgroundWorkerMetrics(
-  workers: readonly BackgroundWorkerName[],
-) {
+export function preRegisterBackgroundWorkerMetrics(workers: readonly BackgroundWorkerName[]) {
   return Effect.all(
     workers.flatMap((worker) => [
       Metric.update(withWorkerTag(backgroundMetrics.daemonRunning, worker), 0),
@@ -142,9 +117,7 @@ export function renderBakarrPrometheusMetrics(
   snapshot: ReadonlyArray<{
     readonly metricKey: {
       readonly name: string;
-      readonly tags: ReadonlyArray<
-        { readonly key: string; readonly value: string }
-      >;
+      readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
     };
     readonly metricState: unknown;
   }>,
@@ -152,11 +125,9 @@ export function renderBakarrPrometheusMetrics(
   const metricLines: string[] = [];
   const seenTypes = new Set<string>();
 
-  for (
-    const pair of [...snapshot]
-      .filter((item) => item.metricKey.name.startsWith("bakarr_"))
-      .sort(compareMetricPairs)
-  ) {
+  for (const pair of [...snapshot]
+    .filter((item) => item.metricKey.name.startsWith("bakarr_"))
+    .sort(compareMetricPairs)) {
     const metricName = pair.metricKey.name;
     const tags = normalizeTags(pair.metricKey.tags);
     const state = pair.metricState;
@@ -169,21 +140,15 @@ export function renderBakarrPrometheusMetrics(
 
       for (const [boundary, count] of state.buckets) {
         metricLines.push(
-          `${metricName}_bucket${
-            formatLabels([...tags, ["le", formatNumber(boundary)]])
-          } ${count}`,
+          `${metricName}_bucket${formatLabels([...tags, ["le", formatNumber(boundary)]])} ${count}`,
         );
       }
 
       metricLines.push(
-        `${metricName}_bucket${
-          formatLabels([...tags, ["le", "+Inf"]])
-        } ${state.count}`,
+        `${metricName}_bucket${formatLabels([...tags, ["le", "+Inf"]])} ${state.count}`,
       );
       metricLines.push(`${metricName}_sum${formatLabels(tags)} ${state.sum}`);
-      metricLines.push(
-        `${metricName}_count${formatLabels(tags)} ${state.count}`,
-      );
+      metricLines.push(`${metricName}_count${formatLabels(tags)} ${state.count}`);
       continue;
     }
 
@@ -192,9 +157,7 @@ export function renderBakarrPrometheusMetrics(
         metricLines.push(`# TYPE ${metricName} gauge`);
         seenTypes.add(metricName);
       }
-      metricLines.push(
-        `${metricName}${formatLabels(tags)} ${formatNumber(state.value)}`,
-      );
+      metricLines.push(`${metricName}${formatLabels(tags)} ${formatNumber(state.value)}`);
       continue;
     }
 
@@ -203,9 +166,7 @@ export function renderBakarrPrometheusMetrics(
         metricLines.push(`# TYPE ${metricName} counter`);
         seenTypes.add(metricName);
       }
-      metricLines.push(
-        `${metricName}${formatLabels(tags)} ${formatNumber(state.count)}`,
-      );
+      metricLines.push(`${metricName}${formatLabels(tags)} ${formatNumber(state.count)}`);
     }
   }
 
@@ -245,28 +206,20 @@ function withWorkerStatusTags<Type, In, Out>(
     readonly worker: BackgroundWorkerName;
   },
 ) {
-  return Metric.tagged(
-    Metric.tagged(metric, "worker", input.worker),
-    "status",
-    input.status,
-  );
+  return Metric.tagged(Metric.tagged(metric, "worker", input.worker), "status", input.status);
 }
 
 function compareMetricPairs(
   left: {
     readonly metricKey: {
       readonly name: string;
-      readonly tags: ReadonlyArray<
-        { readonly key: string; readonly value: string }
-      >;
+      readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
     };
   },
   right: {
     readonly metricKey: {
       readonly name: string;
-      readonly tags: ReadonlyArray<
-        { readonly key: string; readonly value: string }
-      >;
+      readonly tags: ReadonlyArray<{ readonly key: string; readonly value: string }>;
     };
   },
 ) {
@@ -281,9 +234,7 @@ function compareMetricPairs(
   );
 }
 
-function normalizeTags(
-  tags: ReadonlyArray<{ readonly key: string; readonly value: string }>,
-) {
+function normalizeTags(tags: ReadonlyArray<{ readonly key: string; readonly value: string }>) {
   return [...tags]
     .map((tag) => [tag.key, tag.value] as const)
     .sort(([left], [right]) => left.localeCompare(right));
@@ -294,24 +245,19 @@ function formatLabels(tags: ReadonlyArray<readonly [string, string]>) {
     return "";
   }
 
-  return `{${
-    tags.map(([key, value]) => `${key}="${escapeLabelValue(value)}"`).join(",")
-  }}`;
+  return `{${tags.map(([key, value]) => `${key}="${escapeLabelValue(value)}"`).join(",")}}`;
 }
 
 function escapeLabelValue(value: string) {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replaceAll(
-    "\n",
-    "\\n",
-  );
+  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replaceAll("\n", "\\n");
 }
 
 function formatNumber(value: number | bigint) {
   return typeof value === "bigint"
     ? value.toString()
     : Number.isFinite(value)
-    ? String(value)
-    : "0";
+      ? String(value)
+      : "0";
 }
 
 const HistogramStateSchema = Schema.Struct({

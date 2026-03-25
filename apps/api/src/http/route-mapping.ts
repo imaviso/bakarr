@@ -1,9 +1,6 @@
 import type { Schema } from "effect";
 
-import type {
-  Config,
-  QualityProfile,
-} from "../../../../packages/shared/src/index.ts";
+import type { Config, QualityProfile } from "../../../../packages/shared/src/index.ts";
 import { nowIso } from "../lib/clock.ts";
 import type { AddAnimeInput } from "../features/anime/service.ts";
 import {
@@ -53,18 +50,12 @@ export function toUpdateReleaseProfileInput(
   };
 }
 
-export function toConfig(
-  body: Schema.Schema.Type<typeof ConfigSchema>,
-): Config {
+export function toConfig(body: Schema.Schema.Type<typeof ConfigSchema>): Config {
   return {
     downloads: {
       ...body.downloads,
       preferred_groups: [...body.downloads.preferred_groups],
-      remote_path_mappings: body.downloads.remote_path_mappings.map((
-        mapping,
-      ) => [
-        ...mapping,
-      ]),
+      remote_path_mappings: body.downloads.remote_path_mappings.map((mapping) => [...mapping]),
     },
     general: { ...body.general },
     library: { ...body.library },

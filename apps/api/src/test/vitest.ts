@@ -6,18 +6,11 @@ export function assert(value: unknown, message?: string): asserts value {
   expect(value, message).toBeTruthy();
 }
 
-export function assertEquals<A>(
-  actual: A,
-  expected: A,
-  message?: string,
-) {
+export function assertEquals<A>(actual: A, expected: A, message?: string) {
   expect(actual, message).toEqual(expected);
 }
 
-export function assertExists<A>(
-  value: A,
-  message?: string,
-): asserts value is NonNullable<A> {
+export function assertExists<A>(value: A, message?: string): asserts value is NonNullable<A> {
   expect(value, message).not.toBeUndefined();
   expect(value, message).not.toBeNull();
 }
@@ -30,19 +23,11 @@ export function assertInstanceOf<A>(
   expect(value, message).toBeInstanceOf(constructor);
 }
 
-export function assertMatch(
-  actual: string,
-  expected: RegExp,
-  message?: string,
-) {
+export function assertMatch(actual: string, expected: RegExp, message?: string) {
   expect(actual, message).toMatch(expected);
 }
 
-export function assertNotEquals<A>(
-  actual: A,
-  expected: A,
-  message?: string,
-) {
+export function assertNotEquals<A>(actual: A, expected: A, message?: string) {
   expect(actual, message).not.toEqual(expected);
 }
 

@@ -14,8 +14,7 @@ export function makeReloadableScopedController<C, E>(options: {
     const scopeRef = yield* Ref.make<Scope.CloseableScope | null>(null);
     const lifecycleSemaphore = yield* Effect.makeSemaphore(1);
 
-    const isStarted = () =>
-      Ref.get(scopeRef).pipe(Effect.map((scope) => scope !== null));
+    const isStarted = () => Ref.get(scopeRef).pipe(Effect.map((scope) => scope !== null));
 
     const stopCurrent = lifecycleSemaphore.withPermits(1)(
       Effect.gen(function* () {
@@ -36,9 +35,7 @@ export function makeReloadableScopedController<C, E>(options: {
 
           const scope = yield* Scope.make();
           const exit = yield* Effect.exit(
-            options.spawn(config).pipe(
-              Effect.provideService(Scope.Scope, scope),
-            ),
+            options.spawn(config).pipe(Effect.provideService(Scope.Scope, scope)),
           );
 
           if (exit._tag === "Failure") {
@@ -60,9 +57,7 @@ export function makeReloadableScopedController<C, E>(options: {
 
           const scope = yield* Scope.make();
           const exit = yield* Effect.exit(
-            options.spawn(config).pipe(
-              Effect.provideService(Scope.Scope, scope),
-            ),
+            options.spawn(config).pipe(Effect.provideService(Scope.Scope, scope)),
           );
 
           if (exit._tag === "Failure") {

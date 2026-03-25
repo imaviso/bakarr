@@ -1,11 +1,7 @@
 import { Effect, Schedule, Schema } from "effect";
 
 import { currentMonotonicMillis } from "./clock.ts";
-import {
-  compactLogAnnotations,
-  durationMsSince,
-  errorLogAnnotations,
-} from "./logging.ts";
+import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./logging.ts";
 
 export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
   "ExternalCallError",
@@ -16,9 +12,7 @@ export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
   },
 ) {}
 
-const retryPolicy = Schedule.exponential("200 millis").pipe(
-  Schedule.compose(Schedule.recurs(2)),
-);
+const retryPolicy = Schedule.exponential("200 millis").pipe(Schedule.compose(Schedule.recurs(2)));
 
 const noRetryPolicy = Schedule.recurs(0);
 
@@ -30,9 +24,7 @@ export const tryExternal = <A>(
   Effect.fn(`external.${operation}`)(
     function* () {
       const startedAt = yield* currentMonotonicMillis;
-      const policy = options?.idempotent === false
-        ? noRetryPolicy
-        : retryPolicy;
+      const policy = options?.idempotent === false ? noRetryPolicy : retryPolicy;
 
       const result = yield* Effect.tryPromise({
         try: (signal) => fn(signal),
@@ -84,9 +76,7 @@ export const tryExternalEffect = <A, E, R>(
   Effect.fn(`external.${operation}`)(
     function* () {
       const startedAt = yield* currentMonotonicMillis;
-      const policy = options?.idempotent === false
-        ? noRetryPolicy
-        : retryPolicy;
+      const policy = options?.idempotent === false ? noRetryPolicy : retryPolicy;
 
       const result = yield* effect.pipe(
         Effect.timeout("10 seconds"),
@@ -128,9 +118,11 @@ export const tryExternalEffect = <A, E, R>(
   );
 
 function toExternalCallError(operation: string, cause: unknown) {
-  return cause instanceof ExternalCallError ? cause : ExternalCallError.make({
-    cause,
-    message: `External call failed: ${operation}`,
-    operation,
-  });
+  return cause instanceof ExternalCallError
+    ? cause
+    : ExternalCallError.make({
+        cause,
+        message: `External call failed: ${operation}`,
+        operation,
+      });
 }

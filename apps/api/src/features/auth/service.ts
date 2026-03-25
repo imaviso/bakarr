@@ -41,30 +41,20 @@ export interface AuthServiceShape {
   readonly ensureBootstrapUser: () => Effect.Effect<void, DatabaseError>;
   readonly login: (
     request: LoginRequest,
-  ) => Effect.Effect<
-    SessionIdentity & { response: LoginResponse },
-    AuthError | DatabaseError
-  >;
+  ) => Effect.Effect<SessionIdentity & { response: LoginResponse }, AuthError | DatabaseError>;
   readonly loginWithApiKey: (
     request: ApiKeyLoginRequest,
-  ) => Effect.Effect<
-    SessionIdentity & { response: LoginResponse },
-    AuthError | DatabaseError
-  >;
+  ) => Effect.Effect<SessionIdentity & { response: LoginResponse }, AuthError | DatabaseError>;
   readonly resolveViewer: (
     sessionToken: string | undefined,
     apiKey: string | undefined,
   ) => Effect.Effect<AuthUser | null, DatabaseError>;
-  readonly logout: (
-    sessionToken: string | undefined,
-  ) => Effect.Effect<void, DatabaseError>;
+  readonly logout: (sessionToken: string | undefined) => Effect.Effect<void, DatabaseError>;
   readonly changePassword: (
     userId: number,
     request: ChangePasswordRequest,
   ) => Effect.Effect<void, AuthError | DatabaseError>;
-  readonly getApiKey: (
-    userId: number,
-  ) => Effect.Effect<ApiKeyResponse, AuthError | DatabaseError>;
+  readonly getApiKey: (userId: number) => Effect.Effect<ApiKeyResponse, AuthError | DatabaseError>;
   readonly regenerateApiKey: (
     userId: number,
   ) => Effect.Effect<ApiKeyResponse, AuthError | DatabaseError>;
@@ -100,60 +90,54 @@ const makeAuthService = Effect.gen(function* () {
    *    The `onConflictDoNothing()` guard prevents duplicate inserts even under
    *    concurrent startup races.
    */
-  const ensureBootstrapUser = Effect.fn("AuthService.ensureBootstrapUser")(
-    function* () {
-      const existing = yield* tryDatabasePromise(
-        "Failed to ensure bootstrap user",
-        () => db.select({ id: users.id }).from(users).limit(1),
-      );
+  const ensureBootstrapUser = Effect.fn("AuthService.ensureBootstrapUser")(function* () {
+    const existing = yield* tryDatabasePromise("Failed to ensure bootstrap user", () =>
+      db.select({ id: users.id }).from(users).limit(1),
+    );
 
-      if (existing.length > 0) {
-        return;
-      }
+    if (existing.length > 0) {
+      return;
+    }
 
-      const bootstrapPassword = Redacted.value(config.bootstrapPassword);
+    const bootstrapPassword = Redacted.value(config.bootstrapPassword);
 
-      const now = yield* nowIso;
-      const passwordHash = yield* hashPassword(bootstrapPassword).pipe(
-        Effect.mapError((error) =>
-          toDatabaseError(`Failed to hash password: ${error.message}`)(
-            error.cause,
-          )
-        ),
-      );
+    const now = yield* nowIso;
+    const passwordHash = yield* hashPassword(bootstrapPassword).pipe(
+      Effect.mapError((error) =>
+        toDatabaseError(`Failed to hash password: ${error.message}`)(error.cause),
+      ),
+    );
 
-      const rawApiKey = yield* randomHex(24);
-      const hashedApiKey = yield* hashToken(rawApiKey);
+    const rawApiKey = yield* randomHex(24);
+    const hashedApiKey = yield* hashToken(rawApiKey);
 
-      yield* tryDatabasePromise(
-        "Failed to ensure bootstrap user",
-        () =>
-          db.insert(users).values({
-            apiKey: hashedApiKey,
-            createdAt: now,
-            mustChangePassword: true,
-            passwordHash,
-            updatedAt: now,
-            username: config.bootstrapUsername,
-          }).onConflictDoNothing(),
-      );
+    yield* tryDatabasePromise("Failed to ensure bootstrap user", () =>
+      db
+        .insert(users)
+        .values({
+          apiKey: hashedApiKey,
+          createdAt: now,
+          mustChangePassword: true,
+          passwordHash,
+          updatedAt: now,
+          username: config.bootstrapUsername,
+        })
+        .onConflictDoNothing(),
+    );
 
-      yield* writeLog(db, {
-        eventType: "bootstrap.user.created",
-        level: "success",
-        message: `Bootstrap user '${config.bootstrapUsername}' created`,
-      });
+    yield* writeLog(db, {
+      eventType: "bootstrap.user.created",
+      level: "success",
+      message: `Bootstrap user '${config.bootstrapUsername}' created`,
+    });
 
-      yield* announceBootstrapCredentials({
-        username: config.bootstrapUsername,
-        password: bootstrapPassword,
-      });
-    },
-  );
+    yield* announceBootstrapCredentials({
+      username: config.bootstrapUsername,
+      password: bootstrapPassword,
+    });
+  });
 
-  const login = Effect.fn("AuthService.login")(function* (
-    request: LoginRequest,
-  ) {
+  const login = Effect.fn("AuthService.login")(function* (request: LoginRequest) {
     const row = yield* findUserByUsername(db, request.username);
 
     if (!row) {
@@ -163,12 +147,11 @@ const makeAuthService = Effect.gen(function* () {
       });
     }
 
-    const verified = yield* verifyPassword(request.password, row.passwordHash)
-      .pipe(
-        Effect.mapError((error) =>
-          toDatabaseError(`Failed to verify password: ${error.message}`)(error)
-        ),
-      );
+    const verified = yield* verifyPassword(request.password, row.passwordHash).pipe(
+      Effect.mapError((error) =>
+        toDatabaseError(`Failed to verify password: ${error.message}`)(error),
+      ),
+    );
 
     if (!verified) {
       return yield* AuthError.make({
@@ -178,11 +161,7 @@ const makeAuthService = Effect.gen(function* () {
     }
 
     const userRow = row;
-    const token = yield* createSession(
-      db,
-      config.sessionDurationDays,
-      userRow.id,
-    );
+    const token = yield* createSession(db, config.sessionDurationDays, userRow.id);
 
     yield* writeLog(db, {
       eventType: "auth.login",
@@ -213,11 +192,7 @@ const makeAuthService = Effect.gen(function* () {
     }
 
     const userRow = row;
-    const token = yield* createSession(
-      db,
-      config.sessionDurationDays,
-      userRow.id,
-    );
+    const token = yield* createSession(db, config.sessionDurationDays, userRow.id);
 
     yield* writeLog(db, {
       eventType: "auth.login.api_key",
@@ -244,26 +219,19 @@ const makeAuthService = Effect.gen(function* () {
       const hashedSessionToken = yield* hashToken(sessionToken);
       const sessionNow = yield* nowIso;
 
-      const result = yield* tryDatabasePromise(
-        "Failed to resolve the current user",
-        () =>
-          db
-            .select({
-              createdAt: users.createdAt,
-              id: users.id,
-              mustChangePassword: users.mustChangePassword,
-              updatedAt: users.updatedAt,
-              username: users.username,
-            })
-            .from(sessions)
-            .innerJoin(users, eq(users.id, sessions.userId))
-            .where(
-              and(
-                eq(sessions.token, hashedSessionToken),
-                gt(sessions.expiresAt, sessionNow),
-              ),
-            )
-            .limit(1),
+      const result = yield* tryDatabasePromise("Failed to resolve the current user", () =>
+        db
+          .select({
+            createdAt: users.createdAt,
+            id: users.id,
+            mustChangePassword: users.mustChangePassword,
+            updatedAt: users.updatedAt,
+            username: users.username,
+          })
+          .from(sessions)
+          .innerJoin(users, eq(users.id, sessions.userId))
+          .where(and(eq(sessions.token, hashedSessionToken), gt(sessions.expiresAt, sessionNow)))
+          .limit(1),
       );
 
       if (result[0]) {
@@ -275,7 +243,8 @@ const makeAuthService = Effect.gen(function* () {
               expiresAt,
               lastSeenAt: sessionNow,
             })
-            .where(eq(sessions.token, hashedSessionToken)));
+            .where(eq(sessions.token, hashedSessionToken)),
+        );
 
         return {
           created_at: result[0].createdAt,
@@ -298,18 +267,15 @@ const makeAuthService = Effect.gen(function* () {
     return row ? toAuthUser(row) : null;
   });
 
-  const logout = Effect.fn("AuthService.logout")(function* (
-    sessionToken: string | undefined,
-  ) {
+  const logout = Effect.fn("AuthService.logout")(function* (sessionToken: string | undefined) {
     if (!sessionToken) {
       return;
     }
 
     const hashedSessionToken = yield* hashToken(sessionToken);
 
-    yield* tryDatabasePromise(
-      "Failed to clear the active session",
-      () => db.delete(sessions).where(eq(sessions.token, hashedSessionToken)),
+    yield* tryDatabasePromise("Failed to clear the active session", () =>
+      db.delete(sessions).where(eq(sessions.token, hashedSessionToken)),
     );
   });
 
@@ -324,15 +290,11 @@ const makeAuthService = Effect.gen(function* () {
     }
 
     const userRow = row;
-    const verified = yield* verifyPassword(
-      request.current_password,
-      userRow.passwordHash,
-    )
-      .pipe(
-        Effect.mapError((error) =>
-          toDatabaseError(`Failed to verify password: ${error.message}`)(error)
-        ),
-      );
+    const verified = yield* verifyPassword(request.current_password, userRow.passwordHash).pipe(
+      Effect.mapError((error) =>
+        toDatabaseError(`Failed to verify password: ${error.message}`)(error),
+      ),
+    );
 
     if (!verified) {
       return yield* AuthError.make({
@@ -341,10 +303,7 @@ const makeAuthService = Effect.gen(function* () {
       });
     }
 
-    if (
-      !request.new_password ||
-      request.new_password.length < 8
-    ) {
+    if (!request.new_password || request.new_password.length < 8) {
       return yield* AuthError.make({
         message: "New password must be at least 8 characters",
         status: 400,
@@ -353,9 +312,7 @@ const makeAuthService = Effect.gen(function* () {
 
     const passwordHash = yield* hashPassword(request.new_password).pipe(
       Effect.mapError((error) =>
-        toDatabaseError(`Failed to hash password: ${error.message}`)(
-          error.cause,
-        )
+        toDatabaseError(`Failed to hash password: ${error.message}`)(error.cause),
       ),
     );
 
@@ -363,36 +320,30 @@ const makeAuthService = Effect.gen(function* () {
     // invalidates all sessions, and permanently nulls the bootstrap password
     // from the appConfig table. See ensureBootstrapUser for lifecycle docs.
     const changeNow = yield* nowIso;
-    yield* tryDatabasePromise(
-      "Failed to update password",
-      () =>
-        db.transaction(async (tx) => {
-          await tx
-            .update(users)
-            .set({
-              mustChangePassword: false,
-              passwordHash,
-              updatedAt: changeNow,
-            })
-            .where(eq(users.id, userId));
-          await tx.delete(sessions).where(eq(sessions.userId, userId));
-          await tx.update(appConfig).set({ bootstrapPassword: null }).where(
-            eq(appConfig.id, 1),
-          );
-          await tx.insert(systemLogs).values({
-            createdAt: changeNow,
-            details: null,
-            eventType: "auth.password.changed",
-            level: "success",
-            message: `${userRow.username} changed their password`,
-          });
-        }),
+    yield* tryDatabasePromise("Failed to update password", () =>
+      db.transaction(async (tx) => {
+        await tx
+          .update(users)
+          .set({
+            mustChangePassword: false,
+            passwordHash,
+            updatedAt: changeNow,
+          })
+          .where(eq(users.id, userId));
+        await tx.delete(sessions).where(eq(sessions.userId, userId));
+        await tx.update(appConfig).set({ bootstrapPassword: null }).where(eq(appConfig.id, 1));
+        await tx.insert(systemLogs).values({
+          createdAt: changeNow,
+          details: null,
+          eventType: "auth.password.changed",
+          level: "success",
+          message: `${userRow.username} changed their password`,
+        });
+      }),
     );
   });
 
-  const getApiKey = Effect.fn("AuthService.getApiKey")(function* (
-    userId: number,
-  ) {
+  const getApiKey = Effect.fn("AuthService.getApiKey")(function* (userId: number) {
     const row = yield* findUserById(db, userId);
 
     if (!row) {
@@ -402,47 +353,43 @@ const makeAuthService = Effect.gen(function* () {
     return { api_key: "************************" };
   });
 
-  const regenerateApiKey = Effect.fn("AuthService.regenerateApiKey")(
-    function* (userId: number) {
-      const row = yield* findUserById(db, userId);
+  const regenerateApiKey = Effect.fn("AuthService.regenerateApiKey")(function* (userId: number) {
+    const row = yield* findUserById(db, userId);
 
-      if (!row) {
-        return yield* AuthError.make({
-          message: "User not found",
-          status: 404,
+    if (!row) {
+      return yield* AuthError.make({
+        message: "User not found",
+        status: 404,
+      });
+    }
+
+    const userRow = row;
+    const apiKey = yield* randomHex(24);
+    const hashedApiKey = yield* hashToken(apiKey);
+    const regenNow = yield* nowIso;
+
+    yield* tryDatabasePromise("Failed to regenerate API key", () =>
+      db.transaction(async (tx) => {
+        await tx
+          .update(users)
+          .set({
+            apiKey: hashedApiKey,
+            updatedAt: regenNow,
+          })
+          .where(eq(users.id, userId));
+        await tx.delete(sessions).where(eq(sessions.userId, userId));
+        await tx.insert(systemLogs).values({
+          createdAt: regenNow,
+          details: null,
+          eventType: "auth.api_key.regenerated",
+          level: "success",
+          message: `${userRow.username} regenerated an API key`,
         });
-      }
+      }),
+    );
 
-      const userRow = row;
-      const apiKey = yield* randomHex(24);
-      const hashedApiKey = yield* hashToken(apiKey);
-      const regenNow = yield* nowIso;
-
-      yield* tryDatabasePromise(
-        "Failed to regenerate API key",
-        () =>
-          db.transaction(async (tx) => {
-            await tx
-              .update(users)
-              .set({
-                apiKey: hashedApiKey,
-                updatedAt: regenNow,
-              })
-              .where(eq(users.id, userId));
-            await tx.delete(sessions).where(eq(sessions.userId, userId));
-            await tx.insert(systemLogs).values({
-              createdAt: regenNow,
-              details: null,
-              eventType: "auth.api_key.regenerated",
-              level: "success",
-              message: `${userRow.username} regenerated an API key`,
-            });
-          }),
-      );
-
-      return { api_key: apiKey };
-    },
-  );
+    return { api_key: apiKey };
+  });
 
   return {
     ensureBootstrapUser,

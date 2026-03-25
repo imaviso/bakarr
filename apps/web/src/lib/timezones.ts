@@ -22,19 +22,18 @@ export function getTimeZoneOptions(currentValue?: string) {
   const values = ["system", ...loadSupportedTimeZones()];
   const trimmedCurrent = currentValue?.trim();
 
-  if (
-    trimmedCurrent &&
-    trimmedCurrent.length > 0 &&
-    !values.includes(trimmedCurrent)
-  ) {
+  if (trimmedCurrent && trimmedCurrent.length > 0 && !values.includes(trimmedCurrent)) {
     values.push(trimmedCurrent);
   }
 
-  return values.map((value) => ({
-    label: formatTimeZoneLabel(value),
-    note: formatTimeZoneNote(value),
-    value,
-  } satisfies TimeZoneOption));
+  return values.map(
+    (value) =>
+      ({
+        label: formatTimeZoneLabel(value),
+        note: formatTimeZoneNote(value),
+        value,
+      }) satisfies TimeZoneOption,
+  );
 }
 
 export function formatTimeZoneLabel(value?: string) {

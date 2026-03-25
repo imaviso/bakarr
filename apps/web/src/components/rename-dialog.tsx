@@ -1,9 +1,4 @@
-import {
-  IconAlertTriangle,
-  IconCheck,
-  IconInfoCircle,
-  IconLoader2,
-} from "@tabler/icons-solidjs";
+import { IconAlertTriangle, IconCheck, IconInfoCircle, IconLoader2 } from "@tabler/icons-solidjs";
 import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
@@ -53,9 +48,7 @@ function formatTitleSourceLabel(
   }
 }
 
-function renamePreviewSnapshotBadges(
-  snapshot?: RenamePreviewItem["metadata_snapshot"],
-) {
+function renamePreviewSnapshotBadges(snapshot?: RenamePreviewItem["metadata_snapshot"]) {
   if (!snapshot) {
     return [];
   }
@@ -65,11 +58,9 @@ function renamePreviewSnapshotBadges(
     snapshot.season !== undefined ? `Season ${snapshot.season}` : undefined,
     snapshot.year !== undefined ? String(snapshot.year) : undefined,
     snapshot.group,
-    [snapshot.quality, snapshot.resolution].filter(Boolean).join(" ") ||
-    undefined,
+    [snapshot.quality, snapshot.resolution].filter(Boolean).join(" ") || undefined,
     snapshot.video_codec,
-    [snapshot.audio_codec, snapshot.audio_channels].filter(Boolean).join(" ") ||
-    undefined,
+    [snapshot.audio_codec, snapshot.audio_channels].filter(Boolean).join(" ") || undefined,
   ].filter((value): value is string => value !== undefined && value.length > 0);
 }
 
@@ -94,9 +85,7 @@ export function RenameDialog(props: RenameDialogProps) {
     }
   });
 
-  const previewCount = createMemo(
-    () => previewQuery.data?.length ?? 0,
-  );
+  const previewCount = createMemo(() => previewQuery.data?.length ?? 0);
 
   const handleRename = () => {
     executeRename.mutate(props.animeId, {
@@ -105,9 +94,7 @@ export function RenameDialog(props: RenameDialogProps) {
         if (data.failed === 0) {
           toast.success(`Successfully renamed ${data.renamed} episodes`);
         } else {
-          toast.warning(
-            `Renamed ${data.renamed}, failed ${data.failed} episodes`,
-          );
+          toast.warning(`Renamed ${data.renamed}, failed ${data.failed} episodes`);
         }
       },
       onError: (error) => {
@@ -122,8 +109,8 @@ export function RenameDialog(props: RenameDialogProps) {
         <DialogHeader>
           <DialogTitle>Rename Episodes</DialogTitle>
           <DialogDescription>
-            Preview changes before applying renames. This will move/rename files
-            according to your library settings.
+            Preview changes before applying renames. This will move/rename files according to your
+            library settings.
           </DialogDescription>
         </DialogHeader>
 
@@ -155,8 +142,7 @@ export function RenameDialog(props: RenameDialogProps) {
                 <IconAlertTriangle class="h-4 w-4" />
                 <AlertTitle>Rename failed</AlertTitle>
                 <AlertDescription>
-                  {executeRename.error?.message ??
-                    "An unknown error occurred."}
+                  {executeRename.error?.message ?? "An unknown error occurred."}
                 </AlertDescription>
               </Alert>
             </Show>
@@ -170,9 +156,7 @@ export function RenameDialog(props: RenameDialogProps) {
                       <AlertTitle>Errors Occurred</AlertTitle>
                       <AlertDescription>
                         <ul class="list-disc pl-4 mt-2">
-                          <For each={result()?.failures}>
-                            {(f) => <li>{f}</li>}
-                          </For>
+                          <For each={result()?.failures}>{(f) => <li>{f}</li>}</For>
                         </ul>
                       </AlertDescription>
                     </Alert>
@@ -190,8 +174,7 @@ export function RenameDialog(props: RenameDialogProps) {
               }
             >
               <Show
-                when={!previewQuery.isError && previewQuery.data &&
-                  previewQuery.data.length > 0}
+                when={!previewQuery.isError && previewQuery.data && previewQuery.data.length > 0}
                 fallback={
                   <Show when={!previewQuery.isError}>
                     <div class="flex items-center justify-center h-full text-muted-foreground">
@@ -224,10 +207,7 @@ export function RenameDialog(props: RenameDialogProps) {
                             <div class="flex flex-col gap-1.5">
                               <div class="flex flex-wrap gap-1">
                                 <Show when={item.fallback_used}>
-                                  <Badge
-                                    variant="outline"
-                                    class="h-5 rounded-none text-xs"
-                                  >
+                                  <Badge variant="outline" class="h-5 rounded-none text-xs">
                                     Fallback
                                   </Badge>
                                 </Show>
@@ -241,9 +221,11 @@ export function RenameDialog(props: RenameDialogProps) {
                                 </Show>
                               </div>
                               <Show
-                                when={item.warnings?.length ||
+                                when={
+                                  item.warnings?.length ||
                                   item.missing_fields?.length ||
-                                  item.metadata_snapshot}
+                                  item.metadata_snapshot
+                                }
                               >
                                 <div class="space-y-1 text-xs text-muted-foreground">
                                   <Show when={item.metadata_snapshot}>
@@ -251,9 +233,7 @@ export function RenameDialog(props: RenameDialogProps) {
                                       <div class="space-y-1">
                                         <div class="flex flex-wrap gap-1">
                                           <Show
-                                            when={formatTitleSourceLabel(
-                                              snapshot().title_source,
-                                            )}
+                                            when={formatTitleSourceLabel(snapshot().title_source)}
                                           >
                                             {(label) => (
                                               <Badge
@@ -264,11 +244,7 @@ export function RenameDialog(props: RenameDialogProps) {
                                               </Badge>
                                             )}
                                           </Show>
-                                          <For
-                                            each={renamePreviewSnapshotBadges(
-                                              snapshot(),
-                                            )}
-                                          >
+                                          <For each={renamePreviewSnapshotBadges(snapshot())}>
                                             {(value) => (
                                               <Badge
                                                 variant="outline"
@@ -282,18 +258,13 @@ export function RenameDialog(props: RenameDialogProps) {
                                         <Show when={snapshot().episode_title}>
                                           <div class="flex items-start gap-1">
                                             <IconInfoCircle class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                            <span>
-                                              Episode title:{" "}
-                                              {snapshot().episode_title}
-                                            </span>
+                                            <span>Episode title: {snapshot().episode_title}</span>
                                           </div>
                                         </Show>
                                         <Show when={snapshot().air_date}>
                                           <div class="flex items-start gap-1">
                                             <IconInfoCircle class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                            <span>
-                                              Air date: {snapshot().air_date}
-                                            </span>
+                                            <span>Air date: {snapshot().air_date}</span>
                                           </div>
                                         </Show>
                                       </div>
@@ -332,19 +303,19 @@ export function RenameDialog(props: RenameDialogProps) {
         <DialogFooter>
           <Show
             when={!result()}
-            fallback={
-              <Button onClick={() => props.onOpenChange(false)}>Close</Button>
-            }
+            fallback={<Button onClick={() => props.onOpenChange(false)}>Close</Button>}
           >
             <Button variant="outline" onClick={() => props.onOpenChange(false)}>
               Cancel
             </Button>
             <Button
               onClick={handleRename}
-              disabled={executeRename.isPending ||
+              disabled={
+                executeRename.isPending ||
                 previewQuery.isError ||
                 !previewQuery.data ||
-                previewQuery.data.length === 0}
+                previewQuery.data.length === 0
+              }
               aria-busy={executeRename.isPending}
             >
               <Show when={executeRename.isPending}>
@@ -353,8 +324,8 @@ export function RenameDialog(props: RenameDialogProps) {
               {executeRename.isPending
                 ? "Renaming…"
                 : previewCount() > 0
-                ? `Rename ${previewCount()} Files`
-                : "Rename Files"}
+                  ? `Rename ${previewCount()} Files`
+                  : "Rename Files"}
             </Button>
           </Show>
         </DialogFooter>

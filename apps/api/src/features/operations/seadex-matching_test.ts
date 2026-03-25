@@ -97,13 +97,15 @@ it("applySeaDexMatch annotates parsed release with SeaDex metadata", () => {
     comparison: "https://releases.moe/compare/naruto",
     incomplete: false,
     notes: "Preferred release",
-    releases: [makeSeaDexRelease({
-      infoHash: undefined,
-      isBest: true,
-      releaseGroup: "SubsPlease",
-      tags: ["Best", "Dual Audio"],
-      url: "https://nyaa.si/view/123456",
-    })],
+    releases: [
+      makeSeaDexRelease({
+        infoHash: undefined,
+        isBest: true,
+        releaseGroup: "SubsPlease",
+        tags: ["Best", "Dual Audio"],
+        url: "https://nyaa.si/view/123456",
+      }),
+    ],
   };
 
   assertEquals(applySeaDexMatch(release, entry), {
@@ -139,9 +141,7 @@ function makeRelease(overrides: Partial<ParsedRelease> = {}): ParsedRelease {
   };
 }
 
-function makeSeaDexRelease(
-  overrides: Partial<SeaDexRelease> = {},
-): SeaDexRelease {
+function makeSeaDexRelease(overrides: Partial<SeaDexRelease> = {}): SeaDexRelease {
   return {
     dualAudio: true,
     groupedUrl: "https://releases.moe/collections/naruto",

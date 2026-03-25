@@ -14,36 +14,31 @@ export const ProbedMediaMetadataSchema = Schema.Struct({
   video_codec: Schema.optional(Schema.String),
 });
 
-export type ProbedMediaMetadata = Schema.Schema.Type<
-  typeof ProbedMediaMetadataSchema
->;
+export type ProbedMediaMetadata = Schema.Schema.Type<typeof ProbedMediaMetadataSchema>;
 
-class FFProbeError extends Schema.TaggedError<FFProbeError>()(
-  "FFProbeError",
-  { cause: Schema.Defect, message: Schema.String },
-) {}
+class FFProbeError extends Schema.TaggedError<FFProbeError>()("FFProbeError", {
+  cause: Schema.Defect,
+  message: Schema.String,
+}) {}
 
-class FFProbeStreamSchema
-  extends Schema.Class<FFProbeStreamSchema>("FFProbeStreamSchema")({
-    codec_type: Schema.String,
-    codec_name: Schema.optional(Schema.String),
-    duration: Schema.optional(Schema.String),
-    width: Schema.optional(Schema.Number),
-    height: Schema.optional(Schema.Number),
-    channels: Schema.optional(Schema.Number),
-    channel_layout: Schema.optional(Schema.String),
-  }) {}
+class FFProbeStreamSchema extends Schema.Class<FFProbeStreamSchema>("FFProbeStreamSchema")({
+  codec_type: Schema.String,
+  codec_name: Schema.optional(Schema.String),
+  duration: Schema.optional(Schema.String),
+  width: Schema.optional(Schema.Number),
+  height: Schema.optional(Schema.Number),
+  channels: Schema.optional(Schema.Number),
+  channel_layout: Schema.optional(Schema.String),
+}) {}
 
-class FFProbeFormatSchema
-  extends Schema.Class<FFProbeFormatSchema>("FFProbeFormatSchema")({
-    duration: Schema.optional(Schema.String),
-  }) {}
+class FFProbeFormatSchema extends Schema.Class<FFProbeFormatSchema>("FFProbeFormatSchema")({
+  duration: Schema.optional(Schema.String),
+}) {}
 
-class FFProbeOutputSchema
-  extends Schema.Class<FFProbeOutputSchema>("FFProbeOutputSchema")({
-    streams: Schema.Array(FFProbeStreamSchema),
-    format: Schema.optional(FFProbeFormatSchema),
-  }) {}
+class FFProbeOutputSchema extends Schema.Class<FFProbeOutputSchema>("FFProbeOutputSchema")({
+  streams: Schema.Array(FFProbeStreamSchema),
+  format: Schema.optional(FFProbeFormatSchema),
+}) {}
 const FFProbeOutputJsonSchema = Schema.parseJson(FFProbeOutputSchema);
 
 const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
@@ -51,10 +46,7 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
   Schema.NullOr(ProbedMediaMetadataSchema),
   {
     decode: (output) => {
-      const normalizeResolution = (stream?: {
-        width?: number;
-        height?: number;
-      }) => {
+      const normalizeResolution = (stream?: { width?: number; height?: number }) => {
         const height = stream?.height ?? stream?.width;
 
         if (!height) {
@@ -128,10 +120,7 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
         }
       };
 
-      const normalizeAudioChannels = (input: {
-        channels?: number;
-        channel_layout?: string;
-      }) => {
+      const normalizeAudioChannels = (input: { channels?: number; channel_layout?: string }) => {
         const layout = input.channel_layout?.toLowerCase();
 
         if (layout === "mono") return "1.0";
@@ -179,9 +168,7 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
       const format = output.format;
 
       const metadata = {
-        duration_seconds: normalizeDurationSeconds(
-          videoStream?.duration ?? format?.duration,
-        ),
+        duration_seconds: normalizeDurationSeconds(videoStream?.duration ?? format?.duration),
         resolution: normalizeResolution(videoStream),
         video_codec: normalizeVideoCodec(videoStream?.codec_name),
         audio_codec: normalizeAudioCodec(audioStream?.codec_name),
@@ -191,51 +178,47 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
         }),
       } satisfies ProbedMediaMetadata;
 
-      return metadata.duration_seconds || metadata.resolution ||
-          metadata.video_codec ||
-          metadata.audio_codec || metadata.audio_channels
+      return metadata.duration_seconds ||
+        metadata.resolution ||
+        metadata.video_codec ||
+        metadata.audio_codec ||
+        metadata.audio_channels
         ? metadata
         : null;
     },
     encode: (metadata) =>
-      metadata === null ? { streams: [] } : {
-        format: metadata.duration_seconds
-          ? { duration: String(metadata.duration_seconds) }
-          : undefined,
-        streams: [
-          {
-            channel_layout: metadata.audio_channels,
-            channels: undefined,
-            codec_name: metadata.audio_codec,
-            codec_type: "audio",
-            duration: metadata.duration_seconds
-              ? String(metadata.duration_seconds)
+      metadata === null
+        ? { streams: [] }
+        : {
+            format: metadata.duration_seconds
+              ? { duration: String(metadata.duration_seconds) }
               : undefined,
-            height: undefined,
-            width: undefined,
+            streams: [
+              {
+                channel_layout: metadata.audio_channels,
+                channels: undefined,
+                codec_name: metadata.audio_codec,
+                codec_type: "audio",
+                duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
+                height: undefined,
+                width: undefined,
+              },
+              {
+                channel_layout: undefined,
+                channels: undefined,
+                codec_name: metadata.video_codec,
+                codec_type: "video",
+                duration: metadata.duration_seconds ? String(metadata.duration_seconds) : undefined,
+                height: metadata.resolution ? Number.parseInt(metadata.resolution, 10) : undefined,
+                width: undefined,
+              },
+            ],
           },
-          {
-            channel_layout: undefined,
-            channels: undefined,
-            codec_name: metadata.video_codec,
-            codec_type: "video",
-            duration: metadata.duration_seconds
-              ? String(metadata.duration_seconds)
-              : undefined,
-            height: metadata.resolution
-              ? Number.parseInt(metadata.resolution, 10)
-              : undefined,
-            width: undefined,
-          },
-        ],
-      },
   },
 );
 
 export interface MediaProbeShape {
-  readonly probeVideoFile: (
-    path: string,
-  ) => Effect.Effect<ProbedMediaMetadata | undefined, never>;
+  readonly probeVideoFile: (path: string) => Effect.Effect<ProbedMediaMetadata | undefined, never>;
 }
 
 export class MediaProbe extends Context.Tag("@bakarr/api/MediaProbe")<
@@ -250,8 +233,7 @@ export function shouldProbeMediaMetadata(input: {
   audio_codec?: string;
   audio_channels?: string;
 }) {
-  return !input.resolution || !input.video_codec || !input.audio_codec ||
-    !input.audio_channels;
+  return !input.resolution || !input.video_codec || !input.audio_codec || !input.audio_channels;
 }
 
 export function shouldProbeDetailedMediaMetadata(input: {
@@ -287,41 +269,32 @@ export function mergeProbedMediaMetadata<
   };
 }
 
-export function parseFfprobeJson(
-  json: string,
-): ProbedMediaMetadata | undefined {
+export function parseFfprobeJson(json: string): ProbedMediaMetadata | undefined {
   const decoded = Schema.decodeUnknownEither(FFProbeOutputJsonSchema)(json);
   return decoded._tag === "Left"
     ? undefined
-    : Schema.decodeSync(ProbedMediaMetadataFromFFProbeOutputSchema)(
-      decoded.right,
-    ) ?? undefined;
+    : (Schema.decodeSync(ProbedMediaMetadataFromFFProbeOutputSchema)(decoded.right) ?? undefined);
 }
 
 export const MediaProbeCommandOutputSchema = Schema.Struct({
   stdout: Schema.String,
 });
 
-export type MediaProbeCommandOutput = Schema.Schema.Type<
-  typeof MediaProbeCommandOutputSchema
->;
+export type MediaProbeCommandOutput = Schema.Schema.Type<typeof MediaProbeCommandOutputSchema>;
 
 function runFfprobeCommand(
   args: readonly string[],
   timeoutMs: number,
-): Effect.Effect<
-  MediaProbeCommandOutput | null,
-  never,
-  CommandExecutor.CommandExecutor
-> {
+): Effect.Effect<MediaProbeCommandOutput | null, never, CommandExecutor.CommandExecutor> {
   return Command.make("ffprobe", ...args).pipe(
     Command.string,
-    Effect.map((stdout) => ({ stdout } satisfies MediaProbeCommandOutput)),
-    Effect.mapError((cause) =>
-      new FFProbeError({
-        cause,
-        message: "ffprobe command failed",
-      })
+    Effect.map((stdout) => ({ stdout }) satisfies MediaProbeCommandOutput),
+    Effect.mapError(
+      (cause) =>
+        new FFProbeError({
+          cause,
+          message: "ffprobe command failed",
+        }),
     ),
     Effect.timeout(timeoutMs),
     Effect.catchTag("TimeoutException", () =>
@@ -330,124 +303,98 @@ function runFfprobeCommand(
           cause: "Timeout",
           message: `ffprobe timed out after ${timeoutMs}ms`,
         }),
-      )),
+      ),
+    ),
     Effect.tapError((error) =>
       Effect.logWarning("ffprobe command failed").pipe(
         Effect.annotateLogs({
           args: args.join(" "),
           error: error.message,
         }),
-      )
+      ),
     ),
     Effect.catchTag("FFProbeError", () => Effect.succeed(null)),
   );
 }
 
-const makeMediaProbe = (
-  ffprobeSemaphore: Effect.Semaphore,
-): MediaProbeShape => {
+const makeMediaProbe = (ffprobeSemaphore: Effect.Semaphore): MediaProbeShape => {
   let availability: boolean | undefined;
   let executor: CommandExecutor.CommandExecutor | undefined;
 
-  const resolveAvailability = Effect.fn("MediaProbe.resolveAvailability")(
-    function* () {
-      if (availability !== undefined) {
-        return availability;
-      }
-
-      if (!executor) {
-        const executorOption = yield* Effect.serviceOption(
-          CommandExecutor.CommandExecutor,
-        );
-
-        if (Option.isNone(executorOption)) {
-          availability = false;
-          return availability;
-        }
-
-        executor = executorOption.value;
-      }
-
-      if (!executor) {
-        availability = false;
-        return availability;
-      }
-
-      const output = yield* runFfprobeCommand([
-        "-version",
-      ], FFPROBE_VERSION_TIMEOUT_MS).pipe(
-        Effect.provideService(CommandExecutor.CommandExecutor, executor),
-      );
-
-      if (!output) {
-        availability = false;
-        return availability;
-      }
-
-      availability = true;
+  const resolveAvailability = Effect.fn("MediaProbe.resolveAvailability")(function* () {
+    if (availability !== undefined) {
       return availability;
-    },
-  );
+    }
 
-  const probeVideoFile = Effect.fn("MediaProbe.probeVideoFile")(
-    function* (path: string) {
-      const available = yield* resolveAvailability();
+    if (!executor) {
+      const executorOption = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
 
-      if (!available || !executor) {
-        return undefined;
+      if (Option.isNone(executorOption)) {
+        availability = false;
+        return availability;
       }
 
-      // Use semaphore to enforce global ffprobe concurrency limit
-      const output = yield* ffprobeSemaphore.withPermits(1)(
+      executor = executorOption.value;
+    }
+
+    if (!executor) {
+      availability = false;
+      return availability;
+    }
+
+    const output = yield* runFfprobeCommand(["-version"], FFPROBE_VERSION_TIMEOUT_MS).pipe(
+      Effect.provideService(CommandExecutor.CommandExecutor, executor),
+    );
+
+    if (!output) {
+      availability = false;
+      return availability;
+    }
+
+    availability = true;
+    return availability;
+  });
+
+  const probeVideoFile = Effect.fn("MediaProbe.probeVideoFile")(function* (path: string) {
+    const available = yield* resolveAvailability();
+
+    if (!available || !executor) {
+      return undefined;
+    }
+
+    // Use semaphore to enforce global ffprobe concurrency limit
+    const output = yield* ffprobeSemaphore
+      .withPermits(1)(
         runFfprobeCommand(
-          [
-            "-v",
-            "error",
-            "-print_format",
-            "json",
-            "-show_format",
-            "-show_streams",
-            path,
-          ],
+          ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path],
           FFPROBE_PROBE_TIMEOUT_MS,
         ),
-      ).pipe(
-        Effect.provideService(CommandExecutor.CommandExecutor, executor),
-      );
+      )
+      .pipe(Effect.provideService(CommandExecutor.CommandExecutor, executor));
 
-      if (!output) {
-        return undefined;
-      }
+    if (!output) {
+      return undefined;
+    }
 
-      const decoded = yield* Effect.either(
-        Schema.decodeUnknown(FFProbeOutputJsonSchema)(
-          output.stdout,
-        ),
-      );
+    const decoded = yield* Effect.either(
+      Schema.decodeUnknown(FFProbeOutputJsonSchema)(output.stdout),
+    );
 
-      if (decoded._tag === "Left") {
-        return undefined;
-      }
+    if (decoded._tag === "Left") {
+      return undefined;
+    }
 
-      const normalized = yield* Effect.either(
-        Schema.decodeUnknown(ProbedMediaMetadataFromFFProbeOutputSchema)(
-          decoded.right,
-        ),
-      );
+    const normalized = yield* Effect.either(
+      Schema.decodeUnknown(ProbedMediaMetadataFromFFProbeOutputSchema)(decoded.right),
+    );
 
-      return normalized._tag === "Left"
-        ? undefined
-        : normalized.right ?? undefined;
-    },
-  );
+    return normalized._tag === "Left" ? undefined : (normalized.right ?? undefined);
+  });
 
   return { probeVideoFile };
 };
 
 export const MediaProbeLive = Layer.effect(
   MediaProbe,
-  Effect.map(
-    Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT),
-    makeMediaProbe,
-  ),
+  Effect.map(Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT), makeMediaProbe),
 );

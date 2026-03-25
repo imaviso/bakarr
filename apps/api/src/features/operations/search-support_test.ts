@@ -58,10 +58,7 @@ it("toNyaaSearchResult preserves release fields and parses episode number", () =
   assertEquals(result.seadex_release_group, "SeaDexGroup");
   assertEquals(result.seadex_tags, ["Best", "Dual Audio"]);
   assertEquals(result.seadex_notes, "Preferred release");
-  assertEquals(
-    result.seadex_comparison,
-    "https://releases.moe/compare/example",
-  );
+  assertEquals(result.seadex_comparison, "https://releases.moe/compare/example");
   assertEquals(result.seadex_dual_audio, true);
 });
 

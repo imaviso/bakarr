@@ -54,7 +54,7 @@ function WantedPage() {
   const searchMissing = createSearchMissingMutation();
   const data = createMemo(() => wantedQuery.data ?? []);
   const airingPreferences = createMemo(() =>
-    getAiringDisplayPreferences(configQuery.data?.library)
+    getAiringDisplayPreferences(configQuery.data?.library),
   );
 
   const rowVirtualizer = createVirtualizer({
@@ -72,9 +72,7 @@ function WantedPage() {
   });
   const paddingBottom = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0
-      ? rowVirtualizer.getTotalSize() - items[items.length - 1].end
-      : 0;
+    return items.length > 0 ? rowVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
   });
 
   const [searchModalState, setSearchModalState] = createSignal<{
@@ -98,10 +96,7 @@ function WantedPage() {
 
   return (
     <div class="flex flex-col flex-1 min-h-0 gap-6">
-      <PageHeader
-        title="Wanted"
-        subtitle={`${data().length} missing episodes`}
-      >
+      <PageHeader title="Wanted" subtitle={`${data().length} missing episodes`}>
         <Button
           variant="default"
           size="sm"
@@ -132,9 +127,7 @@ function WantedPage() {
                 fallback={
                   <TableRow>
                     <TableCell colSpan={6} class="h-24 text-center">
-                      {wantedQuery.isLoading
-                        ? "Loading..."
-                        : "No missing episodes found."}
+                      {wantedQuery.isLoading ? "Loading..." : "No missing episodes found."}
                     </TableCell>
                   </TableRow>
                 }
@@ -166,7 +159,8 @@ function WantedPage() {
                                 animeId: safeItem().anime_id,
                                 episodeNumber: safeItem().episode_number,
                                 episodeTitle: safeItem().episode_title,
-                              })}
+                              })
+                            }
                           />
                         )}
                       </Show>
@@ -196,8 +190,7 @@ function WantedPage() {
         episodeNumber={searchModalState().episodeNumber}
         episodeTitle={searchModalState().episodeTitle}
         open={searchModalState().open}
-        onOpenChange={(open) =>
-          setSearchModalState((prev) => ({ ...prev, open }))}
+        onOpenChange={(open) => setSearchModalState((prev) => ({ ...prev, open }))}
       />
     </div>
   );
@@ -212,8 +205,8 @@ function WantedRow(props: {
     props.item.airing_status === "future"
       ? "Upcoming"
       : props.item.airing_status === "aired"
-      ? "Missing"
-      : undefined;
+        ? "Missing"
+        : undefined;
 
   return (
     <TableRow>
@@ -239,10 +232,7 @@ function WantedRow(props: {
         </Link>
         <Show when={props.item.next_airing_episode}>
           <div class="mt-1 text-[11px] text-muted-foreground">
-            {formatNextAiringEpisode(
-              props.item.next_airing_episode,
-              props.airingPreferences,
-            ) ||
+            {formatNextAiringEpisode(props.item.next_airing_episode, props.airingPreferences) ||
               "Next airing scheduled"}
           </div>
         </Show>
@@ -256,9 +246,11 @@ function WantedRow(props: {
             {(label) => (
               <Badge
                 variant="secondary"
-                class={props.item.airing_status === "aired"
-                  ? "h-5 px-1.5 text-xs bg-warning/10 text-warning"
-                  : "h-5 px-1.5 text-xs bg-info/10 text-info"}
+                class={
+                  props.item.airing_status === "aired"
+                    ? "h-5 px-1.5 text-xs bg-warning/10 text-warning"
+                    : "h-5 px-1.5 text-xs bg-info/10 text-info"
+                }
               >
                 {label()}
               </Badge>
@@ -270,10 +262,7 @@ function WantedRow(props: {
         {props.item.episode_title || "-"}
       </TableCell>
       <TableCell class="text-sm">
-        {formatAiringDateWithPreferences(
-          props.item.aired,
-          props.airingPreferences,
-        ) || "-"}
+        {formatAiringDateWithPreferences(props.item.aired, props.airingPreferences) || "-"}
       </TableCell>
       <TableCell>
         <DropdownMenu placement="bottom-end">

@@ -31,9 +31,7 @@ export function buildImportSourceMetadata(
     video_codec: file.video_codec,
   };
 
-  return Object.values(metadata).some((value) => value !== undefined)
-    ? metadata
-    : undefined;
+  return Object.values(metadata).some((value) => value !== undefined) ? metadata : undefined;
 }
 
 export function buildImportFileRequest(input: {
@@ -61,12 +59,10 @@ export function buildImportFileRequest(input: {
 }) {
   return {
     anime_id: input.animeId,
-    episode_number: input.episodeNumber ??
-      Math.floor(input.file.episode_number),
+    episode_number: input.episodeNumber ?? Math.floor(input.file.episode_number),
     episode_numbers: input.episodeNumbers ?? input.file.episode_numbers,
     season: input.season ?? input.file.season,
-    source_metadata: input.sourceMetadata ??
-      buildImportSourceMetadata(input.file),
+    source_metadata: input.sourceMetadata ?? buildImportSourceMetadata(input.file),
     source_path: input.file.source_path,
   } satisfies ImportFileRequest;
 }
@@ -76,8 +72,9 @@ export function findMissingImportCandidates(input: {
   localAnimeIds: ReadonlySet<number>;
   candidates: readonly AnimeSearchResult[];
 }) {
-  const missingIds = [...new Set(input.files.map((file) => file.anime_id))]
-    .filter((id) => !input.localAnimeIds.has(id));
+  const missingIds = [...new Set(input.files.map((file) => file.anime_id))].filter(
+    (id) => !input.localAnimeIds.has(id),
+  );
 
   return missingIds.flatMap((id) => {
     const candidate = input.candidates.find((entry) => entry.id === id);
@@ -95,8 +92,7 @@ export function toggleImportCandidateSelection(input: {
   const newSelectedCandidates = new Set(input.selectedCandidateIds);
   const newSelectedFiles = new Map(input.selectedFiles);
 
-  const shouldDeselect = newSelectedCandidates.has(input.candidate.id) &&
-    !input.forceSelect;
+  const shouldDeselect = newSelectedCandidates.has(input.candidate.id) && !input.forceSelect;
 
   if (shouldDeselect) {
     newSelectedCandidates.delete(input.candidate.id);
@@ -123,8 +119,8 @@ export function toggleImportCandidateSelection(input: {
     ""
   ).toLowerCase();
 
-  const seasonMatch = titleLower.match(/season\s+(\d+)/) ||
-    titleLower.match(/(\d+)(?:nd|rd|th)\s+season/);
+  const seasonMatch =
+    titleLower.match(/season\s+(\d+)/) || titleLower.match(/(\d+)(?:nd|rd|th)\s+season/);
 
   if (seasonMatch) {
     candidateSeason = Number.parseInt(seasonMatch[1], 10);
@@ -141,9 +137,7 @@ export function toggleImportCandidateSelection(input: {
       } else if (fileSeason === 1 && !currentSelection) {
         shouldSelect = true;
       }
-    } else if (
-      !currentSelection || currentSelection.anime_id === input.candidate.id
-    ) {
+    } else if (!currentSelection || currentSelection.anime_id === input.candidate.id) {
       shouldSelect = true;
     }
 

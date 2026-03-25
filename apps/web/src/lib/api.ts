@@ -164,21 +164,16 @@ export interface ScanFolderResult {
   found: number;
   total: number;
 }
-export type ImportFileRequest =
-  & Pick<
-    ImportedFile,
-    "anime_id" | "episode_number" | "source_path"
-  >
-  & {
-    season?: number;
-    episode_numbers?: number[];
-    source_metadata?: DownloadSourceMetadata;
-  };
+export type ImportFileRequest = Pick<
+  ImportedFile,
+  "anime_id" | "episode_number" | "source_path"
+> & {
+  season?: number;
+  episode_numbers?: number[];
+  source_metadata?: DownloadSourceMetadata;
+};
 
-export type ReleaseProfileCreateRequest = Pick<
-  ReleaseProfile,
-  "is_global" | "name" | "rules"
->;
+export type ReleaseProfileCreateRequest = Pick<ReleaseProfile, "is_global" | "name" | "rules">;
 
 export type ReleaseProfileUpdateRequest = Pick<
   ReleaseProfile,
@@ -199,11 +194,7 @@ export interface UnmappedFolderControlRequest {
 }
 
 export interface BulkUnmappedFolderControlRequest {
-  action:
-    | "pause_queued"
-    | "resume_paused"
-    | "reset_failed"
-    | "retry_failed";
+  action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
 }
 
 export interface AddAnimeRequest {
@@ -261,10 +252,8 @@ export const animeKeys = {
     query: (q: string) => ["anime", "search", q] as const,
     episode: (animeId: number, episodeNumber: number) =>
       ["search", "episode", animeId, episodeNumber] as const,
-    releases: (
-      query: string,
-      options?: { animeId?: number; category?: string; filter?: string },
-    ) => ["search", "releases", { query, ...options }] as const,
+    releases: (query: string, options?: { animeId?: number; category?: string; filter?: string }) =>
+      ["search", "releases", { query, ...options }] as const,
   },
   anilist: (id: number) => ["anime", "anilist", id] as const,
   library: {
@@ -320,12 +309,7 @@ export const animeKeys = {
       eventType?: string,
       startDate?: string,
       endDate?: string,
-    ) =>
-      [
-        "system",
-        "logs",
-        { page, level, eventType, startDate, endDate },
-      ] as const,
+    ) => ["system", "logs", { page, level, eventType, startDate, endDate }] as const,
   },
 } as const satisfies Record<string, unknown>;
 
@@ -334,8 +318,7 @@ export const animeKeys = {
 export function libraryStatsQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.library.stats(),
-    queryFn: ({ signal }) =>
-      fetchApi<LibraryStats>(`${API_BASE}/library/stats`, undefined, signal),
+    queryFn: ({ signal }) => fetchApi<LibraryStats>(`${API_BASE}/library/stats`, undefined, signal),
     staleTime: 1000 * 60, // 1 minute
   });
 }
@@ -348,11 +331,7 @@ export function activityQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.library.activity(),
     queryFn: ({ signal }) =>
-      fetchApi<ActivityItem[]>(
-        `${API_BASE}/library/activity`,
-        undefined,
-        signal,
-      ),
+      fetchApi<ActivityItem[]>(`${API_BASE}/library/activity`, undefined, signal),
     staleTime: 1000 * 30, // 30 seconds
   });
 }
@@ -400,8 +379,7 @@ export function createAnimeListQuery() {
 export function animeDetailsQueryOptions(id: number) {
   return queryOptions({
     queryKey: animeKeys.detail(id),
-    queryFn: ({ signal }) =>
-      fetchApi<Anime>(`${API_BASE}/anime/${id}`, undefined, signal),
+    queryFn: ({ signal }) => fetchApi<Anime>(`${API_BASE}/anime/${id}`, undefined, signal),
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
@@ -416,9 +394,7 @@ export function infiniteLogsQueryOptions(
 ) {
   return infiniteQueryOptions({
     queryKey: [
-      ...animeKeys.system
-        .logs(1, level, eventType, startDate, endDate)
-        .slice(0, 2),
+      ...animeKeys.system.logs(1, level, eventType, startDate, endDate).slice(0, 2),
       "infinite",
       { level, eventType, startDate, endDate },
     ] as const,
@@ -450,7 +426,7 @@ export function createInfiniteLogsQuery(
   endDate: () => string | undefined,
 ) {
   return useInfiniteQuery(() =>
-    infiniteLogsQueryOptions(level(), eventType(), startDate(), endDate())
+    infiniteLogsQueryOptions(level(), eventType(), startDate(), endDate()),
   );
 }
 
@@ -465,11 +441,7 @@ export function episodesQueryOptions(animeId: number) {
   return queryOptions({
     queryKey: animeKeys.episodes(animeId),
     queryFn: ({ signal }) =>
-      fetchApi<Episode[]>(
-        `${API_BASE}/anime/${animeId}/episodes`,
-        undefined,
-        signal,
-      ),
+      fetchApi<Episode[]>(`${API_BASE}/anime/${animeId}/episodes`, undefined, signal),
     staleTime: 1000 * 60 * 5,
   });
 }
@@ -485,11 +457,7 @@ export function listFilesQueryOptions(animeId: number) {
   return queryOptions({
     queryKey: animeKeys.files(animeId),
     queryFn: ({ signal }) =>
-      fetchApi<VideoFile[]>(
-        `${API_BASE}/anime/${animeId}/files`,
-        undefined,
-        signal,
-      ),
+      fetchApi<VideoFile[]>(`${API_BASE}/anime/${animeId}/files`, undefined, signal),
     staleTime: 1000 * 60,
   });
 }
@@ -522,10 +490,7 @@ export function createAnimeSearchQuery(query: () => string) {
   }));
 }
 
-export function episodeSearchQueryOptions(
-  animeId: number,
-  episodeNumber: number,
-) {
+export function episodeSearchQueryOptions(animeId: number, episodeNumber: number) {
   return queryOptions({
     queryKey: animeKeys.search.episode(animeId, episodeNumber),
     queryFn: ({ signal }) =>
@@ -537,10 +502,7 @@ export function episodeSearchQueryOptions(
   });
 }
 
-export function createEpisodeSearchQuery(
-  animeId: () => number,
-  episodeNumber: () => number,
-) {
+export function createEpisodeSearchQuery(animeId: () => number, episodeNumber: () => number) {
   return useQuery(() => ({
     ...episodeSearchQueryOptions(animeId(), episodeNumber()),
     enabled: false,
@@ -602,11 +564,7 @@ export function animeByAnilistIdQueryOptions(id: number) {
   return queryOptions({
     queryKey: animeKeys.anilist(id),
     queryFn: ({ signal }) =>
-      fetchApi<AnimeSearchResult>(
-        `${API_BASE}/anime/anilist/${id}`,
-        undefined,
-        signal,
-      ),
+      fetchApi<AnimeSearchResult>(`${API_BASE}/anime/anilist/${id}`, undefined, signal),
     staleTime: 1000 * 60 * 60,
   });
 }
@@ -641,9 +599,7 @@ export function createAddAnimeMutation() {
     onSuccess: (newAnime) => {
       queryClient.setQueryData<Anime[]>(animeKeys.lists(), (old) => {
         if (!old) return [newAnime];
-        return [...old, newAnime].sort((a, b) =>
-          a.title.romaji.localeCompare(b.title.romaji)
-        );
+        return [...old, newAnime].sort((a, b) => a.title.romaji.localeCompare(b.title.romaji));
       });
       queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
@@ -653,8 +609,7 @@ export function createAddAnimeMutation() {
 export function createDeleteAnimeMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: (id: number) =>
-      fetchApi(`${API_BASE}/anime/${id}`, { method: "DELETE" }),
+    mutationFn: (id: number) => fetchApi(`${API_BASE}/anime/${id}`, { method: "DELETE" }),
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
       queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
@@ -674,9 +629,7 @@ export function createToggleMonitorMutation() {
       await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
       await queryClient.cancelQueries({ queryKey: animeKeys.lists() });
 
-      const previousAnime = queryClient.getQueryData<Anime>(
-        animeKeys.detail(id),
-      );
+      const previousAnime = queryClient.getQueryData<Anime>(animeKeys.detail(id));
       const previousList = queryClient.getQueryData<Anime[]>(animeKeys.lists());
 
       if (previousAnime) {
@@ -713,18 +666,14 @@ export function createToggleMonitorMutation() {
 export function createUpdateAnimePathMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: (
-      { id, path }: { id: number; path: string; rescan?: boolean },
-    ) =>
+    mutationFn: ({ id, path }: { id: number; path: string; rescan?: boolean }) =>
       fetchApi(`${API_BASE}/anime/${id}/path`, {
         method: "PUT",
         body: JSON.stringify({ path }),
       }),
     onMutate: async ({ id, path }) => {
       await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
-      const previousAnime = queryClient.getQueryData<Anime>(
-        animeKeys.detail(id),
-      );
+      const previousAnime = queryClient.getQueryData<Anime>(animeKeys.detail(id));
       if (previousAnime) {
         queryClient.setQueryData<Anime>(animeKeys.detail(id), {
           ...previousAnime,
@@ -754,9 +703,7 @@ export function createUpdateAnimeProfileMutation() {
       }),
     onMutate: async ({ id, profileName }) => {
       await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
-      const previousAnime = queryClient.getQueryData<Anime>(
-        animeKeys.detail(id),
-      );
+      const previousAnime = queryClient.getQueryData<Anime>(animeKeys.detail(id));
       if (previousAnime) {
         queryClient.setQueryData<Anime>(animeKeys.detail(id), {
           ...previousAnime,
@@ -779,13 +726,7 @@ export function createUpdateAnimeProfileMutation() {
 export function createUpdateAnimeReleaseProfilesMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: ({
-      id,
-      releaseProfileIds,
-    }: {
-      id: number;
-      releaseProfileIds: number[];
-    }) =>
+    mutationFn: ({ id, releaseProfileIds }: { id: number; releaseProfileIds: number[] }) =>
       fetchApi(`${API_BASE}/anime/${id}/release-profiles`, {
         method: "PUT",
         body: JSON.stringify({ release_profile_ids: releaseProfileIds }),
@@ -829,13 +770,7 @@ export function createScanFolderMutation() {
 export function createDeleteEpisodeFileMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: ({
-      animeId,
-      episodeNumber,
-    }: {
-      animeId: number;
-      episodeNumber: number;
-    }) =>
+    mutationFn: ({ animeId, episodeNumber }: { animeId: number; episodeNumber: number }) =>
       fetchApi(`${API_BASE}/anime/${animeId}/episodes/${episodeNumber}/file`, {
         method: "DELETE",
       }),
@@ -922,8 +857,7 @@ export function createGrabReleaseMutation() {
 export function profilesQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.profiles.all,
-    queryFn: ({ signal }) =>
-      fetchApi<QualityProfile[]>(`${API_BASE}/profiles`, undefined, signal),
+    queryFn: ({ signal }) => fetchApi<QualityProfile[]>(`${API_BASE}/profiles`, undefined, signal),
     staleTime: Infinity,
   });
 }
@@ -949,18 +883,12 @@ export function releaseProfilesQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.releaseProfiles,
     queryFn: ({ signal }) =>
-      fetchApi<ReleaseProfile[]>(
-        `${API_BASE}/release-profiles`,
-        undefined,
-        signal,
-      ),
+      fetchApi<ReleaseProfile[]>(`${API_BASE}/release-profiles`, undefined, signal),
     staleTime: 1000 * 60 * 60,
   });
 }
 
-export function createReleaseProfilesQuery(
-  enabled: () => boolean = () => true,
-) {
+export function createReleaseProfilesQuery(enabled: () => boolean = () => true) {
   return useQuery(() => ({
     ...releaseProfilesQueryOptions(),
     enabled: enabled(),
@@ -984,13 +912,7 @@ export function createCreateProfileMutation() {
 export function createUpdateProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: ({
-      name,
-      profile,
-    }: {
-      name: string;
-      profile: QualityProfile;
-    }) =>
+    mutationFn: ({ name, profile }: { name: string; profile: QualityProfile }) =>
       fetchApi<QualityProfile>(`${API_BASE}/profiles/${name}`, {
         method: "PUT",
         body: JSON.stringify(profile),
@@ -1004,8 +926,7 @@ export function createUpdateProfileMutation() {
 export function createDeleteProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: (name: string) =>
-      fetchApi(`${API_BASE}/profiles/${name}`, { method: "DELETE" }),
+    mutationFn: (name: string) => fetchApi(`${API_BASE}/profiles/${name}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
     },
@@ -1029,13 +950,7 @@ export function createCreateReleaseProfileMutation() {
 export function createUpdateReleaseProfileMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: number;
-      data: ReleaseProfileUpdateRequest;
-    }) =>
+    mutationFn: ({ id, data }: { id: number; data: ReleaseProfileUpdateRequest }) =>
       fetchApi(`${API_BASE}/release-profiles/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -1062,8 +977,7 @@ export function createDeleteReleaseProfileMutation() {
 export function systemConfigQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.system.config(),
-    queryFn: ({ signal }) =>
-      fetchApi<Config>(`${API_BASE}/system/config`, undefined, signal),
+    queryFn: ({ signal }) => fetchApi<Config>(`${API_BASE}/system/config`, undefined, signal),
     staleTime: Infinity,
     placeholderData: keepPreviousData,
   });
@@ -1093,8 +1007,7 @@ export function createUpdateSystemConfigMutation() {
 export function systemStatusQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.system.status(),
-    queryFn: ({ signal }) =>
-      fetchApi<SystemStatus>(`${API_BASE}/system/status`, undefined, signal),
+    queryFn: ({ signal }) => fetchApi<SystemStatus>(`${API_BASE}/system/status`, undefined, signal),
     refetchInterval: 30000,
   });
 }
@@ -1105,22 +1018,19 @@ export function createSystemStatusQuery() {
 
 export function createTriggerScanMutation() {
   return useMutation(() => ({
-    mutationFn: () =>
-      fetchApi(`${API_BASE}/system/tasks/scan`, { method: "POST" }),
+    mutationFn: () => fetchApi(`${API_BASE}/system/tasks/scan`, { method: "POST" }),
   }));
 }
 
 export function createTriggerRssCheckMutation() {
   return useMutation(() => ({
-    mutationFn: () =>
-      fetchApi(`${API_BASE}/system/tasks/rss`, { method: "POST" }),
+    mutationFn: () => fetchApi(`${API_BASE}/system/tasks/rss`, { method: "POST" }),
   }));
 }
 
 export function createTriggerMetadataRefreshMutation() {
   return useMutation(() => ({
-    mutationFn: () =>
-      fetchApi(`${API_BASE}/system/tasks/metadata-refresh`, { method: "POST" }),
+    mutationFn: () => fetchApi(`${API_BASE}/system/tasks/metadata-refresh`, { method: "POST" }),
   }));
 }
 
@@ -1129,8 +1039,7 @@ export function createTriggerMetadataRefreshMutation() {
 export function rssFeedsQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.rss.all,
-    queryFn: ({ signal }) =>
-      fetchApi<RssFeed[]>(`${API_BASE}/rss`, undefined, signal),
+    queryFn: ({ signal }) => fetchApi<RssFeed[]>(`${API_BASE}/rss`, undefined, signal),
     staleTime: 1000 * 60 * 5,
   });
 }
@@ -1143,11 +1052,7 @@ export function animeRssFeedsQueryOptions(animeId: number) {
   return queryOptions({
     queryKey: animeKeys.rss.anime(animeId),
     queryFn: ({ signal }) =>
-      fetchApi<RssFeed[]>(
-        `${API_BASE}/anime/${animeId}/rss`,
-        undefined,
-        signal,
-      ),
+      fetchApi<RssFeed[]>(`${API_BASE}/anime/${animeId}/rss`, undefined, signal),
     staleTime: 1000 * 60 * 5,
   });
 }
@@ -1176,8 +1081,7 @@ export function createAddRssFeedMutation() {
 export function createDeleteRssFeedMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: (id: number) =>
-      fetchApi(`${API_BASE}/rss/${id}`, { method: "DELETE" }),
+    mutationFn: (id: number) => fetchApi(`${API_BASE}/rss/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
     },
@@ -1221,8 +1125,7 @@ export function createCalendarQuery(start: () => Date, end: () => Date) {
 export function downloadQueueQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.downloads.queue(),
-    queryFn: ({ signal }) =>
-      fetchApi<Download[]>(`${API_BASE}/downloads/queue`, undefined, signal),
+    queryFn: ({ signal }) => fetchApi<Download[]>(`${API_BASE}/downloads/queue`, undefined, signal),
     refetchInterval: 5000,
   });
 }
@@ -1258,9 +1161,7 @@ export function createSearchMissingMutation() {
   }));
 }
 
-function invalidateDownloadQueries(
-  queryClient: ReturnType<typeof useQueryClient>,
-) {
+function invalidateDownloadQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
   queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
 }
@@ -1319,8 +1220,7 @@ export function createDeleteDownloadMutation() {
 export function createSyncDownloadsMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: () =>
-      fetchApi(`${API_BASE}/downloads/sync`, { method: "POST" }),
+    mutationFn: () => fetchApi(`${API_BASE}/downloads/sync`, { method: "POST" }),
     onSuccess: () => {
       invalidateDownloadQueries(queryClient);
     },
@@ -1365,9 +1265,7 @@ function buildDownloadEventsSearchParams(input: DownloadEventsFilterInput) {
   return params;
 }
 
-function buildDownloadEventsExportSearchParams(
-  input: DownloadEventsExportInput,
-) {
+function buildDownloadEventsExportSearchParams(input: DownloadEventsExportInput) {
   const params = new URLSearchParams();
 
   if (input.animeId !== undefined) {
@@ -1398,18 +1296,14 @@ function buildDownloadEventsExportSearchParams(
   return params;
 }
 
-export function downloadEventsQueryOptionsWithFilters(
-  input: DownloadEventsFilterInput,
-) {
+export function downloadEventsQueryOptionsWithFilters(input: DownloadEventsFilterInput) {
   const params = buildDownloadEventsSearchParams(input);
 
   return queryOptions({
     queryKey: animeKeys.downloads.events(input),
     queryFn: ({ signal }) =>
       fetchApi<DownloadEventsPage>(
-        `${API_BASE}/downloads/events${
-          params.size > 0 ? `?${params.toString()}` : ""
-        }`,
+        `${API_BASE}/downloads/events${params.size > 0 ? `?${params.toString()}` : ""}`,
         undefined,
         signal,
       ),
@@ -1417,9 +1311,7 @@ export function downloadEventsQueryOptionsWithFilters(
   });
 }
 
-export function createDownloadEventsQuery(
-  input: () => DownloadEventsFilterInput,
-) {
+export function createDownloadEventsQuery(input: () => DownloadEventsFilterInput) {
   return useQuery(() => downloadEventsQueryOptionsWithFilters(input()));
 }
 
@@ -1452,9 +1344,7 @@ function triggerBlobDownload(blob: Blob, fileName: string) {
   URL.revokeObjectURL(objectUrl);
 }
 
-function parseContentDispositionFilename(
-  headerValue: string | null,
-): string | undefined {
+function parseContentDispositionFilename(headerValue: string | null): string | undefined {
   if (!headerValue) {
     return undefined;
   }
@@ -1494,27 +1384,18 @@ export async function exportDownloadEvents(
 
   const payload = await response.blob();
   const fallbackName = `download-events.${format}`;
-  const fileName = parseContentDispositionFilename(
-    response.headers.get("content-disposition"),
-  ) ?? fallbackName;
+  const fileName =
+    parseContentDispositionFilename(response.headers.get("content-disposition")) ?? fallbackName;
 
   triggerBlobDownload(payload, fileName);
 
   return {
-    exported: parseExportCountHeader(
-      response.headers.get("x-bakarr-exported-events"),
-    ),
+    exported: parseExportCountHeader(response.headers.get("x-bakarr-exported-events")),
     format,
     generatedAt: response.headers.get("x-bakarr-generated-at") ?? undefined,
-    limit: parseExportCountHeader(
-      response.headers.get("x-bakarr-export-limit"),
-    ),
-    total: parseExportCountHeader(
-      response.headers.get("x-bakarr-total-events"),
-    ),
-    truncated: parseExportTruncatedHeader(
-      response.headers.get("x-bakarr-export-truncated"),
-    ),
+    limit: parseExportCountHeader(response.headers.get("x-bakarr-export-limit")),
+    total: parseExportCountHeader(response.headers.get("x-bakarr-total-events")),
+    truncated: parseExportTruncatedHeader(response.headers.get("x-bakarr-export-truncated")),
   };
 }
 
@@ -1535,11 +1416,7 @@ export function wantedQueryOptions(limit = 100) {
   return queryOptions({
     queryKey: animeKeys.wanted(limit),
     queryFn: ({ signal }) =>
-      fetchApi<MissingEpisode[]>(
-        `${API_BASE}/wanted/missing?limit=${limit}`,
-        undefined,
-        signal,
-      ),
+      fetchApi<MissingEpisode[]>(`${API_BASE}/wanted/missing?limit=${limit}`, undefined, signal),
     staleTime: 1000 * 60 * 5,
   });
 }
@@ -1554,9 +1431,7 @@ export function unmappedFoldersQueryOptions() {
     queryFn: ({ signal }) =>
       fetchApi<ScannerState>(`${API_BASE}/library/unmapped`, undefined, signal),
     refetchInterval: (query) =>
-      query.state.data?.is_scanning || query.state.data?.has_outstanding_matches
-        ? 1000
-        : false,
+      query.state.data?.is_scanning || query.state.data?.has_outstanding_matches ? 1000 : false,
   });
 }
 
@@ -1567,8 +1442,7 @@ export function createUnmappedFoldersQuery() {
 export function createScanLibraryMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: () =>
-      fetchApi(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
+    mutationFn: () => fetchApi(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
       queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
@@ -1610,16 +1484,10 @@ export function systemJobsQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.system.jobs(),
     queryFn: ({ signal }) =>
-      fetchApi<BackgroundJobStatus[]>(
-        `${API_BASE}/system/jobs`,
-        undefined,
-        signal,
-      ),
+      fetchApi<BackgroundJobStatus[]>(`${API_BASE}/system/jobs`, undefined, signal),
     staleTime: 1000 * 10,
     refetchInterval: (query) => {
-      const unmappedScan = query.state.data?.find((job) =>
-        job.name === "unmapped_scan"
-      );
+      const unmappedScan = query.state.data?.find((job) => job.name === "unmapped_scan");
 
       return unmappedScan?.is_running ? 1000 : false;
     },
@@ -1699,13 +1567,7 @@ export function createSystemLogsQuery(
   endDate: () => string | undefined,
 ) {
   return useQuery(() => ({
-    ...systemLogsQueryOptions(
-      page(),
-      level(),
-      eventType(),
-      startDate(),
-      endDate(),
-    ),
+    ...systemLogsQueryOptions(page(), level(), eventType(), startDate(), endDate()),
   }));
 }
 
@@ -1773,11 +1635,7 @@ export function browsePathQueryOptions(
   return queryOptions({
     queryKey: animeKeys.browse(path, pagination?.offset, pagination?.limit),
     queryFn: ({ signal }) =>
-      fetchApi<BrowseResult>(
-        `${API_BASE}/library/browse?${params.toString()}`,
-        undefined,
-        signal,
-      ),
+      fetchApi<BrowseResult>(`${API_BASE}/library/browse?${params.toString()}`, undefined, signal),
     placeholderData: keepPreviousData,
     staleTime: 1000 * 60 * 60,
   });
@@ -1797,8 +1655,7 @@ export function createBrowsePathQuery(
 export function authMeQueryOptions() {
   return queryOptions({
     queryKey: animeKeys.auth.me(),
-    queryFn: ({ signal }) =>
-      fetchApi<AuthUser>(`${API_BASE}/auth/me`, undefined, signal),
+    queryFn: ({ signal }) => fetchApi<AuthUser>(`${API_BASE}/auth/me`, undefined, signal),
     staleTime: Infinity,
   });
 }
@@ -1870,11 +1727,7 @@ export function renamePreviewQueryOptions(id: number) {
   return queryOptions({
     queryKey: animeKeys.renamePreview(id),
     queryFn: ({ signal }) =>
-      fetchApi<RenamePreviewItem[]>(
-        `${API_BASE}/anime/${id}/rename-preview`,
-        undefined,
-        signal,
-      ),
+      fetchApi<RenamePreviewItem[]>(`${API_BASE}/anime/${id}/rename-preview`, undefined, signal),
   });
 }
 

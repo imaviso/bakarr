@@ -36,11 +36,7 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import {
-  TextField,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
+import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 import {
   animeListQueryOptions,
   type AnimeSearchResult,
@@ -78,12 +74,8 @@ function ImportPage() {
   const navigate = useNavigate();
   const [path, setPath] = createSignal("");
   const [step, setStep] = createSignal<Step>("scan");
-  const [selectedFiles, setSelectedFiles] = createSignal<
-    Map<string, ImportFileRequest>
-  >(new Map());
-  const [inputMode, setInputMode] = createSignal<"browser" | "manual">(
-    "browser",
-  );
+  const [selectedFiles, setSelectedFiles] = createSignal<Map<string, ImportFileRequest>>(new Map());
+  const [inputMode, setInputMode] = createSignal<"browser" | "manual">("browser");
   const [isDragOver, setIsDragOver] = createSignal(false);
 
   const scanMutation = createScanImportPathMutation();
@@ -94,16 +86,10 @@ function ImportPage() {
 
   const skippedFiles = createMemo(() => scanMutation.data?.skipped || []);
 
-  const [selectedCandidateIds, setSelectedCandidateIds] = createSignal<
-    Set<number>
-  >(new Set());
-  const [manualCandidates, setManualCandidates] = createSignal<
-    AnimeSearchResult[]
-  >([]);
+  const [selectedCandidateIds, setSelectedCandidateIds] = createSignal<Set<number>>(new Set());
+  const [manualCandidates, setManualCandidates] = createSignal<AnimeSearchResult[]>([]);
   const [isSearchOpen, setIsSearchOpen] = createSignal(false);
-  const [pendingAddCandidates, setPendingAddCandidates] = createSignal<
-    AnimeSearchResult[]
-  >([]);
+  const [pendingAddCandidates, setPendingAddCandidates] = createSignal<AnimeSearchResult[]>([]);
   const [currentAddIndex, setCurrentAddIndex] = createSignal(0);
 
   const candidates = createMemo(() => [
@@ -112,8 +98,8 @@ function ImportPage() {
       (mc) => !scanMutation.data?.candidates.some((c) => c.id === mc.id),
     ),
   ]);
-  const libraryIds = createMemo(() =>
-    new Set((animeListQuery.data ?? []).map((anime) => anime.id))
+  const libraryIds = createMemo(
+    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
   );
 
   const handleManualAdd = (candidate: AnimeSearchResult) => {
@@ -206,10 +192,7 @@ function ImportPage() {
     }
   };
 
-  const toggleCandidate = (
-    candidate: AnimeSearchResult,
-    forceSelect = false,
-  ) => {
+  const toggleCandidate = (candidate: AnimeSearchResult, forceSelect = false) => {
     const next = toggleImportCandidateSelection({
       candidate,
       files: scanMutation.data?.files || [],
@@ -222,9 +205,7 @@ function ImportPage() {
     setSelectedFiles(next.selectedFiles);
   };
 
-  const activeAddCandidate = createMemo(() =>
-    pendingAddCandidates()[currentAddIndex()]
-  );
+  const activeAddCandidate = createMemo(() => pendingAddCandidates()[currentAddIndex()]);
 
   const closeAddCandidateDialog = () => {
     setPendingAddCandidates([]);
@@ -248,10 +229,7 @@ function ImportPage() {
     if (newSelected.has(file.source_path)) {
       newSelected.delete(file.source_path);
     } else {
-      newSelected.set(
-        file.source_path,
-        buildImportFileRequest({ animeId: targetAnimeId, file }),
-      );
+      newSelected.set(file.source_path, buildImportFileRequest({ animeId: targetAnimeId, file }));
     }
     setSelectedFiles(newSelected);
   };
@@ -277,11 +255,7 @@ function ImportPage() {
     }
   };
 
-  const updateFileMapping = (
-    file: ScannedFile,
-    season: number,
-    episode: number,
-  ) => {
+  const updateFileMapping = (file: ScannedFile, season: number, episode: number) => {
     const newSelected = new Map(selectedFiles());
     const current = newSelected.get(file.source_path) || {
       ...buildImportFileRequest({
@@ -337,10 +311,7 @@ function ImportPage() {
     }
 
     const textData = e.dataTransfer?.getData("text/plain");
-    if (
-      textData &&
-      (textData.startsWith("/") || textData.startsWith("file://"))
-    ) {
+    if (textData && (textData.startsWith("/") || textData.startsWith("file://"))) {
       const cleanPath = textData.replace("file://", "");
       setPath(cleanPath);
       setInputMode("manual");
@@ -367,9 +338,7 @@ function ImportPage() {
                 </Button>
               </Link>
               <div>
-                <h1 class="text-xl font-semibold tracking-tight text-foreground">
-                  Import Files
-                </h1>
+                <h1 class="text-xl font-semibold tracking-tight text-foreground">Import Files</h1>
                 <Show when={step() === "review" && path()}>
                   <div class="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                     <IconFolderOpen class="h-3 w-3" />
@@ -395,8 +364,8 @@ function ImportPage() {
                         step() === s.id
                           ? "bg-primary text-primary-foreground"
                           : index() < currentStepIndex()
-                          ? "text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
-                          : "text-muted-foreground/50 cursor-not-allowed",
+                            ? "text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                            : "text-muted-foreground/50 cursor-not-allowed",
                       )}
                     >
                       <span
@@ -405,14 +374,11 @@ function ImportPage() {
                           step() === s.id
                             ? "bg-primary-foreground/20"
                             : index() < currentStepIndex()
-                            ? "bg-success/20 text-success"
-                            : "bg-muted-foreground/10",
+                              ? "bg-success/20 text-success"
+                              : "bg-muted-foreground/10",
                         )}
                       >
-                        <Show
-                          when={index() < currentStepIndex()}
-                          fallback={index() + 1}
-                        >
+                        <Show when={index() < currentStepIndex()} fallback={index() + 1}>
                           <IconCheck class="h-3 w-3" />
                         </Show>
                       </span>
@@ -422,9 +388,7 @@ function ImportPage() {
                       <div
                         class={cn(
                           "h-px w-6",
-                          index() < currentStepIndex()
-                            ? "bg-primary"
-                            : "bg-border",
+                          index() < currentStepIndex() ? "bg-primary" : "bg-border",
                         )}
                       />
                     </Show>
@@ -443,8 +407,8 @@ function ImportPage() {
               <div class="px-8 py-6 border-b">
                 <h2 class="text-lg font-semibold">Select a folder</h2>
                 <p class="text-sm text-muted-foreground mt-1">
-                  Choose a folder containing video files to import. Files will
-                  be renamed and organized according to your naming format.
+                  Choose a folder containing video files to import. Files will be renamed and
+                  organized according to your naming format.
                 </p>
               </div>
 
@@ -466,10 +430,7 @@ function ImportPage() {
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent
-                    value="browser"
-                    class="flex-1 mt-6 min-h-0 overflow-hidden"
-                  >
+                  <TabsContent value="browser" class="flex-1 mt-6 min-h-0 overflow-hidden">
                     <div class="h-full border rounded-lg overflow-hidden bg-background">
                       <Suspense
                         fallback={
@@ -487,10 +448,7 @@ function ImportPage() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent
-                    value="manual"
-                    class="flex-1 mt-6 min-h-0 overflow-auto"
-                  >
+                  <TabsContent value="manual" class="flex-1 mt-6 min-h-0 overflow-auto">
                     <section
                       aria-label="Drop zone for folder import"
                       class={cn(
@@ -506,9 +464,7 @@ function ImportPage() {
                       <div class="rounded-full bg-muted p-4 mb-4">
                         <IconUpload class="h-8 w-8 text-muted-foreground" />
                       </div>
-                      <p class="font-medium text-center">
-                        Drag and drop a folder here
-                      </p>
+                      <p class="font-medium text-center">Drag and drop a folder here</p>
                       <p class="text-sm text-muted-foreground mt-1 text-center">
                         or enter the path manually below
                       </p>
@@ -522,10 +478,7 @@ function ImportPage() {
                             aria-describedby="folder-formats-help"
                           />
                         </TextField>
-                        <p
-                          id="folder-formats-help"
-                          class="text-xs text-muted-foreground"
-                        >
+                        <p id="folder-formats-help" class="text-xs text-muted-foreground">
                           Supported formats: mkv, mp4, avi, webm, m4v
                         </p>
                       </div>
@@ -553,10 +506,7 @@ function ImportPage() {
                       </Button>
                     </Show>
                   </div>
-                  <Button
-                    onClick={handleScan}
-                    disabled={!path() || scanMutation.isPending}
-                  >
+                  <Button onClick={handleScan} disabled={!path() || scanMutation.isPending}>
                     <Show
                       when={!scanMutation.isPending}
                       fallback={
@@ -592,9 +542,9 @@ function ImportPage() {
                       </Show>
                     </p>
                     <p class="mt-2 max-w-3xl text-xs text-muted-foreground">
-                      Bakarr keeps the import explanation next to each file:
-                      coverage, already-mapped episodes, duplicate conflicts,
-                      and the match reason that picked a series.
+                      Bakarr keeps the import explanation next to each file: coverage,
+                      already-mapped episodes, duplicate conflicts, and the match reason that picked
+                      a series.
                     </p>
                   </div>
                   <Badge variant="secondary" class="text-sm">
@@ -612,10 +562,7 @@ function ImportPage() {
                       <IconListTree class="h-4 w-4 text-primary" />
                       Suggested Series
                     </h3>
-                    <Dialog
-                      open={isSearchOpen()}
-                      onOpenChange={setIsSearchOpen}
-                    >
+                    <Dialog open={isSearchOpen()} onOpenChange={setIsSearchOpen}>
                       <DialogTrigger
                         as={Button}
                         variant="outline"
@@ -655,15 +602,10 @@ function ImportPage() {
                       <For each={candidates()}>
                         {(candidate) => {
                           const isLocal = () =>
-                            animeListQuery.data?.some(
-                              (a) => a.id === candidate.id,
-                            );
-                          const isSelected = () =>
-                            selectedCandidateIds().has(candidate.id);
+                            animeListQuery.data?.some((a) => a.id === candidate.id);
+                          const isSelected = () => selectedCandidateIds().has(candidate.id);
                           const isManual = () =>
-                            manualCandidates().some((c) =>
-                              c.id === candidate.id
-                            );
+                            manualCandidates().some((c) => c.id === candidate.id);
 
                           return (
                             <CandidateCard
@@ -691,16 +633,12 @@ function ImportPage() {
                         animeList={animeListQuery.data || []}
                         candidates={candidates()}
                         isSelected={selectedFiles().has(file.source_path)}
-                        selectedAnimeId={selectedFiles().get(file.source_path)
-                          ?.anime_id}
-                        currentEpisode={selectedFiles().get(file.source_path)
-                          ?.episode_number}
-                        currentSeason={selectedFiles().get(file.source_path)
-                          ?.season}
+                        selectedAnimeId={selectedFiles().get(file.source_path)?.anime_id}
+                        currentEpisode={selectedFiles().get(file.source_path)?.episode_number}
+                        currentSeason={selectedFiles().get(file.source_path)?.season}
                         onToggle={(id) => toggleFile(file, id)}
                         onAnimeChange={(id) => updateFileAnime(file, id)}
-                        onMappingChange={(s, e) =>
-                          updateFileMapping(file, s, e)}
+                        onMappingChange={(s, e) => updateFileMapping(file, s, e)}
                       />
                     )}
                   </For>
@@ -718,14 +656,9 @@ function ImportPage() {
                           <div class="px-4 py-2 flex items-center gap-3 text-muted-foreground">
                             <IconFile class="h-4 w-4 shrink-0 opacity-50" />
                             <span class="text-xs font-mono truncate flex-1">
-                              {file.path.substring(
-                                file.path.lastIndexOf("/") + 1,
-                              )}
+                              {file.path.substring(file.path.lastIndexOf("/") + 1)}
                             </span>
-                            <Badge
-                              variant="secondary"
-                              class="text-xs shrink-0"
-                            >
+                            <Badge variant="secondary" class="text-xs shrink-0">
                               {file.reason}
                             </Badge>
                           </div>
@@ -745,8 +678,7 @@ function ImportPage() {
                   </Button>
                   <Button
                     onClick={handleImport}
-                    disabled={selectedFiles().size === 0 ||
-                      importMutation.isPending}
+                    disabled={selectedFiles().size === 0 || importMutation.isPending}
                   >
                     <Show
                       when={!importMutation.isPending}

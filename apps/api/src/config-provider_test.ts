@@ -48,7 +48,7 @@ it.scoped("dotenv provider uses .env values when env vars are missing", () =>
         assertEquals(result.username, "dotenv-admin");
         assertEquals(result.password, "super-secret");
       }),
-  )
+  ),
 );
 
 it.scoped("dotenv provider prioritizes environment variables over .env", () =>
@@ -63,7 +63,7 @@ it.scoped("dotenv provider prioritizes environment variables over .env", () =>
 
       assertEquals(result, 9300);
     }),
-  )
+  ),
 );
 
 it.scoped("dotenv provider handles missing dotenv file", () =>
@@ -74,13 +74,11 @@ it.scoped("dotenv provider handles missing dotenv file", () =>
 
     const value = yield* withTemporaryEnv(
       { SESSION_COOKIE_NAME: "from-env" },
-      Config.string("SESSION_COOKIE_NAME").pipe(
-        Effect.withConfigProvider(provider),
-      ),
+      Config.string("SESSION_COOKIE_NAME").pipe(Effect.withConfigProvider(provider)),
     );
 
     assertEquals(value, "from-env");
-  })
+  }),
 );
 
 it.scoped("dotenv provider parses export comments and quoted values", () =>
@@ -121,7 +119,7 @@ it.scoped("dotenv provider parses export comments and quoted values", () =>
         assertEquals(result.password, "line1\nline2 # kept");
         assertEquals(result.missing, "raw # kept");
       }),
-  )
+  ),
 );
 
 it.scoped("dotenv provider fails with line information on parse errors", () =>
@@ -146,7 +144,7 @@ it.scoped("dotenv provider fails with line information on parse errors", () =>
         }
       }
     }),
-  )
+  ),
 );
 
 const withTempEnvFile = Effect.fn("Test.withTempEnvFile")(function* <A, E, R>(
@@ -156,14 +154,10 @@ const withTempEnvFile = Effect.fn("Test.withTempEnvFile")(function* <A, E, R>(
   const filePath = join(tmpdir(), `bakarr-${randomUUID()}.env`);
 
   return yield* Effect.acquireUseRelease(
-    Effect.tryPromise(() => writeFile(filePath, contents)).pipe(
-      Effect.as(filePath),
-    ),
+    Effect.tryPromise(() => writeFile(filePath, contents)).pipe(Effect.as(filePath)),
     run,
     (path) =>
-      Effect.tryPromise(() => rm(path, { force: true })).pipe(
-        Effect.catchAll(() => Effect.void),
-      ),
+      Effect.tryPromise(() => rm(path, { force: true })).pipe(Effect.catchAll(() => Effect.void)),
   );
 });
 
@@ -193,7 +187,7 @@ const withTemporaryEnv = Effect.fn("Test.withTemporaryEnv")(function* <A, E, R>(
           process.env[key] = value;
         }
       }
-    })
+    }),
   );
 
   return yield* effect;

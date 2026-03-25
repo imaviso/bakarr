@@ -71,18 +71,13 @@ it("download metadata helpers expose decision, ranking, and confidence", () => {
 
   if (
     formatDownloadDecisionSummary(item) !==
-      "Upgrade • score 125 • from 720p • Upgrade to better encode"
+    "Upgrade • score 125 • from 720p • Upgrade to better encode"
   ) {
     throw new Error("Expected compact decision summary");
   }
 
   const confidence = getDownloadReleaseConfidence(item);
-  if (
-    confidence?.label !== "High confidence" ||
-    confidence.reason !== "SeaDex Best release"
-  ) {
-    throw new Error(
-      `Unexpected download confidence: ${JSON.stringify(confidence)}`,
-    );
+  if (confidence?.label !== "High confidence" || confidence.reason !== "SeaDex Best release") {
+    throw new Error(`Unexpected download confidence: ${JSON.stringify(confidence)}`);
   }
 });

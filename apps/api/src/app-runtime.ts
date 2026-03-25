@@ -10,15 +10,15 @@ export class AppRuntime extends Context.Tag("@bakarr/api/AppRuntime")<
   AppRuntimeShape
 >() {
   static layer(startedAt?: Date) {
-    return startedAt ? Layer.succeed(AppRuntime, { startedAt }) : Layer.effect(
-      AppRuntime,
-      Effect.flatMap(
-        ClockService,
-        (clock) =>
-          Effect.map(clock.currentTimeMillis, (millis) => ({
-            startedAt: new Date(millis),
-          })),
-      ),
-    );
+    return startedAt
+      ? Layer.succeed(AppRuntime, { startedAt })
+      : Layer.effect(
+          AppRuntime,
+          Effect.flatMap(ClockService, (clock) =>
+            Effect.map(clock.currentTimeMillis, (millis) => ({
+              startedAt: new Date(millis),
+            })),
+          ),
+        );
   }
 }

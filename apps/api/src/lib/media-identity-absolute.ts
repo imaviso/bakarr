@@ -19,9 +19,7 @@ export function parseAbsoluteIdentity(
     }
   }
 
-  const bracketMatch = filename.match(
-    /\][\s._-]*(\d{1,4})(?:v\d+)?[\s._-]*(?:\[|$)/,
-  );
+  const bracketMatch = filename.match(/\][\s._-]*(\d{1,4})(?:v\d+)?[\s._-]*(?:\[|$)/);
   if (bracketMatch) {
     const num = Number(bracketMatch[1]);
     if (num > 0 && num < 2000) {
@@ -38,9 +36,7 @@ export function parseAbsoluteIdentity(
     return rangeResult;
   }
 
-  const standaloneMatch = filename.match(
-    /[\s._-](\d{1,4})(?:v\d+)?[\s._-]*\.[a-zA-Z]+$/,
-  );
+  const standaloneMatch = filename.match(/[\s._-](\d{1,4})(?:v\d+)?[\s._-]*\.[a-zA-Z]+$/);
   if (standaloneMatch) {
     const num = Number(standaloneMatch[1]);
     if (num > 0 && num < 2000 && !isYearLike(num)) {
@@ -99,8 +95,13 @@ function parseAbsoluteRange(
     const end = Number(match[2]);
 
     if (
-      start > 0 && end > 0 && end >= start && end < 2000 &&
-      end - start <= 500 && !isYearLike(start) && !isYearLike(end)
+      start > 0 &&
+      end > 0 &&
+      end >= start &&
+      end < 2000 &&
+      end - start <= 500 &&
+      !isYearLike(start) &&
+      !isYearLike(end)
     ) {
       if (start <= 12 && end <= 31 && end - start > 5) {
         if (/(?:19|20)\d{2}/.test(value)) {
@@ -112,9 +113,10 @@ function parseAbsoluteRange(
       return {
         scheme: "absolute",
         episode_numbers: eps,
-        label: eps.length === 1
-          ? String(eps[0]).padStart(2, "0")
-          : `${String(start).padStart(2, "0")}-${String(end).padStart(2, "0")}`,
+        label:
+          eps.length === 1
+            ? String(eps[0]).padStart(2, "0")
+            : `${String(start).padStart(2, "0")}-${String(end).padStart(2, "0")}`,
       };
     }
   }

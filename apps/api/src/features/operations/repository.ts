@@ -5,10 +5,7 @@ export type {
   NamingSettings,
 } from "./repository/types.ts";
 
-export {
-  loadCurrentEpisodeState,
-  requireAnime,
-} from "./repository/anime-repository.ts";
+export { loadCurrentEpisodeState, requireAnime } from "./repository/anime-repository.ts";
 
 export {
   currentImportMode,
@@ -17,10 +14,7 @@ export {
   loadRuntimeConfig,
 } from "./repository/config-repository.ts";
 
-export {
-  loadQualityProfile,
-  loadReleaseRules,
-} from "./repository/profile-repository.ts";
+export { loadQualityProfile, loadReleaseRules } from "./repository/profile-repository.ts";
 
 export {
   decodeDownloadEventMetadata,

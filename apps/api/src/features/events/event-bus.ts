@@ -1,13 +1,4 @@
-import {
-  Context,
-  Effect,
-  Exit,
-  Layer,
-  PubSub,
-  Queue,
-  Scope,
-  Stream,
-} from "effect";
+import { Context, Effect, Exit, Layer, PubSub, Queue, Scope, Stream } from "effect";
 
 import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
 
@@ -24,31 +15,21 @@ export interface EventBusShape {
   readonly subscribe: () => Effect.Effect<EventSubscription>;
 }
 
-export class EventBus extends Context.Tag("@bakarr/api/EventBus")<
-  EventBus,
-  EventBusShape
->() {}
+export class EventBus extends Context.Tag("@bakarr/api/EventBus")<EventBus, EventBusShape>() {}
 
-export function makeEventBus(
-  options: { readonly capacity?: number } = {},
-) {
+export function makeEventBus(options: { readonly capacity?: number } = {}) {
   const capacity = options.capacity ?? DEFAULT_EVENT_BUS_CAPACITY;
 
   return Effect.gen(function* () {
     const pubsub = yield* PubSub.sliding<NotificationEvent>(capacity);
 
     return {
-      publish: (event: NotificationEvent) =>
-        PubSub.publish(pubsub, event).pipe(Effect.asVoid),
+      publish: (event: NotificationEvent) => PubSub.publish(pubsub, event).pipe(Effect.asVoid),
       subscribe: () =>
         Effect.gen(function* () {
           const scope = yield* Scope.make();
-          const pubsubQueue = yield* PubSub.subscribe(pubsub).pipe(
-            Scope.extend(scope),
-          );
-          const slidingQueue = yield* Queue.sliding<NotificationEvent>(
-            capacity,
-          );
+          const pubsubQueue = yield* PubSub.subscribe(pubsub).pipe(Scope.extend(scope));
+          const slidingQueue = yield* Queue.sliding<NotificationEvent>(capacity);
 
           yield* Queue.take(pubsubQueue).pipe(
             Effect.flatMap((event) => Queue.offer(slidingQueue, event)),
@@ -68,7 +49,4 @@ export function makeEventBus(
   });
 }
 
-export const EventBusLive = Layer.effect(
-  EventBus,
-  makeEventBus(),
-);
+export const EventBusLive = Layer.effect(EventBus, makeEventBus());

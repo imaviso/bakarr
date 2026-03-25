@@ -4,10 +4,7 @@ import type { ParsedRelease } from "./rss-client.ts";
 import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
 import { parseReleaseName } from "./release-ranking.ts";
 
-export function mapSearchCategory(
-  category: string | undefined,
-  fallback: string,
-) {
+export function mapSearchCategory(category: string | undefined, fallback: string) {
   switch (category) {
     case "anime_english":
       return "1_2";
@@ -83,10 +80,7 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
   };
 }
 
-export function fallbackReleases(
-  query: string,
-  title?: string,
-): ParsedRelease[] {
+export function fallbackReleases(query: string, title?: string): ParsedRelease[] {
   const base = title || query || "Anime";
   const infoHash = fallbackSearchInfoHash(base);
   return [

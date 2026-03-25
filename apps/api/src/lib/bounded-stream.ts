@@ -1,10 +1,9 @@
 import { Effect, Schema, Stream } from "effect";
 
-export class StreamPayloadTooLargeError
-  extends Schema.TaggedError<StreamPayloadTooLargeError>()(
-    "StreamPayloadTooLargeError",
-    { actualBytes: Schema.Number, maxBytes: Schema.Number },
-  ) {}
+export class StreamPayloadTooLargeError extends Schema.TaggedError<StreamPayloadTooLargeError>()(
+  "StreamPayloadTooLargeError",
+  { actualBytes: Schema.Number, maxBytes: Schema.Number },
+) {}
 
 /**
  * Collect a binary stream into a single `Uint8Array`, failing with
@@ -18,11 +17,12 @@ export const collectBoundedBytes = (
   let totalBytes = 0;
 
   return stream.pipe(
-    Stream.mapError(() =>
-      new StreamPayloadTooLargeError({
-        actualBytes: totalBytes,
-        maxBytes,
-      })
+    Stream.mapError(
+      () =>
+        new StreamPayloadTooLargeError({
+          actualBytes: totalBytes,
+          maxBytes,
+        }),
     ),
     Stream.runForEach((chunk) => {
       totalBytes += chunk.byteLength;
@@ -62,11 +62,12 @@ export const collectBoundedText = (
   let text = "";
 
   return stream.pipe(
-    Stream.mapError(() =>
-      new StreamPayloadTooLargeError({
-        actualBytes: totalBytes,
-        maxBytes,
-      })
+    Stream.mapError(
+      () =>
+        new StreamPayloadTooLargeError({
+          actualBytes: totalBytes,
+          maxBytes,
+        }),
     ),
     Stream.runForEach((chunk) => {
       totalBytes += chunk.byteLength;

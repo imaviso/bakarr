@@ -22,10 +22,7 @@ export function Breadcrumb() {
                 <Show when={index() > 0}>
                   <span class="text-muted-foreground/50">/</span>
                 </Show>
-                <Show
-                  when={!isLast}
-                  fallback={<span class="text-sm font-medium">{label}</span>}
-                >
+                <Show when={!isLast} fallback={<span class="text-sm font-medium">{label}</span>}>
                   <Link
                     to={path}
                     class="text-sm text-muted-foreground hover:text-foreground transition-colors"

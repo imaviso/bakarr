@@ -15,10 +15,7 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import { AppRuntime } from "../../app-runtime.ts";
 import { AppConfig } from "../../config.ts";
-import {
-  BackgroundWorkerController,
-  BackgroundWorkerMonitor,
-} from "../../background.ts";
+import { BackgroundWorkerController, BackgroundWorkerMonitor } from "../../background.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { anime, episodes, systemLogs } from "../../db/schema.ts";
 import { currentTimeMillis } from "../../lib/clock.ts";
@@ -29,26 +26,15 @@ import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
 } from "../operations/repository.ts";
-import {
-  DEFAULT_PROFILES,
-  DEFAULT_QUALITIES,
-  makeDefaultConfig,
-} from "./defaults.ts";
+import { DEFAULT_PROFILES, DEFAULT_QUALITIES, makeDefaultConfig } from "./defaults.ts";
 import {
   composeBackgroundJobStatuses,
   countRunningBackgroundJobStatuses,
   findBackgroundJobStatus,
 } from "./background-status.ts";
-import {
-  persistAndActivateConfig,
-  type PersistedSystemConfigState,
-} from "./config-activation.ts";
+import { persistAndActivateConfig, type PersistedSystemConfigState } from "./config-activation.ts";
 import { setRuntimeLogLevel } from "../../lib/logging.ts";
-import {
-  ConfigValidationError,
-  ProfileNotFoundError,
-  StoredConfigCorruptError,
-} from "./errors.ts";
+import { ConfigValidationError, ProfileNotFoundError, StoredConfigCorruptError } from "./errors.ts";
 import {
   type ConfigCore,
   effectDecodeConfigCore,
@@ -60,11 +46,7 @@ import {
   encodeReleaseProfileRules,
 } from "./config-codec.ts";
 import { appendSystemLog, normalizeLevel, nowIso } from "./support.ts";
-import {
-  DiskSpaceError,
-  getDiskSpaceSafe,
-  selectStoragePath,
-} from "./disk-space.ts";
+import { DiskSpaceError, getDiskSpaceSafe, selectStoragePath } from "./disk-space.ts";
 import {
   countActiveDownloads,
   countAnimeRows,
@@ -113,24 +95,16 @@ export interface SystemServiceShape {
     OpsDashboard,
     DatabaseError | ConfigValidationError | StoredConfigCorruptError
   >;
-  readonly getConfig: () => Effect.Effect<
-    Config,
-    DatabaseError | StoredConfigCorruptError
-  >;
+  readonly getConfig: () => Effect.Effect<Config, DatabaseError | StoredConfigCorruptError>;
   readonly updateConfig: (
     config: Config,
-  ) => Effect.Effect<
-    Config,
-    DatabaseError | ConfigValidationError | StoredConfigCorruptError
-  >;
+  ) => Effect.Effect<Config, DatabaseError | ConfigValidationError | StoredConfigCorruptError>;
   readonly listProfiles: () => Effect.Effect<
     QualityProfile[],
     DatabaseError | StoredConfigCorruptError
   >;
   readonly listQualities: () => Effect.Effect<Quality[], never>;
-  readonly createProfile: (
-    profile: QualityProfile,
-  ) => Effect.Effect<QualityProfile, DatabaseError>;
+  readonly createProfile: (profile: QualityProfile) => Effect.Effect<QualityProfile, DatabaseError>;
   readonly updateProfile: (
     name: string,
     profile: QualityProfile,
@@ -149,9 +123,7 @@ export interface SystemServiceShape {
     id: number,
     input: Omit<ReleaseProfile, "id">,
   ) => Effect.Effect<void, DatabaseError>;
-  readonly deleteReleaseProfile: (
-    id: number,
-  ) => Effect.Effect<void, DatabaseError>;
+  readonly deleteReleaseProfile: (id: number) => Effect.Effect<void, DatabaseError>;
   readonly getLogs: (input: {
     page: number;
     pageSize?: number;
@@ -200,37 +172,25 @@ const makeSystemService = Effect.gen(function* () {
     return profile;
   });
 
-  const deleteProfile = Effect.fn("SystemService.deleteProfile")(function* (
-    name: string,
-  ) {
+  const deleteProfile = Effect.fn("SystemService.deleteProfile")(function* (name: string) {
     const referencingAnime = yield* countAnimeUsingProfile(db, name);
 
     if (referencingAnime > 0) {
       return yield* new ConfigValidationError({
-        message:
-          `Cannot delete profile '${name}': still referenced by ${referencingAnime} anime`,
+        message: `Cannot delete profile '${name}': still referenced by ${referencingAnime} anime`,
       });
     }
 
     yield* deleteQualityProfileRow(db, name);
-    yield* appendSystemLog(
-      db,
-      "profiles.deleted",
-      "success",
-      `Quality profile '${name}' deleted`,
-    );
+    yield* appendSystemLog(db, "profiles.deleted", "success", `Quality profile '${name}' deleted`);
   });
 
-  const listReleaseProfiles = Effect.fn(
-    "SystemService.listReleaseProfiles",
-  )(function* () {
+  const listReleaseProfiles = Effect.fn("SystemService.listReleaseProfiles")(function* () {
     const rows = yield* listReleaseProfileRows(db);
     return yield* Effect.forEach(rows, effectDecodeReleaseProfileRow);
   });
 
-  const createReleaseProfile = Effect.fn(
-    "SystemService.createReleaseProfile",
-  )(function* (
+  const createReleaseProfile = Effect.fn("SystemService.createReleaseProfile")(function* (
     input: Omit<ReleaseProfile, "id" | "enabled"> & { enabled?: boolean },
   ) {
     const created = yield* insertReleaseProfileRow(db, {
@@ -249,9 +209,10 @@ const makeSystemService = Effect.gen(function* () {
     return yield* effectDecodeReleaseProfileRow(created);
   });
 
-  const updateReleaseProfile = Effect.fn(
-    "SystemService.updateReleaseProfile",
-  )(function* (id: number, input: Omit<ReleaseProfile, "id">) {
+  const updateReleaseProfile = Effect.fn("SystemService.updateReleaseProfile")(function* (
+    id: number,
+    input: Omit<ReleaseProfile, "id">,
+  ) {
     yield* updateReleaseProfileRow(db, id, {
       enabled: input.enabled,
       isGlobal: input.is_global,
@@ -267,9 +228,9 @@ const makeSystemService = Effect.gen(function* () {
     );
   });
 
-  const deleteReleaseProfile = Effect.fn(
-    "SystemService.deleteReleaseProfile",
-  )(function* (id: number) {
+  const deleteReleaseProfile = Effect.fn("SystemService.deleteReleaseProfile")(function* (
+    id: number,
+  ) {
     yield* deleteReleaseProfileRow(db, id);
     yield* appendSystemLog(
       db,
@@ -280,18 +241,16 @@ const makeSystemService = Effect.gen(function* () {
   });
 
   const clearLogs = Effect.fn("SystemService.clearLogs")(function* () {
-    yield* tryDatabasePromise(
-      "Failed to clear system logs",
-      () => db.delete(systemLogs),
-    );
+    yield* tryDatabasePromise("Failed to clear system logs", () => db.delete(systemLogs));
   });
 
-  const triggerInfoEvent = Effect.fn("SystemService.triggerInfoEvent")(
-    function* (message: string, eventType: string) {
-      yield* appendSystemLog(db, eventType, "info", message);
-      yield* eventPublisher.publishInfo(message);
-    },
-  );
+  const triggerInfoEvent = Effect.fn("SystemService.triggerInfoEvent")(function* (
+    message: string,
+    eventType: string,
+  ) {
+    yield* appendSystemLog(db, eventType, "info", message);
+    yield* eventPublisher.publishInfo(message);
+  });
 
   /**
    * First-run initialization (idempotent):
@@ -305,156 +264,127 @@ const makeSystemService = Effect.gen(function* () {
    * handled by {@link getConfig} which surfaces StoredConfigCorruptError to
    * the caller so the operator can re-save via the UI.
    */
-  const ensureInitialized = Effect.fn("SystemService.ensureInitialized")(
-    function* () {
-      const configRow = yield* loadSystemConfigRow(db);
+  const ensureInitialized = Effect.fn("SystemService.ensureInitialized")(function* () {
+    const configRow = yield* loadSystemConfigRow(db);
 
-      if (!configRow) {
-        const initNow = yield* nowIso;
-        yield* insertSystemConfigRow(db, {
-          data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
-          id: 1,
-          updatedAt: initNow,
-        });
+    if (!configRow) {
+      const initNow = yield* nowIso;
+      yield* insertSystemConfigRow(db, {
+        data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
+        id: 1,
+        updatedAt: initNow,
+      });
+    }
+
+    const existingProfile = yield* loadAnyQualityProfileRow(db);
+
+    if (!existingProfile) {
+      yield* insertQualityProfileRows(db, DEFAULT_PROFILES.map(encodeQualityProfileRow));
+    }
+
+    const storedConfig = yield* loadSystemConfigRow(db);
+
+    if (storedConfig) {
+      const decoded = yield* effectDecodeConfigCore(storedConfig.data).pipe(Effect.either);
+
+      if (decoded._tag === "Right") {
+        setRuntimeLogLevel(decoded.right.general.log_level);
       }
-
-      const existingProfile = yield* loadAnyQualityProfileRow(db);
-
-      if (!existingProfile) {
-        yield* insertQualityProfileRows(
-          db,
-          DEFAULT_PROFILES.map(encodeQualityProfileRow),
-        );
-      }
-
-      const storedConfig = yield* loadSystemConfigRow(db);
-
-      if (storedConfig) {
-        const decoded = yield* effectDecodeConfigCore(storedConfig.data).pipe(
-          Effect.either,
-        );
-
-        if (decoded._tag === "Right") {
-          setRuntimeLogLevel(decoded.right.general.log_level);
-        }
-      }
-    },
-  );
-
-  const loadComposedBackgroundJobs = Effect.fn(
-    "SystemService.loadComposedBackgroundJobs",
-  )(function* (currentConfig: Config) {
-    const rows = yield* listBackgroundJobRows(db);
-    const liveSnapshot = yield* backgroundWorkerMonitor.snapshot();
-
-    return composeBackgroundJobStatuses(currentConfig, liveSnapshot, rows);
+    }
   });
 
-  const getSystemStatus = Effect.fn("SystemService.getSystemStatus")(
-    function* () {
-      const storedConfig = yield* loadSystemConfigRow(db);
+  const loadComposedBackgroundJobs = Effect.fn("SystemService.loadComposedBackgroundJobs")(
+    function* (currentConfig: Config) {
+      const rows = yield* listBackgroundJobRows(db);
+      const liveSnapshot = yield* backgroundWorkerMonitor.snapshot();
 
-      const core = storedConfig
-        ? yield* effectDecodeConfigCore(storedConfig.data)
-        : makeDefaultConfig(config.databaseFile);
+      return composeBackgroundJobStatuses(currentConfig, liveSnapshot, rows);
+    },
+  );
 
-      const storagePath = selectStoragePath({
+  const getSystemStatus = Effect.fn("SystemService.getSystemStatus")(function* () {
+    const storedConfig = yield* loadSystemConfigRow(db);
+
+    const core = storedConfig
+      ? yield* effectDecodeConfigCore(storedConfig.data)
+      : makeDefaultConfig(config.databaseFile);
+
+    const storagePath = selectStoragePath(
+      {
         ...core,
         profiles: [],
-      } as Config, config.databaseFile);
-      const diskSpace = yield* getDiskSpaceSafe(storagePath);
-      const queuedDownloads = yield* countQueuedDownloads(db);
-      const activeDownloads = yield* countActiveDownloads(db);
-      const jobs = yield* loadComposedBackgroundJobs(
-        {
-          ...core,
-          profiles: [],
-        } as Config,
-      );
-      const rssJob = findBackgroundJobStatus(jobs, "rss");
-      const scanJob = findBackgroundJobStatus(jobs, "library_scan");
-      const metadataRefreshJob = findBackgroundJobStatus(
-        jobs,
-        "metadata_refresh",
-      );
-      const now = yield* currentTimeMillis;
+      } as Config,
+      config.databaseFile,
+    );
+    const diskSpace = yield* getDiskSpaceSafe(storagePath);
+    const queuedDownloads = yield* countQueuedDownloads(db);
+    const activeDownloads = yield* countActiveDownloads(db);
+    const jobs = yield* loadComposedBackgroundJobs({
+      ...core,
+      profiles: [],
+    } as Config);
+    const rssJob = findBackgroundJobStatus(jobs, "rss");
+    const scanJob = findBackgroundJobStatus(jobs, "library_scan");
+    const metadataRefreshJob = findBackgroundJobStatus(jobs, "metadata_refresh");
+    const now = yield* currentTimeMillis;
 
-      return {
-        active_torrents: activeDownloads,
-        disk_space: { free: diskSpace.free, total: diskSpace.total },
-        last_rss: rssJob?.last_success_at ?? rssJob?.last_run_at ?? null,
-        last_scan: scanJob?.last_success_at ?? scanJob?.last_run_at ?? null,
-        last_metadata_refresh: metadataRefreshJob?.last_success_at ??
-          metadataRefreshJob?.last_run_at ??
-          null,
-        pending_downloads: queuedDownloads,
-        uptime: Math.max(
-          0,
-          Math.floor((now - runtime.startedAt.getTime()) / 1000),
-        ),
-        version: config.appVersion,
-      } satisfies SystemStatus;
-    },
-  );
+    return {
+      active_torrents: activeDownloads,
+      disk_space: { free: diskSpace.free, total: diskSpace.total },
+      last_rss: rssJob?.last_success_at ?? rssJob?.last_run_at ?? null,
+      last_scan: scanJob?.last_success_at ?? scanJob?.last_run_at ?? null,
+      last_metadata_refresh:
+        metadataRefreshJob?.last_success_at ?? metadataRefreshJob?.last_run_at ?? null,
+      pending_downloads: queuedDownloads,
+      uptime: Math.max(0, Math.floor((now - runtime.startedAt.getTime()) / 1000)),
+      version: config.appVersion,
+    } satisfies SystemStatus;
+  });
 
-  const getLibraryStats = Effect.fn("SystemService.getLibraryStats")(
-    function* () {
-      const totalAnime = yield* countAnimeRows(db);
-      const monitoredAnime = yield* countMonitoredAnimeRows(db);
-      const totalEpisodes = yield* countEpisodeRows(db);
-      const downloadedEpisodes = yield* countDownloadedEpisodeRows(db);
-      const totalRssFeeds = yield* countRssFeedRows(db);
-      const completedDownloads = yield* countCompletedDownloads(db);
-      const animeRows = yield* tryDatabasePromise(
-        "Failed to load library stats",
-        () => db.select().from(anime),
-      );
-      const episodeRows = yield* tryDatabasePromise(
-        "Failed to load library stats",
-        () => db.select().from(episodes),
-      );
-      const episodesByAnimeId = new Map<
-        number,
-        Array<typeof episodes.$inferSelect>
-      >();
+  const getLibraryStats = Effect.fn("SystemService.getLibraryStats")(function* () {
+    const totalAnime = yield* countAnimeRows(db);
+    const monitoredAnime = yield* countMonitoredAnimeRows(db);
+    const totalEpisodes = yield* countEpisodeRows(db);
+    const downloadedEpisodes = yield* countDownloadedEpisodeRows(db);
+    const totalRssFeeds = yield* countRssFeedRows(db);
+    const completedDownloads = yield* countCompletedDownloads(db);
+    const animeRows = yield* tryDatabasePromise("Failed to load library stats", () =>
+      db.select().from(anime),
+    );
+    const episodeRows = yield* tryDatabasePromise("Failed to load library stats", () =>
+      db.select().from(episodes),
+    );
+    const episodesByAnimeId = new Map<number, Array<typeof episodes.$inferSelect>>();
 
-      for (const episodeRow of episodeRows) {
-        const bucket = episodesByAnimeId.get(episodeRow.animeId);
+    for (const episodeRow of episodeRows) {
+      const bucket = episodesByAnimeId.get(episodeRow.animeId);
 
-        if (bucket) {
-          bucket.push(episodeRow);
-        } else {
-          episodesByAnimeId.set(episodeRow.animeId, [episodeRow]);
-        }
+      if (bucket) {
+        bucket.push(episodeRow);
+      } else {
+        episodesByAnimeId.set(episodeRow.animeId, [episodeRow]);
       }
+    }
 
-      const upToDateAnime = animeRows
-        .map((animeRow) =>
-          toAnimeDto(animeRow, episodesByAnimeId.get(animeRow.id) ?? [])
-        )
-        .filter((animeDto) =>
-          animeDto.monitored && animeDto.progress.is_up_to_date
-        )
-        .length;
+    const upToDateAnime = animeRows
+      .map((animeRow) => toAnimeDto(animeRow, episodesByAnimeId.get(animeRow.id) ?? []))
+      .filter((animeDto) => animeDto.monitored && animeDto.progress.is_up_to_date).length;
 
-      return {
-        downloaded_episodes: downloadedEpisodes,
-        downloaded_percent: totalEpisodes > 0
-          ? Math.min(
-            100,
-            Math.round((downloadedEpisodes / totalEpisodes) * 100),
-          )
+    return {
+      downloaded_episodes: downloadedEpisodes,
+      downloaded_percent:
+        totalEpisodes > 0
+          ? Math.min(100, Math.round((downloadedEpisodes / totalEpisodes) * 100))
           : 0,
-        missing_episodes: Math.max(totalEpisodes - downloadedEpisodes, 0),
-        monitored_anime: monitoredAnime,
-        recent_downloads: completedDownloads,
-        rss_feeds: totalRssFeeds,
-        total_anime: totalAnime,
-        total_episodes: totalEpisodes,
-        up_to_date_anime: upToDateAnime,
-      };
-    },
-  );
+      missing_episodes: Math.max(totalEpisodes - downloadedEpisodes, 0),
+      monitored_anime: monitoredAnime,
+      recent_downloads: completedDownloads,
+      rss_feeds: totalRssFeeds,
+      total_anime: totalAnime,
+      total_episodes: totalEpisodes,
+      up_to_date_anime: upToDateAnime,
+    };
+  });
 
   const getActivity = Effect.fn("SystemService.getActivity")(function* () {
     const rows = yield* listRecentSystemLogRows(db, 20);
@@ -482,9 +412,8 @@ const makeSystemService = Effect.gen(function* () {
     const importedDownloads = yield* countImportedDownloads(db);
     const jobs = yield* loadComposedBackgroundJobs(currentConfig);
     const events = yield* listRecentDownloadEventRows(db, 12);
-    const eventContexts = yield* tryDatabasePromise(
-      "Failed to load ops dashboard",
-      () => loadDownloadEventPresentationContexts(db, events),
+    const eventContexts = yield* tryDatabasePromise("Failed to load ops dashboard", () =>
+      loadDownloadEventPresentationContexts(db, events),
     );
 
     return {
@@ -493,9 +422,7 @@ const makeSystemService = Effect.gen(function* () {
       imported_downloads: importedDownloads,
       jobs,
       queued_downloads: queuedDownloads,
-      recent_download_events: events.map((row) =>
-        toDownloadEvent(row, eventContexts.get(row.id))
-      ),
+      recent_download_events: events.map((row) => toDownloadEvent(row, eventContexts.get(row.id))),
       running_jobs: countRunningBackgroundJobStatuses(jobs),
     } as OpsDashboard;
   });
@@ -522,19 +449,16 @@ const makeSystemService = Effect.gen(function* () {
     const profiles = yield* listQualityProfileRows(db);
 
     const core = yield* effectDecodeStoredConfigRow(storedConfig).pipe(
-      Effect.catchTag(
-        "StoredConfigMissingError",
-        () => Effect.succeed(makeDefaultConfig(config.databaseFile)),
+      Effect.catchTag("StoredConfigMissingError", () =>
+        Effect.succeed(makeDefaultConfig(config.databaseFile)),
       ),
-      Effect.catchTag(
-        "StoredConfigCorruptError",
-        () =>
-          Effect.fail(
-            new StoredConfigCorruptError({
-              message:
-                "Stored configuration is corrupt and could not be decoded. Re-save config to repair.",
-            }),
-          ),
+      Effect.catchTag("StoredConfigCorruptError", () =>
+        Effect.fail(
+          new StoredConfigCorruptError({
+            message:
+              "Stored configuration is corrupt and could not be decoded. Re-save config to repair.",
+          }),
+        ),
       ),
     );
     const defaults = makeDefaultConfig(config.databaseFile);
@@ -549,9 +473,7 @@ const makeSystemService = Effect.gen(function* () {
     } satisfies Config;
   });
 
-  const updateConfig = Effect.fn("SystemService.updateConfig")(function* (
-    nextConfig: Config,
-  ) {
+  const updateConfig = Effect.fn("SystemService.updateConfig")(function* (nextConfig: Config) {
     const cronExpression = nextConfig.scheduler.cron_expression?.trim();
 
     if (nextConfig.scheduler.enabled && cronExpression) {
@@ -573,15 +495,11 @@ const makeSystemService = Effect.gen(function* () {
       .filter((name) => !keptProfileNames.has(name));
 
     for (const removedProfileName of removedProfileNames) {
-      const referencingAnime = yield* countAnimeUsingProfile(
-        db,
-        removedProfileName,
-      );
+      const referencingAnime = yield* countAnimeUsingProfile(db, removedProfileName);
 
       if (referencingAnime > 0) {
         return yield* new ConfigValidationError({
-          message:
-            `Cannot remove profile '${removedProfileName}': still referenced by ${referencingAnime} anime`,
+          message: `Cannot remove profile '${removedProfileName}': still referenced by ${referencingAnime} anime`,
         });
       }
     }
@@ -600,15 +518,15 @@ const makeSystemService = Effect.gen(function* () {
     const previousState: PersistedSystemConfigState = {
       coreRow: previousConfigRow
         ? {
-          data: previousConfigRow.data,
-          id: previousConfigRow.id,
-          updatedAt: previousConfigRow.updatedAt,
-        }
+            data: previousConfigRow.data,
+            id: previousConfigRow.id,
+            updatedAt: previousConfigRow.updatedAt,
+          }
         : {
-          data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
-          id: 1,
-          updatedAt,
-        },
+            data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
+            id: 1,
+            updatedAt,
+          },
       profileRows: existingProfileRows.map((row) => ({
         allowedQualities: row.allowedQualities,
         cutoff: row.cutoff,
@@ -632,17 +550,11 @@ const makeSystemService = Effect.gen(function* () {
       activateConfig: (value) => workerController.reload(value),
       nextConfig,
       nextState,
-      persistState: (state) =>
-        updateSystemConfigAtomic(db, state.coreRow, state.profileRows),
+      persistState: (state) => updateSystemConfigAtomic(db, state.coreRow, state.profileRows),
       previousState,
     });
 
-    yield* appendSystemLog(
-      db,
-      "system.config.updated",
-      "success",
-      "System configuration updated",
-    );
+    yield* appendSystemLog(db, "system.config.updated", "success", "System configuration updated");
 
     setRuntimeLogLevel(nextConfig.general.log_level);
 
@@ -661,17 +573,8 @@ const makeSystemService = Effect.gen(function* () {
       });
     }
 
-    yield* renameQualityProfileWithCascade(
-      db,
-      name,
-      encodeQualityProfileRow(profile),
-    );
-    yield* appendSystemLog(
-      db,
-      "profiles.updated",
-      "success",
-      `Quality profile '${name}' updated`,
-    );
+    yield* renameQualityProfileWithCascade(db, name, encodeQualityProfileRow(profile));
+    yield* appendSystemLog(db, "profiles.updated", "success", `Quality profile '${name}' updated`);
 
     return profile;
   });
@@ -685,10 +588,7 @@ const makeSystemService = Effect.gen(function* () {
     pageSize?: number;
   }) {
     const safePage = Math.max(1, input.page);
-    const safePageSize = Math.max(
-      1,
-      Math.min(input.pageSize ?? PAGE_SIZE, 10_000),
-    );
+    const safePageSize = Math.max(1, Math.min(input.pageSize ?? PAGE_SIZE, 10_000));
     const { rows, total } = yield* loadSystemLogPage(db, {
       endDate: input.endDate,
       eventType: input.eventType,

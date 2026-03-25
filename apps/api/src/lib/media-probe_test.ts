@@ -14,25 +14,27 @@ import {
 
 it("parseFfprobeJson extracts canonical media metadata", () => {
   assertEquals(
-    parseFfprobeJson(JSON.stringify({
-      format: {
-        duration: "1440.4",
-      },
-      streams: [
-        {
-          codec_name: "hevc",
-          codec_type: "video",
-          height: 1080,
-          width: 1920,
+    parseFfprobeJson(
+      JSON.stringify({
+        format: {
+          duration: "1440.4",
         },
-        {
-          channel_layout: "stereo",
-          channels: 2,
-          codec_name: "aac",
-          codec_type: "audio",
-        },
-      ],
-    })),
+        streams: [
+          {
+            codec_name: "hevc",
+            codec_type: "video",
+            height: 1080,
+            width: 1920,
+          },
+          {
+            channel_layout: "stereo",
+            channels: 2,
+            codec_name: "aac",
+            codec_type: "audio",
+          },
+        ],
+      }),
+    ),
     {
       audio_channels: "2.0",
       audio_codec: "AAC",
@@ -51,16 +53,19 @@ it("mergeProbedMediaMetadata fills only missing fields", () => {
       duration_seconds?: number;
       resolution?: string;
       video_codec?: string;
-    }>({
-      resolution: "720p",
-      video_codec: "AVC",
-    }, {
-      audio_channels: "2.0",
-      audio_codec: "AAC",
-      duration_seconds: 1440,
-      resolution: "1080p",
-      video_codec: "HEVC",
-    }),
+    }>(
+      {
+        resolution: "720p",
+        video_codec: "AVC",
+      },
+      {
+        audio_channels: "2.0",
+        audio_codec: "AAC",
+        duration_seconds: 1440,
+        resolution: "1080p",
+        video_codec: "HEVC",
+      },
+    ),
     {
       audio_channels: "2.0",
       audio_codec: "AAC",
@@ -112,46 +117,43 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
         maxActive = active;
       }
 
-      return Effect.promise(() =>
-        new Promise<string>((resolve) => {
-          setTimeout(() => {
-            active -= 1;
-            resolve(
-              '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080}],"format":{"duration":"24"}}',
-            );
-          }, 25);
-        })
+      return Effect.promise(
+        () =>
+          new Promise<string>((resolve) => {
+            setTimeout(() => {
+              active -= 1;
+              resolve(
+                '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080}],"format":{"duration":"24"}}',
+              );
+            }, 25);
+          }),
       );
     });
 
     yield* Effect.flatMap(MediaProbe, (mediaProbe) =>
       Effect.forEach(
-        Array.from(
-          { length: 10 },
-          (_, index) => `/tmp/media-probe-${index}.mkv`,
-        ),
+        Array.from({ length: 10 }, (_, index) => `/tmp/media-probe-${index}.mkv`),
         (path) => mediaProbe.probeVideoFile(path),
         { concurrency: "unbounded" },
-      )).pipe(
-        Effect.provide(
-          Layer.mergeAll(
-            MediaProbeLive,
-            Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub),
-          ),
+      ),
+    ).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          MediaProbeLive,
+          Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub),
         ),
-      );
+      ),
+    );
 
     assertEquals(maxActive <= FFPROBE_CONCURRENCY_LIMIT, true);
-  })
+  }),
 );
 
 function makeCommandExecutorStub(
-  runAsString: (
-    command: {
-      readonly args: ReadonlyArray<string>;
-      readonly command: string;
-    },
-  ) => Effect.Effect<string, never>,
+  runAsString: (command: {
+    readonly args: ReadonlyArray<string>;
+    readonly command: string;
+  }) => Effect.Effect<string, never>,
 ): CommandExecutor.CommandExecutor {
   const parseOutput = (output: string): MediaProbeCommandOutput => ({
     stdout: output,
@@ -161,22 +163,19 @@ function makeCommandExecutorStub(
     [CommandExecutor.TypeId]: CommandExecutor.TypeId,
     exitCode: () => Effect.die("exitCode not implemented for test"),
     lines: (command, _encoding) =>
-      runAsString(command as { args: ReadonlyArray<string>; command: string })
-        .pipe(
-          Effect.map((value) =>
-            parseOutput(value).stdout.split(/\r?\n/).filter((line) =>
-              line.length > 0
-            )
-          ),
+      runAsString(command as { args: ReadonlyArray<string>; command: string }).pipe(
+        Effect.map((value) =>
+          parseOutput(value)
+            .stdout.split(/\r?\n/)
+            .filter((line) => line.length > 0),
         ),
+      ),
     start: () => Effect.die("start not implemented for test"),
     stream: () => Effect.die("stream not implemented for test") as never,
-    streamLines: () =>
-      Effect.die("streamLines not implemented for test") as never,
+    streamLines: () => Effect.die("streamLines not implemented for test") as never,
     string: (command, _encoding) =>
-      runAsString(command as { args: ReadonlyArray<string>; command: string })
-        .pipe(
-          Effect.map((value) => parseOutput(value).stdout),
-        ),
+      runAsString(command as { args: ReadonlyArray<string>; command: string }).pipe(
+        Effect.map((value) => parseOutput(value).stdout),
+      ),
   };
 }

@@ -9,11 +9,7 @@ import {
   CommandList,
 } from "~/components/ui/command";
 import { Button } from "~/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "~/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import { formatTimeZoneLabel, getTimeZoneOptions } from "~/lib/timezones";
 import { cn } from "~/lib/utils";
 
@@ -46,9 +42,7 @@ export function TimezonePicker(props: TimezonePickerProps) {
               <For each={options()}>
                 {(option) => (
                   <CommandItem
-                    value={`${option.value} ${option.label} ${
-                      option.note ?? ""
-                    }`}
+                    value={`${option.value} ${option.label} ${option.note ?? ""}`}
                     onSelect={() => {
                       props.onChange(option.value);
                       setOpen(false);
@@ -57,17 +51,13 @@ export function TimezonePicker(props: TimezonePickerProps) {
                     <IconCheck
                       class={cn(
                         "mr-2 h-4 w-4",
-                        selectedValue() === option.value
-                          ? "opacity-100"
-                          : "opacity-0",
+                        selectedValue() === option.value ? "opacity-100" : "opacity-0",
                       )}
                     />
                     <div class="min-w-0 flex-1">
                       <div class="truncate">{option.label}</div>
                       <Show when={option.note}>
-                        <div class="truncate text-xs text-muted-foreground">
-                          {option.note}
-                        </div>
+                        <div class="truncate text-xs text-muted-foreground">{option.note}</div>
                       </Show>
                     </div>
                   </CommandItem>

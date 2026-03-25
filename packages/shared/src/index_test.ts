@@ -53,9 +53,7 @@ import {
 
 it("shared config schemas accept canonical literal values", () => {
   const importMode = Schema.decodeUnknownEither(ImportModeSchema)("copy");
-  const preferredTitle = Schema.decodeUnknownEither(PreferredTitleSchema)(
-    "english",
-  );
+  const preferredTitle = Schema.decodeUnknownEither(PreferredTitleSchema)("english");
   const ruleType = Schema.decodeUnknownEither(RuleTypeSchema)("must_not");
 
   assertEquals(importMode._tag, "Right");
@@ -65,9 +63,7 @@ it("shared config schemas accept canonical literal values", () => {
 
 it("shared config schemas reject unsupported literals", () => {
   const importMode = Schema.decodeUnknownEither(ImportModeSchema)("link");
-  const preferredTitle = Schema.decodeUnknownEither(PreferredTitleSchema)(
-    "kana",
-  );
+  const preferredTitle = Schema.decodeUnknownEither(PreferredTitleSchema)("kana");
 
   assertEquals(importMode._tag, "Left");
   assertEquals(preferredTitle._tag, "Left");
@@ -105,32 +101,32 @@ it("shared api schemas accept canonical system and download payloads", () => {
     torrent_name: "Naruto - 01",
     to_status: "downloading",
   });
-  const downloadEventsPage = Schema.decodeUnknownEither(
-    DownloadEventsPageSchema,
-  )({
-    events: [{
-      anime_id: 20,
-      created_at: "2024-01-01T00:00:00.000Z",
-      event_type: "download.queued",
-      id: 8,
-      message: "Queued Naruto - 01",
-    }],
+  const downloadEventsPage = Schema.decodeUnknownEither(DownloadEventsPageSchema)({
+    events: [
+      {
+        anime_id: 20,
+        created_at: "2024-01-01T00:00:00.000Z",
+        event_type: "download.queued",
+        id: 8,
+        message: "Queued Naruto - 01",
+      },
+    ],
     has_more: true,
     limit: 25,
     next_cursor: "7",
     prev_cursor: "9",
     total: 80,
   });
-  const downloadEventsExport = Schema.decodeUnknownEither(
-    DownloadEventsExportSchema,
-  )({
-    events: [{
-      anime_id: 20,
-      created_at: "2024-01-01T00:00:00.000Z",
-      event_type: "download.queued",
-      id: 8,
-      message: "Queued Naruto - 01",
-    }],
+  const downloadEventsExport = Schema.decodeUnknownEither(DownloadEventsExportSchema)({
+    events: [
+      {
+        anime_id: 20,
+        created_at: "2024-01-01T00:00:00.000Z",
+        event_type: "download.queued",
+        id: 8,
+        message: "Queued Naruto - 01",
+      },
+    ],
     exported: 1,
     generated_at: "2024-01-01T00:01:00.000Z",
     limit: 1000,
@@ -232,17 +228,19 @@ it("shared dashboard and browse schemas accept canonical payloads", () => {
     imported_downloads: 3,
     jobs: [backgroundJob],
     queued_downloads: 2,
-    recent_download_events: [{
-      anime_id: 20,
-      created_at: "2024-01-01T00:00:00.000Z",
-      download_id: 4,
-      event_type: "download.started",
-      from_status: "queued",
-      id: 8,
-      message: "Started Naruto - 01",
-      metadata: '{"source":"rss"}',
-      to_status: "downloading",
-    }],
+    recent_download_events: [
+      {
+        anime_id: 20,
+        created_at: "2024-01-01T00:00:00.000Z",
+        download_id: 4,
+        event_type: "download.started",
+        from_status: "queued",
+        id: 8,
+        message: "Started Naruto - 01",
+        metadata: '{"source":"rss"}',
+        to_status: "downloading",
+      },
+    ],
     running_jobs: 1,
   });
   const browse = Schema.decodeUnknownEither(BrowseResultSchema)({
@@ -266,9 +264,7 @@ it("shared dashboard and browse schemas accept canonical payloads", () => {
     parent_path: "/",
     total: 2,
   });
-  const backgroundJobStatus = Schema.decodeUnknownEither(
-    BackgroundJobStatusSchema,
-  )(backgroundJob);
+  const backgroundJobStatus = Schema.decodeUnknownEither(BackgroundJobStatusSchema)(backgroundJob);
 
   assertEquals(rssFeed._tag, "Right");
   assertEquals(libraryStats._tag, "Right");
@@ -290,26 +286,30 @@ it("shared search and scanner schemas accept canonical payloads", () => {
     id: 20,
     match_confidence: 0.94,
     match_reason: "Matched AniList search for the normalized folder title",
-    recommended_anime: [{
-      id: 22,
-      rating: 82,
-      title: {
-        english: "Bleach",
-        romaji: "Bleach",
+    recommended_anime: [
+      {
+        id: 22,
+        rating: 82,
+        title: {
+          english: "Bleach",
+          romaji: "Bleach",
+        },
       },
-    }],
-    related_anime: [{
-      id: 21,
-      relation_type: "SEQUEL",
-      season: "spring",
-      season_year: 2025,
-      start_year: 2025,
-      status: "NOT_YET_RELEASED",
-      title: {
-        english: "Naruto Shippuden",
-        romaji: "Naruto Shippuden",
+    ],
+    related_anime: [
+      {
+        id: 21,
+        relation_type: "SEQUEL",
+        season: "spring",
+        season_year: 2025,
+        start_year: 2025,
+        status: "NOT_YET_RELEASED",
+        title: {
+          english: "Naruto Shippuden",
+          romaji: "Naruto Shippuden",
+        },
       },
-    }],
+    ],
     season: "winter",
     season_year: 2024,
     start_date: "2024-01-07",
@@ -321,46 +321,48 @@ it("shared search and scanner schemas accept canonical payloads", () => {
       romaji: "Naruto",
     },
   };
-  const anime = Schema.decodeUnknownEither(AnimeSearchResultSchema)(
-    animeSearchResult,
-  );
+  const anime = Schema.decodeUnknownEither(AnimeSearchResultSchema)(animeSearchResult);
   const searchResults = Schema.decodeUnknownEither(SearchResultsSchema)({
-    results: [{
-      info_hash: "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
-      indexer: "Nyaa",
-      is_seadex: false,
-      is_seadex_best: false,
-      leechers: 1,
-      magnet: "magnet:?xt=urn:btih:abcdef",
-      parsed_episode: "1",
-      parsed_episode_numbers: [1, 2, 3],
-      parsed_group: "SubsPlease",
-      parsed_quality: "WEB-DL 1080p",
-      parsed_resolution: "1080p",
-      pub_date: "2024-01-01T00:00:00.000Z",
-      remake: false,
-      seadex_comparison: "https://releases.moe/compare/example",
-      seadex_dual_audio: true,
-      seadex_notes: "Preferred release",
-      seadex_tags: ["Best"],
-      seeders: 55,
-      size: "1.3 GiB",
-      title: "[SubsPlease] Naruto - 001 (1080p)",
-      trusted: true,
-      view_url: "https://nyaa.si/view/1",
-    }],
+    results: [
+      {
+        info_hash: "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+        indexer: "Nyaa",
+        is_seadex: false,
+        is_seadex_best: false,
+        leechers: 1,
+        magnet: "magnet:?xt=urn:btih:abcdef",
+        parsed_episode: "1",
+        parsed_episode_numbers: [1, 2, 3],
+        parsed_group: "SubsPlease",
+        parsed_quality: "WEB-DL 1080p",
+        parsed_resolution: "1080p",
+        pub_date: "2024-01-01T00:00:00.000Z",
+        remake: false,
+        seadex_comparison: "https://releases.moe/compare/example",
+        seadex_dual_audio: true,
+        seadex_notes: "Preferred release",
+        seadex_tags: ["Best"],
+        seeders: 55,
+        size: "1.3 GiB",
+        title: "[SubsPlease] Naruto - 001 (1080p)",
+        trusted: true,
+        view_url: "https://nyaa.si/view/1",
+      },
+    ],
     seadex_groups: ["SubsPlease"],
   });
   const scannerState = Schema.decodeUnknownEither(ScannerStateSchema)({
-    folders: [{
-      match_attempts: 1,
-      last_matched_at: "2024-01-01T00:00:00.000Z",
-      match_status: "done",
-      name: "Naruto",
-      path: "/imports/Naruto",
-      size: 1024,
-      suggested_matches: [animeSearchResult],
-    }],
+    folders: [
+      {
+        match_attempts: 1,
+        last_matched_at: "2024-01-01T00:00:00.000Z",
+        match_status: "done",
+        name: "Naruto",
+        path: "/imports/Naruto",
+        size: 1024,
+        suggested_matches: [animeSearchResult],
+      },
+    ],
     has_outstanding_matches: true,
     is_scanning: true,
     last_updated: "2024-01-01T00:00:00.000Z",
@@ -381,21 +383,23 @@ it("shared nested dto schemas reject invalid payloads", () => {
     schedule_mode: "weekly",
   });
   const searchResults = Schema.decodeUnknownEither(SearchResultsSchema)({
-    results: [{
-      info_hash: "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
-      indexer: "Nyaa",
-      is_seadex: false,
-      is_seadex_best: false,
-      leechers: 1,
-      magnet: "magnet:?xt=urn:btih:abcdef",
-      pub_date: "2024-01-01T00:00:00.000Z",
-      remake: false,
-      seeders: "many",
-      size: "1.3 GiB",
-      title: "[SubsPlease] Naruto - 001 (1080p)",
-      trusted: true,
-      view_url: "https://nyaa.si/view/1",
-    }],
+    results: [
+      {
+        info_hash: "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+        indexer: "Nyaa",
+        is_seadex: false,
+        is_seadex_best: false,
+        leechers: 1,
+        magnet: "magnet:?xt=urn:btih:abcdef",
+        pub_date: "2024-01-01T00:00:00.000Z",
+        remake: false,
+        seeders: "many",
+        size: "1.3 GiB",
+        title: "[SubsPlease] Naruto - 001 (1080p)",
+        trusted: true,
+        view_url: "https://nyaa.si/view/1",
+      },
+    ],
     seadex_groups: ["SubsPlease"],
   });
 
@@ -440,26 +444,30 @@ it("shared media schemas accept canonical anime, episode, download, and calendar
     },
     release_profile_ids: [1, 2],
     root_folder: "/library/Naruto",
-    related_anime: [{
-      id: 21,
-      relation_type: "SEQUEL",
-      season: "spring",
-      season_year: 2025,
-      start_year: 2025,
-      status: "NOT_YET_RELEASED",
-      title: {
-        english: "Naruto Shippuden",
-        romaji: "Naruto Shippuden",
+    related_anime: [
+      {
+        id: 21,
+        relation_type: "SEQUEL",
+        season: "spring",
+        season_year: 2025,
+        start_year: 2025,
+        status: "NOT_YET_RELEASED",
+        title: {
+          english: "Naruto Shippuden",
+          romaji: "Naruto Shippuden",
+        },
       },
-    }],
-    recommended_anime: [{
-      id: 22,
-      rating: 82,
-      title: {
-        english: "Bleach",
-        romaji: "Bleach",
+    ],
+    recommended_anime: [
+      {
+        id: 22,
+        rating: 82,
+        title: {
+          english: "Bleach",
+          romaji: "Bleach",
+        },
       },
-    }],
+    ],
     score: 82,
     season: "winter",
     season_year: 2024,
@@ -563,32 +571,38 @@ it("shared profile and import schemas accept canonical payloads", () => {
     id: 4,
     is_global: false,
     name: "Preferred Subs",
-    rules: [{
-      rule_type: "preferred",
-      score: 10,
-      term: "SubsPlease",
-    }],
+    rules: [
+      {
+        rule_type: "preferred",
+        score: 10,
+        term: "SubsPlease",
+      },
+    ],
   });
   const importResult = Schema.decodeUnknownEither(ImportResultSchema)({
     failed: 1,
-    failed_files: [{
-      error: "Missing episode mapping",
-      source_path: "/imports/bad-file.mkv",
-    }],
-    imported: 2,
-    imported_files: [{
-      anime_id: 20,
-      destination_path: "/library/Naruto/Naruto - 01.mkv",
-      episode_number: 1,
-      naming_fallback_used: false,
-      naming_filename: "Naruto - 01.mkv",
-      naming_format_used: "{title} - {episode_segment}",
-      naming_metadata_snapshot: {
-        title: "Naruto",
-        title_source: "preferred_romaji",
+    failed_files: [
+      {
+        error: "Missing episode mapping",
+        source_path: "/imports/bad-file.mkv",
       },
-      source_path: "/imports/Naruto - 01.mkv",
-    }],
+    ],
+    imported: 2,
+    imported_files: [
+      {
+        anime_id: 20,
+        destination_path: "/library/Naruto/Naruto - 01.mkv",
+        episode_number: 1,
+        naming_fallback_used: false,
+        naming_filename: "Naruto - 01.mkv",
+        naming_format_used: "{title} - {episode_segment}",
+        naming_metadata_snapshot: {
+          title: "Naruto",
+          title_source: "preferred_romaji",
+        },
+        source_path: "/imports/Naruto - 01.mkv",
+      },
+    ],
   });
 
   assertEquals(qualityProfile._tag, "Right");
@@ -619,25 +633,31 @@ it("shared media and profile schemas reject invalid nested payloads", () => {
     id: 4,
     is_global: false,
     name: "Preferred Subs",
-    rules: [{
-      rule_type: "preferred-ish",
-      score: 10,
-      term: "SubsPlease",
-    }],
+    rules: [
+      {
+        rule_type: "preferred-ish",
+        score: 10,
+        term: "SubsPlease",
+      },
+    ],
   });
   const importResult = Schema.decodeUnknownEither(ImportResultSchema)({
     failed: 1,
-    failed_files: [{
-      error: "Missing episode mapping",
-      source_path: "/imports/bad-file.mkv",
-    }],
+    failed_files: [
+      {
+        error: "Missing episode mapping",
+        source_path: "/imports/bad-file.mkv",
+      },
+    ],
     imported: 2,
-    imported_files: [{
-      anime_id: 20,
-      destination_path: "/library/Naruto/Naruto - 01.mkv",
-      episode_number: "one",
-      source_path: "/imports/Naruto - 01.mkv",
-    }],
+    imported_files: [
+      {
+        anime_id: 20,
+        destination_path: "/library/Naruto/Naruto - 01.mkv",
+        episode_number: "one",
+        source_path: "/imports/Naruto - 01.mkv",
+      },
+    ],
   });
 
   assertEquals(anime._tag, "Left");
@@ -672,9 +692,7 @@ it("shared auth and utility schemas accept canonical payloads", () => {
     password: "secret",
     username: "admin",
   });
-  const apiKeyLoginRequest = Schema.decodeUnknownEither(
-    ApiKeyLoginRequestSchema,
-  )({
+  const apiKeyLoginRequest = Schema.decodeUnknownEither(ApiKeyLoginRequestSchema)({
     api_key: "abc123",
   });
   const loginResponse = Schema.decodeUnknownEither(LoginResponseSchema)({
@@ -682,9 +700,7 @@ it("shared auth and utility schemas accept canonical payloads", () => {
     must_change_password: false,
     username: "admin",
   });
-  const changePassword = Schema.decodeUnknownEither(
-    ChangePasswordRequestSchema,
-  )({
+  const changePassword = Schema.decodeUnknownEither(ChangePasswordRequestSchema)({
     current_password: "old",
     new_password: "new",
   });
@@ -756,16 +772,16 @@ it("shared operational detail schemas accept canonical payloads", () => {
     level: "success",
     message: "Imported file",
   });
-  const systemLogsResponse = Schema.decodeUnknownEither(
-    SystemLogsResponseSchema,
-  )({
-    logs: [{
-      created_at: "2024-01-01T00:00:00.000Z",
-      event_type: "import",
-      id: 1,
-      level: "success",
-      message: "Imported file",
-    }],
+  const systemLogsResponse = Schema.decodeUnknownEither(SystemLogsResponseSchema)({
+    logs: [
+      {
+        created_at: "2024-01-01T00:00:00.000Z",
+        event_type: "import",
+        id: 1,
+        level: "success",
+        message: "Imported file",
+      },
+    ],
     total_pages: 3,
   });
   const missingEpisode = Schema.decodeUnknownEither(MissingEpisodeSchema)({
@@ -858,9 +874,7 @@ it("shared operational detail schemas accept canonical payloads", () => {
     source_path: "/imports/Naruto - 01.mkv",
     suggested_candidate_id: 20,
     video_codec: "HEVC",
-    warnings: [
-      "Skipped {episode_title} because the file covers multiple episodes",
-    ],
+    warnings: ["Skipped {episode_title} because the file covers multiple episodes"],
   });
   const skippedFile = Schema.decodeUnknownEither(SkippedFileSchema)({
     path: "/imports/readme.txt",
@@ -872,29 +886,37 @@ it("shared operational detail schemas accept canonical payloads", () => {
     path: "/library/Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG",
     search_queries: ["Scissor Seven Season 4", "Scissor Seven"],
     size: 0,
-    suggested_matches: [{
-      id: 20,
-      title: { romaji: "Scissor Seven" },
-    }],
+    suggested_matches: [
+      {
+        id: 20,
+        title: { romaji: "Scissor Seven" },
+      },
+    ],
   });
   const scanResult = Schema.decodeUnknownEither(ScanResultSchema)({
-    candidates: [{
-      id: 20,
-      title: {
-        romaji: "Naruto",
+    candidates: [
+      {
+        id: 20,
+        title: {
+          romaji: "Naruto",
+        },
       },
-    }],
-    files: [{
-      episode_number: 1,
-      episode_numbers: [1, 2],
-      filename: "Naruto - 01.mkv",
-      parsed_title: "Naruto",
-      source_path: "/imports/Naruto - 01.mkv",
-    }],
-    skipped: [{
-      path: "/imports/readme.txt",
-      reason: "Unsupported file type",
-    }],
+    ],
+    files: [
+      {
+        episode_number: 1,
+        episode_numbers: [1, 2],
+        filename: "Naruto - 01.mkv",
+        parsed_title: "Naruto",
+        source_path: "/imports/Naruto - 01.mkv",
+      },
+    ],
+    skipped: [
+      {
+        path: "/imports/readme.txt",
+        reason: "Unsupported file type",
+      },
+    ],
   });
   const downloadAction = Schema.decodeUnknownEither(DownloadActionSchema)({
     Accept: {
@@ -909,9 +931,7 @@ it("shared operational detail schemas accept canonical payloads", () => {
       score: 100,
     },
   });
-  const episodeSearchResult = Schema.decodeUnknownEither(
-    EpisodeSearchResultSchema,
-  )({
+  const episodeSearchResult = Schema.decodeUnknownEither(EpisodeSearchResultSchema)({
     download_action: {
       Reject: {
         reason: "Too many duplicates",
@@ -940,10 +960,10 @@ it("shared operational detail schemas accept canonical payloads", () => {
     trusted: true,
     view_url: "https://nyaa.si/view/1",
   });
-  const notificationEvent = Schema.decodeUnknownEither(NotificationEventSchema)(
-    {
-      payload: {
-        downloads: [{
+  const notificationEvent = Schema.decodeUnknownEither(NotificationEventSchema)({
+    payload: {
+      downloads: [
+        {
           anime_id: 20,
           anime_title: "Naruto",
           downloaded_bytes: 512,
@@ -956,14 +976,12 @@ it("shared operational detail schemas accept canonical payloads", () => {
           speed: 1024,
           state: "downloading",
           total_bytes: 1024,
-        }],
-      },
-      type: "DownloadProgress",
+        },
+      ],
     },
-  );
-  const downloadFinishedEvent = Schema.decodeUnknownEither(
-    NotificationEventSchema,
-  )({
+    type: "DownloadProgress",
+  });
+  const downloadFinishedEvent = Schema.decodeUnknownEither(NotificationEventSchema)({
     payload: {
       anime_id: 20,
       imported_path: "/library/Naruto/Naruto - 01.mkv",
@@ -1018,15 +1036,17 @@ it("shared operational detail schemas accept canonical payloads", () => {
       min_seeders: 5,
       preferred_resolution: null,
     },
-    profiles: [{
-      allowed_qualities: ["1080p"],
-      cutoff: "1080p",
-      max_size: null,
-      min_size: null,
-      name: "Default",
-      seadex_preferred: false,
-      upgrade_allowed: true,
-    }],
+    profiles: [
+      {
+        allowed_qualities: ["1080p"],
+        cutoff: "1080p",
+        max_size: null,
+        min_size: null,
+        name: "Default",
+        seadex_preferred: false,
+        upgrade_allowed: true,
+      },
+    ],
     qbittorrent: {
       default_category: "anime",
       enabled: true,
@@ -1062,15 +1082,13 @@ it("shared operational detail schemas accept canonical payloads", () => {
 });
 
 it("shared config and notification schemas reject invalid payloads", () => {
-  const notificationEvent = Schema.decodeUnknownEither(NotificationEventSchema)(
-    {
-      payload: {
-        current: "1",
-        total: 4,
-      },
-      type: "ScanProgress",
+  const notificationEvent = Schema.decodeUnknownEither(NotificationEventSchema)({
+    payload: {
+      current: "1",
+      total: 4,
     },
-  );
+    type: "ScanProgress",
+  });
   const config = Schema.decodeUnknownEither(ConfigSchema)({
     downloads: {
       create_anime_folders: true,

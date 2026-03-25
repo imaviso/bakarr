@@ -5,7 +5,7 @@ import { ExternalCallError, tryExternal } from "./effect-retry.ts";
 
 it.effect("tryExternal retries transient failures", () =>
   Effect.gen(function* () {
-  let attempts = 0;
+    let attempts = 0;
 
     const fiber = yield* tryExternal("test.retry", () => {
       attempts += 1;
@@ -23,7 +23,7 @@ it.effect("tryExternal retries transient failures", () =>
 
     assertEquals(result, "ok");
     assertEquals(attempts, 3);
-  })
+  }),
 );
 
 it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
@@ -51,5 +51,5 @@ it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
 
     assert(Either.isLeft(result));
     assert(result.left instanceof ExternalCallError);
-  })
+  }),
 );

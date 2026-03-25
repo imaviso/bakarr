@@ -3,9 +3,7 @@ import { createEffect, createSignal, Show } from "solid-js";
 
 export function GlobalSpinner() {
   const state = useRouterState();
-  const [hasCompletedInitialLoad, setHasCompletedInitialLoad] = createSignal(
-    false,
-  );
+  const [hasCompletedInitialLoad, setHasCompletedInitialLoad] = createSignal(false);
 
   createEffect(() => {
     if (state().status === "idle") {
@@ -13,8 +11,7 @@ export function GlobalSpinner() {
     }
   });
 
-  const isRouting = () =>
-    !hasCompletedInitialLoad() && state().status === "pending";
+  const isRouting = () => !hasCompletedInitialLoad() && state().status === "pending";
 
   return (
     <Show when={isRouting()}>

@@ -1,16 +1,8 @@
 import type { Download, DownloadStatus } from "@bakarr/shared";
-import {
-  formatReleaseParsedSummary,
-  formatReleaseSourceSummary,
-} from "~/lib/release-metadata";
-import {
-  formatSelectionSummary,
-  getReleaseConfidence,
-} from "~/lib/release-selection";
+import { formatReleaseParsedSummary, formatReleaseSourceSummary } from "~/lib/release-metadata";
+import { formatSelectionSummary, getReleaseConfidence } from "~/lib/release-selection";
 
-type DownloadLike = Partial<
-  Pick<Download | DownloadStatus, "decision_reason" | "source_metadata">
->;
+type DownloadLike = Partial<Pick<Download | DownloadStatus, "decision_reason" | "source_metadata">>;
 
 export function formatDownloadParsedMeta(item: DownloadLike) {
   return formatReleaseParsedSummary({
@@ -37,15 +29,12 @@ export function formatEpisodeCoverage(
   }
 
   const sorted = [...coveredEpisodes].sort((a, b) => a - b);
-  return `Batch ${sorted[0].toString().padStart(2, "0")}-${
-    sorted[sorted.length - 1].toString().padStart(2, "0")
-  }`;
+  return `Batch ${sorted[0].toString().padStart(2, "0")}-${sorted[sorted.length - 1]
+    .toString()
+    .padStart(2, "0")}`;
 }
 
-export function formatCoverageMeta(
-  coveredEpisodes?: number[],
-  coveragePending?: boolean,
-) {
+export function formatCoverageMeta(coveredEpisodes?: number[], coveragePending?: boolean) {
   if (coveragePending) {
     return "Waiting for qBittorrent file metadata";
   }

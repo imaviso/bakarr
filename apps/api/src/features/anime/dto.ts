@@ -1,9 +1,6 @@
 import { Schema } from "effect";
 import { AnimeDiscoveryEntrySchema } from "../../../../../packages/shared/src/index.ts";
-import type {
-  Anime,
-  AnimeDiscoveryEntry,
-} from "../../../../../packages/shared/src/index.ts";
+import type { Anime, AnimeDiscoveryEntry } from "../../../../../packages/shared/src/index.ts";
 import { anime, episodes } from "../../db/schema.ts";
 
 interface AnimeDiscoveryMetadata {
@@ -12,9 +9,7 @@ interface AnimeDiscoveryMetadata {
   synonyms?: string[];
 }
 
-const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(
-  Schema.Array(AnimeDiscoveryEntrySchema),
-);
+const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(Schema.Array(AnimeDiscoveryEntrySchema));
 const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 const StringListJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 const NumberListJsonSchema = Schema.parseJson(Schema.Array(Schema.Number));
@@ -31,13 +26,9 @@ function decodeNumberList(value: string | null): number[] {
   return result._tag === "Right" ? [...result.right] : [];
 }
 
-function decodeDiscoveryEntries(
-  value: string | null,
-): AnimeDiscoveryEntry[] | undefined {
+function decodeDiscoveryEntries(value: string | null): AnimeDiscoveryEntry[] | undefined {
   if (!value) return undefined;
-  const result = Schema.decodeUnknownEither(AnimeDiscoveryEntryListJsonSchema)(
-    value,
-  );
+  const result = Schema.decodeUnknownEither(AnimeDiscoveryEntryListJsonSchema)(value);
   return result._tag === "Right" ? [...result.right] : undefined;
 }
 
@@ -83,26 +74,22 @@ export function toAnimeDto(
   episodeRows: Array<typeof episodes.$inferSelect>,
   discovery?: AnimeDiscoveryMetadata,
 ): Anime {
-  const downloadedEpisodes = episodeRows.filter((episode) => episode.downloaded)
-    .map((episode) => episode.number).sort((left, right) => left - right);
+  const downloadedEpisodes = episodeRows
+    .filter((episode) => episode.downloaded)
+    .map((episode) => episode.number)
+    .sort((left, right) => left - right);
   const total = row.episodeCount ?? undefined;
   const missing = total
     ? range(1, total).filter((number) => !downloadedEpisodes.includes(number))
     : [];
-  const downloadedPercent = deriveDownloadedPercent(
-    downloadedEpisodes.length,
-    total,
-  );
-  const latestDownloadedEpisode = deriveLatestDownloadedEpisode(
-    downloadedEpisodes,
-  );
+  const downloadedPercent = deriveDownloadedPercent(downloadedEpisodes.length, total);
+  const latestDownloadedEpisode = deriveLatestDownloadedEpisode(downloadedEpisodes);
   const season = deriveAnimeSeason(row.startDate);
   const seasonYear = row.startYear ?? extractYearFromDate(row.startDate);
 
-  const recommendedAnime = discovery?.recommended_anime ??
-    decodeDiscoveryEntries(row.recommendedAnime);
-  const relatedAnime = discovery?.related_anime ??
-    decodeDiscoveryEntries(row.relatedAnime);
+  const recommendedAnime =
+    discovery?.recommended_anime ?? decodeDiscoveryEntries(row.recommendedAnime);
+  const relatedAnime = discovery?.related_anime ?? decodeDiscoveryEntries(row.relatedAnime);
   const synonyms = discovery?.synonyms ?? decodeSynonyms(row.synonyms);
 
   return {
@@ -118,12 +105,13 @@ export function toAnimeDto(
     id: row.id,
     mal_id: row.malId ?? undefined,
     monitored: row.monitored,
-    next_airing_episode: row.nextAiringEpisode && row.nextAiringAt
-      ? {
-        airing_at: row.nextAiringAt,
-        episode: row.nextAiringEpisode,
-      }
-      : undefined,
+    next_airing_episode:
+      row.nextAiringEpisode && row.nextAiringAt
+        ? {
+            airing_at: row.nextAiringAt,
+            episode: row.nextAiringEpisode,
+          }
+        : undefined,
     recommended_anime: recommendedAnime,
     profile_name: row.profileName,
     progress: {
@@ -155,10 +143,7 @@ export function toAnimeDto(
 }
 
 function range(start: number, end: number) {
-  return Array.from(
-    { length: Math.max(end - start + 1, 0) },
-    (_, index) => start + index,
-  );
+  return Array.from({ length: Math.max(end - start + 1, 0) }, (_, index) => start + index);
 }
 
 function extractYearFromDate(date?: string | null) {

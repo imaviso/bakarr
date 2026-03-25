@@ -7,22 +7,15 @@ export const BACKGROUND_WORKER_NAMES = [
   "metadata_refresh",
 ] as const;
 
-export const BACKGROUND_JOB_NAMES = [
-  ...BACKGROUND_WORKER_NAMES,
-  "unmapped_scan",
-] as const;
+export const BACKGROUND_JOB_NAMES = [...BACKGROUND_WORKER_NAMES, "unmapped_scan"] as const;
 
-export const BackgroundWorkerNameSchema = Schema.Literal(
-  ...BACKGROUND_WORKER_NAMES,
-);
+export const BackgroundWorkerNameSchema = Schema.Literal(...BACKGROUND_WORKER_NAMES);
 
-export type BackgroundWorkerName = Schema.Schema.Type<
-  typeof BackgroundWorkerNameSchema
->;
+export type BackgroundWorkerName = Schema.Schema.Type<typeof BackgroundWorkerNameSchema>;
 
-export class BackgroundWorkerStatsModel extends Schema.Class<
-  BackgroundWorkerStatsModel
->("BackgroundWorkerStatsModel")({
+export class BackgroundWorkerStatsModel extends Schema.Class<BackgroundWorkerStatsModel>(
+  "BackgroundWorkerStatsModel",
+)({
   daemonRunning: Schema.Boolean,
   failureCount: Schema.Number,
   lastErrorMessage: Schema.NullOr(Schema.String),
@@ -36,13 +29,11 @@ export class BackgroundWorkerStatsModel extends Schema.Class<
 
 export const BackgroundWorkerStatsSchema = BackgroundWorkerStatsModel;
 
-export type BackgroundWorkerStats = Schema.Schema.Type<
-  typeof BackgroundWorkerStatsSchema
->;
+export type BackgroundWorkerStats = Schema.Schema.Type<typeof BackgroundWorkerStatsSchema>;
 
-export class BackgroundWorkerSnapshotModel extends Schema.Class<
-  BackgroundWorkerSnapshotModel
->("BackgroundWorkerSnapshotModel")({
+export class BackgroundWorkerSnapshotModel extends Schema.Class<BackgroundWorkerSnapshotModel>(
+  "BackgroundWorkerSnapshotModel",
+)({
   download_sync: BackgroundWorkerStatsSchema,
   library_scan: BackgroundWorkerStatsSchema,
   metadata_refresh: BackgroundWorkerStatsSchema,
@@ -51,9 +42,7 @@ export class BackgroundWorkerSnapshotModel extends Schema.Class<
 
 export const BackgroundWorkerSnapshotSchema = BackgroundWorkerSnapshotModel;
 
-export type BackgroundWorkerSnapshot = Schema.Schema.Type<
-  typeof BackgroundWorkerSnapshotSchema
->;
+export type BackgroundWorkerSnapshot = Schema.Schema.Type<typeof BackgroundWorkerSnapshotSchema>;
 
 export function emptyBackgroundWorkerStats(): BackgroundWorkerStats {
   return new BackgroundWorkerStatsModel({

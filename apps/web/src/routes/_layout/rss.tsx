@@ -26,13 +26,7 @@ import {
 } from "~/components/ui/alert-dialog";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -79,28 +73,19 @@ function RssPage() {
   return (
     <div class="space-y-6">
       <PageHeader title="RSS Feeds">
-        <Button
-          size="sm"
-          onClick={() => setIsAdding(true)}
-          disabled={isAdding()}
-        >
+        <Button size="sm" onClick={() => setIsAdding(true)} disabled={isAdding()}>
           <IconPlus class="h-4 w-4" />
           Add Feed
         </Button>
       </PageHeader>
 
       <Show when={isAdding()}>
-        <AddFeedForm
-          onCancel={() => setIsAdding(false)}
-          onSuccess={() => setIsAdding(false)}
-        />
+        <AddFeedForm onCancel={() => setIsAdding(false)} onSuccess={() => setIsAdding(false)} />
       </Show>
 
       <Show when={feedsQuery.isLoading}>
         <div class="space-y-4">
-          <For each={[1, 2, 3]}>
-            {() => <Skeleton class="h-20" />}
-          </For>
+          <For each={[1, 2, 3]}>{() => <Skeleton class="h-20" />}</For>
         </div>
       </Show>
 
@@ -128,8 +113,7 @@ function RssPage() {
             {(feed) => (
               <FeedCard
                 feed={feed}
-                onToggle={(enabled) =>
-                  toggleFeed.mutate({ id: feed.id, enabled })}
+                onToggle={(enabled) => toggleFeed.mutate({ id: feed.id, enabled })}
                 onDelete={() => deleteFeed.mutate(feed.id)}
               />
             )}
@@ -163,9 +147,7 @@ function FeedCard(props: {
         </Button>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
-            <p class="font-medium truncate">
-              {props.feed.name || "Unnamed Feed"}
-            </p>
+            <p class="font-medium truncate">{props.feed.name || "Unnamed Feed"}</p>
             <Badge
               variant={props.feed.enabled ? "default" : "secondary"}
               class="capitalize text-xs"
@@ -200,16 +182,13 @@ function FeedCard(props: {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete RSS Feed</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete "
-                {props.feed.name || "this feed"}
+                Are you sure you want to delete "{props.feed.name || "this feed"}
                 "? This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={props.onDelete}>
-                Delete
-              </AlertDialogAction>
+              <AlertDialogAction onClick={props.onDelete}>Delete</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -251,9 +230,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
     <Card class="border-primary/20">
       <CardHeader class="pb-4">
         <CardTitle class="text-base">Add RSS Feed</CardTitle>
-        <CardDescription>
-          Add a Nyaa or other RSS feed for episode detection
-        </CardDescription>
+        <CardDescription>Add a Nyaa or other RSS feed for episode detection</CardDescription>
       </CardHeader>
       <CardContent>
         <form
@@ -275,17 +252,21 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
                 </label>
                 <Select
                   name={field().name}
-                  value={animeListQuery.data
-                    ?.map((a) => ({
+                  value={
+                    animeListQuery.data
+                      ?.map((a) => ({
+                        value: a.id,
+                        label: a.title.english || a.title.romaji,
+                      }))
+                      .find((o) => o.value === field().state.value) || null
+                  }
+                  onChange={(val) => val && field().handleChange(val.value)}
+                  options={
+                    animeListQuery.data?.map((a) => ({
                       value: a.id,
                       label: a.title.english || a.title.romaji,
-                    }))
-                    .find((o) => o.value === field().state.value) || null}
-                  onChange={(val) => val && field().handleChange(val.value)}
-                  options={animeListQuery.data?.map((a) => ({
-                    value: a.id,
-                    label: a.title.english || a.title.romaji,
-                  })) || []}
+                    })) || []
+                  }
                   itemComponent={(props) => (
                     <SelectItem item={props.item}>
                       {(props.item.rawValue as { label: string }).label}
@@ -316,9 +297,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
               <TextField
                 value={field().state.value}
                 onChange={field().handleChange}
-                validationState={field().state.meta.errors.length > 0
-                  ? "invalid"
-                  : "valid"}
+                validationState={field().state.meta.errors.length > 0 ? "invalid" : "valid"}
               >
                 <TextFieldLabel>RSS URL</TextFieldLabel>
                 <TextFieldInput placeholder="https://nyaa.si/?page=rss&..." />
@@ -331,10 +310,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
 
           <form.Field name="name">
             {(field) => (
-              <TextField
-                value={field().state.value}
-                onChange={field().handleChange}
-              >
+              <TextField value={field().state.value} onChange={field().handleChange}>
                 <TextFieldLabel>Name (optional)</TextFieldLabel>
                 <TextFieldInput placeholder="e.g., SubsPlease 1080p" />
               </TextField>
@@ -345,14 +321,9 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
             <Button type="button" variant="ghost" onClick={props.onCancel}>
               Cancel
             </Button>
-            <form.Subscribe
-              selector={(state) => [state.canSubmit, state.isSubmitting]}
-            >
+            <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
               {(state) => (
-                <Button
-                  type="submit"
-                  disabled={!state()[0] || addFeed.isPending}
-                >
+                <Button type="submit" disabled={!state()[0] || addFeed.isPending}>
                   {state()[1] || addFeed.isPending ? "Adding..." : "Add Feed"}
                 </Button>
               )}

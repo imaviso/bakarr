@@ -21,9 +21,8 @@ export const RandomServiceLive = Layer.succeed(RandomService, {
 export const randomHex = (bytes: number): Effect.Effect<string> =>
   Effect.sync(() => randomHexSync(bytes));
 
-export const randomBytes = (
-  bytes: number,
-): Effect.Effect<Uint8Array> => Effect.sync(() => randomBytesSync(bytes));
+export const randomBytes = (bytes: number): Effect.Effect<Uint8Array> =>
+  Effect.sync(() => randomBytesSync(bytes));
 
 /**
  * Sync random hex for pure/non-Effect code only (DTO assembly, parsing).
@@ -43,9 +42,7 @@ export function randomBytesSync(bytes: number): Uint8Array {
 /**
  * Generate random UUID. Use in service/orchestration code.
  */
-export const randomUuid: Effect.Effect<string> = Effect.sync(() =>
-  crypto.randomUUID()
-);
+export const randomUuid: Effect.Effect<string> = Effect.sync(() => crypto.randomUUID());
 
 export function randomUuidSync(): string {
   return crypto.randomUUID();

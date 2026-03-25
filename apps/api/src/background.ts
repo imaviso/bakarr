@@ -1,18 +1,6 @@
-import {
-  Cause,
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Ref,
-  Schedule,
-  Scope,
-} from "effect";
+import { Cause, Context, Effect, Layer, Option, Ref, Schedule, Scope } from "effect";
 
-import type {
-  Config,
-  DownloadStatus,
-} from "../../../packages/shared/src/index.ts";
+import type { Config, DownloadStatus } from "../../../packages/shared/src/index.ts";
 import {
   BACKGROUND_WORKER_NAMES,
   type BackgroundWorkerName,
@@ -26,11 +14,7 @@ import { buildBackgroundSchedule } from "./background-schedule.ts";
 import { DatabaseError } from "./db/database.ts";
 import { currentMonotonicMillis, nowIso } from "./lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "./lib/effect-coalescing.ts";
-import {
-  compactLogAnnotations,
-  durationMsSince,
-  errorLogAnnotations,
-} from "./lib/logging.ts";
+import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./lib/logging.ts";
 import { makeReloadableScopedController } from "./lib/reloadable-scoped-controller.ts";
 import {
   preRegisterBackgroundWorkerMetrics,
@@ -47,32 +31,19 @@ import {
   RssService,
   type RssServiceShape,
 } from "./features/operations/service.ts";
-import {
-  AnimeService,
-  type AnimeServiceShape,
-} from "./features/anime/service.ts";
+import { AnimeService, type AnimeServiceShape } from "./features/anime/service.ts";
 
 export interface BackgroundWorkerMonitorShape {
-  readonly markDaemonStarted: (
-    workerName: BackgroundWorkerName,
-  ) => Effect.Effect<void>;
-  readonly markDaemonStopped: (
-    workerName: BackgroundWorkerName,
-  ) => Effect.Effect<void>;
+  readonly markDaemonStarted: (workerName: BackgroundWorkerName) => Effect.Effect<void>;
+  readonly markDaemonStopped: (workerName: BackgroundWorkerName) => Effect.Effect<void>;
   readonly markRunFailed: (
     workerName: BackgroundWorkerName,
     error: string,
     durationMs?: number,
   ) => Effect.Effect<void>;
-  readonly markRunInterrupted: (
-    workerName: BackgroundWorkerName,
-  ) => Effect.Effect<void>;
-  readonly markRunSkipped: (
-    workerName: BackgroundWorkerName,
-  ) => Effect.Effect<void>;
-  readonly markRunStarted: (
-    workerName: BackgroundWorkerName,
-  ) => Effect.Effect<void>;
+  readonly markRunInterrupted: (workerName: BackgroundWorkerName) => Effect.Effect<void>;
+  readonly markRunSkipped: (workerName: BackgroundWorkerName) => Effect.Effect<void>;
+  readonly markRunStarted: (workerName: BackgroundWorkerName) => Effect.Effect<void>;
   readonly markRunSucceeded: (
     workerName: BackgroundWorkerName,
     durationMs?: number,
@@ -80,11 +51,10 @@ export interface BackgroundWorkerMonitorShape {
   readonly snapshot: () => Effect.Effect<BackgroundWorkerSnapshot>;
 }
 
-export class BackgroundWorkerMonitor
-  extends Context.Tag("@bakarr/api/BackgroundWorkerMonitor")<
-    BackgroundWorkerMonitor,
-    BackgroundWorkerMonitorShape
-  >() {}
+export class BackgroundWorkerMonitor extends Context.Tag("@bakarr/api/BackgroundWorkerMonitor")<
+  BackgroundWorkerMonitor,
+  BackgroundWorkerMonitorShape
+>() {}
 
 export function makeBackgroundWorkerMonitor() {
   return Effect.gen(function* () {
@@ -115,93 +85,108 @@ export function makeBackgroundWorkerMonitor() {
           updateWorker(workerName, (stats) =>
             mergeWorkerStats(stats, {
               daemonRunning: true,
-            })),
+            }),
+          ),
           setBackgroundWorkerDaemonRunning(workerName, true),
         ),
       markDaemonStopped: (workerName: BackgroundWorkerName) =>
-        Effect.all([
-          updateWorker(workerName, (stats) =>
-            mergeWorkerStats(stats, {
-              daemonRunning: false,
-              runRunning: false,
-            })),
-          setBackgroundWorkerDaemonRunning(workerName, false),
-          setBackgroundWorkerRunRunning(workerName, false),
-        ], { concurrency: "unbounded", discard: true }),
-      markRunFailed: (
-        workerName: BackgroundWorkerName,
-        error: string,
-        durationMs?: number,
-      ) =>
-        Effect.gen(function* () {
-          const now = yield* nowIso;
-          yield* Effect.all([
+        Effect.all(
+          [
             updateWorker(workerName, (stats) =>
               mergeWorkerStats(stats, {
-                failureCount: stats.failureCount + 1,
-                lastErrorMessage: error,
-                lastFailedAt: now,
+                daemonRunning: false,
                 runRunning: false,
-              })),
+              }),
+            ),
+            setBackgroundWorkerDaemonRunning(workerName, false),
             setBackgroundWorkerRunRunning(workerName, false),
-            recordBackgroundWorkerRun({
-              durationMs,
-              status: "failure",
-              worker: workerName,
-            }),
-          ], { concurrency: "unbounded", discard: true });
+          ],
+          { concurrency: "unbounded", discard: true },
+        ),
+      markRunFailed: (workerName: BackgroundWorkerName, error: string, durationMs?: number) =>
+        Effect.gen(function* () {
+          const now = yield* nowIso;
+          yield* Effect.all(
+            [
+              updateWorker(workerName, (stats) =>
+                mergeWorkerStats(stats, {
+                  failureCount: stats.failureCount + 1,
+                  lastErrorMessage: error,
+                  lastFailedAt: now,
+                  runRunning: false,
+                }),
+              ),
+              setBackgroundWorkerRunRunning(workerName, false),
+              recordBackgroundWorkerRun({
+                durationMs,
+                status: "failure",
+                worker: workerName,
+              }),
+            ],
+            { concurrency: "unbounded", discard: true },
+          );
         }),
       markRunInterrupted: (workerName: BackgroundWorkerName) =>
         Effect.zipRight(
           updateWorker(workerName, (stats) =>
             mergeWorkerStats(stats, {
               runRunning: false,
-            })),
+            }),
+          ),
           setBackgroundWorkerRunRunning(workerName, false),
         ),
       markRunSkipped: (workerName: BackgroundWorkerName) =>
-        Effect.all([
-          updateWorker(workerName, (stats) =>
-            mergeWorkerStats(stats, {
-              skipCount: stats.skipCount + 1,
-            })),
-          recordBackgroundWorkerRun({
-            status: "skipped",
-            worker: workerName,
-          }),
-        ], { concurrency: "unbounded", discard: true }),
+        Effect.all(
+          [
+            updateWorker(workerName, (stats) =>
+              mergeWorkerStats(stats, {
+                skipCount: stats.skipCount + 1,
+              }),
+            ),
+            recordBackgroundWorkerRun({
+              status: "skipped",
+              worker: workerName,
+            }),
+          ],
+          { concurrency: "unbounded", discard: true },
+        ),
       markRunStarted: (workerName: BackgroundWorkerName) =>
         Effect.gen(function* () {
           const now = yield* nowIso;
-          yield* Effect.all([
-            updateWorker(workerName, (stats) =>
-              mergeWorkerStats(stats, {
-                lastStartedAt: now,
-                runRunning: true,
-              })),
-            setBackgroundWorkerRunRunning(workerName, true),
-          ], { concurrency: "unbounded", discard: true });
+          yield* Effect.all(
+            [
+              updateWorker(workerName, (stats) =>
+                mergeWorkerStats(stats, {
+                  lastStartedAt: now,
+                  runRunning: true,
+                }),
+              ),
+              setBackgroundWorkerRunRunning(workerName, true),
+            ],
+            { concurrency: "unbounded", discard: true },
+          );
         }),
-      markRunSucceeded: (
-        workerName: BackgroundWorkerName,
-        durationMs?: number,
-      ) =>
+      markRunSucceeded: (workerName: BackgroundWorkerName, durationMs?: number) =>
         Effect.gen(function* () {
           const now = yield* nowIso;
-          yield* Effect.all([
-            updateWorker(workerName, (stats) =>
-              mergeWorkerStats(stats, {
-                lastSucceededAt: now,
-                runRunning: false,
-                successCount: stats.successCount + 1,
-              })),
-            setBackgroundWorkerRunRunning(workerName, false),
-            recordBackgroundWorkerRun({
-              durationMs,
-              status: "success",
-              worker: workerName,
-            }),
-          ], { concurrency: "unbounded", discard: true });
+          yield* Effect.all(
+            [
+              updateWorker(workerName, (stats) =>
+                mergeWorkerStats(stats, {
+                  lastSucceededAt: now,
+                  runRunning: false,
+                  successCount: stats.successCount + 1,
+                }),
+              ),
+              setBackgroundWorkerRunRunning(workerName, false),
+              recordBackgroundWorkerRun({
+                durationMs,
+                status: "success",
+                worker: workerName,
+              }),
+            ],
+            { concurrency: "unbounded", discard: true },
+          );
         }),
       snapshot: () => Ref.get(state),
     } satisfies BackgroundWorkerMonitorShape;
@@ -221,14 +206,7 @@ export function spawnWorkersFromConfig(
   config: Config,
   deps: WorkersDeps,
 ): Effect.Effect<void, never, Scope.Scope> {
-  const {
-    animeService,
-    eventBus,
-    monitor,
-    downloadService,
-    libraryService,
-    rssService,
-  } = deps;
+  const { animeService, eventBus, monitor, downloadService, libraryService, rssService } = deps;
   const schedule = buildBackgroundSchedule(config);
 
   return Effect.gen(function* () {
@@ -258,8 +236,7 @@ export function spawnWorkersFromConfig(
       "download_sync",
       Effect.gen(function* () {
         yield* downloadService.syncDownloads();
-        const downloads: DownloadStatus[] = yield* downloadService
-          .getDownloadProgress();
+        const downloads: DownloadStatus[] = yield* downloadService.getDownloadProgress();
         yield* eventBus.publish({
           type: "DownloadProgress",
           payload: { downloads },
@@ -419,19 +396,13 @@ function repeatWorker(
 
   if (options.cronExpression) {
     return initialRun.pipe(
-      Effect.zipRight(
-        task.pipe(Effect.repeat(Schedule.cron(options.cronExpression))),
-      ),
+      Effect.zipRight(task.pipe(Effect.repeat(Schedule.cron(options.cronExpression)))),
       Effect.asVoid,
     );
   }
 
   return initialRun.pipe(
-    Effect.zipRight(
-      task.pipe(
-        Effect.repeat(Schedule.spaced(`${options.intervalMs ?? 0} millis`)),
-      ),
-    ),
+    Effect.zipRight(task.pipe(Effect.repeat(Schedule.spaced(`${options.intervalMs ?? 0} millis`)))),
     Effect.asVoid,
   );
 }
@@ -443,11 +414,9 @@ export interface BackgroundWorkerControllerShape {
   readonly stop: () => Effect.Effect<void>;
 }
 
-export class BackgroundWorkerController
-  extends Context.Tag("@bakarr/api/BackgroundWorkerController")<
-    BackgroundWorkerController,
-    BackgroundWorkerControllerShape
-  >() {}
+export class BackgroundWorkerController extends Context.Tag(
+  "@bakarr/api/BackgroundWorkerController",
+)<BackgroundWorkerController, BackgroundWorkerControllerShape>() {}
 
 export interface BackgroundWorkerSpawner {
   (config: Config): Effect.Effect<void, DatabaseError, Scope.Scope>;
@@ -478,8 +447,7 @@ const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
     rssService,
   };
 
-  const spawnWorkers: BackgroundWorkerSpawner = (config) =>
-    spawnWorkersFromConfig(config, deps);
+  const spawnWorkers: BackgroundWorkerSpawner = (config) => spawnWorkersFromConfig(config, deps);
 
   const controller = yield* makeBackgroundWorkerController({
     spawnWorkers,

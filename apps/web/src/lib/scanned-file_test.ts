@@ -52,8 +52,6 @@ it("scanned file naming helpers summarize fallback and warning counts", () => {
   }
 
   if (formatDurationSeconds(65) !== "1m 5s") {
-    throw new Error(
-      "Expected duration formatter to render minute/second output",
-    );
+    throw new Error("Expected duration formatter to render minute/second output");
   }
 });

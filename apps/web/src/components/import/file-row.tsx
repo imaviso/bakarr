@@ -1,9 +1,4 @@
-import {
-  IconAlertTriangle,
-  IconCheck,
-  IconFile,
-  IconInfoCircle,
-} from "@tabler/icons-solidjs";
+import { IconAlertTriangle, IconCheck, IconFile, IconInfoCircle } from "@tabler/icons-solidjs";
 import { createMemo, For, Show } from "solid-js";
 import { EditMappingPopover } from "~/components/edit-mapping-popover";
 import { Badge } from "~/components/ui/badge";
@@ -27,13 +22,12 @@ import {
 import { cn } from "~/lib/utils";
 import type { FileRowProps } from "./types";
 
-type AnimeOption =
-  & (FileRowProps["animeList"][number] | FileRowProps["candidates"][number])
-  & { source: "library" | "candidate" };
+type AnimeOption = (FileRowProps["animeList"][number] | FileRowProps["candidates"][number]) & {
+  source: "library" | "candidate";
+};
 
 export function FileRow(props: FileRowProps) {
-  const matchedAnimeId = () =>
-    props.file.matched_anime?.id || props.selectedAnimeId;
+  const matchedAnimeId = () => props.file.matched_anime?.id || props.selectedAnimeId;
   const hasMatch = () => !!matchedAnimeId();
 
   const displayEpisode = () =>
@@ -55,13 +49,9 @@ export function FileRow(props: FileRowProps) {
       return titleA.localeCompare(titleB);
     });
   });
-  const metadataBadges = createMemo(() =>
-    scannedFileMetadataBadges(props.file)
-  );
+  const metadataBadges = createMemo(() => scannedFileMetadataBadges(props.file));
   const fileSize = createMemo(() => formatFileSize(props.file.size));
-  const matchConfidence = createMemo(() =>
-    formatMatchConfidence(props.file.match_confidence)
-  );
+  const matchConfidence = createMemo(() => formatMatchConfidence(props.file.match_confidence));
   const decisionSummary = createMemo(() =>
     buildFileDecisionSummary({
       coverage_summary: props.file.coverage_summary,
@@ -69,11 +59,9 @@ export function FileRow(props: FileRowProps) {
       existing_mapping: props.file.existing_mapping,
       match_reason: props.file.match_reason,
       warnings: props.file.warnings,
-    })
+    }),
   );
-  const namingBadges = createMemo(() =>
-    namingMetadataBadges(props.file.naming_metadata_snapshot)
-  );
+  const namingBadges = createMemo(() => namingMetadataBadges(props.file.naming_metadata_snapshot));
 
   return (
     <li
@@ -99,15 +87,11 @@ export function FileRow(props: FileRowProps) {
         />
         <IconFile class="h-4 w-4 text-muted-foreground shrink-0" />
         <div class="flex-1 min-w-0 overflow-hidden">
-          <span class="text-sm font-medium truncate block">
-            {props.file.filename}
-          </span>
+          <span class="text-sm font-medium truncate block">{props.file.filename}</span>
           <Show when={props.file.episode_title || props.file.air_date}>
             <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
               <Show when={props.file.episode_title}>
-                <span class="truncate max-w-[28rem]">
-                  {props.file.episode_title}
-                </span>
+                <span class="truncate max-w-[28rem]">{props.file.episode_title}</span>
               </Show>
               <Show when={props.file.air_date}>
                 <span>{props.file.air_date}</span>
@@ -117,13 +101,8 @@ export function FileRow(props: FileRowProps) {
               </Show>
             </div>
           </Show>
-          <Show
-            when={!props.file.episode_title && !props.file.air_date &&
-              fileSize()}
-          >
-            <div class="mt-1 text-[11px] text-muted-foreground">
-              {fileSize()}
-            </div>
+          <Show when={!props.file.episode_title && !props.file.air_date && fileSize()}>
+            <div class="mt-1 text-[11px] text-muted-foreground">{fileSize()}</div>
           </Show>
           <Show when={metadataBadges().length > 0}>
             <div class="mt-1 flex flex-wrap gap-1">
@@ -137,8 +116,11 @@ export function FileRow(props: FileRowProps) {
             </div>
           </Show>
           <Show
-            when={props.file.coverage_summary || props.file.existing_mapping ||
-              props.file.episode_conflict}
+            when={
+              props.file.coverage_summary ||
+              props.file.existing_mapping ||
+              props.file.episode_conflict
+            }
           >
             <div class="mt-1 flex flex-wrap gap-1">
               <Show when={props.file.coverage_summary}>
@@ -178,8 +160,7 @@ export function FileRow(props: FileRowProps) {
                   <p
                     class={cn(
                       "text-[11px]",
-                      detail.startsWith("Existing file") ||
-                        props.file.warnings?.includes(detail)
+                      detail.startsWith("Existing file") || props.file.warnings?.includes(detail)
                         ? "text-warning"
                         : "text-muted-foreground",
                     )}
@@ -191,10 +172,14 @@ export function FileRow(props: FileRowProps) {
             </div>
           </Show>
           <Show
-            when={props.file.naming_filename || props.file.naming_format_used ||
-              props.file.naming_fallback_used || namingBadges().length > 0 ||
+            when={
+              props.file.naming_filename ||
+              props.file.naming_format_used ||
+              props.file.naming_fallback_used ||
+              namingBadges().length > 0 ||
               props.file.naming_warnings?.length ||
-              props.file.naming_missing_fields?.length}
+              props.file.naming_missing_fields?.length
+            }
           >
             <div class="mt-2 space-y-1">
               <Show when={props.file.naming_filename}>
@@ -212,17 +197,12 @@ export function FileRow(props: FileRowProps) {
                   </Badge>
                 </Show>
                 <Show when={props.file.naming_format_used}>
-                  <Badge
-                    variant="secondary"
-                    class="h-5 px-1.5 text-xs font-mono"
-                  >
+                  <Badge variant="secondary" class="h-5 px-1.5 text-xs font-mono">
                     {props.file.naming_format_used}
                   </Badge>
                 </Show>
                 <Show
-                  when={formatNamingTitleSource(
-                    props.file.naming_metadata_snapshot?.title_source,
-                  )}
+                  when={formatNamingTitleSource(props.file.naming_metadata_snapshot?.title_source)}
                 >
                   {(label) => (
                     <Badge variant="secondary" class="h-5 px-1.5 text-xs">
@@ -239,8 +219,9 @@ export function FileRow(props: FileRowProps) {
                 </For>
               </div>
               <Show
-                when={props.file.naming_warnings?.length ||
-                  props.file.naming_missing_fields?.length}
+                when={
+                  props.file.naming_warnings?.length || props.file.naming_missing_fields?.length
+                }
               >
                 <div class="space-y-0.5 text-[11px] text-muted-foreground">
                   <For each={props.file.naming_warnings || []}>
@@ -271,8 +252,10 @@ export function FileRow(props: FileRowProps) {
             </Badge>
           </Show>
           <Show
-            when={!props.file.source_identity?.label &&
-              formatEpisodeNumberList(props.file.episode_numbers)}
+            when={
+              !props.file.source_identity?.label &&
+              formatEpisodeNumberList(props.file.episode_numbers)
+            }
           >
             <Badge variant="outline" class="text-xs font-mono">
               {formatEpisodeNumberList(props.file.episode_numbers)}
@@ -284,10 +267,7 @@ export function FileRow(props: FileRowProps) {
             onSave={props.onMappingChange}
           />
           <Show when={props.file.needs_manual_mapping}>
-            <Badge
-              variant="secondary"
-              class="text-xs bg-warning/10 text-warning border-warning/20"
-            >
+            <Badge variant="secondary" class="text-xs bg-warning/10 text-warning border-warning/20">
               Manual
             </Badge>
           </Show>
@@ -309,20 +289,15 @@ export function FileRow(props: FileRowProps) {
                   options={allOptions()}
                   optionValue="id"
                   optionTextValue={(opt) =>
-                    opt.title.english || opt.title.romaji || "Unknown Title"}
+                    opt.title.english || opt.title.romaji || "Unknown Title"
+                  }
                   placeholder="Select anime..."
                   itemComponent={(props) => (
                     <SelectItem item={props.item}>
                       <span class="flex items-center gap-2">
-                        {props.item.rawValue?.title.english ||
-                          props.item.rawValue?.title.romaji}
-                        <Show
-                          when={props.item.rawValue?.source === "candidate"}
-                        >
-                          <Badge
-                            variant="secondary"
-                            class="h-4 px-1 text-xs"
-                          >
+                        {props.item.rawValue?.title.english || props.item.rawValue?.title.romaji}
+                        <Show when={props.item.rawValue?.source === "candidate"}>
+                          <Badge variant="secondary" class="h-4 px-1 text-xs">
                             New
                           </Badge>
                         </Show>
@@ -332,11 +307,7 @@ export function FileRow(props: FileRowProps) {
                 >
                   <SelectTrigger class="h-8 text-xs flex-1">
                     <SelectValue<AnimeOption>>
-                      {(_state) => (
-                        <span class="text-muted-foreground">
-                          Select anime...
-                        </span>
-                      )}
+                      {(_state) => <span class="text-muted-foreground">Select anime...</span>}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent />
@@ -346,9 +317,7 @@ export function FileRow(props: FileRowProps) {
           >
             <IconCheck class="h-4 w-4 text-success shrink-0" />
             <Select
-              value={allOptions().find(
-                (o) => o.id === (props.selectedAnimeId || matchedAnimeId()),
-              )}
+              value={allOptions().find((o) => o.id === (props.selectedAnimeId || matchedAnimeId()))}
               onChange={(v) => {
                 if (v) {
                   const newId = v.id;
@@ -360,13 +329,11 @@ export function FileRow(props: FileRowProps) {
               }}
               options={allOptions()}
               optionValue="id"
-              optionTextValue={(opt) =>
-                opt.title.english || opt.title.romaji || "Unknown Title"}
+              optionTextValue={(opt) => opt.title.english || opt.title.romaji || "Unknown Title"}
               itemComponent={(props) => (
                 <SelectItem item={props.item}>
                   <span class="flex items-center gap-2">
-                    {props.item.rawValue?.title.english ||
-                      props.item.rawValue?.title.romaji}
+                    {props.item.rawValue?.title.english || props.item.rawValue?.title.romaji}
                     <Show when={props.item.rawValue?.source === "candidate"}>
                       <Badge variant="secondary" class="h-4 px-1 text-xs">
                         New
@@ -381,7 +348,8 @@ export function FileRow(props: FileRowProps) {
                   {(state) =>
                     state.selectedOption()?.title.english ||
                     state.selectedOption()?.title.romaji ||
-                    `ID: ${props.selectedAnimeId || matchedAnimeId()}`}
+                    `ID: ${props.selectedAnimeId || matchedAnimeId()}`
+                  }
                 </SelectValue>
               </SelectTrigger>
               <SelectContent />

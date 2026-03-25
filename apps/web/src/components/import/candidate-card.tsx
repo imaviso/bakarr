@@ -2,11 +2,7 @@ import { IconCheck, IconFile } from "@tabler/icons-solidjs";
 import { For, Show } from "solid-js";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import { Badge } from "~/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import type { AnimeSearchResult } from "~/lib/api";
 import { animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
 import { cn } from "~/lib/utils";
@@ -103,9 +99,7 @@ export function CandidateCard(props: CandidateCardProps) {
           </div>
 
           <Show when={props.candidate.match_reason}>
-            <p class="text-xs text-muted-foreground line-clamp-2">
-              {props.candidate.match_reason}
-            </p>
+            <p class="text-xs text-muted-foreground line-clamp-2">{props.candidate.match_reason}</p>
           </Show>
           <Show when={props.candidate.genres?.length}>
             <p class="text-xs text-muted-foreground line-clamp-1">
@@ -121,29 +115,20 @@ export function CandidateCard(props: CandidateCardProps) {
       </button>
 
       <Show
-        when={props.candidate.related_anime?.length ||
-          props.candidate.recommended_anime?.length}
+        when={props.candidate.related_anime?.length || props.candidate.recommended_anime?.length}
       >
         <div class="space-y-1 border-t border-border/60 bg-muted/20 px-3 py-2">
           <Show when={props.candidate.related_anime?.length}>
             <For each={props.candidate.related_anime?.slice(0, 2)}>
               {(related) => (
-                <AnimeDiscoveryRow
-                  entry={related}
-                  libraryIds={props.libraryIds}
-                  compact
-                />
+                <AnimeDiscoveryRow entry={related} libraryIds={props.libraryIds} compact />
               )}
             </For>
           </Show>
           <Show when={props.candidate.recommended_anime?.length}>
             <For each={props.candidate.recommended_anime?.slice(0, 2)}>
               {(recommended) => (
-                <AnimeDiscoveryRow
-                  entry={recommended}
-                  libraryIds={props.libraryIds}
-                  compact
-                />
+                <AnimeDiscoveryRow entry={recommended} libraryIds={props.libraryIds} compact />
               )}
             </For>
           </Show>

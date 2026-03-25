@@ -14,113 +14,96 @@ import {
   qualityProfileExistsEffect,
   requireAnimeExistsEffect,
 } from "./repository.ts";
-import {
-  tryDatabasePromise,
-  updateAnimeRow,
-  wrapAnimeError,
-} from "./service-support.ts";
+import { tryDatabasePromise, updateAnimeRow, wrapAnimeError } from "./service-support.ts";
 
 type AnimeInfoPublisher = Pick<EventPublisherShape, "publishInfo">;
 
-export const updateAnimePathEffect = Effect.fn(
-  "AnimeService.updateAnimePathEffect",
-)(function* (input: {
-  db: AppDatabase;
-  fs: FileSystemShape;
-  id: number;
-  path: string;
-}) {
-  const trimmedPath = input.path.trim();
-  yield* requireAnimeExistsEffect(input.db, input.id).pipe(
-    Effect.mapError(wrapAnimeError("Failed to update anime path")),
-  );
+export const updateAnimePathEffect = Effect.fn("AnimeService.updateAnimePathEffect")(
+  function* (input: { db: AppDatabase; fs: FileSystemShape; id: number; path: string }) {
+    const trimmedPath = input.path.trim();
+    yield* requireAnimeExistsEffect(input.db, input.id).pipe(
+      Effect.mapError(wrapAnimeError("Failed to update anime path")),
+    );
 
-  yield* input.fs.mkdir(trimmedPath, { recursive: true }).pipe(
-    Effect.mapError(() =>
-      new AnimePathError({
-        message: "Failed to create or access the requested anime path",
-      })
-    ),
-  );
-
-  const canonicalPath = yield* input.fs.realPath(trimmedPath).pipe(
-    Effect.mapError(() =>
-      new AnimePathError({
-        message: "Path does not exist or is inaccessible",
-      })
-    ),
-  );
-
-  const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(
-    input.db,
-    canonicalPath,
-  );
-
-  if (existingRootOwner && existingRootOwner.id !== input.id) {
-    return yield* new AnimeConflictError({
-      message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
-    });
-  }
-
-  yield* tryDatabasePromise(
-    "Failed to update anime path",
-    () =>
-      input.db.update(anime).set({ rootFolder: canonicalPath }).where(
-        eq(anime.id, input.id),
+    yield* input.fs.mkdir(trimmedPath, { recursive: true }).pipe(
+      Effect.mapError(
+        () =>
+          new AnimePathError({
+            message: "Failed to create or access the requested anime path",
+          }),
       ),
-  );
-  yield* appendAnimeLogEffect(
-    input.db,
-    "anime.path.updated",
-    "success",
-    `Updated path for anime ${input.id}`,
-  );
-});
+    );
 
-export const updateAnimeProfileEffect = Effect.fn(
-  "AnimeService.updateAnimeProfileEffect",
-)(function* (input: {
-  db: AppDatabase;
-  eventPublisher: AnimeInfoPublisher;
-  id: number;
-  profileName: string;
-}) {
-  const profileExists = yield* qualityProfileExistsEffect(
-    input.db,
-    input.profileName,
-  );
+    const canonicalPath = yield* input.fs.realPath(trimmedPath).pipe(
+      Effect.mapError(
+        () =>
+          new AnimePathError({
+            message: "Path does not exist or is inaccessible",
+          }),
+      ),
+    );
 
-  if (!profileExists) {
-    return yield* new ProfileNotFoundError({
-      message: `Quality profile '${input.profileName}' not found`,
-    });
-  }
+    const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(input.db, canonicalPath);
 
-  yield* updateAnimeRow(
-    input.db,
-    input.id,
-    { profileName: input.profileName },
-    `Updated profile for anime ${input.id}`,
-    input.eventPublisher,
-  );
-});
+    if (existingRootOwner && existingRootOwner.id !== input.id) {
+      return yield* new AnimeConflictError({
+        message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
+      });
+    }
 
-export const setAnimeMonitoredEffect = Effect.fn(
-  "AnimeService.setAnimeMonitoredEffect",
-)(function* (input: {
-  db: AppDatabase;
-  eventPublisher: AnimeInfoPublisher;
-  id: number;
-  monitored: boolean;
-}) {
-  yield* updateAnimeRow(
-    input.db,
-    input.id,
-    { monitored: input.monitored },
-    `Anime ${input.id} monitoring updated`,
-    input.eventPublisher,
-  );
-});
+    yield* tryDatabasePromise("Failed to update anime path", () =>
+      input.db.update(anime).set({ rootFolder: canonicalPath }).where(eq(anime.id, input.id)),
+    );
+    yield* appendAnimeLogEffect(
+      input.db,
+      "anime.path.updated",
+      "success",
+      `Updated path for anime ${input.id}`,
+    );
+  },
+);
+
+export const updateAnimeProfileEffect = Effect.fn("AnimeService.updateAnimeProfileEffect")(
+  function* (input: {
+    db: AppDatabase;
+    eventPublisher: AnimeInfoPublisher;
+    id: number;
+    profileName: string;
+  }) {
+    const profileExists = yield* qualityProfileExistsEffect(input.db, input.profileName);
+
+    if (!profileExists) {
+      return yield* new ProfileNotFoundError({
+        message: `Quality profile '${input.profileName}' not found`,
+      });
+    }
+
+    yield* updateAnimeRow(
+      input.db,
+      input.id,
+      { profileName: input.profileName },
+      `Updated profile for anime ${input.id}`,
+      input.eventPublisher,
+    );
+  },
+);
+
+export const setAnimeMonitoredEffect = Effect.fn("AnimeService.setAnimeMonitoredEffect")(
+  function* (input: {
+    db: AppDatabase;
+    eventPublisher: AnimeInfoPublisher;
+    id: number;
+    monitored: boolean;
+  }) {
+    yield* updateAnimeRow(
+      input.db,
+      input.id,
+      { monitored: input.monitored },
+      `Anime ${input.id} monitoring updated`,
+      input.eventPublisher,
+    );
+  },
+);
 
 export const updateAnimeReleaseProfilesEffect = Effect.fn(
   "AnimeService.updateAnimeReleaseProfilesEffect",

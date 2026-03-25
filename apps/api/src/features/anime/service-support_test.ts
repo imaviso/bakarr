@@ -5,16 +5,8 @@ import { DatabaseError } from "../../db/database.ts";
 import { ClockServiceLive } from "../../lib/clock.ts";
 import { makeUnusedEventBusLayer } from "../../test/event-bus-stub.ts";
 import { makeEventPublisher } from "../events/publisher.ts";
-import {
-  AnimeConflictError,
-  AnimeNotFoundError,
-  AnimePathError,
-} from "./errors.ts";
-import {
-  tryAnimePromise,
-  tryDatabasePromise,
-  wrapAnimeError,
-} from "./service-support.ts";
+import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "./errors.ts";
+import { tryAnimePromise, tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
 
 it.effect("anime service support preserves known errors and wraps unknown ones", () =>
   Effect.gen(function* () {
@@ -41,7 +33,7 @@ it.effect("anime service support preserves known errors and wraps unknown ones",
       tryAnimePromise("anime failed", () => Promise.reject(new Error("boom"))),
     );
     assertEquals(animeExit._tag, "Failure");
-  })
+  }),
 );
 
 it.scoped("anime service support can publish coalesced info messages", () =>
@@ -73,5 +65,5 @@ it.scoped("anime service support can publish coalesced info messages", () =>
         makeUnusedEventBusLayer("unused in anime service support test"),
       ),
     ),
-  )
+  ),
 );

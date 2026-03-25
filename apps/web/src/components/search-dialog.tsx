@@ -23,18 +23,9 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "~/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "~/components/ui/dialog";
 import { Label } from "~/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "~/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -52,11 +43,7 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import { ReleaseMetadataSummary } from "~/components/release-metadata-summary";
 import {
   createGrabReleaseMutation,
@@ -154,17 +141,13 @@ export function SearchDialog(props: SearchDialogProps) {
               onChange={setCategory}
               options={Object.keys(CATEGORY_LABELS)}
               itemComponent={(props) => (
-                <SelectItem item={props.item}>
-                  {CATEGORY_LABELS[props.item.rawValue]}
-                </SelectItem>
+                <SelectItem item={props.item}>{CATEGORY_LABELS[props.item.rawValue]}</SelectItem>
               )}
             >
               <SelectTrigger class="h-7 w-auto min-w-[130px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
                 <span class="text-muted-foreground">Category:</span>
                 <SelectValue<string>>
-                  {(state) =>
-                    CATEGORY_LABELS[state.selectedOption()] ||
-                    state.selectedOption()}
+                  {(state) => CATEGORY_LABELS[state.selectedOption()] || state.selectedOption()}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent />
@@ -175,17 +158,13 @@ export function SearchDialog(props: SearchDialogProps) {
               onChange={setFilter}
               options={Object.keys(FILTER_LABELS)}
               itemComponent={(props) => (
-                <SelectItem item={props.item}>
-                  {FILTER_LABELS[props.item.rawValue]}
-                </SelectItem>
+                <SelectItem item={props.item}>{FILTER_LABELS[props.item.rawValue]}</SelectItem>
               )}
             >
               <SelectTrigger class="h-7 w-auto min-w-[120px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
                 <IconFilter class="h-3 w-3 text-muted-foreground" />
                 <SelectValue<string>>
-                  {(state) =>
-                    FILTER_LABELS[state.selectedOption()] ||
-                    state.selectedOption()}
+                  {(state) => FILTER_LABELS[state.selectedOption()] || state.selectedOption()}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent />
@@ -235,9 +214,7 @@ function SearchResults(props: {
   filter: string;
   onGrab: () => void;
 }) {
-  const [sortCol, setSortCol] = createSignal<keyof NyaaSearchResult>(
-    "pub_date",
-  );
+  const [sortCol, setSortCol] = createSignal<keyof NyaaSearchResult>("pub_date");
   const [sortAsc, setSortAsc] = createSignal(false);
 
   const searchQuery = createNyaaSearchQuery(() => props.query, {
@@ -301,10 +278,7 @@ function SearchResults(props: {
               <div class="flex items-center gap-1">
                 Ep
                 <Show when={sortCol() === "parsed_episode"}>
-                  <Show
-                    when={sortAsc()}
-                    fallback={<IconSortDescending class="h-3 w-3" />}
-                  >
+                  <Show when={sortAsc()} fallback={<IconSortDescending class="h-3 w-3" />}>
                     <IconSortAscending class="h-3 w-3" />
                   </Show>
                 </Show>
@@ -318,10 +292,7 @@ function SearchResults(props: {
               <div class="flex items-center gap-1">
                 Size
                 <Show when={sortCol() === "size"}>
-                  <Show
-                    when={sortAsc()}
-                    fallback={<IconSortDescending class="h-3 w-3" />}
-                  >
+                  <Show when={sortAsc()} fallback={<IconSortDescending class="h-3 w-3" />}>
                     <IconSortAscending class="h-3 w-3" />
                   </Show>
                 </Show>
@@ -334,10 +305,7 @@ function SearchResults(props: {
               <div class="flex items-center justify-end gap-1">
                 Seeds
                 <Show when={sortCol() === "seeders"}>
-                  <Show
-                    when={sortAsc()}
-                    fallback={<IconSortDescending class="h-3 w-3" />}
-                  >
+                  <Show when={sortAsc()} fallback={<IconSortDescending class="h-3 w-3" />}>
                     <IconSortAscending class="h-3 w-3" />
                   </Show>
                 </Show>
@@ -350,10 +318,7 @@ function SearchResults(props: {
               <div class="flex items-center justify-end gap-1">
                 Age
                 <Show when={sortCol() === "pub_date"}>
-                  <Show
-                    when={sortAsc()}
-                    fallback={<IconSortDescending class="h-3 w-3" />}
-                  >
+                  <Show when={sortAsc()} fallback={<IconSortDescending class="h-3 w-3" />}>
                     <IconSortAscending class="h-3 w-3" />
                   </Show>
                 </Show>
@@ -371,9 +336,7 @@ function SearchResults(props: {
                   <div class="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                     <IconSearch class="h-8 w-8 opacity-20" />
                     <p class="text-sm">
-                      {searchQuery.isError
-                        ? "Failed to load results"
-                        : "No results found"}
+                      {searchQuery.isError ? "Failed to load results" : "No results found"}
                     </p>
                   </div>
                 </TableCell>
@@ -382,11 +345,7 @@ function SearchResults(props: {
           >
             <For each={sortedResults()}>
               {(result) => (
-                <ReleaseRow
-                  result={result}
-                  animeId={props.animeId}
-                  onGrab={props.onGrab}
-                />
+                <ReleaseRow result={result} animeId={props.animeId} onGrab={props.onGrab} />
               )}
             </For>
           </Show>
@@ -402,18 +361,12 @@ function SearchResultsSkeleton() {
       <Table>
         <TableHeader class="sticky top-0 bg-background z-10 border-b border-border/40 shadow-sm">
           <TableRow class="hover:bg-transparent border-border/40">
-            <TableHead class="w-[45%] pl-6 h-9 text-xs font-medium">
-              Release
-            </TableHead>
+            <TableHead class="w-[45%] pl-6 h-9 text-xs font-medium">Release</TableHead>
             <TableHead class="h-9 text-xs font-medium">Ep</TableHead>
             <TableHead class="h-9 text-xs font-medium">Res</TableHead>
             <TableHead class="h-9 text-xs font-medium">Size</TableHead>
-            <TableHead class="h-9 text-xs font-medium text-right">
-              Seeds
-            </TableHead>
-            <TableHead class="h-9 text-xs font-medium text-right">
-              Age
-            </TableHead>
+            <TableHead class="h-9 text-xs font-medium text-right">Seeds</TableHead>
+            <TableHead class="h-9 text-xs font-medium text-right">Age</TableHead>
             <TableHead class="w-[50px] h-9"></TableHead>
           </TableRow>
         </TableHeader>
@@ -457,15 +410,10 @@ function SearchResultsSkeleton() {
   );
 }
 
-function ReleaseRow(props: {
-  result: NyaaSearchResult;
-  animeId: number;
-  onGrab: () => void;
-}) {
+function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: () => void }) {
   const grabMutation = createGrabReleaseMutation();
   const detectedIsBatch = () =>
-    (props.result.parsed_episode_numbers?.length ?? 0) > 1 ||
-    !props.result.parsed_episode;
+    (props.result.parsed_episode_numbers?.length ?? 0) > 1 || !props.result.parsed_episode;
   const [epNum, setEpNum] = createSignal(
     props.result.parsed_episode?.toString() ||
       props.result.parsed_episode_numbers?.[0]?.toString() ||
@@ -532,9 +480,7 @@ function ReleaseRow(props: {
         anime_id: props.animeId,
         decision_reason: decisionReason(),
         magnet: props.result.magnet,
-        episode_number: Number.isFinite(parseFloat(epNum()))
-          ? parseFloat(epNum())
-          : undefined,
+        episode_number: Number.isFinite(parseFloat(epNum())) ? parseFloat(epNum()) : undefined,
         group: props.result.parsed_group,
         info_hash: props.result.info_hash,
         release_metadata: {
@@ -573,9 +519,7 @@ function ReleaseRow(props: {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-    const diffDays = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
@@ -588,8 +532,7 @@ function ReleaseRow(props: {
   };
 
   const selectionSummary = () => formatSelectionSummary(selectionMetadata());
-  const selectionLabel = () =>
-    selectionKindLabel(selectionMetadata().selection_kind);
+  const selectionLabel = () => selectionKindLabel(selectionMetadata().selection_kind);
   // selectionDetail is not yet implemented for Nyaa search results
   const releaseConfidence = () => getReleaseConfidence(props.result);
   const releaseFlags = () => getReleaseFlags(props.result);
@@ -632,9 +575,11 @@ function ReleaseRow(props: {
             sourceUrl={props.result.view_url}
           />
           <Show
-            when={props.result.seadex_notes ||
+            when={
+              props.result.seadex_notes ||
               props.result.seadex_tags?.length ||
-              props.result.seadex_comparison}
+              props.result.seadex_comparison
+            }
           >
             <div class="flex flex-col gap-1 text-xs text-muted-foreground pr-4">
               <Show when={props.result.seadex_notes}>
@@ -674,9 +619,7 @@ function ReleaseRow(props: {
                     variant="secondary"
                     class={cn(
                       "h-4 px-1.5 border-transparent",
-                      selectionKindBadgeClass(
-                        selectionMetadata().selection_kind,
-                      ),
+                      selectionKindBadgeClass(selectionMetadata().selection_kind),
                     )}
                   >
                     {label()}
@@ -714,9 +657,7 @@ function ReleaseRow(props: {
         </Show>
       </TableCell>
       <TableCell class="py-2.5 text-xs text-muted-foreground">
-        <span
-          title={props.result.parsed_quality || props.result.parsed_resolution}
-        >
+        <span title={props.result.parsed_quality || props.result.parsed_resolution}>
           {props.result.parsed_resolution || props.result.parsed_quality || "-"}
         </span>
       </TableCell>
@@ -728,9 +669,7 @@ function ReleaseRow(props: {
           <span
             class={cn(
               "font-medium",
-              props.result.seeders > 0
-                ? "text-success dark:text-success"
-                : "text-muted-foreground",
+              props.result.seeders > 0 ? "text-success dark:text-success" : "text-muted-foreground",
             )}
           >
             {props.result.seeders}
@@ -757,9 +696,7 @@ function ReleaseRow(props: {
           <PopoverContent class="w-64 p-3">
             <div class="space-y-3">
               <div class="space-y-1">
-                <h4 class="text-xs font-semibold text-foreground">
-                  Confirm Download
-                </h4>
+                <h4 class="text-xs font-semibold text-foreground">Confirm Download</h4>
                 <p class="text-xs text-muted-foreground">
                   {isBatch()
                     ? "Verify the starting episode used for the batch mapping."
@@ -773,9 +710,7 @@ function ReleaseRow(props: {
                           variant="secondary"
                           class={cn(
                             "h-4 px-1.5 border-transparent",
-                            selectionKindBadgeClass(
-                              selectionMetadata().selection_kind,
-                            ),
+                            selectionKindBadgeClass(selectionMetadata().selection_kind),
                           )}
                         >
                           {label()}
@@ -784,9 +719,7 @@ function ReleaseRow(props: {
                     </Show>
                   </div>
                 </Show>
-                <p class="text-xs text-muted-foreground line-clamp-2">
-                  {decisionReason()}
-                </p>
+                <p class="text-xs text-muted-foreground line-clamp-2">{decisionReason()}</p>
               </div>
               <div class="flex items-center space-x-2">
                 <Checkbox

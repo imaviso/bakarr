@@ -27,10 +27,7 @@ import {
   tryDatabasePromise,
   wrapOperationsError,
 } from "./service-support.ts";
-import {
-  makeOperationsProgressPublishers,
-  makeOperationsSharedState,
-} from "./runtime-support.ts";
+import { makeOperationsProgressPublishers, makeOperationsSharedState } from "./runtime-support.ts";
 import { QBitTorrentClient } from "./qbittorrent.ts";
 import { RssClient } from "./rss-client.ts";
 import { SeaDexClient } from "./seadex-client.ts";
@@ -85,37 +82,37 @@ type DownloadOrchestrationShape = ReturnType<typeof makeDownloadOrchestration>;
 type SearchOrchestrationShape = ReturnType<typeof makeSearchOrchestration>;
 type CatalogOrchestrationShape = ReturnType<typeof makeCatalogOrchestration>;
 
-class OperationsSharedState extends Context.Tag(
-  "@bakarr/api/OperationsSharedState",
-)<OperationsSharedState, OperationsSharedStateShape>() {}
+class OperationsSharedState extends Context.Tag("@bakarr/api/OperationsSharedState")<
+  OperationsSharedState,
+  OperationsSharedStateShape
+>() {}
 
 class OperationsProgress extends Context.Tag("@bakarr/api/OperationsProgress")<
   OperationsProgress,
   OperationsProgressShape
 >() {}
 
-class DownloadOrchestration extends Context.Tag(
-  "@bakarr/api/DownloadOrchestration",
-)<DownloadOrchestration, DownloadOrchestrationShape>() {}
+class DownloadOrchestration extends Context.Tag("@bakarr/api/DownloadOrchestration")<
+  DownloadOrchestration,
+  DownloadOrchestrationShape
+>() {}
 
-class SearchOrchestration
-  extends Context.Tag("@bakarr/api/SearchOrchestration")<
-    SearchOrchestration,
-    SearchOrchestrationShape
-  >() {}
+class SearchOrchestration extends Context.Tag("@bakarr/api/SearchOrchestration")<
+  SearchOrchestration,
+  SearchOrchestrationShape
+>() {}
 
-class CatalogOrchestration extends Context.Tag(
-  "@bakarr/api/CatalogOrchestration",
-)<CatalogOrchestration, CatalogOrchestrationShape>() {}
+class CatalogOrchestration extends Context.Tag("@bakarr/api/CatalogOrchestration")<
+  CatalogOrchestration,
+  CatalogOrchestrationShape
+>() {}
 
-class CatalogLibraryReadSupport extends Context.Tag(
-  "@bakarr/api/CatalogLibraryReadSupport",
-)<CatalogLibraryReadSupport, CatalogLibraryReadSupportShape>() {}
+class CatalogLibraryReadSupport extends Context.Tag("@bakarr/api/CatalogLibraryReadSupport")<
+  CatalogLibraryReadSupport,
+  CatalogLibraryReadSupportShape
+>() {}
 
-const operationsSharedStateLayer = Layer.scoped(
-  OperationsSharedState,
-  makeOperationsSharedState(),
-);
+const operationsSharedStateLayer = Layer.scoped(OperationsSharedState, makeOperationsSharedState());
 
 const downloadOrchestrationLayer = Layer.effect(
   DownloadOrchestration,
@@ -155,15 +152,12 @@ const operationsProgressLayer = Layer.scoped(
 
     return yield* makeOperationsProgressPublishers({
       eventBus,
-      publishDownloadProgressEffect: downloadOrchestration
-        .publishDownloadProgress(),
+      publishDownloadProgressEffect: downloadOrchestration.publishDownloadProgress(),
     });
   }),
 );
 
-const progressRuntimeLayer = operationsProgressLayer.pipe(
-  Layer.provide(downloadRuntimeLayer),
-);
+const progressRuntimeLayer = operationsProgressLayer.pipe(Layer.provide(downloadRuntimeLayer));
 
 const searchOrchestrationLayer = Layer.effect(
   SearchOrchestration,
@@ -200,9 +194,7 @@ const searchOrchestrationLayer = Layer.effect(
 );
 
 const searchRuntimeLayer = searchOrchestrationLayer.pipe(
-  Layer.provide(
-    Layer.mergeAll(operationsSharedStateLayer, progressRuntimeLayer),
-  ),
+  Layer.provide(Layer.mergeAll(operationsSharedStateLayer, progressRuntimeLayer)),
 );
 
 const catalogLibraryReadSupportLayer = Layer.effect(
@@ -229,8 +221,7 @@ const catalogOrchestrationLayer = Layer.effect(
     const libraryReadSupport = yield* CatalogLibraryReadSupport;
 
     return makeCatalogOrchestration({
-      applyDownloadActionEffect:
-        downloadOrchestration.applyDownloadActionEffect,
+      applyDownloadActionEffect: downloadOrchestration.applyDownloadActionEffect,
       db,
       dbError,
       eventBus,
@@ -238,8 +229,7 @@ const catalogOrchestrationLayer = Layer.effect(
       mediaProbe,
       publishDownloadProgress: progress.publishDownloadProgress,
       publishLibraryScanProgress: progress.publishLibraryScanProgress,
-      reconcileDownloadByIdEffect:
-        downloadOrchestration.reconcileDownloadByIdEffect,
+      reconcileDownloadByIdEffect: downloadOrchestration.reconcileDownloadByIdEffect,
       retryDownloadById: downloadOrchestration.retryDownloadById,
       syncDownloadState: downloadOrchestration.syncDownloadState,
       tryDatabasePromise,
@@ -251,11 +241,7 @@ const catalogOrchestrationLayer = Layer.effect(
 
 const catalogRuntimeLayer = catalogOrchestrationLayer.pipe(
   Layer.provide(
-    Layer.mergeAll(
-      downloadRuntimeLayer,
-      progressRuntimeLayer,
-      catalogLibraryReadSupportLayer,
-    ),
+    Layer.mergeAll(downloadRuntimeLayer, progressRuntimeLayer, catalogLibraryReadSupportLayer),
   ),
 );
 
@@ -350,6 +336,4 @@ const orchestrationLayer = Layer.mergeAll(
   catalogRuntimeLayer,
 );
 
-export const OperationsServiceLive = projectedServicesLayer.pipe(
-  Layer.provide(orchestrationLayer),
-);
+export const OperationsServiceLive = projectedServicesLayer.pipe(Layer.provide(orchestrationLayer));

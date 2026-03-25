@@ -14,12 +14,9 @@ export interface AiringDisplayPreferences {
   timeZone?: string;
 }
 
-export function getAiringDisplayPreferences(
-  library?: Config["library"],
-): AiringDisplayPreferences {
-  const dayStartHour = typeof library?.airing_day_start_hour === "number"
-    ? library.airing_day_start_hour
-    : 0;
+export function getAiringDisplayPreferences(library?: Config["library"]): AiringDisplayPreferences {
+  const dayStartHour =
+    typeof library?.airing_day_start_hour === "number" ? library.airing_day_start_hour : 0;
   const timeZone = normalizeTimeZone(library?.airing_timezone);
 
   return {
@@ -44,10 +41,7 @@ export function formatAnimeDate(date?: string, year?: number) {
   return year ? String(year) : null;
 }
 
-export function formatAnimeSeason(
-  season?: AnimeSearchResult["season"],
-  year?: number,
-) {
+export function formatAnimeSeason(season?: AnimeSearchResult["season"], year?: number) {
   if (!season) {
     return year ? String(year) : null;
   }
@@ -57,21 +51,18 @@ export function formatAnimeSeason(
 }
 
 export function animeDateSubtitle(anime: AnimeDateContext) {
-  return formatAnimeSeason(anime.season, anime.season_year) ??
-    formatAnimeDate(anime.start_date, anime.start_year);
+  return (
+    formatAnimeSeason(anime.season, anime.season_year) ??
+    formatAnimeDate(anime.start_date, anime.start_year)
+  );
 }
 
 export function animeSearchSubtitle(anime: AnimeSearchResult) {
   return animeDateSubtitle(anime);
 }
 
-export function animeDisplayTitle(
-  anime:
-    | Pick<Anime, "title">
-    | Pick<AnimeSearchResult, "title">,
-) {
-  return anime.title.english || anime.title.romaji || anime.title.native ||
-    "Unknown title";
+export function animeDisplayTitle(anime: Pick<Anime, "title"> | Pick<AnimeSearchResult, "title">) {
+  return anime.title.english || anime.title.romaji || anime.title.native || "Unknown title";
 }
 
 export function animeDiscoverySubtitle(input: {
@@ -91,16 +82,10 @@ export function animeDiscoverySubtitle(input: {
   ].filter((value): value is string => Boolean(value));
 }
 
-export function animeAltTitles(
-  anime: Pick<Anime | AnimeSearchResult, "title">,
-) {
-  return [anime.title.romaji, anime.title.english, anime.title.native].filter((
-    value,
-    index,
-    values,
-  ): value is string =>
-    typeof value === "string" && value.length > 0 &&
-    values.indexOf(value) === index
+export function animeAltTitles(anime: Pick<Anime | AnimeSearchResult, "title">) {
+  return [anime.title.romaji, anime.title.english, anime.title.native].filter(
+    (value, index, values): value is string =>
+      typeof value === "string" && value.length > 0 && values.indexOf(value) === index,
   );
 }
 
@@ -116,10 +101,7 @@ export function formatNextAiringEpisode(
     return null;
   }
 
-  const airingLabel = formatAiringDateTimeWithPreferences(
-    nextAiring.airing_at,
-    preferences,
-  );
+  const airingLabel = formatAiringDateTimeWithPreferences(nextAiring.airing_at, preferences);
   if (!airingLabel) {
     return `Ep ${nextAiring.episode}`;
   }
@@ -147,8 +129,8 @@ export function formatEpisodeStatusTooltip(input: {
   const status = input.downloaded
     ? "Downloaded"
     : hasEpisodeAired(input.aired, input.now)
-    ? "Missing"
-    : "Upcoming";
+      ? "Missing"
+      : "Upcoming";
   const prefix = input.episodeNumber ? `Episode ${input.episodeNumber}: ` : "";
   const fileName = input.filePath?.split("/").pop();
 
@@ -156,14 +138,9 @@ export function formatEpisodeStatusTooltip(input: {
     return `${prefix}${status} - ${fileName}`;
   }
 
-  const airedLabel = formatAiringDateTimeWithPreferences(
-    input.aired,
-    input.preferences,
-  );
+  const airedLabel = formatAiringDateTimeWithPreferences(input.aired, input.preferences);
 
-  return airedLabel
-    ? `${prefix}${status} (Aired: ${airedLabel})`
-    : `${prefix}${status}`;
+  return airedLabel ? `${prefix}${status} (Aired: ${airedLabel})` : `${prefix}${status}`;
 }
 
 export function formatAiringDateWithPreferences(
@@ -203,9 +180,11 @@ export function formatAiringDateTimeWithPreferences(
     return value;
   }
 
-  return `${
-    new Date(parts.year, parts.month - 1, parts.day).toLocaleDateString()
-  } ${formatTimeParts(parts)}`;
+  return `${new Date(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+  ).toLocaleDateString()} ${formatTimeParts(parts)}`;
 }
 
 export function formatAiringTimeWithPreferences(
@@ -216,10 +195,7 @@ export function formatAiringTimeWithPreferences(
   return parts ? formatTimeParts(parts) : null;
 }
 
-export function getAiringDisplayDateKey(
-  value: string,
-  preferences?: AiringDisplayPreferences,
-) {
+export function getAiringDisplayDateKey(value: string, preferences?: AiringDisplayPreferences) {
   if (!value.includes("T")) {
     return value.slice(0, 10);
   }
@@ -229,11 +205,9 @@ export function getAiringDisplayDateKey(
     return value.slice(0, 10);
   }
 
-  return `${parts.year.toString().padStart(4, "0")}-${
-    parts.month
-      .toString()
-      .padStart(2, "0")
-  }-${parts.day.toString().padStart(2, "0")}`;
+  return `${parts.year.toString().padStart(4, "0")}-${parts.month
+    .toString()
+    .padStart(2, "0")}-${parts.day.toString().padStart(2, "0")}`;
 }
 
 function getAdjustedDateTimeParts(
@@ -256,9 +230,7 @@ function getAdjustedDateTimeParts(
     return parts;
   }
 
-  const previousDay = new Date(
-    Date.UTC(parts.year, parts.month - 1, parts.day),
-  );
+  const previousDay = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
   previousDay.setUTCDate(previousDay.getUTCDate() - 1);
 
   return {
@@ -282,7 +254,8 @@ function getDateTimeParts(date: Date, timeZone?: string) {
 
   const formatter = createDateTimeFormat(options);
   const parts = Object.fromEntries(
-    formatter.formatToParts(date)
+    formatter
+      .formatToParts(date)
       .filter((part) => part.type !== "literal")
       .map((part) => [part.type, part.value]),
   );
@@ -321,8 +294,7 @@ function normalizeTimeZone(value?: string | null) {
   }
 
   try {
-    return createDateTimeFormat({ timeZone: trimmed }).resolvedOptions()
-      .timeZone;
+    return createDateTimeFormat({ timeZone: trimmed }).resolvedOptions().timeZone;
   } catch {
     return undefined;
   }

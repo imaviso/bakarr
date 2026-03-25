@@ -4,31 +4,23 @@ import { isSystemNotFoundError } from "./lib/fs-errors.ts";
 
 const DEFAULT_DOTENV_PATH = ".env";
 
-class DotenvReadError extends Schema.TaggedError<DotenvReadError>()(
-  "DotenvReadError",
-  {
-    cause: Schema.Defect,
-    message: Schema.String,
-    path: Schema.String,
-  },
-) {}
+class DotenvReadError extends Schema.TaggedError<DotenvReadError>()("DotenvReadError", {
+  cause: Schema.Defect,
+  message: Schema.String,
+  path: Schema.String,
+}) {}
 
-class DotenvParseError extends Schema.TaggedError<DotenvParseError>()(
-  "DotenvParseError",
-  {
-    line: Schema.Number,
-    message: Schema.String,
-    path: Schema.String,
-  },
-) {}
+class DotenvParseError extends Schema.TaggedError<DotenvParseError>()("DotenvParseError", {
+  line: Schema.Number,
+  message: Schema.String,
+  path: Schema.String,
+}) {}
 
 export interface DotenvConfigProviderOptions {
   readonly path?: string;
 }
 
-export const makeDotenvConfigProvider = Effect.fn(
-  "Config.makeDotenvConfigProvider",
-)(
+export const makeDotenvConfigProvider = Effect.fn("Config.makeDotenvConfigProvider")(
   (
     options: DotenvConfigProviderOptions = {},
   ): Effect.Effect<
@@ -45,10 +37,7 @@ export const makeDotenvConfigProvider = Effect.fn(
         return envProvider;
       }
 
-      const dotenvEntries = yield* parseDotenvText(
-        dotenvPath,
-        fileContent.value,
-      );
+      const dotenvEntries = yield* parseDotenvText(dotenvPath, fileContent.value);
 
       if (dotenvEntries.size === 0) {
         return envProvider;
@@ -63,13 +52,7 @@ export const makeDotenvConfigProvider = Effect.fn(
 );
 
 const readDotenvFile = Effect.fn("Config.readDotenvFile")(
-  (
-    path: string,
-  ): Effect.Effect<
-    Option.Option<string>,
-    DotenvReadError,
-    FileSystem.FileSystem
-  > =>
+  (path: string): Effect.Effect<Option.Option<string>, DotenvReadError, FileSystem.FileSystem> =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       return yield* fs.readFile(path).pipe(
@@ -80,12 +63,12 @@ const readDotenvFile = Effect.fn("Config.readDotenvFile")(
             isSystemNotFoundError(error)
               ? Effect.succeed(Option.none<string>())
               : Effect.fail(
-                new DotenvReadError({
-                  cause: error,
-                  message: `Failed to read dotenv file: ${path}`,
-                  path,
-                }),
-              ),
+                  new DotenvReadError({
+                    cause: error,
+                    message: `Failed to read dotenv file: ${path}`,
+                    path,
+                  }),
+                ),
           BadArgument: (error) =>
             Effect.fail(
               new DotenvReadError({
@@ -100,10 +83,7 @@ const readDotenvFile = Effect.fn("Config.readDotenvFile")(
 );
 
 const decodeDotenvBytes = Effect.fn("Config.decodeDotenvBytes")(
-  (
-    path: string,
-    bytes: Uint8Array,
-  ): Effect.Effect<string, DotenvReadError, never> =>
+  (path: string, bytes: Uint8Array): Effect.Effect<string, DotenvReadError, never> =>
     Effect.try({
       try: () => new TextDecoder().decode(bytes),
       catch: (cause) =>

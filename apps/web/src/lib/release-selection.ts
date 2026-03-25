@@ -87,21 +87,16 @@ export function formatSelectionSummary(input: {
     return undefined;
   }
 
-  return [label, detail].filter((value) =>
-    typeof value === "string" && value.length > 0
-  )
+  return [label, detail]
+    .filter((value) => typeof value === "string" && value.length > 0)
     .join(" • ");
 }
 
 export function formatSelectionDetail(input: SelectionDetailInput) {
   const parts = [
-    typeof input.selection_score === "number"
-      ? `score ${input.selection_score}`
-      : undefined,
+    typeof input.selection_score === "number" ? `score ${input.selection_score}` : undefined,
     input.previous_quality ? `from ${input.previous_quality}` : undefined,
-    typeof input.previous_score === "number"
-      ? `prev ${input.previous_score}`
-      : undefined,
+    typeof input.previous_score === "number" ? `prev ${input.previous_score}` : undefined,
   ].filter((value) => typeof value === "string" && value.length > 0);
 
   return parts.length > 0 ? parts.join(" • ") : undefined;
@@ -145,9 +140,7 @@ export function getReleaseConfidence(
   return undefined;
 }
 
-export function releaseConfidenceBadgeClass(
-  tone?: ReleaseConfidenceMetadata["tone"],
-) {
+export function releaseConfidenceBadgeClass(tone?: ReleaseConfidenceMetadata["tone"]) {
   if (tone === "success") {
     return "bg-success/10 text-success border-transparent";
   }

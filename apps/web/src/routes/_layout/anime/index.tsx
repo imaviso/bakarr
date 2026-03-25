@@ -11,15 +11,7 @@ import {
 } from "@tabler/icons-solidjs";
 import { useQuery } from "@tanstack/solid-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import * as v from "valibot";
 import { AnimeListSkeleton } from "~/components/anime-list-skeleton";
@@ -44,11 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "~/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import {
   type Anime,
   animeListQueryOptions,
@@ -64,10 +52,7 @@ import {
 } from "~/lib/anime-metadata";
 import { cn } from "~/lib/utils";
 
-const MonitorFilterSchema = v.fallback(
-  v.picklist(["all", "monitored", "unmonitored"]),
-  "all",
-);
+const MonitorFilterSchema = v.fallback(v.picklist(["all", "monitored", "unmonitored"]), "all");
 
 const ViewModeSchema = v.fallback(v.picklist(["grid", "list"]), "grid");
 
@@ -107,7 +92,7 @@ function AnimeIndexPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const airingPreferences = createMemo(() =>
-    getAiringDisplayPreferences(configQuery.data?.library)
+    getAiringDisplayPreferences(configQuery.data?.library),
   );
 
   const [localQuery, setLocalQuery] = createSignal(search().q);
@@ -148,7 +133,8 @@ function AnimeIndexPage() {
         anime.title.english?.toLowerCase().includes(searchQuery) ||
         anime.title.native?.toLowerCase().includes(searchQuery);
 
-      const matchesMonitor = filter === "all" ||
+      const matchesMonitor =
+        filter === "all" ||
         (filter === "monitored" && anime.monitored) ||
         (filter === "unmonitored" && !anime.monitored);
 
@@ -177,21 +163,15 @@ function AnimeIndexPage() {
       replace: true,
     });
 
-  const libraryIds = createMemo(
-    () => new Set(filteredList().map((item) => item.id)),
-  );
+  const libraryIds = createMemo(() => new Set(filteredList().map((item) => item.id)));
 
   return (
     <div class="flex flex-col flex-1 min-h-0">
       <div class="border-b border-border pb-3 mb-3 space-y-3">
         <div class="flex items-center justify-between gap-4">
           <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-foreground">
-              Library
-            </h1>
-            <p class="text-sm text-muted-foreground mt-1">
-              {animeQuery.data?.length ?? 0} titles
-            </p>
+            <h1 class="text-2xl font-semibold tracking-tight text-foreground">Library</h1>
+            <p class="text-sm text-muted-foreground mt-1">{animeQuery.data?.length ?? 0} titles</p>
           </div>
           <Link
             to="/anime/add"
@@ -227,18 +207,11 @@ function AnimeIndexPage() {
             <DropdownMenuContent>
               <DropdownMenuRadioGroup
                 value={search().filter}
-                onChange={(value) =>
-                  updateFilter(value as "all" | "monitored" | "unmonitored")}
+                onChange={(value) => updateFilter(value as "all" | "monitored" | "unmonitored")}
               >
-                <DropdownMenuRadioItem value="all">
-                  All Anime
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="monitored">
-                  Monitored
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="unmonitored">
-                  Unmonitored
-                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="all">All Anime</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="monitored">Monitored</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="unmonitored">Unmonitored</DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -280,9 +253,7 @@ function AnimeIndexPage() {
                   size="icon"
                   class={cn(
                     "relative after:absolute after:-inset-2 h-7 w-7",
-                    search().view === "grid"
-                      ? "bg-background shadow-sm"
-                      : "hover:bg-background/50",
+                    search().view === "grid" ? "bg-background shadow-sm" : "hover:bg-background/50",
                   )}
                   aria-label="Grid view"
                   onClick={() => updateView("grid")}
@@ -299,9 +270,7 @@ function AnimeIndexPage() {
                   size="icon"
                   class={cn(
                     "relative after:absolute after:-inset-2 h-7 w-7",
-                    search().view === "list"
-                      ? "bg-background shadow-sm"
-                      : "hover:bg-background/50",
+                    search().view === "list" ? "bg-background shadow-sm" : "hover:bg-background/50",
                   )}
                   aria-label="List view"
                   onClick={() => updateView("list")}
@@ -323,7 +292,9 @@ function AnimeIndexPage() {
               when={!localQuery() && search().filter === "all"}
               fallback={
                 <p class="text-center text-muted-foreground py-8">
-                  {localQuery() ? <>No anime matching "{localQuery()}"</> : (
+                  {localQuery() ? (
+                    <>No anime matching "{localQuery()}"</>
+                  ) : (
                     `No ${search().filter} anime found`
                   )}
                 </p>
@@ -417,9 +388,7 @@ function nextProgressLabel(anime: Anime) {
     return `Latest: Ep ${anime.progress.latest_downloaded_episode}`;
   }
 
-  return anime.progress.downloaded > 0
-    ? "Episodes available"
-    : "No downloads yet";
+  return anime.progress.downloaded > 0 ? "Episodes available" : "No downloads yet";
 }
 
 function statusTone(anime: Anime) {
@@ -471,9 +440,7 @@ function AnimeGridView(props: AnimeViewProps) {
   });
   const gridPaddingBottom = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0
-      ? rowVirtualizer.getTotalSize() - items[items.length - 1].end
-      : 0;
+    return items.length > 0 ? rowVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
   });
 
   return (
@@ -549,8 +516,8 @@ function AnimeGridView(props: AnimeViewProps) {
                             {anime.next_airing_episode
                               ? "Airing"
                               : anime.monitored
-                              ? "Monitored"
-                              : "Unmonitored"}
+                                ? "Monitored"
+                                : "Unmonitored"}
                           </Badge>
                           <Show when={animeDateSubtitle(anime)}>
                             <span>{animeDateSubtitle(anime)}</span>
@@ -570,8 +537,8 @@ function AnimeGridView(props: AnimeViewProps) {
                                 anime.progress.next_missing_episode
                                   ? "bg-warning"
                                   : anime.monitored
-                                  ? "bg-primary"
-                                  : "bg-muted-foreground/40",
+                                    ? "bg-primary"
+                                    : "bg-muted-foreground/40",
                               )}
                               style={{
                                 width: `${progressPercent(anime) ?? 0}%`,
@@ -647,9 +614,7 @@ function AnimeListView(props: AnimeViewProps) {
   });
   const paddingBottom = createMemo(() => {
     const items = rowVirtualizer.getVirtualItems();
-    return items.length > 0
-      ? rowVirtualizer.getTotalSize() - items[items.length - 1].end
-      : 0;
+    return items.length > 0 ? rowVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
   });
 
   return (
@@ -709,17 +674,11 @@ function AnimeListView(props: AnimeViewProps) {
                     </Link>
                   </TableCell>
                   <TableCell>
-                    <Link
-                      to="/anime/$id"
-                      params={{ id: anime.id.toString() }}
-                      class="block group"
-                    >
+                    <Link to="/anime/$id" params={{ id: anime.id.toString() }} class="block group">
                       <div class="font-medium group-hover:text-primary transition-colors">
                         {anime.title.english || anime.title.romaji}
                       </div>
-                      <div class="text-xs text-muted-foreground">
-                        {anime.profile_name}
-                      </div>
+                      <div class="text-xs text-muted-foreground">{anime.profile_name}</div>
                       <div class="text-xs text-muted-foreground mt-1">
                         {animeDateSubtitle(anime) || "No date metadata"}
                       </div>
@@ -736,9 +695,7 @@ function AnimeListView(props: AnimeViewProps) {
                   <TableCell class="hidden md:table-cell">
                     <div class="space-y-1">
                       <div class="text-sm">{progressSummary(anime)}</div>
-                      <div class="text-xs text-muted-foreground">
-                        {nextProgressLabel(anime)}
-                      </div>
+                      <div class="text-xs text-muted-foreground">{nextProgressLabel(anime)}</div>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -749,15 +706,10 @@ function AnimeListView(props: AnimeViewProps) {
                             anime.monitored ? "bg-success" : "bg-warning"
                           }`}
                         />
-                        <span class="text-sm">
-                          {anime.monitored ? "Monitored" : "Unmonitored"}
-                        </span>
+                        <span class="text-sm">{anime.monitored ? "Monitored" : "Unmonitored"}</span>
                       </div>
                       <Show when={anime.next_airing_episode}>
-                        <Badge
-                          variant="success"
-                          class="px-1.5 py-0 text-xs"
-                        >
+                        <Badge variant="success" class="px-1.5 py-0 text-xs">
                           Airing
                         </Badge>
                       </Show>

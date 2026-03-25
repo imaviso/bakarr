@@ -1,7 +1,10 @@
 {
   "name": "bakarr",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "bun run ./tools/dev.ts",
     "dev:api": "bun run --cwd apps/api dev",

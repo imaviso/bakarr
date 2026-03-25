@@ -1,25 +1,12 @@
-import {
-  Config as EffectConfig,
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Redacted,
-  Schema,
-} from "effect";
+import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
 import { randomHex } from "./lib/random.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
-const PositiveIntSchema = Schema.Number.pipe(
-  Schema.int(),
-  Schema.greaterThan(0),
-);
+const PositiveIntSchema = Schema.Number.pipe(Schema.int(), Schema.greaterThan(0));
 
-export class AppConfigModel extends Schema.Class<AppConfigModel>(
-  "AppConfigModel",
-)({
+export class AppConfigModel extends Schema.Class<AppConfigModel>("AppConfigModel")({
   appVersion: Schema.String,
   bootstrapPassword: Schema.Redacted(Schema.String),
   bootstrapPasswordIsEnvOverride: Schema.Boolean,
@@ -42,13 +29,9 @@ export interface AppConfigOverrides {
   readonly appVersion?: string;
 }
 
-const PortConfigSchema = Schema.NumberFromString.pipe(
-  Schema.compose(PortSchema),
-);
+const PortConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PortSchema));
 
-const PositiveIntConfigSchema = Schema.NumberFromString.pipe(
-  Schema.compose(PositiveIntSchema),
-);
+const PositiveIntConfigSchema = Schema.NumberFromString.pipe(Schema.compose(PositiveIntSchema));
 
 export const defaultAppConfig = new AppConfigModel({
   appVersion: "0.1.0",
@@ -61,10 +44,7 @@ export const defaultAppConfig = new AppConfigModel({
   sessionDurationDays: 30,
 });
 
-export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
-  AppConfig,
-  AppConfigShape
->() {
+export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, AppConfigShape>() {
   static layer(overrides: AppConfigOverrides = {}) {
     return Layer.effect(
       AppConfig,
@@ -72,66 +52,50 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
         const appVersion = yield* readConfigValue(
           overrides.appVersion,
           Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(defaultAppConfig.appVersion)
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.appVersion)),
           ),
         );
         const bootstrapPasswordFromEnv =
           overrides.bootstrapPassword !== undefined
-            ? Option.some(
-              normalizePasswordOverride(overrides.bootstrapPassword)!,
-            )
+            ? Option.some(normalizePasswordOverride(overrides.bootstrapPassword)!)
             : yield* EffectConfig.redacted("BAKARR_BOOTSTRAP_PASSWORD").pipe(
-              Effect.map(Option.some),
-              Effect.orElse(() => Effect.succeed(Option.none())),
-            );
+                Effect.map(Option.some),
+                Effect.orElse(() => Effect.succeed(Option.none())),
+              );
         const generatedBootstrapPassword = Redacted.make(yield* randomHex(32));
         const bootstrapPassword = Option.getOrElse(
           bootstrapPasswordFromEnv,
           () => generatedBootstrapPassword,
         );
-        const bootstrapPasswordIsEnvOverride = Option.isSome(
-          bootstrapPasswordFromEnv,
-        );
+        const bootstrapPasswordIsEnvOverride = Option.isSome(bootstrapPasswordFromEnv);
         const bootstrapUsername = yield* readConfigValue(
           overrides.bootstrapUsername,
           Schema.Config("BAKARR_BOOTSTRAP_USERNAME", Schema.String).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(defaultAppConfig.bootstrapUsername)
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.bootstrapUsername)),
           ),
         );
         const databaseFile = yield* readConfigValue(
           overrides.databaseFile,
           Schema.Config("DATABASE_FILE", Schema.String).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(defaultAppConfig.databaseFile)
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.databaseFile)),
           ),
         );
         const port = yield* readConfigValue(
           overrides.port,
           Schema.Config("PORT", PortConfigSchema).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(defaultAppConfig.port)
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.port)),
           ),
         );
         const sessionCookieName = yield* readConfigValue(
           overrides.sessionCookieName,
           Schema.Config("SESSION_COOKIE_NAME", Schema.String).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(defaultAppConfig.sessionCookieName)
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.sessionCookieName)),
           ),
         );
         const sessionDurationDays = yield* readConfigValue(
           overrides.sessionDurationDays,
           Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema).pipe(
-            EffectConfig.orElse(() =>
-              EffectConfig.succeed(defaultAppConfig.sessionDurationDays)
-            ),
+            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.sessionDurationDays)),
           ),
         );
 
@@ -152,16 +116,11 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<
 
 export const AppConfigLive = AppConfig.layer();
 
-function readConfigValue<A>(
-  override: A | undefined,
-  config: EffectConfig.Config<A>,
-) {
+function readConfigValue<A>(override: A | undefined, config: EffectConfig.Config<A>) {
   return override === undefined ? config : EffectConfig.succeed(override);
 }
 
-function normalizePasswordOverride(
-  override: string | Redacted.Redacted<string> | undefined,
-) {
+function normalizePasswordOverride(override: string | Redacted.Redacted<string> | undefined) {
   if (override === undefined) {
     return undefined;
   }

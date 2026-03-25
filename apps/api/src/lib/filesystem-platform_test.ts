@@ -12,5 +12,5 @@ it.effect("filesystem noop layer can override readFile behavior", () =>
     const bytes = yield* fs.readFile("/virtual/file.bin");
 
     assertEquals(Array.from(bytes), [1, 2, 3]);
-  })
+  }),
 );

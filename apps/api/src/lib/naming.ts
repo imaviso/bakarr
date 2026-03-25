@@ -41,10 +41,7 @@ export interface NamingInput {
   readonly airDate?: string;
 }
 
-export function renderEpisodeFilename(
-  format: string,
-  input: NamingInput,
-): string {
+export function renderEpisodeFilename(format: string, input: NamingInput): string {
   const formatHasResolutionToken = /\{resolution\}/.test(format);
   const primaryEpisode = input.episodeNumbers[0] ?? 0;
   const segment = formatEpisodeSegment({
@@ -60,58 +57,32 @@ export function renderEpisodeFilename(
 
   result = result.replace(/\{title\}/g, sanitizeFilename(input.title));
 
-  result = result.replace(
-    /\{episode(?::(\d+))?\}/g,
-    (_, padStr) => {
-      const pad = padStr ? Number(padStr) : 2;
-      return String(primaryEpisode).padStart(pad, "0");
-    },
-  );
+  result = result.replace(/\{episode(?::(\d+))?\}/g, (_, padStr) => {
+    const pad = padStr ? Number(padStr) : 2;
+    return String(primaryEpisode).padStart(pad, "0");
+  });
 
-  result = result.replace(
-    /\{episode_segment\}/g,
-    segment,
-  );
+  result = result.replace(/\{episode_segment\}/g, segment);
 
-  result = result.replace(
-    /\{source_episode_segment\}/g,
-    sourceSegment || segment,
-  );
+  result = result.replace(/\{source_episode_segment\}/g, sourceSegment || segment);
 
-  result = result.replace(
-    /\{air_date\}/g,
-    input.airDate ?? "",
-  );
+  result = result.replace(/\{air_date\}/g, input.airDate ?? "");
 
-  result = result.replace(
-    /\{season(?::(\d+))?\}/g,
-    (_, padStr) => {
-      const pad = padStr ? Number(padStr) : 2;
-      return input.season === undefined
-        ? ""
-        : String(input.season).padStart(pad, "0");
-    },
-  );
+  result = result.replace(/\{season(?::(\d+))?\}/g, (_, padStr) => {
+    const pad = padStr ? Number(padStr) : 2;
+    return input.season === undefined ? "" : String(input.season).padStart(pad, "0");
+  });
 
   result = result.replace(
     /\{episode_title\}/g,
     input.episodeTitle ? sanitizeFilename(input.episodeTitle) : "",
   );
 
-  result = result.replace(
-    /\{year\}/g,
-    input.year ? String(input.year) : "",
-  );
+  result = result.replace(/\{year\}/g, input.year ? String(input.year) : "");
 
-  result = result.replace(
-    /\{group\}/g,
-    input.group ?? "",
-  );
+  result = result.replace(/\{group\}/g, input.group ?? "");
 
-  result = result.replace(
-    /\{resolution\}/g,
-    input.resolution ?? "",
-  );
+  result = result.replace(/\{resolution\}/g, input.resolution ?? "");
 
   result = result.replace(
     /\{quality\}/g,
@@ -122,20 +93,11 @@ export function renderEpisodeFilename(
     }) ?? "",
   );
 
-  result = result.replace(
-    /\{video_codec\}/g,
-    input.videoCodec ?? "",
-  );
+  result = result.replace(/\{video_codec\}/g, input.videoCodec ?? "");
 
-  result = result.replace(
-    /\{audio_codec\}/g,
-    input.audioCodec ?? "",
-  );
+  result = result.replace(/\{audio_codec\}/g, input.audioCodec ?? "");
 
-  result = result.replace(
-    /\{audio_channels\}/g,
-    input.audioChannels ?? "",
-  );
+  result = result.replace(/\{audio_channels\}/g, input.audioChannels ?? "");
 
   result = normalizeWrappedSegments(result, "[", "]");
   result = normalizeWrappedSegments(result, "(", ")");
@@ -153,17 +115,10 @@ export function renderEpisodeFilename(
   return result;
 }
 
-function normalizeWrappedSegments(
-  value: string,
-  open: "(" | "[",
-  close: ")" | "]",
-) {
+function normalizeWrappedSegments(value: string, open: "(" | "[", close: ")" | "]") {
   const openEscaped = open === "[" ? "\\[" : "\\(";
   const closeEscaped = close === "]" ? "\\]" : "\\)";
-  const pattern = new RegExp(
-    `${openEscaped}([^${closeEscaped}]*)${closeEscaped}`,
-    "g",
-  );
+  const pattern = new RegExp(`${openEscaped}([^${closeEscaped}]*)${closeEscaped}`, "g");
 
   return value.replace(pattern, (_, inner: string) => {
     const normalized = inner.replace(/\s+/g, " ").trim();
@@ -190,13 +145,8 @@ function normalizeQualityForFormat(input: {
     return quality;
   }
 
-  const stripped = quality.replace(
-    new RegExp(
-      `(^|[\\s_-])${escapeRegex(resolution)}(?=$|[\\s_-])`,
-      "ig",
-    ),
-    " ",
-  )
+  const stripped = quality
+    .replace(new RegExp(`(^|[\\s_-])${escapeRegex(resolution)}(?=$|[\\s_-])`, "ig"), " ")
     .replace(/\s{2,}/g, " ")
     .trim();
 

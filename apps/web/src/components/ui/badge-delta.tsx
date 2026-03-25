@@ -8,12 +8,7 @@ import { cn } from "~/lib/utils";
 import type { BadgeProps } from "~/components/ui/badge";
 import { Badge } from "~/components/ui/badge";
 
-type DeltaType =
-  | "increase"
-  | "moderateIncrease"
-  | "unchanged"
-  | "moderateDecrease"
-  | "decrease";
+type DeltaType = "increase" | "moderateIncrease" | "unchanged" | "moderateDecrease" | "decrease";
 
 const badgeDeltaVariants = cva("", {
   variants: {
@@ -24,9 +19,7 @@ const badgeDeltaVariants = cva("", {
     },
   },
 });
-type DeltaVariant = NonNullable<
-  VariantProps<typeof badgeDeltaVariants>["variant"]
->;
+type DeltaVariant = NonNullable<VariantProps<typeof badgeDeltaVariants>["variant"]>;
 
 const iconMap: {
   [key in DeltaType]: (props: { class?: string }) => JSXElement;
@@ -139,10 +132,7 @@ const BadgeDelta: Component<BadgeDeltaProps> = (props) => {
 
   return (
     <Badge
-      class={cn(
-        badgeDeltaVariants({ variant: variantMap[local.deltaType] }),
-        local.class,
-      )}
+      class={cn(badgeDeltaVariants({ variant: variantMap[local.deltaType] }), local.class)}
       {...others}
     >
       <span class="flex gap-1">

@@ -1,8 +1,4 @@
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "@effect/platform";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
 import { ClockService } from "../lib/clock.ts";
@@ -53,10 +49,7 @@ const readRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(
-          DownloadService,
-          (service) => service.listDownloadQueue(),
-        ),
+        Effect.flatMap(DownloadService, (service) => service.listDownloadQueue()),
       ),
       jsonResponse,
     ),
@@ -66,10 +59,7 @@ const readRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(
-          DownloadService,
-          (service) => service.listDownloadHistory(),
-        ),
+        Effect.flatMap(DownloadService, (service) => service.listDownloadHistory()),
       ),
       jsonResponse,
     ),
@@ -81,20 +71,18 @@ const readRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const query = yield* decodeQuery(DownloadEventsQuerySchema);
-          return yield* Effect.flatMap(
-            DownloadService,
-            (service) =>
-              service.listDownloadEvents({
-                animeId: query.anime_id,
-                cursor: query.cursor,
-                downloadId: query.download_id,
-                direction: query.direction,
-                endDate: query.end_date,
-                eventType: query.event_type,
-                limit: query.limit,
-                startDate: query.start_date,
-                status: query.status,
-              }),
+          return yield* Effect.flatMap(DownloadService, (service) =>
+            service.listDownloadEvents({
+              animeId: query.anime_id,
+              cursor: query.cursor,
+              downloadId: query.download_id,
+              direction: query.direction,
+              endDate: query.end_date,
+              eventType: query.event_type,
+              limit: query.limit,
+              startDate: query.start_date,
+              status: query.status,
+            }),
           );
         }),
       ),
@@ -108,19 +96,17 @@ const readRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const query = yield* decodeQuery(DownloadEventsExportQuerySchema);
-          const page = yield* Effect.flatMap(
-            DownloadService,
-            (service) =>
-              service.exportDownloadEvents({
-                animeId: query.anime_id,
-                downloadId: query.download_id,
-                endDate: query.end_date,
-                eventType: query.event_type,
-                limit: query.limit,
-                order: query.order,
-                startDate: query.start_date,
-                status: query.status,
-              }),
+          const page = yield* Effect.flatMap(DownloadService, (service) =>
+            service.exportDownloadEvents({
+              animeId: query.anime_id,
+              downloadId: query.download_id,
+              endDate: query.end_date,
+              eventType: query.event_type,
+              limit: query.limit,
+              order: query.order,
+              startDate: query.start_date,
+              status: query.status,
+            }),
           );
           return { format: query.format ?? "json", page };
         }),
@@ -147,18 +133,12 @@ const readRouter = HttpRouter.empty.pipe(
                 escapeCsv(event.to_status ?? ""),
                 event.anime_id === undefined ? "" : String(event.anime_id),
                 escapeCsv(event.anime_title ?? ""),
-                event.download_id === undefined
-                  ? ""
-                  : String(event.download_id),
+                event.download_id === undefined ? "" : String(event.download_id),
                 escapeCsv(event.torrent_name ?? ""),
                 escapeCsv(event.message),
                 escapeCsv(event.metadata ?? ""),
-                escapeCsv(
-                  event.metadata_json
-                    ? JSON.stringify(event.metadata_json)
-                    : "",
-                ),
-              ].join(",")
+                escapeCsv(event.metadata_json ? JSON.stringify(event.metadata_json) : ""),
+              ].join(","),
             ),
           ].join("\n");
 
@@ -166,8 +146,7 @@ const readRouter = HttpRouter.empty.pipe(
             contentType: "text/csv; charset=utf-8",
             headers: {
               ...exportHeaders,
-              "Content-Disposition":
-                'attachment; filename="bakarr-download-events.csv"',
+              "Content-Disposition": 'attachment; filename="bakarr-download-events.csv"',
             },
           });
         }
@@ -176,8 +155,7 @@ const readRouter = HttpRouter.empty.pipe(
           contentType: "application/json; charset=utf-8",
           headers: {
             ...exportHeaders,
-            "Content-Disposition":
-              'attachment; filename="bakarr-download-events.json"',
+            "Content-Disposition": 'attachment; filename="bakarr-download-events.json"',
           },
         });
       },
@@ -200,9 +178,8 @@ const readRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const query = yield* decodeQuery(WantedMissingQuerySchema);
-          return yield* Effect.flatMap(
-            LibraryService,
-            (service) => service.getWantedMissing(query.limit ?? 50),
+          return yield* Effect.flatMap(LibraryService, (service) =>
+            service.getWantedMissing(query.limit ?? 50),
           );
         }),
       ),
@@ -216,15 +193,10 @@ const readRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const query = yield* decodeQuery(CalendarQuerySchema);
-          const now = yield* Effect.flatMap(
-            ClockService,
-            (clock) => clock.currentTimeMillis,
-          );
+          const now = yield* Effect.flatMap(ClockService, (clock) => clock.currentTimeMillis);
           const nowIso = new Date(now).toISOString();
-          return yield* Effect.flatMap(
-            LibraryService,
-            (service) =>
-              service.getCalendar(query.start ?? nowIso, query.end ?? nowIso),
+          return yield* Effect.flatMap(LibraryService, (service) =>
+            service.getCalendar(query.start ?? nowIso, query.end ?? nowIso),
           );
         }),
       ),
@@ -236,10 +208,7 @@ const readRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(
-          LibraryService,
-          (service) => service.getUnmappedFolders(),
-        ),
+        Effect.flatMap(LibraryService, (service) => service.getUnmappedFolders()),
       ),
       jsonResponse,
     ),
@@ -252,10 +221,7 @@ const readRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const query = yield* decodeQuery(BrowseQuerySchema);
           const fs = yield* FileSystem;
-          const config = yield* Effect.flatMap(
-            SystemService,
-            (s) => s.getConfig(),
-          );
+          const config = yield* Effect.flatMap(SystemService, (s) => s.getConfig());
           const roots = yield* listLibraryRoots();
 
           const allowedPrefixes = [
@@ -267,14 +233,11 @@ const readRouter = HttpRouter.empty.pipe(
           const requestedPath = query.path || ".";
 
           if (requestedPath !== ".") {
-            const canonicalPath = yield* fs.realPath(requestedPath).pipe(
-              Effect.catchTag(
-                "FileSystemError",
-                () => Effect.succeed(requestedPath),
-              ),
-            );
+            const canonicalPath = yield* fs
+              .realPath(requestedPath)
+              .pipe(Effect.catchTag("FileSystemError", () => Effect.succeed(requestedPath)));
             const isAllowed = allowedPrefixes.some((prefix) =>
-              isWithinPathRoot(canonicalPath, prefix)
+              isWithinPathRoot(canonicalPath, prefix),
             );
 
             if (!isAllowed) {
@@ -320,15 +283,8 @@ const readRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const query = yield* decodeQuery(SearchReleasesQuerySchema);
-          return yield* Effect.flatMap(
-            SearchService,
-            (service) =>
-              service.searchReleases(
-                query.query ?? "",
-                query.anime_id,
-                query.category,
-                query.filter,
-              ),
+          return yield* Effect.flatMap(SearchService, (service) =>
+            service.searchReleases(query.query ?? "", query.anime_id, query.category, query.filter),
           );
         }),
       ),
@@ -342,10 +298,8 @@ const readRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(SearchEpisodeParamsSchema);
-          return yield* Effect.flatMap(
-            SearchService,
-            (service) =>
-              service.searchEpisode(params.animeId, params.episodeNumber),
+          return yield* Effect.flatMap(SearchService, (service) =>
+            service.searchEpisode(params.animeId, params.episodeNumber),
           );
         }),
       ),
@@ -362,10 +316,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(SearchDownloadBodySchema);
-          yield* Effect.flatMap(
-            DownloadService,
-            (service) => service.triggerDownload({ ...body }),
-          );
+          yield* Effect.flatMap(DownloadService, (service) => service.triggerDownload({ ...body }));
         }),
       ),
       successResponse,
@@ -379,20 +330,19 @@ const writeRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const request = yield* HttpServerRequest.HttpServerRequest;
           const text = yield* request.text;
-          const body = text.trim().length === 0
-            ? new SearchMissingBodySchema({ anime_id: undefined })
-            : yield* Schema.decode(Schema.parseJson(SearchMissingBodySchema))(
-              text,
-            ).pipe(
-              Effect.mapError(() =>
-                new OperationsInputError({
-                  message: "Invalid request body for search missing downloads",
-                })
-              ),
-            );
-          yield* Effect.flatMap(
-            DownloadService,
-            (service) => service.triggerSearchMissing(body.anime_id),
+          const body =
+            text.trim().length === 0
+              ? new SearchMissingBodySchema({ anime_id: undefined })
+              : yield* Schema.decode(Schema.parseJson(SearchMissingBodySchema))(text).pipe(
+                  Effect.mapError(
+                    () =>
+                      new OperationsInputError({
+                        message: "Invalid request body for search missing downloads",
+                      }),
+                  ),
+                );
+          yield* Effect.flatMap(DownloadService, (service) =>
+            service.triggerSearchMissing(body.anime_id),
           );
         }),
       ),
@@ -406,10 +356,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          yield* Effect.flatMap(
-            DownloadService,
-            (service) => service.pauseDownload(params.id),
-          );
+          yield* Effect.flatMap(DownloadService, (service) => service.pauseDownload(params.id));
         }),
       ),
       successResponse,
@@ -422,10 +369,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          yield* Effect.flatMap(
-            DownloadService,
-            (service) => service.resumeDownload(params.id),
-          );
+          yield* Effect.flatMap(DownloadService, (service) => service.resumeDownload(params.id));
         }),
       ),
       successResponse,
@@ -438,10 +382,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          yield* Effect.flatMap(
-            DownloadService,
-            (service) => service.retryDownload(params.id),
-          );
+          yield* Effect.flatMap(DownloadService, (service) => service.retryDownload(params.id));
         }),
       ),
       successResponse,
@@ -454,10 +395,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          yield* Effect.flatMap(
-            DownloadService,
-            (service) => service.reconcileDownload(params.id),
-          );
+          yield* Effect.flatMap(DownloadService, (service) => service.reconcileDownload(params.id));
         }),
       ),
       successResponse,
@@ -481,10 +419,8 @@ const writeRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
           const query = yield* decodeQuery(DeleteDownloadQuerySchema);
-          yield* Effect.flatMap(
-            DownloadService,
-            (service) =>
-              service.removeDownload(params.id, query.delete_files === "true"),
+          yield* Effect.flatMap(DownloadService, (service) =>
+            service.removeDownload(params.id, query.delete_files === "true"),
           );
         }),
       ),
@@ -498,10 +434,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(AddRssFeedBodySchema);
-          return yield* Effect.flatMap(
-            RssService,
-            (service) => service.addRssFeed({ ...body }),
-          );
+          return yield* Effect.flatMap(RssService, (service) => service.addRssFeed({ ...body }));
         }),
       ),
       jsonResponse,
@@ -514,10 +447,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          yield* Effect.flatMap(
-            RssService,
-            (service) => service.deleteRssFeed(params.id),
-          );
+          yield* Effect.flatMap(RssService, (service) => service.deleteRssFeed(params.id));
         }),
       ),
       successResponse,
@@ -531,9 +461,8 @@ const writeRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
           const body = yield* decodeJsonBody(EnabledBodySchema);
-          yield* Effect.flatMap(
-            RssService,
-            (service) => service.toggleRssFeed(params.id, body.enabled),
+          yield* Effect.flatMap(RssService, (service) =>
+            service.toggleRssFeed(params.id, body.enabled),
           );
         }),
       ),
@@ -557,9 +486,8 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(ControlUnmappedFolderBodySchema);
-          yield* Effect.flatMap(
-            LibraryService,
-            (service) => service.controlUnmappedFolder({ ...body }),
+          yield* Effect.flatMap(LibraryService, (service) =>
+            service.controlUnmappedFolder({ ...body }),
           );
         }),
       ),
@@ -572,12 +500,9 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const body = yield* decodeJsonBody(
-            BulkControlUnmappedFoldersBodySchema,
-          );
-          yield* Effect.flatMap(
-            LibraryService,
-            (service) => service.bulkControlUnmappedFolders({ ...body }),
+          const body = yield* decodeJsonBody(BulkControlUnmappedFoldersBodySchema);
+          yield* Effect.flatMap(LibraryService, (service) =>
+            service.bulkControlUnmappedFolders({ ...body }),
           );
         }),
       ),
@@ -591,9 +516,8 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(ImportUnmappedFolderBodySchema);
-          yield* Effect.flatMap(
-            LibraryService,
-            (service) => service.importUnmappedFolder({ ...body }),
+          yield* Effect.flatMap(LibraryService, (service) =>
+            service.importUnmappedFolder({ ...body }),
           );
         }),
       ),
@@ -607,9 +531,8 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(ScanImportPathBodySchema);
-          return yield* Effect.flatMap(
-            LibraryService,
-            (service) => service.scanImportPath(body.path, body.anime_id),
+          return yield* Effect.flatMap(LibraryService, (service) =>
+            service.scanImportPath(body.path, body.anime_id),
           );
         }),
       ),
@@ -623,9 +546,8 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(ImportFilesBodySchema);
-          return yield* Effect.flatMap(
-            LibraryService,
-            (service) => service.importFiles([...body.files]),
+          return yield* Effect.flatMap(LibraryService, (service) =>
+            service.importFiles([...body.files]),
           );
         }),
       ),

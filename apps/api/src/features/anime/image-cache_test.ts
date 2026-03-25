@@ -1,9 +1,5 @@
 import { assertEquals, it } from "../../test/vitest.ts";
-import {
-  FetchHttpClient,
-  HttpClient,
-  HttpClientResponse,
-} from "@effect/platform";
+import { FetchHttpClient, HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Exit } from "effect";
 
 import { exists, withFileSystemSandboxEffect } from "../../test/filesystem-test.ts";
@@ -16,11 +12,11 @@ it.scoped("cacheAnimeMetadataImages uses provided HttpClient for remote images",
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         globalThis.fetch = originalFetch;
-      })
+      }),
     );
     yield* Effect.sync(() => {
-      globalThis.fetch = ((() =>
-        Promise.reject(new Error("unexpected global fetch"))) as unknown) as typeof fetch;
+      globalThis.fetch = (() =>
+        Promise.reject(new Error("unexpected global fetch"))) as unknown as typeof fetch;
     });
 
     yield* withFileSystemSandboxEffect(({ fs, root }) =>
@@ -35,7 +31,7 @@ it.scoped("cacheAnimeMetadataImages uses provided HttpClient for remote images",
                 status: 200,
               }),
             ),
-          )
+          ),
         );
 
         const result = yield* cacheAnimeMetadataImages(fs, client, root, 55, {
@@ -43,13 +39,10 @@ it.scoped("cacheAnimeMetadataImages uses provided HttpClient for remote images",
         });
 
         assertEquals(result.coverImage, "/api/images/anime/55/cover.png");
-        assertEquals(
-          yield* exists(fs, `${root}/anime/55/cover.png`),
-          true,
-        );
-      })
+        assertEquals(yield* exists(fs, `${root}/anime/55/cover.png`), true);
+      }),
     );
-  })
+  }),
 );
 
 it.scoped("cacheAnimeMetadataImages saves cover and banner files locally", () =>
@@ -63,16 +56,10 @@ it.scoped("cacheAnimeMetadataImages saves cover and banner files locally", () =>
 
       assertEquals(result.coverImage, "/api/images/anime/99/cover.png");
       assertEquals(result.bannerImage, "/api/images/anime/99/banner.png");
-      assertEquals(
-        yield* exists(fs, `${root}/anime/99/cover.png`),
-        true,
-      );
-      assertEquals(
-        yield* exists(fs, `${root}/anime/99/banner.png`),
-        true,
-      );
-    })
-  )
+      assertEquals(yield* exists(fs, `${root}/anime/99/cover.png`), true);
+      assertEquals(yield* exists(fs, `${root}/anime/99/banner.png`), true);
+    }),
+  ),
 );
 
 it.scoped("cacheAnimeMetadataImages fails on unsupported image types", () =>
@@ -82,16 +69,16 @@ it.scoped("cacheAnimeMetadataImages fails on unsupported image types", () =>
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         globalThis.fetch = originalFetch;
-      })
+      }),
     );
     yield* Effect.sync(() => {
-      globalThis.fetch = ((() =>
+      globalThis.fetch = (() =>
         Promise.resolve(
           new Response("not-an-image", {
             headers: { "content-type": "text/plain" },
             status: 200,
           }),
-        )) as unknown) as typeof fetch;
+        )) as unknown as typeof fetch;
     });
 
     yield* withFileSystemSandboxEffect(({ fs, root }) =>
@@ -106,17 +93,11 @@ it.scoped("cacheAnimeMetadataImages fails on unsupported image types", () =>
         );
 
         assertEquals(Exit.isFailure(result), true);
-        assertEquals(
-          yield* exists(fs, `${root}/anime/77/cover.png`),
-          false,
-        );
-        assertEquals(
-          yield* exists(fs, `${root}/anime/77/banner.png`),
-          false,
-        );
-      })
+        assertEquals(yield* exists(fs, `${root}/anime/77/cover.png`), false);
+        assertEquals(yield* exists(fs, `${root}/anime/77/banner.png`), false);
+      }),
     );
-  })
+  }),
 );
 
 it.scoped("cacheAnimeMetadataImages fails oversized images by Content-Length", () =>
@@ -126,10 +107,10 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by Content-Length", (
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         globalThis.fetch = originalFetch;
-      })
+      }),
     );
     yield* Effect.sync(() => {
-      globalThis.fetch = ((() =>
+      globalThis.fetch = (() =>
         Promise.resolve(
           new Response("x".repeat(100), {
             headers: {
@@ -138,7 +119,7 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by Content-Length", (
             },
             status: 200,
           }),
-        )) as unknown) as typeof fetch;
+        )) as unknown as typeof fetch;
     });
 
     yield* withFileSystemSandboxEffect(({ fs, root }) =>
@@ -151,13 +132,10 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by Content-Length", (
         );
 
         assertEquals(Exit.isFailure(result), true);
-        assertEquals(
-          yield* exists(fs, `${root}/anime/77/cover.png`),
-          false,
-        );
-      })
+        assertEquals(yield* exists(fs, `${root}/anime/77/cover.png`), false);
+      }),
     );
-  })
+  }),
 );
 
 it.scoped("cacheAnimeMetadataImages fails oversized images by streamed bytes", () =>
@@ -174,16 +152,16 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by streamed bytes", (
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         globalThis.fetch = originalFetch;
-      })
+      }),
     );
     yield* Effect.sync(() => {
-      globalThis.fetch = ((() =>
+      globalThis.fetch = (() =>
         Promise.resolve(
           new Response(stream, {
             headers: { "content-type": "image/png" },
             status: 200,
           }),
-        )) as unknown) as typeof fetch;
+        )) as unknown as typeof fetch;
     });
 
     yield* withFileSystemSandboxEffect(({ fs, root }) =>
@@ -196,17 +174,12 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by streamed bytes", (
         );
 
         assertEquals(Exit.isFailure(result), true);
-        assertEquals(
-          yield* exists(fs, `${root}/anime/77/cover.png`),
-          false,
-        );
-      })
+        assertEquals(yield* exists(fs, `${root}/anime/77/cover.png`), false);
+      }),
     );
-  })
+  }),
 );
 
 function clientFromFetch() {
-  return Effect.runSync(
-    HttpClient.HttpClient.pipe(Effect.provide(FetchHttpClient.layer)),
-  );
+  return Effect.runSync(HttpClient.HttpClient.pipe(Effect.provide(FetchHttpClient.layer)));
 }

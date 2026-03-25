@@ -1,16 +1,14 @@
 import type { RssFeed } from "../../../../../../packages/shared/src/index.ts";
 
-export function toRssFeed(
-  row: {
-    animeId: number;
-    createdAt: string;
-    enabled: boolean;
-    id: number;
-    lastChecked: string | null;
-    name: string | null;
-    url: string;
-  },
-): RssFeed {
+export function toRssFeed(row: {
+  animeId: number;
+  createdAt: string;
+  enabled: boolean;
+  id: number;
+  lastChecked: string | null;
+  name: string | null;
+  url: string;
+}): RssFeed {
   return {
     anime_id: row.animeId,
     created_at: row.createdAt,

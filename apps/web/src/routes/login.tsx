@@ -29,13 +29,15 @@ const LoginSchema = v.object({
 type LoginFormData = v.InferOutput<typeof LoginSchema>;
 
 function formatFieldErrors(errors: readonly unknown[]) {
-  return errors.map((error) => {
-    if (typeof error === "string") return error;
-    if (typeof error === "object" && error && "message" in error) {
-      return String(error.message);
-    }
-    return String(error);
-  }).join(", ");
+  return errors
+    .map((error) => {
+      if (typeof error === "string") return error;
+      if (typeof error === "object" && error && "message" in error) {
+        return String(error.message);
+      }
+      return String(error);
+    })
+    .join(", ");
 }
 
 function LoginPage() {
@@ -151,9 +153,7 @@ function LoginPage() {
                   class="w-full"
                   disabled={!state().canSubmit || loginMutation.isPending}
                 >
-                  {state().isSubmitting || loginMutation.isPending
-                    ? "Signing in..."
-                    : "Sign in"}
+                  {state().isSubmitting || loginMutation.isPending ? "Signing in..." : "Sign in"}
                 </Button>
               )}
             </form.Subscribe>
@@ -188,16 +188,12 @@ function LoginPage() {
                 }
                 navigate({ to: "/" });
               } catch (err) {
-                const message = err instanceof Error
-                  ? err.message
-                  : "API key login failed";
+                const message = err instanceof Error ? err.message : "API key login failed";
                 toast.error(message);
               }
             }}
           >
-            {apiKeyLoginMutation.isPending
-              ? "Signing in..."
-              : "Sign in with API key"}
+            {apiKeyLoginMutation.isPending ? "Signing in..." : "Sign in with API key"}
           </Button>
         </div>
       </Card>

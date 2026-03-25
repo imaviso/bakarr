@@ -13,17 +13,15 @@ interface ReleaseMetadataSummaryProps {
 
 export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {
   return (
-    <div
-      class={props.compact ? "flex flex-col gap-0.5" : "flex flex-col gap-1"}
-    >
+    <div class={props.compact ? "flex flex-col gap-0.5" : "flex flex-col gap-1"}>
       <Show when={(props.flags?.length ?? 0) > 0}>
         <div class="flex items-center gap-2 flex-wrap">
           <For each={props.flags}>
             {(flag) => (
               <span
-                class={`inline-flex items-center rounded-none border h-4 px-1 text-xs ${
-                  releaseFlagBadgeClass(flag.kind)
-                }`}
+                class={`inline-flex items-center rounded-none border h-4 px-1 text-xs ${releaseFlagBadgeClass(
+                  flag.kind,
+                )}`}
               >
                 {flag.label}
               </span>
@@ -32,9 +30,7 @@ export function ReleaseMetadataSummary(props: ReleaseMetadataSummaryProps) {
         </div>
       </Show>
       <Show when={props.sourceSummary}>
-        <div class="text-xs text-muted-foreground leading-tight">
-          {props.sourceSummary}
-        </div>
+        <div class="text-xs text-muted-foreground leading-tight">{props.sourceSummary}</div>
       </Show>
       <Show when={props.parsedSummary || props.sourceUrl}>
         <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground leading-tight">

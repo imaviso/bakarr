@@ -1,8 +1,5 @@
 import type { ParsedEpisodeIdentity } from "./media-identity.ts";
-import {
-  formatSeasonLabel,
-  rangeArray,
-} from "./media-identity-parser-shared.ts";
+import { formatSeasonLabel, rangeArray } from "./media-identity-parser-shared.ts";
 
 export function parseSeasonEpisodeIdentity(
   value: string,
@@ -52,9 +49,7 @@ export function parseSeasonEpisodeIdentity(
         scheme: "season",
         season,
         episode_numbers: [ep],
-        label: `S${String(season).padStart(2, "0")}E${
-          String(ep).padStart(2, "0")
-        }`,
+        label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
       };
     }
   }
@@ -77,9 +72,7 @@ export function parseSeasonEpisodeIdentity(
     }
   }
 
-  const crossMatch = value.match(
-    /(?:^|[\s._-])(\d{1,2})x(\d{1,3})(?:[\s._-]|$)/i,
-  );
+  const crossMatch = value.match(/(?:^|[\s._-])(\d{1,2})x(\d{1,3})(?:[\s._-]|$)/i);
   if (crossMatch) {
     const season = Number(crossMatch[1]);
     const ep = Number(crossMatch[2]);
@@ -88,9 +81,7 @@ export function parseSeasonEpisodeIdentity(
         scheme: "season",
         season,
         episode_numbers: [ep],
-        label: `S${String(season).padStart(2, "0")}E${
-          String(ep).padStart(2, "0")
-        }`,
+        label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
       };
     }
   }
@@ -106,9 +97,7 @@ export function parseSeasonEpisodeIdentity(
         scheme: "season",
         season,
         episode_numbers: [ep],
-        label: `S${String(season).padStart(2, "0")}E${
-          String(ep).padStart(2, "0")
-        }`,
+        label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
       };
     }
   }
@@ -124,9 +113,7 @@ export function parseSeasonEpisodeIdentity(
         scheme: "season",
         season,
         episode_numbers: [ep],
-        label: `S${String(season).padStart(2, "0")}E${
-          String(ep).padStart(2, "0")
-        }`,
+        label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
       };
     }
   }
@@ -135,9 +122,7 @@ export function parseSeasonEpisodeIdentity(
 }
 
 function collectSeasonEpisodes(value: string): number[] {
-  const fullMatch = value.match(
-    /s(\d{1,2})([\s._-]*e\d{1,4}(?:[\s._-]*e\d{1,4})*)/i,
-  );
+  const fullMatch = value.match(/s(\d{1,2})([\s._-]*e\d{1,4}(?:[\s._-]*e\d{1,4})*)/i);
   if (!fullMatch) return [];
 
   const episodePart = fullMatch[2];

@@ -6,14 +6,7 @@ import {
   IconPlus,
   IconSearch,
 } from "@tabler/icons-solidjs";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import { Badge } from "~/components/ui/badge";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
@@ -37,13 +30,14 @@ export function ManualSearch(props: ManualSearchProps) {
   const search = createAnimeSearchQuery(() => debouncedQuery());
   const searchResults = createMemo(() => search.data?.results ?? []);
   const searchDegraded = createMemo(() => search.data?.degraded ?? false);
-  const libraryIds = createMemo(() =>
-    new Set([
-      ...props.existingIds,
-      ...searchResults()
-        .filter((anime) => anime.already_in_library)
-        .map((anime) => anime.id),
-    ])
+  const libraryIds = createMemo(
+    () =>
+      new Set([
+        ...props.existingIds,
+        ...searchResults()
+          .filter((anime) => anime.already_in_library)
+          .map((anime) => anime.id),
+      ]),
   );
 
   return (
@@ -68,8 +62,8 @@ export function ManualSearch(props: ManualSearchProps) {
           <div class="flex items-start gap-2">
             <IconInfoCircle class="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              AniList is temporarily unavailable or rate-limited. Showing local
-              library matches only.
+              AniList is temporarily unavailable or rate-limited. Showing local library matches
+              only.
             </span>
           </div>
         </div>
@@ -121,12 +115,8 @@ export function ManualSearch(props: ManualSearchProps) {
                         </Show>
                       </div>
                       <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium truncate">
-                          {animeDisplayTitle(anime)}
-                        </p>
-                        <p class="text-xs text-muted-foreground truncate">
-                          {anime.title.english}
-                        </p>
+                        <p class="text-sm font-medium truncate">{animeDisplayTitle(anime)}</p>
+                        <p class="text-xs text-muted-foreground truncate">{anime.title.english}</p>
                         <div class="mt-1 flex flex-wrap gap-1 text-xs text-muted-foreground">
                           <Show when={searchDegraded()}>
                             <Badge
@@ -136,13 +126,8 @@ export function ManualSearch(props: ManualSearchProps) {
                               Local only
                             </Badge>
                           </Show>
-                          <Show
-                            when={formatMatchConfidence(anime.match_confidence)}
-                          >
-                            <Badge
-                              variant="outline"
-                              class="h-5 px-1.5 text-xs"
-                            >
+                          <Show when={formatMatchConfidence(anime.match_confidence)}>
+                            <Badge variant="outline" class="h-5 px-1.5 text-xs">
                               {formatMatchConfidence(anime.match_confidence)}
                             </Badge>
                           </Show>
@@ -169,8 +154,7 @@ export function ManualSearch(props: ManualSearchProps) {
                         </Show>
                         <Show when={anime.synonyms?.length}>
                           <p class="mt-1 text-xs text-muted-foreground line-clamp-2">
-                            Also known as{" "}
-                            {anime.synonyms?.slice(0, 3).join(" • ")}
+                            Also known as {anime.synonyms?.slice(0, 3).join(" • ")}
                           </p>
                         </Show>
                         <Show when={anime.related_anime?.length}>
@@ -207,9 +191,7 @@ export function ManualSearch(props: ManualSearchProps) {
                       </div>
                       <Show
                         when={isAdded()}
-                        fallback={
-                          <IconPlus class="h-4 w-4 text-muted-foreground" />
-                        }
+                        fallback={<IconPlus class="h-4 w-4 text-muted-foreground" />}
                       >
                         <span class="text-xs text-muted-foreground">Added</span>
                       </Show>

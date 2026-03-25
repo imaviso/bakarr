@@ -23,17 +23,11 @@ const BreadcrumbList: Component<ComponentProps<"ol">> = (props) => {
 
 const BreadcrumbItem: Component<ComponentProps<"li">> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
-  return (
-    <li
-      class={cn("inline-flex items-center gap-1.5", local.class)}
-      {...others}
-    />
-  );
+  return <li class={cn("inline-flex items-center gap-1.5", local.class)} {...others} />;
 };
 
 type BreadcrumbLinkProps<T extends ValidComponent = "a"> =
-  & BreadcrumbPrimitive.BreadcrumbsLinkProps<T>
-  & { class?: string | undefined };
+  BreadcrumbPrimitive.BreadcrumbsLinkProps<T> & { class?: string | undefined };
 
 const BreadcrumbLink = <T extends ValidComponent = "a">(
   props: PolymorphicProps<T, BreadcrumbLinkProps<T>>,
@@ -51,8 +45,7 @@ const BreadcrumbLink = <T extends ValidComponent = "a">(
 };
 
 type BreadcrumbSeparatorProps<T extends ValidComponent = "span"> =
-  & BreadcrumbPrimitive.BreadcrumbsSeparatorProps<T>
-  & {
+  BreadcrumbPrimitive.BreadcrumbsSeparatorProps<T> & {
     class?: string | undefined;
     children?: JSX.Element;
   };
@@ -60,15 +53,9 @@ type BreadcrumbSeparatorProps<T extends ValidComponent = "span"> =
 const BreadcrumbSeparator = <T extends ValidComponent = "span">(
   props: PolymorphicProps<T, BreadcrumbSeparatorProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as BreadcrumbSeparatorProps, [
-    "class",
-    "children",
-  ]);
+  const [local, others] = splitProps(props as BreadcrumbSeparatorProps, ["class", "children"]);
   return (
-    <BreadcrumbPrimitive.Separator
-      class={cn("[&>svg]:size-3.5", local.class)}
-      {...others}
-    >
+    <BreadcrumbPrimitive.Separator class={cn("[&>svg]:size-3.5", local.class)} {...others}>
       <Show
         when={local.children}
         fallback={
@@ -94,10 +81,7 @@ const BreadcrumbSeparator = <T extends ValidComponent = "span">(
 const BreadcrumbEllipsis: Component<ComponentProps<"span">> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
   return (
-    <span
-      class={cn("flex size-9 items-center justify-center", local.class)}
-      {...others}
-    >
+    <span class={cn("flex size-9 items-center justify-center", local.class)} {...others}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"

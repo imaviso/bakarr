@@ -8,13 +8,10 @@ import * as schema from "./schema.ts";
 
 export type AppDatabase = LibSQLDatabase<typeof schema>;
 
-export class DatabaseError extends Schema.TaggedError<DatabaseError>()(
-  "DatabaseError",
-  {
-    cause: Schema.Defect,
-    message: Schema.String,
-  },
-) {
+export class DatabaseError extends Schema.TaggedError<DatabaseError>()("DatabaseError", {
+  cause: Schema.Defect,
+  message: Schema.String,
+}) {
   isUniqueConstraint(): boolean {
     return isSqliteUniqueConstraint(this.cause);
   }
@@ -34,10 +31,7 @@ export interface DatabaseService {
   readonly db: AppDatabase;
 }
 
-export class Database extends Context.Tag("@bakarr/api/Database")<
-  Database,
-  DatabaseService
->() {}
+export class Database extends Context.Tag("@bakarr/api/Database")<Database, DatabaseService>() {}
 
 const sqliteSetupError = (cause: unknown) =>
   new DatabaseError({
@@ -45,48 +39,44 @@ const sqliteSetupError = (cause: unknown) =>
     message: "Failed to open the SQLite database",
   });
 
-const executeSql = Effect.fn("Database.executeSql")(
-  function* (client: Client, statement: string) {
-    return yield* Effect.tryPromise({
-      try: () => client.execute(statement),
-      catch: sqliteSetupError,
-    });
-  },
-);
+const executeSql = Effect.fn("Database.executeSql")(function* (client: Client, statement: string) {
+  return yield* Effect.tryPromise({
+    try: () => client.execute(statement),
+    catch: sqliteSetupError,
+  });
+});
 
-const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(
-  function* (client: Client) {
-    yield* executeSql(client, "PRAGMA journal_mode = WAL");
-    yield* executeSql(client, "PRAGMA foreign_keys = ON");
+const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* (client: Client) {
+  yield* executeSql(client, "PRAGMA journal_mode = WAL");
+  yield* executeSql(client, "PRAGMA foreign_keys = ON");
 
-    const journalMode = yield* executeSql(client, "PRAGMA journal_mode");
-    const foreignKeys = yield* executeSql(client, "PRAGMA foreign_keys");
+  const journalMode = yield* executeSql(client, "PRAGMA journal_mode");
+  const foreignKeys = yield* executeSql(client, "PRAGMA foreign_keys");
 
-    const journalModeValue = String(journalMode.rows[0]?.[0] ?? "");
-    const foreignKeysValue = String(foreignKeys.rows[0]?.[0] ?? "");
+  const journalModeValue = String(journalMode.rows[0]?.[0] ?? "");
+  const foreignKeysValue = String(foreignKeys.rows[0]?.[0] ?? "");
 
-    if (journalModeValue.toLowerCase() !== "wal") {
-      yield* Effect.logWarning("SQLite pragma mismatch").pipe(
-        Effect.annotateLogs({
-          actual: journalModeValue,
-          expected: "wal",
-          pragma: "journal_mode",
-        }),
-      );
-    }
+  if (journalModeValue.toLowerCase() !== "wal") {
+    yield* Effect.logWarning("SQLite pragma mismatch").pipe(
+      Effect.annotateLogs({
+        actual: journalModeValue,
+        expected: "wal",
+        pragma: "journal_mode",
+      }),
+    );
+  }
 
-    if (foreignKeysValue !== "1") {
-      yield* Effect.logError("SQLite pragma mismatch").pipe(
-        Effect.annotateLogs({
-          actual: foreignKeysValue,
-          expected: "1",
-          pragma: "foreign_keys",
-          risk: "Data integrity may be compromised",
-        }),
-      );
-    }
-  },
-);
+  if (foreignKeysValue !== "1") {
+    yield* Effect.logError("SQLite pragma mismatch").pipe(
+      Effect.annotateLogs({
+        actual: foreignKeysValue,
+        expected: "1",
+        pragma: "foreign_keys",
+        risk: "Data integrity may be compromised",
+      }),
+    );
+  }
+});
 
 const makeDatabase = Effect.gen(function* () {
   const config = yield* AppConfig;

@@ -1,7 +1,4 @@
-import type {
-  BulkUnmappedFolderControlRequest,
-  UnmappedFolderControlRequest,
-} from "~/lib/api";
+import type { BulkUnmappedFolderControlRequest, UnmappedFolderControlRequest } from "~/lib/api";
 
 export async function runFolderBackgroundMatchAction(input: {
   action: UnmappedFolderControlRequest["action"];

@@ -18,10 +18,7 @@ type SwitchControlProps = SwitchPrimitive.SwitchControlProps & {
 const SwitchControl = <T extends ValidComponent = "input">(
   props: PolymorphicProps<T, SwitchControlProps>,
 ) => {
-  const [local, others] = splitProps(props as SwitchControlProps, [
-    "class",
-    "children",
-  ]);
+  const [local, others] = splitProps(props as SwitchControlProps, ["class", "children"]);
   return (
     <>
       <SwitchPrimitive.Input
@@ -84,9 +81,7 @@ const SwitchLabel = <T extends ValidComponent = "label">(
 const Switch = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SwitchPrimitive.SwitchRootProps>,
 ) => {
-  const [local, others] = splitProps(props as SwitchPrimitive.SwitchRootProps, [
-    "children",
-  ]);
+  const [local, others] = splitProps(props as SwitchPrimitive.SwitchRootProps, ["children"]);
   return (
     <SwitchRoot {...others}>
       <SwitchControl>

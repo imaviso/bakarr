@@ -8,15 +8,9 @@ export function parseDailyIdentity(
     /(?:^|[\s._\-[(])(\d{4})[\s._-](\d{2})[\s._-](\d{2})(?:[\s._\-\])]|$)/,
   );
   if (ymdMatch) {
-    const [year, month, day] = [
-      Number(ymdMatch[1]),
-      Number(ymdMatch[2]),
-      Number(ymdMatch[3]),
-    ];
+    const [year, month, day] = [Number(ymdMatch[1]), Number(ymdMatch[2]), Number(ymdMatch[3])];
     if (isValidDate(year, month, day)) {
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${
-        String(day).padStart(2, "0")
-      }`;
+      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       return {
         scheme: "daily",
         air_dates: [dateStr],
@@ -29,15 +23,9 @@ export function parseDailyIdentity(
     /(?:^|[\s._\-[(])(\d{2})[\s._-](\d{2})[\s._-](\d{4})(?:[\s._\-\])]|$)/,
   );
   if (dmyMatch) {
-    const [day, month, year] = [
-      Number(dmyMatch[1]),
-      Number(dmyMatch[2]),
-      Number(dmyMatch[3]),
-    ];
+    const [day, month, year] = [Number(dmyMatch[1]), Number(dmyMatch[2]), Number(dmyMatch[3])];
     if (isValidDate(year, month, day) && year >= 1900 && year <= 2100) {
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${
-        String(day).padStart(2, "0")
-      }`;
+      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       return {
         scheme: "daily",
         air_dates: [dateStr],

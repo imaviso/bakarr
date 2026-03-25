@@ -8,10 +8,7 @@ import {
 } from "../../../../../packages/shared/src/index.ts";
 import { scoreAnimeSearchResultMatch } from "./library-import.ts";
 
-type UnmappedFolderInput = Pick<
-  ScannerState["folders"][number],
-  "name" | "path"
->;
+type UnmappedFolderInput = Pick<ScannerState["folders"][number], "name" | "path">;
 
 const DEFAULT_SEARCH_CONCURRENCY = 4;
 const NOISE_PATTERNS = [
@@ -36,31 +33,21 @@ export function buildUnmappedFolderSearchQueries(folderName: string): string[] {
     .replace(/[\[\](){}-]+/g, " ");
 
   const primary = normalizeSearchText(stripNoise(expanded));
-  const seasonless = normalizeSearchText(
-    primary.replace(/\bseason\s+\d+\b/gi, " "),
-  );
+  const seasonless = normalizeSearchText(primary.replace(/\bseason\s+\d+\b/gi, " "));
 
-  return [
-    ...new Set([primary, seasonless].filter((value) => value.length > 0)),
-  ];
+  return [...new Set([primary, seasonless].filter((value) => value.length > 0))];
 }
 
-export const suggestUnmappedFolders = Effect.fn(
-  "Operations.suggestUnmappedFolders",
-)(function* (
+export const suggestUnmappedFolders = Effect.fn("Operations.suggestUnmappedFolders")(function* (
   folders: readonly UnmappedFolderInput[],
   search: (query: string) => Effect.Effect<AnimeSearchResult[], never>,
   options?: { readonly concurrency?: number },
 ) {
   const queriesByFolder = new Map(
-    folders.map((
-      folder,
-    ) => [folder.path, buildUnmappedFolderSearchQueries(folder.name)]),
+    folders.map((folder) => [folder.path, buildUnmappedFolderSearchQueries(folder.name)]),
   );
   const queryResults = new Map<string, readonly AnimeSearchResult[]>();
-  const uniqueQueries = [
-    ...new Set([...queriesByFolder.values()].flatMap((queries) => queries)),
-  ];
+  const uniqueQueries = [...new Set([...queriesByFolder.values()].flatMap((queries) => queries))];
 
   yield* Effect.forEach(
     uniqueQueries,
@@ -69,7 +56,7 @@ export const suggestUnmappedFolders = Effect.fn(
         Effect.tap((results) =>
           Effect.sync(() => {
             queryResults.set(query, results.slice(0, 5));
-          })
+          }),
         ),
       ),
     {
@@ -106,9 +93,7 @@ export function mergeUnmappedFolderSuggestions(
   };
 }
 
-export function markUnmappedFolderMatching(
-  folder: UnmappedFolder,
-): UnmappedFolder {
+export function markUnmappedFolderMatching(folder: UnmappedFolder): UnmappedFolder {
   return {
     ...folder,
     match_attempts: folder.match_attempts ?? 0,
@@ -117,9 +102,7 @@ export function markUnmappedFolderMatching(
   };
 }
 
-export function markUnmappedFolderPending(
-  folder: UnmappedFolder,
-): UnmappedFolder {
+export function markUnmappedFolderPending(folder: UnmappedFolder): UnmappedFolder {
   return {
     ...folder,
     match_attempts: folder.match_attempts ?? 0,
@@ -128,9 +111,7 @@ export function markUnmappedFolderPending(
   };
 }
 
-export function markUnmappedFolderPaused(
-  folder: UnmappedFolder,
-): UnmappedFolder {
+export function markUnmappedFolderPaused(folder: UnmappedFolder): UnmappedFolder {
   return {
     ...folder,
     match_attempts: folder.match_attempts ?? 0,
@@ -138,9 +119,7 @@ export function markUnmappedFolderPaused(
   };
 }
 
-export function resetUnmappedFolderMatch(
-  folder: UnmappedFolder,
-): UnmappedFolder {
+export function resetUnmappedFolderMatch(folder: UnmappedFolder): UnmappedFolder {
   return {
     ...folder,
     match_attempts: 0,
@@ -151,9 +130,7 @@ export function resetUnmappedFolderMatch(
   };
 }
 
-export function markUnmappedFolderRetryPending(
-  folder: UnmappedFolder,
-): UnmappedFolder {
+export function markUnmappedFolderRetryPending(folder: UnmappedFolder): UnmappedFolder {
   return {
     ...folder,
     match_attempts: folder.match_attempts ?? 0,
@@ -180,29 +157,28 @@ export function markUnmappedFolderFailed(
 export function hasUnmappedFolderRetryAttemptsRemaining(
   folder: Pick<UnmappedFolder, "match_attempts" | "match_status">,
 ) {
-  return folder.match_status === "failed" &&
-    (folder.match_attempts ?? 0) < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS;
+  return (
+    folder.match_status === "failed" &&
+    (folder.match_attempts ?? 0) < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS
+  );
 }
 
 export function isUnmappedFolderOutstanding(
   folder: Pick<UnmappedFolder, "match_attempts" | "match_status">,
 ) {
-  return folder.match_status === "pending" ||
+  return (
+    folder.match_status === "pending" ||
     folder.match_status === "matching" ||
-    hasUnmappedFolderRetryAttemptsRemaining(folder);
-}
-
-function stripNoise(value: string) {
-  return NOISE_PATTERNS.reduce(
-    (current, pattern) => current.replace(pattern, " "),
-    value,
+    hasUnmappedFolderRetryAttemptsRemaining(folder)
   );
 }
 
+function stripNoise(value: string) {
+  return NOISE_PATTERNS.reduce((current, pattern) => current.replace(pattern, " "), value);
+}
+
 function normalizeSearchText(value: string) {
-  return value
-    .replace(/\s+/g, " ")
-    .trim();
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function firstMatchingSuggestions(
@@ -214,12 +190,7 @@ function firstMatchingSuggestions(
     const matches = queryResults.get(query);
 
     if (matches && matches.length > 0) {
-      return annotateUnmappedSuggestions(
-        folderName,
-        query,
-        queries[0],
-        matches,
-      );
+      return annotateUnmappedSuggestions(folderName, query, queries[0], matches);
     }
   }
 
@@ -235,20 +206,17 @@ function annotateUnmappedSuggestions(
   return [...matches]
     .map((candidate) => ({
       ...candidate,
-      match_confidence: roundConfidence(
-        scoreAnimeSearchResultMatch(query, candidate),
-      ),
-      match_reason: query === primaryQuery
-        ? `Matched AniList search for the normalized folder title from ${
-          JSON.stringify(folderName)
-        }`
-        : `Matched AniList search after removing season or release noise from ${
-          JSON.stringify(folderName)
-        }`,
+      match_confidence: roundConfidence(scoreAnimeSearchResultMatch(query, candidate)),
+      match_reason:
+        query === primaryQuery
+          ? `Matched AniList search for the normalized folder title from ${JSON.stringify(
+              folderName,
+            )}`
+          : `Matched AniList search after removing season or release noise from ${JSON.stringify(
+              folderName,
+            )}`,
     }))
-    .sort((left, right) =>
-      (right.match_confidence ?? 0) - (left.match_confidence ?? 0)
-    );
+    .sort((left, right) => (right.match_confidence ?? 0) - (left.match_confidence ?? 0));
 }
 
 function roundConfidence(value: number) {

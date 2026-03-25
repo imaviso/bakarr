@@ -1,9 +1,4 @@
-import {
-  IconCaretLeft,
-  IconCaretRight,
-  IconCheck,
-  IconCircle,
-} from "@tabler/icons-solidjs";
+import { IconCaretLeft, IconCaretRight, IconCheck, IconCircle } from "@tabler/icons-solidjs";
 import { Link } from "@tanstack/solid-router";
 import {
   addMonths,
@@ -31,17 +26,13 @@ import { cn } from "~/lib/utils";
 export function AnimeCalendar() {
   const [currentDate, setCurrentDate] = createSignal(new Date());
 
-  const fetchStart = createMemo(() =>
-    subMonths(startOfWeek(startOfMonth(currentDate())), 1)
-  );
-  const fetchEnd = createMemo(() =>
-    addMonths(endOfWeek(endOfMonth(currentDate())), 1)
-  );
+  const fetchStart = createMemo(() => subMonths(startOfWeek(startOfMonth(currentDate())), 1));
+  const fetchEnd = createMemo(() => addMonths(endOfWeek(endOfMonth(currentDate())), 1));
 
   const calendarQuery = createCalendarQuery(fetchStart, fetchEnd);
   const configQuery = createSystemConfigQuery();
   const airingPreferences = createMemo(() =>
-    getAiringDisplayPreferences(configQuery.data?.library)
+    getAiringDisplayPreferences(configQuery.data?.library),
   );
 
   const days = createMemo(() => {
@@ -84,23 +75,13 @@ export function AnimeCalendar() {
       {/* Header */}
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handlePrevMonth}
-            aria-label="Previous month"
-          >
+          <Button variant="ghost" size="icon" onClick={handlePrevMonth} aria-label="Previous month">
             <IconCaretLeft class="h-4 w-4" />
           </Button>
           <h2 class="text-xl font-semibold w-40 text-center">
             {format(currentDate(), "MMMM yyyy")}
           </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleNextMonth}
-            aria-label="Next month"
-          >
+          <Button variant="ghost" size="icon" onClick={handleNextMonth} aria-label="Next month">
             <IconCaretRight class="h-4 w-4" />
           </Button>
         </div>
@@ -157,14 +138,13 @@ export function AnimeCalendar() {
                     {/* Events */}
                     <div class="space-y-1">
                       <For each={dayEvents().slice(0, 3)}>
-                        {(event) => (
+                        {(event) =>
                           (() => {
                             const isMissingEvent =
                               !event.extended_props.downloaded &&
                               event.extended_props.airing_status === "aired";
                             const isUpcomingEvent =
-                              !event.extended_props.downloaded &&
-                              !isMissingEvent;
+                              !event.extended_props.downloaded && !isMissingEvent;
 
                             return (
                               <Link
@@ -181,19 +161,17 @@ export function AnimeCalendar() {
                                     event.extended_props.downloaded
                                       ? "bg-success/10 text-success"
                                       : isMissingEvent
-                                      ? "bg-warning/10 text-warning"
-                                      : isUpcomingEvent
-                                      ? "bg-info/10 text-info"
-                                      : "bg-muted text-muted-foreground",
+                                        ? "bg-warning/10 text-warning"
+                                        : isUpcomingEvent
+                                          ? "bg-info/10 text-info"
+                                          : "bg-muted text-muted-foreground",
                                   )}
                                 >
                                   <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-1">
                                       <Show
                                         when={event.extended_props.downloaded}
-                                        fallback={
-                                          <IconCircle class="h-3 w-3 flex-shrink-0" />
-                                        }
+                                        fallback={<IconCircle class="h-3 w-3 flex-shrink-0" />}
                                       >
                                         <IconCheck class="h-3 w-3 flex-shrink-0" />
                                       </Show>
@@ -202,9 +180,7 @@ export function AnimeCalendar() {
                                       </span>
                                     </div>
                                     <span class="text-xs opacity-70 truncate block">
-                                      <span>
-                                        Ep {event.extended_props.episode_number}
-                                      </span>
+                                      <span>Ep {event.extended_props.episode_number}</span>
                                       <Show
                                         when={formatAiringTimeWithPreferences(
                                           event.start,
@@ -214,9 +190,7 @@ export function AnimeCalendar() {
                                         {(time) => <span>• {time()}</span>}
                                       </Show>
                                     </span>
-                                    <Show
-                                      when={event.extended_props.episode_title}
-                                    >
+                                    <Show when={event.extended_props.episode_title}>
                                       <span class="text-xs opacity-70 truncate block">
                                         {event.extended_props.episode_title}
                                       </span>
@@ -226,7 +200,7 @@ export function AnimeCalendar() {
                               </Link>
                             );
                           })()
-                        )}
+                        }
                       </For>
                       <Show when={dayEvents().length > 3}>
                         <div class="text-xs text-muted-foreground px-1.5">

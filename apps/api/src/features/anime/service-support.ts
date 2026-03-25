@@ -14,10 +14,7 @@ import {
   AnimePathError,
   type AnimeServiceError,
 } from "./errors.ts";
-import {
-  appendAnimeLogEffect,
-  requireAnimeExistsEffect,
-} from "./repository.ts";
+import { appendAnimeLogEffect, requireAnimeExistsEffect } from "./repository.ts";
 import { AniListClient } from "./anilist.ts";
 import { refreshMetadataForMonitoredAnimeEffect } from "./orchestration-support.ts";
 
@@ -46,33 +43,25 @@ export function tryAnimePromise<A>(
   });
 }
 
-export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(
-  function* (
-    db: AppDatabase,
-    animeId: number,
-    patch: Partial<typeof anime.$inferInsert>,
-    message: string,
-    eventPublisher: Pick<EventPublisherShape, "publishInfo">,
-  ) {
-    yield* requireAnimeExistsEffect(db, animeId).pipe(
-      Effect.mapError(wrapAnimeError("Failed to update anime")),
-    );
-    yield* tryDatabasePromise(
-      "Failed to update anime",
-      () => db.update(anime).set(patch).where(eq(anime.id, animeId)),
-    );
-    yield* appendAnimeLogEffect(db, "anime.updated", "success", message);
-    yield* eventPublisher.publishInfo(message);
+export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(function* (
+  db: AppDatabase,
+  animeId: number,
+  patch: Partial<typeof anime.$inferInsert>,
+  message: string,
+  eventPublisher: Pick<EventPublisherShape, "publishInfo">,
+) {
+  yield* requireAnimeExistsEffect(db, animeId).pipe(
+    Effect.mapError(wrapAnimeError("Failed to update anime")),
+  );
+  yield* tryDatabasePromise("Failed to update anime", () =>
+    db.update(anime).set(patch).where(eq(anime.id, animeId)),
+  );
+  yield* appendAnimeLogEffect(db, "anime.updated", "success", message);
+  yield* eventPublisher.publishInfo(message);
+});
+
+export const makeMetadataRefreshRunner = Effect.fn("AnimeService.makeMetadataRefreshRunner")(
+  function* (input: { aniList: typeof AniListClient.Service; db: AppDatabase }) {
+    return yield* makeSingleFlightEffectRunner(refreshMetadataForMonitoredAnimeEffect(input));
   },
 );
-
-export const makeMetadataRefreshRunner = Effect.fn(
-  "AnimeService.makeMetadataRefreshRunner",
-)(function* (input: {
-  aniList: typeof AniListClient.Service;
-  db: AppDatabase;
-}) {
-  return yield* makeSingleFlightEffectRunner(
-    refreshMetadataForMonitoredAnimeEffect(input),
-  );
-});

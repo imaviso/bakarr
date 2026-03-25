@@ -21,7 +21,7 @@ it.effect("browsePath returns paginated entries with defaults", () =>
     assertEquals(result.has_more, false);
     assertEquals(result.entries.length, 3);
     assertEquals(result.parent_path, "/");
-  })
+  }),
 );
 
 it.effect("browsePath returns all entries when limit is omitted", () =>
@@ -39,7 +39,7 @@ it.effect("browsePath returns all entries when limit is omitted", () =>
     assertEquals(result.total, 600);
     assertEquals(result.has_more, false);
     assertEquals(result.limit, 600);
-  })
+  }),
 );
 
 it.effect("browsePath respects limit and offset", () =>
@@ -69,7 +69,7 @@ it.effect("browsePath respects limit and offset", () =>
     assertEquals(page3.entries.length, 1);
     assertEquals(page3.entries[0].name, "e.mkv");
     assertEquals(page3.has_more, false);
-  })
+  }),
 );
 
 it.effect("browsePath caps limit at MAX_BROWSE_LIMIT", () =>
@@ -77,7 +77,7 @@ it.effect("browsePath caps limit at MAX_BROWSE_LIMIT", () =>
     const fs = yield* makeMockFileSystemEffect([]);
     const result = yield* browsePath(fs, "/test", { limit: 10000 });
     assertEquals(result.limit, 500);
-  })
+  }),
 );
 
 it.effect("browsePath floors limit at 1", () =>
@@ -85,7 +85,7 @@ it.effect("browsePath floors limit at 1", () =>
     const fs = yield* makeMockFileSystemEffect([]);
     const result = yield* browsePath(fs, "/test", { limit: 0 });
     assertEquals(result.limit, 1);
-  })
+  }),
 );
 
 it.effect("browsePath floors negative offset at 0", () =>
@@ -93,7 +93,7 @@ it.effect("browsePath floors negative offset at 0", () =>
     const fs = yield* makeMockFileSystemEffect([]);
     const result = yield* browsePath(fs, "/test", { offset: -10 });
     assertEquals(result.offset, 0);
-  })
+  }),
 );
 
 it.effect("browsePath sorts directories before files", () =>
@@ -111,14 +111,12 @@ it.effect("browsePath sorts directories before files", () =>
     assertEquals(result.entries[1].is_directory, true);
     assertEquals(result.entries[2].is_directory, false);
     assertEquals(result.entries[3].is_directory, false);
-  })
+  }),
 );
 
 it.effect("browsePath returns empty page when offset exceeds total", () =>
   Effect.gen(function* () {
-    const fs = yield* makeMockFileSystemEffect([
-      { isDirectory: false, name: "a.mkv" },
-    ]);
+    const fs = yield* makeMockFileSystemEffect([{ isDirectory: false, name: "a.mkv" }]);
 
     const result = yield* browsePath(fs, "/test", { limit: 1, offset: 10 });
 
@@ -126,33 +124,32 @@ it.effect("browsePath returns empty page when offset exceeds total", () =>
     assertEquals(result.total, 1);
     assertEquals(result.offset, 10);
     assertEquals(result.has_more, false);
-  })
+  }),
 );
 
-const makeMockFileSystemEffect = Effect.fn("RouteFsTest.makeMockFileSystem")((
-  entries: Array<{ isDirectory: boolean; name: string; size?: number }>,
-) =>
-  makeNoopTestFileSystemWithOverridesEffect({
-    readDir: () =>
-      Effect.succeed(
-        entries.map((entry) => ({
-          isDirectory: entry.isDirectory,
-          isFile: !entry.isDirectory,
-          isSymlink: false,
-          name: entry.name,
-        })),
-      ),
-    stat: (path) => {
-      const pathString = typeof path === "string" ? path : path.toString();
-      const name = pathString.split("/").pop() ?? "";
-      const entry = entries.find((candidate) => candidate.name === name);
+const makeMockFileSystemEffect = Effect.fn("RouteFsTest.makeMockFileSystem")(
+  (entries: Array<{ isDirectory: boolean; name: string; size?: number }>) =>
+    makeNoopTestFileSystemWithOverridesEffect({
+      readDir: () =>
+        Effect.succeed(
+          entries.map((entry) => ({
+            isDirectory: entry.isDirectory,
+            isFile: !entry.isDirectory,
+            isSymlink: false,
+            name: entry.name,
+          })),
+        ),
+      stat: (path) => {
+        const pathString = typeof path === "string" ? path : path.toString();
+        const name = pathString.split("/").pop() ?? "";
+        const entry = entries.find((candidate) => candidate.name === name);
 
-      return Effect.succeed({
-        isDirectory: entry?.isDirectory ?? false,
-        isFile: entry ? !entry.isDirectory : false,
-        isSymlink: false,
-        size: entry?.size ?? 0,
-      });
-    },
-  })
+        return Effect.succeed({
+          isDirectory: entry?.isDirectory ?? false,
+          isFile: entry ? !entry.isDirectory : false,
+          isSymlink: false,
+          size: entry?.size ?? 0,
+        });
+      },
+    }),
 );

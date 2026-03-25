@@ -12,9 +12,7 @@ it("createDebouncer updates after the delay when scheduled", async () => {
   await new Promise((resolve) => setTimeout(resolve, 30));
 
   if (current !== "Grand Blue") {
-    throw new Error(
-      `Expected debounced value to be Grand Blue, got ${current}`,
-    );
+    throw new Error(`Expected debounced value to be Grand Blue, got ${current}`);
   }
 
   debouncer.cancel();

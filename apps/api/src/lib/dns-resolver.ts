@@ -1,14 +1,11 @@
 import { resolve4, resolve6 } from "node:dns/promises";
 import { Context, Effect, Layer, Schema } from "effect";
 
-export class DnsLookupError extends Schema.TaggedError<DnsLookupError>()(
-  "DnsLookupError",
-  {
-    cause: Schema.Defect,
-    hostname: Schema.String,
-    recordType: Schema.Literal("A", "AAAA"),
-  },
-) {}
+export class DnsLookupError extends Schema.TaggedError<DnsLookupError>()("DnsLookupError", {
+  cause: Schema.Defect,
+  hostname: Schema.String,
+  recordType: Schema.Literal("A", "AAAA"),
+}) {}
 
 export interface DnsResolverShape {
   readonly resolve: (
@@ -25,7 +22,7 @@ export class DnsResolver extends Context.Tag("@bakarr/api/DnsResolver")<
 export const DnsResolverLive = Layer.sync(DnsResolver, () => {
   const resolve: DnsResolverShape["resolve"] = (hostname, recordType) => {
     return Effect.tryPromise({
-      try: () => recordType === "A" ? resolve4(hostname) : resolve6(hostname),
+      try: () => (recordType === "A" ? resolve4(hostname) : resolve6(hostname)),
       catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
     });
   };
@@ -47,11 +44,13 @@ export function isDnsNoRecordError(cause: unknown): boolean {
   const code = (cause as { code?: unknown }).code;
   const message = cause.message.toLowerCase();
 
-  return name === "NotFound" ||
+  return (
+    name === "NotFound" ||
     code === "NotFound" ||
     code === "ENOTFOUND" ||
     code === "ENODATA" ||
     message.includes("not found") ||
     message.includes("enodata") ||
-    message.includes("enotfound");
+    message.includes("enotfound")
+  );
 }

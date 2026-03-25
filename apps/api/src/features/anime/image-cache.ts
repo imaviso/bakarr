@@ -12,121 +12,118 @@ export interface CachedAnimeImages {
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()(
-  "ImageCacheError",
-  { cause: Schema.Defect, message: Schema.String },
+export class ImageCacheError extends Schema.TaggedError<ImageCacheError>()("ImageCacheError", {
+  cause: Schema.Defect,
+  message: Schema.String,
+}) {}
+
+export class ImageTooLargeError extends Schema.TaggedError<ImageTooLargeError>()(
+  "ImageTooLargeError",
+  { contentLength: Schema.optional(Schema.Number), maxBytes: Schema.Number },
 ) {}
 
-export class ImageTooLargeError
-  extends Schema.TaggedError<ImageTooLargeError>()(
-    "ImageTooLargeError",
-    { contentLength: Schema.optional(Schema.Number), maxBytes: Schema.Number },
-  ) {}
-
-export const cacheAnimeMetadataImages = Effect.fn(
-  "AnimeService.cacheAnimeMetadataImages",
-)(function* (
-  fs: FileSystemShape,
-  client: HttpClient.HttpClient,
-  imagesRoot: string,
-  animeId: number,
-  images: CachedAnimeImages,
-) {
-  const baseDir = `${imagesRoot.replace(/\/$/, "")}/anime/${animeId}`;
-
-  yield* fs.mkdir(baseDir, { recursive: true });
-
-  const coverImage = yield* cacheAnimeImage(
-    fs,
-    client,
-    baseDir,
-    animeId,
-    "cover",
-    images.coverImage,
-  ).pipe(
-    Effect.tapError((error) =>
-      Effect.logWarning("Failed to cache cover image").pipe(
-        Effect.annotateLogs({ animeId, error }),
-      )
-    ),
-  );
-  const bannerImage = yield* cacheAnimeImage(
-    fs,
-    client,
-    baseDir,
-    animeId,
-    "banner",
-    images.bannerImage,
-  ).pipe(
-    Effect.tapError((error) =>
-      Effect.logWarning("Failed to cache banner image").pipe(
-        Effect.annotateLogs({ animeId, error }),
-      )
-    ),
-  );
-
-  return { bannerImage, coverImage } satisfies CachedAnimeImages;
-});
-
-const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(
+export const cacheAnimeMetadataImages = Effect.fn("AnimeService.cacheAnimeMetadataImages")(
   function* (
     fs: FileSystemShape,
     client: HttpClient.HttpClient,
-    baseDir: string,
+    imagesRoot: string,
     animeId: number,
-    kind: "banner" | "cover",
-    url: string | undefined,
+    images: CachedAnimeImages,
   ) {
-    if (!url) {
-      return undefined;
-    }
+    const baseDir = `${imagesRoot.replace(/\/$/, "")}/anime/${animeId}`;
 
-    const cachedPath = yield* findCachedImagePath(fs, baseDir, animeId, kind);
+    yield* fs.mkdir(baseDir, { recursive: true });
 
-    if (cachedPath) {
-      return cachedPath;
-    }
+    const coverImage = yield* cacheAnimeImage(
+      fs,
+      client,
+      baseDir,
+      animeId,
+      "cover",
+      images.coverImage,
+    ).pipe(
+      Effect.tapError((error) =>
+        Effect.logWarning("Failed to cache cover image").pipe(
+          Effect.annotateLogs({ animeId, error }),
+        ),
+      ),
+    );
+    const bannerImage = yield* cacheAnimeImage(
+      fs,
+      client,
+      baseDir,
+      animeId,
+      "banner",
+      images.bannerImage,
+    ).pipe(
+      Effect.tapError((error) =>
+        Effect.logWarning("Failed to cache banner image").pipe(
+          Effect.annotateLogs({ animeId, error }),
+        ),
+      ),
+    );
 
-    const download = yield* downloadImage(client, url);
-    const filename = `${kind}.${download.extension}`;
-
-    yield* fs.writeFile(`${baseDir}/${filename}`, download.bytes);
-
-    return `/api/images/anime/${animeId}/${filename}`;
+    return { bannerImage, coverImage } satisfies CachedAnimeImages;
   },
 );
 
-const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(
-  function* (
-    fs: FileSystemShape,
-    baseDir: string,
-    animeId: number,
-    kind: "banner" | "cover",
-  ) {
-    const entries = yield* fs.readDir(baseDir);
+const cacheAnimeImage = Effect.fn("AnimeService.cacheAnimeImage")(function* (
+  fs: FileSystemShape,
+  client: HttpClient.HttpClient,
+  baseDir: string,
+  animeId: number,
+  kind: "banner" | "cover",
+  url: string | undefined,
+) {
+  if (!url) {
+    return undefined;
+  }
 
-    const existing = entries
-      .filter((entry) => entry.isFile && entry.name.startsWith(`${kind}.`))
-      .map((entry) => entry.name)
-      .sort()[0];
+  const cachedPath = yield* findCachedImagePath(fs, baseDir, animeId, kind);
 
-    if (!existing) {
-      return undefined;
-    }
+  if (cachedPath) {
+    return cachedPath;
+  }
 
-    return `/api/images/anime/${animeId}/${existing}`;
-  },
-);
+  const download = yield* downloadImage(client, url);
+  const filename = `${kind}.${download.extension}`;
+
+  yield* fs.writeFile(`${baseDir}/${filename}`, download.bytes);
+
+  return `/api/images/anime/${animeId}/${filename}`;
+});
+
+const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(function* (
+  fs: FileSystemShape,
+  baseDir: string,
+  animeId: number,
+  kind: "banner" | "cover",
+) {
+  const entries = yield* fs.readDir(baseDir);
+
+  const existing = entries
+    .filter((entry) => entry.isFile && entry.name.startsWith(`${kind}.`))
+    .map((entry) => entry.name)
+    .sort()[0];
+
+  if (!existing) {
+    return undefined;
+  }
+
+  return `/api/images/anime/${animeId}/${existing}`;
+});
 
 const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
   client: HttpClient.HttpClient,
   url: string,
 ) {
-  const response = yield* client.get(url).pipe(
-    Effect.mapError((cause) =>
-      new ImageCacheError({ cause, message: "Failed to download image" })
-    ),
-  );
+  const response = yield* client
+    .get(url)
+    .pipe(
+      Effect.mapError(
+        (cause) => new ImageCacheError({ cause, message: "Failed to download image" }),
+      ),
+    );
 
   if (response.status < 200 || response.status >= 300) {
     return yield* new ImageCacheError({
@@ -146,20 +143,17 @@ const downloadImage = Effect.fn("AnimeService.downloadImage")(function* (
     }
   }
 
-  const bytes = yield* collectBoundedBytes(response.stream, MAX_IMAGE_BYTES)
-    .pipe(
-      Effect.mapError(() =>
+  const bytes = yield* collectBoundedBytes(response.stream, MAX_IMAGE_BYTES).pipe(
+    Effect.mapError(
+      () =>
         new ImageTooLargeError({
           contentLength: undefined,
           maxBytes: MAX_IMAGE_BYTES,
-        })
-      ),
-    );
-
-  const extension = inferImageExtension(
-    url,
-    response.headers["content-type"] ?? null,
+        }),
+    ),
   );
+
+  const extension = inferImageExtension(url, response.headers["content-type"] ?? null);
 
   if (!extension) {
     return yield* new ImageCacheError({

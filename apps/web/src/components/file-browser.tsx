@@ -169,11 +169,9 @@ export function FileBrowser(props: FileBrowserProps) {
           <For each={breadcrumbs()}>
             {(part, index) => {
               const partPath = () =>
-                `/${
-                  breadcrumbs()
-                    .slice(0, index() + 1)
-                    .join("/")
-                }`;
+                `/${breadcrumbs()
+                  .slice(0, index() + 1)
+                  .join("/")}`;
               const isLast = () => index() === breadcrumbs().length - 1;
               return (
                 <span class="flex items-center gap-1 shrink-0">
@@ -274,10 +272,7 @@ export function FileBrowser(props: FileBrowserProps) {
                   class="h-6 w-6"
                   disabled={pageOffset() === 0}
                   aria-label="Previous page"
-                  onClick={() =>
-                    setPageOffset((prev) =>
-                      Math.max(0, prev - BROWSE_PAGE_SIZE)
-                    )}
+                  onClick={() => setPageOffset((prev) => Math.max(0, prev - BROWSE_PAGE_SIZE))}
                 >
                   <IconChevronLeft class="h-3.5 w-3.5" />
                 </Button>
@@ -287,8 +282,7 @@ export function FileBrowser(props: FileBrowserProps) {
                   class="h-6 w-6"
                   disabled={!info().hasMore}
                   aria-label="Next page"
-                  onClick={() =>
-                    setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
+                  onClick={() => setPageOffset((prev) => prev + BROWSE_PAGE_SIZE)}
                 >
                   <IconChevronRight class="h-3.5 w-3.5" />
                 </Button>
@@ -337,9 +331,7 @@ function FileEntry(props: FileEntryProps) {
       )}
       onClick={props.onSelect}
       onDblClick={props.onNavigate}
-      title={props.entry.is_directory
-        ? "Double-click to open, click to select"
-        : props.entry.path}
+      title={props.entry.is_directory ? "Double-click to open, click to select" : props.entry.path}
     >
       <Show
         when={props.entry.is_directory}
@@ -356,9 +348,7 @@ function FileEntry(props: FileEntryProps) {
       </Show>
       <span class="text-sm truncate flex-1">{props.entry.name}</span>
       <Show when={!props.entry.is_directory && props.entry.size}>
-        <span class="text-xs text-muted-foreground shrink-0">
-          {formatSize(props.entry.size)}
-        </span>
+        <span class="text-xs text-muted-foreground shrink-0">{formatSize(props.entry.size)}</span>
       </Show>
       <Show when={props.entry.is_directory}>
         <IconChevronRight class="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />

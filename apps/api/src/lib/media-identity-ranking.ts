@@ -1,8 +1,4 @@
-import type {
-  ParsedEpisodeIdentity,
-  ParsedMediaFile,
-  PathParseContext,
-} from "./media-identity.ts";
+import type { ParsedEpisodeIdentity, ParsedMediaFile, PathParseContext } from "./media-identity.ts";
 
 export interface ResolvedEpisodeTarget {
   anime_id: number;
@@ -57,9 +53,7 @@ export function resolveSourceIdentityToEpisodeNumbers(input: {
     if (source_identity.season === 0 && !isSpecialLikeEntry(animeRow)) {
       return undefined;
     }
-    const eps = source_identity.episode_numbers.filter((n) =>
-      n > 0 && n < 2000
-    );
+    const eps = source_identity.episode_numbers.filter((n) => n > 0 && n < 2000);
     if (eps.length === 0) return undefined;
     return {
       anime_id: animeRow.id,
@@ -96,10 +90,7 @@ export function rankAnimeCandidates(input: {
   const scores = candidates.map((candidate) => {
     let score = 0;
 
-    const titleScore = bestTitleScore(
-      parsed.parsed_title,
-      candidate,
-    );
+    const titleScore = bestTitleScore(parsed.parsed_title, candidate);
     score += titleScore * 100;
 
     if (identity?.scheme === "season" && identity.season > 0) {
@@ -117,8 +108,11 @@ export function rankAnimeCandidates(input: {
     }
 
     if (context?.sequel_hint) {
-      const candidateTitle = (candidate.title_romaji + " " +
-        (candidate.title_english ?? "")).toLowerCase();
+      const candidateTitle = (
+        candidate.title_romaji +
+        " " +
+        (candidate.title_english ?? "")
+      ).toLowerCase();
       if (candidateTitle.includes(context.sequel_hint.toLowerCase())) {
         score += 30;
       }
@@ -143,18 +137,12 @@ function isSpecialLikeEntry(candidate: AnimeCandidate): boolean {
   if (candidate.format && SPECIAL_FORMATS.has(candidate.format.toUpperCase())) {
     return true;
   }
-  const titles = [
-    candidate.title_romaji,
-    candidate.title_english ?? "",
-  ].join(" ").toLowerCase();
+  const titles = [candidate.title_romaji, candidate.title_english ?? ""].join(" ").toLowerCase();
   return /\b(?:ova|ona|oad|special|specials|movie)\b/i.test(titles);
 }
 
 function hasSequelMarker(candidate: AnimeCandidate, season: number): boolean {
-  const titles = [
-    candidate.title_romaji,
-    candidate.title_english ?? "",
-  ].join(" ").toLowerCase();
+  const titles = [candidate.title_romaji, candidate.title_english ?? ""].join(" ").toLowerCase();
 
   const romanNumerals: Record<number, string> = {
     2: "ii",
@@ -176,10 +164,7 @@ function hasSequelMarker(candidate: AnimeCandidate, season: number): boolean {
   return seasonPatterns.some((p) => p.test(titles));
 }
 
-function bestTitleScore(
-  parsedTitle: string,
-  candidate: AnimeCandidate,
-): number {
+function bestTitleScore(parsedTitle: string, candidate: AnimeCandidate): number {
   const normalized = normalizeForMatch(parsedTitle);
   const titles = [
     candidate.title_romaji,
@@ -187,10 +172,7 @@ function bestTitleScore(
     candidate.title_native ?? "",
   ].filter((t) => t.length > 0);
 
-  return Math.max(
-    0,
-    ...titles.map((t) => simpleMatchScore(normalized, normalizeForMatch(t))),
-  );
+  return Math.max(0, ...titles.map((t) => simpleMatchScore(normalized, normalizeForMatch(t))));
 }
 
 function normalizeForMatch(value: string): string {

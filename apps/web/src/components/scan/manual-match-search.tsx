@@ -5,14 +5,7 @@ import {
   IconLoader2,
   IconSearch,
 } from "@tabler/icons-solidjs";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { AnimeDiscoveryRow } from "~/components/anime-discovery";
 import { Badge } from "~/components/ui/badge";
 import { TextField, TextFieldInput } from "~/components/ui/text-field";
@@ -21,9 +14,7 @@ import { animeDisplayTitle, animeSearchSubtitle } from "~/lib/anime-metadata";
 import { createDebouncer } from "~/lib/debounce";
 import { formatMatchConfidence } from "~/lib/scanned-file";
 
-export function ManualMatchSearch(props: {
-  onSelect: (anime: AnimeSearchResult) => void;
-}) {
+export function ManualMatchSearch(props: { onSelect: (anime: AnimeSearchResult) => void }) {
   const [query, setQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
   const debouncer = createDebouncer(setDebouncedQuery, 500);
@@ -36,12 +27,13 @@ export function ManualMatchSearch(props: {
   const search = createAnimeSearchQuery(() => debouncedQuery());
   const searchResults = createMemo(() => search.data?.results ?? []);
   const searchDegraded = createMemo(() => search.data?.degraded ?? false);
-  const libraryIds = createMemo(() =>
-    new Set(
-      searchResults().filter((anime) => anime.already_in_library).map((
-        anime,
-      ) => anime.id),
-    )
+  const libraryIds = createMemo(
+    () =>
+      new Set(
+        searchResults()
+          .filter((anime) => anime.already_in_library)
+          .map((anime) => anime.id),
+      ),
   );
 
   return (
@@ -66,8 +58,8 @@ export function ManualMatchSearch(props: {
           <div class="flex items-start gap-2">
             <IconInfoCircle class="mt-0.5 h-4 w-4 shrink-0" />
             <span>
-              AniList is temporarily unavailable or rate-limited. Showing local
-              library matches only.
+              AniList is temporarily unavailable or rate-limited. Showing local library matches
+              only.
             </span>
           </div>
         </div>
@@ -92,11 +84,7 @@ export function ManualMatchSearch(props: {
               </div>
             }
           >
-            <div
-              role="listbox"
-              aria-label="Search results"
-              class="divide-y divide-border/70"
-            >
+            <div role="listbox" aria-label="Search results" class="divide-y divide-border/70">
               <For each={searchResults()}>
                 {(anime) => (
                   <button
@@ -118,9 +106,7 @@ export function ManualMatchSearch(props: {
                       <p class="truncate text-sm font-medium text-foreground">
                         {animeDisplayTitle(anime)}
                       </p>
-                      <p class="truncate text-xs text-muted-foreground">
-                        {anime.title.english}
-                      </p>
+                      <p class="truncate text-xs text-muted-foreground">{anime.title.english}</p>
                       <div class="mt-1 flex flex-wrap gap-1 text-xs text-muted-foreground">
                         <Show when={searchDegraded()}>
                           <Badge
@@ -130,13 +116,8 @@ export function ManualMatchSearch(props: {
                             Local only
                           </Badge>
                         </Show>
-                        <Show
-                          when={formatMatchConfidence(anime.match_confidence)}
-                        >
-                          <Badge
-                            variant="outline"
-                            class="h-5 px-1.5 text-xs"
-                          >
+                        <Show when={formatMatchConfidence(anime.match_confidence)}>
+                          <Badge variant="outline" class="h-5 px-1.5 text-xs">
                             {formatMatchConfidence(anime.match_confidence)}
                           </Badge>
                         </Show>
@@ -163,8 +144,7 @@ export function ManualMatchSearch(props: {
                       </Show>
                       <Show when={anime.synonyms?.length}>
                         <p class="mt-1 text-xs text-muted-foreground line-clamp-2">
-                          Also known as{" "}
-                          {anime.synonyms?.slice(0, 3).join(" • ")}
+                          Also known as {anime.synonyms?.slice(0, 3).join(" • ")}
                         </p>
                       </Show>
                       <Show when={anime.related_anime?.length}>

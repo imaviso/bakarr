@@ -1,7 +1,4 @@
-import type {
-  Quality,
-  QualityProfile,
-} from "../../../../../packages/shared/src/index.ts";
+import type { Quality, QualityProfile } from "../../../../../packages/shared/src/index.ts";
 import type { ConfigCore } from "./config-codec.ts";
 
 export const DEFAULT_QUALITIES: readonly Quality[] = [

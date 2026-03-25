@@ -12,8 +12,7 @@ const SelectValue = SelectPrimitive.Value;
 const SelectHiddenSelect = SelectPrimitive.HiddenSelect;
 
 type SelectTriggerProps<T extends ValidComponent = "button"> =
-  & SelectPrimitive.SelectTriggerProps<T>
-  & {
+  SelectPrimitive.SelectTriggerProps<T> & {
     class?: string | undefined;
     children?: JSX.Element;
   };
@@ -21,10 +20,7 @@ type SelectTriggerProps<T extends ValidComponent = "button"> =
 const SelectTrigger = <T extends ValidComponent = "button">(
   props: PolymorphicProps<T, SelectTriggerProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SelectTriggerProps, [
-    "class",
-    "children",
-  ]);
+  const [local, others] = splitProps(props as SelectTriggerProps, ["class", "children"]);
   return (
     <SelectPrimitive.Trigger
       class={cn(
@@ -53,8 +49,7 @@ const SelectTrigger = <T extends ValidComponent = "button">(
 };
 
 type SelectContentProps<T extends ValidComponent = "div"> =
-  & SelectPrimitive.SelectContentProps<T>
-  & { class?: string | undefined };
+  SelectPrimitive.SelectContentProps<T> & { class?: string | undefined };
 
 const SelectContent = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SelectContentProps<T>>,
@@ -75,20 +70,15 @@ const SelectContent = <T extends ValidComponent = "div">(
   );
 };
 
-type SelectItemProps<T extends ValidComponent = "li"> =
-  & SelectPrimitive.SelectItemProps<T>
-  & {
-    class?: string | undefined;
-    children?: JSX.Element;
-  };
+type SelectItemProps<T extends ValidComponent = "li"> = SelectPrimitive.SelectItemProps<T> & {
+  class?: string | undefined;
+  children?: JSX.Element;
+};
 
 const SelectItem = <T extends ValidComponent = "li">(
   props: PolymorphicProps<T, SelectItemProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SelectItemProps, [
-    "class",
-    "children",
-  ]);
+  const [local, others] = splitProps(props as SelectItemProps, ["class", "children"]);
   return (
     <SelectPrimitive.Item
       class={cn(
@@ -133,36 +123,26 @@ const labelVariants = cva(
   },
 );
 
-type SelectLabelProps<T extends ValidComponent = "label"> =
-  & SelectPrimitive.SelectLabelProps<T>
-  & {
-    class?: string | undefined;
-  };
+type SelectLabelProps<T extends ValidComponent = "label"> = SelectPrimitive.SelectLabelProps<T> & {
+  class?: string | undefined;
+};
 
 const SelectLabel = <T extends ValidComponent = "label">(
   props: PolymorphicProps<T, SelectLabelProps<T>>,
 ) => {
   const [local, others] = splitProps(props as SelectLabelProps, ["class"]);
-  return (
-    <SelectPrimitive.Label
-      class={cn(labelVariants(), local.class)}
-      {...others}
-    />
-  );
+  return <SelectPrimitive.Label class={cn(labelVariants(), local.class)} {...others} />;
 };
 
 type SelectDescriptionProps<T extends ValidComponent = "div"> =
-  & SelectPrimitive.SelectDescriptionProps<T>
-  & {
+  SelectPrimitive.SelectDescriptionProps<T> & {
     class?: string | undefined;
   };
 
 const SelectDescription = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SelectDescriptionProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SelectDescriptionProps, [
-    "class",
-  ]);
+  const [local, others] = splitProps(props as SelectDescriptionProps, ["class"]);
   return (
     <SelectPrimitive.Description
       class={cn(labelVariants({ variant: "description" }), local.class)}
@@ -172,17 +152,14 @@ const SelectDescription = <T extends ValidComponent = "div">(
 };
 
 type SelectErrorMessageProps<T extends ValidComponent = "div"> =
-  & SelectPrimitive.SelectErrorMessageProps<T>
-  & {
+  SelectPrimitive.SelectErrorMessageProps<T> & {
     class?: string | undefined;
   };
 
 const SelectErrorMessage = <T extends ValidComponent = "div">(
   props: PolymorphicProps<T, SelectErrorMessageProps<T>>,
 ) => {
-  const [local, others] = splitProps(props as SelectErrorMessageProps, [
-    "class",
-  ]);
+  const [local, others] = splitProps(props as SelectErrorMessageProps, ["class"]);
   return (
     <SelectPrimitive.ErrorMessage
       class={cn(labelVariants({ variant: "error" }), local.class)}

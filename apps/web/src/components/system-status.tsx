@@ -140,9 +140,7 @@ export function SystemStatus() {
               {(data) => formatRelativeTime(data().last_metadata_refresh)}
             </Show>
           </div>
-          <p class="text-xs text-muted-foreground">
-            Last refresh
-          </p>
+          <p class="text-xs text-muted-foreground">Last refresh</p>
         </CardContent>
       </Card>
 
@@ -160,12 +158,7 @@ export function SystemStatus() {
           >
             Scan Lib
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRss}
-            disabled={rssMutation.isPending}
-          >
+          <Button variant="outline" size="sm" onClick={handleRss} disabled={rssMutation.isPending}>
             Check RSS
           </Button>
         </CardContent>

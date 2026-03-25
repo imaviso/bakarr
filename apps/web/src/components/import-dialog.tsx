@@ -10,14 +10,7 @@ import {
   IconUpload,
   IconX,
 } from "@tabler/icons-solidjs";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  For,
-  type JSX,
-  Show,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, For, type JSX, Show } from "solid-js";
 import { toast } from "solid-sonner";
 import { FileBrowser } from "~/components/file-browser";
 import { Badge } from "~/components/ui/badge";
@@ -32,16 +25,8 @@ import {
   DialogTrigger,
 } from "~/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import {
-  TextField,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
+import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import {
   type AnimeSearchResult,
   createAnimeListQuery,
@@ -70,24 +55,14 @@ export function ImportDialog(props: ImportDialogProps) {
   const [open, setOpen] = createSignal(false);
   const [path, setPath] = createSignal("");
   const [step, setStep] = createSignal<"scan" | "review" | "result">("scan");
-  const [selectedFiles, setSelectedFiles] = createSignal<
-    Map<string, ImportFileRequest>
-  >(new Map());
-  const [inputMode, setInputMode] = createSignal<"browser" | "manual">(
-    "browser",
-  );
+  const [selectedFiles, setSelectedFiles] = createSignal<Map<string, ImportFileRequest>>(new Map());
+  const [inputMode, setInputMode] = createSignal<"browser" | "manual">("browser");
   const [isDragOver, setIsDragOver] = createSignal(false);
 
-  const [selectedCandidateIds, setSelectedCandidateIds] = createSignal<
-    Set<number>
-  >(new Set());
-  const [manualCandidates, setManualCandidates] = createSignal<
-    AnimeSearchResult[]
-  >([]);
+  const [selectedCandidateIds, setSelectedCandidateIds] = createSignal<Set<number>>(new Set());
+  const [manualCandidates, setManualCandidates] = createSignal<AnimeSearchResult[]>([]);
   const [isSearchOpen, setIsSearchOpen] = createSignal(false);
-  const [pendingAddCandidates, setPendingAddCandidates] = createSignal<
-    AnimeSearchResult[]
-  >([]);
+  const [pendingAddCandidates, setPendingAddCandidates] = createSignal<AnimeSearchResult[]>([]);
   const [currentAddIndex, setCurrentAddIndex] = createSignal(0);
 
   const scanMutation = createScanImportPathMutation();
@@ -112,8 +87,8 @@ export function ImportDialog(props: ImportDialogProps) {
       (mc) => !scanMutation.data?.candidates.some((c) => c.id === mc.id),
     ),
   ]);
-  const libraryIds = createMemo(() =>
-    new Set((animeListQuery.data ?? []).map((anime) => anime.id))
+  const libraryIds = createMemo(
+    () => new Set((animeListQuery.data ?? []).map((anime) => anime.id)),
   );
 
   const resetDialog = () => {
@@ -172,10 +147,7 @@ export function ImportDialog(props: ImportDialogProps) {
     );
   };
 
-  const toggleCandidate = (
-    candidate: AnimeSearchResult,
-    forceSelect = false,
-  ) => {
+  const toggleCandidate = (candidate: AnimeSearchResult, forceSelect = false) => {
     const next = toggleImportCandidateSelection({
       candidate,
       files: scanMutation.data?.files || [],
@@ -188,9 +160,7 @@ export function ImportDialog(props: ImportDialogProps) {
     setSelectedFiles(next.selectedFiles);
   };
 
-  const activeAddCandidate = createMemo(() =>
-    pendingAddCandidates()[currentAddIndex()]
-  );
+  const activeAddCandidate = createMemo(() => pendingAddCandidates()[currentAddIndex()]);
 
   const closeAddCandidateDialog = () => {
     setPendingAddCandidates([]);
@@ -260,10 +230,7 @@ export function ImportDialog(props: ImportDialogProps) {
     if (newSelected.has(file.source_path)) {
       newSelected.delete(file.source_path);
     } else {
-      newSelected.set(
-        file.source_path,
-        buildImportFileRequest({ animeId: targetAnimeId, file }),
-      );
+      newSelected.set(file.source_path, buildImportFileRequest({ animeId: targetAnimeId, file }));
     }
     setSelectedFiles(newSelected);
   };
@@ -289,11 +256,7 @@ export function ImportDialog(props: ImportDialogProps) {
     }
   };
 
-  const updateFileMapping = (
-    file: ScannedFile,
-    season: number,
-    episode: number,
-  ) => {
+  const updateFileMapping = (file: ScannedFile, season: number, episode: number) => {
     const newSelected = new Map(selectedFiles());
     const current = newSelected.get(file.source_path) || {
       ...buildImportFileRequest({
@@ -345,10 +308,7 @@ export function ImportDialog(props: ImportDialogProps) {
       }
     }
     const textData = e.dataTransfer?.getData("text/plain");
-    if (
-      textData &&
-      (textData.startsWith("/") || textData.startsWith("file://"))
-    ) {
+    if (textData && (textData.startsWith("/") || textData.startsWith("file://"))) {
       setPath(textData.replace("file://", ""));
       setInputMode("manual");
     }
@@ -360,12 +320,14 @@ export function ImportDialog(props: ImportDialogProps) {
         <DialogTrigger as="div" class="contents">
           <Show
             when={props.tooltip}
-            fallback={props.trigger || (
-              <Button variant="outline">
-                <IconFolderOpen class="mr-2 h-4 w-4" />
-                Import Files
-              </Button>
-            )}
+            fallback={
+              props.trigger || (
+                <Button variant="outline">
+                  <IconFolderOpen class="mr-2 h-4 w-4" />
+                  Import Files
+                </Button>
+              )
+            }
           >
             <Tooltip>
               <TooltipTrigger>
@@ -386,8 +348,7 @@ export function ImportDialog(props: ImportDialogProps) {
             <DialogHeader>
               <DialogTitle>Import Video Files</DialogTitle>
               <DialogDescription>
-                Select a folder containing video files to import into your
-                library.
+                Select a folder containing video files to import into your library.
               </DialogDescription>
             </DialogHeader>
             <div class="space-y-4 py-4 flex-1 min-h-0 flex flex-col">
@@ -408,20 +369,14 @@ export function ImportDialog(props: ImportDialogProps) {
                 </TabsList>
                 <TabsContent value="browser" class="mt-4 flex-1 min-h-0">
                   <div class="h-[280px] border rounded-none overflow-hidden bg-background">
-                    <FileBrowser
-                      onSelect={(p) => setPath(p)}
-                      directoryOnly
-                      height="100%"
-                    />
+                    <FileBrowser onSelect={(p) => setPath(p)} directoryOnly height="100%" />
                   </div>
                 </TabsContent>
                 <TabsContent value="manual" class="mt-4 flex-1">
                   <div
                     class={cn(
                       "border-2 border-dashed rounded-none p-6 transition-colors h-full flex flex-col items-center justify-center",
-                      isDragOver()
-                        ? "border-primary bg-primary/5"
-                        : "border-muted-foreground/25",
+                      isDragOver() ? "border-primary bg-primary/5" : "border-muted-foreground/25",
                     )}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
@@ -432,20 +387,13 @@ export function ImportDialog(props: ImportDialogProps) {
                         <IconUpload class="h-6 w-6 text-muted-foreground" />
                       </div>
                       <div class="text-center">
-                        <p class="text-sm font-medium">
-                          Drag and drop a folder here
-                        </p>
-                        <p class="text-xs text-muted-foreground mt-1">
-                          or enter path below
-                        </p>
+                        <p class="text-sm font-medium">Drag and drop a folder here</p>
+                        <p class="text-xs text-muted-foreground mt-1">or enter path below</p>
                       </div>
                       <div class="w-full space-y-2">
                         <TextField value={path()} onChange={setPath}>
                           <TextFieldLabel>Folder Path</TextFieldLabel>
-                          <TextFieldInput
-                            placeholder="/path/to/videos"
-                            class="font-mono text-sm"
-                          />
+                          <TextFieldInput placeholder="/path/to/videos" class="font-mono text-sm" />
                         </TextField>
                       </div>
                     </div>
@@ -456,9 +404,7 @@ export function ImportDialog(props: ImportDialogProps) {
               <Show when={path()}>
                 <div class="flex items-center gap-2 p-3 rounded-none bg-muted/50 border">
                   <IconFolderOpen class="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span class="text-sm font-mono truncate flex-1">
-                    {path()}
-                  </span>
+                  <span class="text-sm font-mono truncate flex-1">{path()}</span>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -472,10 +418,7 @@ export function ImportDialog(props: ImportDialogProps) {
               </Show>
             </div>
             <DialogFooter>
-              <Button
-                onClick={handleScan}
-                disabled={!path() || scanMutation.isPending}
-              >
+              <Button onClick={handleScan} disabled={!path() || scanMutation.isPending}>
                 <Show
                   when={scanMutation.isPending}
                   fallback={
@@ -498,10 +441,7 @@ export function ImportDialog(props: ImportDialogProps) {
               <DialogDescription>
                 Found {scannedFiles().length} file(s). Select files to import.
                 <Show when={skippedFiles().length > 0}>
-                  <span class="text-warning">
-                    {" "}
-                    ({skippedFiles().length} skipped)
-                  </span>
+                  <span class="text-warning"> ({skippedFiles().length} skipped)</span>
                 </Show>
               </DialogDescription>
             </DialogHeader>
@@ -545,12 +485,8 @@ export function ImportDialog(props: ImportDialogProps) {
                         candidate={candidate}
                         libraryIds={libraryIds()}
                         isSelected={selectedCandidateIds().has(candidate.id)}
-                        isLocal={animeListQuery.data?.some(
-                          (a) => a.id === candidate.id,
-                        ) || false}
-                        isManual={manualCandidates().some(
-                          (c) => c.id === candidate.id,
-                        )}
+                        isLocal={animeListQuery.data?.some((a) => a.id === candidate.id) || false}
+                        isManual={manualCandidates().some((c) => c.id === candidate.id)}
                         onToggle={() => toggleCandidate(candidate)}
                       />
                     )}
@@ -559,10 +495,7 @@ export function ImportDialog(props: ImportDialogProps) {
               </div>
 
               {/* File List */}
-              <ul
-                class="divide-y border rounded-none"
-                aria-label="Scanned files for import"
-              >
+              <ul class="divide-y border rounded-none" aria-label="Scanned files for import">
                 <For each={scannedFiles()}>
                   {(file) => (
                     <FileRow
@@ -570,12 +503,9 @@ export function ImportDialog(props: ImportDialogProps) {
                       animeList={animeListQuery.data || []}
                       candidates={candidates()}
                       isSelected={selectedFiles().has(file.source_path)}
-                      selectedAnimeId={selectedFiles().get(file.source_path)
-                        ?.anime_id}
-                      currentEpisode={selectedFiles().get(file.source_path)
-                        ?.episode_number}
-                      currentSeason={selectedFiles().get(file.source_path)
-                        ?.season}
+                      selectedAnimeId={selectedFiles().get(file.source_path)?.anime_id}
+                      currentEpisode={selectedFiles().get(file.source_path)?.episode_number}
+                      currentSeason={selectedFiles().get(file.source_path)?.season}
                       onToggle={(id) => toggleFile(file, id)}
                       onAnimeChange={(id) => updateFileAnime(file, id)}
                       onMappingChange={(s, e) => updateFileMapping(file, s, e)}
@@ -596,14 +526,9 @@ export function ImportDialog(props: ImportDialogProps) {
                         <div class="px-4 py-2 flex items-center gap-3 text-muted-foreground">
                           <IconFile class="h-4 w-4 shrink-0 opacity-50" />
                           <span class="text-xs font-mono truncate flex-1">
-                            {file.path.substring(
-                              file.path.lastIndexOf("/") + 1,
-                            )}
+                            {file.path.substring(file.path.lastIndexOf("/") + 1)}
                           </span>
-                          <Badge
-                            variant="secondary"
-                            class="text-xs shrink-0"
-                          >
+                          <Badge variant="secondary" class="text-xs shrink-0">
                             {file.reason}
                           </Badge>
                         </div>
@@ -619,13 +544,10 @@ export function ImportDialog(props: ImportDialogProps) {
                 Back
               </Button>
               <div class="flex items-center gap-2">
-                <span class="text-sm text-muted-foreground">
-                  {selectedFiles().size} selected
-                </span>
+                <span class="text-sm text-muted-foreground">{selectedFiles().size} selected</span>
                 <Button
                   onClick={handleImport}
-                  disabled={selectedFiles().size === 0 ||
-                    importMutation.isPending}
+                  disabled={selectedFiles().size === 0 || importMutation.isPending}
                 >
                   <Show
                     when={importMutation.isPending}

@@ -77,43 +77,44 @@ it.scoped("importDownloadedFile keeps existing destination when staging copy fai
       const destinationContents = yield* readTextFile(fs, destinationPath);
       assertEquals(destinationContents, "existing");
     }),
-  )
+  ),
 );
 
-it.scoped("importDownloadedFile applies configured naming tokens from source filename metadata", () => {
-  const namingFormat =
-    "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
+it.scoped(
+  "importDownloadedFile applies configured naming tokens from source filename metadata",
+  () => {
+    const namingFormat =
+      "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
 
-  return withFileSystemSandboxEffect(({ fs, root }) =>
-    Effect.gen(function* () {
-      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
-      const sourcePath =
-        `${sourceRoot}/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC][SubsPlus+].mkv`;
-      const expectedDestination =
-        `${animeRoot}/Rock Is a Lady's Modesty - S01E01 - Good Day to You Quit Playing the Guitar!!! [WEB-DL 1080p][AVC][AAC 2.0][SubsPlus+].mkv`;
+    return withFileSystemSandboxEffect(({ fs, root }) =>
+      Effect.gen(function* () {
+        const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+        const sourcePath = `${sourceRoot}/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC][SubsPlus+].mkv`;
+        const expectedDestination = `${animeRoot}/Rock Is a Lady's Modesty - S01E01 - Good Day to You Quit Playing the Guitar!!! [WEB-DL 1080p][AVC][AAC 2.0][SubsPlus+].mkv`;
 
-      yield* writeTextFile(fs, sourcePath, "incoming");
+        yield* writeTextFile(fs, sourcePath, "incoming");
 
-      const destination = yield* importDownloadedFile(
-        fs,
-        {
-          rootFolder: animeRoot,
-          startDate: "2025-04-03",
-          startYear: 2025,
-          titleRomaji: "Rock Is a Lady's Modesty",
-        } as typeof anime.$inferSelect,
-        1,
-        sourcePath,
-        "copy",
-        { namingFormat },
-      );
+        const destination = yield* importDownloadedFile(
+          fs,
+          {
+            rootFolder: animeRoot,
+            startDate: "2025-04-03",
+            startYear: 2025,
+            titleRomaji: "Rock Is a Lady's Modesty",
+          } as typeof anime.$inferSelect,
+          1,
+          sourcePath,
+          "copy",
+          { namingFormat },
+        );
 
-      assertEquals(destination, expectedDestination);
-      assertEquals(yield* readTextFile(fs, destination), "incoming");
-      assertEquals(yield* readTextFile(fs, sourcePath), "incoming");
-    }),
-  );
-});
+        assertEquals(destination, expectedDestination);
+        assertEquals(yield* readTextFile(fs, destination), "incoming");
+        assertEquals(yield* readTextFile(fs, sourcePath), "incoming");
+      }),
+    );
+  },
+);
 
 it.scoped("importDownloadedFile respects preferred title when building destination", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
@@ -146,7 +147,7 @@ it.scoped("importDownloadedFile respects preferred title when building destinati
 
       assertEquals(destination, expectedDestination);
     }),
-  )
+  ),
 );
 
 it.scoped("importDownloadedFile uses episode DB metadata and fallback naming plan", () =>
@@ -179,7 +180,7 @@ it.scoped("importDownloadedFile uses episode DB metadata and fallback naming pla
 
       assertEquals(destination, expectedDestination);
     }),
-  )
+  ),
 );
 
 it.scoped("importDownloadedFile reuses stored provenance when source path is weak", () =>
@@ -213,15 +214,14 @@ it.scoped("importDownloadedFile reuses stored provenance when source path is wea
               scheme: "absolute",
             },
           },
-          namingFormat:
-            "{title} - {source_episode_segment} [{quality} {resolution}]",
+          namingFormat: "{title} - {source_episode_segment} [{quality} {resolution}]",
           preferredTitle: "romaji",
         },
       );
 
       assertEquals(destination, expectedDestination);
     }),
-  )
+  ),
 );
 
 it.scoped("importDownloadedFile uses local media metadata when heuristics are missing", () =>
@@ -229,8 +229,7 @@ it.scoped("importDownloadedFile uses local media metadata when heuristics are mi
     Effect.gen(function* () {
       const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
       const sourcePath = `${sourceRoot}/download.mkv`;
-      const expectedDestination =
-        `${animeRoot}/Show - 01 [1080p][HEVC][AAC 2.0].mkv`;
+      const expectedDestination = `${animeRoot}/Show - 01 [1080p][HEVC][AAC 2.0].mkv`;
 
       yield* writeTextFile(fs, sourcePath, "incoming");
 
@@ -261,7 +260,7 @@ it.scoped("importDownloadedFile uses local media metadata when heuristics are mi
 
       assertEquals(destination, expectedDestination);
     }),
-  )
+  ),
 );
 
 const makeImportRoots = Effect.fn("Test.makeImportRoots")(function* (

@@ -14,31 +14,23 @@ import type { NamingSettings } from "./types.ts";
 
 const mapConfigError = (message: string) =>
   Effect.mapError((cause: unknown) =>
-    cause instanceof DatabaseError
-      ? cause
-      : new DatabaseError({ message, cause })
+    cause instanceof DatabaseError ? cause : new DatabaseError({ message, cause }),
   );
 
-export const loadRuntimeConfig = Effect.fn(
-  "ConfigRepository.loadRuntimeConfig",
-)(function* (db: AppDatabase) {
-  const rows = yield* tryDatabasePromise(
-    "Failed to load runtime config",
-    () => db.select().from(appConfig).limit(1),
+export const loadRuntimeConfig = Effect.fn("ConfigRepository.loadRuntimeConfig")(function* (
+  db: AppDatabase,
+) {
+  const rows = yield* tryDatabasePromise("Failed to load runtime config", () =>
+    db.select().from(appConfig).limit(1),
   );
   const core = yield* effectDecodeStoredConfigRow(rows[0]).pipe(
     mapConfigError("Failed to load runtime config"),
   );
-  const profileRows = yield* tryDatabasePromise(
-    "Failed to load runtime config",
-    () => db.select().from(qualityProfiles),
+  const profileRows = yield* tryDatabasePromise("Failed to load runtime config", () =>
+    db.select().from(qualityProfiles),
   );
-  const profiles = yield* Effect.forEach(
-    profileRows,
-    (row) =>
-      effectDecodeQualityProfileRow(row).pipe(
-        mapConfigError("Failed to load runtime config"),
-      ),
+  const profiles = yield* Effect.forEach(profileRows, (row) =>
+    effectDecodeQualityProfileRow(row).pipe(mapConfigError("Failed to load runtime config")),
   );
 
   return {
@@ -47,12 +39,11 @@ export const loadRuntimeConfig = Effect.fn(
   } satisfies Config;
 });
 
-export const getConfigLibraryPath = Effect.fn(
-  "ConfigRepository.getConfigLibraryPath",
-)(function* (db: AppDatabase) {
-  const rows = yield* tryDatabasePromise(
-    "Failed to load config library path",
-    () => db.select().from(appConfig).limit(1),
+export const getConfigLibraryPath = Effect.fn("ConfigRepository.getConfigLibraryPath")(function* (
+  db: AppDatabase,
+) {
+  const rows = yield* tryDatabasePromise("Failed to load config library path", () =>
+    db.select().from(appConfig).limit(1),
   );
   const library = yield* effectDecodeStoredLibraryConfig(rows[0]).pipe(
     mapConfigError("Failed to load config library path"),
@@ -61,12 +52,11 @@ export const getConfigLibraryPath = Effect.fn(
   return library.library_path;
 });
 
-export const currentImportMode = Effect.fn(
-  "ConfigRepository.currentImportMode",
-)(function* (db: AppDatabase) {
-  const rows = yield* tryDatabasePromise(
-    "Failed to load current import mode",
-    () => db.select().from(appConfig).limit(1),
+export const currentImportMode = Effect.fn("ConfigRepository.currentImportMode")(function* (
+  db: AppDatabase,
+) {
+  const rows = yield* tryDatabasePromise("Failed to load current import mode", () =>
+    db.select().from(appConfig).limit(1),
   );
   const library = yield* effectDecodeStoredLibraryConfig(rows[0]).pipe(
     mapConfigError("Failed to load current import mode"),
@@ -75,12 +65,11 @@ export const currentImportMode = Effect.fn(
   return library.import_mode;
 });
 
-export const currentNamingSettings = Effect.fn(
-  "ConfigRepository.currentNamingSettings",
-)(function* (db: AppDatabase) {
-  const rows = yield* tryDatabasePromise(
-    "Failed to load naming settings",
-    () => db.select().from(appConfig).limit(1),
+export const currentNamingSettings = Effect.fn("ConfigRepository.currentNamingSettings")(function* (
+  db: AppDatabase,
+) {
+  const rows = yield* tryDatabasePromise("Failed to load naming settings", () =>
+    db.select().from(appConfig).limit(1),
   );
   const library = yield* effectDecodeStoredLibraryConfig(rows[0]).pipe(
     mapConfigError("Failed to load naming settings"),

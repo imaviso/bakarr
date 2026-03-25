@@ -7,11 +7,7 @@ export function isValidDate(year: number, month: number, day: number): boolean {
   if (month < 1 || month > 12) return false;
   if (day < 1 || day > 31) return false;
   const date = new Date(year, month - 1, day);
-  return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
-  );
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
 
 export function rangeArray(start: number, end: number): number[] {
@@ -27,9 +23,7 @@ export function formatSeasonLabel(season: number, episodes: number[]): string {
   const first = String(sorted[0]).padStart(2, "0");
   const last = String(sorted[sorted.length - 1]).padStart(2, "0");
 
-  const isContiguous = sorted.every(
-    (n, i) => i === 0 || n === sorted[i - 1] + 1,
-  );
+  const isContiguous = sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1);
   if (isContiguous) {
     return `S${s}E${first}-E${last}`;
   }

@@ -1,10 +1,4 @@
-import {
-  index,
-  integer,
-  sqliteTable,
-  text,
-  unique,
-} from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
 
 export const anime = sqliteTable("anime", {
   id: integer("id").primaryKey(),
@@ -47,9 +41,7 @@ export const episodes = sqliteTable(
     number: integer("number").notNull(),
     title: text("title"),
     aired: text("aired"),
-    downloaded: integer("downloaded", { mode: "boolean" }).notNull().default(
-      false,
-    ),
+    downloaded: integer("downloaded", { mode: "boolean" }).notNull().default(false),
     filePath: text("file_path"),
     fileSize: integer("file_size"),
     durationSeconds: integer("duration_seconds"),
@@ -71,8 +63,7 @@ export const users = sqliteTable("users", {
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   apiKey: text("api_key").notNull().unique(),
-  mustChangePassword: integer("must_change_password", { mode: "boolean" })
-    .notNull().default(true),
+  mustChangePassword: integer("must_change_password", { mode: "boolean" }).notNull().default(true),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
@@ -167,9 +158,7 @@ export const downloads = sqliteTable("downloads", {
 
 export const backgroundJobs = sqliteTable("background_jobs", {
   name: text("name").primaryKey(),
-  isRunning: integer("is_running", { mode: "boolean" }).notNull().default(
-    false,
-  ),
+  isRunning: integer("is_running", { mode: "boolean" }).notNull().default(false),
   lastRunAt: text("last_run_at"),
   lastSuccessAt: text("last_success_at"),
   lastStatus: text("last_status"),

@@ -13,10 +13,7 @@ import { Link, useLocation } from "@tanstack/solid-router";
 import { For, Show } from "solid-js";
 import { CommandPalette } from "~/components/command-palette";
 import { ModeToggle } from "~/components/mode-toggle";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuTrigger } from "~/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,

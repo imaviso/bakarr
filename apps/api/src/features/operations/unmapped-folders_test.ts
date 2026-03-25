@@ -18,74 +18,67 @@ import {
 
 it("buildUnmappedFolderSearchQueries strips release noise and adds fallback titles", () => {
   assertEquals(
-    buildUnmappedFolderSearchQueries(
-      "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG",
-    ),
+    buildUnmappedFolderSearchQueries("Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG"),
     ["Scissor Seven Season 4", "Scissor Seven"],
   );
 
   assertEquals(buildUnmappedFolderSearchQueries("Mono (2025)"), ["Mono"]);
 });
 
-it.effect("suggestUnmappedFolders reuses normalized queries and falls back when first query misses", () =>
-  Effect.gen(function* () {
-    const calls: string[] = [];
-    const suggestions = yield* suggestUnmappedFolders(
-      [
-        {
-          name: "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG",
-          path: "/library/Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG",
-        },
-        {
-          name: "Mono (2025)",
-          path: "/library/Mono (2025)",
-        },
-      ],
-      (query: string) => {
-        calls.push(query);
+it.effect(
+  "suggestUnmappedFolders reuses normalized queries and falls back when first query misses",
+  () =>
+    Effect.gen(function* () {
+      const calls: string[] = [];
+      const suggestions = yield* suggestUnmappedFolders(
+        [
+          {
+            name: "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG",
+            path: "/library/Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG",
+          },
+          {
+            name: "Mono (2025)",
+            path: "/library/Mono (2025)",
+          },
+        ],
+        (query: string) => {
+          calls.push(query);
 
-        switch (query) {
-          case "Scissor Seven Season 4":
-            return Effect.succeed([]);
-          case "Scissor Seven":
-            return Effect.succeed(
-              [
+          switch (query) {
+            case "Scissor Seven Season 4":
+              return Effect.succeed([]);
+            case "Scissor Seven":
+              return Effect.succeed([
                 {
                   already_in_library: false,
                   id: 1,
                   title: { romaji: "Scissor Seven" },
                 },
-              ] satisfies AnimeSearchResult[],
-            );
-          case "Mono":
-            return Effect.succeed(
-              [
+              ] satisfies AnimeSearchResult[]);
+            case "Mono":
+              return Effect.succeed([
                 {
                   already_in_library: false,
                   id: 2,
                   title: { romaji: "Mono" },
                 },
-              ] satisfies AnimeSearchResult[],
-            );
-          default:
-            return Effect.succeed([] satisfies AnimeSearchResult[]);
-        }
-      },
-    );
+              ] satisfies AnimeSearchResult[]);
+            default:
+              return Effect.succeed([] satisfies AnimeSearchResult[]);
+          }
+        },
+      );
 
-    assertEquals(calls, ["Scissor Seven Season 4", "Scissor Seven", "Mono"]);
-    assertEquals(suggestions[0].search_queries, [
-      "Scissor Seven Season 4",
-      "Scissor Seven",
-    ]);
-    assertEquals(suggestions[0].suggested_matches[0]?.id, 1);
-    assertEquals(suggestions[0].suggested_matches[0]?.match_confidence, 1);
-    assertEquals(
-      suggestions[0].suggested_matches[0]?.match_reason,
-      'Matched AniList search after removing season or release noise from "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG"',
-    );
-    assertEquals(suggestions[1].suggested_matches[0]?.id, 2);
-  })
+      assertEquals(calls, ["Scissor Seven Season 4", "Scissor Seven", "Mono"]);
+      assertEquals(suggestions[0].search_queries, ["Scissor Seven Season 4", "Scissor Seven"]);
+      assertEquals(suggestions[0].suggested_matches[0]?.id, 1);
+      assertEquals(suggestions[0].suggested_matches[0]?.match_confidence, 1);
+      assertEquals(
+        suggestions[0].suggested_matches[0]?.match_reason,
+        'Matched AniList search after removing season or release noise from "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG"',
+      );
+      assertEquals(suggestions[1].suggested_matches[0]?.id, 2);
+    }),
 );
 
 it("unmapped folder helpers track matching status transitions", () => {
@@ -100,19 +93,20 @@ it("unmapped folder helpers track matching status transitions", () => {
   };
 
   const matching = markUnmappedFolderMatching(base);
-  const done = mergeUnmappedFolderSuggestions(base, [{
-    already_in_library: true,
-    id: 20,
-    match_confidence: 0.98,
-    match_reason:
-      'Matched a library title from the normalized folder name "Naruto Archive"',
-    title: { romaji: "Naruto" },
-  }], "2024-01-01T00:00:00.000Z");
-  const failed = markUnmappedFolderFailed(
+  const done = mergeUnmappedFolderSuggestions(
     base,
-    "rate limited",
+    [
+      {
+        already_in_library: true,
+        id: 20,
+        match_confidence: 0.98,
+        match_reason: 'Matched a library title from the normalized folder name "Naruto Archive"',
+        title: { romaji: "Naruto" },
+      },
+    ],
     "2024-01-01T00:00:00.000Z",
   );
+  const failed = markUnmappedFolderFailed(base, "rate limited", "2024-01-01T00:00:00.000Z");
   const pending = markUnmappedFolderPending(done);
 
   assertEquals(matching.match_status, "matching");
@@ -139,11 +133,13 @@ it("unmapped folder helpers support pause and reset controls", () => {
     path: "/library/Naruto Archive",
     search_queries: ["Naruto Archive"],
     size: 0,
-    suggested_matches: [{
-      already_in_library: true,
-      id: 20,
-      title: { romaji: "Naruto" },
-    }] satisfies AnimeSearchResult[],
+    suggested_matches: [
+      {
+        already_in_library: true,
+        id: 20,
+        title: { romaji: "Naruto" },
+      },
+    ] satisfies AnimeSearchResult[],
   };
 
   const paused = markUnmappedFolderPaused(base);

@@ -9,11 +9,7 @@ import {
   OperationsAnimeNotFoundError,
   OperationsPathError,
 } from "./errors.ts";
-import {
-  maybeQBitConfig,
-  tryDatabasePromise,
-  wrapOperationsError,
-} from "./service-support.ts";
+import { maybeQBitConfig, tryDatabasePromise, wrapOperationsError } from "./service-support.ts";
 import { QBitConfigModel } from "./qbittorrent.ts";
 
 it("operations service support builds qBittorrent config only when enabled", () => {
@@ -49,25 +45,25 @@ it("operations service support builds qBittorrent config only when enabled", () 
 
 it.effect("operations service support preserves known errors and wraps unknown ones", () =>
   Effect.gen(function* () {
-  const knownNotFound = new DownloadNotFoundError({ message: "missing" });
-  const knownConflict = new DownloadConflictError({ message: "conflict" });
-  const knownAnime = new OperationsAnimeNotFoundError({ message: "anime" });
-  const knownPath = new OperationsPathError({ message: "path" });
-  const knownDb = new DatabaseError({ cause: new Error("db"), message: "db" });
+    const knownNotFound = new DownloadNotFoundError({ message: "missing" });
+    const knownConflict = new DownloadConflictError({ message: "conflict" });
+    const knownAnime = new OperationsAnimeNotFoundError({ message: "anime" });
+    const knownPath = new OperationsPathError({ message: "path" });
+    const knownDb = new DatabaseError({ cause: new Error("db"), message: "db" });
 
-  assertEquals(wrapOperationsError("ignored")(knownNotFound), knownNotFound);
-  assertEquals(wrapOperationsError("ignored")(knownConflict), knownConflict);
-  assertEquals(wrapOperationsError("ignored")(knownAnime), knownAnime);
-  assertEquals(wrapOperationsError("ignored")(knownPath), knownPath);
-  assertEquals(wrapOperationsError("ignored")(knownDb), knownDb);
+    assertEquals(wrapOperationsError("ignored")(knownNotFound), knownNotFound);
+    assertEquals(wrapOperationsError("ignored")(knownConflict), knownConflict);
+    assertEquals(wrapOperationsError("ignored")(knownAnime), knownAnime);
+    assertEquals(wrapOperationsError("ignored")(knownPath), knownPath);
+    assertEquals(wrapOperationsError("ignored")(knownDb), knownDb);
 
-  const wrapped = wrapOperationsError("wrapped")(new Error("boom"));
-  assertInstanceOf(wrapped, DatabaseError);
-  assertEquals(wrapped.message, "wrapped");
+    const wrapped = wrapOperationsError("wrapped")(new Error("boom"));
+    assertInstanceOf(wrapped, DatabaseError);
+    assertEquals(wrapped.message, "wrapped");
 
     const dbExit = yield* Effect.exit(
       tryDatabasePromise("db failed", () => Promise.reject(new Error("boom"))),
     );
     assertEquals(dbExit._tag, "Failure");
-  })
+  }),
 );

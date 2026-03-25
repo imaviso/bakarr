@@ -16,18 +16,18 @@ export interface OperationsCoordinationShape {
   readonly tryStartUnmappedScan: () => Effect.Effect<boolean>;
 }
 
-export const makeOperationsSharedState = Effect.fn(
-  "OperationsService.makeSharedState",
-)(function* () {
-  const coordinator = yield* makeSerializedFlagCoordinator();
+export const makeOperationsSharedState = Effect.fn("OperationsService.makeSharedState")(
+  function* () {
+    const coordinator = yield* makeSerializedFlagCoordinator();
 
-  return {
-    finishUnmappedScan: () => coordinator.finish,
-    runSerializedTrigger: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-      coordinator.runSerialized(effect),
-    tryStartUnmappedScan: () => coordinator.tryStart,
-  } satisfies OperationsCoordinationShape;
-});
+    return {
+      finishUnmappedScan: () => coordinator.finish,
+      runSerializedTrigger: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+        coordinator.runSerialized(effect),
+      tryStartUnmappedScan: () => coordinator.tryStart,
+    } satisfies OperationsCoordinationShape;
+  },
+);
 
 export const makeOperationsProgressPublishers = Effect.fn(
   "OperationsService.makeProgressPublishers",
@@ -38,12 +38,11 @@ export const makeOperationsProgressPublishers = Effect.fn(
   const coalescedDownloadProgressPublisher = yield* makeCoalescedEffectRunner(
     input.publishDownloadProgressEffect,
   );
-  const libraryScanProgressPublisher = yield* makeLatestValuePublisher(
-    (scanned: number) =>
-      input.eventBus.publish({
-        type: "LibraryScanProgress",
-        payload: { scanned },
-      }),
+  const libraryScanProgressPublisher = yield* makeLatestValuePublisher((scanned: number) =>
+    input.eventBus.publish({
+      type: "LibraryScanProgress",
+      payload: { scanned },
+    }),
   );
   const rssCheckProgressPublisher = yield* makeLatestValuePublisher(
     (payload: { current: number; total: number; feed_name: string }) =>
@@ -54,10 +53,10 @@ export const makeOperationsProgressPublishers = Effect.fn(
   );
 
   yield* Effect.addFinalizer(() =>
-    Effect.all([
-      libraryScanProgressPublisher.shutdown,
-      rssCheckProgressPublisher.shutdown,
-    ], { concurrency: "unbounded", discard: true })
+    Effect.all([libraryScanProgressPublisher.shutdown, rssCheckProgressPublisher.shutdown], {
+      concurrency: "unbounded",
+      discard: true,
+    }),
   );
 
   return {

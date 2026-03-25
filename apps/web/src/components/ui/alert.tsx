@@ -24,18 +24,11 @@ const alertVariants = cva(
   },
 );
 
-type AlertRootProps<T extends ValidComponent = "div"> =
-  & AlertPrimitive.AlertRootProps<T>
-  & VariantProps<typeof alertVariants>
-  & { class?: string | undefined };
+type AlertRootProps<T extends ValidComponent = "div"> = AlertPrimitive.AlertRootProps<T> &
+  VariantProps<typeof alertVariants> & { class?: string | undefined };
 
-const Alert = <T extends ValidComponent = "div">(
-  props: PolymorphicProps<T, AlertRootProps<T>>,
-) => {
-  const [local, others] = splitProps(props as AlertRootProps, [
-    "class",
-    "variant",
-  ]);
+const Alert = <T extends ValidComponent = "div">(props: PolymorphicProps<T, AlertRootProps<T>>) => {
+  const [local, others] = splitProps(props as AlertRootProps, ["class", "variant"]);
   return (
     <AlertPrimitive.Root
       class={cn(alertVariants({ variant: props.variant }), local.class)}
@@ -46,19 +39,12 @@ const Alert = <T extends ValidComponent = "div">(
 
 const AlertTitle: Component<ComponentProps<"h5">> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
-  return (
-    <h5
-      class={cn("mb-1 font-medium leading-none tracking-tight", local.class)}
-      {...others}
-    />
-  );
+  return <h5 class={cn("mb-1 font-medium leading-none tracking-tight", local.class)} {...others} />;
 };
 
 const AlertDescription: Component<ComponentProps<"div">> = (props) => {
   const [local, others] = splitProps(props, ["class"]);
-  return (
-    <div class={cn("text-sm [&_p]:leading-relaxed", local.class)} {...others} />
-  );
+  return <div class={cn("text-sm [&_p]:leading-relaxed", local.class)} {...others} />;
 };
 
 export { Alert, AlertDescription, AlertTitle };

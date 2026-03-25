@@ -1,8 +1,4 @@
-import {
-  HttpRouter,
-  HttpServerRequest,
-  HttpServerResponse,
-} from "@effect/platform";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import {
@@ -17,46 +13,38 @@ import { mapRouteError } from "./route-errors.ts";
 
 const routeResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,
-  onSuccess: (
-    value: A,
-  ) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
+  onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
 ) =>
   effect.pipe(
     Effect.flatMap(onSuccess),
     Effect.catchAll((error) => Effect.succeed(mapToServerResponse(error))),
   );
 
-const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(
-  function* (token: string, body: unknown) {
-    const config = yield* AppConfig;
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const isSecure = request.headers["x-forwarded-proto"] === "https" ||
-      request.url.startsWith("https://");
-    const response = yield* HttpServerResponse.json(body);
+const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(function* (
+  token: string,
+  body: unknown,
+) {
+  const config = yield* AppConfig;
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  const isSecure =
+    request.headers["x-forwarded-proto"] === "https" || request.url.startsWith("https://");
+  const response = yield* HttpServerResponse.json(body);
 
-    return HttpServerResponse.unsafeSetCookie(
-      response,
-      config.sessionCookieName,
-      token,
-      {
-        httpOnly: true,
-        maxAge: config.sessionDurationDays * 24 * 60 * 60,
-        path: "/",
-        sameSite: "lax",
-        secure: isSecure,
-      },
-    );
-  },
-);
+  return HttpServerResponse.unsafeSetCookie(response, config.sessionCookieName, token, {
+    httpOnly: true,
+    maxAge: config.sessionDurationDays * 24 * 60 * 60,
+    path: "/",
+    sameSite: "lax",
+    secure: isSecure,
+  });
+});
 
 export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/login",
     routeResponse(
       Effect.gen(function* () {
-        const body = yield* HttpServerRequest.schemaBodyJson(
-          LoginRequestSchema,
-        );
+        const body = yield* HttpServerRequest.schemaBodyJson(LoginRequestSchema);
         return yield* Effect.flatMap(AuthService, (auth) => auth.login(body));
       }),
       (value) => persistSessionResponse(value.token, value.response),
@@ -66,13 +54,8 @@ export const authRouter = HttpRouter.empty.pipe(
     "/login/api-key",
     routeResponse(
       Effect.gen(function* () {
-        const body = yield* HttpServerRequest.schemaBodyJson(
-          ApiKeyLoginRequestSchema,
-        );
-        return yield* Effect.flatMap(
-          AuthService,
-          (auth) => auth.loginWithApiKey(body),
-        );
+        const body = yield* HttpServerRequest.schemaBodyJson(ApiKeyLoginRequestSchema);
+        return yield* Effect.flatMap(AuthService, (auth) => auth.loginWithApiKey(body));
       }),
       (value) => persistSessionResponse(value.token, value.response),
     ),
@@ -101,18 +84,13 @@ export const authRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/me",
-    routeResponse(
-      requireViewerFromHttpRequest(),
-      (viewer) => HttpServerResponse.json(viewer),
-    ),
+    routeResponse(requireViewerFromHttpRequest(), (viewer) => HttpServerResponse.json(viewer)),
   ),
   HttpRouter.get(
     "/api-key",
     routeResponse(
-      Effect.flatMap(
-        requireViewerFromHttpRequest(),
-        (viewer) =>
-          Effect.flatMap(AuthService, (auth) => auth.getApiKey(viewer.id)),
+      Effect.flatMap(requireViewerFromHttpRequest(), (viewer) =>
+        Effect.flatMap(AuthService, (auth) => auth.getApiKey(viewer.id)),
       ),
       (value) => HttpServerResponse.json(value),
     ),
@@ -120,13 +98,8 @@ export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/api-key/regenerate",
     routeResponse(
-      Effect.flatMap(
-        requireViewerFromHttpRequest(),
-        (viewer) =>
-          Effect.flatMap(
-            AuthService,
-            (auth) => auth.regenerateApiKey(viewer.id),
-          ),
+      Effect.flatMap(requireViewerFromHttpRequest(), (viewer) =>
+        Effect.flatMap(AuthService, (auth) => auth.regenerateApiKey(viewer.id)),
       ),
       (value) => HttpServerResponse.json(value),
     ),
@@ -135,14 +108,9 @@ export const authRouter = HttpRouter.empty.pipe(
     "/password",
     routeResponse(
       Effect.gen(function* () {
-        const body = yield* HttpServerRequest.schemaBodyJson(
-          ChangePasswordRequestSchema,
-        );
+        const body = yield* HttpServerRequest.schemaBodyJson(ChangePasswordRequestSchema);
         const viewer = yield* requireViewerFromHttpRequest();
-        yield* Effect.flatMap(
-          AuthService,
-          (auth) => auth.changePassword(viewer.id, body),
-        );
+        yield* Effect.flatMap(AuthService, (auth) => auth.changePassword(viewer.id, body));
       }),
       () => HttpServerResponse.json({ data: null, success: true }),
     ),
@@ -157,7 +125,5 @@ function mapToServerResponse(error: unknown) {
     status: mapped.status,
   });
 
-  return mapped.headers
-    ? HttpServerResponse.setHeaders(response, mapped.headers)
-    : response;
+  return mapped.headers ? HttpServerResponse.setHeaders(response, mapped.headers) : response;
 }

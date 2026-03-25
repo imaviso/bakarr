@@ -12,16 +12,8 @@ import { AuthService } from "./src/features/auth/service.ts";
 import { StoredConfigCorruptError } from "./src/features/system/errors.ts";
 import { SystemService } from "./src/features/system/service.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
-import {
-  compactLogAnnotations,
-  setRuntimeLogLevel,
-} from "./src/lib/logging.ts";
-import {
-  makeApiLayer,
-  makeApiRuntime,
-  runApi,
-  type RuntimeOptions,
-} from "./src/runtime.ts";
+import { compactLogAnnotations, setRuntimeLogLevel } from "./src/lib/logging.ts";
+import { makeApiLayer, makeApiRuntime, runApi, type RuntimeOptions } from "./src/runtime.ts";
 
 /**
  * Startup sequence (blocking, ordered, fail-fast):
@@ -58,19 +50,15 @@ const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
   const controller = yield* BackgroundWorkerController;
   const system = yield* SystemService;
   const config = yield* system.getConfig().pipe(
-    Effect.catchTag(
-      "StoredConfigCorruptError",
-      (error: StoredConfigCorruptError) =>
-        Effect.logWarning(
-          "Stored configuration is corrupt; skipping background worker startup",
-        ).pipe(
-          Effect.annotateLogs({
-            component: "api",
-            error: error.message,
-            event: "api.background.start.skipped",
-          }),
-          Effect.as(null),
-        ),
+    Effect.catchTag("StoredConfigCorruptError", (error: StoredConfigCorruptError) =>
+      Effect.logWarning("Stored configuration is corrupt; skipping background worker startup").pipe(
+        Effect.annotateLogs({
+          component: "api",
+          error: error.message,
+          event: "api.background.start.skipped",
+        }),
+        Effect.as(null),
+      ),
     ),
   );
 
@@ -82,20 +70,18 @@ const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
   yield* controller.start(config);
 });
 
-const logServerStarting = Effect.fn("api.server.logStarting")(
-  function* (config: AppConfigShape) {
-    yield* Effect.logInfo("api server starting").pipe(
-      Effect.annotateLogs(
-        compactLogAnnotations({
-          appVersion: config.appVersion,
-          component: "api",
-          event: "api.server.starting",
-          port: config.port,
-        }),
-      ),
-    );
-  },
-);
+const logServerStarting = Effect.fn("api.server.logStarting")(function* (config: AppConfigShape) {
+  yield* Effect.logInfo("api server starting").pipe(
+    Effect.annotateLogs(
+      compactLogAnnotations({
+        appVersion: config.appVersion,
+        component: "api",
+        event: "api.server.starting",
+        port: config.port,
+      }),
+    ),
+  );
+});
 
 const logServerStopping = Effect.fn("api.server.logStopping")(function* () {
   yield* Effect.logInfo("api server shutting down").pipe(
@@ -115,34 +101,22 @@ const mainProgram = Effect.fn("api.main")(function* () {
   yield* Effect.addFinalizer(() => logServerStopping());
 
   return yield* Layer.launch(
-    HttpServer.serve(httpApp).pipe(
-      Layer.provide(BunHttpServer.layer({ port: config.port })),
-    ),
+    HttpServer.serve(httpApp).pipe(Layer.provide(BunHttpServer.layer({ port: config.port }))),
   );
 });
 
-const loadDotenvConfigProvider = Effect.fn("api.loadDotenvConfigProvider")(
-  function* () {
-    return yield* makeDotenvConfigProvider().pipe(
-      Effect.provide(BunFileSystem.layer),
-    );
-  },
-);
+const loadDotenvConfigProvider = Effect.fn("api.loadDotenvConfigProvider")(function* () {
+  return yield* makeDotenvConfigProvider().pipe(Effect.provide(BunFileSystem.layer));
+});
 
 export async function bootstrap(
   overrides: Partial<AppConfigShape> = {},
   runtimeOptions?: RuntimeOptions,
 ) {
   const runtime = makeApiRuntime(overrides, runtimeOptions);
-  const config = await runApi(
-    runtime,
-    bootstrapProgram().pipe(Effect.withSpan("api.bootstrap")),
-  );
+  const config = await runApi(runtime, bootstrapProgram().pipe(Effect.withSpan("api.bootstrap")));
 
-  const httpApp = await runApi(
-    runtime,
-    createHttpApp(),
-  );
+  const httpApp = await runApi(runtime, createHttpApp());
 
   return {
     config,

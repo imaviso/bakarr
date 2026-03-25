@@ -1,9 +1,4 @@
-export type ReleaseFlagKind =
-  | "trusted"
-  | "seadex"
-  | "seadex_best"
-  | "dual_audio"
-  | "remake";
+export type ReleaseFlagKind = "trusted" | "seadex" | "seadex_best" | "dual_audio" | "remake";
 
 export interface ReleaseFlag {
   kind: ReleaseFlagKind;
@@ -16,16 +11,16 @@ export function formatReleaseSourceSummary(input: {
   quality?: string;
   resolution?: string;
 }) {
-  const combinedQuality = input.quality && input.resolution &&
-      input.quality.includes(input.resolution)
-    ? input.quality
-    : [input.quality, input.resolution].filter((value) =>
-      typeof value === "string" && value.length > 0
-    ).join(" ") || undefined;
+  const combinedQuality =
+    input.quality && input.resolution && input.quality.includes(input.resolution)
+      ? input.quality
+      : [input.quality, input.resolution]
+          .filter((value) => typeof value === "string" && value.length > 0)
+          .join(" ") || undefined;
 
-  const parts = [input.group, input.indexer, combinedQuality].filter((
-    value,
-  ): value is string => typeof value === "string" && value.length > 0);
+  const parts = [input.group, input.indexer, combinedQuality].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
 
   return parts.length > 0 ? parts.join(" • ") : undefined;
 }
@@ -35,7 +30,8 @@ export function formatReleaseParsedSummary(input: {
   parsed_episode_label?: string;
 }) {
   if (
-    input.parsed_episode_label && input.parsed_air_date &&
+    input.parsed_episode_label &&
+    input.parsed_air_date &&
     input.parsed_episode_label !== input.parsed_air_date
   ) {
     return `${input.parsed_episode_label} • ${input.parsed_air_date}`;

@@ -29,11 +29,7 @@ import { Button } from "~/components/ui/button";
 import { Card } from "~/components/ui/card";
 import { Progress } from "~/components/ui/progress";
 import { Skeleton } from "~/components/ui/skeleton";
-import {
-  TextField,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
+import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 import {
   Table,
   TableBody,
@@ -90,15 +86,17 @@ import {
   formatEpisodeCoverage,
   getDownloadReleaseConfidence,
 } from "~/lib/download-metadata";
-import {
-  formatDateTimeLocalInput,
-  getDateRangePresetHours,
-} from "~/lib/date-presets";
+import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-presets";
 import { getDownloadStatusPresentation } from "~/lib/download-status";
 
 function animeInitials(title: string) {
-  return title.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0])
-    .join("").toUpperCase();
+  return title
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
 const DownloadsSearchSchema = v.object({
@@ -114,9 +112,7 @@ const DownloadsSearchSchema = v.object({
 });
 
 function DownloadStatusIcon(props: { status?: string }) {
-  const presentation = createMemo(() =>
-    getDownloadStatusPresentation(props.status)
-  );
+  const presentation = createMemo(() => getDownloadStatusPresentation(props.status));
 
   const icon = () => {
     switch (presentation().icon) {
@@ -191,9 +187,7 @@ function DownloadsPage() {
     downloadId: parseOptionalPositiveInt(search().events_download_id),
     direction: search().events_direction,
     endDate: search().events_end_date || undefined,
-    eventType: search().events_event_type === "all"
-      ? undefined
-      : search().events_event_type,
+    eventType: search().events_event_type === "all" ? undefined : search().events_event_type,
     limit: 24,
     startDate: search().events_start_date || undefined,
     status: search().events_status || undefined,
@@ -218,9 +212,7 @@ function DownloadsPage() {
   });
   const queuePaddingBottom = createMemo(() => {
     const items = queueVirtualizer.getVirtualItems();
-    return items.length > 0
-      ? queueVirtualizer.getTotalSize() - items[items.length - 1].end
-      : 0;
+    return items.length > 0 ? queueVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
   });
 
   const historyVirtualizer = createVirtualizer({
@@ -237,14 +229,10 @@ function DownloadsPage() {
   });
   const historyPaddingBottom = createMemo(() => {
     const items = historyVirtualizer.getVirtualItems();
-    return items.length > 0
-      ? historyVirtualizer.getTotalSize() - items[items.length - 1].end
-      : 0;
+    return items.length > 0 ? historyVirtualizer.getTotalSize() - items[items.length - 1].end : 0;
   });
 
-  const updateSearch = (
-    patch: Partial<ReturnType<typeof search>>,
-  ) => {
+  const updateSearch = (patch: Partial<ReturnType<typeof search>>) => {
     navigate({
       to: ".",
       search: { ...search(), ...patch },
@@ -252,10 +240,7 @@ function DownloadsPage() {
     });
   };
   const activeEventsPreset = createMemo(() =>
-    getDateRangePresetHours(
-      search().events_start_date,
-      search().events_end_date,
-    )
+    getDateRangePresetHours(search().events_start_date, search().events_end_date),
   );
 
   const applyEventsDateRangePreset = (hours: number) => {
@@ -274,9 +259,7 @@ function DownloadsPage() {
       animeId: parseOptionalPositiveInt(search().events_anime_id),
       downloadId: parseOptionalPositiveInt(search().events_download_id),
       endDate: search().events_end_date || undefined,
-      eventType: search().events_event_type === "all"
-        ? undefined
-        : search().events_event_type,
+      eventType: search().events_event_type === "all" ? undefined : search().events_event_type,
       limit: 10_000,
       order: "desc",
       startDate: search().events_start_date || undefined,
@@ -300,10 +283,7 @@ function DownloadsPage() {
 
   return (
     <div class="flex flex-col flex-1 min-h-0 gap-4">
-      <PageHeader
-        title="Downloads"
-        subtitle="Manage active downloads and history"
-      >
+      <PageHeader title="Downloads" subtitle="Manage active downloads and history">
         <div class="flex items-center gap-2">
           <DownloadEventsDialog
             description="Recent queue, retry, status, and import events across all downloads."
@@ -323,7 +303,8 @@ function DownloadsPage() {
                 loading: "Syncing downloads...",
                 success: "Download state synced",
                 error: (err) => `Failed to sync downloads: ${err.message}`,
-              })}
+              })
+            }
             disabled={syncDownloads.isPending}
           >
             <IconRefresh class="h-4 w-4" />
@@ -337,7 +318,8 @@ function DownloadsPage() {
                 loading: "Triggering global search...",
                 success: "Global search triggered in background",
                 error: (err) => `Failed to trigger search: ${err.message}`,
-              })}
+              })
+            }
             disabled={searchMissing.isPending}
           >
             <IconSearch class="h-4 w-4" />
@@ -352,7 +334,8 @@ function DownloadsPage() {
           onChange={(value) =>
             updateSearch({
               tab: (value as "events" | "history" | "queue") ?? "queue",
-            })}
+            })
+          }
           class="h-full flex flex-col"
         >
           <div class="px-4 pt-3 border-b">
@@ -363,10 +346,7 @@ function DownloadsPage() {
               >
                 Queue
                 <Show when={queueCount() > 0}>
-                  <Badge
-                    variant="secondary"
-                    class="ml-2 h-5 px-1.5 min-w-[1.25rem] text-xs"
-                  >
+                  <Badge variant="secondary" class="ml-2 h-5 px-1.5 min-w-[1.25rem] text-xs">
                     {queueCount()}
                   </Badge>
                 </Show>
@@ -386,10 +366,7 @@ function DownloadsPage() {
             </TabsList>
           </div>
 
-          <TabsContent
-            value="queue"
-            class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col"
-          >
+          <TabsContent value="queue" class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
             <div ref={queueScrollRef} class="overflow-y-auto flex-1">
               <Table class="table-fixed min-w-[820px] md:min-w-0">
                 <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
@@ -399,12 +376,8 @@ function DownloadsPage() {
                     </TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead class="w-[200px]">Progress</TableHead>
-                    <TableHead class="w-[100px] hidden md:table-cell">
-                      Speed
-                    </TableHead>
-                    <TableHead class="w-[100px] hidden md:table-cell">
-                      ETA
-                    </TableHead>
+                    <TableHead class="w-[100px] hidden md:table-cell">Speed</TableHead>
+                    <TableHead class="w-[100px] hidden md:table-cell">ETA</TableHead>
                     <TableHead class="w-[120px]">Status</TableHead>
                     <TableHead class="w-[120px] text-right">Actions</TableHead>
                   </TableRow>
@@ -414,10 +387,7 @@ function DownloadsPage() {
                     when={queue.length > 0}
                     fallback={
                       <TableRow>
-                        <TableCell
-                          colSpan={7}
-                          class="h-32 text-center text-muted-foreground"
-                        >
+                        <TableCell colSpan={7} class="h-32 text-center text-muted-foreground">
                           No active downloads
                         </TableCell>
                       </TableRow>
@@ -440,9 +410,7 @@ function DownloadsPage() {
                         const item = () => queue[vRow.index];
                         return (
                           <Show when={item()}>
-                            {(safeItem) => (
-                              <ActiveDownloadRow item={safeItem()} />
-                            )}
+                            {(safeItem) => <ActiveDownloadRow item={safeItem()} />}
                           </Show>
                         );
                       }}
@@ -465,10 +433,7 @@ function DownloadsPage() {
             </div>
           </TabsContent>
 
-          <TabsContent
-            value="events"
-            class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col"
-          >
+          <TabsContent value="events" class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
             <div class="p-4 border-b border-border/60 space-y-3">
               <div class="grid gap-3 md:grid-cols-[1fr_1fr_240px_auto]">
                 <TextField>
@@ -481,7 +446,8 @@ function DownloadsPage() {
                         events_cursor: "",
                         events_direction: "next",
                         events_anime_id: event.currentTarget.value,
-                      })}
+                      })
+                    }
                     placeholder="Any anime"
                   />
                 </TextField>
@@ -495,7 +461,8 @@ function DownloadsPage() {
                         events_cursor: "",
                         events_direction: "next",
                         events_download_id: event.currentTarget.value,
-                      })}
+                      })
+                    }
                     placeholder="Any download"
                   />
                 </TextField>
@@ -504,11 +471,13 @@ function DownloadsPage() {
                   <Select
                     value={search().events_event_type}
                     onChange={(value) =>
-                      value && updateSearch({
+                      value &&
+                      updateSearch({
                         events_cursor: "",
                         events_direction: "next",
                         events_event_type: value,
-                      })}
+                      })
+                    }
                     options={[
                       "all",
                       "download.queued",
@@ -522,9 +491,7 @@ function DownloadsPage() {
                       "download.rss.queued",
                     ]}
                     itemComponent={(props) => (
-                      <SelectItem item={props.item}>
-                        {props.item.rawValue}
-                      </SelectItem>
+                      <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
                     )}
                   >
                     <SelectTrigger>
@@ -542,15 +509,11 @@ function DownloadsPage() {
                       Export
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem
-                        onClick={() => handleDownloadEventsExport("json")}
-                      >
+                      <DropdownMenuItem onClick={() => handleDownloadEventsExport("json")}>
                         <IconJson class="h-4 w-4 mr-2" />
                         Export as JSON
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDownloadEventsExport("csv")}
-                      >
+                      <DropdownMenuItem onClick={() => handleDownloadEventsExport("csv")}>
                         <IconFileSpreadsheet class="h-4 w-4 mr-2" />
                         Export as CSV
                       </DropdownMenuItem>
@@ -568,7 +531,8 @@ function DownloadsPage() {
                         events_cursor: "",
                         events_direction: "next",
                         events_status: event.currentTarget.value,
-                      })}
+                      })
+                    }
                     placeholder="Any status"
                   />
                 </TextField>
@@ -582,7 +546,8 @@ function DownloadsPage() {
                         events_cursor: "",
                         events_direction: "next",
                         events_start_date: event.currentTarget.value,
-                      })}
+                      })
+                    }
                   />
                 </TextField>
                 <TextField>
@@ -595,32 +560,27 @@ function DownloadsPage() {
                         events_cursor: "",
                         events_direction: "next",
                         events_end_date: event.currentTarget.value,
-                      })}
+                      })
+                    }
                   />
                 </TextField>
                 <div class="flex items-end justify-end gap-2 flex-wrap">
                   <Button
-                    variant={activeEventsPreset() === 24
-                      ? "default"
-                      : "outline"}
+                    variant={activeEventsPreset() === 24 ? "default" : "outline"}
                     size="sm"
                     onClick={() => applyEventsDateRangePreset(24)}
                   >
                     24h
                   </Button>
                   <Button
-                    variant={activeEventsPreset() === 168
-                      ? "default"
-                      : "outline"}
+                    variant={activeEventsPreset() === 168 ? "default" : "outline"}
                     size="sm"
                     onClick={() => applyEventsDateRangePreset(24 * 7)}
                   >
                     7d
                   </Button>
                   <Button
-                    variant={activeEventsPreset() === 720
-                      ? "default"
-                      : "outline"}
+                    variant={activeEventsPreset() === 720 ? "default" : "outline"}
                     size="sm"
                     onClick={() => applyEventsDateRangePreset(24 * 30)}
                   >
@@ -638,7 +598,8 @@ function DownloadsPage() {
                         events_event_type: "all",
                         events_start_date: "",
                         events_status: "",
-                      })}
+                      })
+                    }
                   >
                     Clear Filters
                   </Button>
@@ -661,22 +622,18 @@ function DownloadsPage() {
                 <Show
                   when={(downloadEventsQuery.data?.events.length ?? 0) > 0}
                   fallback={
-                    <div class="text-sm text-muted-foreground">
-                      No download events found.
-                    </div>
+                    <div class="text-sm text-muted-foreground">No download events found.</div>
                   }
                 >
                   <div class="text-xs text-muted-foreground">
-                    Showing {downloadEventsQuery.data?.events.length ?? 0} of
-                    {" "}
+                    Showing {downloadEventsQuery.data?.events.length ?? 0} of{" "}
                     {downloadEventsQuery.data?.total ?? 0} events
                   </div>
                   <For each={downloadEventsQuery.data?.events ?? []}>
                     {(event) => (
                       <DownloadEventCard
                         event={event}
-                        formatTimestamp={(value) =>
-                          new Date(value).toLocaleString()}
+                        formatTimestamp={(value) => new Date(value).toLocaleString()}
                       />
                     )}
                   </For>
@@ -686,20 +643,24 @@ function DownloadsPage() {
             <div class="p-4 border-t border-border/60 flex justify-end gap-2">
               <Button
                 variant="outline"
-                onClick={() => updateSearch({
-                  events_cursor: downloadEventsQuery.data?.prev_cursor ?? "",
-                  events_direction: "prev",
-                })}
+                onClick={() =>
+                  updateSearch({
+                    events_cursor: downloadEventsQuery.data?.prev_cursor ?? "",
+                    events_direction: "prev",
+                  })
+                }
                 disabled={!downloadEventsQuery.data?.prev_cursor}
               >
                 Previous
               </Button>
               <Button
                 variant="outline"
-                onClick={() => updateSearch({
-                  events_cursor: downloadEventsQuery.data?.next_cursor ?? "",
-                  events_direction: "next",
-                })}
+                onClick={() =>
+                  updateSearch({
+                    events_cursor: downloadEventsQuery.data?.next_cursor ?? "",
+                    events_direction: "next",
+                  })
+                }
                 disabled={!downloadEventsQuery.data?.has_more}
               >
                 Next
@@ -707,10 +668,7 @@ function DownloadsPage() {
             </div>
           </TabsContent>
 
-          <TabsContent
-            value="history"
-            class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col"
-          >
+          <TabsContent value="history" class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
             <div ref={historyScrollRef} class="overflow-y-auto flex-1">
               <Table class="table-fixed min-w-[860px] md:min-w-0">
                 <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
@@ -720,9 +678,7 @@ function DownloadsPage() {
                     </TableHead>
                     <TableHead>Anime</TableHead>
                     <TableHead class="w-[100px]">Episode</TableHead>
-                    <TableHead class="w-[180px] hidden md:table-cell">
-                      Added
-                    </TableHead>
+                    <TableHead class="w-[180px] hidden md:table-cell">Added</TableHead>
                     <TableHead class="w-[120px]">Status</TableHead>
                     <TableHead class="w-[120px] text-right">Actions</TableHead>
                   </TableRow>
@@ -758,10 +714,7 @@ function DownloadsPage() {
                       when={history().length > 0}
                       fallback={
                         <TableRow>
-                          <TableCell
-                            colSpan={6}
-                            class="h-32 text-center text-muted-foreground"
-                          >
+                          <TableCell colSpan={6} class="h-32 text-center text-muted-foreground">
                             No download history
                           </TableCell>
                         </TableRow>
@@ -784,9 +737,7 @@ function DownloadsPage() {
                           const item = () => history()[vRow.index];
                           return (
                             <Show when={item()}>
-                              {(safeItem) => (
-                                <DownloadRow item={safeItem()} isHistory />
-                              )}
+                              {(safeItem) => <DownloadRow item={safeItem()} isHistory />}
                             </Show>
                           );
                         }}
@@ -820,8 +771,7 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
   const resumeDownload = createResumeDownloadMutation();
   const retryDownload = createRetryDownloadMutation();
   const releaseConfidence = () => getDownloadReleaseConfidence(props.item);
-  const statusPresentation = () =>
-    getDownloadStatusPresentation(props.item.state);
+  const statusPresentation = () => getDownloadStatusPresentation(props.item.state);
 
   const handlePause = () => {
     if (!props.item.id) return;
@@ -883,20 +833,14 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
               </Show>
               <Show when={formatDownloadDecisionBadge(props.item)}>
                 {(badge) => (
-                  <Badge
-                    variant="secondary"
-                    class="h-5 px-1.5 text-xs shrink-0"
-                  >
+                  <Badge variant="secondary" class="h-5 px-1.5 text-xs shrink-0">
                     <IconSparkles class="h-3 w-3" />
                     {badge()}
                   </Badge>
                 )}
               </Show>
             </div>
-            <span
-              class="line-clamp-1 text-xs text-muted-foreground"
-              title={props.item.name}
-            >
+            <span class="line-clamp-1 text-xs text-muted-foreground" title={props.item.name}>
               {props.item.name}
             </span>
             <Show
@@ -907,24 +851,16 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
                 resolution: props.item.source_metadata?.resolution,
               })}
             >
-              {(meta) => (
-                <span class="text-xs text-muted-foreground line-clamp-1">
-                  {meta()}
-                </span>
-              )}
+              {(meta) => <span class="text-xs text-muted-foreground line-clamp-1">{meta()}</span>}
             </Show>
             <Show when={formatDownloadDecisionSummary(props.item)}>
               {(summary) => (
-                <span class="text-[11px] text-muted-foreground line-clamp-1">
-                  {summary()}
-                </span>
+                <span class="text-[11px] text-muted-foreground line-clamp-1">{summary()}</span>
               )}
             </Show>
             <Show when={formatDownloadParsedMeta(props.item)}>
               {(parsedMeta) => (
-                <span class="text-[11px] text-muted-foreground line-clamp-1">
-                  {parsedMeta()}
-                </span>
+                <span class="text-[11px] text-muted-foreground line-clamp-1">{parsedMeta()}</span>
               )}
             </Show>
             <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
@@ -959,31 +895,21 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
             </div>
             <Show when={formatDownloadRankingMeta(props.item)}>
               <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
-                <Show
-                  when={selectionKindLabel(
-                    props.item.source_metadata?.selection_kind,
-                  )}
-                >
+                <Show when={selectionKindLabel(props.item.source_metadata?.selection_kind)}>
                   {(label) => (
                     <Badge
                       variant="secondary"
-                      class={`h-4 px-1.5 ${
-                        selectionKindBadgeClass(
-                          props.item.source_metadata?.selection_kind,
-                        )
-                      }`}
+                      class={`h-4 px-1.5 ${selectionKindBadgeClass(
+                        props.item.source_metadata?.selection_kind,
+                      )}`}
                     >
                       {label()}
                     </Badge>
                   )}
                 </Show>
-                <Show
-                  when={formatSelectionDetail(props.item.source_metadata ?? {})}
-                >
+                <Show when={formatSelectionDetail(props.item.source_metadata ?? {})}>
                   {(detail) => (
-                    <span class="text-muted-foreground/80 line-clamp-1">
-                      {detail()}
-                    </span>
+                    <span class="text-muted-foreground/80 line-clamp-1">{detail()}</span>
                   )}
                 </Show>
               </div>
@@ -993,22 +919,20 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
                 <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
                   <Badge
                     variant="secondary"
-                    class={`h-4 px-1.5 ${
-                      releaseConfidenceBadgeClass(confidence().tone)
-                    }`}
+                    class={`h-4 px-1.5 ${releaseConfidenceBadgeClass(confidence().tone)}`}
                   >
                     {confidence().label}
                   </Badge>
-                  <span class="text-muted-foreground/80 line-clamp-1">
-                    {confidence().reason}
-                  </span>
+                  <span class="text-muted-foreground/80 line-clamp-1">{confidence().reason}</span>
                 </div>
               )}
             </Show>
             <Show
-              when={props.item.is_batch ||
+              when={
+                props.item.is_batch ||
                 props.item.covered_episodes?.length ||
-                props.item.coverage_pending}
+                props.item.coverage_pending
+              }
             >
               <span class="text-xs text-muted-foreground line-clamp-1">
                 {formatEpisodeCoverage(
@@ -1019,19 +943,14 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
               </span>
             </Show>
             <Show when={props.item.id !== undefined}>
-              <span class="text-xs text-muted-foreground">
-                #{props.item.id}
-              </span>
+              <span class="text-xs text-muted-foreground">#{props.item.id}</span>
             </Show>
           </div>
         </div>
       </TableCell>
       <TableCell class="py-2 min-w-[160px] md:min-w-[180px]">
         <div class="flex items-center gap-2">
-          <Progress
-            value={props.item.progress * 100}
-            class="h-1.5 w-full bg-muted"
-          />
+          <Progress value={props.item.progress * 100} class="h-1.5 w-full bg-muted" />
           <span class="text-xs font-mono text-muted-foreground w-8 text-right">
             {Math.round(props.item.progress * 100)}%
           </span>
@@ -1045,17 +964,17 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
       </TableCell>
       <TableCell class="py-2">
         <div class="flex items-center gap-2">
-          <span class="capitalize text-sm text-muted-foreground">
-            {statusPresentation().label}
-          </span>
+          <span class="capitalize text-sm text-muted-foreground">{statusPresentation().label}</span>
         </div>
       </TableCell>
       <TableCell class="text-right py-2 pr-4">
         <div class="flex items-center justify-end gap-1 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <Show
-            when={statusPresentation().label.toLowerCase().includes("paused") ||
+            when={
+              statusPresentation().label.toLowerCase().includes("paused") ||
               statusPresentation().label.toLowerCase().includes("queued") ||
-              statusPresentation().tone === "destructive"}
+              statusPresentation().tone === "destructive"
+            }
             fallback={
               <Button
                 variant="ghost"
@@ -1084,9 +1003,7 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
             description="Timeline of queue, status, and import events for this download."
             downloadId={props.item.id}
             formatTimestamp={(value) => new Date(value).toLocaleString()}
-            title={`Download Events${
-              props.item.anime_title ? ` - ${props.item.anime_title}` : ""
-            }`}
+            title={`Download Events${props.item.anime_title ? ` - ${props.item.anime_title}` : ""}`}
             triggerLabel="View download events"
           />
           <Show when={statusPresentation().tone === "destructive"}>
@@ -1112,8 +1029,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
   const reconcileDownload = createReconcileDownloadMutation();
   const deleteDownload = createDeleteDownloadMutation();
   const releaseConfidence = () => getDownloadReleaseConfidence(props.item);
-  const statusPresentation = () =>
-    getDownloadStatusPresentation(props.item.status);
+  const statusPresentation = () => getDownloadStatusPresentation(props.item.status);
 
   const handleRetry = () => {
     toast.promise(retryDownload.mutateAsync(props.item.id), {
@@ -1149,10 +1065,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
       <TableCell class="font-medium py-2 min-w-[280px] md:min-w-[320px]">
         <div class="flex items-start gap-3">
           <Avatar class="size-8 rounded-md">
-            <AvatarImage
-              src={props.item.anime_image}
-              alt={props.item.anime_title}
-            />
+            <AvatarImage src={props.item.anime_image} alt={props.item.anime_title} />
             <AvatarFallback class="rounded-md text-xs font-medium">
               {animeInitials(props.item.anime_title)}
             </AvatarFallback>
@@ -1169,10 +1082,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
               </Link>
               <Show when={formatDownloadDecisionBadge(props.item)}>
                 {(badge) => (
-                  <Badge
-                    variant="secondary"
-                    class="h-5 px-1.5 text-xs shrink-0"
-                  >
+                  <Badge variant="secondary" class="h-5 px-1.5 text-xs shrink-0">
                     <IconSparkles class="h-3 w-3" />
                     {badge()}
                   </Badge>
@@ -1184,31 +1094,22 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
             </span>
             <Show
               when={formatDownloadReleaseMeta({
-                group: props.item.source_metadata?.group ??
-                  props.item.group_name,
+                group: props.item.source_metadata?.group ?? props.item.group_name,
                 indexer: props.item.source_metadata?.indexer,
                 quality: props.item.source_metadata?.quality,
                 resolution: props.item.source_metadata?.resolution,
               })}
             >
-              {(meta) => (
-                <span class="text-xs text-muted-foreground line-clamp-1">
-                  {meta()}
-                </span>
-              )}
+              {(meta) => <span class="text-xs text-muted-foreground line-clamp-1">{meta()}</span>}
             </Show>
             <Show when={formatDownloadDecisionSummary(props.item)}>
               {(summary) => (
-                <span class="text-[11px] text-muted-foreground line-clamp-1">
-                  {summary()}
-                </span>
+                <span class="text-[11px] text-muted-foreground line-clamp-1">{summary()}</span>
               )}
             </Show>
             <Show when={formatDownloadParsedMeta(props.item)}>
               {(parsedMeta) => (
-                <span class="text-[11px] text-muted-foreground line-clamp-1">
-                  {parsedMeta()}
-                </span>
+                <span class="text-[11px] text-muted-foreground line-clamp-1">{parsedMeta()}</span>
               )}
             </Show>
             <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
@@ -1231,31 +1132,21 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
             </div>
             <Show when={formatDownloadRankingMeta(props.item)}>
               <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
-                <Show
-                  when={selectionKindLabel(
-                    props.item.source_metadata?.selection_kind,
-                  )}
-                >
+                <Show when={selectionKindLabel(props.item.source_metadata?.selection_kind)}>
                   {(label) => (
                     <Badge
                       variant="secondary"
-                      class={`h-4 px-1.5 ${
-                        selectionKindBadgeClass(
-                          props.item.source_metadata?.selection_kind,
-                        )
-                      }`}
+                      class={`h-4 px-1.5 ${selectionKindBadgeClass(
+                        props.item.source_metadata?.selection_kind,
+                      )}`}
                     >
                       {label()}
                     </Badge>
                   )}
                 </Show>
-                <Show
-                  when={formatSelectionDetail(props.item.source_metadata ?? {})}
-                >
+                <Show when={formatSelectionDetail(props.item.source_metadata ?? {})}>
                   {(detail) => (
-                    <span class="text-muted-foreground/80 line-clamp-1">
-                      {detail()}
-                    </span>
+                    <span class="text-muted-foreground/80 line-clamp-1">{detail()}</span>
                   )}
                 </Show>
               </div>
@@ -1265,15 +1156,11 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
                 <div class="flex flex-wrap items-center gap-1.5 text-[11px] leading-tight">
                   <Badge
                     variant="secondary"
-                    class={`h-4 px-1.5 ${
-                      releaseConfidenceBadgeClass(confidence().tone)
-                    }`}
+                    class={`h-4 px-1.5 ${releaseConfidenceBadgeClass(confidence().tone)}`}
                   >
                     {confidence().label}
                   </Badge>
-                  <span class="text-muted-foreground/80 line-clamp-1">
-                    {confidence().reason}
-                  </span>
+                  <span class="text-muted-foreground/80 line-clamp-1">{confidence().reason}</span>
                 </div>
               )}
             </Show>
@@ -1297,9 +1184,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
               )}
             </Show>
             <Show when={props.item.error_message}>
-              <span class="text-xs text-destructive line-clamp-1">
-                {props.item.error_message}
-              </span>
+              <span class="text-xs text-destructive line-clamp-1">{props.item.error_message}</span>
             </Show>
           </div>
         </div>
@@ -1312,17 +1197,8 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
             props.item.coverage_pending,
           )}
         </Badge>
-        <Show
-          when={formatCoverageMeta(
-            props.item.covered_episodes,
-            props.item.coverage_pending,
-          )}
-        >
-          {(meta) => (
-            <div class="mt-1 text-[11px] text-muted-foreground">
-              {meta()}
-            </div>
-          )}
+        <Show when={formatCoverageMeta(props.item.covered_episodes, props.item.coverage_pending)}>
+          {(meta) => <div class="mt-1 text-[11px] text-muted-foreground">{meta()}</div>}
         </Show>
       </TableCell>
       <Show
@@ -1335,15 +1211,14 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
       >
         <TableCell class="py-2 min-w-[140px] md:min-w-[180px]">
           <Show
-            when={props.item.status?.toLowerCase() === "downloading" &&
-              props.item.progress !== undefined}
+            when={
+              props.item.status?.toLowerCase() === "downloading" &&
+              props.item.progress !== undefined
+            }
             fallback={<span class="text-muted-foreground text-sm">-</span>}
           >
             <div class="flex items-center gap-2">
-              <Progress
-                value={props.item.progress ?? 0}
-                class="h-1.5 w-full bg-muted"
-              />
+              <Progress value={props.item.progress ?? 0} class="h-1.5 w-full bg-muted" />
               <span class="text-xs font-mono text-muted-foreground w-8 text-right">
                 {Math.round(props.item.progress ?? 0)}%
               </span>
@@ -1353,9 +1228,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
       </Show>
       <TableCell class="py-2">
         <div class="flex items-center gap-2">
-          <span class="capitalize text-sm text-muted-foreground">
-            {statusPresentation().label}
-          </span>
+          <span class="capitalize text-sm text-muted-foreground">{statusPresentation().label}</span>
         </div>
       </TableCell>
       <TableCell class="text-right py-2 pr-4">
@@ -1368,8 +1241,7 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
             triggerLabel="View download events"
           />
           <Show
-            when={props.item.status?.toLowerCase() === "completed" &&
-              !props.item.reconciled_at}
+            when={props.item.status?.toLowerCase() === "completed" && !props.item.reconciled_at}
           >
             <Button
               variant="ghost"
@@ -1383,8 +1255,10 @@ function DownloadRow(props: { item: Download; isHistory?: boolean }) {
             </Button>
           </Show>
           <Show
-            when={props.item.status?.toLowerCase() === "failed" ||
-              props.item.status?.toLowerCase() === "error"}
+            when={
+              props.item.status?.toLowerCase() === "failed" ||
+              props.item.status?.toLowerCase() === "error"
+            }
           >
             <Button
               variant="ghost"

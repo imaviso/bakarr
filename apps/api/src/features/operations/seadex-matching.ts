@@ -2,10 +2,7 @@ import type { ParsedRelease } from "./rss-client.ts";
 import { parseReleaseName } from "./release-ranking.ts";
 import type { SeaDexEntry, SeaDexRelease } from "./seadex-client.ts";
 
-export function applySeaDexMatch(
-  release: ParsedRelease,
-  entry: SeaDexEntry,
-): ParsedRelease {
+export function applySeaDexMatch(release: ParsedRelease, entry: SeaDexEntry): ParsedRelease {
   const match = findSeaDexReleaseMatch(release, entry.releases);
 
   if (!match) {
@@ -32,8 +29,8 @@ export function findSeaDexReleaseMatch(
   const normalizedInfoHash = normalizeInfoHash(release.infoHash);
 
   if (normalizedInfoHash) {
-    const infoHashMatch = candidates.find((candidate) =>
-      normalizeInfoHash(candidate.infoHash) === normalizedInfoHash
+    const infoHashMatch = candidates.find(
+      (candidate) => normalizeInfoHash(candidate.infoHash) === normalizedInfoHash,
     );
 
     if (infoHashMatch) {
@@ -44,7 +41,7 @@ export function findSeaDexReleaseMatch(
   const releaseUrlKey = canonicalTrackerUrl(release.viewUrl);
   if (releaseUrlKey) {
     const urlMatch = candidates.find((candidate) =>
-      toCandidateUrlKeys(candidate).includes(releaseUrlKey)
+      toCandidateUrlKeys(candidate).includes(releaseUrlKey),
     );
 
     if (urlMatch) {
@@ -62,9 +59,7 @@ export function findSeaDexReleaseMatch(
   }
 
   const bestCandidate = candidates
-    .filter((candidate) =>
-      normalizeGroup(candidate.releaseGroup) === normalizedGroup
-    )
+    .filter((candidate) => normalizeGroup(candidate.releaseGroup) === normalizedGroup)
     .map((candidate) => ({
       candidate,
       score: scoreSeaDexCandidate({
@@ -75,9 +70,9 @@ export function findSeaDexReleaseMatch(
         releaseUrlKey,
       }),
     }))
-    .sort((left, right) =>
-      right.score - left.score ||
-      Number(right.candidate.isBest) - Number(left.candidate.isBest)
+    .sort(
+      (left, right) =>
+        right.score - left.score || Number(right.candidate.isBest) - Number(left.candidate.isBest),
     )[0];
 
   return bestCandidate?.candidate;
@@ -97,17 +92,11 @@ function scoreSeaDexCandidate(input: {
     score += 50;
   }
 
-  if (
-    input.releaseTracker &&
-    toCandidateTrackers(input.candidate).includes(input.releaseTracker)
-  ) {
+  if (input.releaseTracker && toCandidateTrackers(input.candidate).includes(input.releaseTracker)) {
     score += 15;
   }
 
-  if (
-    input.releaseUrlKey &&
-    toCandidateUrlKeys(input.candidate).includes(input.releaseUrlKey)
-  ) {
+  if (input.releaseUrlKey && toCandidateUrlKeys(input.candidate).includes(input.releaseUrlKey)) {
     score += 80;
   }
 
@@ -127,11 +116,9 @@ function toCandidateTrackers(candidate: SeaDexRelease) {
 }
 
 function toCandidateUrlKeys(candidate: SeaDexRelease) {
-  return [
-    canonicalTrackerUrl(candidate.url),
-    canonicalTrackerUrl(candidate.groupedUrl),
-  ]
-    .filter((value): value is string => Boolean(value));
+  return [canonicalTrackerUrl(candidate.url), canonicalTrackerUrl(candidate.groupedUrl)].filter(
+    (value): value is string => Boolean(value),
+  );
 }
 
 function inferDualAudioHint(title: string): boolean | undefined {
@@ -143,7 +130,10 @@ function normalizeInfoHash(value?: string) {
 }
 
 function normalizeGroup(value?: string) {
-  return value?.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return value
+    ?.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
 }
 
 function inferTrackerName(value?: string) {

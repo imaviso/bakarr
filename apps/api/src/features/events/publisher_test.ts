@@ -32,10 +32,7 @@ it.scoped("event publisher coalesces rapid info messages to the newest message",
     assertEquals(yield* Ref.get(state), ["three"]);
   }).pipe(
     Effect.provide(
-      Layer.mergeAll(
-        ClockServiceLive,
-        makeUnusedEventBusLayer("unused in publisher test"),
-      ),
+      Layer.mergeAll(ClockServiceLive, makeUnusedEventBusLayer("unused in publisher test")),
     ),
-  )
+  ),
 );

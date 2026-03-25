@@ -1,25 +1,18 @@
 import { assertEquals, it } from "../../test/vitest.ts";
 
 import { downloadEvents, downloads, rssFeeds } from "../../db/schema.ts";
-import {
-  toDownload,
-  toDownloadEvent,
-  toDownloadStatus,
-  toRssFeed,
-} from "./repository.ts";
+import { toDownload, toDownloadEvent, toDownloadStatus, toRssFeed } from "./repository.ts";
 
 it("repository mappers convert RSS feed and download event rows", () => {
-  const feed = toRssFeed(
-    {
-      animeId: 20,
-      createdAt: "2024-01-01T00:00:00.000Z",
-      enabled: true,
-      id: 3,
-      lastChecked: null,
-      name: null,
-      url: "https://example.com/feed.xml",
-    } satisfies typeof rssFeeds.$inferSelect,
-  );
+  const feed = toRssFeed({
+    animeId: 20,
+    createdAt: "2024-01-01T00:00:00.000Z",
+    enabled: true,
+    id: 3,
+    lastChecked: null,
+    name: null,
+    url: "https://example.com/feed.xml",
+  } satisfies typeof rssFeeds.$inferSelect);
 
   assertEquals(feed, {
     anime_id: 20,
@@ -92,27 +85,25 @@ it("repository mappers convert RSS feed and download event rows", () => {
 });
 
 it("toDownloadEvent decodes covered_episodes and source_metadata for lifecycle events", () => {
-  const pauseEvent = toDownloadEvent(
-    {
-      animeId: 42,
-      createdAt: "2024-02-01T12:00:00.000Z",
-      downloadId: 7,
-      eventType: "download.paused",
-      fromStatus: "downloading",
-      id: 10,
-      message: "Paused [SubsPlease] Naruto - 02",
-      metadata: JSON.stringify({
-        covered_episodes: [2],
-        source_metadata: {
-          indexer: "Nyaa",
-          resolution: "720p",
-          source_url: "https://nyaa.si/view/555",
-          trusted: true,
-        },
-      }),
-      toStatus: "paused",
-    } satisfies typeof downloadEvents.$inferSelect,
-  );
+  const pauseEvent = toDownloadEvent({
+    animeId: 42,
+    createdAt: "2024-02-01T12:00:00.000Z",
+    downloadId: 7,
+    eventType: "download.paused",
+    fromStatus: "downloading",
+    id: 10,
+    message: "Paused [SubsPlease] Naruto - 02",
+    metadata: JSON.stringify({
+      covered_episodes: [2],
+      source_metadata: {
+        indexer: "Nyaa",
+        resolution: "720p",
+        source_url: "https://nyaa.si/view/555",
+        trusted: true,
+      },
+    }),
+    toStatus: "paused",
+  } satisfies typeof downloadEvents.$inferSelect);
 
   assertEquals(pauseEvent.anime_id, 42);
   assertEquals(pauseEvent.download_id, 7);
@@ -122,41 +113,33 @@ it("toDownloadEvent decodes covered_episodes and source_metadata for lifecycle e
   assertEquals(pauseEvent.metadata_json?.covered_episodes, [2]);
   assertEquals(pauseEvent.metadata_json?.source_metadata?.indexer, "Nyaa");
   assertEquals(pauseEvent.metadata_json?.source_metadata?.resolution, "720p");
-  assertEquals(
-    pauseEvent.metadata_json?.source_metadata?.source_url,
-    "https://nyaa.si/view/555",
-  );
+  assertEquals(pauseEvent.metadata_json?.source_metadata?.source_url, "https://nyaa.si/view/555");
   assertEquals(pauseEvent.metadata_json?.source_metadata?.trusted, true);
 
-  const statusChangeEvent = toDownloadEvent(
-    {
-      animeId: 99,
-      createdAt: "2024-03-01T08:30:00.000Z",
-      downloadId: 12,
-      eventType: "download.status_changed",
-      fromStatus: "queued",
-      id: 15,
-      message: "[Group] Anime - 05 moved to downloading",
-      metadata: JSON.stringify({
-        covered_episodes: [5, 6],
-        source_metadata: {
-          decision_reason: "Upgrade from 480p",
-          indexer: "Nyaa",
-        },
-      }),
-      toStatus: "downloading",
-    } satisfies typeof downloadEvents.$inferSelect,
-  );
+  const statusChangeEvent = toDownloadEvent({
+    animeId: 99,
+    createdAt: "2024-03-01T08:30:00.000Z",
+    downloadId: 12,
+    eventType: "download.status_changed",
+    fromStatus: "queued",
+    id: 15,
+    message: "[Group] Anime - 05 moved to downloading",
+    metadata: JSON.stringify({
+      covered_episodes: [5, 6],
+      source_metadata: {
+        decision_reason: "Upgrade from 480p",
+        indexer: "Nyaa",
+      },
+    }),
+    toStatus: "downloading",
+  } satisfies typeof downloadEvents.$inferSelect);
 
   assertEquals(statusChangeEvent.metadata_json?.covered_episodes, [5, 6]);
   assertEquals(
     statusChangeEvent.metadata_json?.source_metadata?.decision_reason,
     "Upgrade from 480p",
   );
-  assertEquals(
-    statusChangeEvent.metadata_json?.source_metadata?.indexer,
-    "Nyaa",
-  );
+  assertEquals(statusChangeEvent.metadata_json?.source_metadata?.indexer, "Nyaa");
 });
 
 it("repository download mappers decode optional fields and derive status metrics", () => {
@@ -225,10 +208,7 @@ it("repository download mappers decode optional fields and derive status metrics
   assertEquals(queuedStatus.anime_id, 20);
   assertEquals(queuedStatus.anime_image, "https://example.com/naruto.jpg");
   assertEquals(queuedStatus.anime_title, "Naruto");
-  assertEquals(
-    queuedStatus.decision_reason,
-    "Accepted (WEB-DL 1080p, score 12)",
-  );
+  assertEquals(queuedStatus.decision_reason, "Accepted (WEB-DL 1080p, score 12)");
   assertEquals(queuedStatus.hash, "generated-hash");
   assertEquals(queuedStatus.imported_path, "/library/Naruto/Naruto - 01.mkv");
   assertEquals(queuedStatus.progress, 0.25);

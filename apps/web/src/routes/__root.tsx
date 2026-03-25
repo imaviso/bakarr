@@ -1,8 +1,4 @@
-import {
-  ColorModeProvider,
-  ColorModeScript,
-  createLocalStorageManager,
-} from "@kobalte/core";
+import { ColorModeProvider, ColorModeScript, createLocalStorageManager } from "@kobalte/core";
 import type { QueryClient } from "@tanstack/solid-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/solid-router";
 import { lazy } from "solid-js";
@@ -14,10 +10,10 @@ import { AuthProvider, type AuthState } from "~/lib/auth";
 const TanStackRouterDevtools = import.meta.env.PROD
   ? () => null // Render nothing in production
   : lazy(() =>
-    import("@tanstack/solid-router-devtools").then((res) => ({
-      default: res.TanStackRouterDevtools,
-    }))
-  );
+      import("@tanstack/solid-router-devtools").then((res) => ({
+        default: res.TanStackRouterDevtools,
+      })),
+    );
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;

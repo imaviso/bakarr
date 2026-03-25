@@ -1,17 +1,11 @@
 import { HttpServerRequest } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
-import {
-  type AuthUser,
-  AuthUserSchema,
-} from "../../../../packages/shared/src/index.ts";
+import { type AuthUser, AuthUserSchema } from "../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../config.ts";
 import { AuthError, AuthService } from "../features/auth/service.ts";
 
-export function getApiKey(
-  headerApiKey: string | undefined,
-  authorization: string | undefined,
-) {
+export function getApiKey(headerApiKey: string | undefined, authorization: string | undefined) {
   if (headerApiKey) {
     return headerApiKey;
   }
@@ -23,27 +17,23 @@ export function getApiKey(
   return undefined;
 }
 
-export const requireViewerFromHttpRequest = Effect.fn(
-  "Http.requireViewerFromHttpRequest",
-)(function* () {
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  const config = yield* AppConfig;
-  const sessionToken = request.cookies[config.sessionCookieName];
-  const apiKey = getApiKey(
-    request.headers["x-api-key"],
-    request.headers["authorization"],
-  );
-  const viewer = yield* Effect.flatMap(
-    AuthService,
-    (auth) => auth.resolveViewer(sessionToken, apiKey),
-  );
+export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHttpRequest")(
+  function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const config = yield* AppConfig;
+    const sessionToken = request.cookies[config.sessionCookieName];
+    const apiKey = getApiKey(request.headers["x-api-key"], request.headers["authorization"]);
+    const viewer = yield* Effect.flatMap(AuthService, (auth) =>
+      auth.resolveViewer(sessionToken, apiKey),
+    );
 
-  if (!viewer) {
-    return yield* new AuthError({ message: "Unauthorized", status: 401 });
-  }
+    if (!viewer) {
+      return yield* new AuthError({ message: "Unauthorized", status: 401 });
+    }
 
-  return viewer;
-});
+    return viewer;
+  },
+);
 
 export function isAuthUser(value: unknown): value is AuthUser {
   if (!value || typeof value !== "object") {
@@ -59,7 +49,8 @@ export function isAuthUser(value: unknown): value is AuthUser {
   };
 
   if (
-    typeof candidate.id !== "number" || !Number.isFinite(candidate.id) ||
+    typeof candidate.id !== "number" ||
+    !Number.isFinite(candidate.id) ||
     typeof candidate.username !== "string" ||
     typeof candidate.created_at !== "string" ||
     typeof candidate.updated_at !== "string" ||

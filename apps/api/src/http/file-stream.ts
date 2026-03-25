@@ -23,41 +23,34 @@ export function createFileChunkStream(
   const initialRange = range ?? { end: Number.MAX_SAFE_INTEGER, start: 0 };
 
   return Stream.unwrapScoped(
-    Effect.map(
-      fs.openFile(path, { read: true }),
-      (file) =>
-        Stream.paginateChunkEffect(
-          initialRange,
-          (current) =>
-            Effect.gen(function* () {
-              const requestedLength = range
-                ? Math.min(chunkSize, current.end - current.start + 1)
-                : chunkSize;
-              const buffer = new Uint8Array(requestedLength);
+    Effect.map(fs.openFile(path, { read: true }), (file) =>
+      Stream.paginateChunkEffect(initialRange, (current) =>
+        Effect.gen(function* () {
+          const requestedLength = range
+            ? Math.min(chunkSize, current.end - current.start + 1)
+            : chunkSize;
+          const buffer = new Uint8Array(requestedLength);
 
-              yield* file.seek(current.start, SEEK_FROM_START);
-              const read = yield* file.read(buffer);
+          yield* file.seek(current.start, SEEK_FROM_START);
+          const read = yield* file.read(buffer);
 
-              if (read === null || read === 0) {
-                return [
-                  Chunk.empty<Uint8Array>(),
-                  Option.none<FileByteRange>(),
-                ] as const;
-              }
+          if (read === null || read === 0) {
+            return [Chunk.empty<Uint8Array>(), Option.none<FileByteRange>()] as const;
+          }
 
-              const nextStart = current.start + read;
+          const nextStart = current.start + read;
 
-              return [
-                Chunk.of(buffer.subarray(0, read)),
-                range && nextStart > current.end
-                  ? Option.none<FileByteRange>()
-                  : Option.some({
-                    ...current,
-                    start: nextStart,
-                  }),
-              ] as const;
-            }),
-        ),
+          return [
+            Chunk.of(buffer.subarray(0, read)),
+            range && nextStart > current.end
+              ? Option.none<FileByteRange>()
+              : Option.some({
+                  ...current,
+                  start: nextStart,
+                }),
+          ] as const;
+        }),
+      ),
     ),
   );
 }

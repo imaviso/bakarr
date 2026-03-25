@@ -109,14 +109,8 @@ it("selectNamingFormat uses movie format only for movies", () => {
     namingFormat: "{title} - {episode_segment}",
   };
 
-  assertEquals(
-    selectNamingFormat({ format: "MOVIE" }, settings),
-    "{title} ({year})",
-  );
-  assertEquals(
-    selectNamingFormat({ format: "TV" }, settings),
-    "{title} - {episode_segment}",
-  );
+  assertEquals(selectNamingFormat({ format: "MOVIE" }, settings), "{title} ({year})");
+  assertEquals(selectNamingFormat({ format: "TV" }, settings), "{title} - {episode_segment}");
 });
 
 it("selectAnimeYearForNaming prefers preserved year metadata", () => {
@@ -138,13 +132,10 @@ it("inspectNamingFormat and validation identify missing fields", () => {
     "episode",
   ]);
 
-  const validation = validateNamingMetadata(
-    "{title} - S{season:02}E{episode:02}",
-    {
-      episodeNumbers: [1],
-      title: "Naruto",
-    },
-  );
+  const validation = validateNamingMetadata("{title} - S{season:02}E{episode:02}", {
+    episodeNumbers: [1],
+    title: "Naruto",
+  });
 
   assertEquals(validation.missingFields, ["season"]);
 });
@@ -300,8 +291,7 @@ it("buildEpisodeNamingInputFromPath recognizes plain WEB releases and 2ch audio"
   const input = buildEpisodeNamingInputFromPath({
     animeTitle: "Show Name",
     episodeNumbers: [1],
-    filePath:
-      "/downloads/[Group] Show Name - 01 [WEB 1080p] [VP9] [Opus 2ch].mkv",
+    filePath: "/downloads/[Group] Show Name - 01 [WEB 1080p] [VP9] [Opus 2ch].mkv",
   });
 
   assertEquals(input.quality, "WEB");

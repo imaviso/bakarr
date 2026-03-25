@@ -1,12 +1,7 @@
 import type { JSX } from "solid-js";
 import { createMemo } from "solid-js";
 import { FilterContext } from "./filter-context";
-import type {
-  FilterColumnConfig,
-  FilterContextValue,
-  FilterOperator,
-  FilterState,
-} from "./types";
+import type { FilterColumnConfig, FilterContextValue, FilterOperator, FilterState } from "./types";
 
 interface FilterProviderProps {
   children: JSX.Element;
@@ -22,11 +17,12 @@ export function FilterProvider(props: FilterProviderProps) {
     const column = props.columns.find((c) => c.id === columnId);
     if (!column) return;
 
-    let defaultOperator: FilterOperator = column.type === "text"
-      ? "contains"
-      : column.type === "date" || column.type === "select"
-      ? "is"
-      : "is_any_of";
+    let defaultOperator: FilterOperator =
+      column.type === "text"
+        ? "contains"
+        : column.type === "date" || column.type === "select"
+          ? "is"
+          : "is_any_of";
 
     if (column.operators && column.operators.length > 0) {
       if (!column.operators.includes(defaultOperator)) {
@@ -66,9 +62,5 @@ export function FilterProvider(props: FilterProviderProps) {
     clearAllFilters,
   };
 
-  return (
-    <FilterContext.Provider value={contextValue}>
-      {props.children}
-    </FilterContext.Provider>
-  );
+  return <FilterContext.Provider value={contextValue}>{props.children}</FilterContext.Provider>;
 }

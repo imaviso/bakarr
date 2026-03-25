@@ -18,8 +18,7 @@ export interface TriggerDownloadInput {
   readonly info_hash?: string;
   readonly is_batch?: boolean;
   readonly decision_reason?: string;
-  readonly release_metadata?:
-    import("../../../../../packages/shared/src/index.ts").DownloadSourceMetadata;
+  readonly release_metadata?: import("../../../../../packages/shared/src/index.ts").DownloadSourceMetadata;
 }
 
 export interface DownloadOrchestrationInput {
@@ -66,9 +65,12 @@ export function mapQBitState(state: string): string {
   }
 
   if (
-    value.includes("uploading") || value.includes("pausedup") ||
-    value.includes("queuedup") || value.includes("stalledup") ||
-    value.includes("checkingup") || value.includes("forcedup") ||
+    value.includes("uploading") ||
+    value.includes("pausedup") ||
+    value.includes("queuedup") ||
+    value.includes("stalledup") ||
+    value.includes("checkingup") ||
+    value.includes("forcedup") ||
     value.includes("completed")
   ) {
     return "completed";
@@ -83,10 +85,14 @@ export function mapQBitState(state: string): string {
   }
 
   if (
-    value.includes("downloading") || value.includes("forceddl") ||
-    value.includes("metadl") || value.includes("stalleddl") ||
-    value.includes("checkingdl") || value.includes("allocating") ||
-    value.includes("checkingresumedata") || value.includes("moving")
+    value.includes("downloading") ||
+    value.includes("forceddl") ||
+    value.includes("metadl") ||
+    value.includes("stalleddl") ||
+    value.includes("checkingdl") ||
+    value.includes("allocating") ||
+    value.includes("checkingresumedata") ||
+    value.includes("moving")
   ) {
     return "downloading";
   }

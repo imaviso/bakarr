@@ -33,19 +33,14 @@ it("analyzeScannedFile strips release noise and extracts metadata", () => {
 
 it("analyzeScannedFile handles Sonarr and Plex style episode names", () => {
   const result = analyzeScannedFile({
-    name:
-      "Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You♡ Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC]-SubsPlus+.mkv",
-    path:
-      "/library/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You♡ Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC]-SubsPlus+.mkv",
+    name: "Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You♡ Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC]-SubsPlus+.mkv",
+    path: "/library/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You♡ Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC]-SubsPlus+.mkv",
   });
   const parsed = result.scanned;
 
   assertEquals(parsed.episode_number, 1);
   assertEquals(parsed.coverage_summary, undefined);
-  assertEquals(
-    parsed.episode_title,
-    "Good Day to You♡ Quit Playing the Guitar!!!",
-  );
+  assertEquals(parsed.episode_title, "Good Day to You♡ Quit Playing the Guitar!!!");
   assertEquals(parsed.audio_channels, "2.0");
   assertEquals(parsed.audio_codec, "AAC");
   assertEquals(parsed.match_reason, "Parsed S01E01 from the filename");
@@ -117,9 +112,7 @@ it("analyzeScannedFile populates source_identity for daily episodes", () => {
   );
   assertEquals(parsed.source_identity?.air_dates, ["2025-03-14"]);
   assertEquals(parsed.needs_manual_mapping, true);
-  assertEquals(parsed.warnings, [
-    "Parsed a daily air date; set the episode number before import",
-  ]);
+  assertEquals(parsed.warnings, ["Parsed a daily air date; set the episode number before import"]);
 });
 
 it("analyzeScannedFile marks unknown files as needing manual mapping", () => {
@@ -135,9 +128,7 @@ it("analyzeScannedFile marks unknown files as needing manual mapping", () => {
     parsed.match_reason,
     "No reliable episode identity found in the filename; review this file before import",
   );
-  assertEquals(parsed.warnings, [
-    "No reliable episode identity found in filename",
-  ]);
+  assertEquals(parsed.warnings, ["No reliable episode identity found in filename"]);
 });
 
 it.scoped("buildRenamePreview fills naming tokens from existing file metadata", () =>
@@ -150,34 +141,41 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         const namingFormat =
           "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
 
-        yield* Effect.tryPromise(() => appDb.insert(appConfig).values({
-          id: 1,
-          data: encodeConfigCore({
-            ...makeDefaultConfig(databaseFile),
-            library: {
-              ...makeDefaultConfig(databaseFile).library,
-              naming_format: namingFormat,
-            },
+        yield* Effect.tryPromise(() =>
+          appDb.insert(appConfig).values({
+            id: 1,
+            data: encodeConfigCore({
+              ...makeDefaultConfig(databaseFile),
+              library: {
+                ...makeDefaultConfig(databaseFile).library,
+                naming_format: namingFormat,
+              },
+            }),
+            updatedAt: "2024-01-01T00:00:00.000Z",
           }),
-          updatedAt: "2024-01-01T00:00:00.000Z",
-        }));
+        );
 
-        yield* Effect.tryPromise(() => appDb.insert(anime).values(makeAnimeRow({
-          episodeCount: 11,
-          rootFolder,
-          startDate: "2012-01-08",
-          titleRomaji: "Nisemonogatari",
-        })));
+        yield* Effect.tryPromise(() =>
+          appDb.insert(anime).values(
+            makeAnimeRow({
+              episodeCount: 11,
+              rootFolder,
+              startDate: "2012-01-08",
+              titleRomaji: "Nisemonogatari",
+            }),
+          ),
+        );
 
-        yield* Effect.tryPromise(() => appDb.insert(episodes).values({
-          aired: null,
-          animeId: 1,
-          downloaded: true,
-          filePath:
-            `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
-          number: 1,
-          title: null,
-        }));
+        yield* Effect.tryPromise(() =>
+          appDb.insert(episodes).values({
+            aired: null,
+            animeId: 1,
+            downloaded: true,
+            filePath: `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
+            number: 1,
+            title: null,
+          }),
+        );
 
         const preview = yield* buildRenamePreview(appDb, 1);
 
@@ -188,18 +186,12 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         );
         assertEquals(preview[0].fallback_used, undefined);
         assertEquals(preview[0].format_used, namingFormat);
-        assertEquals(
-          preview[0].metadata_snapshot?.episode_title,
-          "Karen Bee, Part 1",
-        );
-        assertEquals(
-          preview[0].metadata_snapshot?.title_source,
-          "preferred_romaji",
-        );
+        assertEquals(preview[0].metadata_snapshot?.episode_title, "Karen Bee, Part 1");
+        assertEquals(preview[0].metadata_snapshot?.title_source, "preferred_romaji");
         assertEquals(preview[0].metadata_snapshot?.video_codec, "HEVC");
       }),
     schema,
-  })
+  }),
 );
 
 it.scoped("buildRenamePreview respects preferred English title and movie naming format", () =>
@@ -209,36 +201,44 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
 
-        yield* Effect.tryPromise(() => appDb.insert(appConfig).values({
-          id: 1,
-          data: encodeConfigCore({
-            ...makeDefaultConfig(databaseFile),
-            library: {
-              ...makeDefaultConfig(databaseFile).library,
-              movie_naming_format: "{title} ({year})",
-              preferred_title: "english",
-            },
+        yield* Effect.tryPromise(() =>
+          appDb.insert(appConfig).values({
+            id: 1,
+            data: encodeConfigCore({
+              ...makeDefaultConfig(databaseFile),
+              library: {
+                ...makeDefaultConfig(databaseFile).library,
+                movie_naming_format: "{title} ({year})",
+                preferred_title: "english",
+              },
+            }),
+            updatedAt: "2024-01-01T00:00:00.000Z",
           }),
-          updatedAt: "2024-01-01T00:00:00.000Z",
-        }));
+        );
 
-        yield* Effect.tryPromise(() => appDb.insert(anime).values(makeAnimeRow({
-          format: "MOVIE",
-          rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
-          startDate: "2016-08-26",
-          titleEnglish: "Your Name.",
-          titleNative: "君の名は。",
-          titleRomaji: "Kimi no Na wa.",
-        })));
+        yield* Effect.tryPromise(() =>
+          appDb.insert(anime).values(
+            makeAnimeRow({
+              format: "MOVIE",
+              rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
+              startDate: "2016-08-26",
+              titleEnglish: "Your Name.",
+              titleNative: "君の名は。",
+              titleRomaji: "Kimi no Na wa.",
+            }),
+          ),
+        );
 
-        yield* Effect.tryPromise(() => appDb.insert(episodes).values({
-          aired: null,
-          animeId: 1,
-          downloaded: true,
-          filePath: "/mnt/media2/Movies/Kimi no Na wa./movie-source-file.mkv",
-          number: 1,
-          title: null,
-        }));
+        yield* Effect.tryPromise(() =>
+          appDb.insert(episodes).values({
+            aired: null,
+            animeId: 1,
+            downloaded: true,
+            filePath: "/mnt/media2/Movies/Kimi no Na wa./movie-source-file.mkv",
+            number: 1,
+            title: null,
+          }),
+        );
 
         const preview = yield* buildRenamePreview(appDb, 1);
 
@@ -246,13 +246,10 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
         assertEquals(preview[0].new_filename, "Your Name. (2016).mkv");
         assertEquals(preview[0].format_used, "{title} ({year})");
         assertEquals(preview[0].metadata_snapshot?.title, "Your Name.");
-        assertEquals(
-          preview[0].metadata_snapshot?.title_source,
-          "preferred_english",
-        );
+        assertEquals(preview[0].metadata_snapshot?.title_source, "preferred_english");
       }),
     schema,
-  })
+  }),
 );
 
 it.scoped("buildRenamePreview reports fallback when season metadata is missing", () =>
@@ -263,31 +260,39 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
         const appDb = db as AppDatabase;
         const namingFormat = "{title} - S{season:02}E{episode:02}";
 
-        yield* Effect.tryPromise(() => appDb.insert(appConfig).values({
-          id: 1,
-          data: encodeConfigCore({
-            ...makeDefaultConfig(databaseFile),
-            library: {
-              ...makeDefaultConfig(databaseFile).library,
-              naming_format: namingFormat,
-            },
+        yield* Effect.tryPromise(() =>
+          appDb.insert(appConfig).values({
+            id: 1,
+            data: encodeConfigCore({
+              ...makeDefaultConfig(databaseFile),
+              library: {
+                ...makeDefaultConfig(databaseFile).library,
+                naming_format: namingFormat,
+              },
+            }),
+            updatedAt: "2024-01-01T00:00:00.000Z",
           }),
-          updatedAt: "2024-01-01T00:00:00.000Z",
-        }));
+        );
 
-        yield* Effect.tryPromise(() => appDb.insert(anime).values(makeAnimeRow({
-          rootFolder: "/library/Show",
-          titleRomaji: "Show",
-        })));
+        yield* Effect.tryPromise(() =>
+          appDb.insert(anime).values(
+            makeAnimeRow({
+              rootFolder: "/library/Show",
+              titleRomaji: "Show",
+            }),
+          ),
+        );
 
-        yield* Effect.tryPromise(() => appDb.insert(episodes).values({
-          aired: null,
-          animeId: 1,
-          downloaded: true,
-          filePath: "/downloads/Show - 01.mkv",
-          number: 1,
-          title: null,
-        }));
+        yield* Effect.tryPromise(() =>
+          appDb.insert(episodes).values({
+            aired: null,
+            animeId: 1,
+            downloaded: true,
+            filePath: "/downloads/Show - 01.mkv",
+            number: 1,
+            title: null,
+          }),
+        );
 
         const preview = yield* buildRenamePreview(appDb, 1);
 
@@ -298,7 +303,7 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
         assertEquals(preview[0].metadata_snapshot?.source_identity?.label, "01");
       }),
     schema,
-  })
+  }),
 );
 
 it("findBestLocalAnimeMatch handles title normalization and rejects weak matches", () => {
@@ -333,44 +338,40 @@ it("findBestLocalAnimeMatch handles title normalization and rejects weak matches
     titleRomaji: "Bleach",
   });
 
-  assertEquals(
-    findBestLocalAnimeMatch("Naruto Season 2", [naruto, bleach])?.id,
-    20,
-  );
-  assertEquals(
-    findBestLocalAnimeMatch("Completely Different Show", [naruto, bleach]),
-    undefined,
-  );
+  assertEquals(findBestLocalAnimeMatch("Naruto Season 2", [naruto, bleach])?.id, 20);
+  assertEquals(findBestLocalAnimeMatch("Completely Different Show", [naruto, bleach]), undefined);
 });
 
 it("titlesMatch checks normalized candidate titles", () => {
-  const candidate = toAnimeSearchCandidate(makeAnimeRow({
-    addedAt: "2024-01-01T00:00:00.000Z",
-    bannerImage: "/images/banner.jpg",
-    coverImage: null,
-    description: "Hero school",
-    endDate: "2020-06-01",
-    endYear: 2020,
-    episodeCount: 12,
-    format: "TV",
-    genres: '["Action","School"]',
-    id: 30,
-    malId: null,
-    monitored: true,
-    nextAiringAt: null,
-    nextAiringEpisode: null,
-    profileName: "Default",
-    releaseProfileIds: "[]",
-    rootFolder: "/library/My Hero Academia",
-    score: null,
-    startDate: "2019-04-06",
-    startYear: 2019,
-    status: "FINISHED",
-    studios: "Bones",
-    titleEnglish: "My Hero Academia Season 2",
-    titleNative: "Boku no Hero Academia 2",
-    titleRomaji: "Boku no Hero Academia II",
-  }));
+  const candidate = toAnimeSearchCandidate(
+    makeAnimeRow({
+      addedAt: "2024-01-01T00:00:00.000Z",
+      bannerImage: "/images/banner.jpg",
+      coverImage: null,
+      description: "Hero school",
+      endDate: "2020-06-01",
+      endYear: 2020,
+      episodeCount: 12,
+      format: "TV",
+      genres: '["Action","School"]',
+      id: 30,
+      malId: null,
+      monitored: true,
+      nextAiringAt: null,
+      nextAiringEpisode: null,
+      profileName: "Default",
+      releaseProfileIds: "[]",
+      rootFolder: "/library/My Hero Academia",
+      score: null,
+      startDate: "2019-04-06",
+      startYear: 2019,
+      status: "FINISHED",
+      studios: "Bones",
+      titleEnglish: "My Hero Academia Season 2",
+      titleNative: "Boku no Hero Academia 2",
+      titleRomaji: "Boku no Hero Academia II",
+    }),
+  );
 
   assertEquals(titlesMatch("My Hero Academia 2", candidate), true);
   assertEquals(titlesMatch("One Piece", candidate), false);
@@ -385,9 +386,7 @@ it("titlesMatch checks normalized candidate titles", () => {
   assertEquals(candidate.start_year, 2019);
 });
 
-function makeAnimeRow(
-  overrides: Partial<typeof anime.$inferSelect>,
-): typeof anime.$inferSelect {
+function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof anime.$inferSelect {
   return {
     addedAt: "2024-01-01T00:00:00.000Z",
     bannerImage: null,

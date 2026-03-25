@@ -61,14 +61,10 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
   const importMutation = createImportUnmappedFolderMutation();
   const scanMutation = createScanLibraryMutation();
   const profilesQuery = createProfilesQuery();
-  const [manualMatch, setManualMatch] = createSignal<AnimeSearchResult | null>(
-    null,
-  );
+  const [manualMatch, setManualMatch] = createSignal<AnimeSearchResult | null>(null);
   const [manualDialogOpen, setManualDialogOpen] = createSignal(false);
   const [resetConfirmOpen, setResetConfirmOpen] = createSignal(false);
-  const [selectedProfileName, setSelectedProfileName] = createSignal<string>(
-    "",
-  );
+  const [selectedProfileName, setSelectedProfileName] = createSignal<string>("");
 
   const selectedAnime = createMemo(() => {
     const manual = manualMatch();
@@ -86,8 +82,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
     const fallbackName = profiles[0]?.name ?? "";
     const resolvedName = selectedName || fallbackName;
 
-    return profiles.find((profile) => profile.name === resolvedName) ??
-      profiles[0];
+    return profiles.find((profile) => profile.name === resolvedName) ?? profiles[0];
   });
 
   createEffect(() => {
@@ -97,14 +92,13 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
   });
 
   const existingAnime = createMemo(() =>
-    selectedAnime()?.already_in_library ? selectedAnime() : null
+    selectedAnime()?.already_in_library ? selectedAnime() : null,
   );
   const importLabel = createMemo(() =>
-    existingAnime() ? "Use existing anime" : "Add and use folder"
+    existingAnime() ? "Use existing anime" : "Add and use folder",
   );
 
-  const isImporting = () =>
-    addAnimeMutation.isPending || importMutation.isPending;
+  const isImporting = () => addAnimeMutation.isPending || importMutation.isPending;
   const isControlling = () => controlMutation.isPending;
 
   const handleControl = (action: "pause" | "resume" | "reset" | "refresh") => {
@@ -164,9 +158,10 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
       setManualMatch(null);
       toast.success(`${action} ${anime.title.romaji}`);
     } catch (error) {
-      const message = error instanceof Error
-        ? normalizeApiErrorMessage(error.message)
-        : "Failed to import folder";
+      const message =
+        error instanceof Error
+          ? normalizeApiErrorMessage(error.message)
+          : "Failed to import folder";
       toast.error(message);
     }
   };
@@ -180,23 +175,15 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
           </div>
           <div class="min-w-0 space-y-1">
             <div class="flex flex-wrap items-center gap-2">
-              <p
-                class="truncate text-sm font-semibold text-foreground"
-                title={props.folder.name}
-              >
+              <p class="truncate text-sm font-semibold text-foreground" title={props.folder.name}>
                 {props.folder.name}
               </p>
               <Badge variant="outline">{folderStatusLabel(props.folder)}</Badge>
             </div>
-            <p
-              class="truncate text-xs text-muted-foreground"
-              title={props.folder.path}
-            >
+            <p class="truncate text-xs text-muted-foreground" title={props.folder.path}>
               {props.folder.path}
             </p>
-            <p class="text-xs text-muted-foreground">
-              {folderMatchHint(props.folder)}
-            </p>
+            <p class="text-xs text-muted-foreground">{folderMatchHint(props.folder)}</p>
             <Show when={props.folder.search_queries?.length}>
               <div class="flex flex-wrap items-center gap-1 pt-1">
                 <span class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
@@ -254,12 +241,9 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                   </Show>
                 </div>
                 <Show
-                  when={anime().title.english &&
-                    anime().title.english !== anime().title.romaji}
+                  when={anime().title.english && anime().title.english !== anime().title.romaji}
                 >
-                  <p class="truncate text-xs text-muted-foreground">
-                    {anime().title.english}
-                  </p>
+                  <p class="truncate text-xs text-muted-foreground">{anime().title.english}</p>
                 </Show>
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <Show when={anime().format}>
@@ -323,25 +307,18 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
                     </span>
                     <Select
                       value={selectedProfile()?.name ?? null}
-                      onChange={(value) =>
-                        value && setSelectedProfileName(value)}
-                      options={(profilesQuery.data ?? []).map((profile) =>
-                        profile.name
-                      )}
+                      onChange={(value) => value && setSelectedProfileName(value)}
+                      options={(profilesQuery.data ?? []).map((profile) => profile.name)}
                       placeholder="Select profile..."
                       itemComponent={(itemProps) => (
-                        <SelectItem item={itemProps.item}>
-                          {itemProps.item.rawValue}
-                        </SelectItem>
+                        <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
                       )}
                     >
                       <SelectTrigger
                         aria-label="Quality profile for the new anime"
                         class="h-9 bg-background"
                       >
-                        <SelectValue<string>>
-                          {(state) => state.selectedOption()}
-                        </SelectValue>
+                        <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
                       </SelectTrigger>
                       <SelectContent />
                     </Select>
@@ -354,17 +331,15 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
       </div>
 
       <div class="flex flex-col justify-start gap-2 lg:min-w-[160px]">
-        <div
-          role="group"
-          aria-label="Folder actions"
-          class="grid grid-cols-2 gap-2"
-        >
+        <div role="group" aria-label="Folder actions" class="grid grid-cols-2 gap-2">
           <Button
             size="sm"
             variant="outline"
-            disabled={isControlling() ||
+            disabled={
+              isControlling() ||
               props.folder.match_status === "matching" ||
-              props.folder.match_status === "paused"}
+              props.folder.match_status === "paused"
+            }
             onClick={() => handleControl("pause")}
             class="justify-start"
           >
@@ -374,9 +349,11 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
           <Button
             size="sm"
             variant="outline"
-            disabled={isControlling() ||
+            disabled={
+              isControlling() ||
               props.folder.match_status === "matching" ||
-              props.folder.match_status !== "paused"}
+              props.folder.match_status !== "paused"
+            }
             onClick={() => handleControl("resume")}
             class="justify-start"
           >
@@ -386,21 +363,17 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
           <Button
             size="sm"
             variant="outline"
-            disabled={isControlling() ||
-              props.folder.match_status === "matching"}
+            disabled={isControlling() || props.folder.match_status === "matching"}
             onClick={() => handleControl("refresh")}
             class="justify-start"
           >
-            <IconRefresh
-              class={cn("mr-2 h-4 w-4", isControlling() && "animate-spin")}
-            />
+            <IconRefresh class={cn("mr-2 h-4 w-4", isControlling() && "animate-spin")} />
             Refresh
           </Button>
           <Button
             size="sm"
             variant="outline"
-            disabled={isControlling() ||
-              props.folder.match_status === "matching"}
+            disabled={isControlling() || props.folder.match_status === "matching"}
             onClick={() => setResetConfirmOpen(true)}
             class="justify-start"
           >
@@ -409,18 +382,13 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
           </Button>
         </div>
 
-        <AlertDialog
-          open={resetConfirmOpen()}
-          onOpenChange={setResetConfirmOpen}
-        >
+        <AlertDialog open={resetConfirmOpen()} onOpenChange={setResetConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>
-                Reset match for {props.folder.name}?
-              </AlertDialogTitle>
+              <AlertDialogTitle>Reset match for {props.folder.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                This clears the cached error state and suggested matches for
-                this folder, then queues it for a fresh background match.
+                This clears the cached error state and suggested matches for this folder, then
+                queues it for a fresh background match.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -439,12 +407,7 @@ export function FolderItem(props: { folder: UnmappedFolder }) {
         </AlertDialog>
 
         <Dialog open={manualDialogOpen()} onOpenChange={setManualDialogOpen}>
-          <DialogTrigger
-            as={Button}
-            variant="ghost"
-            size="sm"
-            class="justify-start"
-          >
+          <DialogTrigger as={Button} variant="ghost" size="sm" class="justify-start">
             <IconSearch class="mr-2 h-4 w-4" />
             Change match
           </DialogTrigger>
@@ -498,9 +461,7 @@ function folderStatusLabel(folder: UnmappedFolder) {
     case "done":
       return folder.suggested_matches.length > 0 ? "Matched" : "No match";
     case "failed":
-      return hasAutomaticRetryRemaining(folder)
-        ? "Retrying soon"
-        : "Needs review";
+      return hasAutomaticRetryRemaining(folder) ? "Retrying soon" : "Needs review";
     case "pending":
     default:
       return "Queued";
@@ -519,8 +480,8 @@ function folderMatchHint(folder: UnmappedFolder) {
           ? `Last attempt failed: ${folder.last_match_error}. Another background pass is queued.`
           : "The last attempt failed. Another background pass is queued."
         : folder.last_match_error
-        ? `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts: ${folder.last_match_error}`
-        : `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts.`;
+          ? `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts: ${folder.last_match_error}`
+          : `Automatic matching stopped after ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS} failed attempts.`;
     case "done":
       return folder.suggested_matches.length > 0
         ? "Automatic suggestions are ready. You can import immediately or change the match."
@@ -550,8 +511,10 @@ function emptyMatchMessage(folder: UnmappedFolder) {
 }
 
 function hasAutomaticRetryRemaining(folder: UnmappedFolder) {
-  return folder.match_status === "failed" &&
-    (folder.match_attempts ?? 0) < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS;
+  return (
+    folder.match_status === "failed" &&
+    (folder.match_attempts ?? 0) < MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS
+  );
 }
 
 function normalizeApiErrorMessage(message: string) {

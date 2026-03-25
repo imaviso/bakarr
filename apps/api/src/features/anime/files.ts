@@ -2,10 +2,7 @@ import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
 import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
 import { isNotFoundError } from "../../lib/fs-errors.ts";
 import { Effect } from "effect";
-import {
-  classifyMediaArtifact,
-  parseFileSourceIdentity,
-} from "../../lib/media-identity.ts";
+import { classifyMediaArtifact, parseFileSourceIdentity } from "../../lib/media-identity.ts";
 
 function parseEpisodeNumber(path: string): number | undefined {
   const parsed = parseFileSourceIdentity(path);
@@ -16,77 +13,73 @@ function parseEpisodeNumber(path: string): number | undefined {
 
 export { parseEpisodeNumber };
 
-export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(
-  function* (
-    fs: FileSystemShape,
-    rootFolder: string,
-  ) {
-    const entries: VideoFile[] = [];
-    const stack = [rootFolder];
-    let isRoot = true;
+export const collectVideoFiles = Effect.fn("AnimeService.collectVideoFiles")(function* (
+  fs: FileSystemShape,
+  rootFolder: string,
+) {
+  const entries: VideoFile[] = [];
+  const stack = [rootFolder];
+  let isRoot = true;
 
-    while (stack.length > 0) {
-      const current = stack.pop();
-      if (!current) {
-        continue;
-      }
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
 
-      const isCurrentRoot = isRoot;
-      isRoot = false;
+    const isCurrentRoot = isRoot;
+    isRoot = false;
 
-      const dirEntries = yield* fs.readDir(current).pipe(
-        Effect.catchTag(
-          "FileSystemError",
-          (error) =>
-            !isCurrentRoot && isNotFoundError(error)
-              ? Effect.succeed<DirEntry[]>([])
-              : Effect.fail(error),
+    const dirEntries = yield* fs
+      .readDir(current)
+      .pipe(
+        Effect.catchTag("FileSystemError", (error) =>
+          !isCurrentRoot && isNotFoundError(error)
+            ? Effect.succeed<DirEntry[]>([])
+            : Effect.fail(error),
         ),
       );
 
-      for (const entry of dirEntries) {
-        const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
+    for (const entry of dirEntries) {
+      const fullPath = `${current.replace(/\/$/, "")}/${entry.name}`;
 
-        if (entry.isDirectory) {
-          stack.push(fullPath);
-          continue;
-        }
+      if (entry.isDirectory) {
+        stack.push(fullPath);
+        continue;
+      }
 
-        if (!entry.isFile || !isVideoFile(entry.name)) {
-          continue;
-        }
+      if (!entry.isFile || !isVideoFile(entry.name)) {
+        continue;
+      }
 
-        const classification = classifyMediaArtifact(fullPath, entry.name);
-        if (
-          classification.kind === "extra" || classification.kind === "sample"
-        ) {
-          continue;
-        }
+      const classification = classifyMediaArtifact(fullPath, entry.name);
+      if (classification.kind === "extra" || classification.kind === "sample") {
+        continue;
+      }
 
-        const stats = yield* fs.stat(fullPath).pipe(
-          Effect.catchTag(
-            "FileSystemError",
-            (error) =>
-              isNotFoundError(error)
-                ? Effect.succeed({ size: 0 } as { size: number })
-                : Effect.fail(error),
+      const stats = yield* fs
+        .stat(fullPath)
+        .pipe(
+          Effect.catchTag("FileSystemError", (error) =>
+            isNotFoundError(error)
+              ? Effect.succeed({ size: 0 } as { size: number })
+              : Effect.fail(error),
           ),
         );
-        entries.push({
-          episode_number: parseEpisodeNumber(fullPath),
-          name: entry.name,
-          path: fullPath,
-          size: stats.size,
-        });
-      }
+      entries.push({
+        episode_number: parseEpisodeNumber(fullPath),
+        name: entry.name,
+        path: fullPath,
+        size: stats.size,
+      });
     }
+  }
 
-    return entries.sort((left, right) => left.name.localeCompare(right.name));
-  },
-);
+  return entries.sort((left, right) => left.name.localeCompare(right.name));
+});
 
 function isVideoFile(name: string) {
   return [".mkv", ".mp4", ".avi", ".mov", ".webm"].some((extension) =>
-    name.toLowerCase().endsWith(extension)
+    name.toLowerCase().endsWith(extension),
   );
 }

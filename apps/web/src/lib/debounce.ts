@@ -1,7 +1,4 @@
-export function createDebouncer<T>(
-  callback: (value: T) => void,
-  delayMs: number,
-) {
+export function createDebouncer<T>(callback: (value: T) => void, delayMs: number) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
   return {

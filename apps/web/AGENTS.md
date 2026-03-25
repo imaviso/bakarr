@@ -44,12 +44,12 @@ agents working on this codebase.
 
 ### ⚡ Common Commands
 
-| Command          | Description                              |
-| :--------------- | :--------------------------------------- |
-| `bun run dev`    | Start the development server (`vite`)    |
-| `bun run build`  | Build for production and run type checks |
-| `bun run serve`  | Preview the production build             |
-| `bun run check`  | Run type checks                          |
+| Command         | Description                              |
+| :-------------- | :--------------------------------------- |
+| `bun run dev`   | Start the development server (`vite`)    |
+| `bun run build` | Build for production and run type checks |
+| `bun run serve` | Preview the production build             |
+| `bun run check` | Run type checks                          |
 
 ### 🎨 Code Style & Conventions
 

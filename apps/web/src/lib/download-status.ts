@@ -1,17 +1,10 @@
 export interface DownloadStatusPresentation {
-  icon:
-    | "alert"
-    | "arrow-down"
-    | "check"
-    | "clock"
-    | "pause";
+  icon: "alert" | "arrow-down" | "check" | "clock" | "pause";
   label: string;
   tone: "destructive" | "info" | "muted" | "success" | "warning";
 }
 
-export function getDownloadStatusPresentation(
-  status?: string,
-): DownloadStatusPresentation {
+export function getDownloadStatusPresentation(status?: string): DownloadStatusPresentation {
   const normalized = status?.toLowerCase();
 
   switch (normalized) {

@@ -27,11 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
-import {
-  TextField,
-  TextFieldInput,
-  TextFieldLabel,
-} from "~/components/ui/text-field";
+import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 import {
   type AnimeSearchResult,
   createAddAnimeMutation,
@@ -72,10 +68,7 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
 
   // 1. Derive readiness state
   const isReady = createMemo(
-    () =>
-      profilesQuery.isSuccess &&
-      configQuery.isSuccess &&
-      releaseProfilesQuery.isSuccess,
+    () => profilesQuery.isSuccess && configQuery.isSuccess && releaseProfilesQuery.isSuccess,
   );
   const metadataChips = createMemo(() => {
     const chips: string[] = [];
@@ -162,10 +155,9 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                   <For each={props.anime.related_anime?.slice(0, 2)}>
                     {(related) => (
                       <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
-                        {[
-                          animeDisplayTitle(related),
-                          ...animeDiscoverySubtitle(related),
-                        ].filter(Boolean).join(" - ")}
+                        {[animeDisplayTitle(related), ...animeDiscoverySubtitle(related)]
+                          .filter(Boolean)
+                          .join(" - ")}
                       </div>
                     )}
                   </For>
@@ -176,10 +168,9 @@ export function AddAnimeDialog(props: AddAnimeDialogProps) {
                   <For each={props.anime.recommended_anime?.slice(0, 2)}>
                     {(recommended) => (
                       <div class="inline-flex items-center rounded-none border px-2 py-0.5 text-xs text-muted-foreground">
-                        {[
-                          animeDisplayTitle(recommended),
-                          ...animeDiscoverySubtitle(recommended),
-                        ].filter(Boolean).join(" - ")}
+                        {[animeDisplayTitle(recommended), ...animeDiscoverySubtitle(recommended)]
+                          .filter(Boolean)
+                          .join(" - ")}
                       </div>
                     )}
                   </For>
@@ -279,10 +270,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
     >
       <form.Field name="root_folder">
         {(field) => (
-          <TextField
-            value={field().state.value}
-            onChange={field().handleChange}
-          >
+          <TextField value={field().state.value} onChange={field().handleChange}>
             <TextFieldLabel class="flex items-center gap-2">
               <IconFolder class="h-4 w-4" />
               Root Folder
@@ -305,9 +293,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
               )}
             >
               <SelectTrigger>
-                <SelectValue<string>>
-                  {(state) => state.selectedOption()}
-                </SelectValue>
+                <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
               </SelectTrigger>
               <SelectContent />
             </Select>
@@ -323,17 +309,14 @@ function AddAnimeForm(props: AddAnimeFormProps) {
               <div class="flex flex-wrap gap-2">
                 <For each={props.releaseProfiles}>
                   {(profile) => {
-                    const isSelected = () =>
-                      field().state.value.includes(profile.id);
+                    const isSelected = () => field().state.value.includes(profile.id);
                     const checkboxId = `release-profile-${profile.id}`;
                     return (
                       <label
                         for={checkboxId}
                         class={cn(
                           "flex items-center gap-2 px-3 py-2 rounded-none border cursor-pointer transition-colors",
-                          isSelected()
-                            ? "bg-primary/10 border-primary/30"
-                            : "hover:bg-accent",
+                          isSelected() ? "bg-primary/10 border-primary/30" : "hover:bg-accent",
                         )}
                       >
                         <Checkbox
@@ -343,9 +326,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
                             if (checked) {
                               field().pushValue(profile.id);
                             } else {
-                              field().removeValue(
-                                field().state.value.indexOf(profile.id),
-                              );
+                              field().removeValue(field().state.value.indexOf(profile.id));
                             }
                           }}
                         />
@@ -363,10 +344,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       <div class="flex items-center gap-6">
         <form.Field name="monitor">
           {(field) => (
-            <label
-              for="monitor-checkbox"
-              class="flex items-center gap-2 cursor-pointer"
-            >
+            <label for="monitor-checkbox" class="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 id="monitor-checkbox"
                 checked={field().state.value}
@@ -379,10 +357,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
 
         <form.Field name="search_now">
           {(field) => (
-            <label
-              for="search-now-checkbox"
-              class="flex items-center gap-2 cursor-pointer"
-            >
+            <label for="search-now-checkbox" class="flex items-center gap-2 cursor-pointer">
               <Checkbox
                 id="search-now-checkbox"
                 checked={field().state.value}
@@ -405,15 +380,11 @@ function AddAnimeForm(props: AddAnimeFormProps) {
         <Button type="button" variant="ghost" onClick={props.onCancel}>
           Cancel
         </Button>
-        <form.Subscribe
-          selector={(state) => [state.canSubmit, state.isSubmitting]}
-        >
+        <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>
           {(state) => (
             <Button
               type="submit"
-              disabled={!state()[0] ||
-                addAnimeMutation.isPending ||
-                props.anime.already_in_library}
+              disabled={!state()[0] || addAnimeMutation.isPending || props.anime.already_in_library}
             >
               <Show
                 when={!addAnimeMutation.isPending}

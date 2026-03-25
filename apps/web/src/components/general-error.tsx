@@ -6,27 +6,20 @@ export function GeneralError() {
   return (
     <div class="flex flex-1 flex-col items-center justify-center min-h-[400px] bg-background">
       <div class="flex flex-col items-center text-center space-y-8 px-4">
-        <IconAlertCircle
-          class="h-24 w-24 text-destructive/80"
-          stroke-width={1}
-        />
+        <IconAlertCircle class="h-24 w-24 text-destructive/80" stroke-width={1} />
 
         <div class="space-y-2">
           <h1 class="text-4xl font-thin tracking-tight text-foreground select-none">
             Something went wrong
           </h1>
           <p class="text-sm text-muted-foreground max-w-[400px] mx-auto leading-relaxed">
-            An unexpected error occurred while loading this page. Please try
-            refreshing or come back later.
+            An unexpected error occurred while loading this page. Please try refreshing or come back
+            later.
           </p>
         </div>
 
         <div class="flex items-center gap-4">
-          <Button
-            variant="outline"
-            class="group"
-            onClick={() => globalThis.location.reload()}
-          >
+          <Button variant="outline" class="group" onClick={() => globalThis.location.reload()}>
             Refresh Page
           </Button>
           <Link to="/">

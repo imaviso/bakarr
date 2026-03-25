@@ -93,50 +93,51 @@ export function selectAnimeTitleForNamingDetails(
   },
   preferredTitle: PreferredTitle,
 ): SelectedAnimeTitleForNaming {
-  const orderedTitles = preferredTitle === "english"
-    ? [
-      {
-        source: "preferred_english" as const,
-        value: animeRow.titleEnglish,
-      },
-      {
-        source: "fallback_romaji" as const,
-        value: animeRow.titleRomaji,
-      },
-      {
-        source: "fallback_native" as const,
-        value: animeRow.titleNative,
-      },
-    ]
-    : preferredTitle === "native"
-    ? [
-      {
-        source: "preferred_native" as const,
-        value: animeRow.titleNative,
-      },
-      {
-        source: "fallback_romaji" as const,
-        value: animeRow.titleRomaji,
-      },
-      {
-        source: "fallback_english" as const,
-        value: animeRow.titleEnglish,
-      },
-    ]
-    : [
-      {
-        source: "preferred_romaji" as const,
-        value: animeRow.titleRomaji,
-      },
-      {
-        source: "fallback_english" as const,
-        value: animeRow.titleEnglish,
-      },
-      {
-        source: "fallback_native" as const,
-        value: animeRow.titleNative,
-      },
-    ];
+  const orderedTitles =
+    preferredTitle === "english"
+      ? [
+          {
+            source: "preferred_english" as const,
+            value: animeRow.titleEnglish,
+          },
+          {
+            source: "fallback_romaji" as const,
+            value: animeRow.titleRomaji,
+          },
+          {
+            source: "fallback_native" as const,
+            value: animeRow.titleNative,
+          },
+        ]
+      : preferredTitle === "native"
+        ? [
+            {
+              source: "preferred_native" as const,
+              value: animeRow.titleNative,
+            },
+            {
+              source: "fallback_romaji" as const,
+              value: animeRow.titleRomaji,
+            },
+            {
+              source: "fallback_english" as const,
+              value: animeRow.titleEnglish,
+            },
+          ]
+        : [
+            {
+              source: "preferred_romaji" as const,
+              value: animeRow.titleRomaji,
+            },
+            {
+              source: "fallback_english" as const,
+              value: animeRow.titleEnglish,
+            },
+            {
+              source: "fallback_native" as const,
+              value: animeRow.titleNative,
+            },
+          ];
 
   for (const entry of orderedTitles) {
     const value = normalizeText(entry.value);
@@ -149,9 +150,7 @@ export function selectAnimeTitleForNamingDetails(
   }
 
   return {
-    source: preferredTitle === "romaji"
-      ? "preferred_romaji"
-      : "fallback_romaji",
+    source: preferredTitle === "romaji" ? "preferred_romaji" : "fallback_romaji",
     title: animeRow.titleRomaji,
   };
 }
@@ -160,9 +159,7 @@ export function selectNamingFormat(
   animeRow: { format: string },
   settings: { namingFormat: string; movieNamingFormat: string },
 ): string {
-  return animeRow.format === "MOVIE"
-    ? settings.movieNamingFormat
-    : settings.namingFormat;
+  return animeRow.format === "MOVIE" ? settings.movieNamingFormat : settings.namingFormat;
 }
 
 export function inspectNamingFormat(format: string): readonly NamingToken[] {
@@ -197,9 +194,7 @@ export function validateNamingMetadata(
 
   return {
     missingFields,
-    warnings: missingFields.map((field) =>
-      `Missing metadata for {${field}} token`
-    ),
+    warnings: missingFields.map((field) => `Missing metadata for {${field}} token`),
   };
 }
 
@@ -209,8 +204,8 @@ export function resolveFilenameRenderPlan(input: {
   metadata: NamingInput;
 }): ResolvedNamingPlan {
   const validation = validateNamingMetadata(input.format, input.metadata);
-  const criticalMissingFields = validation.missingFields.filter((field) =>
-    field === "season" || field === "episode" || field === "episode_segment"
+  const criticalMissingFields = validation.missingFields.filter(
+    (field) => field === "season" || field === "episode" || field === "episode_segment",
   );
 
   if (criticalMissingFields.length === 0) {
@@ -222,11 +217,14 @@ export function resolveFilenameRenderPlan(input: {
     };
   }
 
-  const fallbackFormat = input.animeFormat === "MOVIE"
-    ? (input.metadata.year ? "{title} ({year})" : "{title}")
-    : (input.metadata.sourceIdentity
-      ? "{title} - {source_episode_segment}"
-      : "{title} - {episode_segment}");
+  const fallbackFormat =
+    input.animeFormat === "MOVIE"
+      ? input.metadata.year
+        ? "{title} ({year})"
+        : "{title}"
+      : input.metadata.sourceIdentity
+        ? "{title} - {source_episode_segment}"
+        : "{title} - {episode_segment}";
 
   return {
     fallbackUsed: true,
@@ -239,9 +237,7 @@ export function resolveFilenameRenderPlan(input: {
   };
 }
 
-export function hasMissingLocalMediaNamingFields(
-  missingFields: readonly string[],
-) {
+export function hasMissingLocalMediaNamingFields(missingFields: readonly string[]) {
   return missingFields.some((field) => PROBEABLE_NAMING_FIELDS.has(field));
 }
 
@@ -280,14 +276,10 @@ export function buildCanonicalEpisodeNamingInput(input: {
 
   if (input.episodeNumbers.length > 1) {
     if (hasMultipleDistinctTitles(input.episodeRows)) {
-      warnings.push(
-        "Skipped {episode_title} because the file covers multiple episodes",
-      );
+      warnings.push("Skipped {episode_title} because the file covers multiple episodes");
     }
     if (hasMultipleDistinctAirDates(input.episodeRows)) {
-      warnings.push(
-        "Skipped {air_date} because the file covers multiple episodes",
-      );
+      warnings.push("Skipped {air_date} because the file covers multiple episodes");
     }
   }
 
@@ -297,23 +289,26 @@ export function buildCanonicalEpisodeNamingInput(input: {
       airDate: explicitAirDate ?? pathInput.airDate,
       audioChannels:
         normalizeText(input.downloadSourceMetadata?.audio_channels) ??
-          pathInput.audioChannels ?? input.localMediaMetadata?.audio_channels,
-      audioCodec: normalizeText(input.downloadSourceMetadata?.audio_codec) ??
-        pathInput.audioCodec ?? input.localMediaMetadata?.audio_codec,
+        pathInput.audioChannels ??
+        input.localMediaMetadata?.audio_channels,
+      audioCodec:
+        normalizeText(input.downloadSourceMetadata?.audio_codec) ??
+        pathInput.audioCodec ??
+        input.localMediaMetadata?.audio_codec,
       episodeTitle: explicitEpisodeTitle ?? pathInput.episodeTitle,
-      group: normalizeText(input.downloadSourceMetadata?.group) ??
-        pathInput.group,
-      quality: normalizeText(input.downloadSourceMetadata?.quality) ??
-        pathInput.quality,
-      resolution: normalizeText(input.downloadSourceMetadata?.resolution) ??
-        pathInput.resolution ?? input.localMediaMetadata?.resolution,
-      season: seasonFromMetadata(input.downloadSourceMetadata) ??
-        pathInput.season,
+      group: normalizeText(input.downloadSourceMetadata?.group) ?? pathInput.group,
+      quality: normalizeText(input.downloadSourceMetadata?.quality) ?? pathInput.quality,
+      resolution:
+        normalizeText(input.downloadSourceMetadata?.resolution) ??
+        pathInput.resolution ??
+        input.localMediaMetadata?.resolution,
+      season: seasonFromMetadata(input.downloadSourceMetadata) ?? pathInput.season,
       sourceIdentity:
-        sourceIdentityFromMetadata(input.downloadSourceMetadata) ??
-          pathInput.sourceIdentity,
-      videoCodec: normalizeText(input.downloadSourceMetadata?.video_codec) ??
-        pathInput.videoCodec ?? input.localMediaMetadata?.video_codec,
+        sourceIdentityFromMetadata(input.downloadSourceMetadata) ?? pathInput.sourceIdentity,
+      videoCodec:
+        normalizeText(input.downloadSourceMetadata?.video_codec) ??
+        pathInput.videoCodec ??
+        input.localMediaMetadata?.video_codec,
       year: selectAnimeYearForNaming({
         endDate: input.animeEndDate,
         endYear: input.animeEndYear,
@@ -346,10 +341,7 @@ export function buildEpisodeFilenamePlan(input: {
   downloadSourceMetadata?: DownloadSourceMetadata;
   localMediaMetadata?: ProbedMediaMetadata;
 }): EpisodeFilenamePlan {
-  const titleSelection = selectAnimeTitleForNamingDetails(
-    input.animeRow,
-    input.preferredTitle,
-  );
+  const titleSelection = selectAnimeTitleForNamingDetails(input.animeRow, input.preferredTitle);
   const canonical = buildCanonicalEpisodeNamingInput({
     animeEndDate: input.animeRow.endDate,
     animeEndYear: input.animeRow.endYear,
@@ -371,16 +363,10 @@ export function buildEpisodeFilenamePlan(input: {
   });
 
   return {
-    baseName: renderEpisodeFilename(
-      renderPlan.formatUsed,
-      canonical.namingInput,
-    ),
+    baseName: renderEpisodeFilename(renderPlan.formatUsed, canonical.namingInput),
     fallbackUsed: renderPlan.fallbackUsed,
     formatUsed: renderPlan.formatUsed,
-    metadataSnapshot: toRenamePreviewMetadataSnapshot(
-      canonical.namingInput,
-      titleSelection.source,
-    ),
+    metadataSnapshot: toRenamePreviewMetadataSnapshot(canonical.namingInput, titleSelection.source),
     missingFields: renderPlan.missingFields,
     warnings: [...new Set([...canonical.warnings, ...renderPlan.warnings])],
   };
@@ -412,11 +398,7 @@ function pickCanonicalEpisodeTitle(
   downloadSourceMetadata?: DownloadSourceMetadata,
 ) {
   const distinctTitles = [
-    ...new Set(
-      (episodeRows ?? []).map((row) => normalizeText(row.title)).filter(
-        Boolean,
-      ),
-    ),
+    ...new Set((episodeRows ?? []).map((row) => normalizeText(row.title)).filter(Boolean)),
   ];
 
   if (distinctTitles.length === 1) {
@@ -432,11 +414,7 @@ function pickCanonicalAirDate(
   sourceIdentity?: SharedParsedEpisodeIdentity,
 ) {
   const distinctDates = [
-    ...new Set(
-      (episodeRows ?? []).map((row) => normalizeAirDate(row.aired)).filter(
-        Boolean,
-      ),
-    ),
+    ...new Set((episodeRows ?? []).map((row) => normalizeAirDate(row.aired)).filter(Boolean)),
   ];
 
   if (distinctDates.length === 1) {
@@ -467,28 +445,20 @@ function sourceIdentityFromMetadata(
   return cloneParsedEpisodeIdentity(identity);
 }
 
-function hasMultipleDistinctTitles(
-  episodeRows?: readonly { title?: string | null }[],
-) {
-  return new Set(
-    (episodeRows ?? []).map((row) => normalizeText(row.title)).filter(Boolean),
-  ).size > 1;
+function hasMultipleDistinctTitles(episodeRows?: readonly { title?: string | null }[]) {
+  return (
+    new Set((episodeRows ?? []).map((row) => normalizeText(row.title)).filter(Boolean)).size > 1
+  );
 }
 
-function hasMultipleDistinctAirDates(
-  episodeRows?: readonly { aired?: string | null }[],
-) {
-  return new Set(
-    (episodeRows ?? []).map((row) => normalizeAirDate(row.aired)).filter(
-      Boolean,
-    ),
-  ).size > 1;
+function hasMultipleDistinctAirDates(episodeRows?: readonly { aired?: string | null }[]) {
+  return (
+    new Set((episodeRows ?? []).map((row) => normalizeAirDate(row.aired)).filter(Boolean)).size > 1
+  );
 }
 
 function cloneParsedEpisodeIdentity(
-  identity?:
-    | DownloadSourceMetadata["source_identity"]
-    | LocalParsedEpisodeIdentity,
+  identity?: DownloadSourceMetadata["source_identity"] | LocalParsedEpisodeIdentity,
 ): SharedParsedEpisodeIdentity | undefined {
   if (!identity) {
     return undefined;

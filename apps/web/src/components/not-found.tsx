@@ -6,21 +6,14 @@ export function NotFound() {
   return (
     <div class="flex flex-1 flex-col items-center justify-center min-h-[400px] bg-background">
       <div class="flex flex-col items-center text-center space-y-8 px-4">
-        <IconGhost
-          class="h-24 w-24 text-primary/80"
-          stroke-width={1}
-        />
+        <IconGhost class="h-24 w-24 text-primary/80" stroke-width={1} />
 
         <div class="space-y-2">
-          <h1 class="text-7xl font-thin tracking-tight text-foreground select-none">
-            404
-          </h1>
-          <h2 class="text-xl font-medium tracking-wide text-foreground/80">
-            Page not found
-          </h2>
+          <h1 class="text-7xl font-thin tracking-tight text-foreground select-none">404</h1>
+          <h2 class="text-xl font-medium tracking-wide text-foreground/80">Page not found</h2>
           <p class="text-sm text-muted-foreground max-w-[400px] mx-auto leading-relaxed">
-            The page you are looking for does not exist or has been moved.
-            Please check the URL or navigate back home.
+            The page you are looking for does not exist or has been moved. Please check the URL or
+            navigate back home.
           </p>
         </div>
 

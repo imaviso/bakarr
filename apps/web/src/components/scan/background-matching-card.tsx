@@ -63,9 +63,7 @@ export function BackgroundMatchingCard(props: {
       <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div class="space-y-1">
           <div class="flex flex-wrap items-center gap-2">
-            <p class="text-sm font-semibold text-foreground">
-              Background folder matching
-            </p>
+            <p class="text-sm font-semibold text-foreground">Background folder matching</p>
             <Badge
               variant={backgroundMatchingStatusVariant({
                 failedCount: props.failedCount,
@@ -88,19 +86,17 @@ export function BackgroundMatchingCard(props: {
             {props.matchingCount > 0
               ? "Matching one folder right now to stay under AniList rate limits."
               : props.queuedCount > 0
-              ? "Queued folders are ready for a background pass and will be worked through one by one."
-              : props.pausedCount > 0
-              ? "Some folders are paused. Start them again individually or use Start Paused."
-              : props.failedCount > 0 && props.hasOutstandingWork
-              ? "Some folders failed their latest automatic match. They are queued to retry in the background, or you can choose a manual match now."
-              : props.failedCount > 0
-              ? `Some folders hit the ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS}-attempt automatic match limit. Choose a manual match to continue.`
-              : "All discovered folders have finished their latest background match pass."}
+                ? "Queued folders are ready for a background pass and will be worked through one by one."
+                : props.pausedCount > 0
+                  ? "Some folders are paused. Start them again individually or use Start Paused."
+                  : props.failedCount > 0 && props.hasOutstandingWork
+                    ? "Some folders failed their latest automatic match. They are queued to retry in the background, or you can choose a manual match now."
+                    : props.failedCount > 0
+                      ? `Some folders hit the ${MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS}-attempt automatic match limit. Choose a manual match to continue.`
+                      : "All discovered folders have finished their latest background match pass."}
           </p>
           <Show when={props.job?.last_message}>
-            <p class="text-xs text-muted-foreground">
-              {props.job?.last_message}
-            </p>
+            <p class="text-xs text-muted-foreground">{props.job?.last_message}</p>
           </Show>
           <p class="text-xs text-muted-foreground">{explanation()}</p>
         </div>
@@ -108,9 +104,7 @@ export function BackgroundMatchingCard(props: {
         <div class="grid grid-cols-2 gap-2 text-right text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-[340px]">
           <div class="border border-border/60 bg-muted/20 px-3 py-2">
             <div class="uppercase tracking-[0.18em]">Matched</div>
-            <div class="mt-1 text-lg font-semibold text-foreground">
-              {props.matchedCount}
-            </div>
+            <div class="mt-1 text-lg font-semibold text-foreground">{props.matchedCount}</div>
           </div>
           <div class="border border-border/60 bg-muted/20 px-3 py-2">
             <div class="uppercase tracking-[0.18em]">In queue</div>
@@ -120,15 +114,11 @@ export function BackgroundMatchingCard(props: {
           </div>
           <div class="border border-border/60 bg-muted/20 px-3 py-2">
             <div class="uppercase tracking-[0.18em]">Paused</div>
-            <div class="mt-1 text-lg font-semibold text-foreground">
-              {props.pausedCount}
-            </div>
+            <div class="mt-1 text-lg font-semibold text-foreground">{props.pausedCount}</div>
           </div>
           <div class="border border-border/60 bg-muted/20 px-3 py-2">
             <div class="uppercase tracking-[0.18em]">Total</div>
-            <div class="mt-1 text-lg font-semibold text-foreground">
-              {props.totalCount}
-            </div>
+            <div class="mt-1 text-lg font-semibold text-foreground">{props.totalCount}</div>
           </div>
         </div>
       </div>

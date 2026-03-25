@@ -22,27 +22,19 @@ import type { OperationsError } from "./errors.ts";
 
 export interface RssServiceShape {
   readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;
-  readonly listAnimeRssFeeds: (
-    animeId: number,
-  ) => Effect.Effect<RssFeed[], DatabaseError>;
-  readonly addRssFeed: (
-    input: { anime_id: number; url: string; name?: string },
-  ) => Effect.Effect<RssFeed, OperationsError | DatabaseError>;
+  readonly listAnimeRssFeeds: (animeId: number) => Effect.Effect<RssFeed[], DatabaseError>;
+  readonly addRssFeed: (input: {
+    anime_id: number;
+    url: string;
+    name?: string;
+  }) => Effect.Effect<RssFeed, OperationsError | DatabaseError>;
   readonly deleteRssFeed: (id: number) => Effect.Effect<void, DatabaseError>;
-  readonly toggleRssFeed: (
-    id: number,
-    enabled: boolean,
-  ) => Effect.Effect<void, DatabaseError>;
-  readonly runRssCheck: () => Effect.Effect<
-    { newItems: number },
-    DatabaseError
-  >;
+  readonly toggleRssFeed: (id: number, enabled: boolean) => Effect.Effect<void, DatabaseError>;
+  readonly runRssCheck: () => Effect.Effect<{ newItems: number }, DatabaseError>;
 }
 
 export interface LibraryServiceShape {
-  readonly getWantedMissing: (
-    limit: number,
-  ) => Effect.Effect<MissingEpisode[], DatabaseError>;
+  readonly getWantedMissing: (limit: number) => Effect.Effect<MissingEpisode[], DatabaseError>;
   readonly getCalendar: (
     start: string,
     end: string,
@@ -53,10 +45,7 @@ export interface LibraryServiceShape {
   readonly renameFiles: (
     animeId: number,
   ) => Effect.Effect<RenameResult, OperationsError | DatabaseError>;
-  readonly getUnmappedFolders: () => Effect.Effect<
-    ScannerState,
-    OperationsError | DatabaseError
-  >;
+  readonly getUnmappedFolders: () => Effect.Effect<ScannerState, OperationsError | DatabaseError>;
   readonly runUnmappedScan: () => Effect.Effect<
     { folderCount: number },
     OperationsError | DatabaseError
@@ -64,20 +53,15 @@ export interface LibraryServiceShape {
   readonly controlUnmappedFolder: (input: {
     action: "pause" | "resume" | "reset" | "refresh";
     path: string;
-  }) => Effect.Effect<
-    { folderCount: number; folderPath: string },
-    OperationsError | DatabaseError
-  >;
+  }) => Effect.Effect<{ folderCount: number; folderPath: string }, OperationsError | DatabaseError>;
   readonly bulkControlUnmappedFolders: (input: {
-    action:
-      | "pause_queued"
-      | "resume_paused"
-      | "reset_failed"
-      | "retry_failed";
+    action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
   }) => Effect.Effect<{ affectedCount: number }, DatabaseError>;
-  readonly importUnmappedFolder: (
-    input: { folder_name: string; anime_id: number; profile_name?: string },
-  ) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly importUnmappedFolder: (input: {
+    folder_name: string;
+    anime_id: number;
+    profile_name?: string;
+  }) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly scanImportPath: (
     path: string,
     animeId?: number,
@@ -101,26 +85,15 @@ export interface LibraryServiceShape {
 export interface DownloadServiceShape {
   readonly listDownloadQueue: () => Effect.Effect<Download[], DatabaseError>;
   readonly listDownloadHistory: () => Effect.Effect<Download[], DatabaseError>;
-  readonly getDownloadProgress: () => Effect.Effect<
-    DownloadStatus[],
-    DatabaseError
-  >;
-  readonly pauseDownload: (
-    id: number,
-  ) => Effect.Effect<void, OperationsError | DatabaseError>;
-  readonly resumeDownload: (
-    id: number,
-  ) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly getDownloadProgress: () => Effect.Effect<DownloadStatus[], DatabaseError>;
+  readonly pauseDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly resumeDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly removeDownload: (
     id: number,
     deleteFiles: boolean,
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
-  readonly retryDownload: (
-    id: number,
-  ) => Effect.Effect<void, OperationsError | DatabaseError>;
-  readonly reconcileDownload: (
-    id: number,
-  ) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly retryDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly reconcileDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly syncDownloads: () => Effect.Effect<void, DatabaseError>;
   readonly listDownloadEvents: (input?: {
     readonly animeId?: number;
@@ -143,22 +116,18 @@ export interface DownloadServiceShape {
     readonly startDate?: string;
     readonly status?: string;
   }) => Effect.Effect<DownloadEventsExport, DatabaseError>;
-  readonly triggerDownload: (
-    input: {
-      anime_id: number;
-      magnet: string;
-      episode_number?: number;
-      title: string;
-      group?: string;
-      info_hash?: string;
-      is_batch?: boolean;
-      decision_reason?: string;
-      release_metadata?: DownloadSourceMetadata;
-    },
-  ) => Effect.Effect<void, OperationsError | DatabaseError>;
-  readonly triggerSearchMissing: (
-    animeId?: number,
-  ) => Effect.Effect<void, DatabaseError>;
+  readonly triggerDownload: (input: {
+    anime_id: number;
+    magnet: string;
+    episode_number?: number;
+    title: string;
+    group?: string;
+    info_hash?: string;
+    is_batch?: boolean;
+    decision_reason?: string;
+    release_metadata?: DownloadSourceMetadata;
+  }) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly triggerSearchMissing: (animeId?: number) => Effect.Effect<void, DatabaseError>;
 }
 
 export interface SearchServiceShape {

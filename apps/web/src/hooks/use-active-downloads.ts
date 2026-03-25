@@ -31,9 +31,7 @@ export function useActiveDownloads() {
         const data: NotificationEvent = JSON.parse(event.data);
 
         if (data.type === "DownloadProgress") {
-          setDownloads(
-            reconcile(data.payload.downloads, { key: "hash", merge: true }),
-          );
+          setDownloads(reconcile(data.payload.downloads, { key: "hash", merge: true }));
         }
       } catch (e) {
         console.error("Failed to parse event", e);
