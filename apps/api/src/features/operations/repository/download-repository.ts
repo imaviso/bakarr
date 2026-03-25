@@ -1,10 +1,9 @@
 import { and, inArray, sql } from "drizzle-orm";
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import type {
   Download,
   DownloadEvent,
-  DownloadEventMetadata,
   DownloadSourceMetadata,
   DownloadStatus,
 } from "../../../../../../packages/shared/src/index.ts";
@@ -16,6 +15,7 @@ import type { AppDatabase } from "../../../db/database.ts";
 import { anime, downloadEvents, downloads, episodes } from "../../../db/schema.ts";
 import { decodeOptionalNumberList } from "../../system/config-codec.ts";
 import type { DownloadEventPresentationContext, DownloadPresentationContext } from "./types.ts";
+import { OperationsStoredDataError } from "../errors.ts";
 
 const SQLITE_IN_LIST_CHUNK_SIZE = 900;
 const CHUNK_LOAD_CONCURRENCY = 4;
@@ -26,13 +26,14 @@ type DownloadEventRow = typeof downloadEvents.$inferSelect;
 const DownloadSourceMetadataJsonSchema = Schema.parseJson(DownloadSourceMetadataSchema);
 const DownloadEventMetadataJsonSchema = Schema.parseJson(DownloadEventMetadataSchema);
 
-export function toDownload(row: DownloadRow, context?: DownloadPresentationContext): Download {
-  const coveredEpisodes = row.coveredEpisodes
-    ? decodeOptionalNumberList(row.coveredEpisodes)
-    : undefined;
+export const toDownload = Effect.fn("OperationsRepository.toDownload")(function* (
+  row: DownloadRow,
+  context?: DownloadPresentationContext,
+) {
+  const coveredEpisodes = yield* decodeCoveredEpisodes(row.coveredEpisodes);
   const coveragePending =
     Boolean(row.isBatch) && (!coveredEpisodes || coveredEpisodes.length === 0);
-  const sourceMetadata = decodeDownloadSourceMetadata(row.sourceMetadata);
+  const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
 
   return {
     added_at: row.addedAt,
@@ -64,13 +65,13 @@ export function toDownload(row: DownloadRow, context?: DownloadPresentationConte
     source_metadata: sourceMetadata,
     torrent_name: row.torrentName,
     total_bytes: row.totalBytes ?? undefined,
-  };
-}
+  } satisfies Download;
+});
 
-export function toDownloadEvent(
+export const toDownloadEvent = Effect.fn("OperationsRepository.toDownloadEvent")(function* (
   row: DownloadEventRow,
   context?: DownloadEventPresentationContext,
-): DownloadEvent {
+) {
   return {
     anime_id: row.animeId ?? undefined,
     anime_image: context?.animeImage,
@@ -82,26 +83,24 @@ export function toDownloadEvent(
     id: row.id,
     message: row.message,
     metadata: row.metadata ?? undefined,
-    metadata_json: decodeDownloadEventMetadata(row.metadata),
+    metadata_json: yield* decodeDownloadEventMetadata(row.metadata),
     torrent_name: context?.torrentName,
     to_status: row.toStatus ?? undefined,
-  };
-}
+  } satisfies DownloadEvent;
+});
 
-export function toDownloadStatus(
+export const toDownloadStatus = Effect.fn("OperationsRepository.toDownloadStatus")(function* (
   row: DownloadRow,
   randomHash: () => string,
   context?: DownloadPresentationContext,
-): DownloadStatus {
+) {
   const progress = row.progress ?? 0;
   const totalBytes = row.totalBytes ?? 0;
   const downloadedBytes = row.downloadedBytes ?? 0;
-  const coveredEpisodes = row.coveredEpisodes
-    ? decodeOptionalNumberList(row.coveredEpisodes)
-    : undefined;
+  const coveredEpisodes = yield* decodeCoveredEpisodes(row.coveredEpisodes);
   const coveragePending =
     Boolean(row.isBatch) && (!coveredEpisodes || coveredEpisodes.length === 0);
-  const sourceMetadata = decodeDownloadSourceMetadata(row.sourceMetadata);
+  const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
 
   return {
     anime_id: row.animeId,
@@ -123,8 +122,8 @@ export function toDownloadStatus(
     source_metadata: sourceMetadata,
     state: row.status,
     total_bytes: totalBytes,
-  };
-}
+  } satisfies DownloadStatus;
+});
 
 export function encodeDownloadSourceMetadata(value: DownloadSourceMetadata): string {
   return Schema.encodeSync(DownloadSourceMetadataJsonSchema)({
@@ -133,17 +132,23 @@ export function encodeDownloadSourceMetadata(value: DownloadSourceMetadata): str
   });
 }
 
-export function decodeDownloadSourceMetadata(
-  value: string | null | undefined,
-): DownloadSourceMetadata | undefined {
+export const decodeDownloadSourceMetadata = Effect.fn(
+  "OperationsRepository.decodeDownloadSourceMetadata",
+)(function* (value: string | null | undefined) {
   if (!value) {
     return undefined;
   }
 
-  const decoded = Schema.decodeUnknownEither(DownloadSourceMetadataJsonSchema)(value);
-
-  return decoded._tag === "Right" ? cloneDownloadSourceMetadata(decoded.right) : undefined;
-}
+  return yield* Schema.decodeUnknown(DownloadSourceMetadataJsonSchema)(value).pipe(
+    Effect.map((decoded) => cloneDownloadSourceMetadata(decoded)),
+    Effect.mapError(
+      () =>
+        new OperationsStoredDataError({
+          message: "Stored download source metadata is corrupt",
+        }),
+    ),
+  );
+});
 
 function cloneDownloadSourceMetadata(value: DownloadSourceMetadata): DownloadSourceMetadata {
   return {
@@ -193,68 +198,95 @@ export function encodeDownloadEventMetadata(value: {
   });
 }
 
-export function decodeDownloadEventMetadata(
-  value: string | null | undefined,
-): DownloadEventMetadata | undefined {
+export const decodeDownloadEventMetadata = Effect.fn(
+  "OperationsRepository.decodeDownloadEventMetadata",
+)(function* (value: string | null | undefined) {
   if (!value) {
     return undefined;
   }
 
-  const decoded = Schema.decodeUnknownEither(DownloadEventMetadataJsonSchema)(value);
+  return yield* Schema.decodeUnknown(DownloadEventMetadataJsonSchema)(value).pipe(
+    Effect.mapError(
+      () =>
+        new OperationsStoredDataError({
+          message: "Stored download event metadata is corrupt",
+        }),
+    ),
+  );
+});
 
-  return decoded._tag === "Right" ? decoded.right : undefined;
-}
+const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpisodes")(function* (
+  value: string | null | undefined,
+) {
+  if (!value) {
+    return undefined;
+  }
 
-export async function loadDownloadPresentationContexts(
-  db: AppDatabase,
-  rows: readonly DownloadRow[],
-): Promise<Map<number, DownloadPresentationContext>> {
+  return yield* Effect.try({
+    try: () => decodeOptionalNumberList(value),
+    catch: () =>
+      new OperationsStoredDataError({
+        message: "Stored covered episode metadata is corrupt",
+      }),
+  });
+});
+
+export const loadDownloadPresentationContexts = Effect.fn(
+  "OperationsRepository.loadDownloadPresentationContexts",
+)(function* (db: AppDatabase, rows: readonly DownloadRow[]) {
   if (rows.length === 0) {
-    return new Map();
+    return new Map<number, DownloadPresentationContext>();
   }
 
   const animeIds = [...new Set(rows.map((row) => row.animeId))];
-  const animeRows = await loadRowsByChunk(animeIds, (chunk) =>
-    db
-      .select({
-        coverImage: anime.coverImage,
-        id: anime.id,
-      })
-      .from(anime)
-      .where(inArray(anime.id, chunk)),
+  const animeRows = yield* Effect.promise(() =>
+    loadRowsByChunk(animeIds, (chunk) =>
+      db
+        .select({
+          coverImage: anime.coverImage,
+          id: anime.id,
+        })
+        .from(anime)
+        .where(inArray(anime.id, chunk)),
+    ),
   );
   const animeImageById = new Map(
     animeRows.map((row) => [row.id, row.coverImage ?? undefined] as const),
   );
 
   const importedRows = rows.filter((row) => row.status === "imported" || row.reconciledAt !== null);
-  const episodeRows =
-    importedRows.length > 0
-      ? await db
-          .select({
-            animeId: episodes.animeId,
-            filePath: episodes.filePath,
-            number: episodes.number,
-          })
-          .from(episodes)
-          .where(
-            and(
-              inArray(episodes.animeId, [...new Set(importedRows.map((row) => row.animeId))]),
-              sql`${episodes.filePath} is not null`,
-            ),
-          )
-      : [];
+  let episodeRows: Array<{
+    animeId: number;
+    filePath: string | null;
+    number: number;
+  }> = [];
+
+  if (importedRows.length > 0) {
+    episodeRows = yield* Effect.promise(() =>
+      db
+        .select({
+          animeId: episodes.animeId,
+          filePath: episodes.filePath,
+          number: episodes.number,
+        })
+        .from(episodes)
+        .where(
+          and(
+            inArray(episodes.animeId, [...new Set(importedRows.map((row) => row.animeId))]),
+            sql`${episodes.filePath} is not null`,
+          ),
+        ),
+    );
+  }
   const importedPathByEpisode = new Map(
     episodeRows.flatMap((row) =>
       row.filePath ? [[`${row.animeId}:${row.number}`, row.filePath] as const] : [],
     ),
   );
 
-  return new Map(
-    rows.map((row) => {
-      const coveredEpisodes = row.coveredEpisodes
-        ? decodeOptionalNumberList(row.coveredEpisodes)
-        : [];
+  const contexts = yield* Effect.forEach(rows, (row) =>
+    Effect.gen(function* () {
+      const coveredEpisodes = (yield* decodeCoveredEpisodes(row.coveredEpisodes)) ?? [];
       const episodeNumbers = coveredEpisodes.length > 0 ? coveredEpisodes : [row.episodeNumber];
       const importedPath =
         episodeNumbers
@@ -271,7 +303,9 @@ export async function loadDownloadPresentationContexts(
       ] as const;
     }),
   );
-}
+
+  return new Map(contexts);
+});
 
 export async function loadDownloadEventPresentationContexts(
   db: AppDatabase,

@@ -117,7 +117,7 @@ export function makeDownloadReconciliationService(input: {
         return;
       }
 
-      const storedSourceMetadata = decodeDownloadSourceMetadata(row.sourceMetadata);
+      const storedSourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
 
       const animeRow = yield* requireAnime(db, row.animeId);
       const importMode = yield* currentImportMode(db);

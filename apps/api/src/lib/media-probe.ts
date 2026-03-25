@@ -381,6 +381,7 @@ const makeMediaProbe = (ffprobeSemaphore: Effect.Semaphore): MediaProbeShape => 
     );
 
     if (decoded._tag === "Left") {
+      yield* Effect.logWarning("ffprobe output was invalid").pipe(Effect.annotateLogs({ path }));
       return undefined;
     }
 
@@ -388,7 +389,14 @@ const makeMediaProbe = (ffprobeSemaphore: Effect.Semaphore): MediaProbeShape => 
       Schema.decodeUnknown(ProbedMediaMetadataFromFFProbeOutputSchema)(decoded.right),
     );
 
-    return normalized._tag === "Left" ? undefined : (normalized.right ?? undefined);
+    if (normalized._tag === "Left") {
+      yield* Effect.logWarning("ffprobe metadata normalization failed").pipe(
+        Effect.annotateLogs({ path }),
+      );
+      return undefined;
+    }
+
+    return normalized.right ?? undefined;
   });
 
   return { probeVideoFile };

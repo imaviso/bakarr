@@ -99,6 +99,18 @@ export function importDownloadedFile(
 
     yield* fs.mkdir(animeRow.rootFolder, { recursive: true });
 
+    const cleanupTempDestination = fs.remove(tempDestination).pipe(
+      Effect.catchTag("FileSystemError", (fsError) =>
+        Effect.logWarning("Failed to clean up temp import file after move failure").pipe(
+          Effect.annotateLogs({
+            error: String(fsError),
+            temp_path: tempDestination,
+          }),
+          Effect.asVoid,
+        ),
+      ),
+    );
+
     yield* (
       importMode === "move"
         ? fs
@@ -112,7 +124,13 @@ export function importDownloadedFile(
                         Effect.flatMap(() =>
                           fs
                             .remove(sourcePath)
-                            .pipe(Effect.catchTag("FileSystemError", () => Effect.void)),
+                            .pipe(
+                              Effect.catchTag("FileSystemError", (removeError) =>
+                                cleanupTempDestination.pipe(
+                                  Effect.zipRight(Effect.fail(removeError)),
+                                ),
+                              ),
+                            ),
                         ),
                       )
                   : Effect.fail(error),

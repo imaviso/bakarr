@@ -23,6 +23,7 @@ import {
 } from "../../db/schema.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { buildUnmappedFolderSearchQueries } from "../operations/unmapped-folders.ts";
+import { StoredUnmappedFolderCorruptError } from "./errors.ts";
 import { eventTypeCondition } from "./support.ts";
 
 export type QualityProfileRow = typeof qualityProfiles.$inferSelect;
@@ -31,8 +32,8 @@ export type ReleaseProfileRow = typeof releaseProfiles.$inferSelect;
 export type ReleaseProfileInsert = typeof releaseProfiles.$inferInsert;
 
 const AnimeSearchResultListJsonSchema = Schema.parseJson(Schema.Array(AnimeSearchResultSchema));
-const decodeAnimeSearchResultList = Schema.decodeUnknownSync(AnimeSearchResultListJsonSchema);
 const encodeAnimeSearchResultList = Schema.encodeSync(AnimeSearchResultListJsonSchema);
+const decodeAnimeSearchResultList = Schema.decodeUnknown(AnimeSearchResultListJsonSchema);
 
 export const loadSystemConfigRow = Effect.fn("SystemRepository.loadSystemConfigRow")(function* (
   db: AppDatabase,
@@ -434,9 +435,19 @@ export const loadUnmappedFolderMatchRow = Effect.fn("SystemRepository.loadUnmapp
   },
 );
 
-export function decodeUnmappedFolderMatchRow(
-  row: typeof unmappedFolderMatches.$inferSelect,
-): UnmappedFolder {
+export const decodeUnmappedFolderMatchRow = Effect.fn(
+  "SystemRepository.decodeUnmappedFolderMatchRow",
+)(function* (row: typeof unmappedFolderMatches.$inferSelect) {
+  const suggestedMatches = yield* decodeAnimeSearchResultList(row.suggestedMatches).pipe(
+    Effect.map((decoded) => [...decoded]),
+    Effect.mapError(
+      () =>
+        new StoredUnmappedFolderCorruptError({
+          message: `Stored unmapped folder suggestions are corrupt for ${row.path}`,
+        }),
+    ),
+  );
+
   return {
     match_attempts: row.matchAttempts,
     last_match_error: row.lastMatchError ?? undefined,
@@ -446,9 +457,9 @@ export function decodeUnmappedFolderMatchRow(
     path: row.path,
     search_queries: buildUnmappedFolderSearchQueries(row.name),
     size: row.size,
-    suggested_matches: [...decodeAnimeSearchResultList(row.suggestedMatches)],
-  };
-}
+    suggested_matches: suggestedMatches,
+  } satisfies UnmappedFolder;
+});
 
 export const listRecentSystemLogRows = Effect.fn("SystemRepository.listRecentSystemLogRows")(
   function* (db: AppDatabase, limit: number) {

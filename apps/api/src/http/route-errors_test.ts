@@ -15,12 +15,15 @@ import {
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
+  OperationsStoredDataError,
+  RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "../features/operations/errors.ts";
 import {
   ConfigValidationError,
   ProfileNotFoundError,
+  StoredUnmappedFolderCorruptError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
 } from "../features/system/errors.ts";
@@ -70,6 +73,12 @@ it("route errors maps known tagged errors to expected responses", () => {
       expected: { message: "profile missing", status: 404 },
     },
     {
+      error: new StoredUnmappedFolderCorruptError({
+        message: "unmapped folder data is corrupt",
+      }),
+      expected: { message: "unmapped folder data is corrupt", status: 500 },
+    },
+    {
       error: new OperationsInputError({ message: "bad input" }),
       expected: { message: "bad input", status: 400 },
     },
@@ -92,6 +101,14 @@ it("route errors maps known tagged errors to expected responses", () => {
     {
       error: new OperationsPathError({ message: "bad ops path" }),
       expected: { message: "bad ops path", status: 400 },
+    },
+    {
+      error: new OperationsStoredDataError({ message: "stored ops data is corrupt" }),
+      expected: { message: "stored ops data is corrupt", status: 500 },
+    },
+    {
+      error: new RssFeedParseError({ message: "rss parse failed" }),
+      expected: { message: "RSS feed response was invalid", status: 503 },
     },
     {
       error: new RssFeedRejectedError({ message: "rss rejected" }),

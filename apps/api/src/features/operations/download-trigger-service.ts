@@ -82,12 +82,10 @@ export function makeDownloadTriggerService(input: {
         .where(inArray(downloads.status, ["queued", "downloading", "paused"]))
         .orderBy(desc(downloads.id)),
     );
-    const contexts = yield* tryDatabasePromise("Failed to load download progress snapshot", () =>
-      loadDownloadPresentationContexts(db, rows),
-    );
+    const contexts = yield* loadDownloadPresentationContexts(db, rows);
     return yield* Effect.forEach(rows, (row) =>
       randomHex(20).pipe(
-        Effect.map((fallbackHash) =>
+        Effect.flatMap((fallbackHash) =>
           toDownloadStatus(row, () => fallbackHash, contexts.get(row.id)),
         ),
       ),

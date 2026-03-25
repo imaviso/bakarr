@@ -223,7 +223,7 @@ export const getAnimeEffect = Effect.fn("AnimeService.getAnimeEffect")(function*
     input.db.select().from(episodes).where(eq(episodes.animeId, input.id)),
   );
 
-  return toAnimeDto(row, episodeRows);
+  return yield* toAnimeDto(row, episodeRows);
 });
 
 export const searchAnimeEffect = Effect.fn("AnimeService.searchAnimeEffect")(function* (input: {

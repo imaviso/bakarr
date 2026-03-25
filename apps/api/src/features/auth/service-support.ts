@@ -5,23 +5,12 @@ import { Effect } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import { sessions, systemLogs, users } from "../../db/schema.ts";
 import { currentTimeMillis, nowIso } from "../../lib/clock.ts";
-import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { randomHex } from "../../lib/random.ts";
 
 export { nowIso, randomHex };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-export const hashToken = Effect.fn("Auth.hashToken")(function* (token: string) {
-  const data = new TextEncoder().encode(token);
-  const hashBuffer = yield* Effect.tryPromise({
-    try: () => crypto.subtle.digest("SHA-256", data),
-    catch: toDatabaseError("Failed to hash token"),
-  });
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-});
 
 export const findUserByUsername = Effect.fn("Auth.findUserByUsername")(function* (
   db: AppDatabase,
@@ -56,6 +45,7 @@ export const findUserById = Effect.fn("Auth.findUserById")(function* (
 export const createSession = Effect.fn("Auth.createSession")(function* (
   db: AppDatabase,
   durationDays: number,
+  hashToken: (token: string) => Effect.Effect<string, import("../../db/database.ts").DatabaseError>,
   userId: number,
 ) {
   const token = yield* randomHex(32);
@@ -107,8 +97,18 @@ export const announceBootstrapCredentials = Effect.fn("Auth.announceBootstrapCre
       if (isTTY) {
         const text = `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${input.username}\n* Password: ${input.password}\n* Please log in and change your password.\n*************************************************************\n`;
 
-        yield* terminal.value.display(text).pipe(Effect.catchAll(() => Effect.void));
-        return;
+        const displayed = yield* terminal.value.display(text).pipe(
+          Effect.as(true),
+          Effect.catchAll(() => Effect.succeed(false)),
+        );
+
+        if (displayed) {
+          return;
+        }
+
+        yield* Effect.logWarning(
+          "Failed to display bootstrap credentials in terminal; falling back to logger output",
+        );
       }
     }
 

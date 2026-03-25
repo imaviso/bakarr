@@ -1,6 +1,6 @@
 import { assertEquals, it } from "../test/vitest.ts";
 import { CommandExecutor } from "@effect/platform";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Logger } from "effect";
 
 import {
   FFPROBE_CONCURRENCY_LIMIT,
@@ -146,6 +146,41 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
     );
 
     assertEquals(maxActive <= FFPROBE_CONCURRENCY_LIMIT, true);
+  }),
+);
+
+it.effect("MediaProbe logs invalid ffprobe output instead of silently discarding it", () =>
+  Effect.gen(function* () {
+    const messages: string[] = [];
+    const logger = Logger.make<unknown, void>(({ message }) => {
+      messages.push(String(message));
+    });
+    const loggerLayer = Logger.replace(Logger.defaultLogger, logger);
+
+    const result = yield* Effect.flatMap(MediaProbe, (mediaProbe) =>
+      mediaProbe.probeVideoFile("/tmp/invalid.mkv"),
+    ).pipe(
+      Effect.provide(
+        Layer.mergeAll(
+          MediaProbeLive,
+          loggerLayer,
+          Layer.succeed(
+            CommandExecutor.CommandExecutor,
+            makeCommandExecutorStub((command) =>
+              command.args.includes("-version")
+                ? Effect.succeed("ffprobe version test")
+                : Effect.succeed('{"streams":"bad"}'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    assertEquals(result, undefined);
+    assertEquals(
+      messages.some((message) => message.includes("ffprobe output was invalid")),
+      true,
+    );
   }),
 );
 

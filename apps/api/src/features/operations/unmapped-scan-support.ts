@@ -8,7 +8,7 @@ import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
 import type { AniListClient } from "../anime/anilist.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "../anime/repository.ts";
 import { decodeUnmappedFolderMatchRow, listUnmappedFolderMatchRows } from "../system/repository.ts";
-import { OperationsPathError } from "./errors.ts";
+import { OperationsPathError, OperationsStoredDataError } from "./errors.ts";
 import {
   buildUnmappedFolderSearchQueries,
   hasUnmappedFolderRetryAttemptsRemaining,
@@ -203,12 +203,17 @@ export function loadUnmappedFolderSnapshot(input: {
     );
     const mappedRoots = new Set(animeRows.map((row) => row.rootFolder));
     const cachedRows = yield* listUnmappedFolderMatchRows(input.db);
-    const cachedByPath = new Map(
-      cachedRows.map((row) => {
-        const decoded = decodeUnmappedFolderMatchRow(row);
-        return [decoded.path, decoded] as const;
-      }),
+    const decodedRows = yield* Effect.forEach(cachedRows, (row) =>
+      decodeUnmappedFolderMatchRow(row).pipe(
+        Effect.mapError(
+          (error) =>
+            new OperationsStoredDataError({
+              message: error.message,
+            }),
+        ),
+      ),
     );
+    const cachedByPath = new Map(decodedRows.map((decoded) => [decoded.path, decoded] as const));
     const entries = yield* input.fs.readDir(root).pipe(
       Effect.mapError(
         () =>

@@ -1,7 +1,8 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { AnimeDiscoveryEntrySchema } from "../../../../../packages/shared/src/index.ts";
 import type { Anime, AnimeDiscoveryEntry } from "../../../../../packages/shared/src/index.ts";
 import { anime, episodes } from "../../db/schema.ts";
+import { AnimeStoredDataError } from "./errors.ts";
 
 interface AnimeDiscoveryMetadata {
   recommended_anime?: AnimeDiscoveryEntry[];
@@ -14,31 +15,83 @@ const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 const StringListJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 const NumberListJsonSchema = Schema.parseJson(Schema.Array(Schema.Number));
 
-function decodeStringList(value: string | null): string[] {
-  if (!value) return [];
-  const result = Schema.decodeUnknownEither(StringListJsonSchema)(value);
-  return result._tag === "Right" ? [...result.right] : [];
-}
+const decodeStoredStringList = Effect.fn("AnimeDto.decodeStoredStringList")(function* (
+  value: string | null,
+  field: string,
+) {
+  if (!value) {
+    return [];
+  }
 
-function decodeNumberList(value: string | null): number[] {
-  if (!value) return [];
-  const result = Schema.decodeUnknownEither(NumberListJsonSchema)(value);
-  return result._tag === "Right" ? [...result.right] : [];
-}
+  return yield* Schema.decodeUnknown(StringListJsonSchema)(value).pipe(
+    Effect.map((decoded) => [...decoded]),
+    Effect.mapError(
+      () =>
+        new AnimeStoredDataError({
+          message: `Stored anime ${field} JSON is corrupt`,
+        }),
+    ),
+  );
+});
 
-function decodeDiscoveryEntries(value: string | null): AnimeDiscoveryEntry[] | undefined {
-  if (!value) return undefined;
-  const result = Schema.decodeUnknownEither(AnimeDiscoveryEntryListJsonSchema)(value);
-  return result._tag === "Right" ? [...result.right] : undefined;
-}
+const decodeStoredNumberList = Effect.fn("AnimeDto.decodeStoredNumberList")(function* (
+  value: string | null,
+  field: string,
+) {
+  if (!value) {
+    return [];
+  }
 
-function decodeSynonyms(value: string | null): string[] | undefined {
-  if (!value) return undefined;
-  const result = Schema.decodeUnknownEither(AnimeSynonymsJsonSchema)(value);
-  if (result._tag === "Left") return undefined;
-  const filtered = result.right.filter((entry) => entry.length > 0);
-  return filtered.length > 0 ? filtered : undefined;
-}
+  return yield* Schema.decodeUnknown(NumberListJsonSchema)(value).pipe(
+    Effect.map((decoded) => [...decoded]),
+    Effect.mapError(
+      () =>
+        new AnimeStoredDataError({
+          message: `Stored anime ${field} JSON is corrupt`,
+        }),
+    ),
+  );
+});
+
+const decodeStoredDiscoveryEntries = Effect.fn("AnimeDto.decodeStoredDiscoveryEntries")(function* (
+  value: string | null,
+  field: string,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  return yield* Schema.decodeUnknown(AnimeDiscoveryEntryListJsonSchema)(value).pipe(
+    Effect.map((decoded) => [...decoded]),
+    Effect.mapError(
+      () =>
+        new AnimeStoredDataError({
+          message: `Stored anime ${field} JSON is corrupt`,
+        }),
+    ),
+  );
+});
+
+const decodeStoredSynonyms = Effect.fn("AnimeDto.decodeStoredSynonyms")(function* (
+  value: string | null,
+) {
+  if (!value) {
+    return undefined;
+  }
+
+  return yield* Schema.decodeUnknown(AnimeSynonymsJsonSchema)(value).pipe(
+    Effect.map((decoded) => {
+      const filtered = decoded.filter((entry) => entry.length > 0);
+      return filtered.length > 0 ? filtered : undefined;
+    }),
+    Effect.mapError(
+      () =>
+        new AnimeStoredDataError({
+          message: "Stored anime synonyms JSON is corrupt",
+        }),
+    ),
+  );
+});
 
 function deriveAnimeSeason(date?: string | null) {
   if (!date) {
@@ -69,11 +122,11 @@ function deriveDownloadedPercent(downloaded: number, total?: number) {
   return Math.min(100, Math.round((downloaded / total) * 100));
 }
 
-export function toAnimeDto(
+export const toAnimeDto = Effect.fn("AnimeDto.toAnimeDto")(function* (
   row: typeof anime.$inferSelect,
   episodeRows: Array<typeof episodes.$inferSelect>,
   discovery?: AnimeDiscoveryMetadata,
-): Anime {
+) {
   const downloadedEpisodes = episodeRows
     .filter((episode) => episode.downloaded)
     .map((episode) => episode.number)
@@ -86,11 +139,20 @@ export function toAnimeDto(
   const latestDownloadedEpisode = deriveLatestDownloadedEpisode(downloadedEpisodes);
   const season = deriveAnimeSeason(row.startDate);
   const seasonYear = row.startYear ?? extractYearFromDate(row.startDate);
+  const genres = yield* decodeStoredStringList(row.genres, "genres");
+  const releaseProfileIds = yield* decodeStoredNumberList(
+    row.releaseProfileIds,
+    "releaseProfileIds",
+  );
+  const studios = yield* decodeStoredStringList(row.studios, "studios");
 
   const recommendedAnime =
-    discovery?.recommended_anime ?? decodeDiscoveryEntries(row.recommendedAnime);
-  const relatedAnime = discovery?.related_anime ?? decodeDiscoveryEntries(row.relatedAnime);
-  const synonyms = discovery?.synonyms ?? decodeSynonyms(row.synonyms);
+    discovery?.recommended_anime ??
+    (yield* decodeStoredDiscoveryEntries(row.recommendedAnime, "recommendedAnime"));
+  const relatedAnime =
+    discovery?.related_anime ??
+    (yield* decodeStoredDiscoveryEntries(row.relatedAnime, "relatedAnime"));
+  const synonyms = discovery?.synonyms ?? (yield* decodeStoredSynonyms(row.synonyms));
 
   return {
     added_at: row.addedAt,
@@ -101,7 +163,7 @@ export function toAnimeDto(
     end_year: row.endYear ?? undefined,
     episode_count: row.episodeCount ?? undefined,
     format: row.format,
-    genres: decodeStringList(row.genres),
+    genres,
     id: row.id,
     mal_id: row.malId ?? undefined,
     monitored: row.monitored,
@@ -123,7 +185,7 @@ export function toAnimeDto(
       next_missing_episode: missing[0],
       total,
     },
-    release_profile_ids: decodeNumberList(row.releaseProfileIds),
+    release_profile_ids: releaseProfileIds,
     root_folder: row.rootFolder,
     related_anime: relatedAnime,
     score: row.score ?? undefined,
@@ -132,15 +194,15 @@ export function toAnimeDto(
     start_date: row.startDate ?? undefined,
     start_year: row.startYear ?? undefined,
     status: row.status,
-    studios: decodeStringList(row.studios),
-    synonyms: synonyms,
+    studios,
+    synonyms,
     title: {
       english: row.titleEnglish ?? undefined,
       native: row.titleNative ?? undefined,
       romaji: row.titleRomaji,
     },
-  };
-}
+  } satisfies Anime;
+});
 
 function range(start: number, end: number) {
   return Array.from({ length: Math.max(end - start + 1, 0) }, (_, index) => start + index);

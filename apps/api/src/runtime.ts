@@ -23,6 +23,7 @@ import { MediaProbeLive } from "./lib/media-probe.ts";
 import { RuntimeLoggerLayer } from "./lib/logging.ts";
 import { RandomServiceLive } from "./lib/random.ts";
 import { StreamTokenSignerLive } from "./http/stream-token-signer.ts";
+import { TokenHasherLive } from "./security/token-hasher.ts";
 
 export interface RuntimeOptions {
   aniListLayer?: Layer.Layer<AniListClient>;
@@ -79,6 +80,7 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: 
     MediaProbeLive,
     RandomServiceLive,
     StreamTokenSignerLive.pipe(Layer.provide(RandomServiceLive)),
+    TokenHasherLive,
   );
   const platformLayer = options?.commandExecutorLayer
     ? Layer.mergeAll(basePlatformLayer, options.commandExecutorLayer)

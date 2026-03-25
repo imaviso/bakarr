@@ -14,6 +14,7 @@ import { Database, DatabaseError } from "../../db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "../../db/schema.ts";
 import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
 import { hashPassword, verifyPassword } from "../../security/password.ts";
+import { TokenHasher } from "../../security/token-hasher.ts";
 import {
   announceBootstrapCredentials,
   createSession,
@@ -21,7 +22,6 @@ import {
   findUserByApiKey,
   findUserById,
   findUserByUsername,
-  hashToken,
   nowIso,
   randomHex,
   writeLog,
@@ -68,6 +68,11 @@ export class AuthService extends Context.Tag("@bakarr/api/AuthService")<
 const makeAuthService = Effect.gen(function* () {
   const { db } = yield* Database;
   const config = yield* AppConfig;
+  const tokenHasher = yield* TokenHasher;
+  const hashToken = (token: string) =>
+    tokenHasher
+      .hashToken(token)
+      .pipe(Effect.mapError((error) => toDatabaseError(error.message)(error.cause ?? error)));
 
   /**
    * Bootstrap user lifecycle (one-way transition):
@@ -161,7 +166,7 @@ const makeAuthService = Effect.gen(function* () {
     }
 
     const userRow = row;
-    const token = yield* createSession(db, config.sessionDurationDays, userRow.id);
+    const token = yield* createSession(db, config.sessionDurationDays, hashToken, userRow.id);
 
     yield* writeLog(db, {
       eventType: "auth.login",
@@ -192,7 +197,7 @@ const makeAuthService = Effect.gen(function* () {
     }
 
     const userRow = row;
-    const token = yield* createSession(db, config.sessionDurationDays, userRow.id);
+    const token = yield* createSession(db, config.sessionDurationDays, hashToken, userRow.id);
 
     yield* writeLog(db, {
       eventType: "auth.login.api_key",

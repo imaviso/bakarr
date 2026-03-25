@@ -6,9 +6,9 @@ import ipaddr from "ipaddr.js";
 import { collectBoundedText } from "../../lib/bounded-stream.ts";
 import { DnsResolver, isDnsNoRecordError } from "../../lib/dns-resolver.ts";
 import { ExternalCallError, tryExternalEffect } from "../../lib/effect-retry.ts";
-import { RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";
+import { RssFeedParseError, RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";
 
-export { RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";
+export { RssFeedParseError, RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";
 
 class InvalidRedirectUrlError extends Schema.TaggedError<InvalidRedirectUrlError>()(
   "InvalidRedirectUrlError",
@@ -45,7 +45,7 @@ interface RssClientShape {
     url: string,
   ) => Effect.Effect<
     readonly ParsedRelease[],
-    ExternalCallError | RssFeedRejectedError | RssFeedTooLargeError
+    ExternalCallError | RssFeedParseError | RssFeedRejectedError | RssFeedTooLargeError
   >;
 }
 
@@ -329,13 +329,13 @@ const MAX_RSS_BYTES = 10 * 1024 * 1024;
 const readRssItems = Effect.fn("RssClient.readRssItems")(
   (body: Stream.Stream<Uint8Array, unknown>) =>
     collectBoundedText(body, MAX_RSS_BYTES).pipe(
-      Effect.map(parseRssXml),
       Effect.mapError(
         () =>
           new RssFeedTooLargeError({
             message: `RSS payload exceeded maximum size of ${MAX_RSS_BYTES} bytes`,
           }),
       ),
+      Effect.flatMap(parseRssXml),
     ),
 );
 
@@ -416,24 +416,38 @@ const ParsedReleaseFromRssItemSchema = Schema.transform(RssItemSchema, ParsedRel
   }),
 });
 
-function parseRssXml(xml: string): ParsedRelease[] {
-  let parsed: unknown;
-  try {
-    parsed = xmlParser.parse(xml);
-  } catch {
-    return [];
-  }
-
-  const decoded = Schema.decodeUnknownEither(RssRootSchema)(parsed);
-
-  if (decoded._tag === "Left") {
-    return [];
-  }
-
-  return decoded.right.rss.channel.item.map((item) =>
-    Schema.decodeSync(ParsedReleaseFromRssItemSchema)(item),
-  );
-}
+const parseRssXml = Effect.fn("RssClient.parseRssXml")((xml: string) =>
+  Effect.try({
+    try: () => xmlParser.parse(xml),
+    catch: () =>
+      new RssFeedParseError({
+        message: "RSS feed XML could not be parsed",
+      }),
+  }).pipe(
+    Effect.flatMap((parsed) =>
+      Schema.decodeUnknown(RssRootSchema)(parsed).pipe(
+        Effect.mapError(
+          () =>
+            new RssFeedParseError({
+              message: "RSS feed payload did not match the expected schema",
+            }),
+        ),
+      ),
+    ),
+    Effect.flatMap((decoded) =>
+      Effect.forEach(decoded.rss.channel.item, (item) =>
+        Schema.decodeUnknown(ParsedReleaseFromRssItemSchema)(item).pipe(
+          Effect.mapError(
+            () =>
+              new RssFeedParseError({
+                message: "RSS feed item payload was invalid",
+              }),
+          ),
+        ),
+      ),
+    ),
+  ),
+);
 
 function parseSizeToBytes(size: string): number {
   const match = size.match(/([0-9.]+)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)/i);

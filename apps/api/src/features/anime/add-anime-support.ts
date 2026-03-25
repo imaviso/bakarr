@@ -178,5 +178,5 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function*
     input.db.select().from(episodes).where(eq(episodes.animeId, animeRow.id)),
   );
 
-  return toAnimeDto(animeRow, persistedEpisodeRows);
+  return yield* toAnimeDto(animeRow, persistedEpisodeRows);
 });

@@ -1,5 +1,5 @@
 import { assertEquals, it } from "../../test/vitest.ts";
-import { Effect } from "effect";
+import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -12,7 +12,9 @@ import {
   episodes,
   rssFeeds,
   systemLogs,
+  unmappedFolderMatches,
 } from "../../db/schema.ts";
+import { StoredUnmappedFolderCorruptError } from "./errors.ts";
 import { encodeConfigCore } from "./config-codec.ts";
 import { makeDefaultConfig } from "./defaults.ts";
 import {
@@ -429,11 +431,43 @@ it.scoped("unmapped folder match rows persist cached suggestions", () =>
       assertEquals(rows.length, 1);
       assertEquals(rows[0]?.path, "/library/Naruto Archive");
 
-      const decoded = decodeUnmappedFolderMatchRow(rows[0]!);
+      const decoded = yield* decodeUnmappedFolderMatchRow(rows[0]!);
       assertEquals(decoded.match_status, "done");
       assertEquals(decoded.search_queries, ["Naruto Archive"]);
       assertEquals(decoded.suggested_matches[0]?.id, 20);
       assertEquals(decoded.suggested_matches[0]?.match_confidence, 0.97);
+    }),
+  ),
+);
+
+it.scoped("decodeUnmappedFolderMatchRow fails for corrupt stored suggestions", () =>
+  withTestDbEffect((db) =>
+    Effect.gen(function* () {
+      yield* Effect.promise(() =>
+        db.insert(unmappedFolderMatches).values({
+          lastMatchedAt: null,
+          lastMatchError: null,
+          matchAttempts: 0,
+          matchStatus: "pending",
+          name: "Broken",
+          path: "/library/Broken",
+          size: 0,
+          suggestedMatches: "not-json",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        }),
+      );
+
+      const row = yield* loadUnmappedFolderMatchRow(db, "/library/Broken");
+      const exit = yield* Effect.exit(decodeUnmappedFolderMatchRow(row!));
+
+      assertEquals(Exit.isFailure(exit), true);
+      if (Exit.isFailure(exit)) {
+        const failure = Cause.failureOption(exit.cause);
+        assertEquals(failure._tag, "Some");
+        if (failure._tag === "Some") {
+          assertEquals(failure.value instanceof StoredUnmappedFolderCorruptError, true);
+        }
+      }
     }),
   ),
 );

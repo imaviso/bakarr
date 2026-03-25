@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Exit, Scope } from "effect";
 
 import type { DatabaseError } from "../../db/database.ts";
 import {
@@ -10,6 +10,7 @@ import { EventBus } from "../events/event-bus.ts";
 
 export interface OperationsCoordinationShape {
   readonly finishUnmappedScan: () => Effect.Effect<void>;
+  readonly forkUnmappedScan: <E, R>(effect: Effect.Effect<void, E, R>) => Effect.Effect<void, E, R>;
   readonly runSerializedTrigger: <A, E, R>(
     effect: Effect.Effect<A, E, R>,
   ) => Effect.Effect<A, E, R>;
@@ -19,9 +20,14 @@ export interface OperationsCoordinationShape {
 export const makeOperationsSharedState = Effect.fn("OperationsService.makeSharedState")(
   function* () {
     const coordinator = yield* makeSerializedFlagCoordinator();
+    const scope = yield* Scope.make();
+
+    yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void));
 
     return {
       finishUnmappedScan: () => coordinator.finish,
+      forkUnmappedScan: <E, R>(effect: Effect.Effect<void, E, R>) =>
+        Effect.forkIn(scope)(effect).pipe(Effect.asVoid),
       runSerializedTrigger: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
         coordinator.runSerialized(effect),
       tryStartUnmappedScan: () => coordinator.tryStart,

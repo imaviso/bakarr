@@ -1,5 +1,5 @@
 import { assertEquals, assertNotEquals, it } from "../../test/vitest.ts";
-import { Cause, Effect } from "effect";
+import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -27,7 +27,7 @@ import {
   loadRuntimeConfig,
   requireAnime,
 } from "./repository.ts";
-import { OperationsAnimeNotFoundError } from "./errors.ts";
+import { OperationsAnimeNotFoundError, OperationsStoredDataError } from "./errors.ts";
 
 it.scoped(
   "operations repository helpers load runtime config and config-backed library settings",
@@ -187,41 +187,58 @@ it.scoped("operations repository helpers load anime release rules and episode st
   ),
 );
 
-it("operations repository helpers encode and decode download provenance", () => {
-  const encoded = encodeDownloadSourceMetadata({
-    chosen_from_seadex: true,
-    decision_reason: "Accepted (WEB-DL 1080p, score 12)",
-    group: "SubsPlease",
-    parsed_title: "[SubsPlease] Naruto - 01 (1080p)",
-    previous_quality: "WEB-DL 720p",
-    previous_score: 7,
-    resolution: "1080p",
-    selection_kind: "upgrade",
-    selection_score: 12,
-    source_identity: {
-      episode_numbers: [1],
-      label: "01",
-      scheme: "absolute",
-    },
-  });
+it.effect("operations repository helpers encode and decode download provenance", () =>
+  Effect.gen(function* () {
+    const encoded = encodeDownloadSourceMetadata({
+      chosen_from_seadex: true,
+      decision_reason: "Accepted (WEB-DL 1080p, score 12)",
+      group: "SubsPlease",
+      parsed_title: "[SubsPlease] Naruto - 01 (1080p)",
+      previous_quality: "WEB-DL 720p",
+      previous_score: 7,
+      resolution: "1080p",
+      selection_kind: "upgrade",
+      selection_score: 12,
+      source_identity: {
+        episode_numbers: [1],
+        label: "01",
+        scheme: "absolute",
+      },
+    });
 
-  assertEquals(decodeDownloadSourceMetadata(encoded), {
-    chosen_from_seadex: true,
-    decision_reason: "Accepted (WEB-DL 1080p, score 12)",
-    group: "SubsPlease",
-    parsed_title: "[SubsPlease] Naruto - 01 (1080p)",
-    previous_quality: "WEB-DL 720p",
-    previous_score: 7,
-    resolution: "1080p",
-    selection_kind: "upgrade",
-    selection_score: 12,
-    source_identity: {
-      episode_numbers: [1],
-      label: "01",
-      scheme: "absolute",
-    },
-  });
-});
+    assertEquals(yield* decodeDownloadSourceMetadata(encoded), {
+      chosen_from_seadex: true,
+      decision_reason: "Accepted (WEB-DL 1080p, score 12)",
+      group: "SubsPlease",
+      parsed_title: "[SubsPlease] Naruto - 01 (1080p)",
+      previous_quality: "WEB-DL 720p",
+      previous_score: 7,
+      resolution: "1080p",
+      selection_kind: "upgrade",
+      selection_score: 12,
+      source_identity: {
+        episode_numbers: [1],
+        label: "01",
+        scheme: "absolute",
+      },
+    });
+  }),
+);
+
+it.effect("operations repository metadata decoders fail for corrupt stored JSON", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(decodeDownloadSourceMetadata("not-json"));
+
+    assertEquals(exit._tag, "Failure");
+    if (exit._tag === "Failure") {
+      const failure = Cause.failureOption(exit.cause);
+      assertNotEquals(failure._tag, "None");
+      if (failure._tag === "Some") {
+        assertEquals(failure.value._tag, "OperationsStoredDataError");
+      }
+    }
+  }),
+);
 
 it.scoped("operations repository helpers load download presentation contexts", () =>
   withTestDbEffect((db, _databaseFile) =>
@@ -299,12 +316,96 @@ it.scoped("operations repository helpers load download presentation contexts", (
           .returning(),
       );
 
-      const contexts = yield* Effect.promise(() => loadDownloadPresentationContexts(db, [row]));
+      const contexts = yield* loadDownloadPresentationContexts(db, [row]);
 
       assertEquals(contexts.get(row.id), {
         animeImage: "https://example.com/naruto.jpg",
         importedPath: "/library/Naruto/Naruto - 01.mkv",
       });
+    }),
+  ),
+);
+
+it.scoped("download presentation contexts fail for corrupt covered episode metadata", () =>
+  withTestDbEffect((db, _databaseFile) =>
+    Effect.gen(function* () {
+      yield* Effect.promise(() =>
+        db.insert(anime).values({
+          addedAt: "2024-01-01T00:00:00.000Z",
+          bannerImage: null,
+          coverImage: "https://example.com/naruto.jpg",
+          description: null,
+          endDate: null,
+          endYear: null,
+          episodeCount: 12,
+          format: "TV",
+          genres: "[]",
+          id: 99,
+          malId: null,
+          monitored: true,
+          nextAiringAt: null,
+          nextAiringEpisode: null,
+          profileName: "Default",
+          releaseProfileIds: "[]",
+          rootFolder: "/library/Naruto",
+          score: null,
+          startDate: null,
+          startYear: null,
+          status: "FINISHED",
+          studios: "[]",
+          synonyms: null,
+          titleEnglish: null,
+          titleNative: null,
+          titleRomaji: "Naruto",
+          relatedAnime: null,
+          recommendedAnime: null,
+        }),
+      );
+
+      const [row] = yield* Effect.promise(() =>
+        db
+          .insert(schema.downloads)
+          .values({
+            addedAt: "2024-01-01T00:00:00.000Z",
+            animeId: 99,
+            animeTitle: "Naruto",
+            contentPath: null,
+            coveredEpisodes: "not-json",
+            downloadDate: null,
+            downloadedBytes: null,
+            episodeNumber: 1,
+            errorMessage: null,
+            etaSeconds: null,
+            externalState: null,
+            groupName: null,
+            infoHash: null,
+            isBatch: true,
+            lastErrorAt: null,
+            lastSyncedAt: null,
+            magnet: null,
+            progress: 0,
+            reconciledAt: null,
+            retryCount: 0,
+            savePath: "/downloads",
+            sourceMetadata: null,
+            speedBytes: 0,
+            status: "queued",
+            torrentName: "Naruto - Batch",
+            totalBytes: 0,
+          })
+          .returning(),
+      );
+
+      const exit = yield* Effect.exit(loadDownloadPresentationContexts(db, [row]));
+
+      assertEquals(Exit.isFailure(exit), true);
+      if (Exit.isFailure(exit)) {
+        const failure = Cause.failureOption(exit.cause);
+        assertEquals(failure._tag, "Some");
+        if (failure._tag === "Some") {
+          assertEquals(failure.value instanceof OperationsStoredDataError, true);
+        }
+      }
     }),
   ),
 );

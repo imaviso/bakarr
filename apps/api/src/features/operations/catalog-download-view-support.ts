@@ -3,7 +3,6 @@ import { Effect } from "effect";
 
 import type {
   Download,
-  DownloadEvent,
   DownloadEventsExport,
   DownloadEventsPage,
   DownloadStatus,
@@ -32,7 +31,10 @@ export interface CatalogDownloadViewSupportShape {
     readonly limit?: number;
     readonly startDate?: string;
     readonly status?: string;
-  }) => Effect.Effect<DownloadEventsPage, DatabaseError>;
+  }) => Effect.Effect<
+    DownloadEventsPage,
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
   readonly exportDownloadEvents: (input?: {
     readonly animeId?: number;
     readonly downloadId?: number;
@@ -42,10 +44,22 @@ export interface CatalogDownloadViewSupportShape {
     readonly order?: "asc" | "desc";
     readonly startDate?: string;
     readonly status?: string;
-  }) => Effect.Effect<DownloadEventsExport, DatabaseError>;
-  readonly listDownloadQueue: () => Effect.Effect<Download[], DatabaseError>;
-  readonly listDownloadHistory: () => Effect.Effect<Download[], DatabaseError>;
-  readonly getDownloadProgress: () => Effect.Effect<DownloadStatus[], DatabaseError>;
+  }) => Effect.Effect<
+    DownloadEventsExport,
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
+  readonly listDownloadQueue: () => Effect.Effect<
+    Download[],
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
+  readonly listDownloadHistory: () => Effect.Effect<
+    Download[],
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
+  readonly getDownloadProgress: () => Effect.Effect<
+    DownloadStatus[],
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
 }
 
 export function makeCatalogDownloadViewSupport(input: {
@@ -105,9 +119,9 @@ export function makeCatalogDownloadViewSupport(input: {
     const contexts = yield* input.tryDatabasePromise("Failed to load download events", () =>
       loadDownloadEventPresentationContexts(input.db, orderedRows),
     );
-    const events = orderedRows.map((row) =>
+    const events = yield* Effect.forEach(orderedRows, (row) =>
       toDownloadEvent(row, contexts.get(row.id)),
-    ) as DownloadEvent[];
+    );
     const total = Number(totalRows[0]?.count ?? 0);
     const firstRowId = orderedRows[0]?.id;
     const lastRowId = orderedRows[orderedRows.length - 1]?.id;
@@ -184,9 +198,9 @@ export function makeCatalogDownloadViewSupport(input: {
     const contexts = yield* input.tryDatabasePromise("Failed to export download events", () =>
       loadDownloadEventPresentationContexts(input.db, exportRows),
     );
-    const events = exportRows.map((row) =>
+    const events = yield* Effect.forEach(exportRows, (row) =>
       toDownloadEvent(row, contexts.get(row.id)),
-    ) as DownloadEvent[];
+    );
     const total = Number(totalRows[0]?.count ?? 0);
 
     const generatedAt = yield* nowIso;
@@ -209,20 +223,16 @@ export function makeCatalogDownloadViewSupport(input: {
         .where(inArray(downloads.status, ["queued", "downloading", "paused"]))
         .orderBy(desc(downloads.id)),
     );
-    const contexts = yield* input.tryDatabasePromise("Failed to list download queue", () =>
-      loadDownloadPresentationContexts(input.db, rows),
-    );
-    return rows.map((row) => toDownload(row, contexts.get(row.id))) as Download[];
+    const contexts = yield* loadDownloadPresentationContexts(input.db, rows);
+    return yield* Effect.forEach(rows, (row) => toDownload(row, contexts.get(row.id)));
   });
 
   const listDownloadHistory = Effect.fn("OperationsService.listDownloadHistory")(function* () {
     const rows = yield* input.tryDatabasePromise("Failed to list download history", () =>
       input.db.select().from(downloads).orderBy(desc(downloads.id)),
     );
-    const contexts = yield* input.tryDatabasePromise("Failed to list download history", () =>
-      loadDownloadPresentationContexts(input.db, rows),
-    );
-    return rows.map((row) => toDownload(row, contexts.get(row.id))) as Download[];
+    const contexts = yield* loadDownloadPresentationContexts(input.db, rows);
+    return yield* Effect.forEach(rows, (row) => toDownload(row, contexts.get(row.id)));
   });
 
   const getDownloadProgress = Effect.fn("OperationsService.getDownloadProgress")(function* () {
@@ -233,13 +243,10 @@ export function makeCatalogDownloadViewSupport(input: {
         .where(inArray(downloads.status, ["queued", "downloading", "paused"]))
         .orderBy(desc(downloads.id)),
     );
-    const contexts = yield* input.tryDatabasePromise(
-      "Failed to build download progress snapshot",
-      () => loadDownloadPresentationContexts(input.db, rows),
-    );
+    const contexts = yield* loadDownloadPresentationContexts(input.db, rows);
     return yield* Effect.forEach(rows, (row) =>
       randomHex(20).pipe(
-        Effect.map((fallbackHash) =>
+        Effect.flatMap((fallbackHash) =>
           toDownloadStatus(row, () => fallbackHash, contexts.get(row.id)),
         ),
       ),

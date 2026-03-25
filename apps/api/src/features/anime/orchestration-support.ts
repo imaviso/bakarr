@@ -90,18 +90,7 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
       animeId: input.animeId,
       db: input.db,
       eventPublisher: input.eventPublisher,
-    }).pipe(
-      Effect.catchTag("ExternalCallError", () =>
-        getAnimeRowEffect(input.db, input.animeId).pipe(
-          Effect.mapError(wrapAnimeError("Failed to refresh episodes")),
-          Effect.map((storedAnimeRow) => ({
-            animeRow: storedAnimeRow,
-            metadata: undefined,
-            nextAnimeRow: storedAnimeRow,
-          })),
-        ),
-      ),
-    );
+    });
 
     yield* ensureEpisodesEffect(
       input.db,

@@ -22,6 +22,11 @@ export class ProfileNotFoundError extends Schema.TaggedError<ProfileNotFoundErro
   { message: Schema.String },
 ) {}
 
+export class StoredUnmappedFolderCorruptError extends Schema.TaggedError<StoredUnmappedFolderCorruptError>()(
+  "StoredUnmappedFolderCorruptError",
+  { message: Schema.String },
+) {}
+
 export type StoredConfigReadError = StoredConfigCorruptError | StoredConfigMissingError;
 
 export const isStoredConfigReadError = Schema.is(

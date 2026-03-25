@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
+import type { UnmappedFolder } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { anime, backgroundJobs } from "../../db/schema.ts";
@@ -24,7 +25,12 @@ import {
   loadUnmappedFolderMatchRow,
   upsertUnmappedFolderMatchRows,
 } from "../system/repository.ts";
-import { OperationsConflictError, OperationsInputError, OperationsPathError } from "./errors.ts";
+import {
+  OperationsConflictError,
+  OperationsInputError,
+  OperationsPathError,
+  OperationsStoredDataError,
+} from "./errors.ts";
 import { scanVideoFiles } from "./file-scanner.ts";
 import {
   appendLog,
@@ -248,7 +254,7 @@ export function makeUnmappedOrchestrationSupport(input: {
         Effect.ensuring(coordination.finishUnmappedScan()),
       );
 
-      yield* Effect.forkDaemon(loop);
+      yield* coordination.forkUnmappedScan(loop);
       forked = true;
 
       return { folderCount };
@@ -273,7 +279,14 @@ export function makeUnmappedOrchestrationSupport(input: {
         });
       }
 
-      const current = decodeUnmappedFolderMatchRow(row);
+      const current: UnmappedFolder = yield* decodeUnmappedFolderMatchRow(row).pipe(
+        Effect.mapError(
+          (error) =>
+            new OperationsStoredDataError({
+              message: error.message,
+            }),
+        ),
+      );
 
       if (current.match_status === "matching") {
         return yield* new OperationsConflictError({
@@ -281,7 +294,7 @@ export function makeUnmappedOrchestrationSupport(input: {
         });
       }
 
-      let nextFolder = current;
+      let nextFolder: UnmappedFolder = current;
 
       switch (input.action) {
         case "pause":
@@ -365,7 +378,16 @@ export function makeUnmappedOrchestrationSupport(input: {
       action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
     }) {
       const rows = yield* listUnmappedFolderMatchRows(db);
-      const folders = rows.map(decodeUnmappedFolderMatchRow);
+      const folders = yield* Effect.forEach(rows, (row) =>
+        decodeUnmappedFolderMatchRow(row).pipe(
+          Effect.mapError(
+            (error) =>
+              new OperationsStoredDataError({
+                message: error.message,
+              }),
+          ),
+        ),
+      );
 
       const nextFolders =
         input.action === "pause_queued"

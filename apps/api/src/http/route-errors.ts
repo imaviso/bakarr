@@ -17,12 +17,15 @@ import {
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
+  OperationsStoredDataError,
+  RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "../features/operations/errors.ts";
 import {
   ConfigValidationError,
   ProfileNotFoundError,
+  StoredUnmappedFolderCorruptError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
 } from "../features/system/errors.ts";
@@ -47,10 +50,13 @@ const knownTaggedRouteErrorSchemas = [
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
+  OperationsStoredDataError,
+  RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
   ProfileNotFoundError,
   RequestValidationError,
+  StoredUnmappedFolderCorruptError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
 ] as const;
@@ -92,6 +98,11 @@ const taggedRouteErrorMappers: {
   }),
   OperationsInputError: (error) => ({ message: error.message, status: 400 }),
   OperationsPathError: (error) => ({ message: error.message, status: 400 }),
+  OperationsStoredDataError: (error) => ({ message: error.message, status: 500 }),
+  RssFeedParseError: () => ({
+    message: "RSS feed response was invalid",
+    status: 503,
+  }),
   RssFeedRejectedError: (error) => ({ message: error.message, status: 400 }),
   RssFeedTooLargeError: () => ({
     message: "RSS feed payload exceeded the allowed size",
@@ -101,6 +112,10 @@ const taggedRouteErrorMappers: {
   RequestValidationError: (error) => ({
     message: error.message,
     status: error.status,
+  }),
+  StoredUnmappedFolderCorruptError: (error) => ({
+    message: error.message,
+    status: 500,
   }),
   StoredConfigCorruptError: (error) => ({
     message: error.message,

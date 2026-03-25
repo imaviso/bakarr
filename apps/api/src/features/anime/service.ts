@@ -75,6 +75,7 @@ export interface AnimeServiceShape {
     | AnimeNotFoundError
     | AnimeConflictError
     | AnimePathError
+    | AnimeStoredDataError
     | ProfileNotFoundError
     | DatabaseError
     | ExternalCallError

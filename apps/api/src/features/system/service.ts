@@ -21,11 +21,13 @@ import { anime, episodes, systemLogs } from "../../db/schema.ts";
 import { currentTimeMillis } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { EventPublisher } from "../events/publisher.ts";
+import { AnimeStoredDataError } from "../anime/errors.ts";
 import { toAnimeDto } from "../anime/dto.ts";
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
 } from "../operations/repository.ts";
+import { OperationsStoredDataError } from "../operations/errors.ts";
 import { DEFAULT_PROFILES, DEFAULT_QUALITIES, makeDefaultConfig } from "./defaults.ts";
 import {
   composeBackgroundJobStatuses,
@@ -85,7 +87,7 @@ export interface SystemServiceShape {
     SystemStatus,
     DatabaseError | StoredConfigCorruptError | DiskSpaceError
   >;
-  readonly getLibraryStats: () => Effect.Effect<LibraryStats, DatabaseError>;
+  readonly getLibraryStats: () => Effect.Effect<LibraryStats, DatabaseError | AnimeStoredDataError>;
   readonly getActivity: () => Effect.Effect<ActivityItem[], DatabaseError>;
   readonly getJobs: () => Effect.Effect<
     BackgroundJobStatus[],
@@ -93,7 +95,7 @@ export interface SystemServiceShape {
   >;
   readonly getDashboard: () => Effect.Effect<
     OpsDashboard,
-    DatabaseError | ConfigValidationError | StoredConfigCorruptError
+    DatabaseError | ConfigValidationError | StoredConfigCorruptError | OperationsStoredDataError
   >;
   readonly getConfig: () => Effect.Effect<Config, DatabaseError | StoredConfigCorruptError>;
   readonly updateConfig: (
@@ -366,9 +368,12 @@ const makeSystemService = Effect.gen(function* () {
       }
     }
 
-    const upToDateAnime = animeRows
-      .map((animeRow) => toAnimeDto(animeRow, episodesByAnimeId.get(animeRow.id) ?? []))
-      .filter((animeDto) => animeDto.monitored && animeDto.progress.is_up_to_date).length;
+    const animeDtos = yield* Effect.forEach(animeRows, (animeRow) =>
+      toAnimeDto(animeRow, episodesByAnimeId.get(animeRow.id) ?? []),
+    );
+    const upToDateAnime = animeDtos.filter(
+      (animeDto) => animeDto.monitored && animeDto.progress.is_up_to_date,
+    ).length;
 
     return {
       downloaded_episodes: downloadedEpisodes,
@@ -416,13 +421,17 @@ const makeSystemService = Effect.gen(function* () {
       loadDownloadEventPresentationContexts(db, events),
     );
 
+    const recentDownloadEvents = yield* Effect.forEach(events, (row) =>
+      toDownloadEvent(row, eventContexts.get(row.id)),
+    );
+
     return {
       active_downloads: activeDownloads,
       failed_downloads: failedDownloads,
       imported_downloads: importedDownloads,
       jobs,
       queued_downloads: queuedDownloads,
-      recent_download_events: events.map((row) => toDownloadEvent(row, eventContexts.get(row.id))),
+      recent_download_events: recentDownloadEvents,
       running_jobs: countRunningBackgroundJobStatuses(jobs),
     } as OpsDashboard;
   });

@@ -19,6 +19,8 @@ import {
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
+  OperationsStoredDataError,
+  RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "./errors.ts";
@@ -53,8 +55,10 @@ export function wrapOperationsError(message: string) {
       cause instanceof OperationsInputError ||
       cause instanceof OperationsConflictError ||
       cause instanceof OperationsPathError ||
+      cause instanceof OperationsStoredDataError ||
       cause instanceof DownloadNotFoundError ||
       cause instanceof DownloadConflictError ||
+      cause instanceof RssFeedParseError ||
       cause instanceof RssFeedRejectedError ||
       cause instanceof RssFeedTooLargeError ||
       cause instanceof ExternalCallError ||

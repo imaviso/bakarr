@@ -7,6 +7,7 @@ import { ExternalCallError } from "../../lib/effect-retry.ts";
 import {
   RssClient,
   RssClientLive,
+  RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "./rss-client.ts";
@@ -355,6 +356,29 @@ it.effect("RssClient fails with a typed error when feed payload exceeds the byte
   }),
 );
 
+it.effect("RssClient fails with a typed parse error for invalid RSS payloads", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(
+      fetchFeedItemsEffect(
+        HttpClient.make((request) =>
+          Effect.succeed(
+            HttpClientResponse.fromWeb(
+              request,
+              new Response("<rss><channel></channel></rss>", {
+                headers: { "content-type": "application/xml" },
+                status: 200,
+              }),
+            ),
+          ),
+        ),
+        () => Promise.resolve(["93.184.216.34"]),
+      ),
+    );
+
+    assertRssFailure(exit, RssFeedParseError);
+  }),
+);
+
 it.scoped("RssClient disables automatic redirect following for fetch client", () =>
   Effect.gen(function* () {
     const originalFetch = globalThis.fetch;
@@ -427,9 +451,9 @@ function fetchFeedItemsEffect(
 function assertRssFailure(
   exit: Exit.Exit<
     readonly unknown[],
-    RssFeedRejectedError | RssFeedTooLargeError | ExternalCallError
+    RssFeedParseError | RssFeedRejectedError | RssFeedTooLargeError | ExternalCallError
   >,
-  expected: typeof RssFeedRejectedError | typeof RssFeedTooLargeError,
+  expected: typeof RssFeedParseError | typeof RssFeedRejectedError | typeof RssFeedTooLargeError,
   message?: RegExp,
 ) {
   assertEquals(Exit.isFailure(exit), true);

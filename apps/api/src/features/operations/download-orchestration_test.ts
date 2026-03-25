@@ -70,7 +70,7 @@ it.scoped("triggerDownload persists merged release provenance on queued download
           const rows = yield* Effect.tryPromise(() => appDb.select().from(downloads).limit(1));
           const row = rows[0];
           assertExists(row);
-          const sourceMetadata = decodeDownloadSourceMetadata(row.sourceMetadata);
+          const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
 
           assertEquals(row.status, "queued");
           assertEquals(row.coveredEpisodes, "[1]");
@@ -142,7 +142,9 @@ it.scoped("triggerDownload stores source metadata in queued download event paylo
           const event = events[0];
           assertExists(event);
 
-          const parsed = event.metadata ? decodeDownloadEventMetadata(event.metadata) : undefined;
+          const parsed = event.metadata
+            ? yield* decodeDownloadEventMetadata(event.metadata)
+            : undefined;
           assertExists(parsed);
           assertEquals(Array.isArray(parsed.covered_episodes), true);
           assertEquals(parsed.covered_episodes, [1]);
@@ -270,10 +272,10 @@ it.scoped("applyDownloadActionEffect stores structured metadata on pause and res
           assertExists(resumeEvent);
 
           const pauseMetadata = pauseEvent.metadata
-            ? decodeDownloadEventMetadata(pauseEvent.metadata)
+            ? yield* decodeDownloadEventMetadata(pauseEvent.metadata)
             : undefined;
           const resumeMetadata = resumeEvent.metadata
-            ? decodeDownloadEventMetadata(resumeEvent.metadata)
+            ? yield* decodeDownloadEventMetadata(resumeEvent.metadata)
             : undefined;
           assertExists(pauseMetadata);
           assertExists(resumeMetadata);
@@ -366,7 +368,7 @@ it.scoped("retryDownloadById stores structured metadata in retried events", () =
           assertExists(retriedEvent);
 
           const metadata = retriedEvent.metadata
-            ? decodeDownloadEventMetadata(retriedEvent.metadata)
+            ? yield* decodeDownloadEventMetadata(retriedEvent.metadata)
             : undefined;
           assertExists(metadata);
           assertEquals(metadata.covered_episodes, [3]);
@@ -453,7 +455,7 @@ it.scoped("applyDownloadActionEffect stores structured metadata on delete events
           assertEquals(deleteEvent.toStatus, "deleted");
 
           const metadata = deleteEvent.metadata
-            ? decodeDownloadEventMetadata(deleteEvent.metadata)
+            ? yield* decodeDownloadEventMetadata(deleteEvent.metadata)
             : undefined;
           assertExists(metadata);
           assertEquals(metadata.covered_episodes, [4, 5]);
@@ -595,7 +597,7 @@ it.scoped(
             const importedBatchEvent = importedBatchEvents[0];
             assertExists(importedBatchEvent);
             const importedBatchMetadata = importedBatchEvent.metadata
-              ? decodeDownloadEventMetadata(importedBatchEvent.metadata)
+              ? yield* decodeDownloadEventMetadata(importedBatchEvent.metadata)
               : undefined;
             assertExists(importedBatchMetadata);
             assertEquals(importedBatchMetadata.covered_episodes, [1, 2]);
@@ -752,10 +754,10 @@ it.scoped(
             assertExists(coverageEvent);
 
             const statusMetadata = statusEvent.metadata
-              ? decodeDownloadEventMetadata(statusEvent.metadata)
+              ? yield* decodeDownloadEventMetadata(statusEvent.metadata)
               : undefined;
             const coverageMetadata = coverageEvent.metadata
-              ? decodeDownloadEventMetadata(coverageEvent.metadata)
+              ? yield* decodeDownloadEventMetadata(coverageEvent.metadata)
               : undefined;
             assertExists(statusMetadata);
             assertExists(coverageMetadata);
@@ -823,9 +825,7 @@ it.scoped(
                 .returning(),
             );
 
-            const contexts = yield* Effect.tryPromise(() =>
-              loadDownloadPresentationContexts(appDb, [row]),
-            );
+            const contexts = yield* loadDownloadPresentationContexts(appDb, [row]);
 
             assertEquals(contexts.get(row.id), {
               animeImage: "https://example.com/show.jpg",
@@ -952,7 +952,7 @@ it.scoped(
             const importedEvent = importedEvents[0];
             assertExists(importedEvent);
             const importedMetadata = importedEvent.metadata
-              ? decodeDownloadEventMetadata(importedEvent.metadata)
+              ? yield* decodeDownloadEventMetadata(importedEvent.metadata)
               : undefined;
             assertExists(importedMetadata);
             assertEquals(importedMetadata.covered_episodes, [1]);
@@ -1009,6 +1009,7 @@ function createDownloadOrchestrationForTest(
 function makeTestOperationsCoordination() {
   return {
     finishUnmappedScan: () => Effect.void,
+    forkUnmappedScan: <E, R>(effect: Effect.Effect<void, E, R>) => effect,
     runSerializedTrigger: <A, E, R>(effect: Effect.Effect<A, E, R>) => effect,
     tryStartUnmappedScan: () => Effect.succeed(false),
   };

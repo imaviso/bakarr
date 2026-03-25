@@ -56,7 +56,7 @@ export interface LibraryServiceShape {
   }) => Effect.Effect<{ folderCount: number; folderPath: string }, OperationsError | DatabaseError>;
   readonly bulkControlUnmappedFolders: (input: {
     action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
-  }) => Effect.Effect<{ affectedCount: number }, DatabaseError>;
+  }) => Effect.Effect<{ affectedCount: number }, OperationsError | DatabaseError>;
   readonly importUnmappedFolder: (input: {
     folder_name: string;
     anime_id: number;
@@ -83,9 +83,12 @@ export interface LibraryServiceShape {
 }
 
 export interface DownloadServiceShape {
-  readonly listDownloadQueue: () => Effect.Effect<Download[], DatabaseError>;
-  readonly listDownloadHistory: () => Effect.Effect<Download[], DatabaseError>;
-  readonly getDownloadProgress: () => Effect.Effect<DownloadStatus[], DatabaseError>;
+  readonly listDownloadQueue: () => Effect.Effect<Download[], OperationsError | DatabaseError>;
+  readonly listDownloadHistory: () => Effect.Effect<Download[], OperationsError | DatabaseError>;
+  readonly getDownloadProgress: () => Effect.Effect<
+    DownloadStatus[],
+    OperationsError | DatabaseError
+  >;
   readonly pauseDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly resumeDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly removeDownload: (
@@ -105,7 +108,7 @@ export interface DownloadServiceShape {
     readonly limit?: number;
     readonly startDate?: string;
     readonly status?: string;
-  }) => Effect.Effect<DownloadEventsPage, DatabaseError>;
+  }) => Effect.Effect<DownloadEventsPage, OperationsError | DatabaseError>;
   readonly exportDownloadEvents: (input?: {
     readonly animeId?: number;
     readonly downloadId?: number;
@@ -115,7 +118,7 @@ export interface DownloadServiceShape {
     readonly order?: "asc" | "desc";
     readonly startDate?: string;
     readonly status?: string;
-  }) => Effect.Effect<DownloadEventsExport, DatabaseError>;
+  }) => Effect.Effect<DownloadEventsExport, OperationsError | DatabaseError>;
   readonly triggerDownload: (input: {
     anime_id: number;
     magnet: string;

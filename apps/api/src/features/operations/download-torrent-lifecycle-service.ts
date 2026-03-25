@@ -199,7 +199,7 @@ export function makeDownloadTorrentLifecycleService(input: {
               existingCoveredEpisodes: existing.coveredEpisodes,
               infoHash: torrent.hash.toLowerCase(),
               qbitConfig,
-              sourceMetadata: decodeDownloadSourceMetadata(existing.sourceMetadata),
+              sourceMetadata: yield* decodeDownloadSourceMetadata(existing.sourceMetadata),
               torrentName: torrent.name,
             });
           }
@@ -212,7 +212,7 @@ export function makeDownloadTorrentLifecycleService(input: {
               fromStatus: existing.status,
               metadataJson: {
                 covered_episodes: parseCoveredEpisodes(existing.coveredEpisodes),
-                source_metadata: decodeDownloadSourceMetadata(existing.sourceMetadata),
+                source_metadata: yield* decodeDownloadSourceMetadata(existing.sourceMetadata),
               },
               message: `${existing.torrentName} moved to ${nextStatus}`,
               toStatus: nextStatus,
@@ -273,7 +273,7 @@ export function makeDownloadTorrentLifecycleService(input: {
         fromStatus: row.status,
         metadataJson: {
           covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
-          source_metadata: decodeDownloadSourceMetadata(row.sourceMetadata),
+          source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
         },
         message: `Deleted ${row.torrentName}`,
         toStatus: "deleted",
@@ -301,7 +301,7 @@ export function makeDownloadTorrentLifecycleService(input: {
       fromStatus: row.status,
       metadataJson: {
         covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
-        source_metadata: decodeDownloadSourceMetadata(row.sourceMetadata),
+        source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
       },
       message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
       toStatus: action === "pause" ? "paused" : "downloading",
@@ -360,7 +360,7 @@ export function makeDownloadTorrentLifecycleService(input: {
       fromStatus: row.status,
       metadataJson: {
         covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
-        source_metadata: decodeDownloadSourceMetadata(row.sourceMetadata),
+        source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
       },
       message: `Retried ${row.torrentName}`,
       toStatus: qbitConfig ? "downloading" : "queued",

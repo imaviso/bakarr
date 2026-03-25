@@ -1,5 +1,5 @@
 import { assertEquals, it } from "../../test/vitest.ts";
-import { Effect } from "effect";
+import { Cause, Effect, Exit } from "effect";
 
 import { anime } from "../../db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
@@ -78,6 +78,51 @@ it.scoped("importDownloadedFile keeps existing destination when staging copy fai
       assertEquals(destinationContents, "existing");
     }),
   ),
+);
+
+it.scoped(
+  "importDownloadedFile fails when cross-filesystem move cannot delete the source file",
+  () =>
+    withFileSystemSandboxEffect(({ fs, root }) =>
+      Effect.gen(function* () {
+        const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+        const sourcePath = `${sourceRoot}/Naruto - 01.mkv`;
+
+        yield* writeTextFile(fs, sourcePath, "incoming");
+
+        const crossFilesystemFs = yield* makeNoopTestFileSystemWithOverridesEffect({
+          ...fs,
+          rename: (from, to) =>
+            from === sourcePath
+              ? Effect.fail(makeFsError(from, "EXDEV", "cross-device rename blocked"))
+              : fs.rename(from, to),
+          remove: (path, options) =>
+            path === sourcePath
+              ? Effect.fail(makeFsError(path.toString(), "EACCES", "permission denied"))
+              : fs.remove(path, options),
+        });
+
+        const exit = yield* Effect.exit(
+          importDownloadedFile(
+            crossFilesystemFs,
+            {
+              rootFolder: animeRoot,
+              titleRomaji: "Naruto",
+            } as typeof anime.$inferSelect,
+            1,
+            sourcePath,
+            "move",
+          ),
+        );
+
+        assertEquals(Exit.isFailure(exit), true);
+        assertEquals(yield* readTextFile(fs, sourcePath), "incoming");
+        if (Exit.isFailure(exit)) {
+          const failure = Cause.failureOption(exit.cause);
+          assertEquals(failure._tag, "Some");
+        }
+      }),
+    ),
 );
 
 it.scoped(
@@ -273,3 +318,14 @@ const makeImportRoots = Effect.fn("Test.makeImportRoots")(function* (
   yield* fs.mkdir(sourceRoot, { recursive: true });
   return { animeRoot, sourceRoot };
 });
+
+function makeFsError(path: string, code: string, message: string) {
+  const cause = new Error(message) as Error & { code?: string };
+  cause.code = code;
+
+  return new FileSystemError({
+    cause,
+    message,
+    path,
+  });
+}
