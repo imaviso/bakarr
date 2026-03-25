@@ -1,0 +1,29 @@
+{
+  "name": "@bakarr/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch main.ts",
+    "start": "bun run main.ts",
+    "build": "bun run check",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "db:generate": "bunx drizzle-kit generate",
+    "db:migrate": "bunx drizzle-kit migrate",
+    "db:push": "bunx drizzle-kit push",
+    "db:studio": "bunx drizzle-kit studio"
+  },
+  "dependencies": {
+    "@bakarr/shared": "workspace:*",
+    "@effect/platform": "^0.96.0",
+    "@effect/platform-bun": "^0.89.0",
+    "@libsql/client": "^0.17.2",
+    "drizzle-orm": "^0.45.1",
+    "effect": "^3.21.0",
+    "fast-xml-parser": "^5.5.8",
+    "ipaddr.js": "^2.3.0"
+  }
+}

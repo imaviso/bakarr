@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     // General
+    "target": "ES2022",
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "lib": [
@@ -23,6 +24,9 @@
     "moduleResolution": "bundler",
     "types": ["vite/client"],
     "paths": {
+      "@bakarr/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
       "~/*": [
         "./src/*"
       ]

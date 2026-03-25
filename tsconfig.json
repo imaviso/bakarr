@@ -15,11 +15,6 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "skipLibCheck": true,
-    "types": ["@types/bun"],
-    "plugins": [
-      {
-        "name": "@effect/language-service"
-      }
-    ]
+    "types": ["@types/bun"]
   }
 }

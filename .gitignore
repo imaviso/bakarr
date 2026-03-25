@@ -5,6 +5,7 @@
 .direnv/
 
 *.tsbuildinfo
+bun.lock
 build.log
 node_modules/
 data/
