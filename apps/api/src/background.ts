@@ -56,12 +56,7 @@ export class BackgroundWorkerMonitor extends Context.Tag("@bakarr/api/Background
   BackgroundWorkerMonitorShape
 >() {}
 
-const liveClock: ClockServiceShape = {
-  currentMonotonicMillis: Effect.sync(() => performance.now()),
-  currentTimeMillis: Effect.sync(() => Date.now()),
-};
-
-export function makeBackgroundWorkerMonitor(clock: ClockServiceShape = liveClock) {
+export function makeBackgroundWorkerMonitor(clock: ClockServiceShape) {
   return Effect.gen(function* () {
     const state = yield* Ref.make(initialBackgroundWorkerSnapshot());
     yield* preRegisterBackgroundWorkerMetrics(BACKGROUND_WORKER_NAMES);
@@ -205,18 +200,18 @@ export interface WorkersDeps {
   readonly downloadService: DownloadServiceShape;
   readonly libraryService: LibraryServiceShape;
   readonly rssService: RssServiceShape;
-  readonly clock?: ClockServiceShape;
+  readonly clock: ClockServiceShape;
 }
 
 export function spawnWorkersFromConfig(
   config: Config,
   deps: WorkersDeps,
 ): Effect.Effect<void, never, Scope.Scope> {
-  const { animeService, eventBus, monitor, downloadService, libraryService, rssService } = deps;
+  const { animeService, eventBus, monitor, downloadService, libraryService, rssService, clock } =
+    deps;
   const schedule = buildBackgroundSchedule(config);
 
   return Effect.gen(function* () {
-    const clock = deps.clock ?? liveClock;
     const workerScope = yield* Scope.Scope;
     const rssLoop = yield* withLockEffect(
       "rss",

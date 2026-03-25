@@ -27,10 +27,10 @@ export interface CatalogLibraryReadSupportShape {
 
 export function makeCatalogLibraryReadSupport(input: {
   db: AppDatabase;
-  currentTimeMillis?: () => Effect.Effect<number>;
+  currentTimeMillis: () => Effect.Effect<number>;
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogLibraryReadSupportShape {
-  const currentTimeMillis = input.currentTimeMillis ?? (() => Effect.sync(() => Date.now()));
+  const currentTimeMillis = input.currentTimeMillis;
   const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(function* (
     limit: number,
   ) {

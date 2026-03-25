@@ -3,6 +3,7 @@ import { downloads } from "../../db/schema.ts";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { decodeOptionalNumberList, encodeOptionalNumberList } from "../system/config-codec.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { scanVideoFiles } from "./file-scanner.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import {
@@ -111,20 +112,22 @@ export function parseCoveredEpisodes(value: string | null | undefined): number[]
 
 const IN_FLIGHT_STATUSES = ["queued", "downloading", "paused"];
 
-export async function hasOverlappingDownload(
+export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownload")(function* (
   db: AppDatabase,
   animeId: number,
   infoHash: string,
   coveredEpisodes: readonly number[],
-): Promise<boolean> {
-  const existingByHash = await db
-    .select({
-      id: downloads.id,
-      status: downloads.status,
-    })
-    .from(downloads)
-    .where(eq(downloads.infoHash, infoHash))
-    .limit(1);
+) {
+  const existingByHash = yield* tryDatabasePromise("Failed to check overlapping download", () =>
+    db
+      .select({
+        id: downloads.id,
+        status: downloads.status,
+      })
+      .from(downloads)
+      .where(eq(downloads.infoHash, infoHash))
+      .limit(1),
+  );
 
   if (existingByHash[0] && IN_FLIGHT_STATUSES.includes(existingByHash[0].status)) {
     return true;
@@ -134,15 +137,32 @@ export async function hasOverlappingDownload(
     return false;
   }
 
-  const rows = await db.select().from(downloads).where(eq(downloads.animeId, animeId));
+  const rows = yield* tryDatabasePromise("Failed to check overlapping download", () =>
+    db.select().from(downloads).where(eq(downloads.animeId, animeId)),
+  );
 
-  return rows
-    .filter((row) => IN_FLIGHT_STATUSES.includes(row.status))
-    .some((row) => {
-      const existingCovered = parseCoveredEpisodes(row.coveredEpisodes);
-      return existingCovered.some((episode) => coveredEpisodes.includes(episode));
+  for (const row of rows) {
+    if (!IN_FLIGHT_STATUSES.includes(row.status)) {
+      continue;
+    }
+
+    const existingCovered = yield* Effect.try({
+      try: () => parseCoveredEpisodes(row.coveredEpisodes),
+      catch: (cause) =>
+        cause instanceof OperationsStoredDataError
+          ? cause
+          : new OperationsStoredDataError({
+              message: "Stored covered episode metadata is corrupt",
+            }),
     });
-}
+
+    if (existingCovered.some((episode) => coveredEpisodes.includes(episode))) {
+      return true;
+    }
+  }
+
+  return false;
+});
 
 export function inferCoveredEpisodeNumbers(input: {
   readonly explicitEpisodes: readonly number[];

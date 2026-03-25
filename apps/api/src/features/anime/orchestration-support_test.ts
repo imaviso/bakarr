@@ -70,6 +70,7 @@ it.scoped(
                 publish: () => Effect.void,
                 publishInfo: () => Effect.void,
               },
+              nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
             }),
           );
 

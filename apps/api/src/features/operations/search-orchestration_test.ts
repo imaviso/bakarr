@@ -20,8 +20,8 @@ it.effect(
         aniList: {} as never,
         coordination: {
           finishUnmappedScan: () => Effect.void,
-          forkUnmappedScan: <E, R>(effect: Effect.Effect<void, E, R>) => effect,
-          runSerializedTrigger: <A, E, R>(effect: Effect.Effect<A, E, R>) => effect,
+          forkUnmappedScan: <E>(_effect: Effect.Effect<void, E>) => Effect.void,
+          runSerializedTrigger: <A, E>(effect: Effect.Effect<A, E>) => effect,
           tryStartUnmappedScan: () => Effect.succeed(false),
         },
         db: {} as AppDatabase,
@@ -30,6 +30,7 @@ it.effect(
         fs: {} as FileSystemShape,
         maybeQBitConfig: () => null,
         mediaProbe: {} as MediaProbeShape,
+        nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
         publishDownloadProgress: () => Effect.void,
         publishRssCheckProgress: () => Effect.void,
         qbitClient: {} as typeof QBitTorrentClient.Service,

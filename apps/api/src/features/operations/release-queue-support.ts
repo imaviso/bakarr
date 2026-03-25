@@ -47,60 +47,49 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
             }),
     });
     const now = yield* input.nowIso();
+
+    const overlapping = yield* hasOverlappingDownload(
+      input.db,
+      input.animeRow.id,
+      input.item.infoHash,
+      coveredEpisodeNumbers,
+    );
+
+    if (overlapping) {
+      return { _tag: "skipped" } as const;
+    }
+
     const insertResult = yield* Effect.either(
-      Effect.tryPromise({
-        try: () =>
-          input.db.transaction(
-            async (tx) => {
-              const overlapping = await hasOverlappingDownload(
-                tx as unknown as AppDatabase,
-                input.animeRow.id,
-                input.item.infoHash,
-                coveredEpisodeNumbers,
-              );
-
-              if (overlapping) {
-                return { _tag: "overlap" } as const;
-              }
-
-              const inserted = await tx
-                .insert(downloads)
-                .values({
-                  addedAt: now,
-                  animeId: input.animeRow.id,
-                  animeTitle: input.animeRow.titleRomaji,
-                  contentPath: null,
-                  coveredEpisodes: input.coveredEpisodes,
-                  downloadDate: null,
-                  downloadedBytes: 0,
-                  episodeNumber: input.episodeNumber,
-                  errorMessage: null,
-                  etaSeconds: null,
-                  externalState: "queued",
-                  groupName: input.item.group ?? null,
-                  infoHash: input.item.infoHash,
-                  isBatch: input.isBatch,
-                  lastSyncedAt: now,
-                  magnet: input.item.magnet,
-                  progress: 0,
-                  savePath: null,
-                  speedBytes: 0,
-                  sourceMetadata: encodeDownloadSourceMetadata(input.sourceMetadata),
-                  status: "queued",
-                  torrentName: input.item.title,
-                  totalBytes: input.item.sizeBytes,
-                })
-                .returning({ id: downloads.id });
-
-              return {
-                _tag: "inserted",
-                id: inserted[0].id,
-              } as const;
-            },
-            { behavior: "immediate" },
-          ),
-        catch: input.wrapOperationsError(input.contextMessage),
-      }),
+      input.tryDatabasePromise(input.contextMessage, () =>
+        input.db
+          .insert(downloads)
+          .values({
+            addedAt: now,
+            animeId: input.animeRow.id,
+            animeTitle: input.animeRow.titleRomaji,
+            contentPath: null,
+            coveredEpisodes: input.coveredEpisodes,
+            downloadDate: null,
+            downloadedBytes: 0,
+            episodeNumber: input.episodeNumber,
+            errorMessage: null,
+            etaSeconds: null,
+            externalState: "queued",
+            groupName: input.item.group ?? null,
+            infoHash: input.item.infoHash,
+            isBatch: input.isBatch,
+            lastSyncedAt: now,
+            magnet: input.item.magnet,
+            progress: 0,
+            savePath: null,
+            speedBytes: 0,
+            sourceMetadata: encodeDownloadSourceMetadata(input.sourceMetadata),
+            status: "queued",
+            torrentName: input.item.title,
+            totalBytes: input.item.sizeBytes,
+          })
+          .returning({ id: downloads.id }),
+      ),
     );
 
     if (insertResult._tag === "Left") {
@@ -113,11 +102,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
       return yield* dbError;
     }
 
-    if (insertResult.right._tag === "overlap") {
-      return { _tag: "skipped" } as const;
-    }
-
-    const insertedId = insertResult.right.id;
+    const insertedId = insertResult.right[0].id;
     let status = "queued";
 
     if (input.qbitConfig) {

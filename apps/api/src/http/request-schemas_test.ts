@@ -1,7 +1,7 @@
 import { assertEquals, assertMatch, it } from "../test/vitest.ts";
-import { Effect, Schema } from "effect";
+import { Schema } from "effect";
 
-import { parseJsonBody } from "./route-validation.ts";
+import { formatValidationErrorMessage } from "./route-validation.ts";
 import {
   AddAnimeInputSchema,
   ConfigSchema,
@@ -104,35 +104,29 @@ it("ConfigSchema rejects malformed config fields with localized paths", () => {
   }
 });
 
-it.effect("parseJsonBody formats schema validation errors as concise path summaries", () =>
-  Effect.gen(function* () {
-    const parsed = yield* parseJsonBody(
-      {
-        req: {
-          json: () =>
-            Promise.resolve({
-              ...makeValidConfig(),
-              library: {
-                ...makeValidConfig().library,
-                import_mode: "Copy",
-              },
-            }),
-        },
-      },
-      ConfigSchema,
-      "system config",
-    ).pipe(Effect.either);
+it("formatValidationErrorMessage formats schema errors as concise path summaries", () => {
+  const input = {
+    ...makeValidConfig(),
+    library: {
+      ...makeValidConfig().library,
+      import_mode: "Copy",
+    },
+  };
+  const result = Schema.decodeUnknownEither(ConfigSchema)(input);
 
-    assertEquals(parsed._tag, "Left");
+  assertEquals(result._tag, "Left");
 
-    if (parsed._tag === "Left") {
-      assertMatch(parsed.left.message, /system config/);
-      assertMatch(parsed.left.message, /library\.import_mode/);
-      assertMatch(parsed.left.message, /actual "Copy"/);
-      assertEquals(parsed.left.message.includes("readonly downloads"), false);
-    }
-  }),
-);
+  if (result._tag === "Left") {
+    const message = formatValidationErrorMessage(
+      "Invalid request body for system config",
+      result.left,
+    );
+    assertMatch(message, /system config/);
+    assertMatch(message, /library\.import_mode/);
+    assertMatch(message, /actual "Copy"/);
+    assertEquals(message.includes("readonly downloads"), false);
+  }
+});
 
 it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", () => {
   const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)(

@@ -20,7 +20,6 @@ import {
 import { tryDatabasePromise, updateAnimeRow, wrapAnimeError } from "./service-support.ts";
 
 type AnimeEventPublisher = Pick<EventPublisherShape, "publish" | "publishInfo">;
-const liveNowIso = () => Effect.sync(() => new Date().toISOString());
 
 const quietAnimeEventPublisher: AnimeEventPublisher = {
   publish: () => Effect.void,
@@ -33,9 +32,9 @@ const syncAnimeMetadataEffect = Effect.fn("AnimeService.syncAnimeMetadataEffect"
     animeId: number;
     db: AppDatabase;
     eventPublisher: AnimeEventPublisher;
-    nowIso?: () => Effect.Effect<string>;
+    nowIso: () => Effect.Effect<string>;
   }) {
-    const nowIso = input.nowIso ?? liveNowIso;
+    const nowIso = input.nowIso;
     const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
       Effect.mapError(wrapAnimeError("Failed to refresh episodes")),
     );
@@ -88,9 +87,9 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
     animeId: number;
     db: AppDatabase;
     eventPublisher: AnimeEventPublisher;
-    nowIso?: () => Effect.Effect<string>;
+    nowIso: () => Effect.Effect<string>;
   }) {
-    const nowIso = input.nowIso ?? liveNowIso;
+    const nowIso = input.nowIso;
     const { animeRow, metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
       aniList: input.aniList,
       animeId: input.animeId,
@@ -139,9 +138,9 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
 )(function* (input: {
   aniList: typeof AniListClient.Service;
   db: AppDatabase;
-  nowIso?: () => Effect.Effect<string>;
+  nowIso: () => Effect.Effect<string>;
 }) {
-  const nowIso = input.nowIso ?? liveNowIso;
+  const nowIso = input.nowIso;
   yield* markJobStarted(input.db, "metadata_refresh", nowIso);
   yield* appendSystemLog(
     input.db,
@@ -233,9 +232,9 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
   eventPublisher: AnimeEventPublisher;
   fs: FileSystemShape;
   mediaProbe: MediaProbeShape;
-  nowIso?: () => Effect.Effect<string>;
+  nowIso: () => Effect.Effect<string>;
 }) {
-  const nowIso = input.nowIso ?? liveNowIso;
+  const nowIso = input.nowIso;
   const { animeRow, found, total } = yield* scanAnimeFolderEffect({
     animeId: input.animeId,
     db: input.db,

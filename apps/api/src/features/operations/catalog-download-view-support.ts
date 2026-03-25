@@ -62,10 +62,10 @@ export interface CatalogDownloadViewSupportShape {
 
 export function makeCatalogDownloadViewSupport(input: {
   db: AppDatabase;
-  nowIso?: () => Effect.Effect<string>;
+  nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogDownloadViewSupportShape {
-  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
+  const nowIso = input.nowIso;
   const listDownloadEvents = Effect.fn("OperationsService.listDownloadEvents")(function* (
     queryInput: {
       animeId?: number;

@@ -1,7 +1,6 @@
 import { HttpServerRequest } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 
-import { type AuthUser, AuthUserSchema } from "../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../config.ts";
 import { AuthError, AuthService } from "../features/auth/service.ts";
 
@@ -34,31 +33,3 @@ export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHtt
     return viewer;
   },
 );
-
-export function isAuthUser(value: unknown): value is AuthUser {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-
-  const candidate = value as {
-    created_at?: unknown;
-    id?: unknown;
-    must_change_password?: unknown;
-    updated_at?: unknown;
-    username?: unknown;
-  };
-
-  if (
-    typeof candidate.id !== "number" ||
-    !Number.isFinite(candidate.id) ||
-    typeof candidate.username !== "string" ||
-    typeof candidate.created_at !== "string" ||
-    typeof candidate.updated_at !== "string" ||
-    typeof candidate.must_change_password !== "boolean"
-  ) {
-    return false;
-  }
-
-  const result = Schema.decodeUnknownEither(AuthUserSchema)(value);
-  return result._tag === "Right";
-}

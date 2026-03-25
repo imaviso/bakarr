@@ -23,10 +23,10 @@ export interface CatalogRssSupportShape {
 
 export function makeCatalogRssSupport(input: {
   db: AppDatabase;
-  nowIso?: () => Effect.Effect<string>;
+  nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogRssSupportShape {
-  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
+  const nowIso = input.nowIso;
   const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(function* () {
     const rows = yield* input.tryDatabasePromise("Failed to list RSS feeds", () =>
       input.db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),

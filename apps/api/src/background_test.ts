@@ -1,5 +1,6 @@
 import { assertEquals, it } from "./test/vitest.ts";
 import { Deferred, Effect, Fiber, Metric, type Scope } from "effect";
+import type { ClockServiceShape } from "./lib/clock.ts";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
@@ -145,9 +146,14 @@ it("build background schedule ignores invalid cron and keeps interval", () => {
   assertEquals(schedule.rssCheckMs, 30 * 60 * 1000);
 });
 
+const testClock: ClockServiceShape = {
+  currentMonotonicMillis: Effect.succeed(0),
+  currentTimeMillis: Effect.succeed(1704067200000),
+};
+
 it.effect("background worker monitor tracks supervision state and counters", () =>
   Effect.gen(function* () {
-    const monitor = yield* makeBackgroundWorkerMonitor();
+    const monitor = yield* makeBackgroundWorkerMonitor(testClock);
 
     yield* monitor.markDaemonStarted("rss");
     yield* monitor.markRunStarted("rss");
@@ -173,7 +179,7 @@ it.effect("background worker monitor tracks supervision state and counters", () 
 
 it.effect("background worker monitor publishes Effect metrics", () =>
   Effect.gen(function* () {
-    const monitor = yield* makeBackgroundWorkerMonitor();
+    const monitor = yield* makeBackgroundWorkerMonitor(testClock);
     const before = yield* Metric.snapshot;
 
     yield* monitor.markDaemonStarted("rss");

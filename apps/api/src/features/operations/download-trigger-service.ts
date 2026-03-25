@@ -47,7 +47,7 @@ export function makeDownloadTriggerService(input: {
   readonly maybeQBitConfig: (
     config: import("../../../../../packages/shared/src/index.ts").Config,
   ) => QBitConfig | null;
-  readonly nowIso?: () => Effect.Effect<string>;
+  readonly nowIso: () => Effect.Effect<string>;
   readonly coordination: import("./runtime-support.ts").OperationsCoordinationShape;
   readonly syncDownloadsWithQBitEffect: () => Effect.Effect<
     void,
@@ -65,7 +65,7 @@ export function makeDownloadTriggerService(input: {
     coordination,
     syncDownloadsWithQBitEffect,
   } = input;
-  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
+  const nowIso = input.nowIso;
 
   const getDownloadProgressSnapshotEffect = Effect.fn(
     "OperationsService.getDownloadProgressSnapshot",
@@ -155,62 +155,52 @@ export function makeDownloadTriggerService(input: {
         const infoHash =
           (input.info_hash ?? parseMagnetInfoHash(input.magnet))?.toLowerCase() ?? null;
 
+        if (infoHash) {
+          const overlapping = yield* hasOverlappingDownload(
+            db,
+            animeRow.id,
+            infoHash,
+            inferredCoveredEpisodes,
+          );
+
+          if (overlapping) {
+            return yield* new DownloadConflictError({
+              message: "An in-flight download already covers these episodes",
+            });
+          }
+        }
+
         const insertResult = yield* Effect.either(
-          Effect.tryPromise({
-            try: () =>
-              db.transaction(
-                async (tx) => {
-                  if (infoHash) {
-                    const overlapping = await hasOverlappingDownload(
-                      tx as unknown as AppDatabase,
-                      animeRow.id,
-                      infoHash,
-                      inferredCoveredEpisodes,
-                    );
-
-                    if (overlapping) {
-                      return { _tag: "overlap" } as const;
-                    }
-                  }
-
-                  const inserted = await tx
-                    .insert(downloads)
-                    .values({
-                      addedAt: now,
-                      animeId: animeRow.id,
-                      animeTitle: animeRow.titleRomaji,
-                      contentPath: null,
-                      coveredEpisodes,
-                      downloadDate: null,
-                      episodeNumber: requestedEpisode,
-                      isBatch: effectiveIsBatch,
-                      downloadedBytes: 0,
-                      errorMessage: null,
-                      etaSeconds: null,
-                      externalState: "queued",
-                      groupName: input.group ?? null,
-                      infoHash,
-                      lastSyncedAt: now,
-                      magnet: input.magnet,
-                      progress: 0,
-                      savePath: null,
-                      speedBytes: 0,
-                      sourceMetadata: encodeDownloadSourceMetadata(sourceMetadata),
-                      status: "queued",
-                      totalBytes: null,
-                      torrentName: input.title,
-                    })
-                    .returning({ id: downloads.id });
-
-                  return {
-                    _tag: "inserted",
-                    id: inserted[0].id,
-                  } as const;
-                },
-                { behavior: "immediate" },
-              ),
-            catch: wrapOperationsError("Failed to trigger download"),
-          }),
+          tryDatabasePromise("Failed to trigger download", () =>
+            db
+              .insert(downloads)
+              .values({
+                addedAt: now,
+                animeId: animeRow.id,
+                animeTitle: animeRow.titleRomaji,
+                contentPath: null,
+                coveredEpisodes,
+                downloadDate: null,
+                episodeNumber: requestedEpisode,
+                isBatch: effectiveIsBatch,
+                downloadedBytes: 0,
+                errorMessage: null,
+                etaSeconds: null,
+                externalState: "queued",
+                groupName: input.group ?? null,
+                infoHash,
+                lastSyncedAt: now,
+                magnet: input.magnet,
+                progress: 0,
+                savePath: null,
+                speedBytes: 0,
+                sourceMetadata: encodeDownloadSourceMetadata(sourceMetadata),
+                status: "queued",
+                totalBytes: null,
+                torrentName: input.title,
+              })
+              .returning({ id: downloads.id }),
+          ),
         );
 
         if (insertResult._tag === "Left") {
@@ -223,13 +213,7 @@ export function makeDownloadTriggerService(input: {
           return yield* insertError;
         }
 
-        if (insertResult.right._tag === "overlap") {
-          return yield* new DownloadConflictError({
-            message: "An in-flight download already covers these episodes",
-          });
-        }
-
-        const insertedId = insertResult.right.id;
+        const insertedId = insertResult.right[0].id;
         let status = "queued";
         const qbitConfig = maybeQBitConfig(runtimeConfig);
 

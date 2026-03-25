@@ -99,11 +99,11 @@ export function makeUnmappedOrchestrationSupport(input: {
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   coordination: OperationsCoordinationShape;
   fs: FileSystemShape;
-  nowIso?: () => Effect.Effect<string>;
+  nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
   const { aniList, db, dbError, coordination, fs, tryDatabasePromise } = input;
-  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
+  const nowIso = input.nowIso;
 
   const loadQueuedUnmappedFolders = Effect.fn("OperationsService.loadQueuedUnmappedFolders")(
     function* () {

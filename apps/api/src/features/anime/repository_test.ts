@@ -70,7 +70,17 @@ it.scoped("ensureEpisodes rejects duplicate episode inserts for same anime", () 
         }),
       );
 
-      yield* ensureEpisodesEffect(db, 2, 1, "RELEASING", undefined, undefined, undefined, false);
+      yield* ensureEpisodesEffect(
+        db,
+        2,
+        1,
+        "RELEASING",
+        undefined,
+        undefined,
+        undefined,
+        false,
+        () => Effect.succeed("2024-01-01T00:00:00.000Z"),
+      );
 
       const duplicateInsert = yield* Effect.exit(
         Effect.tryPromise(() =>

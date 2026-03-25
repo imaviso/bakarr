@@ -23,12 +23,12 @@ export function makeCatalogLibraryScanSupport(input: {
   db: AppDatabase;
   fs: FileSystemShape;
   eventBus: typeof EventBus.Service;
-  nowIso?: () => Effect.Effect<string>;
+  nowIso: () => Effect.Effect<string>;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
   tryDatabasePromise: TryDatabasePromise;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
 }): CatalogLibraryScanSupportShape {
-  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
+  const nowIso = input.nowIso;
   const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(function* () {
     yield* markJobStarted(input.db, "library_scan", nowIso);
 

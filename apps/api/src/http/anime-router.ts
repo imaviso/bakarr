@@ -511,8 +511,6 @@ export const animeRouter = HttpRouter.concatAll(
   animeStreamRouter,
 );
 
-export const animeHttpApp = HttpRouter.toHttpApp(animeRouter);
-
 function parseByteRange(
   rangeHeader: string | undefined,
   fileSize: number,

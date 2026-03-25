@@ -32,7 +32,7 @@ export function makeDownloadTorrentLifecycleService(input: {
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
-  readonly nowIso?: () => Effect.Effect<string>;
+  readonly nowIso: () => Effect.Effect<string>;
   readonly reconcileCompletedTorrentEffect: (
     infoHash: string,
     contentPath: string | undefined,
@@ -46,7 +46,7 @@ export function makeDownloadTorrentLifecycleService(input: {
     maybeQBitConfig,
     reconcileCompletedTorrentEffect,
   } = input;
-  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
+  const nowIso = input.nowIso;
 
   const parseStoredCoveredEpisodes = (value: string | null | undefined) =>
     Effect.try({

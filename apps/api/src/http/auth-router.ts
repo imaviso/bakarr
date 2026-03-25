@@ -9,16 +9,7 @@ import {
 import { AppConfig } from "../config.ts";
 import { AuthService } from "../features/auth/service.ts";
 import { requireViewerFromHttpRequest } from "./route-auth.ts";
-import { mapRouteError } from "./route-errors.ts";
-
-const routeResponse = <A, E, R, E2, R2>(
-  effect: Effect.Effect<A, E, R>,
-  onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
-) =>
-  effect.pipe(
-    Effect.flatMap(onSuccess),
-    Effect.catchAll((error) => Effect.succeed(mapToServerResponse(error))),
-  );
+import { routeResponse } from "./router-helpers.ts";
 
 const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(function* (
   token: string,
@@ -118,12 +109,3 @@ export const authRouter = HttpRouter.empty.pipe(
 );
 
 export const authHttpApp = HttpRouter.toHttpApp(authRouter);
-
-function mapToServerResponse(error: unknown) {
-  const mapped = mapRouteError(error);
-  const response = HttpServerResponse.text(mapped.message, {
-    status: mapped.status,
-  });
-
-  return mapped.headers ? HttpServerResponse.setHeaders(response, mapped.headers) : response;
-}

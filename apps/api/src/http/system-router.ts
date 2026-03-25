@@ -528,8 +528,6 @@ export const systemRouter = HttpRouter.concatAll(
   runtimeRouter,
 );
 
-export const systemHttpApp = HttpRouter.toHttpApp(systemRouter);
-
 function contentTypeForPath(path: string): string {
   const lower = path.toLowerCase();
 

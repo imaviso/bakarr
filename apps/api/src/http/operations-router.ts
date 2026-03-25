@@ -557,5 +557,3 @@ const writeRouter = HttpRouter.empty.pipe(
 );
 
 export const operationsRouter = HttpRouter.concatAll(readRouter, writeRouter);
-
-export const operationsHttpApp = HttpRouter.toHttpApp(operationsRouter);

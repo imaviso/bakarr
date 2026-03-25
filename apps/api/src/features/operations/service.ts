@@ -64,10 +64,8 @@ export {
 
 interface OperationsSharedStateShape {
   readonly finishUnmappedScan: () => Effect.Effect<void>;
-  readonly forkUnmappedScan: <E, R>(effect: Effect.Effect<void, E, R>) => Effect.Effect<void, E, R>;
-  readonly runSerializedTrigger: <A, E, R>(
-    effect: Effect.Effect<A, E, R>,
-  ) => Effect.Effect<A, E, R>;
+  readonly forkUnmappedScan: <E>(effect: Effect.Effect<void, E>) => Effect.Effect<void>;
+  readonly runSerializedTrigger: <A, E>(effect: Effect.Effect<A, E>) => Effect.Effect<A, E>;
   readonly tryStartUnmappedScan: () => Effect.Effect<boolean>;
 }
 

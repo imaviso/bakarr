@@ -34,10 +34,10 @@ export interface DownloadOrchestrationInput {
   readonly dbError: (message: string) => (cause: unknown) => DatabaseError;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly coordination: OperationsCoordinationShape;
-  readonly currentMonotonicMillis?: () => import("effect").Effect.Effect<number>;
-  readonly currentTimeMillis?: () => import("effect").Effect.Effect<number>;
-  readonly nowIso?: () => import("effect").Effect.Effect<string>;
-  readonly randomUuid?: () => import("effect").Effect.Effect<string>;
+  readonly currentMonotonicMillis: () => import("effect").Effect.Effect<number>;
+  readonly currentTimeMillis: () => import("effect").Effect.Effect<number>;
+  readonly nowIso: () => import("effect").Effect.Effect<string>;
+  readonly randomUuid: () => import("effect").Effect.Effect<string>;
 }
 
 export function resolveRequestedEpisodeNumber(input: {

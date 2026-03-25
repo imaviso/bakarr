@@ -14,14 +14,13 @@ import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { encodeDownloadEventMetadata } from "./repository.ts";
 
 type NowIso = () => Effect.Effect<string>;
-const liveNowIso: NowIso = () => Effect.sync(() => new Date().toISOString());
 
 export const appendLog = Effect.fn("JobSupport.appendLog")(function* (
   db: AppDatabase,
   eventType: string,
   level: string,
   message: string,
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
 ) {
   const now = yield* nowIso();
   yield* tryDatabasePromise("Failed to append log", () =>
@@ -51,7 +50,7 @@ export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(f
       source_metadata?: DownloadSourceMetadata;
     };
   },
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
 ) {
   const now = yield* nowIso();
   yield* tryDatabasePromise("Failed to record download event", () =>
@@ -89,7 +88,7 @@ export const markDownloadImported = Effect.fn("JobSupport.markDownloadImported")
 export const markJobStarted = Effect.fn("JobSupport.markJobStarted")(function* (
   db: AppDatabase,
   name: string,
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
 ) {
   const now = yield* nowIso();
 
@@ -126,7 +125,7 @@ export const markJobSucceeded = Effect.fn("JobSupport.markJobSucceeded")(functio
   db: AppDatabase,
   name: string,
   message: string,
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
 ) {
   const now = yield* nowIso();
 
@@ -163,7 +162,7 @@ export const markJobFailed = Effect.fn("JobSupport.markJobFailed")(function* (
   db: AppDatabase,
   name: string,
   cause: unknown,
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
 ) {
   const now = yield* nowIso();
   const message = cause instanceof Error ? cause.message : String(cause);
@@ -201,7 +200,7 @@ export const updateJobProgress = Effect.fn("JobSupport.updateJobProgress")(funct
   name: string,
   progressCurrent: number,
   progressTotal: number,
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
   message?: string,
 ) {
   const now = yield* nowIso();

@@ -58,7 +58,7 @@ export function makeBackgroundSearchSupport(input: {
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
-  nowIso?: () => Effect.Effect<string>;
+  nowIso: () => Effect.Effect<string>;
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
   publishRssCheckProgress: (input: {
     current: number;
@@ -86,7 +86,7 @@ export function makeBackgroundSearchSupport(input: {
     searchEpisodeReleases,
     coordination,
   } = input;
-  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
+  const nowIso = input.nowIso;
 
   const logSearchMissingSkip = (input: {
     animeId: number;
@@ -150,16 +150,12 @@ export function makeBackgroundSearchSupport(input: {
                   message: "Stored covered episode metadata is corrupt",
                 }),
         });
-        const overlapping = yield* Effect.tryPromise({
-          try: () =>
-            hasOverlappingDownload(
-              db,
-              input.animeRow.id,
-              input.item.infoHash,
-              parsedCoveredEpisodes,
-            ),
-          catch: wrapOperationsError(input.contextMessage),
-        });
+        const overlapping = yield* hasOverlappingDownload(
+          db,
+          input.animeRow.id,
+          input.item.infoHash,
+          parsedCoveredEpisodes,
+        );
 
         if (overlapping) {
           return { _tag: "skipped" } as const;

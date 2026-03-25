@@ -57,8 +57,8 @@ export function makeDownloadReconciliationService(input: {
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
-  readonly nowIso?: () => Effect.Effect<string>;
-  readonly randomUuid?: () => Effect.Effect<string>;
+  readonly nowIso: () => Effect.Effect<string>;
+  readonly randomUuid: () => Effect.Effect<string>;
 }) {
   const {
     db,
@@ -70,8 +70,8 @@ export function makeDownloadReconciliationService(input: {
     wrapOperationsError,
     maybeQBitConfig,
   } = input;
-  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
-  const randomUuid = input.randomUuid ?? (() => Effect.sync(() => crypto.randomUUID()));
+  const nowIso = input.nowIso;
+  const randomUuid = input.randomUuid;
 
   const parseStoredCoveredEpisodes = (value: string | null | undefined) =>
     Effect.try({

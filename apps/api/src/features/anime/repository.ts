@@ -11,7 +11,6 @@ import { AnimeNotFoundError } from "./errors.ts";
 
 type EpisodeWriteDb = Pick<AppDatabase, "insert" | "select" | "update">;
 type NowIso = () => Effect.Effect<string>;
-const liveNowIso: NowIso = () => Effect.sync(() => new Date().toISOString());
 
 export class UpsertEpisodeError extends Schema.TaggedError<UpsertEpisodeError>()(
   "UpsertEpisodeError",
@@ -187,7 +186,7 @@ export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(
   endDate: string | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   resetMissingOnly: boolean,
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
 ) {
   const now = yield* nowIso();
   const existingRows =
@@ -350,7 +349,7 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
   startDate: string | undefined,
   endDate: string | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
 ) {
   if (!episodeCount || episodeCount <= 0) {
     return;
@@ -465,7 +464,7 @@ export const appendAnimeLogEffect = Effect.fn("AnimeRepository.appendAnimeLog")(
   eventType: string,
   level: string,
   message: string,
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
 ) {
   const createdAt = yield* nowIso();
   yield* tryDatabasePromise("Failed to append anime log", () =>

@@ -407,25 +407,29 @@ it.scoped("replaceQualityProfileRows rolls back when replacement insert fails", 
 it.scoped("unmapped folder match rows persist cached suggestions", () =>
   withTestDbEffect((db) =>
     Effect.gen(function* () {
-      yield* upsertUnmappedFolderMatchRows(db, [
-        {
-          last_matched_at: "2024-01-01T00:00:00.000Z",
-          match_status: "done",
-          name: "Naruto Archive",
-          path: "/library/Naruto Archive",
-          size: 0,
-          suggested_matches: [
-            {
-              already_in_library: true,
-              id: 20,
-              match_confidence: 0.97,
-              match_reason:
-                'Matched a library title from the normalized folder name "Naruto Archive"',
-              title: { romaji: "Naruto" },
-            },
-          ],
-        },
-      ]);
+      yield* upsertUnmappedFolderMatchRows(
+        db,
+        [
+          {
+            last_matched_at: "2024-01-01T00:00:00.000Z",
+            match_status: "done",
+            name: "Naruto Archive",
+            path: "/library/Naruto Archive",
+            size: 0,
+            suggested_matches: [
+              {
+                already_in_library: true,
+                id: 20,
+                match_confidence: 0.97,
+                match_reason:
+                  'Matched a library title from the normalized folder name "Naruto Archive"',
+                title: { romaji: "Naruto" },
+              },
+            ],
+          },
+        ],
+        "2024-01-01T00:00:00.000Z",
+      );
 
       const rows = yield* listUnmappedFolderMatchRows(db);
       assertEquals(rows.length, 1);
@@ -475,15 +479,19 @@ it.scoped("decodeUnmappedFolderMatchRow fails for corrupt stored suggestions", (
 it.scoped("loadUnmappedFolderMatchRow returns a row by folder path", () =>
   withTestDbEffect((db) =>
     Effect.gen(function* () {
-      yield* upsertUnmappedFolderMatchRows(db, [
-        {
-          match_status: "paused",
-          name: "Naruto Archive",
-          path: "/library/Naruto Archive",
-          size: 0,
-          suggested_matches: [],
-        },
-      ]);
+      yield* upsertUnmappedFolderMatchRows(
+        db,
+        [
+          {
+            match_status: "paused",
+            name: "Naruto Archive",
+            path: "/library/Naruto Archive",
+            size: 0,
+            suggested_matches: [],
+          },
+        ],
+        "2024-01-01T00:00:00.000Z",
+      );
 
       const row = yield* loadUnmappedFolderMatchRow(db, "/library/Naruto Archive");
 

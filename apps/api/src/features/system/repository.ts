@@ -384,11 +384,7 @@ export const deleteUnmappedFolderMatchRowsNotInPaths = Effect.fn(
 
 export const upsertUnmappedFolderMatchRows = Effect.fn(
   "SystemRepository.upsertUnmappedFolderMatchRows",
-)(function* (
-  db: AppDatabase,
-  folders: readonly UnmappedFolder[],
-  updatedAt = new Date().toISOString(),
-) {
+)(function* (db: AppDatabase, folders: readonly UnmappedFolder[], updatedAt: string) {
   if (folders.length === 0) {
     return;
   }

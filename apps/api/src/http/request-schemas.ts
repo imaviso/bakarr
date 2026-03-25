@@ -11,17 +11,9 @@ import {
   ReleaseProfileIdSchema,
 } from "../lib/domain-schema.ts";
 export {
-  ApiKeyLoginRequestSchema,
-  ChangePasswordRequestSchema,
-  LoginRequestSchema,
-} from "../../../../packages/shared/src/index.ts";
-
-export {
   ConfigSchema,
   CreateReleaseProfileSchema,
   QualityProfileSchema,
-  ReleaseProfileRuleSchema,
-  ReleaseProfileSchema,
   UpdateReleaseProfileSchema,
 } from "../features/system/config-schema.ts";
 

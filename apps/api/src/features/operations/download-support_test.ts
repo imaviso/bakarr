@@ -17,6 +17,8 @@ import {
   shouldRemoveTorrentOnImport,
 } from "./download-support.ts";
 
+const testRandomUuid = () => Effect.succeed("test-uuid-0000");
+
 it("download support helpers use config values and defaults", () => {
   const config = {
     profiles: [],
@@ -70,6 +72,7 @@ it.scoped("importDownloadedFile keeps existing destination when staging copy fai
           1,
           sourcePath,
           "copy",
+          { randomUuid: testRandomUuid },
         ),
       );
 
@@ -112,6 +115,7 @@ it.scoped(
             1,
             sourcePath,
             "move",
+            { randomUuid: testRandomUuid },
           ),
         );
 
@@ -150,7 +154,7 @@ it.scoped(
           1,
           sourcePath,
           "copy",
-          { namingFormat },
+          { namingFormat, randomUuid: testRandomUuid },
         );
 
         assertEquals(destination, expectedDestination);
@@ -187,6 +191,7 @@ it.scoped("importDownloadedFile respects preferred title when building destinati
         {
           namingFormat: "{title} ({year})",
           preferredTitle: "english",
+          randomUuid: testRandomUuid,
         },
       );
 
@@ -220,6 +225,7 @@ it.scoped("importDownloadedFile uses episode DB metadata and fallback naming pla
           episodeRows: [{ aired: "2025-03-14", title: "Pilot" }],
           namingFormat: "{title} - S{season:02}E{episode:02}",
           preferredTitle: "romaji",
+          randomUuid: testRandomUuid,
         },
       );
 
@@ -261,6 +267,7 @@ it.scoped("importDownloadedFile reuses stored provenance when source path is wea
           },
           namingFormat: "{title} - {source_episode_segment} [{quality} {resolution}]",
           preferredTitle: "romaji",
+          randomUuid: testRandomUuid,
         },
       );
 
@@ -300,6 +307,7 @@ it.scoped("importDownloadedFile uses local media metadata when heuristics are mi
           namingFormat:
             "{title} - {source_episode_segment} [{resolution}][{video_codec}][{audio_codec} {audio_channels}]",
           preferredTitle: "romaji",
+          randomUuid: testRandomUuid,
         },
       );
 

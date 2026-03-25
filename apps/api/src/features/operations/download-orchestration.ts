@@ -8,8 +8,7 @@ import { makeDownloadTriggerService } from "./download-trigger-service.ts";
 import { type DownloadOrchestrationInput, mapQBitState } from "./download-orchestration-shared.ts";
 
 export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
-  const currentMonotonicMillis =
-    input.currentMonotonicMillis ?? (() => Effect.sync(() => performance.now()));
+  const currentMonotonicMillis = input.currentMonotonicMillis;
   const reconciliationService = makeDownloadReconciliationService(input);
 
   const torrentLifecycleService = makeDownloadTorrentLifecycleService({

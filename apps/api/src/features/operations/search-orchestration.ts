@@ -58,7 +58,7 @@ export function makeSearchOrchestration(input: {
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
-  nowIso?: () => Effect.Effect<string>;
+  nowIso: () => Effect.Effect<string>;
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
   publishRssCheckProgress: (input: {
     current: number;
@@ -84,7 +84,7 @@ export function makeSearchOrchestration(input: {
     publishRssCheckProgress,
     coordination,
   } = input;
-  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
+  const nowIso = input.nowIso;
 
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(function* (
     query: string,

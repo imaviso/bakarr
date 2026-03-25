@@ -10,10 +10,8 @@ import { EventBus } from "../events/event-bus.ts";
 
 export interface OperationsCoordinationShape {
   readonly finishUnmappedScan: () => Effect.Effect<void>;
-  readonly forkUnmappedScan: <E, R>(effect: Effect.Effect<void, E, R>) => Effect.Effect<void, E, R>;
-  readonly runSerializedTrigger: <A, E, R>(
-    effect: Effect.Effect<A, E, R>,
-  ) => Effect.Effect<A, E, R>;
+  readonly forkUnmappedScan: <E>(effect: Effect.Effect<void, E>) => Effect.Effect<void>;
+  readonly runSerializedTrigger: <A, E>(effect: Effect.Effect<A, E>) => Effect.Effect<A, E>;
   readonly tryStartUnmappedScan: () => Effect.Effect<boolean>;
 }
 
@@ -26,9 +24,9 @@ export const makeOperationsSharedState = Effect.fn("OperationsService.makeShared
 
     return {
       finishUnmappedScan: () => coordinator.finish,
-      forkUnmappedScan: <E, R>(effect: Effect.Effect<void, E, R>) =>
+      forkUnmappedScan: <E>(effect: Effect.Effect<void, E>) =>
         Effect.forkIn(scope)(effect).pipe(Effect.asVoid),
-      runSerializedTrigger: <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+      runSerializedTrigger: <A, E>(effect: Effect.Effect<A, E>) =>
         coordinator.runSerialized(effect),
       tryStartUnmappedScan: () => coordinator.tryStart,
     } satisfies OperationsCoordinationShape;

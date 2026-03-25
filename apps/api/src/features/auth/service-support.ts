@@ -9,14 +9,6 @@ import { tryDatabasePromise } from "../../lib/effect-db.ts";
 type CurrentTimeMillis = () => Effect.Effect<number>;
 type NowIso = () => Effect.Effect<string>;
 type RandomHex = (bytes: number) => Effect.Effect<string>;
-const liveCurrentTimeMillis: CurrentTimeMillis = () => Effect.sync(() => Date.now());
-const liveNowIso: NowIso = () => Effect.sync(() => new Date().toISOString());
-const liveRandomHex: RandomHex = (bytes) =>
-  Effect.sync(() => {
-    const data = new Uint8Array(bytes);
-    crypto.getRandomValues(data);
-    return Array.from(data, (value) => value.toString(16).padStart(2, "0")).join("");
-  });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -55,9 +47,9 @@ export const createSession = Effect.fn("Auth.createSession")(function* (
   durationDays: number,
   hashToken: (token: string) => Effect.Effect<string, import("../../db/database.ts").DatabaseError>,
   userId: number,
-  randomHex: RandomHex = liveRandomHex,
-  nowIso: NowIso = liveNowIso,
-  currentTimeMillis: CurrentTimeMillis = liveCurrentTimeMillis,
+  randomHex: RandomHex,
+  nowIso: NowIso,
+  currentTimeMillis: CurrentTimeMillis,
 ) {
   const token = yield* randomHex(32);
   const tokenHash = yield* hashToken(token);
@@ -85,7 +77,7 @@ export const writeLog = Effect.fn("Auth.writeLog")(function* (
     message: string;
     details?: string;
   },
-  nowIso: NowIso = liveNowIso,
+  nowIso: NowIso,
 ) {
   const now = yield* nowIso();
   yield* tryDatabasePromise("Failed to write log", () =>
@@ -132,7 +124,7 @@ export const announceBootstrapCredentials = Effect.fn("Auth.announceBootstrapCre
 
 export const expiresAtIso = Effect.fn("Auth.expiresAtIso")(function* (
   durationDays: number,
-  currentTimeMillis: CurrentTimeMillis = liveCurrentTimeMillis,
+  currentTimeMillis: CurrentTimeMillis,
 ) {
   const now = yield* currentTimeMillis();
   return new Date(now + durationDays * DAY_MS).toISOString();

@@ -58,7 +58,8 @@ export function importDownloadedFile(
   episodeNumber: number,
   sourcePath: string,
   importMode: string,
-  options?: {
+  options: {
+    randomUuid: () => Effect.Effect<string>;
     episodeNumbers?: readonly number[];
     namingFormat?: string;
     preferredTitle?: PreferredTitle;
@@ -66,7 +67,6 @@ export function importDownloadedFile(
     downloadSourceMetadata?: DownloadSourceMetadata;
     localMediaMetadata?: ProbedMediaMetadata;
     season?: number;
-    randomUuid?: () => Effect.Effect<string>;
   },
 ): Effect.Effect<string, ImportFileError | FileSystemError, never> {
   return Effect.gen(function* () {
@@ -95,7 +95,7 @@ export function importDownloadedFile(
     });
     const baseName = plan.baseName;
     const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${baseName}${extension}`;
-    const tempDestination = `${destination}.tmp.${yield* (options?.randomUuid ?? randomUuidEffect)()}`;
+    const tempDestination = `${destination}.tmp.${yield* options.randomUuid()}`;
 
     yield* fs.mkdir(animeRow.rootFolder, { recursive: true });
 
@@ -143,7 +143,7 @@ export function importDownloadedFile(
       ),
     );
 
-    const backupDestination = `${destination}.bak.${yield* (options?.randomUuid ?? randomUuidEffect)()}`;
+    const backupDestination = `${destination}.bak.${yield* options.randomUuid()}`;
     const existingStat = yield* Effect.either(fs.stat(destination));
     const hasExisting = existingStat._tag === "Right";
 
@@ -308,5 +308,3 @@ export const upsertEpisodeFile = Effect.fn("Operations.upsertEpisodeFile")(funct
 ) {
   yield* upsertEpisodeFilesAtomic(db, animeId, [episodeNumber], destination);
 });
-
-const randomUuidEffect = () => Effect.sync(() => crypto.randomUUID());
