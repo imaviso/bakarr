@@ -1,6 +1,7 @@
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
+import { isNotFoundError } from "../lib/fs-errors.ts";
 import { FileSystem } from "../lib/filesystem.ts";
 
 const DEFAULT_WEB_DIST_URL = new URL("../../../web/dist/", import.meta.url);
@@ -17,89 +18,90 @@ export function createStaticHttpApp(webDistUrl = DEFAULT_WEB_DIST_URL) {
       request.method,
       url.pathname,
       webDistUrl,
-    ).pipe(Effect.catchAll(() => Effect.succeed(null)));
+    ).pipe(
+      Effect.catchTag("FileSystemError", (error) => {
+        if (isNotFoundError(error)) {
+          return Effect.succeed(
+            isAssetPath(url.pathname) ? notFoundResponse("Static asset not found") : null,
+          );
+        }
+
+        return Effect.succeed(bundleUnavailableResponse());
+      }),
+    );
 
     if (staticResponse) {
       return staticResponse;
     }
 
     return yield* serveIndexHtmlEffect(request.method, webDistUrl).pipe(
-      Effect.catchAll(() =>
-        Effect.succeed(
-          HttpServerResponse.text(
-            "Frontend bundle not found. Run `bun run --cwd apps/web build` first.",
-            {
-              headers: { "Content-Type": "text/plain; charset=utf-8" },
-              status: 503,
-            },
-          ),
-        )
-      ),
+      Effect.catchTag("FileSystemError", () => Effect.succeed(bundleUnavailableResponse())),
     );
   });
 }
 
-const serveStaticAssetEffect = Effect.fn("Static.serveStaticAssetEffect")(
-  function* (method: string, pathname: string, webDistUrl: URL) {
-    const normalized = pathname === "/" ? "index.html" : pathname.slice(1);
+const serveStaticAssetEffect = Effect.fn("Static.serveStaticAssetEffect")(function* (
+  method: string,
+  pathname: string,
+  webDistUrl: URL,
+) {
+  const normalized = pathname === "/" ? "index.html" : pathname.slice(1);
 
-    if (normalized.length === 0) {
-      return null;
-    }
+  if (normalized.length === 0) {
+    return null;
+  }
 
-    const fileUrl = new URL(normalized, webDistUrl);
+  const fileUrl = new URL(normalized, webDistUrl);
 
-    if (!fileUrl.pathname.startsWith(webDistUrl.pathname)) {
-      return null;
-    }
+  if (!fileUrl.pathname.startsWith(webDistUrl.pathname)) {
+    return null;
+  }
 
-    return yield* createFileResponse({
-      cacheControl: normalized.startsWith("assets/")
-        ? "public, max-age=31536000, immutable"
-        : "public, max-age=300",
-      contentType: contentTypeForPath(normalized),
-      fileUrl,
-      method,
-    });
-  },
-);
+  return yield* createFileResponse({
+    cacheControl: normalized.startsWith("assets/")
+      ? "public, max-age=31536000, immutable"
+      : "public, max-age=300",
+    contentType: contentTypeForPath(normalized),
+    fileUrl,
+    method,
+  });
+});
 
-const serveIndexHtmlEffect = Effect.fn("Static.serveIndexHtmlEffect")(
-  function* (method: string, webDistUrl: URL) {
-    return yield* createFileResponse({
-      cacheControl: "no-cache",
-      contentType: "text/html; charset=utf-8",
-      fileUrl: new URL("index.html", webDistUrl),
-      method,
-    });
-  },
-);
+const serveIndexHtmlEffect = Effect.fn("Static.serveIndexHtmlEffect")(function* (
+  method: string,
+  webDistUrl: URL,
+) {
+  return yield* createFileResponse({
+    cacheControl: "no-cache",
+    contentType: "text/html; charset=utf-8",
+    fileUrl: new URL("index.html", webDistUrl),
+    method,
+  });
+});
 
-const createFileResponse = Effect.fn("Static.createFileResponse")(
-  function* (input: {
-    cacheControl: string;
-    contentType: string;
-    fileUrl: URL;
-    method: string;
-  }) {
-    const fs = yield* FileSystem;
-    const stat = yield* fs.stat(input.fileUrl);
+const createFileResponse = Effect.fn("Static.createFileResponse")(function* (input: {
+  cacheControl: string;
+  contentType: string;
+  fileUrl: URL;
+  method: string;
+}) {
+  const fs = yield* FileSystem;
+  const stat = yield* fs.stat(input.fileUrl);
 
-    const headers = {
-      "Cache-Control": input.cacheControl,
-      "Content-Length": String(stat.size),
-      "Content-Type": input.contentType,
-    };
+  const headers = {
+    "Cache-Control": input.cacheControl,
+    "Content-Length": String(stat.size),
+    "Content-Type": input.contentType,
+  };
 
-    if (input.method === "HEAD") {
-      return HttpServerResponse.empty({ headers });
-    }
+  if (input.method === "HEAD") {
+    return HttpServerResponse.empty({ headers });
+  }
 
-    const body = yield* fs.readFile(input.fileUrl);
+  const body = yield* fs.readFile(input.fileUrl);
 
-    return HttpServerResponse.uint8Array(body, { headers });
-  },
-);
+  return HttpServerResponse.uint8Array(body, { headers });
+});
 function contentTypeForPath(path: string): string {
   if (path.endsWith(".html")) return "text/html; charset=utf-8";
   if (path.endsWith(".js")) return "text/javascript; charset=utf-8";
@@ -118,4 +120,26 @@ function contentTypeForPath(path: string): string {
   if (path.endsWith(".map")) return "application/json; charset=utf-8";
 
   return "application/octet-stream";
+}
+
+function isAssetPath(pathname: string) {
+  const normalized = pathname === "/" ? "" : pathname.slice(1);
+  return normalized.startsWith("assets/") || /\.[A-Za-z0-9]+$/.test(normalized);
+}
+
+function bundleUnavailableResponse() {
+  return HttpServerResponse.text(
+    "Frontend bundle unavailable. Run `bun run --cwd apps/web build` first.",
+    {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      status: 503,
+    },
+  );
+}
+
+function notFoundResponse(message: string) {
+  return HttpServerResponse.text(message, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    status: 404,
+  });
 }
