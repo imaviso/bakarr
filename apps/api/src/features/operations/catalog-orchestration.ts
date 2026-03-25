@@ -42,6 +42,7 @@ export function makeCatalogOrchestration(input: {
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
   libraryReadSupport: CatalogLibraryReadSupportShape;
+  nowIso: () => Effect.Effect<string>;
 }) {
   const {
     db,
@@ -56,6 +57,7 @@ export function makeCatalogOrchestration(input: {
     syncDownloadState,
     publishDownloadProgress,
     publishLibraryScanProgress,
+    nowIso,
   } = input;
 
   const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (animeId: number) {
@@ -351,6 +353,7 @@ export function makeCatalogOrchestration(input: {
 
   const rssSupport = makeCatalogRssSupport({
     db,
+    nowIso,
     tryDatabasePromise,
   });
   const listRssFeeds = rssSupport.listRssFeeds;
@@ -370,6 +373,7 @@ export function makeCatalogOrchestration(input: {
 
   const downloadViewSupport = makeCatalogDownloadViewSupport({
     db,
+    nowIso,
     tryDatabasePromise,
   });
   const listDownloadEvents = downloadViewSupport.listDownloadEvents;
@@ -383,6 +387,7 @@ export function makeCatalogOrchestration(input: {
     dbError,
     eventBus,
     fs,
+    nowIso,
     publishLibraryScanProgress,
     tryDatabasePromise,
   });

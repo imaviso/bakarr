@@ -10,7 +10,7 @@ import {
   type OperationsError,
   OperationsStoredDataError,
 } from "./errors.ts";
-import { nowIso, recordDownloadEvent } from "./job-support.ts";
+import { recordDownloadEvent } from "./job-support.ts";
 import { hasOverlappingDownload, parseCoveredEpisodes } from "./download-lifecycle.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import { encodeDownloadSourceMetadata } from "./repository.ts";
@@ -31,6 +31,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
     sourceMetadata: DownloadSourceMetadata;
     qbitClient: typeof QBitTorrentClient.Service;
     qbitConfig: QBitConfig | null;
+    nowIso: () => Effect.Effect<string>;
     tryDatabasePromise: TryDatabasePromise;
     wrapOperationsError: (
       message: string,
@@ -45,7 +46,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
               message: "Stored covered episode metadata is corrupt",
             }),
     });
-    const now = yield* nowIso;
+    const now = yield* input.nowIso();
     const insertResult = yield* Effect.either(
       Effect.tryPromise({
         try: () =>
@@ -140,18 +141,22 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
       );
     }
 
-    yield* recordDownloadEvent(input.db, {
-      animeId: input.animeRow.id,
-      downloadId: insertedId,
-      eventType: input.eventType,
-      message: input.eventMessage,
-      metadata: input.coveredEpisodes,
-      metadataJson: {
-        covered_episodes: coveredEpisodeNumbers,
-        source_metadata: input.sourceMetadata,
+    yield* recordDownloadEvent(
+      input.db,
+      {
+        animeId: input.animeRow.id,
+        downloadId: insertedId,
+        eventType: input.eventType,
+        message: input.eventMessage,
+        metadata: input.coveredEpisodes,
+        metadataJson: {
+          covered_episodes: coveredEpisodeNumbers,
+          source_metadata: input.sourceMetadata,
+        },
+        toStatus: status,
       },
-      toStatus: status,
-    });
+      input.nowIso,
+    );
 
     return {
       _tag: "queued",

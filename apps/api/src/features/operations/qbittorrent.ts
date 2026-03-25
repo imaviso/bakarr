@@ -1,8 +1,8 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Either, Layer, Ref, Schema } from "effect";
 
-import { currentTimeMillis } from "../../lib/clock.ts";
-import { ExternalCallError, tryExternalEffect } from "../../lib/effect-retry.ts";
+import { ClockService } from "../../lib/clock.ts";
+import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
 
 export class QBitConfigModel extends Schema.Class<QBitConfigModel>("QBitConfigModel")({
   baseUrl: Schema.String,
@@ -103,8 +103,9 @@ function getSessionKey(config: QBitConfig): string {
 }
 
 function withSessionCache(
-  client: HttpClient.HttpClient,
   sessionsRef: Ref.Ref<Map<string, SessionEntry>>,
+  clock: typeof ClockService.Service,
+  login: (config: QBitConfig) => Effect.Effect<string, ExternalCallError | QBitTorrentClientError>,
 ) {
   return Effect.fn("QBitTorrentClient.withSessionCache")(function* (
     config: QBitConfig,
@@ -116,7 +117,7 @@ function withSessionCache(
     >,
   ) {
     const sessionKey = getSessionKey(config);
-    const now = yield* currentTimeMillis;
+    const now = yield* clock.currentTimeMillis;
 
     const sessions = yield* Ref.get(sessionsRef);
     const cached = sessions.get(sessionKey);
@@ -133,8 +134,8 @@ function withSessionCache(
       }
     }
 
-    const newCookie = yield* login(client, config);
-    const createdAt = yield* currentTimeMillis;
+    const newCookie = yield* login(config);
+    const createdAt = yield* clock.currentTimeMillis;
     yield* Ref.update(sessionsRef, (map) => {
       const newMap = new Map(map);
       newMap.set(sessionKey, { cookie: newCookie, createdAt });
@@ -149,9 +150,14 @@ export const QBitTorrentClientLive = Layer.effect(
   QBitTorrentClient,
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
+    const clock = yield* ClockService;
+    const tryExternalEffect = makeTryExternalEffect(clock);
     const sessionsRef = yield* Ref.make<Map<string, SessionEntry>>(new Map());
 
-    const withSession = withSessionCache(client, sessionsRef);
+    const execute = makeExecute(client, tryExternalEffect);
+    const login = makeLogin(execute);
+    const withSession = withSessionCache(sessionsRef, clock, login);
+    const postHashesAction = makePostHashesAction(withSession, execute);
 
     const addTorrentUrl = Effect.fn("QBitTorrentClient.addTorrentUrl")(function* (
       config: QBitConfig,
@@ -159,7 +165,6 @@ export const QBitTorrentClientLive = Layer.effect(
     ) {
       const response = yield* withSession(config, (cookie) =>
         execute(
-          client,
           "qbit.addTorrentUrl",
           authorizedRequest(
             config,
@@ -183,7 +188,6 @@ export const QBitTorrentClientLive = Layer.effect(
     ) {
       const response = yield* withSession(config, (cookie) =>
         execute(
-          client,
           "qbit.listTorrents",
           authorizedRequest(
             config,
@@ -211,7 +215,6 @@ export const QBitTorrentClientLive = Layer.effect(
     ) {
       const response = yield* withSession(config, (cookie) =>
         execute(
-          client,
           "qbit.listTorrentContents",
           authorizedRequest(
             config,
@@ -242,14 +245,14 @@ export const QBitTorrentClientLive = Layer.effect(
       config: QBitConfig,
       hash: string,
     ) {
-      yield* postHashesAction(client, sessionsRef, config, "/api/v2/torrents/pause", hash);
+      yield* postHashesAction(config, "/api/v2/torrents/pause", hash);
     });
 
     const resumeTorrent = Effect.fn("QBitTorrentClient.resumeTorrent")(function* (
       config: QBitConfig,
       hash: string,
     ) {
-      yield* postHashesAction(client, sessionsRef, config, "/api/v2/torrents/resume", hash);
+      yield* postHashesAction(config, "/api/v2/torrents/resume", hash);
     });
 
     const deleteTorrent = Effect.fn("QBitTorrentClient.deleteTorrent")(function* (
@@ -259,7 +262,6 @@ export const QBitTorrentClientLive = Layer.effect(
     ) {
       const response = yield* withSession(config, (cookie) =>
         execute(
-          client,
           "qbit.deleteTorrent",
           authorizedRequest(
             config,
@@ -289,81 +291,82 @@ export const QBitTorrentClientLive = Layer.effect(
   }),
 );
 
-const login = Effect.fn("QBitTorrentClient.login")(function* (
-  client: HttpClient.HttpClient,
-  config: QBitConfig,
-) {
-  const response = yield* execute(
-    client,
-    "qbit.login",
-    HttpClientRequest.post(resolveUrl(config.baseUrl, "/api/v2/auth/login")).pipe(
-      HttpClientRequest.setHeader("Referer", config.baseUrl),
-      HttpClientRequest.bodyUrlParams({
-        password: config.password,
-        username: config.username,
-      }),
-    ),
-  );
-  const text = yield* response.text.pipe(
-    Effect.mapError((cause) =>
-      QBitTorrentClientError.make({
-        cause,
-        message: "Failed to read qBittorrent login response",
-      }),
-    ),
-  );
-
-  if (response.status < 200 || response.status >= 300 || !text.includes("Ok")) {
-    return yield* QBitTorrentClientError.make({
-      message: "qBittorrent authentication failed",
-    });
-  }
-
-  const cookie = response.headers["set-cookie"];
-
-  if (!cookie) {
-    return yield* QBitTorrentClientError.make({
-      message: "qBittorrent did not return a session cookie",
-    });
-  }
-
-  return cookie.split(";")[0];
-});
-
-const postHashesAction = Effect.fn("QBitTorrentClient.postHashesAction")(function* (
-  client: HttpClient.HttpClient,
-  sessionsRef: Ref.Ref<Map<string, SessionEntry>>,
-  config: QBitConfig,
-  path: string,
-  hash: string,
-) {
-  const withSession = withSessionCache(client, sessionsRef);
-  const response = yield* withSession(config, (cookie) =>
-    execute(
-      client,
-      "qbit.postHashesAction",
-      authorizedRequest(
-        config,
-        cookie,
-        HttpClientRequest.post(resolveUrl(config.baseUrl, path)).pipe(
-          HttpClientRequest.bodyUrlParams({ hashes: hash }),
-        ),
+const makeLogin = (execute: ReturnType<typeof makeExecute>) =>
+  Effect.fn("QBitTorrentClient.login")(function* (config: QBitConfig) {
+    const response = yield* execute(
+      "qbit.login",
+      HttpClientRequest.post(resolveUrl(config.baseUrl, "/api/v2/auth/login")).pipe(
+        HttpClientRequest.setHeader("Referer", config.baseUrl),
+        HttpClientRequest.bodyUrlParams({
+          password: config.password,
+          username: config.username,
+        }),
       ),
-      { idempotent: false },
-    ),
-  );
+    );
+    const text = yield* response.text.pipe(
+      Effect.mapError((cause) =>
+        QBitTorrentClientError.make({
+          cause,
+          message: "Failed to read qBittorrent login response",
+        }),
+      ),
+    );
 
-  yield* ensureOk(response, `qBittorrent action failed with status ${response.status}`);
-});
+    if (response.status < 200 || response.status >= 300 || !text.includes("Ok")) {
+      return yield* QBitTorrentClientError.make({
+        message: "qBittorrent authentication failed",
+      });
+    }
+
+    const cookie = response.headers["set-cookie"];
+
+    if (!cookie) {
+      return yield* QBitTorrentClientError.make({
+        message: "qBittorrent did not return a session cookie",
+      });
+    }
+
+    return cookie.split(";")[0];
+  });
+
+const makePostHashesAction = (
+  withSession: ReturnType<typeof withSessionCache>,
+  execute: ReturnType<typeof makeExecute>,
+) =>
+  Effect.fn("QBitTorrentClient.postHashesAction")(function* (
+    config: QBitConfig,
+    path: string,
+    hash: string,
+  ) {
+    const response = yield* withSession(config, (cookie) =>
+      execute(
+        "qbit.postHashesAction",
+        authorizedRequest(
+          config,
+          cookie,
+          HttpClientRequest.post(resolveUrl(config.baseUrl, path)).pipe(
+            HttpClientRequest.bodyUrlParams({ hashes: hash }),
+          ),
+        ),
+        { idempotent: false },
+      ),
+    );
+
+    yield* ensureOk(response, `qBittorrent action failed with status ${response.status}`);
+  });
 
 function execute(
   client: HttpClient.HttpClient,
-  operation: string,
-  request: HttpClientRequest.HttpClientRequest,
-  options?: { readonly idempotent?: boolean },
+  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
 ) {
-  return tryExternalEffect(operation, client.execute(request), options)();
+  return (
+    operation: string,
+    request: HttpClientRequest.HttpClientRequest,
+    options?: { readonly idempotent?: boolean },
+  ) => tryExternalEffect(operation, client.execute(request), options)();
 }
+
+const makeExecute = execute;
 
 function ensureOk(response: HttpClientResponse.HttpClientResponse, message: string) {
   return response.status >= 200 && response.status < 300

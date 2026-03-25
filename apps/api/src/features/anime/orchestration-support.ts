@@ -20,6 +20,7 @@ import {
 import { tryDatabasePromise, updateAnimeRow, wrapAnimeError } from "./service-support.ts";
 
 type AnimeEventPublisher = Pick<EventPublisherShape, "publish" | "publishInfo">;
+const liveNowIso = () => Effect.sync(() => new Date().toISOString());
 
 const quietAnimeEventPublisher: AnimeEventPublisher = {
   publish: () => Effect.void,
@@ -32,7 +33,9 @@ const syncAnimeMetadataEffect = Effect.fn("AnimeService.syncAnimeMetadataEffect"
     animeId: number;
     db: AppDatabase;
     eventPublisher: AnimeEventPublisher;
+    nowIso?: () => Effect.Effect<string>;
   }) {
+    const nowIso = input.nowIso ?? liveNowIso;
     const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
       Effect.mapError(wrapAnimeError("Failed to refresh episodes")),
     );
@@ -72,6 +75,7 @@ const syncAnimeMetadataEffect = Effect.fn("AnimeService.syncAnimeMetadataEffect"
       nextAnimeRow,
       `Refreshed metadata for ${animeRow.titleRomaji}`,
       input.eventPublisher,
+      nowIso,
     );
 
     return { animeRow, metadata, nextAnimeRow };
@@ -84,12 +88,15 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
     animeId: number;
     db: AppDatabase;
     eventPublisher: AnimeEventPublisher;
+    nowIso?: () => Effect.Effect<string>;
   }) {
+    const nowIso = input.nowIso ?? liveNowIso;
     const { animeRow, metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
       aniList: input.aniList,
       animeId: input.animeId,
       db: input.db,
       eventPublisher: input.eventPublisher,
+      nowIso,
     });
 
     yield* ensureEpisodesEffect(
@@ -101,6 +108,7 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
       nextAnimeRow.endDate ?? undefined,
       metadata?.futureAiringSchedule,
       false,
+      nowIso,
     ).pipe(Effect.mapError(wrapAnimeError("Failed to refresh episodes")));
     yield* updateAnimeEpisodeAirDatesEffect(
       input.db,
@@ -110,12 +118,14 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
       nextAnimeRow.startDate ?? undefined,
       nextAnimeRow.endDate ?? undefined,
       metadata?.futureAiringSchedule,
+      nowIso,
     ).pipe(Effect.mapError(wrapAnimeError("Failed to refresh episodes")));
     yield* appendAnimeLogEffect(
       input.db,
       "anime.episodes.refreshed",
       "success",
       `Refreshed episodes for ${animeRow.titleRomaji}`,
+      nowIso,
     );
     yield* input.eventPublisher.publish({
       type: "RefreshFinished",
@@ -126,13 +136,19 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
 
 export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   "AnimeService.refreshMetadataForMonitoredAnimeEffect",
-)(function* (input: { aniList: typeof AniListClient.Service; db: AppDatabase }) {
-  yield* markJobStarted(input.db, "metadata_refresh");
+)(function* (input: {
+  aniList: typeof AniListClient.Service;
+  db: AppDatabase;
+  nowIso?: () => Effect.Effect<string>;
+}) {
+  const nowIso = input.nowIso ?? liveNowIso;
+  yield* markJobStarted(input.db, "metadata_refresh", nowIso);
   yield* appendSystemLog(
     input.db,
     "system.task.metadata_refresh.started",
     "info",
     "Metadata refresh started",
+    nowIso,
   );
 
   return yield* Effect.gen(function* () {
@@ -150,6 +166,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             animeId: animeRow.id,
             db: input.db,
             eventPublisher: quietAnimeEventPublisher,
+            nowIso,
           });
 
           yield* ensureEpisodesEffect(
@@ -161,6 +178,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             nextAnimeRow.endDate ?? undefined,
             metadata?.futureAiringSchedule,
             false,
+            nowIso,
           ).pipe(Effect.mapError(wrapAnimeError("Failed to refresh metadata")));
           yield* updateAnimeEpisodeAirDatesEffect(
             input.db,
@@ -170,6 +188,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             nextAnimeRow.startDate ?? undefined,
             nextAnimeRow.endDate ?? undefined,
             metadata?.futureAiringSchedule,
+            nowIso,
           ).pipe(Effect.mapError(wrapAnimeError("Failed to refresh metadata")));
           refreshed += 1;
         }),
@@ -178,19 +197,26 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
 
     const message = `Refreshed ${refreshed} monitored anime`;
 
-    yield* markJobSucceeded(input.db, "metadata_refresh", message);
-    yield* appendSystemLog(input.db, "system.task.metadata_refresh.completed", "success", message);
+    yield* markJobSucceeded(input.db, "metadata_refresh", message, nowIso);
+    yield* appendSystemLog(
+      input.db,
+      "system.task.metadata_refresh.completed",
+      "success",
+      message,
+      nowIso,
+    );
 
     return { refreshed };
   }).pipe(
     Effect.catchAll((cause) =>
-      markJobFailed(input.db, "metadata_refresh", cause).pipe(
+      markJobFailed(input.db, "metadata_refresh", cause, nowIso).pipe(
         Effect.zipRight(
           appendSystemLog(
             input.db,
             "system.task.metadata_refresh.failed",
             "error",
             cause instanceof Error ? cause.message : String(cause),
+            nowIso,
           ),
         ),
         Effect.zipRight(Effect.fail(cause)),
@@ -207,12 +233,15 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
   eventPublisher: AnimeEventPublisher;
   fs: FileSystemShape;
   mediaProbe: MediaProbeShape;
+  nowIso?: () => Effect.Effect<string>;
 }) {
+  const nowIso = input.nowIso ?? liveNowIso;
   const { animeRow, found, total } = yield* scanAnimeFolderEffect({
     animeId: input.animeId,
     db: input.db,
     fs: input.fs,
     mediaProbe: input.mediaProbe,
+    nowIso,
   });
 
   yield* appendAnimeLogEffect(
@@ -220,6 +249,7 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
     "anime.folder.scanned",
     "success",
     `Scanned ${animeRow.titleRomaji} folder and found ${found} files`,
+    nowIso,
   );
   yield* input.eventPublisher.publish({
     type: "ScanFolderFinished",

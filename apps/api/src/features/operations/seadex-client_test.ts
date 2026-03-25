@@ -2,6 +2,7 @@ import { assertEquals, it } from "../../test/vitest.ts";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Either, Layer } from "effect";
 
+import { ClockServiceLive } from "../../lib/clock.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
 import { SeaDexClient, SeaDexClientLive } from "./seadex-client.ts";
 
@@ -103,7 +104,12 @@ it.effect("SeaDexClient wraps schema mismatches as ExternalCallError", () =>
 
 function makeSeaDexLayer(payload: unknown) {
   return SeaDexClientLive.pipe(
-    Layer.provide(Layer.succeed(HttpClient.HttpClient, makeSeaDexHttpClient(payload))),
+    Layer.provide(
+      Layer.mergeAll(
+        ClockServiceLive,
+        Layer.succeed(HttpClient.HttpClient, makeSeaDexHttpClient(payload)),
+      ),
+    ),
   );
 }
 

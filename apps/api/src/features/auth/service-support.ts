@@ -4,11 +4,19 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
 import { sessions, systemLogs, users } from "../../db/schema.ts";
-import { currentTimeMillis, nowIso } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { randomHex } from "../../lib/random.ts";
 
-export { nowIso, randomHex };
+type CurrentTimeMillis = () => Effect.Effect<number>;
+type NowIso = () => Effect.Effect<string>;
+type RandomHex = (bytes: number) => Effect.Effect<string>;
+const liveCurrentTimeMillis: CurrentTimeMillis = () => Effect.sync(() => Date.now());
+const liveNowIso: NowIso = () => Effect.sync(() => new Date().toISOString());
+const liveRandomHex: RandomHex = (bytes) =>
+  Effect.sync(() => {
+    const data = new Uint8Array(bytes);
+    crypto.getRandomValues(data);
+    return Array.from(data, (value) => value.toString(16).padStart(2, "0")).join("");
+  });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -47,11 +55,14 @@ export const createSession = Effect.fn("Auth.createSession")(function* (
   durationDays: number,
   hashToken: (token: string) => Effect.Effect<string, import("../../db/database.ts").DatabaseError>,
   userId: number,
+  randomHex: RandomHex = liveRandomHex,
+  nowIso: NowIso = liveNowIso,
+  currentTimeMillis: CurrentTimeMillis = liveCurrentTimeMillis,
 ) {
   const token = yield* randomHex(32);
   const tokenHash = yield* hashToken(token);
-  const now = yield* nowIso;
-  const expiresAt = yield* expiresAtIso(durationDays);
+  const now = yield* nowIso();
+  const expiresAt = yield* expiresAtIso(durationDays, currentTimeMillis);
 
   yield* tryDatabasePromise("Failed to create session", () =>
     db.insert(sessions).values({
@@ -74,8 +85,9 @@ export const writeLog = Effect.fn("Auth.writeLog")(function* (
     message: string;
     details?: string;
   },
+  nowIso: NowIso = liveNowIso,
 ) {
-  const now = yield* nowIso;
+  const now = yield* nowIso();
   yield* tryDatabasePromise("Failed to write log", () =>
     db.insert(systemLogs).values({
       createdAt: now,
@@ -118,7 +130,10 @@ export const announceBootstrapCredentials = Effect.fn("Auth.announceBootstrapCre
   },
 );
 
-export const expiresAtIso = Effect.fn("Auth.expiresAtIso")(function* (durationDays: number) {
-  const now = yield* currentTimeMillis;
+export const expiresAtIso = Effect.fn("Auth.expiresAtIso")(function* (
+  durationDays: number,
+  currentTimeMillis: CurrentTimeMillis = liveCurrentTimeMillis,
+) {
+  const now = yield* currentTimeMillis();
   return new Date(now + durationDays * DAY_MS).toISOString();
 });

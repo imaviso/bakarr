@@ -4,7 +4,7 @@ import { Effect } from "effect";
 import type { RssFeed } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { rssFeeds } from "../../db/schema.ts";
-import { appendLog, nowIso } from "./job-support.ts";
+import { appendLog } from "./job-support.ts";
 import type { OperationsError } from "./errors.ts";
 import { requireAnime, toRssFeed } from "./repository.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
@@ -23,8 +23,10 @@ export interface CatalogRssSupportShape {
 
 export function makeCatalogRssSupport(input: {
   db: AppDatabase;
+  nowIso?: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogRssSupportShape {
+  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
   const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(function* () {
     const rows = yield* input.tryDatabasePromise("Failed to list RSS feeds", () =>
       input.db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),
@@ -47,7 +49,7 @@ export function makeCatalogRssSupport(input: {
     name?: string;
   }) {
     yield* requireAnime(input.db, rssInput.anime_id);
-    const now = yield* nowIso;
+    const now = yield* nowIso();
     const [row] = yield* input.tryDatabasePromise("Failed to add RSS feed", () =>
       input.db
         .insert(rssFeeds)
@@ -66,6 +68,7 @@ export function makeCatalogRssSupport(input: {
       "rss.created",
       "success",
       `RSS feed added for anime ${rssInput.anime_id}`,
+      nowIso,
     );
     return toRssFeed(row);
   });

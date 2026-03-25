@@ -10,20 +10,20 @@ import {
   episodes,
   systemLogs,
 } from "../../db/schema.ts";
-import { nowIso } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { randomHex } from "../../lib/random.ts";
 import { encodeDownloadEventMetadata } from "./repository.ts";
 
-export { nowIso, randomHex };
+type NowIso = () => Effect.Effect<string>;
+const liveNowIso: NowIso = () => Effect.sync(() => new Date().toISOString());
 
 export const appendLog = Effect.fn("JobSupport.appendLog")(function* (
   db: AppDatabase,
   eventType: string,
   level: string,
   message: string,
+  nowIso: NowIso = liveNowIso,
 ) {
-  const now = yield* nowIso;
+  const now = yield* nowIso();
   yield* tryDatabasePromise("Failed to append log", () =>
     db.insert(systemLogs).values({
       createdAt: now,
@@ -51,8 +51,9 @@ export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(f
       source_metadata?: DownloadSourceMetadata;
     };
   },
+  nowIso: NowIso = liveNowIso,
 ) {
-  const now = yield* nowIso;
+  const now = yield* nowIso();
   yield* tryDatabasePromise("Failed to record download event", () =>
     db.insert(downloadEvents).values({
       animeId: input.animeId ?? null,
@@ -88,8 +89,9 @@ export const markDownloadImported = Effect.fn("JobSupport.markDownloadImported")
 export const markJobStarted = Effect.fn("JobSupport.markJobStarted")(function* (
   db: AppDatabase,
   name: string,
+  nowIso: NowIso = liveNowIso,
 ) {
-  const now = yield* nowIso;
+  const now = yield* nowIso();
 
   yield* tryDatabasePromise("Failed to mark job started", () =>
     db
@@ -124,8 +126,9 @@ export const markJobSucceeded = Effect.fn("JobSupport.markJobSucceeded")(functio
   db: AppDatabase,
   name: string,
   message: string,
+  nowIso: NowIso = liveNowIso,
 ) {
-  const now = yield* nowIso;
+  const now = yield* nowIso();
 
   yield* tryDatabasePromise("Failed to mark job succeeded", () =>
     db
@@ -160,8 +163,9 @@ export const markJobFailed = Effect.fn("JobSupport.markJobFailed")(function* (
   db: AppDatabase,
   name: string,
   cause: unknown,
+  nowIso: NowIso = liveNowIso,
 ) {
-  const now = yield* nowIso;
+  const now = yield* nowIso();
   const message = cause instanceof Error ? cause.message : String(cause);
 
   yield* tryDatabasePromise("Failed to mark job failed", () =>
@@ -197,9 +201,10 @@ export const updateJobProgress = Effect.fn("JobSupport.updateJobProgress")(funct
   name: string,
   progressCurrent: number,
   progressTotal: number,
+  nowIso: NowIso = liveNowIso,
   message?: string,
 ) {
-  const now = yield* nowIso;
+  const now = yield* nowIso();
 
   yield* tryDatabasePromise("Failed to update job progress", () =>
     db

@@ -23,7 +23,6 @@ import {
   markJobFailed,
   markJobStarted,
   markJobSucceeded,
-  nowIso,
 } from "./job-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import { queueParsedReleaseDownload } from "./release-queue-support.ts";
@@ -59,6 +58,7 @@ export function makeBackgroundSearchSupport(input: {
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
+  nowIso?: () => Effect.Effect<string>;
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
   publishRssCheckProgress: (input: {
     current: number;
@@ -86,6 +86,7 @@ export function makeBackgroundSearchSupport(input: {
     searchEpisodeReleases,
     coordination,
   } = input;
+  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
 
   const logSearchMissingSkip = (input: {
     animeId: number;
@@ -174,6 +175,7 @@ export function makeBackgroundSearchSupport(input: {
           eventType: input.eventType,
           isBatch: parsedRelease.isBatch,
           item: input.item,
+          nowIso,
           sourceMetadata: mergeDownloadSourceMetadata(
             buildDownloadSourceMetadataFromRelease({
               ...buildDownloadSelectionMetadata(input.action),
@@ -229,7 +231,7 @@ export function makeBackgroundSearchSupport(input: {
         payload: { anime_id: animeId ?? 0, title },
       });
 
-      const now = yield* nowIso;
+      const now = yield* nowIso();
       const missingConditions = [
         eq(episodes.downloaded, false),
         sql`${episodes.aired} is not null`,
@@ -325,7 +327,7 @@ export function makeBackgroundSearchSupport(input: {
     );
 
   const runRssCheckRaw = Effect.fn("OperationsService.runRssCheck")(function* () {
-    yield* markJobStarted(db, "rss");
+    yield* markJobStarted(db, "rss", nowIso);
 
     return yield* Effect.gen(function* () {
       const feeds = yield* tryDatabasePromise("Failed to run RSS check", () =>
@@ -466,7 +468,7 @@ export function makeBackgroundSearchSupport(input: {
             queuedForFeed += 1;
           }
 
-          const feedCheckedAt = yield* nowIso;
+          const feedCheckedAt = yield* nowIso();
           yield* tryDatabasePromise("Failed to run RSS check", () =>
             db.update(rssFeeds).set({ lastChecked: feedCheckedAt }).where(eq(rssFeeds.id, feed.id)),
           );
@@ -475,7 +477,7 @@ export function makeBackgroundSearchSupport(input: {
         }).pipe(Effect.withSpan("operations.rss.feed"));
       }
 
-      yield* markJobSucceeded(db, "rss", `Queued ${newItems} release(s)`);
+      yield* markJobSucceeded(db, "rss", `Queued ${newItems} release(s)`, nowIso);
       yield* eventBus.publish({
         type: "RssCheckFinished",
         payload: { new_items: newItems, total_feeds: feeds.length },
@@ -486,7 +488,7 @@ export function makeBackgroundSearchSupport(input: {
     }).pipe(
       Effect.withSpan("operations.rss.check"),
       Effect.catchAll((cause) =>
-        markJobFailed(db, "rss", cause).pipe(
+        markJobFailed(db, "rss", cause, nowIso).pipe(
           Effect.zipRight(Effect.fail(dbError("Failed to run RSS check")(cause))),
         ),
       ),

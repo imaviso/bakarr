@@ -49,6 +49,7 @@ export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(function*
   patch: Partial<typeof anime.$inferInsert>,
   message: string,
   eventPublisher: Pick<EventPublisherShape, "publishInfo">,
+  nowIso: () => Effect.Effect<string>,
 ) {
   yield* requireAnimeExistsEffect(db, animeId).pipe(
     Effect.mapError(wrapAnimeError("Failed to update anime")),
@@ -56,12 +57,16 @@ export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(function*
   yield* tryDatabasePromise("Failed to update anime", () =>
     db.update(anime).set(patch).where(eq(anime.id, animeId)),
   );
-  yield* appendAnimeLogEffect(db, "anime.updated", "success", message);
+  yield* appendAnimeLogEffect(db, "anime.updated", "success", message, nowIso);
   yield* eventPublisher.publishInfo(message);
 });
 
 export const makeMetadataRefreshRunner = Effect.fn("AnimeService.makeMetadataRefreshRunner")(
-  function* (input: { aniList: typeof AniListClient.Service; db: AppDatabase }) {
+  function* (input: {
+    aniList: typeof AniListClient.Service;
+    db: AppDatabase;
+    nowIso: () => Effect.Effect<string>;
+  }) {
     return yield* makeSingleFlightEffectRunner(refreshMetadataForMonitoredAnimeEffect(input));
   },
 );

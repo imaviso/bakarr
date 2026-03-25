@@ -1,7 +1,8 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { ExternalCallError, tryExternalEffect } from "../../lib/effect-retry.ts";
+import { ClockService } from "../../lib/clock.ts";
+import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
 
 interface SeaDexClientShape {
   readonly getEntryByAniListId: (
@@ -63,6 +64,8 @@ export const SeaDexClientLive = Layer.effect(
   SeaDexClient,
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
+    const clock = yield* ClockService;
+    const tryExternalEffect = makeTryExternalEffect(clock);
 
     const getEntryByAniListId = Effect.fn("SeaDexClient.getEntryByAniListId")(function* (
       aniListId: number,

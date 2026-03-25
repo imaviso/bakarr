@@ -7,7 +7,6 @@ import {
 } from "../../../../../packages/shared/src/index.ts";
 
 import type { AppDatabase } from "../../db/database.ts";
-import { nowIso } from "../../lib/clock.ts";
 import {
   anime,
   appConfig,
@@ -385,12 +384,14 @@ export const deleteUnmappedFolderMatchRowsNotInPaths = Effect.fn(
 
 export const upsertUnmappedFolderMatchRows = Effect.fn(
   "SystemRepository.upsertUnmappedFolderMatchRows",
-)(function* (db: AppDatabase, folders: readonly UnmappedFolder[]) {
+)(function* (
+  db: AppDatabase,
+  folders: readonly UnmappedFolder[],
+  updatedAt = new Date().toISOString(),
+) {
   if (folders.length === 0) {
     return;
   }
-
-  const updatedAt = yield* nowIso;
 
   yield* tryDatabasePromise("Failed to upsert unmapped folder matches", () =>
     db.transaction(async (tx) => {

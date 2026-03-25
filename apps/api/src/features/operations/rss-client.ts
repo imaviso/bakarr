@@ -1,11 +1,12 @@
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform";
-import { Context, Effect, Either, Layer, Schema, Stream } from "effect";
+import { Context, Effect, Either, Layer, ParseResult, Schema, Stream } from "effect";
 import { XMLParser } from "fast-xml-parser";
 import ipaddr from "ipaddr.js";
 
 import { collectBoundedText } from "../../lib/bounded-stream.ts";
+import { ClockService } from "../../lib/clock.ts";
 import { DnsResolver, isDnsNoRecordError } from "../../lib/dns-resolver.ts";
-import { ExternalCallError, tryExternalEffect } from "../../lib/effect-retry.ts";
+import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
 import { RssFeedParseError, RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";
 
 export { RssFeedParseError, RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";
@@ -99,7 +100,11 @@ function isBlockedHostname(hostname: string): boolean {
   return false;
 }
 
-const makeFetchItems = (client: HttpClient.HttpClient, dns: typeof DnsResolver.Service) =>
+const makeFetchItems = (
+  client: HttpClient.HttpClient,
+  dns: typeof DnsResolver.Service,
+  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
+) =>
   Effect.fn("RssClient.fetchItems")(function* (url: string) {
     const parsedUrl = yield* Effect.try({
       try: () => new URL(url),
@@ -306,7 +311,9 @@ export const RssClientLive = Layer.effect(
   RssClient,
   Effect.gen(function* () {
     const baseClient = yield* HttpClient.HttpClient;
+    const clock = yield* ClockService;
     const dns = yield* DnsResolver;
+    const tryExternalEffect = makeTryExternalEffect(clock);
 
     // Configure redirect: "manual" once at the layer boundary so the RSS
     // client handles redirects explicitly (SSRF validation on each hop).
@@ -319,7 +326,7 @@ export const RssClientLive = Layer.effect(
     );
 
     return {
-      fetchItems: makeFetchItems(client, dns),
+      fetchItems: makeFetchItems(client, dns, tryExternalEffect),
     } satisfies RssClientShape;
   }),
 );
@@ -372,20 +379,49 @@ class RssRootSchema extends Schema.Class<RssRootSchema>("RssRootSchema")({
   rss: RssRootInnerSchema,
 }) {}
 
-const ParsedReleaseFromRssItemSchema = Schema.transform(RssItemSchema, ParsedReleaseSchema, {
+const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, ParsedReleaseSchema, {
   decode: (item) => {
-    const title = item.title ?? "Unknown release";
-    const link = item.link ?? "";
-    const infoHash = item["nyaa:infoHash"] ?? fallbackInfoHash(title, link);
-    const groupMatch = title.match(/^\[(.*?)\]/);
-    const size = item["nyaa:size"] ?? "0 B";
-    const pubDate = item.pubDate ?? "1970-01-01T00:00:00.000Z";
-    const seeders = Number.parseInt(item["nyaa:seeders"] ?? "0", 10) || 0;
-    const leechers = Number.parseInt(item["nyaa:leechers"] ?? "0", 10) || 0;
-    const trusted = /^yes$/i.test(item["nyaa:trusted"] ?? "no");
-    const remake = /^yes$/i.test(item["nyaa:remake"] ?? "no");
+    const title = item.title;
+    const link = item.link;
+    const infoHash = item["nyaa:infoHash"];
+    const size = item["nyaa:size"];
+    const pubDate = item.pubDate;
+    const seeders = parseCount(item["nyaa:seeders"]);
+    const leechers = parseCount(item["nyaa:leechers"]);
+    const trusted = parseYesNo(item["nyaa:trusted"]);
+    const remake = parseYesNo(item["nyaa:remake"]);
 
-    return {
+    if (!title || !link || !infoHash || !size || !pubDate) {
+      return Effect.fail(
+        new ParseResult.Type(ParsedReleaseSchema.ast, item, "RSS item is missing required fields"),
+      );
+    }
+
+    if (seeders === null || leechers === null || trusted === null || remake === null) {
+      return Effect.fail(
+        new ParseResult.Type(
+          ParsedReleaseSchema.ast,
+          item,
+          "RSS item contains invalid numeric or boolean fields",
+        ),
+      );
+    }
+
+    const sizeBytes = parseSizeToBytes(size);
+
+    if (sizeBytes === null) {
+      return Effect.fail(
+        new ParseResult.Type(
+          ParsedReleaseSchema.ast,
+          item,
+          "RSS item contains an invalid size field",
+        ),
+      );
+    }
+
+    const groupMatch = title.match(/^\[(.*?)\]/);
+
+    return Effect.succeed({
       group: groupMatch?.[1],
       infoHash,
       isSeaDex: false,
@@ -397,23 +433,24 @@ const ParsedReleaseFromRssItemSchema = Schema.transform(RssItemSchema, ParsedRel
       resolution: parseResolution(title),
       seeders,
       size,
-      sizeBytes: parseSizeToBytes(size),
+      sizeBytes,
       title,
       trusted,
       viewUrl: link.replace("/download/", "/view/").replace(/\.torrent$/i, ""),
-    } satisfies ParsedRelease;
+    } satisfies ParsedRelease);
   },
-  encode: (release) => ({
-    link: release.viewUrl.replace("/view/", "/download/") + ".torrent",
-    pubDate: release.pubDate,
-    title: release.title,
-    "nyaa:infoHash": release.infoHash,
-    "nyaa:leechers": String(release.leechers),
-    "nyaa:remake": release.remake ? "Yes" : "No",
-    "nyaa:seeders": String(release.seeders),
-    "nyaa:size": release.size,
-    "nyaa:trusted": release.trusted ? "Yes" : "No",
-  }),
+  encode: (release) =>
+    Effect.succeed({
+      link: release.viewUrl.replace("/view/", "/download/") + ".torrent",
+      pubDate: release.pubDate,
+      title: release.title,
+      "nyaa:infoHash": release.infoHash,
+      "nyaa:leechers": String(release.leechers),
+      "nyaa:remake": release.remake ? "Yes" : "No",
+      "nyaa:seeders": String(release.seeders),
+      "nyaa:size": release.size,
+      "nyaa:trusted": release.trusted ? "Yes" : "No",
+    }),
 });
 
 const parseRssXml = Effect.fn("RssClient.parseRssXml")((xml: string) =>
@@ -449,11 +486,11 @@ const parseRssXml = Effect.fn("RssClient.parseRssXml")((xml: string) =>
   ),
 );
 
-function parseSizeToBytes(size: string): number {
+function parseSizeToBytes(size: string): number | null {
   const match = size.match(/([0-9.]+)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)/i);
 
   if (!match) {
-    return 0;
+    return null;
   }
 
   const value = Number.parseFloat(match[1]);
@@ -477,16 +514,29 @@ function parseResolution(value: string) {
   return match?.[1]?.toLowerCase();
 }
 
-function fallbackInfoHash(title: string, link: string): string {
-  const source = `${title}|${link}`;
-  let hash = 0;
-
-  for (let index = 0; index < source.length; index += 1) {
-    hash = (hash * 31 + source.charCodeAt(index)) >>> 0;
+function parseCount(value: string | undefined): number | null {
+  if (value === undefined) {
+    return null;
   }
 
-  const hex = hash.toString(16).padStart(8, "0");
-  return hex.repeat(5).slice(0, 40);
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function parseYesNo(value: string | undefined): boolean | null {
+  if (value === undefined) {
+    return null;
+  }
+
+  if (/^yes$/i.test(value)) {
+    return true;
+  }
+
+  if (/^no$/i.test(value)) {
+    return false;
+  }
+
+  return null;
 }
 
 function normalizeHostname(hostname: string) {

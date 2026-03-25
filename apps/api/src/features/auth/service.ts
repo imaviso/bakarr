@@ -12,9 +12,11 @@ import type {
 import { AppConfig } from "../../config.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "../../db/schema.ts";
+import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
 import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
-import { hashPassword, verifyPassword } from "../../security/password.ts";
+import { hashPasswordWith, verifyPassword } from "../../security/password.ts";
 import { TokenHasher } from "../../security/token-hasher.ts";
+import { randomHexFrom, RandomService } from "../../lib/random.ts";
 import {
   announceBootstrapCredentials,
   createSession,
@@ -22,8 +24,6 @@ import {
   findUserByApiKey,
   findUserById,
   findUserByUsername,
-  nowIso,
-  randomHex,
   writeLog,
 } from "./service-support.ts";
 
@@ -68,7 +68,13 @@ export class AuthService extends Context.Tag("@bakarr/api/AuthService")<
 const makeAuthService = Effect.gen(function* () {
   const { db } = yield* Database;
   const config = yield* AppConfig;
+  const clock = yield* ClockService;
+  const random = yield* RandomService;
   const tokenHasher = yield* TokenHasher;
+  const nowIso = () => nowIsoFromClock(clock);
+  const currentTimeMillis = () => clock.currentTimeMillis;
+  const randomHex = (bytes: number) => randomHexFrom(random, bytes);
+  const hashPassword = hashPasswordWith(random.randomBytes);
   const hashToken = (token: string) =>
     tokenHasher
       .hashToken(token)
@@ -106,7 +112,7 @@ const makeAuthService = Effect.gen(function* () {
 
     const bootstrapPassword = Redacted.value(config.bootstrapPassword);
 
-    const now = yield* nowIso;
+    const now = yield* nowIso();
     const passwordHash = yield* hashPassword(bootstrapPassword).pipe(
       Effect.mapError((error) =>
         toDatabaseError(`Failed to hash password: ${error.message}`)(error.cause),
@@ -130,11 +136,15 @@ const makeAuthService = Effect.gen(function* () {
         .onConflictDoNothing(),
     );
 
-    yield* writeLog(db, {
-      eventType: "bootstrap.user.created",
-      level: "success",
-      message: `Bootstrap user '${config.bootstrapUsername}' created`,
-    });
+    yield* writeLog(
+      db,
+      {
+        eventType: "bootstrap.user.created",
+        level: "success",
+        message: `Bootstrap user '${config.bootstrapUsername}' created`,
+      },
+      nowIso,
+    );
 
     yield* announceBootstrapCredentials({
       username: config.bootstrapUsername,
@@ -166,13 +176,25 @@ const makeAuthService = Effect.gen(function* () {
     }
 
     const userRow = row;
-    const token = yield* createSession(db, config.sessionDurationDays, hashToken, userRow.id);
+    const token = yield* createSession(
+      db,
+      config.sessionDurationDays,
+      hashToken,
+      userRow.id,
+      randomHex,
+      nowIso,
+      currentTimeMillis,
+    );
 
-    yield* writeLog(db, {
-      eventType: "auth.login",
-      level: "success",
-      message: `${userRow.username} signed in`,
-    });
+    yield* writeLog(
+      db,
+      {
+        eventType: "auth.login",
+        level: "success",
+        message: `${userRow.username} signed in`,
+      },
+      nowIso,
+    );
 
     return {
       response: {
@@ -197,13 +219,25 @@ const makeAuthService = Effect.gen(function* () {
     }
 
     const userRow = row;
-    const token = yield* createSession(db, config.sessionDurationDays, hashToken, userRow.id);
+    const token = yield* createSession(
+      db,
+      config.sessionDurationDays,
+      hashToken,
+      userRow.id,
+      randomHex,
+      nowIso,
+      currentTimeMillis,
+    );
 
-    yield* writeLog(db, {
-      eventType: "auth.login.api_key",
-      level: "success",
-      message: `${userRow.username} signed in with an API key`,
-    });
+    yield* writeLog(
+      db,
+      {
+        eventType: "auth.login.api_key",
+        level: "success",
+        message: `${userRow.username} signed in with an API key`,
+      },
+      nowIso,
+    );
 
     return {
       response: {
@@ -222,7 +256,7 @@ const makeAuthService = Effect.gen(function* () {
   ) {
     if (sessionToken) {
       const hashedSessionToken = yield* hashToken(sessionToken);
-      const sessionNow = yield* nowIso;
+      const sessionNow = yield* nowIso();
 
       const result = yield* tryDatabasePromise("Failed to resolve the current user", () =>
         db
@@ -240,7 +274,7 @@ const makeAuthService = Effect.gen(function* () {
       );
 
       if (result[0]) {
-        const expiresAt = yield* expiresAtIso(config.sessionDurationDays);
+        const expiresAt = yield* expiresAtIso(config.sessionDurationDays, currentTimeMillis);
         yield* tryDatabasePromise("Failed to resolve the current user", () =>
           db
             .update(sessions)
@@ -324,7 +358,7 @@ const makeAuthService = Effect.gen(function* () {
     // One-way bootstrap transition: password change clears mustChangePassword,
     // invalidates all sessions, and permanently nulls the bootstrap password
     // from the appConfig table. See ensureBootstrapUser for lifecycle docs.
-    const changeNow = yield* nowIso;
+    const changeNow = yield* nowIso();
     yield* tryDatabasePromise("Failed to update password", () =>
       db.transaction(async (tx) => {
         await tx
@@ -371,7 +405,7 @@ const makeAuthService = Effect.gen(function* () {
     const userRow = row;
     const apiKey = yield* randomHex(24);
     const hashedApiKey = yield* hashToken(apiKey);
-    const regenNow = yield* nowIso;
+    const regenNow = yield* nowIso();
 
     yield* tryDatabasePromise("Failed to regenerate API key", () =>
       db.transaction(async (tx) => {

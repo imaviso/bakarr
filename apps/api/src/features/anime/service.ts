@@ -12,6 +12,7 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { EventPublisher } from "../events/publisher.ts";
+import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
 import { AniListClient } from "./anilist.ts";
 import {
   AnimeConflictError,
@@ -142,9 +143,11 @@ const makeAnimeService = Effect.gen(function* () {
   const fs = yield* FileSystem;
   const mediaProbe = yield* MediaProbe;
   const httpClient = yield* HttpClient.HttpClient;
+  const clock = yield* ClockService;
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner({
     aniList,
     db,
+    nowIso: () => nowIsoFromClock(clock),
   });
   const { bulkMapEpisodes, deleteEpisodeFile, listFiles, mapEpisode, resolveEpisodeFile } =
     makeAnimeFileOperations({ db, fs, mediaProbe });
@@ -157,6 +160,7 @@ const makeAnimeService = Effect.gen(function* () {
       eventPublisher,
       fs,
       httpClient,
+      nowIso: () => nowIsoFromClock(clock),
     });
   });
 
@@ -169,7 +173,13 @@ const makeAnimeService = Effect.gen(function* () {
   const listEpisodes: AnimeServiceShape["listEpisodes"] = (animeId) =>
     listEpisodesEffect({ animeId, db });
   const refreshEpisodes: AnimeServiceShape["refreshEpisodes"] = (animeId) =>
-    refreshEpisodesEffect({ aniList, animeId, db, eventPublisher });
+    refreshEpisodesEffect({
+      aniList,
+      animeId,
+      db,
+      eventPublisher,
+      nowIso: () => nowIsoFromClock(clock),
+    });
   const refreshMetadataForMonitoredAnime: AnimeServiceShape["refreshMetadataForMonitoredAnime"] =
     () => metadataRefreshRunner.trigger;
   const scanFolder: AnimeServiceShape["scanFolder"] = (animeId) =>
@@ -179,15 +189,29 @@ const makeAnimeService = Effect.gen(function* () {
       eventPublisher,
       fs,
       mediaProbe,
+      nowIso: () => nowIsoFromClock(clock),
     });
-  const deleteAnime: AnimeServiceShape["deleteAnime"] = (id) => deleteAnimeEffect(db, id);
+  const deleteAnime: AnimeServiceShape["deleteAnime"] = (id) =>
+    deleteAnimeEffect(db, id, () => nowIsoFromClock(clock));
 
   const updatePath: AnimeServiceShape["updatePath"] = (id, path) =>
-    updateAnimePathEffect({ db, fs, id, path });
+    updateAnimePathEffect({ db, fs, id, path, nowIso: () => nowIsoFromClock(clock) });
   const updateProfile: AnimeServiceShape["updateProfile"] = (id, profileName) =>
-    updateAnimeProfileEffect({ db, eventPublisher, id, profileName });
+    updateAnimeProfileEffect({
+      db,
+      eventPublisher,
+      id,
+      nowIso: () => nowIsoFromClock(clock),
+      profileName,
+    });
   const setMonitored: AnimeServiceShape["setMonitored"] = (id, monitored) =>
-    setAnimeMonitoredEffect({ db, eventPublisher, id, monitored });
+    setAnimeMonitoredEffect({
+      db,
+      eventPublisher,
+      id,
+      monitored,
+      nowIso: () => nowIsoFromClock(clock),
+    });
   const updateReleaseProfiles: AnimeServiceShape["updateReleaseProfiles"] = (
     id,
     releaseProfileIds,
@@ -196,6 +220,7 @@ const makeAnimeService = Effect.gen(function* () {
       db,
       eventPublisher,
       id,
+      nowIso: () => nowIsoFromClock(clock),
       releaseProfileIds,
     });
 

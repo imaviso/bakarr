@@ -1,6 +1,6 @@
 import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
-import { randomHex } from "./lib/random.ts";
+import { randomHexFrom, RandomService } from "./lib/random.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 
@@ -49,6 +49,7 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
     return Layer.effect(
       AppConfig,
       Effect.gen(function* () {
+        const random = yield* RandomService;
         const appVersion = yield* readConfigValue(
           overrides.appVersion,
           Schema.Config("BAKARR_APP_VERSION", Schema.String).pipe(
@@ -62,7 +63,7 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
                 Effect.map(Option.some),
                 Effect.orElse(() => Effect.succeed(Option.none())),
               );
-        const generatedBootstrapPassword = Redacted.make(yield* randomHex(32));
+        const generatedBootstrapPassword = Redacted.make(yield* randomHexFrom(random, 32));
         const bootstrapPassword = Option.getOrElse(
           bootstrapPasswordFromEnv,
           () => generatedBootstrapPassword,

@@ -34,7 +34,6 @@ import {
   resolveCompletedContentPath,
   resolveReconciledBatchEpisodeNumbers,
 } from "./download-lifecycle.ts";
-import { nowIso } from "./job-support.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
@@ -58,6 +57,8 @@ export function makeDownloadReconciliationService(input: {
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
+  readonly nowIso?: () => Effect.Effect<string>;
+  readonly randomUuid?: () => Effect.Effect<string>;
 }) {
   const {
     db,
@@ -69,6 +70,8 @@ export function makeDownloadReconciliationService(input: {
     wrapOperationsError,
     maybeQBitConfig,
   } = input;
+  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
+  const randomUuid = input.randomUuid ?? (() => Effect.sync(() => crypto.randomUUID()));
 
   const parseStoredCoveredEpisodes = (value: string | null | undefined) =>
     Effect.try({
@@ -298,6 +301,7 @@ export function makeDownloadReconciliationService(input: {
                 localMediaMetadata,
                 namingFormat,
                 preferredTitle: runtimeConfig.library.preferred_title,
+                randomUuid,
               },
             ).pipe(Effect.mapError(wrapOperationsError("Failed to reconcile completed download")));
             yield* upsertEpisodeFilesAtomic(db, row.animeId, relevantEpisodes, managedPath).pipe(
@@ -342,7 +346,7 @@ export function makeDownloadReconciliationService(input: {
             return;
           }
 
-          const batchNow = yield* nowIso;
+          const batchNow = yield* nowIso();
           const storedCoveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
           yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
             await db.transaction(async (tx) => {
@@ -410,7 +414,7 @@ export function makeDownloadReconciliationService(input: {
       );
 
       if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
-        const alreadyImportedNow = yield* nowIso;
+        const alreadyImportedNow = yield* nowIso();
         yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
           await db.transaction(async (tx) => {
             await tx
@@ -496,6 +500,7 @@ export function makeDownloadReconciliationService(input: {
           localMediaMetadata,
           namingFormat,
           preferredTitle: runtimeConfig.library.preferred_title,
+          randomUuid,
         },
       ).pipe(Effect.mapError(wrapOperationsError("Failed to reconcile completed download")));
       yield* upsertEpisodeFile(db, row.animeId, row.episodeNumber, managedPath).pipe(
@@ -507,7 +512,7 @@ export function makeDownloadReconciliationService(input: {
             }),
         ),
       );
-      const singleNow = yield* nowIso;
+      const singleNow = yield* nowIso();
       const storedCoveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
       yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
         await db.transaction(async (tx) => {

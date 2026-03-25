@@ -1,8 +1,10 @@
 import { Context, Effect, Layer } from "effect";
 
 import { Database, DatabaseError } from "../../db/database.ts";
+import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
 import { FileSystem } from "../../lib/filesystem.ts";
 import { MediaProbe } from "../../lib/media-probe.ts";
+import { RandomService } from "../../lib/random.ts";
 import { AniListClient } from "../anime/anilist.ts";
 import { EventBus } from "../events/event-bus.ts";
 import {
@@ -123,6 +125,8 @@ const downloadOrchestrationLayer = Layer.effect(
     const qbitClient = yield* QBitTorrentClient;
     const fs = yield* FileSystem;
     const mediaProbe = yield* MediaProbe;
+    const clock = yield* ClockService;
+    const random = yield* RandomService;
     const sharedState = yield* OperationsSharedState;
 
     return makeDownloadOrchestration({
@@ -132,7 +136,11 @@ const downloadOrchestrationLayer = Layer.effect(
       fs,
       mediaProbe,
       maybeQBitConfig,
+      currentMonotonicMillis: () => clock.currentMonotonicMillis,
+      currentTimeMillis: () => clock.currentTimeMillis,
+      nowIso: () => nowIsoFromClock(clock),
       qbitClient,
+      randomUuid: () => random.randomUuid,
       tryDatabasePromise,
 
       wrapOperationsError,
@@ -171,6 +179,7 @@ const searchOrchestrationLayer = Layer.effect(
     const seadexClient = yield* SeaDexClient;
     const fs = yield* FileSystem;
     const mediaProbe = yield* MediaProbe;
+    const clock = yield* ClockService;
     const sharedState = yield* OperationsSharedState;
     const progress = yield* OperationsProgress;
 
@@ -182,6 +191,7 @@ const searchOrchestrationLayer = Layer.effect(
       fs,
       mediaProbe,
       maybeQBitConfig,
+      nowIso: () => nowIsoFromClock(clock),
       publishDownloadProgress: progress.publishDownloadProgress,
       publishRssCheckProgress: progress.publishRssCheckProgress,
       qbitClient,
@@ -202,8 +212,10 @@ const catalogLibraryReadSupportLayer = Layer.effect(
   CatalogLibraryReadSupport,
   Effect.gen(function* () {
     const { db } = yield* Database;
+    const clock = yield* ClockService;
 
     return makeCatalogLibraryReadSupport({
+      currentTimeMillis: () => clock.currentTimeMillis,
       db,
       tryDatabasePromise,
     });
@@ -217,6 +229,7 @@ const catalogOrchestrationLayer = Layer.effect(
     const eventBus = yield* EventBus;
     const fs = yield* FileSystem;
     const mediaProbe = yield* MediaProbe;
+    const clock = yield* ClockService;
     const downloadOrchestration = yield* DownloadOrchestration;
     const progress = yield* OperationsProgress;
     const libraryReadSupport = yield* CatalogLibraryReadSupport;
@@ -228,6 +241,7 @@ const catalogOrchestrationLayer = Layer.effect(
       eventBus,
       fs,
       mediaProbe,
+      nowIso: () => nowIsoFromClock(clock),
       publishDownloadProgress: progress.publishDownloadProgress,
       publishLibraryScanProgress: progress.publishLibraryScanProgress,
       reconcileDownloadByIdEffect: downloadOrchestration.reconcileDownloadByIdEffect,

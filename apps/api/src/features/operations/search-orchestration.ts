@@ -58,6 +58,7 @@ export function makeSearchOrchestration(input: {
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
+  nowIso?: () => Effect.Effect<string>;
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
   publishRssCheckProgress: (input: {
     current: number;
@@ -83,6 +84,7 @@ export function makeSearchOrchestration(input: {
     publishRssCheckProgress,
     coordination,
   } = input;
+  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
 
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(function* (
     query: string,
@@ -291,6 +293,7 @@ export function makeSearchOrchestration(input: {
     dbError,
     eventBus,
     maybeQBitConfig,
+    nowIso,
     publishDownloadProgress,
     publishRssCheckProgress,
     qbitClient,
@@ -307,6 +310,7 @@ export function makeSearchOrchestration(input: {
     db,
     dbError,
     fs,
+    nowIso,
     tryDatabasePromise,
     coordination,
   });

@@ -12,7 +12,7 @@ import {
 } from "./background-worker-model.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
 import { DatabaseError } from "./db/database.ts";
-import { currentMonotonicMillis, nowIso } from "./lib/clock.ts";
+import { nowIsoFromClock, ClockService, type ClockServiceShape } from "./lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "./lib/effect-coalescing.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./lib/logging.ts";
 import { makeReloadableScopedController } from "./lib/reloadable-scoped-controller.ts";
@@ -56,7 +56,12 @@ export class BackgroundWorkerMonitor extends Context.Tag("@bakarr/api/Background
   BackgroundWorkerMonitorShape
 >() {}
 
-export function makeBackgroundWorkerMonitor() {
+const liveClock: ClockServiceShape = {
+  currentMonotonicMillis: Effect.sync(() => performance.now()),
+  currentTimeMillis: Effect.sync(() => Date.now()),
+};
+
+export function makeBackgroundWorkerMonitor(clock: ClockServiceShape = liveClock) {
   return Effect.gen(function* () {
     const state = yield* Ref.make(initialBackgroundWorkerSnapshot());
     yield* preRegisterBackgroundWorkerMetrics(BACKGROUND_WORKER_NAMES);
@@ -105,7 +110,7 @@ export function makeBackgroundWorkerMonitor() {
         ),
       markRunFailed: (workerName: BackgroundWorkerName, error: string, durationMs?: number) =>
         Effect.gen(function* () {
-          const now = yield* nowIso;
+          const now = yield* nowIsoFromClock(clock);
           yield* Effect.all(
             [
               updateWorker(workerName, (stats) =>
@@ -152,7 +157,7 @@ export function makeBackgroundWorkerMonitor() {
         ),
       markRunStarted: (workerName: BackgroundWorkerName) =>
         Effect.gen(function* () {
-          const now = yield* nowIso;
+          const now = yield* nowIsoFromClock(clock);
           yield* Effect.all(
             [
               updateWorker(workerName, (stats) =>
@@ -168,7 +173,7 @@ export function makeBackgroundWorkerMonitor() {
         }),
       markRunSucceeded: (workerName: BackgroundWorkerName, durationMs?: number) =>
         Effect.gen(function* () {
-          const now = yield* nowIso;
+          const now = yield* nowIsoFromClock(clock);
           yield* Effect.all(
             [
               updateWorker(workerName, (stats) =>
@@ -200,6 +205,7 @@ export interface WorkersDeps {
   readonly downloadService: DownloadServiceShape;
   readonly libraryService: LibraryServiceShape;
   readonly rssService: RssServiceShape;
+  readonly clock?: ClockServiceShape;
 }
 
 export function spawnWorkersFromConfig(
@@ -210,6 +216,7 @@ export function spawnWorkersFromConfig(
   const schedule = buildBackgroundSchedule(config);
 
   return Effect.gen(function* () {
+    const clock = deps.clock ?? liveClock;
     const workerScope = yield* Scope.Scope;
     const rssLoop = yield* withLockEffect(
       "rss",
@@ -218,18 +225,21 @@ export function spawnWorkersFromConfig(
         yield* downloadService.triggerSearchMissing();
       }),
       monitor,
+      clock,
     );
 
     const libraryLoop = yield* withLockEffect(
       "library_scan",
       libraryService.runLibraryScan(),
       monitor,
+      clock,
     );
 
     const metadataRefreshLoop = yield* withLockEffect(
       "metadata_refresh",
       animeService.refreshMetadataForMonitoredAnime().pipe(Effect.asVoid),
       monitor,
+      clock,
     );
 
     const downloadSyncLoop = yield* withLockEffect(
@@ -243,6 +253,7 @@ export function spawnWorkersFromConfig(
         });
       }),
       monitor,
+      clock,
     );
 
     yield* forkSupervisedWorker(
@@ -297,22 +308,23 @@ export function spawnWorkersFromConfig(
 
 export const BackgroundWorkerMonitorLive = Layer.effect(
   BackgroundWorkerMonitor,
-  makeBackgroundWorkerMonitor(),
+  Effect.flatMap(ClockService, (clock) => makeBackgroundWorkerMonitor(clock)),
 );
 
 function withLockEffect<A, E, R>(
   workerName: BackgroundWorkerName,
   task: Effect.Effect<A, E, R>,
   monitor: BackgroundWorkerMonitorShape,
+  clock: typeof ClockService.Service,
 ): Effect.Effect<Effect.Effect<void, never, R>, never, R> {
   return Effect.gen(function* () {
     const runner = yield* makeSkippingSerializedEffectRunner(
       Effect.gen(function* () {
-        const startedAt = yield* currentMonotonicMillis;
+        const startedAt = yield* clock.currentMonotonicMillis;
         yield* monitor.markRunStarted(workerName);
 
         const exit = yield* Effect.exit(task);
-        const finishedAt = yield* currentMonotonicMillis;
+        const finishedAt = yield* clock.currentMonotonicMillis;
         const durationMs = durationMsSince(startedAt, finishedAt);
 
         if (exit._tag === "Success") {
@@ -431,6 +443,7 @@ export function makeBackgroundWorkerController(options: {
 }
 
 const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
+  const clock = yield* ClockService;
   const eventBus = yield* EventBus;
   const monitor = yield* BackgroundWorkerMonitor;
   const animeService = yield* AnimeService;
@@ -440,6 +453,7 @@ const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
 
   const deps: WorkersDeps = {
     animeService,
+    clock,
     eventBus,
     monitor,
     downloadService,

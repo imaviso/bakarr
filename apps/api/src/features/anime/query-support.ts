@@ -5,7 +5,6 @@ import {
   AnimeDiscoveryEntrySchema,
   StringListSchema,
 } from "../../../../../packages/shared/src/index.ts";
-import { currentDateSync } from "../../lib/clock.ts";
 import type {
   Anime,
   AnimeDiscoveryEntry,
@@ -411,7 +410,7 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(f
 
 export function deriveEpisodeTimelineMetadata(
   aired?: string,
-  now = currentDateSync(),
+  now = new Date(),
 ): Pick<Episode, "airing_status" | "is_future"> {
   if (!aired) {
     return { airing_status: "unknown" };

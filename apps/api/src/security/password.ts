@@ -1,5 +1,4 @@
 import { Effect, Schema } from "effect";
-import { randomBytes } from "../lib/random.ts";
 
 const PASSWORD_SCHEME = "pbkdf2_sha256";
 const ITERATIONS = 310_000;
@@ -81,7 +80,7 @@ const deriveBits = Effect.fn("Password.deriveBits")(function* (
 });
 
 export const hashPassword = Effect.fn("Password.hash")(function* (password: string) {
-  const salt = yield* randomBytes(16);
+  const salt = yield* randomBytesEffect(16);
   const keyMaterial = yield* deriveKeyMaterial(password);
   const hash = yield* deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
@@ -125,3 +124,19 @@ export const verifyPassword = Effect.fn("Password.verify")(function* (
 
   return timingSafeEqual(expected, actual);
 });
+
+export const hashPasswordWith = (randomBytes: (bytes: number) => Effect.Effect<Uint8Array>) =>
+  Effect.fn("Password.hashWith")(function* (password: string) {
+    const salt = yield* randomBytes(16);
+    const keyMaterial = yield* deriveKeyMaterial(password);
+    const hash = yield* deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
+
+    return [PASSWORD_SCHEME, String(ITERATIONS), toHex(salt), toHex(hash)].join("$");
+  });
+
+const randomBytesEffect = (bytes: number) =>
+  Effect.sync(() => {
+    const data = new Uint8Array(bytes);
+    crypto.getRandomValues(data);
+    return data;
+  });

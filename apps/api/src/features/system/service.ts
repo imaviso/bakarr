@@ -18,7 +18,7 @@ import { AppConfig } from "../../config.ts";
 import { BackgroundWorkerController, BackgroundWorkerMonitor } from "../../background.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { anime, episodes, systemLogs } from "../../db/schema.ts";
-import { currentTimeMillis } from "../../lib/clock.ts";
+import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { EventPublisher } from "../events/publisher.ts";
 import { AnimeStoredDataError } from "../anime/errors.ts";
@@ -47,7 +47,7 @@ import {
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
 } from "./config-codec.ts";
-import { appendSystemLog, normalizeLevel, nowIso } from "./support.ts";
+import { appendSystemLog, normalizeLevel } from "./support.ts";
 import { DiskSpaceError, getDiskSpaceSafe, selectStoragePath } from "./disk-space.ts";
 import {
   countActiveDownloads,
@@ -152,9 +152,12 @@ const makeSystemService = Effect.gen(function* () {
   const { db } = yield* Database;
   const config = yield* AppConfig;
   const runtime = yield* AppRuntime;
+  const clock = yield* ClockService;
   const eventPublisher = yield* EventPublisher;
   const workerController = yield* BackgroundWorkerController;
   const backgroundWorkerMonitor = yield* BackgroundWorkerMonitor;
+  const nowIso = () => nowIsoFromClock(clock);
+  const currentTimeMillis = () => clock.currentTimeMillis;
 
   const listProfiles = Effect.fn("SystemService.listProfiles")(function* () {
     const rows = yield* listQualityProfileRows(db);
@@ -170,6 +173,7 @@ const makeSystemService = Effect.gen(function* () {
       "profiles.created",
       "success",
       `Quality profile '${profile.name}' created`,
+      nowIso,
     );
     return profile;
   });
@@ -184,7 +188,13 @@ const makeSystemService = Effect.gen(function* () {
     }
 
     yield* deleteQualityProfileRow(db, name);
-    yield* appendSystemLog(db, "profiles.deleted", "success", `Quality profile '${name}' deleted`);
+    yield* appendSystemLog(
+      db,
+      "profiles.deleted",
+      "success",
+      `Quality profile '${name}' deleted`,
+      nowIso,
+    );
   });
 
   const listReleaseProfiles = Effect.fn("SystemService.listReleaseProfiles")(function* () {
@@ -207,6 +217,7 @@ const makeSystemService = Effect.gen(function* () {
       "release_profiles.created",
       "success",
       `Release profile '${input.name}' created`,
+      nowIso,
     );
     return yield* effectDecodeReleaseProfileRow(created);
   });
@@ -227,6 +238,7 @@ const makeSystemService = Effect.gen(function* () {
       "release_profiles.updated",
       "success",
       `Release profile '${input.name}' updated`,
+      nowIso,
     );
   });
 
@@ -239,6 +251,7 @@ const makeSystemService = Effect.gen(function* () {
       "release_profiles.deleted",
       "success",
       `Release profile ${id} deleted`,
+      nowIso,
     );
   });
 
@@ -250,7 +263,7 @@ const makeSystemService = Effect.gen(function* () {
     message: string,
     eventType: string,
   ) {
-    yield* appendSystemLog(db, eventType, "info", message);
+    yield* appendSystemLog(db, eventType, "info", message, nowIso);
     yield* eventPublisher.publishInfo(message);
   });
 
@@ -270,7 +283,7 @@ const makeSystemService = Effect.gen(function* () {
     const configRow = yield* loadSystemConfigRow(db);
 
     if (!configRow) {
-      const initNow = yield* nowIso;
+      const initNow = yield* nowIso();
       yield* insertSystemConfigRow(db, {
         data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
         id: 1,
@@ -328,7 +341,7 @@ const makeSystemService = Effect.gen(function* () {
     const rssJob = findBackgroundJobStatus(jobs, "rss");
     const scanJob = findBackgroundJobStatus(jobs, "library_scan");
     const metadataRefreshJob = findBackgroundJobStatus(jobs, "metadata_refresh");
-    const now = yield* currentTimeMillis;
+    const now = yield* currentTimeMillis();
 
     return {
       active_torrents: activeDownloads,
@@ -520,7 +533,7 @@ const makeSystemService = Effect.gen(function* () {
       scheduler: nextConfig.scheduler,
     };
 
-    const updatedAt = yield* nowIso;
+    const updatedAt = yield* nowIso();
     const previousConfigRow = yield* loadSystemConfigRow(db);
     const previousState: PersistedSystemConfigState = {
       coreRow: previousConfigRow
@@ -561,7 +574,13 @@ const makeSystemService = Effect.gen(function* () {
       previousState,
     });
 
-    yield* appendSystemLog(db, "system.config.updated", "success", "System configuration updated");
+    yield* appendSystemLog(
+      db,
+      "system.config.updated",
+      "success",
+      "System configuration updated",
+      nowIso,
+    );
 
     setRuntimeLogLevel(nextConfig.general.log_level);
 
@@ -581,7 +600,13 @@ const makeSystemService = Effect.gen(function* () {
     }
 
     yield* renameQualityProfileWithCascade(db, name, encodeQualityProfileRow(profile));
-    yield* appendSystemLog(db, "profiles.updated", "success", `Quality profile '${name}' updated`);
+    yield* appendSystemLog(
+      db,
+      "profiles.updated",
+      "success",
+      `Quality profile '${name}' updated`,
+      nowIso,
+    );
 
     return profile;
   });

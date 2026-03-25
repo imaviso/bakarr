@@ -7,7 +7,6 @@ import { anime } from "../../db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
 import { isCrossFilesystemError } from "../../lib/fs-errors.ts";
 import type { ProbedMediaMetadata } from "../../lib/media-probe.ts";
-import { randomUuid } from "../../lib/random.ts";
 import { Effect, Schema } from "effect";
 import { buildEpisodeFilenamePlan } from "./naming-support.ts";
 import type { PreferredTitle } from "../../../../../packages/shared/src/index.ts";
@@ -67,6 +66,7 @@ export function importDownloadedFile(
     downloadSourceMetadata?: DownloadSourceMetadata;
     localMediaMetadata?: ProbedMediaMetadata;
     season?: number;
+    randomUuid?: () => Effect.Effect<string>;
   },
 ): Effect.Effect<string, ImportFileError | FileSystemError, never> {
   return Effect.gen(function* () {
@@ -95,7 +95,7 @@ export function importDownloadedFile(
     });
     const baseName = plan.baseName;
     const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${baseName}${extension}`;
-    const tempDestination = `${destination}.tmp.${yield* randomUuid}`;
+    const tempDestination = `${destination}.tmp.${yield* (options?.randomUuid ?? randomUuidEffect)()}`;
 
     yield* fs.mkdir(animeRow.rootFolder, { recursive: true });
 
@@ -143,7 +143,7 @@ export function importDownloadedFile(
       ),
     );
 
-    const backupDestination = `${destination}.bak.${yield* randomUuid}`;
+    const backupDestination = `${destination}.bak.${yield* (options?.randomUuid ?? randomUuidEffect)()}`;
     const existingStat = yield* Effect.either(fs.stat(destination));
     const hasExisting = existingStat._tag === "Right";
 
@@ -308,3 +308,5 @@ export const upsertEpisodeFile = Effect.fn("Operations.upsertEpisodeFile")(funct
 ) {
   yield* upsertEpisodeFilesAtomic(db, animeId, [episodeNumber], destination);
 });
+
+const randomUuidEffect = () => Effect.sync(() => crypto.randomUUID());

@@ -1,11 +1,13 @@
 import { assert, assertEquals, it } from "../test/vitest.ts";
 import { Effect, Either, Fiber, TestClock } from "effect";
 
-import { ExternalCallError, tryExternal } from "./effect-retry.ts";
+import type { ClockServiceShape } from "./clock.ts";
+import { ExternalCallError, makeTryExternal } from "./effect-retry.ts";
 
 it.effect("tryExternal retries transient failures", () =>
   Effect.gen(function* () {
     let attempts = 0;
+    const tryExternal = makeTryExternal(testClock);
 
     const fiber = yield* tryExternal("test.retry", () => {
       attempts += 1;
@@ -28,6 +30,7 @@ it.effect("tryExternal retries transient failures", () =>
 
 it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
   Effect.gen(function* () {
+    const tryExternal = makeTryExternal(testClock);
     const fiber = yield* tryExternal("test.timeout", async (signal) => {
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(resolve, 11_000);
@@ -53,3 +56,8 @@ it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
     assert(result.left instanceof ExternalCallError);
   }),
 );
+
+const testClock: ClockServiceShape = {
+  currentMonotonicMillis: TestClock.currentTimeMillis,
+  currentTimeMillis: TestClock.currentTimeMillis,
+};

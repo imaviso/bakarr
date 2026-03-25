@@ -6,7 +6,6 @@ import { encodeNumberList, encodeStringList } from "../system/config-codec.ts";
 import { ProfileNotFoundError } from "../system/errors.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
-import { nowIso } from "../../lib/clock.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
@@ -42,6 +41,7 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function*
   eventPublisher: Pick<EventPublisherShape, "publishInfo">;
   fs: FileSystemShape;
   httpClient: HttpClient.HttpClient;
+  nowIso: () => Effect.Effect<string>;
 }) {
   const existing = yield* tryDatabasePromise("Failed to add anime", () =>
     input.db.select({ id: anime.id }).from(anime).where(eq(anime.id, input.animeInput.id)).limit(1),
@@ -115,7 +115,7 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function*
     ),
   );
 
-  const createdAt = yield* nowIso;
+  const createdAt = yield* input.nowIso();
 
   const animeRow = {
     addedAt: createdAt,

@@ -3,7 +3,6 @@ import { Effect } from "effect";
 import type { ScannerState } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
-import { nowIso } from "../../lib/clock.ts";
 import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
 import type { AniListClient } from "../anime/anilist.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "../anime/repository.ts";
@@ -194,6 +193,7 @@ export function toUnmappedMatchErrorMessage(error: unknown) {
 export function loadUnmappedFolderSnapshot(input: {
   db: AppDatabase;
   fs: FileSystemShape;
+  nowIso?: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
   return Effect.gen(function* () {
@@ -255,6 +255,7 @@ export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingl
     animeRows: ReadonlyArray<typeof anime.$inferSelect>;
     db: AppDatabase;
     folder: ScannerState["folders"][number];
+    nowIso: () => Effect.Effect<string>;
   }) {
     const queries = buildUnmappedFolderSearchQueries(input.folder.name);
     const suggestions = yield* Effect.forEach(
@@ -276,7 +277,7 @@ export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingl
       withLocal.suggested_matches,
     );
 
-    const now = yield* nowIso;
+    const now = yield* input.nowIso();
 
     return mergeUnmappedFolderSuggestions(withLocal, annotatedSuggestions, now);
   },

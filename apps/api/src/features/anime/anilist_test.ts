@@ -3,6 +3,7 @@ import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Layer } from "effect";
 
 import { AniListClient, AniListClientLive } from "./anilist.ts";
+import { ClockServiceLive } from "../../lib/clock.ts";
 
 it.scoped("AniListClient uses provided HttpClient for search", () =>
   Effect.gen(function* () {
@@ -20,71 +21,74 @@ it.scoped("AniListClient uses provided HttpClient for search", () =>
 
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
-        Layer.succeed(
-          HttpClient.HttpClient,
-          makeAniListClient(
-            [
-              {
-                bannerImage: "https://example.com/banner.png",
-                coverImage: { extraLarge: "https://example.com/cover.png" },
-                description: "Search result description",
-                endDate: { year: 2024 },
-                episodes: 24,
-                format: "TV",
-                genres: ["Action", "Adventure"],
-                id: 777,
-                relations: {
-                  edges: [
-                    {
-                      node: {
-                        averageScore: 84,
-                        coverImage: {
-                          large: "https://example.com/sequel-cover.png",
+        Layer.mergeAll(
+          ClockServiceLive,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeAniListClient(
+              [
+                {
+                  bannerImage: "https://example.com/banner.png",
+                  coverImage: { extraLarge: "https://example.com/cover.png" },
+                  description: "Search result description",
+                  endDate: { year: 2024 },
+                  episodes: 24,
+                  format: "TV",
+                  genres: ["Action", "Adventure"],
+                  id: 777,
+                  relations: {
+                    edges: [
+                      {
+                        node: {
+                          averageScore: 84,
+                          coverImage: {
+                            large: "https://example.com/sequel-cover.png",
+                          },
+                          format: "TV",
+                          id: 778,
+                          startDate: { month: 7, year: 2025 },
+                          status: "NOT_YET_RELEASED",
+                          title: {
+                            english: "Custom Remote Anime 2nd Season",
+                            romaji: "Custom Remote Anime 2nd Season",
+                          },
                         },
-                        format: "TV",
-                        id: 778,
-                        startDate: { month: 7, year: 2025 },
-                        status: "NOT_YET_RELEASED",
-                        title: {
-                          english: "Custom Remote Anime 2nd Season",
-                          romaji: "Custom Remote Anime 2nd Season",
+                        relationType: "SEQUEL",
+                      },
+                    ],
+                  },
+                  recommendations: {
+                    nodes: [
+                      {
+                        mediaRecommendation: {
+                          averageScore: 81,
+                          coverImage: {
+                            large: "https://example.com/reco-cover.png",
+                          },
+                          format: "TV",
+                          id: 779,
+                          startDate: { month: 10, year: 2024 },
+                          status: "FINISHED",
+                          title: {
+                            english: "Recommended Search Result",
+                            romaji: "Recommended Search Result",
+                          },
                         },
                       },
-                      relationType: "SEQUEL",
-                    },
-                  ],
+                    ],
+                  },
+                  startDate: { day: 5, month: 4, year: 2024 },
+                  status: "RELEASING",
+                  synonyms: ["CRA", "Custom Anime"],
+                  title: {
+                    english: "Custom Remote Anime",
+                    native: "Custom Remote Anime Native",
+                    romaji: "Custom Remote Anime",
+                  },
                 },
-                recommendations: {
-                  nodes: [
-                    {
-                      mediaRecommendation: {
-                        averageScore: 81,
-                        coverImage: {
-                          large: "https://example.com/reco-cover.png",
-                        },
-                        format: "TV",
-                        id: 779,
-                        startDate: { month: 10, year: 2024 },
-                        status: "FINISHED",
-                        title: {
-                          english: "Recommended Search Result",
-                          romaji: "Recommended Search Result",
-                        },
-                      },
-                    },
-                  ],
-                },
-                startDate: { day: 5, month: 4, year: 2024 },
-                status: "RELEASING",
-                synonyms: ["CRA", "Custom Anime"],
-                title: {
-                  english: "Custom Remote Anime",
-                  native: "Custom Remote Anime Native",
-                  romaji: "Custom Remote Anime",
-                },
-              },
-            ],
-            null,
+              ],
+              null,
+            ),
           ),
         ),
       ),
@@ -118,80 +122,83 @@ it.scoped("AniListClient uses provided HttpClient for details", () =>
 
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
-        Layer.succeed(
-          HttpClient.HttpClient,
-          makeAniListClient([], {
-            averageScore: 88,
-            bannerImage: "https://example.com/banner.png",
-            coverImage: { large: "https://example.com/cover.png" },
-            description: "Remote description",
-            endDate: { day: 3, month: 2, year: 2024 },
-            episodes: 12,
-            format: "TV",
-            genres: ["Action"],
-            id: 321,
-            idMal: 654,
-            recommendations: {
-              nodes: [
-                {
-                  mediaRecommendation: {
-                    averageScore: 91,
-                    coverImage: {
-                      large: "https://example.com/recommended-cover.png",
-                    },
-                    format: "TV",
-                    id: 999,
-                    startDate: { month: 10, year: 2023 },
-                    status: "FINISHED",
-                    title: {
-                      english: "Recommended Detail",
-                      romaji: "Recommended Detail",
-                    },
-                  },
-                },
-              ],
-            },
-            relations: {
-              edges: [
-                {
-                  node: {
-                    averageScore: 79,
-                    coverImage: {
-                      large: "https://example.com/prequel-cover.png",
-                    },
-                    format: "TV",
-                    id: 320,
-                    startDate: { month: 10, year: 2023 },
-                    status: "FINISHED",
-                    title: {
-                      english: "Remote Prequel",
-                      romaji: "Remote Prequel",
+        Layer.mergeAll(
+          ClockServiceLive,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            makeAniListClient([], {
+              averageScore: 88,
+              bannerImage: "https://example.com/banner.png",
+              coverImage: { large: "https://example.com/cover.png" },
+              description: "Remote description",
+              endDate: { day: 3, month: 2, year: 2024 },
+              episodes: 12,
+              format: "TV",
+              genres: ["Action"],
+              id: 321,
+              idMal: 654,
+              recommendations: {
+                nodes: [
+                  {
+                    mediaRecommendation: {
+                      averageScore: 91,
+                      coverImage: {
+                        large: "https://example.com/recommended-cover.png",
+                      },
+                      format: "TV",
+                      id: 999,
+                      startDate: { month: 10, year: 2023 },
+                      status: "FINISHED",
+                      title: {
+                        english: "Recommended Detail",
+                        romaji: "Recommended Detail",
+                      },
                     },
                   },
-                  relationType: "PREQUEL",
-                },
-              ],
-            },
-            nextAiringEpisode: {
-              airingAt: 1_706_000_000,
-              episode: 13,
-            },
-            airingSchedule: {
-              nodes: [
-                { airingAt: 1_706_000_000, episode: 13 },
-                { airingAt: 1_706_604_800, episode: 14 },
-              ],
-            },
-            startDate: { day: 2, month: 1, year: 2024 },
-            status: "FINISHED",
-            studios: { nodes: [{ name: "Studio Remote" }] },
-            synonyms: ["Remote Alias"],
-            title: {
-              english: "Remote Detail",
-              native: "Remote Detail Native",
-              romaji: "Remote Detail",
-            },
-          }),
+                ],
+              },
+              relations: {
+                edges: [
+                  {
+                    node: {
+                      averageScore: 79,
+                      coverImage: {
+                        large: "https://example.com/prequel-cover.png",
+                      },
+                      format: "TV",
+                      id: 320,
+                      startDate: { month: 10, year: 2023 },
+                      status: "FINISHED",
+                      title: {
+                        english: "Remote Prequel",
+                        romaji: "Remote Prequel",
+                      },
+                    },
+                    relationType: "PREQUEL",
+                  },
+                ],
+              },
+              nextAiringEpisode: {
+                airingAt: 1_706_000_000,
+                episode: 13,
+              },
+              airingSchedule: {
+                nodes: [
+                  { airingAt: 1_706_000_000, episode: 13 },
+                  { airingAt: 1_706_604_800, episode: 14 },
+                ],
+              },
+              startDate: { day: 2, month: 1, year: 2024 },
+              status: "FINISHED",
+              studios: { nodes: [{ name: "Studio Remote" }] },
+              synonyms: ["Remote Alias"],
+              title: {
+                english: "Remote Detail",
+                native: "Remote Detail Native",
+                romaji: "Remote Detail",
+              },
+            }),
+          ),
         ),
       ),
     );

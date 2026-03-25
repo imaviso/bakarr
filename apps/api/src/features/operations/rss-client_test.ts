@@ -2,6 +2,7 @@ import { assertEquals, assertMatch, it } from "../../test/vitest.ts";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
+import { ClockServiceLive } from "../../lib/clock.ts";
 import { DnsLookupError, DnsResolver } from "../../lib/dns-resolver.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
 import {
@@ -35,7 +36,11 @@ function rssLayer(
 ) {
   return RssClientLive.pipe(
     Layer.provide(
-      Layer.mergeAll(Layer.succeed(HttpClient.HttpClient, httpClient), makeDnsLayer(dnsMock)),
+      Layer.mergeAll(
+        ClockServiceLive,
+        Layer.succeed(HttpClient.HttpClient, httpClient),
+        makeDnsLayer(dnsMock),
+      ),
     ),
   );
 }
@@ -310,7 +315,7 @@ function makeLoopingRedirectHttpClient(onRequest: () => void, onVisit: (url: str
 
 it.effect("RssClient accepts feeds under byte cap", () =>
   Effect.gen(function* () {
-    const smallFeed = `<?xml version="1.0"?><rss><channel><item><title>Test</title></item></channel></rss>`;
+    const smallFeed = `<?xml version="1.0"?><rss><channel><item><title>[SubsPlease] Test - 01 (1080p)</title><link>https://nyaa.si/download/123456.torrent</link><nyaa:infoHash>abcdef0123456789abcdef0123456789abcdef01</nyaa:infoHash><nyaa:size>1.2 GiB</nyaa:size><pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate><nyaa:seeders>34</nyaa:seeders><nyaa:leechers>12</nyaa:leechers><nyaa:trusted>Yes</nyaa:trusted><nyaa:remake>No</nyaa:remake></item></channel></rss>`;
 
     const items = yield* fetchFeedItemsEffect(
       HttpClient.make((request) =>
@@ -379,6 +384,45 @@ it.effect("RssClient fails with a typed parse error for invalid RSS payloads", (
   }),
 );
 
+it.effect("RssClient fails when an RSS item is missing required release fields", () =>
+  Effect.gen(function* () {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa">
+  <channel>
+    <item>
+      <title>[SubsPlease] Example Show - 01 (1080p)</title>
+      <link>https://nyaa.si/download/123456.torrent</link>
+      <nyaa:size>1.2 GiB</nyaa:size>
+      <pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate>
+      <nyaa:seeders>34</nyaa:seeders>
+      <nyaa:leechers>12</nyaa:leechers>
+      <nyaa:trusted>Yes</nyaa:trusted>
+      <nyaa:remake>No</nyaa:remake>
+    </item>
+  </channel>
+</rss>`;
+
+    const exit = yield* Effect.exit(
+      fetchFeedItemsEffect(
+        HttpClient.make((request) =>
+          Effect.succeed(
+            HttpClientResponse.fromWeb(
+              request,
+              new Response(xml, {
+                headers: { "content-type": "application/rss+xml" },
+                status: 200,
+              }),
+            ),
+          ),
+        ),
+        () => Promise.resolve(["93.184.216.34"]),
+      ),
+    );
+
+    assertRssFailure(exit, RssFeedParseError, /invalid|required/i);
+  }),
+);
+
 it.scoped("RssClient disables automatic redirect following for fetch client", () =>
   Effect.gen(function* () {
     const originalFetch = globalThis.fetch;
@@ -421,11 +465,15 @@ it.scoped("RssClient disables automatic redirect following for fetch client", ()
         client.fetchItems("https://feeds.example/releases.xml"),
       ).pipe(
         Effect.provide(
-          RssClientLive.pipe(
-            Layer.provide(
-              Layer.mergeAll(
-                FetchHttpClient.layer,
-                makeDnsLayer(() => Promise.resolve(["93.184.216.34"])),
+          Layer.mergeAll(
+            ClockServiceLive,
+            RssClientLive.pipe(
+              Layer.provide(
+                Layer.mergeAll(
+                  ClockServiceLive,
+                  FetchHttpClient.layer,
+                  makeDnsLayer(() => Promise.resolve(["93.184.216.34"])),
+                ),
               ),
             ),
           ),
@@ -445,7 +493,7 @@ function fetchFeedItemsEffect(
 ) {
   return Effect.flatMap(RssClient, (client) =>
     client.fetchItems("https://feeds.example/releases.xml"),
-  ).pipe(Effect.provide(rssLayer(httpClient, dnsMock)));
+  ).pipe(Effect.provide(Layer.mergeAll(rssLayer(httpClient, dnsMock), ClockServiceLive)));
 }
 
 function assertRssFailure(

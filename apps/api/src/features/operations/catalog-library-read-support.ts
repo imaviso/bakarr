@@ -9,7 +9,6 @@ import type {
 import { DatabaseError } from "../../db/database.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
-import { currentTimeMillis } from "../../lib/clock.ts";
 import { deriveEpisodeTimelineMetadata } from "../anime/query-support.ts";
 import type { OperationsError } from "./errors.ts";
 import { buildRenamePreview } from "./library-import.ts";
@@ -28,12 +27,14 @@ export interface CatalogLibraryReadSupportShape {
 
 export function makeCatalogLibraryReadSupport(input: {
   db: AppDatabase;
+  currentTimeMillis?: () => Effect.Effect<number>;
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogLibraryReadSupportShape {
+  const currentTimeMillis = input.currentTimeMillis ?? (() => Effect.sync(() => Date.now()));
   const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(function* (
     limit: number,
   ) {
-    const nowIso = new Date(yield* currentTimeMillis).toISOString();
+    const nowIso = new Date(yield* currentTimeMillis()).toISOString();
     const rows = yield* input.tryDatabasePromise("Failed to load wanted episodes", () =>
       input.db
         .select({
@@ -87,7 +88,7 @@ export function makeCatalogLibraryReadSupport(input: {
     start: string,
     end: string,
   ) {
-    const nowIso = new Date(yield* currentTimeMillis).toISOString();
+    const nowIso = new Date(yield* currentTimeMillis()).toISOString();
     const rows = yield* input.tryDatabasePromise("Failed to load calendar events", () =>
       input.db
         .select()

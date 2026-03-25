@@ -4,13 +4,14 @@ import { Effect, Schema } from "effect";
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, appConfig, episodes, qualityProfiles, systemLogs } from "../../db/schema.ts";
-import { nowIso } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { effectDecodeConfigCore, effectDecodeImagePath } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 import { AnimeNotFoundError } from "./errors.ts";
 
 type EpisodeWriteDb = Pick<AppDatabase, "insert" | "select" | "update">;
+type NowIso = () => Effect.Effect<string>;
+const liveNowIso: NowIso = () => Effect.sync(() => new Date().toISOString());
 
 export class UpsertEpisodeError extends Schema.TaggedError<UpsertEpisodeError>()(
   "UpsertEpisodeError",
@@ -186,8 +187,9 @@ export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(
   endDate: string | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
   resetMissingOnly: boolean,
+  nowIso: NowIso = liveNowIso,
 ) {
-  const now = yield* nowIso;
+  const now = yield* nowIso();
   const existingRows =
     !episodeCount || episodeCount <= 0
       ? []
@@ -348,6 +350,7 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
   startDate: string | undefined,
   endDate: string | undefined,
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
+  nowIso: NowIso = liveNowIso,
 ) {
   if (!episodeCount || episodeCount <= 0) {
     return;
@@ -357,7 +360,7 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
     db.select().from(episodes).where(eq(episodes.animeId, animeId)),
   );
   const scheduleMap = buildAiringScheduleMap(futureAiringSchedule);
-  const now = yield* nowIso;
+  const now = yield* nowIso();
 
   for (const row of existingRows) {
     const inferred = inferAiredAt(
@@ -462,8 +465,9 @@ export const appendAnimeLogEffect = Effect.fn("AnimeRepository.appendAnimeLog")(
   eventType: string,
   level: string,
   message: string,
+  nowIso: NowIso = liveNowIso,
 ) {
-  const createdAt = yield* nowIso;
+  const createdAt = yield* nowIso();
   yield* tryDatabasePromise("Failed to append anime log", () =>
     db.insert(systemLogs).values({
       createdAt,

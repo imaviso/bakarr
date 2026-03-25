@@ -2,6 +2,7 @@ import { assertEquals, it } from "../../test/vitest.ts";
 import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
+import { ClockServiceLive } from "../../lib/clock.ts";
 import { QBitTorrentClient, QBitTorrentClientLive } from "./qbittorrent.ts";
 
 it.scoped("QBitTorrentClient uses provided HttpClient", () =>
@@ -27,7 +28,12 @@ it.scoped("QBitTorrentClient uses provided HttpClient", () =>
     ).pipe(
       Effect.provide(
         QBitTorrentClientLive.pipe(
-          Layer.provide(Layer.succeed(HttpClient.HttpClient, makeQBitClient())),
+          Layer.provide(
+            Layer.mergeAll(
+              ClockServiceLive,
+              Layer.succeed(HttpClient.HttpClient, makeQBitClient()),
+            ),
+          ),
         ),
       ),
     );
@@ -66,7 +72,12 @@ it.effect("QBitTorrentClient can load torrent contents", () =>
     ).pipe(
       Effect.provide(
         QBitTorrentClientLive.pipe(
-          Layer.provide(Layer.succeed(HttpClient.HttpClient, makeQBitClient())),
+          Layer.provide(
+            Layer.mergeAll(
+              ClockServiceLive,
+              Layer.succeed(HttpClient.HttpClient, makeQBitClient()),
+            ),
+          ),
         ),
       ),
     );
@@ -92,28 +103,52 @@ it("QBitTorrentClient does not re-authenticate cached sessions for unrelated tra
   const infoCookies: string[] = [];
   const clientLayer = QBitTorrentClientLive.pipe(
     Layer.provide(
-      Layer.succeed(
-        HttpClient.HttpClient,
-        HttpClient.make((request, url) => {
-          if (url.pathname === "/api/v2/auth/login") {
-            const sessionId = loginCalls.length === 0 ? "abc123" : "def456";
-            loginCalls.push(sessionId);
-            return Effect.succeed(
-              HttpClientResponse.fromWeb(
-                request,
-                new Response("Ok.", {
-                  headers: { "set-cookie": `SID=${sessionId}; HttpOnly` },
-                  status: 200,
-                }),
-              ),
-            );
-          }
+      Layer.mergeAll(
+        ClockServiceLive,
+        Layer.succeed(
+          HttpClient.HttpClient,
+          HttpClient.make((request, url) => {
+            if (url.pathname === "/api/v2/auth/login") {
+              const sessionId = loginCalls.length === 0 ? "abc123" : "def456";
+              loginCalls.push(sessionId);
+              return Effect.succeed(
+                HttpClientResponse.fromWeb(
+                  request,
+                  new Response("Ok.", {
+                    headers: { "set-cookie": `SID=${sessionId}; HttpOnly` },
+                    status: 200,
+                  }),
+                ),
+              );
+            }
 
-          if (url.pathname === "/api/v2/torrents/info") {
-            const cookie = request.headers["cookie"] ?? "";
-            infoCookies.push(cookie);
+            if (url.pathname === "/api/v2/torrents/info") {
+              const cookie = request.headers["cookie"] ?? "";
+              infoCookies.push(cookie);
 
-            if (cookie.includes("SID=abc123") && infoCookies.length === 1) {
+              if (cookie.includes("SID=abc123") && infoCookies.length === 1) {
+                return Effect.succeed(
+                  HttpClientResponse.fromWeb(
+                    request,
+                    new Response("[]", {
+                      headers: { "content-type": "application/json" },
+                      status: 200,
+                    }),
+                  ),
+                );
+              }
+
+              if (cookie.includes("SID=abc123")) {
+                return Effect.fail(
+                  new HttpClientError.RequestError({
+                    request,
+                    reason: "Transport",
+                    cause: new Error("network failed after 403 retries"),
+                    description: "network failed after 403 retries",
+                  }),
+                );
+              }
+
               return Effect.succeed(
                 HttpClientResponse.fromWeb(
                   request,
@@ -125,32 +160,11 @@ it("QBitTorrentClient does not re-authenticate cached sessions for unrelated tra
               );
             }
 
-            if (cookie.includes("SID=abc123")) {
-              return Effect.fail(
-                new HttpClientError.RequestError({
-                  request,
-                  reason: "Transport",
-                  cause: new Error("network failed after 403 retries"),
-                  description: "network failed after 403 retries",
-                }),
-              );
-            }
-
             return Effect.succeed(
-              HttpClientResponse.fromWeb(
-                request,
-                new Response("[]", {
-                  headers: { "content-type": "application/json" },
-                  status: 200,
-                }),
-              ),
+              HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
             );
-          }
-
-          return Effect.succeed(
-            HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
-          );
-        }),
+          }),
+        ),
       ),
     ),
   );

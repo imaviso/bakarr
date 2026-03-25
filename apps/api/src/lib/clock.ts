@@ -15,6 +15,14 @@ export const ClockServiceLive = Layer.succeed(ClockService, {
   currentTimeMillis: Clock.currentTimeMillis,
 });
 
+export function isoStringFromMillis(millis: number): string {
+  return new Date(millis).toISOString();
+}
+
+export function nowIsoFromClock(clock: ClockServiceShape): Effect.Effect<string> {
+  return Effect.map(clock.currentTimeMillis, isoStringFromMillis);
+}
+
 export const currentTimeMillis: Effect.Effect<number> = Clock.currentTimeMillis;
 export const currentMonotonicMillis: Effect.Effect<number> = Effect.sync(() => performance.now());
 

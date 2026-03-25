@@ -35,11 +35,12 @@ export interface RuntimeOptions {
 }
 
 export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: RuntimeOptions) {
-  const configLayer = options?.configProvider
+  const configBaseLayer = options?.configProvider
     ? AppConfig.layer(overrides).pipe(
         Layer.provide(Layer.setConfigProvider(options.configProvider)),
       )
     : AppConfig.layer(overrides);
+  const configLayer = configBaseLayer.pipe(Layer.provide(RandomServiceLive));
   const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(ClockServiceLive));
   const httpClientLayer = FetchHttpClient.layer;
   const databaseLayer = DatabaseLive.pipe(Layer.provide(configLayer));
@@ -47,23 +48,23 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: 
   const eventPublisherLayer = EventPublisherLive.pipe(
     Layer.provide(Layer.mergeAll(eventBusLayer, ClockServiceLive)),
   );
-  const backgroundMonitorLayer = BackgroundWorkerMonitorLive;
+  const backgroundMonitorLayer = BackgroundWorkerMonitorLive.pipe(Layer.provide(ClockServiceLive));
   const aniListLayer = options?.aniListLayer
     ? options.aniListLayer
-    : AniListClientLive.pipe(Layer.provide(httpClientLayer));
+    : AniListClientLive.pipe(Layer.provide(Layer.mergeAll(httpClientLayer, ClockServiceLive)));
   const dnsLayer = DnsResolverLive;
   const rssLayer = options?.rssLayer
     ? options.rssLayer
-    : RssClientLive.pipe(Layer.provide(Layer.mergeAll(httpClientLayer, dnsLayer)));
+    : RssClientLive.pipe(
+        Layer.provide(Layer.mergeAll(httpClientLayer, dnsLayer, ClockServiceLive)),
+      );
   const qbitLayer = options?.qbitLayer
     ? options.qbitLayer
-    : QBitTorrentClientLive.pipe(Layer.provide(httpClientLayer));
+    : QBitTorrentClientLive.pipe(Layer.provide(Layer.mergeAll(httpClientLayer, ClockServiceLive)));
   const seadexLayer = options?.seadexLayer
     ? options.seadexLayer
-    : SeaDexClientLive.pipe(Layer.provide(httpClientLayer));
-  const externalClientsLayer = Layer.mergeAll(aniListLayer, rssLayer, qbitLayer, seadexLayer).pipe(
-    Layer.provide(httpClientLayer),
-  );
+    : SeaDexClientLive.pipe(Layer.provide(Layer.mergeAll(httpClientLayer, ClockServiceLive)));
+  const externalClientsLayer = Layer.mergeAll(aniListLayer, rssLayer, qbitLayer, seadexLayer);
   const basePlatformLayer = Layer.mergeAll(
     BunContext.layer,
     configLayer,

@@ -13,36 +13,44 @@ import {
 } from "./media-probe.ts";
 
 it("parseFfprobeJson extracts canonical media metadata", () => {
-  assertEquals(
-    parseFfprobeJson(
-      JSON.stringify({
-        format: {
-          duration: "1440.4",
+  const result = parseFfprobeJson(
+    JSON.stringify({
+      format: {
+        duration: "1440.4",
+      },
+      streams: [
+        {
+          codec_name: "hevc",
+          codec_type: "video",
+          height: 1080,
+          width: 1920,
         },
-        streams: [
-          {
-            codec_name: "hevc",
-            codec_type: "video",
-            height: 1080,
-            width: 1920,
-          },
-          {
-            channel_layout: "stereo",
-            channels: 2,
-            codec_name: "aac",
-            codec_type: "audio",
-          },
-        ],
-      }),
-    ),
-    {
+        {
+          channel_layout: "stereo",
+          channels: 2,
+          codec_name: "aac",
+          codec_type: "audio",
+        },
+      ],
+    }),
+  );
+
+  assertEquals(result._tag, "MediaProbeMetadataFound");
+  if (result._tag === "MediaProbeMetadataFound") {
+    assertEquals(result.metadata, {
       audio_channels: "2.0",
       audio_codec: "AAC",
       duration_seconds: 1440,
       resolution: "1080p",
       video_codec: "HEVC",
-    },
-  );
+    });
+  }
+});
+
+it("parseFfprobeJson returns typed failure for invalid output", () => {
+  const result = parseFfprobeJson('{"streams":"bad"}');
+
+  assertEquals(result._tag, "MediaProbeFailure");
 });
 
 it("mergeProbedMediaMetadata fills only missing fields", () => {

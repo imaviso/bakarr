@@ -1,6 +1,5 @@
 import { Effect } from "effect";
 
-import { currentMonotonicMillis } from "../../lib/clock.ts";
 import { durationMsSince } from "../../lib/logging.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { makeDownloadReconciliationService } from "./download-reconciliation-service.ts";
@@ -9,6 +8,8 @@ import { makeDownloadTriggerService } from "./download-trigger-service.ts";
 import { type DownloadOrchestrationInput, mapQBitState } from "./download-orchestration-shared.ts";
 
 export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
+  const currentMonotonicMillis =
+    input.currentMonotonicMillis ?? (() => Effect.sync(() => performance.now()));
   const reconciliationService = makeDownloadReconciliationService(input);
 
   const torrentLifecycleService = makeDownloadTorrentLifecycleService({
@@ -25,7 +26,7 @@ export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
     trigger: string,
   ) {
     return yield* Effect.gen(function* () {
-      const startedAt = yield* currentMonotonicMillis;
+      const startedAt = yield* currentMonotonicMillis();
 
       yield* torrentLifecycleService
         .syncDownloadsWithQBitEffect()
@@ -37,7 +38,7 @@ export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
           ),
         );
 
-      const finishedAt = yield* currentMonotonicMillis;
+      const finishedAt = yield* currentMonotonicMillis();
 
       yield* Effect.logInfo("download state sync completed").pipe(
         Effect.annotateLogs({

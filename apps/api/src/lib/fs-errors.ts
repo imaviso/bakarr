@@ -7,10 +7,20 @@
 /** Check if an error wraps a "not found" platform error (ENOENT / Deno NotFound). */
 export function isNotFoundError(error: { cause?: unknown }): boolean {
   const cause = error.cause;
+
+  if (isSystemNotFoundError(cause)) {
+    return true;
+  }
+
   if (cause instanceof Error && "code" in cause) {
     const code = (cause as { code?: string }).code;
     return code === "ENOENT" || code === "NotFound";
   }
+
+  if (typeof cause === "object" && cause !== null && "cause" in cause) {
+    return isNotFoundError({ cause: cause.cause });
+  }
+
   return false;
 }
 
@@ -24,6 +34,8 @@ export function isCrossFilesystemError(error: { cause?: unknown }): boolean {
 }
 
 /** Check if a platform SystemError itself is a NotFound branch. */
-export function isSystemNotFoundError(error: { reason?: unknown }): boolean {
-  return error.reason === "NotFound";
+export function isSystemNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === "object" && error !== null && "reason" in error && error.reason === "NotFound"
+  );
 }

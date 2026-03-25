@@ -19,7 +19,13 @@ import { tryDatabasePromise, updateAnimeRow, wrapAnimeError } from "./service-su
 type AnimeInfoPublisher = Pick<EventPublisherShape, "publishInfo">;
 
 export const updateAnimePathEffect = Effect.fn("AnimeService.updateAnimePathEffect")(
-  function* (input: { db: AppDatabase; fs: FileSystemShape; id: number; path: string }) {
+  function* (input: {
+    db: AppDatabase;
+    fs: FileSystemShape;
+    id: number;
+    path: string;
+    nowIso: () => Effect.Effect<string>;
+  }) {
     const trimmedPath = input.path.trim();
     yield* requireAnimeExistsEffect(input.db, input.id).pipe(
       Effect.mapError(wrapAnimeError("Failed to update anime path")),
@@ -59,6 +65,7 @@ export const updateAnimePathEffect = Effect.fn("AnimeService.updateAnimePathEffe
       "anime.path.updated",
       "success",
       `Updated path for anime ${input.id}`,
+      input.nowIso,
     );
   },
 );
@@ -68,6 +75,7 @@ export const updateAnimeProfileEffect = Effect.fn("AnimeService.updateAnimeProfi
     db: AppDatabase;
     eventPublisher: AnimeInfoPublisher;
     id: number;
+    nowIso: () => Effect.Effect<string>;
     profileName: string;
   }) {
     const profileExists = yield* qualityProfileExistsEffect(input.db, input.profileName);
@@ -84,6 +92,7 @@ export const updateAnimeProfileEffect = Effect.fn("AnimeService.updateAnimeProfi
       { profileName: input.profileName },
       `Updated profile for anime ${input.id}`,
       input.eventPublisher,
+      input.nowIso,
     );
   },
 );
@@ -94,6 +103,7 @@ export const setAnimeMonitoredEffect = Effect.fn("AnimeService.setAnimeMonitored
     eventPublisher: AnimeInfoPublisher;
     id: number;
     monitored: boolean;
+    nowIso: () => Effect.Effect<string>;
   }) {
     yield* updateAnimeRow(
       input.db,
@@ -101,6 +111,7 @@ export const setAnimeMonitoredEffect = Effect.fn("AnimeService.setAnimeMonitored
       { monitored: input.monitored },
       `Anime ${input.id} monitoring updated`,
       input.eventPublisher,
+      input.nowIso,
     );
   },
 );
@@ -111,6 +122,7 @@ export const updateAnimeReleaseProfilesEffect = Effect.fn(
   db: AppDatabase;
   eventPublisher: AnimeInfoPublisher;
   id: number;
+  nowIso: () => Effect.Effect<string>;
   releaseProfileIds: number[];
 }) {
   yield* updateAnimeRow(
@@ -119,5 +131,6 @@ export const updateAnimeReleaseProfilesEffect = Effect.fn(
     { releaseProfileIds: encodeNumberList(input.releaseProfileIds) },
     `Updated release profiles for anime ${input.id}`,
     input.eventPublisher,
+    input.nowIso,
   );
 });

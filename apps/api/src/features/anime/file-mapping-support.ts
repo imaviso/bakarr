@@ -5,7 +5,6 @@ import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import { isWithinPathRoot } from "../../lib/filesystem.ts";
-import { nowIso } from "../../lib/clock.ts";
 import {
   type MediaProbeShape,
   mergeProbedMediaMetadata,
@@ -132,6 +131,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeService.scanAnimeFolderEffe
     db: AppDatabase;
     fs: FileSystemShape;
     mediaProbe: MediaProbeShape;
+    nowIso: () => Effect.Effect<string>;
   }) {
     const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
       mapAnimeDbError("Failed to scan anime folder"),
@@ -185,7 +185,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeService.scanAnimeFolderEffe
         continue;
       }
 
-      const currentIso = yield* nowIso;
+      const currentIso = yield* input.nowIso();
 
       for (const episodeNumber of episodeNumbers) {
         yield* upsertEpisodeEffect(input.db, input.animeId, episodeNumber, {

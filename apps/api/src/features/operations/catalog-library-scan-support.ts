@@ -23,12 +23,14 @@ export function makeCatalogLibraryScanSupport(input: {
   db: AppDatabase;
   fs: FileSystemShape;
   eventBus: typeof EventBus.Service;
+  nowIso?: () => Effect.Effect<string>;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
   tryDatabasePromise: TryDatabasePromise;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
 }): CatalogLibraryScanSupportShape {
+  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
   const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(function* () {
-    yield* markJobStarted(input.db, "library_scan");
+    yield* markJobStarted(input.db, "library_scan", nowIso);
 
     return yield* Effect.gen(function* () {
       const animeRows = yield* input.tryDatabasePromise("Failed to run library scan", () =>
@@ -118,6 +120,7 @@ export function makeCatalogLibraryScanSupport(input: {
         input.db,
         "library_scan",
         `Scanned ${scanned} file(s), matched ${matched}`,
+        nowIso,
       );
       yield* input.eventBus.publish({
         type: "LibraryScanFinished",
@@ -127,7 +130,7 @@ export function makeCatalogLibraryScanSupport(input: {
       return { matched, scanned };
     }).pipe(
       Effect.catchAll((cause) =>
-        markJobFailed(input.db, "library_scan", cause).pipe(
+        markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
           Effect.zipRight(
             cause instanceof DatabaseErrorTag || cause instanceof OperationsPathError
               ? Effect.fail(cause)

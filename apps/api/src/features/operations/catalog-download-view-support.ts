@@ -9,7 +9,6 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { downloadEvents, downloads } from "../../db/schema.ts";
-import { nowIso } from "./job-support.ts";
 import {
   loadDownloadEventPresentationContexts,
   loadDownloadPresentationContexts,
@@ -63,8 +62,10 @@ export interface CatalogDownloadViewSupportShape {
 
 export function makeCatalogDownloadViewSupport(input: {
   db: AppDatabase;
+  nowIso?: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogDownloadViewSupportShape {
+  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
   const listDownloadEvents = Effect.fn("OperationsService.listDownloadEvents")(function* (
     queryInput: {
       animeId?: number;
@@ -198,7 +199,7 @@ export function makeCatalogDownloadViewSupport(input: {
     );
     const total = Number(totalRows[0]?.count ?? 0);
 
-    const generatedAt = yield* nowIso;
+    const generatedAt = yield* nowIso();
     return {
       events,
       total,

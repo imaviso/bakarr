@@ -300,23 +300,26 @@ export function mergeProbedMediaMetadata<
   };
 }
 
-export function parseFfprobeJson(json: string): ProbedMediaMetadata | undefined {
-  try {
-    const parsed = JSON.parse(json);
-    const decoded = Schema.decodeUnknownEither(FFProbeOutputSchema)(parsed);
+export function parseFfprobeJson(
+  json: string,
+): MediaProbeFailure | MediaProbeMetadataFound | MediaProbeNoMetadata {
+  const parsedOutput = Schema.decodeUnknownEither(FFProbeOutputJsonSchema)(json);
 
-    if (decoded._tag === "Left") {
-      return undefined;
-    }
-
-    const normalized = Schema.decodeUnknownEither(ProbedMediaMetadataFromFFProbeOutputSchema)(
-      decoded.right,
-    );
-
-    return normalized._tag === "Left" ? undefined : (normalized.right ?? undefined);
-  } catch {
-    return undefined;
+  if (parsedOutput._tag === "Left") {
+    return new MediaProbeFailure({ message: "ffprobe output was invalid" });
   }
+
+  const normalized = Schema.decodeUnknownEither(ProbedMediaMetadataFromFFProbeOutputSchema)(
+    parsedOutput.right,
+  );
+
+  if (normalized._tag === "Left") {
+    return new MediaProbeFailure({ message: "ffprobe metadata normalization failed" });
+  }
+
+  return normalized.right
+    ? new MediaProbeMetadataFound({ metadata: normalized.right })
+    : new MediaProbeNoMetadata({});
 }
 
 export const MediaProbeCommandOutputSchema = Schema.Struct({
@@ -432,9 +435,7 @@ const makeMediaProbe = (ffprobeSemaphore: Effect.Semaphore): MediaProbeShape => 
       return new MediaProbeFailure({ message: "ffprobe output was invalid" });
     }
 
-    const metadata = parseFfprobeJson(stdout);
-
-    return metadata ? new MediaProbeMetadataFound({ metadata }) : new MediaProbeNoMetadata({});
+    return parseFfprobeJson(stdout);
   });
 
   return { probeVideoFile };

@@ -22,12 +22,7 @@ import {
   parseMagnetInfoHash,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
-import {
-  appendLog,
-  loadMissingEpisodeNumbers,
-  nowIso,
-  recordDownloadEvent,
-} from "./job-support.ts";
+import { appendLog, loadMissingEpisodeNumbers, recordDownloadEvent } from "./job-support.ts";
 import { parseReleaseName } from "./release-ranking.ts";
 import {
   DownloadConflictError,
@@ -52,6 +47,7 @@ export function makeDownloadTriggerService(input: {
   readonly maybeQBitConfig: (
     config: import("../../../../../packages/shared/src/index.ts").Config,
   ) => QBitConfig | null;
+  readonly nowIso?: () => Effect.Effect<string>;
   readonly coordination: import("./runtime-support.ts").OperationsCoordinationShape;
   readonly syncDownloadsWithQBitEffect: () => Effect.Effect<
     void,
@@ -69,6 +65,7 @@ export function makeDownloadTriggerService(input: {
     coordination,
     syncDownloadsWithQBitEffect,
   } = input;
+  const nowIso = input.nowIso ?? (() => Effect.sync(() => new Date().toISOString()));
 
   const getDownloadProgressSnapshotEffect = Effect.fn(
     "OperationsService.getDownloadProgressSnapshot",
@@ -109,7 +106,7 @@ export function makeDownloadTriggerService(input: {
       Effect.gen(function* () {
         const animeRow = yield* requireAnime(db, input.anime_id);
 
-        const now = yield* nowIso;
+        const now = yield* nowIso();
         const runtimeConfig = yield* loadRuntimeConfig(db);
         const parsedRelease = parseReleaseName(input.title);
         const effectiveIsBatch = input.is_batch ?? parsedRelease.isBatch;
@@ -256,18 +253,22 @@ export function makeDownloadTriggerService(input: {
               .where(eq(downloads.id, insertedId)),
           );
         }
-        yield* recordDownloadEvent(db, {
-          animeId: animeRow.id,
-          downloadId: insertedId,
-          eventType: "download.queued",
-          metadataJson: {
-            covered_episodes: inferredCoveredEpisodes,
-            source_metadata: sourceMetadata,
+        yield* recordDownloadEvent(
+          db,
+          {
+            animeId: animeRow.id,
+            downloadId: insertedId,
+            eventType: "download.queued",
+            metadataJson: {
+              covered_episodes: inferredCoveredEpisodes,
+              source_metadata: sourceMetadata,
+            },
+            message: `Queued ${input.title}`,
+            metadata: coveredEpisodes,
+            toStatus: status,
           },
-          message: `Queued ${input.title}`,
-          metadata: coveredEpisodes,
-          toStatus: status,
-        });
+          nowIso,
+        );
         yield* appendLog(
           db,
           "downloads.triggered",
@@ -275,6 +276,7 @@ export function makeDownloadTriggerService(input: {
           shouldDeferBatchCoverage
             ? `Queued batch download for ${animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered episodes`
             : `Queued download for ${animeRow.titleRomaji} episode ${requestedEpisode}`,
+          nowIso,
         );
         yield* eventBus.publish({
           type: "DownloadStarted",

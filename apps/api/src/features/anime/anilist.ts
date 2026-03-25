@@ -9,7 +9,8 @@ import type {
   AnimeDiscoveryEntry,
   AnimeSearchResult,
 } from "../../../../../packages/shared/src/index.ts";
-import { ExternalCallError, tryExternalEffect } from "../../lib/effect-retry.ts";
+import { ClockService } from "../../lib/clock.ts";
+import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
 
 const AnimeMetadataTitleSchema = Schema.Struct({
   english: Schema.optional(Schema.String),
@@ -522,6 +523,8 @@ export const AniListClientLive = Layer.effect(
   AniListClient,
   Effect.gen(function* () {
     const client = yield* HttpClient.HttpClient;
+    const clock = yield* ClockService;
+    const tryExternalEffect = makeTryExternalEffect(clock);
 
     const searchAnimeMetadata = Effect.fn("AniListClient.searchAnimeMetadata")(function* (
       query: string,
@@ -532,13 +535,13 @@ export const AniListClientLive = Layer.effect(
         return [];
       }
 
-      return yield* trySearchRemote(client, trimmed);
+      return yield* trySearchRemote(client, tryExternalEffect, trimmed);
     });
 
     const getAnimeMetadataById = Effect.fn("AniListClient.getAnimeMetadataById")(function* (
       id: number,
     ) {
-      return yield* tryFetchDetail(client, id);
+      return yield* tryFetchDetail(client, tryExternalEffect, id);
     });
 
     return {
@@ -550,6 +553,7 @@ export const AniListClientLive = Layer.effect(
 
 const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
   client: HttpClient.HttpClient,
+  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
   trimmed: string,
 ) {
   const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
@@ -602,6 +606,7 @@ const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
 
 const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
   client: HttpClient.HttpClient,
+  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
   id: number,
 ) {
   const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
