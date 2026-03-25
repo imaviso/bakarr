@@ -1,5 +1,5 @@
 import { assertEquals, it } from "../../test/vitest.ts";
-import { Effect } from "effect";
+import { Cause, Effect, Exit } from "effect";
 
 import { downloadEvents, downloads, rssFeeds } from "../../db/schema.ts";
 import {
@@ -10,6 +10,7 @@ import {
   toDownloadStatus,
   toRssFeed,
 } from "./repository.ts";
+import { OperationsStoredDataError } from "./errors.ts";
 
 it.effect("repository mappers convert RSS feed and download event rows", () =>
   Effect.gen(function* () {
@@ -170,7 +171,7 @@ it.effect("repository download mappers decode optional fields and derive status 
       externalState: "downloading",
       groupName: "SubsPlease",
       id: 1,
-      infoHash: null,
+      infoHash: "generated-hash",
       isBatch: true,
       lastErrorAt: null,
       lastSyncedAt: "2024-01-01T00:06:00.000Z",
@@ -214,7 +215,7 @@ it.effect("repository download mappers decode optional fields and derive status 
     assertEquals(download.source_metadata?.selection_kind, "upgrade");
     assertEquals(download.source_metadata?.selection_score, 12);
 
-    const queuedStatus = yield* toDownloadStatus(row, () => "generated-hash", {
+    const queuedStatus = yield* toDownloadStatus(row, {
       animeImage: "https://example.com/naruto.jpg",
       importedPath: "/library/Naruto/Naruto - 01.mkv",
     });
@@ -239,7 +240,6 @@ it.effect("repository download mappers decode optional fields and derive status 
         speedBytes: null,
         status: "downloading",
       },
-      () => "unused",
       {
         animeImage: "https://example.com/naruto.jpg",
       },
@@ -288,7 +288,7 @@ it.effect("repository download mappers flag unresolved batch coverage", () =>
     } satisfies typeof downloads.$inferSelect;
 
     const download = yield* toDownload(row, {});
-    const status = yield* toDownloadStatus(row, () => "abcdef", {});
+    const status = yield* toDownloadStatus(row, {});
 
     assertEquals(download.coverage_pending, true);
     assertEquals(download.covered_episodes, undefined);
@@ -296,5 +296,50 @@ it.effect("repository download mappers flag unresolved batch coverage", () =>
     assertEquals(status.coverage_pending, true);
     assertEquals(status.covered_episodes, undefined);
     assertEquals(status.source_metadata, undefined);
+  }),
+);
+
+it.effect("toDownloadStatus fails when stored infoHash is missing", () =>
+  Effect.gen(function* () {
+    const row = {
+      addedAt: "2024-01-01T00:00:00.000Z",
+      animeId: 20,
+      animeTitle: "Broken Download",
+      contentPath: null,
+      coveredEpisodes: null,
+      downloadDate: null,
+      downloadedBytes: 0,
+      episodeNumber: 1,
+      errorMessage: null,
+      etaSeconds: null,
+      externalState: "queued",
+      groupName: null,
+      id: 99,
+      infoHash: null,
+      isBatch: false,
+      lastErrorAt: null,
+      lastSyncedAt: null,
+      magnet: null,
+      progress: 0,
+      reconciledAt: null,
+      retryCount: 0,
+      savePath: null,
+      speedBytes: 0,
+      sourceMetadata: null,
+      status: "queued",
+      torrentName: "Broken Download - 01",
+      totalBytes: 0,
+    } satisfies typeof downloads.$inferSelect;
+
+    const exit = yield* Effect.exit(toDownloadStatus(row, {}));
+
+    assertEquals(Exit.isFailure(exit), true);
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assertEquals(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assertEquals(failure.value instanceof OperationsStoredDataError, true);
+      }
+    }
   }),
 );

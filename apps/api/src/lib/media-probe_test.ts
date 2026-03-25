@@ -149,7 +149,7 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
   }),
 );
 
-it.effect("MediaProbe logs invalid ffprobe output instead of silently discarding it", () =>
+it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", () =>
   Effect.gen(function* () {
     const messages: string[] = [];
     const logger = Logger.make<unknown, void>(({ message }) => {
@@ -176,7 +176,7 @@ it.effect("MediaProbe logs invalid ffprobe output instead of silently discarding
       ),
     );
 
-    assertEquals(result, undefined);
+    assertEquals(result._tag, "MediaProbeFailure");
     assertEquals(
       messages.some((message) => message.includes("ffprobe output was invalid")),
       true,

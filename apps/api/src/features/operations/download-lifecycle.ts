@@ -11,6 +11,7 @@ import {
   parseFileSourceIdentity,
 } from "../../lib/media-identity.ts";
 import type { QBitTorrentFile } from "./qbittorrent.ts";
+import { OperationsStoredDataError } from "./errors.ts";
 
 export function parseMagnetInfoHash(magnet: string | null | undefined): string | undefined {
   if (!magnet) {
@@ -99,7 +100,13 @@ export function toCoveredEpisodesJson(episodes: readonly number[]): string | nul
 }
 
 export function parseCoveredEpisodes(value: string | null | undefined): number[] {
-  return decodeOptionalNumberList(value);
+  try {
+    return decodeOptionalNumberList(value);
+  } catch {
+    throw new OperationsStoredDataError({
+      message: "Stored covered episode metadata is corrupt",
+    });
+  }
 }
 
 const IN_FLIGHT_STATUSES = ["queued", "downloading", "paused"];

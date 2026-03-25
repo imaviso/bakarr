@@ -117,11 +117,11 @@ export function effectDecodeNumberList(
 }
 
 export function encodeOptionalNumberList(values: readonly number[]): string | null {
-  const normalized = [...new Set(values.filter((item) => Number.isInteger(item) && item > 0))].sort(
-    (left, right) => left - right,
-  );
+  if (values.length === 0) {
+    return null;
+  }
 
-  return normalized.length > 0 ? JSON.stringify(normalized) : null;
+  return Schema.encodeSync(NumberListJsonSchema)([...values]);
 }
 
 export function decodeOptionalNumberList(value: string | null | undefined): number[] {

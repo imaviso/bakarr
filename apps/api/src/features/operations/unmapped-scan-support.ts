@@ -29,47 +29,47 @@ export function findLocalFolderAnimeMatch(
   folderName: string,
   animeRows: ReadonlyArray<typeof anime.$inferSelect>,
 ) {
-  const queries = buildUnmappedFolderSearchQueries(folderName);
+  return Effect.gen(function* () {
+    const queries = buildUnmappedFolderSearchQueries(folderName);
 
-  for (const [index, query] of queries.entries()) {
-    const match = findBestLocalAnimeMatch(query, [...animeRows]);
+    for (const [index, query] of queries.entries()) {
+      const match = findBestLocalAnimeMatch(query, [...animeRows]);
 
-    if (match) {
-      return {
-        ...toAnimeSearchCandidate(match),
-        match_confidence: roundConfidence(scoreAnimeRowMatch(query, match)),
-        match_reason:
-          index === 0
-            ? `Matched a library title from the normalized folder name ${JSON.stringify(
-                folderName,
-              )}`
-            : `Matched a library title after removing season or release noise from ${JSON.stringify(
-                folderName,
-              )}`,
-      };
+      if (match) {
+        return {
+          ...(yield* toAnimeSearchCandidate(match)),
+          match_confidence: roundConfidence(scoreAnimeRowMatch(query, match)),
+          match_reason:
+            index === 0
+              ? `Matched a library title from the normalized folder name "${folderName}"`
+              : `Matched a library title after removing season or release noise from "${folderName}"`,
+        };
+      }
     }
-  }
 
-  return undefined;
+    return undefined;
+  });
 }
 
 export function mergeLocalFolderMatch(
   folder: ScannerState["folders"][number],
   animeRows: ReadonlyArray<typeof anime.$inferSelect>,
 ) {
-  const localMatch = findLocalFolderAnimeMatch(folder.name, animeRows);
+  return Effect.gen(function* () {
+    const localMatch = yield* findLocalFolderAnimeMatch(folder.name, animeRows);
 
-  if (!localMatch) {
-    return folder;
-  }
+    if (!localMatch) {
+      return folder;
+    }
 
-  return {
-    ...folder,
-    suggested_matches: [
-      localMatch,
-      ...folder.suggested_matches.filter((candidate) => candidate.id !== localMatch.id),
-    ],
-  };
+    return {
+      ...folder,
+      suggested_matches: [
+        localMatch,
+        ...folder.suggested_matches.filter((candidate) => candidate.id !== localMatch.id),
+      ],
+    };
+  });
 }
 
 function roundConfidence(value: number) {
@@ -263,7 +263,7 @@ export const matchSingleUnmappedFolder = Effect.fn("OperationsService.matchSingl
       { concurrency: 1 },
     ).pipe(Effect.map((resultSets) => resultSets.find((results) => results.length > 0) ?? []));
 
-    const withLocal = mergeLocalFolderMatch(
+    const withLocal = yield* mergeLocalFolderMatch(
       {
         ...input.folder,
         suggested_matches: suggestions,

@@ -1,5 +1,5 @@
 import { assertEquals, it } from "../../test/vitest.ts";
-import { Effect } from "effect";
+import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -14,6 +14,7 @@ import {
   toAnimeSearchCandidate,
 } from "./library-import.ts";
 import { anime } from "../../db/schema.ts";
+import { OperationsStoredDataError } from "./errors.ts";
 import { encodeConfigCore } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 
@@ -342,49 +343,74 @@ it("findBestLocalAnimeMatch handles title normalization and rejects weak matches
   assertEquals(findBestLocalAnimeMatch("Completely Different Show", [naruto, bleach]), undefined);
 });
 
-it("titlesMatch checks normalized candidate titles", () => {
-  const candidate = toAnimeSearchCandidate(
-    makeAnimeRow({
-      addedAt: "2024-01-01T00:00:00.000Z",
-      bannerImage: "/images/banner.jpg",
-      coverImage: null,
-      description: "Hero school",
-      endDate: "2020-06-01",
-      endYear: 2020,
-      episodeCount: 12,
-      format: "TV",
-      genres: '["Action","School"]',
-      id: 30,
-      malId: null,
-      monitored: true,
-      nextAiringAt: null,
-      nextAiringEpisode: null,
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      rootFolder: "/library/My Hero Academia",
-      score: null,
-      startDate: "2019-04-06",
-      startYear: 2019,
-      status: "FINISHED",
-      studios: "Bones",
-      titleEnglish: "My Hero Academia Season 2",
-      titleNative: "Boku no Hero Academia 2",
-      titleRomaji: "Boku no Hero Academia II",
-    }),
-  );
+it.effect("titlesMatch checks normalized candidate titles", () =>
+  Effect.gen(function* () {
+    const candidate = yield* toAnimeSearchCandidate(
+      makeAnimeRow({
+        addedAt: "2024-01-01T00:00:00.000Z",
+        bannerImage: "/images/banner.jpg",
+        coverImage: null,
+        description: "Hero school",
+        endDate: "2020-06-01",
+        endYear: 2020,
+        episodeCount: 12,
+        format: "TV",
+        genres: '["Action","School"]',
+        id: 30,
+        malId: null,
+        monitored: true,
+        nextAiringAt: null,
+        nextAiringEpisode: null,
+        profileName: "Default",
+        releaseProfileIds: "[]",
+        rootFolder: "/library/My Hero Academia",
+        score: null,
+        startDate: "2019-04-06",
+        startYear: 2019,
+        status: "FINISHED",
+        studios: "Bones",
+        titleEnglish: "My Hero Academia Season 2",
+        titleNative: "Boku no Hero Academia 2",
+        titleRomaji: "Boku no Hero Academia II",
+      }),
+    );
 
-  assertEquals(titlesMatch("My Hero Academia 2", candidate), true);
-  assertEquals(titlesMatch("One Piece", candidate), false);
-  assertEquals(candidate.banner_image, "/images/banner.jpg");
-  assertEquals(candidate.description, "Hero school");
-  assertEquals(candidate.end_date, "2020-06-01");
-  assertEquals(candidate.end_year, 2020);
-  assertEquals(candidate.genres, ["Action", "School"]);
-  assertEquals(candidate.season, "spring");
-  assertEquals(candidate.season_year, 2019);
-  assertEquals(candidate.start_date, "2019-04-06");
-  assertEquals(candidate.start_year, 2019);
-});
+    assertEquals(titlesMatch("My Hero Academia 2", candidate), true);
+    assertEquals(titlesMatch("One Piece", candidate), false);
+    assertEquals(candidate.banner_image, "/images/banner.jpg");
+    assertEquals(candidate.description, "Hero school");
+    assertEquals(candidate.end_date, "2020-06-01");
+    assertEquals(candidate.end_year, 2020);
+    assertEquals(candidate.genres, ["Action", "School"]);
+    assertEquals(candidate.season, "spring");
+    assertEquals(candidate.season_year, 2019);
+    assertEquals(candidate.start_date, "2019-04-06");
+    assertEquals(candidate.start_year, 2019);
+  }),
+);
+
+it.effect("toAnimeSearchCandidate fails for corrupt stored genres", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(
+      toAnimeSearchCandidate(
+        makeAnimeRow({
+          genres: "not-json",
+          id: 31,
+          titleRomaji: "Broken Show",
+        }),
+      ),
+    );
+
+    assertEquals(Exit.isFailure(exit), true);
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assertEquals(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assertEquals(failure.value instanceof OperationsStoredDataError, true);
+      }
+    }
+  }),
+);
 
 function makeAnimeRow(overrides: Partial<typeof anime.$inferSelect>): typeof anime.$inferSelect {
   return {

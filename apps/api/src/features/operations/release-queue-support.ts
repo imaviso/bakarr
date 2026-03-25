@@ -2,9 +2,14 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { DownloadSourceMetadata } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
+import { DatabaseError } from "../../db/database.ts";
+import type { AppDatabase } from "../../db/database.ts";
 import { anime, downloads } from "../../db/schema.ts";
-import type { ExternalCallError, OperationsError } from "./errors.ts";
+import {
+  type ExternalCallError,
+  type OperationsError,
+  OperationsStoredDataError,
+} from "./errors.ts";
 import { nowIso, recordDownloadEvent } from "./job-support.ts";
 import { hasOverlappingDownload, parseCoveredEpisodes } from "./download-lifecycle.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
@@ -31,66 +36,76 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
       message: string,
     ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   }) {
-    const coveredEpisodeNumbers = parseCoveredEpisodes(input.coveredEpisodes);
+    const coveredEpisodeNumbers = yield* Effect.try({
+      try: () => parseCoveredEpisodes(input.coveredEpisodes),
+      catch: (cause) =>
+        cause instanceof OperationsStoredDataError
+          ? cause
+          : new OperationsStoredDataError({
+              message: "Stored covered episode metadata is corrupt",
+            }),
+    });
     const now = yield* nowIso;
     const insertResult = yield* Effect.either(
-      input.tryDatabasePromise(input.contextMessage, () =>
-        input.db.transaction(
-          async (tx) => {
-            const overlapping = await hasOverlappingDownload(
-              tx as unknown as AppDatabase,
-              input.animeRow.id,
-              input.item.infoHash,
-              coveredEpisodeNumbers,
-            );
+      Effect.tryPromise({
+        try: () =>
+          input.db.transaction(
+            async (tx) => {
+              const overlapping = await hasOverlappingDownload(
+                tx as unknown as AppDatabase,
+                input.animeRow.id,
+                input.item.infoHash,
+                coveredEpisodeNumbers,
+              );
 
-            if (overlapping) {
-              return { _tag: "overlap" } as const;
-            }
+              if (overlapping) {
+                return { _tag: "overlap" } as const;
+              }
 
-            const inserted = await tx
-              .insert(downloads)
-              .values({
-                addedAt: now,
-                animeId: input.animeRow.id,
-                animeTitle: input.animeRow.titleRomaji,
-                contentPath: null,
-                coveredEpisodes: input.coveredEpisodes,
-                downloadDate: null,
-                downloadedBytes: 0,
-                episodeNumber: input.episodeNumber,
-                errorMessage: null,
-                etaSeconds: null,
-                externalState: "queued",
-                groupName: input.item.group ?? null,
-                infoHash: input.item.infoHash,
-                isBatch: input.isBatch,
-                lastSyncedAt: now,
-                magnet: input.item.magnet,
-                progress: 0,
-                savePath: null,
-                speedBytes: 0,
-                sourceMetadata: encodeDownloadSourceMetadata(input.sourceMetadata),
-                status: "queued",
-                torrentName: input.item.title,
-                totalBytes: input.item.sizeBytes,
-              })
-              .returning({ id: downloads.id });
+              const inserted = await tx
+                .insert(downloads)
+                .values({
+                  addedAt: now,
+                  animeId: input.animeRow.id,
+                  animeTitle: input.animeRow.titleRomaji,
+                  contentPath: null,
+                  coveredEpisodes: input.coveredEpisodes,
+                  downloadDate: null,
+                  downloadedBytes: 0,
+                  episodeNumber: input.episodeNumber,
+                  errorMessage: null,
+                  etaSeconds: null,
+                  externalState: "queued",
+                  groupName: input.item.group ?? null,
+                  infoHash: input.item.infoHash,
+                  isBatch: input.isBatch,
+                  lastSyncedAt: now,
+                  magnet: input.item.magnet,
+                  progress: 0,
+                  savePath: null,
+                  speedBytes: 0,
+                  sourceMetadata: encodeDownloadSourceMetadata(input.sourceMetadata),
+                  status: "queued",
+                  torrentName: input.item.title,
+                  totalBytes: input.item.sizeBytes,
+                })
+                .returning({ id: downloads.id });
 
-            return {
-              _tag: "inserted",
-              id: inserted[0].id,
-            } as const;
-          },
-          { behavior: "immediate" },
-        ),
-      ),
+              return {
+                _tag: "inserted",
+                id: inserted[0].id,
+              } as const;
+            },
+            { behavior: "immediate" },
+          ),
+        catch: input.wrapOperationsError(input.contextMessage),
+      }),
     );
 
     if (insertResult._tag === "Left") {
       const dbError = insertResult.left;
 
-      if (dbError.isUniqueConstraint()) {
+      if (dbError instanceof DatabaseError && dbError.isUniqueConstraint()) {
         return { _tag: "skipped" } as const;
       }
 

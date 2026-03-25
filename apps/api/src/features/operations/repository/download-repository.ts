@@ -91,7 +91,6 @@ export const toDownloadEvent = Effect.fn("OperationsRepository.toDownloadEvent")
 
 export const toDownloadStatus = Effect.fn("OperationsRepository.toDownloadStatus")(function* (
   row: DownloadRow,
-  randomHash: () => string,
   context?: DownloadPresentationContext,
 ) {
   const progress = row.progress ?? 0;
@@ -100,6 +99,11 @@ export const toDownloadStatus = Effect.fn("OperationsRepository.toDownloadStatus
   const coveredEpisodes = yield* decodeCoveredEpisodes(row.coveredEpisodes);
   const coveragePending =
     Boolean(row.isBatch) && (!coveredEpisodes || coveredEpisodes.length === 0);
+  const infoHash =
+    row.infoHash ??
+    (yield* new OperationsStoredDataError({
+      message: "Stored download info hash is missing",
+    }));
   const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
 
   return {
@@ -111,7 +115,7 @@ export const toDownloadStatus = Effect.fn("OperationsRepository.toDownloadStatus
     decision_reason: sourceMetadata?.decision_reason,
     downloaded_bytes: downloadedBytes,
     eta: row.etaSeconds ?? (row.status === "queued" ? 8640000 : 0),
-    hash: row.infoHash ?? randomHash(),
+    hash: infoHash,
     id: row.id,
     episode_number: row.episodeNumber,
     imported_path: context?.importedPath,
@@ -239,8 +243,8 @@ export const loadDownloadPresentationContexts = Effect.fn(
   }
 
   const animeIds = [...new Set(rows.map((row) => row.animeId))];
-  const animeRows = yield* Effect.promise(() =>
-    loadRowsByChunk(animeIds, (chunk) =>
+  const animeRows = yield* loadRowsByChunk(animeIds, (chunk) =>
+    Effect.promise(() =>
       db
         .select({
           coverImage: anime.coverImage,
@@ -307,12 +311,11 @@ export const loadDownloadPresentationContexts = Effect.fn(
   return new Map(contexts);
 });
 
-export async function loadDownloadEventPresentationContexts(
-  db: AppDatabase,
-  rows: readonly DownloadEventRow[],
-): Promise<Map<number, DownloadEventPresentationContext>> {
+export const loadDownloadEventPresentationContexts = Effect.fn(
+  "OperationsRepository.loadDownloadEventPresentationContexts",
+)(function* (db: AppDatabase, rows: readonly DownloadEventRow[]) {
   if (rows.length === 0) {
-    return new Map();
+    return new Map<number, DownloadEventPresentationContext>();
   }
 
   const animeIds = [
@@ -324,27 +327,31 @@ export async function loadDownloadEventPresentationContexts(
     ),
   ];
 
-  const animeRows = await loadRowsByChunk(animeIds, (chunk) =>
-    db
-      .select({
-        coverImage: anime.coverImage,
-        id: anime.id,
-        titleEnglish: anime.titleEnglish,
-        titleRomaji: anime.titleRomaji,
-      })
-      .from(anime)
-      .where(inArray(anime.id, chunk)),
+  const animeRows = yield* loadRowsByChunk(animeIds, (chunk) =>
+    Effect.promise(() =>
+      db
+        .select({
+          coverImage: anime.coverImage,
+          id: anime.id,
+          titleEnglish: anime.titleEnglish,
+          titleRomaji: anime.titleRomaji,
+        })
+        .from(anime)
+        .where(inArray(anime.id, chunk)),
+    ),
   );
   const animeById = new Map(animeRows.map((row) => [row.id, row] as const));
 
-  const downloadRows = await loadRowsByChunk(downloadIds, (chunk) =>
-    db
-      .select({
-        id: downloads.id,
-        torrentName: downloads.torrentName,
-      })
-      .from(downloads)
-      .where(inArray(downloads.id, chunk)),
+  const downloadRows = yield* loadRowsByChunk(downloadIds, (chunk) =>
+    Effect.promise(() =>
+      db
+        .select({
+          id: downloads.id,
+          torrentName: downloads.torrentName,
+        })
+        .from(downloads)
+        .where(inArray(downloads.id, chunk)),
+    ),
   );
   const downloadById = new Map(downloadRows.map((row) => [row.id, row] as const));
 
@@ -363,29 +370,26 @@ export async function loadDownloadEventPresentationContexts(
       ] as const;
     }),
   );
-}
+});
 
-async function loadRowsByChunk<TId, TRow>(
-  ids: readonly TId[],
-  loadChunk: (chunk: readonly TId[]) => Promise<readonly TRow[]>,
-): Promise<TRow[]> {
-  if (ids.length === 0) {
-    return [];
-  }
+const loadRowsByChunk = Effect.fn("OperationsRepository.loadRowsByChunk")(
+  <TId, TRow>(
+    ids: readonly TId[],
+    loadChunk: (chunk: readonly TId[]) => Effect.Effect<readonly TRow[]>,
+  ) =>
+    Effect.gen(function* () {
+      if (ids.length === 0) {
+        return [] as TRow[];
+      }
 
-  const chunks = chunkValues(ids, SQLITE_IN_LIST_CHUNK_SIZE);
-  const results: TRow[][] = [];
+      const chunks = chunkValues(ids, SQLITE_IN_LIST_CHUNK_SIZE);
+      const chunkResults = yield* Effect.forEach(chunks, loadChunk, {
+        concurrency: CHUNK_LOAD_CONCURRENCY,
+      });
 
-  for (let i = 0; i < chunks.length; i += CHUNK_LOAD_CONCURRENCY) {
-    const batch = chunks.slice(i, i + CHUNK_LOAD_CONCURRENCY);
-    const batchResults = await Promise.all(batch.map((chunk) => loadChunk(chunk)));
-    for (const chunkResult of batchResults) {
-      results.push([...chunkResult]);
-    }
-  }
-
-  return results.flatMap((chunk) => chunk);
-}
+      return chunkResults.flatMap((chunk) => [...chunk]);
+    }),
+);
 
 function chunkValues<T>(values: readonly T[], size: number) {
   const chunks: T[][] = [];

@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Effect, Either, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import type {
   AnimeSearchResult,
@@ -21,19 +21,29 @@ import {
   buildScannedFileMetadata,
   selectNamingFormat,
 } from "./naming-support.ts";
+import { OperationsStoredDataError } from "./errors.ts";
 import { parseResolution } from "./release-ranking.ts";
 import { currentNamingSettings, requireAnime } from "./repository.ts";
 
 const AnimeGenresJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 
-function decodeAnimeGenres(value: string | null): string[] | undefined {
+const decodeAnimeGenres = Effect.fn("Operations.decodeAnimeGenres")(function* (
+  value: string | null,
+) {
   if (!value) {
     return undefined;
   }
 
-  const decoded = Schema.decodeUnknownEither(AnimeGenresJsonSchema)(value);
-  return Either.isRight(decoded) ? [...decoded.right] : undefined;
-}
+  return yield* Schema.decodeUnknown(AnimeGenresJsonSchema)(value).pipe(
+    Effect.map((decoded) => [...decoded]),
+    Effect.mapError(
+      () =>
+        new OperationsStoredDataError({
+          message: "Stored anime genres are corrupt",
+        }),
+    ),
+  );
+});
 
 export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePreview")(function* (
   db: AppDatabase,
@@ -203,7 +213,9 @@ export function analyzeScannedFile(
   };
 }
 
-export function toAnimeSearchCandidate(row: typeof anime.$inferSelect): AnimeSearchResult {
+export const toAnimeSearchCandidate = Effect.fn("Operations.toAnimeSearchCandidate")(function* (
+  row: typeof anime.$inferSelect,
+) {
   return {
     already_in_library: true,
     banner_image: row.bannerImage ?? undefined,
@@ -213,7 +225,7 @@ export function toAnimeSearchCandidate(row: typeof anime.$inferSelect): AnimeSea
     end_year: row.endYear ?? undefined,
     episode_count: row.episodeCount ?? undefined,
     format: row.format,
-    genres: decodeAnimeGenres(row.genres),
+    genres: yield* decodeAnimeGenres(row.genres),
     id: row.id,
     season: deriveAnimeSeason(row.startDate),
     season_year: row.startYear ?? extractYear(row.startDate),
@@ -225,8 +237,8 @@ export function toAnimeSearchCandidate(row: typeof anime.$inferSelect): AnimeSea
       native: row.titleNative ?? undefined,
       romaji: row.titleRomaji,
     },
-  };
-}
+  } satisfies AnimeSearchResult;
+});
 
 function deriveAnimeSeason(date?: string | null) {
   if (!date) {

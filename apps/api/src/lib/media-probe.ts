@@ -16,6 +16,38 @@ export const ProbedMediaMetadataSchema = Schema.Struct({
 
 export type ProbedMediaMetadata = Schema.Schema.Type<typeof ProbedMediaMetadataSchema>;
 
+export class MediaProbeMetadataFound extends Schema.TaggedClass<MediaProbeMetadataFound>()(
+  "MediaProbeMetadataFound",
+  {
+    metadata: ProbedMediaMetadataSchema,
+  },
+) {}
+
+export class MediaProbeUnavailable extends Schema.TaggedClass<MediaProbeUnavailable>()(
+  "MediaProbeUnavailable",
+  {
+    message: Schema.String,
+  },
+) {}
+
+export class MediaProbeFailure extends Schema.TaggedClass<MediaProbeFailure>()(
+  "MediaProbeFailure",
+  {
+    message: Schema.String,
+  },
+) {}
+
+export class MediaProbeNoMetadata extends Schema.TaggedClass<MediaProbeNoMetadata>()(
+  "MediaProbeNoMetadata",
+  {},
+) {}
+
+export type MediaProbeResult =
+  | MediaProbeFailure
+  | MediaProbeMetadataFound
+  | MediaProbeNoMetadata
+  | MediaProbeUnavailable;
+
 class FFProbeError extends Schema.TaggedError<FFProbeError>()("FFProbeError", {
   cause: Schema.Defect,
   message: Schema.String,
@@ -40,7 +72,6 @@ class FFProbeOutputSchema extends Schema.Class<FFProbeOutputSchema>("FFProbeOutp
   format: Schema.optional(FFProbeFormatSchema),
 }) {}
 const FFProbeOutputJsonSchema = Schema.parseJson(FFProbeOutputSchema);
-
 const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
   FFProbeOutputSchema,
   Schema.NullOr(ProbedMediaMetadataSchema),
@@ -218,7 +249,7 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
 );
 
 export interface MediaProbeShape {
-  readonly probeVideoFile: (path: string) => Effect.Effect<ProbedMediaMetadata | undefined, never>;
+  readonly probeVideoFile: (path: string) => Effect.Effect<MediaProbeResult, never>;
 }
 
 export class MediaProbe extends Context.Tag("@bakarr/api/MediaProbe")<
@@ -270,10 +301,22 @@ export function mergeProbedMediaMetadata<
 }
 
 export function parseFfprobeJson(json: string): ProbedMediaMetadata | undefined {
-  const decoded = Schema.decodeUnknownEither(FFProbeOutputJsonSchema)(json);
-  return decoded._tag === "Left"
-    ? undefined
-    : (Schema.decodeSync(ProbedMediaMetadataFromFFProbeOutputSchema)(decoded.right) ?? undefined);
+  try {
+    const parsed = JSON.parse(json);
+    const decoded = Schema.decodeUnknownEither(FFProbeOutputSchema)(parsed);
+
+    if (decoded._tag === "Left") {
+      return undefined;
+    }
+
+    const normalized = Schema.decodeUnknownEither(ProbedMediaMetadataFromFFProbeOutputSchema)(
+      decoded.right,
+    );
+
+    return normalized._tag === "Left" ? undefined : (normalized.right ?? undefined);
+  } catch {
+    return undefined;
+  }
 }
 
 export const MediaProbeCommandOutputSchema = Schema.Struct({
@@ -285,7 +328,11 @@ export type MediaProbeCommandOutput = Schema.Schema.Type<typeof MediaProbeComman
 function runFfprobeCommand(
   args: readonly string[],
   timeoutMs: number,
-): Effect.Effect<MediaProbeCommandOutput | null, never, CommandExecutor.CommandExecutor> {
+): Effect.Effect<
+  MediaProbeCommandOutput | MediaProbeFailure,
+  never,
+  CommandExecutor.CommandExecutor
+> {
   return Command.make("ffprobe", ...args).pipe(
     Command.string,
     Effect.map((stdout) => ({ stdout }) satisfies MediaProbeCommandOutput),
@@ -305,15 +352,15 @@ function runFfprobeCommand(
         }),
       ),
     ),
-    Effect.tapError((error) =>
+    Effect.catchTag("FFProbeError", (error) =>
       Effect.logWarning("ffprobe command failed").pipe(
         Effect.annotateLogs({
           args: args.join(" "),
           error: error.message,
         }),
+        Effect.as(new MediaProbeFailure({ message: error.message })),
       ),
     ),
-    Effect.catchTag("FFProbeError", () => Effect.succeed(null)),
   );
 }
 
@@ -346,7 +393,7 @@ const makeMediaProbe = (ffprobeSemaphore: Effect.Semaphore): MediaProbeShape => 
       Effect.provideService(CommandExecutor.CommandExecutor, executor),
     );
 
-    if (!output) {
+    if (output instanceof MediaProbeFailure) {
       availability = false;
       return availability;
     }
@@ -359,7 +406,7 @@ const makeMediaProbe = (ffprobeSemaphore: Effect.Semaphore): MediaProbeShape => 
     const available = yield* resolveAvailability();
 
     if (!available || !executor) {
-      return undefined;
+      return new MediaProbeUnavailable({ message: "ffprobe is unavailable" });
     }
 
     // Use semaphore to enforce global ffprobe concurrency limit
@@ -372,31 +419,22 @@ const makeMediaProbe = (ffprobeSemaphore: Effect.Semaphore): MediaProbeShape => 
       )
       .pipe(Effect.provideService(CommandExecutor.CommandExecutor, executor));
 
-    if (!output) {
-      return undefined;
+    if (output instanceof MediaProbeFailure) {
+      return output;
     }
 
-    const decoded = yield* Effect.either(
-      Schema.decodeUnknown(FFProbeOutputJsonSchema)(output.stdout),
-    );
+    const stdout = String(output.stdout);
 
-    if (decoded._tag === "Left") {
+    const parsedOutput = Schema.decodeUnknownEither(FFProbeOutputJsonSchema)(stdout);
+
+    if (parsedOutput._tag === "Left") {
       yield* Effect.logWarning("ffprobe output was invalid").pipe(Effect.annotateLogs({ path }));
-      return undefined;
+      return new MediaProbeFailure({ message: "ffprobe output was invalid" });
     }
 
-    const normalized = yield* Effect.either(
-      Schema.decodeUnknown(ProbedMediaMetadataFromFFProbeOutputSchema)(decoded.right),
-    );
+    const metadata = parseFfprobeJson(stdout);
 
-    if (normalized._tag === "Left") {
-      yield* Effect.logWarning("ffprobe metadata normalization failed").pipe(
-        Effect.annotateLogs({ path }),
-      );
-      return undefined;
-    }
-
-    return normalized.right ?? undefined;
+    return metadata ? new MediaProbeMetadataFound({ metadata }) : new MediaProbeNoMetadata({});
   });
 
   return { probeVideoFile };

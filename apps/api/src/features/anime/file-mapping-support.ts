@@ -168,9 +168,13 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeService.scanAnimeFolderEffe
         resolution: parsed.resolution ?? undefined,
         video_codec: metadata.video_codec,
       };
-      const mergedMetadata = shouldProbeDetailedMediaMetadata(probeInput)
-        ? mergeProbedMediaMetadata(probeInput, yield* input.mediaProbe.probeVideoFile(file.path))
-        : probeInput;
+      const probeResult = shouldProbeDetailedMediaMetadata(probeInput)
+        ? yield* input.mediaProbe.probeVideoFile(file.path)
+        : undefined;
+      const mergedMetadata = mergeProbedMediaMetadata(
+        probeInput,
+        probeResult?._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
+      );
       const identity = parsed.source_identity;
       if (!identity || identity.scheme === "daily") {
         continue;
@@ -429,9 +433,11 @@ export const listAnimeFilesEffect = Effect.fn("AnimeService.listAnimeFilesEffect
             baseFile,
             mergeEpisodeCachedMetadata(cachedRowsForFile),
           );
-          const probedMetadata = shouldProbeDetailedMediaMetadata(mergedWithCachedMetadata)
+          const probeResult = shouldProbeDetailedMediaMetadata(mergedWithCachedMetadata)
             ? yield* input.mediaProbe.probeVideoFile(file.path)
             : undefined;
+          const probedMetadata =
+            probeResult?._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined;
           const mergedMetadata = mergeProbedMediaMetadata(mergedWithCachedMetadata, probedMetadata);
 
           if (probedMetadata && cachedRowsForFile.length > 0) {

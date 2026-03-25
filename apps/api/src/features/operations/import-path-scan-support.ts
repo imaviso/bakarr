@@ -2,6 +2,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type {
+  AnimeSearchResult,
   FileEpisodeMapping,
   PreferredTitle,
   ScannedFile,
@@ -74,7 +75,16 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
         shouldProbeMediaMetadata(file)
           ? input.mediaProbe
               .probeVideoFile(file.source_path)
-              .pipe(Effect.map((probed) => mergeProbedMediaMetadata(file, probed)))
+              .pipe(
+                Effect.map((probeResult) =>
+                  mergeProbedMediaMetadata(
+                    file,
+                    probeResult._tag === "MediaProbeMetadataFound"
+                      ? probeResult.metadata
+                      : undefined,
+                  ),
+                ),
+              )
           : Effect.succeed(file),
       { concurrency: 4 },
     );
@@ -127,11 +137,11 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
       scopedEpisodeRows.map((row) => [`${row.animeId}:${row.number}`, row] as const),
     );
 
-    const candidateMap = new Map<number, ReturnType<typeof toAnimeSearchCandidate>>();
+    const candidateMap = new Map<number, AnimeSearchResult>();
 
     if (input.animeId) {
       const row = animeRows[0];
-      candidateMap.set(row.id, toAnimeSearchCandidate(row));
+      candidateMap.set(row.id, yield* toAnimeSearchCandidate(row));
     } else {
       const parsedTitles = [
         ...new Set(
@@ -151,7 +161,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
     }
 
     for (const row of animeRows) {
-      candidateMap.set(row.id, toAnimeSearchCandidate(row));
+      candidateMap.set(row.id, yield* toAnimeSearchCandidate(row));
     }
 
     return {
@@ -245,11 +255,8 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
   },
 );
 
-function findBestRemoteCandidate(
-  parsedTitle: string,
-  candidates: readonly ReturnType<typeof toAnimeSearchCandidate>[],
-) {
-  let bestCandidate: ReturnType<typeof toAnimeSearchCandidate> | undefined;
+function findBestRemoteCandidate(parsedTitle: string, candidates: readonly AnimeSearchResult[]) {
+  let bestCandidate: AnimeSearchResult | undefined;
   let bestScore = 0;
 
   for (const candidate of candidates) {

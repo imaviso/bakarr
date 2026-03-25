@@ -41,6 +41,7 @@ import {
   ExternalCallError,
   type OperationsError,
   OperationsPathError,
+  OperationsStoredDataError,
 } from "./errors.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
@@ -68,6 +69,17 @@ export function makeDownloadReconciliationService(input: {
     wrapOperationsError,
     maybeQBitConfig,
   } = input;
+
+  const parseStoredCoveredEpisodes = (value: string | null | undefined) =>
+    Effect.try({
+      try: () => parseCoveredEpisodes(value),
+      catch: (cause) =>
+        cause instanceof OperationsStoredDataError
+          ? cause
+          : new OperationsStoredDataError({
+              message: "Stored covered episode metadata is corrupt",
+            }),
+    });
 
   const maybeCleanupImportedTorrent = Effect.fn("OperationsService.maybeCleanupImportedTorrent")(
     function* (config: Config | null | undefined, infoHash: string | null) {
@@ -133,7 +145,7 @@ export function makeDownloadReconciliationService(input: {
       }
 
       if (row.isBatch) {
-        const coveredEpisodes = parseCoveredEpisodes(row.coveredEpisodes);
+        const coveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
         const batchPaths = yield* resolveBatchContentPaths(fs, resolvedContentRoot).pipe(
           Effect.mapError(
             () =>
@@ -262,7 +274,15 @@ export function makeDownloadReconciliationService(input: {
             const localMediaMetadata = hasMissingLocalMediaNamingFields(
               initialNamingPlan.missingFields,
             )
-              ? yield* mediaProbe.probeVideoFile(path)
+              ? yield* mediaProbe
+                  .probeVideoFile(path)
+                  .pipe(
+                    Effect.map((probeResult) =>
+                      probeResult._tag === "MediaProbeMetadataFound"
+                        ? probeResult.metadata
+                        : undefined,
+                    ),
+                  )
               : undefined;
 
             const managedPath = yield* importDownloadedFile(
@@ -323,6 +343,7 @@ export function makeDownloadReconciliationService(input: {
           }
 
           const batchNow = yield* nowIso;
+          const storedCoveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
           yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
             await db.transaction(async (tx) => {
               await tx
@@ -347,7 +368,7 @@ export function makeDownloadReconciliationService(input: {
                   ? `Reconciled already-imported batch torrent for ${row.animeTitle}`
                   : `Imported batch torrent for ${row.animeTitle}`,
                 metadata: encodeDownloadEventMetadata({
-                  covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+                  covered_episodes: storedCoveredEpisodes,
                   imported_path: animeRow.rootFolder,
                   source_metadata: storedSourceMetadata,
                 }),
@@ -454,7 +475,13 @@ export function makeDownloadReconciliationService(input: {
         preferredTitle: runtimeConfig.library.preferred_title,
       });
       const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-        ? yield* mediaProbe.probeVideoFile(resolvedPath)
+        ? yield* mediaProbe
+            .probeVideoFile(resolvedPath)
+            .pipe(
+              Effect.map((probeResult) =>
+                probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
+              ),
+            )
         : undefined;
 
       const managedPath = yield* importDownloadedFile(
@@ -481,6 +508,7 @@ export function makeDownloadReconciliationService(input: {
         ),
       );
       const singleNow = yield* nowIso;
+      const storedCoveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
       yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
         await db.transaction(async (tx) => {
           await tx
@@ -503,7 +531,7 @@ export function makeDownloadReconciliationService(input: {
             fromStatus: row.status,
             message: `Imported ${row.animeTitle} episode ${row.episodeNumber}`,
             metadata: encodeDownloadEventMetadata({
-              covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+              covered_episodes: storedCoveredEpisodes,
               imported_path: managedPath,
               source_metadata: storedSourceMetadata,
             }),

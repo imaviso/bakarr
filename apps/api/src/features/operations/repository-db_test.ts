@@ -494,9 +494,7 @@ it.scoped("operations repository helpers chunk large download event context look
           }) satisfies typeof schema.downloadEvents.$inferSelect,
       );
 
-      const contexts = yield* Effect.promise(() =>
-        loadDownloadEventPresentationContexts(db, eventRows),
-      );
+      const contexts = yield* loadDownloadEventPresentationContexts(db, eventRows);
 
       assertEquals(contexts.size, 1_005);
       assertEquals(contexts.get(eventRows[1_004]!.id), {

@@ -130,11 +130,13 @@ it("profile codecs encode and decode quality and release profile rows", () => {
   );
 });
 
-it("optional number list codec normalizes duplicates but rejects corrupt stored JSON", () => {
-  assertEquals(encodeOptionalNumberList([3, 1, 3, -1, 2]), "[1,2,3]");
+it("optional number list codec canonicalizes positive values and rejects corrupt stored JSON", () => {
+  assertEquals(encodeOptionalNumberList([3, 1, 3, 2]), "[1,2,3]");
   assertEquals(encodeOptionalNumberList([]), null);
-  assertEquals(decodeOptionalNumberList("[3,1,2]"), [3, 1, 2]);
+  assertEquals(decodeOptionalNumberList("[3,1,2]"), [1, 2, 3]);
   assertThrows(() => decodeOptionalNumberList("not-json"));
+  assertThrows(() => decodeOptionalNumberList("[0,-1,2]"));
+  assertThrows(() => encodeOptionalNumberList([3, -1, 2]));
 });
 
 it.effect("stored config row decoder fails with typed errors for missing and corrupt rows", () =>

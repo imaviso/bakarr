@@ -12,7 +12,12 @@ import {
   parseCoveredEpisodes,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
-import { ExternalCallError, type OperationsError, OperationsInputError } from "./errors.ts";
+import {
+  ExternalCallError,
+  type OperationsError,
+  OperationsInputError,
+  OperationsStoredDataError,
+} from "./errors.ts";
 import {
   loadMissingEpisodeNumbers,
   markJobFailed,
@@ -135,14 +140,25 @@ export function makeBackgroundSearchSupport(input: {
       );
 
       const queueEffect = Effect.gen(function* () {
-        const overlapping = yield* tryDatabasePromise(input.contextMessage, () =>
-          hasOverlappingDownload(
-            db,
-            input.animeRow.id,
-            input.item.infoHash,
-            parseCoveredEpisodes(coveredEpisodes),
-          ),
-        );
+        const parsedCoveredEpisodes = yield* Effect.try({
+          try: () => parseCoveredEpisodes(coveredEpisodes),
+          catch: (cause) =>
+            cause instanceof OperationsStoredDataError
+              ? cause
+              : new OperationsStoredDataError({
+                  message: "Stored covered episode metadata is corrupt",
+                }),
+        });
+        const overlapping = yield* Effect.tryPromise({
+          try: () =>
+            hasOverlappingDownload(
+              db,
+              input.animeRow.id,
+              input.item.infoHash,
+              parsedCoveredEpisodes,
+            ),
+          catch: wrapOperationsError(input.contextMessage),
+        });
 
         if (overlapping) {
           return { _tag: "skipped" } as const;

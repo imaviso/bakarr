@@ -193,7 +193,9 @@ export function makeSearchOrchestration(input: {
     );
 
     const enrichedResults = animeRow
-      ? yield* enrichSeaDexReleases(animeRow, results, runtimeConfig)
+      ? yield* enrichSeaDexReleases(animeRow, results, runtimeConfig).pipe(
+          Effect.mapError(wrapOperationsError("Failed to search releases")),
+        )
       : results;
 
     return {
@@ -212,7 +214,11 @@ export function makeSearchOrchestration(input: {
   const searchReleases = (query: string, animeId?: number, category?: string, filter?: string) =>
     searchReleasesRaw(query, animeId, category, filter).pipe(
       Effect.mapError((error) =>
-        error instanceof DatabaseError ? error : dbError("Failed to search releases")(error),
+        error instanceof DatabaseError ||
+        error instanceof ExternalCallError ||
+        error instanceof OperationsInputError
+          ? error
+          : dbError("Failed to search releases")(error),
       ),
     );
 

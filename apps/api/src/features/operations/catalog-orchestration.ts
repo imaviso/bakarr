@@ -186,7 +186,13 @@ export function makeCatalogOrchestration(input: {
           season: file.season,
         });
         const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
-          ? yield* mediaProbe.probeVideoFile(file.source_path)
+          ? yield* mediaProbe
+              .probeVideoFile(file.source_path)
+              .pipe(
+                Effect.map((probeResult) =>
+                  probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
+                ),
+              )
           : undefined;
         const namingPlan = localMediaMetadata
           ? buildEpisodeFilenamePlan({

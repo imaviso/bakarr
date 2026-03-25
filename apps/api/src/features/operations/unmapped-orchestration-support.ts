@@ -6,7 +6,6 @@ import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { anime, backgroundJobs } from "../../db/schema.ts";
 import {
-  type DirEntry,
   type FileSystemShape,
   isWithinPathRoot,
   sanitizePathSegment,
@@ -59,6 +58,40 @@ import {
   prepareUnmappedFoldersForScan,
   toUnmappedMatchErrorMessage,
 } from "./unmapped-scan-support.ts";
+
+export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
+  "OperationsService.cleanupPreviousAnimeRootFolderAfterImport",
+)(function* (fs: FileSystemShape, previousRootFolder: string, nextRootFolder: string) {
+  if (previousRootFolder === nextRootFolder) {
+    return;
+  }
+
+  const previousEntries = yield* Effect.either(fs.readDir(previousRootFolder));
+
+  if (previousEntries._tag === "Left") {
+    yield* Effect.logWarning("Skipped previous anime folder cleanup after import").pipe(
+      Effect.annotateLogs({
+        error: String(previousEntries.left),
+        folder_path: previousRootFolder,
+      }),
+    );
+    return;
+  }
+
+  if (previousEntries.right.length === 0) {
+    yield* fs.remove(previousRootFolder, { recursive: true }).pipe(
+      Effect.catchTag("FileSystemError", (fsError) =>
+        Effect.logWarning("Failed to remove empty anime folder after import").pipe(
+          Effect.annotateLogs({
+            error: String(fsError),
+            folder_path: previousRootFolder,
+          }),
+          Effect.asVoid,
+        ),
+      ),
+    );
+  }
+});
 import type { OperationsCoordinationShape } from "./runtime-support.ts";
 
 export function makeUnmappedOrchestrationSupport(input: {
@@ -78,7 +111,7 @@ export function makeUnmappedOrchestrationSupport(input: {
         fs,
         tryDatabasePromise,
       });
-      const folders = snapshot.folders.map((folder) =>
+      const folders = yield* Effect.forEach(snapshot.folders, (folder) =>
         mergeLocalFolderMatch(folder, snapshot.animeRows),
       );
       const queuedFolders = prepareUnmappedFoldersForScan(folders, snapshot.cachedByPath);
@@ -97,7 +130,7 @@ export function makeUnmappedOrchestrationSupport(input: {
       db.select().from(backgroundJobs).where(eq(backgroundJobs.name, "unmapped_scan")).limit(1),
     );
 
-    const folders = snapshot.folders.map((folder) =>
+    const folders = yield* Effect.forEach(snapshot.folders, (folder) =>
       mergeLocalFolderMatch(folder, snapshot.animeRows),
     );
 
@@ -494,25 +527,7 @@ export function makeUnmappedOrchestrationSupport(input: {
           .where(eq(anime.id, input.anime_id)),
       );
 
-      if (animeRow.rootFolder !== rootFolder) {
-        const previousEntries = yield* fs
-          .readDir(animeRow.rootFolder)
-          .pipe(Effect.catchTag("FileSystemError", () => Effect.succeed<DirEntry[]>([])));
-
-        if (previousEntries.length === 0) {
-          yield* fs.remove(animeRow.rootFolder, { recursive: true }).pipe(
-            Effect.catchTag("FileSystemError", (fsError) =>
-              Effect.logWarning("Failed to remove empty anime folder after import").pipe(
-                Effect.annotateLogs({
-                  error: String(fsError),
-                  folder_path: animeRow.rootFolder,
-                }),
-                Effect.asVoid,
-              ),
-            ),
-          );
-        }
-      }
+      yield* cleanupPreviousAnimeRootFolderAfterImport(fs, animeRow.rootFolder, rootFolder);
 
       let imported = 0;
 

@@ -139,7 +139,7 @@ export interface SearchServiceShape {
     animeId?: number,
     category?: string,
     filter?: string,
-  ) => Effect.Effect<SearchResults, DatabaseError>;
+  ) => Effect.Effect<SearchResults, OperationsError | DatabaseError>;
   readonly searchEpisode: (
     animeId: number,
     episodeNumber: number,

@@ -9,7 +9,6 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { downloadEvents, downloads } from "../../db/schema.ts";
-import { randomHex } from "../../lib/random.ts";
 import { nowIso } from "./job-support.ts";
 import {
   loadDownloadEventPresentationContexts,
@@ -116,9 +115,7 @@ export function makeCatalogDownloadViewSupport(input: {
     const hasExtraRow = rows.length > limit;
     const pageRows = hasExtraRow ? rows.slice(0, limit) : rows;
     const orderedRows = queryInput.direction === "prev" ? [...pageRows].reverse() : pageRows;
-    const contexts = yield* input.tryDatabasePromise("Failed to load download events", () =>
-      loadDownloadEventPresentationContexts(input.db, orderedRows),
-    );
+    const contexts = yield* loadDownloadEventPresentationContexts(input.db, orderedRows);
     const events = yield* Effect.forEach(orderedRows, (row) =>
       toDownloadEvent(row, contexts.get(row.id)),
     );
@@ -195,9 +192,7 @@ export function makeCatalogDownloadViewSupport(input: {
 
     const truncated = rows.length > limit;
     const exportRows = truncated ? rows.slice(0, limit) : rows;
-    const contexts = yield* input.tryDatabasePromise("Failed to export download events", () =>
-      loadDownloadEventPresentationContexts(input.db, exportRows),
-    );
+    const contexts = yield* loadDownloadEventPresentationContexts(input.db, exportRows);
     const events = yield* Effect.forEach(exportRows, (row) =>
       toDownloadEvent(row, contexts.get(row.id)),
     );
@@ -244,13 +239,7 @@ export function makeCatalogDownloadViewSupport(input: {
         .orderBy(desc(downloads.id)),
     );
     const contexts = yield* loadDownloadPresentationContexts(input.db, rows);
-    return yield* Effect.forEach(rows, (row) =>
-      randomHex(20).pipe(
-        Effect.flatMap((fallbackHash) =>
-          toDownloadStatus(row, () => fallbackHash, contexts.get(row.id)),
-        ),
-      ),
-    );
+    return yield* Effect.forEach(rows, (row) => toDownloadStatus(row, contexts.get(row.id)));
   });
 
   return {

@@ -1,4 +1,4 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, assertThrows, it } from "../../test/vitest.ts";
 
 import {
   applyRemotePathMappings,
@@ -14,6 +14,7 @@ import {
 } from "./download-lifecycle.ts";
 import { Effect } from "effect";
 import { withFileSystemSandboxEffect, writeTextFile } from "../../test/filesystem-test.ts";
+import { OperationsStoredDataError } from "./errors.ts";
 
 it("parseMagnetInfoHash extracts btih from magnet links", () => {
   assertEquals(
@@ -223,12 +224,18 @@ it("applyRemotePathMappings rewrites qBittorrent remote paths", () => {
   );
 });
 
-it("covered episode serialization round-trips optional values", () => {
-  assertEquals(toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
-  assertEquals(parseCoveredEpisodes("[1,2,3]"), [1, 2, 3]);
-  assertEquals(toCoveredEpisodesJson([]), null);
-  assertEquals(parseCoveredEpisodes(null), []);
-});
+it.effect(
+  "covered episode serialization round-trips optional values and rejects corrupt data",
+  () =>
+    Effect.gen(function* () {
+      assertEquals(toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
+      assertEquals(parseCoveredEpisodes("[1,2,3]"), [1, 2, 3]);
+      assertEquals(toCoveredEpisodesJson([]), null);
+      assertEquals(parseCoveredEpisodes(null), []);
+
+      assertThrows(() => parseCoveredEpisodes("not-json"), OperationsStoredDataError);
+    }),
+);
 
 it("applyRemotePathMappings returns multiple matching candidates and skips invalid mappings", () => {
   assertEquals(

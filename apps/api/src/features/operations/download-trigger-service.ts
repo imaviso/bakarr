@@ -28,7 +28,6 @@ import {
   nowIso,
   recordDownloadEvent,
 } from "./job-support.ts";
-import { randomHex } from "../../lib/random.ts";
 import { parseReleaseName } from "./release-ranking.ts";
 import {
   DownloadConflictError,
@@ -83,13 +82,7 @@ export function makeDownloadTriggerService(input: {
         .orderBy(desc(downloads.id)),
     );
     const contexts = yield* loadDownloadPresentationContexts(db, rows);
-    return yield* Effect.forEach(rows, (row) =>
-      randomHex(20).pipe(
-        Effect.flatMap((fallbackHash) =>
-          toDownloadStatus(row, () => fallbackHash, contexts.get(row.id)),
-        ),
-      ),
-    );
+    return yield* Effect.forEach(rows, (row) => toDownloadStatus(row, contexts.get(row.id)));
   });
 
   const publishDownloadProgress = Effect.fn("OperationsService.publishDownloadProgress")(
@@ -166,59 +159,61 @@ export function makeDownloadTriggerService(input: {
           (input.info_hash ?? parseMagnetInfoHash(input.magnet))?.toLowerCase() ?? null;
 
         const insertResult = yield* Effect.either(
-          tryDatabasePromise("Failed to trigger download", () =>
-            db.transaction(
-              async (tx) => {
-                if (infoHash) {
-                  const overlapping = await hasOverlappingDownload(
-                    tx as unknown as AppDatabase,
-                    animeRow.id,
-                    infoHash,
-                    inferredCoveredEpisodes,
-                  );
+          Effect.tryPromise({
+            try: () =>
+              db.transaction(
+                async (tx) => {
+                  if (infoHash) {
+                    const overlapping = await hasOverlappingDownload(
+                      tx as unknown as AppDatabase,
+                      animeRow.id,
+                      infoHash,
+                      inferredCoveredEpisodes,
+                    );
 
-                  if (overlapping) {
-                    return { _tag: "overlap" } as const;
+                    if (overlapping) {
+                      return { _tag: "overlap" } as const;
+                    }
                   }
-                }
 
-                const inserted = await tx
-                  .insert(downloads)
-                  .values({
-                    addedAt: now,
-                    animeId: animeRow.id,
-                    animeTitle: animeRow.titleRomaji,
-                    contentPath: null,
-                    coveredEpisodes,
-                    downloadDate: null,
-                    episodeNumber: requestedEpisode,
-                    isBatch: effectiveIsBatch,
-                    downloadedBytes: 0,
-                    errorMessage: null,
-                    etaSeconds: null,
-                    externalState: "queued",
-                    groupName: input.group ?? null,
-                    infoHash,
-                    lastSyncedAt: now,
-                    magnet: input.magnet,
-                    progress: 0,
-                    savePath: null,
-                    speedBytes: 0,
-                    sourceMetadata: encodeDownloadSourceMetadata(sourceMetadata),
-                    status: "queued",
-                    totalBytes: null,
-                    torrentName: input.title,
-                  })
-                  .returning({ id: downloads.id });
+                  const inserted = await tx
+                    .insert(downloads)
+                    .values({
+                      addedAt: now,
+                      animeId: animeRow.id,
+                      animeTitle: animeRow.titleRomaji,
+                      contentPath: null,
+                      coveredEpisodes,
+                      downloadDate: null,
+                      episodeNumber: requestedEpisode,
+                      isBatch: effectiveIsBatch,
+                      downloadedBytes: 0,
+                      errorMessage: null,
+                      etaSeconds: null,
+                      externalState: "queued",
+                      groupName: input.group ?? null,
+                      infoHash,
+                      lastSyncedAt: now,
+                      magnet: input.magnet,
+                      progress: 0,
+                      savePath: null,
+                      speedBytes: 0,
+                      sourceMetadata: encodeDownloadSourceMetadata(sourceMetadata),
+                      status: "queued",
+                      totalBytes: null,
+                      torrentName: input.title,
+                    })
+                    .returning({ id: downloads.id });
 
-                return {
-                  _tag: "inserted",
-                  id: inserted[0].id,
-                } as const;
-              },
-              { behavior: "immediate" },
-            ),
-          ),
+                  return {
+                    _tag: "inserted",
+                    id: inserted[0].id,
+                  } as const;
+                },
+                { behavior: "immediate" },
+              ),
+            catch: wrapOperationsError("Failed to trigger download"),
+          }),
         );
 
         if (insertResult._tag === "Left") {

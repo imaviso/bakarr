@@ -417,9 +417,7 @@ const makeSystemService = Effect.gen(function* () {
     const importedDownloads = yield* countImportedDownloads(db);
     const jobs = yield* loadComposedBackgroundJobs(currentConfig);
     const events = yield* listRecentDownloadEventRows(db, 12);
-    const eventContexts = yield* tryDatabasePromise("Failed to load ops dashboard", () =>
-      loadDownloadEventPresentationContexts(db, events),
-    );
+    const eventContexts = yield* loadDownloadEventPresentationContexts(db, events);
 
     const recentDownloadEvents = yield* Effect.forEach(events, (row) =>
       toDownloadEvent(row, eventContexts.get(row.id)),

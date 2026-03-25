@@ -8,6 +8,7 @@ import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
 import { withSqliteTestDbEffect } from "../../test/database-test.ts";
+import { MediaProbeMetadataFound } from "../../lib/media-probe.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "../../test/filesystem-test.ts";
 import {
   annotateAnimeSearchResultsForQuery,
@@ -175,13 +176,17 @@ it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
           const mediaProbe = {
             probeVideoFile: (_path: string) => {
               probeCalls += 1;
-              return Effect.succeed({
-                audio_channels: "2.0",
-                audio_codec: "AAC",
-                duration_seconds: 1440,
-                resolution: "1080p",
-                video_codec: "HEVC",
-              });
+              return Effect.succeed(
+                new MediaProbeMetadataFound({
+                  metadata: {
+                    audio_channels: "2.0",
+                    audio_codec: "AAC",
+                    duration_seconds: 1440,
+                    resolution: "1080p",
+                    video_codec: "HEVC",
+                  },
+                }),
+              );
             },
           };
 

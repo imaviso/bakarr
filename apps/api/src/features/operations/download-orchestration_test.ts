@@ -8,6 +8,7 @@ import * as schema from "../../db/schema.ts";
 import { anime, appConfig, downloads, episodes } from "../../db/schema.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
+import { MediaProbeNoMetadata } from "../../lib/media-probe.ts";
 import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import {
   readTextFile,
@@ -676,7 +677,7 @@ it.scoped(
               } as unknown as typeof EventBus.Service,
               fs,
               mediaProbe: {
-                probeVideoFile: () => Effect.sync(() => undefined),
+                probeVideoFile: () => Effect.succeed(new MediaProbeNoMetadata({})),
               },
               maybeQBitConfig,
               qbitClient: {
@@ -989,7 +990,7 @@ function createDownloadOrchestrationForTest(
     } as unknown as typeof EventBus.Service,
     fs,
     mediaProbe: {
-      probeVideoFile: () => Effect.sync(() => undefined),
+      probeVideoFile: () => Effect.succeed(new MediaProbeNoMetadata({})),
     },
     maybeQBitConfig,
     qbitClient: {

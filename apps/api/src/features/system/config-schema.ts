@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { PositiveIntSchema } from "../../lib/domain-schema.ts";
 import {
   ConfigSchema as SharedConfigSchema,
   DownloadsConfigSchema,
@@ -28,7 +29,14 @@ export {
   StringListSchema,
 };
 
-export const NumberListSchema = Schema.Array(Schema.Number.pipe(Schema.int()));
+export const NumberListSchema = Schema.transform(
+  Schema.Array(PositiveIntSchema),
+  Schema.Array(PositiveIntSchema),
+  {
+    decode: (values) => [...new Set(values)].sort((left, right) => left - right),
+    encode: (values) => [...new Set(values)].sort((left, right) => left - right),
+  },
+);
 
 export const ReleaseProfileRulesSchema = Schema.Array(ReleaseProfileRuleSchema);
 

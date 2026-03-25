@@ -18,6 +18,7 @@ import {
   DownloadNotFoundError,
   ExternalCallError,
   type OperationsError,
+  OperationsStoredDataError,
 } from "./errors.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
@@ -44,6 +45,17 @@ export function makeDownloadTorrentLifecycleService(input: {
     maybeQBitConfig,
     reconcileCompletedTorrentEffect,
   } = input;
+
+  const parseStoredCoveredEpisodes = (value: string | null | undefined) =>
+    Effect.try({
+      try: () => parseCoveredEpisodes(value),
+      catch: (cause) =>
+        cause instanceof OperationsStoredDataError
+          ? cause
+          : new OperationsStoredDataError({
+              message: "Stored covered episode metadata is corrupt",
+            }),
+    });
 
   const refineBatchCoverageFromTorrentFiles = Effect.fn(
     "OperationsService.refineBatchCoverageFromTorrentFiles",
@@ -84,7 +96,7 @@ export function makeDownloadTorrentLifecycleService(input: {
       return;
     }
 
-    const currentEpisodes = parseCoveredEpisodes(input.existingCoveredEpisodes);
+    const currentEpisodes = yield* parseStoredCoveredEpisodes(input.existingCoveredEpisodes);
     if (
       currentEpisodes.length === inferredEpisodes.length &&
       currentEpisodes.every((episode, index) => episode === inferredEpisodes[index])
@@ -205,13 +217,14 @@ export function makeDownloadTorrentLifecycleService(input: {
           }
 
           if (existing && existing.status !== nextStatus) {
+            const coveredEpisodes = yield* parseStoredCoveredEpisodes(existing.coveredEpisodes);
             yield* recordDownloadEvent(db, {
               animeId: existing.animeId,
               downloadId: existing.id,
               eventType: "download.status_changed",
               fromStatus: existing.status,
               metadataJson: {
-                covered_episodes: parseCoveredEpisodes(existing.coveredEpisodes),
+                covered_episodes: coveredEpisodes,
                 source_metadata: yield* decodeDownloadSourceMetadata(existing.sourceMetadata),
               },
               message: `${existing.torrentName} moved to ${nextStatus}`,
@@ -265,6 +278,8 @@ export function makeDownloadTorrentLifecycleService(input: {
       }
     }
 
+    const coveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
+
     if (action === "delete") {
       yield* recordDownloadEvent(db, {
         animeId: row.animeId,
@@ -272,7 +287,7 @@ export function makeDownloadTorrentLifecycleService(input: {
         eventType: "download.deleted",
         fromStatus: row.status,
         metadataJson: {
-          covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+          covered_episodes: coveredEpisodes,
           source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
         },
         message: `Deleted ${row.torrentName}`,
@@ -300,7 +315,7 @@ export function makeDownloadTorrentLifecycleService(input: {
       eventType: `download.${action}d`,
       fromStatus: row.status,
       metadataJson: {
-        covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+        covered_episodes: coveredEpisodes,
         source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
       },
       message: `${action === "pause" ? "Paused" : "Resumed"} ${row.torrentName}`,
@@ -330,6 +345,7 @@ export function makeDownloadTorrentLifecycleService(input: {
 
     const runtimeConfig = yield* loadRuntimeConfig(db);
     const qbitConfig = maybeQBitConfig(runtimeConfig);
+    const coveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
 
     if (qbitConfig) {
       yield* qbitClient
@@ -359,7 +375,7 @@ export function makeDownloadTorrentLifecycleService(input: {
       eventType: "download.retried",
       fromStatus: row.status,
       metadataJson: {
-        covered_episodes: parseCoveredEpisodes(row.coveredEpisodes),
+        covered_episodes: coveredEpisodes,
         source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
       },
       message: `Retried ${row.torrentName}`,
