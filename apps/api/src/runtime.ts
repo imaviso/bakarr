@@ -3,10 +3,7 @@ import { BunContext } from "@effect/platform-bun";
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
 
 import { AppRuntime } from "./app-runtime.ts";
-import {
-  BackgroundWorkerControllerLive,
-  BackgroundWorkerMonitorLive,
-} from "./background.ts";
+import { BackgroundWorkerControllerLive, BackgroundWorkerMonitorLive } from "./background.ts";
 import { AppConfig, type AppConfigShape } from "./config.ts";
 import { DatabaseLive } from "./db/database.ts";
 import { AniListClient, AniListClientLive } from "./features/anime/anilist.ts";
@@ -14,15 +11,9 @@ import { AnimeServiceLive } from "./features/anime/service.ts";
 import { AuthServiceLive } from "./features/auth/service.ts";
 import { EventBusLive } from "./features/events/event-bus.ts";
 import { EventPublisherLive } from "./features/events/publisher.ts";
-import {
-  QBitTorrentClient,
-  QBitTorrentClientLive,
-} from "./features/operations/qbittorrent.ts";
+import { QBitTorrentClient, QBitTorrentClientLive } from "./features/operations/qbittorrent.ts";
 import { RssClient, RssClientLive } from "./features/operations/rss-client.ts";
-import {
-  SeaDexClient,
-  SeaDexClientLive,
-} from "./features/operations/seadex-client.ts";
+import { SeaDexClient, SeaDexClientLive } from "./features/operations/seadex-client.ts";
 import { OperationsServiceLive } from "./features/operations/service.ts";
 import { SystemServiceLive } from "./features/system/service.ts";
 import { DnsResolverLive } from "./lib/dns-resolver.ts";
@@ -31,6 +22,7 @@ import { ClockServiceLive } from "./lib/clock.ts";
 import { MediaProbeLive } from "./lib/media-probe.ts";
 import { RuntimeLoggerLayer } from "./lib/logging.ts";
 import { RandomServiceLive } from "./lib/random.ts";
+import { StreamTokenSignerLive } from "./http/stream-token-signer.ts";
 
 export interface RuntimeOptions {
   aniListLayer?: Layer.Layer<AniListClient>;
@@ -41,14 +33,11 @@ export interface RuntimeOptions {
   seadexLayer?: Layer.Layer<SeaDexClient>;
 }
 
-export function makeApiLayer(
-  overrides: Partial<AppConfigShape> = {},
-  options?: RuntimeOptions,
-) {
+export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: RuntimeOptions) {
   const configLayer = options?.configProvider
     ? AppConfig.layer(overrides).pipe(
-      Layer.provide(Layer.setConfigProvider(options.configProvider)),
-    )
+        Layer.provide(Layer.setConfigProvider(options.configProvider)),
+      )
     : AppConfig.layer(overrides);
   const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(ClockServiceLive));
   const httpClientLayer = FetchHttpClient.layer;
@@ -62,21 +51,18 @@ export function makeApiLayer(
     ? options.aniListLayer
     : AniListClientLive.pipe(Layer.provide(httpClientLayer));
   const dnsLayer = DnsResolverLive;
-  const rssLayer = options?.rssLayer ? options.rssLayer : RssClientLive.pipe(
-    Layer.provide(Layer.mergeAll(httpClientLayer, dnsLayer)),
-  );
+  const rssLayer = options?.rssLayer
+    ? options.rssLayer
+    : RssClientLive.pipe(Layer.provide(Layer.mergeAll(httpClientLayer, dnsLayer)));
   const qbitLayer = options?.qbitLayer
     ? options.qbitLayer
     : QBitTorrentClientLive.pipe(Layer.provide(httpClientLayer));
   const seadexLayer = options?.seadexLayer
     ? options.seadexLayer
     : SeaDexClientLive.pipe(Layer.provide(httpClientLayer));
-  const externalClientsLayer = Layer.mergeAll(
-    aniListLayer,
-    rssLayer,
-    qbitLayer,
-    seadexLayer,
-  ).pipe(Layer.provide(httpClientLayer));
+  const externalClientsLayer = Layer.mergeAll(aniListLayer, rssLayer, qbitLayer, seadexLayer).pipe(
+    Layer.provide(httpClientLayer),
+  );
   const basePlatformLayer = Layer.mergeAll(
     BunContext.layer,
     configLayer,
@@ -92,32 +78,19 @@ export function makeApiLayer(
     FileSystemLive,
     MediaProbeLive,
     RandomServiceLive,
+    StreamTokenSignerLive.pipe(Layer.provide(RandomServiceLive)),
   );
   const platformLayer = options?.commandExecutorLayer
     ? Layer.mergeAll(basePlatformLayer, options.commandExecutorLayer)
     : basePlatformLayer;
-  const operationsLayer = OperationsServiceLive.pipe(
-    Layer.provide(platformLayer),
-  );
-  const animeServiceLayer = AnimeServiceLive.pipe(
-    Layer.provide(platformLayer),
-  );
+  const operationsLayer = OperationsServiceLive.pipe(Layer.provide(platformLayer));
+  const animeServiceLayer = AnimeServiceLive.pipe(Layer.provide(platformLayer));
   const controllerLayer = BackgroundWorkerControllerLive.pipe(
-    Layer.provide(
-      Layer.mergeAll(platformLayer, operationsLayer, animeServiceLayer),
-    ),
+    Layer.provide(Layer.mergeAll(platformLayer, operationsLayer, animeServiceLayer)),
   );
-  const servicesLayer = Layer.mergeAll(
-    AuthServiceLive,
-    SystemServiceLive,
-  ).pipe(
+  const servicesLayer = Layer.mergeAll(AuthServiceLive, SystemServiceLive).pipe(
     Layer.provide(
-      Layer.mergeAll(
-        platformLayer,
-        operationsLayer,
-        controllerLayer,
-        animeServiceLayer,
-      ),
+      Layer.mergeAll(platformLayer, operationsLayer, controllerLayer, animeServiceLayer),
     ),
   );
 
@@ -147,9 +120,6 @@ export type ApiLayerError = ManagedRuntime.ManagedRuntime.Error<ApiRuntime>;
 
 export type ApiEffect<A, E = never> = Effect.Effect<A, E, ApiContext>;
 
-export function runApi<A, E>(
-  runtime: ApiRuntime,
-  effect: ApiEffect<A, E>,
-): Promise<A> {
+export function runApi<A, E>(runtime: ApiRuntime, effect: ApiEffect<A, E>): Promise<A> {
   return runtime.runPromise(effect);
 }
