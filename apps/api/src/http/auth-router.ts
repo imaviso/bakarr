@@ -107,5 +107,3 @@ export const authRouter = HttpRouter.empty.pipe(
     ),
   ),
 );
-
-export const authHttpApp = HttpRouter.toHttpApp(authRouter);

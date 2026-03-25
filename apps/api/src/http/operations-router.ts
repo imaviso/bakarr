@@ -1,5 +1,5 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { HttpRouter, HttpServerResponse } from "@effect/platform";
+import { Effect } from "effect";
 
 import { ClockService } from "../lib/clock.ts";
 import { FileSystem, isWithinPathRoot } from "../lib/filesystem.ts";
@@ -34,6 +34,7 @@ import {
 } from "./request-schemas.ts";
 import {
   decodeJsonBody,
+  decodeOptionalJsonBody,
   decodePathParams,
   decodeQuery,
   jsonResponse,
@@ -328,19 +329,11 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const request = yield* HttpServerRequest.HttpServerRequest;
-          const text = yield* request.text;
-          const body =
-            text.trim().length === 0
-              ? new SearchMissingBodySchema({ anime_id: undefined })
-              : yield* Schema.decode(Schema.parseJson(SearchMissingBodySchema))(text).pipe(
-                  Effect.mapError(
-                    () =>
-                      new OperationsInputError({
-                        message: "Invalid request body for search missing downloads",
-                      }),
-                  ),
-                );
+          const body = yield* decodeOptionalJsonBody({
+            empty: new SearchMissingBodySchema({ anime_id: undefined }),
+            label: "search missing downloads",
+            schema: SearchMissingBodySchema,
+          });
           yield* Effect.flatMap(DownloadService, (service) =>
             service.triggerSearchMissing(body.anime_id),
           );

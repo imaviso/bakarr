@@ -2,9 +2,33 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platf
 import { Effect, ParseResult, Schema } from "effect";
 
 import { mapRouteError } from "./route-errors.ts";
+import { formatValidationErrorMessage, RequestValidationError } from "./route-validation.ts";
 
 export const decodeJsonBody = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
   HttpServerRequest.schemaBodyJson(schema);
+
+export const decodeOptionalJsonBody = <A, I, R>(input: {
+  readonly empty: A;
+  readonly label: string;
+  readonly schema: Schema.Schema<A, I, R>;
+}) =>
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const text = yield* request.text;
+
+    if (text.trim().length === 0) {
+      return input.empty;
+    }
+
+    return yield* Schema.decode(Schema.parseJson(input.schema))(text).pipe(
+      Effect.mapError((error) =>
+        RequestValidationError.make({
+          message: formatValidationErrorMessage(`Invalid request body for ${input.label}`, error),
+          status: 400,
+        }),
+      ),
+    );
+  });
 
 export const decodePathParams = <A, I extends Readonly<Record<string, string | undefined>>, R>(
   schema: Schema.Schema<A, I, R>,
