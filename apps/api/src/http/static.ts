@@ -2,7 +2,6 @@ import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { FileSystem } from "../lib/filesystem.ts";
-import { createFileChunkStream } from "./file-stream.ts";
 
 const DEFAULT_WEB_DIST_URL = new URL("../../../web/dist/", import.meta.url);
 export function createStaticHttpApp(webDistUrl = DEFAULT_WEB_DIST_URL) {
@@ -28,7 +27,7 @@ export function createStaticHttpApp(webDistUrl = DEFAULT_WEB_DIST_URL) {
       Effect.catchAll(() =>
         Effect.succeed(
           HttpServerResponse.text(
-            "Frontend bundle not found. Run `deno task --cwd=apps/web build` first.",
+            "Frontend bundle not found. Run `bun run --cwd apps/web build` first.",
             {
               headers: { "Content-Type": "text/plain; charset=utf-8" },
               status: 503,
@@ -96,10 +95,9 @@ const createFileResponse = Effect.fn("Static.createFileResponse")(
       return HttpServerResponse.empty({ headers });
     }
 
-    return HttpServerResponse.stream(
-      createFileChunkStream(fs, input.fileUrl),
-      { headers },
-    );
+    const body = yield* fs.readFile(input.fileUrl);
+
+    return HttpServerResponse.uint8Array(body, { headers });
   },
 );
 function contentTypeForPath(path: string): string {

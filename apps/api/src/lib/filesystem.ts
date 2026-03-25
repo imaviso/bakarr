@@ -2,7 +2,7 @@ import {
   FileSystem as PlatformFileSystem,
   Path as PlatformPath,
 } from "@effect/platform";
-import { NodeFileSystem, NodePath } from "@effect/platform-node";
+import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { Context, Effect, Layer, Schema, Scope, Stream } from "effect";
 
 export class FileSystemError extends Schema.TaggedError<FileSystemError>()(
@@ -385,12 +385,12 @@ const FileSystemFromPlatform = Layer.effect(
 );
 
 export const FileSystemLive = FileSystemFromPlatform.pipe(
-  Layer.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
+  Layer.provide(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),
 );
 
 export const FileSystemNoop = FileSystemFromPlatform.pipe(
   Layer.provide(
-    Layer.mergeAll(PlatformFileSystem.layerNoop({}), NodePath.layer),
+    Layer.mergeAll(PlatformFileSystem.layerNoop({}), BunPath.layer),
   ),
 );
 
@@ -399,7 +399,7 @@ export function makeFileSystemNoopLayer(
 ) {
   return FileSystemFromPlatform.pipe(
     Layer.provide(
-      Layer.mergeAll(PlatformFileSystem.layerNoop(overrides), NodePath.layer),
+      Layer.mergeAll(PlatformFileSystem.layerNoop(overrides), BunPath.layer),
     ),
   );
 }

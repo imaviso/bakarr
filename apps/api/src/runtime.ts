@@ -1,5 +1,5 @@
 import { CommandExecutor, FetchHttpClient } from "@effect/platform";
-import { NodeContext } from "@effect/platform-node";
+import { BunContext } from "@effect/platform-bun";
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
 
 import { AppRuntime } from "./app-runtime.ts";
@@ -78,7 +78,7 @@ export function makeApiLayer(
     seadexLayer,
   ).pipe(Layer.provide(httpClientLayer));
   const basePlatformLayer = Layer.mergeAll(
-    NodeContext.layer,
+    BunContext.layer,
     configLayer,
     runtimeLayer,
     RuntimeLoggerLayer,

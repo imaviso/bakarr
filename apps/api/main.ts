@@ -1,8 +1,8 @@
-import { NodeFileSystem } from "@effect/platform-node";
-import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
-import { Effect } from "effect";
-import { createServer } from "node:http";
-import process from "node:process";
+import { HttpServer } from "@effect/platform";
+import { BunFileSystem } from "@effect/platform-bun";
+import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
+import * as BunRuntime from "@effect/platform-bun/BunRuntime";
+import { Effect, Layer } from "effect";
 
 import { BackgroundWorkerController } from "./src/background.ts";
 import { AppConfig, type AppConfigShape } from "./src/config.ts";
@@ -16,7 +16,12 @@ import {
   compactLogAnnotations,
   setRuntimeLogLevel,
 } from "./src/lib/logging.ts";
-import { makeApiRuntime, runApi, type RuntimeOptions } from "./src/runtime.ts";
+import {
+  makeApiLayer,
+  makeApiRuntime,
+  runApi,
+  type RuntimeOptions,
+} from "./src/runtime.ts";
 
 /**
  * Startup sequence (blocking, ordered, fail-fast):
@@ -49,6 +54,81 @@ const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   return yield* AppConfig;
 });
 
+const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
+  const controller = yield* BackgroundWorkerController;
+  const system = yield* SystemService;
+  const config = yield* system.getConfig().pipe(
+    Effect.catchTag(
+      "StoredConfigCorruptError",
+      (error: StoredConfigCorruptError) =>
+        Effect.logWarning(
+          "Stored configuration is corrupt; skipping background worker startup",
+        ).pipe(
+          Effect.annotateLogs({
+            component: "api",
+            error: error.message,
+            event: "api.background.start.skipped",
+          }),
+          Effect.as(null),
+        ),
+    ),
+  );
+
+  if (!config) {
+    return;
+  }
+
+  setRuntimeLogLevel(config.general.log_level);
+  yield* controller.start(config);
+});
+
+const logServerStarting = Effect.fn("api.server.logStarting")(
+  function* (config: AppConfigShape) {
+    yield* Effect.logInfo("api server starting").pipe(
+      Effect.annotateLogs(
+        compactLogAnnotations({
+          appVersion: config.appVersion,
+          component: "api",
+          event: "api.server.starting",
+          port: config.port,
+        }),
+      ),
+    );
+  },
+);
+
+const logServerStopping = Effect.fn("api.server.logStopping")(function* () {
+  yield* Effect.logInfo("api server shutting down").pipe(
+    Effect.annotateLogs({
+      component: "api",
+      event: "api.server.stopping",
+    }),
+  );
+});
+
+const mainProgram = Effect.fn("api.main")(function* () {
+  const config = yield* bootstrapProgram().pipe(Effect.withSpan("api.bootstrap"));
+  const httpApp = yield* createHttpApp();
+
+  yield* startBackgroundWorkers();
+  yield* logServerStarting(config);
+  yield* Effect.addFinalizer(() => logServerStopping());
+
+  return yield* Layer.launch(
+    HttpServer.serve(httpApp).pipe(
+      Layer.provide(BunHttpServer.layer({ port: config.port })),
+    ),
+  );
+});
+
+const loadDotenvConfigProvider = Effect.fn("api.loadDotenvConfigProvider")(
+  function* () {
+    return yield* makeDotenvConfigProvider().pipe(
+      Effect.provide(BunFileSystem.layer),
+    );
+  },
+);
+
 export async function bootstrap(
   overrides: Partial<AppConfigShape> = {},
   runtimeOptions?: RuntimeOptions,
@@ -72,114 +152,10 @@ export async function bootstrap(
 }
 
 if (import.meta.main) {
-  const dotenvProvider = await Effect.runPromise(
-    makeDotenvConfigProvider().pipe(Effect.provide(NodeFileSystem.layer)),
-  );
-  const { config, runtime } = await bootstrap({}, {
-    configProvider: dotenvProvider,
-  });
-  const httpApp = await runApi(
-    runtime,
-    createHttpApp(),
-  );
-  await runApi(
-    runtime,
-    Effect.flatMap(
-      BackgroundWorkerController,
-      (controller) =>
-        Effect.gen(function* () {
-          const cfg = yield* Effect.flatMap(
-            SystemService,
-            (s) => s.getConfig(),
-          ).pipe(
-            Effect.catchTag(
-              "StoredConfigCorruptError",
-              (error: StoredConfigCorruptError) =>
-                Effect.logWarning(
-                  "Stored configuration is corrupt; skipping background worker startup",
-                ).pipe(
-                  Effect.annotateLogs({
-                    component: "api",
-                    error: error.message,
-                    event: "api.background.start.skipped",
-                  }),
-                  Effect.as(null),
-                ),
-            ),
-          );
-
-          if (!cfg) {
-            return;
-          }
-
-          setRuntimeLogLevel(cfg.general.log_level);
-          yield* controller.start(cfg);
-        }),
+  const dotenvProvider = await Effect.runPromise(loadDotenvConfigProvider());
+  BunRuntime.runMain(
+    Effect.scoped(mainProgram()).pipe(
+      Effect.provide(makeApiLayer({}, { configProvider: dotenvProvider })),
     ),
   );
-
-  await runApi(
-    runtime,
-    Effect.logInfo("api server starting").pipe(
-      Effect.annotateLogs(
-        compactLogAnnotations({
-          appVersion: config.appVersion,
-          component: "api",
-          event: "api.server.starting",
-          port: config.port,
-        }),
-      ),
-    ),
-  );
-
-  const shutdown = async () => {
-    await runApi(
-      runtime,
-      Effect.logInfo("api server shutting down").pipe(
-        Effect.annotateLogs({
-          component: "api",
-          event: "api.server.stopping",
-        }),
-      ),
-    ).catch(() => undefined);
-    await runtime.dispose();
-  };
-
-  let shutdownPromise: Promise<void> | undefined;
-  const shutdownOnce = () => {
-    if (!shutdownPromise) {
-      shutdownPromise = shutdown();
-    }
-
-    return shutdownPromise;
-  };
-
-  const nodeHandler = await runApi(
-    runtime,
-    NodeHttpServer.makeHandler(httpApp),
-  );
-  const server = createServer(nodeHandler);
-  const serverClosed = new Promise<void>((resolve, reject) => {
-    server.once("close", resolve);
-    server.once("error", reject);
-  });
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(config.port, resolve);
-  });
-
-  const requestShutdown = () => {
-    server.close(() => {
-      void shutdownOnce();
-    });
-  };
-
-  process.on("SIGINT", requestShutdown);
-  process.on("SIGTERM", requestShutdown);
-
-  await serverClosed;
-
-  process.off("SIGINT", requestShutdown);
-  process.off("SIGTERM", requestShutdown);
-  await shutdownOnce();
 }
