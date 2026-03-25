@@ -12,19 +12,18 @@ const tasks: WorkspaceTask[] = [
 
 const children = tasks.map((task) => ({
   task,
-  child: new Deno.Command("deno", {
-    args: ["task", "dev"],
+  child: Bun.spawn(["bun", "run", "dev"], {
     cwd: task.cwd,
     stdin: "inherit",
     stdout: "inherit",
     stderr: "inherit",
-  }).spawn(),
+  }),
 }));
 
 let exitCode = 0;
 let shuttingDown = false;
 
-const shutdown = (signal?: Deno.Signal) => {
+const shutdown = (signal?: string) => {
   if (shuttingDown) {
     return;
   }
@@ -46,23 +45,22 @@ const shutdown = (signal?: Deno.Signal) => {
   }
 };
 
-for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  Deno.addSignalListener(signal, () => shutdown(signal));
-}
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 await Promise.allSettled(
   children.map(async ({ task, child }) => {
-    const status = await child.status;
+    const code = await child.exited;
 
-    if (!status.success && exitCode === 0) {
-      exitCode = status.code;
+    if (code !== 0 && exitCode === 0) {
+      exitCode = code;
     }
 
     if (!shuttingDown) {
-      console.error(`[${task.name}] exited with code ${status.code}`);
+      console.error(`[${task.name}] exited with code ${code}`);
       shutdown();
     }
   }),
 );
 
-Deno.exit(exitCode);
+process.exit(exitCode);
