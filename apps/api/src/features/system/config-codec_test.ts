@@ -1,4 +1,4 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, assertThrows, it } from "../../test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
 import { qualityProfiles, releaseProfiles } from "../../db/schema.ts";
@@ -90,20 +90,15 @@ it("profile codecs encode and decode quality and release profile rows", () => {
     upgrade_allowed: true,
   });
 
-  assertEquals(
-    decodeQualityProfileRow(
-      qualityRow satisfies typeof qualityProfiles.$inferSelect,
-    ),
-    {
-      allowed_qualities: ["1080p", "720p"],
-      cutoff: "1080p",
-      max_size: "4GB",
-      min_size: "700MB",
-      name: "Default",
-      seadex_preferred: true,
-      upgrade_allowed: true,
-    },
-  );
+  assertEquals(decodeQualityProfileRow(qualityRow satisfies typeof qualityProfiles.$inferSelect), {
+    allowed_qualities: ["1080p", "720p"],
+    cutoff: "1080p",
+    max_size: "4GB",
+    min_size: "700MB",
+    name: "Default",
+    seadex_preferred: true,
+    upgrade_allowed: true,
+  });
 
   const rulesJson = encodeReleaseProfileRules([
     { rule_type: "preferred", score: 10, term: "SubsPlease" },
@@ -115,15 +110,13 @@ it("profile codecs encode and decode quality and release profile rows", () => {
   ]);
 
   assertEquals(
-    decodeReleaseProfileRow(
-      {
-        enabled: true,
-        id: 1,
-        isGlobal: false,
-        name: "Rules",
-        rules: rulesJson,
-      } satisfies typeof releaseProfiles.$inferSelect,
-    ),
+    decodeReleaseProfileRow({
+      enabled: true,
+      id: 1,
+      isGlobal: false,
+      name: "Rules",
+      rules: rulesJson,
+    } satisfies typeof releaseProfiles.$inferSelect),
     {
       enabled: true,
       id: 1,
@@ -137,18 +130,16 @@ it("profile codecs encode and decode quality and release profile rows", () => {
   );
 });
 
-it("optional number list codec normalizes duplicates and invalid values", () => {
+it("optional number list codec normalizes duplicates but rejects corrupt stored JSON", () => {
   assertEquals(encodeOptionalNumberList([3, 1, 3, -1, 2]), "[1,2,3]");
   assertEquals(encodeOptionalNumberList([]), null);
   assertEquals(decodeOptionalNumberList("[3,1,2]"), [3, 1, 2]);
-  assertEquals(decodeOptionalNumberList("not-json"), []);
+  assertThrows(() => decodeOptionalNumberList("not-json"));
 });
 
 it.effect("stored config row decoder fails with typed errors for missing and corrupt rows", () =>
   Effect.gen(function* () {
-    const missingExit = yield* Effect.exit(
-      effectDecodeStoredConfigRow(undefined),
-    );
+    const missingExit = yield* Effect.exit(effectDecodeStoredConfigRow(undefined));
     assertEquals(Exit.isFailure(missingExit), true);
     if (Exit.isFailure(missingExit)) {
       const failure = Cause.failureOption(missingExit.cause);
@@ -158,9 +149,7 @@ it.effect("stored config row decoder fails with typed errors for missing and cor
       }
     }
 
-    const corruptExit = yield* Effect.exit(
-      effectDecodeStoredConfigRow({ data: "{not-json" }),
-    );
+    const corruptExit = yield* Effect.exit(effectDecodeStoredConfigRow({ data: "{not-json" }));
     assertEquals(Exit.isFailure(corruptExit), true);
     if (Exit.isFailure(corruptExit)) {
       const failure = Cause.failureOption(corruptExit.cause);
@@ -169,5 +158,5 @@ it.effect("stored config row decoder fails with typed errors for missing and cor
         assertEquals(failure.value._tag, "StoredConfigCorruptError");
       }
     }
-  })
+  }),
 );
