@@ -2,9 +2,9 @@
 
 Run from `apps/web`:
 
-- `deno task dev`
-- `deno task build`
-- `deno task lint`
-- `deno task serve`
+- `bun run dev`
+- `bun run build`
+- `bun run lint`
+- `bun run serve`
 
-From the repo root you can also use `deno task dev:web`.
+From the repo root you can also use `bun run dev:web`.

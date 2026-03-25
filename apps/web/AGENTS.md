@@ -27,7 +27,7 @@ agents working on this codebase.
   - [TanStack Form](https://tanstack.com/form)
   - [TanStack Table](https://tanstack.com/table)
 - **Validation**: [Valibot](https://valibot.dev/)
-- **Linting/Formatting**: Deno (`deno lint`, `deno fmt`)
+- **Linting/Formatting**: TypeScript (`tsc --noEmit`)
 
 ### 📂 Project Structure
 
@@ -36,8 +36,7 @@ agents working on this codebase.
   - **`components/`**: Reusable UI components.
   - **`components/ui/`**: SolidUI / Shadcn primitives.
   - **`libs/`**: Utility functions and libraries.
-- **`deno.json`**: Deno tasks, lint/fmt config, and import aliases.
-- **`package.json`**: npm dependency metadata for the Vite/Tailwind toolchain.
+- **`package.json`**: Dependencies and scripts.
 - **`tailwind.config.js`**: Tailwind configuration.
 - **`react-bakarr-ui/`**: **Reference Implementation**. A WIP React version of
   this app. Use this to reference logic or UI implementation details when
@@ -45,22 +44,18 @@ agents working on this codebase.
 
 ### ⚡ Common Commands
 
-Prefer `deno task` for local workflows. The frontend still uses npm ecosystem
-tooling through Deno's compatibility layer.
-
-| Command           | Description                              |
-| :---------------- | :--------------------------------------- |
-| `deno task dev`   | Start the development server (`vite`)    |
-| `deno task build` | Build for production and run type checks |
-| `deno task serve` | Preview the production build             |
-| `deno task lint`  | Run lint checks                          |
-| `deno task fmt`   | Format source files                      |
+| Command          | Description                              |
+| :--------------- | :--------------------------------------- |
+| `bun run dev`    | Start the development server (`vite`)    |
+| `bun run build`  | Build for production and run type checks |
+| `bun run serve`  | Preview the production build             |
+| `bun run check`  | Run type checks                          |
 
 ### 🎨 Code Style & Conventions
 
 - **Framework**: SolidJS (v1.9+).
 - **Validation**: Valibot.
-- **Formatting**: Adhere to `deno fmt` output.
+- **Formatting**: Consistent style (2-space indent).
 - **Naming**:
   - Components: `PascalCase` (e.g., `AnimeCard`).
   - Functions/Variables: `camelCase`.

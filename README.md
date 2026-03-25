@@ -4,45 +4,42 @@ Anime library manager monorepo.
 
 ## Apps
 
-- `apps/api` - Deno + Effect + Hono API
+- `apps/api` - Bun + Effect
 - `apps/web` - SolidJS frontend
 - `packages/shared` - shared transport/types
 
 ## Workspace
 
-- runtime and task runner: `deno`
-- workspace config: `deno.json`
-- npm packages are resolved through Deno's npm compatibility layer
+- runtime and task runner: `bun`
+- workspace config: `package.json` workspaces
+- dependencies are installed with Bun
 
 ## Common Commands
 
 From the repo root:
 
 ```sh
-deno task dev
-deno task dev:api
-deno task dev:web
-deno task test
-deno task build
-deno task lint
-deno task fmt
+bun run dev
+bun run dev:api
+bun run dev:web
+bun run test
+bun run build
+bun run lint
 ```
 
 API checks:
 
 ```sh
-cd apps/api
-deno task check
-deno task test
-deno lint
+bun run --cwd apps/api check
+bun run --cwd apps/api test
+bun run --cwd apps/api lint
 ```
 
 Web checks:
 
 ```sh
-cd apps/web
-deno task build
-deno task lint
+bun run --cwd apps/web build
+bun run --cwd apps/web lint
 ```
 
 ## Notes

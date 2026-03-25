@@ -7,7 +7,7 @@ framework bridges that keep old patterns alive.
 
 ## Repo Overview
 
-- `apps/api`: Deno API built with Effect, Hono, Drizzle, SQLite
+- `apps/api`: Bun API built with Effect, Drizzle, SQLite
 - `apps/web`: SolidJS app with TanStack Router/Query
 - `packages/shared`: shared API types
 
@@ -25,10 +25,10 @@ framework bridges that keep old patterns alive.
 
 ## Commands
 
-- root: `deno task dev`, `deno task test`, `deno task build`, `deno task lint`
-- api: `deno task check`, `deno task test`, `deno lint`,
+- root: `bun run dev`, `bun run test`, `bun run build`, `bun run lint`
+- api: `bun run check`, `bun test`, `bun run lint`,
   `dx effect-language-service diagnostics --project tsconfig.json`
-- web: `deno task build`, `deno task lint`
+- web: `bun run build`, `bun run lint`
 
 ## Caution
 
