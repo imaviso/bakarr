@@ -38,50 +38,20 @@ it.scoped("upsertEpisode prevents duplicate anime episode rows", () =>
       });
 
       const rows = yield* Effect.promise(() =>
-        db.select().from(episodes).where(
-          eq(episodes.animeId, 1),
-        )
+        db.select().from(episodes).where(eq(episodes.animeId, 1)),
       );
       assertEquals(rows.length, 1);
       assertEquals(rows[0]?.number, 1);
       assertEquals(rows[0]?.title, "Episode 1 updated");
-    })
-  )
+    }),
+  ),
 );
 
 it.scoped("ensureEpisodes rejects duplicate episode inserts for same anime", () =>
   withTestDbEffect((db) =>
     Effect.gen(function* () {
       yield* insertAnimeEffect(db, 2, 1);
-      yield* Effect.promise(() => db.insert(episodes).values({
-      audioChannels: null,
-      audioCodec: null,
-      animeId: 2,
-      durationSeconds: null,
-      number: 1,
-      fileSize: null,
-      groupName: null,
-      quality: null,
-      resolution: null,
-      title: null,
-      aired: null,
-      downloaded: false,
-      filePath: null,
-      videoCodec: null,
-    }));
-
-      yield* ensureEpisodesEffect(
-        db,
-        2,
-        1,
-        "RELEASING",
-        undefined,
-        undefined,
-        undefined,
-        false,
-      );
-
-      const duplicateInsert = yield* Effect.exit(Effect.tryPromise(() =>
+      yield* Effect.promise(() =>
         db.insert(episodes).values({
           audioChannels: null,
           audioCodec: null,
@@ -97,49 +67,17 @@ it.scoped("ensureEpisodes rejects duplicate episode inserts for same anime", () 
           downloaded: false,
           filePath: null,
           videoCodec: null,
-        })
-      ));
-      assertEquals(duplicateInsert._tag, "Failure");
-    })
-  )
-);
+        }),
+      );
 
-it.scoped("insertAnimeAggregateAtomic rolls back anime inserts when a later write fails", () =>
-  withTestDbEffect((db) =>
-    Effect.gen(function* () {
-      const exit = yield* Effect.exit(insertAnimeAggregateAtomicEffect(db, {
-        animeRow: {
-          id: 77,
-          malId: null,
-          titleRomaji: "Rollback Show",
-          titleEnglish: null,
-          titleNative: null,
-          format: "TV",
-          description: null,
-          score: null,
-          genres: "[]",
-          studios: "[]",
-          coverImage: null,
-          bannerImage: null,
-          status: "RELEASING",
-          episodeCount: 2,
-          startDate: null,
-          endDate: null,
-          startYear: null,
-          endYear: null,
-          nextAiringAt: null,
-          nextAiringEpisode: null,
-          profileName: "Default",
-          rootFolder: "/library/Rollback Show",
-          addedAt: "2024-01-01T00:00:00.000Z",
-          monitored: true,
-          releaseProfileIds: "[]",
-        },
-        episodeRows: [
-          {
+      yield* ensureEpisodesEffect(db, 2, 1, "RELEASING", undefined, undefined, undefined, false);
+
+      const duplicateInsert = yield* Effect.exit(
+        Effect.tryPromise(() =>
+          db.insert(episodes).values({
             audioChannels: null,
             audioCodec: null,
-            animeId: 77,
+            animeId: 2,
             durationSeconds: null,
             number: 1,
             fileSize: null,
@@ -151,52 +89,105 @@ it.scoped("insertAnimeAggregateAtomic rolls back anime inserts when a later writ
             downloaded: false,
             filePath: null,
             videoCodec: null,
+          }),
+        ),
+      );
+      assertEquals(duplicateInsert._tag, "Failure");
+    }),
+  ),
+);
+
+it.scoped("insertAnimeAggregateAtomic rolls back anime inserts when a later write fails", () =>
+  withTestDbEffect((db) =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        insertAnimeAggregateAtomicEffect(db, {
+          animeRow: {
+            id: 77,
+            malId: null,
+            titleRomaji: "Rollback Show",
+            titleEnglish: null,
+            titleNative: null,
+            format: "TV",
+            description: null,
+            score: null,
+            genres: "[]",
+            studios: "[]",
+            coverImage: null,
+            bannerImage: null,
+            status: "RELEASING",
+            episodeCount: 2,
+            startDate: null,
+            endDate: null,
+            startYear: null,
+            endYear: null,
+            nextAiringAt: null,
+            nextAiringEpisode: null,
+            profileName: "Default",
+            rootFolder: "/library/Rollback Show",
+            addedAt: "2024-01-01T00:00:00.000Z",
+            monitored: true,
+            releaseProfileIds: "[]",
           },
-          {
-            audioChannels: null,
-            audioCodec: null,
-            animeId: 77,
-            durationSeconds: null,
-            number: 2,
-            fileSize: null,
-            groupName: null,
-            quality: null,
-            resolution: null,
-            title: null,
-            aired: null,
-            downloaded: false,
-            filePath: null,
-            videoCodec: null,
+          episodeRows: [
+            {
+              audioChannels: null,
+              audioCodec: null,
+              animeId: 77,
+              durationSeconds: null,
+              number: 1,
+              fileSize: null,
+              groupName: null,
+              quality: null,
+              resolution: null,
+              title: null,
+              aired: null,
+              downloaded: false,
+              filePath: null,
+              videoCodec: null,
+            },
+            {
+              audioChannels: null,
+              audioCodec: null,
+              animeId: 77,
+              durationSeconds: null,
+              number: 2,
+              fileSize: null,
+              groupName: null,
+              quality: null,
+              resolution: null,
+              title: null,
+              aired: null,
+              downloaded: false,
+              filePath: null,
+              videoCodec: null,
+            },
+          ],
+          log: {
+            eventType: null as unknown as string,
+            level: "success",
+            message: "This should fail",
+            createdAt: "2024-01-01T00:00:00.000Z",
           },
-        ],
-        log: {
-          eventType: null as unknown as string,
-          level: "success",
-          message: "This should fail",
-          createdAt: "2024-01-01T00:00:00.000Z",
-        },
-      }));
+        }),
+      );
       assertEquals(exit._tag, "Failure");
 
       const animeRows = yield* Effect.promise(() =>
-        db.select().from(anime).where(eq(anime.id, 77))
+        db.select().from(anime).where(eq(anime.id, 77)),
       );
       const episodeRows = yield* Effect.promise(() =>
-        db.select().from(episodes).where(
-          eq(episodes.animeId, 77),
-        )
+        db.select().from(episodes).where(eq(episodes.animeId, 77)),
       );
       const logRows = yield* Effect.promise(() =>
-        db.select().from(systemLogs).where(
-          eq(systemLogs.message, "This should fail"),
-        )
+        db.select().from(systemLogs).where(eq(systemLogs.message, "This should fail")),
       );
 
       assertEquals(animeRows.length, 0);
       assertEquals(episodeRows.length, 0);
       assertEquals(logRows.length, 0);
-    })
-  )
+    }),
+  ),
 );
 
 it("buildMissingEpisodeRows creates rows only for missing episodes", () => {
@@ -208,27 +199,32 @@ it("buildMissingEpisodeRows creates rows only for missing episodes", () => {
     endDate: undefined,
     futureAiringSchedule: undefined,
     resetMissingOnly: true,
-    existingRows: [{
-      audioChannels: null,
-      audioCodec: null,
-      id: 1,
-      animeId: 15,
-      durationSeconds: null,
-      number: 1,
-      fileSize: null,
-      groupName: null,
-      quality: null,
-      resolution: null,
-      title: null,
-      aired: null,
-      downloaded: true,
-      filePath: "/library/Show 15/Show 15 - 01.mkv",
-      videoCodec: null,
-    }],
+    existingRows: [
+      {
+        audioChannels: null,
+        audioCodec: null,
+        id: 1,
+        animeId: 15,
+        durationSeconds: null,
+        number: 1,
+        fileSize: null,
+        groupName: null,
+        quality: null,
+        resolution: null,
+        title: null,
+        aired: null,
+        downloaded: true,
+        filePath: "/library/Show 15/Show 15 - 01.mkv",
+        videoCodec: null,
+      },
+    ],
   });
 
   assertEquals(rows.length, 2);
-  assertEquals(rows.map((row) => row.number), [2, 3]);
+  assertEquals(
+    rows.map((row) => row.number),
+    [2, 3],
+  );
 });
 
 it("inferAiredAt prefers AniList future schedule over heuristics", () => {
@@ -255,22 +251,22 @@ it.scoped("resolveAnimeRootFolder can preserve an existing folder root", () =>
       );
 
       assertEquals(rootFolder, "/library/Naruto Fansub");
-    })
-  )
+    }),
+  ),
 );
 
 it.scoped("anime repository helpers fail explicitly on corrupt stored config", () =>
   withTestDbEffect((db) =>
     Effect.gen(function* () {
-      yield* Effect.promise(() => db.insert(appConfig).values({
-      id: 1,
-      data: "{not-json",
-      updatedAt: "2024-01-01T00:00:00.000Z",
-    }));
-
-      const rootFolderExit = yield* Effect.exit(
-        resolveAnimeRootFolderEffect(db, "", "Naruto"),
+      yield* Effect.promise(() =>
+        db.insert(appConfig).values({
+          id: 1,
+          data: "{not-json",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        }),
       );
+
+      const rootFolderExit = yield* Effect.exit(resolveAnimeRootFolderEffect(db, "", "Naruto"));
       assertEquals(Exit.isFailure(rootFolderExit), true);
       if (Exit.isFailure(rootFolderExit)) {
         const failure = Cause.failureOption(rootFolderExit.cause);
@@ -280,9 +276,7 @@ it.scoped("anime repository helpers fail explicitly on corrupt stored config", (
         }
       }
 
-      const imagesPathExit = yield* Effect.exit(
-        getConfiguredImagesPathEffect(db),
-      );
+      const imagesPathExit = yield* Effect.exit(getConfiguredImagesPathEffect(db));
       assertEquals(Exit.isFailure(imagesPathExit), true);
       if (Exit.isFailure(imagesPathExit)) {
         const failure = Cause.failureOption(imagesPathExit.cause);
@@ -291,43 +285,39 @@ it.scoped("anime repository helpers fail explicitly on corrupt stored config", (
           assertEquals(failure.value._tag, "StoredConfigCorruptError");
         }
       }
-    })
-  )
+    }),
+  ),
 );
 
 it.scoped("anime repository helpers use stored config when available", () =>
   withTestDbEffect((db) =>
     Effect.gen(function* () {
-      yield* Effect.promise(() => db.insert(appConfig).values({
-      id: 1,
-      data: encodeConfigCore({
-        ...makeDefaultConfig("./test.sqlite"),
-        downloads: {
-          ...makeDefaultConfig("./test.sqlite").downloads,
-          create_anime_folders: false,
-        },
-        general: {
-          ...makeDefaultConfig("./test.sqlite").general,
-          images_path: "./custom-images",
-        },
-        library: {
-          ...makeDefaultConfig("./test.sqlite").library,
-          library_path: "/anime-library",
-        },
-      }),
-      updatedAt: "2024-01-01T00:00:00.000Z",
-    }));
+      yield* Effect.promise(() =>
+        db.insert(appConfig).values({
+          id: 1,
+          data: encodeConfigCore({
+            ...makeDefaultConfig("./test.sqlite"),
+            downloads: {
+              ...makeDefaultConfig("./test.sqlite").downloads,
+              create_anime_folders: false,
+            },
+            general: {
+              ...makeDefaultConfig("./test.sqlite").general,
+              images_path: "./custom-images",
+            },
+            library: {
+              ...makeDefaultConfig("./test.sqlite").library,
+              library_path: "/anime-library",
+            },
+          }),
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        }),
+      );
 
-      assertEquals(
-        yield* resolveAnimeRootFolderEffect(db, "", "Naruto"),
-        "/anime-library",
-      );
-      assertEquals(
-        yield* getConfiguredImagesPathEffect(db),
-        "./custom-images",
-      );
-    })
-  )
+      assertEquals(yield* resolveAnimeRootFolderEffect(db, "", "Naruto"), "/anime-library");
+      assertEquals(yield* getConfiguredImagesPathEffect(db), "./custom-images");
+    }),
+  ),
 );
 
 it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
@@ -376,8 +366,8 @@ it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
 
       assertEquals(results[0]?.already_in_library, true);
       assertEquals(results[1]?.already_in_library, false);
-    })
-  )
+    }),
+  ),
 );
 
 it.scoped("findAnimeRootFolderOwner returns the mapped anime for a root", () =>
@@ -388,8 +378,8 @@ it.scoped("findAnimeRootFolderOwner returns the mapped anime for a root", () =>
       const owner = yield* findAnimeRootFolderOwnerEffect(db, "/library/Show-20");
       assertEquals(owner?.id, 20);
       assertEquals(owner?.titleRomaji, "Show 20");
-    })
-  )
+    }),
+  ),
 );
 
 it.scoped("findAnimeRootFolderOwner handles trailing slash parents", () =>
@@ -397,14 +387,11 @@ it.scoped("findAnimeRootFolderOwner handles trailing slash parents", () =>
     Effect.gen(function* () {
       yield* insertAnimeWithRootEffect(db, 21, 12, "/library/Naruto/");
 
-      const owner = yield* findAnimeRootFolderOwnerEffect(
-        db,
-        "/library/Naruto/Season 1",
-      );
+      const owner = yield* findAnimeRootFolderOwnerEffect(db, "/library/Naruto/Season 1");
 
       assertEquals(owner?.id, 21);
-    })
-  )
+    }),
+  ),
 );
 
 it.scoped("anime root-folder triggers reject overlapping roots", () =>
@@ -412,44 +399,37 @@ it.scoped("anime root-folder triggers reject overlapping roots", () =>
     Effect.gen(function* () {
       yield* insertAnimeWithRootEffect(db, 30, 12, "/library/Naruto/");
 
-      const overlappingInsert = yield* Effect.exit(Effect.tryPromise(() =>
-        insertAnimeWithRoot(db, 31, 12, "/library/Naruto/Season 1")
-      ));
+      const overlappingInsert = yield* Effect.exit(
+        Effect.tryPromise(() => insertAnimeWithRoot(db, 31, 12, "/library/Naruto/Season 1")),
+      );
       assertEquals(overlappingInsert._tag, "Failure");
-    })
-  )
+    }),
+  ),
 );
 
-const insertAnimeEffect = Effect.fn("AnimeRepositoryTest.insertAnimeEffect")(
-  function* (db: AppDatabase, id: number, episodeCount: number) {
-    yield* Effect.promise(() =>
-      insertAnimeWithRoot(db, id, episodeCount, `/library/Show-${id}`)
-    );
-  },
-);
-
-const insertAnimeWithRootEffect = Effect.fn(
-  "AnimeRepositoryTest.insertAnimeWithRootEffect",
-)(function* (
+const insertAnimeEffect = Effect.fn("AnimeRepositoryTest.insertAnimeEffect")(function* (
   db: AppDatabase,
   id: number,
   episodeCount: number,
-  rootFolder: string,
 ) {
-  yield* Effect.promise(() =>
-    insertAnimeWithRoot(db, id, episodeCount, rootFolder)
-  );
+  yield* Effect.promise(() => insertAnimeWithRoot(db, id, episodeCount, `/library/Show-${id}`));
 });
 
-const withTestDbEffect = Effect.fn("AnimeRepositoryTest.withTestDbEffect")(
-  function* <A, E, R>(run: (db: AppDatabase) => Effect.Effect<A, E, R>) {
-    return yield* withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
-      run: (db) => run(db as AppDatabase),
-      schema,
-    });
+const insertAnimeWithRootEffect = Effect.fn("AnimeRepositoryTest.insertAnimeWithRootEffect")(
+  function* (db: AppDatabase, id: number, episodeCount: number, rootFolder: string) {
+    yield* Effect.promise(() => insertAnimeWithRoot(db, id, episodeCount, rootFolder));
   },
 );
+
+const withTestDbEffect = Effect.fn("AnimeRepositoryTest.withTestDbEffect")(function* <A, E, R>(
+  run: (db: AppDatabase) => Effect.Effect<A, E, R>,
+) {
+  return yield* withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) => run(db as AppDatabase),
+    schema,
+  });
+});
 
 async function insertAnimeWithRoot(
   db: AppDatabase,

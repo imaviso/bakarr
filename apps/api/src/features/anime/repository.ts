@@ -3,34 +3,24 @@ import { Effect, Schema } from "effect";
 
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
-import {
-  anime,
-  appConfig,
-  episodes,
-  qualityProfiles,
-  systemLogs,
-} from "../../db/schema.ts";
+import { anime, appConfig, episodes, qualityProfiles, systemLogs } from "../../db/schema.ts";
 import { nowIso } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import {
-  effectDecodeConfigCore,
-  effectDecodeImagePath,
-} from "../system/config-codec.ts";
+import { effectDecodeConfigCore, effectDecodeImagePath } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 import { AnimeNotFoundError } from "./errors.ts";
 
 type EpisodeWriteDb = Pick<AppDatabase, "insert" | "select" | "update">;
 
-export class UpsertEpisodeError
-  extends Schema.TaggedError<UpsertEpisodeError>()(
-    "UpsertEpisodeError",
-    {
-      anime_id: Schema.Number,
-      episode_number: Schema.Number,
-      message: Schema.String,
-      cause: Schema.optional(Schema.Defect),
-    },
-  ) {}
+export class UpsertEpisodeError extends Schema.TaggedError<UpsertEpisodeError>()(
+  "UpsertEpisodeError",
+  {
+    anime_id: Schema.Number,
+    episode_number: Schema.Number,
+    message: Schema.String,
+    cause: Schema.optional(Schema.Defect),
+  },
+) {}
 
 type UpsertEpisodePatch = {
   aired?: string | null;
@@ -47,268 +37,295 @@ type UpsertEpisodePatch = {
   title?: string | null;
 };
 
-export const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(
-  function* (
-    db: AppDatabase,
-    animeId: number,
-  ) {
-    const rows = yield* tryDatabasePromise(
-      "Failed to load anime",
-      () => db.select().from(anime).where(eq(anime.id, animeId)).limit(1),
-    );
-    const row = rows[0];
-    if (!row) {
-      return yield* new AnimeNotFoundError({ message: "Anime not found" });
-    }
-    return row;
-  },
-);
+export const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(function* (
+  db: AppDatabase,
+  animeId: number,
+) {
+  const rows = yield* tryDatabasePromise("Failed to load anime", () =>
+    db.select().from(anime).where(eq(anime.id, animeId)).limit(1),
+  );
+  const row = rows[0];
+  if (!row) {
+    return yield* new AnimeNotFoundError({ message: "Anime not found" });
+  }
+  return row;
+});
 
-export const requireAnimeExistsEffect = Effect.fn(
-  "AnimeRepository.requireAnimeExists",
-)(function* (
+export const requireAnimeExistsEffect = Effect.fn("AnimeRepository.requireAnimeExists")(function* (
   db: AppDatabase,
   animeId: number,
 ) {
   yield* getAnimeRowEffect(db, animeId);
 });
 
-export const getEpisodeRowEffect = Effect.fn("AnimeRepository.getEpisodeRow")(
-  function* (
-    db: AppDatabase,
-    animeId: number,
-    episodeNumber: number,
-  ) {
-    const rows = yield* tryDatabasePromise(
-      "Failed to load episode",
-      () =>
-        db.select().from(episodes).where(
-          and(
-            eq(episodes.animeId, animeId),
-            eq(episodes.number, episodeNumber),
-          ),
-        ).limit(1),
-    );
-    const row = rows[0];
-    if (!row) {
-      return yield* new AnimeNotFoundError({ message: "Episode not found" });
-    }
-    return row;
-  },
-);
-
-export const upsertEpisodeEffect = Effect.fn("AnimeRepository.upsertEpisode")(
-  function* (
-    db: EpisodeWriteDb,
-    animeId: number,
-    episodeNumber: number,
-    patch: UpsertEpisodePatch,
-  ) {
-    const rows = yield* tryDatabasePromise(
-      "Failed to upsert episode",
-      () =>
-        db.select().from(episodes).where(
-          and(
-            eq(episodes.animeId, animeId),
-            eq(episodes.number, episodeNumber),
-          ),
-        ).limit(1),
-    );
-
-    if (rows[0]) {
-      yield* tryDatabasePromise(
-        "Failed to upsert episode",
-        () =>
-          db.update(episodes).set({
-            aired: patch.aired ?? rows[0].aired,
-            downloaded: patch.downloaded ?? rows[0].downloaded,
-            filePath: patch.filePath ?? rows[0].filePath,
-            fileSize: patch.fileSize ?? rows[0].fileSize,
-            durationSeconds: patch.durationSeconds ?? rows[0].durationSeconds,
-            groupName: patch.groupName ?? rows[0].groupName,
-            resolution: patch.resolution ?? rows[0].resolution,
-            quality: patch.quality ?? rows[0].quality,
-            videoCodec: patch.videoCodec ?? rows[0].videoCodec,
-            audioCodec: patch.audioCodec ?? rows[0].audioCodec,
-            audioChannels: patch.audioChannels ?? rows[0].audioChannels,
-            title: patch.title ?? rows[0].title,
-          }).where(eq(episodes.id, rows[0].id)),
-      );
-      return;
-    }
-
-    const insertResult = yield* Effect.either(
-      tryDatabasePromise(
-        "Failed to upsert episode",
-        () =>
-          db.insert(episodes).values({
-            aired: patch.aired ?? null,
-            animeId,
-            downloaded: patch.downloaded ?? false,
-            filePath: patch.filePath ?? null,
-            fileSize: patch.fileSize ?? null,
-            durationSeconds: patch.durationSeconds ?? null,
-            groupName: patch.groupName ?? null,
-            resolution: patch.resolution ?? null,
-            quality: patch.quality ?? null,
-            videoCodec: patch.videoCodec ?? null,
-            audioCodec: patch.audioCodec ?? null,
-            audioChannels: patch.audioChannels ?? null,
-            number: episodeNumber,
-            title: patch.title ?? null,
-          }),
-      ),
-    );
-
-    if (insertResult._tag === "Right") {
-      return;
-    }
-
-    const existingRows = yield* tryDatabasePromise(
-      "Failed to upsert episode",
-      () =>
-        db.select().from(episodes).where(
-          and(
-            eq(episodes.animeId, animeId),
-            eq(episodes.number, episodeNumber),
-          ),
-        ).limit(1),
-    );
-
-    if (!existingRows[0]) {
-      return yield* new UpsertEpisodeError({
-        anime_id: animeId,
-        episode_number: episodeNumber,
-        message: "Failed to upsert episode",
-        cause: insertResult.left,
-      });
-    }
-
-    yield* tryDatabasePromise(
-      "Failed to upsert episode",
-      () =>
-        db.update(episodes).set({
-          aired: patch.aired ?? existingRows[0].aired,
-          downloaded: patch.downloaded ?? existingRows[0].downloaded,
-          filePath: patch.filePath ?? existingRows[0].filePath,
-          fileSize: patch.fileSize ?? existingRows[0].fileSize,
-          durationSeconds: patch.durationSeconds ??
-            existingRows[0].durationSeconds,
-          groupName: patch.groupName ?? existingRows[0].groupName,
-          resolution: patch.resolution ?? existingRows[0].resolution,
-          quality: patch.quality ?? existingRows[0].quality,
-          videoCodec: patch.videoCodec ?? existingRows[0].videoCodec,
-          audioCodec: patch.audioCodec ?? existingRows[0].audioCodec,
-          audioChannels: patch.audioChannels ?? existingRows[0].audioChannels,
-          title: patch.title ?? existingRows[0].title,
-        }).where(eq(episodes.id, existingRows[0].id)),
-    );
-  },
-);
-
-export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(
-  function* (
-    db: AppDatabase,
-    animeId: number,
-    episodeCount: number | undefined,
-    status: string,
-    startDate: string | undefined,
-    endDate: string | undefined,
-    futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
-    resetMissingOnly: boolean,
-  ) {
-    const now = yield* nowIso;
-    const existingRows = !episodeCount || episodeCount <= 0
-      ? []
-      : yield* tryDatabasePromise(
-        "Failed to ensure episodes",
-        () => db.select().from(episodes).where(eq(episodes.animeId, animeId)),
-      );
-    const missingRows = buildMissingEpisodeRows({
-      animeId,
-      episodeCount,
-      endDate,
-      existingRows,
-      futureAiringSchedule,
-      nowIso: now,
-      resetMissingOnly,
-      startDate,
-      status,
-    });
-
-    if (missingRows.length === 0) {
-      return;
-    }
-
-    yield* tryDatabasePromise(
-      "Failed to ensure episodes",
-      () => db.insert(episodes).values(missingRows),
-    );
-  },
-);
-
-export const clearEpisodeMappingEffect = Effect.fn(
-  "AnimeRepository.clearEpisodeMapping",
-)(function* (
-  db: EpisodeWriteDb,
+export const getEpisodeRowEffect = Effect.fn("AnimeRepository.getEpisodeRow")(function* (
+  db: AppDatabase,
   animeId: number,
   episodeNumber: number,
 ) {
-  yield* tryDatabasePromise(
-    "Failed to clear episode mapping",
-    () =>
-      db.update(episodes).set({
-        downloaded: false,
-        filePath: null,
-        fileSize: null,
-        durationSeconds: null,
-        groupName: null,
-        resolution: null,
-        quality: null,
-        videoCodec: null,
-        audioCodec: null,
-        audioChannels: null,
-      }).where(
-        and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)),
-      ),
+  const rows = yield* tryDatabasePromise("Failed to load episode", () =>
+    db
+      .select()
+      .from(episodes)
+      .where(and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)))
+      .limit(1),
+  );
+  const row = rows[0];
+  if (!row) {
+    return yield* new AnimeNotFoundError({ message: "Episode not found" });
+  }
+  return row;
+});
+
+export const upsertEpisodeEffect = Effect.fn("AnimeRepository.upsertEpisode")(function* (
+  db: EpisodeWriteDb,
+  animeId: number,
+  episodeNumber: number,
+  patch: UpsertEpisodePatch,
+) {
+  const rows = yield* tryDatabasePromise("Failed to upsert episode", () =>
+    db
+      .select()
+      .from(episodes)
+      .where(and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)))
+      .limit(1),
+  );
+
+  if (rows[0]) {
+    yield* tryDatabasePromise("Failed to upsert episode", () =>
+      db
+        .update(episodes)
+        .set({
+          aired: patch.aired ?? rows[0].aired,
+          downloaded: patch.downloaded ?? rows[0].downloaded,
+          filePath: patch.filePath ?? rows[0].filePath,
+          fileSize: patch.fileSize ?? rows[0].fileSize,
+          durationSeconds: patch.durationSeconds ?? rows[0].durationSeconds,
+          groupName: patch.groupName ?? rows[0].groupName,
+          resolution: patch.resolution ?? rows[0].resolution,
+          quality: patch.quality ?? rows[0].quality,
+          videoCodec: patch.videoCodec ?? rows[0].videoCodec,
+          audioCodec: patch.audioCodec ?? rows[0].audioCodec,
+          audioChannels: patch.audioChannels ?? rows[0].audioChannels,
+          title: patch.title ?? rows[0].title,
+        })
+        .where(eq(episodes.id, rows[0].id)),
+    );
+    return;
+  }
+
+  const insertResult = yield* Effect.either(
+    tryDatabasePromise("Failed to upsert episode", () =>
+      db.insert(episodes).values({
+        aired: patch.aired ?? null,
+        animeId,
+        downloaded: patch.downloaded ?? false,
+        filePath: patch.filePath ?? null,
+        fileSize: patch.fileSize ?? null,
+        durationSeconds: patch.durationSeconds ?? null,
+        groupName: patch.groupName ?? null,
+        resolution: patch.resolution ?? null,
+        quality: patch.quality ?? null,
+        videoCodec: patch.videoCodec ?? null,
+        audioCodec: patch.audioCodec ?? null,
+        audioChannels: patch.audioChannels ?? null,
+        number: episodeNumber,
+        title: patch.title ?? null,
+      }),
+    ),
+  );
+
+  if (insertResult._tag === "Right") {
+    return;
+  }
+
+  const existingRows = yield* tryDatabasePromise("Failed to upsert episode", () =>
+    db
+      .select()
+      .from(episodes)
+      .where(and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)))
+      .limit(1),
+  );
+
+  if (!existingRows[0]) {
+    return yield* new UpsertEpisodeError({
+      anime_id: animeId,
+      episode_number: episodeNumber,
+      message: "Failed to upsert episode",
+      cause: insertResult.left,
+    });
+  }
+
+  yield* tryDatabasePromise("Failed to upsert episode", () =>
+    db
+      .update(episodes)
+      .set({
+        aired: patch.aired ?? existingRows[0].aired,
+        downloaded: patch.downloaded ?? existingRows[0].downloaded,
+        filePath: patch.filePath ?? existingRows[0].filePath,
+        fileSize: patch.fileSize ?? existingRows[0].fileSize,
+        durationSeconds: patch.durationSeconds ?? existingRows[0].durationSeconds,
+        groupName: patch.groupName ?? existingRows[0].groupName,
+        resolution: patch.resolution ?? existingRows[0].resolution,
+        quality: patch.quality ?? existingRows[0].quality,
+        videoCodec: patch.videoCodec ?? existingRows[0].videoCodec,
+        audioCodec: patch.audioCodec ?? existingRows[0].audioCodec,
+        audioChannels: patch.audioChannels ?? existingRows[0].audioChannels,
+        title: patch.title ?? existingRows[0].title,
+      })
+      .where(eq(episodes.id, existingRows[0].id)),
   );
 });
 
-export const resolveAnimeRootFolderEffect = Effect.fn(
-  "AnimeRepository.resolveAnimeRootFolder",
+export const ensureEpisodesEffect = Effect.fn("AnimeRepository.ensureEpisodes")(function* (
+  db: AppDatabase,
+  animeId: number,
+  episodeCount: number | undefined,
+  status: string,
+  startDate: string | undefined,
+  endDate: string | undefined,
+  futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
+  resetMissingOnly: boolean,
+) {
+  const now = yield* nowIso;
+  const existingRows =
+    !episodeCount || episodeCount <= 0
+      ? []
+      : yield* tryDatabasePromise("Failed to ensure episodes", () =>
+          db.select().from(episodes).where(eq(episodes.animeId, animeId)),
+        );
+  const missingRows = buildMissingEpisodeRows({
+    animeId,
+    episodeCount,
+    endDate,
+    existingRows,
+    futureAiringSchedule,
+    nowIso: now,
+    resetMissingOnly,
+    startDate,
+    status,
+  });
+
+  if (missingRows.length === 0) {
+    return;
+  }
+
+  yield* tryDatabasePromise("Failed to ensure episodes", () =>
+    db.insert(episodes).values(missingRows),
+  );
+});
+
+export const clearEpisodeMappingEffect = Effect.fn("AnimeRepository.clearEpisodeMapping")(
+  function* (db: EpisodeWriteDb, animeId: number, episodeNumber: number) {
+    yield* tryDatabasePromise("Failed to clear episode mapping", () =>
+      db
+        .update(episodes)
+        .set({
+          downloaded: false,
+          filePath: null,
+          fileSize: null,
+          durationSeconds: null,
+          groupName: null,
+          resolution: null,
+          quality: null,
+          videoCodec: null,
+          audioCodec: null,
+          audioChannels: null,
+        })
+        .where(and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber))),
+    );
+  },
+);
+
+export const bulkMapEpisodeFilesAtomicEffect = Effect.fn(
+  "AnimeRepository.bulkMapEpisodeFilesAtomic",
 )(function* (
   db: AppDatabase,
-  requestedRootFolder: string,
-  title: string,
-  options: { readonly useExistingRoot?: boolean } = {},
+  animeId: number,
+  mappings: readonly {
+    episode_number: number;
+    file_path: string;
+    clear: boolean;
+  }[],
 ) {
-  const trimmed = requestedRootFolder.trim();
-  const rows = yield* tryDatabasePromise(
-    "Failed to resolve anime root folder",
-    () => db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+  yield* tryDatabasePromise("Failed to bulk-map episode files", () =>
+    db.transaction(async (tx) => {
+      for (const entry of mappings) {
+        if (entry.clear) {
+          await tx
+            .update(episodes)
+            .set({
+              downloaded: false,
+              filePath: null,
+              fileSize: null,
+              durationSeconds: null,
+              groupName: null,
+              resolution: null,
+              quality: null,
+              videoCodec: null,
+              audioCodec: null,
+              audioChannels: null,
+            })
+            .where(and(eq(episodes.animeId, animeId), eq(episodes.number, entry.episode_number)));
+          continue;
+        }
+
+        await tx
+          .insert(episodes)
+          .values({
+            aired: null,
+            animeId,
+            downloaded: true,
+            filePath: entry.file_path,
+            number: entry.episode_number,
+            title: null,
+          })
+          .onConflictDoUpdate({
+            target: [episodes.animeId, episodes.number],
+            set: {
+              downloaded: true,
+              filePath: entry.file_path,
+            },
+          });
+      }
+    }),
   );
-  const configCore = rows[0]
-    ? yield* effectDecodeConfigCore(rows[0].data)
-    : makeDefaultConfig(":memory:");
-  const settings = toLibrarySettings(configCore);
-  const baseRootFolder = trimmed.length > 0 ? trimmed : settings.libraryPath;
-
-  if (options.useExistingRoot && trimmed.length > 0) {
-    return trimmed;
-  }
-
-  if (!settings.createAnimeFolders) {
-    return baseRootFolder;
-  }
-
-  const safeSegment = toSafePathSegment(title);
-
-  if (baseRootFolder.split("/").filter(Boolean).pop() === safeSegment) {
-    return baseRootFolder;
-  }
-
-  return `${baseRootFolder.replace(/\/$/, "")}/${safeSegment}`;
 });
+
+export const resolveAnimeRootFolderEffect = Effect.fn("AnimeRepository.resolveAnimeRootFolder")(
+  function* (
+    db: AppDatabase,
+    requestedRootFolder: string,
+    title: string,
+    options: { readonly useExistingRoot?: boolean } = {},
+  ) {
+    const trimmed = requestedRootFolder.trim();
+    const rows = yield* tryDatabasePromise("Failed to resolve anime root folder", () =>
+      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+    );
+    const configCore = rows[0]
+      ? yield* effectDecodeConfigCore(rows[0].data)
+      : makeDefaultConfig(":memory:");
+    const settings = toLibrarySettings(configCore);
+    const baseRootFolder = trimmed.length > 0 ? trimmed : settings.libraryPath;
+
+    if (options.useExistingRoot && trimmed.length > 0) {
+      return trimmed;
+    }
+
+    if (!settings.createAnimeFolders) {
+      return baseRootFolder;
+    }
+
+    const safeSegment = toSafePathSegment(title);
+
+    if (baseRootFolder.split("/").filter(Boolean).pop() === safeSegment) {
+      return baseRootFolder;
+    }
+
+    return `${baseRootFolder.replace(/\/$/, "")}/${safeSegment}`;
+  },
+);
 
 export interface FutureAiringScheduleEntry {
   readonly airingAt: string;
@@ -318,11 +335,7 @@ export interface FutureAiringScheduleEntry {
 export function buildAiringScheduleMap(
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
 ) {
-  return new Map(
-    (futureAiringSchedule ?? []).map((
-      entry,
-    ) => [entry.episode, entry.airingAt]),
-  );
+  return new Map((futureAiringSchedule ?? []).map((entry) => [entry.episode, entry.airingAt]));
 }
 
 export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
@@ -340,9 +353,8 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
     return;
   }
 
-  const existingRows = yield* tryDatabasePromise(
-    "Failed to update anime episode air dates",
-    () => db.select().from(episodes).where(eq(episodes.animeId, animeId)),
+  const existingRows = yield* tryDatabasePromise("Failed to update anime episode air dates", () =>
+    db.select().from(episodes).where(eq(episodes.animeId, animeId)),
   );
   const scheduleMap = buildAiringScheduleMap(futureAiringSchedule);
   const now = yield* nowIso;
@@ -362,34 +374,23 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
       continue;
     }
 
-    yield* tryDatabasePromise(
-      "Failed to update anime episode air dates",
-      () =>
-        db.update(episodes).set({ aired: inferred }).where(
-          eq(episodes.id, row.id),
-        ),
+    yield* tryDatabasePromise("Failed to update anime episode air dates", () =>
+      db.update(episodes).set({ aired: inferred }).where(eq(episodes.id, row.id)),
     );
   }
 });
 
 export const markSearchResultsAlreadyInLibraryEffect = Effect.fn(
   "AnimeRepository.markSearchResultsAlreadyInLibrary",
-)(function* (
-  db: AppDatabase,
-  results: readonly AnimeSearchResult[],
-) {
+)(function* (db: AppDatabase, results: readonly AnimeSearchResult[]) {
   const ids = [...new Set(results.map((result) => result.id))];
 
   if (ids.length === 0) {
     return [...results];
   }
 
-  const rows = yield* tryDatabasePromise(
-    "Failed to mark search results in library",
-    () =>
-      db.select({ id: anime.id }).from(anime).where(
-        inArray(anime.id, ids),
-      ),
+  const rows = yield* tryDatabasePromise("Failed to mark search results in library", () =>
+    db.select({ id: anime.id }).from(anime).where(inArray(anime.id, ids)),
   );
   const libraryIds = new Set(rows.map((row) => row.id));
 
@@ -399,47 +400,44 @@ export const markSearchResultsAlreadyInLibraryEffect = Effect.fn(
   }));
 });
 
-export const qualityProfileExistsEffect = Effect.fn(
-  "AnimeRepository.qualityProfileExists",
-)(function* (db: AppDatabase, name: string) {
-  const rows = yield* tryDatabasePromise(
-    "Failed to verify quality profile",
-    () =>
+export const qualityProfileExistsEffect = Effect.fn("AnimeRepository.qualityProfileExists")(
+  function* (db: AppDatabase, name: string) {
+    const rows = yield* tryDatabasePromise("Failed to verify quality profile", () =>
       db
         .select({ name: qualityProfiles.name })
         .from(qualityProfiles)
         .where(eq(qualityProfiles.name, name))
         .limit(1),
-  );
-  return rows.length > 0;
-});
-
-export const findAnimeRootFolderOwnerEffect = Effect.fn(
-  "AnimeRepository.findAnimeRootFolderOwner",
-)(function* (
-  db: AppDatabase,
-  rootFolder: string,
-) {
-  const normalized = normalizeRootFolder(rootFolder);
-  const rows = yield* tryDatabasePromise(
-    "Failed to find anime root folder owner",
-    () =>
-      db.select({
-        id: anime.id,
-        rootFolder: anime.rootFolder,
-        titleRomaji: anime.titleRomaji,
-      }).from(anime),
-  );
-
-  return rows.find((row) => {
-    const existing = normalizeRootFolder(row.rootFolder);
-    return (
-      existing === normalized ||
-      normalized.startsWith(`${existing}/`) ||
-      existing.startsWith(`${normalized}/`)
     );
-  }) ?? null;
-});
+    return rows.length > 0;
+  },
+);
+
+export const findAnimeRootFolderOwnerEffect = Effect.fn("AnimeRepository.findAnimeRootFolderOwner")(
+  function* (db: AppDatabase, rootFolder: string) {
+    const normalized = normalizeRootFolder(rootFolder);
+    const rows = yield* tryDatabasePromise("Failed to find anime root folder owner", () =>
+      db
+        .select({
+          id: anime.id,
+          rootFolder: anime.rootFolder,
+          titleRomaji: anime.titleRomaji,
+        })
+        .from(anime),
+    );
+
+    return (
+      rows.find((row) => {
+        const existing = normalizeRootFolder(row.rootFolder);
+        return (
+          existing === normalized ||
+          normalized.startsWith(`${existing}/`) ||
+          existing.startsWith(`${normalized}/`)
+        );
+      }) ?? null
+    );
+  },
+);
 
 function normalizeRootFolder(rootFolder: string) {
   if (rootFolder === "/") {
@@ -449,38 +447,33 @@ function normalizeRootFolder(rootFolder: string) {
   return rootFolder.replace(/\/+$/, "");
 }
 
-export const getConfiguredImagesPathEffect = Effect.fn(
-  "AnimeRepository.getConfiguredImagesPath",
-)(function* (db: AppDatabase) {
-  const rows = yield* tryDatabasePromise(
-    "Failed to load configured images path",
-    () => db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
-  );
-
-  return yield* effectDecodeImagePath(rows[0]);
-});
-
-export const appendAnimeLogEffect = Effect.fn("AnimeRepository.appendAnimeLog")(
-  function* (
-    db: AppDatabase,
-    eventType: string,
-    level: string,
-    message: string,
-  ) {
-    const createdAt = yield* nowIso;
-    yield* tryDatabasePromise(
-      "Failed to append anime log",
-      () =>
-        db.insert(systemLogs).values({
-          createdAt,
-          details: null,
-          eventType,
-          level,
-          message,
-        }),
+export const getConfiguredImagesPathEffect = Effect.fn("AnimeRepository.getConfiguredImagesPath")(
+  function* (db: AppDatabase) {
+    const rows = yield* tryDatabasePromise("Failed to load configured images path", () =>
+      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
     );
+
+    return yield* effectDecodeImagePath(rows[0]);
   },
 );
+
+export const appendAnimeLogEffect = Effect.fn("AnimeRepository.appendAnimeLog")(function* (
+  db: AppDatabase,
+  eventType: string,
+  level: string,
+  message: string,
+) {
+  const createdAt = yield* nowIso;
+  yield* tryDatabasePromise("Failed to append anime log", () =>
+    db.insert(systemLogs).values({
+      createdAt,
+      details: null,
+      eventType,
+      level,
+      message,
+    }),
+  );
+});
 
 export const insertAnimeAggregateAtomicEffect = Effect.fn(
   "AnimeRepository.insertAnimeAggregateAtomic",
@@ -492,18 +485,16 @@ export const insertAnimeAggregateAtomicEffect = Effect.fn(
     log: typeof systemLogs.$inferInsert;
   },
 ) {
-  yield* tryDatabasePromise(
-    "Failed to insert anime aggregate",
-    () =>
-      db.transaction(async (tx) => {
-        await tx.insert(anime).values(input.animeRow);
+  yield* tryDatabasePromise("Failed to insert anime aggregate", () =>
+    db.transaction(async (tx) => {
+      await tx.insert(anime).values(input.animeRow);
 
-        if (input.episodeRows.length > 0) {
-          await tx.insert(episodes).values([...input.episodeRows]);
-        }
+      if (input.episodeRows.length > 0) {
+        await tx.insert(episodes).values([...input.episodeRows]);
+      }
 
-        await tx.insert(systemLogs).values(input.log);
-      }),
+      await tx.insert(systemLogs).values(input.log);
+    }),
   );
 });
 
@@ -516,18 +507,14 @@ export function buildMissingEpisodeRows(input: {
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined;
   nowIso?: string;
   resetMissingOnly: boolean;
-  existingRows: readonly typeof episodes.$inferSelect[];
+  existingRows: readonly (typeof episodes.$inferSelect)[];
 }) {
   if (!input.episodeCount || input.episodeCount <= 0) {
     return [] as (typeof episodes.$inferInsert)[];
   }
 
-  const existingByNumber = new Map(
-    input.existingRows.map((row) => [row.number, row]),
-  );
-  const airingScheduleByEpisode = buildAiringScheduleMap(
-    input.futureAiringSchedule,
-  );
+  const existingByNumber = new Map(input.existingRows.map((row) => [row.number, row]));
+  const airingScheduleByEpisode = buildAiringScheduleMap(input.futureAiringSchedule);
 
   return range(1, input.episodeCount).flatMap((number) => {
     const existing = existingByNumber.get(number);
@@ -591,17 +578,13 @@ export function inferAiredAt(
 
     if (!Number.isNaN(end.getTime())) {
       const spanMs = Math.max(end.getTime() - start.getTime(), 0);
-      const intervalMs = episodeCount > 1
-        ? Math.floor(spanMs / (episodeCount - 1))
-        : 0;
-      return new Date(start.getTime() + intervalMs * (episodeNumber - 1))
-        .toISOString();
+      const intervalMs = episodeCount > 1 ? Math.floor(spanMs / (episodeCount - 1)) : 0;
+      return new Date(start.getTime() + intervalMs * (episodeNumber - 1)).toISOString();
     }
   }
 
   const weeklyMs = 7 * 24 * 60 * 60 * 1000;
-  return new Date(start.getTime() + weeklyMs * (episodeNumber - 1))
-    .toISOString();
+  return new Date(start.getTime() + weeklyMs * (episodeNumber - 1)).toISOString();
 }
 
 function toLibrarySettings(config: {
@@ -615,13 +598,14 @@ function toLibrarySettings(config: {
 }
 
 function toSafePathSegment(value: string) {
-  return value.replace(/[<>:"/\\|?*]/g, " ").replace(/\s+/g, " ").trim() ||
-    "anime";
+  return (
+    value
+      .replace(/[<>:"/\\|?*]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() || "anime"
+  );
 }
 
 function range(start: number, end: number) {
-  return Array.from(
-    { length: Math.max(end - start + 1, 0) },
-    (_, index) => start + index,
-  );
+  return Array.from({ length: Math.max(end - start + 1, 0) }, (_, index) => start + index);
 }
