@@ -15,6 +15,8 @@ import {
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
+  RssFeedRejectedError,
+  RssFeedTooLargeError,
 } from "../features/operations/errors.ts";
 import {
   ConfigValidationError,
@@ -90,6 +92,17 @@ it("route errors maps known tagged errors to expected responses", () => {
     {
       error: new OperationsPathError({ message: "bad ops path" }),
       expected: { message: "bad ops path", status: 400 },
+    },
+    {
+      error: new RssFeedRejectedError({ message: "rss rejected" }),
+      expected: { message: "rss rejected", status: 400 },
+    },
+    {
+      error: new RssFeedTooLargeError({ message: "rss too large" }),
+      expected: {
+        message: "RSS feed payload exceeded the allowed size",
+        status: 503,
+      },
     },
     {
       error: new ExternalCallError({

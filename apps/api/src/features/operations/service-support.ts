@@ -19,6 +19,8 @@ import {
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
+  RssFeedRejectedError,
+  RssFeedTooLargeError,
 } from "./errors.ts";
 import { type QBitConfig, QBitConfigModel } from "./qbittorrent.ts";
 
@@ -53,6 +55,8 @@ export function wrapOperationsError(message: string) {
       cause instanceof OperationsPathError ||
       cause instanceof DownloadNotFoundError ||
       cause instanceof DownloadConflictError ||
+      cause instanceof RssFeedRejectedError ||
+      cause instanceof RssFeedTooLargeError ||
       cause instanceof ExternalCallError ||
       cause instanceof DatabaseError
     ) {

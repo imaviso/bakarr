@@ -17,6 +17,8 @@ import {
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
+  RssFeedRejectedError,
+  RssFeedTooLargeError,
 } from "../features/operations/errors.ts";
 import {
   ConfigValidationError,
@@ -45,23 +47,21 @@ const knownTaggedRouteErrorSchemas = [
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
+  RssFeedRejectedError,
+  RssFeedTooLargeError,
   ProfileNotFoundError,
   RequestValidationError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
 ] as const;
 
-type KnownRouteError = Schema.Schema.Type<
-  Schema.Union<[...typeof knownTaggedRouteErrorSchemas]>
->;
+type KnownRouteError = Schema.Schema.Type<Schema.Union<[...typeof knownTaggedRouteErrorSchemas]>>;
 
 type TaggedRouteError = Extract<KnownRouteError, { _tag: string }>;
 type TaggedRouteErrorTag = TaggedRouteError["_tag"];
 
 const taggedRouteErrorMappers: {
-  [K in TaggedRouteErrorTag]: (
-    error: Extract<TaggedRouteError, { _tag: K }>,
-  ) => RouteErrorResponse;
+  [K in TaggedRouteErrorTag]: (error: Extract<TaggedRouteError, { _tag: K }>) => RouteErrorResponse;
 } = {
   AnimeConflictError: (error) => ({ message: error.message, status: 409 }),
   AnimeNotFoundError: (error) => ({ message: error.message, status: 404 }),
@@ -92,6 +92,11 @@ const taggedRouteErrorMappers: {
   }),
   OperationsInputError: (error) => ({ message: error.message, status: 400 }),
   OperationsPathError: (error) => ({ message: error.message, status: 400 }),
+  RssFeedRejectedError: (error) => ({ message: error.message, status: 400 }),
+  RssFeedTooLargeError: () => ({
+    message: "RSS feed payload exceeded the allowed size",
+    status: 503,
+  }),
   ProfileNotFoundError: (error) => ({ message: error.message, status: 404 }),
   RequestValidationError: (error) => ({
     message: error.message,
@@ -123,12 +128,8 @@ export function mapRouteError(error: unknown): RouteErrorResponse {
   return { message: "Unexpected server error", status: 500 };
 }
 
-function mapTaggedRouteError<E extends TaggedRouteError>(
-  error: E,
-): RouteErrorResponse {
-  const mapper = taggedRouteErrorMappers[error._tag] as (
-    error: E,
-  ) => RouteErrorResponse;
+function mapTaggedRouteError<E extends TaggedRouteError>(error: E): RouteErrorResponse {
+  const mapper = taggedRouteErrorMappers[error._tag] as (error: E) => RouteErrorResponse;
 
   return mapper(error);
 }
