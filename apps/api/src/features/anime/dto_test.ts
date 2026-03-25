@@ -1,9 +1,9 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 
 import { anime, episodes } from "../../db/schema.ts";
 import { toAnimeDto } from "./dto.ts";
 
-Deno.test("toAnimeDto builds progress, metadata, and decoded arrays", () => {
+it("toAnimeDto builds progress, metadata, and decoded arrays", () => {
   const result = toAnimeDto(
     {
       addedAt: "2024-01-01T00:00:00.000Z",
@@ -115,7 +115,7 @@ Deno.test("toAnimeDto builds progress, metadata, and decoded arrays", () => {
   assertEquals(result.next_airing_episode?.episode, 5);
 });
 
-Deno.test("toAnimeDto handles anime with unknown episode totals", () => {
+it("toAnimeDto handles anime with unknown episode totals", () => {
   const result = toAnimeDto(
     {
       addedAt: "2024-01-01T00:00:00.000Z",

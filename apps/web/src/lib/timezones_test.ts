@@ -1,8 +1,7 @@
-/// <reference lib="deno.ns" />
+import { it } from "~/test/vitest";
+import { formatTimeZoneLabel, getTimeZoneOptions } from "./timezones";
 
-import { formatTimeZoneLabel, getTimeZoneOptions } from "./timezones.ts";
-
-Deno.test("formatTimeZoneLabel handles system and IANA values", () => {
+it("formatTimeZoneLabel handles system and IANA values", () => {
   if (formatTimeZoneLabel("system") !== "System timezone") {
     throw new Error("Expected system label");
   }
@@ -12,7 +11,7 @@ Deno.test("formatTimeZoneLabel handles system and IANA values", () => {
   }
 });
 
-Deno.test("getTimeZoneOptions keeps the current custom timezone", () => {
+it("getTimeZoneOptions keeps the current custom timezone", () => {
   const options = getTimeZoneOptions("Custom/Zone");
 
   if (!options.some((option) => option.value === "system")) {

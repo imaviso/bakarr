@@ -1,8 +1,8 @@
-import { assertEquals, assertInstanceOf } from "@std/assert";
+import { assertEquals, assertInstanceOf, it } from "../../test/vitest.ts";
+import { Effect } from "effect";
 
 import { makeDefaultConfig } from "../system/defaults.ts";
 import { DatabaseError } from "../../db/database.ts";
-import { runTestEffectExit } from "../../test/effect-test.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
@@ -16,7 +16,7 @@ import {
 } from "./service-support.ts";
 import { QBitConfigModel } from "./qbittorrent.ts";
 
-Deno.test("operations service support builds qBittorrent config only when enabled", () => {
+it("operations service support builds qBittorrent config only when enabled", () => {
   const config = {
     profiles: [],
     ...makeDefaultConfig("./test.sqlite"),
@@ -47,7 +47,8 @@ Deno.test("operations service support builds qBittorrent config only when enable
   );
 });
 
-Deno.test("operations service support preserves known errors and wraps unknown ones", async () => {
+it.effect("operations service support preserves known errors and wraps unknown ones", () =>
+  Effect.gen(function* () {
   const knownNotFound = new DownloadNotFoundError({ message: "missing" });
   const knownConflict = new DownloadConflictError({ message: "conflict" });
   const knownAnime = new OperationsAnimeNotFoundError({ message: "anime" });
@@ -64,8 +65,9 @@ Deno.test("operations service support preserves known errors and wraps unknown o
   assertInstanceOf(wrapped, DatabaseError);
   assertEquals(wrapped.message, "wrapped");
 
-  const dbExit = await runTestEffectExit(
-    tryDatabasePromise("db failed", () => Promise.reject(new Error("boom"))),
-  );
-  assertEquals(dbExit._tag, "Failure");
-});
+    const dbExit = yield* Effect.exit(
+      tryDatabasePromise("db failed", () => Promise.reject(new Error("boom"))),
+    );
+    assertEquals(dbExit._tag, "Failure");
+  })
+);

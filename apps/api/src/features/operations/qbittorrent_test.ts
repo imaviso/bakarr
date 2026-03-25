@@ -1,32 +1,37 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Layer } from "effect";
 
 import { QBitTorrentClient, QBitTorrentClientLive } from "./qbittorrent.ts";
 
-Deno.test("QBitTorrentClient uses provided HttpClient", async () => {
-  const originalFetch = globalThis.fetch;
+it.scoped("QBitTorrentClient uses provided HttpClient", () =>
+  Effect.gen(function* () {
+    const originalFetch = globalThis.fetch;
 
-  try {
-    globalThis.fetch = () =>
-      Promise.reject(new Error("unexpected global fetch"));
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        globalThis.fetch = originalFetch;
+      })
+    );
+    yield* Effect.sync(() => {
+      globalThis.fetch = ((() =>
+        Promise.reject(new Error("unexpected global fetch"))) as unknown) as typeof fetch;
+    });
 
-    const torrents = await Effect.runPromise(
-      Effect.flatMap(QBitTorrentClient, (client) =>
-        client.listTorrents({
-          baseUrl: "https://qbit.example",
-          password: "secret",
-          username: "demo",
-        })).pipe(
-          Effect.provide(
-            QBitTorrentClientLive.pipe(
-              Layer.provide(
-                Layer.succeed(HttpClient.HttpClient, makeQBitClient()),
-              ),
+    const torrents = yield* Effect.flatMap(QBitTorrentClient, (client) =>
+      client.listTorrents({
+        baseUrl: "https://qbit.example",
+        password: "secret",
+        username: "demo",
+      })).pipe(
+        Effect.provide(
+          QBitTorrentClientLive.pipe(
+            Layer.provide(
+              Layer.succeed(HttpClient.HttpClient, makeQBitClient()),
             ),
           ),
         ),
-    );
+      );
 
     assertEquals(torrents.map((t) => ({ ...t })), [
       {
@@ -42,14 +47,12 @@ Deno.test("QBitTorrentClient uses provided HttpClient", async () => {
         state: "downloading",
       },
     ]);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
+  })
+);
 
-Deno.test("QBitTorrentClient can load torrent contents", async () => {
-  const files = await Effect.runPromise(
-    Effect.flatMap(QBitTorrentClient, (client) =>
+it.effect("QBitTorrentClient can load torrent contents", () =>
+  Effect.gen(function* () {
+    const files = yield* Effect.flatMap(QBitTorrentClient, (client) =>
       client.listTorrentContents(
         {
           baseUrl: "https://qbit.example",
@@ -65,18 +68,18 @@ Deno.test("QBitTorrentClient can load torrent contents", async () => {
             ),
           ),
         ),
-      ),
-  );
+      );
 
-  assertEquals(files.map((f) => ({ ...f })), [{
-    index: 0,
-    is_seed: false,
-    name: "Chainsaw Man/Chainsaw Man - 01.mkv",
-    priority: 1,
-    progress: 0.25,
-    size: 1024,
-  }]);
-});
+    assertEquals(files.map((f) => ({ ...f })), [{
+      index: 0,
+      is_seed: false,
+      name: "Chainsaw Man/Chainsaw Man - 01.mkv",
+      priority: 1,
+      progress: 0.25,
+      size: 1024,
+    }]);
+  })
+);
 
 function makeQBitClient() {
   return HttpClient.make((request, url) => {

@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 
 import { makeDefaultConfig } from "./defaults.ts";
 import {
@@ -7,7 +7,7 @@ import {
   toBackgroundJobStatus,
 } from "./support.ts";
 
-Deno.test("system support normalizes levels and deduplicates job names", () => {
+it("system support normalizes levels and deduplicates job names", () => {
   assertEquals(normalizeLevel("warn"), "warn");
   assertEquals(normalizeLevel("success"), "success");
   assertEquals(normalizeLevel("debug"), "info");
@@ -22,7 +22,7 @@ Deno.test("system support normalizes levels and deduplicates job names", () => {
   ]);
 });
 
-Deno.test("system support derives background job schedule modes", () => {
+it("system support derives background job schedule modes", () => {
   const config = { ...makeDefaultConfig("./test.sqlite"), profiles: [] };
 
   assertEquals(

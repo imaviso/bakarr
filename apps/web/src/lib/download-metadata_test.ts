@@ -1,5 +1,4 @@
-/// <reference lib="deno.ns" />
-
+import { it } from "~/test/vitest";
 import {
   formatCoverageMeta,
   formatDownloadDecisionBadge,
@@ -9,9 +8,9 @@ import {
   formatDownloadReleaseMeta,
   formatEpisodeCoverage,
   getDownloadReleaseConfidence,
-} from "./download-metadata.ts";
+} from "./download-metadata";
 
-Deno.test("download metadata helpers format coverage and release context", () => {
+it("download metadata helpers format coverage and release context", () => {
   if (formatEpisodeCoverage(1, undefined, true) !== "Batch pending") {
     throw new Error("Expected pending batch coverage label");
   }
@@ -51,7 +50,7 @@ Deno.test("download metadata helpers format coverage and release context", () =>
   }
 });
 
-Deno.test("download metadata helpers expose decision, ranking, and confidence", () => {
+it("download metadata helpers expose decision, ranking, and confidence", () => {
   const item = {
     decision_reason: "Upgrade to better encode",
     source_metadata: {

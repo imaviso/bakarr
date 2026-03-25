@@ -1,13 +1,12 @@
-/// <reference lib="deno.ns" />
-
+import { it } from "~/test/vitest";
 import {
   formatDurationSeconds,
   formatNamingTitleSource,
   namingMetadataBadges,
   summarizeImportNamingOutcome,
-} from "./scanned-file.ts";
+} from "./scanned-file";
 
-Deno.test("scanned file naming helpers format title source and badges", () => {
+it("scanned file naming helpers format title source and badges", () => {
   if (formatNamingTitleSource("fallback_native") !== "Fallback Native") {
     throw new Error("Expected fallback native label");
   }
@@ -41,7 +40,7 @@ Deno.test("scanned file naming helpers format title source and badges", () => {
   }
 });
 
-Deno.test("scanned file naming helpers summarize fallback and warning counts", () => {
+it("scanned file naming helpers summarize fallback and warning counts", () => {
   const summary = summarizeImportNamingOutcome([
     { naming_fallback_used: true, naming_warnings: ["missing season"] },
     { naming_warnings: ["ambiguous episode title"] },

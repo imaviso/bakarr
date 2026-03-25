@@ -1,5 +1,5 @@
-import { assertEquals } from "@std/assert";
-import { Deferred, Effect, Fiber, Metric } from "effect";
+import { assertEquals, it } from "./test/vitest.ts";
+import { Deferred, Effect, Fiber, Metric, type Scope } from "effect";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
@@ -12,7 +12,6 @@ import {
   makeLatestValuePublisher,
   makeSkippingSerializedEffectRunner,
 } from "./features/operations/service-support.ts";
-import { runTestEffect } from "./test/effect-test.ts";
 
 const baseConfig: Config = {
   downloads: {
@@ -69,7 +68,30 @@ const baseConfig: Config = {
   },
 };
 
-Deno.test("build background schedule enables RSS and library loops", () => {
+type MetricSnapshotPair = {
+  readonly metricKey: {
+    readonly name: string;
+    readonly tags: ReadonlyArray<
+      { readonly key: string; readonly value: string }
+    >;
+  };
+  readonly metricState: unknown;
+};
+
+type MetricSnapshot = ReadonlyArray<MetricSnapshotPair>;
+
+function addTrackedFinalizer<A>(
+  target: Array<A>,
+  value: A,
+): Effect.Effect<void, never, Scope.Scope> {
+  return Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      target.push(value);
+    })
+  );
+}
+
+it("build background schedule enables RSS and library loops", () => {
   const schedule = buildBackgroundSchedule(baseConfig);
 
   assertEquals(schedule.initialDelayMs, 5_000);
@@ -79,7 +101,7 @@ Deno.test("build background schedule enables RSS and library loops", () => {
   assertEquals(schedule.metadataRefreshMs, 24 * 60 * 60 * 1000);
 });
 
-Deno.test("build background schedule disables loops when config disables them", () => {
+it("build background schedule disables loops when config disables them", () => {
   const schedule = buildBackgroundSchedule({
     ...baseConfig,
     library: {
@@ -98,7 +120,7 @@ Deno.test("build background schedule disables loops when config disables them", 
   assertEquals(schedule.metadataRefreshMs, null);
 });
 
-Deno.test("build background schedule prefers valid cron over interval", () => {
+it("build background schedule prefers valid cron over interval", () => {
   const schedule = buildBackgroundSchedule({
     ...baseConfig,
     scheduler: {
@@ -113,7 +135,7 @@ Deno.test("build background schedule prefers valid cron over interval", () => {
   assertEquals(schedule.rssCheckMs, null);
 });
 
-Deno.test("build background schedule ignores invalid cron and keeps interval", () => {
+it("build background schedule ignores invalid cron and keeps interval", () => {
   const schedule = buildBackgroundSchedule({
     ...baseConfig,
     scheduler: {
@@ -128,116 +150,90 @@ Deno.test("build background schedule ignores invalid cron and keeps interval", (
   assertEquals(schedule.rssCheckMs, 30 * 60 * 1000);
 });
 
-Deno.test("background worker monitor tracks supervision state and counters", async () => {
-  const snapshot = await runTestEffect(
-    Effect.gen(function* () {
-      const monitor = yield* makeBackgroundWorkerMonitor();
+it.effect("background worker monitor tracks supervision state and counters", () =>
+  Effect.gen(function* () {
+    const monitor = yield* makeBackgroundWorkerMonitor();
 
-      yield* monitor.markDaemonStarted("rss");
-      yield* monitor.markRunStarted("rss");
-      yield* monitor.markRunFailed("rss", "boom");
-      yield* monitor.markRunStarted("rss");
-      yield* monitor.markRunSucceeded("rss");
-      yield* monitor.markRunSkipped("rss");
-      yield* monitor.markDaemonStopped("rss");
+    yield* monitor.markDaemonStarted("rss");
+    yield* monitor.markRunStarted("rss");
+    yield* monitor.markRunFailed("rss", "boom");
+    yield* monitor.markRunStarted("rss");
+    yield* monitor.markRunSucceeded("rss");
+    yield* monitor.markRunSkipped("rss");
+    yield* monitor.markDaemonStopped("rss");
 
-      return yield* monitor.snapshot();
-    }),
-  );
+    const snapshot = yield* monitor.snapshot();
 
-  assertEquals(snapshot.rss.daemonRunning, false);
-  assertEquals(snapshot.rss.runRunning, false);
-  assertEquals(snapshot.rss.failureCount, 1);
-  assertEquals(snapshot.rss.successCount, 1);
-  assertEquals(snapshot.rss.skipCount, 1);
-  assertEquals(snapshot.rss.lastErrorMessage, "boom");
-  assertEquals(typeof snapshot.rss.lastStartedAt, "string");
-  assertEquals(typeof snapshot.rss.lastSucceededAt, "string");
-  assertEquals(typeof snapshot.rss.lastFailedAt, "string");
-});
+    assertEquals(snapshot.rss.daemonRunning, false);
+    assertEquals(snapshot.rss.runRunning, false);
+    assertEquals(snapshot.rss.failureCount, 1);
+    assertEquals(snapshot.rss.successCount, 1);
+    assertEquals(snapshot.rss.skipCount, 1);
+    assertEquals(snapshot.rss.lastErrorMessage, "boom");
+    assertEquals(typeof snapshot.rss.lastStartedAt, "string");
+    assertEquals(typeof snapshot.rss.lastSucceededAt, "string");
+    assertEquals(typeof snapshot.rss.lastFailedAt, "string");
+  })
+);
 
-Deno.test("background worker monitor publishes Effect metrics", async () => {
-  const { after, before } = await runTestEffect(
-    Effect.gen(function* () {
-      const monitor = yield* makeBackgroundWorkerMonitor();
-      const before = yield* Metric.snapshot;
+it.effect("background worker monitor publishes Effect metrics", () =>
+  Effect.gen(function* () {
+    const monitor = yield* makeBackgroundWorkerMonitor();
+    const before = yield* Metric.snapshot;
 
-      yield* monitor.markDaemonStarted("rss");
-      yield* monitor.markRunStarted("rss");
-      yield* monitor.markRunSucceeded("rss", 123);
-      yield* monitor.markRunSkipped("rss");
-      yield* monitor.markRunFailed("rss", "boom", 456);
+    yield* monitor.markDaemonStarted("rss");
+    yield* monitor.markRunStarted("rss");
+    yield* monitor.markRunSucceeded("rss", 123);
+    yield* monitor.markRunSkipped("rss");
+    yield* monitor.markRunFailed("rss", "boom", 456);
 
-      const after = yield* Metric.snapshot;
+    const after = yield* Metric.snapshot;
 
-      return { after, before };
-    }),
-  );
-
-  assertEquals(
-    counterDelta(after, before, "bakarr_background_worker_runs_total", {
-      status: "success",
-      worker: "rss",
-    }),
-    1,
-  );
-  assertEquals(
-    counterDelta(after, before, "bakarr_background_worker_runs_total", {
-      status: "failure",
-      worker: "rss",
-    }),
-    1,
-  );
-  assertEquals(
-    counterDelta(after, before, "bakarr_background_worker_runs_total", {
-      status: "skipped",
-      worker: "rss",
-    }),
-    1,
-  );
-  assertEquals(
-    gaugeValue(after, "bakarr_background_worker_daemon_running", {
-      worker: "rss",
-    }),
-    1,
-  );
-  assertEquals(
-    histogramCountDelta(
-      after,
-      before,
-      "bakarr_background_worker_run_duration_ms",
-      {
+    assertEquals(
+      counterDelta(after, before, "bakarr_background_worker_runs_total", {
+        status: "success",
+        worker: "rss",
+      }),
+      1,
+    );
+    assertEquals(
+      counterDelta(after, before, "bakarr_background_worker_runs_total", {
         status: "failure",
         worker: "rss",
-      },
-    ),
-    1,
-  );
-});
+      }),
+      1,
+    );
+    assertEquals(
+      counterDelta(after, before, "bakarr_background_worker_runs_total", {
+        status: "skipped",
+        worker: "rss",
+      }),
+      1,
+    );
+    assertEquals(
+      gaugeValue(after, "bakarr_background_worker_daemon_running", {
+        worker: "rss",
+      }),
+      1,
+    );
+    assertEquals(
+      histogramCountDelta(
+        after,
+        before,
+        "bakarr_background_worker_run_duration_ms",
+        {
+          status: "failure",
+          worker: "rss",
+        },
+      ),
+      1,
+    );
+  })
+);
 
 function counterDelta(
-  after: ReadonlyArray<
-    {
-      readonly metricKey: {
-        readonly name: string;
-        readonly tags: ReadonlyArray<
-          { readonly key: string; readonly value: string }
-        >;
-      };
-      readonly metricState: unknown;
-    }
-  >,
-  before: ReadonlyArray<
-    {
-      readonly metricKey: {
-        readonly name: string;
-        readonly tags: ReadonlyArray<
-          { readonly key: string; readonly value: string }
-        >;
-      };
-      readonly metricState: unknown;
-    }
-  >,
+  after: MetricSnapshot,
+  before: MetricSnapshot,
   name: string,
   labels: Record<string, string>,
 ) {
@@ -245,17 +241,7 @@ function counterDelta(
 }
 
 function counterValue(
-  snapshot: ReadonlyArray<
-    {
-      readonly metricKey: {
-        readonly name: string;
-        readonly tags: ReadonlyArray<
-          { readonly key: string; readonly value: string }
-        >;
-      };
-      readonly metricState: unknown;
-    }
-  >,
+  snapshot: MetricSnapshot,
   name: string,
   labels: Record<string, string>,
 ) {
@@ -265,17 +251,7 @@ function counterValue(
 }
 
 function gaugeValue(
-  snapshot: ReadonlyArray<
-    {
-      readonly metricKey: {
-        readonly name: string;
-        readonly tags: ReadonlyArray<
-          { readonly key: string; readonly value: string }
-        >;
-      };
-      readonly metricState: unknown;
-    }
-  >,
+  snapshot: MetricSnapshot,
   name: string,
   labels: Record<string, string>,
 ) {
@@ -284,28 +260,8 @@ function gaugeValue(
 }
 
 function histogramCountDelta(
-  after: ReadonlyArray<
-    {
-      readonly metricKey: {
-        readonly name: string;
-        readonly tags: ReadonlyArray<
-          { readonly key: string; readonly value: string }
-        >;
-      };
-      readonly metricState: unknown;
-    }
-  >,
-  before: ReadonlyArray<
-    {
-      readonly metricKey: {
-        readonly name: string;
-        readonly tags: ReadonlyArray<
-          { readonly key: string; readonly value: string }
-        >;
-      };
-      readonly metricState: unknown;
-    }
-  >,
+  after: MetricSnapshot,
+  before: MetricSnapshot,
   name: string,
   labels: Record<string, string>,
 ) {
@@ -314,17 +270,7 @@ function histogramCountDelta(
 }
 
 function histogramCount(
-  snapshot: ReadonlyArray<
-    {
-      readonly metricKey: {
-        readonly name: string;
-        readonly tags: ReadonlyArray<
-          { readonly key: string; readonly value: string }
-        >;
-      };
-      readonly metricState: unknown;
-    }
-  >,
+  snapshot: MetricSnapshot,
   name: string,
   labels: Record<string, string>,
 ) {
@@ -334,17 +280,7 @@ function histogramCount(
 }
 
 function findMetric(
-  snapshot: ReadonlyArray<
-    {
-      readonly metricKey: {
-        readonly name: string;
-        readonly tags: ReadonlyArray<
-          { readonly key: string; readonly value: string }
-        >;
-      };
-      readonly metricState: unknown;
-    }
-  >,
+  snapshot: MetricSnapshot,
   name: string,
   labels: Record<string, string>,
 ) {
@@ -356,369 +292,315 @@ function findMetric(
   );
 }
 
-Deno.test("BackgroundWorkerController starts workers with config", async () => {
-  await runTestEffect(
-    Effect.gen(function* () {
-      const controller = yield* makeBackgroundWorkerController({
-        spawnWorkers: () => Effect.void,
-      });
+it.effect("BackgroundWorkerController starts workers with config", () =>
+  Effect.gen(function* () {
+    const controller = yield* makeBackgroundWorkerController({
+      spawnWorkers: () => Effect.void,
+    });
 
-      const started = yield* controller.isStarted();
-      assertEquals(started, false);
+    const started = yield* controller.isStarted();
+    assertEquals(started, false);
 
-      yield* controller.start(baseConfig);
+    yield* controller.start(baseConfig);
 
-      const startedAfter = yield* controller.isStarted();
-      assertEquals(startedAfter, true);
-    }),
-  );
-});
+    const startedAfter = yield* controller.isStarted();
+    assertEquals(startedAfter, true);
+  })
+);
 
-Deno.test("BackgroundWorkerController start is idempotent", async () => {
-  await runTestEffect(
-    Effect.gen(function* () {
-      const spawnCalls: Config[] = [];
-      const controller = yield* makeBackgroundWorkerController({
-        spawnWorkers: (config: Config) =>
-          Effect.sync(() => {
-            spawnCalls.push(config);
-          }),
-      });
+it.effect("BackgroundWorkerController start is idempotent", () =>
+  Effect.gen(function* () {
+    const spawnCalls: Config[] = [];
+    const controller = yield* makeBackgroundWorkerController({
+      spawnWorkers: (config: Config) =>
+        Effect.sync(() => {
+          spawnCalls.push(config);
+        }),
+    });
 
-      yield* controller.start(baseConfig);
-      yield* controller.start(baseConfig);
-      yield* controller.start(baseConfig);
+    yield* controller.start(baseConfig);
+    yield* controller.start(baseConfig);
+    yield* controller.start(baseConfig);
 
-      assertEquals(spawnCalls.length, 1);
-    }),
-  );
-});
+    assertEquals(spawnCalls.length, 1);
+  })
+);
 
-Deno.test("BackgroundWorkerController reload spawns new workers and stops old", async () => {
-  await runTestEffect(
-    Effect.gen(function* () {
-      const stoppedHandles: string[] = [];
-      const controller = yield* makeBackgroundWorkerController({
-        spawnWorkers: () =>
-          Effect.addFinalizer(() =>
-            Effect.sync(() => {
-              stoppedHandles.push("handle");
-            })
-          ),
-      });
+it.effect("BackgroundWorkerController reload spawns new workers and stops old", () =>
+  Effect.gen(function* () {
+    const stoppedHandles: string[] = [];
+    const controller = yield* makeBackgroundWorkerController({
+      spawnWorkers: () =>
+        addTrackedFinalizer(stoppedHandles, "handle"),
+    });
 
-      yield* controller.start(baseConfig);
-      assertEquals(stoppedHandles.length, 0);
+    yield* controller.start(baseConfig);
+    assertEquals(stoppedHandles.length, 0);
 
-      yield* controller.reload(baseConfig);
-      assertEquals(stoppedHandles.length, 1);
+    yield* controller.reload(baseConfig);
+    assertEquals(stoppedHandles.length, 1);
 
-      yield* controller.reload(baseConfig);
-      assertEquals(stoppedHandles.length, 2);
-    }),
-  );
-});
+    yield* controller.reload(baseConfig);
+    assertEquals(stoppedHandles.length, 2);
+  })
+);
 
-Deno.test("BackgroundWorkerController reload stops old workers before spawning new", async () => {
-  await runTestEffect(
-    Effect.gen(function* () {
-      const events: string[] = [];
-      let handleId = 0;
-      const controller = yield* makeBackgroundWorkerController({
-        spawnWorkers: () =>
-          Effect.gen(function* () {
-            handleId += 1;
-            const id = handleId;
-            events.push(`spawn-${id}`);
+it.effect("BackgroundWorkerController reload stops old workers before spawning new", () =>
+  Effect.gen(function* () {
+    const events: string[] = [];
+    let handleId = 0;
+    const controller = yield* makeBackgroundWorkerController({
+      spawnWorkers: () =>
+        Effect.gen(function* () {
+          handleId += 1;
+          const id = handleId;
+          events.push(`spawn-${id}`);
 
-            yield* Effect.addFinalizer(() =>
-              Effect.sync(() => {
-                events.push(`stop-${id}`);
-              })
-            );
-          }),
-      });
+          yield* addTrackedFinalizer(events, `stop-${id}`);
+        }),
+    });
 
-      yield* controller.start(baseConfig);
-      yield* controller.reload(baseConfig);
+    yield* controller.start(baseConfig);
+    yield* controller.reload(baseConfig);
 
-      assertEquals(events, ["spawn-1", "stop-1", "spawn-2"]);
-    }),
-  );
-});
+    assertEquals(events, ["spawn-1", "stop-1", "spawn-2"]);
+  })
+);
 
-Deno.test("BackgroundWorkerController stops workers when reload spawn fails", async () => {
-  await runTestEffect(
-    Effect.gen(function* () {
-      const stoppedHandles: number[] = [];
-      let spawnCallCount = 0;
-      const controller = yield* makeBackgroundWorkerController({
-        spawnWorkers: () =>
-          Effect.gen(function* () {
-            spawnCallCount++;
-            if (spawnCallCount === 2) {
-              return yield* Effect.die(new Error("spawn failed"));
-            }
-            yield* Effect.addFinalizer(() =>
-              Effect.sync(() => {
-                stoppedHandles.push(spawnCallCount);
-              })
-            );
-          }),
-      });
+it.effect("BackgroundWorkerController stops workers when reload spawn fails", () =>
+  Effect.gen(function* () {
+    const stoppedHandles: number[] = [];
+    let spawnCallCount = 0;
+    const controller = yield* makeBackgroundWorkerController({
+      spawnWorkers: () =>
+        Effect.gen(function* () {
+          spawnCallCount++;
+          if (spawnCallCount === 2) {
+            return yield* Effect.die(new Error("spawn failed"));
+          }
+          yield* addTrackedFinalizer(stoppedHandles, spawnCallCount);
+        }),
+    });
 
-      yield* controller.start(baseConfig);
-      assertEquals(stoppedHandles.length, 0);
+    yield* controller.start(baseConfig);
+    assertEquals(stoppedHandles.length, 0);
 
-      const exitResult = yield* Effect.exit(controller.reload(baseConfig));
-      assertEquals(exitResult._tag, "Failure");
+    const exitResult = yield* Effect.exit(controller.reload(baseConfig));
+    assertEquals(exitResult._tag, "Failure");
 
-      assertEquals(stoppedHandles.length, 1);
-      const started = yield* controller.isStarted();
-      assertEquals(started, false);
-    }),
-  );
-});
+    assertEquals(stoppedHandles.length, 1);
+    const started = yield* controller.isStarted();
+    assertEquals(started, false);
+  })
+);
 
-Deno.test("BackgroundWorkerController stop shuts down workers", async () => {
-  await runTestEffect(
-    Effect.gen(function* () {
-      const stoppedHandles: string[] = [];
-      const controller = yield* makeBackgroundWorkerController({
-        spawnWorkers: () =>
-          Effect.addFinalizer(() =>
-            Effect.sync(() => {
-              stoppedHandles.push("handle");
-            })
-          ),
-      });
+it.effect("BackgroundWorkerController stop shuts down workers", () =>
+  Effect.gen(function* () {
+    const stoppedHandles: string[] = [];
+    const controller = yield* makeBackgroundWorkerController({
+      spawnWorkers: () =>
+        addTrackedFinalizer(stoppedHandles, "handle"),
+    });
 
-      yield* controller.start(baseConfig);
-      assertEquals(stoppedHandles.length, 0);
+    yield* controller.start(baseConfig);
+    assertEquals(stoppedHandles.length, 0);
 
-      yield* controller.stop();
-      assertEquals(stoppedHandles.length, 1);
+    yield* controller.stop();
+    assertEquals(stoppedHandles.length, 1);
 
-      const started = yield* controller.isStarted();
-      assertEquals(started, false);
-    }),
-  );
-});
+    const started = yield* controller.isStarted();
+    assertEquals(started, false);
+  })
+);
 
-Deno.test("BackgroundWorkerController stop is idempotent", async () => {
-  await runTestEffect(
-    Effect.gen(function* () {
-      const stoppedHandles: string[] = [];
-      const controller = yield* makeBackgroundWorkerController({
-        spawnWorkers: () =>
-          Effect.addFinalizer(() =>
-            Effect.sync(() => {
-              stoppedHandles.push("handle");
-            })
-          ),
-      });
+it.effect("BackgroundWorkerController stop is idempotent", () =>
+  Effect.gen(function* () {
+    const stoppedHandles: string[] = [];
+    const controller = yield* makeBackgroundWorkerController({
+      spawnWorkers: () =>
+        addTrackedFinalizer(stoppedHandles, "handle"),
+    });
 
-      yield* controller.start(baseConfig);
-      yield* controller.stop();
-      yield* controller.stop();
-      yield* controller.stop();
+    yield* controller.start(baseConfig);
+    yield* controller.stop();
+    yield* controller.stop();
+    yield* controller.stop();
 
-      assertEquals(stoppedHandles.length, 1);
-    }),
-  );
-});
+    assertEquals(stoppedHandles.length, 1);
+  })
+);
 
-Deno.test("BackgroundWorkerController serializes concurrent starts", async () => {
-  const firstSpawnEntered = deferred<void>();
-  const releaseSpawn = deferred<void>();
-  let spawnCallCount = 0;
+it.effect("BackgroundWorkerController serializes concurrent starts", () =>
+  Effect.gen(function* () {
+    const firstSpawnEntered = yield* Deferred.make<void>();
+    const releaseSpawn = yield* Deferred.make<void>();
+    let spawnCallCount = 0;
 
-  const controller = await runTestEffect(
-    makeBackgroundWorkerController({
+    const controller = yield* makeBackgroundWorkerController({
       spawnWorkers: () =>
         Effect.gen(function* () {
           spawnCallCount += 1;
-          firstSpawnEntered.resolve();
-          yield* Effect.promise(() => releaseSpawn.promise);
+          yield* Deferred.succeed(firstSpawnEntered, void 0);
+          yield* Deferred.await(releaseSpawn);
         }),
-    }),
-  );
+    });
 
-  const firstStart = runTestEffect(controller.start(baseConfig));
-  await firstSpawnEntered.promise;
+    const firstStart = yield* Effect.fork(controller.start(baseConfig));
+    yield* Deferred.await(firstSpawnEntered);
 
-  const secondStart = runTestEffect(controller.start(baseConfig));
+    const secondStart = yield* Effect.fork(controller.start(baseConfig));
 
-  releaseSpawn.resolve();
-  await Promise.all([firstStart, secondStart]);
+    yield* Deferred.succeed(releaseSpawn, void 0);
+    yield* Fiber.join(firstStart);
+    yield* Fiber.join(secondStart);
 
-  assertEquals(spawnCallCount, 1);
-});
+    assertEquals(spawnCallCount, 1);
+  })
+);
 
-Deno.test("BackgroundWorkerController serializes concurrent reloads", async () => {
-  const firstReloadEntered = deferred<void>();
-  const releaseReload = deferred<void>();
-  const stoppedHandles: string[] = [];
-  let spawnCallCount = 0;
+it.effect("BackgroundWorkerController serializes concurrent reloads", () =>
+  Effect.gen(function* () {
+    const firstReloadEntered = yield* Deferred.make<void>();
+    const releaseReload = yield* Deferred.make<void>();
+    const stoppedHandles: string[] = [];
+    let spawnCallCount = 0;
 
-  const controller = await runTestEffect(
-    makeBackgroundWorkerController({
+    const controller = yield* makeBackgroundWorkerController({
       spawnWorkers: () =>
         Effect.gen(function* () {
           spawnCallCount += 1;
           const handleId = `handle-${spawnCallCount}`;
 
           if (spawnCallCount === 2) {
-            firstReloadEntered.resolve();
+            yield* Deferred.succeed(firstReloadEntered, void 0);
           }
 
           if (spawnCallCount >= 2) {
-            yield* Effect.promise(() => releaseReload.promise);
+            yield* Deferred.await(releaseReload);
           }
 
-          yield* Effect.addFinalizer(() =>
-            Effect.sync(() => {
-              stoppedHandles.push(handleId);
-            })
-          );
+          yield* addTrackedFinalizer(stoppedHandles, handleId);
         }),
-    }),
-  );
+    });
 
-  await runTestEffect(controller.start(baseConfig));
+    yield* controller.start(baseConfig);
 
-  const firstReload = runTestEffect(controller.reload(baseConfig));
-  await firstReloadEntered.promise;
+    const firstReload = yield* Effect.fork(controller.reload(baseConfig));
+    yield* Deferred.await(firstReloadEntered);
 
-  const secondReload = runTestEffect(controller.reload(baseConfig));
+    const secondReload = yield* Effect.fork(controller.reload(baseConfig));
 
-  releaseReload.resolve();
-  await Promise.all([firstReload, secondReload]);
+    yield* Deferred.succeed(releaseReload, void 0);
+    yield* Fiber.join(firstReload);
+    yield* Fiber.join(secondReload);
 
-  assertEquals(stoppedHandles, ["handle-1", "handle-2"]);
-});
+    assertEquals(stoppedHandles, ["handle-1", "handle-2"]);
+  })
+);
 
-Deno.test("coalesced effect runner batches concurrent triggers into one follow-up run", async () => {
-  await runTestEffect(
-    Effect.gen(function* () {
-      const firstRunStarted = yield* Deferred.make<void>();
-      const secondRunStarted = yield* Deferred.make<void>();
-      const releaseFirstRun = yield* Deferred.make<void>();
-      const releaseSecondRun = yield* Deferred.make<void>();
-      const runCount = yield* Effect.sync(() => ({ value: 0 }));
+it.scoped("coalesced effect runner batches concurrent triggers into one follow-up run", () =>
+  Effect.gen(function* () {
+    const firstRunStarted = yield* Deferred.make<void>();
+    const secondRunStarted = yield* Deferred.make<void>();
+    const releaseFirstRun = yield* Deferred.make<void>();
+    const releaseSecondRun = yield* Deferred.make<void>();
+    const runCount = yield* Effect.sync(() => ({ value: 0 }));
 
-      const runner = yield* makeCoalescedEffectRunner(
-        Effect.gen(function* () {
-          runCount.value += 1;
+    const runner = yield* makeCoalescedEffectRunner(
+      Effect.gen(function* () {
+        runCount.value += 1;
 
-          if (runCount.value === 1) {
-            yield* Deferred.succeed(firstRunStarted, void 0);
-            yield* Deferred.await(releaseFirstRun);
-            return;
-          }
-
-          yield* Deferred.succeed(secondRunStarted, void 0);
-          yield* Deferred.await(releaseSecondRun);
-        }),
-      );
-
-      const firstTrigger = yield* Effect.fork(runner.trigger);
-      yield* Deferred.await(firstRunStarted);
-
-      const secondTrigger = yield* Effect.fork(runner.trigger);
-      const thirdTrigger = yield* Effect.fork(runner.trigger);
-
-      assertEquals(runCount.value, 1);
-
-      yield* Deferred.succeed(releaseFirstRun, void 0);
-      yield* Deferred.await(secondRunStarted);
-
-      assertEquals(runCount.value, 2);
-
-      yield* Deferred.succeed(releaseSecondRun, void 0);
-      yield* Fiber.await(firstTrigger);
-      yield* Fiber.await(secondTrigger);
-      yield* Fiber.await(thirdTrigger);
-
-      assertEquals(runCount.value, 2);
-    }),
-  );
-});
-
-Deno.test("latest value publisher keeps only the newest pending update", async () => {
-  const published: number[] = [];
-
-  await runTestEffect(
-    Effect.gen(function* () {
-      const firstPublishStarted = yield* Deferred.make<void>();
-      const releaseFirstPublish = yield* Deferred.make<void>();
-
-      const publisher = yield* makeLatestValuePublisher((value: number) =>
-        Effect.gen(function* () {
-          published.push(value);
-
-          if (value === 1) {
-            yield* Deferred.succeed(firstPublishStarted, void 0);
-            yield* Deferred.await(releaseFirstPublish);
-          }
-        })
-      );
-
-      yield* publisher.offer(1);
-      yield* Deferred.await(firstPublishStarted);
-
-      yield* publisher.offer(2);
-      yield* publisher.offer(3);
-
-      yield* Deferred.succeed(releaseFirstPublish, void 0);
-      yield* publisher.flush;
-    }),
-  );
-
-  assertEquals(published, [1, 3]);
-});
-
-Deno.test("skipping serialized runner drops overlapping trigger attempts", async () => {
-  await runTestEffect(
-    Effect.gen(function* () {
-      const firstRunStarted = yield* Deferred.make<void>();
-      const releaseFirstRun = yield* Deferred.make<void>();
-      const runCount = yield* Effect.sync(() => ({ value: 0 }));
-
-      const runner = yield* makeSkippingSerializedEffectRunner(
-        Effect.gen(function* () {
-          runCount.value += 1;
+        if (runCount.value === 1) {
           yield* Deferred.succeed(firstRunStarted, void 0);
           yield* Deferred.await(releaseFirstRun);
-          return runCount.value;
-        }),
-      );
+          return;
+        }
 
-      const firstTrigger = yield* Effect.fork(runner.trigger);
-      yield* Deferred.await(firstRunStarted);
+        yield* Deferred.succeed(secondRunStarted, void 0);
+        yield* Deferred.await(releaseSecondRun);
+      }),
+    );
 
-      const secondResult = yield* runner.trigger;
-      assertEquals(secondResult._tag, "None");
-      assertEquals(runCount.value, 1);
+    const firstTrigger = yield* Effect.fork(runner.trigger);
+    yield* Deferred.await(firstRunStarted);
 
-      yield* Deferred.succeed(releaseFirstRun, void 0);
+    const secondTrigger = yield* Effect.fork(runner.trigger);
+    const thirdTrigger = yield* Effect.fork(runner.trigger);
 
-      const firstResult = yield* Fiber.join(firstTrigger);
-      assertEquals(firstResult._tag, "Some");
-      if (firstResult._tag === "Some") {
-        assertEquals(firstResult.value, 1);
-      }
-    }),
-  );
-});
+    assertEquals(runCount.value, 1);
 
-function deferred<A>() {
-  let resolve!: (value: A | PromiseLike<A>) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<A>((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
+    yield* Deferred.succeed(releaseFirstRun, void 0);
+    yield* Deferred.await(secondRunStarted);
 
-  return { promise, reject, resolve };
-}
+    assertEquals(runCount.value, 2);
+
+    yield* Deferred.succeed(releaseSecondRun, void 0);
+    yield* Fiber.await(firstTrigger);
+    yield* Fiber.await(secondTrigger);
+    yield* Fiber.await(thirdTrigger);
+
+    assertEquals(runCount.value, 2);
+  })
+);
+
+it.scoped("latest value publisher keeps only the newest pending update", () =>
+  Effect.gen(function* () {
+    const published: number[] = [];
+    const firstPublishStarted = yield* Deferred.make<void>();
+    const releaseFirstPublish = yield* Deferred.make<void>();
+
+    const publisher = yield* makeLatestValuePublisher((value: number) =>
+      Effect.gen(function* () {
+        published.push(value);
+
+        if (value === 1) {
+          yield* Deferred.succeed(firstPublishStarted, void 0);
+          yield* Deferred.await(releaseFirstPublish);
+        }
+      })
+    );
+
+    yield* publisher.offer(1);
+    yield* Deferred.await(firstPublishStarted);
+
+    yield* publisher.offer(2);
+    yield* publisher.offer(3);
+
+    yield* Deferred.succeed(releaseFirstPublish, void 0);
+    yield* publisher.flush;
+
+    assertEquals(published, [1, 3]);
+  })
+);
+
+it.effect("skipping serialized runner drops overlapping trigger attempts", () =>
+  Effect.gen(function* () {
+    const firstRunStarted = yield* Deferred.make<void>();
+    const releaseFirstRun = yield* Deferred.make<void>();
+    const runCount = yield* Effect.sync(() => ({ value: 0 }));
+
+    const runner = yield* makeSkippingSerializedEffectRunner(
+      Effect.gen(function* () {
+        runCount.value += 1;
+        yield* Deferred.succeed(firstRunStarted, void 0);
+        yield* Deferred.await(releaseFirstRun);
+        return runCount.value;
+      }),
+    );
+
+    const firstTrigger = yield* Effect.fork(runner.trigger);
+    yield* Deferred.await(firstRunStarted);
+
+    const secondResult = yield* runner.trigger;
+    assertEquals(secondResult._tag, "None");
+    assertEquals(runCount.value, 1);
+
+    yield* Deferred.succeed(releaseFirstRun, void 0);
+
+    const firstResult = yield* Fiber.join(firstTrigger);
+    assertEquals(firstResult._tag, "Some");
+    if (firstResult._tag === "Some") {
+      assertEquals(firstResult.value, 1);
+    }
+  })
+);

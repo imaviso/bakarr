@@ -1,16 +1,15 @@
-/// <reference lib="deno.ns" />
-
+import { it } from "~/test/vitest";
 import {
   formatDateTimeLocalInput,
   getDateRangePresetHours,
-} from "./date-presets.ts";
+} from "./date-presets";
 
 function isoPlusMinutes(baseIso: string, minutes: number): string {
   const date = new Date(baseIso);
   return new Date(date.getTime() + minutes * 60 * 1000).toISOString();
 }
 
-Deno.test("formatDateTimeLocalInput returns padded datetime-local format", () => {
+it("formatDateTimeLocalInput returns padded datetime-local format", () => {
   const value = new Date(2026, 0, 2, 3, 4, 59);
   const formatted = formatDateTimeLocalInput(value);
 
@@ -19,7 +18,7 @@ Deno.test("formatDateTimeLocalInput returns padded datetime-local format", () =>
   }
 });
 
-Deno.test("getDateRangePresetHours detects 24h, 7d, and 30d ranges", () => {
+it("getDateRangePresetHours detects 24h, 7d, and 30d ranges", () => {
   const start = "2026-03-01T00:00:00.000Z";
 
   const hours24 = getDateRangePresetHours(
@@ -47,7 +46,7 @@ Deno.test("getDateRangePresetHours detects 24h, 7d, and 30d ranges", () => {
   }
 });
 
-Deno.test("getDateRangePresetHours honors tolerance and rejects out-of-range values", () => {
+it("getDateRangePresetHours honors tolerance and rejects out-of-range values", () => {
   const start = "2026-03-01T00:00:00.000Z";
 
   const plusTwoMinutes = getDateRangePresetHours(
@@ -77,7 +76,7 @@ Deno.test("getDateRangePresetHours honors tolerance and rejects out-of-range val
   }
 });
 
-Deno.test("getDateRangePresetHours returns undefined for invalid or non-positive ranges", () => {
+it("getDateRangePresetHours returns undefined for invalid or non-positive ranges", () => {
   if (getDateRangePresetHours("", "2026-03-01T00:00:00.000Z") !== undefined) {
     throw new Error("Expected undefined when start value is missing");
   }

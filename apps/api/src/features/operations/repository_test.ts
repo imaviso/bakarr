@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 
 import { downloadEvents, downloads, rssFeeds } from "../../db/schema.ts";
 import {
@@ -8,7 +8,7 @@ import {
   toRssFeed,
 } from "./repository.ts";
 
-Deno.test("repository mappers convert RSS feed and download event rows", () => {
+it("repository mappers convert RSS feed and download event rows", () => {
   const feed = toRssFeed(
     {
       animeId: 20,
@@ -91,7 +91,7 @@ Deno.test("repository mappers convert RSS feed and download event rows", () => {
   });
 });
 
-Deno.test("toDownloadEvent decodes covered_episodes and source_metadata for lifecycle events", () => {
+it("toDownloadEvent decodes covered_episodes and source_metadata for lifecycle events", () => {
   const pauseEvent = toDownloadEvent(
     {
       animeId: 42,
@@ -159,7 +159,7 @@ Deno.test("toDownloadEvent decodes covered_episodes and source_metadata for life
   );
 });
 
-Deno.test("repository download mappers decode optional fields and derive status metrics", () => {
+it("repository download mappers decode optional fields and derive status metrics", () => {
   const row = {
     addedAt: "2024-01-01T00:00:00.000Z",
     animeId: 20,
@@ -261,7 +261,7 @@ Deno.test("repository download mappers decode optional fields and derive status 
   assertEquals(activeStatus.speed, 1024 * 1024);
 });
 
-Deno.test("repository download mappers flag unresolved batch coverage", () => {
+it("repository download mappers flag unresolved batch coverage", () => {
   const row = {
     addedAt: "2024-01-01T00:00:00.000Z",
     animeId: 20,

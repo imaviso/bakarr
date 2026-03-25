@@ -1,10 +1,14 @@
-import { NodeFileSystem } from "@effect/platform-node";
-import { assertEquals } from "@std/assert";
+import { BunFileSystem } from "@effect/platform-bun";
+import { randomUUID } from "node:crypto";
+import { rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { assertEquals, it } from "./test/vitest.ts";
 import { Cause, Config, Effect, Exit, Redacted } from "effect";
 
 import { makeDotenvConfigProvider } from "./config-provider.ts";
 
-const withNodeFs = Effect.provide(NodeFileSystem.layer);
+const withBunFs = Effect.provide(BunFileSystem.layer);
 
 const ENV_KEYS = [
   "PORT",
@@ -14,189 +18,183 @@ const ENV_KEYS = [
   "MISSING_KEY",
 ] as const;
 
-Deno.test("dotenv provider uses .env values when env vars are missing", async () => {
-  const dotenvFile = await Deno.makeTempFile({ suffix: ".env" });
+it.scoped("dotenv provider uses .env values when env vars are missing", () =>
+  withTempEnvFile(
+    [
+      "PORT=9200",
+      "BAKARR_BOOTSTRAP_USERNAME=dotenv-admin",
+      'BAKARR_BOOTSTRAP_PASSWORD="super-secret"',
+    ].join("\n"),
+    (dotenvFile) =>
+      Effect.gen(function* () {
+        const provider = yield* makeDotenvConfigProvider({ path: dotenvFile }).pipe(withBunFs);
 
-  try {
-    await Deno.writeTextFile(
-      dotenvFile,
-      [
-        "PORT=9200",
-        "BAKARR_BOOTSTRAP_USERNAME=dotenv-admin",
-        'BAKARR_BOOTSTRAP_PASSWORD="super-secret"',
-      ].join("\n"),
+        const result = yield* withTemporaryEnv(
+          {},
+          Effect.gen(function* () {
+            const port = yield* Config.number("PORT");
+            const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
+            const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
+
+            return {
+              password: Redacted.value(password),
+              port,
+              username,
+            };
+          }).pipe(Effect.withConfigProvider(provider)),
+        );
+
+        assertEquals(result.port, 9200);
+        assertEquals(result.username, "dotenv-admin");
+        assertEquals(result.password, "super-secret");
+      }),
+  )
+);
+
+it.scoped("dotenv provider prioritizes environment variables over .env", () =>
+  withTempEnvFile("PORT=9200\n", (dotenvFile) =>
+    Effect.gen(function* () {
+      const provider = yield* makeDotenvConfigProvider({ path: dotenvFile }).pipe(withBunFs);
+
+      const result = yield* withTemporaryEnv(
+        { PORT: "9300" },
+        Config.number("PORT").pipe(Effect.withConfigProvider(provider)),
+      );
+
+      assertEquals(result, 9300);
+    }),
+  )
+);
+
+it.scoped("dotenv provider handles missing dotenv file", () =>
+  Effect.gen(function* () {
+    const provider = yield* makeDotenvConfigProvider({ path: "./missing-dotenv-file.env" }).pipe(
+      withBunFs,
     );
 
-    const provider = await Effect.runPromise(
-      makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
-    );
-
-    const program = Effect.gen(function* () {
-      const port = yield* Config.number("PORT");
-      const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
-      const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
-
-      return {
-        password: Redacted.value(password),
-        port,
-        username,
-      };
-    }).pipe(Effect.withConfigProvider(provider));
-
-    const result = await withTemporaryEnv({}, () => program);
-
-    assertEquals(result.port, 9200);
-    assertEquals(result.username, "dotenv-admin");
-    assertEquals(result.password, "super-secret");
-  } finally {
-    await Deno.remove(dotenvFile).catch(() => undefined);
-  }
-});
-
-Deno.test("dotenv provider prioritizes environment variables over .env", async () => {
-  const dotenvFile = await Deno.makeTempFile({ suffix: ".env" });
-
-  try {
-    await Deno.writeTextFile(dotenvFile, "PORT=9200\n");
-
-    const provider = await Effect.runPromise(
-      makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
-    );
-
-    const program = Config.number("PORT").pipe(
-      Effect.withConfigProvider(provider),
-    );
-
-    const result = await withTemporaryEnv({ PORT: "9300" }, () => program);
-
-    assertEquals(result, 9300);
-  } finally {
-    await Deno.remove(dotenvFile).catch(() => undefined);
-  }
-});
-
-Deno.test("dotenv provider handles missing dotenv file", async () => {
-  const provider = await Effect.runPromise(
-    makeDotenvConfigProvider({ path: "./missing-dotenv-file.env" }).pipe(
-      withNodeFs,
-    ),
-  );
-
-  const value = await withTemporaryEnv(
-    { SESSION_COOKIE_NAME: "from-env" },
-    () =>
+    const value = yield* withTemporaryEnv(
+      { SESSION_COOKIE_NAME: "from-env" },
       Config.string("SESSION_COOKIE_NAME").pipe(
         Effect.withConfigProvider(provider),
       ),
-  );
-
-  assertEquals(value, "from-env");
-});
-
-Deno.test("dotenv provider parses export comments and quoted values", async () => {
-  const dotenvFile = await Deno.makeTempFile({ suffix: ".env" });
-
-  try {
-    await Deno.writeTextFile(
-      dotenvFile,
-      [
-        "export BAKARR_BOOTSTRAP_USERNAME=from-export",
-        "SESSION_COOKIE_NAME=session-from-dotenv # trailing comment",
-        "PORT=9401",
-        'BAKARR_BOOTSTRAP_PASSWORD="line1\\nline2 # kept"',
-        "MISSING_KEY='raw # kept'",
-      ].join("\n"),
     );
 
-    const provider = await Effect.runPromise(
-      makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
-    );
+    assertEquals(value, "from-env");
+  })
+);
 
-    const result = await withTemporaryEnv({}, () =>
+it.scoped("dotenv provider parses export comments and quoted values", () =>
+  withTempEnvFile(
+    [
+      "export BAKARR_BOOTSTRAP_USERNAME=from-export",
+      "SESSION_COOKIE_NAME=session-from-dotenv # trailing comment",
+      "PORT=9401",
+      'BAKARR_BOOTSTRAP_PASSWORD="line1\\nline2 # kept"',
+      "MISSING_KEY='raw # kept'",
+    ].join("\n"),
+    (dotenvFile) =>
       Effect.gen(function* () {
-        const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
-        const cookie = yield* Config.string("SESSION_COOKIE_NAME");
-        const port = yield* Config.number("PORT");
-        const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
-        const missing = yield* Config.string("MISSING_KEY");
+        const provider = yield* makeDotenvConfigProvider({ path: dotenvFile }).pipe(withBunFs);
 
-        return {
-          cookie,
-          missing,
-          password: Redacted.value(password),
-          port,
-          username,
-        };
-      }).pipe(Effect.withConfigProvider(provider)));
+        const result = yield* withTemporaryEnv(
+          {},
+          Effect.gen(function* () {
+            const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
+            const cookie = yield* Config.string("SESSION_COOKIE_NAME");
+            const port = yield* Config.number("PORT");
+            const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
+            const missing = yield* Config.string("MISSING_KEY");
 
-    assertEquals(result.username, "from-export");
-    assertEquals(result.cookie, "session-from-dotenv");
-    assertEquals(result.port, 9401);
-    assertEquals(result.password, "line1\nline2 # kept");
-    assertEquals(result.missing, "raw # kept");
-  } finally {
-    await Deno.remove(dotenvFile).catch(() => undefined);
-  }
-});
+            return {
+              cookie,
+              missing,
+              password: Redacted.value(password),
+              port,
+              username,
+            };
+          }).pipe(Effect.withConfigProvider(provider)),
+        );
 
-Deno.test("dotenv provider fails with line information on parse errors", async () => {
-  const dotenvFile = await Deno.makeTempFile({ suffix: ".env" });
+        assertEquals(result.username, "from-export");
+        assertEquals(result.cookie, "session-from-dotenv");
+        assertEquals(result.port, 9401);
+        assertEquals(result.password, "line1\nline2 # kept");
+        assertEquals(result.missing, "raw # kept");
+      }),
+  )
+);
 
-  try {
-    await Deno.writeTextFile(
-      dotenvFile,
-      ["PORT=9402", "INVALID_LINE"].join("\n"),
-    );
+it.scoped("dotenv provider fails with line information on parse errors", () =>
+  withTempEnvFile(["PORT=9402", "INVALID_LINE"].join("\n"), (dotenvFile) =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        makeDotenvConfigProvider({ path: dotenvFile }).pipe(withBunFs),
+      );
 
-    const exit = await Effect.runPromiseExit(
-      makeDotenvConfigProvider({ path: dotenvFile }).pipe(withNodeFs),
-    );
+      assertEquals(Exit.isFailure(exit), true);
 
-    assertEquals(Exit.isFailure(exit), true);
+      if (Exit.isFailure(exit)) {
+        const failure = Cause.failureOption(exit.cause);
+        assertEquals(failure._tag, "Some");
 
-    if (Exit.isFailure(exit)) {
-      const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+        if (failure._tag === "Some") {
+          assertEquals(failure.value._tag, "DotenvParseError");
 
-      if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "DotenvParseError");
-
-        if (failure.value._tag === "DotenvParseError") {
-          assertEquals(failure.value.line, 2);
+          if (failure.value._tag === "DotenvParseError") {
+            assertEquals(failure.value.line, 2);
+          }
         }
       }
-    }
-  } finally {
-    await Deno.remove(dotenvFile).catch(() => undefined);
-  }
+    }),
+  )
+);
+
+const withTempEnvFile = Effect.fn("Test.withTempEnvFile")(function* <A, E, R>(
+  contents: string,
+  run: (filePath: string) => Effect.Effect<A, E, R>,
+) {
+  const filePath = join(tmpdir(), `bakarr-${randomUUID()}.env`);
+
+  return yield* Effect.acquireUseRelease(
+    Effect.tryPromise(() => writeFile(filePath, contents)).pipe(
+      Effect.as(filePath),
+    ),
+    run,
+    (path) =>
+      Effect.tryPromise(() => rm(path, { force: true })).pipe(
+        Effect.catchAll(() => Effect.void),
+      ),
+  );
 });
 
-async function withTemporaryEnv<A>(
+const withTemporaryEnv = Effect.fn("Test.withTemporaryEnv")(function* <A, E, R>(
   nextValues: Partial<Record<(typeof ENV_KEYS)[number], string>>,
-  run: () => Effect.Effect<A, unknown, never>,
+  effect: Effect.Effect<A, E, R>,
 ) {
   const previous = new Map<string, string | undefined>();
 
   for (const key of ENV_KEYS) {
-    previous.set(key, Deno.env.get(key));
+    previous.set(key, process.env[key]);
 
     const incoming = nextValues[key];
     if (incoming === undefined) {
-      Deno.env.delete(key);
+      delete process.env[key];
     } else {
-      Deno.env.set(key, incoming);
+      process.env[key] = incoming;
     }
   }
 
-  try {
-    return await Effect.runPromise(run());
-  } finally {
-    for (const [key, value] of previous.entries()) {
-      if (value === undefined) {
-        Deno.env.delete(key);
-      } else {
-        Deno.env.set(key, value);
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      for (const [key, value] of previous.entries()) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
       }
-    }
-  }
-}
+    })
+  );
+
+  return yield* effect;
+});

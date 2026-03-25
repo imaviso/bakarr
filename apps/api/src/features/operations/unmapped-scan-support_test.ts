@@ -1,7 +1,7 @@
-import { assertEquals } from "@std/assert";
-import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
+import { assertEquals, it } from "../../test/vitest.ts";
+import { Effect } from "effect";
 import {
-  withFileSystemSandbox,
+  withFileSystemSandboxEffect,
   writeTextFile,
 } from "../../test/filesystem-test.ts";
 import {
@@ -9,39 +9,35 @@ import {
   loadUnmappedFolderVideoSize,
 } from "./unmapped-scan-support.ts";
 
-Deno.test("loadUnmappedFolderVideoSize sums nested video files", async () => {
-  await withFileSystemSandbox(async ({ fs, root }) => {
+it.scoped("loadUnmappedFolderVideoSize sums nested video files", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
     const seasonDir = `${root}/Season 1`;
-    await runTestEffect(fs.mkdir(seasonDir, { recursive: true }));
-    await runTestEffect(
-      fs.writeFile(`${seasonDir}/episode-01.mkv`, new Uint8Array(10)),
-    );
-    await runTestEffect(
-      fs.writeFile(`${seasonDir}/episode-02.mp4`, new Uint8Array(15)),
-    );
-    await runTestEffect(
-      writeTextFile(fs, `${seasonDir}/readme.txt`, "ignore me"),
-    );
+      yield* fs.mkdir(seasonDir, { recursive: true });
+      yield* fs.writeFile(`${seasonDir}/episode-01.mkv`, new Uint8Array(10));
+      yield* fs.writeFile(`${seasonDir}/episode-02.mp4`, new Uint8Array(15));
+      yield* writeTextFile(fs, `${seasonDir}/readme.txt`, "ignore me");
 
-    const size = await runTestEffect(
-      loadUnmappedFolderVideoSize(fs, root),
-    );
+      const size = yield* loadUnmappedFolderVideoSize(fs, root);
 
-    assertEquals(size, 25);
-  });
-});
+      assertEquals(size, 25);
+    })
+  )
+);
 
-Deno.test("loadUnmappedFolderVideoSize fails when folder is inaccessible", async () => {
-  await withFileSystemSandbox(async ({ fs, root }) => {
-    const exit = await runTestEffectExit(
-      loadUnmappedFolderVideoSize(fs, `${root}/missing`),
-    );
+it.scoped("loadUnmappedFolderVideoSize fails when folder is inaccessible", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const exit = yield* Effect.exit(
+        loadUnmappedFolderVideoSize(fs, `${root}/missing`),
+      );
 
-    assertEquals(exit._tag, "Failure");
-  });
-});
+      assertEquals(exit._tag, "Failure");
+    })
+  )
+);
 
-Deno.test("ensureFolderMatchStatus preserves cached size", () => {
+it("ensureFolderMatchStatus preserves cached size", () => {
   const folder = {
     match_status: "pending" as const,
     name: "Series",

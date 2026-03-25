@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 
 import {
   buildEpisodeFileMappingIndex,
@@ -6,7 +6,7 @@ import {
   buildScannedFileNamingPlan,
 } from "./import-path-scan-support.ts";
 
-Deno.test("buildScannedFileLibrarySignals reports existing exact-path mappings", () => {
+it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => {
   const mappingIndex = buildEpisodeFileMappingIndex([
     {
       anime_id: 20,
@@ -43,7 +43,7 @@ Deno.test("buildScannedFileLibrarySignals reports existing exact-path mappings",
   );
 });
 
-Deno.test("buildScannedFileLibrarySignals reports duplicate episode conflicts", () => {
+it("buildScannedFileLibrarySignals reports duplicate episode conflicts", () => {
   const mappingIndex = buildEpisodeFileMappingIndex([
     {
       anime_id: 20,
@@ -81,7 +81,7 @@ Deno.test("buildScannedFileLibrarySignals reports duplicate episode conflicts", 
   );
 });
 
-Deno.test("buildScannedFileNamingPlan exposes naming details for matched anime files", () => {
+it("buildScannedFileNamingPlan exposes naming details for matched anime files", () => {
   const result = buildScannedFileNamingPlan({
     animeRow: {
       format: "TV",
@@ -132,7 +132,7 @@ Deno.test("buildScannedFileNamingPlan exposes naming details for matched anime f
   );
 });
 
-Deno.test("buildScannedFileNamingPlan avoids duplicate resolution when quality already includes it", () => {
+it("buildScannedFileNamingPlan avoids duplicate resolution when quality already includes it", () => {
   const result = buildScannedFileNamingPlan({
     animeRow: {
       format: "TV",

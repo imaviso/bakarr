@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { Effect } from "effect";
 
 import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
@@ -16,7 +16,7 @@ import {
   suggestUnmappedFolders,
 } from "./unmapped-folders.ts";
 
-Deno.test("buildUnmappedFolderSearchQueries strips release noise and adds fallback titles", () => {
+it("buildUnmappedFolderSearchQueries strips release noise and adds fallback titles", () => {
   assertEquals(
     buildUnmappedFolderSearchQueries(
       "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG",
@@ -27,10 +27,10 @@ Deno.test("buildUnmappedFolderSearchQueries strips release noise and adds fallba
   assertEquals(buildUnmappedFolderSearchQueries("Mono (2025)"), ["Mono"]);
 });
 
-Deno.test("suggestUnmappedFolders reuses normalized queries and falls back when first query misses", async () => {
-  const calls: string[] = [];
-  const suggestions = await Effect.runPromise(
-    suggestUnmappedFolders(
+it.effect("suggestUnmappedFolders reuses normalized queries and falls back when first query misses", () =>
+  Effect.gen(function* () {
+    const calls: string[] = [];
+    const suggestions = yield* suggestUnmappedFolders(
       [
         {
           name: "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG",
@@ -71,24 +71,24 @@ Deno.test("suggestUnmappedFolders reuses normalized queries and falls back when 
             return Effect.succeed([] satisfies AnimeSearchResult[]);
         }
       },
-    ),
-  );
+    );
 
-  assertEquals(calls, ["Scissor Seven Season 4", "Scissor Seven", "Mono"]);
-  assertEquals(suggestions[0].search_queries, [
-    "Scissor Seven Season 4",
-    "Scissor Seven",
-  ]);
-  assertEquals(suggestions[0].suggested_matches[0]?.id, 1);
-  assertEquals(suggestions[0].suggested_matches[0]?.match_confidence, 1);
-  assertEquals(
-    suggestions[0].suggested_matches[0]?.match_reason,
-    'Matched AniList search after removing season or release noise from "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG"',
-  );
-  assertEquals(suggestions[1].suggested_matches[0]?.id, 2);
-});
+    assertEquals(calls, ["Scissor Seven Season 4", "Scissor Seven", "Mono"]);
+    assertEquals(suggestions[0].search_queries, [
+      "Scissor Seven Season 4",
+      "Scissor Seven",
+    ]);
+    assertEquals(suggestions[0].suggested_matches[0]?.id, 1);
+    assertEquals(suggestions[0].suggested_matches[0]?.match_confidence, 1);
+    assertEquals(
+      suggestions[0].suggested_matches[0]?.match_reason,
+      'Matched AniList search after removing season or release noise from "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG"',
+    );
+    assertEquals(suggestions[1].suggested_matches[0]?.id, 2);
+  })
+);
 
-Deno.test("unmapped folder helpers track matching status transitions", () => {
+it("unmapped folder helpers track matching status transitions", () => {
   const base = {
     match_status: "pending" as const,
     match_attempts: 0,
@@ -129,7 +129,7 @@ Deno.test("unmapped folder helpers track matching status transitions", () => {
   assertEquals(pending.last_match_error, undefined);
 });
 
-Deno.test("unmapped folder helpers support pause and reset controls", () => {
+it("unmapped folder helpers support pause and reset controls", () => {
   const base = {
     last_match_error: "rate limited",
     last_matched_at: "2024-01-01T00:00:00.000Z",
@@ -160,7 +160,7 @@ Deno.test("unmapped folder helpers support pause and reset controls", () => {
   assertEquals(reset.suggested_matches, []);
 });
 
-Deno.test("unmapped folder retry helpers stop after three failed attempts", () => {
+it("unmapped folder retry helpers stop after three failed attempts", () => {
   const retryable = {
     match_attempts: 2,
     match_status: "failed" as const,

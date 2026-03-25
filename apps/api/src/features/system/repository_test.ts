@@ -1,10 +1,10 @@
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { Effect } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { withSqliteTestDb } from "../../test/database-test.ts";
+import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import {
   anime,
   backgroundJobs,
@@ -39,38 +39,41 @@ import {
   upsertUnmappedFolderMatchRows,
 } from "./repository.ts";
 
-Deno.test("system repository config helpers insert and upsert config rows", async () => {
-  await withTestDb(async (db, databaseFile) => {
-    await Effect.runPromise(insertSystemConfigRow(db, {
-      id: 1,
-      data: encodeConfigCore(makeDefaultConfig(databaseFile)),
-      updatedAt: "2024-01-01T00:00:00.000Z",
-    }));
+it.scoped("system repository config helpers insert and upsert config rows", () =>
+  withTestDbEffect((db, databaseFile) =>
+    Effect.gen(function* () {
+      yield* insertSystemConfigRow(db, {
+        id: 1,
+        data: encodeConfigCore(makeDefaultConfig(databaseFile)),
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      });
 
-    const initial = await Effect.runPromise(loadSystemConfigRow(db));
-    assertEquals(initial?.id, 1);
+      const initial = yield* loadSystemConfigRow(db);
+      assertEquals(initial?.id, 1);
 
-    await Effect.runPromise(upsertSystemConfigRow(db, {
-      id: 1,
-      data: encodeConfigCore({
-        ...makeDefaultConfig(databaseFile),
-        library: {
-          ...makeDefaultConfig(databaseFile).library,
-          library_path: "/new-library",
-        },
-      }),
-      updatedAt: "2024-01-02T00:00:00.000Z",
-    }));
+      yield* upsertSystemConfigRow(db, {
+        id: 1,
+        data: encodeConfigCore({
+          ...makeDefaultConfig(databaseFile),
+          library: {
+            ...makeDefaultConfig(databaseFile).library,
+            library_path: "/new-library",
+          },
+        }),
+        updatedAt: "2024-01-02T00:00:00.000Z",
+      });
 
-    const updated = await Effect.runPromise(loadSystemConfigRow(db));
-    assertEquals(updated?.updatedAt, "2024-01-02T00:00:00.000Z");
-    assertEquals(updated?.data.includes("/new-library"), true);
-  });
-});
+      const updated = yield* loadSystemConfigRow(db);
+      assertEquals(updated?.updatedAt, "2024-01-02T00:00:00.000Z");
+      assertEquals(updated?.data.includes("/new-library"), true);
+    })
+  )
+);
 
-Deno.test("system repository query helpers filter logs and count system state", async () => {
-  await withTestDb(async (db, _databaseFile) => {
-    await db.insert(systemLogs).values([
+it.scoped("system repository query helpers filter logs and count system state", () =>
+  withTestDbEffect((db, _databaseFile) =>
+    Effect.gen(function* () {
+      yield* Effect.promise(() => db.insert(systemLogs).values([
       {
         eventType: "library.scan.started",
         level: "info",
@@ -92,8 +95,8 @@ Deno.test("system repository query helpers filter logs and count system state", 
         details: null,
         createdAt: "2024-01-03T00:00:00.000Z",
       },
-    ]);
-    await db.insert(anime).values({
+    ]));
+      yield* Effect.promise(() => db.insert(anime).values({
       id: 20,
       malId: null,
       titleRomaji: "Naruto",
@@ -119,8 +122,8 @@ Deno.test("system repository query helpers filter logs and count system state", 
       addedAt: "2024-01-01T00:00:00.000Z",
       monitored: true,
       releaseProfileIds: "[]",
-    });
-    await db.insert(episodes).values([
+    }));
+      yield* Effect.promise(() => db.insert(episodes).values([
       {
         animeId: 20,
         number: 1,
@@ -137,8 +140,8 @@ Deno.test("system repository query helpers filter logs and count system state", 
         downloaded: false,
         filePath: null,
       },
-    ]);
-    await db.insert(downloads).values([
+    ]));
+      yield* Effect.promise(() => db.insert(downloads).values([
       {
         animeId: 20,
         animeTitle: "Naruto",
@@ -279,8 +282,8 @@ Deno.test("system repository query helpers filter logs and count system state", 
         lastErrorAt: null,
         reconciledAt: null,
       },
-    ]);
-    await db.insert(backgroundJobs).values([
+    ]));
+      yield* Effect.promise(() => db.insert(backgroundJobs).values([
       {
         name: "rss",
         isRunning: true,
@@ -299,53 +302,55 @@ Deno.test("system repository query helpers filter logs and count system state", 
         lastMessage: null,
         runCount: 0,
       },
-    ]);
-    await db.insert(rssFeeds).values({
+    ]));
+      yield* Effect.promise(() => db.insert(rssFeeds).values({
       animeId: 20,
       url: "https://example.com/rss.xml",
       name: null,
       lastChecked: null,
       enabled: true,
       createdAt: "2024-01-01T00:00:00.000Z",
-    });
-
-    const scanPage = await Effect.runPromise(loadSystemLogPage(db, {
-      eventType: "Scan",
-      page: 1,
-      pageSize: 10,
     }));
-    assertEquals(scanPage.total, 1);
-    assertEquals(scanPage.rows[0].message, "scan start");
 
-    const errorPage = await Effect.runPromise(loadSystemLogPage(db, {
-      level: "error",
-      page: 1,
-      pageSize: 10,
-      startDate: "2024-01-02T00:00:00.000Z",
-    }));
-    assertEquals(errorPage.total, 1);
-    assertEquals(errorPage.rows[0].eventType, "downloads.error");
+      const scanPage = yield* loadSystemLogPage(db, {
+        eventType: "Scan",
+        page: 1,
+        pageSize: 10,
+      });
+      assertEquals(scanPage.total, 1);
+      assertEquals(scanPage.rows[0].message, "scan start");
 
-    assertEquals(
-      await Effect.runPromise(countQueuedOrDownloadingDownloads(db)),
-      1,
-    );
-    assertEquals(await Effect.runPromise(countQueuedDownloads(db)), 1);
-    assertEquals(await Effect.runPromise(countActiveDownloads(db)), 1);
-    assertEquals(await Effect.runPromise(countFailedDownloads(db)), 1);
-    assertEquals(await Effect.runPromise(countCompletedDownloads(db)), 1);
-    assertEquals(await Effect.runPromise(countImportedDownloads(db)), 1);
-    assertEquals(await Effect.runPromise(countRunningBackgroundJobs(db)), 1);
-    assertEquals(await Effect.runPromise(countAnimeRows(db)), 1);
-    assertEquals(await Effect.runPromise(countEpisodeRows(db)), 2);
-    assertEquals(await Effect.runPromise(countDownloadedEpisodeRows(db)), 1);
-    assertEquals(await Effect.runPromise(countRssFeedRows(db)), 1);
-  });
-});
+      const errorPage = yield* loadSystemLogPage(db, {
+        level: "error",
+        page: 1,
+        pageSize: 10,
+        startDate: "2024-01-02T00:00:00.000Z",
+      });
+      assertEquals(errorPage.total, 1);
+      assertEquals(errorPage.rows[0].eventType, "downloads.error");
 
-Deno.test("replaceQualityProfileRows rolls back when replacement insert fails", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.qualityProfiles).values({
+      assertEquals(
+        yield* countQueuedOrDownloadingDownloads(db),
+        1,
+      );
+      assertEquals(yield* countQueuedDownloads(db), 1);
+      assertEquals(yield* countActiveDownloads(db), 1);
+      assertEquals(yield* countFailedDownloads(db), 1);
+      assertEquals(yield* countCompletedDownloads(db), 1);
+      assertEquals(yield* countImportedDownloads(db), 1);
+      assertEquals(yield* countRunningBackgroundJobs(db), 1);
+      assertEquals(yield* countAnimeRows(db), 1);
+      assertEquals(yield* countEpisodeRows(db), 2);
+      assertEquals(yield* countDownloadedEpisodeRows(db), 1);
+      assertEquals(yield* countRssFeedRows(db), 1);
+    })
+  )
+);
+
+it.scoped("replaceQualityProfileRows rolls back when replacement insert fails", () =>
+  withTestDbEffect((db) =>
+    Effect.gen(function* () {
+      yield* Effect.promise(() => db.insert(schema.qualityProfiles).values({
       name: "Existing",
       cutoff: "1080p",
       upgradeAllowed: true,
@@ -353,10 +358,9 @@ Deno.test("replaceQualityProfileRows rolls back when replacement insert fails", 
       allowedQualities: '["1080p"]',
       minSize: null,
       maxSize: null,
-    });
+    }));
 
-    await assertRejects(() =>
-      Effect.runPromise(replaceQualityProfileRows(db, [
+      const exit = yield* Effect.exit(replaceQualityProfileRows(db, [
         {
           name: "Duplicate",
           cutoff: "1080p",
@@ -375,70 +379,75 @@ Deno.test("replaceQualityProfileRows rolls back when replacement insert fails", 
           minSize: null,
           maxSize: null,
         },
-      ]))
-    );
+      ]));
+      assertEquals(exit._tag, "Failure");
 
-    const rows = await Effect.runPromise(listQualityProfileRows(db));
-    assertEquals(rows.length, 1);
-    assertEquals(rows[0]?.name, "Existing");
-  });
-});
+      const rows = yield* listQualityProfileRows(db);
+      assertEquals(rows.length, 1);
+      assertEquals(rows[0]?.name, "Existing");
+    })
+  )
+);
 
-Deno.test("unmapped folder match rows persist cached suggestions", async () => {
-  await withTestDb(async (db) => {
-    await Effect.runPromise(upsertUnmappedFolderMatchRows(db, [{
-      last_matched_at: "2024-01-01T00:00:00.000Z",
-      match_status: "done",
-      name: "Naruto Archive",
-      path: "/library/Naruto Archive",
-      size: 0,
-      suggested_matches: [{
-        already_in_library: true,
-        id: 20,
-        match_confidence: 0.97,
-        match_reason:
-          'Matched a library title from the normalized folder name "Naruto Archive"',
-        title: { romaji: "Naruto" },
-      }],
-    }]));
+it.scoped("unmapped folder match rows persist cached suggestions", () =>
+  withTestDbEffect((db) =>
+    Effect.gen(function* () {
+      yield* upsertUnmappedFolderMatchRows(db, [{
+        last_matched_at: "2024-01-01T00:00:00.000Z",
+        match_status: "done",
+        name: "Naruto Archive",
+        path: "/library/Naruto Archive",
+        size: 0,
+        suggested_matches: [{
+          already_in_library: true,
+          id: 20,
+          match_confidence: 0.97,
+          match_reason:
+            'Matched a library title from the normalized folder name "Naruto Archive"',
+          title: { romaji: "Naruto" },
+        }],
+      }]);
 
-    const rows = await Effect.runPromise(listUnmappedFolderMatchRows(db));
-    assertEquals(rows.length, 1);
-    assertEquals(rows[0]?.path, "/library/Naruto Archive");
+      const rows = yield* listUnmappedFolderMatchRows(db);
+      assertEquals(rows.length, 1);
+      assertEquals(rows[0]?.path, "/library/Naruto Archive");
 
-    const decoded = decodeUnmappedFolderMatchRow(rows[0]!);
-    assertEquals(decoded.match_status, "done");
-    assertEquals(decoded.search_queries, ["Naruto Archive"]);
-    assertEquals(decoded.suggested_matches[0]?.id, 20);
-    assertEquals(decoded.suggested_matches[0]?.match_confidence, 0.97);
-  });
-});
+      const decoded = decodeUnmappedFolderMatchRow(rows[0]!);
+      assertEquals(decoded.match_status, "done");
+      assertEquals(decoded.search_queries, ["Naruto Archive"]);
+      assertEquals(decoded.suggested_matches[0]?.id, 20);
+      assertEquals(decoded.suggested_matches[0]?.match_confidence, 0.97);
+    })
+  )
+);
 
-Deno.test("loadUnmappedFolderMatchRow returns a row by folder path", async () => {
-  await withTestDb(async (db) => {
-    await Effect.runPromise(upsertUnmappedFolderMatchRows(db, [{
-      match_status: "paused",
-      name: "Naruto Archive",
-      path: "/library/Naruto Archive",
-      size: 0,
-      suggested_matches: [],
-    }]));
+it.scoped("loadUnmappedFolderMatchRow returns a row by folder path", () =>
+  withTestDbEffect((db) =>
+    Effect.gen(function* () {
+      yield* upsertUnmappedFolderMatchRows(db, [{
+        match_status: "paused",
+        name: "Naruto Archive",
+        path: "/library/Naruto Archive",
+        size: 0,
+        suggested_matches: [],
+      }]);
 
-    const row = await Effect.runPromise(
-      loadUnmappedFolderMatchRow(db, "/library/Naruto Archive"),
-    );
+      const row = yield* loadUnmappedFolderMatchRow(db, "/library/Naruto Archive");
 
-    assertEquals(row?.path, "/library/Naruto Archive");
-    assertEquals(row?.matchStatus, "paused");
-  });
-});
+      assertEquals(row?.path, "/library/Naruto Archive");
+      assertEquals(row?.matchStatus, "paused");
+    })
+  )
+);
 
-async function withTestDb(
-  run: (db: AppDatabase, databaseFile: string) => Promise<void>,
-) {
-  await withSqliteTestDb({
+const withTestDbEffect = Effect.fn("SystemRepositoryTest.withTestDbEffect")(
+  function* <A, E, R>(
+    run: (db: AppDatabase, databaseFile: string) => Effect.Effect<A, E, R>,
+  ) {
+    return yield* withSqliteTestDbEffect({
     migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
     schema,
-  });
-}
+    });
+  },
+);

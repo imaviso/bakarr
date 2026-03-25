@@ -1,137 +1,138 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../test/vitest.ts";
 import { Effect } from "effect";
 
-import { makeNoopTestFileSystemWithOverrides } from "../test/filesystem-test.ts";
+import { makeNoopTestFileSystemWithOverridesEffect } from "../test/filesystem-test.ts";
 import { browsePath } from "./route-fs.ts";
 
-Deno.test("browsePath returns paginated entries with defaults", async () => {
-  const fs = await makeMockFileSystem([
-    { isDirectory: false, name: "file1.mkv" },
-    { isDirectory: false, name: "file2.mkv" },
-    { isDirectory: true, name: "subdir" },
-  ]);
+it.effect("browsePath returns paginated entries with defaults", () =>
+  Effect.gen(function* () {
+    const fs = yield* makeMockFileSystemEffect([
+      { isDirectory: false, name: "file1.mkv" },
+      { isDirectory: false, name: "file2.mkv" },
+      { isDirectory: true, name: "subdir" },
+    ]);
 
-  const result = await Effect.runPromise(browsePath(fs, "/test"));
+    const result = yield* browsePath(fs, "/test");
 
-  assertEquals(result.current_path, "/test");
-  assertEquals(result.total, 3);
-  assertEquals(result.limit, 3);
-  assertEquals(result.offset, 0);
-  assertEquals(result.has_more, false);
-  assertEquals(result.entries.length, 3);
-  assertEquals(result.parent_path, "/");
-});
+    assertEquals(result.current_path, "/test");
+    assertEquals(result.total, 3);
+    assertEquals(result.limit, 3);
+    assertEquals(result.offset, 0);
+    assertEquals(result.has_more, false);
+    assertEquals(result.entries.length, 3);
+    assertEquals(result.parent_path, "/");
+  })
+);
 
-Deno.test("browsePath returns all entries when limit is omitted", async () => {
-  const fs = await makeMockFileSystem(
-    Array.from({ length: 600 }, (_, index) => ({
-      isDirectory: false,
-      name: `file-${index}.mkv`,
-    })),
-  );
+it.effect("browsePath returns all entries when limit is omitted", () =>
+  Effect.gen(function* () {
+    const fs = yield* makeMockFileSystemEffect(
+      Array.from({ length: 600 }, (_, index) => ({
+        isDirectory: false,
+        name: `file-${index}.mkv`,
+      })),
+    );
 
-  const result = await Effect.runPromise(browsePath(fs, "/test"));
+    const result = yield* browsePath(fs, "/test");
 
-  assertEquals(result.entries.length, 600);
-  assertEquals(result.total, 600);
-  assertEquals(result.has_more, false);
-  assertEquals(result.limit, 600);
-});
+    assertEquals(result.entries.length, 600);
+    assertEquals(result.total, 600);
+    assertEquals(result.has_more, false);
+    assertEquals(result.limit, 600);
+  })
+);
 
-Deno.test("browsePath respects limit and offset", async () => {
-  const fs = await makeMockFileSystem([
-    { isDirectory: false, name: "a.mkv" },
-    { isDirectory: false, name: "b.mkv" },
-    { isDirectory: false, name: "c.mkv" },
-    { isDirectory: false, name: "d.mkv" },
-    { isDirectory: false, name: "e.mkv" },
-  ]);
+it.effect("browsePath respects limit and offset", () =>
+  Effect.gen(function* () {
+    const fs = yield* makeMockFileSystemEffect([
+      { isDirectory: false, name: "a.mkv" },
+      { isDirectory: false, name: "b.mkv" },
+      { isDirectory: false, name: "c.mkv" },
+      { isDirectory: false, name: "d.mkv" },
+      { isDirectory: false, name: "e.mkv" },
+    ]);
 
-  const page1 = await Effect.runPromise(
-    browsePath(fs, "/test", { limit: 2, offset: 0 }),
-  );
-  assertEquals(page1.entries.length, 2);
-  assertEquals(page1.entries[0].name, "a.mkv");
-  assertEquals(page1.entries[1].name, "b.mkv");
-  assertEquals(page1.has_more, true);
-  assertEquals(page1.total, 5);
+    const page1 = yield* browsePath(fs, "/test", { limit: 2, offset: 0 });
+    assertEquals(page1.entries.length, 2);
+    assertEquals(page1.entries[0].name, "a.mkv");
+    assertEquals(page1.entries[1].name, "b.mkv");
+    assertEquals(page1.has_more, true);
+    assertEquals(page1.total, 5);
 
-  const page2 = await Effect.runPromise(
-    browsePath(fs, "/test", { limit: 2, offset: 2 }),
-  );
-  assertEquals(page2.entries.length, 2);
-  assertEquals(page2.entries[0].name, "c.mkv");
-  assertEquals(page2.entries[1].name, "d.mkv");
-  assertEquals(page2.has_more, true);
+    const page2 = yield* browsePath(fs, "/test", { limit: 2, offset: 2 });
+    assertEquals(page2.entries.length, 2);
+    assertEquals(page2.entries[0].name, "c.mkv");
+    assertEquals(page2.entries[1].name, "d.mkv");
+    assertEquals(page2.has_more, true);
 
-  const page3 = await Effect.runPromise(
-    browsePath(fs, "/test", { limit: 2, offset: 4 }),
-  );
-  assertEquals(page3.entries.length, 1);
-  assertEquals(page3.entries[0].name, "e.mkv");
-  assertEquals(page3.has_more, false);
-});
+    const page3 = yield* browsePath(fs, "/test", { limit: 2, offset: 4 });
+    assertEquals(page3.entries.length, 1);
+    assertEquals(page3.entries[0].name, "e.mkv");
+    assertEquals(page3.has_more, false);
+  })
+);
 
-Deno.test("browsePath caps limit at MAX_BROWSE_LIMIT", async () => {
-  const fs = await makeMockFileSystem([]);
+it.effect("browsePath caps limit at MAX_BROWSE_LIMIT", () =>
+  Effect.gen(function* () {
+    const fs = yield* makeMockFileSystemEffect([]);
+    const result = yield* browsePath(fs, "/test", { limit: 10000 });
+    assertEquals(result.limit, 500);
+  })
+);
 
-  const result = await Effect.runPromise(
-    browsePath(fs, "/test", { limit: 10000 }),
-  );
-  assertEquals(result.limit, 500);
-});
+it.effect("browsePath floors limit at 1", () =>
+  Effect.gen(function* () {
+    const fs = yield* makeMockFileSystemEffect([]);
+    const result = yield* browsePath(fs, "/test", { limit: 0 });
+    assertEquals(result.limit, 1);
+  })
+);
 
-Deno.test("browsePath floors limit at 1", async () => {
-  const fs = await makeMockFileSystem([]);
+it.effect("browsePath floors negative offset at 0", () =>
+  Effect.gen(function* () {
+    const fs = yield* makeMockFileSystemEffect([]);
+    const result = yield* browsePath(fs, "/test", { offset: -10 });
+    assertEquals(result.offset, 0);
+  })
+);
 
-  const result = await Effect.runPromise(browsePath(fs, "/test", { limit: 0 }));
-  assertEquals(result.limit, 1);
-});
+it.effect("browsePath sorts directories before files", () =>
+  Effect.gen(function* () {
+    const fs = yield* makeMockFileSystemEffect([
+      { isDirectory: false, name: "zfile.mkv" },
+      { isDirectory: true, name: "adir" },
+      { isDirectory: false, name: "afile.mkv" },
+      { isDirectory: true, name: "zdir" },
+    ]);
 
-Deno.test("browsePath floors negative offset at 0", async () => {
-  const fs = await makeMockFileSystem([]);
+    const result = yield* browsePath(fs, "/test");
+    assertEquals(result.entries.length, 4);
+    assertEquals(result.entries[0].is_directory, true);
+    assertEquals(result.entries[1].is_directory, true);
+    assertEquals(result.entries[2].is_directory, false);
+    assertEquals(result.entries[3].is_directory, false);
+  })
+);
 
-  const result = await Effect.runPromise(
-    browsePath(fs, "/test", { offset: -10 }),
-  );
-  assertEquals(result.offset, 0);
-});
+it.effect("browsePath returns empty page when offset exceeds total", () =>
+  Effect.gen(function* () {
+    const fs = yield* makeMockFileSystemEffect([
+      { isDirectory: false, name: "a.mkv" },
+    ]);
 
-Deno.test("browsePath sorts directories before files", async () => {
-  const fs = await makeMockFileSystem([
-    { isDirectory: false, name: "zfile.mkv" },
-    { isDirectory: true, name: "adir" },
-    { isDirectory: false, name: "afile.mkv" },
-    { isDirectory: true, name: "zdir" },
-  ]);
+    const result = yield* browsePath(fs, "/test", { limit: 1, offset: 10 });
 
-  const result = await Effect.runPromise(browsePath(fs, "/test"));
-  assertEquals(result.entries.length, 4);
-  assertEquals(result.entries[0].is_directory, true);
-  assertEquals(result.entries[1].is_directory, true);
-  assertEquals(result.entries[2].is_directory, false);
-  assertEquals(result.entries[3].is_directory, false);
-});
+    assertEquals(result.entries.length, 0);
+    assertEquals(result.total, 1);
+    assertEquals(result.offset, 10);
+    assertEquals(result.has_more, false);
+  })
+);
 
-Deno.test("browsePath returns empty page when offset exceeds total", async () => {
-  const fs = await makeMockFileSystem([
-    { isDirectory: false, name: "a.mkv" },
-  ]);
-
-  const result = await Effect.runPromise(
-    browsePath(fs, "/test", { limit: 1, offset: 10 }),
-  );
-
-  assertEquals(result.entries.length, 0);
-  assertEquals(result.total, 1);
-  assertEquals(result.offset, 10);
-  assertEquals(result.has_more, false);
-});
-
-function makeMockFileSystem(
+const makeMockFileSystemEffect = Effect.fn("RouteFsTest.makeMockFileSystem")((
   entries: Array<{ isDirectory: boolean; name: string; size?: number }>,
-) {
-  return makeNoopTestFileSystemWithOverrides({
+) =>
+  makeNoopTestFileSystemWithOverridesEffect({
     readDir: () =>
       Effect.succeed(
         entries.map((entry) => ({
@@ -153,5 +154,5 @@ function makeMockFileSystem(
         size: entry?.size ?? 0,
       });
     },
-  });
-}
+  })
+);

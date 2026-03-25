@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { eq } from "drizzle-orm";
 import { Effect, Exit } from "effect";
 
@@ -7,10 +7,9 @@ import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { withSqliteTestDb } from "../../test/database-test.ts";
-import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
+import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import {
-  withFileSystemSandbox,
+  withFileSystemSandboxEffect,
   writeTextFile,
 } from "../../test/filesystem-test.ts";
 import {
@@ -24,7 +23,7 @@ import {
 } from "./query-support.ts";
 import { listAnimeFilesEffect } from "./file-mapping-support.ts";
 
-Deno.test("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
+it("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
   const results = annotateAnimeSearchResultsForQuery(
     "Naruto",
     [
@@ -50,7 +49,7 @@ Deno.test("annotateAnimeSearchResultsForQuery adds confidence and reasons", () =
   assertEquals(results[1]?.match_reason, 'Strong title match for "Naruto"');
 });
 
-Deno.test("annotateAnimeSearchResultsForQuery considers synonyms", () => {
+it("annotateAnimeSearchResultsForQuery considers synonyms", () => {
   const results = annotateAnimeSearchResultsForQuery(
     "Boku no Hero Academia",
     [
@@ -69,7 +68,7 @@ Deno.test("annotateAnimeSearchResultsForQuery considers synonyms", () => {
   );
 });
 
-Deno.test("deriveEpisodeTimelineMetadata marks future and aired episodes", () => {
+it("deriveEpisodeTimelineMetadata marks future and aired episodes", () => {
   assertEquals(
     deriveEpisodeTimelineMetadata(
       "2024-01-10T02:30:00.000Z",
@@ -91,174 +90,204 @@ Deno.test("deriveEpisodeTimelineMetadata marks future and aired episodes", () =>
   });
 });
 
-Deno.test("listEpisodesEffect fills missing media metadata from ffprobe", async () => {
-  await withTestDb(async (db) => {
-    await withFileSystemSandbox(async ({ root, fs }) => {
-      const filePath = `${root}/Episode 1.mkv`;
-      await runTestEffect(writeTextFile(fs, filePath, "test"));
+it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      withFileSystemSandboxEffect(({ root, fs }) =>
+        Effect.gen(function* () {
+          const appDb = db as AppDatabase;
+          const filePath = `${root}/Episode 1.mkv`;
+          yield* writeTextFile(fs, filePath, "test");
 
-      await db.insert(schema.anime).values({
-        addedAt: "2024-01-01T00:00:00.000Z",
-        episodeCount: 1,
-        format: "TV",
-        genres: "[]",
-        id: 1,
-        monitored: true,
-        profileName: "Default",
-        releaseProfileIds: "[]",
-        rootFolder: root,
-        status: "RELEASING",
-        studios: "[]",
-        titleRomaji: "Test Show",
-      });
-      await db.insert(schema.episodes).values({
-        aired: "2024-01-01T00:00:00.000Z",
-        animeId: 1,
-        downloaded: true,
-        durationSeconds: 1440,
-        filePath,
-        fileSize: 4,
-        audioChannels: "2.0",
-        audioCodec: "AAC",
-        number: 1,
-        resolution: "1080p",
-        videoCodec: "HEVC",
-        title: "Pilot",
-      });
-
-      const result = await Effect.runPromise(listEpisodesEffect({
-        animeId: 1,
-        db,
-      }));
-
-      assertEquals(result[0]?.resolution, "1080p");
-      assertEquals(result[0]?.video_codec, "HEVC");
-      assertEquals(result[0]?.audio_codec, "AAC");
-      assertEquals(result[0]?.audio_channels, "2.0");
-      assertEquals(result[0]?.duration_seconds, 1440);
-      assertEquals(result[0]?.file_size, 4);
-    });
-  });
-});
-
-Deno.test("listAnimeFilesEffect caches probed metadata to episode rows", async () => {
-  await withTestDb(async (db) => {
-    await withFileSystemSandbox(async ({ root, fs }) => {
-      const filePath = `${root}/Episode 1.mkv`;
-      await runTestEffect(writeTextFile(fs, filePath, "test"));
-
-      await db.insert(schema.anime).values({
-        addedAt: "2024-01-01T00:00:00.000Z",
-        episodeCount: 1,
-        format: "TV",
-        genres: "[]",
-        id: 101,
-        monitored: true,
-        profileName: "Default",
-        releaseProfileIds: "[]",
-        rootFolder: root,
-        status: "RELEASING",
-        studios: "[]",
-        titleRomaji: "Probe Cache Show",
-      });
-
-      await db.insert(schema.episodes).values({
-        aired: "2024-01-01T00:00:00.000Z",
-        animeId: 101,
-        downloaded: true,
-        filePath,
-        fileSize: 4,
-        number: 1,
-        title: "Pilot",
-      });
-
-      let probeCalls = 0;
-      const mediaProbe = {
-        probeVideoFile: (_path: string) => {
-          probeCalls += 1;
-          return Effect.succeed({
-            audio_channels: "2.0",
-            audio_codec: "AAC",
-            duration_seconds: 1440,
+          yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+            addedAt: "2024-01-01T00:00:00.000Z",
+            episodeCount: 1,
+            format: "TV",
+            genres: "[]",
+            id: 1,
+            monitored: true,
+            profileName: "Default",
+            releaseProfileIds: "[]",
+            rootFolder: root,
+            status: "RELEASING",
+            studios: "[]",
+            titleRomaji: "Test Show",
+          }));
+          yield* Effect.tryPromise(() => appDb.insert(schema.episodes).values({
+            aired: "2024-01-01T00:00:00.000Z",
+            animeId: 1,
+            downloaded: true,
+            durationSeconds: 1440,
+            filePath,
+            fileSize: 4,
+            audioChannels: "2.0",
+            audioCodec: "AAC",
+            number: 1,
             resolution: "1080p",
-            video_codec: "HEVC",
+            title: "Pilot",
+            videoCodec: "HEVC",
+          }));
+
+          const result = yield* listEpisodesEffect({
+            animeId: 1,
+            db: appDb,
           });
-        },
-      };
 
-      const first = await Effect.runPromise(
-        listAnimeFilesEffect({ animeId: 101, db, fs, mediaProbe }),
-      );
+          assertEquals(result[0]?.resolution, "1080p");
+          assertEquals(result[0]?.video_codec, "HEVC");
+          assertEquals(result[0]?.audio_codec, "AAC");
+          assertEquals(result[0]?.audio_channels, "2.0");
+          assertEquals(result[0]?.duration_seconds, 1440);
+          assertEquals(result[0]?.file_size, 4);
+        }),
+      ),
+    schema,
+  })
+);
 
-      const episodeRows = await db.select().from(schema.episodes).where(
-        eq(schema.episodes.animeId, 101),
-      );
-      const row = episodeRows[0];
+it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      withFileSystemSandboxEffect(({ root, fs }) =>
+        Effect.gen(function* () {
+          const appDb = db as AppDatabase;
+          const filePath = `${root}/Episode 1.mkv`;
+          yield* writeTextFile(fs, filePath, "test");
 
-      assertEquals(first[0]?.resolution, "1080p");
-      assertEquals(first[0]?.video_codec, "HEVC");
-      assertEquals(first[0]?.audio_codec, "AAC");
-      assertEquals(first[0]?.audio_channels, "2.0");
-      assertEquals(first[0]?.duration_seconds, 1440);
-      assertEquals(row?.resolution, "1080p");
-      assertEquals(row?.videoCodec, "HEVC");
-      assertEquals(row?.audioCodec, "AAC");
-      assertEquals(row?.audioChannels, "2.0");
-      assertEquals(row?.durationSeconds, 1440);
+          yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+            addedAt: "2024-01-01T00:00:00.000Z",
+            episodeCount: 1,
+            format: "TV",
+            genres: "[]",
+            id: 101,
+            monitored: true,
+            profileName: "Default",
+            releaseProfileIds: "[]",
+            rootFolder: root,
+            status: "RELEASING",
+            studios: "[]",
+            titleRomaji: "Probe Cache Show",
+          }));
 
-      const second = await Effect.runPromise(
-        listAnimeFilesEffect({ animeId: 101, db, fs, mediaProbe }),
-      );
+          yield* Effect.tryPromise(() => appDb.insert(schema.episodes).values({
+            aired: "2024-01-01T00:00:00.000Z",
+            animeId: 101,
+            downloaded: true,
+            filePath,
+            fileSize: 4,
+            number: 1,
+            title: "Pilot",
+          }));
 
-      assertEquals(second[0]?.resolution, "1080p");
-      assertEquals(second[0]?.video_codec, "HEVC");
-      assertEquals(second[0]?.audio_codec, "AAC");
-      assertEquals(second[0]?.audio_channels, "2.0");
-      assertEquals(second[0]?.duration_seconds, 1440);
-      assertEquals(probeCalls, 1);
-    });
-  });
-});
+          let probeCalls = 0;
+          const mediaProbe = {
+            probeVideoFile: (_path: string) => {
+              probeCalls += 1;
+              return Effect.succeed({
+                audio_channels: "2.0",
+                audio_codec: "AAC",
+                duration_seconds: 1440,
+                resolution: "1080p",
+                video_codec: "HEVC",
+              });
+            },
+          };
 
-Deno.test("getAnimeByAnilistIdEffect returns related and recommended metadata", async () => {
-  await withTestDb(async (db) => {
-    const result = await Effect.runPromise(getAnimeByAnilistIdEffect({
-      aniList: makeAniListStub({
-        bannerImage: "https://example.com/banner.png",
-        coverImage: "https://example.com/cover.png",
-        format: "TV",
-        id: 55,
-        recommendedAnime: [{
-          id: 77,
-          title: { english: "Recommendation", romaji: "Recommendation" },
-        }],
-        relatedAnime: [{
-          id: 56,
-          relation_type: "SEQUEL",
-          title: { english: "Sequel", romaji: "Sequel" },
-        }],
-        startDate: "2024-04-03",
-        startYear: 2024,
-        status: "RELEASING",
-        synonyms: ["Stub Alias"],
-        title: { english: "Stub Show", romaji: "Stub Show" },
+          const first = yield* listAnimeFilesEffect({
+            animeId: 101,
+            db: appDb,
+            fs,
+            mediaProbe,
+          });
+
+          const episodeRows = yield* Effect.tryPromise(() =>
+            appDb.select().from(schema.episodes).where(
+              eq(schema.episodes.animeId, 101),
+            )
+          );
+          const row = episodeRows[0];
+
+          assertEquals(first[0]?.resolution, "1080p");
+          assertEquals(first[0]?.video_codec, "HEVC");
+          assertEquals(first[0]?.audio_codec, "AAC");
+          assertEquals(first[0]?.audio_channels, "2.0");
+          assertEquals(first[0]?.duration_seconds, 1440);
+          assertEquals(row?.resolution, "1080p");
+          assertEquals(row?.videoCodec, "HEVC");
+          assertEquals(row?.audioCodec, "AAC");
+          assertEquals(row?.audioChannels, "2.0");
+          assertEquals(row?.durationSeconds, 1440);
+
+          const second = yield* listAnimeFilesEffect({
+            animeId: 101,
+            db: appDb,
+            fs,
+            mediaProbe,
+          });
+
+          assertEquals(second[0]?.resolution, "1080p");
+          assertEquals(second[0]?.video_codec, "HEVC");
+          assertEquals(second[0]?.audio_codec, "AAC");
+          assertEquals(second[0]?.audio_channels, "2.0");
+          assertEquals(second[0]?.duration_seconds, 1440);
+          assertEquals(probeCalls, 1);
+        }),
+      ),
+    schema,
+  })
+);
+
+it.scoped("getAnimeByAnilistIdEffect returns related and recommended metadata", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        const result = yield* getAnimeByAnilistIdEffect({
+          aniList: makeAniListStub({
+            bannerImage: "https://example.com/banner.png",
+            coverImage: "https://example.com/cover.png",
+            format: "TV",
+            id: 55,
+            recommendedAnime: [{
+              id: 77,
+              title: { english: "Recommendation", romaji: "Recommendation" },
+            }],
+            relatedAnime: [{
+              id: 56,
+              relation_type: "SEQUEL",
+              title: { english: "Sequel", romaji: "Sequel" },
+            }],
+            startDate: "2024-04-03",
+            startYear: 2024,
+            status: "RELEASING",
+            synonyms: ["Stub Alias"],
+            title: { english: "Stub Show", romaji: "Stub Show" },
+          }),
+          db: appDb,
+          id: 55,
+        });
+
+        assertEquals(result.related_anime?.[0]?.relation_type, "SEQUEL");
+        assertEquals(
+          result.recommended_anime?.[0]?.title.english,
+          "Recommendation",
+        );
+        assertEquals(result.synonyms, ["Stub Alias"]);
       }),
-      db,
-      id: 55,
-    }));
+    schema,
+  })
+);
 
-    assertEquals(result.related_anime?.[0]?.relation_type, "SEQUEL");
-    assertEquals(
-      result.recommended_anime?.[0]?.title.english,
-      "Recommendation",
-    );
-    assertEquals(result.synonyms, ["Stub Alias"]);
-  });
-});
-
-Deno.test("getAnimeEffect returns discovery metadata from database storage", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
+it.scoped("getAnimeEffect returns discovery metadata from database storage", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
       addedAt: "2024-01-01T00:00:00.000Z",
       episodeCount: 1,
       format: "TV",
@@ -276,30 +305,36 @@ Deno.test("getAnimeEffect returns discovery metadata from database storage", asy
       recommendedAnime:
         '[{"id":81,"title":{"english":"Recommended Show","romaji":"Recommended Show"},"format":"TV","status":"FINISHED"}]',
       titleRomaji: "Stub Show",
-    });
-    await db.insert(schema.episodes).values({
-      animeId: 80,
-      downloaded: false,
-      number: 1,
-    });
+        }));
+        yield* Effect.tryPromise(() => appDb.insert(schema.episodes).values({
+          animeId: 80,
+          downloaded: false,
+          number: 1,
+        }));
 
-    const result = await Effect.runPromise(getAnimeEffect({
-      db,
-      id: 80,
-    }));
+        const result = yield* getAnimeEffect({
+          db: appDb,
+          id: 80,
+        });
 
-    assertEquals(result.related_anime?.[0]?.relation_type, "PREQUEL");
-    assertEquals(
-      result.recommended_anime?.[0]?.title.english,
-      "Recommended Show",
-    );
-    assertEquals(result.synonyms, ["Alias One", "Alias Two"]);
-  });
-});
+        assertEquals(result.related_anime?.[0]?.relation_type, "PREQUEL");
+        assertEquals(
+          result.recommended_anime?.[0]?.title.english,
+          "Recommended Show",
+        );
+        assertEquals(result.synonyms, ["Alias One", "Alias Two"]);
+      }),
+    schema,
+  })
+);
 
-Deno.test("getAnimeEffect uses stored discovery metadata from database", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
+it.scoped("getAnimeEffect uses stored discovery metadata from database", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
       addedAt: "2024-01-01T00:00:00.000Z",
       episodeCount: 1,
       format: "TV",
@@ -317,72 +352,86 @@ Deno.test("getAnimeEffect uses stored discovery metadata from database", async (
       recommendedAnime:
         '[{"id":92,"title":{"romaji":"Recommended Show"},"format":"TV","status":"FINISHED"}]',
       titleRomaji: "Stored Show",
-    });
-    await db.insert(schema.episodes).values({
-      animeId: 90,
-      downloaded: false,
-      number: 1,
-    });
+        }));
+        yield* Effect.tryPromise(() => appDb.insert(schema.episodes).values({
+          animeId: 90,
+          downloaded: false,
+          number: 1,
+        }));
 
-    const result = await Effect.runPromise(getAnimeEffect({
-      db,
-      id: 90,
-    }));
+        const result = yield* getAnimeEffect({
+          db: appDb,
+          id: 90,
+        });
 
-    assertEquals(result.id, 90);
-    assertEquals(result.synonyms, ["Alt Title", "Another Name"]);
-    assertEquals(result.related_anime?.length, 1);
-    assertEquals(result.related_anime?.[0]?.id, 91);
-    assertEquals(result.recommended_anime?.length, 1);
-    assertEquals(result.recommended_anime?.[0]?.id, 92);
-  });
-});
+        assertEquals(result.id, 90);
+        assertEquals(result.synonyms, ["Alt Title", "Another Name"]);
+        assertEquals(result.related_anime?.length, 1);
+        assertEquals(result.related_anime?.[0]?.id, 91);
+        assertEquals(result.recommended_anime?.length, 1);
+        assertEquals(result.recommended_anime?.[0]?.id, 92);
+      }),
+    schema,
+  })
+);
 
-Deno.test("searchAnimeEffect fails when AniList search fails", async () => {
-  await withTestDb(async (db) => {
-    const result = await runTestEffectExit(searchAnimeEffect({
-      aniList: {
-        getAnimeMetadataById: () => Effect.succeed(null),
-        searchAnimeMetadata: () =>
-          Effect.fail(
-            new ExternalCallError({
-              cause: new Error("rate limited"),
-              message: "AniList search failed",
-              operation: "anilist.search.response",
-            }),
-          ),
-      },
-      db,
-      query: "bake",
-    }));
+it.scoped("searchAnimeEffect fails when AniList search fails", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        const result = yield* Effect.exit(searchAnimeEffect({
+          aniList: {
+            getAnimeMetadataById: () => Effect.succeed(null),
+            searchAnimeMetadata: () =>
+              Effect.fail(
+                new ExternalCallError({
+                  cause: new Error("rate limited"),
+                  message: "AniList search failed",
+                  operation: "anilist.search.response",
+                }),
+              ),
+          },
+          db: appDb,
+          query: "bake",
+        }));
 
-    assertEquals(Exit.isFailure(result), true);
-  });
-});
+        assertEquals(Exit.isFailure(result), true);
+      }),
+    schema,
+  })
+);
 
-Deno.test("searchAnimeEffect reports non-degraded when AniList search succeeds", async () => {
-  await withTestDb(async (db) => {
-    const result = await Effect.runPromise(searchAnimeEffect({
-      aniList: {
-        getAnimeMetadataById: () => Effect.succeed(null),
-        searchAnimeMetadata: () =>
-          Effect.succeed([
-            {
-              already_in_library: false,
-              id: 202,
-              title: { romaji: "Bakemonogatari" },
-            } satisfies AnimeSearchResult,
-          ]),
-      },
-      db,
-      query: "bake",
-    }));
+it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        const result = yield* searchAnimeEffect({
+          aniList: {
+            getAnimeMetadataById: () => Effect.succeed(null),
+            searchAnimeMetadata: () =>
+              Effect.succeed([
+                {
+                  already_in_library: false,
+                  id: 202,
+                  title: { romaji: "Bakemonogatari" },
+                } satisfies AnimeSearchResult,
+              ]),
+          },
+          db: appDb,
+          query: "bake",
+        });
 
-    assertEquals(result.degraded, false);
-    assertEquals(result.results.length, 1);
-    assertEquals(result.results[0]?.id, 202);
-  });
-});
+        assertEquals(result.degraded, false);
+        assertEquals(result.results.length, 1);
+        assertEquals(result.results[0]?.id, 202);
+      }),
+    schema,
+  })
+);
 
 function makeAniListStub(metadata: {
   bannerImage?: string;
@@ -416,290 +465,321 @@ function makeAniListStub(metadata: {
   };
 }
 
-async function withTestDb(
-  run: (db: AppDatabase) => Promise<void>,
-): Promise<void> {
-  await withSqliteTestDb({
+
+it.scoped("listAnimeEffect returns paginated results with defaults", () =>
+  withSqliteTestDbEffect({
     migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
-    run: (db) => run(db as AppDatabase),
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        for (let i = 1; i <= 5; i++) {
+          yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+            id: i,
+            titleRomaji: `Show ${i}`,
+            rootFolder: `/test/${i}`,
+            format: "TV",
+            status: "FINISHED",
+            genres: "[]",
+            studios: "[]",
+            profileName: "Default",
+            releaseProfileIds: "[]",
+            addedAt: "2024-01-01T00:00:00Z",
+            monitored: true,
+          }));
+        }
+
+        const result = yield* listAnimeEffect(appDb);
+
+        assertEquals(result.total, 5);
+        assertEquals(result.offset, 0);
+        assertEquals(result.limit, 100);
+        assertEquals(result.items.length, 5);
+        assertEquals(result.has_more, false);
+      }),
     schema,
-  });
-}
+  })
+);
 
-Deno.test("listAnimeEffect returns paginated results with defaults", async () => {
-  await withTestDb(async (db) => {
-    for (let i = 1; i <= 5; i++) {
-      await db.insert(schema.anime).values({
-        id: i,
-        titleRomaji: `Show ${i}`,
-        rootFolder: `/test/${i}`,
-        format: "TV",
-        status: "FINISHED",
-        genres: "[]",
-        studios: "[]",
-        profileName: "Default",
-        releaseProfileIds: "[]",
-        addedAt: "2024-01-01T00:00:00Z",
-        monitored: true,
-      });
-    }
+it.scoped("listAnimeEffect respects limit and offset", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        for (let i = 1; i <= 10; i++) {
+          yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+            id: i,
+            titleRomaji: `Show ${i}`,
+            rootFolder: `/test/${i}`,
+            format: "TV",
+            status: "FINISHED",
+            genres: "[]",
+            studios: "[]",
+            profileName: "Default",
+            releaseProfileIds: "[]",
+            addedAt: "2024-01-01T00:00:00Z",
+            monitored: true,
+          }));
+        }
 
-    const result = await Effect.runPromise(listAnimeEffect(db));
+        const page1 = yield* listAnimeEffect(appDb, { limit: 3, offset: 0 });
+        assertEquals(page1.items.length, 3);
+        assertEquals(page1.items[0].id, 1);
+        assertEquals(page1.has_more, true);
+        assertEquals(page1.total, 10);
 
-    assertEquals(result.total, 5);
-    assertEquals(result.offset, 0);
-    assertEquals(result.limit, 100);
-    assertEquals(result.items.length, 5);
-    assertEquals(result.has_more, false);
-  });
-});
+        const page2 = yield* listAnimeEffect(appDb, { limit: 3, offset: 3 });
+        assertEquals(page2.items.length, 3);
+        assertEquals(page2.items[0].id, 4);
+        assertEquals(page2.has_more, true);
 
-Deno.test("listAnimeEffect respects limit and offset", async () => {
-  await withTestDb(async (db) => {
-    for (let i = 1; i <= 10; i++) {
-      await db.insert(schema.anime).values({
-        id: i,
-        titleRomaji: `Show ${i}`,
-        rootFolder: `/test/${i}`,
-        format: "TV",
-        status: "FINISHED",
-        genres: "[]",
-        studios: "[]",
-        profileName: "Default",
-        releaseProfileIds: "[]",
-        addedAt: "2024-01-01T00:00:00Z",
-        monitored: true,
-      });
-    }
+        const page4 = yield* listAnimeEffect(appDb, { limit: 3, offset: 9 });
+        assertEquals(page4.items.length, 1);
+        assertEquals(page4.items[0].id, 10);
+        assertEquals(page4.has_more, false);
+      }),
+    schema,
+  })
+);
 
-    const page1 = await Effect.runPromise(
-      listAnimeEffect(db, { limit: 3, offset: 0 }),
-    );
-    assertEquals(page1.items.length, 3);
-    assertEquals(page1.items[0].id, 1);
-    assertEquals(page1.has_more, true);
-    assertEquals(page1.total, 10);
+it.scoped("listAnimeEffect caps limit at 500", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+          id: 1,
+          titleRomaji: "Show",
+          rootFolder: "/test",
+          format: "TV",
+          status: "FINISHED",
+          genres: "[]",
+          studios: "[]",
+          profileName: "Default",
+          releaseProfileIds: "[]",
+          addedAt: "2024-01-01T00:00:00Z",
+          monitored: true,
+        }));
 
-    const page2 = await Effect.runPromise(
-      listAnimeEffect(db, { limit: 3, offset: 3 }),
-    );
-    assertEquals(page2.items.length, 3);
-    assertEquals(page2.items[0].id, 4);
-    assertEquals(page2.has_more, true);
+        const result = yield* listAnimeEffect(appDb, { limit: 1000 });
+        assertEquals(result.limit, 500);
+      }),
+    schema,
+  })
+);
 
-    const page4 = await Effect.runPromise(
-      listAnimeEffect(db, { limit: 3, offset: 9 }),
-    );
-    assertEquals(page4.items.length, 1);
-    assertEquals(page4.items[0].id, 10);
-    assertEquals(page4.has_more, false);
-  });
-});
+it.scoped("listAnimeEffect floors limit at 1", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+          id: 1,
+          titleRomaji: "Show",
+          rootFolder: "/test",
+          format: "TV",
+          status: "FINISHED",
+          genres: "[]",
+          studios: "[]",
+          profileName: "Default",
+          releaseProfileIds: "[]",
+          addedAt: "2024-01-01T00:00:00Z",
+          monitored: true,
+        }));
 
-Deno.test("listAnimeEffect caps limit at 500", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
-      id: 1,
-      titleRomaji: "Show",
-      rootFolder: "/test",
-      format: "TV",
-      status: "FINISHED",
-      genres: "[]",
-      studios: "[]",
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      addedAt: "2024-01-01T00:00:00Z",
-      monitored: true,
-    });
+        const result = yield* listAnimeEffect(appDb, { limit: 0 });
+        assertEquals(result.limit, 1);
+      }),
+    schema,
+  })
+);
 
-    const result = await Effect.runPromise(
-      listAnimeEffect(db, { limit: 1000 }),
-    );
-    assertEquals(result.limit, 500);
-  });
-});
+it.scoped("listAnimeEffect floors negative offset at 0", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+          id: 1,
+          titleRomaji: "Show",
+          rootFolder: "/test",
+          format: "TV",
+          status: "FINISHED",
+          genres: "[]",
+          studios: "[]",
+          profileName: "Default",
+          releaseProfileIds: "[]",
+          addedAt: "2024-01-01T00:00:00Z",
+          monitored: true,
+        }));
 
-Deno.test("listAnimeEffect floors limit at 1", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
-      id: 1,
-      titleRomaji: "Show",
-      rootFolder: "/test",
-      format: "TV",
-      status: "FINISHED",
-      genres: "[]",
-      studios: "[]",
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      addedAt: "2024-01-01T00:00:00Z",
-      monitored: true,
-    });
+        const result = yield* listAnimeEffect(appDb, { offset: -10 });
+        assertEquals(result.offset, 0);
+      }),
+    schema,
+  })
+);
 
-    const result = await Effect.runPromise(listAnimeEffect(db, { limit: 0 }));
-    assertEquals(result.limit, 1);
-  });
-});
+it.scoped("listAnimeEffect aggregates episode download counts", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+          id: 1,
+          titleRomaji: "Show",
+          rootFolder: "/test",
+          format: "TV",
+          status: "FINISHED",
+          genres: "[]",
+          studios: "[]",
+          profileName: "Default",
+          releaseProfileIds: "[]",
+          addedAt: "2024-01-01T00:00:00Z",
+          monitored: true,
+          episodeCount: 3,
+        }));
 
-Deno.test("listAnimeEffect floors negative offset at 0", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
-      id: 1,
-      titleRomaji: "Show",
-      rootFolder: "/test",
-      format: "TV",
-      status: "FINISHED",
-      genres: "[]",
-      studios: "[]",
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      addedAt: "2024-01-01T00:00:00Z",
-      monitored: true,
-    });
+        yield* Effect.tryPromise(() => appDb.insert(schema.episodes).values([
+          { animeId: 1, number: 1, downloaded: true, filePath: "/ep1.mkv" },
+          { animeId: 1, number: 2, downloaded: true, filePath: "/ep2.mkv" },
+          { animeId: 1, number: 3, downloaded: false, filePath: null },
+        ]));
 
-    const result = await Effect.runPromise(
-      listAnimeEffect(db, { offset: -10 }),
-    );
-    assertEquals(result.offset, 0);
-  });
-});
+        const result = yield* listAnimeEffect(appDb);
+        assertEquals(result.items.length, 1);
+        assertEquals(result.items[0].progress.downloaded, 2);
+      }),
+    schema,
+  })
+);
 
-Deno.test("listAnimeEffect aggregates episode download counts", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
-      id: 1,
-      titleRomaji: "Show",
-      rootFolder: "/test",
-      format: "TV",
-      status: "FINISHED",
-      genres: "[]",
-      studios: "[]",
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      addedAt: "2024-01-01T00:00:00Z",
-      monitored: true,
-      episodeCount: 3,
-    });
+it.scoped("listAnimeEffect filters by monitored status", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        yield* Effect.tryPromise(() => appDb.insert(schema.anime).values([
+          {
+            id: 1,
+            titleRomaji: "Monitored Show",
+            rootFolder: "/test/1",
+            format: "TV",
+            status: "FINISHED",
+            genres: "[]",
+            studios: "[]",
+            profileName: "Default",
+            releaseProfileIds: "[]",
+            addedAt: "2024-01-01T00:00:00Z",
+            monitored: true,
+          },
+          {
+            id: 2,
+            titleRomaji: "Unmonitored Show",
+            rootFolder: "/test/2",
+            format: "TV",
+            status: "FINISHED",
+            genres: "[]",
+            studios: "[]",
+            profileName: "Default",
+            releaseProfileIds: "[]",
+            addedAt: "2024-01-01T00:00:00Z",
+            monitored: false,
+          },
+        ]));
 
-    await db.insert(schema.episodes).values([
-      { animeId: 1, number: 1, downloaded: true, filePath: "/ep1.mkv" },
-      { animeId: 1, number: 2, downloaded: true, filePath: "/ep2.mkv" },
-      { animeId: 1, number: 3, downloaded: false, filePath: null },
-    ]);
+        const allResults = yield* listAnimeEffect(appDb);
+        assertEquals(allResults.total, 2);
+        assertEquals(allResults.items.length, 2);
 
-    const result = await Effect.runPromise(listAnimeEffect(db));
-    assertEquals(result.items.length, 1);
-    assertEquals(result.items[0].progress.downloaded, 2);
-  });
-});
+        const monitoredOnly = yield* listAnimeEffect(appDb, { monitored: true });
+        assertEquals(monitoredOnly.total, 1);
+        assertEquals(monitoredOnly.items[0].id, 1);
 
-Deno.test("listAnimeEffect filters by monitored status", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values([
-      {
-        id: 1,
-        titleRomaji: "Monitored Show",
-        rootFolder: "/test/1",
-        format: "TV",
-        status: "FINISHED",
-        genres: "[]",
-        studios: "[]",
-        profileName: "Default",
-        releaseProfileIds: "[]",
-        addedAt: "2024-01-01T00:00:00Z",
-        monitored: true,
-      },
-      {
-        id: 2,
-        titleRomaji: "Unmonitored Show",
-        rootFolder: "/test/2",
-        format: "TV",
-        status: "FINISHED",
-        genres: "[]",
-        studios: "[]",
-        profileName: "Default",
-        releaseProfileIds: "[]",
-        addedAt: "2024-01-01T00:00:00Z",
-        monitored: false,
-      },
-    ]);
+        const unmonitoredOnly = yield* listAnimeEffect(appDb, { monitored: false });
+        assertEquals(unmonitoredOnly.total, 1);
+        assertEquals(unmonitoredOnly.items[0].id, 2);
+      }),
+    schema,
+  })
+);
 
-    const allResults = await Effect.runPromise(listAnimeEffect(db));
-    assertEquals(allResults.total, 2);
-    assertEquals(allResults.items.length, 2);
+it.scoped("listAnimeEffect includes progress and metadata fields needed by list UI", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+          id: 10,
+          titleRomaji: "Detailed Show",
+          rootFolder: "/test/10",
+          format: "TV",
+          status: "RELEASING",
+          genres: '["Action"]',
+          studios: '["Studio A"]',
+          score: 87,
+          profileName: "Default",
+          releaseProfileIds: "[1,2]",
+          addedAt: "2024-01-01T00:00:00Z",
+          monitored: true,
+          episodeCount: 3,
+        }));
 
-    const monitoredOnly = await Effect.runPromise(
-      listAnimeEffect(db, { monitored: true }),
-    );
-    assertEquals(monitoredOnly.total, 1);
-    assertEquals(monitoredOnly.items[0].id, 1);
+        yield* Effect.tryPromise(() => appDb.insert(schema.episodes).values([
+          { animeId: 10, number: 1, downloaded: true, filePath: "/ep1.mkv" },
+          { animeId: 10, number: 2, downloaded: false, filePath: null },
+          { animeId: 10, number: 3, downloaded: false, filePath: null },
+        ]));
 
-    const unmonitoredOnly = await Effect.runPromise(
-      listAnimeEffect(db, { monitored: false }),
-    );
-    assertEquals(unmonitoredOnly.total, 1);
-    assertEquals(unmonitoredOnly.items[0].id, 2);
-  });
-});
+        const result = yield* listAnimeEffect(appDb);
+        assertEquals(result.items.length, 1);
 
-Deno.test("listAnimeEffect includes progress and metadata fields needed by list UI", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
-      id: 10,
-      titleRomaji: "Detailed Show",
-      rootFolder: "/test/10",
-      format: "TV",
-      status: "RELEASING",
-      genres: '["Action"]',
-      studios: '["Studio A"]',
-      score: 87,
-      profileName: "Default",
-      releaseProfileIds: "[1,2]",
-      addedAt: "2024-01-01T00:00:00Z",
-      monitored: true,
-      episodeCount: 3,
-    });
+        const anime = result.items[0];
+        assertEquals(anime.progress.downloaded, 1);
+        assertEquals(anime.progress.total, 3);
+        assertEquals(anime.progress.downloaded_percent, 33);
+        assertEquals(anime.progress.is_up_to_date, false);
+        assertEquals(anime.progress.latest_downloaded_episode, 1);
+        assertEquals(anime.progress.next_missing_episode, 2);
+        assertEquals(anime.progress.missing, [2, 3]);
+        assertEquals(anime.score, 87);
+        assertEquals(anime.studios, ["Studio A"]);
+        assertEquals(anime.release_profile_ids, [1, 2]);
+        assertEquals(anime.genres, ["Action"]);
+      }),
+    schema,
+  })
+);
 
-    await db.insert(schema.episodes).values([
-      { animeId: 10, number: 1, downloaded: true, filePath: "/ep1.mkv" },
-      { animeId: 10, number: 2, downloaded: false, filePath: null },
-      { animeId: 10, number: 3, downloaded: false, filePath: null },
-    ]);
+it.scoped("listAnimeEffect fails when stored anime JSON metadata is corrupt", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        yield* Effect.tryPromise(() => appDb.insert(schema.anime).values({
+          id: 10,
+          titleRomaji: "Broken Show",
+          rootFolder: "/test/10",
+          format: "TV",
+          status: "RELEASING",
+          genres: "not-json",
+          monitored: true,
+          profileName: "Default",
+          releaseProfileIds: "[]",
+          addedAt: "2024-01-01T00:00:00Z",
+          studios: "[]",
+        }));
 
-    const result = await Effect.runPromise(listAnimeEffect(db));
-    assertEquals(result.items.length, 1);
-
-    const anime = result.items[0];
-    assertEquals(anime.progress.downloaded, 1);
-    assertEquals(anime.progress.total, 3);
-    assertEquals(anime.progress.downloaded_percent, 33);
-    assertEquals(anime.progress.is_up_to_date, false);
-    assertEquals(anime.progress.latest_downloaded_episode, 1);
-    assertEquals(anime.progress.next_missing_episode, 2);
-    assertEquals(anime.progress.missing, [2, 3]);
-    assertEquals(anime.score, 87);
-    assertEquals(anime.studios, ["Studio A"]);
-    assertEquals(anime.release_profile_ids, [1, 2]);
-    assertEquals(anime.genres, ["Action"]);
-  });
-});
-
-Deno.test("listAnimeEffect fails when stored anime JSON metadata is corrupt", async () => {
-  await withTestDb(async (db) => {
-    await db.insert(schema.anime).values({
-      id: 10,
-      titleRomaji: "Broken Show",
-      rootFolder: "/test/10",
-      format: "TV",
-      status: "RELEASING",
-      genres: "not-json",
-      monitored: true,
-      profileName: "Default",
-      releaseProfileIds: "[]",
-      addedAt: "2024-01-01T00:00:00Z",
-      studios: "[]",
-    });
-
-    const result = await runTestEffectExit(listAnimeEffect(db));
-    assertEquals(Exit.isFailure(result), true);
-  });
-});
+        const result = yield* Effect.exit(listAnimeEffect(appDb));
+        assertEquals(Exit.isFailure(result), true);
+      }),
+    schema,
+  })
+);

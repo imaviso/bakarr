@@ -1,13 +1,12 @@
-/// <reference lib="deno.ns" />
-
+import { it } from "~/test/vitest";
 import {
   formatReleaseParsedSummary,
   formatReleaseSourceSummary,
   getReleaseFlags,
   releaseFlagBadgeClass,
-} from "./release-metadata.ts";
+} from "./release-metadata";
 
-Deno.test("release metadata helpers format shared source and parsed summaries", () => {
+it("release metadata helpers format shared source and parsed summaries", () => {
   const sourceSummary = formatReleaseSourceSummary({
     group: "SubsPlease",
     indexer: "Nyaa",
@@ -28,7 +27,7 @@ Deno.test("release metadata helpers format shared source and parsed summaries", 
   }
 });
 
-Deno.test("release metadata helpers expose consistent flag order and styles", () => {
+it("release metadata helpers expose consistent flag order and styles", () => {
   const flags = getReleaseFlags({
     is_seadex_best: true,
     remake: true,

@@ -1,13 +1,12 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { Effect } from "effect";
 
 import { anime } from "../../db/schema.ts";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 import {
-  makeNoopTestFileSystemWithOverrides,
+  makeNoopTestFileSystemWithOverridesEffect,
   readTextFile,
-  withFileSystemSandbox,
+  withFileSystemSandboxEffect,
   writeTextFile,
 } from "../../test/filesystem-test.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
@@ -18,7 +17,7 @@ import {
   shouldRemoveTorrentOnImport,
 } from "./download-support.ts";
 
-Deno.test("download support helpers use config values and defaults", () => {
+it("download support helpers use config values and defaults", () => {
   const config = {
     profiles: [],
     ...makeDefaultConfig("./test.sqlite"),
@@ -39,63 +38,63 @@ Deno.test("download support helpers use config values and defaults", () => {
   assertEquals(shouldDeleteImportedData(undefined), false);
 });
 
-Deno.test("importDownloadedFile keeps existing destination when staging copy fails", async () => {
-  await withFileSystemSandbox(async ({ fs, root }) => {
-    const { animeRoot, sourceRoot } = await makeImportRoots(fs, root);
-    const sourcePath = `${sourceRoot}/Naruto - 01.mkv`;
-    const destinationPath = `${animeRoot}/Naruto - 01.mkv`;
+it.scoped("importDownloadedFile keeps existing destination when staging copy fails", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath = `${sourceRoot}/Naruto - 01.mkv`;
+      const destinationPath = `${animeRoot}/Naruto - 01.mkv`;
 
-    await runTestEffect(writeTextFile(fs, sourcePath, "incoming"));
-    await runTestEffect(writeTextFile(fs, destinationPath, "existing"));
+      yield* writeTextFile(fs, sourcePath, "incoming");
+      yield* writeTextFile(fs, destinationPath, "existing");
 
-    const failingFs = await makeNoopTestFileSystemWithOverrides({
-      ...fs,
-      copyFile: (from) =>
-        Effect.fail(
-          new FileSystemError({
-            cause: new Error("copy failed"),
-            message: "Failed to copy file",
-            path: from,
-          }),
+      const failingFs = yield* makeNoopTestFileSystemWithOverridesEffect({
+        ...fs,
+        copyFile: (from) =>
+          Effect.fail(
+            new FileSystemError({
+              cause: new Error("copy failed"),
+              message: "Failed to copy file",
+              path: from,
+            }),
+          ),
+      });
+
+      const exit = yield* Effect.exit(
+        importDownloadedFile(
+          failingFs,
+          {
+            rootFolder: animeRoot,
+            titleRomaji: "Naruto",
+          } as typeof anime.$inferSelect,
+          1,
+          sourcePath,
+          "copy",
         ),
-    });
+      );
 
-    const exit = await runTestEffectExit(
-      importDownloadedFile(
-        failingFs,
-        {
-          rootFolder: animeRoot,
-          titleRomaji: "Naruto",
-        } as typeof anime.$inferSelect,
-        1,
-        sourcePath,
-        "copy",
-      ),
-    );
+      assertEquals(exit._tag, "Failure");
+      const destinationContents = yield* readTextFile(fs, destinationPath);
+      assertEquals(destinationContents, "existing");
+    }),
+  )
+);
 
-    assertEquals(exit._tag, "Failure");
-    const destinationContents = await runTestEffect(
-      readTextFile(fs, destinationPath),
-    );
-    assertEquals(destinationContents, "existing");
-  });
-});
-
-Deno.test("importDownloadedFile applies configured naming tokens from source filename metadata", async () => {
+it.scoped("importDownloadedFile applies configured naming tokens from source filename metadata", () => {
   const namingFormat =
     "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
 
-  await withFileSystemSandbox(async ({ fs, root }) => {
-    const { animeRoot, sourceRoot } = await makeImportRoots(fs, root);
-    const sourcePath =
-      `${sourceRoot}/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC][SubsPlus+].mkv`;
-    const expectedDestination =
-      `${animeRoot}/Rock Is a Lady's Modesty - S01E01 - Good Day to You Quit Playing the Guitar!!! [WEB-DL 1080p][AVC][AAC 2.0][SubsPlus+].mkv`;
+  return withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath =
+        `${sourceRoot}/Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC][SubsPlus+].mkv`;
+      const expectedDestination =
+        `${animeRoot}/Rock Is a Lady's Modesty - S01E01 - Good Day to You Quit Playing the Guitar!!! [WEB-DL 1080p][AVC][AAC 2.0][SubsPlus+].mkv`;
 
-    await runTestEffect(writeTextFile(fs, sourcePath, "incoming"));
+      yield* writeTextFile(fs, sourcePath, "incoming");
 
-    const destination = await runTestEffect(
-      importDownloadedFile(
+      const destination = yield* importDownloadedFile(
         fs,
         {
           rootFolder: animeRoot,
@@ -107,28 +106,25 @@ Deno.test("importDownloadedFile applies configured naming tokens from source fil
         sourcePath,
         "copy",
         { namingFormat },
-      ),
-    );
+      );
 
-    assertEquals(destination, expectedDestination);
-    assertEquals(
-      await runTestEffect(readTextFile(fs, destination)),
-      "incoming",
-    );
-    assertEquals(await runTestEffect(readTextFile(fs, sourcePath)), "incoming");
-  });
+      assertEquals(destination, expectedDestination);
+      assertEquals(yield* readTextFile(fs, destination), "incoming");
+      assertEquals(yield* readTextFile(fs, sourcePath), "incoming");
+    }),
+  );
 });
 
-Deno.test("importDownloadedFile respects preferred title when building destination", async () => {
-  await withFileSystemSandbox(async ({ fs, root }) => {
-    const { animeRoot, sourceRoot } = await makeImportRoots(fs, root);
-    const sourcePath = `${sourceRoot}/movie-source-file.mkv`;
-    const expectedDestination = `${animeRoot}/Your Name. (2016).mkv`;
+it.scoped("importDownloadedFile respects preferred title when building destination", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath = `${sourceRoot}/movie-source-file.mkv`;
+      const expectedDestination = `${animeRoot}/Your Name. (2016).mkv`;
 
-    await runTestEffect(writeTextFile(fs, sourcePath, "incoming"));
+      yield* writeTextFile(fs, sourcePath, "incoming");
 
-    const destination = await runTestEffect(
-      importDownloadedFile(
+      const destination = yield* importDownloadedFile(
         fs,
         {
           format: "MOVIE",
@@ -146,23 +142,23 @@ Deno.test("importDownloadedFile respects preferred title when building destinati
           namingFormat: "{title} ({year})",
           preferredTitle: "english",
         },
-      ),
-    );
+      );
 
-    assertEquals(destination, expectedDestination);
-  });
-});
+      assertEquals(destination, expectedDestination);
+    }),
+  )
+);
 
-Deno.test("importDownloadedFile uses episode DB metadata and fallback naming plan", async () => {
-  await withFileSystemSandbox(async ({ fs, root }) => {
-    const { animeRoot, sourceRoot } = await makeImportRoots(fs, root);
-    const sourcePath = `${sourceRoot}/Show - 01.mkv`;
-    const expectedDestination = `${animeRoot}/Show - 01.mkv`;
+it.scoped("importDownloadedFile uses episode DB metadata and fallback naming plan", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath = `${sourceRoot}/Show - 01.mkv`;
+      const expectedDestination = `${animeRoot}/Show - 01.mkv`;
 
-    await runTestEffect(writeTextFile(fs, sourcePath, "incoming"));
+      yield* writeTextFile(fs, sourcePath, "incoming");
 
-    const destination = await runTestEffect(
-      importDownloadedFile(
+      const destination = yield* importDownloadedFile(
         fs,
         {
           format: "TV",
@@ -179,23 +175,23 @@ Deno.test("importDownloadedFile uses episode DB metadata and fallback naming pla
           namingFormat: "{title} - S{season:02}E{episode:02}",
           preferredTitle: "romaji",
         },
-      ),
-    );
+      );
 
-    assertEquals(destination, expectedDestination);
-  });
-});
+      assertEquals(destination, expectedDestination);
+    }),
+  )
+);
 
-Deno.test("importDownloadedFile reuses stored provenance when source path is weak", async () => {
-  await withFileSystemSandbox(async ({ fs, root }) => {
-    const { animeRoot, sourceRoot } = await makeImportRoots(fs, root);
-    const sourcePath = `${sourceRoot}/download.mkv`;
-    const expectedDestination = `${animeRoot}/Show - 01 [WEB-DL 1080p].mkv`;
+it.scoped("importDownloadedFile reuses stored provenance when source path is weak", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath = `${sourceRoot}/download.mkv`;
+      const expectedDestination = `${animeRoot}/Show - 01 [WEB-DL 1080p].mkv`;
 
-    await runTestEffect(writeTextFile(fs, sourcePath, "incoming"));
+      yield* writeTextFile(fs, sourcePath, "incoming");
 
-    const destination = await runTestEffect(
-      importDownloadedFile(
+      const destination = yield* importDownloadedFile(
         fs,
         {
           format: "TV",
@@ -221,24 +217,24 @@ Deno.test("importDownloadedFile reuses stored provenance when source path is wea
             "{title} - {source_episode_segment} [{quality} {resolution}]",
           preferredTitle: "romaji",
         },
-      ),
-    );
+      );
 
-    assertEquals(destination, expectedDestination);
-  });
-});
+      assertEquals(destination, expectedDestination);
+    }),
+  )
+);
 
-Deno.test("importDownloadedFile uses local media metadata when heuristics are missing", async () => {
-  await withFileSystemSandbox(async ({ fs, root }) => {
-    const { animeRoot, sourceRoot } = await makeImportRoots(fs, root);
-    const sourcePath = `${sourceRoot}/download.mkv`;
-    const expectedDestination =
-      `${animeRoot}/Show - 01 [1080p][HEVC][AAC 2.0].mkv`;
+it.scoped("importDownloadedFile uses local media metadata when heuristics are missing", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath = `${sourceRoot}/download.mkv`;
+      const expectedDestination =
+        `${animeRoot}/Show - 01 [1080p][HEVC][AAC 2.0].mkv`;
 
-    await runTestEffect(writeTextFile(fs, sourcePath, "incoming"));
+      yield* writeTextFile(fs, sourcePath, "incoming");
 
-    const destination = await runTestEffect(
-      importDownloadedFile(
+      const destination = yield* importDownloadedFile(
         fs,
         {
           format: "TV",
@@ -261,20 +257,20 @@ Deno.test("importDownloadedFile uses local media metadata when heuristics are mi
             "{title} - {source_episode_segment} [{resolution}][{video_codec}][{audio_codec} {audio_channels}]",
           preferredTitle: "romaji",
         },
-      ),
-    );
+      );
 
-    assertEquals(destination, expectedDestination);
-  });
-});
+      assertEquals(destination, expectedDestination);
+    }),
+  )
+);
 
-async function makeImportRoots(
+const makeImportRoots = Effect.fn("Test.makeImportRoots")(function* (
   fs: FileSystemShape,
   root: string,
 ) {
   const animeRoot = `${root}/anime`;
   const sourceRoot = `${root}/source`;
-  await runTestEffect(fs.mkdir(animeRoot, { recursive: true }));
-  await runTestEffect(fs.mkdir(sourceRoot, { recursive: true }));
+  yield* fs.mkdir(animeRoot, { recursive: true });
+  yield* fs.mkdir(sourceRoot, { recursive: true });
   return { animeRoot, sourceRoot };
-}
+});

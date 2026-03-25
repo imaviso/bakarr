@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { CommandExecutor } from "@effect/platform";
 import { Effect, Exit, Layer } from "effect";
 
@@ -8,11 +8,10 @@ import {
   mapBlockStatsToDiskSpace,
   selectStoragePath,
 } from "./disk-space.ts";
-import { runTestEffect, runTestEffectExit } from "../../test/effect-test.ts";
 
 const baseConfig = { ...makeDefaultConfig("./test.sqlite"), profiles: [] };
 
-Deno.test("mapBlockStatsToDiskSpace converts block stats to bytes", () => {
+it("mapBlockStatsToDiskSpace converts block stats to bytes", () => {
   const result = mapBlockStatsToDiskSpace({
     bavail: 25n,
     blocks: 100n,
@@ -22,7 +21,7 @@ Deno.test("mapBlockStatsToDiskSpace converts block stats to bytes", () => {
   assertEquals(result, { free: 102400, total: 409600 });
 });
 
-Deno.test("selectStoragePath prefers library_path", () => {
+it("selectStoragePath prefers library_path", () => {
   const config = {
     ...baseConfig,
     library: { ...baseConfig.library, library_path: "/library" },
@@ -32,7 +31,7 @@ Deno.test("selectStoragePath prefers library_path", () => {
   assertEquals(selectStoragePath(config, "/runtime/test.sqlite"), "/library");
 });
 
-Deno.test("selectStoragePath falls back to downloads root_path", () => {
+it("selectStoragePath falls back to downloads root_path", () => {
   const config = {
     ...baseConfig,
     library: { ...baseConfig.library, library_path: "" },
@@ -42,7 +41,7 @@ Deno.test("selectStoragePath falls back to downloads root_path", () => {
   assertEquals(selectStoragePath(config, "/runtime/test.sqlite"), "/downloads");
 });
 
-Deno.test("selectStoragePath falls back to runtime database path", () => {
+it("selectStoragePath falls back to runtime database path", () => {
   const config = {
     ...baseConfig,
     library: { ...baseConfig.library, library_path: "" },
@@ -56,14 +55,17 @@ Deno.test("selectStoragePath falls back to runtime database path", () => {
   );
 });
 
-Deno.test("getDiskSpaceSafe fails on error instead of fabricating zeros", async () => {
-  const result = await runTestEffectExit(
-    getDiskSpaceSafe("/nonexistent/path/that/does/not/exist"),
-  );
-  assertEquals(Exit.isFailure(result), true);
-});
+it.effect("getDiskSpaceSafe fails on error instead of fabricating zeros", () =>
+  Effect.gen(function* () {
+    const result = yield* Effect.exit(
+      getDiskSpaceSafe("/nonexistent/path/that/does/not/exist"),
+    );
+    assertEquals(Exit.isFailure(result), true);
+  })
+);
 
-Deno.test("getDiskSpaceSafe returns real values for valid path", async () => {
+it.effect("getDiskSpaceSafe returns real values for valid path", () =>
+  Effect.gen(function* () {
   const commandExecutorStub = makeCommandExecutorStub((command) => {
     if (command.command !== "df") {
       return Effect.die(new Error(`unexpected command: ${command.command}`));
@@ -74,19 +76,18 @@ Deno.test("getDiskSpaceSafe returns real values for valid path", async () => {
     );
   });
 
-  const result = await runTestEffect(
-    getDiskSpaceSafe("/tmp").pipe(
+    const result = yield* getDiskSpaceSafe("/tmp").pipe(
       Effect.provide(
         Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub),
       ),
-    ),
-  );
+    );
 
-  assertEquals(typeof result.free, "number");
-  assertEquals(typeof result.total, "number");
-  assertEquals(result.free, 768000);
-  assertEquals(result.total, 1024000);
-});
+    assertEquals(typeof result.free, "number");
+    assertEquals(typeof result.total, "number");
+    assertEquals(result.free, 768000);
+    assertEquals(result.total, 1024000);
+  })
+);
 
 function makeCommandExecutorStub(
   runAsString: (

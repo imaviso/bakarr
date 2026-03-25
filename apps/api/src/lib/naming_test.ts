@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../test/vitest.ts";
 import { type NamingInput, renderEpisodeFilename } from "./naming.ts";
 
 function makeInput(overrides: Partial<NamingInput> = {}): NamingInput {
@@ -9,14 +9,14 @@ function makeInput(overrides: Partial<NamingInput> = {}): NamingInput {
   };
 }
 
-Deno.test("naming: {title} renders anime title", () => {
+it("naming: {title} renders anime title", () => {
   assertEquals(
     renderEpisodeFilename("{title}", makeInput({ title: "Naruto" })),
     "Naruto",
   );
 });
 
-Deno.test("naming: {title} sanitizes filesystem-unsafe characters", () => {
+it("naming: {title} sanitizes filesystem-unsafe characters", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title}",
@@ -26,42 +26,42 @@ Deno.test("naming: {title} sanitizes filesystem-unsafe characters", () => {
   );
 });
 
-Deno.test("naming: {episode} pads to 2 digits by default", () => {
+it("naming: {episode} pads to 2 digits by default", () => {
   assertEquals(
     renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [5] })),
     "05",
   );
 });
 
-Deno.test("naming: {episode:02} pads to 2 digits", () => {
+it("naming: {episode:02} pads to 2 digits", () => {
   assertEquals(
     renderEpisodeFilename("{episode:02}", makeInput({ episodeNumbers: [3] })),
     "03",
   );
 });
 
-Deno.test("naming: {episode:03} pads to 3 digits", () => {
+it("naming: {episode:03} pads to 3 digits", () => {
   assertEquals(
     renderEpisodeFilename("{episode:03}", makeInput({ episodeNumbers: [5] })),
     "005",
   );
 });
 
-Deno.test("naming: {episode} with large number does not truncate", () => {
+it("naming: {episode} with large number does not truncate", () => {
   assertEquals(
     renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [142] })),
     "142",
   );
 });
 
-Deno.test("naming: {episode} with no episodes uses 0", () => {
+it("naming: {episode} with no episodes uses 0", () => {
   assertEquals(
     renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [] })),
     "00",
   );
 });
 
-Deno.test("naming: {episode_segment} single episode", () => {
+it("naming: {episode_segment} single episode", () => {
   assertEquals(
     renderEpisodeFilename(
       "{episode_segment}",
@@ -71,7 +71,7 @@ Deno.test("naming: {episode_segment} single episode", () => {
   );
 });
 
-Deno.test("naming: {episode_segment} multi-episode range", () => {
+it("naming: {episode_segment} multi-episode range", () => {
   assertEquals(
     renderEpisodeFilename(
       "{episode_segment}",
@@ -81,7 +81,7 @@ Deno.test("naming: {episode_segment} multi-episode range", () => {
   );
 });
 
-Deno.test("naming: {episode_segment} episode >= 100 uses 3-digit pad", () => {
+it("naming: {episode_segment} episode >= 100 uses 3-digit pad", () => {
   assertEquals(
     renderEpisodeFilename(
       "{episode_segment}",
@@ -91,7 +91,7 @@ Deno.test("naming: {episode_segment} episode >= 100 uses 3-digit pad", () => {
   );
 });
 
-Deno.test("naming: {source_episode_segment} uses source label when available", () => {
+it("naming: {source_episode_segment} uses source label when available", () => {
   assertEquals(
     renderEpisodeFilename(
       "{source_episode_segment}",
@@ -108,7 +108,7 @@ Deno.test("naming: {source_episode_segment} uses source label when available", (
   );
 });
 
-Deno.test("naming: {source_episode_segment} falls back to segment when no source", () => {
+it("naming: {source_episode_segment} falls back to segment when no source", () => {
   assertEquals(
     renderEpisodeFilename(
       "{source_episode_segment}",
@@ -118,58 +118,58 @@ Deno.test("naming: {source_episode_segment} falls back to segment when no source
   );
 });
 
-Deno.test("naming: {season} pads to 2 digits by default", () => {
+it("naming: {season} pads to 2 digits by default", () => {
   assertEquals(
     renderEpisodeFilename("{season}", makeInput({ season: 2 })),
     "02",
   );
 });
 
-Deno.test("naming: {season:02} pads to 2 digits", () => {
+it("naming: {season:02} pads to 2 digits", () => {
   assertEquals(
     renderEpisodeFilename("{season:02}", makeInput({ season: 1 })),
     "01",
   );
 });
 
-Deno.test("naming: {season} renders empty when not provided", () => {
+it("naming: {season} renders empty when not provided", () => {
   assertEquals(renderEpisodeFilename("{season}", makeInput()), "");
 });
 
-Deno.test("naming: {air_date} renders date", () => {
+it("naming: {air_date} renders date", () => {
   assertEquals(
     renderEpisodeFilename("{air_date}", makeInput({ airDate: "2025-03-14" })),
     "2025-03-14",
   );
 });
 
-Deno.test("naming: {air_date} renders empty when not provided", () => {
+it("naming: {air_date} renders empty when not provided", () => {
   assertEquals(renderEpisodeFilename("{air_date}", makeInput()), "");
 });
 
-Deno.test("naming: {group} renders release group", () => {
+it("naming: {group} renders release group", () => {
   assertEquals(
     renderEpisodeFilename("{group}", makeInput({ group: "SubsPlease" })),
     "SubsPlease",
   );
 });
 
-Deno.test("naming: {group} renders empty when not provided", () => {
+it("naming: {group} renders empty when not provided", () => {
   assertEquals(renderEpisodeFilename("{group}", makeInput()), "");
 });
 
-Deno.test("naming: {resolution} renders resolution", () => {
+it("naming: {resolution} renders resolution", () => {
   assertEquals(
     renderEpisodeFilename("{resolution}", makeInput({ resolution: "1080p" })),
     "1080p",
   );
 });
 
-Deno.test("naming: {resolution} renders empty when not provided", () => {
+it("naming: {resolution} renders empty when not provided", () => {
   assertEquals(renderEpisodeFilename("{resolution}", makeInput()), "");
 });
 
-Deno.test("naming: default format '{title} - {episode_segment}'", () => {
+it("naming: default format '{title} - {episode_segment}'", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {episode_segment}",
@@ -179,7 +179,7 @@ Deno.test("naming: default format '{title} - {episode_segment}'", () => {
   );
 });
 
-Deno.test("naming: complex format with all tokens", () => {
+it("naming: complex format with all tokens", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} - [{group}] [{resolution}]",
@@ -195,7 +195,7 @@ Deno.test("naming: complex format with all tokens", () => {
   );
 });
 
-Deno.test("naming: format with multiple episode tokens", () => {
+it("naming: format with multiple episode tokens", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {episode_segment} ({episode:03})",
@@ -205,7 +205,7 @@ Deno.test("naming: format with multiple episode tokens", () => {
   );
 });
 
-Deno.test("naming: cleans up dangling separator when group is empty", () => {
+it("naming: cleans up dangling separator when group is empty", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {episode_segment} - {group}",
@@ -215,7 +215,7 @@ Deno.test("naming: cleans up dangling separator when group is empty", () => {
   );
 });
 
-Deno.test("naming: cleans up leading separator when title token is first and empty optional follows", () => {
+it("naming: cleans up leading separator when title token is first and empty optional follows", () => {
   assertEquals(
     renderEpisodeFilename(
       "{group} - {title} - {episode_segment}",
@@ -225,7 +225,7 @@ Deno.test("naming: cleans up leading separator when title token is first and emp
   );
 });
 
-Deno.test("naming: cleans up multiple dangling separators", () => {
+it("naming: cleans up multiple dangling separators", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {group} - {resolution} - {episode_segment}",
@@ -235,7 +235,7 @@ Deno.test("naming: cleans up multiple dangling separators", () => {
   );
 });
 
-Deno.test("naming: token used multiple times in format", () => {
+it("naming: token used multiple times in format", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title}/{title} - {episode_segment}",
@@ -245,7 +245,7 @@ Deno.test("naming: token used multiple times in format", () => {
   );
 });
 
-Deno.test("naming: unknown tokens are left as-is", () => {
+it("naming: unknown tokens are left as-is", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {unknown_token}",
@@ -259,7 +259,7 @@ Deno.test("naming: unknown tokens are left as-is", () => {
 // Sonarr-style realistic filenames
 // ---------------------------------------------------------------------------
 
-Deno.test("naming: JoJo Sonarr-style S{season}E{episode} with apostrophe and year in title", () => {
+it("naming: JoJo Sonarr-style S{season}E{episode} with apostrophe and year in title", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} [{group}][{resolution}]",
@@ -275,7 +275,7 @@ Deno.test("naming: JoJo Sonarr-style S{season}E{episode} with apostrophe and yea
   );
 });
 
-Deno.test("naming: JoJo with source_episode_segment from parsed identity", () => {
+it("naming: JoJo with source_episode_segment from parsed identity", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {source_episode_segment} [{group}][{resolution}]",
@@ -297,7 +297,7 @@ Deno.test("naming: JoJo with source_episode_segment from parsed identity", () =>
   );
 });
 
-Deno.test("naming: JoJo with empty optional tokens cleans up empty brackets", () => {
+it("naming: JoJo with empty optional tokens cleans up empty brackets", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} - [{group}][{resolution}]",
@@ -311,7 +311,7 @@ Deno.test("naming: JoJo with empty optional tokens cleans up empty brackets", ()
   );
 });
 
-Deno.test("naming: Nukitashi Sonarr-style with group and resolution", () => {
+it("naming: Nukitashi Sonarr-style with group and resolution", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} [{group}][{resolution}]",
@@ -327,7 +327,7 @@ Deno.test("naming: Nukitashi Sonarr-style with group and resolution", () => {
   );
 });
 
-Deno.test("naming: Nukitashi with source_episode_segment", () => {
+it("naming: Nukitashi with source_episode_segment", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {source_episode_segment} [{group}][{resolution}]",
@@ -349,7 +349,7 @@ Deno.test("naming: Nukitashi with source_episode_segment", () => {
   );
 });
 
-Deno.test("naming: partial optional tokens — group filled, resolution empty", () => {
+it("naming: partial optional tokens — group filled, resolution empty", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} [{group}][{resolution}]",
@@ -364,7 +364,7 @@ Deno.test("naming: partial optional tokens — group filled, resolution empty", 
   );
 });
 
-Deno.test("naming: {episode_title} renders episode title", () => {
+it("naming: {episode_title} renders episode title", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {episode_segment} - {episode_title}",
@@ -378,7 +378,7 @@ Deno.test("naming: {episode_title} renders episode title", () => {
   );
 });
 
-Deno.test("naming: {episode_title} empty when not provided", () => {
+it("naming: {episode_title} empty when not provided", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {episode_segment} - {episode_title}",
@@ -388,7 +388,7 @@ Deno.test("naming: {episode_title} empty when not provided", () => {
   );
 });
 
-Deno.test("naming: {year} renders start year", () => {
+it("naming: {year} renders start year", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} ({year}) - {episode_segment}",
@@ -402,7 +402,7 @@ Deno.test("naming: {year} renders start year", () => {
   );
 });
 
-Deno.test("naming: {year} empty cleans up parentheses", () => {
+it("naming: {year} empty cleans up parentheses", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} ({year}) - {episode_segment}",
@@ -412,14 +412,14 @@ Deno.test("naming: {year} empty cleans up parentheses", () => {
   );
 });
 
-Deno.test("naming: {quality} renders quality source", () => {
+it("naming: {quality} renders quality source", () => {
   assertEquals(
     renderEpisodeFilename("{quality}", makeInput({ quality: "WEB-DL" })),
     "WEB-DL",
   );
 });
 
-Deno.test("naming: {quality} empty when not provided", () => {
+it("naming: {quality} empty when not provided", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - {quality}",
@@ -429,7 +429,7 @@ Deno.test("naming: {quality} empty when not provided", () => {
   );
 });
 
-Deno.test("naming: {quality} omits duplicated resolution when {resolution} is present", () => {
+it("naming: {quality} omits duplicated resolution when {resolution} is present", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - [{quality} {resolution}]",
@@ -443,7 +443,7 @@ Deno.test("naming: {quality} omits duplicated resolution when {resolution} is pr
   );
 });
 
-Deno.test("naming: {quality} can become empty when it only repeats resolution", () => {
+it("naming: {quality} can become empty when it only repeats resolution", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - [{quality} {resolution}]",
@@ -457,14 +457,14 @@ Deno.test("naming: {quality} can become empty when it only repeats resolution", 
   );
 });
 
-Deno.test("naming: {video_codec} renders codec", () => {
+it("naming: {video_codec} renders codec", () => {
   assertEquals(
     renderEpisodeFilename("[{video_codec}]", makeInput({ videoCodec: "x265" })),
     "[x265]",
   );
 });
 
-Deno.test("naming: {video_codec} empty cleans up brackets", () => {
+it("naming: {video_codec} empty cleans up brackets", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} [{video_codec}]",
@@ -474,14 +474,14 @@ Deno.test("naming: {video_codec} empty cleans up brackets", () => {
   );
 });
 
-Deno.test("naming: {audio_codec} renders codec", () => {
+it("naming: {audio_codec} renders codec", () => {
   assertEquals(
     renderEpisodeFilename("[{audio_codec}]", makeInput({ audioCodec: "FLAC" })),
     "[FLAC]",
   );
 });
 
-Deno.test("naming: {audio_channels} renders channel layout", () => {
+it("naming: {audio_channels} renders channel layout", () => {
   assertEquals(
     renderEpisodeFilename(
       "[{audio_channels}]",
@@ -491,7 +491,7 @@ Deno.test("naming: {audio_channels} renders channel layout", () => {
   );
 });
 
-Deno.test("naming: full JoJo Sonarr-style with episode title and codecs", () => {
+it("naming: full JoJo Sonarr-style with episode title and codecs", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} ({year}) - S{season:02}E{episode:02} - {episode_title} [{quality}-{resolution}][{audio_codec} {audio_channels}][{video_codec}]",
@@ -512,7 +512,7 @@ Deno.test("naming: full JoJo Sonarr-style with episode title and codecs", () => 
   );
 });
 
-Deno.test("naming: full Nukitashi Sonarr-style with all new tokens", () => {
+it("naming: full Nukitashi Sonarr-style with all new tokens", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} - {episode_title} [{quality}-{resolution}][{audio_codec} {audio_channels}][{video_codec}] - [{group}]",
@@ -533,7 +533,7 @@ Deno.test("naming: full Nukitashi Sonarr-style with all new tokens", () => {
   );
 });
 
-Deno.test("naming: wrapped segments collapse empty inner tokens", () => {
+it("naming: wrapped segments collapse empty inner tokens", () => {
   assertEquals(
     renderEpisodeFilename(
       "{title} - [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]",

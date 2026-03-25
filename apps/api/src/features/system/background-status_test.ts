@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { initialBackgroundWorkerSnapshot } from "../../background-worker-model.ts";
@@ -9,7 +9,7 @@ import {
   findBackgroundJobStatus,
 } from "./background-status.ts";
 
-Deno.test("background status composes persisted job rows with live running state", () => {
+it("background status composes persisted job rows with live running state", () => {
   const config: Config = {
     ...makeDefaultConfig("./test.sqlite"),
     profiles: [],
@@ -45,7 +45,7 @@ Deno.test("background status composes persisted job rows with live running state
   assertEquals(countRunningBackgroundJobStatuses(jobs), 1);
 });
 
-Deno.test("background status falls back to live failure details for workers without history rows", () => {
+it("background status falls back to live failure details for workers without history rows", () => {
   const config: Config = {
     ...makeDefaultConfig("./test.sqlite"),
     profiles: [],

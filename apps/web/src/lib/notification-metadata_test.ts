@@ -1,11 +1,10 @@
-/// <reference lib="deno.ns" />
-
+import { it } from "~/test/vitest";
 import {
   formatDownloadNotificationDescription,
   getNotificationToastCopy,
-} from "./notification-metadata.ts";
+} from "./notification-metadata";
 
-Deno.test("notification metadata formats rich download descriptions", () => {
+it("notification metadata formats rich download descriptions", () => {
   const description = formatDownloadNotificationDescription({
     imported_path: "/library/Show/Show - 01.mkv",
     source_metadata: {
@@ -40,7 +39,7 @@ Deno.test("notification metadata formats rich download descriptions", () => {
   }
 });
 
-Deno.test("notification metadata exposes toast copy for download events", () => {
+it("notification metadata exposes toast copy for download events", () => {
   const copy = getNotificationToastCopy({
     payload: {
       anime_id: 20,

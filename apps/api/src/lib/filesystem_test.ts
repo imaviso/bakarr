@@ -1,8 +1,8 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { assertEquals, assertThrows, it } from "../test/vitest.ts";
 
 import { isWithinPathRoot, sanitizePathSegment } from "./filesystem.ts";
 
-Deno.test("isWithinPathRoot only matches the configured root boundary", () => {
+it("isWithinPathRoot only matches the configured root boundary", () => {
   assertEquals(isWithinPathRoot("/data/downloads", "/data/downloads"), true);
   assertEquals(
     isWithinPathRoot("/data/downloads/show/episode.mkv", "/data/downloads"),
@@ -21,7 +21,7 @@ Deno.test("isWithinPathRoot only matches the configured root boundary", () => {
   );
 });
 
-Deno.test("isWithinPathRoot accepts Windows-style child paths", () => {
+it("isWithinPathRoot accepts Windows-style child paths", () => {
   assertEquals(
     isWithinPathRoot(
       "C:\\downloads\\show\\episode.mkv",
@@ -38,13 +38,13 @@ Deno.test("isWithinPathRoot accepts Windows-style child paths", () => {
   );
 });
 
-Deno.test("sanitizePathSegment rejects traversal and nested path inputs", () => {
+it("sanitizePathSegment rejects traversal and nested path inputs", () => {
   for (const value of ["../etc", "..", "nested/show", "nested\\show", ""]) {
     assertThrows(() => sanitizePathSegment(value), Error);
   }
 });
 
-Deno.test("sanitizePathSegment allows plain folder names within root", () => {
+it("sanitizePathSegment allows plain folder names within root", () => {
   const segment = sanitizePathSegment("My Show Season 2");
   const libraryRoot = "/library";
   const folderPath = `${libraryRoot}/${segment}`;

@@ -7,49 +7,77 @@ import {
   type FileSystemShape,
   makeFileSystemNoopLayer,
 } from "../lib/filesystem.ts";
-import { runTestEffect } from "./effect-test.ts";
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-export async function makeTestFileSystem(): Promise<FileSystemShape> {
-  return await runTestEffect(
-    FileSystem.pipe(Effect.provide(FileSystemLive)),
+export const makeTestFileSystemEffect = Effect.fn(
+  "Test.makeTestFileSystemEffect",
+)(function* () {
+  return yield* FileSystem.pipe(Effect.provide(FileSystemLive));
+});
+
+export const makeNoopTestFileSystemEffect = Effect.fn(
+  "Test.makeNoopTestFileSystemEffect",
+)(function* (
+  overrides: Partial<PlatformFileSystem.FileSystem>,
+) {
+  return yield* FileSystem.pipe(
+    Effect.provide(makeFileSystemNoopLayer(overrides)),
   );
+});
+
+export const makeNoopTestFileSystemWithOverridesEffect = Effect.fn(
+  "Test.makeNoopTestFileSystemWithOverridesEffect",
+)(function* (overrides: Partial<FileSystemShape>) {
+  const base = yield* makeNoopTestFileSystemEffect({});
+  return { ...base, ...overrides };
+});
+
+export const withFileSystemSandboxEffect = Effect.fn(
+  "Test.withFileSystemSandboxEffect",
+)(function* <A, E, R>(
+  run: (input: { fs: FileSystemShape; root: string }) => Effect.Effect<A, E, R>,
+) {
+  const fs = yield* makeTestFileSystemEffect();
+  const root = `/tmp/bakarr-api-test-${crypto.randomUUID()}`;
+
+  yield* fs.mkdir(root, { recursive: true });
+  yield* Effect.addFinalizer(() =>
+    fs.remove(root, { recursive: true }).pipe(
+      Effect.catchAll(() => Effect.void),
+    )
+  );
+
+  return yield* run({ fs, root });
+});
+
+export async function makeTestFileSystem(): Promise<FileSystemShape> {
+  return await Effect.runPromise(makeTestFileSystemEffect());
 }
 
 export async function makeNoopTestFileSystem(
   overrides: Partial<PlatformFileSystem.FileSystem>,
 ): Promise<FileSystemShape> {
-  return await runTestEffect(
-    FileSystem.pipe(Effect.provide(makeFileSystemNoopLayer(overrides))),
-  );
+  return await Effect.runPromise(makeNoopTestFileSystemEffect(overrides));
 }
 
 export async function makeNoopTestFileSystemWithOverrides(
   overrides: Partial<FileSystemShape>,
 ): Promise<FileSystemShape> {
-  const base = await makeNoopTestFileSystem({});
-  return { ...base, ...overrides };
+  return await Effect.runPromise(makeNoopTestFileSystemWithOverridesEffect(overrides));
 }
 
 export async function withFileSystemSandbox<A>(
   run: (input: { fs: FileSystemShape; root: string }) => Promise<A>,
 ): Promise<A> {
-  const fs = await makeTestFileSystem();
-  const root = `/tmp/bakarr-api-test-${crypto.randomUUID()}`;
-
-  await runTestEffect(fs.mkdir(root, { recursive: true }));
-
-  try {
-    return await run({ fs, root });
-  } finally {
-    await runTestEffect(
-      fs.remove(root, { recursive: true }).pipe(
-        Effect.catchAll(() => Effect.void),
+  return await Effect.runPromise(
+    Effect.scoped(
+      withFileSystemSandboxEffect(({ fs, root }) =>
+        Effect.promise(() => run({ fs, root }))
       ),
-    );
-  }
+    ),
+  );
 }
 
 export function writeTextFile(

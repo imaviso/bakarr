@@ -1,4 +1,4 @@
-import { assertEquals, assertMatch } from "@std/assert";
+import { assertEquals, assertMatch, it } from "../../test/vitest.ts";
 
 import {
   fallbackReleases,
@@ -8,7 +8,7 @@ import {
 } from "./search-support.ts";
 import type { ParsedRelease } from "./rss-client.ts";
 
-Deno.test("mapSearchCategory and mapSearchFilter use expected mappings and fallbacks", () => {
+it("mapSearchCategory and mapSearchFilter use expected mappings and fallbacks", () => {
   assertEquals(mapSearchCategory("anime_english", "1_0"), "1_2");
   assertEquals(mapSearchCategory("unknown", "1_0"), "1_0");
 
@@ -16,7 +16,7 @@ Deno.test("mapSearchCategory and mapSearchFilter use expected mappings and fallb
   assertEquals(mapSearchFilter("unknown", "0"), "0");
 });
 
-Deno.test("toNyaaSearchResult preserves release fields and parses episode number", () => {
+it("toNyaaSearchResult preserves release fields and parses episode number", () => {
   const release: ParsedRelease = {
     group: "SubsPlease",
     infoHash: "abcdef1234567890abcdef1234567890abcdef12",
@@ -65,7 +65,7 @@ Deno.test("toNyaaSearchResult preserves release fields and parses episode number
   assertEquals(result.seadex_dual_audio, true);
 });
 
-Deno.test("toNyaaSearchResult maps daily releases to parsed air date", () => {
+it("toNyaaSearchResult maps daily releases to parsed air date", () => {
   const release: ParsedRelease = {
     group: "Erai-raws",
     infoHash: "fedcba1234567890fedcba1234567890fedcba12",
@@ -90,7 +90,7 @@ Deno.test("toNyaaSearchResult maps daily releases to parsed air date", () => {
   assertEquals(result.parsed_episode_numbers, undefined);
 });
 
-Deno.test("fallbackReleases builds a trusted placeholder release from title", () => {
+it("fallbackReleases builds a trusted placeholder release from title", () => {
   const [release] = fallbackReleases("naruto", "Naruto Shippuden");
 
   assertEquals(release.group, "SubsPlease");

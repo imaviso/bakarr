@@ -1,4 +1,4 @@
-import { assertEquals, assertMatch } from "@std/assert";
+import { assertEquals, assertMatch, it } from "../test/vitest.ts";
 import { Effect, Schema } from "effect";
 
 import { parseJsonBody } from "./route-validation.ts";
@@ -81,7 +81,7 @@ function makeValidConfig() {
   };
 }
 
-Deno.test("ConfigSchema rejects malformed config fields with localized paths", () => {
+it("ConfigSchema rejects malformed config fields with localized paths", () => {
   const result = Schema.decodeUnknownEither(ConfigSchema)({
     ...makeValidConfig(),
     downloads: {
@@ -104,9 +104,9 @@ Deno.test("ConfigSchema rejects malformed config fields with localized paths", (
   }
 });
 
-Deno.test("parseJsonBody formats schema validation errors as concise path summaries", async () => {
-  const parsed = await Effect.runPromise(
-    parseJsonBody(
+it.effect("parseJsonBody formats schema validation errors as concise path summaries", () =>
+  Effect.gen(function* () {
+    const parsed = yield* parseJsonBody(
       {
         req: {
           json: () =>
@@ -121,20 +121,20 @@ Deno.test("parseJsonBody formats schema validation errors as concise path summar
       },
       ConfigSchema,
       "system config",
-    ).pipe(Effect.either),
-  );
+    ).pipe(Effect.either);
 
-  assertEquals(parsed._tag, "Left");
+    assertEquals(parsed._tag, "Left");
 
-  if (parsed._tag === "Left") {
-    assertMatch(parsed.left.message, /system config/);
-    assertMatch(parsed.left.message, /library\.import_mode/);
-    assertMatch(parsed.left.message, /actual "Copy"/);
-    assertEquals(parsed.left.message.includes("readonly downloads"), false);
-  }
-});
+    if (parsed._tag === "Left") {
+      assertMatch(parsed.left.message, /system config/);
+      assertMatch(parsed.left.message, /library\.import_mode/);
+      assertMatch(parsed.left.message, /actual "Copy"/);
+      assertEquals(parsed.left.message.includes("readonly downloads"), false);
+    }
+  })
+);
 
-Deno.test("SearchDownloadBodySchema rejects non-positive and fractional identifiers", () => {
+it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", () => {
   const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)({
     anime_id: 0,
     episode_number: 1.5,
@@ -153,7 +153,7 @@ Deno.test("SearchDownloadBodySchema rejects non-positive and fractional identifi
   }
 });
 
-Deno.test("SearchDownloadBodySchema accepts structured release metadata", () => {
+it("SearchDownloadBodySchema accepts structured release metadata", () => {
   const result = Schema.decodeUnknownEither(SearchDownloadBodySchema)({
     anime_id: 1,
     decision_reason: "Accepted (WEB-DL 1080p, score 12)",
@@ -182,7 +182,7 @@ Deno.test("SearchDownloadBodySchema accepts structured release metadata", () => 
   assertEquals(result._tag, "Right");
 });
 
-Deno.test("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids", () => {
+it("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids", () => {
   const addAnime = Schema.decodeUnknownEither(AddAnimeInputSchema)({
     id: -3,
     monitor_and_search: false,
@@ -214,7 +214,7 @@ Deno.test("AddAnimeInputSchema and ImportFilesBodySchema require positive intege
   }
 });
 
-Deno.test("ImportFilesBodySchema accepts source metadata for naming reuse", () => {
+it("ImportFilesBodySchema accepts source metadata for naming reuse", () => {
   const importFiles = Schema.decodeUnknownEither(ImportFilesBodySchema)({
     files: [{
       anime_id: 2,
@@ -236,7 +236,7 @@ Deno.test("ImportFilesBodySchema accepts source metadata for naming reuse", () =
   assertEquals(importFiles._tag, "Right");
 });
 
-Deno.test("DownloadEventsQuerySchema accepts filtered query params", () => {
+it("DownloadEventsQuerySchema accepts filtered query params", () => {
   const query = Schema.decodeUnknownEither(DownloadEventsQuerySchema)({
     anime_id: "20",
     cursor: "400",
@@ -252,7 +252,7 @@ Deno.test("DownloadEventsQuerySchema accepts filtered query params", () => {
   assertEquals(query._tag, "Right");
 });
 
-Deno.test("DownloadEventsExportQuerySchema accepts export query params", () => {
+it("DownloadEventsExportQuerySchema accepts export query params", () => {
   const query = Schema.decodeUnknownEither(DownloadEventsExportQuerySchema)({
     anime_id: "20",
     download_id: "4",
@@ -268,7 +268,7 @@ Deno.test("DownloadEventsExportQuerySchema accepts export query params", () => {
   assertEquals(query._tag, "Right");
 });
 
-Deno.test("AddAnimeInputSchema accepts existing-root flag", () => {
+it("AddAnimeInputSchema accepts existing-root flag", () => {
   const addAnime = Schema.decodeUnknownEither(AddAnimeInputSchema)({
     id: 20,
     monitor_and_search: false,

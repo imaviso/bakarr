@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 
 import {
   applyRemotePathMappings,
@@ -12,22 +12,13 @@ import {
   resolveReconciledBatchEpisodeNumbers,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
-import { runTestEffect } from "../../test/effect-test.ts";
+import { Effect } from "effect";
 import {
-  withFileSystemSandbox,
+  withFileSystemSandboxEffect,
   writeTextFile,
 } from "../../test/filesystem-test.ts";
 
-const filesystemTestPermissions = {
-  read: true,
-  write: true,
-} as const;
-
-function filesystemTest(name: string, fn: () => void | Promise<void>) {
-  Deno.test({ fn, name, permissions: filesystemTestPermissions });
-}
-
-filesystemTest("parseMagnetInfoHash extracts btih from magnet links", () => {
+it("parseMagnetInfoHash extracts btih from magnet links", () => {
   assertEquals(
     parseMagnetInfoHash("magnet:?xt=urn:btih:ABCDEF1234567890&dn=Example"),
     "abcdef1234567890",
@@ -35,105 +26,108 @@ filesystemTest("parseMagnetInfoHash extracts btih from magnet links", () => {
   assertEquals(parseMagnetInfoHash(undefined), undefined);
 });
 
-filesystemTest(
+it.scoped(
   "resolveCompletedContentPath prefers matching episode files inside directories",
-  async () => {
-    await withFileSystemSandbox(async ({ fs, root }) => {
-      const dir = `${root}/completed`;
-      await runTestEffect(fs.mkdir(dir, { recursive: true }));
-      const first = `${dir}/Show - 01.mkv`;
-      const second = `${dir}/Show - 02.mkv`;
-      await runTestEffect(writeTextFile(fs, first, "one"));
-      await runTestEffect(writeTextFile(fs, second, "two"));
+  () =>
+    withFileSystemSandboxEffect(({ fs, root }) =>
+      Effect.gen(function* () {
+        const dir = `${root}/completed`;
+        yield* fs.mkdir(dir, { recursive: true });
+        const first = `${dir}/Show - 01.mkv`;
+        const second = `${dir}/Show - 02.mkv`;
+        yield* writeTextFile(fs, first, "one");
+        yield* writeTextFile(fs, second, "two");
 
-      assertEquals(
-        await runTestEffect(resolveCompletedContentPath(fs, dir, 2)),
-        second,
-      );
-      assertEquals(
-        await runTestEffect(resolveCompletedContentPath(fs, first, 1)),
-        first,
-      );
-    });
-  },
+        assertEquals(
+          yield* resolveCompletedContentPath(fs, dir, 2),
+          second,
+        );
+        assertEquals(
+          yield* resolveCompletedContentPath(fs, first, 1),
+          first,
+        );
+      }),
+    ),
 );
 
-filesystemTest(
+it.scoped(
   "resolveCompletedContentPath matches daily files by expected air date",
-  async () => {
-    await withFileSystemSandbox(async ({ fs, root }) => {
-      const dir = `${root}/daily`;
-      await runTestEffect(fs.mkdir(dir, { recursive: true }));
-      const first = `${dir}/Show - 2025-03-14.mkv`;
-      const second = `${dir}/Show - 2025-03-21.mkv`;
-      await runTestEffect(writeTextFile(fs, first, "one"));
-      await runTestEffect(writeTextFile(fs, second, "two"));
+  () =>
+    withFileSystemSandboxEffect(({ fs, root }) =>
+      Effect.gen(function* () {
+        const dir = `${root}/daily`;
+        yield* fs.mkdir(dir, { recursive: true });
+        const first = `${dir}/Show - 2025-03-14.mkv`;
+        const second = `${dir}/Show - 2025-03-21.mkv`;
+        yield* writeTextFile(fs, first, "one");
+        yield* writeTextFile(fs, second, "two");
 
-      assertEquals(
-        await runTestEffect(
-          resolveCompletedContentPath(fs, dir, 1, {
+        assertEquals(
+          yield* resolveCompletedContentPath(fs, dir, 1, {
             expectedAirDate: "2025-03-21",
           }),
-        ),
-        second,
-      );
-    });
-  },
+          second,
+        );
+      }),
+    ),
 );
 
-filesystemTest(
+it.scoped(
   "resolveCompletedContentPath falls back to a lone generic video file",
-  async () => {
-    await withFileSystemSandbox(async ({ fs, root }) => {
-      const dir = `${root}/generic`;
-      await runTestEffect(fs.mkdir(dir, { recursive: true }));
-      const file = `${dir}/download.mkv`;
-      await runTestEffect(writeTextFile(fs, file, "video"));
+  () =>
+    withFileSystemSandboxEffect(({ fs, root }) =>
+      Effect.gen(function* () {
+        const dir = `${root}/generic`;
+        yield* fs.mkdir(dir, { recursive: true });
+        const file = `${dir}/download.mkv`;
+        yield* writeTextFile(fs, file, "video");
 
-      assertEquals(
-        await runTestEffect(resolveCompletedContentPath(fs, dir, 7)),
-        file,
-      );
-    });
-  },
+        assertEquals(
+          yield* resolveCompletedContentPath(fs, dir, 7),
+          file,
+        );
+      }),
+    ),
 );
 
-filesystemTest(
+it.scoped(
   "resolveBatchContentPaths collects video files from completed batch directories",
-  async () => {
-    await withFileSystemSandbox(async ({ fs, root }) => {
-      const dir = `${root}/batch-dir`;
-      await runTestEffect(fs.mkdir(dir, { recursive: true }));
-      const first = `${dir}/Show - 01.mkv`;
-      const second = `${dir}/Show - 02.mp4`;
-      const ignored = `${dir}/note.txt`;
-      await runTestEffect(writeTextFile(fs, first, "one"));
-      await runTestEffect(writeTextFile(fs, second, "two"));
-      await runTestEffect(writeTextFile(fs, ignored, "ignore"));
+  () =>
+    withFileSystemSandboxEffect(({ fs, root }) =>
+      Effect.gen(function* () {
+        const dir = `${root}/batch-dir`;
+        yield* fs.mkdir(dir, { recursive: true });
+        const first = `${dir}/Show - 01.mkv`;
+        const second = `${dir}/Show - 02.mp4`;
+        const ignored = `${dir}/note.txt`;
+        yield* writeTextFile(fs, first, "one");
+        yield* writeTextFile(fs, second, "two");
+        yield* writeTextFile(fs, ignored, "ignore");
 
-      assertEquals(await runTestEffect(resolveBatchContentPaths(fs, dir)), [
-        first,
-        second,
-      ]);
-    });
-  },
+        assertEquals(yield* resolveBatchContentPaths(fs, dir), [
+          first,
+          second,
+        ]);
+      }),
+    ),
 );
 
-filesystemTest(
+it.scoped(
   "resolveBatchContentPaths returns a single file for batch torrents stored as one file",
-  async () => {
-    await withFileSystemSandbox(async ({ fs, root }) => {
-      const file = `${root}/Show Season Pack.mkv`;
-      await runTestEffect(writeTextFile(fs, file, "season"));
+  () =>
+    withFileSystemSandboxEffect(({ fs, root }) =>
+      Effect.gen(function* () {
+        const file = `${root}/Show Season Pack.mkv`;
+        yield* writeTextFile(fs, file, "season");
 
-      assertEquals(await runTestEffect(resolveBatchContentPaths(fs, file)), [
-        file,
-      ]);
-    });
-  },
+        assertEquals(yield* resolveBatchContentPaths(fs, file), [
+          file,
+        ]);
+      }),
+    ),
 );
 
-filesystemTest(
+it(
   "inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing tails for batches",
   () => {
     assertEquals(
@@ -193,7 +187,7 @@ filesystemTest(
   },
 );
 
-Deno.test("inferCoveredEpisodesFromTorrentContents parses real batch file lists", () => {
+it("inferCoveredEpisodesFromTorrentContents parses real batch file lists", () => {
   assertEquals(
     inferCoveredEpisodesFromTorrentContents({
       files: [
@@ -228,7 +222,7 @@ Deno.test("inferCoveredEpisodesFromTorrentContents parses real batch file lists"
   );
 });
 
-Deno.test("resolveReconciledBatchEpisodeNumbers falls back to covered episodes for lone generic files", () => {
+it("resolveReconciledBatchEpisodeNumbers falls back to covered episodes for lone generic files", () => {
   assertEquals(
     resolveReconciledBatchEpisodeNumbers({
       coveredEpisodes: [1, 2, 3],
@@ -248,7 +242,7 @@ Deno.test("resolveReconciledBatchEpisodeNumbers falls back to covered episodes f
   );
 });
 
-filesystemTest(
+it(
   "applyRemotePathMappings rewrites qBittorrent remote paths",
   () => {
     assertEquals(
@@ -261,7 +255,7 @@ filesystemTest(
   },
 );
 
-filesystemTest(
+it(
   "covered episode serialization round-trips optional values",
   () => {
     assertEquals(toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
@@ -271,7 +265,7 @@ filesystemTest(
   },
 );
 
-filesystemTest(
+it(
   "applyRemotePathMappings returns multiple matching candidates and skips invalid mappings",
   () => {
     assertEquals(
@@ -289,25 +283,24 @@ filesystemTest(
   },
 );
 
-filesystemTest(
+it.scoped(
   "resolveAccessibleDownloadPath uses mapped local paths when remote path is unavailable",
-  async () => {
-    await withFileSystemSandbox(async ({ fs, root }) => {
-      const localRoot = `${root}/local`;
-      await runTestEffect(fs.mkdir(`${localRoot}/show`, { recursive: true }));
-      const localFile = `${localRoot}/show/episode.mkv`;
-      await runTestEffect(writeTextFile(fs, localFile, "video"));
+  () =>
+    withFileSystemSandboxEffect(({ fs, root }) =>
+      Effect.gen(function* () {
+        const localRoot = `${root}/local`;
+        yield* fs.mkdir(`${localRoot}/show`, { recursive: true });
+        const localFile = `${localRoot}/show/episode.mkv`;
+        yield* writeTextFile(fs, localFile, "video");
 
-      assertEquals(
-        await runTestEffect(
-          resolveAccessibleDownloadPath(
+        assertEquals(
+          yield* resolveAccessibleDownloadPath(
             fs,
             "/remote/downloads/show/episode.mkv",
             [["/remote/downloads", localRoot]],
           ),
-        ),
-        localFile,
-      );
-    });
-  },
+          localFile,
+        );
+      }),
+    ),
 );

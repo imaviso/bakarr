@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../test/vitest.ts";
 import { CommandExecutor } from "@effect/platform";
 import { Effect, Layer } from "effect";
 
@@ -12,7 +12,7 @@ import {
   shouldProbeMediaMetadata,
 } from "./media-probe.ts";
 
-Deno.test("parseFfprobeJson extracts canonical media metadata", () => {
+it("parseFfprobeJson extracts canonical media metadata", () => {
   assertEquals(
     parseFfprobeJson(JSON.stringify({
       format: {
@@ -43,7 +43,7 @@ Deno.test("parseFfprobeJson extracts canonical media metadata", () => {
   );
 });
 
-Deno.test("mergeProbedMediaMetadata fills only missing fields", () => {
+it("mergeProbedMediaMetadata fills only missing fields", () => {
   assertEquals(
     mergeProbedMediaMetadata<{
       audio_channels?: string;
@@ -71,7 +71,7 @@ Deno.test("mergeProbedMediaMetadata fills only missing fields", () => {
   );
 });
 
-Deno.test("shouldProbeMediaMetadata checks for unresolved media details", () => {
+it("shouldProbeMediaMetadata checks for unresolved media details", () => {
   assertEquals(
     shouldProbeMediaMetadata({
       audio_channels: "2.0",
@@ -92,39 +92,39 @@ Deno.test("shouldProbeMediaMetadata checks for unresolved media details", () => 
   );
 });
 
-Deno.test("FFPROBE_CONCURRENCY_LIMIT is defined and reasonable", () => {
+it("FFPROBE_CONCURRENCY_LIMIT is defined and reasonable", () => {
   assertEquals(FFPROBE_CONCURRENCY_LIMIT > 0, true);
   assertEquals(FFPROBE_CONCURRENCY_LIMIT <= 4, true);
 });
 
-Deno.test("MediaProbe enforces global ffprobe concurrency limit", async () => {
-  let active = 0;
-  let maxActive = 0;
+it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
+  Effect.gen(function* () {
+    let active = 0;
+    let maxActive = 0;
 
-  const commandExecutorStub = makeCommandExecutorStub((command) => {
-    if (command.args.includes("-version")) {
-      return Effect.succeed("ffprobe version test");
-    }
+    const commandExecutorStub = makeCommandExecutorStub((command) => {
+      if (command.args.includes("-version")) {
+        return Effect.succeed("ffprobe version test");
+      }
 
-    active += 1;
-    if (active > maxActive) {
-      maxActive = active;
-    }
+      active += 1;
+      if (active > maxActive) {
+        maxActive = active;
+      }
 
-    return Effect.promise(() =>
-      new Promise<string>((resolve) => {
-        setTimeout(() => {
-          active -= 1;
-          resolve(
-            '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080}],"format":{"duration":"24"}}',
-          );
-        }, 25);
-      })
-    );
-  });
+      return Effect.promise(() =>
+        new Promise<string>((resolve) => {
+          setTimeout(() => {
+            active -= 1;
+            resolve(
+              '{"streams":[{"codec_type":"video","codec_name":"h264","width":1920,"height":1080}],"format":{"duration":"24"}}',
+            );
+          }, 25);
+        })
+      );
+    });
 
-  await Effect.runPromise(
-    Effect.flatMap(MediaProbe, (mediaProbe) =>
+    yield* Effect.flatMap(MediaProbe, (mediaProbe) =>
       Effect.forEach(
         Array.from(
           { length: 10 },
@@ -139,11 +139,11 @@ Deno.test("MediaProbe enforces global ffprobe concurrency limit", async () => {
             Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub),
           ),
         ),
-      ),
-  );
+      );
 
-  assertEquals(maxActive <= FFPROBE_CONCURRENCY_LIMIT, true);
-});
+    assertEquals(maxActive <= FFPROBE_CONCURRENCY_LIMIT, true);
+  })
+);
 
 function makeCommandExecutorStub(
   runAsString: (

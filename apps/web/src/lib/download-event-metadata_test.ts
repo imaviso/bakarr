@@ -1,8 +1,7 @@
-/// <reference lib="deno.ns" />
+import { it } from "~/test/vitest";
+import { getDownloadEventMetadataSummary } from "./download-event-metadata";
 
-import { getDownloadEventMetadataSummary } from "./download-event-metadata.ts";
-
-Deno.test("download event metadata summarizes coverage and provenance", () => {
+it("download event metadata summarizes coverage and provenance", () => {
   const summary = getDownloadEventMetadataSummary({
     metadata_json: {
       covered_episodes: [1, 2],

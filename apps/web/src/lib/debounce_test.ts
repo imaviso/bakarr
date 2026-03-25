@@ -1,8 +1,7 @@
-/// <reference lib="deno.ns" />
+import { it } from "~/test/vitest";
+import { createDebouncer } from "./debounce";
 
-import { createDebouncer } from "./debounce.ts";
-
-Deno.test("createDebouncer updates after the delay when scheduled", async () => {
+it("createDebouncer updates after the delay when scheduled", async () => {
   let current = "";
   const debouncer = createDebouncer((value: string) => {
     current = value;
@@ -21,7 +20,7 @@ Deno.test("createDebouncer updates after the delay when scheduled", async () => 
   debouncer.cancel();
 });
 
-Deno.test("createDebouncer keeps only the latest queued value", async () => {
+it("createDebouncer keeps only the latest queued value", async () => {
   let current = "";
   const debouncer = createDebouncer((value: string) => {
     current = value;
@@ -39,7 +38,7 @@ Deno.test("createDebouncer keeps only the latest queued value", async () => {
   debouncer.cancel();
 });
 
-Deno.test("createDebouncer cancel prevents pending updates", async () => {
+it("createDebouncer cancel prevents pending updates", async () => {
   let called = false;
   const debouncer = createDebouncer(() => {
     called = true;

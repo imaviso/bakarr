@@ -1,10 +1,9 @@
-/// <reference lib="deno.ns" />
-
+import { it } from "~/test/vitest";
 import {
   backgroundMatchingStatusLabel,
   backgroundMatchingStatusVariant,
   isBackgroundMatchingRunning,
-} from "./background-matching-state.ts";
+} from "./background-matching-state";
 
 function assertEquals<T>(actual: T, expected: T) {
   if (actual !== expected) {
@@ -12,7 +11,7 @@ function assertEquals<T>(actual: T, expected: T) {
   }
 }
 
-Deno.test("background matching is not running when job flag is stale but no work remains", () => {
+it("background matching is not running when job flag is stale but no work remains", () => {
   const input = {
     failedCount: 0,
     hasOutstandingWork: false,
@@ -31,7 +30,7 @@ Deno.test("background matching is not running when job flag is stale but no work
   assertEquals(backgroundMatchingStatusVariant(input), "outline");
 });
 
-Deno.test("background matching is running while a folder is actively matching", () => {
+it("background matching is running while a folder is actively matching", () => {
   const input = {
     failedCount: 0,
     hasOutstandingWork: true,
@@ -50,7 +49,7 @@ Deno.test("background matching is running while a folder is actively matching", 
   assertEquals(backgroundMatchingStatusVariant(input), "warning");
 });
 
-Deno.test("background matching is queued when work remains but nothing is active", () => {
+it("background matching is queued when work remains but nothing is active", () => {
   const input = {
     failedCount: 0,
     hasOutstandingWork: true,

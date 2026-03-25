@@ -1,8 +1,7 @@
-/// <reference lib="deno.ns" />
+import { it } from "~/test/vitest";
+import { getReleaseConfidence } from "./release-selection";
 
-import { getReleaseConfidence } from "./release-selection.ts";
-
-Deno.test("getReleaseConfidence prefers SeaDex best over other hints", () => {
+it("getReleaseConfidence prefers SeaDex best over other hints", () => {
   const confidence = getReleaseConfidence({
     is_seadex: true,
     is_seadex_best: true,
@@ -19,7 +18,7 @@ Deno.test("getReleaseConfidence prefers SeaDex best over other hints", () => {
   }
 });
 
-Deno.test("getReleaseConfidence flags remakes for review", () => {
+it("getReleaseConfidence flags remakes for review", () => {
   const confidence = getReleaseConfidence({ remake: true, trusted: true });
 
   if (

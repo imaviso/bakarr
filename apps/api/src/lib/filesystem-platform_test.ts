@@ -1,17 +1,16 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../test/vitest.ts";
 import { Effect } from "effect";
 
-import { runTestEffect } from "../test/effect-test.ts";
-import { makeNoopTestFileSystem } from "../test/filesystem-test.ts";
+import { makeNoopTestFileSystemEffect } from "../test/filesystem-test.ts";
 
-Deno.test("filesystem noop layer can override readFile behavior", async () => {
-  const fs = await makeNoopTestFileSystem({
-    readFile: () => Effect.succeed(Uint8Array.from([1, 2, 3])),
-  });
+it.effect("filesystem noop layer can override readFile behavior", () =>
+  Effect.gen(function* () {
+    const fs = yield* makeNoopTestFileSystemEffect({
+      readFile: () => Effect.succeed(Uint8Array.from([1, 2, 3])),
+    });
 
-  const bytes = await runTestEffect(
-    fs.readFile("/virtual/file.bin"),
-  );
+    const bytes = yield* fs.readFile("/virtual/file.bin");
 
-  assertEquals(Array.from(bytes), [1, 2, 3]);
-});
+    assertEquals(Array.from(bytes), [1, 2, 3]);
+  })
+);

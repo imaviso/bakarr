@@ -1,11 +1,11 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { Effect } from "effect";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { appConfig, episodes } from "../../db/schema.ts";
-import { withSqliteTestDb } from "../../test/database-test.ts";
+import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import {
   analyzeScannedFile,
   buildRenamePreview,
@@ -17,7 +17,7 @@ import { anime } from "../../db/schema.ts";
 import { encodeConfigCore } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 
-Deno.test("analyzeScannedFile strips release noise and extracts metadata", () => {
+it("analyzeScannedFile strips release noise and extracts metadata", () => {
   const result = analyzeScannedFile({
     name: "[SubsPlease] Naruto Season 2 - S02E03 [1080p] [HEVC].mkv",
     path: "/library/[SubsPlease] Naruto Season 2 - S02E03 [1080p] [HEVC].mkv",
@@ -31,7 +31,7 @@ Deno.test("analyzeScannedFile strips release noise and extracts metadata", () =>
   assertEquals(parsed.season, 2);
 });
 
-Deno.test("analyzeScannedFile handles Sonarr and Plex style episode names", () => {
+it("analyzeScannedFile handles Sonarr and Plex style episode names", () => {
   const result = analyzeScannedFile({
     name:
       "Rock Is a Lady's Modesty (2025) - S01E01 - Good Day to You♡ Quit Playing the Guitar!!! [v2 WEBDL-1080p Proper][AAC 2.0][AVC]-SubsPlus+.mkv",
@@ -55,7 +55,7 @@ Deno.test("analyzeScannedFile handles Sonarr and Plex style episode names", () =
   assertEquals(parsed.video_codec, "AVC");
 });
 
-Deno.test("analyzeScannedFile preserves multi-episode local ranges", () => {
+it("analyzeScannedFile preserves multi-episode local ranges", () => {
   const result = analyzeScannedFile({
     name: "Show Name - 1x01-1x02 - Premiere.mkv",
     path: "/library/Show Name - 1x01-1x02 - Premiere.mkv",
@@ -71,7 +71,7 @@ Deno.test("analyzeScannedFile preserves multi-episode local ranges", () => {
   assertEquals(parsed.warnings, undefined);
 });
 
-Deno.test("analyzeScannedFile skips extras and samples", () => {
+it("analyzeScannedFile skips extras and samples", () => {
   const extra = analyzeScannedFile({
     name: "Featurette.mkv",
     path: "/library/Extras/Featurette.mkv",
@@ -86,7 +86,7 @@ Deno.test("analyzeScannedFile skips extras and samples", () => {
   assertEquals(sample.skipped !== undefined, true);
 });
 
-Deno.test("analyzeScannedFile populates source_identity for season episodes", () => {
+it("analyzeScannedFile populates source_identity for season episodes", () => {
   const result = analyzeScannedFile({
     name: "Show.S02E03.mkv",
     path: "/library/Show.S02E03.mkv",
@@ -101,7 +101,7 @@ Deno.test("analyzeScannedFile populates source_identity for season episodes", ()
   assertEquals(parsed.season, 2);
 });
 
-Deno.test("analyzeScannedFile populates source_identity for daily episodes", () => {
+it("analyzeScannedFile populates source_identity for daily episodes", () => {
   const result = analyzeScannedFile({
     name: "Show.2025-03-14.mkv",
     path: "/library/Show.2025-03-14.mkv",
@@ -122,7 +122,7 @@ Deno.test("analyzeScannedFile populates source_identity for daily episodes", () 
   ]);
 });
 
-Deno.test("analyzeScannedFile marks unknown files as needing manual mapping", () => {
+it("analyzeScannedFile marks unknown files as needing manual mapping", () => {
   const result = analyzeScannedFile({
     name: "random_video.mkv",
     path: "/library/random_video.mkv",
@@ -140,149 +140,168 @@ Deno.test("analyzeScannedFile marks unknown files as needing manual mapping", ()
   ]);
 });
 
-Deno.test("buildRenamePreview fills naming tokens from existing file metadata", async () => {
-  await withTestDb(async (db, databaseFile) => {
-    const rootFolder = "/mnt/media2/Shows/Nisemonogatari (2012)";
-    const namingFormat =
-      "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
+it.scoped("buildRenamePreview fills naming tokens from existing file metadata", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db, databaseFile) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        const rootFolder = "/mnt/media2/Shows/Nisemonogatari (2012)";
+        const namingFormat =
+          "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
 
-    await db.insert(appConfig).values({
-      id: 1,
-      data: encodeConfigCore({
-        ...makeDefaultConfig(databaseFile),
-        library: {
-          ...makeDefaultConfig(databaseFile).library,
-          naming_format: namingFormat,
-        },
+        yield* Effect.tryPromise(() => appDb.insert(appConfig).values({
+          id: 1,
+          data: encodeConfigCore({
+            ...makeDefaultConfig(databaseFile),
+            library: {
+              ...makeDefaultConfig(databaseFile).library,
+              naming_format: namingFormat,
+            },
+          }),
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        }));
+
+        yield* Effect.tryPromise(() => appDb.insert(anime).values(makeAnimeRow({
+          episodeCount: 11,
+          rootFolder,
+          startDate: "2012-01-08",
+          titleRomaji: "Nisemonogatari",
+        })));
+
+        yield* Effect.tryPromise(() => appDb.insert(episodes).values({
+          aired: null,
+          animeId: 1,
+          downloaded: true,
+          filePath:
+            `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
+          number: 1,
+          title: null,
+        }));
+
+        const preview = yield* buildRenamePreview(appDb, 1);
+
+        assertEquals(preview.length, 1);
+        assertEquals(
+          preview[0].new_filename,
+          "Nisemonogatari - S01E01 - Karen Bee, Part 1 [1080p][HEVC][AAC][MTBB].mkv",
+        );
+        assertEquals(preview[0].fallback_used, undefined);
+        assertEquals(preview[0].format_used, namingFormat);
+        assertEquals(
+          preview[0].metadata_snapshot?.episode_title,
+          "Karen Bee, Part 1",
+        );
+        assertEquals(
+          preview[0].metadata_snapshot?.title_source,
+          "preferred_romaji",
+        );
+        assertEquals(preview[0].metadata_snapshot?.video_codec, "HEVC");
       }),
-      updatedAt: "2024-01-01T00:00:00.000Z",
-    });
+    schema,
+  })
+);
 
-    await db.insert(anime).values(makeAnimeRow({
-      episodeCount: 11,
-      rootFolder,
-      startDate: "2012-01-08",
-      titleRomaji: "Nisemonogatari",
-    }));
+it.scoped("buildRenamePreview respects preferred English title and movie naming format", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db, databaseFile) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
 
-    await db.insert(episodes).values({
-      aired: null,
-      animeId: 1,
-      downloaded: true,
-      filePath:
-        `${rootFolder}/Season 1/Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv`,
-      number: 1,
-      title: null,
-    });
+        yield* Effect.tryPromise(() => appDb.insert(appConfig).values({
+          id: 1,
+          data: encodeConfigCore({
+            ...makeDefaultConfig(databaseFile),
+            library: {
+              ...makeDefaultConfig(databaseFile).library,
+              movie_naming_format: "{title} ({year})",
+              preferred_title: "english",
+            },
+          }),
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        }));
 
-    const preview = await Effect.runPromise(buildRenamePreview(db, 1));
+        yield* Effect.tryPromise(() => appDb.insert(anime).values(makeAnimeRow({
+          format: "MOVIE",
+          rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
+          startDate: "2016-08-26",
+          titleEnglish: "Your Name.",
+          titleNative: "君の名は。",
+          titleRomaji: "Kimi no Na wa.",
+        })));
 
-    assertEquals(preview.length, 1);
-    assertEquals(
-      preview[0].new_filename,
-      "Nisemonogatari - S01E01 - Karen Bee, Part 1 [1080p][HEVC][AAC][MTBB].mkv",
-    );
-    assertEquals(preview[0].fallback_used, undefined);
-    assertEquals(preview[0].format_used, namingFormat);
-    assertEquals(
-      preview[0].metadata_snapshot?.episode_title,
-      "Karen Bee, Part 1",
-    );
-    assertEquals(
-      preview[0].metadata_snapshot?.title_source,
-      "preferred_romaji",
-    );
-    assertEquals(preview[0].metadata_snapshot?.video_codec, "HEVC");
-  });
-});
+        yield* Effect.tryPromise(() => appDb.insert(episodes).values({
+          aired: null,
+          animeId: 1,
+          downloaded: true,
+          filePath: "/mnt/media2/Movies/Kimi no Na wa./movie-source-file.mkv",
+          number: 1,
+          title: null,
+        }));
 
-Deno.test("buildRenamePreview respects preferred English title and movie naming format", async () => {
-  await withTestDb(async (db, databaseFile) => {
-    await db.insert(appConfig).values({
-      id: 1,
-      data: encodeConfigCore({
-        ...makeDefaultConfig(databaseFile),
-        library: {
-          ...makeDefaultConfig(databaseFile).library,
-          movie_naming_format: "{title} ({year})",
-          preferred_title: "english",
-        },
+        const preview = yield* buildRenamePreview(appDb, 1);
+
+        assertEquals(preview.length, 1);
+        assertEquals(preview[0].new_filename, "Your Name. (2016).mkv");
+        assertEquals(preview[0].format_used, "{title} ({year})");
+        assertEquals(preview[0].metadata_snapshot?.title, "Your Name.");
+        assertEquals(
+          preview[0].metadata_snapshot?.title_source,
+          "preferred_english",
+        );
       }),
-      updatedAt: "2024-01-01T00:00:00.000Z",
-    });
+    schema,
+  })
+);
 
-    await db.insert(anime).values(makeAnimeRow({
-      format: "MOVIE",
-      rootFolder: "/mnt/media2/Movies/Kimi no Na wa.",
-      startDate: "2016-08-26",
-      titleEnglish: "Your Name.",
-      titleNative: "君の名は。",
-      titleRomaji: "Kimi no Na wa.",
-    }));
+it.scoped("buildRenamePreview reports fallback when season metadata is missing", () =>
+  withSqliteTestDbEffect({
+    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+    run: (db, databaseFile) =>
+      Effect.gen(function* () {
+        const appDb = db as AppDatabase;
+        const namingFormat = "{title} - S{season:02}E{episode:02}";
 
-    await db.insert(episodes).values({
-      aired: null,
-      animeId: 1,
-      downloaded: true,
-      filePath: "/mnt/media2/Movies/Kimi no Na wa./movie-source-file.mkv",
-      number: 1,
-      title: null,
-    });
+        yield* Effect.tryPromise(() => appDb.insert(appConfig).values({
+          id: 1,
+          data: encodeConfigCore({
+            ...makeDefaultConfig(databaseFile),
+            library: {
+              ...makeDefaultConfig(databaseFile).library,
+              naming_format: namingFormat,
+            },
+          }),
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        }));
 
-    const preview = await Effect.runPromise(buildRenamePreview(db, 1));
+        yield* Effect.tryPromise(() => appDb.insert(anime).values(makeAnimeRow({
+          rootFolder: "/library/Show",
+          titleRomaji: "Show",
+        })));
 
-    assertEquals(preview.length, 1);
-    assertEquals(preview[0].new_filename, "Your Name. (2016).mkv");
-    assertEquals(preview[0].format_used, "{title} ({year})");
-    assertEquals(preview[0].metadata_snapshot?.title, "Your Name.");
-    assertEquals(
-      preview[0].metadata_snapshot?.title_source,
-      "preferred_english",
-    );
-  });
-});
+        yield* Effect.tryPromise(() => appDb.insert(episodes).values({
+          aired: null,
+          animeId: 1,
+          downloaded: true,
+          filePath: "/downloads/Show - 01.mkv",
+          number: 1,
+          title: null,
+        }));
 
-Deno.test("buildRenamePreview reports fallback when season metadata is missing", async () => {
-  await withTestDb(async (db, databaseFile) => {
-    const namingFormat = "{title} - S{season:02}E{episode:02}";
+        const preview = yield* buildRenamePreview(appDb, 1);
 
-    await db.insert(appConfig).values({
-      id: 1,
-      data: encodeConfigCore({
-        ...makeDefaultConfig(databaseFile),
-        library: {
-          ...makeDefaultConfig(databaseFile).library,
-          naming_format: namingFormat,
-        },
+        assertEquals(preview[0].new_filename, "Show - 01.mkv");
+        assertEquals(preview[0].fallback_used, true);
+        assertEquals(preview[0].missing_fields, ["season"]);
+        assertEquals(preview[0].warnings?.length, 2);
+        assertEquals(preview[0].metadata_snapshot?.source_identity?.label, "01");
       }),
-      updatedAt: "2024-01-01T00:00:00.000Z",
-    });
+    schema,
+  })
+);
 
-    await db.insert(anime).values(makeAnimeRow({
-      rootFolder: "/library/Show",
-      titleRomaji: "Show",
-    }));
-
-    await db.insert(episodes).values({
-      aired: null,
-      animeId: 1,
-      downloaded: true,
-      filePath: "/downloads/Show - 01.mkv",
-      number: 1,
-      title: null,
-    });
-
-    const preview = await Effect.runPromise(buildRenamePreview(db, 1));
-
-    assertEquals(preview[0].new_filename, "Show - 01.mkv");
-    assertEquals(preview[0].fallback_used, true);
-    assertEquals(preview[0].missing_fields, ["season"]);
-    assertEquals(preview[0].warnings?.length, 2);
-    assertEquals(preview[0].metadata_snapshot?.source_identity?.label, "01");
-  });
-});
-
-Deno.test("findBestLocalAnimeMatch handles title normalization and rejects weak matches", () => {
+it("findBestLocalAnimeMatch handles title normalization and rejects weak matches", () => {
   const naruto = makeAnimeRow({
     addedAt: "2024-01-01T00:00:00.000Z",
     bannerImage: null,
@@ -324,7 +343,7 @@ Deno.test("findBestLocalAnimeMatch handles title normalization and rejects weak 
   );
 });
 
-Deno.test("titlesMatch checks normalized candidate titles", () => {
+it("titlesMatch checks normalized candidate titles", () => {
   const candidate = toAnimeSearchCandidate(makeAnimeRow({
     addedAt: "2024-01-01T00:00:00.000Z",
     bannerImage: "/images/banner.jpg",
@@ -400,14 +419,4 @@ function makeAnimeRow(
     recommendedAnime: null,
     ...overrides,
   };
-}
-
-async function withTestDb(
-  run: (db: AppDatabase, databaseFile: string) => Promise<void>,
-) {
-  await withSqliteTestDb({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
-    run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
-    schema,
-  });
 }

@@ -1,10 +1,10 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 
 import type { ParsedRelease } from "./rss-client.ts";
 import { applySeaDexMatch, findSeaDexReleaseMatch } from "./seadex-matching.ts";
 import type { SeaDexEntry, SeaDexRelease } from "./seadex-client.ts";
 
-Deno.test("findSeaDexReleaseMatch matches by info hash first", () => {
+it("findSeaDexReleaseMatch matches by info hash first", () => {
   const release = makeRelease({
     infoHash: "abcdef0123456789abcdef0123456789abcdef01",
     viewUrl: "https://nyaa.si/view/123456",
@@ -20,7 +20,7 @@ Deno.test("findSeaDexReleaseMatch matches by info hash first", () => {
   assertEquals(findSeaDexReleaseMatch(release, candidates), candidates[0]);
 });
 
-Deno.test("findSeaDexReleaseMatch can match via tracker URL when hash is missing", () => {
+it("findSeaDexReleaseMatch can match via tracker URL when hash is missing", () => {
   const release = makeRelease({
     infoHash: "",
     title: "[SomeGroup] Naruto - 01 (1080p)",
@@ -39,7 +39,7 @@ Deno.test("findSeaDexReleaseMatch can match via tracker URL when hash is missing
   assertEquals(findSeaDexReleaseMatch(release, candidates), candidates[0]);
 });
 
-Deno.test("findSeaDexReleaseMatch falls back to best-scored group match", () => {
+it("findSeaDexReleaseMatch falls back to best-scored group match", () => {
   const release = makeRelease({
     infoHash: "",
     title: "[SubsPlease] Naruto - 01 (1080p) [Multi Audio]",
@@ -64,7 +64,7 @@ Deno.test("findSeaDexReleaseMatch falls back to best-scored group match", () => 
   assertEquals(findSeaDexReleaseMatch(release, candidates), candidates[1]);
 });
 
-Deno.test("findSeaDexReleaseMatch does not match on tracker alone", () => {
+it("findSeaDexReleaseMatch does not match on tracker alone", () => {
   const release = makeRelease({
     infoHash: "",
     group: "EMBER",
@@ -85,7 +85,7 @@ Deno.test("findSeaDexReleaseMatch does not match on tracker alone", () => {
   assertEquals(findSeaDexReleaseMatch(release, candidates), undefined);
 });
 
-Deno.test("applySeaDexMatch annotates parsed release with SeaDex metadata", () => {
+it("applySeaDexMatch annotates parsed release with SeaDex metadata", () => {
   const release = makeRelease({
     infoHash: "",
     title: "[SubsPlease] Naruto - 01 (1080p)",

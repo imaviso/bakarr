@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../test/vitest.ts";
 
 import { DatabaseError } from "../db/database.ts";
 import {
@@ -26,7 +26,7 @@ import { mapRouteError } from "./route-errors.ts";
 import { EpisodeStreamRangeError } from "./streaming-errors.ts";
 import { RequestValidationError } from "./route-validation.ts";
 
-Deno.test("route errors maps known tagged errors to expected responses", () => {
+it("route errors maps known tagged errors to expected responses", () => {
   const cases = [
     {
       error: new RequestValidationError({
@@ -113,7 +113,7 @@ Deno.test("route errors maps known tagged errors to expected responses", () => {
   }
 });
 
-Deno.test("route errors preserves range headers for episode streaming", () => {
+it("route errors preserves range headers for episode streaming", () => {
   assertEquals(
     mapRouteError(
       new EpisodeStreamRangeError({
@@ -130,7 +130,7 @@ Deno.test("route errors preserves range headers for episode streaming", () => {
   );
 });
 
-Deno.test("route errors falls back for unknown failures", () => {
+it("route errors falls back for unknown failures", () => {
   assertEquals(mapRouteError(new Error("boom")), {
     message: "boom",
     status: 500,

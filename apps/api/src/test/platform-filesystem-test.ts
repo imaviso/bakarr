@@ -1,11 +1,11 @@
 import { FileSystem as PlatformFileSystem } from "@effect/platform";
-import { NodeFileSystem } from "@effect/platform-node";
+import { BunFileSystem } from "@effect/platform-bun";
 import { Effect } from "effect";
 
 function runPlatformFs<A>(
   effect: Effect.Effect<A, unknown, PlatformFileSystem.FileSystem>,
 ) {
-  return Effect.runPromise(effect.pipe(Effect.provide(NodeFileSystem.layer)));
+  return Effect.runPromise(effect.pipe(Effect.provide(BunFileSystem.layer)));
 }
 
 export function platformFsMakeTempDir(

@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 
 import { defaultAppConfig } from "../../config.ts";
 import type {
@@ -77,7 +77,7 @@ const baseProfile: QualityProfile = {
   upgrade_allowed: true,
 };
 
-Deno.test("parse release name extracts group, episode, and quality", () => {
+it("parse release name extracts group, episode, and quality", () => {
   const parsed = parseReleaseName("[SubsPlease] Frieren - 05 (1080p) [WEB-DL]");
 
   assertEquals(parsed.group, "SubsPlease");
@@ -86,7 +86,7 @@ Deno.test("parse release name extracts group, episode, and quality", () => {
   assertEquals(parsed.quality.name, "WEB-DL 1080p");
 });
 
-Deno.test("parse quality prefers bluray remux over webdl", () => {
+it("parse quality prefers bluray remux over webdl", () => {
   assertEquals(
     parseQualityFromTitle("[Group] Show - 01 [1080p BluRay]").name,
     "BluRay 1080p",
@@ -102,7 +102,7 @@ Deno.test("parse quality prefers bluray remux over webdl", () => {
   );
 });
 
-Deno.test("decide download accepts new release and upgrades higher quality", () => {
+it("decide download accepts new release and upgrades higher quality", () => {
   const accepted = decideDownloadAction(
     baseProfile,
     [],
@@ -147,7 +147,7 @@ Deno.test("decide download accepts new release and upgrades higher quality", () 
   assertEquals(Boolean(upgraded.Upgrade), true);
 });
 
-Deno.test("seadex release can upgrade same-quality current file", () => {
+it("seadex release can upgrade same-quality current file", () => {
   const decision = decideDownloadAction(
     baseProfile,
     [],
@@ -174,7 +174,7 @@ Deno.test("seadex release can upgrade same-quality current file", () => {
   assertEquals(decision.Upgrade?.is_seadex_best, true);
 });
 
-Deno.test("seadex scoring is disabled when runtime config disables seadex", () => {
+it("seadex scoring is disabled when runtime config disables seadex", () => {
   const decision = decideDownloadAction(
     baseProfile,
     [],
@@ -206,7 +206,7 @@ Deno.test("seadex scoring is disabled when runtime config disables seadex", () =
   assertEquals(decision.Reject?.reason, "already at quality cutoff");
 });
 
-Deno.test("seadex tags and config preferences boost release score", () => {
+it("seadex tags and config preferences boost release score", () => {
   const preferred = decideDownloadAction(
     baseProfile,
     [],
@@ -278,7 +278,7 @@ Deno.test("seadex tags and config preferences boost release score", () => {
   );
 });
 
-Deno.test("negative SeaDex notes can reduce release score", () => {
+it("negative SeaDex notes can reduce release score", () => {
   const recommended = decideDownloadAction(
     baseProfile,
     [],
@@ -344,7 +344,7 @@ Deno.test("negative SeaDex notes can reduce release score", () => {
   );
 });
 
-Deno.test("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
+it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
   const seadex = decideDownloadAction(
     baseProfile,
     [],
@@ -400,7 +400,7 @@ Deno.test("SeaDex best metadata outranks high-seeder non-SeaDex releases", () =>
   );
 });
 
-Deno.test("SeaDex notes mentioning the release group boost the matching release", () => {
+it("SeaDex notes mentioning the release group boost the matching release", () => {
   const matched = decideDownloadAction(
     baseProfile,
     [],
@@ -458,7 +458,7 @@ Deno.test("SeaDex notes mentioning the release group boost the matching release"
   );
 });
 
-Deno.test("compare episode search results prefers higher scores before seeders", () => {
+it("compare episode search results prefers higher scores before seeders", () => {
   const lowerScoreMoreSeeders = {
     download_action: {
       Accept: {
@@ -508,7 +508,7 @@ Deno.test("compare episode search results prefers higher scores before seeders",
   );
 });
 
-Deno.test("compare episode search results prefers accepted higher-seeder entries", () => {
+it("compare episode search results prefers accepted higher-seeder entries", () => {
   const left = {
     download_action: { Reject: { reason: "no quality improvement" } },
     indexer: "Nyaa",
@@ -543,7 +543,7 @@ Deno.test("compare episode search results prefers accepted higher-seeder entries
   assertEquals(Math.sign(compareEpisodeSearchResults(left, right)), 1);
 });
 
-Deno.test("cutoff blocks better-quality upgrades once cutoff is met", () => {
+it("cutoff blocks better-quality upgrades once cutoff is met", () => {
   const profileWith4kAllowed: QualityProfile = {
     ...baseProfile,
     allowed_qualities: ["2160p", "1080p", "720p"],
@@ -574,7 +574,7 @@ Deno.test("cutoff blocks better-quality upgrades once cutoff is met", () => {
   assertEquals(decision.Reject?.reason, "already at quality cutoff");
 });
 
-Deno.test("compare episode search results prefers better quality over seeders when score ties", () => {
+it("compare episode search results prefers better quality over seeders when score ties", () => {
   const lowQualityMoreSeeders = {
     download_action: {
       Accept: {
@@ -624,12 +624,12 @@ Deno.test("compare episode search results prefers better quality over seeders wh
   );
 });
 
-Deno.test("episode parser handles sxxexx and dash patterns", () => {
+it("episode parser handles sxxexx and dash patterns", () => {
   assertEquals(parseEpisodeFromTitle("Show.S01E07.1080p.WEB.mkv"), 7);
   assertEquals(parseEpisodeFromTitle("[Group] Show - 12 [1080p]"), 12);
 });
 
-Deno.test("episode parser handles ranges and season packs", () => {
+it("episode parser handles ranges and season packs", () => {
   assertEquals(parseEpisodeNumbersFromTitle("[Group] Show - 01-03 [1080p]"), [
     1,
     2,

@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 
 import {
   buildCanonicalEpisodeNamingInput,
@@ -16,7 +16,7 @@ import {
   validateNamingMetadata,
 } from "./naming-support.ts";
 
-Deno.test("buildEpisodeNamingInputFromPath extracts local filename metadata for rename tokens", () => {
+it("buildEpisodeNamingInputFromPath extracts local filename metadata for rename tokens", () => {
   const input = buildEpisodeNamingInputFromPath({
     animeStartDate: "2012-01-08",
     animeTitle: "Nisemonogatari",
@@ -37,7 +37,7 @@ Deno.test("buildEpisodeNamingInputFromPath extracts local filename metadata for 
   assertEquals(input.year, 2012);
 });
 
-Deno.test("buildEpisodeNamingInputFromPath keeps stored episode title over filename fallback", () => {
+it("buildEpisodeNamingInputFromPath keeps stored episode title over filename fallback", () => {
   const input = buildEpisodeNamingInputFromPath({
     animeTitle: "Show Name",
     episodeNumbers: [1],
@@ -48,7 +48,7 @@ Deno.test("buildEpisodeNamingInputFromPath keeps stored episode title over filen
   assertEquals(input.episodeTitle, "Canonical Episode Title");
 });
 
-Deno.test("selectAnimeTitleForNaming honors preferred title with fallback", () => {
+it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
   assertEquals(
     selectAnimeTitleForNaming(
       {
@@ -86,7 +86,7 @@ Deno.test("selectAnimeTitleForNaming honors preferred title with fallback", () =
   );
 });
 
-Deno.test("selectAnimeTitleForNamingDetails reports which title source won", () => {
+it("selectAnimeTitleForNamingDetails reports which title source won", () => {
   assertEquals(
     selectAnimeTitleForNamingDetails(
       {
@@ -103,7 +103,7 @@ Deno.test("selectAnimeTitleForNamingDetails reports which title source won", () 
   );
 });
 
-Deno.test("selectNamingFormat uses movie format only for movies", () => {
+it("selectNamingFormat uses movie format only for movies", () => {
   const settings = {
     movieNamingFormat: "{title} ({year})",
     namingFormat: "{title} - {episode_segment}",
@@ -119,7 +119,7 @@ Deno.test("selectNamingFormat uses movie format only for movies", () => {
   );
 });
 
-Deno.test("selectAnimeYearForNaming prefers preserved year metadata", () => {
+it("selectAnimeYearForNaming prefers preserved year metadata", () => {
   assertEquals(
     selectAnimeYearForNaming({
       endDate: "2017-01-01",
@@ -131,7 +131,7 @@ Deno.test("selectAnimeYearForNaming prefers preserved year metadata", () => {
   );
 });
 
-Deno.test("inspectNamingFormat and validation identify missing fields", () => {
+it("inspectNamingFormat and validation identify missing fields", () => {
   assertEquals(inspectNamingFormat("{title} - S{season:02}E{episode:02}"), [
     "title",
     "season",
@@ -149,7 +149,7 @@ Deno.test("inspectNamingFormat and validation identify missing fields", () => {
   assertEquals(validation.missingFields, ["season"]);
 });
 
-Deno.test("resolveFilenameRenderPlan falls back when critical tokens are missing", () => {
+it("resolveFilenameRenderPlan falls back when critical tokens are missing", () => {
   const result = resolveFilenameRenderPlan({
     animeFormat: "TV",
     format: "{title} - S{season:02}E{episode:02}",
@@ -163,7 +163,7 @@ Deno.test("resolveFilenameRenderPlan falls back when critical tokens are missing
   assertEquals(result.formatUsed, "{title} - {episode_segment}");
 });
 
-Deno.test("buildCanonicalEpisodeNamingInput prefers DB data and preserves daily air date", () => {
+it("buildCanonicalEpisodeNamingInput prefers DB data and preserves daily air date", () => {
   const result = buildCanonicalEpisodeNamingInput({
     animeStartDate: "2025-01-01",
     animeStartYear: 2025,
@@ -186,7 +186,7 @@ Deno.test("buildCanonicalEpisodeNamingInput prefers DB data and preserves daily 
   assertEquals(result.namingInput.year, 2025);
 });
 
-Deno.test("buildCanonicalEpisodeNamingInput warns on ambiguous multi-episode metadata", () => {
+it("buildCanonicalEpisodeNamingInput warns on ambiguous multi-episode metadata", () => {
   const result = buildCanonicalEpisodeNamingInput({
     animeStartDate: "2025-01-01",
     animeTitle: "Show Name",
@@ -203,7 +203,7 @@ Deno.test("buildCanonicalEpisodeNamingInput warns on ambiguous multi-episode met
   assertEquals(result.warnings.length, 2);
 });
 
-Deno.test("buildEpisodeFilenamePlan exposes fallback and warning details", () => {
+it("buildEpisodeFilenamePlan exposes fallback and warning details", () => {
   const plan = buildEpisodeFilenamePlan({
     animeRow: {
       format: "TV",
@@ -223,7 +223,7 @@ Deno.test("buildEpisodeFilenamePlan exposes fallback and warning details", () =>
   assertEquals(plan.missingFields, ["season"]);
 });
 
-Deno.test("buildEpisodeFilenamePlan fills media tokens from local metadata when heuristics are weak", () => {
+it("buildEpisodeFilenamePlan fills media tokens from local metadata when heuristics are weak", () => {
   const plan = buildEpisodeFilenamePlan({
     animeRow: {
       format: "TV",
@@ -248,7 +248,7 @@ Deno.test("buildEpisodeFilenamePlan fills media tokens from local metadata when 
   assertEquals(plan.metadataSnapshot.audio_channels, "2.0");
 });
 
-Deno.test("buildDownloadSourceMetadataFromRelease extracts provenance from release title", () => {
+it("buildDownloadSourceMetadataFromRelease extracts provenance from release title", () => {
   const metadata = buildDownloadSourceMetadataFromRelease({
     chosenFromSeadex: true,
     group: "SubsPlease",
@@ -274,7 +274,7 @@ Deno.test("buildDownloadSourceMetadataFromRelease extracts provenance from relea
   assertEquals(metadata.audio_codec, "AAC");
 });
 
-Deno.test("buildDownloadSourceMetadataFromRelease expands heuristic coverage for BluRay and codec tags", () => {
+it("buildDownloadSourceMetadataFromRelease expands heuristic coverage for BluRay and codec tags", () => {
   const metadata = buildDownloadSourceMetadataFromRelease({
     title: "[Group] Movie Title (2025) [BDMV 2160p] [VP9] [TrueHD 6ch]",
   });
@@ -286,7 +286,7 @@ Deno.test("buildDownloadSourceMetadataFromRelease expands heuristic coverage for
   assertEquals(metadata.audio_channels, "5.1");
 });
 
-Deno.test("buildDownloadSourceMetadataFromRelease marks BD releases as BluRay", () => {
+it("buildDownloadSourceMetadataFromRelease marks BD releases as BluRay", () => {
   const metadata = buildDownloadSourceMetadataFromRelease({
     title: "Jigokuraku - S01E01 v2 (BD 1080p HEVC) [Vodes]",
   });
@@ -296,7 +296,7 @@ Deno.test("buildDownloadSourceMetadataFromRelease marks BD releases as BluRay", 
   assertEquals(metadata.video_codec, "HEVC");
 });
 
-Deno.test("buildEpisodeNamingInputFromPath recognizes plain WEB releases and 2ch audio", () => {
+it("buildEpisodeNamingInputFromPath recognizes plain WEB releases and 2ch audio", () => {
   const input = buildEpisodeNamingInputFromPath({
     animeTitle: "Show Name",
     episodeNumbers: [1],
@@ -310,7 +310,7 @@ Deno.test("buildEpisodeNamingInputFromPath recognizes plain WEB releases and 2ch
   assertEquals(input.audioChannels, "2.0");
 });
 
-Deno.test("mergeDownloadSourceMetadata preserves baseline fields and overlays UI metadata", () => {
+it("mergeDownloadSourceMetadata preserves baseline fields and overlays UI metadata", () => {
   const merged = mergeDownloadSourceMetadata(
     {
       group: "SubsPlease",
@@ -351,7 +351,7 @@ Deno.test("mergeDownloadSourceMetadata preserves baseline fields and overlays UI
   assertEquals(merged.trusted, true);
 });
 
-Deno.test("buildDownloadSelectionMetadata extracts compact ranking context", () => {
+it("buildDownloadSelectionMetadata extracts compact ranking context", () => {
   const upgrade = buildDownloadSelectionMetadata({
     Upgrade: {
       is_seadex: true,

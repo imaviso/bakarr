@@ -1,12 +1,11 @@
-/// <reference lib="deno.ns" />
-
+import { it } from "~/test/vitest";
 import {
   formatEpisodeStatusTooltip,
   getAiringDisplayDateKey,
   getAiringDisplayPreferences,
-} from "./anime-metadata.ts";
+} from "./anime-metadata";
 
-Deno.test("getAiringDisplayPreferences normalizes system timezone", () => {
+it("getAiringDisplayPreferences normalizes system timezone", () => {
   const preferences = getAiringDisplayPreferences({
     airing_day_start_hour: 4,
     airing_timezone: "system",
@@ -29,7 +28,7 @@ Deno.test("getAiringDisplayPreferences normalizes system timezone", () => {
   }
 });
 
-Deno.test("getAiringDisplayDateKey respects day start hour", () => {
+it("getAiringDisplayDateKey respects day start hour", () => {
   const preferences = { dayStartHour: 4, timeZone: "UTC" };
 
   if (
@@ -47,7 +46,7 @@ Deno.test("getAiringDisplayDateKey respects day start hour", () => {
   }
 });
 
-Deno.test("formatEpisodeStatusTooltip includes downloaded filename", () => {
+it("formatEpisodeStatusTooltip includes downloaded filename", () => {
   const tooltip = formatEpisodeStatusTooltip({
     downloaded: true,
     episodeNumber: 7,
@@ -59,7 +58,7 @@ Deno.test("formatEpisodeStatusTooltip includes downloaded filename", () => {
   }
 });
 
-Deno.test("formatEpisodeStatusTooltip uses airing preferences for missing episodes", () => {
+it("formatEpisodeStatusTooltip uses airing preferences for missing episodes", () => {
   const tooltip = formatEpisodeStatusTooltip({
     aired: "2024-01-10T02:30:00.000Z",
     downloaded: false,

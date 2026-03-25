@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
 import { qualityProfiles, releaseProfiles } from "../../db/schema.ts";
@@ -15,7 +15,7 @@ import {
   encodeReleaseProfileRules,
 } from "./config-codec.ts";
 
-Deno.test("config codec round-trips config core without mutating arrays", () => {
+it("config codec round-trips config core without mutating arrays", () => {
   const encoded = encodeConfigCore({
     downloads: {
       create_anime_folders: true,
@@ -79,7 +79,7 @@ Deno.test("config codec round-trips config core without mutating arrays", () => 
   assertEquals(decoded.scheduler.cron_expression, "0 * * * *");
 });
 
-Deno.test("profile codecs encode and decode quality and release profile rows", () => {
+it("profile codecs encode and decode quality and release profile rows", () => {
   const qualityRow = encodeQualityProfileRow({
     allowed_qualities: ["1080p", "720p"],
     cutoff: "1080p",
@@ -137,35 +137,37 @@ Deno.test("profile codecs encode and decode quality and release profile rows", (
   );
 });
 
-Deno.test("optional number list codec normalizes duplicates and invalid values", () => {
+it("optional number list codec normalizes duplicates and invalid values", () => {
   assertEquals(encodeOptionalNumberList([3, 1, 3, -1, 2]), "[1,2,3]");
   assertEquals(encodeOptionalNumberList([]), null);
   assertEquals(decodeOptionalNumberList("[3,1,2]"), [3, 1, 2]);
   assertEquals(decodeOptionalNumberList("not-json"), []);
 });
 
-Deno.test("stored config row decoder fails with typed errors for missing and corrupt rows", async () => {
-  const missingExit = await Effect.runPromiseExit(
-    effectDecodeStoredConfigRow(undefined),
-  );
-  assertEquals(Exit.isFailure(missingExit), true);
-  if (Exit.isFailure(missingExit)) {
-    const failure = Cause.failureOption(missingExit.cause);
-    assertEquals(failure._tag, "Some");
-    if (failure._tag === "Some") {
-      assertEquals(failure.value._tag, "StoredConfigMissingError");
+it.effect("stored config row decoder fails with typed errors for missing and corrupt rows", () =>
+  Effect.gen(function* () {
+    const missingExit = yield* Effect.exit(
+      effectDecodeStoredConfigRow(undefined),
+    );
+    assertEquals(Exit.isFailure(missingExit), true);
+    if (Exit.isFailure(missingExit)) {
+      const failure = Cause.failureOption(missingExit.cause);
+      assertEquals(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assertEquals(failure.value._tag, "StoredConfigMissingError");
+      }
     }
-  }
 
-  const corruptExit = await Effect.runPromiseExit(
-    effectDecodeStoredConfigRow({ data: "{not-json" }),
-  );
-  assertEquals(Exit.isFailure(corruptExit), true);
-  if (Exit.isFailure(corruptExit)) {
-    const failure = Cause.failureOption(corruptExit.cause);
-    assertEquals(failure._tag, "Some");
-    if (failure._tag === "Some") {
-      assertEquals(failure.value._tag, "StoredConfigCorruptError");
+    const corruptExit = yield* Effect.exit(
+      effectDecodeStoredConfigRow({ data: "{not-json" }),
+    );
+    assertEquals(Exit.isFailure(corruptExit), true);
+    if (Exit.isFailure(corruptExit)) {
+      const failure = Cause.failureOption(corruptExit.cause);
+      assertEquals(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assertEquals(failure.value._tag, "StoredConfigCorruptError");
+      }
     }
-  }
-});
+  })
+);

@@ -1,16 +1,16 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { Effect } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { DatabaseError } from "../../db/database.ts";
-import { runTestEffectExit } from "../../test/effect-test.ts";
 import { makeDefaultConfig } from "./defaults.ts";
 import {
   persistAndActivateConfig,
   type PersistedSystemConfigState,
 } from "./config-activation.ts";
 
-Deno.test("config activation keeps persisted state when activation succeeds", async () => {
+it.effect("config activation keeps persisted state when activation succeeds", () =>
+  Effect.gen(function* () {
   const persisted: PersistedSystemConfigState[] = [];
   const nextConfig: Config = {
     ...makeDefaultConfig("./test.sqlite"),
@@ -19,25 +19,27 @@ Deno.test("config activation keeps persisted state when activation succeeds", as
   const previousState = state("previous");
   const nextState = state("next");
 
-  const exit = await runTestEffectExit(
-    persistAndActivateConfig({
-      activateConfig: () => Effect.void,
-      nextConfig,
-      nextState,
-      persistState: (value) =>
-        Effect.sync(() => {
-          persisted.push(value);
-        }),
-      previousState,
-      recordEvent: () => Effect.void,
-    }),
-  );
+    const exit = yield* Effect.exit(
+      persistAndActivateConfig({
+        activateConfig: () => Effect.void,
+        nextConfig,
+        nextState,
+        persistState: (value) =>
+          Effect.sync(() => {
+            persisted.push(value);
+          }),
+        previousState,
+        recordEvent: () => Effect.void,
+      }),
+    );
 
-  assertEquals(exit._tag, "Success");
-  assertEquals(persisted, [nextState]);
-});
+    assertEquals(exit._tag, "Success");
+    assertEquals(persisted, [nextState]);
+  })
+);
 
-Deno.test("config activation rolls persisted state back when activation fails", async () => {
+it.effect("config activation rolls persisted state back when activation fails", () =>
+  Effect.gen(function* () {
   const persisted: PersistedSystemConfigState[] = [];
   const nextConfig: Config = {
     ...makeDefaultConfig("./test.sqlite"),
@@ -50,23 +52,24 @@ Deno.test("config activation rolls persisted state back when activation fails", 
     message: "reload failed",
   });
 
-  const exit = await runTestEffectExit(
-    persistAndActivateConfig({
-      activateConfig: () => Effect.fail(activationError),
-      nextConfig,
-      nextState,
-      persistState: (value) =>
-        Effect.sync(() => {
-          persisted.push(value);
-        }),
-      previousState,
-      recordEvent: () => Effect.void,
-    }),
-  );
+    const exit = yield* Effect.exit(
+      persistAndActivateConfig({
+        activateConfig: () => Effect.fail(activationError),
+        nextConfig,
+        nextState,
+        persistState: (value) =>
+          Effect.sync(() => {
+            persisted.push(value);
+          }),
+        previousState,
+        recordEvent: () => Effect.void,
+      }),
+    );
 
-  assertEquals(exit._tag, "Failure");
-  assertEquals(persisted, [nextState, previousState]);
-});
+    assertEquals(exit._tag, "Failure");
+    assertEquals(persisted, [nextState, previousState]);
+  })
+);
 
 function state(seed: string): PersistedSystemConfigState {
   return {

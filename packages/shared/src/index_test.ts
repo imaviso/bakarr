@@ -1,4 +1,4 @@
-import { assertEquals, assertMatch } from "@std/assert";
+import { assertEquals, assertMatch, it } from "./test/vitest";
 import { Schema } from "effect";
 
 import {
@@ -49,9 +49,9 @@ import {
   SystemStatusSchema,
   UnmappedFolderSchema,
   VideoFileSchema,
-} from "./index.ts";
+} from "./index";
 
-Deno.test("shared config schemas accept canonical literal values", () => {
+it("shared config schemas accept canonical literal values", () => {
   const importMode = Schema.decodeUnknownEither(ImportModeSchema)("copy");
   const preferredTitle = Schema.decodeUnknownEither(PreferredTitleSchema)(
     "english",
@@ -63,7 +63,7 @@ Deno.test("shared config schemas accept canonical literal values", () => {
   assertEquals(ruleType._tag, "Right");
 });
 
-Deno.test("shared config schemas reject unsupported literals", () => {
+it("shared config schemas reject unsupported literals", () => {
   const importMode = Schema.decodeUnknownEither(ImportModeSchema)("link");
   const preferredTitle = Schema.decodeUnknownEither(PreferredTitleSchema)(
     "kana",
@@ -81,7 +81,7 @@ Deno.test("shared config schemas reject unsupported literals", () => {
   }
 });
 
-Deno.test("shared api schemas accept canonical system and download payloads", () => {
+it("shared api schemas accept canonical system and download payloads", () => {
   const downloadEvent = Schema.decodeUnknownEither(DownloadEventSchema)({
     anime_id: 20,
     anime_image: "https://example.com/naruto.jpg",
@@ -174,7 +174,7 @@ Deno.test("shared api schemas accept canonical system and download payloads", ()
   assertEquals(systemStatus._tag, "Right");
 });
 
-Deno.test("shared api schemas reject invalid download payloads", () => {
+it("shared api schemas reject invalid download payloads", () => {
   const downloadStatus = Schema.decodeUnknownEither(DownloadStatusSchema)({
     downloaded_bytes: 512,
     eta: 60,
@@ -194,7 +194,7 @@ Deno.test("shared api schemas reject invalid download payloads", () => {
   }
 });
 
-Deno.test("shared dashboard and browse schemas accept canonical payloads", () => {
+it("shared dashboard and browse schemas accept canonical payloads", () => {
   const rssFeed = Schema.decodeUnknownEither(RssFeedSchema)({
     anime_id: 20,
     created_at: "2024-01-01T00:00:00.000Z",
@@ -277,7 +277,7 @@ Deno.test("shared dashboard and browse schemas accept canonical payloads", () =>
   assertEquals(browse._tag, "Right");
 });
 
-Deno.test("shared search and scanner schemas accept canonical payloads", () => {
+it("shared search and scanner schemas accept canonical payloads", () => {
   const animeSearchResult = {
     already_in_library: true,
     banner_image: "https://example.com/naruto-banner.jpg",
@@ -371,7 +371,7 @@ Deno.test("shared search and scanner schemas accept canonical payloads", () => {
   assertEquals(scannerState._tag, "Right");
 });
 
-Deno.test("shared nested dto schemas reject invalid payloads", () => {
+it("shared nested dto schemas reject invalid payloads", () => {
   const backgroundJob = Schema.decodeUnknownEither(BackgroundJobStatusSchema)({
     is_running: false,
     name: "rss",
@@ -411,7 +411,7 @@ Deno.test("shared nested dto schemas reject invalid payloads", () => {
   }
 });
 
-Deno.test("shared media schemas accept canonical anime, episode, download, and calendar payloads", () => {
+it("shared media schemas accept canonical anime, episode, download, and calendar payloads", () => {
   const anime = Schema.decodeUnknownEither(AnimeSchema)({
     added_at: "2024-01-01T00:00:00.000Z",
     banner_image: "https://example.com/naruto-banner.jpg",
@@ -548,7 +548,7 @@ Deno.test("shared media schemas accept canonical anime, episode, download, and c
   assertEquals(calendarEvent._tag, "Right");
 });
 
-Deno.test("shared profile and import schemas accept canonical payloads", () => {
+it("shared profile and import schemas accept canonical payloads", () => {
   const qualityProfile = Schema.decodeUnknownEither(QualityProfileSchema)({
     allowed_qualities: ["1080p", "720p"],
     cutoff: "1080p",
@@ -596,7 +596,7 @@ Deno.test("shared profile and import schemas accept canonical payloads", () => {
   assertEquals(importResult._tag, "Right");
 });
 
-Deno.test("shared media and profile schemas reject invalid nested payloads", () => {
+it("shared media and profile schemas reject invalid nested payloads", () => {
   const anime = Schema.decodeUnknownEither(AnimeSchema)({
     added_at: "2024-01-01T00:00:00.000Z",
     format: "TV",
@@ -657,7 +657,7 @@ Deno.test("shared media and profile schemas reject invalid nested payloads", () 
   }
 });
 
-Deno.test("shared auth and utility schemas accept canonical payloads", () => {
+it("shared auth and utility schemas accept canonical payloads", () => {
   const health = Schema.decodeUnknownEither(HealthStatusSchema)({
     status: "ok",
   });
@@ -740,7 +740,7 @@ Deno.test("shared auth and utility schemas accept canonical payloads", () => {
   assertEquals(activityItem._tag, "Right");
 });
 
-Deno.test("shared operational detail schemas accept canonical payloads", () => {
+it("shared operational detail schemas accept canonical payloads", () => {
   const quality = Schema.decodeUnknownEither(QualitySchema)({
     id: 1,
     name: "1080p",
@@ -1061,7 +1061,7 @@ Deno.test("shared operational detail schemas accept canonical payloads", () => {
   assertEquals(config._tag, "Right");
 });
 
-Deno.test("shared config and notification schemas reject invalid payloads", () => {
+it("shared config and notification schemas reject invalid payloads", () => {
   const notificationEvent = Schema.decodeUnknownEither(NotificationEventSchema)(
     {
       payload: {

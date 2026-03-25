@@ -1,9 +1,8 @@
-/// <reference lib="deno.ns" />
-
+import { it } from "~/test/vitest";
 import {
   runBulkBackgroundMatchAction,
   runFolderBackgroundMatchAction,
-} from "./background-matching-actions.ts";
+} from "./background-matching-actions";
 
 function assertEquals<T>(actual: T, expected: T) {
   if (actual !== expected) {
@@ -20,7 +19,7 @@ function assertArrayEquals<T>(actual: T[], expected: T[]) {
   }
 }
 
-Deno.test("folder resume starts a background pass after control update", async () => {
+it("folder resume starts a background pass after control update", async () => {
   const calls: string[] = [];
 
   await runFolderBackgroundMatchAction({
@@ -39,7 +38,7 @@ Deno.test("folder resume starts a background pass after control update", async (
   assertArrayEquals(calls, ["control", "scan"]);
 });
 
-Deno.test("folder refresh does not start a full background pass", async () => {
+it("folder refresh does not start a full background pass", async () => {
   const calls: string[] = [];
 
   await runFolderBackgroundMatchAction({
@@ -58,7 +57,7 @@ Deno.test("folder refresh does not start a full background pass", async () => {
   assertArrayEquals(calls, ["control"]);
 });
 
-Deno.test("bulk resume starts a background pass after queuing folders", async () => {
+it("bulk resume starts a background pass after queuing folders", async () => {
   const calls: string[] = [];
 
   await runBulkBackgroundMatchAction({
@@ -76,7 +75,7 @@ Deno.test("bulk resume starts a background pass after queuing folders", async ()
   assertArrayEquals(calls, ["control", "scan"]);
 });
 
-Deno.test("bulk pause does not start a background pass", async () => {
+it("bulk pause does not start a background pass", async () => {
   const calls: string[] = [];
 
   await runBulkBackgroundMatchAction({
@@ -94,7 +93,7 @@ Deno.test("bulk pause does not start a background pass", async () => {
   assertArrayEquals(calls, ["control"]);
 });
 
-Deno.test("scan is not started when control action fails", async () => {
+it("scan is not started when control action fails", async () => {
   let started = false;
   let message = "";
 

@@ -1,8 +1,7 @@
-/// <reference lib="deno.ns" />
+import { it } from "~/test/vitest";
+import { getDownloadStatusPresentation } from "./download-status";
 
-import { getDownloadStatusPresentation } from "./download-status.ts";
-
-Deno.test("getDownloadStatusPresentation maps known statuses", () => {
+it("getDownloadStatusPresentation maps known statuses", () => {
   const downloading = getDownloadStatusPresentation("downloading");
   if (
     downloading.icon !== "arrow-down" || downloading.label !== "Downloading"
@@ -18,9 +17,9 @@ Deno.test("getDownloadStatusPresentation maps known statuses", () => {
   }
 });
 
-Deno.test("getDownloadStatusPresentation falls back for unknown statuses", () => {
+it("getDownloadStatusPresentation falls back for unknown statuses", () => {
   const unknown = getDownloadStatusPresentation("stalled");
-  if (unknown.icon !== "clock" || unknown.label !== "stalled") {
+  if (unknown.icon !== "clock" || unknown.label !== "Stalled") {
     throw new Error(
       `Unexpected unknown status presentation: ${JSON.stringify(unknown)}`,
     );
