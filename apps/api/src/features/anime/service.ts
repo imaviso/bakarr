@@ -171,7 +171,10 @@ const makeAnimeService = Effect.gen(function* () {
   const getAnimeByAnilistId: AnimeServiceShape["getAnimeByAnilistId"] = (id) =>
     getAnimeByAnilistIdEffect({ aniList, db, id });
   const listEpisodes: AnimeServiceShape["listEpisodes"] = (animeId) =>
-    listEpisodesEffect({ animeId, db });
+    Effect.gen(function* () {
+      const now = new Date(yield* clock.currentTimeMillis);
+      return yield* listEpisodesEffect({ animeId, db, now });
+    });
   const refreshEpisodes: AnimeServiceShape["refreshEpisodes"] = (animeId) =>
     refreshEpisodesEffect({
       aniList,

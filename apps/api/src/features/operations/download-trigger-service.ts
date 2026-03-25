@@ -102,7 +102,7 @@ export function makeDownloadTriggerService(input: {
   const triggerDownload = Effect.fn("OperationsService.triggerDownload")(function* (
     input: TriggerDownloadInput,
   ) {
-    return yield* coordination.runSerializedTrigger(
+    return yield* coordination.runExclusiveDownloadTrigger(
       Effect.gen(function* () {
         const animeRow = yield* requireAnime(db, input.anime_id);
 

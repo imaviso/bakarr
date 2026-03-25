@@ -34,7 +34,8 @@ export function makeCatalogLibraryReadSupport(input: {
   const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(function* (
     limit: number,
   ) {
-    const nowIso = new Date(yield* currentTimeMillis()).toISOString();
+    const now = new Date(yield* currentTimeMillis());
+    const nowIso = now.toISOString();
     const rows = yield* input.tryDatabasePromise("Failed to load wanted episodes", () =>
       input.db
         .select({
@@ -62,7 +63,7 @@ export function makeCatalogLibraryReadSupport(input: {
     );
 
     return rows.map((row) => {
-      const timeline = deriveEpisodeTimelineMetadata(row.aired ?? undefined);
+      const timeline = deriveEpisodeTimelineMetadata(row.aired ?? undefined, now);
 
       return {
         aired: row.aired ?? undefined,
@@ -88,7 +89,8 @@ export function makeCatalogLibraryReadSupport(input: {
     start: string,
     end: string,
   ) {
-    const nowIso = new Date(yield* currentTimeMillis()).toISOString();
+    const now = new Date(yield* currentTimeMillis());
+    const nowIso = now.toISOString();
     const rows = yield* input.tryDatabasePromise("Failed to load calendar events", () =>
       input.db
         .select()
@@ -99,7 +101,7 @@ export function makeCatalogLibraryReadSupport(input: {
     );
 
     return rows.map(({ anime: animeRow, episodes: episodeRow }) => {
-      const timeline = deriveEpisodeTimelineMetadata(episodeRow.aired ?? undefined);
+      const timeline = deriveEpisodeTimelineMetadata(episodeRow.aired ?? undefined, now);
 
       return {
         all_day: isAllDayAiring(episodeRow.aired),

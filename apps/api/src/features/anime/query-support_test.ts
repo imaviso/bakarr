@@ -119,6 +119,7 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
           const result = yield* listEpisodesEffect({
             animeId: 1,
             db: appDb,
+            now: new Date("2024-01-02T00:00:00.000Z"),
           });
 
           assertEquals(result[0]?.resolution, "1080p");

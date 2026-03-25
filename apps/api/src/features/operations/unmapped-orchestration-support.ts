@@ -260,7 +260,7 @@ export function makeUnmappedOrchestrationSupport(input: {
   });
 
   const startUnmappedScanLoop = Effect.fn("OperationsService.startUnmappedScanLoop")(function* () {
-    const alreadyRunning = yield* coordination.tryStartUnmappedScan();
+    const alreadyRunning = yield* coordination.tryBeginUnmappedScan();
 
     if (alreadyRunning) {
       return { folderCount: 0 };
@@ -294,16 +294,16 @@ export function makeUnmappedOrchestrationSupport(input: {
             Effect.annotateLogs({ error: cause.toString() }),
           ),
         ),
-        Effect.ensuring(coordination.finishUnmappedScan()),
+        Effect.ensuring(coordination.completeUnmappedScan()),
       );
 
-      yield* coordination.forkUnmappedScan(loop);
+      yield* coordination.forkUnmappedScanLoop(loop);
       forked = true;
 
       return { folderCount };
     } finally {
       if (!forked) {
-        yield* coordination.finishUnmappedScan();
+        yield* coordination.completeUnmappedScan();
       }
     }
   });

@@ -378,6 +378,7 @@ export const getAnimeByAnilistIdEffect = Effect.fn("AnimeService.getAnimeByAnili
 export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(function* (input: {
   animeId: number;
   db: AppDatabase;
+  now: Date;
 }) {
   const rows = yield* tryDatabasePromise("Failed to list episodes", () =>
     input.db.select().from(episodes).where(eq(episodes.animeId, input.animeId)),
@@ -386,7 +387,7 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(f
   return rows
     .sort((left, right) => left.number - right.number)
     .map((row): Episode => {
-      const timeline = deriveEpisodeTimelineMetadata(row.aired ?? undefined);
+      const timeline = deriveEpisodeTimelineMetadata(row.aired ?? undefined, input.now);
 
       return {
         aired: row.aired ?? undefined,
@@ -410,9 +411,13 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(f
 
 export function deriveEpisodeTimelineMetadata(
   aired?: string,
-  now = new Date(),
+  now?: Date,
 ): Pick<Episode, "airing_status" | "is_future"> {
   if (!aired) {
+    return { airing_status: "unknown" };
+  }
+
+  if (!now) {
     return { airing_status: "unknown" };
   }
 

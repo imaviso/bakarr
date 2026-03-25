@@ -9,10 +9,10 @@ import {
 import { EventBus } from "../events/event-bus.ts";
 
 export interface OperationsCoordinationShape {
-  readonly finishUnmappedScan: () => Effect.Effect<void>;
-  readonly forkUnmappedScan: <E>(effect: Effect.Effect<void, E>) => Effect.Effect<void>;
-  readonly runSerializedTrigger: <A, E>(effect: Effect.Effect<A, E>) => Effect.Effect<A, E>;
-  readonly tryStartUnmappedScan: () => Effect.Effect<boolean>;
+  readonly completeUnmappedScan: () => Effect.Effect<void>;
+  readonly forkUnmappedScanLoop: (loop: Effect.Effect<void>) => Effect.Effect<void>;
+  readonly runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) => Effect.Effect<A, E>;
+  readonly tryBeginUnmappedScan: () => Effect.Effect<boolean>;
 }
 
 export const makeOperationsSharedState = Effect.fn("OperationsService.makeSharedState")(
@@ -23,12 +23,12 @@ export const makeOperationsSharedState = Effect.fn("OperationsService.makeShared
     yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void));
 
     return {
-      finishUnmappedScan: () => coordinator.finish,
-      forkUnmappedScan: <E>(effect: Effect.Effect<void, E>) =>
-        Effect.forkIn(scope)(effect).pipe(Effect.asVoid),
-      runSerializedTrigger: <A, E>(effect: Effect.Effect<A, E>) =>
-        coordinator.runSerialized(effect),
-      tryStartUnmappedScan: () => coordinator.tryStart,
+      completeUnmappedScan: () => coordinator.finish,
+      forkUnmappedScanLoop: (loop: Effect.Effect<void>) =>
+        Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
+      runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) =>
+        coordinator.runSerialized(operation),
+      tryBeginUnmappedScan: () => coordinator.tryStart,
     } satisfies OperationsCoordinationShape;
   },
 );

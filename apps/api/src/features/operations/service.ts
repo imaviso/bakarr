@@ -63,10 +63,10 @@ export {
 } from "./naming-support.ts";
 
 interface OperationsSharedStateShape {
-  readonly finishUnmappedScan: () => Effect.Effect<void>;
-  readonly forkUnmappedScan: <E>(effect: Effect.Effect<void, E>) => Effect.Effect<void>;
-  readonly runSerializedTrigger: <A, E>(effect: Effect.Effect<A, E>) => Effect.Effect<A, E>;
-  readonly tryStartUnmappedScan: () => Effect.Effect<boolean>;
+  readonly completeUnmappedScan: () => Effect.Effect<void>;
+  readonly forkUnmappedScanLoop: (loop: Effect.Effect<void>) => Effect.Effect<void>;
+  readonly runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) => Effect.Effect<A, E>;
+  readonly tryBeginUnmappedScan: () => Effect.Effect<boolean>;
 }
 
 interface OperationsProgressShape {

@@ -19,10 +19,10 @@ it.effect(
       const orchestration = makeSearchOrchestration({
         aniList: {} as never,
         coordination: {
-          finishUnmappedScan: () => Effect.void,
-          forkUnmappedScan: <E>(_effect: Effect.Effect<void, E>) => Effect.void,
-          runSerializedTrigger: <A, E>(effect: Effect.Effect<A, E>) => effect,
-          tryStartUnmappedScan: () => Effect.succeed(false),
+          completeUnmappedScan: () => Effect.void,
+          forkUnmappedScanLoop: (_loop: Effect.Effect<void>) => Effect.void,
+          runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) => operation,
+          tryBeginUnmappedScan: () => Effect.succeed(false),
         },
         db: {} as AppDatabase,
         dbError: (message) => (cause) => ({ cause, message }) as never,

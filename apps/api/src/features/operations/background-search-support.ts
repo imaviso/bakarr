@@ -198,7 +198,7 @@ export function makeBackgroundSearchSupport(input: {
         });
       });
 
-      return yield* coordination.runSerializedTrigger(queueEffect);
+      return yield* coordination.runExclusiveDownloadTrigger(queueEffect);
     },
   );
 
