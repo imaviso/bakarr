@@ -8,309 +8,309 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as LoginRouteImport } from "./routes/login";
-import { Route as LayoutRouteImport } from "./routes/_layout";
-import { Route as LayoutIndexRouteImport } from "./routes/_layout/index";
-import { Route as LayoutWantedRouteImport } from "./routes/_layout/wanted";
-import { Route as LayoutSettingsRouteImport } from "./routes/_layout/settings";
-import { Route as LayoutRssRouteImport } from "./routes/_layout/rss";
-import { Route as LayoutLogsRouteImport } from "./routes/_layout/logs";
-import { Route as LayoutDownloadsRouteImport } from "./routes/_layout/downloads";
-import { Route as LayoutCalendarRouteImport } from "./routes/_layout/calendar";
-import { Route as LayoutAnimeIndexRouteImport } from "./routes/_layout/anime/index";
-import { Route as LayoutAnimeScanRouteImport } from "./routes/_layout/anime/scan";
-import { Route as LayoutAnimeImportRouteImport } from "./routes/_layout/anime/import";
-import { Route as LayoutAnimeAddRouteImport } from "./routes/_layout/anime/add";
-import { Route as LayoutAnimeIdRouteImport } from "./routes/_layout/anime/$id";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as LayoutRouteImport } from './routes/_layout'
+import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
+import { Route as LayoutWantedRouteImport } from './routes/_layout/wanted'
+import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
+import { Route as LayoutRssRouteImport } from './routes/_layout/rss'
+import { Route as LayoutLogsRouteImport } from './routes/_layout/logs'
+import { Route as LayoutDownloadsRouteImport } from './routes/_layout/downloads'
+import { Route as LayoutCalendarRouteImport } from './routes/_layout/calendar'
+import { Route as LayoutAnimeIndexRouteImport } from './routes/_layout/anime/index'
+import { Route as LayoutAnimeScanRouteImport } from './routes/_layout/anime/scan'
+import { Route as LayoutAnimeImportRouteImport } from './routes/_layout/anime/import'
+import { Route as LayoutAnimeAddRouteImport } from './routes/_layout/anime/add'
+import { Route as LayoutAnimeIdRouteImport } from './routes/_layout/anime/$id'
 
 const LoginRoute = LoginRouteImport.update({
-  id: "/login",
-  path: "/login",
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const LayoutRoute = LayoutRouteImport.update({
-  id: "/_layout",
+  id: '/_layout',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const LayoutIndexRoute = LayoutIndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutWantedRoute = LayoutWantedRouteImport.update({
-  id: "/wanted",
-  path: "/wanted",
+  id: '/wanted',
+  path: '/wanted',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
-  id: "/settings",
-  path: "/settings",
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutRssRoute = LayoutRssRouteImport.update({
-  id: "/rss",
-  path: "/rss",
+  id: '/rss',
+  path: '/rss',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutLogsRoute = LayoutLogsRouteImport.update({
-  id: "/logs",
-  path: "/logs",
+  id: '/logs',
+  path: '/logs',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutDownloadsRoute = LayoutDownloadsRouteImport.update({
-  id: "/downloads",
-  path: "/downloads",
+  id: '/downloads',
+  path: '/downloads',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutCalendarRoute = LayoutCalendarRouteImport.update({
-  id: "/calendar",
-  path: "/calendar",
+  id: '/calendar',
+  path: '/calendar',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutAnimeIndexRoute = LayoutAnimeIndexRouteImport.update({
-  id: "/anime/",
-  path: "/anime/",
+  id: '/anime/',
+  path: '/anime/',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutAnimeScanRoute = LayoutAnimeScanRouteImport.update({
-  id: "/anime/scan",
-  path: "/anime/scan",
+  id: '/anime/scan',
+  path: '/anime/scan',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutAnimeImportRoute = LayoutAnimeImportRouteImport.update({
-  id: "/anime/import",
-  path: "/anime/import",
+  id: '/anime/import',
+  path: '/anime/import',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutAnimeAddRoute = LayoutAnimeAddRouteImport.update({
-  id: "/anime/add",
-  path: "/anime/add",
+  id: '/anime/add',
+  path: '/anime/add',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 const LayoutAnimeIdRoute = LayoutAnimeIdRouteImport.update({
-  id: "/anime/$id",
-  path: "/anime/$id",
+  id: '/anime/$id',
+  path: '/anime/$id',
   getParentRoute: () => LayoutRoute,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof LayoutIndexRoute;
-  "/login": typeof LoginRoute;
-  "/calendar": typeof LayoutCalendarRoute;
-  "/downloads": typeof LayoutDownloadsRoute;
-  "/logs": typeof LayoutLogsRoute;
-  "/rss": typeof LayoutRssRoute;
-  "/settings": typeof LayoutSettingsRoute;
-  "/wanted": typeof LayoutWantedRoute;
-  "/anime/$id": typeof LayoutAnimeIdRoute;
-  "/anime/add": typeof LayoutAnimeAddRoute;
-  "/anime/import": typeof LayoutAnimeImportRoute;
-  "/anime/scan": typeof LayoutAnimeScanRoute;
-  "/anime/": typeof LayoutAnimeIndexRoute;
+  '/': typeof LayoutIndexRoute
+  '/login': typeof LoginRoute
+  '/calendar': typeof LayoutCalendarRoute
+  '/downloads': typeof LayoutDownloadsRoute
+  '/logs': typeof LayoutLogsRoute
+  '/rss': typeof LayoutRssRoute
+  '/settings': typeof LayoutSettingsRoute
+  '/wanted': typeof LayoutWantedRoute
+  '/anime/$id': typeof LayoutAnimeIdRoute
+  '/anime/add': typeof LayoutAnimeAddRoute
+  '/anime/import': typeof LayoutAnimeImportRoute
+  '/anime/scan': typeof LayoutAnimeScanRoute
+  '/anime/': typeof LayoutAnimeIndexRoute
 }
 export interface FileRoutesByTo {
-  "/login": typeof LoginRoute;
-  "/calendar": typeof LayoutCalendarRoute;
-  "/downloads": typeof LayoutDownloadsRoute;
-  "/logs": typeof LayoutLogsRoute;
-  "/rss": typeof LayoutRssRoute;
-  "/settings": typeof LayoutSettingsRoute;
-  "/wanted": typeof LayoutWantedRoute;
-  "/": typeof LayoutIndexRoute;
-  "/anime/$id": typeof LayoutAnimeIdRoute;
-  "/anime/add": typeof LayoutAnimeAddRoute;
-  "/anime/import": typeof LayoutAnimeImportRoute;
-  "/anime/scan": typeof LayoutAnimeScanRoute;
-  "/anime": typeof LayoutAnimeIndexRoute;
+  '/login': typeof LoginRoute
+  '/calendar': typeof LayoutCalendarRoute
+  '/downloads': typeof LayoutDownloadsRoute
+  '/logs': typeof LayoutLogsRoute
+  '/rss': typeof LayoutRssRoute
+  '/settings': typeof LayoutSettingsRoute
+  '/wanted': typeof LayoutWantedRoute
+  '/': typeof LayoutIndexRoute
+  '/anime/$id': typeof LayoutAnimeIdRoute
+  '/anime/add': typeof LayoutAnimeAddRoute
+  '/anime/import': typeof LayoutAnimeImportRoute
+  '/anime/scan': typeof LayoutAnimeScanRoute
+  '/anime': typeof LayoutAnimeIndexRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/_layout": typeof LayoutRouteWithChildren;
-  "/login": typeof LoginRoute;
-  "/_layout/calendar": typeof LayoutCalendarRoute;
-  "/_layout/downloads": typeof LayoutDownloadsRoute;
-  "/_layout/logs": typeof LayoutLogsRoute;
-  "/_layout/rss": typeof LayoutRssRoute;
-  "/_layout/settings": typeof LayoutSettingsRoute;
-  "/_layout/wanted": typeof LayoutWantedRoute;
-  "/_layout/": typeof LayoutIndexRoute;
-  "/_layout/anime/$id": typeof LayoutAnimeIdRoute;
-  "/_layout/anime/add": typeof LayoutAnimeAddRoute;
-  "/_layout/anime/import": typeof LayoutAnimeImportRoute;
-  "/_layout/anime/scan": typeof LayoutAnimeScanRoute;
-  "/_layout/anime/": typeof LayoutAnimeIndexRoute;
+  __root__: typeof rootRouteImport
+  '/_layout': typeof LayoutRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_layout/calendar': typeof LayoutCalendarRoute
+  '/_layout/downloads': typeof LayoutDownloadsRoute
+  '/_layout/logs': typeof LayoutLogsRoute
+  '/_layout/rss': typeof LayoutRssRoute
+  '/_layout/settings': typeof LayoutSettingsRoute
+  '/_layout/wanted': typeof LayoutWantedRoute
+  '/_layout/': typeof LayoutIndexRoute
+  '/_layout/anime/$id': typeof LayoutAnimeIdRoute
+  '/_layout/anime/add': typeof LayoutAnimeAddRoute
+  '/_layout/anime/import': typeof LayoutAnimeImportRoute
+  '/_layout/anime/scan': typeof LayoutAnimeScanRoute
+  '/_layout/anime/': typeof LayoutAnimeIndexRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | "/"
-    | "/login"
-    | "/calendar"
-    | "/downloads"
-    | "/logs"
-    | "/rss"
-    | "/settings"
-    | "/wanted"
-    | "/anime/$id"
-    | "/anime/add"
-    | "/anime/import"
-    | "/anime/scan"
-    | "/anime/";
-  fileRoutesByTo: FileRoutesByTo;
+    | '/'
+    | '/login'
+    | '/calendar'
+    | '/downloads'
+    | '/logs'
+    | '/rss'
+    | '/settings'
+    | '/wanted'
+    | '/anime/$id'
+    | '/anime/add'
+    | '/anime/import'
+    | '/anime/scan'
+    | '/anime/'
+  fileRoutesByTo: FileRoutesByTo
   to:
-    | "/login"
-    | "/calendar"
-    | "/downloads"
-    | "/logs"
-    | "/rss"
-    | "/settings"
-    | "/wanted"
-    | "/"
-    | "/anime/$id"
-    | "/anime/add"
-    | "/anime/import"
-    | "/anime/scan"
-    | "/anime";
+    | '/login'
+    | '/calendar'
+    | '/downloads'
+    | '/logs'
+    | '/rss'
+    | '/settings'
+    | '/wanted'
+    | '/'
+    | '/anime/$id'
+    | '/anime/add'
+    | '/anime/import'
+    | '/anime/scan'
+    | '/anime'
   id:
-    | "__root__"
-    | "/_layout"
-    | "/login"
-    | "/_layout/calendar"
-    | "/_layout/downloads"
-    | "/_layout/logs"
-    | "/_layout/rss"
-    | "/_layout/settings"
-    | "/_layout/wanted"
-    | "/_layout/"
-    | "/_layout/anime/$id"
-    | "/_layout/anime/add"
-    | "/_layout/anime/import"
-    | "/_layout/anime/scan"
-    | "/_layout/anime/";
-  fileRoutesById: FileRoutesById;
+    | '__root__'
+    | '/_layout'
+    | '/login'
+    | '/_layout/calendar'
+    | '/_layout/downloads'
+    | '/_layout/logs'
+    | '/_layout/rss'
+    | '/_layout/settings'
+    | '/_layout/wanted'
+    | '/_layout/'
+    | '/_layout/anime/$id'
+    | '/_layout/anime/add'
+    | '/_layout/anime/import'
+    | '/_layout/anime/scan'
+    | '/_layout/anime/'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  LayoutRoute: typeof LayoutRouteWithChildren;
-  LoginRoute: typeof LoginRoute;
+  LayoutRoute: typeof LayoutRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
-declare module "@tanstack/solid-router" {
+declare module '@tanstack/solid-router' {
   interface FileRoutesByPath {
-    "/login": {
-      id: "/login";
-      path: "/login";
-      fullPath: "/login";
-      preLoaderRoute: typeof LoginRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/_layout": {
-      id: "/_layout";
-      path: "";
-      fullPath: "/";
-      preLoaderRoute: typeof LayoutRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/_layout/": {
-      id: "/_layout/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof LayoutIndexRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/wanted": {
-      id: "/_layout/wanted";
-      path: "/wanted";
-      fullPath: "/wanted";
-      preLoaderRoute: typeof LayoutWantedRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/settings": {
-      id: "/_layout/settings";
-      path: "/settings";
-      fullPath: "/settings";
-      preLoaderRoute: typeof LayoutSettingsRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/rss": {
-      id: "/_layout/rss";
-      path: "/rss";
-      fullPath: "/rss";
-      preLoaderRoute: typeof LayoutRssRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/logs": {
-      id: "/_layout/logs";
-      path: "/logs";
-      fullPath: "/logs";
-      preLoaderRoute: typeof LayoutLogsRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/downloads": {
-      id: "/_layout/downloads";
-      path: "/downloads";
-      fullPath: "/downloads";
-      preLoaderRoute: typeof LayoutDownloadsRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/calendar": {
-      id: "/_layout/calendar";
-      path: "/calendar";
-      fullPath: "/calendar";
-      preLoaderRoute: typeof LayoutCalendarRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/anime/": {
-      id: "/_layout/anime/";
-      path: "/anime";
-      fullPath: "/anime/";
-      preLoaderRoute: typeof LayoutAnimeIndexRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/anime/scan": {
-      id: "/_layout/anime/scan";
-      path: "/anime/scan";
-      fullPath: "/anime/scan";
-      preLoaderRoute: typeof LayoutAnimeScanRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/anime/import": {
-      id: "/_layout/anime/import";
-      path: "/anime/import";
-      fullPath: "/anime/import";
-      preLoaderRoute: typeof LayoutAnimeImportRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/anime/add": {
-      id: "/_layout/anime/add";
-      path: "/anime/add";
-      fullPath: "/anime/add";
-      preLoaderRoute: typeof LayoutAnimeAddRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
-    "/_layout/anime/$id": {
-      id: "/_layout/anime/$id";
-      path: "/anime/$id";
-      fullPath: "/anime/$id";
-      preLoaderRoute: typeof LayoutAnimeIdRouteImport;
-      parentRoute: typeof LayoutRoute;
-    };
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_layout': {
+      id: '/_layout'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof LayoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_layout/': {
+      id: '/_layout/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof LayoutIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/wanted': {
+      id: '/_layout/wanted'
+      path: '/wanted'
+      fullPath: '/wanted'
+      preLoaderRoute: typeof LayoutWantedRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/settings': {
+      id: '/_layout/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof LayoutSettingsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/rss': {
+      id: '/_layout/rss'
+      path: '/rss'
+      fullPath: '/rss'
+      preLoaderRoute: typeof LayoutRssRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/logs': {
+      id: '/_layout/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof LayoutLogsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/downloads': {
+      id: '/_layout/downloads'
+      path: '/downloads'
+      fullPath: '/downloads'
+      preLoaderRoute: typeof LayoutDownloadsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/calendar': {
+      id: '/_layout/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof LayoutCalendarRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/anime/': {
+      id: '/_layout/anime/'
+      path: '/anime'
+      fullPath: '/anime/'
+      preLoaderRoute: typeof LayoutAnimeIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/anime/scan': {
+      id: '/_layout/anime/scan'
+      path: '/anime/scan'
+      fullPath: '/anime/scan'
+      preLoaderRoute: typeof LayoutAnimeScanRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/anime/import': {
+      id: '/_layout/anime/import'
+      path: '/anime/import'
+      fullPath: '/anime/import'
+      preLoaderRoute: typeof LayoutAnimeImportRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/anime/add': {
+      id: '/_layout/anime/add'
+      path: '/anime/add'
+      fullPath: '/anime/add'
+      preLoaderRoute: typeof LayoutAnimeAddRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/anime/$id': {
+      id: '/_layout/anime/$id'
+      path: '/anime/$id'
+      fullPath: '/anime/$id'
+      preLoaderRoute: typeof LayoutAnimeIdRouteImport
+      parentRoute: typeof LayoutRoute
+    }
   }
 }
 
 interface LayoutRouteChildren {
-  LayoutCalendarRoute: typeof LayoutCalendarRoute;
-  LayoutDownloadsRoute: typeof LayoutDownloadsRoute;
-  LayoutLogsRoute: typeof LayoutLogsRoute;
-  LayoutRssRoute: typeof LayoutRssRoute;
-  LayoutSettingsRoute: typeof LayoutSettingsRoute;
-  LayoutWantedRoute: typeof LayoutWantedRoute;
-  LayoutIndexRoute: typeof LayoutIndexRoute;
-  LayoutAnimeIdRoute: typeof LayoutAnimeIdRoute;
-  LayoutAnimeAddRoute: typeof LayoutAnimeAddRoute;
-  LayoutAnimeImportRoute: typeof LayoutAnimeImportRoute;
-  LayoutAnimeScanRoute: typeof LayoutAnimeScanRoute;
-  LayoutAnimeIndexRoute: typeof LayoutAnimeIndexRoute;
+  LayoutCalendarRoute: typeof LayoutCalendarRoute
+  LayoutDownloadsRoute: typeof LayoutDownloadsRoute
+  LayoutLogsRoute: typeof LayoutLogsRoute
+  LayoutRssRoute: typeof LayoutRssRoute
+  LayoutSettingsRoute: typeof LayoutSettingsRoute
+  LayoutWantedRoute: typeof LayoutWantedRoute
+  LayoutIndexRoute: typeof LayoutIndexRoute
+  LayoutAnimeIdRoute: typeof LayoutAnimeIdRoute
+  LayoutAnimeAddRoute: typeof LayoutAnimeAddRoute
+  LayoutAnimeImportRoute: typeof LayoutAnimeImportRoute
+  LayoutAnimeScanRoute: typeof LayoutAnimeScanRoute
+  LayoutAnimeIndexRoute: typeof LayoutAnimeIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
@@ -326,14 +326,15 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAnimeImportRoute: LayoutAnimeImportRoute,
   LayoutAnimeScanRoute: LayoutAnimeScanRoute,
   LayoutAnimeIndexRoute: LayoutAnimeIndexRoute,
-};
+}
 
-const LayoutRouteWithChildren = LayoutRoute._addFileChildren(LayoutRouteChildren);
+const LayoutRouteWithChildren =
+  LayoutRoute._addFileChildren(LayoutRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
   LoginRoute: LoginRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
