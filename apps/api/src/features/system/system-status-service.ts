@@ -9,7 +9,7 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../../config.ts";
 import { AppRuntime } from "../../app-runtime.ts";
-import { BackgroundWorkerMonitor } from "../../background.ts";
+import { BackgroundWorkerMonitor } from "../../background-monitor.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { ClockService } from "../../lib/clock.ts";
 import { AnimeStoredDataError } from "../anime/errors.ts";

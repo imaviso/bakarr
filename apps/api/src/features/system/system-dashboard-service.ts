@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { OpsDashboard } from "../../../../../packages/shared/src/index.ts";
-import { BackgroundWorkerMonitor } from "../../background.ts";
+import { BackgroundWorkerMonitor } from "../../background-monitor.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import {
   loadDownloadEventPresentationContexts,

@@ -3,7 +3,7 @@ import * as Cron from "effect/Cron";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../../config.ts";
-import { BackgroundWorkerController } from "../../background.ts";
+import { BackgroundWorkerController } from "../../background-controller.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
 import { setRuntimeLogLevel } from "../../lib/logging.ts";
