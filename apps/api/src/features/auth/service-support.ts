@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
-import { sessions, systemLogs, users } from "../../db/schema.ts";
+import { appConfig, sessions, systemLogs, users } from "../../db/schema.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 
 type CurrentTimeMillis = () => Effect.Effect<number>;
@@ -87,6 +87,64 @@ export const writeLog = Effect.fn("Auth.writeLog")(function* (
       eventType: input.eventType,
       level: input.level,
       message: input.message,
+    }),
+  );
+});
+
+export const changePasswordState = Effect.fn("Auth.changePasswordState")(function* (input: {
+  readonly db: AppDatabase;
+  readonly changedAt: string;
+  readonly passwordHash: string;
+  readonly userId: number;
+  readonly username: string;
+}) {
+  yield* tryDatabasePromise("Failed to update password", () =>
+    input.db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({
+          mustChangePassword: false,
+          passwordHash: input.passwordHash,
+          updatedAt: input.changedAt,
+        })
+        .where(eq(users.id, input.userId));
+      await tx.delete(sessions).where(eq(sessions.userId, input.userId));
+      await tx.update(appConfig).set({ bootstrapPassword: null }).where(eq(appConfig.id, 1));
+      await tx.insert(systemLogs).values({
+        createdAt: input.changedAt,
+        details: null,
+        eventType: "auth.password.changed",
+        level: "success",
+        message: `${input.username} changed their password`,
+      });
+    }),
+  );
+});
+
+export const regenerateApiKeyState = Effect.fn("Auth.regenerateApiKeyState")(function* (input: {
+  readonly apiKeyHash: string;
+  readonly db: AppDatabase;
+  readonly regeneratedAt: string;
+  readonly userId: number;
+  readonly username: string;
+}) {
+  yield* tryDatabasePromise("Failed to regenerate API key", () =>
+    input.db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({
+          apiKey: input.apiKeyHash,
+          updatedAt: input.regeneratedAt,
+        })
+        .where(eq(users.id, input.userId));
+      await tx.delete(sessions).where(eq(sessions.userId, input.userId));
+      await tx.insert(systemLogs).values({
+        createdAt: input.regeneratedAt,
+        details: null,
+        eventType: "auth.api_key.regenerated",
+        level: "success",
+        message: `${input.username} regenerated an API key`,
+      });
     }),
   );
 });

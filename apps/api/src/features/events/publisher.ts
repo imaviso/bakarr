@@ -36,7 +36,7 @@ export function makeEventPublisher(options?: {
   const infoEventToastWindowMs = options?.infoEventToastWindowMs ?? INFO_EVENT_TOAST_WINDOW_MS;
 
   return Effect.gen(function* () {
-    const publish = options?.publish ?? (yield* EventBus).publish;
+    const publishEvent = options?.publish ?? (yield* EventBus).publish;
     const clock = yield* ClockService;
     const infoPublisher: LatestValuePublisher<CoalescedInfoEvent, never, never> =
       yield* makeLatestValuePublisher<CoalescedInfoEvent, never, never>((value) =>
@@ -48,24 +48,27 @@ export function makeEventPublisher(options?: {
             yield* Effect.sleep(`${remainingMs} millis`);
           }
 
-          yield* publish(value.event);
+          yield* publishEvent(value.event);
         }),
       );
+    const publish = Effect.fn("EventPublisher.publish")(function* (event: NotificationEvent) {
+      yield* publishEvent(event);
+    });
+    const publishInfo = Effect.fn("EventPublisher.publishInfo")(function* (message: string) {
+      const now = yield* clock.currentTimeMillis;
+
+      yield* infoPublisher.offer({
+        emitAt: now + infoEventToastWindowMs,
+        event: {
+          type: "Info",
+          payload: { message },
+        },
+      });
+    });
 
     return {
       publish,
-      publishInfo: (message: string) =>
-        Effect.gen(function* () {
-          const now = yield* clock.currentTimeMillis;
-
-          yield* infoPublisher.offer({
-            emitAt: now + infoEventToastWindowMs,
-            event: {
-              type: "Info",
-              payload: { message },
-            },
-          });
-        }),
+      publishInfo,
       shutdown: infoPublisher.shutdown,
     } satisfies ManagedEventPublisher;
   });
