@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import type { Anime } from "../../../../../packages/shared/src/index.ts";
 import type { DatabaseError } from "../../db/database.ts";
 import type { ExternalCallError } from "../../lib/effect-retry.ts";
-import { DownloadService } from "../operations/service.ts";
+import { DownloadService } from "../operations/service-contract.ts";
 import type { ProfileNotFoundError } from "../system/errors.ts";
 import type { AddAnimeInput } from "./add-anime-input.ts";
 import type { AnimeServiceError } from "./errors.ts";
