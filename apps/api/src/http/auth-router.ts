@@ -9,7 +9,7 @@ import {
 import { AppConfig } from "../config.ts";
 import { AuthService } from "../features/auth/service.ts";
 import { requireViewerFromHttpRequest } from "./route-auth.ts";
-import { routeResponse } from "./router-helpers.ts";
+import { decodeJsonBodyWithLabel, routeResponse } from "./router-helpers.ts";
 
 const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(function* (
   token: string,
@@ -35,7 +35,7 @@ export const authRouter = HttpRouter.empty.pipe(
     "/login",
     routeResponse(
       Effect.gen(function* () {
-        const body = yield* HttpServerRequest.schemaBodyJson(LoginRequestSchema);
+        const body = yield* decodeJsonBodyWithLabel(LoginRequestSchema, "login");
         return yield* Effect.flatMap(AuthService, (auth) => auth.login(body));
       }),
       (value) => persistSessionResponse(value.token, value.response),
@@ -45,7 +45,7 @@ export const authRouter = HttpRouter.empty.pipe(
     "/login/api-key",
     routeResponse(
       Effect.gen(function* () {
-        const body = yield* HttpServerRequest.schemaBodyJson(ApiKeyLoginRequestSchema);
+        const body = yield* decodeJsonBodyWithLabel(ApiKeyLoginRequestSchema, "API key login");
         return yield* Effect.flatMap(AuthService, (auth) => auth.loginWithApiKey(body));
       }),
       (value) => persistSessionResponse(value.token, value.response),
@@ -99,7 +99,7 @@ export const authRouter = HttpRouter.empty.pipe(
     "/password",
     routeResponse(
       Effect.gen(function* () {
-        const body = yield* HttpServerRequest.schemaBodyJson(ChangePasswordRequestSchema);
+        const body = yield* decodeJsonBodyWithLabel(ChangePasswordRequestSchema, "change password");
         const viewer = yield* requireViewerFromHttpRequest();
         yield* Effect.flatMap(AuthService, (auth) => auth.changePassword(viewer.id, body));
       }),

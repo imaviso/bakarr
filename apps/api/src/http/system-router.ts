@@ -1,5 +1,5 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect, Metric, ParseResult, Schema, Stream } from "effect";
+import { Effect, Metric, Schema, Stream } from "effect";
 
 import type {
   DownloadStatus,
@@ -28,15 +28,16 @@ import {
 } from "./request-schemas.ts";
 import {
   decodeJsonBody,
+  decodeJsonBodyWithLabel,
   decodePathParams,
   decodeQuery,
+  decodeQueryWithLabel,
   jsonResponse,
   routeResponse,
   successResponse,
 } from "./router-helpers.ts";
 import { requireViewerFromHttpRequest } from "./route-auth.ts";
-import { formatValidationErrorMessage, RequestValidationError } from "./route-validation.ts";
-import { escapeCsv } from "./route-fs.ts";
+import { contentTypeForPath, escapeCsv, isSupportedImagePath } from "./route-fs.ts";
 import {
   toConfig,
   toCreateReleaseProfileInput,
@@ -49,17 +50,12 @@ const encodeNotificationEvent = Schema.encodeSync(NotificationEventJsonSchema);
 const SystemLogsJsonSchema = Schema.parseJson(Schema.Array(SystemLogSchema));
 const encodeSystemLogs = Schema.encodeSync(SystemLogsJsonSchema);
 
-const route = <A, E, R, E2, R2>(
-  effect: Effect.Effect<A, E, R>,
-  onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
-) => routeResponse(effect, onSuccess);
-
 const healthRouter = HttpRouter.empty.pipe(
   HttpRouter.get("/health", HttpServerResponse.json({ status: "ok" } satisfies HealthStatus)),
   HttpRouter.get("/api/system/health/live", HttpServerResponse.json({ status: "alive" })),
   HttpRouter.get(
     "/api/system/health/ready",
-    route(
+    routeResponse(
       Effect.gen(function* () {
         yield* Effect.flatMap(SystemService, (service) => service.getSystemStatus());
         return { checks: { database: true }, ready: true };
@@ -73,7 +69,7 @@ const healthRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/system/status",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.getSystemStatus()),
@@ -83,15 +79,18 @@ const healthRouter = HttpRouter.empty.pipe(
   ),
 );
 
+const notFoundErrorValue = () => new AuthError({ message: "Not Found", status: 404 });
+const notFoundError = () => Effect.fail(notFoundErrorValue());
+
 const infoRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/images/*",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const request = yield* HttpServerRequest.HttpServerRequest;
-          const pathname = new URL(request.url, "http://bakarr.local").pathname;
+          const { pathname } = new URL(request.url, "http://bakarr.local");
           const rawRelativePath = pathname.slice("/api/images/".length);
           const decodedRelativePath = yield* Effect.try(() =>
             decodeURIComponent(rawRelativePath),
@@ -136,7 +135,7 @@ const infoRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/system/dashboard",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.getDashboard()),
@@ -146,7 +145,7 @@ const infoRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/system/jobs",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.getJobs()),
@@ -156,7 +155,7 @@ const infoRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/library/stats",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.getLibraryStats()),
@@ -166,7 +165,7 @@ const infoRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/library/activity",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.getActivity()),
@@ -179,7 +178,7 @@ const infoRouter = HttpRouter.empty.pipe(
 const configRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/config",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.getConfig()),
@@ -189,7 +188,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.put(
     "/api/system/config",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -202,7 +201,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/profiles",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.listProfiles()),
@@ -212,7 +211,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/profiles/qualities",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.listQualities()),
@@ -222,7 +221,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.post(
     "/api/profiles",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -240,7 +239,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.put(
     "/api/profiles/:name",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -256,7 +255,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.del(
     "/api/profiles/:name",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -269,7 +268,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/release-profiles",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.listReleaseProfiles()),
@@ -279,7 +278,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.post(
     "/api/release-profiles",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -294,7 +293,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.put(
     "/api/release-profiles/:id",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -310,7 +309,7 @@ const configRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.del(
     "/api/release-profiles/:id",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -328,7 +327,7 @@ const configRouter = HttpRouter.empty.pipe(
 const logsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/logs",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -349,7 +348,7 @@ const logsRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.del(
     "/api/system/logs",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(SystemService, (service) => service.clearLogs()),
@@ -359,7 +358,7 @@ const logsRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/system/logs/export",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -410,7 +409,7 @@ const logsRouter = HttpRouter.empty.pipe(
 const runtimeRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/api/system/tasks/scan",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(LibraryService, (service) => service.runLibraryScan()),
@@ -420,7 +419,7 @@ const runtimeRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.post(
     "/api/system/tasks/rss",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(RssService, (service) => service.runRssCheck()),
@@ -430,7 +429,7 @@ const runtimeRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.post(
     "/api/system/tasks/metadata-refresh",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.flatMap(AnimeService, (service) => service.refreshMetadataForMonitoredAnime()),
@@ -440,7 +439,7 @@ const runtimeRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/events",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -465,7 +464,7 @@ const runtimeRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/metrics",
-    route(
+    routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
@@ -527,80 +526,6 @@ export const systemRouter = HttpRouter.concatAll(
   logsRouter,
   runtimeRouter,
 );
-
-function contentTypeForPath(path: string): string {
-  const lower = path.toLowerCase();
-
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-  if (lower.endsWith(".webp")) return "image/webp";
-  if (lower.endsWith(".gif")) return "image/gif";
-  if (lower.endsWith(".svg")) return "image/svg+xml";
-
-  return "application/octet-stream";
-}
-
-function isSupportedImagePath(path: string): boolean {
-  const lower = path.toLowerCase();
-  return (
-    lower.endsWith(".png") ||
-    lower.endsWith(".jpg") ||
-    lower.endsWith(".jpeg") ||
-    lower.endsWith(".webp") ||
-    lower.endsWith(".gif") ||
-    lower.endsWith(".svg")
-  );
-}
-
-function notFoundErrorValue() {
-  return new AuthError({ message: "Not Found", status: 404 });
-}
-
-function notFoundError() {
-  return Effect.fail(notFoundErrorValue());
-}
-
-function decodeJsonBodyWithLabel<A, I, R>(schema: Schema.Schema<A, I, R>, label: string) {
-  return HttpServerRequest.schemaBodyJson(schema).pipe(
-    Effect.catchTag("RequestError", () =>
-      Effect.fail(
-        RequestValidationError.make({
-          message: `Invalid JSON for ${label}`,
-          status: 400,
-        }),
-      ),
-    ),
-    Effect.catchAll((error) =>
-      ParseResult.isParseError(error)
-        ? Effect.fail(
-            RequestValidationError.make({
-              message: formatValidationErrorMessage(`Invalid request body for ${label}`, error),
-              status: 400,
-            }),
-          )
-        : Effect.fail(error),
-    ),
-  );
-}
-
-function decodeQueryWithLabel<
-  A,
-  I extends Readonly<Record<string, string | ReadonlyArray<string> | undefined>>,
-  R,
->(schema: Schema.Schema<A, I, R>, label: string) {
-  return HttpServerRequest.schemaSearchParams(schema).pipe(
-    Effect.catchAll((error) =>
-      ParseResult.isParseError(error)
-        ? Effect.fail(
-            RequestValidationError.make({
-              message: formatValidationErrorMessage(`Invalid query parameters for ${label}`, error),
-              status: 400,
-            }),
-          )
-        : Effect.fail(error),
-    ),
-  );
-}
 
 function buildEventsStream(downloads: DownloadStatus[], eventBus: typeof EventBus.Service) {
   return Effect.gen(function* () {

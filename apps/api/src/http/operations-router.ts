@@ -33,10 +33,10 @@ import {
   WantedMissingQuerySchema,
 } from "./request-schemas.ts";
 import {
-  decodeJsonBody,
+  decodeJsonBodyWithLabel,
   decodeOptionalJsonBody,
   decodePathParams,
-  decodeQuery,
+  decodeQueryWithLabel,
   jsonResponse,
   routeResponse,
   successResponse,
@@ -71,7 +71,7 @@ const readRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const query = yield* decodeQuery(DownloadEventsQuerySchema);
+          const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
           return yield* Effect.flatMap(DownloadService, (service) =>
             service.listDownloadEvents({
               animeId: query.anime_id,
@@ -96,7 +96,10 @@ const readRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const query = yield* decodeQuery(DownloadEventsExportQuerySchema);
+          const query = yield* decodeQueryWithLabel(
+            DownloadEventsExportQuerySchema,
+            "download events export",
+          );
           const page = yield* Effect.flatMap(DownloadService, (service) =>
             service.exportDownloadEvents({
               animeId: query.anime_id,
@@ -178,7 +181,7 @@ const readRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const query = yield* decodeQuery(WantedMissingQuerySchema);
+          const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
           return yield* Effect.flatMap(LibraryService, (service) =>
             service.getWantedMissing(query.limit ?? 50),
           );
@@ -193,7 +196,7 @@ const readRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const query = yield* decodeQuery(CalendarQuerySchema);
+          const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
           const now = yield* Effect.flatMap(ClockService, (clock) => clock.currentTimeMillis);
           const nowIso = new Date(now).toISOString();
           return yield* Effect.flatMap(LibraryService, (service) =>
@@ -220,7 +223,7 @@ const readRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const query = yield* decodeQuery(BrowseQuerySchema);
+          const query = yield* decodeQueryWithLabel(BrowseQuerySchema, "library browse");
           const fs = yield* FileSystem;
           const config = yield* Effect.flatMap(SystemService, (s) => s.getConfig());
           const roots = yield* listLibraryRoots();
@@ -283,7 +286,7 @@ const readRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const query = yield* decodeQuery(SearchReleasesQuerySchema);
+          const query = yield* decodeQueryWithLabel(SearchReleasesQuerySchema, "search releases");
           return yield* Effect.flatMap(SearchService, (service) =>
             service.searchReleases(query.query ?? "", query.anime_id, query.category, query.filter),
           );
@@ -316,8 +319,10 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const body = yield* decodeJsonBody(SearchDownloadBodySchema);
-          yield* Effect.flatMap(DownloadService, (service) => service.triggerDownload({ ...body }));
+          const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
+          yield* Effect.flatMap(DownloadService, (service) =>
+            service.triggerDownload(structuredClone(body)),
+          );
         }),
       ),
       successResponse,
@@ -411,7 +416,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          const query = yield* decodeQuery(DeleteDownloadQuerySchema);
+          const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
           yield* Effect.flatMap(DownloadService, (service) =>
             service.removeDownload(params.id, query.delete_files === "true"),
           );
@@ -426,8 +431,10 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const body = yield* decodeJsonBody(AddRssFeedBodySchema);
-          return yield* Effect.flatMap(RssService, (service) => service.addRssFeed({ ...body }));
+          const body = yield* decodeJsonBodyWithLabel(AddRssFeedBodySchema, "add RSS feed");
+          return yield* Effect.flatMap(RssService, (service) =>
+            service.addRssFeed(structuredClone(body)),
+          );
         }),
       ),
       jsonResponse,
@@ -453,7 +460,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          const body = yield* decodeJsonBody(EnabledBodySchema);
+          const body = yield* decodeJsonBodyWithLabel(EnabledBodySchema, "toggle RSS feed");
           yield* Effect.flatMap(RssService, (service) =>
             service.toggleRssFeed(params.id, body.enabled),
           );
@@ -478,9 +485,12 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const body = yield* decodeJsonBody(ControlUnmappedFolderBodySchema);
+          const body = yield* decodeJsonBodyWithLabel(
+            ControlUnmappedFolderBodySchema,
+            "control unmapped folder",
+          );
           yield* Effect.flatMap(LibraryService, (service) =>
-            service.controlUnmappedFolder({ ...body }),
+            service.controlUnmappedFolder(structuredClone(body)),
           );
         }),
       ),
@@ -493,9 +503,12 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const body = yield* decodeJsonBody(BulkControlUnmappedFoldersBodySchema);
+          const body = yield* decodeJsonBodyWithLabel(
+            BulkControlUnmappedFoldersBodySchema,
+            "bulk control unmapped folders",
+          );
           yield* Effect.flatMap(LibraryService, (service) =>
-            service.bulkControlUnmappedFolders({ ...body }),
+            service.bulkControlUnmappedFolders(structuredClone(body)),
           );
         }),
       ),
@@ -508,9 +521,12 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const body = yield* decodeJsonBody(ImportUnmappedFolderBodySchema);
+          const body = yield* decodeJsonBodyWithLabel(
+            ImportUnmappedFolderBodySchema,
+            "import unmapped folder",
+          );
           yield* Effect.flatMap(LibraryService, (service) =>
-            service.importUnmappedFolder({ ...body }),
+            service.importUnmappedFolder(structuredClone(body)),
           );
         }),
       ),
@@ -523,7 +539,7 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const body = yield* decodeJsonBody(ScanImportPathBodySchema);
+          const body = yield* decodeJsonBodyWithLabel(ScanImportPathBodySchema, "scan import path");
           return yield* Effect.flatMap(LibraryService, (service) =>
             service.scanImportPath(body.path, body.anime_id),
           );
@@ -538,7 +554,7 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const body = yield* decodeJsonBody(ImportFilesBodySchema);
+          const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
           return yield* Effect.flatMap(LibraryService, (service) =>
             service.importFiles([...body.files]),
           );

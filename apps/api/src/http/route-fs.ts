@@ -126,3 +126,27 @@ export function escapeCsv(value: string) {
   }
   return `"${escaped}"`;
 }
+
+export function contentTypeForPath(path: string): string {
+  const lower = path.toLowerCase();
+
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".svg")) return "image/svg+xml";
+
+  return "application/octet-stream";
+}
+
+export function isSupportedImagePath(path: string): boolean {
+  const lower = path.toLowerCase();
+  return (
+    lower.endsWith(".png") ||
+    lower.endsWith(".jpg") ||
+    lower.endsWith(".jpeg") ||
+    lower.endsWith(".webp") ||
+    lower.endsWith(".gif") ||
+    lower.endsWith(".svg")
+  );
+}

@@ -7,6 +7,28 @@ import { formatValidationErrorMessage, RequestValidationError } from "./route-va
 export const decodeJsonBody = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
   HttpServerRequest.schemaBodyJson(schema);
 
+export const decodeJsonBodyWithLabel = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string) =>
+  HttpServerRequest.schemaBodyJson(schema).pipe(
+    Effect.catchTag("RequestError", () =>
+      Effect.fail(
+        RequestValidationError.make({
+          message: `Invalid JSON for ${label}`,
+          status: 400,
+        }),
+      ),
+    ),
+    Effect.catchAll((error) =>
+      ParseResult.isParseError(error)
+        ? Effect.fail(
+            RequestValidationError.make({
+              message: formatValidationErrorMessage(`Invalid request body for ${label}`, error),
+              status: 400,
+            }),
+          )
+        : Effect.fail(error),
+    ),
+  );
+
 export const decodeOptionalJsonBody = <A, I, R>(input: {
   readonly empty: A;
   readonly label: string;
@@ -41,6 +63,27 @@ export const decodeQuery = <
 >(
   schema: Schema.Schema<A, I, R>,
 ) => HttpServerRequest.schemaSearchParams(schema);
+
+export const decodeQueryWithLabel = <
+  A,
+  I extends Readonly<Record<string, string | ReadonlyArray<string> | undefined>>,
+  R,
+>(
+  schema: Schema.Schema<A, I, R>,
+  label: string,
+) =>
+  HttpServerRequest.schemaSearchParams(schema).pipe(
+    Effect.catchAll((error) =>
+      ParseResult.isParseError(error)
+        ? Effect.fail(
+            RequestValidationError.make({
+              message: formatValidationErrorMessage(`Invalid query parameters for ${label}`, error),
+              status: 400,
+            }),
+          )
+        : Effect.fail(error),
+    ),
+  );
 
 export const routeResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,

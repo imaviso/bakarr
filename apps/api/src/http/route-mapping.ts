@@ -14,8 +14,12 @@ export function toAddAnimeInput(
   body: Schema.Schema.Type<typeof AddAnimeInputSchema>,
 ): AddAnimeInput {
   return {
-    ...body,
+    id: body.id,
+    monitor_and_search: body.monitor_and_search,
+    monitored: body.monitored,
+    profile_name: body.profile_name,
     release_profile_ids: [...body.release_profile_ids],
+    root_folder: body.root_folder,
     use_existing_root: body.use_existing_root,
   };
 }
@@ -23,18 +27,20 @@ export function toAddAnimeInput(
 export function toQualityProfile(
   body: Schema.Schema.Type<typeof QualityProfileSchema>,
 ): QualityProfile {
-  return {
-    ...body,
-    allowed_qualities: [...body.allowed_qualities],
-  };
+  return structuredClone(body) as QualityProfile;
 }
 
 export function toCreateReleaseProfileInput(
   body: Schema.Schema.Type<typeof CreateReleaseProfileSchema>,
 ) {
   return {
-    ...body,
-    rules: body.rules.map((rule) => ({ ...rule })),
+    is_global: body.is_global,
+    name: body.name,
+    rules: body.rules.map((rule) => ({
+      rule_type: rule.rule_type,
+      score: rule.score,
+      term: rule.term,
+    })),
   };
 }
 
@@ -42,8 +48,14 @@ export function toUpdateReleaseProfileInput(
   body: Schema.Schema.Type<typeof UpdateReleaseProfileSchema>,
 ) {
   return {
-    ...body,
-    rules: body.rules.map((rule) => ({ ...rule })),
+    enabled: body.enabled,
+    is_global: body.is_global,
+    name: body.name,
+    rules: body.rules.map((rule) => ({
+      rule_type: rule.rule_type,
+      score: rule.score,
+      term: rule.term,
+    })),
   };
 }
 

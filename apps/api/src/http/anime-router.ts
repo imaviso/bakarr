@@ -3,8 +3,7 @@ import { Effect, Schema } from "effect";
 
 import { AnimeService } from "../features/anime/service.ts";
 import { AuthError } from "../features/auth/service.ts";
-import { DownloadService } from "../features/operations/service.ts";
-import { LibraryService, RssService } from "../features/operations/service.ts";
+import { DownloadService, LibraryService, RssService } from "../features/operations/service.ts";
 import { ClockService } from "../lib/clock.ts";
 import { FileSystem } from "../lib/filesystem.ts";
 import { createFileChunkStream, type FileByteRange } from "./file-stream.ts";
@@ -43,6 +42,9 @@ class StreamQuerySchema extends Schema.Class<StreamQuerySchema>("StreamQuerySche
 class StreamUrlQuerySchema extends Schema.Class<StreamUrlQuerySchema>("StreamUrlQuerySchema")({
   episodeNumber: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
 }) {}
+
+/** Duration of a signed stream URL in milliseconds (6 hours). */
+const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
 
 const animeReadRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -348,7 +350,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
           const params = yield* decodePathParams(IdParamsSchema);
           const query = yield* decodeQuery(StreamUrlQuerySchema);
           const expiresAt = yield* Effect.flatMap(ClockService, (clock) =>
-            Effect.map(clock.currentTimeMillis, (now) => now + 6 * 60 * 60 * 1000),
+            Effect.map(clock.currentTimeMillis, (now) => now + STREAM_EXPIRY_MS),
           );
           const signature = yield* Effect.flatMap(StreamTokenSigner, (signer) =>
             signer.sign({
