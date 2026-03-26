@@ -21,32 +21,30 @@ export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
     syncDownloadsWithQBitEffect: torrentLifecycleService.syncDownloadsWithQBitEffect,
   });
 
-  const syncDownloadState = Effect.fn("OperationsService.syncDownloadState")(function* (
+  const syncDownloadState = Effect.fn("operations.downloads.sync_state")(function* (
     trigger: string,
   ) {
-    return yield* Effect.gen(function* () {
-      const startedAt = yield* currentMonotonicMillis();
+    const startedAt = yield* currentMonotonicMillis();
 
-      yield* torrentLifecycleService
-        .syncDownloadsWithQBitEffect()
-        .pipe(
-          Effect.catchAll((error) =>
-            error instanceof DatabaseError
-              ? Effect.fail(error)
-              : Effect.fail(input.dbError("Failed to sync downloads with qBittorrent")(error)),
-          ),
-        );
-
-      const finishedAt = yield* currentMonotonicMillis();
-
-      yield* Effect.logInfo("download state sync completed").pipe(
-        Effect.annotateLogs({
-          component: "downloads",
-          durationMs: durationMsSince(startedAt, finishedAt),
-          syncTrigger: trigger,
-        }),
+    yield* torrentLifecycleService
+      .syncDownloadsWithQBitEffect()
+      .pipe(
+        Effect.catchAll((error) =>
+          error instanceof DatabaseError
+            ? Effect.fail(error)
+            : Effect.fail(input.dbError("Failed to sync downloads with qBittorrent")(error)),
+        ),
       );
-    }).pipe(Effect.withSpan("operations.downloads.sync_state"));
+
+    const finishedAt = yield* currentMonotonicMillis();
+
+    yield* Effect.logInfo("download state sync completed").pipe(
+      Effect.annotateLogs({
+        component: "downloads",
+        durationMs: durationMsSince(startedAt, finishedAt),
+        syncTrigger: trigger,
+      }),
+    );
   });
 
   return {
