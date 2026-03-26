@@ -1,5 +1,7 @@
 import { Schema } from "effect";
 
+import { ExternalCallError } from "../../lib/effect-retry.ts";
+
 export class AnimeNotFoundError extends Schema.TaggedError<AnimeNotFoundError>()(
   "AnimeNotFoundError",
   { message: Schema.String },
@@ -23,4 +25,5 @@ export type AnimeServiceError =
   | AnimeNotFoundError
   | AnimeConflictError
   | AnimePathError
-  | AnimeStoredDataError;
+  | AnimeStoredDataError
+  | ExternalCallError;

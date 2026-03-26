@@ -5,8 +5,9 @@ import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { makeSingleFlightEffectRunner } from "../../lib/effect-coalescing.ts";
 import { anime } from "../../db/schema.ts";
-import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 export { tryDatabasePromise } from "../../lib/effect-db.ts";
+import { ExternalCallError } from "../../lib/effect-retry.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import {
   AnimeConflictError,
@@ -29,7 +30,11 @@ export function wrapAnimeError(message: string) {
       return cause;
     }
 
-    return toDatabaseError(message)(cause);
+    return new ExternalCallError({
+      cause,
+      message,
+      operation: message,
+    });
   };
 }
 

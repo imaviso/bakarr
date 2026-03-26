@@ -3,6 +3,7 @@ import { Deferred, Effect, Fiber, Layer, Ref, TestClock } from "effect";
 
 import { DatabaseError } from "../../db/database.ts";
 import { ClockServiceLive } from "../../lib/clock.ts";
+import { ExternalCallError } from "../../lib/effect-retry.ts";
 import { makeUnusedEventBusLayer } from "../../test/event-bus-stub.ts";
 import { makeEventPublisher } from "../events/publisher.ts";
 import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "./errors.ts";
@@ -21,7 +22,7 @@ it.effect("anime service support preserves known errors and wraps unknown ones",
     assertEquals(wrapAnimeError("ignored")(knownDb), knownDb);
 
     const wrapped = wrapAnimeError("wrapped")(new Error("boom"));
-    assertInstanceOf(wrapped, DatabaseError);
+    assertInstanceOf(wrapped, ExternalCallError);
     assertEquals(wrapped.message, "wrapped");
 
     const dbExit = yield* Effect.exit(
