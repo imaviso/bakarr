@@ -22,6 +22,7 @@ From the repo root:
 bun run dev
 bun run dev:api
 bun run dev:web
+bun run check
 bun run test
 bun run build
 bun run lint
@@ -30,6 +31,8 @@ bun run lint
 API checks:
 
 ```sh
+bun run check:api
+bun run lint:api
 bun run --cwd apps/api check
 bun run --cwd apps/api test
 bun run --cwd apps/api lint
@@ -38,7 +41,10 @@ bun run --cwd apps/api lint
 Web checks:
 
 ```sh
+bun run check:web
+bun run lint:web
 bun run --cwd apps/web build
+bun run --cwd apps/web check
 bun run --cwd apps/web lint
 ```
 

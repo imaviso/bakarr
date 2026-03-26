@@ -3,6 +3,12 @@
 Keep `apps/api` aligned with the local `effect-ts` skill and its core
 references.
 
+## Local Effect Source
+
+The Effect repository is cloned to `~/Dev/effect` for reference.
+Use this to explore APIs, find usage examples, and understand implementation
+details when the documentation isn't enough.
+
 ## Core Defaults
 
 - Prefer `Effect.gen(function* () { ... })` with `yield*` for main control flow.
