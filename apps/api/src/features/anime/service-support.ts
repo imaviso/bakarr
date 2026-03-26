@@ -33,15 +33,16 @@ export function wrapAnimeError(message: string) {
   };
 }
 
-export function tryAnimePromise<A>(
-  message: string,
-  try_: () => Promise<A>,
-): Effect.Effect<A, AnimeServiceError | DatabaseError> {
-  return Effect.tryPromise({
-    try: try_,
-    catch: wrapAnimeError(message),
-  });
-}
+export const tryAnimePromise = Effect.fn("AnimeService.tryAnimePromise")(
+  <A>(
+    message: string,
+    try_: () => Promise<A>,
+  ): Effect.Effect<A, AnimeServiceError | DatabaseError> =>
+    Effect.tryPromise({
+      try: try_,
+      catch: wrapAnimeError(message),
+    }),
+);
 
 export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(function* (
   db: AppDatabase,

@@ -13,6 +13,7 @@ import type {
 import { Database, DatabaseError } from "../../db/database.ts";
 import { EventPublisher } from "../events/publisher.ts";
 import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
+import type { AddAnimeInput } from "./add-anime-input.ts";
 import { AniListClient } from "./anilist.ts";
 import {
   AnimeConflictError,
@@ -47,16 +48,6 @@ import {
 } from "./query-support.ts";
 import { makeMetadataRefreshRunner } from "./service-support.ts";
 import { makeAnimeFileOperations } from "./service-wiring.ts";
-
-export interface AddAnimeInput {
-  readonly id: number;
-  readonly profile_name: string;
-  readonly root_folder: string;
-  readonly monitor_and_search: boolean;
-  readonly monitored: boolean;
-  readonly release_profile_ids: number[];
-  readonly use_existing_root?: boolean;
-}
 
 export interface AnimeServiceShape {
   readonly listAnime: (
@@ -136,6 +127,15 @@ export class AnimeService extends Context.Tag("@bakarr/api/AnimeService")<
   AnimeServiceShape
 >() {}
 
+function wrapServiceEffect<Args extends ReadonlyArray<unknown>, Success, Error>(
+  name: string,
+  effect: (...args: Args) => Effect.Effect<Success, Error>,
+): (...args: Args) => Effect.Effect<Success, Error> {
+  return Effect.fn(name)(function* (...args: Args) {
+    return yield* effect(...args);
+  });
+}
+
 const makeAnimeService = Effect.gen(function* () {
   const { db } = yield* Database;
   const eventPublisher = yield* EventPublisher;
@@ -149,11 +149,16 @@ const makeAnimeService = Effect.gen(function* () {
     db,
     nowIso: () => nowIsoFromClock(clock),
   });
-  const { bulkMapEpisodes, deleteEpisodeFile, listFiles, mapEpisode, resolveEpisodeFile } =
-    makeAnimeFileOperations({ db, fs, mediaProbe });
+  const {
+    bulkMapEpisodes: bulkMapEpisodesEffect,
+    deleteEpisodeFile: deleteEpisodeFileEffect,
+    listFiles: listFilesEffect,
+    mapEpisode: mapEpisodeEffect,
+    resolveEpisodeFile: resolveEpisodeFileEffect,
+  } = makeAnimeFileOperations({ db, fs, mediaProbe });
 
-  const addAnime = Effect.fn("AnimeService.addAnime")(function* (input: AddAnimeInput) {
-    return yield* addAnimeEffect({
+  const addAnime = wrapServiceEffect("AnimeService.addAnime", (input: AddAnimeInput) =>
+    addAnimeEffect({
       aniList,
       animeInput: input,
       db,
@@ -161,30 +166,41 @@ const makeAnimeService = Effect.gen(function* () {
       fs,
       httpClient,
       nowIso: () => nowIsoFromClock(clock),
-    });
-  });
+    }),
+  );
 
-  const listAnime: AnimeServiceShape["listAnime"] = (params) => listAnimeEffect(db, params);
-  const getAnime: AnimeServiceShape["getAnime"] = (id) => getAnimeEffect({ db, id });
-  const searchAnime: AnimeServiceShape["searchAnime"] = (query) =>
-    searchAnimeEffect({ aniList, db, query });
-  const getAnimeByAnilistId: AnimeServiceShape["getAnimeByAnilistId"] = (id) =>
-    getAnimeByAnilistIdEffect({ aniList, db, id });
-  const listEpisodes = Effect.fn("AnimeService.listEpisodes")(function* (animeId: number) {
-    const now = new Date(yield* clock.currentTimeMillis);
-    return yield* listEpisodesEffect({ animeId, db, now });
-  });
-  const refreshEpisodes: AnimeServiceShape["refreshEpisodes"] = (animeId) =>
+  const listAnime = wrapServiceEffect("AnimeService.listAnime", (params?: AnimeListQueryParams) =>
+    listAnimeEffect(db, params),
+  );
+  const getAnime = wrapServiceEffect("AnimeService.getAnime", (id: number) =>
+    getAnimeEffect({ db, id }),
+  );
+  const searchAnime = wrapServiceEffect("AnimeService.searchAnime", (query: string) =>
+    searchAnimeEffect({ aniList, db, query }),
+  );
+  const getAnimeByAnilistId = wrapServiceEffect("AnimeService.getAnimeByAnilistId", (id: number) =>
+    getAnimeByAnilistIdEffect({ aniList, db, id }),
+  );
+  const listEpisodes = wrapServiceEffect("AnimeService.listEpisodes", (animeId: number) =>
+    Effect.gen(function* () {
+      const now = new Date(yield* clock.currentTimeMillis);
+      return yield* listEpisodesEffect({ animeId, db, now });
+    }),
+  );
+  const refreshEpisodes = wrapServiceEffect("AnimeService.refreshEpisodes", (animeId: number) =>
     refreshEpisodesEffect({
       aniList,
       animeId,
       db,
       eventPublisher,
       nowIso: () => nowIsoFromClock(clock),
-    });
-  const refreshMetadataForMonitoredAnime: AnimeServiceShape["refreshMetadataForMonitoredAnime"] =
-    () => metadataRefreshRunner.trigger;
-  const scanFolder: AnimeServiceShape["scanFolder"] = (animeId) =>
+    }),
+  );
+  const refreshMetadataForMonitoredAnime = wrapServiceEffect(
+    "AnimeService.refreshMetadataForMonitoredAnime",
+    () => metadataRefreshRunner.trigger,
+  );
+  const scanFolder = wrapServiceEffect("AnimeService.scanFolder", (animeId: number) =>
     scanAnimeFolderOrchestrationEffect({
       animeId,
       db,
@@ -192,39 +208,59 @@ const makeAnimeService = Effect.gen(function* () {
       fs,
       mediaProbe,
       nowIso: () => nowIsoFromClock(clock),
-    });
-  const deleteAnime: AnimeServiceShape["deleteAnime"] = (id) =>
-    deleteAnimeEffect(db, id, () => nowIsoFromClock(clock));
+    }),
+  );
+  const deleteAnime = wrapServiceEffect("AnimeService.deleteAnime", (id: number) =>
+    deleteAnimeEffect(db, id, () => nowIsoFromClock(clock)),
+  );
 
-  const updatePath: AnimeServiceShape["updatePath"] = (id, path) =>
-    updateAnimePathEffect({ db, fs, id, path, nowIso: () => nowIsoFromClock(clock) });
-  const updateProfile: AnimeServiceShape["updateProfile"] = (id, profileName) =>
-    updateAnimeProfileEffect({
-      db,
-      eventPublisher,
-      id,
-      nowIso: () => nowIsoFromClock(clock),
-      profileName,
-    });
-  const setMonitored: AnimeServiceShape["setMonitored"] = (id, monitored) =>
-    setAnimeMonitoredEffect({
-      db,
-      eventPublisher,
-      id,
-      monitored,
-      nowIso: () => nowIsoFromClock(clock),
-    });
-  const updateReleaseProfiles: AnimeServiceShape["updateReleaseProfiles"] = (
-    id,
-    releaseProfileIds,
-  ) =>
-    updateAnimeReleaseProfilesEffect({
-      db,
-      eventPublisher,
-      id,
-      nowIso: () => nowIsoFromClock(clock),
-      releaseProfileIds,
-    });
+  const setMonitored = wrapServiceEffect(
+    "AnimeService.setMonitored",
+    (id: number, monitored: boolean) =>
+      setAnimeMonitoredEffect({
+        db,
+        eventPublisher,
+        id,
+        monitored,
+        nowIso: () => nowIsoFromClock(clock),
+      }),
+  );
+  const updatePath = wrapServiceEffect("AnimeService.updatePath", (id: number, path: string) =>
+    updateAnimePathEffect({ db, fs, id, path, nowIso: () => nowIsoFromClock(clock) }),
+  );
+  const updateProfile = wrapServiceEffect(
+    "AnimeService.updateProfile",
+    (id: number, profileName: string) =>
+      updateAnimeProfileEffect({
+        db,
+        eventPublisher,
+        id,
+        nowIso: () => nowIsoFromClock(clock),
+        profileName,
+      }),
+  );
+  const updateReleaseProfiles = wrapServiceEffect(
+    "AnimeService.updateReleaseProfiles",
+    (id: number, releaseProfileIds: number[]) =>
+      updateAnimeReleaseProfilesEffect({
+        db,
+        eventPublisher,
+        id,
+        nowIso: () => nowIsoFromClock(clock),
+        releaseProfileIds,
+      }),
+  );
+  const resolveEpisodeFile = wrapServiceEffect(
+    "AnimeService.resolveEpisodeFile",
+    resolveEpisodeFileEffect,
+  );
+  const deleteEpisodeFile = wrapServiceEffect(
+    "AnimeService.deleteEpisodeFile",
+    deleteEpisodeFileEffect,
+  );
+  const mapEpisode = wrapServiceEffect("AnimeService.mapEpisode", mapEpisodeEffect);
+  const bulkMapEpisodes = wrapServiceEffect("AnimeService.bulkMapEpisodes", bulkMapEpisodesEffect);
+  const listFiles = wrapServiceEffect("AnimeService.listFiles", listFilesEffect);
 
   return {
     listAnime,

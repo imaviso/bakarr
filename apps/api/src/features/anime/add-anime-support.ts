@@ -9,6 +9,7 @@ import { anime, episodes } from "../../db/schema.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
+import type { AddAnimeInput } from "./add-anime-input.ts";
 import type { AniListClient } from "./anilist.ts";
 import { encodeAnimeDiscoveryEntries, encodeAnimeSynonyms } from "./discovery-metadata-codec.ts";
 import { toAnimeDto } from "./dto.ts";
@@ -24,19 +25,9 @@ import {
 } from "./repository.ts";
 import { tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
 
-export interface AddAnimeEffectInput {
-  readonly id: number;
-  readonly profile_name: string;
-  readonly root_folder: string;
-  readonly monitor_and_search: boolean;
-  readonly monitored: boolean;
-  readonly release_profile_ids: number[];
-  readonly use_existing_root?: boolean;
-}
-
 export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function* (input: {
   aniList: typeof AniListClient.Service;
-  animeInput: AddAnimeEffectInput;
+  animeInput: AddAnimeInput;
   db: AppDatabase;
   eventPublisher: Pick<EventPublisherShape, "publishInfo">;
   fs: FileSystemShape;

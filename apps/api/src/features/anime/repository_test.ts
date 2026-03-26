@@ -1,6 +1,7 @@
 import { assertEquals, it } from "../../test/vitest.ts";
 import { eq } from "drizzle-orm";
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Schema } from "effect";
+import { ConfigCoreSchema } from "../system/config-schema.ts";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -305,15 +306,15 @@ it.scoped("anime repository helpers use stored config when available", () =>
       yield* Effect.promise(() =>
         db.insert(appConfig).values({
           id: 1,
-          data: encodeConfigCore(
-            (() => {
-              const config = structuredClone(makeDefaultConfig("./test.sqlite"));
-              config.downloads.create_anime_folders = false;
-              config.general.images_path = "./custom-images";
-              config.library.library_path = "/anime-library";
-              return config;
-            })(),
-          ),
+          data: (() => {
+            const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig("./test.sqlite"));
+            return encodeConfigCore({
+              ...base,
+              downloads: { ...base.downloads, create_anime_folders: false },
+              general: { ...base.general, images_path: "./custom-images" },
+              library: { ...base.library, library_path: "/anime-library" },
+            });
+          })(),
           updatedAt: "2024-01-01T00:00:00.000Z",
         }),
       );

@@ -12,7 +12,11 @@ import {
   shouldProbeDetailedMediaMetadata,
 } from "../../lib/media-probe.ts";
 import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
-import { classifyMediaArtifact, parseFileSourceIdentity } from "../../lib/media-identity.ts";
+import {
+  classifyMediaArtifact,
+  parseFileSourceIdentity,
+  toSharedParsedEpisodeIdentity,
+} from "../../lib/media-identity.ts";
 import { collectVideoFiles } from "./files.ts";
 import { AnimePathError, type AnimeServiceError } from "./errors.ts";
 import { buildScannedFileMetadata } from "../operations/naming-support.ts";
@@ -534,36 +538,6 @@ function hasEpisodeProbeCachePatch(patch: ReturnType<typeof toEpisodeProbeCacheP
     patch.resolution !== undefined ||
     patch.videoCodec !== undefined
   );
-}
-
-function toSharedParsedEpisodeIdentity(
-  identity: ReturnType<typeof parseFileSourceIdentity>["source_identity"],
-) {
-  if (!identity) {
-    return undefined;
-  }
-
-  switch (identity.scheme) {
-    case "season":
-      return {
-        episode_numbers: [...identity.episode_numbers],
-        label: identity.label,
-        scheme: "season" as const,
-        season: identity.season,
-      };
-    case "absolute":
-      return {
-        episode_numbers: [...identity.episode_numbers],
-        label: identity.label,
-        scheme: "absolute" as const,
-      };
-    case "daily":
-      return {
-        air_dates: [...identity.air_dates],
-        label: identity.label,
-        scheme: "daily" as const,
-      };
-  }
 }
 
 export const resolveEpisodeFileEffect = Effect.fn("AnimeService.resolveEpisodeFileEffect")(
