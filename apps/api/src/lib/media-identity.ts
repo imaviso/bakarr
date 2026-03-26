@@ -6,31 +6,21 @@
  * file-scanner.ts, release-ranking.ts, and library-import.ts.
  */
 
+import {
+  AbsoluteEpisodeIdentity,
+  DailyEpisodeIdentity,
+  type ParsedEpisodeIdentity,
+  ParsedEpisodeIdentitySchema,
+  SeasonEpisodeIdentity,
+  getEpisodeNumbersFromSourceIdentity,
+  getSourceIdentityAirDate,
+  getSourceIdentitySeason,
+  toSharedParsedEpisodeIdentity,
+} from "./media-identity-model.ts";
+
 import { parseAbsoluteIdentity } from "./media-identity-absolute.ts";
 import { parseDailyIdentity } from "./media-identity-daily.ts";
 import { parseSeasonEpisodeIdentity } from "./media-identity-season.ts";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export type ParsedEpisodeIdentity =
-  | {
-      scheme: "season";
-      season: number;
-      episode_numbers: number[];
-      label: string;
-    }
-  | {
-      scheme: "absolute";
-      episode_numbers: number[];
-      label: string;
-    }
-  | {
-      scheme: "daily";
-      air_dates: string[];
-      label: string;
-    };
 
 export interface PathParseContext {
   /** Title inferred from nearest entry folder (e.g. "Overlord II") */
@@ -53,6 +43,19 @@ export interface ParsedMediaFile {
   resolution?: string;
   skip_reason?: string;
 }
+
+export type { ParsedEpisodeIdentity } from "./media-identity-model.ts";
+
+export {
+  AbsoluteEpisodeIdentity,
+  DailyEpisodeIdentity,
+  ParsedEpisodeIdentitySchema,
+  SeasonEpisodeIdentity,
+  getEpisodeNumbersFromSourceIdentity,
+  getSourceIdentityAirDate,
+  getSourceIdentitySeason,
+  toSharedParsedEpisodeIdentity,
+};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -148,7 +151,7 @@ export function parseFileSourceIdentity(path: string, context?: PathParseContext
     // If folder context provides a season hint, promote to season scheme
     if (context?.season_hint !== undefined || context?.is_specials_folder) {
       const season = context.is_specials_folder ? 0 : context.season_hint!;
-      const promoted: ParsedEpisodeIdentity = {
+      const promoted = new SeasonEpisodeIdentity({
         scheme: "season",
         season,
         episode_numbers: absolute.episode_numbers,
@@ -156,7 +159,7 @@ export function parseFileSourceIdentity(path: string, context?: PathParseContext
           season === 0
             ? `S00E${absolute.label}`
             : `S${String(season).padStart(2, "0")}E${absolute.label}`,
-      };
+      });
       return {
         kind: "episode",
         parsed_title:

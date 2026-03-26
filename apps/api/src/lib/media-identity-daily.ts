@@ -1,9 +1,7 @@
-import type { ParsedEpisodeIdentity } from "./media-identity.ts";
+import { DailyEpisodeIdentity } from "./media-identity-model.ts";
 import { isValidDate } from "./media-identity-parser-shared.ts";
 
-export function parseDailyIdentity(
-  value: string,
-): (ParsedEpisodeIdentity & { scheme: "daily" }) | undefined {
+export function parseDailyIdentity(value: string): DailyEpisodeIdentity | undefined {
   const ymdMatch = value.match(
     /(?:^|[\s._\-[(])(\d{4})[\s._-](\d{2})[\s._-](\d{2})(?:[\s._\-\])]|$)/,
   );
@@ -11,11 +9,11 @@ export function parseDailyIdentity(
     const [year, month, day] = [Number(ymdMatch[1]), Number(ymdMatch[2]), Number(ymdMatch[3])];
     if (isValidDate(year, month, day)) {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      return {
+      return new DailyEpisodeIdentity({
         scheme: "daily",
         air_dates: [dateStr],
         label: dateStr,
-      };
+      });
     }
   }
 
@@ -26,11 +24,11 @@ export function parseDailyIdentity(
     const [day, month, year] = [Number(dmyMatch[1]), Number(dmyMatch[2]), Number(dmyMatch[3])];
     if (isValidDate(year, month, day) && year >= 1900 && year <= 2100) {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      return {
+      return new DailyEpisodeIdentity({
         scheme: "daily",
         air_dates: [dateStr],
         label: dateStr,
-      };
+      });
     }
   }
 

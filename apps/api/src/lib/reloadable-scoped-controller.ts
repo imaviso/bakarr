@@ -7,69 +7,82 @@ export interface ReloadableScopedController<C, E> {
   readonly stop: () => Effect.Effect<void>;
 }
 
-export function makeReloadableScopedController<C, E>(options: {
-  readonly spawn: (config: C) => Effect.Effect<void, E, Scope.Scope>;
-}): Effect.Effect<ReloadableScopedController<C, E>> {
-  return Effect.gen(function* () {
-    const scopeRef = yield* Ref.make<Scope.CloseableScope | null>(null);
-    const lifecycleSemaphore = yield* Effect.makeSemaphore(1);
+export const makeReloadableScopedController = Effect.fn("ReloadableScopedController.make")(
+  <C, E>(options: {
+    readonly spawn: (scope: Scope.CloseableScope, config: C) => Effect.Effect<void, E>;
+  }): Effect.Effect<ReloadableScopedController<C, E>> =>
+    Effect.gen(function* () {
+      const scopeRef = yield* Ref.make<Scope.CloseableScope | null>(null);
+      const lifecycleSemaphore = yield* Effect.makeSemaphore(1);
 
-    const isStarted = () => Ref.get(scopeRef).pipe(Effect.map((scope) => scope !== null));
+      const isStarted = Effect.fn("ReloadableScopedController.isStarted")(function* () {
+        const scope = yield* Ref.get(scopeRef);
+        return scope !== null;
+      });
 
-    const doStop = Effect.fn("ReloadableScopedController.stop")(function* () {
-      const current = yield* Ref.getAndSet(scopeRef, null);
-      if (current !== null) {
-        yield* Scope.close(current, Exit.succeed(void 0));
-      }
-    });
+      const stopCurrent = Effect.fn("ReloadableScopedController.stopCurrent")(function* () {
+        const current = yield* Ref.getAndSet(scopeRef, null);
 
-    const doStart = Effect.fn("ReloadableScopedController.start")(function* (config: C) {
-      const current = yield* Ref.get(scopeRef);
-      if (current !== null) {
-        return;
-      }
+        if (current !== null) {
+          yield* Scope.close(current, Exit.succeed(void 0));
+        }
+      });
 
-      const scope = yield* Scope.make();
-      const exit = yield* Effect.exit(
-        options.spawn(config).pipe(Effect.provideService(Scope.Scope, scope)),
-      );
+      const startCurrent = Effect.fn("ReloadableScopedController.startCurrent")(function* (
+        config: C,
+      ) {
+        const current = yield* Ref.get(scopeRef);
 
-      if (exit._tag === "Failure") {
-        yield* Scope.close(scope, Exit.void);
-        return yield* Effect.failCause(exit.cause);
-      }
+        if (current !== null) {
+          return;
+        }
 
-      yield* Ref.set(scopeRef, scope);
-    });
+        const scope = yield* Scope.make();
+        const exit = yield* Effect.exit(options.spawn(scope, config));
 
-    const doReload = Effect.fn("ReloadableScopedController.reload")(function* (config: C) {
-      const current = yield* Ref.getAndSet(scopeRef, null);
-      if (current !== null) {
-        yield* Scope.close(current, Exit.succeed(void 0));
-      }
+        if (exit._tag === "Failure") {
+          yield* Scope.close(scope, Exit.void);
+          return yield* Effect.failCause(exit.cause);
+        }
 
-      const scope = yield* Scope.make();
-      const exit = yield* Effect.exit(
-        options.spawn(config).pipe(Effect.provideService(Scope.Scope, scope)),
-      );
+        yield* Ref.set(scopeRef, scope);
+      });
 
-      if (exit._tag === "Failure") {
-        yield* Scope.close(scope, Exit.void);
-        return yield* Effect.failCause(exit.cause);
-      }
+      const reloadCurrent = Effect.fn("ReloadableScopedController.reloadCurrent")(function* (
+        config: C,
+      ) {
+        const current = yield* Ref.getAndSet(scopeRef, null);
 
-      yield* Ref.set(scopeRef, scope);
-    });
+        if (current !== null) {
+          yield* Scope.close(current, Exit.succeed(void 0));
+        }
 
-    const stopCurrent = lifecycleSemaphore.withPermits(1)(doStop());
-    const start = (config: C) => lifecycleSemaphore.withPermits(1)(doStart(config));
-    const reload = (config: C) => lifecycleSemaphore.withPermits(1)(doReload(config));
+        const scope = yield* Scope.make();
+        const exit = yield* Effect.exit(options.spawn(scope, config));
 
-    return {
-      isStarted,
-      reload,
-      start,
-      stop: () => stopCurrent,
-    } satisfies ReloadableScopedController<C, E>;
-  });
-}
+        if (exit._tag === "Failure") {
+          yield* Scope.close(scope, Exit.void);
+          return yield* Effect.failCause(exit.cause);
+        }
+
+        yield* Ref.set(scopeRef, scope);
+      });
+
+      const stop = Effect.fn("ReloadableScopedController.stop")(function* () {
+        yield* lifecycleSemaphore.withPermits(1)(stopCurrent());
+      });
+      const start = Effect.fn("ReloadableScopedController.start")(function* (config: C) {
+        yield* lifecycleSemaphore.withPermits(1)(startCurrent(config));
+      });
+      const reload = Effect.fn("ReloadableScopedController.reload")(function* (config: C) {
+        yield* lifecycleSemaphore.withPermits(1)(reloadCurrent(config));
+      });
+
+      return {
+        isStarted,
+        reload,
+        start,
+        stop,
+      } satisfies ReloadableScopedController<C, E>;
+    }),
+);

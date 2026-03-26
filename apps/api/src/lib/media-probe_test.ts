@@ -146,9 +146,8 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
       ),
     ).pipe(
       Effect.provide(
-        Layer.mergeAll(
-          MediaProbeLive,
-          Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub),
+        MediaProbeLive.pipe(
+          Layer.provide(Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub)),
         ),
       ),
     );
@@ -170,14 +169,17 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
     ).pipe(
       Effect.provide(
         Layer.mergeAll(
-          MediaProbeLive,
           loggerLayer,
-          Layer.succeed(
-            CommandExecutor.CommandExecutor,
-            makeCommandExecutorStub((command) =>
-              command.args.includes("-version")
-                ? Effect.succeed("ffprobe version test")
-                : Effect.succeed('{"streams":"bad"}'),
+          MediaProbeLive.pipe(
+            Layer.provide(
+              Layer.succeed(
+                CommandExecutor.CommandExecutor,
+                makeCommandExecutorStub((command) =>
+                  command.args.includes("-version")
+                    ? Effect.succeed("ffprobe version test")
+                    : Effect.succeed('{"streams":"bad"}'),
+                ),
+              ),
             ),
           ),
         ),

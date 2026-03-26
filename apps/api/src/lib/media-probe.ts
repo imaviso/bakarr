@@ -367,60 +367,36 @@ function runFfprobeCommand(
   );
 }
 
-const makeMediaProbe = (ffprobeSemaphore: Effect.Semaphore): MediaProbeShape => {
-  let availability: boolean | undefined;
-  let executor: CommandExecutor.CommandExecutor | undefined;
+function runFfprobeCommandWith(
+  executor: CommandExecutor.CommandExecutor,
+  args: readonly string[],
+  timeoutMs: number,
+) {
+  return runFfprobeCommand(args, timeoutMs).pipe(
+    Effect.provideService(CommandExecutor.CommandExecutor, executor),
+  );
+}
 
-  const resolveAvailability = Effect.fn("MediaProbe.resolveAvailability")(function* () {
-    if (availability !== undefined) {
-      return availability;
-    }
-
-    if (!executor) {
-      const executorOption = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
-
-      if (Option.isNone(executorOption)) {
-        availability = false;
-        return availability;
-      }
-
-      executor = executorOption.value;
-    }
-
-    if (!executor) {
-      availability = false;
-      return availability;
-    }
-
-    const output = yield* runFfprobeCommand(["-version"], FFPROBE_VERSION_TIMEOUT_MS).pipe(
-      Effect.provideService(CommandExecutor.CommandExecutor, executor),
-    );
-
-    if (output instanceof MediaProbeFailure) {
-      availability = false;
-      return availability;
-    }
-
-    availability = true;
-    return availability;
+function makeUnavailableMediaProbe(message = "ffprobe is unavailable"): MediaProbeShape {
+  const probeVideoFile = Effect.fn("MediaProbe.probeVideoFile")(function* (_path: string) {
+    return new MediaProbeUnavailable({ message });
   });
 
+  return { probeVideoFile };
+}
+
+const makeMediaProbe = (
+  ffprobeSemaphore: Effect.Semaphore,
+  executor: CommandExecutor.CommandExecutor,
+): MediaProbeShape => {
   const probeVideoFile = Effect.fn("MediaProbe.probeVideoFile")(function* (path: string) {
-    const available = yield* resolveAvailability();
-
-    if (!available || !executor) {
-      return new MediaProbeUnavailable({ message: "ffprobe is unavailable" });
-    }
-
-    // Use semaphore to enforce global ffprobe concurrency limit
-    const output = yield* ffprobeSemaphore
-      .withPermits(1)(
-        runFfprobeCommand(
-          ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path],
-          FFPROBE_PROBE_TIMEOUT_MS,
-        ),
-      )
-      .pipe(Effect.provideService(CommandExecutor.CommandExecutor, executor));
+    const output = yield* ffprobeSemaphore.withPermits(1)(
+      runFfprobeCommandWith(
+        executor,
+        ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path],
+        FFPROBE_PROBE_TIMEOUT_MS,
+      ),
+    );
 
     if (output instanceof MediaProbeFailure) {
       return output;
@@ -443,5 +419,24 @@ const makeMediaProbe = (ffprobeSemaphore: Effect.Semaphore): MediaProbeShape => 
 
 export const MediaProbeLive = Layer.effect(
   MediaProbe,
-  Effect.map(Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT), makeMediaProbe),
+  Effect.gen(function* () {
+    const ffprobeSemaphore = yield* Effect.makeSemaphore(FFPROBE_CONCURRENCY_LIMIT);
+    const executorOption = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
+
+    if (Option.isNone(executorOption)) {
+      return makeUnavailableMediaProbe();
+    }
+
+    const availability = yield* runFfprobeCommandWith(
+      executorOption.value,
+      ["-version"],
+      FFPROBE_VERSION_TIMEOUT_MS,
+    );
+
+    if (availability instanceof MediaProbeFailure) {
+      return makeUnavailableMediaProbe(availability.message);
+    }
+
+    return makeMediaProbe(ffprobeSemaphore, executorOption.value);
+  }),
 );

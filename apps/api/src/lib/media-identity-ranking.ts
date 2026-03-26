@@ -53,7 +53,7 @@ export function resolveSourceIdentityToEpisodeNumbers(input: {
     if (source_identity.season === 0 && !isSpecialLikeEntry(animeRow)) {
       return undefined;
     }
-    const eps = source_identity.episode_numbers.filter((n) => n > 0 && n < 2000);
+    const eps = source_identity.episode_numbers.filter((n: number) => n > 0 && n < 2000);
     if (eps.length === 0) return undefined;
     return {
       anime_id: animeRow.id,
@@ -63,7 +63,7 @@ export function resolveSourceIdentityToEpisodeNumbers(input: {
     };
   }
 
-  const eps = source_identity.episode_numbers.filter((n) => n > 0 && n < 2000);
+  const eps = source_identity.episode_numbers.filter((n: number) => n > 0 && n < 2000);
   if (eps.length === 0) return undefined;
   return {
     anime_id: animeRow.id,

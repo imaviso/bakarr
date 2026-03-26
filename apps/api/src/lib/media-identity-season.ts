@@ -1,9 +1,7 @@
-import type { ParsedEpisodeIdentity } from "./media-identity.ts";
+import { SeasonEpisodeIdentity } from "./media-identity-model.ts";
 import { formatSeasonLabel, rangeArray } from "./media-identity-parser-shared.ts";
 
-export function parseSeasonEpisodeIdentity(
-  value: string,
-): (ParsedEpisodeIdentity & { scheme: "season" }) | undefined {
+export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity | undefined {
   const rangeMatch = value.match(
     /(?:^|[\s._-])s(\d{1,2})[\s._-]*e(\d{1,4})\s*[-~]\s*(?:s\d{1,2}[\s._-]*)?e?(\d{1,4})(?:[\s._-]|$)/i,
   );
@@ -13,12 +11,12 @@ export function parseSeasonEpisodeIdentity(
     const end = Number(rangeMatch[3]);
     if (start > 0 && end >= start && end - start <= 500 && end < 2000) {
       const eps = rangeArray(start, end);
-      return {
+      return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
         episode_numbers: eps,
         label: formatSeasonLabel(season, eps),
-      };
+      });
     }
   }
 
@@ -29,12 +27,12 @@ export function parseSeasonEpisodeIdentity(
     const season = Number(multiMatch[1]);
     const eps = collectSeasonEpisodes(value);
     if (eps.length > 0) {
-      return {
+      return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
         episode_numbers: eps,
         label: formatSeasonLabel(season, eps),
-      };
+      });
     }
   }
 
@@ -45,12 +43,12 @@ export function parseSeasonEpisodeIdentity(
     const season = Number(singleMatch[1]);
     const ep = Number(singleMatch[2]);
     if (ep > 0 && ep < 2000) {
-      return {
+      return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
         episode_numbers: [ep],
         label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
-      };
+      });
     }
   }
 
@@ -63,12 +61,12 @@ export function parseSeasonEpisodeIdentity(
     const end = Number(crossRangeMatch[3]);
     if (start > 0 && end >= start && end - start <= 500 && end < 2000) {
       const eps = rangeArray(start, end);
-      return {
+      return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
         episode_numbers: eps,
         label: formatSeasonLabel(season, eps),
-      };
+      });
     }
   }
 
@@ -77,12 +75,12 @@ export function parseSeasonEpisodeIdentity(
     const season = Number(crossMatch[1]);
     const ep = Number(crossMatch[2]);
     if (ep > 0 && ep < 2000) {
-      return {
+      return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
         episode_numbers: [ep],
         label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
-      };
+      });
     }
   }
 
@@ -93,12 +91,12 @@ export function parseSeasonEpisodeIdentity(
     const season = Number(longMatch[1]);
     const ep = Number(longMatch[2]);
     if (ep > 0 && ep < 2000) {
-      return {
+      return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
         episode_numbers: [ep],
         label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
-      };
+      });
     }
   }
 
@@ -109,12 +107,12 @@ export function parseSeasonEpisodeIdentity(
     const season = Number(seasonDashMatch[1]);
     const ep = Number(seasonDashMatch[2]);
     if (ep > 0 && ep < 2000) {
-      return {
+      return new SeasonEpisodeIdentity({
         scheme: "season",
         season,
         episode_numbers: [ep],
         label: `S${String(season).padStart(2, "0")}E${String(ep).padStart(2, "0")}`,
-      };
+      });
     }
   }
 

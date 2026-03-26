@@ -19,9 +19,10 @@ export function isoStringFromMillis(millis: number): string {
   return new Date(millis).toISOString();
 }
 
-export function nowIsoFromClock(clock: ClockServiceShape): Effect.Effect<string> {
-  return Effect.map(clock.currentTimeMillis, isoStringFromMillis);
-}
+export const nowIsoFromClock = Effect.fn("Clock.nowIsoFromClock")(
+  (clock: ClockServiceShape): Effect.Effect<string> =>
+    Effect.map(clock.currentTimeMillis, isoStringFromMillis),
+);
 
 export const { currentTimeMillis } = Clock;
 export const currentMonotonicMillis: Effect.Effect<number> = Effect.sync(() => performance.now());

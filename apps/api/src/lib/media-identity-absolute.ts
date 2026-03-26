@@ -1,21 +1,21 @@
-import type { ParsedEpisodeIdentity } from "./media-identity.ts";
+import { AbsoluteEpisodeIdentity } from "./media-identity-model.ts";
 import { isYearLike, rangeArray } from "./media-identity-parser-shared.ts";
 
 export function parseAbsoluteIdentity(
   extensionless: string,
   filename: string,
-): (ParsedEpisodeIdentity & { scheme: "absolute" }) | undefined {
+): AbsoluteEpisodeIdentity | undefined {
   const epMatch = extensionless.match(
     /(?:^|[\s._-])(?:e|ep|episode)[\s._-]*(\d{1,4})(?:v\d+)?(?:[\s._-]|$)/i,
   );
   if (epMatch) {
     const num = Number(epMatch[1]);
     if (num > 0 && num < 2000) {
-      return {
+      return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
         episode_numbers: [num],
         label: String(num).padStart(2, "0"),
-      };
+      });
     }
   }
 
@@ -23,11 +23,11 @@ export function parseAbsoluteIdentity(
   if (bracketMatch) {
     const num = Number(bracketMatch[1]);
     if (num > 0 && num < 2000) {
-      return {
+      return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
         episode_numbers: [num],
         label: String(num).padStart(2, "0"),
-      };
+      });
     }
   }
 
@@ -40,11 +40,11 @@ export function parseAbsoluteIdentity(
   if (standaloneMatch) {
     const num = Number(standaloneMatch[1]);
     if (num > 0 && num < 2000 && !isYearLike(num)) {
-      return {
+      return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
         episode_numbers: [num],
         label: String(num).padStart(2, "0"),
-      };
+      });
     }
   }
 
@@ -67,19 +67,17 @@ export function parseAbsoluteIdentity(
 
   if (candidates.length > 0) {
     const num = candidates[candidates.length - 1];
-    return {
+    return new AbsoluteEpisodeIdentity({
       scheme: "absolute",
       episode_numbers: [num],
       label: String(num).padStart(2, "0"),
-    };
+    });
   }
 
   return undefined;
 }
 
-function parseAbsoluteRange(
-  value: string,
-): (ParsedEpisodeIdentity & { scheme: "absolute" }) | undefined {
+function parseAbsoluteRange(value: string): AbsoluteEpisodeIdentity | undefined {
   if (/s\d{1,2}[\s._-]*e/i.test(value)) return undefined;
 
   const rangePatterns = [
@@ -110,14 +108,14 @@ function parseAbsoluteRange(
       }
 
       const eps = rangeArray(start, end);
-      return {
+      return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
         episode_numbers: eps,
         label:
           eps.length === 1
             ? String(eps[0]).padStart(2, "0")
             : `${String(start).padStart(2, "0")}-${String(end).padStart(2, "0")}`,
-      };
+      });
     }
   }
 

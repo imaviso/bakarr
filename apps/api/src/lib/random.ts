@@ -19,18 +19,21 @@ export function hexFromBytes(data: Uint8Array): string {
   return Array.from(data, (v) => v.toString(16).padStart(2, "0")).join("");
 }
 
-export function randomHexFrom(random: RandomServiceShape, bytes: number): Effect.Effect<string> {
-  return Effect.map(random.randomBytes(bytes), hexFromBytes);
-}
+export const randomHexFrom = Effect.fn("Random.randomHexFrom")(
+  (random: RandomServiceShape, bytes: number): Effect.Effect<string> =>
+    Effect.map(random.randomBytes(bytes), hexFromBytes),
+);
 
 /**
  * Generate random hex string. Use in service/orchestration code.
  */
-export const randomHex = (bytes: number): Effect.Effect<string> =>
-  Effect.sync(() => randomHexSync(bytes));
+export const randomHex = Effect.fn("Random.randomHex")(
+  (bytes: number): Effect.Effect<string> => Effect.sync(() => randomHexSync(bytes)),
+);
 
-export const randomBytes = (bytes: number): Effect.Effect<Uint8Array> =>
-  Effect.sync(() => randomBytesSync(bytes));
+export const randomBytes = Effect.fn("Random.randomBytes")(
+  (bytes: number): Effect.Effect<Uint8Array> => Effect.sync(() => randomBytesSync(bytes)),
+);
 
 /**
  * Sync random hex for pure/non-Effect code only (DTO assembly, parsing).
