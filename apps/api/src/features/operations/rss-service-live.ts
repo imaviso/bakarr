@@ -1,10 +1,27 @@
 import { Effect, Layer } from "effect";
 
 import { CatalogOrchestration, SearchOrchestration } from "./operations-orchestration.ts";
-import { RssService, type RssServiceShape } from "./service-contract.ts";
+import {
+  RssCommandService,
+  RssReadService,
+  type RssCommandServiceShape,
+  type RssReadServiceShape,
+} from "./service-contract.ts";
 
-export const RssServiceLive = Layer.effect(
-  RssService,
+export const RssReadServiceLive = Layer.effect(
+  RssReadService,
+  Effect.gen(function* () {
+    const catalog = yield* CatalogOrchestration;
+
+    return {
+      listAnimeRssFeeds: catalog.listAnimeRssFeeds,
+      listRssFeeds: catalog.listRssFeeds,
+    } satisfies RssReadServiceShape;
+  }),
+);
+
+export const RssCommandServiceLive = Layer.effect(
+  RssCommandService,
   Effect.gen(function* () {
     const catalog = yield* CatalogOrchestration;
     const search = yield* SearchOrchestration;
@@ -12,10 +29,8 @@ export const RssServiceLive = Layer.effect(
     return {
       addRssFeed: catalog.addRssFeed,
       deleteRssFeed: catalog.deleteRssFeed,
-      listAnimeRssFeeds: catalog.listAnimeRssFeeds,
-      listRssFeeds: catalog.listRssFeeds,
       runRssCheck: search.runRssCheck,
       toggleRssFeed: catalog.toggleRssFeed,
-    } satisfies RssServiceShape;
+    } satisfies RssCommandServiceShape;
   }),
 );

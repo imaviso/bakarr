@@ -12,7 +12,7 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { EventPublisher } from "../events/publisher.ts";
-import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
+import { ClockService, nowIsoFromClock } from "../../lib/clock.ts";
 import type { AddAnimeInput } from "./add-anime-input.ts";
 import { AniListClient } from "./anilist.ts";
 import {
@@ -49,7 +49,7 @@ import {
 import { makeMetadataRefreshRunner } from "./service-support.ts";
 import { makeAnimeFileOperations } from "./service-wiring.ts";
 
-export interface AnimeServiceShape {
+export interface AnimeQueryServiceShape {
   readonly listAnime: (
     params?: AnimeListQueryParams,
   ) => Effect.Effect<AnimeListResponse, DatabaseError | AnimeStoredDataError>;
@@ -60,6 +60,10 @@ export interface AnimeServiceShape {
   readonly getAnimeByAnilistId: (
     id: number,
   ) => Effect.Effect<AnimeSearchResult, AnimeNotFoundError | DatabaseError | ExternalCallError>;
+  readonly listEpisodes: (animeId: number) => Effect.Effect<Episode[], DatabaseError>;
+}
+
+export interface AnimeMutationServiceShape {
   readonly addAnime: (
     input: AddAnimeInput,
   ) => Effect.Effect<
@@ -89,11 +93,6 @@ export interface AnimeServiceShape {
     id: number,
     releaseProfileIds: number[],
   ) => Effect.Effect<void, AnimeServiceError | DatabaseError>;
-  readonly listEpisodes: (animeId: number) => Effect.Effect<Episode[], DatabaseError>;
-  readonly resolveEpisodeFile: (
-    animeId: number,
-    episodeNumber: number,
-  ) => Effect.Effect<EpisodeFileResolution, AnimeServiceError | DatabaseError>;
   readonly refreshEpisodes: (
     animeId: number,
   ) => Effect.Effect<void, AnimeServiceError | DatabaseError | ExternalCallError>;
@@ -101,6 +100,9 @@ export interface AnimeServiceShape {
     { refreshed: number },
     DatabaseError | ExternalCallError | AnimeServiceError
   >;
+}
+
+export interface AnimeFileServiceShape {
   readonly scanFolder: (
     animeId: number,
   ) => Effect.Effect<{ found: number; total: number }, AnimeServiceError | DatabaseError>;
@@ -120,31 +122,76 @@ export interface AnimeServiceShape {
   readonly listFiles: (
     animeId: number,
   ) => Effect.Effect<VideoFile[], AnimeServiceError | DatabaseError>;
+  readonly resolveEpisodeFile: (
+    animeId: number,
+    episodeNumber: number,
+  ) => Effect.Effect<EpisodeFileResolution, AnimeServiceError | DatabaseError>;
 }
 
-export class AnimeService extends Context.Tag("@bakarr/api/AnimeService")<
-  AnimeService,
-  AnimeServiceShape
+export class AnimeQueryService extends Context.Tag("@bakarr/api/AnimeQueryService")<
+  AnimeQueryService,
+  AnimeQueryServiceShape
 >() {}
 
-const makeAnimeService = Effect.gen(function* () {
+export class AnimeMutationService extends Context.Tag("@bakarr/api/AnimeMutationService")<
+  AnimeMutationService,
+  AnimeMutationServiceShape
+>() {}
+
+export class AnimeFileService extends Context.Tag("@bakarr/api/AnimeFileService")<
+  AnimeFileService,
+  AnimeFileServiceShape
+>() {}
+
+const makeAnimeQueryService = Effect.gen(function* () {
+  const { db } = yield* Database;
+  const aniList = yield* AniListClient;
+  const clock = yield* ClockService;
+
+  const listAnime = Effect.fn("AnimeQueryService.listAnime")(function* (
+    params?: AnimeListQueryParams,
+  ) {
+    return yield* listAnimeEffect(db, params);
+  });
+
+  const getAnime = Effect.fn("AnimeQueryService.getAnime")(function* (id: number) {
+    return yield* getAnimeEffect({ db, id });
+  });
+
+  const searchAnime = Effect.fn("AnimeQueryService.searchAnime")(function* (query: string) {
+    return yield* searchAnimeEffect({ aniList, db, query });
+  });
+
+  const getAnimeByAnilistId = Effect.fn("AnimeQueryService.getAnimeByAnilistId")(function* (
+    id: number,
+  ) {
+    return yield* getAnimeByAnilistIdEffect({ aniList, db, id });
+  });
+
+  const listEpisodes = Effect.fn("AnimeQueryService.listEpisodes")(function* (animeId: number) {
+    const now = new Date(yield* clock.currentTimeMillis);
+    return yield* listEpisodesEffect({ animeId, db, now });
+  });
+
+  return {
+    getAnime,
+    getAnimeByAnilistId,
+    listAnime,
+    listEpisodes,
+    searchAnime,
+  } satisfies AnimeQueryServiceShape;
+});
+
+const makeAnimeMutationService = Effect.gen(function* () {
   const { db } = yield* Database;
   const eventPublisher = yield* EventPublisher;
   const aniList = yield* AniListClient;
   const fs = yield* FileSystem;
-  const mediaProbe = yield* MediaProbe;
   const httpClient = yield* HttpClient.HttpClient;
   const clock = yield* ClockService;
   const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
-  const {
-    bulkMapEpisodes: bulkMapEpisodesEffect,
-    deleteEpisodeFile: deleteEpisodeFileEffect,
-    listFiles: listFilesEffect,
-    mapEpisode: mapEpisodeEffect,
-    resolveEpisodeFile: resolveEpisodeFileEffect,
-  } = yield* makeAnimeFileOperations();
 
-  const addAnime = Effect.fn("AnimeService.addAnime")(function* (input: AddAnimeInput) {
+  const addAnime = Effect.fn("AnimeMutationService.addAnime")(function* (input: AddAnimeInput) {
     return yield* addAnimeEffect({
       aniList,
       animeInput: input,
@@ -156,51 +203,11 @@ const makeAnimeService = Effect.gen(function* () {
     });
   });
 
-  const listAnime = Effect.fn("AnimeService.listAnime")(function* (params?: AnimeListQueryParams) {
-    return yield* listAnimeEffect(db, params);
-  });
-  const getAnime = Effect.fn("AnimeService.getAnime")(function* (id: number) {
-    return yield* getAnimeEffect({ db, id });
-  });
-  const searchAnime = Effect.fn("AnimeService.searchAnime")(function* (query: string) {
-    return yield* searchAnimeEffect({ aniList, db, query });
-  });
-  const getAnimeByAnilistId = Effect.fn("AnimeService.getAnimeByAnilistId")(function* (id: number) {
-    return yield* getAnimeByAnilistIdEffect({ aniList, db, id });
-  });
-  const listEpisodes = Effect.fn("AnimeService.listEpisodes")(function* (animeId: number) {
-    const now = new Date(yield* clock.currentTimeMillis);
-    return yield* listEpisodesEffect({ animeId, db, now });
-  });
-  const refreshEpisodes = Effect.fn("AnimeService.refreshEpisodes")(function* (animeId: number) {
-    return yield* refreshEpisodesEffect({
-      aniList,
-      animeId,
-      db,
-      eventPublisher,
-      nowIso: () => nowIsoFromClock(clock),
-    });
-  });
-  const refreshMetadataForMonitoredAnime = Effect.fn(
-    "AnimeService.refreshMetadataForMonitoredAnime",
-  )(function* () {
-    return yield* metadataRefreshRunner.trigger;
-  });
-  const scanFolder = Effect.fn("AnimeService.scanFolder")(function* (animeId: number) {
-    return yield* scanAnimeFolderOrchestrationEffect({
-      animeId,
-      db,
-      eventPublisher,
-      fs,
-      mediaProbe,
-      nowIso: () => nowIsoFromClock(clock),
-    });
-  });
-  const deleteAnime = Effect.fn("AnimeService.deleteAnime")(function* (id: number) {
+  const deleteAnime = Effect.fn("AnimeMutationService.deleteAnime")(function* (id: number) {
     return yield* deleteAnimeEffect(db, id, () => nowIsoFromClock(clock));
   });
 
-  const setMonitored = Effect.fn("AnimeService.setMonitored")(function* (
+  const setMonitored = Effect.fn("AnimeMutationService.setMonitored")(function* (
     id: number,
     monitored: boolean,
   ) {
@@ -212,7 +219,11 @@ const makeAnimeService = Effect.gen(function* () {
       nowIso: () => nowIsoFromClock(clock),
     });
   });
-  const updatePath = Effect.fn("AnimeService.updatePath")(function* (id: number, path: string) {
+
+  const updatePath = Effect.fn("AnimeMutationService.updatePath")(function* (
+    id: number,
+    path: string,
+  ) {
     return yield* updateAnimePathEffect({
       db,
       fs,
@@ -221,7 +232,8 @@ const makeAnimeService = Effect.gen(function* () {
       nowIso: () => nowIsoFromClock(clock),
     });
   });
-  const updateProfile = Effect.fn("AnimeService.updateProfile")(function* (
+
+  const updateProfile = Effect.fn("AnimeMutationService.updateProfile")(function* (
     id: number,
     profileName: string,
   ) {
@@ -233,7 +245,8 @@ const makeAnimeService = Effect.gen(function* () {
       profileName,
     });
   });
-  const updateReleaseProfiles = Effect.fn("AnimeService.updateReleaseProfiles")(function* (
+
+  const updateReleaseProfiles = Effect.fn("AnimeMutationService.updateReleaseProfiles")(function* (
     id: number,
     releaseProfileIds: number[],
   ) {
@@ -245,53 +258,64 @@ const makeAnimeService = Effect.gen(function* () {
       releaseProfileIds,
     });
   });
-  const resolveEpisodeFile = Effect.fn("AnimeService.resolveEpisodeFile")(function* (
-    ...args: Parameters<typeof resolveEpisodeFileEffect>
+
+  const refreshEpisodes = Effect.fn("AnimeMutationService.refreshEpisodes")(function* (
+    animeId: number,
   ) {
-    return yield* resolveEpisodeFileEffect(...args);
+    return yield* refreshEpisodesEffect({
+      aniList,
+      animeId,
+      db,
+      eventPublisher,
+      nowIso: () => nowIsoFromClock(clock),
+    });
   });
-  const deleteEpisodeFile = Effect.fn("AnimeService.deleteEpisodeFile")(function* (
-    ...args: Parameters<typeof deleteEpisodeFileEffect>
-  ) {
-    return yield* deleteEpisodeFileEffect(...args);
-  });
-  const mapEpisode = Effect.fn("AnimeService.mapEpisode")(function* (
-    ...args: Parameters<typeof mapEpisodeEffect>
-  ) {
-    return yield* mapEpisodeEffect(...args);
-  });
-  const bulkMapEpisodes = Effect.fn("AnimeService.bulkMapEpisodes")(function* (
-    ...args: Parameters<typeof bulkMapEpisodesEffect>
-  ) {
-    return yield* bulkMapEpisodesEffect(...args);
-  });
-  const listFiles = Effect.fn("AnimeService.listFiles")(function* (
-    ...args: Parameters<typeof listFilesEffect>
-  ) {
-    return yield* listFilesEffect(...args);
+
+  const refreshMetadataForMonitoredAnime = Effect.fn(
+    "AnimeMutationService.refreshMetadataForMonitoredAnime",
+  )(function* () {
+    return yield* metadataRefreshRunner.trigger;
   });
 
   return {
-    listAnime,
-    getAnime,
-    searchAnime,
-    getAnimeByAnilistId,
     addAnime,
     deleteAnime,
+    refreshEpisodes,
+    refreshMetadataForMonitoredAnime,
     setMonitored,
     updatePath,
     updateProfile,
     updateReleaseProfiles,
-    listEpisodes,
-    resolveEpisodeFile,
-    refreshEpisodes,
-    refreshMetadataForMonitoredAnime,
-    scanFolder,
-    deleteEpisodeFile,
-    mapEpisode,
-    bulkMapEpisodes,
-    listFiles,
-  } satisfies AnimeServiceShape;
+  } satisfies AnimeMutationServiceShape;
 });
 
-export const AnimeServiceLive = Layer.effect(AnimeService, makeAnimeService);
+const makeAnimeFileService = Effect.gen(function* () {
+  const { db } = yield* Database;
+  const eventPublisher = yield* EventPublisher;
+  const fs = yield* FileSystem;
+  const mediaProbe = yield* MediaProbe;
+  const clock = yield* ClockService;
+  const fileOperations = yield* makeAnimeFileOperations();
+
+  const scanFolder = Effect.fn("AnimeFileService.scanFolder")(function* (animeId: number) {
+    return yield* scanAnimeFolderOrchestrationEffect({
+      animeId,
+      db,
+      eventPublisher,
+      fs,
+      mediaProbe,
+      nowIso: () => nowIsoFromClock(clock),
+    });
+  });
+
+  return {
+    ...fileOperations,
+    scanFolder,
+  } satisfies AnimeFileServiceShape;
+});
+
+export const AnimeQueryServiceLive = Layer.effect(AnimeQueryService, makeAnimeQueryService);
+
+export const AnimeMutationServiceLive = Layer.effect(AnimeMutationService, makeAnimeMutationService);
+
+export const AnimeFileServiceLive = Layer.effect(AnimeFileService, makeAnimeFileService);

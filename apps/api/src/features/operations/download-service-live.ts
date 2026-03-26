@@ -5,14 +5,19 @@ import {
   DownloadOrchestration,
   SearchOrchestration,
 } from "./operations-orchestration.ts";
-import { DownloadService, type DownloadServiceShape } from "./service-contract.ts";
+import {
+  DownloadControlService,
+  DownloadStatusService,
+  DownloadTriggerService,
+  type DownloadControlServiceShape,
+  type DownloadStatusServiceShape,
+  type DownloadTriggerServiceShape,
+} from "./service-contract.ts";
 
-export const DownloadServiceLive = Layer.effect(
-  DownloadService,
+export const DownloadStatusServiceLive = Layer.effect(
+  DownloadStatusService,
   Effect.gen(function* () {
     const catalog = yield* CatalogOrchestration;
-    const search = yield* SearchOrchestration;
-    const download = yield* DownloadOrchestration;
 
     return {
       exportDownloadEvents: catalog.exportDownloadEvents,
@@ -20,14 +25,35 @@ export const DownloadServiceLive = Layer.effect(
       listDownloadEvents: catalog.listDownloadEvents,
       listDownloadHistory: catalog.listDownloadHistory,
       listDownloadQueue: catalog.listDownloadQueue,
+    } satisfies DownloadStatusServiceShape;
+  }),
+);
+
+export const DownloadTriggerServiceLive = Layer.effect(
+  DownloadTriggerService,
+  Effect.gen(function* () {
+    const search = yield* SearchOrchestration;
+    const download = yield* DownloadOrchestration;
+
+    return {
+      triggerDownload: download.triggerDownload,
+      triggerSearchMissing: search.triggerSearchMissing,
+    } satisfies DownloadTriggerServiceShape;
+  }),
+);
+
+export const DownloadControlServiceLive = Layer.effect(
+  DownloadControlService,
+  Effect.gen(function* () {
+    const catalog = yield* CatalogOrchestration;
+
+    return {
       pauseDownload: catalog.pauseDownload,
       reconcileDownload: catalog.reconcileDownload,
       removeDownload: catalog.removeDownload,
       resumeDownload: catalog.resumeDownload,
       retryDownload: catalog.retryDownload,
       syncDownloads: catalog.syncDownloads,
-      triggerDownload: download.triggerDownload,
-      triggerSearchMissing: search.triggerSearchMissing,
-    } satisfies DownloadServiceShape;
+    } satisfies DownloadControlServiceShape;
   }),
 );
