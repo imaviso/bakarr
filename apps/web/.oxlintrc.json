@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "jsx-a11y", "import", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "perf": "warn",
+    "suspicious": "warn",
+    "pedantic": "off",
+    "style": "warn"
+  },
+  "rules": {
+    "unicorn/prefer-destructuring": "off",
+    "typescript/explicit-function-return-type": "off",
+    "typescript/no-explicit-any": "warn",
+    "no-async-await": "off",
+    "no-console": "warn",
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/aria-props": "error",
+    "jsx-a11y/role-has-required-aria-props": "error",
+    "jsx-a11y/no-autofocus": "warn"
+  },
+  "ignorePatterns": ["src/components/ui"],
+
+  "settings": {
+    "jsx-a11y": {
+      "attributes": {
+        "for": ["htmlFor", "for"]
+      }
+    }
+  }
+}
