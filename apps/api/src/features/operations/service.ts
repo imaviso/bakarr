@@ -115,6 +115,15 @@ class CatalogLibraryReadSupport extends Context.Tag("@bakarr/api/CatalogLibraryR
   CatalogLibraryReadSupportShape
 >() {}
 
+function projectServiceEffect<Args extends ReadonlyArray<unknown>, Success, Error>(
+  name: string,
+  effect: (...args: Args) => Effect.Effect<Success, Error>,
+): (...args: Args) => Effect.Effect<Success, Error> {
+  return Effect.fn(name)(function* (...args: Args) {
+    return yield* effect(...args);
+  });
+}
+
 const operationsSharedStateLayer = Layer.scoped(OperationsSharedState, makeOperationsSharedState());
 
 const downloadOrchestrationLayer = Layer.effect(
@@ -267,12 +276,15 @@ const rssServiceProjectionLayer = Layer.effect(
     const search = yield* SearchOrchestration;
 
     return {
-      addRssFeed: catalog.addRssFeed,
-      deleteRssFeed: catalog.deleteRssFeed,
-      listAnimeRssFeeds: catalog.listAnimeRssFeeds,
-      listRssFeeds: catalog.listRssFeeds,
-      runRssCheck: search.runRssCheck,
-      toggleRssFeed: catalog.toggleRssFeed,
+      addRssFeed: projectServiceEffect("RssService.addRssFeed", catalog.addRssFeed),
+      deleteRssFeed: projectServiceEffect("RssService.deleteRssFeed", catalog.deleteRssFeed),
+      listAnimeRssFeeds: projectServiceEffect(
+        "RssService.listAnimeRssFeeds",
+        catalog.listAnimeRssFeeds,
+      ),
+      listRssFeeds: projectServiceEffect("RssService.listRssFeeds", catalog.listRssFeeds),
+      runRssCheck: projectServiceEffect("RssService.runRssCheck", search.runRssCheck),
+      toggleRssFeed: projectServiceEffect("RssService.toggleRssFeed", catalog.toggleRssFeed),
     } satisfies RssServiceShape;
   }),
 );
@@ -284,18 +296,39 @@ const libraryServiceProjectionLayer = Layer.effect(
     const search = yield* SearchOrchestration;
 
     return {
-      bulkControlUnmappedFolders: search.bulkControlUnmappedFolders,
-      controlUnmappedFolder: search.controlUnmappedFolder,
-      getCalendar: catalog.getCalendar,
-      getRenamePreview: catalog.getRenamePreview,
-      getUnmappedFolders: search.getUnmappedFolders,
-      getWantedMissing: catalog.getWantedMissing,
-      importFiles: catalog.importFiles,
-      importUnmappedFolder: search.importUnmappedFolder,
-      renameFiles: catalog.renameFiles,
-      runLibraryScan: catalog.runLibraryScan,
-      runUnmappedScan: search.runUnmappedScan,
-      scanImportPath: search.scanImportPath,
+      bulkControlUnmappedFolders: projectServiceEffect(
+        "LibraryService.bulkControlUnmappedFolders",
+        search.bulkControlUnmappedFolders,
+      ),
+      controlUnmappedFolder: projectServiceEffect(
+        "LibraryService.controlUnmappedFolder",
+        search.controlUnmappedFolder,
+      ),
+      getCalendar: projectServiceEffect("LibraryService.getCalendar", catalog.getCalendar),
+      getRenamePreview: projectServiceEffect(
+        "LibraryService.getRenamePreview",
+        catalog.getRenamePreview,
+      ),
+      getUnmappedFolders: projectServiceEffect(
+        "LibraryService.getUnmappedFolders",
+        search.getUnmappedFolders,
+      ),
+      getWantedMissing: projectServiceEffect(
+        "LibraryService.getWantedMissing",
+        catalog.getWantedMissing,
+      ),
+      importFiles: projectServiceEffect("LibraryService.importFiles", catalog.importFiles),
+      importUnmappedFolder: projectServiceEffect(
+        "LibraryService.importUnmappedFolder",
+        search.importUnmappedFolder,
+      ),
+      renameFiles: projectServiceEffect("LibraryService.renameFiles", catalog.renameFiles),
+      runLibraryScan: projectServiceEffect("LibraryService.runLibraryScan", catalog.runLibraryScan),
+      runUnmappedScan: projectServiceEffect(
+        "LibraryService.runUnmappedScan",
+        search.runUnmappedScan,
+      ),
+      scanImportPath: projectServiceEffect("LibraryService.scanImportPath", search.scanImportPath),
     } satisfies LibraryServiceShape;
   }),
 );
@@ -308,19 +341,49 @@ const downloadServiceProjectionLayer = Layer.effect(
     const download = yield* DownloadOrchestration;
 
     return {
-      exportDownloadEvents: catalog.exportDownloadEvents,
-      getDownloadProgress: catalog.getDownloadProgress,
-      listDownloadEvents: catalog.listDownloadEvents,
-      listDownloadHistory: catalog.listDownloadHistory,
-      listDownloadQueue: catalog.listDownloadQueue,
-      pauseDownload: catalog.pauseDownload,
-      reconcileDownload: catalog.reconcileDownload,
-      removeDownload: catalog.removeDownload,
-      resumeDownload: catalog.resumeDownload,
-      retryDownload: catalog.retryDownload,
-      syncDownloads: catalog.syncDownloads,
-      triggerDownload: download.triggerDownload,
-      triggerSearchMissing: search.triggerSearchMissing,
+      exportDownloadEvents: projectServiceEffect(
+        "DownloadService.exportDownloadEvents",
+        catalog.exportDownloadEvents,
+      ),
+      getDownloadProgress: projectServiceEffect(
+        "DownloadService.getDownloadProgress",
+        catalog.getDownloadProgress,
+      ),
+      listDownloadEvents: projectServiceEffect(
+        "DownloadService.listDownloadEvents",
+        catalog.listDownloadEvents,
+      ),
+      listDownloadHistory: projectServiceEffect(
+        "DownloadService.listDownloadHistory",
+        catalog.listDownloadHistory,
+      ),
+      listDownloadQueue: projectServiceEffect(
+        "DownloadService.listDownloadQueue",
+        catalog.listDownloadQueue,
+      ),
+      pauseDownload: projectServiceEffect("DownloadService.pauseDownload", catalog.pauseDownload),
+      reconcileDownload: projectServiceEffect(
+        "DownloadService.reconcileDownload",
+        catalog.reconcileDownload,
+      ),
+      removeDownload: projectServiceEffect(
+        "DownloadService.removeDownload",
+        catalog.removeDownload,
+      ),
+      resumeDownload: projectServiceEffect(
+        "DownloadService.resumeDownload",
+        catalog.resumeDownload,
+      ),
+      retryDownload: projectServiceEffect("DownloadService.retryDownload", catalog.retryDownload),
+      syncDownloads: projectServiceEffect("DownloadService.syncDownloads", catalog.syncDownloads),
+      triggerDownload: projectServiceEffect(
+        "DownloadService.triggerDownload",
+        download.triggerDownload,
+      ),
+      triggerSearchMissing: projectServiceEffect(
+        "DownloadService.triggerSearchMissing",
+        search.triggerSearchMissing,
+      ),
     } satisfies DownloadServiceShape;
   }),
 );
@@ -331,8 +394,8 @@ const searchServiceProjectionLayer = Layer.effect(
     const search = yield* SearchOrchestration;
 
     return {
-      searchEpisode: search.searchEpisode,
-      searchReleases: search.searchReleases,
+      searchEpisode: projectServiceEffect("SearchService.searchEpisode", search.searchEpisode),
+      searchReleases: projectServiceEffect("SearchService.searchReleases", search.searchReleases),
     } satisfies SearchServiceShape;
   }),
 );

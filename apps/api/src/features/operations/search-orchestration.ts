@@ -174,7 +174,7 @@ export function makeSearchOrchestration(input: {
     return releases.map((release) => applySeaDexMatch(release, entry));
   });
 
-  const searchReleasesRaw = Effect.fn("OperationsService.searchReleases")(function* (
+  const searchReleasesBase = Effect.fn("OperationsService.searchReleasesBase")(function* (
     query: string,
     animeId?: number,
     category?: string,
@@ -219,7 +219,7 @@ export function makeSearchOrchestration(input: {
     category?: string,
     filter?: string,
   ) {
-    return yield* searchReleasesRaw(query, animeId, category, filter).pipe(
+    return yield* searchReleasesBase(query, animeId, category, filter).pipe(
       Effect.mapError((error) =>
         error instanceof DatabaseError ||
         error instanceof ExternalCallError ||

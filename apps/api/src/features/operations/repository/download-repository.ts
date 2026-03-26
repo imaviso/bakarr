@@ -11,6 +11,7 @@ import {
   DownloadEventMetadataSchema,
   DownloadSourceMetadataSchema,
 } from "../../../../../../packages/shared/src/index.ts";
+import { toSharedParsedEpisodeIdentity } from "../../../lib/media-identity.ts";
 import type { AppDatabase } from "../../../db/database.ts";
 import { anime, downloadEvents, downloads, episodes } from "../../../db/schema.ts";
 import { decodeOptionalNumberList } from "../../system/config-codec.ts";
@@ -158,36 +159,8 @@ function cloneDownloadSourceMetadata(value: DownloadSourceMetadata): DownloadSou
   return {
     ...value,
     ...(value.seadex_tags ? { seadex_tags: [...value.seadex_tags] } : {}),
-    source_identity: value.source_identity
-      ? cloneParsedEpisodeIdentity(value.source_identity)
-      : undefined,
+    source_identity: toSharedParsedEpisodeIdentity(value.source_identity),
   };
-}
-
-function cloneParsedEpisodeIdentity(
-  value: NonNullable<DownloadSourceMetadata["source_identity"]>,
-): NonNullable<DownloadSourceMetadata["source_identity"]> {
-  switch (value.scheme) {
-    case "season":
-      return {
-        scheme: "season",
-        season: value.season,
-        episode_numbers: value.episode_numbers ? [...value.episode_numbers] : [],
-        label: value.label,
-      };
-    case "absolute":
-      return {
-        scheme: "absolute",
-        episode_numbers: value.episode_numbers ? [...value.episode_numbers] : [],
-        label: value.label,
-      };
-    case "daily":
-      return {
-        scheme: "daily",
-        air_dates: value.air_dates ? [...value.air_dates] : [],
-        label: value.label,
-      };
-  }
 }
 
 export function encodeDownloadEventMetadata(value: {

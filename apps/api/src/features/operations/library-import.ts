@@ -14,7 +14,10 @@ import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,
+  getEpisodeNumbersFromSourceIdentity,
+  getSourceIdentitySeason,
   parseFileSourceIdentity,
+  toSharedParsedEpisodeIdentity,
 } from "../../lib/media-identity.ts";
 import {
   buildEpisodeFilenamePlan,
@@ -144,29 +147,10 @@ export function analyzeScannedFile(
   const sourceIdentity = parsed.source_identity;
 
   // Extract episode numbers from source identity
-  let episodeNumbers: number[] = [];
-  let season: number | undefined;
-  let sourceIdentityDto: ParsedEpisodeIdentity | undefined;
-
-  if (sourceIdentity) {
-    sourceIdentityDto = {
-      scheme: sourceIdentity.scheme,
-      label: sourceIdentity.label,
-    };
-
-    if (sourceIdentity.scheme === "season") {
-      const { season: sourceSeason } = sourceIdentity;
-      season = sourceSeason;
-      episodeNumbers = [...sourceIdentity.episode_numbers];
-      sourceIdentityDto.season = sourceIdentity.season;
-      sourceIdentityDto.episode_numbers = [...sourceIdentity.episode_numbers];
-    } else if (sourceIdentity.scheme === "absolute") {
-      episodeNumbers = [...sourceIdentity.episode_numbers];
-      sourceIdentityDto.episode_numbers = [...sourceIdentity.episode_numbers];
-    } else if (sourceIdentity.scheme === "daily") {
-      sourceIdentityDto.air_dates = [...sourceIdentity.air_dates];
-    }
-  }
+  const episodeNumbers = getEpisodeNumbersFromSourceIdentity(sourceIdentity);
+  const season = getSourceIdentitySeason(sourceIdentity);
+  const sourceIdentityDto: ParsedEpisodeIdentity | undefined =
+    toSharedParsedEpisodeIdentity(sourceIdentity);
 
   const [primaryEpisode] = episodeNumbers;
   const needsManualMapping =

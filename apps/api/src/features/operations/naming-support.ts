@@ -6,7 +6,11 @@ import type {
   PreferredTitle,
   RenamePreviewMetadataSnapshot,
 } from "../../../../../packages/shared/src/index.ts";
-import type { ParsedEpisodeIdentity as LocalParsedEpisodeIdentity } from "../../lib/media-identity.ts";
+import {
+  getSourceIdentityAirDate,
+  getSourceIdentitySeason,
+  toSharedParsedEpisodeIdentity,
+} from "../../lib/media-identity.ts";
 import type { ProbedMediaMetadata } from "../../lib/media-probe.ts";
 import {
   buildEpisodeNamingInputFromPath,
@@ -389,7 +393,7 @@ function toRenamePreviewMetadataSnapshot(
     quality: namingInput.quality,
     resolution: namingInput.resolution,
     season: namingInput.season,
-    source_identity: cloneParsedEpisodeIdentity(namingInput.sourceIdentity),
+    source_identity: toSharedParsedEpisodeIdentity(namingInput.sourceIdentity),
     title: namingInput.title,
     title_source: titleSource,
     video_codec: namingInput.videoCodec,
@@ -425,8 +429,10 @@ function pickCanonicalAirDate(
     return distinctDates[0];
   }
 
-  if (sourceIdentity?.scheme === "daily") {
-    return normalizeAirDate(sourceIdentity.air_dates?.[0]);
+  const sourceIdentityAirDate = getSourceIdentityAirDate(sourceIdentity);
+
+  if (sourceIdentityAirDate) {
+    return normalizeAirDate(sourceIdentityAirDate);
   }
 
   return normalizeAirDate(downloadSourceMetadata?.air_date);
@@ -434,7 +440,7 @@ function pickCanonicalAirDate(
 
 function seasonFromMetadata(downloadSourceMetadata?: DownloadSourceMetadata) {
   const identity = sourceIdentityFromMetadata(downloadSourceMetadata);
-  return identity?.scheme === "season" ? identity.season : undefined;
+  return getSourceIdentitySeason(identity);
 }
 
 function sourceIdentityFromMetadata(
@@ -446,7 +452,7 @@ function sourceIdentityFromMetadata(
     return undefined;
   }
 
-  return cloneParsedEpisodeIdentity(identity);
+  return toSharedParsedEpisodeIdentity(identity);
 }
 
 function hasMultipleDistinctTitles(episodeRows?: readonly { title?: string | null }[]) {
@@ -459,36 +465,6 @@ function hasMultipleDistinctAirDates(episodeRows?: readonly { aired?: string | n
   return (
     new Set((episodeRows ?? []).map((row) => normalizeAirDate(row.aired)).filter(Boolean)).size > 1
   );
-}
-
-function cloneParsedEpisodeIdentity(
-  identity?: DownloadSourceMetadata["source_identity"] | LocalParsedEpisodeIdentity,
-): SharedParsedEpisodeIdentity | undefined {
-  if (!identity) {
-    return undefined;
-  }
-
-  switch (identity.scheme) {
-    case "season":
-      return {
-        episode_numbers: [...(identity.episode_numbers ?? [])],
-        label: identity.label,
-        scheme: "season",
-        season: identity.season,
-      };
-    case "absolute":
-      return {
-        episode_numbers: [...(identity.episode_numbers ?? [])],
-        label: identity.label,
-        scheme: "absolute",
-      };
-    case "daily":
-      return {
-        air_dates: [...(identity.air_dates ?? [])],
-        label: identity.label,
-        scheme: "daily",
-      };
-  }
 }
 
 function normalizeText(value?: string | null) {

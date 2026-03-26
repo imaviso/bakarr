@@ -1,5 +1,6 @@
 import { assertEquals, assertNotEquals, it } from "../../test/vitest.ts";
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Schema } from "effect";
+import { ConfigCoreSchema } from "../system/config-schema.ts";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -39,14 +40,13 @@ it.scoped(
         yield* Effect.promise(() =>
           db.insert(appConfig).values({
             id: 1,
-            data: encodeConfigCore(
-              (() => {
-                const config = structuredClone(defaults);
-                config.library.import_mode = "move";
-                config.library.library_path = "/anime-library";
-                return config;
-              })(),
-            ),
+            data: (() => {
+              const base = Schema.encodeSync(ConfigCoreSchema)(defaults);
+              return encodeConfigCore({
+                ...base,
+                library: { ...base.library, import_mode: "move", library_path: "/anime-library" },
+              });
+            })(),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );

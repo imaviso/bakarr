@@ -1,7 +1,7 @@
 import { assertEquals, assertInstanceOf, it } from "../../test/vitest.ts";
 import { Effect } from "effect";
 
-import { makeDefaultConfig } from "../system/defaults.ts";
+import { makeTestConfig } from "../../test/config-fixture.ts";
 import { DatabaseError } from "../../db/database.ts";
 import {
   DownloadConflictError,
@@ -13,17 +13,16 @@ import { maybeQBitConfig, tryDatabasePromise, wrapOperationsError } from "./serv
 import { QBitConfigModel } from "./qbittorrent.ts";
 
 it("operations service support builds qBittorrent config only when enabled", () => {
-  const config = structuredClone(
-    makeDefaultConfig("./test.sqlite"),
-  ) as unknown as import("../../../../../packages/shared/src/index.ts").Config;
-  config.profiles = [];
-  config.qbittorrent = {
-    default_category: "anime",
-    enabled: true,
-    password: "secret",
-    url: "http://localhost:8080",
-    username: "admin",
-  };
+  const config = makeTestConfig("./test.sqlite", (c) => ({
+    ...c,
+    qbittorrent: {
+      default_category: "anime",
+      enabled: true,
+      password: "secret",
+      url: "http://localhost:8080",
+      username: "admin",
+    },
+  }));
 
   assertEquals(
     maybeQBitConfig(config),
@@ -34,8 +33,11 @@ it("operations service support builds qBittorrent config only when enabled", () 
       username: "admin",
     }),
   );
-  const disabledConfig = structuredClone(config);
-  disabledConfig.qbittorrent.enabled = false;
+
+  const disabledConfig = makeTestConfig("./test.sqlite", (c) => ({
+    ...c,
+    qbittorrent: { ...config.qbittorrent, enabled: false },
+  }));
   assertEquals(maybeQBitConfig(disabledConfig), null);
 });
 

@@ -131,7 +131,7 @@ export function makeCatalogOrchestration(input: {
     } satisfies RenameResult;
   });
 
-  const importFilesRaw = Effect.fn("OperationsService.importFiles")(function* (
+  const importFilesBase = Effect.fn("OperationsService.importFilesBase")(function* (
     files: readonly {
       source_path: string;
       anime_id: number;
@@ -328,7 +328,7 @@ export function makeCatalogOrchestration(input: {
       season?: number;
     }[],
   ) {
-    return yield* importFilesRaw(files).pipe(
+    return yield* importFilesBase(files).pipe(
       Effect.mapError((error) =>
         error instanceof DatabaseError ? error : dbError("Failed to import files")(error),
       ),

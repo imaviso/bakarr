@@ -15,8 +15,14 @@ import {
   withFileSystemSandboxEffect,
   writeTextFile,
 } from "../../test/filesystem-test.ts";
-import { encodeConfigCore, encodeNumberList } from "../system/config-codec.ts";
+import {
+  encodeConfigCore,
+  encodeNumberList,
+  type ConfigCoreEncoded,
+} from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
+import { Schema } from "effect";
+import { ConfigCoreSchema } from "../system/config-schema.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { makeOperationsSharedState } from "./runtime-support.ts";
 import { QBitTorrentClient } from "./qbittorrent.ts";
@@ -41,11 +47,10 @@ it.scoped("triggerDownload persists merged release provenance on queued download
       withLibraryDir(({ fs, libraryDir }) =>
         Effect.gen(function* () {
           const appDb = db as AppDatabase;
-          yield* seedConfig(appDb, databaseFile, (config) => {
-            const nextConfig = structuredClone(config) as unknown as typeof config;
-            nextConfig.library.naming_format = "{title} - {source_episode_segment}";
-            return nextConfig;
-          });
+          yield* seedConfig(appDb, databaseFile, (config) => ({
+            ...config,
+            library: { ...config.library, naming_format: "{title} - {source_episode_segment}" },
+          }));
           yield* insertTestAnime(appDb, libraryDir);
 
           const events: NotificationEvent[] = [];
@@ -476,13 +481,14 @@ it.scoped(
         withLibraryAndDownloadDirs(({ fs, libraryDir, downloadDir }) =>
           Effect.gen(function* () {
             const appDb = db as AppDatabase;
-            yield* seedConfig(appDb, databaseFile, (config) => {
-              const nextConfig = structuredClone(config) as unknown as typeof config;
-              nextConfig.library.import_mode = "copy";
-              nextConfig.library.naming_format =
-                "{title} - {source_episode_segment} [{quality} {resolution}]";
-              return nextConfig;
-            });
+            yield* seedConfig(appDb, databaseFile, (config) => ({
+              ...config,
+              library: {
+                ...config.library,
+                import_mode: "copy",
+                naming_format: "{title} - {source_episode_segment} [{quality} {resolution}]",
+              },
+            }));
             yield* insertTestAnime(appDb, libraryDir, {
               titleEnglish: null,
             });
@@ -617,12 +623,10 @@ it.scoped(
         withLibraryDir(({ fs, libraryDir }) =>
           Effect.gen(function* () {
             const appDb = db as AppDatabase;
-            yield* seedConfig(appDb, databaseFile, (config) => {
-              const nextConfig = structuredClone(config) as unknown as typeof config;
-              nextConfig.qbittorrent.enabled = true;
-              nextConfig.qbittorrent.password = "secret";
-              return nextConfig;
-            });
+            yield* seedConfig(appDb, databaseFile, (config) => ({
+              ...config,
+              qbittorrent: { ...config.qbittorrent, enabled: true, password: "secret" },
+            }));
             yield* insertTestAnime(appDb, libraryDir);
 
             const infoHash = "abcdef1234567890abcdef1234567890abcdef12";
@@ -846,13 +850,14 @@ it.scoped(
         withLibraryAndDownloadDirs(({ fs, libraryDir, downloadDir }) =>
           Effect.gen(function* () {
             const appDb = db as AppDatabase;
-            yield* seedConfig(appDb, databaseFile, (config) => {
-              const nextConfig = structuredClone(config) as unknown as typeof config;
-              nextConfig.library.import_mode = "copy";
-              nextConfig.library.naming_format =
-                "{title} - {source_episode_segment} [{quality} {resolution}]";
-              return nextConfig;
-            });
+            yield* seedConfig(appDb, databaseFile, (config) => ({
+              ...config,
+              library: {
+                ...config.library,
+                import_mode: "copy",
+                naming_format: "{title} - {source_episode_segment} [{quality} {resolution}]",
+              },
+            }));
             yield* insertTestAnime(appDb, libraryDir, {
               titleEnglish: null,
             });
@@ -1055,15 +1060,23 @@ const insertTestAnime = Effect.fn("Test.insertDownloadAnime")(function* (
   );
 });
 
+function buildSeedConfigData(
+  databaseFile: string,
+  mutate: (encoded: ConfigCoreEncoded) => ConfigCoreEncoded,
+): string {
+  const encoded = mutate(Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile)));
+  return encodeConfigCore(encoded);
+}
+
 const seedConfig = Effect.fn("Test.seedConfig")(function* (
   db: AppDatabase,
   databaseFile: string,
-  mutate: (config: ReturnType<typeof makeDefaultConfig>) => ReturnType<typeof makeDefaultConfig>,
+  mutate: (encoded: ConfigCoreEncoded) => ConfigCoreEncoded,
 ) {
-  const config = mutate(makeDefaultConfig(databaseFile));
+  const data = buildSeedConfigData(databaseFile, mutate);
   yield* Effect.tryPromise(() =>
     db.insert(appConfig).values({
-      data: encodeConfigCore(config),
+      data,
       id: 1,
       updatedAt: "2024-01-01T00:00:00.000Z",
     }),

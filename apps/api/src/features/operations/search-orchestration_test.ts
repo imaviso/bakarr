@@ -1,12 +1,11 @@
 import { assertEquals, it } from "../../test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { EventBus } from "../events/event-bus.ts";
-import { makeDefaultConfig } from "../system/defaults.ts";
+import { makeTestConfig } from "../../test/config-fixture.ts";
 import { makeSearchOrchestration } from "./search-orchestration.ts";
 import { ExternalCallError } from "./errors.ts";
 import type { ParsedRelease } from "./rss-client.ts";
@@ -51,9 +50,10 @@ it.effect(
         wrapOperationsError: (_message) => (cause) => cause as never,
       });
 
-      const config = structuredClone(makeDefaultConfig("/tmp/test.sqlite")) as unknown as Config;
-      config.downloads.use_seadex = true;
-      config.profiles = [];
+      const config = makeTestConfig("/tmp/test.sqlite", (c) => ({
+        ...c,
+        downloads: { ...c.downloads, use_seadex: true },
+      }));
 
       const exit = yield* Effect.exit(
         orchestration.searchEpisodeReleases(

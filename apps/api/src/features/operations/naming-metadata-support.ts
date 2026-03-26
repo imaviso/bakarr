@@ -6,9 +6,9 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import {
   buildPathParseContext,
-  type ParsedEpisodeIdentity as LocalParsedEpisodeIdentity,
   parseFileSourceIdentity,
   parseReleaseSourceIdentity,
+  toSharedParsedEpisodeIdentity,
 } from "../../lib/media-identity.ts";
 import { extractYearFromDate } from "../../lib/anime-date-utils.ts";
 
@@ -89,7 +89,7 @@ export function buildDownloadSourceMetadataFromRelease(input: {
   seadexDualAudio?: boolean;
 }): DownloadSourceMetadata {
   const parsed = parseReleaseSourceIdentity(input.title);
-  const sourceIdentity = cloneParsedEpisodeIdentity(parsed.source_identity);
+  const sourceIdentity = toSharedParsedEpisodeIdentity(parsed.source_identity);
   const group = normalizeText(input.group) ?? parsed.group;
 
   return {
@@ -134,11 +134,13 @@ export function mergeDownloadSourceMetadata(
   base: DownloadSourceMetadata,
   override?: DownloadSourceMetadata,
 ): DownloadSourceMetadata {
+  const seadexTags = override?.seadex_tags ?? base.seadex_tags;
+
   if (!override) {
     return {
       ...base,
       seadex_tags: base.seadex_tags ? [...base.seadex_tags] : undefined,
-      source_identity: cloneParsedEpisodeIdentity(base.source_identity),
+      source_identity: toSharedParsedEpisodeIdentity(base.source_identity),
     };
   }
 
@@ -165,12 +167,10 @@ export function mergeDownloadSourceMetadata(
     seadex_dual_audio: pickOverride(override.seadex_dual_audio, base.seadex_dual_audio),
     seadex_notes: pickOverride(override.seadex_notes, base.seadex_notes),
     seadex_release_group: pickOverride(override.seadex_release_group, base.seadex_release_group),
-    seadex_tags: override.seadex_tags
-      ? [...override.seadex_tags]
-      : base.seadex_tags
-        ? [...base.seadex_tags]
-        : undefined,
-    source_identity: cloneParsedEpisodeIdentity(override.source_identity ?? base.source_identity),
+    seadex_tags: seadexTags ? [...seadexTags] : undefined,
+    source_identity: toSharedParsedEpisodeIdentity(
+      override.source_identity ?? base.source_identity,
+    ),
     source_url: pickOverride(override.source_url, base.source_url),
     trusted: pickOverride(override.trusted, base.trusted),
     video_codec: pickOverride(override.video_codec, base.video_codec),
@@ -194,6 +194,7 @@ export function buildEpisodeNamingInputFromPath(input: {
       : undefined;
   const parsed = parseFileSourceIdentity(input.filePath, context);
   const sourceIdentity = parsed.source_identity;
+  const sourceIdentityDto = toSharedParsedEpisodeIdentity(sourceIdentity);
   const { group } = parsed;
 
   return {
@@ -206,13 +207,13 @@ export function buildEpisodeNamingInputFromPath(input: {
       extractEpisodeTitleFromPath({
         filePath: input.filePath,
         group,
-        sourceIdentity,
+        sourceIdentity: sourceIdentityDto,
       }),
     group,
     quality: extractQualitySourceLabel(input.filePath),
     resolution: parsed.resolution,
     season: sourceIdentity?.scheme === "season" ? sourceIdentity.season : input.season,
-    sourceIdentity,
+    sourceIdentity: sourceIdentityDto,
     title: input.animeTitle,
     videoCodec: extractVideoCodec(input.filePath),
     year: extractYearFromDate(input.animeStartDate),
@@ -505,36 +506,6 @@ function looksLikeMetadataTag(value: string): boolean {
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function cloneParsedEpisodeIdentity(
-  identity?: DownloadSourceMetadata["source_identity"] | LocalParsedEpisodeIdentity,
-): SharedParsedEpisodeIdentity | undefined {
-  if (!identity) {
-    return undefined;
-  }
-
-  switch (identity.scheme) {
-    case "season":
-      return {
-        episode_numbers: [...(identity.episode_numbers ?? [])],
-        label: identity.label,
-        scheme: "season",
-        season: identity.season,
-      };
-    case "absolute":
-      return {
-        episode_numbers: [...(identity.episode_numbers ?? [])],
-        label: identity.label,
-        scheme: "absolute",
-      };
-    case "daily":
-      return {
-        air_dates: [...(identity.air_dates ?? [])],
-        label: identity.label,
-        scheme: "daily",
-      };
-  }
 }
 
 function pickOverride<T>(override: T | undefined, base: T | undefined): T | undefined {

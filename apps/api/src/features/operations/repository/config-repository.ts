@@ -1,11 +1,11 @@
 import { Effect } from "effect";
 
-import type { Config } from "../../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../../db/database.ts";
 import { DatabaseError } from "../../../db/database.ts";
 import { appConfig, qualityProfiles } from "../../../db/schema.ts";
 import { tryDatabasePromise } from "../../../lib/effect-db.ts";
 import {
+  composeConfig,
   effectDecodeQualityProfileRow,
   effectDecodeStoredConfigRow,
   effectDecodeStoredLibraryConfig,
@@ -33,9 +33,7 @@ export const loadRuntimeConfig = Effect.fn("ConfigRepository.loadRuntimeConfig")
     effectDecodeQualityProfileRow(row).pipe(mapConfigError("Failed to load runtime config")),
   );
 
-  const config = structuredClone(core) as Config;
-  config.profiles = [...profiles];
-  return config;
+  return composeConfig(core, profiles);
 });
 
 export const getConfigLibraryPath = Effect.fn("ConfigRepository.getConfigLibraryPath")(function* (

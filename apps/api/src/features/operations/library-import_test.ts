@@ -16,6 +16,8 @@ import {
 import { anime } from "../../db/schema.ts";
 import { OperationsStoredDataError } from "./errors.ts";
 import { encodeConfigCore } from "../system/config-codec.ts";
+import { Schema } from "effect";
+import { ConfigCoreSchema } from "../system/config-schema.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 
 it("analyzeScannedFile strips release noise and extracts metadata", () => {
@@ -145,13 +147,13 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
         yield* Effect.tryPromise(() =>
           appDb.insert(appConfig).values({
             id: 1,
-            data: encodeConfigCore(
-              (() => {
-                const config = structuredClone(makeDefaultConfig(databaseFile));
-                config.library.naming_format = namingFormat;
-                return config;
-              })(),
-            ),
+            data: (() => {
+              const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
+              return encodeConfigCore({
+                ...base,
+                library: { ...base.library, naming_format: namingFormat },
+              });
+            })(),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );
@@ -205,14 +207,17 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
         yield* Effect.tryPromise(() =>
           appDb.insert(appConfig).values({
             id: 1,
-            data: encodeConfigCore(
-              (() => {
-                const config = structuredClone(makeDefaultConfig(databaseFile));
-                config.library.movie_naming_format = "{title} ({year})";
-                config.library.preferred_title = "english";
-                return config;
-              })(),
-            ),
+            data: (() => {
+              const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
+              return encodeConfigCore({
+                ...base,
+                library: {
+                  ...base.library,
+                  movie_naming_format: "{title} ({year})",
+                  preferred_title: "english",
+                },
+              });
+            })(),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );
@@ -264,13 +269,13 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
         yield* Effect.tryPromise(() =>
           appDb.insert(appConfig).values({
             id: 1,
-            data: encodeConfigCore(
-              (() => {
-                const config = structuredClone(makeDefaultConfig(databaseFile));
-                config.library.naming_format = namingFormat;
-                return config;
-              })(),
-            ),
+            data: (() => {
+              const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
+              return encodeConfigCore({
+                ...base,
+                library: { ...base.library, naming_format: namingFormat },
+              });
+            })(),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );
