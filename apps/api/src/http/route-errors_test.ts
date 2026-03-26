@@ -10,7 +10,6 @@ import { AuthError } from "../features/auth/service.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
-  ExternalCallError,
   OperationsAnimeNotFoundError,
   OperationsConflictError,
   OperationsInputError,
@@ -20,6 +19,7 @@ import {
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "../features/operations/errors.ts";
+import { ExternalCallError } from "../lib/effect-retry.ts";
 import {
   ConfigValidationError,
   ProfileNotFoundError,

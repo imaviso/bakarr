@@ -12,7 +12,6 @@ import { AuthError } from "../features/auth/service.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
-  ExternalCallError,
   OperationsAnimeNotFoundError,
   OperationsConflictError,
   OperationsInputError,
@@ -22,6 +21,7 @@ import {
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "../features/operations/errors.ts";
+import { ExternalCallError } from "../lib/effect-retry.ts";
 import {
   ConfigValidationError,
   ProfileNotFoundError,
@@ -66,65 +66,61 @@ type KnownRouteError = Schema.Schema.Type<Schema.Union<[...typeof knownTaggedRou
 type TaggedRouteError = Extract<KnownRouteError, { _tag: string }>;
 type TaggedRouteErrorTag = TaggedRouteError["_tag"];
 
+const messageStatus = (status: number) => (error: { readonly message: string }) => ({
+  message: error.message,
+  status,
+});
+
+const serviceUnavailable = () => ({
+  message: "External service unavailable",
+  status: 503,
+});
+
+const invalidRssFeed = () => ({
+  message: "RSS feed response was invalid",
+  status: 503,
+});
+
+const rssTooLarge = () => ({
+  message: "RSS feed payload exceeded the allowed size",
+  status: 503,
+});
+
 const taggedRouteErrorMappers: {
   [K in TaggedRouteErrorTag]: (error: Extract<TaggedRouteError, { _tag: K }>) => RouteErrorResponse;
 } = {
-  AnimeConflictError: (error) => ({ message: error.message, status: 409 }),
-  AnimeNotFoundError: (error) => ({ message: error.message, status: 404 }),
-  AnimePathError: (error) => ({ message: error.message, status: 400 }),
-  AnimeStoredDataError: (error) => ({ message: error.message, status: 500 }),
+  AnimeConflictError: messageStatus(409),
+  AnimeNotFoundError: messageStatus(404),
+  AnimePathError: messageStatus(400),
+  AnimeStoredDataError: messageStatus(500),
   AuthError: (error) => ({ message: error.message, status: error.status }),
-  ConfigValidationError: (error) => ({ message: error.message, status: 400 }),
-  DatabaseError: (error) => ({ message: error.message, status: 500 }),
-  DiskSpaceError: (error) => ({ message: error.message, status: 500 }),
-  DownloadConflictError: (error) => ({ message: error.message, status: 409 }),
-  DownloadNotFoundError: (error) => ({ message: error.message, status: 404 }),
+  ConfigValidationError: messageStatus(400),
+  DatabaseError: messageStatus(500),
+  DiskSpaceError: messageStatus(500),
+  DownloadConflictError: messageStatus(409),
+  DownloadNotFoundError: messageStatus(404),
   EpisodeStreamRangeError: (error) => ({
     headers: { "Content-Range": `bytes */${error.fileSize}` },
     message: error.message,
     status: error.status,
   }),
-  ExternalCallError: () => ({
-    message: "External service unavailable",
-    status: 503,
-  }),
-  OperationsAnimeNotFoundError: (error) => ({
-    message: error.message,
-    status: 404,
-  }),
-  OperationsConflictError: (error) => ({
-    message: error.message,
-    status: 409,
-  }),
-  OperationsInputError: (error) => ({ message: error.message, status: 400 }),
-  OperationsPathError: (error) => ({ message: error.message, status: 400 }),
-  OperationsStoredDataError: (error) => ({ message: error.message, status: 500 }),
-  RssFeedParseError: () => ({
-    message: "RSS feed response was invalid",
-    status: 503,
-  }),
-  RssFeedRejectedError: (error) => ({ message: error.message, status: 400 }),
-  RssFeedTooLargeError: () => ({
-    message: "RSS feed payload exceeded the allowed size",
-    status: 503,
-  }),
-  ProfileNotFoundError: (error) => ({ message: error.message, status: 404 }),
+  ExternalCallError: serviceUnavailable,
+  OperationsAnimeNotFoundError: messageStatus(404),
+  OperationsConflictError: messageStatus(409),
+  OperationsInputError: messageStatus(400),
+  OperationsPathError: messageStatus(400),
+  OperationsStoredDataError: messageStatus(500),
+  RssFeedParseError: invalidRssFeed,
+  RssFeedRejectedError: messageStatus(400),
+  RssFeedTooLargeError: rssTooLarge,
+  ProfileNotFoundError: messageStatus(404),
   RequestValidationError: (error) => ({
     message: error.message,
     status: error.status,
   }),
-  StoredUnmappedFolderCorruptError: (error) => ({
-    message: error.message,
-    status: 500,
-  }),
-  StoredConfigCorruptError: (error) => ({
-    message: error.message,
-    status: 500,
-  }),
-  StoredConfigMissingError: (error) => ({
-    message: error.message,
-    status: 500,
-  }),
+  StoredUnmappedFolderCorruptError: messageStatus(500),
+  StoredConfigCorruptError: messageStatus(500),
+  StoredConfigMissingError: messageStatus(500),
 };
 
 const KnownRouteErrorSchema = Schema.Union(...knownTaggedRouteErrorSchemas);

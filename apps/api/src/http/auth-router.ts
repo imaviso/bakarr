@@ -8,8 +8,7 @@ import {
 } from "../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../config.ts";
 import { AuthService } from "../features/auth/service.ts";
-import { requireViewerFromHttpRequest } from "./route-auth.ts";
-import { decodeJsonBodyWithLabel, routeResponse } from "./router-helpers.ts";
+import { decodeJsonBodyWithLabel, routeResponse, withAuthViewer } from "./router-helpers.ts";
 
 const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(function* (
   token: string,
@@ -75,21 +74,22 @@ export const authRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/me",
-    routeResponse(requireViewerFromHttpRequest(), (viewer) => HttpServerResponse.json(viewer)),
+    routeResponse(
+      withAuthViewer((viewer) => Effect.succeed(viewer)),
+      (viewer) => HttpServerResponse.json(viewer),
+    ),
   ),
   HttpRouter.get(
     "/api-key",
     routeResponse(
-      Effect.flatMap(requireViewerFromHttpRequest(), (viewer) =>
-        Effect.flatMap(AuthService, (auth) => auth.getApiKey(viewer.id)),
-      ),
+      withAuthViewer((viewer) => Effect.flatMap(AuthService, (auth) => auth.getApiKey(viewer.id))),
       (value) => HttpServerResponse.json(value),
     ),
   ),
   HttpRouter.post(
     "/api-key/regenerate",
     routeResponse(
-      Effect.flatMap(requireViewerFromHttpRequest(), (viewer) =>
+      withAuthViewer((viewer) =>
         Effect.flatMap(AuthService, (auth) => auth.regenerateApiKey(viewer.id)),
       ),
       (value) => HttpServerResponse.json(value),
@@ -98,11 +98,15 @@ export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.put(
     "/password",
     routeResponse(
-      Effect.gen(function* () {
-        const body = yield* decodeJsonBodyWithLabel(ChangePasswordRequestSchema, "change password");
-        const viewer = yield* requireViewerFromHttpRequest();
-        yield* Effect.flatMap(AuthService, (auth) => auth.changePassword(viewer.id, body));
-      }),
+      withAuthViewer((viewer) =>
+        Effect.gen(function* () {
+          const body = yield* decodeJsonBodyWithLabel(
+            ChangePasswordRequestSchema,
+            "change password",
+          );
+          yield* Effect.flatMap(AuthService, (auth) => auth.changePassword(viewer.id, body));
+        }),
+      ),
       () => HttpServerResponse.json({ data: null, success: true }),
     ),
   ),

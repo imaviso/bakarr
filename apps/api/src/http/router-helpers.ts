@@ -2,7 +2,9 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platf
 import { Effect, ParseResult, Schema } from "effect";
 
 import { mapRouteError } from "./route-errors.ts";
+import { requireViewerFromHttpRequest } from "./route-auth.ts";
 import { formatValidationErrorMessage, RequestValidationError } from "./route-validation.ts";
+import type { AuthUser } from "../../../../packages/shared/src/index.ts";
 
 export const decodeJsonBody = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
   HttpServerRequest.schemaBodyJson(schema);
@@ -107,6 +109,17 @@ export const routeResponse = <A, E, R, E2, R2>(
 export const jsonResponse = <A>(value: A) => HttpServerResponse.json(value);
 
 export const successResponse = () => HttpServerResponse.json({ data: null, success: true });
+
+const withAuth = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.zipRight(requireViewerFromHttpRequest(), effect);
+
+export const withAuthViewer = <A, E, R>(effect: (viewer: AuthUser) => Effect.Effect<A, E, R>) =>
+  Effect.flatMap(requireViewerFromHttpRequest(), effect);
+
+export const authedRouteResponse = <A, E, R, E2, R2>(
+  effect: Effect.Effect<A, E, R>,
+  onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
+) => routeResponse(withAuth(effect), onSuccess);
 
 function mapToServerResponse(error: unknown) {
   if (ParseResult.isParseError(error)) {

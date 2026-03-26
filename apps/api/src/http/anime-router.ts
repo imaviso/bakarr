@@ -4,7 +4,7 @@ import { Effect, Match, Schema } from "effect";
 import { AnimeService } from "../features/anime/service.ts";
 import { AnimeEnrollmentService } from "../features/anime/anime-enrollment-service.ts";
 import { AuthError } from "../features/auth/service.ts";
-import { LibraryService, RssService } from "../features/operations/service.ts";
+import { LibraryService, RssService } from "../features/operations/service-contract.ts";
 import { ClockService } from "../lib/clock.ts";
 import { FileSystem } from "../lib/filesystem.ts";
 import { createFileChunkStream, type FileByteRange } from "./file-stream.ts";
@@ -25,14 +25,14 @@ import {
   decodeJsonBody,
   decodePathParams,
   decodeQuery,
+  authedRouteResponse,
   jsonResponse,
   routeResponse,
   successResponse,
 } from "./router-helpers.ts";
-import { requireViewerFromHttpRequest } from "./route-auth.ts";
 import { EpisodeStreamRangeError } from "./streaming-errors.ts";
 import { StreamTokenSigner } from "./stream-token-signer.ts";
-import { guessContentType } from "./route-fs.ts";
+import { contentType } from "./route-fs.ts";
 
 class StreamQuerySchema extends Schema.Class<StreamQuerySchema>("StreamQuerySchema")({
   exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
@@ -49,109 +49,85 @@ const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
 const animeReadRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/anime",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQuery(ListAnimeQuerySchema);
-          return yield* (yield* AnimeService).listAnime({
-            limit: query.limit,
-            monitored: query.monitored,
-            offset: query.offset,
-          });
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQuery(ListAnimeQuerySchema);
+        return yield* (yield* AnimeService).listAnime({
+          limit: query.limit,
+          monitored: query.monitored,
+          offset: query.offset,
+        });
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/anime/search",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQuery(SearchAnimeQuerySchema);
-          return yield* (yield* AnimeService).searchAnime(query.q ?? "");
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQuery(SearchAnimeQuerySchema);
+        return yield* (yield* AnimeService).searchAnime(query.q ?? "");
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/anime/anilist/:id",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          return yield* (yield* AnimeService).getAnimeByAnilistId(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* AnimeService).getAnimeByAnilistId(params.id);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/anime/:id",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          return yield* (yield* AnimeService).getAnime(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* AnimeService).getAnime(params.id);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/anime/:id/episodes",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          return yield* (yield* AnimeService).listEpisodes(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* AnimeService).listEpisodes(params.id);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/anime/:id/files",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          return yield* (yield* AnimeService).listFiles(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* AnimeService).listFiles(params.id);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/anime/:id/rss",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          return yield* (yield* RssService).listAnimeRssFeeds(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* RssService).listAnimeRssFeeds(params.id);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/anime/:id/rename-preview",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          return yield* (yield* LibraryService).getRenamePreview(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* LibraryService).getRenamePreview(params.id);
+      }),
       jsonResponse,
     ),
   ),
@@ -160,191 +136,152 @@ const animeReadRouter = HttpRouter.empty.pipe(
 const animeWriteRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/anime",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBody(AddAnimeInputSchema);
-          return yield* (yield* AnimeEnrollmentService).enroll(body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBody(AddAnimeInputSchema);
+        return yield* (yield* AnimeEnrollmentService).enroll(body);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.del(
     "/anime/:id",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          yield* (yield* AnimeService).deleteAnime(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* AnimeService).deleteAnime(params.id);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/anime/:id/monitor",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          const body = yield* decodeJsonBody(MonitoredBodySchema);
-          yield* (yield* AnimeService).setMonitored(params.id, body.monitored);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(MonitoredBodySchema);
+        yield* (yield* AnimeService).setMonitored(params.id, body.monitored);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.put(
     "/anime/:id/path",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          const body = yield* decodeJsonBody(PathBodySchema);
-          yield* (yield* AnimeService).updatePath(params.id, body.path);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(PathBodySchema);
+        yield* (yield* AnimeService).updatePath(params.id, body.path);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.put(
     "/anime/:id/profile",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          const body = yield* decodeJsonBody(ProfileNameBodySchema);
-          yield* (yield* AnimeService).updateProfile(params.id, body.profile_name);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(ProfileNameBodySchema);
+        yield* (yield* AnimeService).updateProfile(params.id, body.profile_name);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.put(
     "/anime/:id/release-profiles",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          const body = yield* decodeJsonBody(ReleaseProfileIdsBodySchema);
-          yield* (yield* AnimeService).updateReleaseProfiles(params.id, [
-            ...body.release_profile_ids,
-          ]);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(ReleaseProfileIdsBodySchema);
+        yield* (yield* AnimeService).updateReleaseProfiles(params.id, [
+          ...body.release_profile_ids,
+        ]);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/anime/:id/episodes/refresh",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          yield* (yield* AnimeService).refreshEpisodes(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* AnimeService).refreshEpisodes(params.id);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/anime/:id/episodes/scan",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          return yield* (yield* AnimeService).scanFolder(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* AnimeService).scanFolder(params.id);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.del(
     "/anime/:id/episodes/:episodeNumber/file",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
-          yield* (yield* AnimeService).deleteEpisodeFile(params.id, params.episodeNumber);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
+        yield* (yield* AnimeService).deleteEpisodeFile(params.id, params.episodeNumber);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/anime/:id/episodes/:episodeNumber/map",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
-          const body = yield* decodeJsonBody(FilePathBodySchema);
-          yield* (yield* AnimeService).mapEpisode(params.id, params.episodeNumber, body.file_path);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
+        const body = yield* decodeJsonBody(FilePathBodySchema);
+        yield* (yield* AnimeService).mapEpisode(params.id, params.episodeNumber, body.file_path);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/anime/:id/episodes/map/bulk",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          const body = yield* decodeJsonBody(BulkEpisodeMappingsBodySchema);
-          yield* (yield* AnimeService).bulkMapEpisodes(params.id, [...body.mappings]);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(BulkEpisodeMappingsBodySchema);
+        yield* (yield* AnimeService).bulkMapEpisodes(params.id, [...body.mappings]);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.get(
     "/anime/:id/stream-url",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          const query = yield* decodeQuery(StreamUrlQuerySchema);
-          const clock = yield* ClockService;
-          const now = yield* clock.currentTimeMillis;
-          const expiresAt = now + STREAM_EXPIRY_MS;
-          const signer = yield* StreamTokenSigner;
-          const signature = yield* signer
-            .sign({ animeId: params.id, episodeNumber: query.episodeNumber, expiresAt })
-            .pipe(
-              Effect.mapError(
-                () => new AuthError({ message: "Failed to sign stream URL", status: 400 }),
-              ),
-            );
-          const url = `/api/stream/${params.id}/${query.episodeNumber}?exp=${expiresAt}&sig=${signature}`;
-          return { url };
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const query = yield* decodeQuery(StreamUrlQuerySchema);
+        const clock = yield* ClockService;
+        const now = yield* clock.currentTimeMillis;
+        const expiresAt = now + STREAM_EXPIRY_MS;
+        const signer = yield* StreamTokenSigner;
+        const signature = yield* signer
+          .sign({ animeId: params.id, episodeNumber: query.episodeNumber, expiresAt })
+          .pipe(
+            Effect.mapError(
+              () => new AuthError({ message: "Failed to sign stream URL", status: 400 }),
+            ),
+          );
+        const url = `/api/stream/${params.id}/${query.episodeNumber}?exp=${expiresAt}&sig=${signature}`;
+        return { url };
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.post(
     "/anime/:id/rename",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          return yield* (yield* LibraryService).renameFiles(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* LibraryService).renameFiles(params.id);
+      }),
       jsonResponse,
     ),
   ),
@@ -415,7 +352,7 @@ const animeStreamRouter = HttpRouter.empty.pipe(
 
         return {
           contentLength: byteRange ? byteRange.end - byteRange.start + 1 : fileInfo.size,
-          contentType: guessContentType(episodeFilePath.fileName),
+          contentType: contentType(episodeFilePath.fileName),
           fileName: episodeFilePath.fileName,
           fileSize: fileInfo.size,
           fs,

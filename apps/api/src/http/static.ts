@@ -3,6 +3,7 @@ import { Effect } from "effect";
 
 import { isNotFoundError } from "../lib/fs-errors.ts";
 import { FileSystem } from "../lib/filesystem.ts";
+import { contentType } from "./route-fs.ts";
 
 const DEFAULT_WEB_DIST_URL = new URL("../../../web/dist/", import.meta.url);
 export function createStaticHttpApp(webDistUrl = DEFAULT_WEB_DIST_URL) {
@@ -61,7 +62,7 @@ const serveStaticAssetEffect = Effect.fn("Static.serveStaticAssetEffect")(functi
     cacheControl: normalized.startsWith("assets/")
       ? "public, max-age=31536000, immutable"
       : "public, max-age=300",
-    contentType: contentTypeForPath(normalized),
+    contentType: contentType(normalized),
     fileUrl,
     method,
   });
@@ -102,25 +103,6 @@ const createFileResponse = Effect.fn("Static.createFileResponse")(function* (inp
 
   return HttpServerResponse.uint8Array(body, { headers });
 });
-function contentTypeForPath(path: string): string {
-  if (path.endsWith(".html")) return "text/html; charset=utf-8";
-  if (path.endsWith(".js")) return "text/javascript; charset=utf-8";
-  if (path.endsWith(".css")) return "text/css; charset=utf-8";
-  if (path.endsWith(".json")) return "application/json; charset=utf-8";
-  if (path.endsWith(".svg")) return "image/svg+xml";
-  if (path.endsWith(".png")) return "image/png";
-  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "image/jpeg";
-  if (path.endsWith(".gif")) return "image/gif";
-  if (path.endsWith(".webp")) return "image/webp";
-  if (path.endsWith(".ico")) return "image/x-icon";
-  if (path.endsWith(".woff2")) return "font/woff2";
-  if (path.endsWith(".woff")) return "font/woff";
-  if (path.endsWith(".ttf")) return "font/ttf";
-  if (path.endsWith(".txt")) return "text/plain; charset=utf-8";
-  if (path.endsWith(".map")) return "application/json; charset=utf-8";
-
-  return "application/octet-stream";
-}
 
 function isAssetPath(pathname: string) {
   const normalized = pathname === "/" ? "" : pathname.slice(1);

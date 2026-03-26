@@ -10,7 +10,7 @@ import {
   LibraryService,
   RssService,
   SearchService,
-} from "../features/operations/service.ts";
+} from "../features/operations/service-contract.ts";
 import {
   AddRssFeedBodySchema,
   BrowseQuerySchema,
@@ -36,11 +36,10 @@ import {
   decodeOptionalJsonBody,
   decodePathParams,
   decodeQueryWithLabel,
+  authedRouteResponse,
   jsonResponse,
-  routeResponse,
   successResponse,
 } from "./router-helpers.ts";
-import { requireViewerFromHttpRequest } from "./route-auth.ts";
 import { escapeCsv } from "./route-fs.ts";
 
 const DownloadEventsExportJsonSchema = Schema.parseJson(DownloadEventsExportSchema);
@@ -49,70 +48,58 @@ const encodeDownloadEventsExport = Schema.encodeSync(DownloadEventsExportJsonSch
 const readRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(DownloadService, (service) => service.listDownloadQueue()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(DownloadService, (service) => service.listDownloadQueue()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/downloads/history",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(DownloadService, (service) => service.listDownloadHistory()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(DownloadService, (service) => service.listDownloadHistory()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/downloads/events",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-          return yield* (yield* DownloadService).listDownloadEvents({
-            animeId: query.anime_id,
-            cursor: query.cursor,
-            downloadId: query.download_id,
-            direction: query.direction,
-            endDate: query.end_date,
-            eventType: query.event_type,
-            limit: query.limit,
-            startDate: query.start_date,
-            status: query.status,
-          });
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
+        return yield* (yield* DownloadService).listDownloadEvents({
+          animeId: query.anime_id,
+          cursor: query.cursor,
+          downloadId: query.download_id,
+          direction: query.direction,
+          endDate: query.end_date,
+          eventType: query.event_type,
+          limit: query.limit,
+          startDate: query.start_date,
+          status: query.status,
+        });
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/downloads/events/export",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQueryWithLabel(
-            DownloadEventsExportQuerySchema,
-            "download events export",
-          );
-          const page = yield* (yield* DownloadService).exportDownloadEvents({
-            animeId: query.anime_id,
-            downloadId: query.download_id,
-            endDate: query.end_date,
-            eventType: query.event_type,
-            limit: query.limit,
-            order: query.order,
-            startDate: query.start_date,
-            status: query.status,
-          });
-          return { format: query.format ?? "json", page };
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQueryWithLabel(
+          DownloadEventsExportQuerySchema,
+          "download events export",
+        );
+        const page = yield* (yield* DownloadService).exportDownloadEvents({
+          animeId: query.anime_id,
+          downloadId: query.download_id,
+          endDate: query.end_date,
+          eventType: query.event_type,
+          limit: query.limit,
+          order: query.order,
+          startDate: query.start_date,
+          status: query.status,
+        });
+        return { format: query.format ?? "json", page };
+      }),
       ({ format, page }) => {
         const exportHeaders = {
           "X-Bakarr-Exported-Events": String(page.exported),
@@ -165,100 +152,79 @@ const readRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/rss",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(RssService, (service) => service.listRssFeeds()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(RssService, (service) => service.listRssFeeds()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/wanted/missing",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
-          return yield* (yield* LibraryService).getWantedMissing(query.limit ?? 50);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
+        return yield* (yield* LibraryService).getWantedMissing(query.limit ?? 50);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/calendar",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
-          const now = yield* (yield* ClockService).currentTimeMillis;
-          const nowIso = new Date(now).toISOString();
-          return yield* (yield* LibraryService).getCalendar(
-            query.start ?? nowIso,
-            query.end ?? nowIso,
-          );
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
+        const now = yield* (yield* ClockService).currentTimeMillis;
+        const nowIso = new Date(now).toISOString();
+        return yield* (yield* LibraryService).getCalendar(
+          query.start ?? nowIso,
+          query.end ?? nowIso,
+        );
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/library/unmapped",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(LibraryService, (service) => service.getUnmappedFolders()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(LibraryService, (service) => service.getUnmappedFolders()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/library/browse",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQueryWithLabel(BrowseQuerySchema, "library browse");
-          return yield* (yield* LibraryBrowseService).browse({
-            limit: query.limit,
-            offset: query.offset,
-            path: query.path,
-          });
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQueryWithLabel(BrowseQuerySchema, "library browse");
+        return yield* (yield* LibraryBrowseService).browse({
+          limit: query.limit,
+          offset: query.offset,
+          path: query.path,
+        });
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/search/releases",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQueryWithLabel(SearchReleasesQuerySchema, "search releases");
-          return yield* (yield* SearchService).searchReleases(
-            query.query ?? "",
-            query.anime_id,
-            query.category,
-            query.filter,
-          );
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQueryWithLabel(SearchReleasesQuerySchema, "search releases");
+        return yield* (yield* SearchService).searchReleases(
+          query.query ?? "",
+          query.anime_id,
+          query.category,
+          query.filter,
+        );
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/search/episode/:animeId/:episodeNumber",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(SearchEpisodeParamsSchema);
-          return yield* (yield* SearchService).searchEpisode(params.animeId, params.episodeNumber);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(SearchEpisodeParamsSchema);
+        return yield* (yield* SearchService).searchEpisode(params.animeId, params.episodeNumber);
+      }),
       jsonResponse,
     ),
   ),
@@ -267,231 +233,180 @@ const readRouter = HttpRouter.empty.pipe(
 const writeRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/search/download",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
-          yield* (yield* DownloadService).triggerDownload(body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
+        yield* (yield* DownloadService).triggerDownload(body);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/downloads/search-missing",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeOptionalJsonBody({
-            empty: new SearchMissingBodySchema({ anime_id: undefined }),
-            label: "search missing downloads",
-            schema: SearchMissingBodySchema,
-          });
-          yield* (yield* DownloadService).triggerSearchMissing(body.anime_id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeOptionalJsonBody({
+          empty: new SearchMissingBodySchema({ anime_id: undefined }),
+          label: "search missing downloads",
+          schema: SearchMissingBodySchema,
+        });
+        yield* (yield* DownloadService).triggerSearchMissing(body.anime_id);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/downloads/:id/pause",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          yield* (yield* DownloadService).pauseDownload(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* DownloadService).pauseDownload(params.id);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/downloads/:id/resume",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          yield* (yield* DownloadService).resumeDownload(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* DownloadService).resumeDownload(params.id);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/downloads/:id/retry",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          yield* (yield* DownloadService).retryDownload(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* DownloadService).retryDownload(params.id);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/downloads/:id/reconcile",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          yield* (yield* DownloadService).reconcileDownload(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* DownloadService).reconcileDownload(params.id);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/downloads/sync",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(DownloadService, (service) => service.syncDownloads()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(DownloadService, (service) => service.syncDownloads()),
       successResponse,
     ),
   ),
   HttpRouter.del(
     "/downloads/:id",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
-          yield* (yield* DownloadService).removeDownload(params.id, query.delete_files === "true");
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
+        yield* (yield* DownloadService).removeDownload(params.id, query.delete_files === "true");
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/rss",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBodyWithLabel(AddRssFeedBodySchema, "add RSS feed");
-          return yield* (yield* RssService).addRssFeed(body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(AddRssFeedBodySchema, "add RSS feed");
+        return yield* (yield* RssService).addRssFeed(body);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.del(
     "/rss/:id",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          yield* (yield* RssService).deleteRssFeed(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* RssService).deleteRssFeed(params.id);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.put(
     "/rss/:id/toggle",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          const body = yield* decodeJsonBodyWithLabel(EnabledBodySchema, "toggle RSS feed");
-          yield* (yield* RssService).toggleRssFeed(params.id, body.enabled);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBodyWithLabel(EnabledBodySchema, "toggle RSS feed");
+        yield* (yield* RssService).toggleRssFeed(params.id, body.enabled);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/library/unmapped/scan",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(LibraryService, (service) => service.runUnmappedScan()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(LibraryService, (service) => service.runUnmappedScan()),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/library/unmapped/control",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBodyWithLabel(
-            ControlUnmappedFolderBodySchema,
-            "control unmapped folder",
-          );
-          yield* (yield* LibraryService).controlUnmappedFolder(body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(
+          ControlUnmappedFolderBodySchema,
+          "control unmapped folder",
+        );
+        yield* (yield* LibraryService).controlUnmappedFolder(body);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/library/unmapped/control/bulk",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBodyWithLabel(
-            BulkControlUnmappedFoldersBodySchema,
-            "bulk control unmapped folders",
-          );
-          yield* (yield* LibraryService).bulkControlUnmappedFolders(body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(
+          BulkControlUnmappedFoldersBodySchema,
+          "bulk control unmapped folders",
+        );
+        yield* (yield* LibraryService).bulkControlUnmappedFolders(body);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/library/unmapped/import",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBodyWithLabel(
-            ImportUnmappedFolderBodySchema,
-            "import unmapped folder",
-          );
-          yield* (yield* LibraryService).importUnmappedFolder(body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(
+          ImportUnmappedFolderBodySchema,
+          "import unmapped folder",
+        );
+        yield* (yield* LibraryService).importUnmappedFolder(body);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/library/import/scan",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBodyWithLabel(ScanImportPathBodySchema, "scan import path");
-          return yield* (yield* LibraryService).scanImportPath(body.path, body.anime_id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(ScanImportPathBodySchema, "scan import path");
+        return yield* (yield* LibraryService).scanImportPath(body.path, body.anime_id);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.post(
     "/library/import",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
-          return yield* (yield* LibraryService).importFiles(body.files);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
+        return yield* (yield* LibraryService).importFiles(body.files);
+      }),
       jsonResponse,
     ),
   ),

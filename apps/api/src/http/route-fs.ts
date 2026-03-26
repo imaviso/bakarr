@@ -92,28 +92,6 @@ export function browsePath(
   });
 }
 
-export function guessContentType(name: string) {
-  const lower = name.toLowerCase();
-
-  if (lower.endsWith(".mp4")) {
-    return "video/mp4";
-  }
-
-  if (lower.endsWith(".webm")) {
-    return "video/webm";
-  }
-
-  if (lower.endsWith(".mov")) {
-    return "video/quicktime";
-  }
-
-  if (lower.endsWith(".avi")) {
-    return "video/x-msvideo";
-  }
-
-  return "video/x-matroska";
-}
-
 export function escapeCsv(value: string) {
   const escaped = value.replaceAll('"', '""');
   if (
@@ -127,26 +105,38 @@ export function escapeCsv(value: string) {
   return `"${escaped}"`;
 }
 
-export function contentTypeForPath(path: string): string {
+const contentTypeByExtension = new Map<string, string>([
+  [".avi", "video/x-msvideo"],
+  [".css", "text/css; charset=utf-8"],
+  [".gif", "image/gif"],
+  [".html", "text/html; charset=utf-8"],
+  [".jpeg", "image/jpeg"],
+  [".jpg", "image/jpeg"],
+  [".ico", "image/x-icon"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".mkv", "video/x-matroska"],
+  [".map", "application/json; charset=utf-8"],
+  [".mov", "video/quicktime"],
+  [".mp4", "video/mp4"],
+  [".png", "image/png"],
+  [".json", "application/json; charset=utf-8"],
+  [".svg", "image/svg+xml"],
+  [".ttf", "font/ttf"],
+  [".txt", "text/plain; charset=utf-8"],
+  [".woff", "font/woff"],
+  [".woff2", "font/woff2"],
+  [".webm", "video/webm"],
+  [".webp", "image/webp"],
+]);
+
+export function contentType(path: string): string {
   const lower = path.toLowerCase();
 
-  if (lower.endsWith(".png")) return "image/png";
-  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-  if (lower.endsWith(".webp")) return "image/webp";
-  if (lower.endsWith(".gif")) return "image/gif";
-  if (lower.endsWith(".svg")) return "image/svg+xml";
+  for (const [extension, type] of contentTypeByExtension) {
+    if (lower.endsWith(extension)) {
+      return type;
+    }
+  }
 
   return "application/octet-stream";
-}
-
-export function isSupportedImagePath(path: string): boolean {
-  const lower = path.toLowerCase();
-  return (
-    lower.endsWith(".png") ||
-    lower.endsWith(".jpg") ||
-    lower.endsWith(".jpeg") ||
-    lower.endsWith(".webp") ||
-    lower.endsWith(".gif") ||
-    lower.endsWith(".svg")
-  );
 }

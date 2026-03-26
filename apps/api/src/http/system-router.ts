@@ -10,7 +10,11 @@ import type {
 import { NotificationEventSchema, SystemLogSchema } from "../../../../packages/shared/src/index.ts";
 import { AnimeService } from "../features/anime/service.ts";
 import { EventBus } from "../features/events/event-bus.ts";
-import { DownloadService, LibraryService, RssService } from "../features/operations/service.ts";
+import {
+  DownloadService,
+  LibraryService,
+  RssService,
+} from "../features/operations/service-contract.ts";
 import { ImageAssetService } from "../features/system/image-asset-service.ts";
 import { MetricsService } from "../features/system/metrics-service.ts";
 import { QualityProfileService } from "../features/system/quality-profile-service.ts";
@@ -35,12 +39,12 @@ import {
   decodePathParams,
   decodeQuery,
   decodeQueryWithLabel,
+  authedRouteResponse,
   jsonResponse,
   routeResponse,
   successResponse,
 } from "./router-helpers.ts";
-import { requireViewerFromHttpRequest } from "./route-auth.ts";
-import { contentTypeForPath, escapeCsv } from "./route-fs.ts";
+import { contentType, escapeCsv } from "./route-fs.ts";
 
 const NotificationEventJsonSchema = Schema.parseJson(NotificationEventSchema);
 const encodeNotificationEvent = Schema.encodeSync(NotificationEventJsonSchema);
@@ -65,11 +69,8 @@ const healthRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/system/status",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemStatusService, (service) => service.getSystemStatus()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(SystemStatusService, (service) => service.getSystemStatus()),
       jsonResponse,
     ),
   ),
@@ -78,9 +79,8 @@ const healthRouter = HttpRouter.empty.pipe(
 const infoRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/images/*",
-    routeResponse(
+    authedRouteResponse(
       Effect.gen(function* () {
-        yield* requireViewerFromHttpRequest();
         const request = yield* HttpServerRequest.HttpServerRequest;
         const { pathname } = new URL(request.url, "http://bakarr.local");
         const rawRelativePath = pathname.slice("/api/images/".length);
@@ -89,7 +89,7 @@ const infoRouter = HttpRouter.empty.pipe(
       ({ bytes, filePath }) =>
         Effect.succeed(
           HttpServerResponse.uint8Array(Uint8Array.from(bytes), {
-            contentType: contentTypeForPath(filePath),
+            contentType: contentType(filePath),
             headers: { "Cache-Control": "public, max-age=31536000, immutable" },
           }),
         ),
@@ -97,41 +97,29 @@ const infoRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/system/dashboard",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemDashboardService, (service) => service.getDashboard()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(SystemDashboardService, (service) => service.getDashboard()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/api/system/jobs",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemStatusService, (service) => service.getJobs()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(SystemStatusService, (service) => service.getJobs()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/api/library/stats",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemStatusService, (service) => service.getLibraryStats()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(SystemStatusService, (service) => service.getLibraryStats()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/api/library/activity",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemStatusService, (service) => service.getActivity()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(SystemStatusService, (service) => service.getActivity()),
       jsonResponse,
     ),
   ),
@@ -140,137 +128,101 @@ const infoRouter = HttpRouter.empty.pipe(
 const configRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/config",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemConfigService, (service) => service.getConfig()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(SystemConfigService, (service) => service.getConfig()),
       jsonResponse,
     ),
   ),
   HttpRouter.put(
     "/api/system/config",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBody(ConfigSchema);
-          yield* (yield* SystemConfigService).updateConfig(body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBody(ConfigSchema);
+        yield* (yield* SystemConfigService).updateConfig(body);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.get(
     "/api/profiles",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(QualityProfileService, (service) => service.listProfiles()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(QualityProfileService, (service) => service.listProfiles()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/api/profiles/qualities",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(QualityProfileService, (service) => service.listQualities()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(QualityProfileService, (service) => service.listQualities()),
       jsonResponse,
     ),
   ),
   HttpRouter.post(
     "/api/profiles",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBodyWithLabel(
-            QualityProfileSchema,
-            "create quality profile",
-          );
-          return yield* (yield* QualityProfileService).createProfile(body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBodyWithLabel(QualityProfileSchema, "create quality profile");
+        return yield* (yield* QualityProfileService).createProfile(body);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.put(
     "/api/profiles/:name",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(NameParamsSchema);
-          const body = yield* decodeJsonBody(QualityProfileSchema);
-          return yield* (yield* QualityProfileService).updateProfile(params.name, body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(NameParamsSchema);
+        const body = yield* decodeJsonBody(QualityProfileSchema);
+        return yield* (yield* QualityProfileService).updateProfile(params.name, body);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.del(
     "/api/profiles/:name",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(NameParamsSchema);
-          yield* (yield* QualityProfileService).deleteProfile(params.name);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(NameParamsSchema);
+        yield* (yield* QualityProfileService).deleteProfile(params.name);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.get(
     "/api/release-profiles",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(ReleaseProfileService, (service) => service.listReleaseProfiles()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(ReleaseProfileService, (service) => service.listReleaseProfiles()),
       jsonResponse,
     ),
   ),
   HttpRouter.post(
     "/api/release-profiles",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const body = yield* decodeJsonBody(CreateReleaseProfileSchema);
-          return yield* (yield* ReleaseProfileService).createReleaseProfile(body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBody(CreateReleaseProfileSchema);
+        return yield* (yield* ReleaseProfileService).createReleaseProfile(body);
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.put(
     "/api/release-profiles/:id",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          const body = yield* decodeJsonBody(UpdateReleaseProfileSchema);
-          yield* (yield* ReleaseProfileService).updateReleaseProfile(params.id, body);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(UpdateReleaseProfileSchema);
+        yield* (yield* ReleaseProfileService).updateReleaseProfile(params.id, body);
+      }),
       successResponse,
     ),
   ),
   HttpRouter.del(
     "/api/release-profiles/:id",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const params = yield* decodePathParams(IdParamsSchema);
-          yield* (yield* ReleaseProfileService).deleteReleaseProfile(params.id);
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* ReleaseProfileService).deleteReleaseProfile(params.id);
+      }),
       successResponse,
     ),
   ),
@@ -279,51 +231,42 @@ const configRouter = HttpRouter.empty.pipe(
 const logsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/logs",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQueryWithLabel(SystemLogsQuerySchema, "system logs");
-          return yield* (yield* SystemLogService).getLogs({
-            endDate: query.end_date,
-            eventType: query.event_type,
-            level: query.level,
-            page: query.page ?? 1,
-            startDate: query.start_date,
-          });
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQueryWithLabel(SystemLogsQuerySchema, "system logs");
+        return yield* (yield* SystemLogService).getLogs({
+          endDate: query.end_date,
+          eventType: query.event_type,
+          level: query.level,
+          page: query.page ?? 1,
+          startDate: query.start_date,
+        });
+      }),
       jsonResponse,
     ),
   ),
   HttpRouter.del(
     "/api/system/logs",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemLogService, (service) => service.clearLogs()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(SystemLogService, (service) => service.clearLogs()),
       successResponse,
     ),
   ),
   HttpRouter.get(
     "/api/system/logs/export",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const query = yield* decodeQuery(SystemLogExportQuerySchema);
-          const logs = yield* (yield* SystemLogService).getLogs({
-            endDate: query.end_date,
-            eventType: query.event_type,
-            level: query.level,
-            page: 1,
-            pageSize: 10_000,
-            startDate: query.start_date,
-          });
-          return { format: query.format ?? "json", logs };
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const query = yield* decodeQuery(SystemLogExportQuerySchema);
+        const logs = yield* (yield* SystemLogService).getLogs({
+          endDate: query.end_date,
+          eventType: query.event_type,
+          level: query.level,
+          page: 1,
+          pageSize: 10_000,
+          startDate: query.start_date,
+        });
+        return { format: query.format ?? "json", logs };
+      }),
       ({ format, logs }) => {
         if (format === "csv") {
           const csv = [
@@ -357,45 +300,33 @@ const logsRouter = HttpRouter.empty.pipe(
 const runtimeRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/api/system/tasks/scan",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(LibraryService, (service) => service.runLibraryScan()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(LibraryService, (service) => service.runLibraryScan()),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/rss",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(RssService, (service) => service.runRssCheck()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(RssService, (service) => service.runRssCheck()),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/metadata-refresh",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(AnimeService, (service) => service.refreshMetadataForMonitoredAnime()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(AnimeService, (service) => service.refreshMetadataForMonitoredAnime()),
       successResponse,
     ),
   ),
   HttpRouter.get(
     "/api/events",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const downloads = yield* (yield* DownloadService).getDownloadProgress();
-          const eventBus = yield* EventBus;
-          return { downloads, eventBus };
-        }),
-      ),
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const downloads = yield* (yield* DownloadService).getDownloadProgress();
+        const eventBus = yield* EventBus;
+        return { downloads, eventBus };
+      }),
       ({ downloads, eventBus }) =>
         Effect.succeed(
           HttpServerResponse.stream(buildEventsStream(downloads, eventBus), {
@@ -410,11 +341,8 @@ const runtimeRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.get(
     "/api/metrics",
-    routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.flatMap(MetricsService, (service) => service.renderPrometheusMetrics()),
-      ),
+    authedRouteResponse(
+      Effect.flatMap(MetricsService, (service) => service.renderPrometheusMetrics()),
       (body) =>
         Effect.succeed(
           HttpServerResponse.text(body, {
