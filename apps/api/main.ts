@@ -10,7 +10,8 @@ import { makeDotenvConfigProvider } from "./src/config-provider.ts";
 import { migrateDatabase } from "./src/db/migrate.ts";
 import { AuthService } from "./src/features/auth/service.ts";
 import { StoredConfigCorruptError } from "./src/features/system/errors.ts";
-import { SystemService } from "./src/features/system/service.ts";
+import { SystemBootstrapService } from "./src/features/system/system-bootstrap-service.ts";
+import { SystemConfigService } from "./src/features/system/system-config-service.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
 import { compactLogAnnotations, setRuntimeLogLevel } from "./src/lib/logging.ts";
 import { makeApiLayer, makeApiRuntime, type RuntimeOptions } from "./src/runtime.ts";
@@ -37,8 +38,7 @@ import { makeApiLayer, makeApiRuntime, type RuntimeOptions } from "./src/runtime
 const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   yield* migrateDatabase();
 
-  const system = yield* SystemService;
-  yield* system.ensureInitialized();
+  yield* (yield* SystemBootstrapService).ensureInitialized();
 
   const auth = yield* AuthService;
   yield* auth.ensureBootstrapUser();
@@ -48,8 +48,7 @@ const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
 
 const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
   const controller = yield* BackgroundWorkerController;
-  const system = yield* SystemService;
-  const config = yield* system.getConfig().pipe(
+  const config = yield* (yield* SystemConfigService).getConfig().pipe(
     Effect.catchTag("StoredConfigCorruptError", (error: StoredConfigCorruptError) =>
       Effect.logWarning("Stored configuration is corrupt; skipping background worker startup").pipe(
         Effect.annotateLogs({
