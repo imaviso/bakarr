@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { DownloadSourceMetadataSchema } from "../../../../packages/shared/src/index.ts";
+export { AddAnimeInput as AddAnimeInputSchema } from "../features/anime/add-anime-input.ts";
 import {
   AnimeIdFromStringSchema,
   AnimeIdSchema,
@@ -18,16 +19,6 @@ export {
 } from "../features/system/config-schema.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
-
-export class AddAnimeInputSchema extends Schema.Class<AddAnimeInputSchema>("AddAnimeInputSchema")({
-  id: AnimeIdSchema,
-  monitor_and_search: Schema.Boolean,
-  monitored: Schema.Boolean,
-  profile_name: Schema.String,
-  release_profile_ids: ReleaseProfileIdArraySchema,
-  root_folder: Schema.String,
-  use_existing_root: Schema.optional(Schema.Boolean),
-}) {}
 
 export class MonitoredBodySchema extends Schema.Class<MonitoredBodySchema>("MonitoredBodySchema")({
   monitored: Schema.Boolean,

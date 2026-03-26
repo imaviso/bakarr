@@ -38,12 +38,6 @@ import {
 } from "./router-helpers.ts";
 import { requireViewerFromHttpRequest } from "./route-auth.ts";
 import { contentTypeForPath, escapeCsv, isSupportedImagePath } from "./route-fs.ts";
-import {
-  toConfig,
-  toCreateReleaseProfileInput,
-  toQualityProfile,
-  toUpdateReleaseProfileInput,
-} from "./route-mapping.ts";
 
 const NotificationEventJsonSchema = Schema.parseJson(NotificationEventSchema);
 const encodeNotificationEvent = Schema.encodeSync(NotificationEventJsonSchema);
@@ -193,7 +187,7 @@ const configRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(ConfigSchema);
-          yield* Effect.flatMap(SystemService, (service) => service.updateConfig(toConfig(body)));
+          yield* Effect.flatMap(SystemService, (service) => service.updateConfig(body));
         }),
       ),
       successResponse,
@@ -229,9 +223,7 @@ const configRouter = HttpRouter.empty.pipe(
             QualityProfileSchema,
             "create quality profile",
           );
-          return yield* Effect.flatMap(SystemService, (service) =>
-            service.createProfile(toQualityProfile(body)),
-          );
+          return yield* Effect.flatMap(SystemService, (service) => service.createProfile(body));
         }),
       ),
       jsonResponse,
@@ -246,7 +238,7 @@ const configRouter = HttpRouter.empty.pipe(
           const params = yield* decodePathParams(NameParamsSchema);
           const body = yield* decodeJsonBody(QualityProfileSchema);
           return yield* Effect.flatMap(SystemService, (service) =>
-            service.updateProfile(params.name, toQualityProfile(body)),
+            service.updateProfile(params.name, body),
           );
         }),
       ),
@@ -284,7 +276,7 @@ const configRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(CreateReleaseProfileSchema);
           return yield* Effect.flatMap(SystemService, (service) =>
-            service.createReleaseProfile(toCreateReleaseProfileInput(body)),
+            service.createReleaseProfile(body),
           );
         }),
       ),
@@ -300,7 +292,7 @@ const configRouter = HttpRouter.empty.pipe(
           const params = yield* decodePathParams(IdParamsSchema);
           const body = yield* decodeJsonBody(UpdateReleaseProfileSchema);
           yield* Effect.flatMap(SystemService, (service) =>
-            service.updateReleaseProfile(params.id, toUpdateReleaseProfileInput(body)),
+            service.updateReleaseProfile(params.id, body),
           );
         }),
       ),

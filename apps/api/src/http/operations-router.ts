@@ -1,5 +1,7 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Effect } from "effect";
+import { Effect, Schema } from "effect";
+
+import { DownloadEventsExportSchema } from "../../../../packages/shared/src/index.ts";
 
 import { ClockService } from "../lib/clock.ts";
 import { FileSystem, isWithinPathRoot } from "../lib/filesystem.ts";
@@ -43,6 +45,9 @@ import {
 } from "./router-helpers.ts";
 import { requireViewerFromHttpRequest } from "./route-auth.ts";
 import { browsePath, escapeCsv } from "./route-fs.ts";
+
+const DownloadEventsExportJsonSchema = Schema.parseJson(DownloadEventsExportSchema);
+const encodeDownloadEventsExport = Schema.encodeSync(DownloadEventsExportJsonSchema);
 
 const readRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -155,7 +160,7 @@ const readRouter = HttpRouter.empty.pipe(
           });
         }
 
-        return HttpServerResponse.text(JSON.stringify(page), {
+        return HttpServerResponse.text(encodeDownloadEventsExport(page), {
           contentType: "application/json; charset=utf-8",
           headers: {
             ...exportHeaders,
@@ -320,9 +325,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
-          yield* Effect.flatMap(DownloadService, (service) =>
-            service.triggerDownload(structuredClone(body)),
-          );
+          yield* Effect.flatMap(DownloadService, (service) => service.triggerDownload(body));
         }),
       ),
       successResponse,
@@ -432,9 +435,7 @@ const writeRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBodyWithLabel(AddRssFeedBodySchema, "add RSS feed");
-          return yield* Effect.flatMap(RssService, (service) =>
-            service.addRssFeed(structuredClone(body)),
-          );
+          return yield* Effect.flatMap(RssService, (service) => service.addRssFeed(body));
         }),
       ),
       jsonResponse,
@@ -489,9 +490,7 @@ const writeRouter = HttpRouter.empty.pipe(
             ControlUnmappedFolderBodySchema,
             "control unmapped folder",
           );
-          yield* Effect.flatMap(LibraryService, (service) =>
-            service.controlUnmappedFolder(structuredClone(body)),
-          );
+          yield* Effect.flatMap(LibraryService, (service) => service.controlUnmappedFolder(body));
         }),
       ),
       successResponse,
@@ -508,7 +507,7 @@ const writeRouter = HttpRouter.empty.pipe(
             "bulk control unmapped folders",
           );
           yield* Effect.flatMap(LibraryService, (service) =>
-            service.bulkControlUnmappedFolders(structuredClone(body)),
+            service.bulkControlUnmappedFolders(body),
           );
         }),
       ),
@@ -525,9 +524,7 @@ const writeRouter = HttpRouter.empty.pipe(
             ImportUnmappedFolderBodySchema,
             "import unmapped folder",
           );
-          yield* Effect.flatMap(LibraryService, (service) =>
-            service.importUnmappedFolder(structuredClone(body)),
-          );
+          yield* Effect.flatMap(LibraryService, (service) => service.importUnmappedFolder(body));
         }),
       ),
       successResponse,
@@ -556,7 +553,7 @@ const writeRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
           return yield* Effect.flatMap(LibraryService, (service) =>
-            service.importFiles([...body.files]),
+            service.importFiles(body.files),
           );
         }),
       ),

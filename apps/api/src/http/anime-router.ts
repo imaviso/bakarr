@@ -32,7 +32,6 @@ import { requireViewerFromHttpRequest } from "./route-auth.ts";
 import { EpisodeStreamRangeError } from "./streaming-errors.ts";
 import { StreamTokenSigner } from "./stream-token-signer.ts";
 import { guessContentType } from "./route-fs.ts";
-import { toAddAnimeInput } from "./route-mapping.ts";
 
 class StreamQuerySchema extends Schema.Class<StreamQuerySchema>("StreamQuerySchema")({
   exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
@@ -175,9 +174,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(AddAnimeInputSchema);
-          const anime = yield* Effect.flatMap(AnimeService, (service) =>
-            service.addAnime(toAddAnimeInput(body)),
-          );
+          const anime = yield* Effect.flatMap(AnimeService, (service) => service.addAnime(body));
 
           if (body.monitor_and_search) {
             yield* Effect.flatMap(DownloadService, (service) =>
