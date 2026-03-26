@@ -19,7 +19,10 @@ it("system support normalizes levels and deduplicates job names", () => {
 });
 
 it("system support derives background job schedule modes", () => {
-  const config = { ...makeDefaultConfig("./test.sqlite"), profiles: [] };
+  const config = structuredClone(
+    makeDefaultConfig("./test.sqlite"),
+  ) as unknown as import("../../../../../packages/shared/src/index.ts").Config;
+  config.profiles = [];
 
   assertEquals(toBackgroundJobStatus(config, undefined, "download_sync").schedule_mode, "interval");
   assertEquals(toBackgroundJobStatus(config, undefined, "rss").schedule_value, "30m");
@@ -28,24 +31,24 @@ it("system support derives background job schedule modes", () => {
   assertEquals(toBackgroundJobStatus(config, undefined, "unmapped_scan").schedule_mode, "manual");
   assertEquals(toBackgroundJobStatus(config, undefined, "custom_job").schedule_mode, "manual");
 
-  const cronConfig = {
-    ...config,
+  const cronConfig: typeof config = {
+    ...structuredClone(config),
     scheduler: {
-      ...config.scheduler,
+      ...structuredClone(config.scheduler),
       cron_expression: "0 * * * *",
     },
   };
   assertEquals(toBackgroundJobStatus(cronConfig, undefined, "rss").schedule_mode, "cron");
 
-  const disabledConfig = {
-    ...config,
+  const disabledConfig: typeof config = {
+    ...structuredClone(config),
     scheduler: {
-      ...config.scheduler,
+      ...structuredClone(config.scheduler),
       check_interval_minutes: 0,
       enabled: false,
     },
     library: {
-      ...config.library,
+      ...structuredClone(config.library),
       auto_scan_interval_hours: 0,
     },
   };

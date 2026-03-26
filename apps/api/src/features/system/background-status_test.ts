@@ -10,20 +10,15 @@ import {
 } from "./background-status.ts";
 
 it("background status composes persisted job rows with live running state", () => {
-  const config: Config = {
-    ...makeDefaultConfig("./test.sqlite"),
-    profiles: [],
-  };
-  const snapshot = {
-    ...initialBackgroundWorkerSnapshot(),
-    rss: {
-      ...initialBackgroundWorkerSnapshot().rss,
-      daemonRunning: true,
-      lastStartedAt: "2024-01-03T00:00:00.000Z",
-      runRunning: true,
-      successCount: 1,
-    },
-  };
+  const config = structuredClone(makeDefaultConfig("./test.sqlite")) as unknown as Config;
+  config.profiles = [];
+  const snapshot = structuredClone(initialBackgroundWorkerSnapshot());
+  Object.assign(snapshot.rss, {
+    daemonRunning: true,
+    lastStartedAt: "2024-01-03T00:00:00.000Z",
+    runRunning: true,
+    successCount: 1,
+  });
 
   const jobs = composeBackgroundJobStatuses(config, snapshot, [
     {
@@ -48,19 +43,14 @@ it("background status composes persisted job rows with live running state", () =
 });
 
 it("background status falls back to live failure details for workers without history rows", () => {
-  const config: Config = {
-    ...makeDefaultConfig("./test.sqlite"),
-    profiles: [],
-  };
-  const snapshot = {
-    ...initialBackgroundWorkerSnapshot(),
-    download_sync: {
-      ...initialBackgroundWorkerSnapshot().download_sync,
-      failureCount: 1,
-      lastErrorMessage: "sync failed",
-      lastFailedAt: "2024-01-04T00:00:00.000Z",
-    },
-  };
+  const config = structuredClone(makeDefaultConfig("./test.sqlite")) as unknown as Config;
+  config.profiles = [];
+  const snapshot = structuredClone(initialBackgroundWorkerSnapshot());
+  Object.assign(snapshot.download_sync, {
+    failureCount: 1,
+    lastErrorMessage: "sync failed",
+    lastFailedAt: "2024-01-04T00:00:00.000Z",
+  });
 
   const jobs = composeBackgroundJobStatuses(config, snapshot, []);
   const downloadSyncJob = findBackgroundJobStatus(jobs, "download_sync");

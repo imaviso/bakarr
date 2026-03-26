@@ -35,39 +35,36 @@ export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
   };
 }
 
-export const getDiskSpace = Effect.fn("System.getDiskSpace")(
-  (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> =>
-    Effect.gen(function* () {
-      const executorOption = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
+export const getDiskSpace = Effect.fn("System.getDiskSpace")(function* (path: string) {
+  const executorOption = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
 
-      if (Option.isNone(executorOption)) {
-        return yield* new DiskSpaceError({
-          message: `Failed to get disk space for ${path}: command executor unavailable`,
-        });
-      }
+  if (Option.isNone(executorOption)) {
+    return yield* new DiskSpaceError({
+      message: `Failed to get disk space for ${path}: command executor unavailable`,
+    });
+  }
 
-      const output = yield* Command.make("df", "-Pk", path).pipe(
-        Command.string,
-        Effect.mapError(
-          (cause) =>
-            new DiskSpaceError({
-              cause,
-              message: `Failed to get disk space for ${path}`,
-            }),
-        ),
-        Effect.provideService(CommandExecutor.CommandExecutor, executorOption.value),
-      );
+  const output = yield* Command.make("df", "-Pk", path).pipe(
+    Command.string,
+    Effect.mapError(
+      (cause) =>
+        new DiskSpaceError({
+          cause,
+          message: `Failed to get disk space for ${path}`,
+        }),
+    ),
+    Effect.provideService(CommandExecutor.CommandExecutor, executorOption.value),
+  );
 
-      return yield* Effect.try({
-        try: () => mapDfOutputToDiskSpace(path, output),
-        catch: (cause) =>
-          new DiskSpaceError({
-            cause,
-            message: `Failed to parse disk space for ${path}`,
-          }),
-      });
-    }),
-);
+  return yield* Effect.try({
+    try: () => mapDfOutputToDiskSpace(path, output),
+    catch: (cause) =>
+      new DiskSpaceError({
+        cause,
+        message: `Failed to parse disk space for ${path}`,
+      }),
+  });
+});
 
 export const getDiskSpaceSafe = Effect.fn("System.getDiskSpaceSafe")(
   (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> =>

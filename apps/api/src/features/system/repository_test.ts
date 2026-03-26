@@ -55,13 +55,13 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
 
       yield* upsertSystemConfigRow(db, {
         id: 1,
-        data: encodeConfigCore({
-          ...makeDefaultConfig(databaseFile),
-          library: {
-            ...makeDefaultConfig(databaseFile).library,
-            library_path: "/new-library",
-          },
-        }),
+        data: encodeConfigCore(
+          (() => {
+            const config = structuredClone(makeDefaultConfig(databaseFile));
+            config.library.library_path = "/new-library";
+            return config;
+          })(),
+        ),
         updatedAt: "2024-01-02T00:00:00.000Z",
       });
 

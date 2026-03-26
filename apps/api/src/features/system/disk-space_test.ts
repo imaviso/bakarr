@@ -5,7 +5,10 @@ import { Effect, Exit, Layer } from "effect";
 import { makeDefaultConfig } from "./defaults.ts";
 import { getDiskSpaceSafe, mapBlockStatsToDiskSpace, selectStoragePath } from "./disk-space.ts";
 
-const baseConfig = { ...makeDefaultConfig("./test.sqlite"), profiles: [] };
+const baseConfig = structuredClone(
+  makeDefaultConfig("./test.sqlite"),
+) as unknown as import("../../../../../packages/shared/src/index.ts").Config;
+baseConfig.profiles = [];
 
 it("mapBlockStatsToDiskSpace converts block stats to bytes", () => {
   const result = mapBlockStatsToDiskSpace({

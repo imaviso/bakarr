@@ -9,10 +9,8 @@ import { persistAndActivateConfig, type PersistedSystemConfigState } from "./con
 it.effect("config activation keeps persisted state when activation succeeds", () =>
   Effect.gen(function* () {
     const persisted: PersistedSystemConfigState[] = [];
-    const nextConfig: Config = {
-      ...makeDefaultConfig("./test.sqlite"),
-      profiles: [],
-    };
+    const nextConfig = structuredClone(makeDefaultConfig("./test.sqlite")) as unknown as Config;
+    nextConfig.profiles = [];
     const previousState = state("previous");
     const nextState = state("next");
 
@@ -38,10 +36,8 @@ it.effect("config activation keeps persisted state when activation succeeds", ()
 it.effect("config activation rolls persisted state back when activation fails", () =>
   Effect.gen(function* () {
     const persisted: PersistedSystemConfigState[] = [];
-    const nextConfig: Config = {
-      ...makeDefaultConfig("./test.sqlite"),
-      profiles: [],
-    };
+    const nextConfig = structuredClone(makeDefaultConfig("./test.sqlite")) as unknown as Config;
+    nextConfig.profiles = [];
     const previousState = state("previous");
     const nextState = state("next");
     const activationError = new DatabaseError({

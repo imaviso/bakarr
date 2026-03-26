@@ -101,10 +101,6 @@ export function encodeNumberList(values: readonly number[]) {
   return Schema.encodeSync(NumberListJsonSchema)([...values]);
 }
 
-export function decodeNumberList(value: string): number[] {
-  return [...Schema.decodeUnknownSync(NumberListJsonSchema)(value)];
-}
-
 export function effectDecodeNumberList(
   value: string,
 ): Effect.Effect<number[], StoredConfigCorruptError> {

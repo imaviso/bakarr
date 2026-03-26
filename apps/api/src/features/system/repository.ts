@@ -1,4 +1,4 @@
-import { and, count, desc, eq, notInArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, notInArray, sql, type SQL } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
 import {
@@ -218,63 +218,49 @@ export const deleteReleaseProfileRow = Effect.fn("SystemRepository.deleteRelease
   },
 );
 
+const countDownloadsWhere = Effect.fn("SystemRepository.countDownloadsWhere")(function* (
+  db: AppDatabase,
+  condition: SQL,
+) {
+  const [{ value }] = yield* tryDatabasePromise("Failed to count downloads", () =>
+    db.select({ value: count() }).from(downloads).where(condition),
+  );
+  return value;
+});
+
 export const countQueuedOrDownloadingDownloads = Effect.fn(
   "SystemRepository.countQueuedOrDownloadingDownloads",
 )(function* (db: AppDatabase) {
-  const [{ value }] = yield* tryDatabasePromise("Failed to count downloads", () =>
-    db
-      .select({ value: count() })
-      .from(downloads)
-      .where(sql`${downloads.status} in ('queued', 'downloading')`),
-  );
-  return value;
+  return yield* countDownloadsWhere(db, sql`${downloads.status} in ('queued', 'downloading')`);
 });
 
 export const countQueuedDownloads = Effect.fn("SystemRepository.countQueuedDownloads")(function* (
   db: AppDatabase,
 ) {
-  const [{ value }] = yield* tryDatabasePromise("Failed to count downloads", () =>
-    db.select({ value: count() }).from(downloads).where(eq(downloads.status, "queued")),
-  );
-  return value;
+  return yield* countDownloadsWhere(db, eq(downloads.status, "queued"));
 });
 
 export const countActiveDownloads = Effect.fn("SystemRepository.countActiveDownloads")(function* (
   db: AppDatabase,
 ) {
-  const [{ value }] = yield* tryDatabasePromise("Failed to count downloads", () =>
-    db
-      .select({ value: count() })
-      .from(downloads)
-      .where(sql`${downloads.status} in ('downloading', 'paused')`),
-  );
-  return value;
+  return yield* countDownloadsWhere(db, sql`${downloads.status} in ('downloading', 'paused')`);
 });
 
 export const countFailedDownloads = Effect.fn("SystemRepository.countFailedDownloads")(function* (
   db: AppDatabase,
 ) {
-  const [{ value }] = yield* tryDatabasePromise("Failed to count downloads", () =>
-    db.select({ value: count() }).from(downloads).where(eq(downloads.status, "error")),
-  );
-  return value;
+  return yield* countDownloadsWhere(db, eq(downloads.status, "error"));
 });
 
 export const countImportedDownloads = Effect.fn("SystemRepository.countImportedDownloads")(
   function* (db: AppDatabase) {
-    const [{ value }] = yield* tryDatabasePromise("Failed to count downloads", () =>
-      db.select({ value: count() }).from(downloads).where(eq(downloads.status, "imported")),
-    );
-    return value;
+    return yield* countDownloadsWhere(db, eq(downloads.status, "imported"));
   },
 );
 
 export const countCompletedDownloads = Effect.fn("SystemRepository.countCompletedDownloads")(
   function* (db: AppDatabase) {
-    const [{ value }] = yield* tryDatabasePromise("Failed to count downloads", () =>
-      db.select({ value: count() }).from(downloads).where(eq(downloads.status, "completed")),
-    );
-    return value;
+    return yield* countDownloadsWhere(db, eq(downloads.status, "completed"));
   },
 );
 

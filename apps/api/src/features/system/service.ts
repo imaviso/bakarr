@@ -324,20 +324,13 @@ const makeSystemService = Effect.gen(function* () {
       ? yield* effectDecodeConfigCore(storedConfig.data)
       : makeDefaultConfig(config.databaseFile);
 
-    const storagePath = selectStoragePath(
-      {
-        ...core,
-        profiles: [],
-      } as Config,
-      config.databaseFile,
-    );
+    const statusConfig = structuredClone(core) as Config;
+    statusConfig.profiles = [];
+    const storagePath = selectStoragePath(statusConfig, config.databaseFile);
     const diskSpace = yield* getDiskSpaceSafe(storagePath);
     const queuedDownloads = yield* countQueuedDownloads(db);
     const activeDownloads = yield* countActiveDownloads(db);
-    const jobs = yield* loadComposedBackgroundJobs({
-      ...core,
-      profiles: [],
-    } as Config);
+    const jobs = yield* loadComposedBackgroundJobs(statusConfig);
     const rssJob = findBackgroundJobStatus(jobs, "rss");
     const scanJob = findBackgroundJobStatus(jobs, "library_scan");
     const metadataRefreshJob = findBackgroundJobStatus(jobs, "metadata_refresh");
@@ -483,14 +476,13 @@ const makeSystemService = Effect.gen(function* () {
     );
     const defaults = makeDefaultConfig(config.databaseFile);
 
-    return {
-      ...core,
-      library: {
-        ...defaults.library,
-        ...core.library,
-      },
-      profiles: yield* Effect.forEach(profiles, effectDecodeQualityProfileRow),
-    } satisfies Config;
+    const nextConfig = structuredClone(core) as Config;
+    nextConfig.library = {
+      ...defaults.library,
+      ...core.library,
+    };
+    nextConfig.profiles = yield* Effect.forEach(profiles, effectDecodeQualityProfileRow);
+    return nextConfig;
   });
 
   const updateConfig = Effect.fn("SystemService.updateConfig")(function* (nextConfig: Config) {
@@ -643,6 +635,10 @@ const makeSystemService = Effect.gen(function* () {
     } satisfies SystemLogsResponse;
   });
 
+  const listQualities = Effect.fn("SystemService.listQualities")(function* () {
+    return [...DEFAULT_QUALITIES];
+  });
+
   return {
     ensureInitialized,
     getSystemStatus,
@@ -653,7 +649,7 @@ const makeSystemService = Effect.gen(function* () {
     getConfig,
     updateConfig,
     listProfiles,
-    listQualities: () => Effect.succeed([...DEFAULT_QUALITIES]),
+    listQualities,
     createProfile,
     updateProfile,
     deleteProfile,
