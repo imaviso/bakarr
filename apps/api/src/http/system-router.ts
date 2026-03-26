@@ -8,12 +8,12 @@ import type {
   SystemLog,
 } from "../../../../packages/shared/src/index.ts";
 import { NotificationEventSchema, SystemLogSchema } from "../../../../packages/shared/src/index.ts";
-import { AnimeService } from "../features/anime/service.ts";
+import { AnimeMutationService } from "../features/anime/service.ts";
 import { EventBus } from "../features/events/event-bus.ts";
 import {
-  DownloadService,
-  LibraryService,
-  RssService,
+  DownloadStatusService,
+  LibraryCommandService,
+  RssCommandService,
 } from "../features/operations/service-contract.ts";
 import { ImageAssetService } from "../features/system/image-asset-service.ts";
 import { MetricsService } from "../features/system/metrics-service.ts";
@@ -23,6 +23,7 @@ import { SystemConfigService } from "../features/system/system-config-service.ts
 import { SystemDashboardService } from "../features/system/system-dashboard-service.ts";
 import { SystemLogService } from "../features/system/system-log-service.ts";
 import { SystemStatusService } from "../features/system/system-status-service.ts";
+import { setRuntimeLogLevel } from "../lib/logging.ts";
 import {
   ConfigSchema,
   CreateReleaseProfileSchema,
@@ -138,7 +139,8 @@ const configRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBody(ConfigSchema);
-        yield* (yield* SystemConfigService).updateConfig(body);
+        const updatedConfig = yield* (yield* SystemConfigService).updateConfig(body);
+        yield* setRuntimeLogLevel(updatedConfig.general.log_level);
       }),
       successResponse,
     ),
@@ -301,21 +303,21 @@ const runtimeRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/api/system/tasks/scan",
     authedRouteResponse(
-      Effect.flatMap(LibraryService, (service) => service.runLibraryScan()),
+      Effect.flatMap(LibraryCommandService, (service) => service.runLibraryScan()),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/rss",
     authedRouteResponse(
-      Effect.flatMap(RssService, (service) => service.runRssCheck()),
+      Effect.flatMap(RssCommandService, (service) => service.runRssCheck()),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/metadata-refresh",
     authedRouteResponse(
-      Effect.flatMap(AnimeService, (service) => service.refreshMetadataForMonitoredAnime()),
+      Effect.flatMap(AnimeMutationService, (service) => service.refreshMetadataForMonitoredAnime()),
       successResponse,
     ),
   ),
@@ -323,7 +325,7 @@ const runtimeRouter = HttpRouter.empty.pipe(
     "/api/events",
     authedRouteResponse(
       Effect.gen(function* () {
-        const downloads = yield* (yield* DownloadService).getDownloadProgress();
+        const downloads = yield* (yield* DownloadStatusService).getDownloadProgress();
         const eventBus = yield* EventBus;
         return { downloads, eventBus };
       }),

@@ -6,9 +6,13 @@ import { DownloadEventsExportSchema } from "../../../../packages/shared/src/inde
 import { ClockService } from "../lib/clock.ts";
 import { LibraryBrowseService } from "../features/operations/library-browse-service.ts";
 import {
-  DownloadService,
-  LibraryService,
-  RssService,
+  DownloadControlService,
+  DownloadStatusService,
+  DownloadTriggerService,
+  LibraryCommandService,
+  LibraryReadService,
+  RssCommandService,
+  RssReadService,
   SearchService,
 } from "../features/operations/service-contract.ts";
 import {
@@ -49,14 +53,14 @@ const readRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
     authedRouteResponse(
-      Effect.flatMap(DownloadService, (service) => service.listDownloadQueue()),
+      Effect.flatMap(DownloadStatusService, (service) => service.listDownloadQueue()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/downloads/history",
     authedRouteResponse(
-      Effect.flatMap(DownloadService, (service) => service.listDownloadHistory()),
+      Effect.flatMap(DownloadStatusService, (service) => service.listDownloadHistory()),
       jsonResponse,
     ),
   ),
@@ -65,7 +69,7 @@ const readRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-        return yield* (yield* DownloadService).listDownloadEvents({
+        return yield* (yield* DownloadStatusService).listDownloadEvents({
           animeId: query.anime_id,
           cursor: query.cursor,
           downloadId: query.download_id,
@@ -88,7 +92,7 @@ const readRouter = HttpRouter.empty.pipe(
           DownloadEventsExportQuerySchema,
           "download events export",
         );
-        const page = yield* (yield* DownloadService).exportDownloadEvents({
+        const page = yield* (yield* DownloadStatusService).exportDownloadEvents({
           animeId: query.anime_id,
           downloadId: query.download_id,
           endDate: query.end_date,
@@ -153,7 +157,7 @@ const readRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/rss",
     authedRouteResponse(
-      Effect.flatMap(RssService, (service) => service.listRssFeeds()),
+      Effect.flatMap(RssReadService, (service) => service.listRssFeeds()),
       jsonResponse,
     ),
   ),
@@ -162,7 +166,7 @@ const readRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
-        return yield* (yield* LibraryService).getWantedMissing(query.limit ?? 50);
+        return yield* (yield* LibraryReadService).getWantedMissing(query.limit ?? 50);
       }),
       jsonResponse,
     ),
@@ -174,7 +178,7 @@ const readRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
         const now = yield* (yield* ClockService).currentTimeMillis;
         const nowIso = new Date(now).toISOString();
-        return yield* (yield* LibraryService).getCalendar(
+        return yield* (yield* LibraryReadService).getCalendar(
           query.start ?? nowIso,
           query.end ?? nowIso,
         );
@@ -185,7 +189,7 @@ const readRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/library/unmapped",
     authedRouteResponse(
-      Effect.flatMap(LibraryService, (service) => service.getUnmappedFolders()),
+      Effect.flatMap(LibraryReadService, (service) => service.getUnmappedFolders()),
       jsonResponse,
     ),
   ),
@@ -236,7 +240,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
-        yield* (yield* DownloadService).triggerDownload(body);
+        yield* (yield* DownloadTriggerService).triggerDownload(body);
       }),
       successResponse,
     ),
@@ -250,7 +254,7 @@ const writeRouter = HttpRouter.empty.pipe(
           label: "search missing downloads",
           schema: SearchMissingBodySchema,
         });
-        yield* (yield* DownloadService).triggerSearchMissing(body.anime_id);
+        yield* (yield* DownloadTriggerService).triggerSearchMissing(body.anime_id);
       }),
       successResponse,
     ),
@@ -260,7 +264,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* DownloadService).pauseDownload(params.id);
+        yield* (yield* DownloadControlService).pauseDownload(params.id);
       }),
       successResponse,
     ),
@@ -270,7 +274,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* DownloadService).resumeDownload(params.id);
+        yield* (yield* DownloadControlService).resumeDownload(params.id);
       }),
       successResponse,
     ),
@@ -280,7 +284,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* DownloadService).retryDownload(params.id);
+        yield* (yield* DownloadControlService).retryDownload(params.id);
       }),
       successResponse,
     ),
@@ -290,7 +294,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* DownloadService).reconcileDownload(params.id);
+        yield* (yield* DownloadControlService).reconcileDownload(params.id);
       }),
       successResponse,
     ),
@@ -298,7 +302,7 @@ const writeRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/downloads/sync",
     authedRouteResponse(
-      Effect.flatMap(DownloadService, (service) => service.syncDownloads()),
+      Effect.flatMap(DownloadControlService, (service) => service.syncDownloads()),
       successResponse,
     ),
   ),
@@ -308,7 +312,7 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
-        yield* (yield* DownloadService).removeDownload(params.id, query.delete_files === "true");
+        yield* (yield* DownloadControlService).removeDownload(params.id, query.delete_files === "true");
       }),
       successResponse,
     ),
@@ -318,7 +322,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(AddRssFeedBodySchema, "add RSS feed");
-        return yield* (yield* RssService).addRssFeed(body);
+        return yield* (yield* RssCommandService).addRssFeed(body);
       }),
       jsonResponse,
     ),
@@ -328,7 +332,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* RssService).deleteRssFeed(params.id);
+        yield* (yield* RssCommandService).deleteRssFeed(params.id);
       }),
       successResponse,
     ),
@@ -339,7 +343,7 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(EnabledBodySchema, "toggle RSS feed");
-        yield* (yield* RssService).toggleRssFeed(params.id, body.enabled);
+        yield* (yield* RssCommandService).toggleRssFeed(params.id, body.enabled);
       }),
       successResponse,
     ),
@@ -347,7 +351,7 @@ const writeRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/library/unmapped/scan",
     authedRouteResponse(
-      Effect.flatMap(LibraryService, (service) => service.runUnmappedScan()),
+      Effect.flatMap(LibraryCommandService, (service) => service.runUnmappedScan()),
       successResponse,
     ),
   ),
@@ -359,7 +363,7 @@ const writeRouter = HttpRouter.empty.pipe(
           ControlUnmappedFolderBodySchema,
           "control unmapped folder",
         );
-        yield* (yield* LibraryService).controlUnmappedFolder(body);
+        yield* (yield* LibraryCommandService).controlUnmappedFolder(body);
       }),
       successResponse,
     ),
@@ -372,7 +376,7 @@ const writeRouter = HttpRouter.empty.pipe(
           BulkControlUnmappedFoldersBodySchema,
           "bulk control unmapped folders",
         );
-        yield* (yield* LibraryService).bulkControlUnmappedFolders(body);
+        yield* (yield* LibraryCommandService).bulkControlUnmappedFolders(body);
       }),
       successResponse,
     ),
@@ -385,7 +389,7 @@ const writeRouter = HttpRouter.empty.pipe(
           ImportUnmappedFolderBodySchema,
           "import unmapped folder",
         );
-        yield* (yield* LibraryService).importUnmappedFolder(body);
+        yield* (yield* LibraryCommandService).importUnmappedFolder(body);
       }),
       successResponse,
     ),
@@ -395,7 +399,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ScanImportPathBodySchema, "scan import path");
-        return yield* (yield* LibraryService).scanImportPath(body.path, body.anime_id);
+        return yield* (yield* LibraryCommandService).scanImportPath(body.path, body.anime_id);
       }),
       jsonResponse,
     ),
@@ -405,7 +409,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
-        return yield* (yield* LibraryService).importFiles(body.files);
+        return yield* (yield* LibraryCommandService).importFiles(body.files);
       }),
       jsonResponse,
     ),

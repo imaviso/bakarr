@@ -1,10 +1,18 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Match, Schema } from "effect";
 
-import { AnimeService } from "../features/anime/service.ts";
+import {
+  AnimeFileService,
+  AnimeMutationService,
+  AnimeQueryService,
+} from "../features/anime/service.ts";
 import { AnimeEnrollmentService } from "../features/anime/anime-enrollment-service.ts";
 import { AuthError } from "../features/auth/service.ts";
-import { LibraryService, RssService } from "../features/operations/service-contract.ts";
+import {
+  LibraryCommandService,
+  LibraryReadService,
+  RssReadService,
+} from "../features/operations/service-contract.ts";
 import { ClockService } from "../lib/clock.ts";
 import { FileSystem } from "../lib/filesystem.ts";
 import { createFileChunkStream, type FileByteRange } from "./file-stream.ts";
@@ -52,7 +60,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQuery(ListAnimeQuerySchema);
-        return yield* (yield* AnimeService).listAnime({
+        return yield* (yield* AnimeQueryService).listAnime({
           limit: query.limit,
           monitored: query.monitored,
           offset: query.offset,
@@ -66,7 +74,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQuery(SearchAnimeQuerySchema);
-        return yield* (yield* AnimeService).searchAnime(query.q ?? "");
+        return yield* (yield* AnimeQueryService).searchAnime(query.q ?? "");
       }),
       jsonResponse,
     ),
@@ -76,7 +84,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeService).getAnimeByAnilistId(params.id);
+        return yield* (yield* AnimeQueryService).getAnimeByAnilistId(params.id);
       }),
       jsonResponse,
     ),
@@ -86,7 +94,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeService).getAnime(params.id);
+        return yield* (yield* AnimeQueryService).getAnime(params.id);
       }),
       jsonResponse,
     ),
@@ -96,7 +104,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeService).listEpisodes(params.id);
+        return yield* (yield* AnimeQueryService).listEpisodes(params.id);
       }),
       jsonResponse,
     ),
@@ -106,7 +114,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeService).listFiles(params.id);
+        return yield* (yield* AnimeFileService).listFiles(params.id);
       }),
       jsonResponse,
     ),
@@ -116,7 +124,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* RssService).listAnimeRssFeeds(params.id);
+        return yield* (yield* RssReadService).listAnimeRssFeeds(params.id);
       }),
       jsonResponse,
     ),
@@ -126,7 +134,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* LibraryService).getRenamePreview(params.id);
+        return yield* (yield* LibraryReadService).getRenamePreview(params.id);
       }),
       jsonResponse,
     ),
@@ -149,7 +157,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* AnimeService).deleteAnime(params.id);
+        yield* (yield* AnimeMutationService).deleteAnime(params.id);
       }),
       successResponse,
     ),
@@ -160,7 +168,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBody(MonitoredBodySchema);
-        yield* (yield* AnimeService).setMonitored(params.id, body.monitored);
+        yield* (yield* AnimeMutationService).setMonitored(params.id, body.monitored);
       }),
       successResponse,
     ),
@@ -171,7 +179,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBody(PathBodySchema);
-        yield* (yield* AnimeService).updatePath(params.id, body.path);
+        yield* (yield* AnimeMutationService).updatePath(params.id, body.path);
       }),
       successResponse,
     ),
@@ -182,7 +190,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBody(ProfileNameBodySchema);
-        yield* (yield* AnimeService).updateProfile(params.id, body.profile_name);
+        yield* (yield* AnimeMutationService).updateProfile(params.id, body.profile_name);
       }),
       successResponse,
     ),
@@ -193,7 +201,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBody(ReleaseProfileIdsBodySchema);
-        yield* (yield* AnimeService).updateReleaseProfiles(params.id, [
+        yield* (yield* AnimeMutationService).updateReleaseProfiles(params.id, [
           ...body.release_profile_ids,
         ]);
       }),
@@ -205,7 +213,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* AnimeService).refreshEpisodes(params.id);
+        yield* (yield* AnimeMutationService).refreshEpisodes(params.id);
       }),
       successResponse,
     ),
@@ -215,7 +223,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeService).scanFolder(params.id);
+        return yield* (yield* AnimeFileService).scanFolder(params.id);
       }),
       jsonResponse,
     ),
@@ -225,7 +233,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
-        yield* (yield* AnimeService).deleteEpisodeFile(params.id, params.episodeNumber);
+        yield* (yield* AnimeFileService).deleteEpisodeFile(params.id, params.episodeNumber);
       }),
       successResponse,
     ),
@@ -236,7 +244,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
         const body = yield* decodeJsonBody(FilePathBodySchema);
-        yield* (yield* AnimeService).mapEpisode(params.id, params.episodeNumber, body.file_path);
+        yield* (yield* AnimeFileService).mapEpisode(params.id, params.episodeNumber, body.file_path);
       }),
       successResponse,
     ),
@@ -247,7 +255,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBody(BulkEpisodeMappingsBodySchema);
-        yield* (yield* AnimeService).bulkMapEpisodes(params.id, [...body.mappings]);
+        yield* (yield* AnimeFileService).bulkMapEpisodes(params.id, [...body.mappings]);
       }),
       successResponse,
     ),
@@ -280,7 +288,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* LibraryService).renameFiles(params.id);
+        return yield* (yield* LibraryCommandService).renameFiles(params.id);
       }),
       jsonResponse,
     ),
@@ -318,7 +326,7 @@ const animeStreamRouter = HttpRouter.empty.pipe(
           return yield* new AuthError({ message: "Forbidden or expired", status: 403 });
         }
 
-        const animeService = yield* AnimeService;
+        const animeService = yield* AnimeFileService;
         const resolvedEpisodeFile = yield* animeService.resolveEpisodeFile(
           params.id,
           params.episodeNumber,
