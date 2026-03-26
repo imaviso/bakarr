@@ -3,7 +3,8 @@ import { BunContext } from "@effect/platform-bun";
 import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
 
 import { AppRuntime } from "./app-runtime.ts";
-import { BackgroundWorkerControllerLive, BackgroundWorkerMonitorLive } from "./background.ts";
+import { BackgroundWorkerControllerLive } from "./background-controller.ts";
+import { BackgroundWorkerMonitorLive } from "./background-monitor.ts";
 import { AppConfig, type AppConfigShape } from "./config.ts";
 import { DatabaseLive } from "./db/database.ts";
 import { AniListClient, AniListClientLive } from "./features/anime/anilist.ts";
@@ -15,15 +16,13 @@ import { EventPublisherLive } from "./features/events/publisher.ts";
 import { LibraryRootsServiceLive } from "./features/library-roots/service.ts";
 import { LibraryBrowseServiceLive } from "./features/operations/library-browse-service.ts";
 import { operationsOrchestrationLayer } from "./features/operations/operations-orchestration.ts";
+import { DownloadServiceLive } from "./features/operations/download-service-live.ts";
+import { LibraryServiceLive } from "./features/operations/library-service-live.ts";
+import { RssServiceLive } from "./features/operations/rss-service-live.ts";
+import { SearchServiceLive } from "./features/operations/search-service-live.ts";
 import { QBitTorrentClient, QBitTorrentClientLive } from "./features/operations/qbittorrent.ts";
 import { RssClient, RssClientLive } from "./features/operations/rss-client.ts";
 import { SeaDexClient, SeaDexClientLive } from "./features/operations/seadex-client.ts";
-import {
-  DownloadServiceLive,
-  LibraryServiceLive,
-  RssServiceLive,
-  SearchServiceLive,
-} from "./features/operations/service.ts";
 import { ImageAssetServiceLive } from "./features/system/image-asset-service.ts";
 import { MetricsServiceLive } from "./features/system/metrics-service.ts";
 import { QualityProfileServiceLive } from "./features/system/quality-profile-service.ts";

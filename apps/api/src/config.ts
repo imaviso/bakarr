@@ -1,10 +1,9 @@
 import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
+import { PositiveIntSchema } from "./lib/domain-schema.ts";
 import { randomHexFrom, RandomService } from "./lib/random.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
-
-const PositiveIntSchema = Schema.Number.pipe(Schema.int(), Schema.greaterThan(0));
 
 export class AppConfigModel extends Schema.Class<AppConfigModel>("AppConfigModel")({
   appVersion: Schema.String,

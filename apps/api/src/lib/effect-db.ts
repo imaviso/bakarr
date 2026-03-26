@@ -2,6 +2,11 @@ import { Effect } from "effect";
 
 import { DatabaseError } from "../db/database.ts";
 
+export type TryDatabasePromise = <A>(
+  message: string,
+  try_: () => Promise<A>,
+) => Effect.Effect<A, DatabaseError>;
+
 const DATABASE_BUSY_RETRY_COUNT = 8;
 
 export function toDatabaseError(message: string) {
