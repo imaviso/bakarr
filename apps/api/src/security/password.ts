@@ -125,14 +125,18 @@ export const verifyPassword = Effect.fn("Password.verify")(function* (
   return timingSafeEqual(expected, actual);
 });
 
-export const hashPasswordWith = (randomBytes: (bytes: number) => Effect.Effect<Uint8Array>) =>
-  Effect.fn("Password.hashWith")(function* (password: string) {
+function makeHashPasswordWith(randomBytes: (bytes: number) => Effect.Effect<Uint8Array>) {
+  return Effect.fn("Password.hashWith")(function* (password: string) {
     const salt = yield* randomBytes(16);
     const keyMaterial = yield* deriveKeyMaterial(password);
     const hash = yield* deriveBits(keyMaterial, toArrayBuffer(salt), ITERATIONS);
 
     return [PASSWORD_SCHEME, String(ITERATIONS), toHex(salt), toHex(hash)].join("$");
   });
+}
+
+export const hashPasswordWith = (randomBytes: (bytes: number) => Effect.Effect<Uint8Array>) =>
+  makeHashPasswordWith(randomBytes);
 
 const randomBytesEffect = (bytes: number) =>
   Effect.sync(() => {
