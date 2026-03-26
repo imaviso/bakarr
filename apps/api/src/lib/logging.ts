@@ -1,4 +1,5 @@
 import { Logger, LogLevel } from "effect";
+import * as MutableRef from "effect/MutableRef";
 
 export function compactLogAnnotations(
   annotations: Record<string, unknown>,
@@ -38,18 +39,18 @@ const LOG_LEVELS = {
   warn: LogLevel.Warning,
 } as const;
 
-let runtimeLogLevel = LogLevel.Info;
+const runtimeLogLevel = MutableRef.make(LogLevel.Info);
 
 export function setRuntimeLogLevel(level: string | undefined) {
-  runtimeLogLevel = parseRuntimeLogLevel(level);
+  MutableRef.set(runtimeLogLevel, parseRuntimeLogLevel(level));
 }
 
 export function getRuntimeLogLevel() {
-  return runtimeLogLevel;
+  return MutableRef.get(runtimeLogLevel);
 }
 
 export const RuntimeLogger = Logger.make<unknown, void>((options) => {
-  if (options.logLevel.ordinal < runtimeLogLevel.ordinal) {
+  if (options.logLevel.ordinal < MutableRef.get(runtimeLogLevel).ordinal) {
     return;
   }
 

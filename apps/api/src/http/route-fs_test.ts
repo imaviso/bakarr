@@ -2,6 +2,7 @@ import { assertEquals, it } from "../test/vitest.ts";
 import { Effect } from "effect";
 
 import { makeNoopTestFileSystemWithOverridesEffect } from "../test/filesystem-test.ts";
+import { FileSystem } from "../lib/filesystem.ts";
 import { browsePath } from "./route-fs.ts";
 
 it.effect("browsePath returns paginated entries with defaults", () =>
@@ -12,7 +13,7 @@ it.effect("browsePath returns paginated entries with defaults", () =>
       { isDirectory: true, name: "subdir" },
     ]);
 
-    const result = yield* browsePath(fs, "/test");
+    const result = yield* browsePath("/test").pipe(Effect.provideService(FileSystem, fs));
 
     assertEquals(result.current_path, "/test");
     assertEquals(result.total, 3);
@@ -33,7 +34,7 @@ it.effect("browsePath returns all entries when limit is omitted", () =>
       })),
     );
 
-    const result = yield* browsePath(fs, "/test");
+    const result = yield* browsePath("/test").pipe(Effect.provideService(FileSystem, fs));
 
     assertEquals(result.entries.length, 600);
     assertEquals(result.total, 600);
@@ -52,20 +53,26 @@ it.effect("browsePath respects limit and offset", () =>
       { isDirectory: false, name: "e.mkv" },
     ]);
 
-    const page1 = yield* browsePath(fs, "/test", { limit: 2, offset: 0 });
+    const page1 = yield* browsePath("/test", { limit: 2, offset: 0 }).pipe(
+      Effect.provideService(FileSystem, fs),
+    );
     assertEquals(page1.entries.length, 2);
     assertEquals(page1.entries[0].name, "a.mkv");
     assertEquals(page1.entries[1].name, "b.mkv");
     assertEquals(page1.has_more, true);
     assertEquals(page1.total, 5);
 
-    const page2 = yield* browsePath(fs, "/test", { limit: 2, offset: 2 });
+    const page2 = yield* browsePath("/test", { limit: 2, offset: 2 }).pipe(
+      Effect.provideService(FileSystem, fs),
+    );
     assertEquals(page2.entries.length, 2);
     assertEquals(page2.entries[0].name, "c.mkv");
     assertEquals(page2.entries[1].name, "d.mkv");
     assertEquals(page2.has_more, true);
 
-    const page3 = yield* browsePath(fs, "/test", { limit: 2, offset: 4 });
+    const page3 = yield* browsePath("/test", { limit: 2, offset: 4 }).pipe(
+      Effect.provideService(FileSystem, fs),
+    );
     assertEquals(page3.entries.length, 1);
     assertEquals(page3.entries[0].name, "e.mkv");
     assertEquals(page3.has_more, false);
@@ -75,7 +82,9 @@ it.effect("browsePath respects limit and offset", () =>
 it.effect("browsePath caps limit at MAX_BROWSE_LIMIT", () =>
   Effect.gen(function* () {
     const fs = yield* makeMockFileSystemEffect([]);
-    const result = yield* browsePath(fs, "/test", { limit: 10000 });
+    const result = yield* browsePath("/test", { limit: 10000 }).pipe(
+      Effect.provideService(FileSystem, fs),
+    );
     assertEquals(result.limit, 500);
   }),
 );
@@ -83,7 +92,9 @@ it.effect("browsePath caps limit at MAX_BROWSE_LIMIT", () =>
 it.effect("browsePath floors limit at 1", () =>
   Effect.gen(function* () {
     const fs = yield* makeMockFileSystemEffect([]);
-    const result = yield* browsePath(fs, "/test", { limit: 0 });
+    const result = yield* browsePath("/test", { limit: 0 }).pipe(
+      Effect.provideService(FileSystem, fs),
+    );
     assertEquals(result.limit, 1);
   }),
 );
@@ -91,7 +102,9 @@ it.effect("browsePath floors limit at 1", () =>
 it.effect("browsePath floors negative offset at 0", () =>
   Effect.gen(function* () {
     const fs = yield* makeMockFileSystemEffect([]);
-    const result = yield* browsePath(fs, "/test", { offset: -10 });
+    const result = yield* browsePath("/test", { offset: -10 }).pipe(
+      Effect.provideService(FileSystem, fs),
+    );
     assertEquals(result.offset, 0);
   }),
 );
@@ -105,7 +118,7 @@ it.effect("browsePath sorts directories before files", () =>
       { isDirectory: true, name: "zdir" },
     ]);
 
-    const result = yield* browsePath(fs, "/test");
+    const result = yield* browsePath("/test").pipe(Effect.provideService(FileSystem, fs));
     assertEquals(result.entries.length, 4);
     assertEquals(result.entries[0].is_directory, true);
     assertEquals(result.entries[1].is_directory, true);
@@ -118,7 +131,9 @@ it.effect("browsePath returns empty page when offset exceeds total", () =>
   Effect.gen(function* () {
     const fs = yield* makeMockFileSystemEffect([{ isDirectory: false, name: "a.mkv" }]);
 
-    const result = yield* browsePath(fs, "/test", { limit: 1, offset: 10 });
+    const result = yield* browsePath("/test", { limit: 1, offset: 10 }).pipe(
+      Effect.provideService(FileSystem, fs),
+    );
 
     assertEquals(result.entries.length, 0);
     assertEquals(result.total, 1);

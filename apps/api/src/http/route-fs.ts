@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect";
-import type { FileSystemShape } from "../lib/filesystem.ts";
+import { FileSystem } from "../lib/filesystem.ts";
 
 const MAX_BROWSE_LIMIT = 500;
 
@@ -24,73 +24,70 @@ export const BrowseResultSchema = Schema.Struct({
 
 export type BrowseResult = Schema.Schema.Type<typeof BrowseResultSchema>;
 
-export function browsePath(
-  fs: FileSystemShape,
+export const browsePath = Effect.fn("RouteFs.browsePath")(function* (
   path: string,
   options?: { limit?: number; offset?: number },
-): Effect.Effect<BrowseResult, never, never> {
-  return Effect.gen(function* () {
-    const requestedLimit = options?.limit;
-    const limit =
-      requestedLimit === undefined
-        ? undefined
-        : Math.min(Math.max(1, requestedLimit), MAX_BROWSE_LIMIT);
-    const offset = Math.max(0, options?.offset ?? 0);
+) {
+  const fs = yield* FileSystem;
+  const requestedLimit = options?.limit;
+  const limit =
+    requestedLimit === undefined
+      ? undefined
+      : Math.min(Math.max(1, requestedLimit), MAX_BROWSE_LIMIT);
+  const offset = Math.max(0, options?.offset ?? 0);
 
-    const dirEntries = yield* fs
-      .readDir(path)
-      .pipe(Effect.catchTag("FileSystemError", () => Effect.succeed([])));
+  const dirEntries = yield* fs
+    .readDir(path)
+    .pipe(Effect.catchTag("FileSystemError", () => Effect.succeed([])));
 
-    const normalizedBasePath = path.replace(/\/$/, "");
-    const allEntries = dirEntries.map((entry) => {
-      const fullPath = `${normalizedBasePath}/${entry.name}`;
-
-      return {
-        is_directory: entry.isDirectory,
-        name: entry.name,
-        path: fullPath,
-        size: undefined,
-      } satisfies BrowseEntry;
-    });
-
-    allEntries.sort(
-      (left, right) =>
-        Number(right.is_directory) - Number(left.is_directory) ||
-        left.name.localeCompare(right.name),
-    );
-
-    const total = allEntries.length;
-    const paginatedEntriesBase =
-      limit === undefined ? allEntries.slice(offset) : allEntries.slice(offset, offset + limit);
-    const hasMore = limit === undefined ? false : offset + limit < total;
-    const responseLimit = limit ?? paginatedEntriesBase.length;
-
-    const paginatedEntries = yield* Effect.forEach(
-      paginatedEntriesBase,
-      (entry) =>
-        entry.is_directory
-          ? Effect.succeed(entry)
-          : fs.stat(entry.path).pipe(
-              Effect.map((stats) => ({
-                ...entry,
-                size: stats.isFile ? stats.size : undefined,
-              })),
-              Effect.catchTag("FileSystemError", () => Effect.succeed(entry)),
-            ),
-      { concurrency: "unbounded" },
-    );
+  const normalizedBasePath = path.replace(/\/$/, "");
+  const allEntries = dirEntries.map((entry) => {
+    const fullPath = `${normalizedBasePath}/${entry.name}`;
 
     return {
-      current_path: path,
-      entries: paginatedEntries,
-      has_more: hasMore,
-      limit: responseLimit,
-      offset,
-      parent_path: path === "." ? undefined : path.split("/").slice(0, -1).join("/") || "/",
-      total,
-    };
+      is_directory: entry.isDirectory,
+      name: entry.name,
+      path: fullPath,
+      size: undefined,
+    } satisfies BrowseEntry;
   });
-}
+
+  allEntries.sort(
+    (left, right) =>
+      Number(right.is_directory) - Number(left.is_directory) || left.name.localeCompare(right.name),
+  );
+
+  const total = allEntries.length;
+  const paginatedEntriesBase =
+    limit === undefined ? allEntries.slice(offset) : allEntries.slice(offset, offset + limit);
+  const hasMore = limit === undefined ? false : offset + limit < total;
+  const responseLimit = limit ?? paginatedEntriesBase.length;
+
+  const paginatedEntries = yield* Effect.forEach(
+    paginatedEntriesBase,
+    (entry) =>
+      entry.is_directory
+        ? Effect.succeed(entry)
+        : fs.stat(entry.path).pipe(
+            Effect.map((stats) => ({
+              ...entry,
+              size: stats.isFile ? stats.size : undefined,
+            })),
+            Effect.catchTag("FileSystemError", () => Effect.succeed(entry)),
+          ),
+    { concurrency: "unbounded" },
+  );
+
+  return {
+    current_path: path,
+    entries: paginatedEntries,
+    has_more: hasMore,
+    limit: responseLimit,
+    offset,
+    parent_path: path === "." ? undefined : path.split("/").slice(0, -1).join("/") || "/",
+    total,
+  };
+});
 
 export function escapeCsv(value: string) {
   const escaped = value.replaceAll('"', '""');

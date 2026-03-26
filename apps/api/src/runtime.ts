@@ -51,6 +51,47 @@ export interface RuntimeOptions {
 }
 
 export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: RuntimeOptions) {
+  const buildOperationsLayer = () =>
+    Layer.mergeAll(RssServiceLive, LibraryServiceLive, DownloadServiceLive, SearchServiceLive).pipe(
+      Layer.provide(Layer.mergeAll(platformLayer, orchestrationLayer)),
+    );
+
+  const buildServicesLayer = () =>
+    Layer.mergeAll(
+      authServiceLayer,
+      systemBootstrapLayer,
+      systemConfigServiceLayer,
+      systemStatusServiceLayer,
+      systemDashboardServiceLayer,
+      qualityProfileServiceLayer,
+      releaseProfileServiceLayer,
+      systemLogServiceLayer,
+    );
+
+  const buildAppServicesLayer = () =>
+    Layer.mergeAll(
+      libraryRootsLayer,
+      LibraryBrowseServiceLive.pipe(
+        Layer.provide(
+          Layer.mergeAll(
+            platformLayer,
+            operationsLayer,
+            systemConfigServiceLayer,
+            libraryRootsLayer,
+          ),
+        ),
+      ),
+      MetricsServiceLive.pipe(
+        Layer.provide(Layer.mergeAll(platformLayer, operationsLayer, systemStatusServiceLayer)),
+      ),
+      ImageAssetServiceLive.pipe(
+        Layer.provide(Layer.mergeAll(platformLayer, systemConfigServiceLayer)),
+      ),
+      AnimeEnrollmentServiceLive.pipe(
+        Layer.provide(Layer.mergeAll(platformLayer, operationsLayer, animeServiceLayer)),
+      ),
+    );
+
   const configBaseLayer = options?.configProvider
     ? AppConfig.layer(overrides).pipe(
         Layer.provide(Layer.setConfigProvider(options.configProvider)),
@@ -108,12 +149,7 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: 
   // Phase 3 flat operations wiring: orchestration layer + individual service layers
   const orchestrationLayer = operationsOrchestrationLayer.pipe(Layer.provide(platformLayer));
 
-  const operationsLayer = Layer.mergeAll(
-    RssServiceLive,
-    LibraryServiceLive,
-    DownloadServiceLive,
-    SearchServiceLive,
-  ).pipe(Layer.provide(Layer.mergeAll(platformLayer, orchestrationLayer)));
+  const operationsLayer = buildOperationsLayer();
 
   const animeServiceLayer = AnimeServiceLive.pipe(Layer.provide(platformLayer));
   const controllerLayer = BackgroundWorkerControllerLive.pipe(
@@ -139,37 +175,12 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: 
     Layer.provide(Layer.mergeAll(platformLayer, systemConfigServiceLayer)),
   );
 
-  const servicesLayer = Layer.mergeAll(
-    authServiceLayer,
-    systemBootstrapLayer,
-    systemConfigServiceLayer,
-    systemStatusServiceLayer,
-    systemDashboardServiceLayer,
-    qualityProfileServiceLayer,
-    releaseProfileServiceLayer,
-    systemLogServiceLayer,
-  );
+  const servicesLayer = buildServicesLayer();
 
   // Application-level services: thin orchestrators extracted from HTTP routes.
   const libraryRootsLayer = LibraryRootsServiceLive.pipe(Layer.provide(platformLayer));
 
-  const appServicesLayer = Layer.mergeAll(
-    libraryRootsLayer,
-    LibraryBrowseServiceLive.pipe(
-      Layer.provide(
-        Layer.mergeAll(platformLayer, operationsLayer, systemConfigServiceLayer, libraryRootsLayer),
-      ),
-    ),
-    MetricsServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(platformLayer, operationsLayer, systemStatusServiceLayer)),
-    ),
-    ImageAssetServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(platformLayer, systemConfigServiceLayer)),
-    ),
-    AnimeEnrollmentServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(platformLayer, operationsLayer, animeServiceLayer)),
-    ),
-  );
+  const appServicesLayer = buildAppServicesLayer();
 
   return Layer.mergeAll(
     platformLayer,
