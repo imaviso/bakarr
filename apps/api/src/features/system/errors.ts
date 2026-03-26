@@ -33,7 +33,7 @@ export const isStoredConfigReadError = Schema.is(
   Schema.Union(StoredConfigCorruptError, StoredConfigMissingError),
 );
 
-export type SystemServiceError =
+export type SystemConfigServiceError =
   | ConfigValidationError
   | DiskSpaceError
   | StoredConfigReadError

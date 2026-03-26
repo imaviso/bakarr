@@ -19,7 +19,6 @@ import {
   StringListSchema,
   type UpdateReleaseProfileInput,
 } from "./config-schema.ts";
-import { makeDefaultConfig } from "./defaults.ts";
 
 export type ConfigCore = Schema.Schema.Type<typeof ConfigCoreSchema>;
 export type ConfigCoreEncoded = Schema.Schema.Encoded<typeof ConfigCoreSchema>;
@@ -316,7 +315,11 @@ export function effectDecodeStoredLibraryConfig(
   row: { data: string } | undefined,
 ): Effect.Effect<ConfigCore["library"], StoredConfigCorruptError> {
   if (!row) {
-    return Effect.succeed({ ...makeDefaultConfig(":memory:").library });
+    return Effect.fail(
+      new StoredConfigCorruptError({
+        message: "Stored configuration is missing library settings",
+      }),
+    );
   }
 
   return effectDecodeConfigCore(row.data).pipe(Effect.map((config) => ({ ...config.library })));
@@ -326,10 +329,14 @@ export function effectDecodeImagePath(
   row: { data: string } | undefined,
 ): Effect.Effect<string, StoredConfigCorruptError> {
   if (!row) {
-    return Effect.succeed("./data/images");
+    return Effect.fail(
+      new StoredConfigCorruptError({
+        message: "Stored configuration is missing image path settings",
+      }),
+    );
   }
 
   return effectDecodeConfigCore(row.data).pipe(
-    Effect.map((config) => config.general.images_path.trim() || "./data/images"),
+    Effect.map((config) => config.general.images_path.trim()),
   );
 }

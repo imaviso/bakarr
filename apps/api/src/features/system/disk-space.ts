@@ -57,7 +57,7 @@ function runDfCommand(commandExecutor: CommandExecutor.CommandExecutor, path: st
 export function makeDiskSpaceInspector(
   commandExecutor?: CommandExecutor.CommandExecutor,
 ): DiskSpaceInspectorShape {
-  const getDiskSpace = Effect.fn("System.getDiskSpace")(function* (path: string) {
+  const getDiskSpace = Effect.fn("DiskSpaceInspector.getDiskSpace")(function* (path: string) {
     if (!commandExecutor) {
       return yield* new DiskSpaceError({
         message: `Failed to get disk space for ${path}: command executor unavailable`,
@@ -76,7 +76,7 @@ export function makeDiskSpaceInspector(
     });
   });
 
-  const getDiskSpaceSafe = Effect.fn("System.getDiskSpaceSafe")(
+  const getDiskSpaceSafe = Effect.fn("DiskSpaceInspector.getDiskSpaceSafe")(
     (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> =>
       getDiskSpace(path).pipe(
         Effect.tapError((error) =>
