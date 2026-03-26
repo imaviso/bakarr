@@ -64,5 +64,3 @@ export function wrapOperationsError(message: string) {
     });
   };
 }
-
-export { tryDatabasePromise } from "../../lib/effect-db.ts";

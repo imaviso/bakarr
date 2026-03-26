@@ -4,13 +4,14 @@ import { Effect } from "effect";
 import { makeTestConfig } from "../../test/config-fixture.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
   OperationsAnimeNotFoundError,
   OperationsPathError,
 } from "./errors.ts";
-import { maybeQBitConfig, tryDatabasePromise, wrapOperationsError } from "./service-support.ts";
+import { maybeQBitConfig, wrapOperationsError } from "./service-support.ts";
 import { QBitConfigModel } from "./qbittorrent.ts";
 
 it("operations service support builds qBittorrent config only when enabled", () => {

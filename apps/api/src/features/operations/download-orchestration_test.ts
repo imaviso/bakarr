@@ -32,8 +32,8 @@ import {
   encodeDownloadSourceMetadata,
   loadDownloadPresentationContexts,
 } from "./repository.ts";
-import { maybeQBitConfig, tryDatabasePromise, wrapOperationsError } from "./service-support.ts";
-import { toDatabaseError } from "../../lib/effect-db.ts";
+import { maybeQBitConfig, wrapOperationsError } from "./service-support.ts";
+import { tryDatabasePromise, toDatabaseError } from "../../lib/effect-db.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
 
 it.scoped("triggerDownload persists merged release provenance on queued downloads", () =>
