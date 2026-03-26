@@ -162,7 +162,7 @@ it("route errors preserves range headers for episode streaming", () => {
 
 it("route errors falls back for unknown failures", () => {
   assertEquals(mapRouteError(new Error("boom")), {
-    message: "boom",
+    message: "Unexpected server error",
     status: 500,
   });
   assertEquals(mapRouteError("boom"), {

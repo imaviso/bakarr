@@ -1,9 +1,10 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { Effect, Match, Schema } from "effect";
 
 import { AnimeService } from "../features/anime/service.ts";
+import { AnimeEnrollmentService } from "../features/anime/anime-enrollment-service.ts";
 import { AuthError } from "../features/auth/service.ts";
-import { DownloadService, LibraryService, RssService } from "../features/operations/service.ts";
+import { LibraryService, RssService } from "../features/operations/service.ts";
 import { ClockService } from "../lib/clock.ts";
 import { FileSystem } from "../lib/filesystem.ts";
 import { createFileChunkStream, type FileByteRange } from "./file-stream.ts";
@@ -53,13 +54,11 @@ const animeReadRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const query = yield* decodeQuery(ListAnimeQuerySchema);
-          return yield* Effect.flatMap(AnimeService, (service) =>
-            service.listAnime({
-              limit: query.limit,
-              monitored: query.monitored,
-              offset: query.offset,
-            }),
-          );
+          return yield* (yield* AnimeService).listAnime({
+            limit: query.limit,
+            monitored: query.monitored,
+            offset: query.offset,
+          });
         }),
       ),
       jsonResponse,
@@ -72,9 +71,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const query = yield* decodeQuery(SearchAnimeQuerySchema);
-          return yield* Effect.flatMap(AnimeService, (service) =>
-            service.searchAnime(query.q ?? ""),
-          );
+          return yield* (yield* AnimeService).searchAnime(query.q ?? "");
         }),
       ),
       jsonResponse,
@@ -87,9 +84,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          return yield* Effect.flatMap(AnimeService, (service) =>
-            service.getAnimeByAnilistId(params.id),
-          );
+          return yield* (yield* AnimeService).getAnimeByAnilistId(params.id);
         }),
       ),
       jsonResponse,
@@ -102,7 +97,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          return yield* Effect.flatMap(AnimeService, (service) => service.getAnime(params.id));
+          return yield* (yield* AnimeService).getAnime(params.id);
         }),
       ),
       jsonResponse,
@@ -115,7 +110,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          return yield* Effect.flatMap(AnimeService, (service) => service.listEpisodes(params.id));
+          return yield* (yield* AnimeService).listEpisodes(params.id);
         }),
       ),
       jsonResponse,
@@ -128,7 +123,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          return yield* Effect.flatMap(AnimeService, (service) => service.listFiles(params.id));
+          return yield* (yield* AnimeService).listFiles(params.id);
         }),
       ),
       jsonResponse,
@@ -141,9 +136,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          return yield* Effect.flatMap(RssService, (service) =>
-            service.listAnimeRssFeeds(params.id),
-          );
+          return yield* (yield* RssService).listAnimeRssFeeds(params.id);
         }),
       ),
       jsonResponse,
@@ -156,9 +149,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          return yield* Effect.flatMap(LibraryService, (service) =>
-            service.getRenamePreview(params.id),
-          );
+          return yield* (yield* LibraryService).getRenamePreview(params.id);
         }),
       ),
       jsonResponse,
@@ -174,15 +165,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(AddAnimeInputSchema);
-          const anime = yield* Effect.flatMap(AnimeService, (service) => service.addAnime(body));
-
-          if (body.monitor_and_search) {
-            yield* Effect.flatMap(DownloadService, (service) =>
-              service.triggerSearchMissing(anime.id),
-            );
-          }
-
-          return anime;
+          return yield* (yield* AnimeEnrollmentService).enroll(body);
         }),
       ),
       jsonResponse,
@@ -195,7 +178,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          yield* Effect.flatMap(AnimeService, (service) => service.deleteAnime(params.id));
+          yield* (yield* AnimeService).deleteAnime(params.id);
         }),
       ),
       successResponse,
@@ -209,9 +192,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
           const body = yield* decodeJsonBody(MonitoredBodySchema);
-          yield* Effect.flatMap(AnimeService, (service) =>
-            service.setMonitored(params.id, body.monitored),
-          );
+          yield* (yield* AnimeService).setMonitored(params.id, body.monitored);
         }),
       ),
       successResponse,
@@ -225,9 +206,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
           const body = yield* decodeJsonBody(PathBodySchema);
-          yield* Effect.flatMap(AnimeService, (service) =>
-            service.updatePath(params.id, body.path),
-          );
+          yield* (yield* AnimeService).updatePath(params.id, body.path);
         }),
       ),
       successResponse,
@@ -241,9 +220,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
           const body = yield* decodeJsonBody(ProfileNameBodySchema);
-          yield* Effect.flatMap(AnimeService, (service) =>
-            service.updateProfile(params.id, body.profile_name),
-          );
+          yield* (yield* AnimeService).updateProfile(params.id, body.profile_name);
         }),
       ),
       successResponse,
@@ -257,9 +234,9 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
           const body = yield* decodeJsonBody(ReleaseProfileIdsBodySchema);
-          yield* Effect.flatMap(AnimeService, (service) =>
-            service.updateReleaseProfiles(params.id, [...body.release_profile_ids]),
-          );
+          yield* (yield* AnimeService).updateReleaseProfiles(params.id, [
+            ...body.release_profile_ids,
+          ]);
         }),
       ),
       successResponse,
@@ -272,7 +249,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          yield* Effect.flatMap(AnimeService, (service) => service.refreshEpisodes(params.id));
+          yield* (yield* AnimeService).refreshEpisodes(params.id);
         }),
       ),
       successResponse,
@@ -285,7 +262,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          return yield* Effect.flatMap(AnimeService, (service) => service.scanFolder(params.id));
+          return yield* (yield* AnimeService).scanFolder(params.id);
         }),
       ),
       jsonResponse,
@@ -298,9 +275,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
-          yield* Effect.flatMap(AnimeService, (service) =>
-            service.deleteEpisodeFile(params.id, params.episodeNumber),
-          );
+          yield* (yield* AnimeService).deleteEpisodeFile(params.id, params.episodeNumber);
         }),
       ),
       successResponse,
@@ -314,9 +289,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
           const body = yield* decodeJsonBody(FilePathBodySchema);
-          yield* Effect.flatMap(AnimeService, (service) =>
-            service.mapEpisode(params.id, params.episodeNumber, body.file_path),
-          );
+          yield* (yield* AnimeService).mapEpisode(params.id, params.episodeNumber, body.file_path);
         }),
       ),
       successResponse,
@@ -330,9 +303,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
           const body = yield* decodeJsonBody(BulkEpisodeMappingsBodySchema);
-          yield* Effect.flatMap(AnimeService, (service) =>
-            service.bulkMapEpisodes(params.id, [...body.mappings]),
-          );
+          yield* (yield* AnimeService).bulkMapEpisodes(params.id, [...body.mappings]);
         }),
       ),
       successResponse,
@@ -346,24 +317,17 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
           const query = yield* decodeQuery(StreamUrlQuerySchema);
-          const expiresAt = yield* Effect.flatMap(ClockService, (clock) =>
-            Effect.map(clock.currentTimeMillis, (now) => now + STREAM_EXPIRY_MS),
-          );
-          const signature = yield* Effect.flatMap(StreamTokenSigner, (signer) =>
-            signer.sign({
-              animeId: params.id,
-              episodeNumber: query.episodeNumber,
-              expiresAt,
-            }),
-          ).pipe(
-            Effect.mapError(
-              () =>
-                new AuthError({
-                  message: "Failed to sign stream URL",
-                  status: 400,
-                }),
-            ),
-          );
+          const clock = yield* ClockService;
+          const now = yield* clock.currentTimeMillis;
+          const expiresAt = now + STREAM_EXPIRY_MS;
+          const signer = yield* StreamTokenSigner;
+          const signature = yield* signer
+            .sign({ animeId: params.id, episodeNumber: query.episodeNumber, expiresAt })
+            .pipe(
+              Effect.mapError(
+                () => new AuthError({ message: "Failed to sign stream URL", status: 400 }),
+              ),
+            );
           const url = `/api/stream/${params.id}/${query.episodeNumber}?exp=${expiresAt}&sig=${signature}`;
           return { url };
         }),
@@ -378,7 +342,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          return yield* Effect.flatMap(LibraryService, (service) => service.renameFiles(params.id));
+          return yield* (yield* LibraryService).renameFiles(params.id);
         }),
       ),
       jsonResponse,
@@ -398,68 +362,50 @@ const animeStreamRouter = HttpRouter.empty.pipe(
           exp: url.searchParams.get("exp") ?? "",
           sig: url.searchParams.get("sig") ?? "",
         }).pipe(
-          Effect.mapError(
-            () =>
-              new AuthError({
-                message: "Forbidden or expired",
-                status: 403,
-              }),
-          ),
+          Effect.mapError(() => new AuthError({ message: "Forbidden or expired", status: 403 })),
         );
-        const nowMillis = yield* Effect.flatMap(ClockService, (clock) => clock.currentTimeMillis);
-        const isAuthorized = yield* Effect.flatMap(StreamTokenSigner, (signer) =>
-          signer.verify({
+        const clock = yield* ClockService;
+        const nowMillis = yield* clock.currentTimeMillis;
+        const signer = yield* StreamTokenSigner;
+        const isAuthorized = yield* signer
+          .verify({
             animeId: params.id,
             episodeNumber: params.episodeNumber,
             expiresAt: query.exp,
             nowMillis,
             signatureHex: query.sig,
-          }),
-        ).pipe(
-          Effect.mapError(
-            (cause) =>
-              new AuthError({
-                message: cause.message,
-                status: 403,
-              }),
-          ),
-        );
+          })
+          .pipe(Effect.mapError((cause) => new AuthError({ message: cause.message, status: 403 })));
 
         if (!isAuthorized) {
-          return yield* new AuthError({
-            message: "Forbidden or expired",
-            status: 403,
-          });
+          return yield* new AuthError({ message: "Forbidden or expired", status: 403 });
         }
 
-        const resolvedEpisodeFile = yield* Effect.flatMap(AnimeService, (service) =>
-          service.resolveEpisodeFile(params.id, params.episodeNumber),
+        const animeService = yield* AnimeService;
+        const resolvedEpisodeFile = yield* animeService.resolveEpisodeFile(
+          params.id,
+          params.episodeNumber,
         );
 
-        switch (resolvedEpisodeFile._tag) {
-          case "EpisodeFileUnmapped":
-          case "EpisodeFileMissing":
-            return yield* new AuthError({
-              message: "Episode file not found",
-              status: 404,
-            });
-          case "EpisodeFileRootInaccessible":
-            return yield* new AuthError({
-              message: "Anime root folder is inaccessible",
-              status: 404,
-            });
-          case "EpisodeFileOutsideRoot":
-            return yield* new AuthError({
-              message: "Episode file mapping is invalid",
-              status: 404,
-            });
-          case "EpisodeFileResolved":
-            break;
-        }
+        const notFoundError = (message: string) => new AuthError({ message, status: 404 });
+
+        const episodeFilePath = yield* Match.value(resolvedEpisodeFile).pipe(
+          Match.tag("EpisodeFileUnmapped", "EpisodeFileMissing", () =>
+            Effect.fail(notFoundError("Episode file not found")),
+          ),
+          Match.tag("EpisodeFileRootInaccessible", () =>
+            Effect.fail(notFoundError("Anime root folder is inaccessible")),
+          ),
+          Match.tag("EpisodeFileOutsideRoot", () =>
+            Effect.fail(notFoundError("Episode file mapping is invalid")),
+          ),
+          Match.tag("EpisodeFileResolved", (f) => Effect.succeed(f)),
+          Match.exhaustive,
+        );
 
         const fs = yield* FileSystem;
         const fileInfo = yield* fs
-          .stat(resolvedEpisodeFile.filePath)
+          .stat(episodeFilePath.filePath)
           .pipe(
             Effect.mapError(
               () => new AuthError({ message: "Episode file not found", status: 404 }),
@@ -469,11 +415,11 @@ const animeStreamRouter = HttpRouter.empty.pipe(
 
         return {
           contentLength: byteRange ? byteRange.end - byteRange.start + 1 : fileInfo.size,
-          contentType: guessContentType(resolvedEpisodeFile.fileName),
-          fileName: resolvedEpisodeFile.fileName,
+          contentType: guessContentType(episodeFilePath.fileName),
+          fileName: episodeFilePath.fileName,
           fileSize: fileInfo.size,
           fs,
-          filePath: resolvedEpisodeFile.filePath,
+          filePath: episodeFilePath.filePath,
           range: byteRange,
           status: byteRange ? 206 : 200,
         };

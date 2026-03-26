@@ -91,7 +91,17 @@ export const routeResponse = <A, E, R, E2, R2>(
 ) =>
   effect.pipe(
     Effect.flatMap(onSuccess),
-    Effect.catchAll((error) => Effect.succeed(mapToServerResponse(error))),
+    Effect.catchAll((error) =>
+      Effect.logError("HTTP route failed").pipe(
+        Effect.annotateLogs({
+          error:
+            typeof error === "object" && error !== null && "_tag" in error
+              ? String(error._tag)
+              : "unknown",
+        }),
+        Effect.as(mapToServerResponse(error)),
+      ),
+    ),
   );
 
 export const jsonResponse = <A>(value: A) => HttpServerResponse.json(value);

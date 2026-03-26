@@ -137,7 +137,7 @@ export function mapRouteError(error: unknown): RouteErrorResponse {
   }
 
   if (error instanceof Error) {
-    return { message: error.message, status: 500 };
+    return { message: "Unexpected server error", status: 500 };
   }
 
   return { message: "Unexpected server error", status: 500 };

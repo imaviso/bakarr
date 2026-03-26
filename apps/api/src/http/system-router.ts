@@ -1,5 +1,5 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect, Metric, Schema, Stream } from "effect";
+import { Effect, Schema, Stream } from "effect";
 
 import type {
   DownloadStatus,
@@ -11,11 +11,14 @@ import { NotificationEventSchema, SystemLogSchema } from "../../../../packages/s
 import { AnimeService } from "../features/anime/service.ts";
 import { EventBus } from "../features/events/event-bus.ts";
 import { DownloadService, LibraryService, RssService } from "../features/operations/service.ts";
-import { SystemService } from "../features/system/service.ts";
-import { AuthError } from "../features/auth/service.ts";
-import { ClockService } from "../lib/clock.ts";
-import { FileSystem, isWithinPathRoot } from "../lib/filesystem.ts";
-import { recordHttpRequestMetrics, renderBakarrPrometheusMetrics } from "../lib/metrics.ts";
+import { ImageAssetService } from "../features/system/image-asset-service.ts";
+import { MetricsService } from "../features/system/metrics-service.ts";
+import { QualityProfileService } from "../features/system/quality-profile-service.ts";
+import { ReleaseProfileService } from "../features/system/release-profile-service.ts";
+import { SystemConfigService } from "../features/system/system-config-service.ts";
+import { SystemDashboardService } from "../features/system/system-dashboard-service.ts";
+import { SystemLogService } from "../features/system/system-log-service.ts";
+import { SystemStatusService } from "../features/system/system-status-service.ts";
 import {
   ConfigSchema,
   CreateReleaseProfileSchema,
@@ -37,7 +40,7 @@ import {
   successResponse,
 } from "./router-helpers.ts";
 import { requireViewerFromHttpRequest } from "./route-auth.ts";
-import { contentTypeForPath, escapeCsv, isSupportedImagePath } from "./route-fs.ts";
+import { contentTypeForPath, escapeCsv } from "./route-fs.ts";
 
 const NotificationEventJsonSchema = Schema.parseJson(NotificationEventSchema);
 const encodeNotificationEvent = Schema.encodeSync(NotificationEventJsonSchema);
@@ -51,12 +54,11 @@ const healthRouter = HttpRouter.empty.pipe(
     "/api/system/health/ready",
     routeResponse(
       Effect.gen(function* () {
-        yield* Effect.flatMap(SystemService, (service) => service.getSystemStatus());
+        yield* (yield* SystemStatusService).getSystemStatus();
         return { checks: { database: true }, ready: true };
       }).pipe(
-        Effect.catchTag("DatabaseError", () =>
-          Effect.succeed({ checks: { database: false }, ready: false }),
-        ),
+        // Catch all known typed failures — any means not ready (fixes P2.8).
+        Effect.catchAll(() => Effect.succeed({ checks: { database: false }, ready: false })),
       ),
       (value) => HttpServerResponse.json(value, { status: value.ready ? 200 : 503 }),
     ),
@@ -66,58 +68,24 @@ const healthRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.getSystemStatus()),
+        Effect.flatMap(SystemStatusService, (service) => service.getSystemStatus()),
       ),
       jsonResponse,
     ),
   ),
 );
 
-const notFoundErrorValue = () => new AuthError({ message: "Not Found", status: 404 });
-const notFoundError = () => Effect.fail(notFoundErrorValue());
-
 const infoRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/images/*",
     routeResponse(
-      Effect.zipRight(
-        requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const request = yield* HttpServerRequest.HttpServerRequest;
-          const { pathname } = new URL(request.url, "http://bakarr.local");
-          const rawRelativePath = pathname.slice("/api/images/".length);
-          const decodedRelativePath = yield* Effect.try(() =>
-            decodeURIComponent(rawRelativePath),
-          ).pipe(Effect.catchAll(() => notFoundError()));
-
-          const relativePath = decodedRelativePath
-            .split("/")
-            .filter((segment) => segment.length > 0);
-
-          if (
-            relativePath.length === 0 ||
-            relativePath.some(
-              (segment) => segment === "." || segment === ".." || segment.includes("\\"),
-            )
-          ) {
-            return yield* notFoundError();
-          }
-
-          const config = yield* Effect.flatMap(SystemService, (service) => service.getConfig());
-          const imagesRoot = config.general.images_path.replace(/\/$/, "");
-          const filePath = `${imagesRoot}/${relativePath.join("/")}`;
-
-          if (!isWithinPathRoot(filePath, imagesRoot) || !isSupportedImagePath(filePath)) {
-            return yield* notFoundError();
-          }
-
-          const bytes = yield* Effect.flatMap(FileSystem, (fs) => fs.readFile(filePath)).pipe(
-            Effect.mapError(() => notFoundErrorValue()),
-          );
-
-          return { bytes, filePath };
-        }),
-      ),
+      Effect.gen(function* () {
+        yield* requireViewerFromHttpRequest();
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        const { pathname } = new URL(request.url, "http://bakarr.local");
+        const rawRelativePath = pathname.slice("/api/images/".length);
+        return yield* (yield* ImageAssetService).resolveImageAsset(rawRelativePath);
+      }),
       ({ bytes, filePath }) =>
         Effect.succeed(
           HttpServerResponse.uint8Array(Uint8Array.from(bytes), {
@@ -132,7 +100,7 @@ const infoRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.getDashboard()),
+        Effect.flatMap(SystemDashboardService, (service) => service.getDashboard()),
       ),
       jsonResponse,
     ),
@@ -142,7 +110,7 @@ const infoRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.getJobs()),
+        Effect.flatMap(SystemStatusService, (service) => service.getJobs()),
       ),
       jsonResponse,
     ),
@@ -152,7 +120,7 @@ const infoRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.getLibraryStats()),
+        Effect.flatMap(SystemStatusService, (service) => service.getLibraryStats()),
       ),
       jsonResponse,
     ),
@@ -162,7 +130,7 @@ const infoRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.getActivity()),
+        Effect.flatMap(SystemStatusService, (service) => service.getActivity()),
       ),
       jsonResponse,
     ),
@@ -175,7 +143,7 @@ const configRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.getConfig()),
+        Effect.flatMap(SystemConfigService, (service) => service.getConfig()),
       ),
       jsonResponse,
     ),
@@ -187,7 +155,7 @@ const configRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(ConfigSchema);
-          yield* Effect.flatMap(SystemService, (service) => service.updateConfig(body));
+          yield* (yield* SystemConfigService).updateConfig(body);
         }),
       ),
       successResponse,
@@ -198,7 +166,7 @@ const configRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.listProfiles()),
+        Effect.flatMap(QualityProfileService, (service) => service.listProfiles()),
       ),
       jsonResponse,
     ),
@@ -208,7 +176,7 @@ const configRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.listQualities()),
+        Effect.flatMap(QualityProfileService, (service) => service.listQualities()),
       ),
       jsonResponse,
     ),
@@ -223,7 +191,7 @@ const configRouter = HttpRouter.empty.pipe(
             QualityProfileSchema,
             "create quality profile",
           );
-          return yield* Effect.flatMap(SystemService, (service) => service.createProfile(body));
+          return yield* (yield* QualityProfileService).createProfile(body);
         }),
       ),
       jsonResponse,
@@ -237,9 +205,7 @@ const configRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(NameParamsSchema);
           const body = yield* decodeJsonBody(QualityProfileSchema);
-          return yield* Effect.flatMap(SystemService, (service) =>
-            service.updateProfile(params.name, body),
-          );
+          return yield* (yield* QualityProfileService).updateProfile(params.name, body);
         }),
       ),
       jsonResponse,
@@ -252,7 +218,7 @@ const configRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(NameParamsSchema);
-          yield* Effect.flatMap(SystemService, (service) => service.deleteProfile(params.name));
+          yield* (yield* QualityProfileService).deleteProfile(params.name);
         }),
       ),
       successResponse,
@@ -263,7 +229,7 @@ const configRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.listReleaseProfiles()),
+        Effect.flatMap(ReleaseProfileService, (service) => service.listReleaseProfiles()),
       ),
       jsonResponse,
     ),
@@ -275,9 +241,7 @@ const configRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const body = yield* decodeJsonBody(CreateReleaseProfileSchema);
-          return yield* Effect.flatMap(SystemService, (service) =>
-            service.createReleaseProfile(body),
-          );
+          return yield* (yield* ReleaseProfileService).createReleaseProfile(body);
         }),
       ),
       jsonResponse,
@@ -291,9 +255,7 @@ const configRouter = HttpRouter.empty.pipe(
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
           const body = yield* decodeJsonBody(UpdateReleaseProfileSchema);
-          yield* Effect.flatMap(SystemService, (service) =>
-            service.updateReleaseProfile(params.id, body),
-          );
+          yield* (yield* ReleaseProfileService).updateReleaseProfile(params.id, body);
         }),
       ),
       successResponse,
@@ -306,9 +268,7 @@ const configRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const params = yield* decodePathParams(IdParamsSchema);
-          yield* Effect.flatMap(SystemService, (service) =>
-            service.deleteReleaseProfile(params.id),
-          );
+          yield* (yield* ReleaseProfileService).deleteReleaseProfile(params.id);
         }),
       ),
       successResponse,
@@ -324,15 +284,13 @@ const logsRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const query = yield* decodeQueryWithLabel(SystemLogsQuerySchema, "system logs");
-          return yield* Effect.flatMap(SystemService, (service) =>
-            service.getLogs({
-              endDate: query.end_date,
-              eventType: query.event_type,
-              level: query.level,
-              page: query.page ?? 1,
-              startDate: query.start_date,
-            }),
-          );
+          return yield* (yield* SystemLogService).getLogs({
+            endDate: query.end_date,
+            eventType: query.event_type,
+            level: query.level,
+            page: query.page ?? 1,
+            startDate: query.start_date,
+          });
         }),
       ),
       jsonResponse,
@@ -343,7 +301,7 @@ const logsRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.flatMap(SystemService, (service) => service.clearLogs()),
+        Effect.flatMap(SystemLogService, (service) => service.clearLogs()),
       ),
       successResponse,
     ),
@@ -355,16 +313,14 @@ const logsRouter = HttpRouter.empty.pipe(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
           const query = yield* decodeQuery(SystemLogExportQuerySchema);
-          const logs = yield* Effect.flatMap(SystemService, (service) =>
-            service.getLogs({
-              endDate: query.end_date,
-              eventType: query.event_type,
-              level: query.level,
-              page: 1,
-              pageSize: 10_000,
-              startDate: query.start_date,
-            }),
-          );
+          const logs = yield* (yield* SystemLogService).getLogs({
+            endDate: query.end_date,
+            eventType: query.event_type,
+            level: query.level,
+            page: 1,
+            pageSize: 10_000,
+            startDate: query.start_date,
+          });
           return { format: query.format ?? "json", logs };
         }),
       ),
@@ -435,9 +391,7 @@ const runtimeRouter = HttpRouter.empty.pipe(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
         Effect.gen(function* () {
-          const downloads = yield* Effect.flatMap(DownloadService, (service) =>
-            service.getDownloadProgress(),
-          );
+          const downloads = yield* (yield* DownloadService).getDownloadProgress();
           const eventBus = yield* EventBus;
           return { downloads, eventBus };
         }),
@@ -459,47 +413,7 @@ const runtimeRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.zipRight(
         requireViewerFromHttpRequest(),
-        Effect.gen(function* () {
-          const startedAt = yield* Effect.flatMap(
-            ClockService,
-            (clock) => clock.currentMonotonicMillis,
-          );
-          const [status, stats, downloads] = yield* Effect.all([
-            Effect.flatMap(SystemService, (service) => service.getSystemStatus()),
-            Effect.flatMap(SystemService, (service) => service.getLibraryStats()),
-            Effect.flatMap(DownloadService, (service) => service.getDownloadProgress()),
-          ]);
-          const finishedAt = yield* Effect.flatMap(
-            ClockService,
-            (clock) => clock.currentMonotonicMillis,
-          );
-          const snapshot = yield* recordHttpRequestMetrics({
-            durationMs: finishedAt - startedAt,
-            method: "GET",
-            route: "/api/metrics",
-            status: 200,
-          }).pipe(Effect.zipRight(Metric.snapshot));
-
-          return (
-            [
-              "# TYPE bakarr_active_torrents gauge",
-              `bakarr_active_torrents ${status.active_torrents}`,
-              "# TYPE bakarr_pending_downloads gauge",
-              `bakarr_pending_downloads ${status.pending_downloads}`,
-              "# TYPE bakarr_total_anime gauge",
-              `bakarr_total_anime ${stats.total_anime}`,
-              "# TYPE bakarr_total_episodes gauge",
-              `bakarr_total_episodes ${stats.total_episodes}`,
-              "# TYPE bakarr_downloaded_episodes gauge",
-              `bakarr_downloaded_episodes ${stats.downloaded_episodes}`,
-              "# TYPE bakarr_missing_episodes gauge",
-              `bakarr_missing_episodes ${stats.missing_episodes}`,
-              "# TYPE bakarr_active_download_items gauge",
-              `bakarr_active_download_items ${downloads.length}`,
-              ...renderBakarrPrometheusMetrics(snapshot),
-            ].join("\n") + "\n"
-          );
-        }),
+        Effect.flatMap(MetricsService, (service) => service.renderPrometheusMetrics()),
       ),
       (body) =>
         Effect.succeed(
