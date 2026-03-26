@@ -196,15 +196,7 @@ const makeAuthService = Effect.gen(function* () {
       nowIso,
     );
 
-    return {
-      response: {
-        api_key: "************************",
-        must_change_password: userRow.mustChangePassword,
-        username: userRow.username,
-      },
-      token,
-      user: toAuthUser(userRow),
-    };
+    return toLoginResult(userRow, token);
   });
 
   const loginWithApiKey = Effect.fn("AuthService.loginWithApiKey")(function* (
@@ -239,15 +231,7 @@ const makeAuthService = Effect.gen(function* () {
       nowIso,
     );
 
-    return {
-      response: {
-        api_key: "************************",
-        must_change_password: userRow.mustChangePassword,
-        username: userRow.username,
-      },
-      token,
-      user: toAuthUser(userRow),
-    };
+    return toLoginResult(userRow, token);
   });
 
   const resolveViewer = Effect.fn("AuthService.resolveViewer")(function* (
@@ -443,6 +427,18 @@ const makeAuthService = Effect.gen(function* () {
 });
 
 export const AuthServiceLive = Layer.effect(AuthService, makeAuthService);
+
+function toLoginResult(userRow: typeof users.$inferSelect, token: string) {
+  return {
+    response: {
+      api_key: "************************",
+      must_change_password: userRow.mustChangePassword,
+      username: userRow.username,
+    },
+    token,
+    user: toAuthUser(userRow),
+  };
+}
 
 function toAuthUser(row: typeof users.$inferSelect): AuthUser {
   return {

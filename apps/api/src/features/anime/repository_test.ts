@@ -305,21 +305,15 @@ it.scoped("anime repository helpers use stored config when available", () =>
       yield* Effect.promise(() =>
         db.insert(appConfig).values({
           id: 1,
-          data: encodeConfigCore({
-            ...makeDefaultConfig("./test.sqlite"),
-            downloads: {
-              ...makeDefaultConfig("./test.sqlite").downloads,
-              create_anime_folders: false,
-            },
-            general: {
-              ...makeDefaultConfig("./test.sqlite").general,
-              images_path: "./custom-images",
-            },
-            library: {
-              ...makeDefaultConfig("./test.sqlite").library,
-              library_path: "/anime-library",
-            },
-          }),
+          data: encodeConfigCore(
+            (() => {
+              const config = structuredClone(makeDefaultConfig("./test.sqlite"));
+              config.downloads.create_anime_folders = false;
+              config.general.images_path = "./custom-images";
+              config.library.library_path = "/anime-library";
+              return config;
+            })(),
+          ),
           updatedAt: "2024-01-01T00:00:00.000Z",
         }),
       );

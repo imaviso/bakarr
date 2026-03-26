@@ -239,7 +239,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeService.deleteEpisodeFile
     ).pipe(mapAnimeDbError("Failed to delete episode file"));
 
     if (episodeRow.filePath) {
-      const filePath = episodeRow.filePath;
+      const { filePath } = episodeRow;
       const resolvedPath = yield* input.fs.realPath(filePath).pipe(
         Effect.mapError(
           () =>
@@ -391,72 +391,73 @@ export const listAnimeFilesEffect = Effect.fn("AnimeService.listAnimeFilesEffect
       cachedEpisodeRowsByPath.set(row.filePath, current);
     }
 
-    return yield* Effect.forEach(
-      files,
-      (file) =>
-        Effect.gen(function* () {
-          const cachedRowsForFile = cachedEpisodeRowsByPath.get(file.path) ?? [];
-          const parsed = parseFileSourceIdentity(file.path);
-          const identity = parsed.source_identity;
-          const sharedIdentity = toSharedParsedEpisodeIdentity(identity);
-          const episodeNumber =
-            identity && identity.scheme !== "daily" ? identity.episode_numbers[0] : undefined;
-          const metadata = buildScannedFileMetadata({
-            filePath: file.path,
-            group: parsed.group,
-            sourceIdentity: sharedIdentity,
-          });
-          const baseFile: VideoFile = {
-            air_date: metadata.air_date,
-            audio_channels: metadata.audio_channels,
-            audio_codec: metadata.audio_codec,
-            coverage_summary: summarizeEpisodeCoverage({
-              airDate: metadata.air_date,
-              episodeNumbers:
-                identity && identity.scheme !== "daily" ? identity.episode_numbers : undefined,
-            }),
-            episode_number: episodeNumber,
-            episode_numbers:
-              identity && identity.scheme !== "daily" ? [...identity.episode_numbers] : undefined,
-            episode_title: metadata.episode_title,
-            group: parsed.group ?? undefined,
-            duration_seconds: metadata.duration_seconds,
-            name: file.name,
-            path: file.path,
-            quality: metadata.quality,
-            resolution: parsed.resolution ?? undefined,
-            size: file.size,
-            source_identity: sharedIdentity,
-            video_codec: metadata.video_codec,
-          };
-          const mergedWithCachedMetadata = mergeProbedMediaMetadata(
-            baseFile,
-            mergeEpisodeCachedMetadata(cachedRowsForFile),
-          );
-          const probeResult = shouldProbeDetailedMediaMetadata(mergedWithCachedMetadata)
-            ? yield* input.mediaProbe.probeVideoFile(file.path)
-            : undefined;
-          const probedMetadata =
-            probeResult?._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined;
-          const mergedMetadata = mergeProbedMediaMetadata(mergedWithCachedMetadata, probedMetadata);
-
-          if (probedMetadata && cachedRowsForFile.length > 0) {
-            yield* tryDatabasePromise("Failed to cache probed media metadata", async () => {
-              for (const row of cachedRowsForFile) {
-                const patch = toEpisodeProbeCachePatch(row, mergedMetadata);
-                if (!hasEpisodeProbeCachePatch(patch)) {
-                  continue;
-                }
-
-                await input.db.update(episodes).set(patch).where(eq(episodes.id, row.id));
-              }
-            });
-          }
-
-          return mergedMetadata;
+    const processAnimeFile = Effect.fn("AnimeService.processAnimeFile")(function* (file: {
+      readonly name: string;
+      readonly path: string;
+      readonly size: number;
+    }) {
+      const cachedRowsForFile = cachedEpisodeRowsByPath.get(file.path) ?? [];
+      const parsed = parseFileSourceIdentity(file.path);
+      const identity = parsed.source_identity;
+      const sharedIdentity = toSharedParsedEpisodeIdentity(identity);
+      const episodeNumber =
+        identity && identity.scheme !== "daily" ? identity.episode_numbers[0] : undefined;
+      const metadata = buildScannedFileMetadata({
+        filePath: file.path,
+        group: parsed.group,
+        sourceIdentity: sharedIdentity,
+      });
+      const baseFile: VideoFile = {
+        air_date: metadata.air_date,
+        audio_channels: metadata.audio_channels,
+        audio_codec: metadata.audio_codec,
+        coverage_summary: summarizeEpisodeCoverage({
+          airDate: metadata.air_date,
+          episodeNumbers:
+            identity && identity.scheme !== "daily" ? identity.episode_numbers : undefined,
         }),
-      { concurrency: 4 },
-    );
+        episode_number: episodeNumber,
+        episode_numbers:
+          identity && identity.scheme !== "daily" ? [...identity.episode_numbers] : undefined,
+        episode_title: metadata.episode_title,
+        group: parsed.group ?? undefined,
+        duration_seconds: metadata.duration_seconds,
+        name: file.name,
+        path: file.path,
+        quality: metadata.quality,
+        resolution: parsed.resolution ?? undefined,
+        size: file.size,
+        source_identity: sharedIdentity,
+        video_codec: metadata.video_codec,
+      };
+      const mergedWithCachedMetadata = mergeProbedMediaMetadata(
+        baseFile,
+        mergeEpisodeCachedMetadata(cachedRowsForFile),
+      );
+      const probeResult = shouldProbeDetailedMediaMetadata(mergedWithCachedMetadata)
+        ? yield* input.mediaProbe.probeVideoFile(file.path)
+        : undefined;
+      const probedMetadata =
+        probeResult?._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined;
+      const mergedMetadata = mergeProbedMediaMetadata(mergedWithCachedMetadata, probedMetadata);
+
+      if (probedMetadata && cachedRowsForFile.length > 0) {
+        yield* tryDatabasePromise("Failed to cache probed media metadata", async () => {
+          for (const row of cachedRowsForFile) {
+            const patch = toEpisodeProbeCachePatch(row, mergedMetadata);
+            if (!hasEpisodeProbeCachePatch(patch)) {
+              continue;
+            }
+
+            await input.db.update(episodes).set(patch).where(eq(episodes.id, row.id));
+          }
+        });
+      }
+
+      return mergedMetadata;
+    });
+
+    return yield* Effect.forEach(files, processAnimeFile, { concurrency: 4 });
   },
 );
 

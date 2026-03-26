@@ -34,6 +34,13 @@ export const cacheAnimeMetadataImages = Effect.fn("AnimeService.cacheAnimeMetada
 
     yield* fs.mkdir(baseDir, { recursive: true });
 
+    const withImageCacheWarning = (kind: "cover" | "banner") =>
+      Effect.tapError((error: unknown) =>
+        Effect.logWarning(`Failed to cache ${kind} image`).pipe(
+          Effect.annotateLogs({ animeId, error }),
+        ),
+      );
+
     const coverImage = yield* cacheAnimeImage(
       fs,
       client,
@@ -41,13 +48,7 @@ export const cacheAnimeMetadataImages = Effect.fn("AnimeService.cacheAnimeMetada
       animeId,
       "cover",
       images.coverImage,
-    ).pipe(
-      Effect.tapError((error) =>
-        Effect.logWarning("Failed to cache cover image").pipe(
-          Effect.annotateLogs({ animeId, error }),
-        ),
-      ),
-    );
+    ).pipe(withImageCacheWarning("cover"));
     const bannerImage = yield* cacheAnimeImage(
       fs,
       client,
@@ -55,13 +56,7 @@ export const cacheAnimeMetadataImages = Effect.fn("AnimeService.cacheAnimeMetada
       animeId,
       "banner",
       images.bannerImage,
-    ).pipe(
-      Effect.tapError((error) =>
-        Effect.logWarning("Failed to cache banner image").pipe(
-          Effect.annotateLogs({ animeId, error }),
-        ),
-      ),
-    );
+    ).pipe(withImageCacheWarning("banner"));
 
     return { bannerImage, coverImage } satisfies CachedAnimeImages;
   },
@@ -101,10 +96,10 @@ const findCachedImagePath = Effect.fn("AnimeService.findCachedImagePath")(functi
 ) {
   const entries = yield* fs.readDir(baseDir);
 
-  const existing = entries
+  const [existing] = entries
     .filter((entry) => entry.isFile && entry.name.startsWith(`${kind}.`))
     .map((entry) => entry.name)
-    .sort()[0];
+    .sort();
 
   if (!existing) {
     return undefined;

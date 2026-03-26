@@ -44,7 +44,7 @@ export const getAnimeRowEffect = Effect.fn("AnimeRepository.getAnimeRow")(functi
   const rows = yield* tryDatabasePromise("Failed to load anime", () =>
     db.select().from(anime).where(eq(anime.id, animeId)).limit(1),
   );
-  const row = rows[0];
+  const [row] = rows;
   if (!row) {
     return yield* new AnimeNotFoundError({ message: "Anime not found" });
   }
@@ -70,7 +70,7 @@ export const getEpisodeRowEffect = Effect.fn("AnimeRepository.getEpisodeRow")(fu
       .where(and(eq(episodes.animeId, animeId), eq(episodes.number, episodeNumber)))
       .limit(1),
   );
-  const row = rows[0];
+  const [row] = rows;
   if (!row) {
     return yield* new AnimeNotFoundError({ message: "Episode not found" });
   }
@@ -95,20 +95,7 @@ export const upsertEpisodeEffect = Effect.fn("AnimeRepository.upsertEpisode")(fu
     yield* tryDatabasePromise("Failed to upsert episode", () =>
       db
         .update(episodes)
-        .set({
-          aired: patch.aired ?? rows[0].aired,
-          downloaded: patch.downloaded ?? rows[0].downloaded,
-          filePath: patch.filePath ?? rows[0].filePath,
-          fileSize: patch.fileSize ?? rows[0].fileSize,
-          durationSeconds: patch.durationSeconds ?? rows[0].durationSeconds,
-          groupName: patch.groupName ?? rows[0].groupName,
-          resolution: patch.resolution ?? rows[0].resolution,
-          quality: patch.quality ?? rows[0].quality,
-          videoCodec: patch.videoCodec ?? rows[0].videoCodec,
-          audioCodec: patch.audioCodec ?? rows[0].audioCodec,
-          audioChannels: patch.audioChannels ?? rows[0].audioChannels,
-          title: patch.title ?? rows[0].title,
-        })
+        .set(buildEpisodePatchSet(patch, rows[0]))
         .where(eq(episodes.id, rows[0].id)),
     );
     return;
@@ -159,20 +146,7 @@ export const upsertEpisodeEffect = Effect.fn("AnimeRepository.upsertEpisode")(fu
   yield* tryDatabasePromise("Failed to upsert episode", () =>
     db
       .update(episodes)
-      .set({
-        aired: patch.aired ?? existingRows[0].aired,
-        downloaded: patch.downloaded ?? existingRows[0].downloaded,
-        filePath: patch.filePath ?? existingRows[0].filePath,
-        fileSize: patch.fileSize ?? existingRows[0].fileSize,
-        durationSeconds: patch.durationSeconds ?? existingRows[0].durationSeconds,
-        groupName: patch.groupName ?? existingRows[0].groupName,
-        resolution: patch.resolution ?? existingRows[0].resolution,
-        quality: patch.quality ?? existingRows[0].quality,
-        videoCodec: patch.videoCodec ?? existingRows[0].videoCodec,
-        audioCodec: patch.audioCodec ?? existingRows[0].audioCodec,
-        audioChannels: patch.audioChannels ?? existingRows[0].audioChannels,
-        title: patch.title ?? existingRows[0].title,
-      })
+      .set(buildEpisodePatchSet(patch, existingRows[0]))
       .where(eq(episodes.id, existingRows[0].id)),
   );
 });
@@ -607,6 +581,23 @@ function toSafePathSegment(value: string) {
       .replace(/\s+/g, " ")
       .trim() || "anime"
   );
+}
+
+function buildEpisodePatchSet(patch: UpsertEpisodePatch, existing: typeof episodes.$inferSelect) {
+  return {
+    aired: patch.aired ?? existing.aired,
+    audioChannels: patch.audioChannels ?? existing.audioChannels,
+    audioCodec: patch.audioCodec ?? existing.audioCodec,
+    downloaded: patch.downloaded ?? existing.downloaded,
+    durationSeconds: patch.durationSeconds ?? existing.durationSeconds,
+    filePath: patch.filePath ?? existing.filePath,
+    fileSize: patch.fileSize ?? existing.fileSize,
+    groupName: patch.groupName ?? existing.groupName,
+    quality: patch.quality ?? existing.quality,
+    resolution: patch.resolution ?? existing.resolution,
+    title: patch.title ?? existing.title,
+    videoCodec: patch.videoCodec ?? existing.videoCodec,
+  };
 }
 
 function range(start: number, end: number) {

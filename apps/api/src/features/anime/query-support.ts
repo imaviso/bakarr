@@ -1,13 +1,8 @@
 import { and, count, eq, inArray, sql } from "drizzle-orm";
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 
-import {
-  AnimeDiscoveryEntrySchema,
-  StringListSchema,
-} from "../../../../../packages/shared/src/index.ts";
 import type {
   Anime,
-  AnimeDiscoveryEntry,
   AnimeListQueryParams,
   AnimeListResponse,
   AnimeSearchResponse,
@@ -22,10 +17,12 @@ import { toAnimeDto } from "./dto.ts";
 import { AnimeNotFoundError, AnimeStoredDataError } from "./errors.ts";
 import { getAnimeRowEffect, markSearchResultsAlreadyInLibraryEffect } from "./repository.ts";
 import { tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
-
-const StringListJsonSchema = Schema.parseJson(StringListSchema);
-const NumberListJsonSchema = Schema.parseJson(Schema.Array(Schema.Number));
-const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(Schema.Array(AnimeDiscoveryEntrySchema));
+import { deriveAnimeSeason, extractYearFromDate } from "../../lib/anime-date-utils.ts";
+import {
+  decodeStoredDiscoveryEntriesEffect,
+  decodeStoredNumberListEffect,
+  decodeStoredStringListEffect,
+} from "./decode-support.ts";
 
 export const listAnimeEffect = Effect.fn("AnimeService.listAnimeEffect")(function* (
   db: AppDatabase,
@@ -143,22 +140,25 @@ function toAnimeDtoProgress(
   const latestDownloadedEpisode = progress?.latestDownloadedEpisode;
 
   return Effect.gen(function* () {
-    const genres = yield* decodeStoredStringList(row.genres, "genres").pipe(
+    const genres = yield* decodeStoredStringListEffect(row.genres, "genres").pipe(
       Effect.map((value) => value ?? []),
     );
-    const recommendedAnime = yield* decodeStoredDiscoveryEntries(
+    const recommendedAnime = yield* decodeStoredDiscoveryEntriesEffect(
       row.recommendedAnime,
       "recommendedAnime",
     );
-    const relatedAnime = yield* decodeStoredDiscoveryEntries(row.relatedAnime, "relatedAnime");
-    const releaseProfileIds = yield* decodeStoredNumberList(
+    const relatedAnime = yield* decodeStoredDiscoveryEntriesEffect(
+      row.relatedAnime,
+      "relatedAnime",
+    );
+    const releaseProfileIds = yield* decodeStoredNumberListEffect(
       row.releaseProfileIds,
       "releaseProfileIds",
     );
-    const studios = yield* decodeStoredStringList(row.studios, "studios").pipe(
+    const studios = yield* decodeStoredStringListEffect(row.studios, "studios").pipe(
       Effect.map((value) => value ?? []),
     );
-    const synonyms = yield* decodeStoredStringList(row.synonyms, "synonyms");
+    const synonyms = yield* decodeStoredStringListEffect(row.synonyms, "synonyms");
 
     return {
       added_at: row.addedAt,
@@ -195,7 +195,7 @@ function toAnimeDtoProgress(
       related_anime: relatedAnime,
       release_profile_ids: releaseProfileIds,
       root_folder: row.rootFolder,
-      season: deriveAnimeSeasonFromDate(row.startDate ?? undefined),
+      season: deriveAnimeSeason(row.startDate ?? undefined),
       season_year: row.startYear ?? extractYearFromDate(row.startDate),
       start_date: row.startDate ?? undefined,
       start_year: row.startYear ?? undefined,
@@ -242,92 +242,6 @@ export const searchAnimeEffect = Effect.fn("AnimeService.searchAnimeEffect")(fun
   } satisfies AnimeSearchResponse;
 });
 
-function decodeStoredStringList(
-  value: string | null,
-  field: string,
-): Effect.Effect<string[] | undefined, AnimeStoredDataError> {
-  if (!value) {
-    return Effect.as(Effect.void, undefined as string[] | undefined);
-  }
-
-  return Schema.decodeUnknown(StringListJsonSchema)(value).pipe(
-    Effect.map((decoded) => {
-      const normalized = decoded.filter((entry) => entry.length > 0);
-      return normalized.length > 0 ? normalized : undefined;
-    }),
-    Effect.mapError(
-      () =>
-        new AnimeStoredDataError({
-          message: `Stored anime ${field} JSON is corrupt`,
-        }),
-    ),
-  );
-}
-
-function decodeStoredNumberList(
-  value: string | null,
-  field: string,
-): Effect.Effect<number[], AnimeStoredDataError> {
-  if (!value) {
-    return Effect.succeed([]);
-  }
-
-  return Schema.decodeUnknown(NumberListJsonSchema)(value).pipe(
-    Effect.map((decoded) => [...decoded]),
-    Effect.mapError(
-      () =>
-        new AnimeStoredDataError({
-          message: `Stored anime ${field} JSON is corrupt`,
-        }),
-    ),
-  );
-}
-
-function decodeStoredDiscoveryEntries(
-  value: string | null,
-  field: string,
-): Effect.Effect<AnimeDiscoveryEntry[] | undefined, AnimeStoredDataError> {
-  if (!value) {
-    return Effect.as(Effect.void, undefined as AnimeDiscoveryEntry[] | undefined);
-  }
-
-  return Schema.decodeUnknown(AnimeDiscoveryEntryListJsonSchema)(value).pipe(
-    Effect.map((decoded) => [...decoded]),
-    Effect.mapError(
-      () =>
-        new AnimeStoredDataError({
-          message: `Stored anime ${field} JSON is corrupt`,
-        }),
-    ),
-  );
-}
-
-function deriveAnimeSeasonFromDate(date: string | undefined) {
-  if (!date) {
-    return undefined;
-  }
-
-  const month = Number.parseInt(date.split("-")[1] ?? "", 10);
-
-  if (!Number.isFinite(month)) {
-    return undefined;
-  }
-
-  if (month <= 2 || month === 12) return "winter" as const;
-  if (month <= 5) return "spring" as const;
-  if (month <= 8) return "summer" as const;
-  return "fall" as const;
-}
-
-function extractYearFromDate(date?: string | null) {
-  if (!date) {
-    return undefined;
-  }
-
-  const year = Number.parseInt(date.slice(0, 4), 10);
-  return Number.isFinite(year) ? year : undefined;
-}
-
 export const getAnimeByAnilistIdEffect = Effect.fn("AnimeService.getAnimeByAnilistIdEffect")(
   function* (input: { aniList: typeof AniListClient.Service; db: AppDatabase; id: number }) {
     const metadata = yield* input.aniList.getAnimeMetadataById(input.id);
@@ -355,16 +269,7 @@ export const getAnimeByAnilistIdEffect = Effect.fn("AnimeService.getAnimeByAnili
       id: metadata.id,
       recommended_anime: metadata.recommendedAnime ? [...metadata.recommendedAnime] : undefined,
       related_anime: metadata.relatedAnime ? [...metadata.relatedAnime] : undefined,
-      season: metadata.startDate
-        ? (() => {
-            const month = Number.parseInt(metadata.startDate.split("-")[1] ?? "", 10);
-            if (!Number.isFinite(month)) return undefined;
-            if (month <= 2 || month === 12) return "winter" as const;
-            if (month <= 5) return "spring" as const;
-            if (month <= 8) return "summer" as const;
-            return "fall" as const;
-          })()
-        : undefined,
+      season: deriveAnimeSeason(metadata.startDate),
       season_year: metadata.startYear,
       start_date: metadata.startDate,
       start_year: metadata.startYear,

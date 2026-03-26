@@ -201,7 +201,7 @@ it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
           const episodeRows = yield* Effect.tryPromise(() =>
             appDb.select().from(schema.episodes).where(eq(schema.episodes.animeId, 101)),
           );
-          const row = episodeRows[0];
+          const [row] = episodeRows;
 
           assertEquals(first[0]?.resolution, "1080p");
           assertEquals(first[0]?.video_codec, "HEVC");
@@ -761,7 +761,7 @@ it.scoped("listAnimeEffect includes progress and metadata fields needed by list 
         const result = yield* listAnimeEffect(appDb);
         assertEquals(result.items.length, 1);
 
-        const anime = result.items[0];
+        const [anime] = result.items;
         assertEquals(anime.progress.downloaded, 1);
         assertEquals(anime.progress.total, 3);
         assertEquals(anime.progress.downloaded_percent, 33);

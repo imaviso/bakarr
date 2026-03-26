@@ -11,6 +11,7 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import { ClockService } from "../../lib/clock.ts";
 import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
+import { deriveAnimeSeason } from "../../lib/anime-date-utils.ts";
 
 const AnimeMetadataTitleSchema = Schema.Struct({
   english: Schema.optional(Schema.String),
@@ -417,7 +418,7 @@ const AnimeSearchResultFromAniListSchema = Schema.transform(
       id: entry.id,
       recommended_anime: normalizeRecommendations(entry.recommendations?.nodes),
       related_anime: normalizeDiscoveryEntries(entry.relations?.edges),
-      season: deriveAnimeSeason(entry.startDate),
+      season: deriveAnimeSeason(toIsoDate(entry.startDate)),
       season_year: entry.startDate?.year ?? undefined,
       start_date: toIsoDate(entry.startDate),
       start_year: entry.startDate?.year ?? undefined,
@@ -551,44 +552,58 @@ export const AniListClientLive = Layer.effect(
   }),
 );
 
+const callAniList = <A, I>(
+  client: HttpClient.HttpClient,
+  tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
+  operation: string,
+  query: string,
+  variables: Record<string, unknown>,
+  schema: Schema.Schema<A, I, never>,
+): Effect.Effect<A, ExternalCallError> =>
+  Effect.gen(function* () {
+    const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
+      HttpClientRequest.bodyJson({ query, variables }),
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: `Failed to encode AniList ${operation} request body`,
+          operation: `anilist.${operation}.request`,
+        }),
+      ),
+    );
+    const response = yield* tryExternalEffect(`anilist.${operation}`, client.execute(request))();
+
+    if (response.status < 200 || response.status >= 300) {
+      return yield* ExternalCallError.make({
+        cause: new Error(`AniList ${operation} failed with status ${response.status}`),
+        message: `AniList ${operation} failed`,
+        operation: `anilist.${operation}.response`,
+      });
+    }
+
+    return yield* HttpClientResponse.schemaBodyJson(schema)(response).pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: `AniList ${operation} response decode failed`,
+          operation: `anilist.${operation}.json`,
+        }),
+      ),
+    );
+  });
+
 const trySearchRemote = Effect.fn("AniListClient.trySearchRemote")(function* (
   client: HttpClient.HttpClient,
   tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
   trimmed: string,
 ) {
-  const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
-    HttpClientRequest.bodyJson({
-      query: SEARCH_ANIME_QUERY,
-      variables: { search: trimmed },
-    }),
-    Effect.mapError((cause) =>
-      ExternalCallError.make({
-        cause,
-        message: "Failed to encode AniList search request body",
-        operation: "anilist.search.request",
-      }),
-    ),
-  );
-  const response = yield* tryExternalEffect("anilist.search", client.execute(request))();
-
-  if (response.status < 200 || response.status >= 300) {
-    return yield* ExternalCallError.make({
-      cause: new Error(`AniList search failed with status ${response.status}`),
-      message: "AniList search failed",
-      operation: "anilist.search.response",
-    });
-  }
-
-  const payload = yield* HttpClientResponse.schemaBodyJson(AniListSearchPayloadSchema)(
-    response,
-  ).pipe(
-    Effect.mapError((cause) =>
-      ExternalCallError.make({
-        cause,
-        message: "AniList search response decode failed",
-        operation: "anilist.search.json",
-      }),
-    ),
+  const payload = yield* callAniList(
+    client,
+    tryExternalEffect,
+    "search",
+    SEARCH_ANIME_QUERY,
+    { search: trimmed },
+    AniListSearchPayloadSchema,
   );
 
   return yield* Effect.forEach(payload.data.Page.media, (entry) =>
@@ -609,39 +624,13 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
   tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
   id: number,
 ) {
-  const request = yield* HttpClientRequest.post(ANILIST_URL).pipe(
-    HttpClientRequest.bodyJson({
-      query: DETAIL_ANIME_QUERY,
-      variables: { id },
-    }),
-    Effect.mapError((cause) =>
-      ExternalCallError.make({
-        cause,
-        message: "Failed to encode AniList detail request body",
-        operation: "anilist.detail.request",
-      }),
-    ),
-  );
-  const response = yield* tryExternalEffect("anilist.detail", client.execute(request))();
-
-  if (response.status < 200 || response.status >= 300) {
-    return yield* ExternalCallError.make({
-      cause: new Error(`AniList detail failed with status ${response.status}`),
-      message: "AniList detail failed",
-      operation: "anilist.detail.response",
-    });
-  }
-
-  const payload = yield* HttpClientResponse.schemaBodyJson(AniListDetailPayloadSchema)(
-    response,
-  ).pipe(
-    Effect.mapError((cause) =>
-      ExternalCallError.make({
-        cause,
-        message: "AniList detail response decode failed",
-        operation: "anilist.detail.json",
-      }),
-    ),
+  const payload = yield* callAniList(
+    client,
+    tryExternalEffect,
+    "detail",
+    DETAIL_ANIME_QUERY,
+    { id },
+    AniListDetailPayloadSchema,
   );
   const media = payload.data.Media;
 
@@ -660,32 +649,19 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
   );
 });
 
-function deriveAnimeSeason(
-  date: { year?: number | null; month?: number | null; day?: number | null } | undefined,
-) {
-  const month = date?.month ?? undefined;
-
-  if (!month) {
-    return undefined;
-  }
-
-  if (month <= 2 || month === 12) return "winter" as const;
-  if (month <= 5) return "spring" as const;
-  if (month <= 8) return "summer" as const;
-  return "fall" as const;
-}
-
 function toIsoDate(
   date: { year?: number | null; month?: number | null; day?: number | null } | undefined,
 ): string | undefined {
-  if (!date?.year || !date?.month || !date?.day) {
+  if (!date?.year || !date?.month) {
     return undefined;
   }
+
+  const day = date.day ?? 1;
 
   return `${String(date.year).padStart(4, "0")}-${String(date.month).padStart(
     2,
     "0",
-  )}-${String(date.day).padStart(2, "0")}`;
+  )}-${String(day).padStart(2, "0")}`;
 }
 
 function toNextAiringEpisode(airing: { airingAt: number; episode: number } | null | undefined) {
@@ -749,7 +725,7 @@ function normalizeDiscoveryEntries(
   const seen = new Set<number>();
 
   return edges.flatMap((edge) => {
-    const node = edge.node;
+    const { node } = edge;
 
     if (!node || seen.has(node.id)) {
       return [];
@@ -832,7 +808,7 @@ function toDiscoveryEntry(
     id: node.id,
     rating: node.averageScore ?? undefined,
     relation_type: relationType,
-    season: deriveAnimeSeason(node.startDate),
+    season: deriveAnimeSeason(toIsoDate(node.startDate)),
     season_year: node.startDate?.year ?? undefined,
     start_year: node.startDate?.year ?? undefined,
     status: node.status ?? undefined,

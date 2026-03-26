@@ -14,6 +14,7 @@ import { scanAnimeFolderEffect } from "./file-mapping-support.ts";
 import {
   appendAnimeLogEffect,
   ensureEpisodesEffect,
+  type FutureAiringScheduleEntry,
   getAnimeRowEffect,
   updateAnimeEpisodeAirDatesEffect,
 } from "./repository.ts";
@@ -34,7 +35,7 @@ const syncAnimeMetadataEffect = Effect.fn("AnimeService.syncAnimeMetadataEffect"
     eventPublisher: AnimeEventPublisher;
     nowIso: () => Effect.Effect<string>;
   }) {
-    const nowIso = input.nowIso;
+    const { nowIso } = input;
     const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
       Effect.mapError(wrapAnimeError("Failed to refresh episodes")),
     );
@@ -81,6 +82,42 @@ const syncAnimeMetadataEffect = Effect.fn("AnimeService.syncAnimeMetadataEffect"
   },
 );
 
+const syncEpisodeScheduleEffect = Effect.fn("AnimeService.syncEpisodeScheduleEffect")(function* (
+  db: AppDatabase,
+  animeId: number,
+  nextAnimeRow: {
+    readonly episodeCount: number | null;
+    readonly status: string;
+    readonly startDate: string | null;
+    readonly endDate: string | null;
+  },
+  futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
+  errorMessage: string,
+  nowIso: () => Effect.Effect<string>,
+) {
+  yield* ensureEpisodesEffect(
+    db,
+    animeId,
+    nextAnimeRow.episodeCount ?? undefined,
+    nextAnimeRow.status,
+    nextAnimeRow.startDate ?? undefined,
+    nextAnimeRow.endDate ?? undefined,
+    futureAiringSchedule,
+    false,
+    nowIso,
+  ).pipe(Effect.mapError(wrapAnimeError(errorMessage)));
+  yield* updateAnimeEpisodeAirDatesEffect(
+    db,
+    animeId,
+    nextAnimeRow.episodeCount ?? undefined,
+    nextAnimeRow.status,
+    nextAnimeRow.startDate ?? undefined,
+    nextAnimeRow.endDate ?? undefined,
+    futureAiringSchedule,
+    nowIso,
+  ).pipe(Effect.mapError(wrapAnimeError(errorMessage)));
+});
+
 export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffect")(
   function* (input: {
     aniList: typeof AniListClient.Service;
@@ -89,7 +126,7 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
     eventPublisher: AnimeEventPublisher;
     nowIso: () => Effect.Effect<string>;
   }) {
-    const nowIso = input.nowIso;
+    const { nowIso } = input;
     const { animeRow, metadata, nextAnimeRow } = yield* syncAnimeMetadataEffect({
       aniList: input.aniList,
       animeId: input.animeId,
@@ -98,27 +135,14 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
       nowIso,
     });
 
-    yield* ensureEpisodesEffect(
+    yield* syncEpisodeScheduleEffect(
       input.db,
       input.animeId,
-      nextAnimeRow.episodeCount ?? undefined,
-      nextAnimeRow.status,
-      nextAnimeRow.startDate ?? undefined,
-      nextAnimeRow.endDate ?? undefined,
+      nextAnimeRow,
       metadata?.futureAiringSchedule,
-      false,
+      "Failed to refresh episodes",
       nowIso,
-    ).pipe(Effect.mapError(wrapAnimeError("Failed to refresh episodes")));
-    yield* updateAnimeEpisodeAirDatesEffect(
-      input.db,
-      input.animeId,
-      nextAnimeRow.episodeCount ?? undefined,
-      nextAnimeRow.status,
-      nextAnimeRow.startDate ?? undefined,
-      nextAnimeRow.endDate ?? undefined,
-      metadata?.futureAiringSchedule,
-      nowIso,
-    ).pipe(Effect.mapError(wrapAnimeError("Failed to refresh episodes")));
+    );
     yield* appendAnimeLogEffect(
       input.db,
       "anime.episodes.refreshed",
@@ -140,7 +164,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   db: AppDatabase;
   nowIso: () => Effect.Effect<string>;
 }) {
-  const nowIso = input.nowIso;
+  const { nowIso } = input;
   yield* markJobStarted(input.db, "metadata_refresh", nowIso);
   yield* appendSystemLog(
     input.db,
@@ -168,27 +192,14 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             nowIso,
           });
 
-          yield* ensureEpisodesEffect(
+          yield* syncEpisodeScheduleEffect(
             input.db,
             animeRow.id,
-            nextAnimeRow.episodeCount ?? undefined,
-            nextAnimeRow.status,
-            nextAnimeRow.startDate ?? undefined,
-            nextAnimeRow.endDate ?? undefined,
+            nextAnimeRow,
             metadata?.futureAiringSchedule,
-            false,
+            "Failed to refresh metadata",
             nowIso,
-          ).pipe(Effect.mapError(wrapAnimeError("Failed to refresh metadata")));
-          yield* updateAnimeEpisodeAirDatesEffect(
-            input.db,
-            animeRow.id,
-            nextAnimeRow.episodeCount ?? undefined,
-            nextAnimeRow.status,
-            nextAnimeRow.startDate ?? undefined,
-            nextAnimeRow.endDate ?? undefined,
-            metadata?.futureAiringSchedule,
-            nowIso,
-          ).pipe(Effect.mapError(wrapAnimeError("Failed to refresh metadata")));
+          );
           refreshed += 1;
         }),
       { concurrency: 4, discard: true },
@@ -234,7 +245,7 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
   mediaProbe: MediaProbeShape;
   nowIso: () => Effect.Effect<string>;
 }) {
-  const nowIso = input.nowIso;
+  const { nowIso } = input;
   const { animeRow, found, total } = yield* scanAnimeFolderEffect({
     animeId: input.animeId,
     db: input.db,
