@@ -27,22 +27,18 @@ export class BackgroundWorkerStatsModel extends Schema.Class<BackgroundWorkerSta
   successCount: Schema.Number,
 }) {}
 
-export const BackgroundWorkerStatsSchema = BackgroundWorkerStatsModel;
-
-export type BackgroundWorkerStats = Schema.Schema.Type<typeof BackgroundWorkerStatsSchema>;
+export type BackgroundWorkerStats = Schema.Schema.Type<typeof BackgroundWorkerStatsModel>;
 
 export class BackgroundWorkerSnapshotModel extends Schema.Class<BackgroundWorkerSnapshotModel>(
   "BackgroundWorkerSnapshotModel",
 )({
-  download_sync: BackgroundWorkerStatsSchema,
-  library_scan: BackgroundWorkerStatsSchema,
-  metadata_refresh: BackgroundWorkerStatsSchema,
-  rss: BackgroundWorkerStatsSchema,
+  download_sync: BackgroundWorkerStatsModel,
+  library_scan: BackgroundWorkerStatsModel,
+  metadata_refresh: BackgroundWorkerStatsModel,
+  rss: BackgroundWorkerStatsModel,
 }) {}
 
-export const BackgroundWorkerSnapshotSchema = BackgroundWorkerSnapshotModel;
-
-export type BackgroundWorkerSnapshot = Schema.Schema.Type<typeof BackgroundWorkerSnapshotSchema>;
+export type BackgroundWorkerSnapshot = Schema.Schema.Type<typeof BackgroundWorkerSnapshotModel>;
 
 export function emptyBackgroundWorkerStats(): BackgroundWorkerStats {
   return new BackgroundWorkerStatsModel({

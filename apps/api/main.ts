@@ -4,7 +4,7 @@ import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
 import * as BunRuntime from "@effect/platform-bun/BunRuntime";
 import { Effect, Layer } from "effect";
 
-import { BackgroundWorkerController } from "./src/background.ts";
+import { BackgroundWorkerController } from "./src/background-controller.ts";
 import { AppConfig, type AppConfigShape } from "./src/config.ts";
 import { makeDotenvConfigProvider } from "./src/config-provider.ts";
 import { migrateDatabase } from "./src/db/migrate.ts";
