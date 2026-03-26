@@ -3,7 +3,9 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
+import { Database } from "../../db/database.ts";
 import { makeSingleFlightEffectRunner } from "../../lib/effect-coalescing.ts";
+import { ClockService, nowIsoFromClock } from "../../lib/clock.ts";
 import { anime } from "../../db/schema.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 export { tryDatabasePromise } from "../../lib/effect-db.ts";
@@ -68,11 +70,17 @@ export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(function*
 });
 
 export const makeMetadataRefreshRunner = Effect.fn("AnimeService.makeMetadataRefreshRunner")(
-  function* (input: {
-    aniList: typeof AniListClient.Service;
-    db: AppDatabase;
-    nowIso: () => Effect.Effect<string>;
-  }) {
-    return yield* makeSingleFlightEffectRunner(refreshMetadataForMonitoredAnimeEffect(input));
+  function* () {
+    const { db } = yield* Database;
+    const aniList = yield* AniListClient;
+    const clock = yield* ClockService;
+
+    return yield* makeSingleFlightEffectRunner(
+      refreshMetadataForMonitoredAnimeEffect({
+        aniList,
+        db,
+        nowIso: () => nowIsoFromClock(clock),
+      }),
+    );
   },
 );

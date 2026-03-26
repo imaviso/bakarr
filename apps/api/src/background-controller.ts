@@ -12,11 +12,7 @@ import {
   RssService,
 } from "./features/operations/service-contract.ts";
 import { BackgroundWorkerMonitor } from "./background-monitor.ts";
-import {
-  spawnWorkersFromConfig,
-  type BackgroundWorkerSpawner,
-  type WorkersDeps,
-} from "./background-workers.ts";
+import { spawnWorkersFromConfig, type BackgroundWorkerSpawner } from "./background-workers.ts";
 
 export interface BackgroundWorkerControllerShape {
   readonly isStarted: () => Effect.Effect<boolean>;
@@ -46,21 +42,17 @@ const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
   const libraryService = yield* LibraryService;
   const rssService = yield* RssService;
 
-  const deps: WorkersDeps = {
-    animeService,
-    clock,
-    eventBus,
-    monitor,
-    downloadService,
-    libraryService,
-    rssService,
-  };
-
-  const spawnWorkers: BackgroundWorkerSpawner = (scope, config) =>
-    spawnWorkersFromConfig(scope, config, deps);
-
   const controller = yield* makeBackgroundWorkerController({
-    spawnWorkers,
+    spawnWorkers: (scope, config) =>
+      spawnWorkersFromConfig(scope, config).pipe(
+        Effect.provideService(ClockService, clock),
+        Effect.provideService(EventBus, eventBus),
+        Effect.provideService(BackgroundWorkerMonitor, monitor),
+        Effect.provideService(AnimeService, animeService),
+        Effect.provideService(DownloadService, downloadService),
+        Effect.provideService(LibraryService, libraryService),
+        Effect.provideService(RssService, rssService),
+      ),
   });
 
   yield* Effect.addFinalizer(() => controller.stop());

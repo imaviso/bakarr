@@ -135,18 +135,14 @@ const makeAnimeService = Effect.gen(function* () {
   const mediaProbe = yield* MediaProbe;
   const httpClient = yield* HttpClient.HttpClient;
   const clock = yield* ClockService;
-  const metadataRefreshRunner = yield* makeMetadataRefreshRunner({
-    aniList,
-    db,
-    nowIso: () => nowIsoFromClock(clock),
-  });
+  const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
   const {
     bulkMapEpisodes: bulkMapEpisodesEffect,
     deleteEpisodeFile: deleteEpisodeFileEffect,
     listFiles: listFilesEffect,
     mapEpisode: mapEpisodeEffect,
     resolveEpisodeFile: resolveEpisodeFileEffect,
-  } = makeAnimeFileOperations({ db, fs, mediaProbe });
+  } = yield* makeAnimeFileOperations();
 
   const addAnime = Effect.fn("AnimeService.addAnime")(function* (input: AddAnimeInput) {
     return yield* addAnimeEffect({

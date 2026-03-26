@@ -3,41 +3,38 @@ import type { Scope } from "effect";
 
 import type { Config, DownloadStatus } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
-import { type BackgroundWorkerMonitorShape } from "./background-monitor.ts";
+import {
+  BackgroundWorkerMonitor,
+  type BackgroundWorkerMonitorShape,
+} from "./background-monitor.ts";
 import { type BackgroundWorkerName } from "./background-worker-model.ts";
 import type { DatabaseError } from "./db/database.ts";
-import { type ClockServiceShape } from "./lib/clock.ts";
+import { ClockService, type ClockServiceShape } from "./lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "./lib/effect-coalescing.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./lib/logging.ts";
-import type { EventBusShape } from "./features/events/event-bus.ts";
-import { type AnimeServiceShape } from "./features/anime/service.ts";
+import { EventBus } from "./features/events/event-bus.ts";
+import { AnimeService } from "./features/anime/service.ts";
 import {
-  type DownloadServiceShape,
-  type LibraryServiceShape,
-  type RssServiceShape,
+  DownloadService,
+  LibraryService,
+  RssService,
 } from "./features/operations/service-contract.ts";
 
-export interface WorkersDeps {
-  readonly eventBus: EventBusShape;
-  readonly monitor: BackgroundWorkerMonitorShape;
-  readonly animeService: AnimeServiceShape;
-  readonly downloadService: DownloadServiceShape;
-  readonly libraryService: LibraryServiceShape;
-  readonly rssService: RssServiceShape;
-  readonly clock: ClockServiceShape;
-}
-
-export interface BackgroundWorkerSpawner {
-  (scope: Scope.Scope, config: Config): Effect.Effect<void, DatabaseError>;
+export interface BackgroundWorkerSpawner<R = never> {
+  (scope: Scope.Scope, config: Config): Effect.Effect<void, DatabaseError, R>;
 }
 
 export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConfig")(function* (
   workerScope: Scope.Scope,
   config: Config,
-  deps: WorkersDeps,
 ) {
-  const { animeService, eventBus, monitor, downloadService, libraryService, rssService, clock } =
-    deps;
+  const animeService = yield* AnimeService;
+  const eventBus = yield* EventBus;
+  const monitor = yield* BackgroundWorkerMonitor;
+  const downloadService = yield* DownloadService;
+  const libraryService = yield* LibraryService;
+  const rssService = yield* RssService;
+  const clock = yield* ClockService;
   const schedule = buildBackgroundSchedule(config);
   const runRssWorkerTask = Effect.fn("Background.runRssWorkerTask")(function* () {
     yield* rssService.runRssCheck();
