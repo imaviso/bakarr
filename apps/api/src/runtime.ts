@@ -64,6 +64,9 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: 
   const seadexLayer = options?.seadexLayer
     ? options.seadexLayer
     : SeaDexClientLive.pipe(Layer.provide(Layer.mergeAll(httpClientLayer, ClockServiceLive)));
+  const mediaProbeLayer = options?.commandExecutorLayer
+    ? MediaProbeLive.pipe(Layer.provide(options.commandExecutorLayer))
+    : MediaProbeLive;
   const externalClientsLayer = Layer.mergeAll(aniListLayer, rssLayer, qbitLayer, seadexLayer);
   const basePlatformLayer = Layer.mergeAll(
     BunContext.layer,
@@ -78,7 +81,7 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: 
     externalClientsLayer,
     ClockServiceLive,
     FileSystemLive,
-    MediaProbeLive,
+    mediaProbeLayer,
     RandomServiceLive,
     StreamTokenSignerLive.pipe(Layer.provide(RandomServiceLive)),
     TokenHasherLive,
@@ -122,7 +125,3 @@ export type ApiContext = ManagedRuntime.ManagedRuntime.Context<ApiRuntime>;
 export type ApiLayerError = ManagedRuntime.ManagedRuntime.Error<ApiRuntime>;
 
 export type ApiEffect<A, E = never> = Effect.Effect<A, E, ApiContext>;
-
-export function runApi<A, E>(runtime: ApiRuntime, effect: ApiEffect<A, E>): Promise<A> {
-  return runtime.runPromise(effect);
-}

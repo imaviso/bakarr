@@ -13,7 +13,7 @@ import { StoredConfigCorruptError } from "./src/features/system/errors.ts";
 import { SystemService } from "./src/features/system/service.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
 import { compactLogAnnotations, setRuntimeLogLevel } from "./src/lib/logging.ts";
-import { makeApiLayer, makeApiRuntime, runApi, type RuntimeOptions } from "./src/runtime.ts";
+import { makeApiLayer, makeApiRuntime, type RuntimeOptions } from "./src/runtime.ts";
 
 /**
  * Startup sequence (blocking, ordered, fail-fast):
@@ -114,9 +114,11 @@ export async function bootstrap(
   runtimeOptions?: RuntimeOptions,
 ) {
   const runtime = makeApiRuntime(overrides, runtimeOptions);
-  const config = await runApi(runtime, bootstrapProgram().pipe(Effect.withSpan("api.bootstrap")));
+  const config = await runtime.runPromise(
+    bootstrapProgram().pipe(Effect.withSpan("api.bootstrap")),
+  );
 
-  const httpApp = await runApi(runtime, createHttpApp());
+  const httpApp = await runtime.runPromise(createHttpApp());
 
   return {
     config,

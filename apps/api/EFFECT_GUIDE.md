@@ -1,22 +1,51 @@
 # Bakarr API Effect Principles
 
-Keep `apps/api` aligned with the local `effect-ts` skill and its core
-references.
+Keep `apps/api` aligned with both the local `effect-ts` skill and the upstream
+Effect code-style docs:
 
-## Local Effect Source
+- `https://github.com/Effect-TS/website/tree/main/content/src/content/docs/docs/code-style`
 
-The Effect repository is cloned to `~/Dev/effect` for reference.
-Use this to explore APIs, find usage examples, and understand implementation
-details when the documentation isn't enough.
+This repo is pre-release alpha, so prefer clean, current Effect patterns over
+compatibility layers.
 
-## Core Defaults
+## Reference Sources
 
-- Prefer `Effect.gen(function* () { ... })` with `yield*` for main control flow.
+- Start with the local `effect-ts` skill and its bundled references.
+- The Effect repository is cloned at `~/Dev/effect` for API and implementation
+  lookup.
+- Use the upstream code-style docs as the tie-breaker for style choices such as
+  generators, dual APIs, pattern matching, and branded types.
+
+## Runtime Entry Points
+
+- Use the platform runtime `runMain` at executable boundaries.
+- In `apps/api`, prefer `BunRuntime.runMain(...)` so interrupts shut down fibers
+  and scoped resources cleanly.
+- Put teardown and finalizers in the main scoped effect, not beside it.
+
+## Core Style
+
+- Prefer `Effect.gen(function* () { ... })` with `yield*` for primary control
+  flow.
+- Use `Effect.Do` only when local binding reads better than a generator.
 - Use `Effect.fn("Name")` for exported effectful functions and service methods,
   including nullary thunks.
-- Use `.pipe(...)` for retry, timeout, logging, and spans.
-- Model runtime boundaries with `Schema`, not ad hoc parsing.
-- Provide dependencies once at the application boundary.
+- Prefer explicit lambdas over tacit or point-free style: write
+  `Effect.map((value) => f(value))`, not `Effect.map(f)`, when the explicit form
+  is safer or clearer.
+- Avoid `flow(...)` in core business logic unless it clearly improves
+  readability without hiding types.
+- Use `.pipe(...)` for retries, timeouts, spans, logging, and other
+  cross-cutting composition.
+
+## Dual APIs And Pipelines
+
+- Prefer data-last forms inside `.pipe(...)` chains.
+- Prefer data-first forms for one-off transformations when they are shorter and
+  clearer.
+- Do not mix styles arbitrarily inside the same block; optimize for local
+  readability.
+- When overloads or inference get tricky, choose the more explicit form.
 
 ## Services And Layers
 
@@ -24,23 +53,31 @@ details when the documentation isn't enough.
 - Keep service members `readonly`.
 - Service methods should usually have `R = never`; satisfy dependencies in the
   layer, not in every method signature.
-- Start with leaf service contracts, then compose higher-level orchestration.
+- Start from leaf service contracts, then compose higher-level orchestration.
 - Implement with `Layer.effect`, `Layer.sync`, or `Layer.succeed`.
 - Memoize parameterized layers by storing them in constants before reuse.
 - Prefer `Effect.Service` only when the default implementation is obvious.
+- Provide dependencies once at the application boundary rather than scattering
+  `Effect.provide(...)` through business logic.
 
 ## Data Modeling
 
 - Prefer `Schema.Class` for records.
 - Prefer `Schema.TaggedClass` plus `Schema.Union` for variants.
-- Brand meaningful primitives, not just IDs.
+- Brand meaningful primitives, not just IDs: emails, URLs, slugs, counts,
+  timestamps, and similar domain values.
+- Use `Brand.nominal` or `Brand.refined` when a branded type improves safety or
+  validation clarity.
 - Reuse the same schema across config, HTTP, persistence, and tests.
 - Use `Schema.parseJson`, `Schema.decodeUnknown`, and `Schema.encode` at
   boundaries.
-- Use `Match.valueTags` for exhaustive tagged-union handling.
 
-## Error Handling
+## Branching And Errors
 
+- Prefer `Match` for complex branching and exhaustive handling.
+- Use `Match.valueTags` for tagged-schema unions and `Match.type(...)` or
+  `Match.value(...)` when matching richer conditions.
+- Keep `_tag`-based unions exhaustive whenever the domain is closed.
 - Model recoverable domain failures with `Schema.TaggedError`.
 - Use typed errors only when callers can take meaningful action.
 - Recover with `Effect.catchTag`, `Effect.catchTags`, or `Effect.catchAll` based
@@ -83,8 +120,9 @@ details when the documentation isn't enough.
 
 ## Avoid By Default
 
-- Scattered `Effect.provide(...)` through business logic.
+- Tacit `Effect.map(fn)` or point-free `flow(...)` in core business logic.
+- Scattered `Effect.provide(...)` through orchestration code.
 - Broad recovery that hides domain intent.
 - Unchecked `JSON.parse(...)` or unvalidated boundary data.
-- Raw platform calls inside orchestration code.
+- Raw platform calls inside domain orchestration.
 - Advanced abstractions without a concrete problem.

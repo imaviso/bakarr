@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": null,
+  "plugins": ["typescript", "unicorn"],
   "categories": {},
   "rules": {
     "typescript/unbound-method": "error",
@@ -8,16 +8,20 @@
     "typescript/no-floating-promises": "error",
     "typescript/no-misused-promises": "error",
     "typescript/await-thenable": "error",
+    "typescript/use-unknown-in-catch-callback-variable": "error",
     "typescript/explicit-function-return-type": "off",
     "eslint/require-yield": "off",
     "eslint/no-void": "off",
     "eslint/no-shadow": "off",
     "eslint/no-unused-vars": "error",
-    "eslint/prefer-destructuring": "error",
-    "eslint/arrow-body-style": "error",
+    "eslint/prefer-destructuring": "off",
+    "eslint/arrow-body-style": "off",
     "unicorn/no-nested-ternary": "error"
   },
-  "options": {},
+  "options": {
+    "typeAware": true,
+    "typeCheck": true
+  },
   "settings": {
     "jsx-a11y": {
       "polymorphicPropName": null,
