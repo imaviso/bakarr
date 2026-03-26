@@ -12,7 +12,7 @@ import { anime, episodes } from "../../db/schema.ts";
 import { deriveEpisodeTimelineMetadata } from "../anime/query-support.ts";
 import type { OperationsError } from "./errors.ts";
 import { buildRenamePreview } from "./library-import.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
 export interface CatalogLibraryReadSupportShape {
   readonly getWantedMissing: (limit: number) => Effect.Effect<MissingEpisode[], DatabaseError>;

@@ -12,7 +12,8 @@ import {
   parseCoveredEpisodesEffect,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
-import { ExternalCallError, type OperationsError, OperationsInputError } from "./errors.ts";
+import { ExternalCallError } from "../../lib/effect-retry.ts";
+import { type OperationsError, OperationsInputError } from "./errors.ts";
 import {
   loadMissingEpisodeNumbers,
   markJobFailed,
@@ -40,7 +41,7 @@ import {
 } from "./repository.ts";
 import { type ParsedRelease, RssClient } from "./rss-client.ts";
 import type { OperationsCoordinationShape } from "./runtime-support.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
 export function makeBackgroundSearchSupport(input: {
   db: AppDatabase;

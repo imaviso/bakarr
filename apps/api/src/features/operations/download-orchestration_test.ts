@@ -32,12 +32,8 @@ import {
   encodeDownloadSourceMetadata,
   loadDownloadPresentationContexts,
 } from "./repository.ts";
-import {
-  dbError,
-  maybeQBitConfig,
-  tryDatabasePromise,
-  wrapOperationsError,
-} from "./service-support.ts";
+import { maybeQBitConfig, tryDatabasePromise, wrapOperationsError } from "./service-support.ts";
+import { toDatabaseError } from "../../lib/effect-db.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
 
 it.scoped("triggerDownload persists merged release provenance on queued downloads", () =>
@@ -670,7 +666,7 @@ it.scoped(
 
             const orchestration = makeDownloadOrchestration({
               db: appDb,
-              dbError,
+              dbError: toDatabaseError,
               eventBus: {
                 publish: () => Effect.void,
               } as unknown as typeof EventBus.Service,
@@ -984,7 +980,7 @@ function createDownloadOrchestrationForTest(
 ) {
   return makeDownloadOrchestration({
     db,
-    dbError,
+    dbError: toDatabaseError,
     eventBus: {
       publish: (event: NotificationEvent) =>
         Effect.sync(() => {

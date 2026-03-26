@@ -22,7 +22,7 @@ import {
 } from "./library-import.ts";
 import { scanVideoFiles } from "./file-scanner.ts";
 import { getConfigLibraryPath } from "./repository.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
 export const findLocalFolderAnimeMatch = Effect.fn("OperationsService.findLocalFolderAnimeMatch")(
   function* (folderName: string, animeRows: ReadonlyArray<typeof anime.$inferSelect>) {

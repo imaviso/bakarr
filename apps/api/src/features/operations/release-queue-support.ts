@@ -5,13 +5,14 @@ import type { DownloadSourceMetadata } from "../../../../../packages/shared/src/
 import { DatabaseError } from "../../db/database.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, downloads } from "../../db/schema.ts";
-import { type ExternalCallError, type OperationsError } from "./errors.ts";
+import type { OperationsError } from "./errors.ts";
+import type { ExternalCallError } from "../../lib/effect-retry.ts";
 import { recordDownloadEvent } from "./job-support.ts";
 import { hasOverlappingDownload, parseCoveredEpisodesEffect } from "./download-lifecycle.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import { encodeDownloadSourceMetadata } from "./repository.ts";
 import type { ParsedRelease } from "./rss-client.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
 export const queueParsedReleaseDownload = Effect.fn("OperationsService.queueParsedReleaseDownload")(
   function* (input: {

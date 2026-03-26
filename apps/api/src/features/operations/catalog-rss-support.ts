@@ -7,7 +7,7 @@ import { rssFeeds } from "../../db/schema.ts";
 import { appendLog } from "./job-support.ts";
 import type { OperationsError } from "./errors.ts";
 import { requireAnime, toRssFeed } from "./repository.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
 export interface CatalogRssSupportShape {
   readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;

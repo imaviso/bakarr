@@ -16,7 +16,7 @@ import { upsertEpisodeFilesAtomic } from "./download-support.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { currentImportMode, currentNamingSettings, requireAnime } from "./repository.ts";
 import { type OperationsError } from "./errors.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import { type FileSystemShape } from "../../lib/filesystem.ts";
 import { OperationsPathError } from "./errors.ts";
 import type { CatalogLibraryReadSupportShape } from "./catalog-library-read-support.ts";

@@ -24,13 +24,9 @@ import {
 } from "./download-lifecycle.ts";
 import { appendLog, loadMissingEpisodeNumbers, recordDownloadEvent } from "./job-support.ts";
 import { parseReleaseName } from "./release-ranking.ts";
-import {
-  DownloadConflictError,
-  ExternalCallError,
-  type OperationsError,
-  OperationsInputError,
-} from "./errors.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import { DownloadConflictError, type OperationsError, OperationsInputError } from "./errors.ts";
+import type { ExternalCallError } from "../../lib/effect-retry.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import type { TriggerDownloadInput } from "./download-orchestration-shared.ts";
 import { resolveRequestedEpisodeNumber } from "./download-orchestration-shared.ts";

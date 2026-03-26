@@ -1,11 +1,8 @@
-import { Effect } from "effect";
+import { Schema } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { DatabaseError } from "../../db/database.ts";
-import {
-  toDatabaseError,
-  tryDatabasePromise as baseTryDatabasePromise,
-} from "../../lib/effect-db.ts";
+import { ExternalCallError } from "../../lib/effect-retry.ts";
 export {
   makeCoalescedEffectRunner,
   makeLatestValuePublisher,
@@ -14,7 +11,6 @@ export {
 import {
   DownloadConflictError,
   DownloadNotFoundError,
-  ExternalCallError,
   OperationsAnimeNotFoundError,
   OperationsConflictError,
   OperationsInputError,
@@ -26,10 +22,21 @@ import {
 } from "./errors.ts";
 import { type QBitConfig, QBitConfigModel } from "./qbittorrent.ts";
 
-export type TryDatabasePromise = <A>(
-  message: string,
-  try_: () => Promise<A>,
-) => Effect.Effect<A, DatabaseError>;
+const knownOperationsErrorSchema = Schema.Union(
+  DownloadConflictError,
+  DownloadNotFoundError,
+  OperationsAnimeNotFoundError,
+  OperationsConflictError,
+  OperationsInputError,
+  OperationsPathError,
+  OperationsStoredDataError,
+  RssFeedParseError,
+  RssFeedRejectedError,
+  RssFeedTooLargeError,
+  ExternalCallError,
+);
+
+const isKnownOperationsError = Schema.is(knownOperationsErrorSchema);
 
 export function maybeQBitConfig(config: Config): QBitConfig | null {
   if (!config.qbittorrent.enabled || !config.qbittorrent.password) {
@@ -44,26 +51,9 @@ export function maybeQBitConfig(config: Config): QBitConfig | null {
   });
 }
 
-export function dbError(message: string) {
-  return toDatabaseError(message);
-}
-
 export function wrapOperationsError(message: string) {
   return (cause: unknown) => {
-    if (
-      cause instanceof OperationsAnimeNotFoundError ||
-      cause instanceof OperationsInputError ||
-      cause instanceof OperationsConflictError ||
-      cause instanceof OperationsPathError ||
-      cause instanceof OperationsStoredDataError ||
-      cause instanceof DownloadNotFoundError ||
-      cause instanceof DownloadConflictError ||
-      cause instanceof RssFeedParseError ||
-      cause instanceof RssFeedRejectedError ||
-      cause instanceof RssFeedTooLargeError ||
-      cause instanceof ExternalCallError ||
-      cause instanceof DatabaseError
-    ) {
+    if (cause instanceof DatabaseError || isKnownOperationsError(cause)) {
       return cause;
     }
 
@@ -75,7 +65,4 @@ export function wrapOperationsError(message: string) {
   };
 }
 
-export const tryDatabasePromiseEffect: TryDatabasePromise = (message, try_) =>
-  baseTryDatabasePromise(message, try_);
-
-export { tryDatabasePromiseEffect as tryDatabasePromise };
+export { tryDatabasePromise } from "../../lib/effect-db.ts";

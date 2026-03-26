@@ -7,7 +7,7 @@ import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { makeTestConfig } from "../../test/config-fixture.ts";
 import { makeSearchOrchestration } from "./search-orchestration.ts";
-import { ExternalCallError } from "./errors.ts";
+import { ExternalCallError } from "../../lib/effect-retry.ts";
 import type { ParsedRelease } from "./rss-client.ts";
 import type { QBitTorrentClient } from "./qbittorrent.ts";
 

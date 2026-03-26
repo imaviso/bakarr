@@ -37,12 +37,12 @@ import {
 import {
   DownloadConflictError,
   DownloadNotFoundError,
-  ExternalCallError,
   type OperationsError,
   OperationsPathError,
 } from "./errors.ts";
+import type { ExternalCallError } from "../../lib/effect-retry.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 
 export function makeDownloadReconciliationService(input: {

@@ -4,9 +4,10 @@ import { DatabaseError } from "../../db/database.ts";
 import { EventBus } from "../events/event-bus.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import { ExternalCallError, type OperationsError } from "./errors.ts";
+import { ExternalCallError } from "../../lib/effect-retry.ts";
+import { type OperationsError } from "./errors.ts";
 import type { OperationsCoordinationShape } from "./runtime-support.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 
 export interface TriggerDownloadInput {

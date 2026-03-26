@@ -27,12 +27,8 @@ import { makeSearchOrchestration } from "./search-orchestration.ts";
 import { QBitTorrentClient } from "./qbittorrent.ts";
 import { RssClient } from "./rss-client.ts";
 import { SeaDexClient } from "./seadex-client.ts";
-import {
-  dbError,
-  maybeQBitConfig,
-  tryDatabasePromise,
-  wrapOperationsError,
-} from "./service-support.ts";
+import { maybeQBitConfig, tryDatabasePromise, wrapOperationsError } from "./service-support.ts";
+import { toDatabaseError } from "../../lib/effect-db.ts";
 import { makeOperationsProgressPublishers, makeOperationsSharedState } from "./runtime-support.ts";
 import type { DatabaseError } from "../../db/database.ts";
 
@@ -103,7 +99,7 @@ export const DownloadOrchestrationLive = Layer.effect(
 
     return makeDownloadOrchestration({
       db,
-      dbError,
+      dbError: toDatabaseError,
       eventBus,
       fs,
       mediaProbe,
@@ -162,7 +158,7 @@ export const SearchOrchestrationLive = Layer.effect(
     return makeSearchOrchestration({
       aniList,
       db,
-      dbError,
+      dbError: toDatabaseError,
       eventBus,
       fs,
       mediaProbe,
@@ -225,7 +221,7 @@ export const CatalogOrchestrationLive = Layer.effect(
     return makeCatalogOrchestration({
       applyDownloadActionEffect: downloadOrchestration.applyDownloadActionEffect,
       db,
-      dbError,
+      dbError: toDatabaseError,
       eventBus,
       fs,
       mediaProbe,

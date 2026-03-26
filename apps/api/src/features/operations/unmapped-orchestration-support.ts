@@ -39,7 +39,7 @@ import {
   updateJobProgress,
 } from "./job-support.ts";
 import { getConfigLibraryPath, requireAnime } from "./repository.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import {
   isUnmappedFolderOutstanding,
   markUnmappedFolderFailed,

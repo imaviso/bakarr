@@ -10,7 +10,7 @@ import { OperationsPathError } from "./errors.ts";
 import { markJobFailed, markJobStarted, markJobSucceeded } from "./job-support.ts";
 import { upsertEpisodeFilesAtomic } from "./download-support.ts";
 import { scanVideoFilesStream } from "./file-scanner.ts";
-import type { TryDatabasePromise } from "./service-support.ts";
+import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
 export interface CatalogLibraryScanSupportShape {
   readonly runLibraryScan: () => Effect.Effect<
