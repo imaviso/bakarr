@@ -202,13 +202,13 @@ export interface WorkersDeps {
 }
 
 export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConfig")(function* (
+  workerScope: Scope.Scope,
   config: Config,
   deps: WorkersDeps,
 ) {
   const { animeService, eventBus, monitor, downloadService, libraryService, rssService, clock } =
     deps;
   const schedule = buildBackgroundSchedule(config);
-  const workerScope = yield* Scope.Scope;
   const runRssWorkerTask = Effect.fn("Background.runRssWorkerTask")(function* () {
     yield* rssService.runRssCheck();
     yield* downloadService.triggerSearchMissing();
@@ -413,7 +413,7 @@ export class BackgroundWorkerController extends Context.Tag(
 )<BackgroundWorkerController, BackgroundWorkerControllerShape>() {}
 
 export interface BackgroundWorkerSpawner {
-  (config: Config): Effect.Effect<void, DatabaseError, Scope.Scope>;
+  (scope: Scope.Scope, config: Config): Effect.Effect<void, DatabaseError>;
 }
 
 export const makeBackgroundWorkerController = Effect.fn(
@@ -443,7 +443,8 @@ const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
     rssService,
   };
 
-  const spawnWorkers: BackgroundWorkerSpawner = (config) => spawnWorkersFromConfig(config, deps);
+  const spawnWorkers: BackgroundWorkerSpawner = (scope, config) =>
+    spawnWorkersFromConfig(scope, config, deps);
 
   const controller = yield* makeBackgroundWorkerController({
     spawnWorkers,

@@ -1,5 +1,5 @@
 import { assertEquals, it } from "./test/vitest.ts";
-import { Deferred, Effect, Fiber, Metric, type Scope } from "effect";
+import { Deferred, Effect, Fiber, Metric, Scope } from "effect";
 import type { ClockServiceShape } from "./lib/clock.ts";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
@@ -85,6 +85,13 @@ function addTrackedFinalizer<A>(
       target.push(value);
     }),
   );
+}
+
+function runInScope<A, E>(
+  scope: Scope.Scope,
+  effect: Effect.Effect<A, E, Scope.Scope>,
+): Effect.Effect<A, E> {
+  return effect.pipe(Effect.provideService(Scope.Scope, scope));
 }
 
 it("build background schedule enables RSS and library loops", () => {
@@ -273,7 +280,7 @@ function findMetric(snapshot: MetricSnapshot, name: string, labels: Record<strin
 it.effect("BackgroundWorkerController starts workers with config", () =>
   Effect.gen(function* () {
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () => Effect.void,
+      spawnWorkers: (_scope, _config) => Effect.void,
     });
 
     const started = yield* controller.isStarted();
@@ -290,7 +297,7 @@ it.effect("BackgroundWorkerController start is idempotent", () =>
   Effect.gen(function* () {
     const spawnCalls: Config[] = [];
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: (config: Config) =>
+      spawnWorkers: (_scope, config: Config) =>
         Effect.sync(() => {
           spawnCalls.push(config);
         }),
@@ -308,7 +315,7 @@ it.effect("BackgroundWorkerController reload spawns new workers and stops old", 
   Effect.gen(function* () {
     const stoppedHandles: string[] = [];
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () => addTrackedFinalizer(stoppedHandles, "handle"),
+      spawnWorkers: (scope) => runInScope(scope, addTrackedFinalizer(stoppedHandles, "handle")),
     });
 
     yield* controller.start(baseConfig);
@@ -327,13 +334,13 @@ it.effect("BackgroundWorkerController reload stops old workers before spawning n
     const events: string[] = [];
     let handleId = 0;
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () =>
+      spawnWorkers: (scope) =>
         Effect.gen(function* () {
           handleId += 1;
           const id = handleId;
           events.push(`spawn-${id}`);
 
-          yield* addTrackedFinalizer(events, `stop-${id}`);
+          yield* runInScope(scope, addTrackedFinalizer(events, `stop-${id}`));
         }),
     });
 
@@ -349,13 +356,13 @@ it.effect("BackgroundWorkerController stops workers when reload spawn fails", ()
     const stoppedHandles: number[] = [];
     let spawnCallCount = 0;
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () =>
+      spawnWorkers: (scope) =>
         Effect.gen(function* () {
           spawnCallCount++;
           if (spawnCallCount === 2) {
             return yield* Effect.die(new Error("spawn failed"));
           }
-          yield* addTrackedFinalizer(stoppedHandles, spawnCallCount);
+          yield* runInScope(scope, addTrackedFinalizer(stoppedHandles, spawnCallCount));
         }),
     });
 
@@ -375,7 +382,7 @@ it.effect("BackgroundWorkerController stop shuts down workers", () =>
   Effect.gen(function* () {
     const stoppedHandles: string[] = [];
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () => addTrackedFinalizer(stoppedHandles, "handle"),
+      spawnWorkers: (scope) => runInScope(scope, addTrackedFinalizer(stoppedHandles, "handle")),
     });
 
     yield* controller.start(baseConfig);
@@ -393,7 +400,7 @@ it.effect("BackgroundWorkerController stop is idempotent", () =>
   Effect.gen(function* () {
     const stoppedHandles: string[] = [];
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () => addTrackedFinalizer(stoppedHandles, "handle"),
+      spawnWorkers: (scope) => runInScope(scope, addTrackedFinalizer(stoppedHandles, "handle")),
     });
 
     yield* controller.start(baseConfig);
@@ -412,7 +419,7 @@ it.effect("BackgroundWorkerController serializes concurrent starts", () =>
     let spawnCallCount = 0;
 
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () =>
+      spawnWorkers: (_scope) =>
         Effect.gen(function* () {
           spawnCallCount += 1;
           yield* Deferred.succeed(firstSpawnEntered, void 0);
@@ -441,7 +448,7 @@ it.effect("BackgroundWorkerController serializes concurrent reloads", () =>
     let spawnCallCount = 0;
 
     const controller = yield* makeBackgroundWorkerController({
-      spawnWorkers: () =>
+      spawnWorkers: (scope) =>
         Effect.gen(function* () {
           spawnCallCount += 1;
           const handleId = `handle-${spawnCallCount}`;
@@ -454,7 +461,7 @@ it.effect("BackgroundWorkerController serializes concurrent reloads", () =>
             yield* Deferred.await(releaseReload);
           }
 
-          yield* addTrackedFinalizer(stoppedHandles, handleId);
+          yield* runInScope(scope, addTrackedFinalizer(stoppedHandles, handleId));
         }),
     });
 
