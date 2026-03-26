@@ -13,16 +13,16 @@ import { maybeQBitConfig, tryDatabasePromise, wrapOperationsError } from "./serv
 import { QBitConfigModel } from "./qbittorrent.ts";
 
 it("operations service support builds qBittorrent config only when enabled", () => {
-  const config = {
-    profiles: [],
-    ...makeDefaultConfig("./test.sqlite"),
-    qbittorrent: {
-      default_category: "anime",
-      enabled: true,
-      password: "secret",
-      url: "http://localhost:8080",
-      username: "admin",
-    },
+  const config = structuredClone(
+    makeDefaultConfig("./test.sqlite"),
+  ) as unknown as import("../../../../../packages/shared/src/index.ts").Config;
+  config.profiles = [];
+  config.qbittorrent = {
+    default_category: "anime",
+    enabled: true,
+    password: "secret",
+    url: "http://localhost:8080",
+    username: "admin",
   };
 
   assertEquals(
@@ -34,13 +34,9 @@ it("operations service support builds qBittorrent config only when enabled", () 
       username: "admin",
     }),
   );
-  assertEquals(
-    maybeQBitConfig({
-      ...config,
-      qbittorrent: { ...config.qbittorrent, enabled: false },
-    }),
-    null,
-  );
+  const disabledConfig = structuredClone(config);
+  disabledConfig.qbittorrent.enabled = false;
+  assertEquals(maybeQBitConfig(disabledConfig), null);
 });
 
 it.effect("operations service support preserves known errors and wraps unknown ones", () =>

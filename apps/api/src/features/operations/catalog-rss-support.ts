@@ -26,7 +26,7 @@ export function makeCatalogRssSupport(input: {
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogRssSupportShape {
-  const nowIso = input.nowIso;
+  const { nowIso } = input;
   const listRssFeeds = Effect.fn("OperationsService.listRssFeeds")(function* () {
     const rows = yield* input.tryDatabasePromise("Failed to list RSS feeds", () =>
       input.db.select().from(rssFeeds).orderBy(desc(rssFeeds.id)),

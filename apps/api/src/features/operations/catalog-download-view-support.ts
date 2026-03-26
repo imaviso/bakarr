@@ -60,12 +60,37 @@ export interface CatalogDownloadViewSupportShape {
   >;
 }
 
+type DownloadEventQueryInput = {
+  animeId?: number;
+  downloadId?: number;
+  endDate?: string;
+  eventType?: string;
+  startDate?: string;
+  status?: string;
+};
+
+function buildDownloadEventConditions(queryInput: DownloadEventQueryInput) {
+  return [
+    queryInput.animeId ? eq(downloadEvents.animeId, queryInput.animeId) : undefined,
+    queryInput.downloadId ? eq(downloadEvents.downloadId, queryInput.downloadId) : undefined,
+    queryInput.endDate ? lte(downloadEvents.createdAt, queryInput.endDate) : undefined,
+    queryInput.eventType ? eq(downloadEvents.eventType, queryInput.eventType) : undefined,
+    queryInput.startDate ? gte(downloadEvents.createdAt, queryInput.startDate) : undefined,
+    queryInput.status
+      ? or(
+          eq(downloadEvents.fromStatus, queryInput.status),
+          eq(downloadEvents.toStatus, queryInput.status),
+        )
+      : undefined,
+  ].filter((value): value is Exclude<typeof value, undefined> => value !== undefined);
+}
+
 export function makeCatalogDownloadViewSupport(input: {
   db: AppDatabase;
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogDownloadViewSupportShape {
-  const nowIso = input.nowIso;
+  const { nowIso } = input;
   const listDownloadEvents = Effect.fn("OperationsService.listDownloadEvents")(function* (
     queryInput: {
       animeId?: number;
@@ -82,24 +107,15 @@ export function makeCatalogDownloadViewSupport(input: {
     const limit = Math.max(1, Math.min(queryInput.limit ?? 100, 1000));
     const cursorId =
       queryInput.cursor && /^\d+$/.test(queryInput.cursor) ? Number(queryInput.cursor) : undefined;
-    const baseConditions = [
-      queryInput.animeId ? eq(downloadEvents.animeId, queryInput.animeId) : undefined,
-      queryInput.downloadId ? eq(downloadEvents.downloadId, queryInput.downloadId) : undefined,
-      queryInput.endDate ? lte(downloadEvents.createdAt, queryInput.endDate) : undefined,
-      queryInput.eventType ? eq(downloadEvents.eventType, queryInput.eventType) : undefined,
-      queryInput.startDate ? gte(downloadEvents.createdAt, queryInput.startDate) : undefined,
-      queryInput.status
-        ? or(
-            eq(downloadEvents.fromStatus, queryInput.status),
-            eq(downloadEvents.toStatus, queryInput.status),
-          )
-        : undefined,
-    ].filter((value): value is Exclude<typeof value, undefined> => value !== undefined);
-    const cursorCondition = cursorId
-      ? queryInput.direction === "prev"
-        ? gt(downloadEvents.id, cursorId)
-        : lt(downloadEvents.id, cursorId)
-      : undefined;
+    const baseConditions = buildDownloadEventConditions(queryInput);
+    let cursorCondition;
+
+    if (cursorId) {
+      cursorCondition =
+        queryInput.direction === "prev"
+          ? gt(downloadEvents.id, cursorId)
+          : lt(downloadEvents.id, cursorId);
+    }
     const conditions = cursorCondition ? [...baseConditions, cursorCondition] : baseConditions;
     const query = input.db
       .select()
@@ -164,19 +180,7 @@ export function makeCatalogDownloadViewSupport(input: {
   ) {
     const limit = Math.max(1, Math.min(queryInput.limit ?? 10_000, 50_000));
     const order = queryInput.order === "asc" ? "asc" : "desc";
-    const baseConditions = [
-      queryInput.animeId ? eq(downloadEvents.animeId, queryInput.animeId) : undefined,
-      queryInput.downloadId ? eq(downloadEvents.downloadId, queryInput.downloadId) : undefined,
-      queryInput.endDate ? lte(downloadEvents.createdAt, queryInput.endDate) : undefined,
-      queryInput.eventType ? eq(downloadEvents.eventType, queryInput.eventType) : undefined,
-      queryInput.startDate ? gte(downloadEvents.createdAt, queryInput.startDate) : undefined,
-      queryInput.status
-        ? or(
-            eq(downloadEvents.fromStatus, queryInput.status),
-            eq(downloadEvents.toStatus, queryInput.status),
-          )
-        : undefined,
-    ].filter((value): value is Exclude<typeof value, undefined> => value !== undefined);
+    const baseConditions = buildDownloadEventConditions(queryInput);
 
     const query = input.db
       .select()

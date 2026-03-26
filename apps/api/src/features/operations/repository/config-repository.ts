@@ -33,10 +33,9 @@ export const loadRuntimeConfig = Effect.fn("ConfigRepository.loadRuntimeConfig")
     effectDecodeQualityProfileRow(row).pipe(mapConfigError("Failed to load runtime config")),
   );
 
-  return {
-    ...core,
-    profiles: [...profiles],
-  } satisfies Config;
+  const config = structuredClone(core) as Config;
+  config.profiles = [...profiles];
+  return config;
 });
 
 export const getConfigLibraryPath = Effect.fn("ConfigRepository.getConfigLibraryPath")(function* (

@@ -9,7 +9,7 @@ import { decodeDownloadSourceMetadata, loadRuntimeConfig } from "./repository.ts
 import { shouldReconcileCompletedDownloads } from "./download-support.ts";
 import {
   inferCoveredEpisodesFromTorrentContents,
-  parseCoveredEpisodes,
+  parseCoveredEpisodesEffect,
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
 import { recordDownloadEvent } from "./job-support.ts";
@@ -18,7 +18,6 @@ import {
   DownloadNotFoundError,
   ExternalCallError,
   type OperationsError,
-  OperationsStoredDataError,
 } from "./errors.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
@@ -46,18 +45,7 @@ export function makeDownloadTorrentLifecycleService(input: {
     maybeQBitConfig,
     reconcileCompletedTorrentEffect,
   } = input;
-  const nowIso = input.nowIso;
-
-  const parseStoredCoveredEpisodes = (value: string | null | undefined) =>
-    Effect.try({
-      try: () => parseCoveredEpisodes(value),
-      catch: (cause) =>
-        cause instanceof OperationsStoredDataError
-          ? cause
-          : new OperationsStoredDataError({
-              message: "Stored covered episode metadata is corrupt",
-            }),
-    });
+  const { nowIso } = input;
 
   const refineBatchCoverageFromTorrentFiles = Effect.fn(
     "OperationsService.refineBatchCoverageFromTorrentFiles",
@@ -98,7 +86,7 @@ export function makeDownloadTorrentLifecycleService(input: {
       return;
     }
 
-    const currentEpisodes = yield* parseStoredCoveredEpisodes(input.existingCoveredEpisodes);
+    const currentEpisodes = yield* parseCoveredEpisodesEffect(input.existingCoveredEpisodes);
     if (
       currentEpisodes.length === inferredEpisodes.length &&
       currentEpisodes.every((episode, index) => episode === inferredEpisodes[index])
@@ -179,11 +167,17 @@ export function makeDownloadTorrentLifecycleService(input: {
           const nextExternalState = preservedImported
             ? (existing?.externalState ?? "imported")
             : torrent.state;
-          const nextDownloadDate = preservedImported
-            ? (existing?.downloadDate ?? syncNow)
-            : status === "completed"
-              ? syncNow
-              : null;
+          let nextDownloadDate: string | null;
+          if (preservedImported) {
+            nextDownloadDate = existing?.downloadDate ?? syncNow;
+          } else {
+            nextDownloadDate = status === "completed" ? syncNow : null;
+          }
+
+          let errorMessage: string | null = null;
+          if (!preservedImported && status === "error") {
+            errorMessage = `qBittorrent state: ${torrent.state}`;
+          }
 
           yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
             db
@@ -192,11 +186,7 @@ export function makeDownloadTorrentLifecycleService(input: {
                 contentPath: torrent.content_path ?? null,
                 downloadDate: nextDownloadDate,
                 downloadedBytes: torrent.downloaded,
-                errorMessage: preservedImported
-                  ? null
-                  : status === "error"
-                    ? `qBittorrent state: ${torrent.state}`
-                    : null,
+                errorMessage,
                 etaSeconds: torrent.eta,
                 externalState: nextExternalState,
                 lastErrorAt: preservedImported || status !== "error" ? null : syncNow,
@@ -223,7 +213,7 @@ export function makeDownloadTorrentLifecycleService(input: {
           }
 
           if (existing && existing.status !== nextStatus) {
-            const coveredEpisodes = yield* parseStoredCoveredEpisodes(existing.coveredEpisodes);
+            const coveredEpisodes = yield* parseCoveredEpisodesEffect(existing.coveredEpisodes);
             yield* recordDownloadEvent(
               db,
               {
@@ -261,7 +251,7 @@ export function makeDownloadTorrentLifecycleService(input: {
     const rows = yield* tryDatabasePromise(`Failed to ${action} download`, () =>
       db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
     );
-    const row = rows[0];
+    const [row] = rows;
 
     if (!row) {
       return yield* new DownloadNotFoundError({
@@ -288,7 +278,7 @@ export function makeDownloadTorrentLifecycleService(input: {
       }
     }
 
-    const coveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
+    const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
 
     if (action === "delete") {
       yield* recordDownloadEvent(
@@ -347,7 +337,7 @@ export function makeDownloadTorrentLifecycleService(input: {
     const rows = yield* tryDatabasePromise("Failed to retry download", () =>
       db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
     );
-    const row = rows[0];
+    const [row] = rows;
 
     if (!row) {
       return yield* new DownloadNotFoundError({
@@ -363,7 +353,7 @@ export function makeDownloadTorrentLifecycleService(input: {
 
     const runtimeConfig = yield* loadRuntimeConfig(db);
     const qbitConfig = maybeQBitConfig(runtimeConfig);
-    const coveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
+    const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
 
     if (qbitConfig) {
       yield* qbitClient

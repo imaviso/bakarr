@@ -499,7 +499,7 @@ function inferSource(lower: string): QualitySource {
     lower.includes("bdremux") ||
     lower.includes("bdrip") ||
     lower.includes("bdmv") ||
-    /(?:^|[\s._\-\[\]()])bd(?:$|[\s._\-\[\]()])/i.test(lower)
+    /(?:^|[\s._\-[\]()])bd(?:$|[\s._\-[\]()])/i.test(lower)
   )
     return "BluRay";
   if (lower.includes("webrip")) return "WebRip";
@@ -530,16 +530,17 @@ function parseSizeLabelToBytes(value: string): number {
   }
   const amount = Number.parseFloat(match[1]);
   const unit = match[2].toUpperCase();
-  const multiplier =
-    unit === "B"
-      ? 1
-      : unit === "KIB" || unit === "KB"
-        ? 1024
-        : unit === "MIB" || unit === "MB"
-          ? 1024 ** 2
-          : unit === "GIB" || unit === "GB"
-            ? 1024 ** 3
-            : 1024 ** 4;
+  let multiplier = 1024 ** 4;
+
+  if (unit === "B") {
+    multiplier = 1;
+  } else if (unit === "KIB" || unit === "KB") {
+    multiplier = 1024;
+  } else if (unit === "MIB" || unit === "MB") {
+    multiplier = 1024 ** 2;
+  } else if (unit === "GIB" || unit === "GB") {
+    multiplier = 1024 ** 3;
+  }
   return Math.round(amount * multiplier);
 }
 

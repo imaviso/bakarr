@@ -110,6 +110,18 @@ export function parseCoveredEpisodes(value: string | null | undefined): number[]
   }
 }
 
+/** Effect-wrapped parseCoveredEpisodes — fails with OperationsStoredDataError on corrupt data. */
+export const parseCoveredEpisodesEffect = (value: string | null | undefined) =>
+  Effect.try({
+    try: () => parseCoveredEpisodes(value),
+    catch: (cause) =>
+      cause instanceof OperationsStoredDataError
+        ? cause
+        : new OperationsStoredDataError({
+            message: "Stored covered episode metadata is corrupt",
+          }),
+  });
+
 const IN_FLIGHT_STATUSES = ["queued", "downloading", "paused"];
 
 export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownload")(function* (

@@ -24,11 +24,8 @@ import { scanVideoFiles } from "./file-scanner.ts";
 import { getConfigLibraryPath } from "./repository.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
 
-export function findLocalFolderAnimeMatch(
-  folderName: string,
-  animeRows: ReadonlyArray<typeof anime.$inferSelect>,
-) {
-  return Effect.gen(function* () {
+export const findLocalFolderAnimeMatch = Effect.fn("OperationsService.findLocalFolderAnimeMatch")(
+  function* (folderName: string, animeRows: ReadonlyArray<typeof anime.$inferSelect>) {
     const queries = buildUnmappedFolderSearchQueries(folderName);
 
     for (const [index, query] of queries.entries()) {
@@ -47,14 +44,14 @@ export function findLocalFolderAnimeMatch(
     }
 
     return undefined;
-  });
-}
+  },
+);
 
-export function mergeLocalFolderMatch(
-  folder: ScannerState["folders"][number],
-  animeRows: ReadonlyArray<typeof anime.$inferSelect>,
-) {
-  return Effect.gen(function* () {
+export const mergeLocalFolderMatch = Effect.fn("OperationsService.mergeLocalFolderMatch")(
+  function* (
+    folder: ScannerState["folders"][number],
+    animeRows: ReadonlyArray<typeof anime.$inferSelect>,
+  ) {
     const localMatch = yield* findLocalFolderAnimeMatch(folder.name, animeRows);
 
     if (!localMatch) {
@@ -68,8 +65,8 @@ export function mergeLocalFolderMatch(
         ...folder.suggested_matches.filter((candidate) => candidate.id !== localMatch.id),
       ],
     };
-  });
-}
+  },
+);
 
 function roundConfidence(value: number) {
   return Math.round(value * 100) / 100;
@@ -190,13 +187,13 @@ export function toUnmappedMatchErrorMessage(error: unknown) {
   return String(error);
 }
 
-export function loadUnmappedFolderSnapshot(input: {
-  db: AppDatabase;
-  fs: FileSystemShape;
-  nowIso?: () => Effect.Effect<string>;
-  tryDatabasePromise: TryDatabasePromise;
-}) {
-  return Effect.gen(function* () {
+export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmappedFolderSnapshot")(
+  function* (input: {
+    db: AppDatabase;
+    fs: FileSystemShape;
+    nowIso?: () => Effect.Effect<string>;
+    tryDatabasePromise: TryDatabasePromise;
+  }) {
     const root = yield* getConfigLibraryPath(input.db);
     const animeRows = yield* input.tryDatabasePromise("Failed to scan unmapped folders", () =>
       input.db.select().from(anime),
@@ -231,8 +228,8 @@ export function loadUnmappedFolderSnapshot(input: {
       cachedByPath,
       folders,
     };
-  });
-}
+  },
+);
 
 export const loadUnmappedFolderVideoSize = Effect.fn(
   "OperationsService.loadUnmappedFolderVideoSize",

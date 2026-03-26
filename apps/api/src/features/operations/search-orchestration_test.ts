@@ -51,14 +51,9 @@ it.effect(
         wrapOperationsError: (_message) => (cause) => cause as never,
       });
 
-      const config: Config = {
-        ...makeDefaultConfig("/tmp/test.sqlite"),
-        downloads: {
-          ...makeDefaultConfig("/tmp/test.sqlite").downloads,
-          use_seadex: true,
-        },
-        profiles: [],
-      };
+      const config = structuredClone(makeDefaultConfig("/tmp/test.sqlite")) as unknown as Config;
+      config.downloads.use_seadex = true;
+      config.profiles = [];
 
       const exit = yield* Effect.exit(
         orchestration.searchEpisodeReleases(

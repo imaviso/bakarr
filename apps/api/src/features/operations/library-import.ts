@@ -23,6 +23,7 @@ import {
 } from "./naming-support.ts";
 import { OperationsStoredDataError } from "./errors.ts";
 import { parseResolution } from "./release-ranking.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "../../lib/anime-date-utils.ts";
 import { currentNamingSettings, requireAnime } from "./repository.ts";
 
 const AnimeGenresJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
@@ -71,7 +72,7 @@ export const buildRenamePreview = Effect.fn("OperationsService.buildRenamePrevie
   const results: RenamePreviewItem[] = [];
   for (const [filePath, groupRows] of fileGroups) {
     const episodeNumbers = groupRows.map((r) => r.number).sort((a, b) => a - b);
-    const primaryEpisode = episodeNumbers[0];
+    const [primaryEpisode] = episodeNumbers;
     const extension = filePath.includes(".") ? filePath.slice(filePath.lastIndexOf(".")) : ".mkv";
     const plan = buildEpisodeFilenamePlan({
       animeRow,
@@ -154,7 +155,8 @@ export function analyzeScannedFile(
     };
 
     if (sourceIdentity.scheme === "season") {
-      season = sourceIdentity.season;
+      const { season: sourceSeason } = sourceIdentity;
+      season = sourceSeason;
       episodeNumbers = [...sourceIdentity.episode_numbers];
       sourceIdentityDto.season = sourceIdentity.season;
       sourceIdentityDto.episode_numbers = [...sourceIdentity.episode_numbers];
@@ -166,7 +168,7 @@ export function analyzeScannedFile(
     }
   }
 
-  const primaryEpisode = episodeNumbers[0];
+  const [primaryEpisode] = episodeNumbers;
   const needsManualMapping =
     !sourceIdentity ||
     parsed.kind === "unknown" ||
@@ -228,7 +230,7 @@ export const toAnimeSearchCandidate = Effect.fn("Operations.toAnimeSearchCandida
     genres: yield* decodeAnimeGenres(row.genres),
     id: row.id,
     season: deriveAnimeSeason(row.startDate),
-    season_year: row.startYear ?? extractYear(row.startDate),
+    season_year: row.startYear ?? extractYearFromDate(row.startDate),
     start_date: row.startDate ?? undefined,
     start_year: row.startYear ?? undefined,
     status: row.status,
@@ -239,32 +241,6 @@ export const toAnimeSearchCandidate = Effect.fn("Operations.toAnimeSearchCandida
     },
   } satisfies AnimeSearchResult;
 });
-
-function deriveAnimeSeason(date?: string | null) {
-  if (!date) {
-    return undefined;
-  }
-
-  const month = Number.parseInt(date.split("-")[1] ?? "", 10);
-
-  if (!Number.isFinite(month)) {
-    return undefined;
-  }
-
-  if (month <= 2 || month === 12) return "winter" as const;
-  if (month <= 5) return "spring" as const;
-  if (month <= 8) return "summer" as const;
-  return "fall" as const;
-}
-
-function extractYear(date?: string | null) {
-  if (!date) {
-    return undefined;
-  }
-
-  const year = Number.parseInt(date.slice(0, 4), 10);
-  return Number.isFinite(year) ? year : undefined;
-}
 
 export function findBestLocalAnimeMatch(
   parsedTitle: string,

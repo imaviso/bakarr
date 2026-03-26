@@ -39,7 +39,7 @@ it.scoped("QBitTorrentClient uses provided HttpClient", () =>
     );
 
     assertEquals(
-      torrents.map((t) => ({ ...t })),
+      torrents.map((torrent) => structuredClone(torrent)),
       [
         {
           added_on: 123,
@@ -83,7 +83,7 @@ it.effect("QBitTorrentClient can load torrent contents", () =>
     );
 
     assertEquals(
-      files.map((f) => ({ ...f })),
+      files.map((file) => structuredClone(file)),
       [
         {
           index: 0,

@@ -11,7 +11,9 @@ import { EventBus } from "../events/event-bus.ts";
 export interface OperationsCoordinationShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;
   readonly forkUnmappedScanLoop: (loop: Effect.Effect<void>) => Effect.Effect<void>;
-  readonly runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) => Effect.Effect<A, E>;
+  readonly runExclusiveDownloadTrigger: <A, E>(
+    operation: Effect.Effect<A, E>,
+  ) => Effect.Effect<A, E>;
   readonly tryBeginUnmappedScan: () => Effect.Effect<boolean>;
 }
 

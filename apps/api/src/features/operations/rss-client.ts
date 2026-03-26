@@ -173,7 +173,7 @@ const makeFetchItems = (
       }
 
       if (response.status >= 300 && response.status < 400) {
-        const location = response.headers["location"];
+        const { location } = response.headers;
         if (!location || typeof location !== "string") {
           return yield* ExternalCallError.make({
             cause: new Error(`Redirect without location header`),
@@ -228,84 +228,81 @@ const makeFetchItems = (
     });
   });
 
-type SsrfValidationResult = { _tag: "Accepted" } | { _tag: "Rejected"; reason: string };
-
-const validateUrlForSsrf = (
+const validateUrlForSsrf = Effect.fn("RssClient.validateUrlForSsrf")(function* (
   urlString: string,
   dns: typeof DnsResolver.Service,
-): Effect.Effect<SsrfValidationResult, never, never> =>
-  Effect.gen(function* () {
-    const parsedUrlResult = yield* Effect.try({
-      try: () => new URL(urlString),
-      catch: () =>
-        new RssFeedRejectedError({
-          message: "RSS feed URL format is invalid",
-        }),
-    }).pipe(Effect.either);
+) {
+  const parsedUrlResult = yield* Effect.try({
+    try: () => new URL(urlString),
+    catch: () =>
+      new RssFeedRejectedError({
+        message: "RSS feed URL format is invalid",
+      }),
+  }).pipe(Effect.either);
 
-    if (Either.isLeft(parsedUrlResult)) {
+  if (Either.isLeft(parsedUrlResult)) {
+    return {
+      _tag: "Rejected" as const,
+      reason: parsedUrlResult.left.message,
+    };
+  }
+  const parsedUrl = parsedUrlResult.right;
+
+  if (!isAllowedPort(parsedUrl.port)) {
+    return {
+      _tag: "Rejected" as const,
+      reason: `Port ${parsedUrl.port} not allowed`,
+    };
+  }
+
+  const hostname = normalizeHostname(parsedUrl.hostname);
+
+  if (isBlockedHostname(hostname)) {
+    return {
+      _tag: "Rejected" as const,
+      reason: `Hostname ${hostname} is blocked`,
+    };
+  }
+
+  if (isIpLiteral(hostname)) {
+    if (isPrivateIpAddress(hostname)) {
       return {
         _tag: "Rejected" as const,
-        reason: parsedUrlResult.left.message,
+        reason: `IP ${hostname} is private/reserved`,
       };
     }
-    const parsedUrl = parsedUrlResult.right;
-
-    if (!isAllowedPort(parsedUrl.port)) {
-      return {
-        _tag: "Rejected" as const,
-        reason: `Port ${parsedUrl.port} not allowed`,
-      };
-    }
-
-    const hostname = normalizeHostname(parsedUrl.hostname);
-
-    if (isBlockedHostname(hostname)) {
-      return {
-        _tag: "Rejected" as const,
-        reason: `Hostname ${hostname} is blocked`,
-      };
-    }
-
-    if (isIpLiteral(hostname)) {
-      if (isPrivateIpAddress(hostname)) {
-        return {
-          _tag: "Rejected" as const,
-          reason: `IP ${hostname} is private/reserved`,
-        };
-      }
-      return { _tag: "Accepted" as const };
-    }
-
-    const resolvedAddrsResult = yield* Effect.either(resolveFeedAddresses(hostname, dns));
-
-    if (Either.isLeft(resolvedAddrsResult)) {
-      return {
-        _tag: "Rejected" as const,
-        reason: resolvedAddrsResult.left.message,
-      };
-    }
-
-    const resolvedAddrs = resolvedAddrsResult.right;
-
-    if (resolvedAddrs.length === 0) {
-      return {
-        _tag: "Rejected" as const,
-        reason: `DNS resolution failed for ${hostname}`,
-      };
-    }
-
-    for (const addr of resolvedAddrs) {
-      if (isPrivateIpAddress(addr)) {
-        return {
-          _tag: "Rejected" as const,
-          reason: `${hostname} resolves to private IP ${addr}`,
-        };
-      }
-    }
-
     return { _tag: "Accepted" as const };
-  });
+  }
+
+  const resolvedAddrsResult = yield* Effect.either(resolveFeedAddresses(hostname, dns));
+
+  if (Either.isLeft(resolvedAddrsResult)) {
+    return {
+      _tag: "Rejected" as const,
+      reason: resolvedAddrsResult.left.message,
+    };
+  }
+
+  const resolvedAddrs = resolvedAddrsResult.right;
+
+  if (resolvedAddrs.length === 0) {
+    return {
+      _tag: "Rejected" as const,
+      reason: `DNS resolution failed for ${hostname}`,
+    };
+  }
+
+  for (const addr of resolvedAddrs) {
+    if (isPrivateIpAddress(addr)) {
+      return {
+        _tag: "Rejected" as const,
+        reason: `${hostname} resolves to private IP ${addr}`,
+      };
+    }
+  }
+
+  return { _tag: "Accepted" as const };
+});
 
 export const RssClientLive = Layer.effect(
   RssClient,
@@ -333,18 +330,19 @@ export const RssClientLive = Layer.effect(
 
 const MAX_RSS_BYTES = 10 * 1024 * 1024;
 
-const readRssItems = Effect.fn("RssClient.readRssItems")(
-  (body: Stream.Stream<Uint8Array, unknown>) =>
-    collectBoundedText(body, MAX_RSS_BYTES).pipe(
-      Effect.mapError(
-        () =>
-          new RssFeedTooLargeError({
-            message: `RSS payload exceeded maximum size of ${MAX_RSS_BYTES} bytes`,
-          }),
-      ),
-      Effect.flatMap(parseRssXml),
+const readRssItems = Effect.fn("RssClient.readRssItems")(function* (
+  body: Stream.Stream<Uint8Array, unknown>,
+) {
+  const text = yield* collectBoundedText(body, MAX_RSS_BYTES).pipe(
+    Effect.mapError(
+      () =>
+        new RssFeedTooLargeError({
+          message: `RSS payload exceeded maximum size of ${MAX_RSS_BYTES} bytes`,
+        }),
     ),
-);
+  );
+  return yield* parseRssXml(text);
+});
 
 class RssItemSchema extends Schema.Class<RssItemSchema>("RssItemSchema")({
   title: Schema.optional(Schema.String),
@@ -381,11 +379,11 @@ class RssRootSchema extends Schema.Class<RssRootSchema>("RssRootSchema")({
 
 const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, ParsedReleaseSchema, {
   decode: (item) => {
-    const title = item.title;
-    const link = item.link;
+    const { title } = item;
+    const { link } = item;
     const infoHash = item["nyaa:infoHash"];
     const size = item["nyaa:size"];
-    const pubDate = item.pubDate;
+    const { pubDate } = item;
     const seeders = parseCount(item["nyaa:seeders"]);
     const leechers = parseCount(item["nyaa:leechers"]);
     const trusted = parseYesNo(item["nyaa:trusted"]);
@@ -453,38 +451,33 @@ const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, Par
     }),
 });
 
-const parseRssXml = Effect.fn("RssClient.parseRssXml")((xml: string) =>
-  Effect.try({
+const parseRssXml = Effect.fn("RssClient.parseRssXml")(function* (xml: string) {
+  const parsed = yield* Effect.try({
     try: () => xmlParser.parse(xml),
     catch: () =>
       new RssFeedParseError({
         message: "RSS feed XML could not be parsed",
       }),
-  }).pipe(
-    Effect.flatMap((parsed) =>
-      Schema.decodeUnknown(RssRootSchema)(parsed).pipe(
-        Effect.mapError(
-          () =>
-            new RssFeedParseError({
-              message: "RSS feed payload did not match the expected schema",
-            }),
-        ),
+  });
+  const decoded = yield* Schema.decodeUnknown(RssRootSchema)(parsed).pipe(
+    Effect.mapError(
+      () =>
+        new RssFeedParseError({
+          message: "RSS feed payload did not match the expected schema",
+        }),
+    ),
+  );
+  return yield* Effect.forEach(decoded.rss.channel.item, (item) =>
+    Schema.decodeUnknown(ParsedReleaseFromRssItemSchema)(item).pipe(
+      Effect.mapError(
+        () =>
+          new RssFeedParseError({
+            message: "RSS feed item payload was invalid",
+          }),
       ),
     ),
-    Effect.flatMap((decoded) =>
-      Effect.forEach(decoded.rss.channel.item, (item) =>
-        Schema.decodeUnknown(ParsedReleaseFromRssItemSchema)(item).pipe(
-          Effect.mapError(
-            () =>
-              new RssFeedParseError({
-                message: "RSS feed item payload was invalid",
-              }),
-          ),
-        ),
-      ),
-    ),
-  ),
-);
+  );
+});
 
 function parseSizeToBytes(size: string): number | null {
   const match = size.match(/([0-9.]+)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)/i);
@@ -495,16 +488,17 @@ function parseSizeToBytes(size: string): number | null {
 
   const value = Number.parseFloat(match[1]);
   const unit = match[2].toUpperCase();
-  const multiplier =
-    unit === "B"
-      ? 1
-      : unit === "KIB" || unit === "KB"
-        ? 1024
-        : unit === "MIB" || unit === "MB"
-          ? 1024 ** 2
-          : unit === "GIB" || unit === "GB"
-            ? 1024 ** 3
-            : 1024 ** 4;
+  let multiplier = 1024 ** 4;
+
+  if (unit === "B") {
+    multiplier = 1;
+  } else if (unit === "KIB" || unit === "KB") {
+    multiplier = 1024;
+  } else if (unit === "MIB" || unit === "MB") {
+    multiplier = 1024 ** 2;
+  } else if (unit === "GIB" || unit === "GB") {
+    multiplier = 1024 ** 3;
+  }
 
   return Math.round(value * multiplier);
 }

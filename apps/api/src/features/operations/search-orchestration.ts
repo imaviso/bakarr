@@ -84,7 +84,7 @@ export function makeSearchOrchestration(input: {
     publishRssCheckProgress,
     coordination,
   } = input;
-  const nowIso = input.nowIso;
+  const { nowIso } = input;
 
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(function* (
     query: string,
@@ -213,8 +213,13 @@ export function makeSearchOrchestration(input: {
     } satisfies SearchResults;
   });
 
-  const searchReleases = (query: string, animeId?: number, category?: string, filter?: string) =>
-    searchReleasesRaw(query, animeId, category, filter).pipe(
+  const searchReleases = Effect.fn("OperationsService.searchReleases")(function* (
+    query: string,
+    animeId?: number,
+    category?: string,
+    filter?: string,
+  ) {
+    return yield* searchReleasesRaw(query, animeId, category, filter).pipe(
       Effect.mapError((error) =>
         error instanceof DatabaseError ||
         error instanceof ExternalCallError ||
@@ -223,6 +228,7 @@ export function makeSearchOrchestration(input: {
           : dbError("Failed to search releases")(error),
       ),
     );
+  });
 
   const searchEpisode = Effect.fn("OperationsService.searchEpisode")(function* (
     animeId: number,
@@ -322,8 +328,11 @@ export function makeSearchOrchestration(input: {
     importUnmappedFolder,
     runUnmappedScan,
   } = unmappedOrchestrationSupport;
-  const scanImportPathRaw = (path: string, animeId?: number) =>
-    scanImportPathEffect({
+  const scanImportPath = Effect.fn("OperationsService.scanImportPath")(function* (
+    path: string,
+    animeId?: number,
+  ) {
+    return yield* scanImportPathEffect({
       aniList,
       animeId,
       db,
@@ -331,16 +340,14 @@ export function makeSearchOrchestration(input: {
       mediaProbe,
       path,
       tryDatabasePromise,
-    });
-
-  const scanImportPath = (path: string, animeId?: number) =>
-    scanImportPathRaw(path, animeId).pipe(
+    }).pipe(
       Effect.mapError((error) =>
         error instanceof DatabaseError || error instanceof OperationsPathError
           ? error
           : dbError("Failed to scan import path")(error),
       ),
     );
+  });
 
   return {
     bulkControlUnmappedFolders,

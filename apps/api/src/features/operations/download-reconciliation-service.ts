@@ -28,7 +28,7 @@ import {
 } from "./download-support.ts";
 import { classifyMediaArtifact } from "../../lib/media-identity.ts";
 import {
-  parseCoveredEpisodes,
+  parseCoveredEpisodesEffect,
   resolveAccessibleDownloadPath,
   resolveBatchContentPaths,
   resolveCompletedContentPath,
@@ -40,7 +40,6 @@ import {
   ExternalCallError,
   type OperationsError,
   OperationsPathError,
-  OperationsStoredDataError,
 } from "./errors.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { TryDatabasePromise } from "./service-support.ts";
@@ -70,19 +69,8 @@ export function makeDownloadReconciliationService(input: {
     wrapOperationsError,
     maybeQBitConfig,
   } = input;
-  const nowIso = input.nowIso;
-  const randomUuid = input.randomUuid;
-
-  const parseStoredCoveredEpisodes = (value: string | null | undefined) =>
-    Effect.try({
-      try: () => parseCoveredEpisodes(value),
-      catch: (cause) =>
-        cause instanceof OperationsStoredDataError
-          ? cause
-          : new OperationsStoredDataError({
-              message: "Stored covered episode metadata is corrupt",
-            }),
-    });
+  const { nowIso } = input;
+  const { randomUuid } = input;
 
   const maybeCleanupImportedTorrent = Effect.fn("OperationsService.maybeCleanupImportedTorrent")(
     function* (config: Config | null | undefined, infoHash: string | null) {
@@ -113,6 +101,61 @@ export function makeDownloadReconciliationService(input: {
     },
   );
 
+  const finalizeDownloadImport = Effect.fn("OperationsService.finalizeDownloadImport")(
+    function* (input: {
+      downloadId: number;
+      fromStatus: string;
+      now: string;
+      animeId: number;
+      eventType: string;
+      eventMessage: string;
+      eventMetadata: string | null;
+      logEventType: string;
+      logMessage: string;
+    }) {
+      yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
+        await db.transaction(async (tx) => {
+          await tx
+            .update(downloads)
+            .set({ externalState: "imported", progress: 100, status: "imported" })
+            .where(eq(downloads.id, input.downloadId));
+          await tx
+            .update(downloads)
+            .set({ reconciledAt: input.now })
+            .where(eq(downloads.id, input.downloadId));
+          await tx.insert(downloadEvents).values({
+            animeId: input.animeId,
+            createdAt: input.now,
+            downloadId: input.downloadId,
+            eventType: input.eventType,
+            fromStatus: input.fromStatus,
+            message: input.eventMessage,
+            metadata: input.eventMetadata,
+            toStatus: "imported",
+          });
+          await tx.insert(systemLogs).values({
+            createdAt: input.now,
+            details: null,
+            eventType: input.logEventType,
+            level: "success",
+            message: input.logMessage,
+          });
+        });
+      });
+    },
+  );
+
+  const markDownloadReconciled = (downloadId: number, now: string) =>
+    tryDatabasePromise("Failed to reconcile completed download", async () => {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(downloads)
+          .set({ externalState: "imported", progress: 100, status: "imported" })
+          .where(eq(downloads.id, downloadId));
+        await tx.update(downloads).set({ reconciledAt: now }).where(eq(downloads.id, downloadId));
+      });
+    });
+
   const reconcileCompletedTorrentEffect = Effect.fn("OperationsService.reconcileCompletedTorrent")(
     function* (infoHash: string, contentPath: string | undefined) {
       if (!contentPath) {
@@ -122,7 +165,7 @@ export function makeDownloadReconciliationService(input: {
       const rows = yield* tryDatabasePromise("Failed to reconcile completed download", () =>
         db.select().from(downloads).where(eq(downloads.infoHash, infoHash)).limit(1),
       );
-      const row = rows[0];
+      const [row] = rows;
 
       if (!row) {
         return;
@@ -148,7 +191,7 @@ export function makeDownloadReconciliationService(input: {
       }
 
       if (row.isBatch) {
-        const coveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
+        const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
         const batchPaths = yield* resolveBatchContentPaths(fs, resolvedContentRoot).pipe(
           Effect.mapError(
             () =>
@@ -347,47 +390,25 @@ export function makeDownloadReconciliationService(input: {
           }
 
           const batchNow = yield* nowIso();
-          const storedCoveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
-          yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
-            await db.transaction(async (tx) => {
-              await tx
-                .update(downloads)
-                .set({
-                  externalState: "imported",
-                  progress: 100,
-                  status: "imported",
-                })
-                .where(eq(downloads.id, row.id));
-              await tx
-                .update(downloads)
-                .set({ reconciledAt: batchNow })
-                .where(eq(downloads.id, row.id));
-              await tx.insert(downloadEvents).values({
-                animeId: row.animeId,
-                createdAt: batchNow,
-                downloadId: row.id,
-                eventType: "download.imported.batch",
-                fromStatus: row.status,
-                message: batchAlreadyImported
-                  ? `Reconciled already-imported batch torrent for ${row.animeTitle}`
-                  : `Imported batch torrent for ${row.animeTitle}`,
-                metadata: encodeDownloadEventMetadata({
-                  covered_episodes: storedCoveredEpisodes,
-                  imported_path: animeRow.rootFolder,
-                  source_metadata: storedSourceMetadata,
-                }),
-                toStatus: "imported",
-              });
-              await tx.insert(systemLogs).values({
-                createdAt: batchNow,
-                details: null,
-                eventType: "downloads.reconciled.batch",
-                level: "success",
-                message: batchAlreadyImported
-                  ? `Marked already-imported batch torrent as reconciled for ${row.animeTitle}`
-                  : `Mapped completed batch torrent for ${row.animeTitle}`,
-              });
-            });
+          const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
+          yield* finalizeDownloadImport({
+            downloadId: row.id,
+            fromStatus: row.status,
+            now: batchNow,
+            animeId: row.animeId,
+            eventType: "download.imported.batch",
+            eventMessage: batchAlreadyImported
+              ? `Reconciled already-imported batch torrent for ${row.animeTitle}`
+              : `Imported batch torrent for ${row.animeTitle}`,
+            eventMetadata: encodeDownloadEventMetadata({
+              covered_episodes: storedCoveredEpisodes,
+              imported_path: animeRow.rootFolder,
+              source_metadata: storedSourceMetadata,
+            }),
+            logEventType: "downloads.reconciled.batch",
+            logMessage: batchAlreadyImported
+              ? `Marked already-imported batch torrent as reconciled for ${row.animeTitle}`
+              : `Mapped completed batch torrent for ${row.animeTitle}`,
           });
           yield* maybeCleanupImportedTorrent(runtimeConfig, row.infoHash);
           yield* eventBus.publish({
@@ -415,22 +436,7 @@ export function makeDownloadReconciliationService(input: {
 
       if (existingEpisode[0]?.downloaded && existingEpisode[0]?.filePath) {
         const alreadyImportedNow = yield* nowIso();
-        yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
-          await db.transaction(async (tx) => {
-            await tx
-              .update(downloads)
-              .set({
-                externalState: "imported",
-                progress: 100,
-                status: "imported",
-              })
-              .where(eq(downloads.id, row.id));
-            await tx
-              .update(downloads)
-              .set({ reconciledAt: alreadyImportedNow })
-              .where(eq(downloads.id, row.id));
-          });
-        });
+        yield* markDownloadReconciled(row.id, alreadyImportedNow);
         return;
       }
 
@@ -513,43 +519,21 @@ export function makeDownloadReconciliationService(input: {
         ),
       );
       const singleNow = yield* nowIso();
-      const storedCoveredEpisodes = yield* parseStoredCoveredEpisodes(row.coveredEpisodes);
-      yield* tryDatabasePromise("Failed to reconcile completed download", async () => {
-        await db.transaction(async (tx) => {
-          await tx
-            .update(downloads)
-            .set({
-              externalState: "imported",
-              progress: 100,
-              status: "imported",
-            })
-            .where(eq(downloads.id, row.id));
-          await tx
-            .update(downloads)
-            .set({ reconciledAt: singleNow })
-            .where(eq(downloads.id, row.id));
-          await tx.insert(downloadEvents).values({
-            animeId: row.animeId,
-            createdAt: singleNow,
-            downloadId: row.id,
-            eventType: "download.imported",
-            fromStatus: row.status,
-            message: `Imported ${row.animeTitle} episode ${row.episodeNumber}`,
-            metadata: encodeDownloadEventMetadata({
-              covered_episodes: storedCoveredEpisodes,
-              imported_path: managedPath,
-              source_metadata: storedSourceMetadata,
-            }),
-            toStatus: "imported",
-          });
-          await tx.insert(systemLogs).values({
-            createdAt: singleNow,
-            details: null,
-            eventType: "downloads.reconciled",
-            level: "success",
-            message: `Mapped completed torrent for ${row.animeTitle} episode ${row.episodeNumber}`,
-          });
-        });
+      const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
+      yield* finalizeDownloadImport({
+        downloadId: row.id,
+        fromStatus: row.status,
+        now: singleNow,
+        animeId: row.animeId,
+        eventType: "download.imported",
+        eventMessage: `Imported ${row.animeTitle} episode ${row.episodeNumber}`,
+        eventMetadata: encodeDownloadEventMetadata({
+          covered_episodes: storedCoveredEpisodes,
+          imported_path: managedPath,
+          source_metadata: storedSourceMetadata,
+        }),
+        logEventType: "downloads.reconciled",
+        logMessage: `Mapped completed torrent for ${row.animeTitle} episode ${row.episodeNumber}`,
       });
       yield* maybeCleanupImportedTorrent(runtimeConfig, row.infoHash);
       yield* eventBus.publish({
@@ -569,7 +553,7 @@ export function makeDownloadReconciliationService(input: {
       const rows = yield* tryDatabasePromise("Failed to reconcile download", () =>
         db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
       );
-      const row = rows[0];
+      const [row] = rows;
 
       if (!row) {
         return yield* new DownloadNotFoundError({

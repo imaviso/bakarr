@@ -429,8 +429,16 @@ it.scoped("RssClient disables automatic redirect following for fetch client", ()
     const calls: Array<{ redirect?: RequestRedirect; url: string }> = [];
 
     globalThis.fetch = ((input, init) => {
-      const url =
-        typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      let url: string;
+
+      if (typeof input === "string") {
+        url = input;
+      } else if (input instanceof URL) {
+        url = input.toString();
+      } else {
+        const { url: requestUrl } = input;
+        url = requestUrl;
+      }
       const requestInit = (init ?? {}) as globalThis.RequestInit;
       calls.push({ redirect: requestInit.redirect, url });
 

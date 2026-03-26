@@ -39,14 +39,14 @@ it.scoped(
         yield* Effect.promise(() =>
           db.insert(appConfig).values({
             id: 1,
-            data: encodeConfigCore({
-              ...defaults,
-              library: {
-                ...defaults.library,
-                import_mode: "move",
-                library_path: "/anime-library",
-              },
-            }),
+            data: encodeConfigCore(
+              (() => {
+                const config = structuredClone(defaults);
+                config.library.import_mode = "move";
+                config.library.library_path = "/anime-library";
+                return config;
+              })(),
+            ),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );

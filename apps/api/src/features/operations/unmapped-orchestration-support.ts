@@ -103,7 +103,7 @@ export function makeUnmappedOrchestrationSupport(input: {
   tryDatabasePromise: TryDatabasePromise;
 }) {
   const { aniList, db, dbError, coordination, fs, tryDatabasePromise } = input;
-  const nowIso = input.nowIso;
+  const { nowIso } = input;
 
   const loadQueuedUnmappedFolders = Effect.fn("OperationsService.loadQueuedUnmappedFolders")(
     function* () {
@@ -156,10 +156,46 @@ export function makeUnmappedOrchestrationSupport(input: {
     };
   });
 
-  const runUnmappedScanPass = Effect.fn("OperationsService.runUnmappedScanPass")(function* () {
-    yield* markJobStarted(db, "unmapped_scan", nowIso);
+  const matchAndPersistUnmappedFolder = Effect.fn(
+    "OperationsService.matchAndPersistUnmappedFolder",
+  )(function* (
+    matchingFolder: UnmappedFolder,
+    animeRows: ReadonlyArray<typeof anime.$inferSelect>,
+  ) {
+    const matchResult = yield* Effect.either(
+      matchSingleUnmappedFolder({
+        aniList,
+        animeRows,
+        db,
+        folder: matchingFolder,
+        nowIso,
+      }),
+    );
 
-    return yield* Effect.gen(function* () {
+    if (matchResult._tag === "Left") {
+      const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
+      const now = yield* nowIso();
+      const failedFolder = markUnmappedFolderFailed(matchingFolder, errorMessage, now);
+      yield* upsertUnmappedFolderMatchRows(db, [failedFolder], yield* nowIso());
+
+      return {
+        _tag: "Failed" as const,
+        folder: failedFolder,
+      };
+    }
+
+    yield* upsertUnmappedFolderMatchRows(db, [matchResult.right], yield* nowIso());
+
+    return {
+      _tag: "Matched" as const,
+      folder: matchResult.right,
+    };
+  });
+
+  const runUnmappedScanPass = Effect.fn("OperationsService.runUnmappedScanPass")(
+    function* () {
+      yield* markJobStarted(db, "unmapped_scan", nowIso);
+
       const { folders, queuedFolders, snapshot } = yield* loadQueuedUnmappedFolders();
 
       yield* upsertUnmappedFolderMatchRows(db, queuedFolders, yield* nowIso());
@@ -192,21 +228,10 @@ export function makeUnmappedOrchestrationSupport(input: {
       const matchingFolder = markUnmappedFolderMatching(nextTarget);
       yield* upsertUnmappedFolderMatchRows(db, [matchingFolder], yield* nowIso());
 
-      const matchResult = yield* Effect.either(
-        matchSingleUnmappedFolder({
-          aniList,
-          animeRows: snapshot.animeRows,
-          db,
-          folder: matchingFolder,
-          nowIso,
-        }),
-      );
+      const matchResult = yield* matchAndPersistUnmappedFolder(matchingFolder, snapshot.animeRows);
 
-      if (matchResult._tag === "Left") {
-        const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
-        const now = yield* nowIso();
-        const failedFolder = markUnmappedFolderFailed(matchingFolder, errorMessage, now);
-        yield* upsertUnmappedFolderMatchRows(db, [failedFolder], yield* nowIso());
+      if (matchResult._tag === "Failed") {
+        const failedFolder = matchResult.folder;
         yield* markJobFailed(
           db,
           "unmapped_scan",
@@ -227,10 +252,6 @@ export function makeUnmappedOrchestrationSupport(input: {
         return { folderCount: queuedFolders.length };
       }
 
-      const matchedFolder = matchResult.right;
-
-      yield* upsertUnmappedFolderMatchRows(db, [matchedFolder], yield* nowIso());
-
       yield* markJobSucceeded(
         db,
         "unmapped_scan",
@@ -246,17 +267,30 @@ export function makeUnmappedOrchestrationSupport(input: {
       );
 
       return { folderCount: queuedFolders.length };
-    }).pipe(
-      Effect.catchAll((cause) =>
-        markJobFailed(db, "unmapped_scan", cause, nowIso).pipe(
-          Effect.zipRight(
-            cause instanceof DatabaseError || cause instanceof OperationsPathError
-              ? Effect.fail(cause)
-              : Effect.fail(dbError("Failed to scan unmapped folders")(cause)),
-          ),
+    },
+    Effect.catchAll((cause) =>
+      markJobFailed(db, "unmapped_scan", cause, nowIso).pipe(
+        Effect.zipRight(
+          cause instanceof DatabaseError || cause instanceof OperationsPathError
+            ? Effect.fail(cause)
+            : Effect.fail(dbError("Failed to scan unmapped folders")(cause)),
         ),
       ),
-    );
+    ),
+  );
+
+  const unmappedScanLoop = Effect.fn("OperationsService.unmappedScanLoop")(function* () {
+    while (true) {
+      yield* runUnmappedScanPass();
+
+      const { queuedFolders: remainingQueuedFolders } = yield* loadQueuedUnmappedFolders();
+
+      if (!remainingQueuedFolders.some(isUnmappedFolderQueuedForMatch)) {
+        return;
+      }
+
+      yield* Effect.sleep("3 seconds");
+    }
   });
 
   const startUnmappedScanLoop = Effect.fn("OperationsService.startUnmappedScanLoop")(function* () {
@@ -276,19 +310,7 @@ export function makeUnmappedOrchestrationSupport(input: {
         return { folderCount: 0 };
       }
 
-      const loop = Effect.gen(function* () {
-        while (true) {
-          yield* runUnmappedScanPass();
-
-          const { queuedFolders: remainingQueuedFolders } = yield* loadQueuedUnmappedFolders();
-
-          if (!remainingQueuedFolders.some(isUnmappedFolderQueuedForMatch)) {
-            return;
-          }
-
-          yield* Effect.sleep("3 seconds");
-        }
-      }).pipe(
+      const loop = unmappedScanLoop().pipe(
         Effect.catchAllCause((cause) =>
           Effect.logError("Unmapped scan loop failed").pipe(
             Effect.annotateLogs({ error: cause.toString() }),
@@ -374,28 +396,16 @@ export function makeUnmappedOrchestrationSupport(input: {
         const matchingFolder = markUnmappedFolderMatching(target);
         yield* upsertUnmappedFolderMatchRows(db, [matchingFolder], yield* nowIso());
 
-        const matchResult = yield* Effect.either(
-          matchSingleUnmappedFolder({
-            aniList,
-            animeRows: snapshot.animeRows,
-            db,
-            folder: matchingFolder,
-            nowIso,
-          }),
+        const matchResult = yield* matchAndPersistUnmappedFolder(
+          matchingFolder,
+          snapshot.animeRows,
         );
 
-        if (matchResult._tag === "Left") {
-          const errorMessage = toUnmappedMatchErrorMessage(matchResult.left);
-          const now = yield* nowIso();
-          const failedFolder = markUnmappedFolderFailed(matchingFolder, errorMessage, now);
-          yield* upsertUnmappedFolderMatchRows(db, [failedFolder], yield* nowIso());
-
+        if (matchResult._tag === "Failed") {
           return yield* new OperationsConflictError({
-            message: failedFolder.last_match_error ?? "Failed to refresh folder match",
+            message: matchResult.folder.last_match_error ?? "Failed to refresh folder match",
           });
         }
-
-        yield* upsertUnmappedFolderMatchRows(db, [matchResult.right], yield* nowIso());
 
         yield* appendLog(
           db,
@@ -436,18 +446,21 @@ export function makeUnmappedOrchestrationSupport(input: {
         ),
       );
 
-      const nextFolders =
-        input.action === "pause_queued"
-          ? folders
-              .filter((folder) => folder.match_status === "pending")
-              .map((folder) => markUnmappedFolderPaused(folder))
-          : input.action === "resume_paused"
-            ? folders
-                .filter((folder) => folder.match_status === "paused")
-                .map((folder) => markUnmappedFolderPending(folder))
-            : folders
-                .filter((folder) => folder.match_status === "failed")
-                .map((folder) => resetUnmappedFolderMatch(folder));
+      let nextFolders: UnmappedFolder[];
+
+      if (input.action === "pause_queued") {
+        nextFolders = folders
+          .filter((folder) => folder.match_status === "pending")
+          .map((folder) => markUnmappedFolderPaused(folder));
+      } else if (input.action === "resume_paused") {
+        nextFolders = folders
+          .filter((folder) => folder.match_status === "paused")
+          .map((folder) => markUnmappedFolderPending(folder));
+      } else {
+        nextFolders = folders
+          .filter((folder) => folder.match_status === "failed")
+          .map((folder) => resetUnmappedFolderMatch(folder));
+      }
 
       if (nextFolders.length === 0) {
         return { affectedCount: 0 };
@@ -455,14 +468,15 @@ export function makeUnmappedOrchestrationSupport(input: {
 
       yield* upsertUnmappedFolderMatchRows(db, nextFolders, yield* nowIso());
 
-      const logMessage =
-        input.action === "pause_queued"
-          ? `Paused ${nextFolders.length} queued unmapped folder(s)`
-          : input.action === "resume_paused"
-            ? `Queued ${nextFolders.length} paused unmapped folder(s)`
-            : input.action === "reset_failed"
-              ? `Reset ${nextFolders.length} failed unmapped folder(s)`
-              : `Queued ${nextFolders.length} failed unmapped folder(s) for retry`;
+      let logMessage = `Queued ${nextFolders.length} failed unmapped folder(s) for retry`;
+
+      if (input.action === "pause_queued") {
+        logMessage = `Paused ${nextFolders.length} queued unmapped folder(s)`;
+      } else if (input.action === "resume_paused") {
+        logMessage = `Queued ${nextFolders.length} paused unmapped folder(s)`;
+      } else if (input.action === "reset_failed") {
+        logMessage = `Reset ${nextFolders.length} failed unmapped folder(s)`;
+      }
 
       yield* appendLog(db, "library.unmapped.control.bulk", "info", logMessage, nowIso);
 

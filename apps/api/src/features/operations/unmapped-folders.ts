@@ -30,7 +30,7 @@ export function buildUnmappedFolderSearchQueries(folderName: string): string[] {
     .replace(/[._]+/g, " ")
     .replace(/\bS0?(\d{1,2})\b/gi, " Season $1 ")
     .replace(/\((?:19|20)\d{2}\)/g, " ")
-    .replace(/[\[\](){}-]+/g, " ");
+    .replace(/[[\](){}-]+/g, " ");
 
   const primary = normalizeSearchText(stripNoise(expanded));
   const seasonless = normalizeSearchText(primary.replace(/\bseason\s+\d+\b/gi, " "));

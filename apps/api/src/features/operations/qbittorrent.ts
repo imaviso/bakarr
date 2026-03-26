@@ -355,7 +355,7 @@ const makePostHashesAction = (
     yield* ensureOk(response, `qBittorrent action failed with status ${response.status}`);
   });
 
-function execute(
+function makeExecute(
   client: HttpClient.HttpClient,
   tryExternalEffect: ReturnType<typeof makeTryExternalEffect>,
 ) {
@@ -365,8 +365,6 @@ function execute(
     options?: { readonly idempotent?: boolean },
   ) => tryExternalEffect(operation, client.execute(request), options)();
 }
-
-const makeExecute = execute;
 
 function ensureOk(response: HttpClientResponse.HttpClientResponse, message: string) {
   return response.status >= 200 && response.status < 300

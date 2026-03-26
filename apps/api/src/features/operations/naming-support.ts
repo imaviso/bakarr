@@ -93,51 +93,54 @@ export function selectAnimeTitleForNamingDetails(
   },
   preferredTitle: PreferredTitle,
 ): SelectedAnimeTitleForNaming {
-  const orderedTitles =
-    preferredTitle === "english"
-      ? [
-          {
-            source: "preferred_english" as const,
-            value: animeRow.titleEnglish,
-          },
-          {
-            source: "fallback_romaji" as const,
-            value: animeRow.titleRomaji,
-          },
-          {
-            source: "fallback_native" as const,
-            value: animeRow.titleNative,
-          },
-        ]
-      : preferredTitle === "native"
-        ? [
-            {
-              source: "preferred_native" as const,
-              value: animeRow.titleNative,
-            },
-            {
-              source: "fallback_romaji" as const,
-              value: animeRow.titleRomaji,
-            },
-            {
-              source: "fallback_english" as const,
-              value: animeRow.titleEnglish,
-            },
-          ]
-        : [
-            {
-              source: "preferred_romaji" as const,
-              value: animeRow.titleRomaji,
-            },
-            {
-              source: "fallback_english" as const,
-              value: animeRow.titleEnglish,
-            },
-            {
-              source: "fallback_native" as const,
-              value: animeRow.titleNative,
-            },
-          ];
+  let orderedTitles;
+
+  if (preferredTitle === "english") {
+    orderedTitles = [
+      {
+        source: "preferred_english" as const,
+        value: animeRow.titleEnglish,
+      },
+      {
+        source: "fallback_romaji" as const,
+        value: animeRow.titleRomaji,
+      },
+      {
+        source: "fallback_native" as const,
+        value: animeRow.titleNative,
+      },
+    ];
+  } else if (preferredTitle === "native") {
+    orderedTitles = [
+      {
+        source: "preferred_native" as const,
+        value: animeRow.titleNative,
+      },
+      {
+        source: "fallback_romaji" as const,
+        value: animeRow.titleRomaji,
+      },
+      {
+        source: "fallback_english" as const,
+        value: animeRow.titleEnglish,
+      },
+    ];
+  } else {
+    orderedTitles = [
+      {
+        source: "preferred_romaji" as const,
+        value: animeRow.titleRomaji,
+      },
+      {
+        source: "fallback_english" as const,
+        value: animeRow.titleEnglish,
+      },
+      {
+        source: "fallback_native" as const,
+        value: animeRow.titleNative,
+      },
+    ];
+  }
 
   for (const entry of orderedTitles) {
     const value = normalizeText(entry.value);
@@ -217,14 +220,15 @@ export function resolveFilenameRenderPlan(input: {
     };
   }
 
-  const fallbackFormat =
-    input.animeFormat === "MOVIE"
-      ? input.metadata.year
-        ? "{title} ({year})"
-        : "{title}"
-      : input.metadata.sourceIdentity
-        ? "{title} - {source_episode_segment}"
-        : "{title} - {episode_segment}";
+  let fallbackFormat: string;
+
+  if (input.animeFormat === "MOVIE") {
+    fallbackFormat = input.metadata.year ? "{title} ({year})" : "{title}";
+  } else {
+    fallbackFormat = input.metadata.sourceIdentity
+      ? "{title} - {source_episode_segment}"
+      : "{title} - {episode_segment}";
+  }
 
   return {
     fallbackUsed: true,

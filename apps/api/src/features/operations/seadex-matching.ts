@@ -58,7 +58,7 @@ export function findSeaDexReleaseMatch(
     return undefined;
   }
 
-  const bestCandidate = candidates
+  const [bestCandidate] = candidates
     .filter((candidate) => normalizeGroup(candidate.releaseGroup) === normalizedGroup)
     .map((candidate) => ({
       candidate,
@@ -73,7 +73,7 @@ export function findSeaDexReleaseMatch(
     .sort(
       (left, right) =>
         right.score - left.score || Number(right.candidate.isBest) - Number(left.candidate.isBest),
-    )[0];
+    );
 
   return bestCandidate?.candidate;
 }

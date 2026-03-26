@@ -5,13 +5,9 @@ import type { DownloadSourceMetadata } from "../../../../../packages/shared/src/
 import { DatabaseError } from "../../db/database.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, downloads } from "../../db/schema.ts";
-import {
-  type ExternalCallError,
-  type OperationsError,
-  OperationsStoredDataError,
-} from "./errors.ts";
+import { type ExternalCallError, type OperationsError } from "./errors.ts";
 import { recordDownloadEvent } from "./job-support.ts";
-import { hasOverlappingDownload, parseCoveredEpisodes } from "./download-lifecycle.ts";
+import { hasOverlappingDownload, parseCoveredEpisodesEffect } from "./download-lifecycle.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import { encodeDownloadSourceMetadata } from "./repository.ts";
 import type { ParsedRelease } from "./rss-client.ts";
@@ -37,15 +33,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
       message: string,
     ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   }) {
-    const coveredEpisodeNumbers = yield* Effect.try({
-      try: () => parseCoveredEpisodes(input.coveredEpisodes),
-      catch: (cause) =>
-        cause instanceof OperationsStoredDataError
-          ? cause
-          : new OperationsStoredDataError({
-              message: "Stored covered episode metadata is corrupt",
-            }),
-    });
+    const coveredEpisodeNumbers = yield* parseCoveredEpisodesEffect(input.coveredEpisodes);
     const now = yield* input.nowIso();
 
     const overlapping = yield* hasOverlappingDownload(

@@ -49,7 +49,7 @@ export function resolveRequestedEpisodeNumber(input: {
     return input.explicitEpisode;
   }
 
-  const inferredEpisode = input.inferredEpisodes[0];
+  const [inferredEpisode] = input.inferredEpisodes;
   if (inferredEpisode && inferredEpisode > 0) {
     return inferredEpisode;
   }

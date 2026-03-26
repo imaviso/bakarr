@@ -319,7 +319,7 @@ export function makeCatalogOrchestration(input: {
     } satisfies ImportResult;
   });
 
-  const importFiles = (
+  const importFiles = Effect.fn("OperationsService.importFiles")(function* (
     files: readonly {
       source_path: string;
       anime_id: number;
@@ -327,12 +327,13 @@ export function makeCatalogOrchestration(input: {
       episode_numbers?: readonly number[];
       season?: number;
     }[],
-  ) =>
-    importFilesRaw(files).pipe(
+  ) {
+    return yield* importFilesRaw(files).pipe(
       Effect.mapError((error) =>
         error instanceof DatabaseError ? error : dbError("Failed to import files")(error),
       ),
     );
+  });
 
   const retryDownload = Effect.fn("OperationsService.retryDownload")(function* (id: number) {
     yield* retryDownloadById(id);
@@ -356,31 +357,39 @@ export function makeCatalogOrchestration(input: {
     nowIso,
     tryDatabasePromise,
   });
-  const listRssFeeds = rssSupport.listRssFeeds;
-  const listAnimeRssFeeds = rssSupport.listAnimeRssFeeds;
-  const addRssFeed = rssSupport.addRssFeed;
-  const deleteRssFeed = rssSupport.deleteRssFeed;
-  const toggleRssFeed = rssSupport.toggleRssFeed;
+  const { listRssFeeds } = rssSupport;
+  const { listAnimeRssFeeds } = rssSupport;
+  const { addRssFeed } = rssSupport;
+  const { deleteRssFeed } = rssSupport;
+  const { toggleRssFeed } = rssSupport;
 
-  const getWantedMissing = input.libraryReadSupport.getWantedMissing;
-  const getCalendar = input.libraryReadSupport.getCalendar;
-  const getRenamePreview = input.libraryReadSupport.getRenamePreview;
+  const { getWantedMissing } = input.libraryReadSupport;
+  const { getCalendar } = input.libraryReadSupport;
+  const { getRenamePreview } = input.libraryReadSupport;
 
-  const pauseDownload = (id: number) => applyDownloadActionEffect(id, "pause");
-  const resumeDownload = (id: number) => applyDownloadActionEffect(id, "resume");
-  const removeDownload = (id: number, deleteFiles: boolean) =>
-    applyDownloadActionEffect(id, "delete", deleteFiles);
+  const pauseDownload = Effect.fn("OperationsService.pauseDownload")(function* (id: number) {
+    yield* applyDownloadActionEffect(id, "pause");
+  });
+  const resumeDownload = Effect.fn("OperationsService.resumeDownload")(function* (id: number) {
+    yield* applyDownloadActionEffect(id, "resume");
+  });
+  const removeDownload = Effect.fn("OperationsService.removeDownload")(function* (
+    id: number,
+    deleteFiles: boolean,
+  ) {
+    yield* applyDownloadActionEffect(id, "delete", deleteFiles);
+  });
 
   const downloadViewSupport = makeCatalogDownloadViewSupport({
     db,
     nowIso,
     tryDatabasePromise,
   });
-  const listDownloadEvents = downloadViewSupport.listDownloadEvents;
-  const exportDownloadEvents = downloadViewSupport.exportDownloadEvents;
-  const listDownloadQueue = downloadViewSupport.listDownloadQueue;
-  const listDownloadHistory = downloadViewSupport.listDownloadHistory;
-  const getDownloadProgress = downloadViewSupport.getDownloadProgress;
+  const { listDownloadEvents } = downloadViewSupport;
+  const { exportDownloadEvents } = downloadViewSupport;
+  const { listDownloadQueue } = downloadViewSupport;
+  const { listDownloadHistory } = downloadViewSupport;
+  const { getDownloadProgress } = downloadViewSupport;
 
   const libraryScanSupport = makeCatalogLibraryScanSupport({
     db,
@@ -391,7 +400,7 @@ export function makeCatalogOrchestration(input: {
     publishLibraryScanProgress,
     tryDatabasePromise,
   });
-  const runLibraryScan = libraryScanSupport.runLibraryScan;
+  const { runLibraryScan } = libraryScanSupport;
 
   return {
     addRssFeed,

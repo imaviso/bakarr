@@ -40,7 +40,17 @@ it.effect("SeaDexClient fetches and decodes entry by AniList ID", () =>
     );
 
     assertEquals(
-      result ? { ...result, releases: result.releases.map((r) => ({ ...r })) } : result,
+      result
+        ? (() => {
+            const normalized = structuredClone(result) as {
+              releases: typeof result.releases;
+            } & typeof result;
+            return {
+              ...normalized,
+              releases: result.releases.map((release) => structuredClone(release)),
+            };
+          })()
+        : result,
       {
         alID: 20,
         comparison: "https://releases.moe/compare/naruto",

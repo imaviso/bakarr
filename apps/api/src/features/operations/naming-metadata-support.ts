@@ -10,6 +10,7 @@ import {
   parseFileSourceIdentity,
   parseReleaseSourceIdentity,
 } from "../../lib/media-identity.ts";
+import { extractYearFromDate } from "../../lib/anime-date-utils.ts";
 
 export interface ScannedFileMetadata {
   readonly air_date?: string;
@@ -193,7 +194,7 @@ export function buildEpisodeNamingInputFromPath(input: {
       : undefined;
   const parsed = parseFileSourceIdentity(input.filePath, context);
   const sourceIdentity = parsed.source_identity;
-  const group = parsed.group;
+  const { group } = parsed;
 
   return {
     airDate: normalizeAirDate(input.airDate),
@@ -214,7 +215,7 @@ export function buildEpisodeNamingInputFromPath(input: {
     sourceIdentity,
     title: input.animeTitle,
     videoCodec: extractVideoCodec(input.filePath),
-    year: extractYearFromIsoDate(input.animeStartDate),
+    year: extractYearFromDate(input.animeStartDate),
   };
 }
 
@@ -257,9 +258,9 @@ export function selectAnimeYearForNaming(input: {
 }) {
   return (
     input.startYear ??
-    extractYearFromIsoDate(input.startDate) ??
+    extractYearFromDate(input.startDate) ??
     input.endYear ??
-    extractYearFromIsoDate(input.endDate)
+    extractYearFromDate(input.endDate)
   );
 }
 
@@ -285,7 +286,7 @@ function extractEpisodeTitleFromPath(input: {
     .trim();
 
   if (/\[[^\]]+\]/.test(remainder)) {
-    remainder = remainder.replace(/\s*-\s*([^\s\[\]]+)\s*$/, "");
+    remainder = remainder.replace(/\s*-\s*([^\s[\]]+)\s*$/, "");
   }
 
   while (true) {
@@ -330,7 +331,7 @@ function extractQualitySourceLabel(value: string) {
     lower.includes("blu-ray") ||
     lower.includes("bdrip") ||
     lower.includes("bdmv") ||
-    /(?:^|[\s._\-\[\]()])bd(?:$|[\s._\-\[\]()])/i.test(value)
+    /(?:^|[\s._\-[\]()])bd(?:$|[\s._\-[\]()])/i.test(value)
   ) {
     return "BluRay";
   }
@@ -353,7 +354,7 @@ function extractQualitySourceLabel(value: string) {
   ) {
     return "WEB-DL";
   }
-  if (/(?:^|[\s._\-\[\]])web(?:$|[\s._\-\[\]])/i.test(value)) {
+  if (/(?:^|[\s._\-[\]])web(?:$|[\s._\-[\]])/i.test(value)) {
     return "WEB";
   }
   if (lower.includes("hdtv")) {
@@ -455,15 +456,6 @@ function extractAudioChannels(value: string) {
     default:
       return undefined;
   }
-}
-
-function extractYearFromIsoDate(value?: string | null) {
-  if (!value) {
-    return undefined;
-  }
-
-  const match = value.match(/^(\d{4})/);
-  return match ? Number(match[1]) : undefined;
 }
 
 function normalizeText(value?: string | null) {

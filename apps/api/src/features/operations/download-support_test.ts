@@ -20,16 +20,13 @@ import {
 const testRandomUuid = () => Effect.succeed("test-uuid-0000");
 
 it("download support helpers use config values and defaults", () => {
-  const config = {
-    profiles: [],
-    ...makeDefaultConfig("./test.sqlite"),
-    downloads: {
-      ...makeDefaultConfig("./test.sqlite").downloads,
-      delete_download_files_after_import: true,
-      reconcile_completed_downloads: false,
-      remove_torrent_on_import: false,
-    },
-  };
+  const config = structuredClone(
+    makeDefaultConfig("./test.sqlite"),
+  ) as unknown as import("../../../../../packages/shared/src/index.ts").Config;
+  config.profiles = [];
+  config.downloads.delete_download_files_after_import = true;
+  config.downloads.reconcile_completed_downloads = false;
+  config.downloads.remove_torrent_on_import = false;
 
   assertEquals(shouldReconcileCompletedDownloads(config), false);
   assertEquals(shouldRemoveTorrentOnImport(config), false);

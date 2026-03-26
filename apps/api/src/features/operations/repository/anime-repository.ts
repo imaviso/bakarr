@@ -13,7 +13,7 @@ export const requireAnime = Effect.fn("AnimeRepository.requireAnime")(function* 
   const rows = yield* tryDatabasePromise("Failed to load anime", () =>
     db.select().from(anime).where(eq(anime.id, animeId)).limit(1),
   );
-  const row = rows[0];
+  const [row] = rows;
   if (!row) {
     return yield* new OperationsAnimeNotFoundError({
       message: "Anime not found",
@@ -32,13 +32,15 @@ export const loadCurrentEpisodeState = Effect.fn("AnimeRepository.loadCurrentEpi
         .limit(1),
     );
 
-    if (!rows[0]) {
+    const [row] = rows;
+
+    if (!row) {
       return null;
     }
 
     return {
-      downloaded: rows[0].downloaded,
-      filePath: rows[0].filePath ?? undefined,
+      downloaded: row.downloaded,
+      filePath: row.filePath ?? undefined,
     };
   },
 );

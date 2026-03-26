@@ -41,13 +41,11 @@ it.scoped("triggerDownload persists merged release provenance on queued download
       withLibraryDir(({ fs, libraryDir }) =>
         Effect.gen(function* () {
           const appDb = db as AppDatabase;
-          yield* seedConfig(appDb, databaseFile, (config) => ({
-            ...config,
-            library: {
-              ...config.library,
-              naming_format: "{title} - {source_episode_segment}",
-            },
-          }));
+          yield* seedConfig(appDb, databaseFile, (config) => {
+            const nextConfig = structuredClone(config) as unknown as typeof config;
+            nextConfig.library.naming_format = "{title} - {source_episode_segment}";
+            return nextConfig;
+          });
           yield* insertTestAnime(appDb, libraryDir);
 
           const events: NotificationEvent[] = [];
@@ -69,7 +67,7 @@ it.scoped("triggerDownload persists merged release provenance on queued download
           });
 
           const rows = yield* Effect.tryPromise(() => appDb.select().from(downloads).limit(1));
-          const row = rows[0];
+          const [row] = rows;
           assertExists(row);
           const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
 
@@ -140,7 +138,7 @@ it.scoped("triggerDownload stores source metadata in queued download event paylo
               .where(eq(schema.downloadEvents.eventType, "download.queued"))
               .limit(1),
           );
-          const event = events[0];
+          const [event] = events;
           assertExists(event);
 
           const parsed = event.metadata
@@ -365,7 +363,7 @@ it.scoped("retryDownloadById stores structured metadata in retried events", () =
               )
               .limit(1),
           );
-          const retriedEvent = eventRows[0];
+          const [retriedEvent] = eventRows;
           assertExists(retriedEvent);
 
           const metadata = retriedEvent.metadata
@@ -451,7 +449,7 @@ it.scoped("applyDownloadActionEffect stores structured metadata on delete events
               )
               .limit(1),
           );
-          const deleteEvent = deleteEventRows[0];
+          const [deleteEvent] = deleteEventRows;
           assertExists(deleteEvent);
           assertEquals(deleteEvent.toStatus, "deleted");
 
@@ -478,14 +476,13 @@ it.scoped(
         withLibraryAndDownloadDirs(({ fs, libraryDir, downloadDir }) =>
           Effect.gen(function* () {
             const appDb = db as AppDatabase;
-            yield* seedConfig(appDb, databaseFile, (config) => ({
-              ...config,
-              library: {
-                ...config.library,
-                import_mode: "copy",
-                naming_format: "{title} - {source_episode_segment} [{quality} {resolution}]",
-              },
-            }));
+            yield* seedConfig(appDb, databaseFile, (config) => {
+              const nextConfig = structuredClone(config) as unknown as typeof config;
+              nextConfig.library.import_mode = "copy";
+              nextConfig.library.naming_format =
+                "{title} - {source_episode_segment} [{quality} {resolution}]";
+              return nextConfig;
+            });
             yield* insertTestAnime(appDb, libraryDir, {
               titleEnglish: null,
             });
@@ -595,7 +592,7 @@ it.scoped(
                 )
                 .limit(1),
             );
-            const importedBatchEvent = importedBatchEvents[0];
+            const [importedBatchEvent] = importedBatchEvents;
             assertExists(importedBatchEvent);
             const importedBatchMetadata = importedBatchEvent.metadata
               ? yield* decodeDownloadEventMetadata(importedBatchEvent.metadata)
@@ -620,14 +617,12 @@ it.scoped(
         withLibraryDir(({ fs, libraryDir }) =>
           Effect.gen(function* () {
             const appDb = db as AppDatabase;
-            yield* seedConfig(appDb, databaseFile, (config) => ({
-              ...config,
-              qbittorrent: {
-                ...config.qbittorrent,
-                enabled: true,
-                password: "secret",
-              },
-            }));
+            yield* seedConfig(appDb, databaseFile, (config) => {
+              const nextConfig = structuredClone(config) as unknown as typeof config;
+              nextConfig.qbittorrent.enabled = true;
+              nextConfig.qbittorrent.password = "secret";
+              return nextConfig;
+            });
             yield* insertTestAnime(appDb, libraryDir);
 
             const infoHash = "abcdef1234567890abcdef1234567890abcdef12";
@@ -753,8 +748,8 @@ it.scoped(
                 .limit(1),
             );
 
-            const statusEvent = statusEvents[0];
-            const coverageEvent = coverageEvents[0];
+            const [statusEvent] = statusEvents;
+            const [coverageEvent] = coverageEvents;
             assertExists(statusEvent);
             assertExists(coverageEvent);
 
@@ -851,14 +846,13 @@ it.scoped(
         withLibraryAndDownloadDirs(({ fs, libraryDir, downloadDir }) =>
           Effect.gen(function* () {
             const appDb = db as AppDatabase;
-            yield* seedConfig(appDb, databaseFile, (config) => ({
-              ...config,
-              library: {
-                ...config.library,
-                import_mode: "copy",
-                naming_format: "{title} - {source_episode_segment} [{quality} {resolution}]",
-              },
-            }));
+            yield* seedConfig(appDb, databaseFile, (config) => {
+              const nextConfig = structuredClone(config) as unknown as typeof config;
+              nextConfig.library.import_mode = "copy";
+              nextConfig.library.naming_format =
+                "{title} - {source_episode_segment} [{quality} {resolution}]";
+              return nextConfig;
+            });
             yield* insertTestAnime(appDb, libraryDir, {
               titleEnglish: null,
             });
@@ -954,7 +948,7 @@ it.scoped(
                 )
                 .limit(1),
             );
-            const importedEvent = importedEvents[0];
+            const [importedEvent] = importedEvents;
             assertExists(importedEvent);
             const importedMetadata = importedEvent.metadata
               ? yield* decodeDownloadEventMetadata(importedEvent.metadata)

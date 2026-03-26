@@ -44,7 +44,7 @@ export function toNyaaSearchResult(item: ParsedRelease): NyaaSearchResult {
   if (identity) {
     parsedEpisodeLabel = identity.label;
     if (identity.scheme === "daily") {
-      parsedAirDate = identity.air_dates[0];
+      [parsedAirDate] = identity.air_dates;
     } else {
       parsedEpisodeNumbers = [...identity.episode_numbers];
       parsedEpisode = identity.episode_numbers[0]?.toString();

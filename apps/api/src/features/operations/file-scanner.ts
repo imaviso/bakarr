@@ -1,23 +1,7 @@
 import { Chunk, Effect, Option, Stream } from "effect";
 import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import { parseFileSourceIdentity } from "../../lib/media-identity.ts";
 
 const SCAN_STAT_CONCURRENCY = 16;
-
-export function parseEpisodeNumbers(path: string): readonly number[] {
-  const result = parseFileSourceIdentity(path);
-  if (!result.source_identity) return [];
-
-  if (result.source_identity.scheme === "daily") {
-    return [];
-  }
-
-  return result.source_identity.episode_numbers;
-}
-
-export function parseEpisodeNumber(path: string): number | undefined {
-  return parseEpisodeNumbers(path)[0];
-}
 
 export interface ScannedVideoFile {
   readonly name: string;
