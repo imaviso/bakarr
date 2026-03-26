@@ -582,7 +582,7 @@ export function ImportDialog(props: ImportDialogProps) {
               advanceAddCandidateDialog();
               queueMicrotask(() => {
                 if (pendingAddCandidates().length === 0) {
-                  void handleImport();
+                  handleImport();
                 }
               });
             }}

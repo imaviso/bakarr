@@ -1,7 +1,7 @@
 import type { Anime, AnimeSearchResult, Config } from "~/lib/api";
 
 type AnimeDateContext = {
-  season?: Anime["season"] | AnimeSearchResult["season"];
+  season?: Anime["season"];
   season_year?: number;
   start_date?: string;
   start_year?: number;
