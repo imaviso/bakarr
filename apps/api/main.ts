@@ -65,7 +65,7 @@ const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
     return;
   }
 
-  setRuntimeLogLevel(config.general.log_level);
+  yield* setRuntimeLogLevel(config.general.log_level);
   yield* controller.start(config);
 });
 

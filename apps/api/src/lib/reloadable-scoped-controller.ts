@@ -1,16 +1,16 @@
 import { Effect, Exit, Ref, Scope } from "effect";
 
-export interface ReloadableScopedController<C, E> {
+export interface ReloadableScopedController<C, E, R = never> {
   readonly isStarted: () => Effect.Effect<boolean>;
-  readonly reload: (config: C) => Effect.Effect<void, E>;
-  readonly start: (config: C) => Effect.Effect<void, E>;
+  readonly reload: (config: C) => Effect.Effect<void, E, R>;
+  readonly start: (config: C) => Effect.Effect<void, E, R>;
   readonly stop: () => Effect.Effect<void>;
 }
 
 export const makeReloadableScopedController = Effect.fn("ReloadableScopedController.make")(
-  <C, E>(options: {
-    readonly spawn: (scope: Scope.CloseableScope, config: C) => Effect.Effect<void, E>;
-  }): Effect.Effect<ReloadableScopedController<C, E>> =>
+  <C, E, R>(options: {
+    readonly spawn: (scope: Scope.CloseableScope, config: C) => Effect.Effect<void, E, R>;
+  }): Effect.Effect<ReloadableScopedController<C, E, R>, never, R> =>
     Effect.gen(function* () {
       const scopeRef = yield* Ref.make<Scope.CloseableScope | null>(null);
       const lifecycleSemaphore = yield* Effect.makeSemaphore(1);
@@ -83,6 +83,6 @@ export const makeReloadableScopedController = Effect.fn("ReloadableScopedControl
         reload,
         start,
         stop,
-      } satisfies ReloadableScopedController<C, E>;
+      } satisfies ReloadableScopedController<C, E, R>;
     }),
 );

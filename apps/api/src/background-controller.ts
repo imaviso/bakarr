@@ -4,15 +4,21 @@ import type { Config } from "../../../packages/shared/src/index.ts";
 import type { DatabaseError } from "./db/database.ts";
 import { ClockService } from "./lib/clock.ts";
 import { makeReloadableScopedController } from "./lib/reloadable-scoped-controller.ts";
-import { EventBus } from "./features/events/event-bus.ts";
-import { AnimeService } from "./features/anime/service.ts";
 import {
-  DownloadService,
-  LibraryService,
-  RssService,
-} from "./features/operations/service-contract.ts";
+  spawnWorkersFromConfig,
+  type BackgroundWorkerDependencies,
+  type BackgroundWorkerSpawner,
+} from "./background-workers.ts";
 import { BackgroundWorkerMonitor } from "./background-monitor.ts";
-import { spawnWorkersFromConfig, type BackgroundWorkerSpawner } from "./background-workers.ts";
+import { EventBus } from "./features/events/event-bus.ts";
+import { AnimeMutationService } from "./features/anime/service.ts";
+import {
+  DownloadControlService,
+  DownloadStatusService,
+  DownloadTriggerService,
+  LibraryCommandService,
+  RssCommandService,
+} from "./features/operations/service-contract.ts";
 
 export interface BackgroundWorkerControllerShape {
   readonly isStarted: () => Effect.Effect<boolean>;
@@ -37,22 +43,27 @@ const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
   const clock = yield* ClockService;
   const eventBus = yield* EventBus;
   const monitor = yield* BackgroundWorkerMonitor;
-  const animeService = yield* AnimeService;
-  const downloadService = yield* DownloadService;
-  const libraryService = yield* LibraryService;
-  const rssService = yield* RssService;
+  const animeService = yield* AnimeMutationService;
+  const downloadStatusService = yield* DownloadStatusService;
+  const downloadControlService = yield* DownloadControlService;
+  const downloadTriggerService = yield* DownloadTriggerService;
+  const libraryService = yield* LibraryCommandService;
+  const rssService = yield* RssCommandService;
+
+  const backgroundWorkerServices = {
+    animeService,
+    clock,
+    downloadControlService,
+    downloadStatusService,
+    downloadTriggerService,
+    eventBus,
+    libraryService,
+    monitor,
+    rssService,
+  } satisfies BackgroundWorkerDependencies;
 
   const controller = yield* makeBackgroundWorkerController({
-    spawnWorkers: (scope, config) =>
-      spawnWorkersFromConfig(scope, config).pipe(
-        Effect.provideService(ClockService, clock),
-        Effect.provideService(EventBus, eventBus),
-        Effect.provideService(BackgroundWorkerMonitor, monitor),
-        Effect.provideService(AnimeService, animeService),
-        Effect.provideService(DownloadService, downloadService),
-        Effect.provideService(LibraryService, libraryService),
-        Effect.provideService(RssService, rssService),
-      ),
+    spawnWorkers: (scope, config) => spawnWorkersFromConfig(backgroundWorkerServices, scope, config),
   });
 
   yield* Effect.addFinalizer(() => controller.stop());

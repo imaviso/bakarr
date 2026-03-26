@@ -1,4 +1,4 @@
-import { Logger, LogLevel } from "effect";
+import { Effect, Logger, LogLevel } from "effect";
 import * as MutableRef from "effect/MutableRef";
 
 export function compactLogAnnotations(
@@ -41,9 +41,11 @@ const LOG_LEVELS = {
 
 const runtimeLogLevel = MutableRef.make(LogLevel.Info);
 
-export function setRuntimeLogLevel(level: string | undefined) {
-  MutableRef.set(runtimeLogLevel, parseRuntimeLogLevel(level));
-}
+export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(
+  function* (level: string | undefined) {
+    yield* Effect.sync(() => MutableRef.set(runtimeLogLevel, parseRuntimeLogLevel(level)));
+  },
+);
 
 export function getRuntimeLogLevel() {
   return MutableRef.get(runtimeLogLevel);
