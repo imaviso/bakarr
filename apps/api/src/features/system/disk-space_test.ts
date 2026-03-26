@@ -1,14 +1,15 @@
 import { assertEquals, it } from "../../test/vitest.ts";
 import { CommandExecutor } from "@effect/platform";
-import { Effect, Exit, Layer } from "effect";
+import { Effect, Exit } from "effect";
 
-import { makeDefaultConfig } from "./defaults.ts";
-import { getDiskSpaceSafe, mapBlockStatsToDiskSpace, selectStoragePath } from "./disk-space.ts";
+import { makeTestConfig } from "../../test/config-fixture.ts";
+import {
+  makeDiskSpaceInspector,
+  mapBlockStatsToDiskSpace,
+  selectStoragePath,
+} from "./disk-space.ts";
 
-const baseConfig = structuredClone(
-  makeDefaultConfig("./test.sqlite"),
-) as unknown as import("../../../../../packages/shared/src/index.ts").Config;
-baseConfig.profiles = [];
+const baseConfig = makeTestConfig("./test.sqlite");
 
 it("mapBlockStatsToDiskSpace converts block stats to bytes", () => {
   const result = mapBlockStatsToDiskSpace({
@@ -53,7 +54,9 @@ it("selectStoragePath falls back to runtime database path", () => {
 
 it.effect("getDiskSpaceSafe fails on error instead of fabricating zeros", () =>
   Effect.gen(function* () {
-    const result = yield* Effect.exit(getDiskSpaceSafe("/nonexistent/path/that/does/not/exist"));
+    const result = yield* Effect.exit(
+      makeDiskSpaceInspector().getDiskSpaceSafe("/nonexistent/path/that/does/not/exist"),
+    );
     assertEquals(Exit.isFailure(result), true);
   }),
 );
@@ -70,9 +73,7 @@ it.effect("getDiskSpaceSafe returns real values for valid path", () =>
       );
     });
 
-    const result = yield* getDiskSpaceSafe("/tmp").pipe(
-      Effect.provide(Layer.succeed(CommandExecutor.CommandExecutor, commandExecutorStub)),
-    );
+    const result = yield* makeDiskSpaceInspector(commandExecutorStub).getDiskSpaceSafe("/tmp");
 
     assertEquals(typeof result.free, "number");
     assertEquals(typeof result.total, "number");

@@ -1,5 +1,6 @@
+import { CommandExecutor } from "@effect/platform";
 import * as Cron from "effect/Cron";
-import { Context, Effect, Either, Layer } from "effect";
+import { Context, Effect, Either, Layer, Option } from "effect";
 
 import type {
   ActivityItem,
@@ -29,6 +30,7 @@ import {
 } from "../operations/repository.ts";
 import { OperationsStoredDataError } from "../operations/errors.ts";
 import { DEFAULT_PROFILES, DEFAULT_QUALITIES, makeDefaultConfig } from "./defaults.ts";
+import type { CreateReleaseProfileInput, UpdateReleaseProfileInput } from "./config-schema.ts";
 import {
   composeBackgroundJobStatuses,
   countRunningBackgroundJobStatuses,
@@ -38,6 +40,7 @@ import { persistAndActivateConfig, type PersistedSystemConfigState } from "./con
 import { setRuntimeLogLevel } from "../../lib/logging.ts";
 import { ConfigValidationError, ProfileNotFoundError, StoredConfigCorruptError } from "./errors.ts";
 import {
+  composeConfig,
   type ConfigCore,
   effectDecodeConfigCore,
   effectDecodeQualityProfileRow,
@@ -45,10 +48,12 @@ import {
   effectDecodeStoredConfigRow,
   encodeConfigCore,
   encodeQualityProfileRow,
-  encodeReleaseProfileRules,
+  encodeReleaseProfileRow,
+  toConfigCore,
+  withLibraryDefaults,
 } from "./config-codec.ts";
 import { appendSystemLog, normalizeLevel } from "./support.ts";
-import { DiskSpaceError, getDiskSpaceSafe, selectStoragePath } from "./disk-space.ts";
+import { DiskSpaceError, makeDiskSpaceInspector, selectStoragePath } from "./disk-space.ts";
 import {
   countActiveDownloads,
   countAnimeRows,
@@ -119,11 +124,11 @@ export interface SystemServiceShape {
     DatabaseError | StoredConfigCorruptError
   >;
   readonly createReleaseProfile: (
-    input: Omit<ReleaseProfile, "id" | "enabled"> & { enabled?: boolean },
+    input: CreateReleaseProfileInput,
   ) => Effect.Effect<ReleaseProfile, DatabaseError | StoredConfigCorruptError>;
   readonly updateReleaseProfile: (
     id: number,
-    input: Omit<ReleaseProfile, "id">,
+    input: UpdateReleaseProfileInput,
   ) => Effect.Effect<void, DatabaseError>;
   readonly deleteReleaseProfile: (id: number) => Effect.Effect<void, DatabaseError>;
   readonly getLogs: (input: {
@@ -156,6 +161,8 @@ const makeSystemService = Effect.gen(function* () {
   const eventPublisher = yield* EventPublisher;
   const workerController = yield* BackgroundWorkerController;
   const backgroundWorkerMonitor = yield* BackgroundWorkerMonitor;
+  const commandExecutor = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
+  const diskSpaceInspector = makeDiskSpaceInspector(Option.getOrUndefined(commandExecutor));
   const nowIso = () => nowIsoFromClock(clock);
   const currentTimeMillis = () => clock.currentTimeMillis;
 
@@ -203,14 +210,9 @@ const makeSystemService = Effect.gen(function* () {
   });
 
   const createReleaseProfile = Effect.fn("SystemService.createReleaseProfile")(function* (
-    input: Omit<ReleaseProfile, "id" | "enabled"> & { enabled?: boolean },
+    input: CreateReleaseProfileInput,
   ) {
-    const created = yield* insertReleaseProfileRow(db, {
-      enabled: input.enabled ?? true,
-      isGlobal: input.is_global,
-      name: input.name,
-      rules: encodeReleaseProfileRules(input.rules),
-    });
+    const created = yield* insertReleaseProfileRow(db, encodeReleaseProfileRow(input));
 
     yield* appendSystemLog(
       db,
@@ -224,14 +226,9 @@ const makeSystemService = Effect.gen(function* () {
 
   const updateReleaseProfile = Effect.fn("SystemService.updateReleaseProfile")(function* (
     id: number,
-    input: Omit<ReleaseProfile, "id">,
+    input: UpdateReleaseProfileInput,
   ) {
-    yield* updateReleaseProfileRow(db, id, {
-      enabled: input.enabled,
-      isGlobal: input.is_global,
-      name: input.name,
-      rules: encodeReleaseProfileRules(input.rules),
-    });
+    yield* updateReleaseProfileRow(db, id, encodeReleaseProfileRow(input));
 
     yield* appendSystemLog(
       db,
@@ -324,10 +321,9 @@ const makeSystemService = Effect.gen(function* () {
       ? yield* effectDecodeConfigCore(storedConfig.data)
       : makeDefaultConfig(config.databaseFile);
 
-    const statusConfig = structuredClone(core) as Config;
-    statusConfig.profiles = [];
+    const statusConfig = composeConfig(core, []);
     const storagePath = selectStoragePath(statusConfig, config.databaseFile);
-    const diskSpace = yield* getDiskSpaceSafe(storagePath);
+    const diskSpace = yield* diskSpaceInspector.getDiskSpaceSafe(storagePath);
     const queuedDownloads = yield* countQueuedDownloads(db);
     const activeDownloads = yield* countActiveDownloads(db);
     const jobs = yield* loadComposedBackgroundJobs(statusConfig);
@@ -476,13 +472,9 @@ const makeSystemService = Effect.gen(function* () {
     );
     const defaults = makeDefaultConfig(config.databaseFile);
 
-    const nextConfig = structuredClone(core) as Config;
-    nextConfig.library = {
-      ...defaults.library,
-      ...core.library,
-    };
-    nextConfig.profiles = yield* Effect.forEach(profiles, effectDecodeQualityProfileRow);
-    return nextConfig;
+    const decodedProfiles = yield* Effect.forEach(profiles, effectDecodeQualityProfileRow);
+
+    return composeConfig(withLibraryDefaults(core, defaults.library), decodedProfiles);
   });
 
   const updateConfig = Effect.fn("SystemService.updateConfig")(function* (nextConfig: Config) {
@@ -516,14 +508,7 @@ const makeSystemService = Effect.gen(function* () {
       }
     }
 
-    const core: ConfigCore = {
-      downloads: nextConfig.downloads,
-      general: nextConfig.general,
-      library: nextConfig.library,
-      nyaa: nextConfig.nyaa,
-      qbittorrent: nextConfig.qbittorrent,
-      scheduler: nextConfig.scheduler,
-    };
+    const core: ConfigCore = toConfigCore(nextConfig);
 
     const updatedAt = yield* nowIso();
     const previousConfigRow = yield* loadSystemConfigRow(db);
@@ -539,15 +524,7 @@ const makeSystemService = Effect.gen(function* () {
             id: 1,
             updatedAt,
           },
-      profileRows: existingProfileRows.map((row) => ({
-        allowedQualities: row.allowedQualities,
-        cutoff: row.cutoff,
-        maxSize: row.maxSize,
-        minSize: row.minSize,
-        name: row.name,
-        seadexPreferred: row.seadexPreferred,
-        upgradeAllowed: row.upgradeAllowed,
-      })),
+      profileRows: existingProfileRows,
     };
     const nextState: PersistedSystemConfigState = {
       coreRow: {

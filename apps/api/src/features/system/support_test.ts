@@ -1,6 +1,6 @@
 import { assertEquals, it } from "../../test/vitest.ts";
 
-import { makeDefaultConfig } from "./defaults.ts";
+import { makeTestConfig } from "../../test/config-fixture.ts";
 import { backgroundJobNames, normalizeLevel, toBackgroundJobStatus } from "./support.ts";
 
 it("system support normalizes levels and deduplicates job names", () => {
@@ -19,10 +19,7 @@ it("system support normalizes levels and deduplicates job names", () => {
 });
 
 it("system support derives background job schedule modes", () => {
-  const config = structuredClone(
-    makeDefaultConfig("./test.sqlite"),
-  ) as unknown as import("../../../../../packages/shared/src/index.ts").Config;
-  config.profiles = [];
+  const config = makeTestConfig("./test.sqlite");
 
   assertEquals(toBackgroundJobStatus(config, undefined, "download_sync").schedule_mode, "interval");
   assertEquals(toBackgroundJobStatus(config, undefined, "rss").schedule_value, "30m");
@@ -31,27 +28,17 @@ it("system support derives background job schedule modes", () => {
   assertEquals(toBackgroundJobStatus(config, undefined, "unmapped_scan").schedule_mode, "manual");
   assertEquals(toBackgroundJobStatus(config, undefined, "custom_job").schedule_mode, "manual");
 
-  const cronConfig: typeof config = {
-    ...structuredClone(config),
-    scheduler: {
-      ...structuredClone(config.scheduler),
-      cron_expression: "0 * * * *",
-    },
-  };
+  const cronConfig = makeTestConfig("./test.sqlite", (c) => ({
+    ...c,
+    scheduler: { ...c.scheduler, cron_expression: "0 * * * *" },
+  }));
   assertEquals(toBackgroundJobStatus(cronConfig, undefined, "rss").schedule_mode, "cron");
 
-  const disabledConfig: typeof config = {
-    ...structuredClone(config),
-    scheduler: {
-      ...structuredClone(config.scheduler),
-      check_interval_minutes: 0,
-      enabled: false,
-    },
-    library: {
-      ...structuredClone(config.library),
-      auto_scan_interval_hours: 0,
-    },
-  };
+  const disabledConfig = makeTestConfig("./test.sqlite", (c) => ({
+    ...c,
+    scheduler: { ...c.scheduler, check_interval_minutes: 0, enabled: false },
+    library: { ...c.library, auto_scan_interval_hours: 0 },
+  }));
   assertEquals(toBackgroundJobStatus(disabledConfig, undefined, "rss").schedule_mode, "disabled");
   assertEquals(
     toBackgroundJobStatus(disabledConfig, undefined, "library_scan").schedule_mode,

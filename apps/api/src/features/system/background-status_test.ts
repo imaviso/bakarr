@@ -1,8 +1,11 @@
 import { assertEquals, it } from "../../test/vitest.ts";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
-import { initialBackgroundWorkerSnapshot } from "../../background-worker-model.ts";
-import { makeDefaultConfig } from "./defaults.ts";
+import {
+  BackgroundWorkerSnapshotModel,
+  BackgroundWorkerStatsModel,
+  initialBackgroundWorkerSnapshot,
+} from "../../background-worker-model.ts";
+import { makeTestConfig } from "../../test/config-fixture.ts";
 import {
   composeBackgroundJobStatuses,
   countRunningBackgroundJobStatuses,
@@ -10,14 +13,23 @@ import {
 } from "./background-status.ts";
 
 it("background status composes persisted job rows with live running state", () => {
-  const config = structuredClone(makeDefaultConfig("./test.sqlite")) as unknown as Config;
-  config.profiles = [];
-  const snapshot = structuredClone(initialBackgroundWorkerSnapshot());
-  Object.assign(snapshot.rss, {
-    daemonRunning: true,
-    lastStartedAt: "2024-01-03T00:00:00.000Z",
-    runRunning: true,
-    successCount: 1,
+  const config = makeTestConfig("./test.sqlite");
+  const baseSnapshot = initialBackgroundWorkerSnapshot();
+  const snapshot = new BackgroundWorkerSnapshotModel({
+    download_sync: baseSnapshot.download_sync,
+    library_scan: baseSnapshot.library_scan,
+    metadata_refresh: baseSnapshot.metadata_refresh,
+    rss: new BackgroundWorkerStatsModel({
+      daemonRunning: true,
+      failureCount: 0,
+      lastErrorMessage: null,
+      lastFailedAt: null,
+      lastStartedAt: "2024-01-03T00:00:00.000Z",
+      lastSucceededAt: null,
+      runRunning: true,
+      skipCount: 0,
+      successCount: 1,
+    }),
   });
 
   const jobs = composeBackgroundJobStatuses(config, snapshot, [
@@ -43,13 +55,23 @@ it("background status composes persisted job rows with live running state", () =
 });
 
 it("background status falls back to live failure details for workers without history rows", () => {
-  const config = structuredClone(makeDefaultConfig("./test.sqlite")) as unknown as Config;
-  config.profiles = [];
-  const snapshot = structuredClone(initialBackgroundWorkerSnapshot());
-  Object.assign(snapshot.download_sync, {
-    failureCount: 1,
-    lastErrorMessage: "sync failed",
-    lastFailedAt: "2024-01-04T00:00:00.000Z",
+  const config = makeTestConfig("./test.sqlite");
+  const baseSnapshot2 = initialBackgroundWorkerSnapshot();
+  const snapshot = new BackgroundWorkerSnapshotModel({
+    download_sync: new BackgroundWorkerStatsModel({
+      daemonRunning: false,
+      failureCount: 1,
+      lastErrorMessage: "sync failed",
+      lastFailedAt: "2024-01-04T00:00:00.000Z",
+      lastStartedAt: null,
+      lastSucceededAt: null,
+      runRunning: false,
+      skipCount: 0,
+      successCount: 0,
+    }),
+    library_scan: baseSnapshot2.library_scan,
+    metadata_refresh: baseSnapshot2.metadata_refresh,
+    rss: baseSnapshot2.rss,
   });
 
   const jobs = composeBackgroundJobStatuses(config, snapshot, []);

@@ -1,6 +1,6 @@
 import { Command, CommandExecutor } from "@effect/platform";
 
-import { Effect, Option, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 
@@ -24,6 +24,11 @@ export const BlockStatsSchema = Schema.Struct({
 
 export type BlockStatsShape = Schema.Schema.Type<typeof BlockStatsSchema>;
 
+export interface DiskSpaceInspectorShape {
+  readonly getDiskSpace: (path: string) => Effect.Effect<DiskSpace, DiskSpaceError>;
+  readonly getDiskSpaceSafe: (path: string) => Effect.Effect<DiskSpace, DiskSpaceError>;
+}
+
 export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
   const blockSize = toPositiveNumber(stat.bsize, "Invalid block size");
   const availableBlocks = toNonNegativeNumber(stat.bavail, "Invalid available block count");
@@ -35,16 +40,8 @@ export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
   };
 }
 
-export const getDiskSpace = Effect.fn("System.getDiskSpace")(function* (path: string) {
-  const executorOption = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
-
-  if (Option.isNone(executorOption)) {
-    return yield* new DiskSpaceError({
-      message: `Failed to get disk space for ${path}: command executor unavailable`,
-    });
-  }
-
-  const output = yield* Command.make("df", "-Pk", path).pipe(
+function runDfCommand(commandExecutor: CommandExecutor.CommandExecutor, path: string) {
+  return Command.make("df", "-Pk", path).pipe(
     Command.string,
     Effect.mapError(
       (cause) =>
@@ -53,33 +50,52 @@ export const getDiskSpace = Effect.fn("System.getDiskSpace")(function* (path: st
           message: `Failed to get disk space for ${path}`,
         }),
     ),
-    Effect.provideService(CommandExecutor.CommandExecutor, executorOption.value),
+    Effect.provideService(CommandExecutor.CommandExecutor, commandExecutor),
   );
+}
 
-  return yield* Effect.try({
-    try: () => mapDfOutputToDiskSpace(path, output),
-    catch: (cause) =>
-      new DiskSpaceError({
-        cause,
-        message: `Failed to parse disk space for ${path}`,
-      }),
+export function makeDiskSpaceInspector(
+  commandExecutor?: CommandExecutor.CommandExecutor,
+): DiskSpaceInspectorShape {
+  const getDiskSpace = Effect.fn("System.getDiskSpace")(function* (path: string) {
+    if (!commandExecutor) {
+      return yield* new DiskSpaceError({
+        message: `Failed to get disk space for ${path}: command executor unavailable`,
+      });
+    }
+
+    const output = yield* runDfCommand(commandExecutor, path);
+
+    return yield* Effect.try({
+      try: () => mapDfOutputToDiskSpace(path, output),
+      catch: (cause) =>
+        new DiskSpaceError({
+          cause,
+          message: `Failed to parse disk space for ${path}`,
+        }),
+    });
   });
-});
 
-export const getDiskSpaceSafe = Effect.fn("System.getDiskSpaceSafe")(
-  (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> =>
-    getDiskSpace(path).pipe(
-      Effect.tapError((error) =>
-        Effect.logError("Failed to inspect storage volume").pipe(
-          Effect.annotateLogs({
-            component: "system",
-            diskPath: path,
-            error: error.message,
-          }),
+  const getDiskSpaceSafe = Effect.fn("System.getDiskSpaceSafe")(
+    (path: string): Effect.Effect<DiskSpace, DiskSpaceError, never> =>
+      getDiskSpace(path).pipe(
+        Effect.tapError((error) =>
+          Effect.logError("Failed to inspect storage volume").pipe(
+            Effect.annotateLogs({
+              component: "system",
+              diskPath: path,
+              error: error.message,
+            }),
+          ),
         ),
       ),
-    ),
-);
+  );
+
+  return {
+    getDiskSpace,
+    getDiskSpaceSafe,
+  };
+}
 
 export function selectStoragePath(config: Config, databaseFile: string): string {
   const libraryPath = config.library.library_path.trim();

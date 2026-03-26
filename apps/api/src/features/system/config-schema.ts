@@ -49,6 +49,8 @@ export class CreateReleaseProfileSchema extends Schema.Class<CreateReleaseProfil
   rules: ReleaseProfileRulesSchema,
 }) {}
 
+export type CreateReleaseProfileInput = Schema.Schema.Type<typeof CreateReleaseProfileSchema>;
+
 export class UpdateReleaseProfileSchema extends Schema.Class<UpdateReleaseProfileSchema>(
   "UpdateReleaseProfileSchema",
 )({
@@ -57,6 +59,8 @@ export class UpdateReleaseProfileSchema extends Schema.Class<UpdateReleaseProfil
   name: Schema.String,
   rules: ReleaseProfileRulesSchema,
 }) {}
+
+export type UpdateReleaseProfileInput = Schema.Schema.Type<typeof UpdateReleaseProfileSchema>;
 
 export class ConfigCoreSchema extends Schema.Class<ConfigCoreSchema>("ConfigCoreSchema")({
   downloads: DownloadsConfigSchema,

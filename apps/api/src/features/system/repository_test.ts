@@ -1,5 +1,6 @@
 import { assertEquals, it } from "../../test/vitest.ts";
-import { Cause, Effect, Exit } from "effect";
+import { Cause, Effect, Exit, Schema } from "effect";
+import { ConfigCoreSchema } from "./config-schema.ts";
 
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -53,15 +54,16 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
       const initial = yield* loadSystemConfigRow(db);
       assertEquals(initial?.id, 1);
 
+      const updatedEncoded = yield* Schema.encode(ConfigCoreSchema)(
+        makeDefaultConfig(databaseFile),
+      );
+      const updatedData = encodeConfigCore({
+        ...updatedEncoded,
+        library: { ...updatedEncoded.library, library_path: "/new-library" },
+      });
       yield* upsertSystemConfigRow(db, {
         id: 1,
-        data: encodeConfigCore(
-          (() => {
-            const config = structuredClone(makeDefaultConfig(databaseFile));
-            config.library.library_path = "/new-library";
-            return config;
-          })(),
-        ),
+        data: updatedData,
         updatedAt: "2024-01-02T00:00:00.000Z",
       });
 

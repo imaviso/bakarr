@@ -1,16 +1,14 @@
 import { assertEquals, it } from "../../test/vitest.ts";
 import { Effect } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { DatabaseError } from "../../db/database.ts";
-import { makeDefaultConfig } from "./defaults.ts";
+import { makeTestConfig } from "../../test/config-fixture.ts";
 import { persistAndActivateConfig, type PersistedSystemConfigState } from "./config-activation.ts";
 
 it.effect("config activation keeps persisted state when activation succeeds", () =>
   Effect.gen(function* () {
     const persisted: PersistedSystemConfigState[] = [];
-    const nextConfig = structuredClone(makeDefaultConfig("./test.sqlite")) as unknown as Config;
-    nextConfig.profiles = [];
+    const nextConfig = makeTestConfig("./test.sqlite");
     const previousState = state("previous");
     const nextState = state("next");
 
@@ -36,8 +34,7 @@ it.effect("config activation keeps persisted state when activation succeeds", ()
 it.effect("config activation rolls persisted state back when activation fails", () =>
   Effect.gen(function* () {
     const persisted: PersistedSystemConfigState[] = [];
-    const nextConfig = structuredClone(makeDefaultConfig("./test.sqlite")) as unknown as Config;
-    nextConfig.profiles = [];
+    const nextConfig = makeTestConfig("./test.sqlite");
     const previousState = state("previous");
     const nextState = state("next");
     const activationError = new DatabaseError({
