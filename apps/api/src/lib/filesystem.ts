@@ -1,5 +1,6 @@
 import { FileSystem as PlatformFileSystem, Path as PlatformPath } from "@effect/platform";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import { win32 as PathForUtilities } from "node:path";
 import { Context, Effect, Layer, Schema, Scope, Stream } from "effect";
 
 export class FileSystemError extends Schema.TaggedError<FileSystemError>()("FileSystemError", {
@@ -75,14 +76,6 @@ export class FileSystem extends Context.Tag("@bakarr/api/FileSystem")<
   FileSystem,
   FileSystemShape
 >() {}
-
-const PathForUtilities: PlatformPath.Path = Effect.runSync(
-  Effect.scoped(
-    Layer.build(PlatformPath.layer).pipe(
-      Effect.map((context) => Context.get(context, PlatformPath.Path)),
-    ),
-  ),
-);
 
 function wrap<A, R>(
   path: string | URL,

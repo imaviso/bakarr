@@ -3,6 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import { AppConfig } from "../../config.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
+import { setRuntimeLogLevel } from "../../lib/logging.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "./defaults.ts";
 import {
   effectDecodeConfigCore,
@@ -15,8 +16,6 @@ import {
   loadAnyQualityProfileRow,
   loadSystemConfigRow,
 } from "./repository.ts";
-import { setRuntimeLogLevel } from "../../lib/logging.ts";
-
 export interface SystemBootstrapServiceShape {
   /**
    * First-run initialization (idempotent):
@@ -64,7 +63,7 @@ const makeSystemBootstrapService = Effect.gen(function* () {
       const decoded = yield* effectDecodeConfigCore(storedConfig.data).pipe(Effect.either);
 
       if (decoded._tag === "Right") {
-        setRuntimeLogLevel(decoded.right.general.log_level);
+        yield* setRuntimeLogLevel(decoded.right.general.log_level);
       }
     }
   });

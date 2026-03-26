@@ -4,7 +4,7 @@ import type { DatabaseError } from "../../db/database.ts";
 import { ClockService } from "../../lib/clock.ts";
 import { recordHttpRequestMetrics, renderBakarrPrometheusMetrics } from "../../lib/metrics.ts";
 import type { AnimeStoredDataError } from "../anime/errors.ts";
-import { DownloadService } from "../operations/service-contract.ts";
+import { DownloadStatusService } from "../operations/service-contract.ts";
 import type { OperationsError } from "../operations/errors.ts";
 import { SystemStatusService } from "./system-status-service.ts";
 import type { DiskSpaceError } from "./disk-space.ts";
@@ -28,7 +28,7 @@ export class MetricsService extends Context.Tag("@bakarr/api/MetricsService")<
 
 const makeMetricsService = Effect.gen(function* () {
   const systemService = yield* SystemStatusService;
-  const downloadService = yield* DownloadService;
+  const downloadService = yield* DownloadStatusService;
   const clock = yield* ClockService;
 
   const renderPrometheusMetrics = Effect.fn("MetricsService.renderPrometheusMetrics")(function* () {

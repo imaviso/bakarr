@@ -1,13 +1,12 @@
-import { Context, Effect, Either, Layer } from "effect";
-import * as Cron from "effect/Cron";
+import { Context, Effect, Layer } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../../config.ts";
 import { BackgroundWorkerController } from "../../background-controller.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { setRuntimeLogLevel } from "../../lib/logging.ts";
 import { persistAndActivateConfig, type PersistedSystemConfigState } from "./config-activation.ts";
+import { validateConfigUpdate } from "./config-update-validation.ts";
 import {
   type ConfigCore,
   composeConfig,
@@ -23,8 +22,8 @@ import { makeDefaultConfig } from "./defaults.ts";
 import { appendSystemLog } from "./support.ts";
 import {
   countAnimeUsingProfile,
-  loadSystemConfigRow,
   listQualityProfileRows,
+  loadSystemConfigRow,
   updateSystemConfigAtomic,
 } from "./repository.ts";
 
@@ -73,34 +72,12 @@ const makeSystemConfigService = Effect.gen(function* () {
   const updateConfig = Effect.fn("SystemConfigService.updateConfig")(function* (
     nextConfig: Config,
   ) {
-    const cronExpression = nextConfig.scheduler.cron_expression?.trim();
-
-    if (nextConfig.scheduler.enabled && cronExpression) {
-      const parsed = Cron.parse(cronExpression);
-
-      if (Either.isLeft(parsed)) {
-        return yield* new ConfigValidationError({
-          message: "Invalid scheduler cron expression",
-        });
-      }
-    }
-
     const existingProfileRows = yield* listQualityProfileRows(db);
-
-    const keptProfileNames = new Set(nextConfig.profiles.map((p) => p.name));
-    const removedProfileNames = existingProfileRows
-      .map((row) => row.name)
-      .filter((name) => !keptProfileNames.has(name));
-
-    for (const removedProfileName of removedProfileNames) {
-      const referencingAnime = yield* countAnimeUsingProfile(db, removedProfileName);
-
-      if (referencingAnime > 0) {
-        return yield* new ConfigValidationError({
-          message: `Cannot remove profile '${removedProfileName}': still referenced by ${referencingAnime} anime`,
-        });
-      }
-    }
+    yield* validateConfigUpdate({
+      countAnimeUsingProfile: (profileName) => countAnimeUsingProfile(db, profileName),
+      existingProfileRows,
+      nextConfig,
+    });
 
     const core: ConfigCore = toConfigCore(nextConfig);
     const updatedAt = yield* nowIso();
@@ -139,8 +116,6 @@ const makeSystemConfigService = Effect.gen(function* () {
       "System configuration updated",
       nowIso,
     );
-
-    setRuntimeLogLevel(nextConfig.general.log_level);
 
     return nextConfig;
   });

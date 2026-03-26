@@ -14,6 +14,11 @@ it("isWithinPathRoot accepts Windows-style child paths", () => {
   assertEquals(isWithinPathRoot("C:\\downloads-evil\\show\\episode.mkv", "C:\\downloads"), false);
 });
 
+it("isWithinPathRoot handles relative paths", () => {
+  assertEquals(isWithinPathRoot("./library/show/episode.mkv", "./library"), true);
+  assertEquals(isWithinPathRoot("./library-evil/show/episode.mkv", "./library"), false);
+});
+
 it("sanitizePathSegment rejects traversal and nested path inputs", () => {
   for (const value of ["../etc", "..", "nested/show", "nested\\show", ""]) {
     assertThrows(() => sanitizePathSegment(value), Error);
