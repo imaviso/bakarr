@@ -9,7 +9,7 @@ export class StreamPayloadTooLargeError extends Schema.TaggedError<StreamPayload
  * Collect a binary stream into a single `Uint8Array`, failing with
  * `StreamPayloadTooLargeError` if the accumulated bytes exceed `maxBytes`.
  */
-export const collectBoundedBytes = (
+export const collectBoundedBytes = Effect.fn("BoundedStream.collectBoundedBytes")((
   stream: Stream.Stream<Uint8Array, unknown>,
   maxBytes: number,
 ): Effect.Effect<Uint8Array, StreamPayloadTooLargeError> => {
@@ -47,13 +47,13 @@ export const collectBoundedBytes = (
       return bytes;
     }),
   );
-};
+});
 
 /**
  * Collect a binary stream into a decoded text string, failing with
  * `StreamPayloadTooLargeError` if the accumulated bytes exceed `maxBytes`.
  */
-export const collectBoundedText = (
+export const collectBoundedText = Effect.fn("BoundedStream.collectBoundedText")((
   stream: Stream.Stream<Uint8Array, unknown>,
   maxBytes: number,
 ): Effect.Effect<string, StreamPayloadTooLargeError> => {
@@ -84,4 +84,4 @@ export const collectBoundedText = (
     }),
     Effect.map(() => text),
   );
-};
+});

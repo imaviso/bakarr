@@ -193,10 +193,10 @@ const ProbedMediaMetadataFromFFProbeOutputSchema = Schema.transform(
         return Math.round(parsed);
       };
 
-      const streams = output.streams;
+      const { streams } = output;
       const videoStream = streams.find((s) => s.codec_type === "video");
       const audioStream = streams.find((s) => s.codec_type === "audio");
-      const format = output.format;
+      const { format } = output;
 
       const metadata = {
         duration_seconds: normalizeDurationSeconds(videoStream?.duration ?? format?.duration),

@@ -6,14 +6,14 @@
 
 /** Check if an error wraps a "not found" platform error (ENOENT / Deno NotFound). */
 export function isNotFoundError(error: { cause?: unknown }): boolean {
-  const cause = error.cause;
+  const { cause } = error;
 
   if (isSystemNotFoundError(cause)) {
     return true;
   }
 
   if (cause instanceof Error && "code" in cause) {
-    const code = (cause as { code?: string }).code;
+    const { code } = cause as { code?: string };
     return code === "ENOENT" || code === "NotFound";
   }
 
@@ -26,7 +26,7 @@ export function isNotFoundError(error: { cause?: unknown }): boolean {
 
 /** Check if an error wraps a cross-device rename error (EXDEV). */
 export function isCrossFilesystemError(error: { cause?: unknown }): boolean {
-  const cause = error.cause;
+  const { cause } = error;
   if (cause instanceof Error && "code" in cause) {
     return (cause as { code?: string }).code === "EXDEV";
   }

@@ -23,51 +23,13 @@ export const makeTryExternal =
     fn: (signal: AbortSignal) => Promise<A>,
     options?: { readonly idempotent?: boolean },
   ) =>
-    Effect.fn(`external.${operation}`)(
-      function* () {
-        const startedAt = yield* clock.currentMonotonicMillis;
-        const policy = options?.idempotent === false ? noRetryPolicy : retryPolicy;
-
-        const result = yield* Effect.tryPromise({
-          try: (signal) => fn(signal),
-          catch: (cause) => toExternalCallError(operation, cause),
-        }).pipe(
-          Effect.timeout("10 seconds"),
-          Effect.retry(policy),
-          Effect.scoped,
-          Effect.mapError((cause) => toExternalCallError(operation, cause)),
-          Effect.tapBoth({
-            onSuccess: () =>
-              Effect.gen(function* () {
-                const finishedAt = yield* clock.currentMonotonicMillis;
-                yield* Effect.logInfo("external call completed").pipe(
-                  Effect.annotateLogs({
-                    durationMs: durationMsSince(startedAt, finishedAt),
-                  }),
-                );
-              }),
-            onFailure: (error) =>
-              Effect.gen(function* () {
-                const finishedAt = yield* clock.currentMonotonicMillis;
-                yield* Effect.logError("external call failed").pipe(
-                  Effect.annotateLogs(
-                    compactLogAnnotations({
-                      durationMs: durationMsSince(startedAt, finishedAt),
-                      ...errorLogAnnotations(error),
-                    }),
-                  ),
-                );
-              }),
-          }),
-          Effect.withLogSpan(operation),
-        );
-
-        return result;
-      },
-      Effect.annotateLogs({
-        component: "external",
-        externalOperation: operation,
+    makeTryExternalEffect(clock)(
+      operation,
+      Effect.tryPromise({
+        try: fn,
+        catch: (cause) => toExternalCallError(operation, cause),
       }),
+      options,
     );
 
 export const makeTryExternalEffect =

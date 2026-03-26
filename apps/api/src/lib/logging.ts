@@ -104,6 +104,18 @@ function formatUnknown(value: unknown): string | undefined {
   try {
     return JSON.stringify(value);
   } catch {
-    return String(value);
+    if (typeof value === "object" && value !== null) {
+      return Object.prototype.toString.call(value);
+    }
+
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+      return String(value);
+    }
+
+    return typeof value;
   }
 }

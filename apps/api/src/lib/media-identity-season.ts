@@ -103,7 +103,7 @@ export function parseSeasonEpisodeIdentity(
   }
 
   const seasonDashMatch = value.match(
-    /(?:^|[\s._-])season[\s._-]*(\d{1,2})[\s._-]+(?:-[\s._-]*)?(\d{1,3})(?:[\s._\-\[(]|$)/i,
+    /(?:^|[\s._-])season[\s._-]*(\d{1,2})[\s._-]+(?:-[\s._-]*)?(\d{1,3})(?:[\s._\-[(]|$)/i,
   );
   if (seasonDashMatch) {
     const season = Number(seasonDashMatch[1]);
@@ -125,7 +125,7 @@ function collectSeasonEpisodes(value: string): number[] {
   const fullMatch = value.match(/s(\d{1,2})([\s._-]*e\d{1,4}(?:[\s._-]*e\d{1,4})*)/i);
   if (!fullMatch) return [];
 
-  const episodePart = fullMatch[2];
+  const [, , episodePart] = fullMatch;
   const epMatches = episodePart.matchAll(/e(\d{1,4})/gi);
   const episodes: number[] = [];
   for (const m of epMatches) {

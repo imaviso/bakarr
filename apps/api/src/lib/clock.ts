@@ -23,7 +23,7 @@ export function nowIsoFromClock(clock: ClockServiceShape): Effect.Effect<string>
   return Effect.map(clock.currentTimeMillis, isoStringFromMillis);
 }
 
-export const currentTimeMillis: Effect.Effect<number> = Clock.currentTimeMillis;
+export const { currentTimeMillis } = Clock;
 export const currentMonotonicMillis: Effect.Effect<number> = Effect.sync(() => performance.now());
 
 /**

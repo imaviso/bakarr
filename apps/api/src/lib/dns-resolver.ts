@@ -19,16 +19,14 @@ export class DnsResolver extends Context.Tag("@bakarr/api/DnsResolver")<
   DnsResolverShape
 >() {}
 
-export const DnsResolverLive = Layer.sync(DnsResolver, () => {
-  const resolve: DnsResolverShape["resolve"] = (hostname, recordType) => {
-    return Effect.tryPromise({
+export const DnsResolverLive = Layer.sync(DnsResolver, () => ({
+  resolve: Effect.fn("DnsResolver.resolve")(function* (hostname: string, recordType: "A" | "AAAA") {
+    return yield* Effect.tryPromise({
       try: () => (recordType === "A" ? resolve4(hostname) : resolve6(hostname)),
       catch: (cause) => new DnsLookupError({ cause, hostname, recordType }),
     });
-  };
-
-  return { resolve };
-});
+  }),
+}));
 
 export const DnsResolverNoop = Layer.succeed(DnsResolver, {
   resolve: () => Effect.succeed([]),
@@ -40,8 +38,8 @@ export function isDnsNoRecordError(cause: unknown): boolean {
     return false;
   }
 
-  const name = cause.name;
-  const code = (cause as { code?: unknown }).code;
+  const { name } = cause;
+  const { code } = cause as { code?: unknown };
   const message = cause.message.toLowerCase();
 
   return (

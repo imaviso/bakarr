@@ -53,8 +53,8 @@ const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* 
   const journalMode = yield* executeSql(client, "PRAGMA journal_mode");
   const foreignKeys = yield* executeSql(client, "PRAGMA foreign_keys");
 
-  const journalModeValue = String(journalMode.rows[0]?.[0] ?? "");
-  const foreignKeysValue = String(foreignKeys.rows[0]?.[0] ?? "");
+  const journalModeValue = toSqlitePragmaValue(journalMode.rows[0]?.[0]);
+  const foreignKeysValue = toSqlitePragmaValue(foreignKeys.rows[0]?.[0]);
 
   if (journalModeValue.toLowerCase() !== "wal") {
     yield* Effect.logWarning("SQLite pragma mismatch").pipe(
@@ -77,6 +77,18 @@ const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* 
     );
   }
 });
+
+function toSqlitePragmaValue(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+    return String(value);
+  }
+
+  return "";
+}
 
 const makeDatabase = Effect.gen(function* () {
   const config = yield* AppConfig;

@@ -253,11 +253,15 @@ function escapeLabelValue(value: string) {
 }
 
 function formatNumber(value: number | bigint) {
-  return typeof value === "bigint"
-    ? value.toString()
-    : Number.isFinite(value)
-      ? String(value)
-      : "0";
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+
+  if (Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return "0";
 }
 
 const HistogramStateSchema = Schema.Struct({

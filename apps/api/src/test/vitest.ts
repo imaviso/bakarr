@@ -17,7 +17,7 @@ export function assertExists<A>(value: A, message?: string): asserts value is No
 
 export function assertInstanceOf<A>(
   value: unknown,
-  constructor: new (...args: Array<any>) => A,
+  constructor: new (...args: never[]) => A,
   message?: string,
 ): asserts value is A {
   expect(value, message).toBeInstanceOf(constructor);
@@ -33,7 +33,7 @@ export function assertNotEquals<A>(actual: A, expected: A, message?: string) {
 
 export async function assertRejects(
   fn: () => PromiseLike<unknown>,
-  errorClass?: new (...args: Array<any>) => Error,
+  errorClass?: new (...args: never[]) => Error,
   msgIncludes?: string | RegExp,
   message?: string,
 ) {
@@ -52,7 +52,7 @@ export async function assertRejects(
 
 export function assertThrows(
   fn: () => unknown,
-  errorClass?: new (...args: Array<any>) => Error,
+  errorClass?: new (...args: never[]) => Error,
   msgIncludes?: string | RegExp,
   message?: string,
 ) {
