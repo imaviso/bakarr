@@ -1,0 +1,54 @@
+import type {
+  Config,
+  EpisodeSearchResult,
+  QualityProfile,
+  ReleaseProfileRule,
+} from "../../../../../packages/shared/src/index.ts";
+
+import type { ParsedRelease } from "./rss-client.ts";
+import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
+import { decideDownloadAction, parseReleaseName } from "./release-ranking.ts";
+
+type CurrentEpisodeState = { downloaded: boolean; filePath?: string } | null;
+
+export function toEpisodeSearchResult(input: {
+  currentEpisode: CurrentEpisodeState;
+  item: ParsedRelease;
+  profile: QualityProfile;
+  rules: readonly ReleaseProfileRule[];
+  runtimeConfig: Config;
+}) {
+  const { currentEpisode, item, profile, rules, runtimeConfig } = input;
+  const parsedIdentity = parseReleaseSourceIdentity(item.title).source_identity;
+
+  return {
+    download_action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig),
+    group: item.group,
+    indexer: "Nyaa",
+    info_hash: item.infoHash,
+    is_seadex: item.isSeaDex || undefined,
+    is_seadex_best: item.isSeaDexBest || undefined,
+    leechers: item.leechers,
+    link: item.magnet,
+    parsed_air_date: parsedIdentity?.scheme === "daily" ? parsedIdentity.air_dates[0] : undefined,
+    parsed_episode_label: parsedIdentity?.label,
+    parsed_episode_numbers:
+      parsedIdentity && parsedIdentity.scheme !== "daily"
+        ? [...parsedIdentity.episode_numbers]
+        : undefined,
+    parsed_resolution: item.resolution,
+    publish_date: item.pubDate,
+    quality: parseReleaseName(item.title).quality.name,
+    remake: item.remake,
+    seadex_comparison: item.seaDexComparison,
+    seadex_dual_audio: item.seaDexDualAudio,
+    seadex_notes: item.seaDexNotes,
+    seadex_release_group: item.seaDexReleaseGroup,
+    seadex_tags: item.seaDexTags ? [...item.seaDexTags] : undefined,
+    seeders: item.seeders,
+    size: item.sizeBytes,
+    title: item.title,
+    trusted: item.trusted,
+    view_url: item.viewUrl,
+  } satisfies EpisodeSearchResult;
+}
