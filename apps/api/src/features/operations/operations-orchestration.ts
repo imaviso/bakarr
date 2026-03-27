@@ -236,30 +236,3 @@ export const CatalogOrchestrationLive = Layer.effect(
     });
   }),
 );
-
-// ---------------------------------------------------------------------------
-// Convenience: full orchestration runtime layer (all internal deps wired)
-// ---------------------------------------------------------------------------
-
-const downloadRuntimeLayer = DownloadOrchestrationLive.pipe(
-  Layer.provide(OperationsSharedStateLive),
-);
-
-const progressRuntimeLayer = ProgressLive.pipe(Layer.provide(downloadRuntimeLayer));
-
-const searchRuntimeLayer = SearchOrchestrationLive.pipe(
-  Layer.provide(Layer.mergeAll(OperationsSharedStateLive, progressRuntimeLayer)),
-);
-
-const catalogRuntimeLayer = CatalogOrchestrationLive.pipe(
-  Layer.provide(
-    Layer.mergeAll(downloadRuntimeLayer, progressRuntimeLayer, CatalogLibraryReadSupportLive),
-  ),
-);
-
-export const operationsOrchestrationLayer = Layer.mergeAll(
-  downloadRuntimeLayer,
-  progressRuntimeLayer,
-  searchRuntimeLayer,
-  catalogRuntimeLayer,
-);
