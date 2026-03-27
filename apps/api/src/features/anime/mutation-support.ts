@@ -1,14 +1,16 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
+import { win32 as PathForUtilities } from "node:path";
 
 import type { AppDatabase } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+import { isWithinPathRoot, type FileSystemShape } from "../../lib/filesystem.ts";
 import { encodeNumberList } from "../system/config-codec.ts";
 import { ProfileNotFoundError } from "../system/errors.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import { AnimeConflictError, AnimePathError } from "./errors.ts";
 import {
+  getConfiguredLibraryPathEffect,
   appendAnimeLogEffect,
   findAnimeRootFolderOwnerEffect,
   qualityProfileExistsEffect,
@@ -27,6 +29,24 @@ export const updateAnimePathEffect = Effect.fn("AnimeService.updateAnimePathEffe
     nowIso: () => Effect.Effect<string>;
   }) {
     const trimmedPath = input.path.trim();
+    const configuredLibraryPath = yield* getConfiguredLibraryPathEffect(input.db).pipe(
+      Effect.mapError(
+        () =>
+          new AnimePathError({
+            message: "Configured library root is inaccessible",
+          }),
+      ),
+    );
+    const canonicalLibraryRoot = yield* input.fs.realPath(configuredLibraryPath).pipe(
+      Effect.mapError(
+        () =>
+          new AnimePathError({
+            message: "Configured library root is inaccessible",
+          }),
+      ),
+    );
+
+    yield* assertAnimePathWithinLibraryRootEffect(input.fs, trimmedPath, canonicalLibraryRoot);
     yield* requireAnimeExistsEffect(input.db, input.id).pipe(
       Effect.mapError(wrapAnimeError("Failed to update anime path")),
     );
@@ -67,6 +87,56 @@ export const updateAnimePathEffect = Effect.fn("AnimeService.updateAnimePathEffe
       `Updated path for anime ${input.id}`,
       input.nowIso,
     );
+  },
+);
+
+const assertAnimePathWithinLibraryRootEffect = Effect.fn(
+  "AnimeService.assertAnimePathWithinLibraryRoot",
+)(function* (fs: FileSystemShape, path: string, libraryRoot: string) {
+  const resolvedPath = yield* Effect.either(fs.realPath(path));
+
+  if (resolvedPath._tag === "Right") {
+    if (!isWithinPathRoot(resolvedPath.right, libraryRoot)) {
+      return yield* new AnimePathError({
+        message: "Anime path must be within the configured library root",
+      });
+    }
+
+    return resolvedPath.right;
+  }
+
+  const canonicalParent = yield* findExistingAncestorPathEffect(fs, path);
+
+  if (!isWithinPathRoot(canonicalParent, libraryRoot)) {
+    return yield* new AnimePathError({
+      message: "Anime path must be within the configured library root",
+    });
+  }
+
+  return path;
+});
+
+const findExistingAncestorPathEffect = Effect.fn("AnimeService.findExistingAncestorPath")(
+  function* (fs: FileSystemShape, path: string) {
+    let current = path;
+
+    while (true) {
+      const resolved = yield* Effect.either(fs.realPath(current));
+
+      if (resolved._tag === "Right") {
+        return resolved.right;
+      }
+
+      const parent = PathForUtilities.dirname(current.replace(/[\\/]+/g, "/"));
+
+      if (parent === current) {
+        return yield* new AnimePathError({
+          message: "Anime path must be within the configured library root",
+        });
+      }
+
+      current = parent;
+    }
   },
 );
 

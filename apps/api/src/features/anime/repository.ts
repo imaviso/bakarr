@@ -433,6 +433,20 @@ export const getConfiguredImagesPathEffect = Effect.fn("AnimeRepository.getConfi
   },
 );
 
+export const getConfiguredLibraryPathEffect = Effect.fn("AnimeRepository.getConfiguredLibraryPath")(
+  function* (db: AppDatabase) {
+    const rows = yield* tryDatabasePromise("Failed to load configured library path", () =>
+      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+    );
+
+    const configCore = rows[0]
+      ? yield* effectDecodeConfigCore(rows[0].data)
+      : makeDefaultConfig(":memory:");
+
+    return toLibrarySettings(configCore).libraryPath;
+  },
+);
+
 export const appendAnimeLogEffect = Effect.fn("AnimeRepository.appendAnimeLog")(function* (
   db: AppDatabase,
   eventType: string,
