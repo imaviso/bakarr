@@ -37,13 +37,9 @@ export const updateAnimePathEffect = Effect.fn("AnimeService.updateAnimePathEffe
           }),
       ),
     );
-    const canonicalLibraryRoot = yield* input.fs.realPath(configuredLibraryPath).pipe(
-      Effect.mapError(
-        () =>
-          new AnimePathError({
-            message: "Configured library root is inaccessible",
-          }),
-      ),
+    const canonicalLibraryRoot = yield* resolveConfiguredLibraryRootEffect(
+      input.fs,
+      configuredLibraryPath,
     );
 
     yield* assertAnimePathWithinLibraryRootEffect(input.fs, trimmedPath, canonicalLibraryRoot);
@@ -137,6 +133,18 @@ const findExistingAncestorPathEffect = Effect.fn("AnimeService.findExistingAnces
 
       current = parent;
     }
+  },
+);
+
+const resolveConfiguredLibraryRootEffect = Effect.fn("AnimeService.resolveConfiguredLibraryRoot")(
+  function* (fs: FileSystemShape, configuredLibraryPath: string) {
+    const resolved = yield* Effect.either(fs.realPath(configuredLibraryPath));
+
+    if (resolved._tag === "Right") {
+      return resolved.right;
+    }
+
+    return configuredLibraryPath;
   },
 );
 
