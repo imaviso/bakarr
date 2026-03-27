@@ -3,6 +3,7 @@ import { createClient } from "@libsql/client";
 import { CommandExecutor } from "@effect/platform";
 import { HttpApp } from "@effect/platform";
 import { Effect, Layer, Redacted } from "effect";
+import { tmpdir } from "node:os";
 import { AniListClient } from "./src/features/anime/anilist.ts";
 import { type QBitTorrent, QBitTorrentClient } from "./src/features/operations/qbittorrent.ts";
 import { mapQBitState } from "./src/features/operations/download-orchestration-shared.ts";
@@ -3311,8 +3312,7 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       method: "POST",
     });
 
-    const rssXml = `<?xml version="1.0"?><rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item><title>[SubsPlease] Naruto - 001 (1080p)</title><link>https://nyaa.si/download/1.torrent</link><pubDate>${new Date().toUTCString()}</pubDate><nyaa:seeders>55</nyaa:seeders><nyaa:leechers>1</nyaa:leechers><nyaa:infoHash>abcdefabcdefabcdefabcdefabcdefabcdefabcd</nyaa:infoHash><nyaa:size>1.3 GiB</nyaa:size><nyaa:trusted>Yes</nyaa:trusted><nyaa:remake>No</nyaa:remake></item></channel></rss>`;
-    const rssUrl = `data:text/xml,${encodeURIComponent(rssXml)}`;
+    const rssUrl = "https://feeds.example/naruto.xml";
 
     await ctx.app.request("/api/rss", {
       body: JSON.stringify({ anime_id: 20, url: rssUrl }),
@@ -3358,21 +3358,21 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
     );
     assertEquals(
       metricsText.includes(
-        'bakarr_http_requests_total{method="GET",route="/api/metrics",status="200"} 1',
+        'bakarr_background_worker_runs_total{status="success",worker="download_sync"}',
       ),
       true,
+    );
+    assertEquals(
+      metricsText.includes(
+        'bakarr_http_requests_total{method="GET",route="/api/metrics",status="200"} 1',
+      ),
+      false,
     );
     assertEquals(
       metricsText.includes(
         'bakarr_http_request_duration_ms_bucket{method="GET",route="/api/metrics",status="200",le="10"}',
       ),
-      true,
-    );
-    assertEquals(
-      metricsText.includes(
-        'bakarr_background_worker_runs_total{status="success",worker="download_sync"}',
-      ),
-      true,
+      false,
     );
 
     const searchMissing = await ctx.app.request("/api/downloads/search-missing", {
@@ -3486,8 +3486,7 @@ itWithTestContext("missing-search ignores episodes that have not aired yet", asy
       client.close();
     }
 
-    const rssXml = `<?xml version="1.0"?><rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item><title>[SubsPlease] Naruto - 002 (1080p)</title><link>https://nyaa.si/download/2.torrent</link><pubDate>${new Date().toUTCString()}</pubDate><nyaa:seeders>55</nyaa:seeders><nyaa:leechers>1</nyaa:leechers><nyaa:infoHash>bcdefabcdefabcdefabcdefabcdefabcdefabcde</nyaa:infoHash><nyaa:size>1.3 GiB</nyaa:size><nyaa:trusted>Yes</nyaa:trusted><nyaa:remake>No</nyaa:remake></item></channel></rss>`;
-    const rssUrl = `data:text/xml,${encodeURIComponent(rssXml)}`;
+    const rssUrl = "https://feeds.example/naruto.xml";
 
     await ctx.app.request("/api/rss", {
       body: JSON.stringify({ anime_id: 20, url: rssUrl }),
@@ -3795,8 +3794,7 @@ itWithTestContext("events stream emits RSS and library scan progress updates", a
 
     await writeTextFile(`${rootFolder}/Naruto - 001.mkv`, "video");
 
-    const rssXml = `<?xml version="1.0"?><rss version="2.0" xmlns:nyaa="https://nyaa.si/xmlns/nyaa"><channel><item><title>[SubsPlease] Naruto - 001 (1080p)</title><link>https://nyaa.si/download/1.torrent</link><pubDate>${new Date().toUTCString()}</pubDate><nyaa:seeders>55</nyaa:seeders><nyaa:leechers>1</nyaa:leechers><nyaa:infoHash>abcdefabcdefabcdefabcdefabcdefabcdefabcd</nyaa:infoHash><nyaa:size>1.3 GiB</nyaa:size><nyaa:trusted>Yes</nyaa:trusted><nyaa:remake>No</nyaa:remake></item></channel></rss>`;
-    const rssUrl = `data:text/xml,${encodeURIComponent(rssXml)}`;
+    const rssUrl = "https://feeds.example/naruto.xml";
 
     const addFeedResponse = await ctx.app.request("/api/rss", {
       body: JSON.stringify({ anime_id: 20, url: rssUrl }),
@@ -4647,6 +4645,35 @@ async function createTestContext(options?: {
       return webHandler(request);
     },
   };
+
+  const bootstrapLoginResponse = await app.request("/api/auth/login", {
+    body: JSON.stringify({ password: "admin", username: "admin" }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+  const bootstrapSessionCookie = bootstrapLoginResponse.headers.get("set-cookie");
+
+  assert(bootstrapSessionCookie);
+
+  const currentConfigResponse = await app.request("/api/system/config", {
+    headers: { Cookie: bootstrapSessionCookie },
+  });
+  const currentConfig = await currentConfigResponse.json();
+
+  await app.request("/api/system/config", {
+    body: JSON.stringify({
+      ...currentConfig,
+      library: {
+        ...currentConfig.library,
+        library_path: tmpdir(),
+      },
+    }),
+    headers: {
+      Cookie: bootstrapSessionCookie,
+      "Content-Type": "application/json",
+    },
+    method: "PUT",
+  });
 
   return {
     app,

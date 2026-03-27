@@ -82,59 +82,70 @@ route-local policy deeper into the codebase.
 9. `apps/api/src/http/system-router.ts:52`
 10. `apps/api/src/http/operations-router.ts:41`
 11. `apps/api/src/http/anime-router.ts:36`
-   - These routers are much thinner than before, but they are still large endpoint hubs.
-   - They remain good split candidates by sub-domain:
-     - system: health, config, logs, tasks, metrics, events
-     - operations: downloads, RSS, library, search
-     - anime: reads, mutations, streaming
+
+- These routers are much thinner than before, but they are still large endpoint hubs.
+- They remain good split candidates by sub-domain:
+  - system: health, config, logs, tasks, metrics, events
+  - operations: downloads, RSS, library, search
+  - anime: reads, mutations, streaming
 
 12. `apps/api/src/http/system-router.ts:57`
-   - readiness still uses `Effect.catchAll(...)` even though the comment says
-     "known typed failures"
-   - this can mask defects, wiring bugs, and unexpected failures as a normal
-     503 not-ready response.
+
+- readiness still uses `Effect.catchAll(...)` even though the comment says
+  "known typed failures"
+- this can mask defects, wiring bugs, and unexpected failures as a normal
+  503 not-ready response.
 
 13. `apps/api/src/http/auth-router.ts:13`
-   - cookie `secure` behavior depends directly on `x-forwarded-proto` or the raw request URL
-   - proxy trust policy is route-local and not config-backed, which is brittle
-     and mixes deployment policy into adapter code.
+
+- cookie `secure` behavior depends directly on `x-forwarded-proto` or the raw request URL
+- proxy trust policy is route-local and not config-backed, which is brittle
+  and mixes deployment policy into adapter code.
 
 14. `apps/api/src/http/anime-request-schemas.ts:15`
 15. `apps/api/src/http/operations-request-schemas.ts:13`
 16. `apps/api/src/http/system-request-schemas.ts:10`
-   - dangerous boundary fields are still modeled as plain non-empty strings:
-     path strings, URLs, and ISO date strings are not strongly validated at the edge
-   - this keeps downstream services responsible for rejecting malformed or unsafe inputs.
+
+- dangerous boundary fields are still modeled as plain non-empty strings:
+  path strings, URLs, and ISO date strings are not strongly validated at the edge
+- this keeps downstream services responsible for rejecting malformed or unsafe inputs.
 
 17. `apps/api/src/http/anime-streaming.ts:123`
-   - range parsing is still partial: only `bytes=start-end?` is supported
-   - suffix ranges and richer RFC-compatible validation are still missing.
+
+- range parsing is still partial: only `bytes=start-end?` is supported
+- suffix ranges and richer RFC-compatible validation are still missing.
 
 18. `apps/api/src/http/system-router.ts:81`
 19. `apps/api/src/http/system-router.ts:132`
 20. `apps/api/src/http/system-router.ts:308`
-   - system router still owns raw wildcard path slicing, runtime log-level mutation,
-     and metrics timing / instrumentation side effects.
-   - These are boundary concerns, but they still deserve dedicated modules or services.
+
+- system router still owns raw wildcard path slicing, runtime log-level mutation,
+  and metrics timing / instrumentation side effects.
+- These are boundary concerns, but they still deserve dedicated modules or services.
 
 21. `apps/api/src/background-controller.ts:125`
-   - the controller is still a broad cross-feature assembly point that repackages
-     multiple services into a worker dependency bag.
-   - Better than the deleted helper, but still a pressure point for future worker growth.
+
+- the controller is still a broad cross-feature assembly point that repackages
+  multiple services into a worker dependency bag.
+- Better than the deleted helper, but still a pressure point for future worker growth.
 
 ### P3 - Low
 
 22. `apps/api/src/features/operations/unmapped-orchestration-support.ts:108`
-   - one file still owns loading, scan-loop progression, control actions, and import flows
+
+- one file still owns loading, scan-loop progression, control actions, and import flows
 
 23. `apps/api/src/features/operations/background-search-support.ts:207`
-   - one file still mixes missing-search orchestration and RSS orchestration
+
+- one file still mixes missing-search orchestration and RSS orchestration
 
 24. `apps/api/src/features/operations/download-reconciliation-service.ts:159`
-   - batch reconciliation and single-download reconciliation still live together
+
+- batch reconciliation and single-download reconciliation still live together
 
 25. `apps/api/src/http/system-router.ts:312`
-   - `/api/metrics` still renders metrics twice when once would be enough
+
+- `/api/metrics` still renders metrics twice when once would be enough
 
 ## Hard-Path Decisions
 

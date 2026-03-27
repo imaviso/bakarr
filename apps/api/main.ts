@@ -12,7 +12,7 @@ import { AuthService } from "./src/features/auth/service.ts";
 import { SystemBootstrapService } from "./src/features/system/system-bootstrap-service.ts";
 import { SystemConfigService } from "./src/features/system/system-config-service.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
-import { compactLogAnnotations, setRuntimeLogLevel } from "./src/lib/logging.ts";
+import { compactLogAnnotations } from "./src/lib/logging.ts";
 import { makeApiLayer, makeApiRuntime, type RuntimeOptions } from "./src/runtime.ts";
 
 /**
@@ -47,7 +47,6 @@ const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
   const controller = yield* BackgroundWorkerController;
   const config = yield* (yield* SystemConfigService).getConfig();
 
-  yield* setRuntimeLogLevel(config.general.log_level);
   yield* controller.start(config);
 });
 
