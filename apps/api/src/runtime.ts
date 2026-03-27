@@ -12,32 +12,31 @@ import type { AppConfigShape } from "./config.ts";
 export type { RuntimeOptions } from "./app-platform-runtime-layer.ts";
 
 export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: RuntimeOptions) {
-  const appPlatformLayer = makeAppPlatformRuntimeLayer(overrides, options);
+  const platformLayer = makeAppPlatformRuntimeLayer(overrides, options);
 
-  const operationsLayer = makeOperationsRuntimeLayer(appPlatformLayer);
-  const animeLayer = makeAnimeRuntimeLayer(appPlatformLayer);
-  const controllerLayer = makeBackgroundRuntimeLayer(appPlatformLayer, operationsLayer, animeLayer);
-  const authLayer = makeAuthRuntimeLayer(appPlatformLayer);
+  const operationsLayer = makeOperationsRuntimeLayer(platformLayer);
+  const animeLayer = makeAnimeRuntimeLayer(platformLayer);
+  const backgroundLayer = makeBackgroundRuntimeLayer(platformLayer, operationsLayer, animeLayer);
+  const authLayer = makeAuthRuntimeLayer(platformLayer);
   const { systemConfigLayer, systemLayer, systemStatusLayer } = makeSystemRuntimeLayers(
-    appPlatformLayer,
-    controllerLayer,
+    platformLayer,
+    backgroundLayer,
   );
   const appServicesLayer = makeAppServicesRuntimeLayer(
-    appPlatformLayer,
+    platformLayer,
     operationsLayer,
     systemConfigLayer,
     systemStatusLayer,
     animeLayer,
   );
+  const httpLayer = Layer.mergeAll(authLayer, systemLayer, appServicesLayer);
 
   return Layer.mergeAll(
-    appPlatformLayer,
+    platformLayer,
     operationsLayer,
     animeLayer,
-    controllerLayer,
-    authLayer,
-    systemLayer,
-    appServicesLayer,
+    backgroundLayer,
+    httpLayer,
   );
 }
 

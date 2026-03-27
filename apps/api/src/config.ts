@@ -13,6 +13,7 @@ export class AppConfigModel extends Schema.Class<AppConfigModel>("AppConfigModel
   databaseFile: Schema.String,
   port: PortSchema,
   sessionCookieName: Schema.String,
+  sessionCookieSecure: Schema.Boolean,
   sessionDurationDays: PositiveIntSchema,
 }) {}
 
@@ -24,6 +25,7 @@ export interface AppConfigOverrides {
   readonly bootstrapUsername?: string;
   readonly bootstrapPassword?: string | Redacted.Redacted<string>;
   readonly sessionCookieName?: string;
+  readonly sessionCookieSecure?: boolean;
   readonly sessionDurationDays?: number;
   readonly appVersion?: string;
 }
@@ -40,6 +42,7 @@ export const defaultAppConfig = new AppConfigModel({
   databaseFile: "./bakarr.sqlite",
   port: 8000,
   sessionCookieName: "bakarr_session",
+  sessionCookieSecure: false,
   sessionDurationDays: 30,
 });
 
@@ -92,6 +95,12 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
             EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.sessionCookieName)),
           ),
         );
+        const sessionCookieSecure = yield* readConfigValue(
+          overrides.sessionCookieSecure,
+          Schema.Config("SESSION_COOKIE_SECURE", Schema.BooleanFromString).pipe(
+            EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.sessionCookieSecure)),
+          ),
+        );
         const sessionDurationDays = yield* readConfigValue(
           overrides.sessionDurationDays,
           Schema.Config("SESSION_DURATION_DAYS", PositiveIntConfigSchema).pipe(
@@ -107,6 +116,7 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
           databaseFile,
           port,
           sessionCookieName,
+          sessionCookieSecure,
           sessionDurationDays,
         });
       }),
