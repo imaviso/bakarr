@@ -312,7 +312,10 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
-        yield* (yield* DownloadControlService).removeDownload(params.id, query.delete_files === "true");
+        yield* (yield* DownloadControlService).removeDownload(
+          params.id,
+          query.delete_files === "true",
+        );
       }),
       successResponse,
     ),

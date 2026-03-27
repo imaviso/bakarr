@@ -12,13 +12,13 @@ import { AppRuntime } from "../../app-runtime.ts";
 import { BackgroundWorkerMonitor } from "../../background-monitor.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { ClockService } from "../../lib/clock.ts";
-import { AnimeStoredDataError } from "../anime/errors.ts";
-import { toAnimeDto } from "../anime/dto.ts";
 import { composeBackgroundJobStatuses, findBackgroundJobStatus } from "./background-status.ts";
-import { effectDecodeConfigCore } from "./config-codec.ts";
-import { makeDefaultConfig } from "./defaults.ts";
 import { DiskSpaceError, makeDiskSpaceInspector, selectStoragePath } from "./disk-space.ts";
-import { ConfigValidationError, StoredConfigCorruptError } from "./errors.ts";
+import {
+  ConfigValidationError,
+  StoredConfigCorruptError,
+  StoredConfigMissingError,
+} from "./errors.ts";
 import {
   countActiveDownloads,
   countAnimeRows,
@@ -28,25 +28,22 @@ import {
   countMonitoredAnimeRows,
   countQueuedDownloads,
   countRssFeedRows,
+  countUpToDateAnimeRows,
   listBackgroundJobRows,
   listRecentSystemLogRows,
-  loadSystemConfigRow,
 } from "./repository.ts";
-import { composeConfig } from "./config-codec.ts";
 import { SystemConfigService } from "./system-config-service.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { anime, episodes } from "../../db/schema.ts";
 
 export interface SystemStatusServiceShape {
   readonly getSystemStatus: () => Effect.Effect<
     SystemStatus,
-    DatabaseError | StoredConfigCorruptError | DiskSpaceError
+    DatabaseError | StoredConfigCorruptError | StoredConfigMissingError | DiskSpaceError
   >;
-  readonly getLibraryStats: () => Effect.Effect<LibraryStats, DatabaseError | AnimeStoredDataError>;
+  readonly getLibraryStats: () => Effect.Effect<LibraryStats, DatabaseError>;
   readonly getActivity: () => Effect.Effect<ActivityItem[], DatabaseError>;
   readonly getJobs: () => Effect.Effect<
     BackgroundJobStatus[],
-    DatabaseError | ConfigValidationError | StoredConfigCorruptError
+    DatabaseError | ConfigValidationError | StoredConfigCorruptError | StoredConfigMissingError
   >;
 }
 
@@ -67,20 +64,14 @@ const makeSystemStatusService = Effect.gen(function* () {
   const currentTimeMillis = () => clock.currentTimeMillis;
 
   const getSystemStatus = Effect.fn("SystemStatusService.getSystemStatus")(function* () {
-    const storedConfig = yield* loadSystemConfigRow(db);
-
-    const core = storedConfig
-      ? yield* effectDecodeConfigCore(storedConfig.data)
-      : makeDefaultConfig(appConfig.databaseFile);
-
-    const statusConfig = composeConfig(core, []);
-    const storagePath = selectStoragePath(statusConfig, appConfig.databaseFile);
+    const currentConfig = yield* configService.getConfig();
+    const storagePath = selectStoragePath(currentConfig, appConfig.databaseFile);
     const diskSpace = yield* diskSpaceInspector.getDiskSpaceSafe(storagePath);
     const queuedDownloads = yield* countQueuedDownloads(db);
     const activeDownloads = yield* countActiveDownloads(db);
     const jobRows = yield* listBackgroundJobRows(db);
     const liveSnapshot = yield* monitor.snapshot();
-    const jobs = composeBackgroundJobStatuses(statusConfig, liveSnapshot, jobRows);
+    const jobs = composeBackgroundJobStatuses(currentConfig, liveSnapshot, jobRows);
     const rssJob = findBackgroundJobStatus(jobs, "rss");
     const scanJob = findBackgroundJobStatus(jobs, "library_scan");
     const metadataRefreshJob = findBackgroundJobStatus(jobs, "metadata_refresh");
@@ -106,30 +97,7 @@ const makeSystemStatusService = Effect.gen(function* () {
     const downloadedEpisodes = yield* countDownloadedEpisodeRows(db);
     const totalRssFeeds = yield* countRssFeedRows(db);
     const completedDownloads = yield* countCompletedDownloads(db);
-    const animeRows = yield* tryDatabasePromise("Failed to load library stats", () =>
-      db.select().from(anime),
-    );
-    const episodeRows = yield* tryDatabasePromise("Failed to load library stats", () =>
-      db.select().from(episodes),
-    );
-    const episodesByAnimeId = new Map<number, Array<typeof episodes.$inferSelect>>();
-
-    for (const episodeRow of episodeRows) {
-      const bucket = episodesByAnimeId.get(episodeRow.animeId);
-
-      if (bucket) {
-        bucket.push(episodeRow);
-      } else {
-        episodesByAnimeId.set(episodeRow.animeId, [episodeRow]);
-      }
-    }
-
-    const animeDtos = yield* Effect.forEach(animeRows, (animeRow) =>
-      toAnimeDto(animeRow, episodesByAnimeId.get(animeRow.id) ?? []),
-    );
-    const upToDateAnime = animeDtos.filter(
-      (animeDto) => animeDto.monitored && animeDto.progress.is_up_to_date,
-    ).length;
+    const upToDateAnime = yield* countUpToDateAnimeRows(db);
 
     return {
       downloaded_episodes: downloadedEpisodes,

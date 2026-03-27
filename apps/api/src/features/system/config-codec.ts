@@ -263,21 +263,6 @@ export function toConfigCore(config: Config): ConfigCore {
   return Schema.decodeUnknownSync(ConfigCoreSchema)(config);
 }
 
-export function withLibraryDefaults(
-  core: ConfigCore,
-  libraryDefaults: ConfigCore["library"],
-): ConfigCore {
-  const encodedCore = Schema.encodeSync(ConfigCoreSchema)(core);
-
-  return Schema.decodeUnknownSync(ConfigCoreSchema)({
-    ...encodedCore,
-    library: {
-      ...libraryDefaults,
-      ...encodedCore.library,
-    },
-  });
-}
-
 export function composeConfig(core: ConfigCore, profiles: readonly QualityProfile[]): Config {
   const encodedCore = Schema.encodeSync(ConfigCoreSchema)(core);
 

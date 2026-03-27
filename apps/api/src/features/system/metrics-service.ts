@@ -3,18 +3,17 @@ import { Context, Effect, Layer, Metric } from "effect";
 import type { DatabaseError } from "../../db/database.ts";
 import { ClockService } from "../../lib/clock.ts";
 import { recordHttpRequestMetrics, renderBakarrPrometheusMetrics } from "../../lib/metrics.ts";
-import type { AnimeStoredDataError } from "../anime/errors.ts";
 import { DownloadStatusService } from "../operations/service-contract.ts";
 import type { OperationsError } from "../operations/errors.ts";
 import { SystemStatusService } from "./system-status-service.ts";
 import type { DiskSpaceError } from "./disk-space.ts";
-import type { StoredConfigCorruptError } from "./errors.ts";
+import type { StoredConfigCorruptError, StoredConfigMissingError } from "./errors.ts";
 
 export type MetricsServiceError =
   | DatabaseError
   | StoredConfigCorruptError
+  | StoredConfigMissingError
   | DiskSpaceError
-  | AnimeStoredDataError
   | OperationsError;
 
 export interface MetricsServiceShape {

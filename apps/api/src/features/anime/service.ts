@@ -316,6 +316,9 @@ const makeAnimeFileService = Effect.gen(function* () {
 
 export const AnimeQueryServiceLive = Layer.effect(AnimeQueryService, makeAnimeQueryService);
 
-export const AnimeMutationServiceLive = Layer.effect(AnimeMutationService, makeAnimeMutationService);
+export const AnimeMutationServiceLive = Layer.effect(
+  AnimeMutationService,
+  makeAnimeMutationService,
+);
 
 export const AnimeFileServiceLive = Layer.effect(AnimeFileService, makeAnimeFileService);

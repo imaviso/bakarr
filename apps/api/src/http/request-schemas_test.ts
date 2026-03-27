@@ -9,6 +9,7 @@ import {
   DownloadEventsQuerySchema,
   ImportFilesBodySchema,
   SearchDownloadBodySchema,
+  SystemLogsQuerySchema,
 } from "./request-schemas.ts";
 
 function makeValidConfig() {
@@ -273,6 +274,14 @@ it("DownloadEventsExportQuerySchema accepts export query params", () => {
   });
 
   assertEquals(query._tag, "Right");
+});
+
+it("SystemLogsQuerySchema rejects unsupported log levels", () => {
+  const query = Schema.decodeUnknownEither(SystemLogsQuerySchema)({
+    level: "verbose",
+  });
+
+  assertEquals(query._tag, "Left");
 });
 
 it("AddAnimeInputSchema accepts existing-root flag", () => {

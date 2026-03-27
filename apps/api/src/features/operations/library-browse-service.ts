@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import { DatabaseError } from "../../db/database.ts";
 import { FileSystem, isWithinPathRoot, type FileSystemShape } from "../../lib/filesystem.ts";
 import { LibraryRootsService } from "../library-roots/service.ts";
-import { StoredConfigCorruptError } from "../system/errors.ts";
+import { StoredConfigCorruptError, StoredConfigMissingError } from "../system/errors.ts";
 import { SystemConfigService } from "../system/system-config-service.ts";
 import { OperationsInputError, OperationsPathError } from "./errors.ts";
 
@@ -30,7 +30,8 @@ export type LibraryBrowseError =
   | DatabaseError
   | OperationsInputError
   | OperationsPathError
-  | StoredConfigCorruptError;
+  | StoredConfigCorruptError
+  | StoredConfigMissingError;
 
 export interface LibraryBrowseServiceShape {
   readonly browse: (input: {
@@ -131,7 +132,7 @@ function browseFsPath(
   fs: FileSystemShape,
   path: string,
   options: { readonly limit?: number; readonly offset?: number },
-): Effect.Effect<BrowseResult, never> {
+): Effect.Effect<BrowseResult, OperationsPathError> {
   return Effect.gen(function* () {
     const requestedLimit = options.limit;
     const limit =
@@ -140,11 +141,14 @@ function browseFsPath(
         : Math.min(Math.max(1, requestedLimit), MAX_BROWSE_LIMIT);
     const offset = Math.max(0, options.offset ?? 0);
 
-    // Swallow directory-read errors as empty listing (P2.4: intentional for now,
-    // flagged for Phase 4 hardening).
-    const dirEntries = yield* fs
-      .readDir(path)
-      .pipe(Effect.catchTag("FileSystemError", () => Effect.succeed([])));
+    const dirEntries = yield* fs.readDir(path).pipe(
+      Effect.mapError(
+        () =>
+          new OperationsPathError({
+            message: `Path is inaccessible: ${path}`,
+          }),
+      ),
+    );
 
     const normalizedBasePath = path.replace(/\/$/, "");
     const allEntries: BrowseEntry[] = dirEntries.map((entry) => ({
@@ -175,7 +179,12 @@ function browseFsPath(
                 ...entry,
                 size: stats.isFile ? stats.size : undefined,
               })),
-              Effect.catchTag("FileSystemError", () => Effect.succeed(entry)),
+              Effect.mapError(
+                () =>
+                  new OperationsPathError({
+                    message: `Path is inaccessible: ${entry.path}`,
+                  }),
+              ),
             ),
       { concurrency: "unbounded" },
     );

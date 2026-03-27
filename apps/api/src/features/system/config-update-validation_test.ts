@@ -30,15 +30,13 @@ it("rejects invalid scheduler cron expressions", () =>
         assertEquals(failure.value._tag, "ConfigValidationError");
       }
     }
-  }),
-);
+  }));
 
 it("rejects removing profiles that are still referenced", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
       validateConfigUpdate({
-        countAnimeUsingProfile: (profileName) =>
-          Effect.succeed(profileName === "legacy" ? 2 : 0),
+        countAnimeUsingProfile: (profileName) => Effect.succeed(profileName === "legacy" ? 2 : 0),
         existingProfileRows: [{ name: "legacy" }, { name: "keep" }],
         nextConfig: makeTestConfig("./test.sqlite"),
       }),
@@ -53,5 +51,4 @@ it("rejects removing profiles that are still referenced", () =>
         assertEquals(failure.value._tag, "ConfigValidationError");
       }
     }
-  }),
-);
+  }));

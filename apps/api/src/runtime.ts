@@ -19,21 +19,10 @@ import { EventBusLive } from "./features/events/event-bus.ts";
 import { EventPublisherLive } from "./features/events/publisher.ts";
 import { LibraryRootsServiceLive } from "./features/library-roots/service.ts";
 import { LibraryBrowseServiceLive } from "./features/operations/library-browse-service.ts";
-import { operationsOrchestrationLayer } from "./features/operations/operations-orchestration.ts";
-import {
-  DownloadControlServiceLive,
-  DownloadStatusServiceLive,
-  DownloadTriggerServiceLive,
-} from "./features/operations/download-service-live.ts";
-import {
-  LibraryCommandServiceLive,
-  LibraryReadServiceLive,
-} from "./features/operations/library-service-live.ts";
-import { RssCommandServiceLive, RssReadServiceLive } from "./features/operations/rss-service-live.ts";
-import { SearchServiceLive } from "./features/operations/search-service-live.ts";
 import { QBitTorrentClient, QBitTorrentClientLive } from "./features/operations/qbittorrent.ts";
 import { RssClient, RssClientLive } from "./features/operations/rss-client.ts";
 import { SeaDexClient, SeaDexClientLive } from "./features/operations/seadex-client.ts";
+import { makeOperationsRuntimeLayer } from "./features/operations/operations-runtime-layer.ts";
 import { ImageAssetServiceLive } from "./features/system/image-asset-service.ts";
 import { MetricsServiceLive } from "./features/system/metrics-service.ts";
 import { QualityProfileServiceLive } from "./features/system/quality-profile-service.ts";
@@ -117,17 +106,7 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: 
     ? Layer.mergeAll(basePlatformLayer, options.commandExecutorLayer)
     : basePlatformLayer;
 
-  const orchestrationLayer = operationsOrchestrationLayer.pipe(Layer.provide(platformLayer));
-  const operationsLayer = Layer.mergeAll(
-    RssReadServiceLive,
-    RssCommandServiceLive,
-    LibraryReadServiceLive,
-    LibraryCommandServiceLive,
-    DownloadStatusServiceLive,
-    DownloadControlServiceLive,
-    DownloadTriggerServiceLive,
-    SearchServiceLive,
-  ).pipe(Layer.provide(Layer.mergeAll(platformLayer, orchestrationLayer)));
+  const operationsLayer = makeOperationsRuntimeLayer(platformLayer);
 
   const animeServicesLayer = Layer.mergeAll(
     AnimeQueryServiceLive,
@@ -183,7 +162,6 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: 
 
   return Layer.mergeAll(
     platformLayer,
-    orchestrationLayer,
     operationsLayer,
     animeServicesLayer,
     controllerLayer,

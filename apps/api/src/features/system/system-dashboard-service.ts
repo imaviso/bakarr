@@ -12,7 +12,11 @@ import {
   composeBackgroundJobStatuses,
   countRunningBackgroundJobStatuses,
 } from "./background-status.ts";
-import { ConfigValidationError, StoredConfigCorruptError } from "./errors.ts";
+import {
+  ConfigValidationError,
+  StoredConfigCorruptError,
+  StoredConfigMissingError,
+} from "./errors.ts";
 import {
   countActiveDownloads,
   countFailedDownloads,
@@ -26,7 +30,11 @@ import { SystemConfigService } from "./system-config-service.ts";
 export interface SystemDashboardServiceShape {
   readonly getDashboard: () => Effect.Effect<
     OpsDashboard,
-    DatabaseError | ConfigValidationError | StoredConfigCorruptError | OperationsStoredDataError
+    | DatabaseError
+    | ConfigValidationError
+    | StoredConfigCorruptError
+    | StoredConfigMissingError
+    | OperationsStoredDataError
   >;
 }
 

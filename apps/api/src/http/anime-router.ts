@@ -244,7 +244,11 @@ const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
         const body = yield* decodeJsonBody(FilePathBodySchema);
-        yield* (yield* AnimeFileService).mapEpisode(params.id, params.episodeNumber, body.file_path);
+        yield* (yield* AnimeFileService).mapEpisode(
+          params.id,
+          params.episodeNumber,
+          body.file_path,
+        );
       }),
       successResponse,
     ),

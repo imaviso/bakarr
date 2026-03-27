@@ -15,9 +15,12 @@ import {
   encodeConfigCore,
   encodeQualityProfileRow,
   toConfigCore,
-  withLibraryDefaults,
 } from "./config-codec.ts";
-import { ConfigValidationError, StoredConfigCorruptError } from "./errors.ts";
+import {
+  ConfigValidationError,
+  StoredConfigCorruptError,
+  StoredConfigMissingError,
+} from "./errors.ts";
 import { makeDefaultConfig } from "./defaults.ts";
 import { appendSystemLog } from "./support.ts";
 import {
@@ -28,7 +31,10 @@ import {
 } from "./repository.ts";
 
 export interface SystemConfigServiceShape {
-  readonly getConfig: () => Effect.Effect<Config, DatabaseError | StoredConfigCorruptError>;
+  readonly getConfig: () => Effect.Effect<
+    Config,
+    DatabaseError | StoredConfigCorruptError | StoredConfigMissingError
+  >;
   readonly updateConfig: (
     config: Config,
   ) => Effect.Effect<Config, DatabaseError | ConfigValidationError | StoredConfigCorruptError>;
@@ -51,9 +57,6 @@ const makeSystemConfigService = Effect.gen(function* () {
     const profiles = yield* listQualityProfileRows(db);
 
     const core = yield* effectDecodeStoredConfigRow(storedConfig).pipe(
-      Effect.catchTag("StoredConfigMissingError", () =>
-        Effect.succeed(makeDefaultConfig(appConfig.databaseFile)),
-      ),
       Effect.catchTag("StoredConfigCorruptError", () =>
         Effect.fail(
           new StoredConfigCorruptError({
@@ -63,10 +66,9 @@ const makeSystemConfigService = Effect.gen(function* () {
         ),
       ),
     );
-    const defaults = makeDefaultConfig(appConfig.databaseFile);
     const decodedProfiles = yield* Effect.forEach(profiles, effectDecodeQualityProfileRow);
 
-    return composeConfig(withLibraryDefaults(core, defaults.library), decodedProfiles);
+    return composeConfig(core, decodedProfiles);
   });
 
   const updateConfig = Effect.fn("SystemConfigService.updateConfig")(function* (

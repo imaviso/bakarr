@@ -152,10 +152,10 @@ export interface SearchServiceShape {
     category?: string,
     filter?: string,
   ) => Effect.Effect<SearchResults, OperationsError | DatabaseError>;
-  readonly searchEpisode: (animeId: number, episodeNumber: number) => Effect.Effect<
-    EpisodeSearchResult[],
-    OperationsError | DatabaseError
-  >;
+  readonly searchEpisode: (
+    animeId: number,
+    episodeNumber: number,
+  ) => Effect.Effect<EpisodeSearchResult[], OperationsError | DatabaseError>;
 }
 
 export class RssReadService extends Context.Tag("@bakarr/api/RssReadService")<

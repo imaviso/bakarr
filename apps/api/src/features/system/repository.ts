@@ -318,6 +318,32 @@ export const countDownloadedEpisodeRows = Effect.fn("SystemRepository.countDownl
   },
 );
 
+export const countUpToDateAnimeRows = Effect.fn("SystemRepository.countUpToDateAnimeRows")(
+  function* (db: AppDatabase) {
+    const rows = yield* tryDatabasePromise("Failed to count up-to-date anime", () =>
+      db
+        .select({
+          downloadedCount: sql<number>`coalesce(sum(case when ${episodes.downloaded} and ${episodes.number} <= ${anime.episodeCount} then 1 else 0 end), 0)`,
+          episodeCount: anime.episodeCount,
+        })
+        .from(anime)
+        .leftJoin(episodes, eq(episodes.animeId, anime.id))
+        .where(
+          and(
+            eq(anime.monitored, true),
+            sql`${anime.episodeCount} is not null`,
+            sql`${anime.episodeCount} > 0`,
+          ),
+        )
+        .groupBy(anime.id, anime.episodeCount),
+    );
+
+    return rows.filter(
+      (row) => row.episodeCount !== null && Number(row.downloadedCount) === row.episodeCount,
+    ).length;
+  },
+);
+
 export const countRssFeedRows = Effect.fn("SystemRepository.countRssFeedRows")(function* (
   db: AppDatabase,
 ) {

@@ -24,7 +24,7 @@ const NonEmptyStringSchema = Schema.String.pipe(Schema.minLength(1));
 const PathStringSchema = NonEmptyStringSchema;
 const UrlStringSchema = NonEmptyStringSchema;
 const IsoDateTimeStringSchema = NonEmptyStringSchema;
-const LogLevelStringSchema = NonEmptyStringSchema;
+const SystemLogLevelSchema = Schema.Literal("error", "info", "success", "warn");
 const SearchStringSchema = NonEmptyStringSchema;
 
 export class MonitoredBodySchema extends Schema.Class<MonitoredBodySchema>("MonitoredBodySchema")({
@@ -166,7 +166,7 @@ export class SystemLogsQuerySchema extends Schema.Class<SystemLogsQuerySchema>(
 )({
   end_date: Schema.optional(IsoDateTimeStringSchema),
   event_type: Schema.optional(NonEmptyStringSchema),
-  level: Schema.optional(LogLevelStringSchema),
+  level: Schema.optional(SystemLogLevelSchema),
   page: Schema.optional(PositiveIntFromStringSchema),
   start_date: Schema.optional(IsoDateTimeStringSchema),
 }) {}
@@ -177,7 +177,7 @@ export class SystemLogExportQuerySchema extends Schema.Class<SystemLogExportQuer
   end_date: Schema.optional(IsoDateTimeStringSchema),
   event_type: Schema.optional(NonEmptyStringSchema),
   format: Schema.optional(Schema.Literal("csv", "json")),
-  level: Schema.optional(LogLevelStringSchema),
+  level: Schema.optional(SystemLogLevelSchema),
   start_date: Schema.optional(IsoDateTimeStringSchema),
 }) {}
 
