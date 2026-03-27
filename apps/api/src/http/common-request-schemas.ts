@@ -6,6 +6,21 @@ import {
   PositiveIntFromStringSchema,
 } from "../lib/domain-schema.ts";
 
+export const FilesystemPathStringSchema = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.pattern(/^[^\0]+$/),
+);
+
+export const HttpUrlStringSchema = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.pattern(/^https?:\/\/[^\s]+$/),
+);
+
+export const IsoDateTimeStringSchema = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.pattern(/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?$/),
+);
+
 export class IdParamsSchema extends Schema.Class<IdParamsSchema>("IdParamsSchema")({
   id: PositiveIntFromStringSchema,
 }) {}

@@ -9,25 +9,7 @@ import {
 import { AppConfig } from "../config.ts";
 import { AuthService } from "../features/auth/service.ts";
 import { decodeJsonBodyWithLabel, routeResponse, withAuthViewer } from "./router-helpers.ts";
-
-const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(function* (
-  token: string,
-  body: unknown,
-) {
-  const config = yield* AppConfig;
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  const isSecure =
-    request.headers["x-forwarded-proto"] === "https" || request.url.startsWith("https://");
-  const response = yield* HttpServerResponse.json(body);
-
-  return HttpServerResponse.unsafeSetCookie(response, config.sessionCookieName, token, {
-    httpOnly: true,
-    maxAge: config.sessionDurationDays * 24 * 60 * 60,
-    path: "/",
-    sameSite: "lax",
-    secure: isSecure,
-  });
-});
+import { clearSessionResponse, persistSessionResponse } from "./route-auth.ts";
 
 export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
@@ -58,18 +40,9 @@ export const authRouter = HttpRouter.empty.pipe(
         const request = yield* HttpServerRequest.HttpServerRequest;
         const token = request.cookies[config.sessionCookieName];
         yield* Effect.flatMap(AuthService, (auth) => auth.logout(token));
-        return config.sessionCookieName;
+        return undefined;
       }),
-      (cookieName) =>
-        Effect.gen(function* () {
-          const response = yield* HttpServerResponse.json({
-            data: null,
-            success: true,
-          });
-          return HttpServerResponse.expireCookie(response, cookieName, {
-            path: "/",
-          });
-        }),
+      () => clearSessionResponse(),
     ),
   ),
   HttpRouter.get(

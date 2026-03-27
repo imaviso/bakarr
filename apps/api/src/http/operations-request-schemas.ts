@@ -9,10 +9,14 @@ import {
   NonNegativeIntFromStringSchema,
   PositiveIntFromStringSchema,
 } from "../lib/domain-schema.ts";
+import {
+  FilesystemPathStringSchema,
+  HttpUrlStringSchema,
+  IsoDateTimeStringSchema,
+} from "./common-request-schemas.ts";
 
 const NonEmptyStringSchema = Schema.String.pipe(Schema.minLength(1));
-const PathStringSchema = NonEmptyStringSchema;
-const IsoDateTimeStringSchema = NonEmptyStringSchema;
+
 const SearchStringSchema = NonEmptyStringSchema;
 
 export class AddRssFeedBodySchema extends Schema.Class<AddRssFeedBodySchema>(
@@ -20,13 +24,13 @@ export class AddRssFeedBodySchema extends Schema.Class<AddRssFeedBodySchema>(
 )({
   anime_id: AnimeIdSchema,
   name: Schema.optional(NonEmptyStringSchema),
-  url: NonEmptyStringSchema,
+  url: HttpUrlStringSchema,
 }) {}
 
 export class BrowseQuerySchema extends Schema.Class<BrowseQuerySchema>("BrowseQuerySchema")({
   limit: Schema.optional(PositiveIntFromStringSchema),
   offset: Schema.optional(NonNegativeIntFromStringSchema),
-  path: Schema.optional(PathStringSchema),
+  path: Schema.optional(FilesystemPathStringSchema),
 }) {}
 
 export class BulkControlUnmappedFoldersBodySchema extends Schema.Class<BulkControlUnmappedFoldersBodySchema>(
@@ -44,7 +48,7 @@ export class ControlUnmappedFolderBodySchema extends Schema.Class<ControlUnmappe
   "ControlUnmappedFolderBodySchema",
 )({
   action: Schema.Literal("pause", "resume", "reset", "refresh"),
-  path: PathStringSchema,
+  path: FilesystemPathStringSchema,
 }) {}
 
 export class DeleteDownloadQuerySchema extends Schema.Class<DeleteDownloadQuerySchema>(
@@ -97,7 +101,7 @@ class ImportFilesItem extends Schema.Class<ImportFilesItem>("ImportFilesItem")({
   episode_numbers: Schema.optional(Schema.Array(EpisodeNumberSchema)),
   season: Schema.optional(Schema.Number),
   source_metadata: Schema.optional(DownloadSourceMetadataSchema),
-  source_path: PathStringSchema,
+  source_path: FilesystemPathStringSchema,
 }) {}
 
 export class ImportFilesBodySchema extends Schema.Class<ImportFilesBodySchema>(
@@ -110,7 +114,7 @@ export class ImportUnmappedFolderBodySchema extends Schema.Class<ImportUnmappedF
   "ImportUnmappedFolderBodySchema",
 )({
   anime_id: AnimeIdSchema,
-  folder_name: PathStringSchema,
+  folder_name: FilesystemPathStringSchema,
   profile_name: Schema.optional(NonEmptyStringSchema),
 }) {}
 
@@ -118,7 +122,7 @@ export class ScanImportPathBodySchema extends Schema.Class<ScanImportPathBodySch
   "ScanImportPathBodySchema",
 )({
   anime_id: Schema.optional(AnimeIdSchema),
-  path: PathStringSchema,
+  path: FilesystemPathStringSchema,
 }) {}
 
 export class SearchDownloadBodySchema extends Schema.Class<SearchDownloadBodySchema>(

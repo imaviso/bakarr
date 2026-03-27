@@ -1,4 +1,4 @@
-import { HttpServerRequest } from "@effect/platform";
+import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { AppConfig } from "../config.ts";
@@ -33,3 +33,33 @@ export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHtt
     return viewer;
   },
 );
+
+export const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(function* (
+  token: string,
+  body: unknown,
+) {
+  const config = yield* AppConfig;
+  const request = yield* HttpServerRequest.HttpServerRequest;
+  const isSecure = request.headers["x-forwarded-proto"] === "https" || request.url.startsWith("https://");
+  const response = yield* HttpServerResponse.json(body);
+
+  return HttpServerResponse.unsafeSetCookie(response, config.sessionCookieName, token, {
+    httpOnly: true,
+    maxAge: config.sessionDurationDays * 24 * 60 * 60,
+    path: "/",
+    sameSite: "lax",
+    secure: isSecure,
+  });
+});
+
+export const clearSessionResponse = Effect.fn("Http.clearSessionResponse")(function* () {
+  const config = yield* AppConfig;
+  const response = yield* HttpServerResponse.json({
+    data: null,
+    success: true,
+  });
+
+  return HttpServerResponse.expireCookie(response, config.sessionCookieName, {
+    path: "/",
+  });
+});

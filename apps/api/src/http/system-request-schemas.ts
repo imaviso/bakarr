@@ -6,9 +6,9 @@ import {
   QualityProfileSchema,
   UpdateReleaseProfileSchema,
 } from "../features/system/config-schema.ts";
+import { IsoDateTimeStringSchema } from "./common-request-schemas.ts";
 
 const NonEmptyStringSchema = Schema.String.pipe(Schema.minLength(1));
-const IsoDateTimeStringSchema = Schema.String.pipe(Schema.minLength(1));
 const SystemLogLevelSchema = Schema.Literal("error", "info", "success", "warn");
 
 export {

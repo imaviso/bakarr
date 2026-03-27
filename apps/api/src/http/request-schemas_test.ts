@@ -3,13 +3,16 @@ import { Schema } from "effect";
 
 import { formatValidationErrorMessage } from "./route-validation.ts";
 import {
+  AddRssFeedBodySchema,
+  BrowseQuerySchema,
   DownloadEventsExportQuerySchema,
   DownloadEventsQuerySchema,
   ImportFilesBodySchema,
   SearchDownloadBodySchema,
+  CalendarQuerySchema,
 } from "./operations-request-schemas.ts";
 import { AddAnimeInputSchema } from "./anime-request-schemas.ts";
-import { ConfigSchema, SystemLogsQuerySchema } from "./system-request-schemas.ts";
+import { ConfigSchema, SystemLogExportQuerySchema, SystemLogsQuerySchema } from "./system-request-schemas.ts";
 
 function makeValidConfig() {
   return {
@@ -295,4 +298,25 @@ it("AddAnimeInputSchema accepts existing-root flag", () => {
   });
 
   assertEquals(addAnime._tag, "Right");
+});
+
+it("boundary request schemas reject malformed URL, path, and date inputs", () => {
+  const rssFeed = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
+    anime_id: 20,
+    url: "ftp://example.com/feed",
+  });
+  const browse = Schema.decodeUnknownEither(BrowseQuerySchema)({
+    path: "\u0000",
+  });
+  const calendar = Schema.decodeUnknownEither(CalendarQuerySchema)({
+    start: "not-a-date",
+  });
+  const systemLogExport = Schema.decodeUnknownEither(SystemLogExportQuerySchema)({
+    start_date: "2026-03-18 00:00:00",
+  });
+
+  assertEquals(rssFeed._tag, "Left");
+  assertEquals(browse._tag, "Left");
+  assertEquals(calendar._tag, "Left");
+  assertEquals(systemLogExport._tag, "Left");
 });

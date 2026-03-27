@@ -8,12 +8,12 @@ import {
   PositiveIntFromStringSchema,
   ReleaseProfileIdSchema,
 } from "../lib/domain-schema.ts";
+import { FilesystemPathStringSchema } from "./common-request-schemas.ts";
 export { AddAnimeInput as AddAnimeInputSchema } from "../features/anime/add-anime-input.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 
 const NonEmptyStringSchema = Schema.String.pipe(Schema.minLength(1));
-const PathStringSchema = NonEmptyStringSchema;
 const SearchStringSchema = NonEmptyStringSchema;
 
 export class MonitoredBodySchema extends Schema.Class<MonitoredBodySchema>("MonitoredBodySchema")({
@@ -21,7 +21,7 @@ export class MonitoredBodySchema extends Schema.Class<MonitoredBodySchema>("Moni
 }) {}
 
 export class PathBodySchema extends Schema.Class<PathBodySchema>("PathBodySchema")({
-  path: PathStringSchema,
+  path: FilesystemPathStringSchema,
 }) {}
 
 export class ProfileNameBodySchema extends Schema.Class<ProfileNameBodySchema>(
@@ -37,20 +37,18 @@ export class ReleaseProfileIdsBodySchema extends Schema.Class<ReleaseProfileIdsB
 }) {}
 
 export class FilePathBodySchema extends Schema.Class<FilePathBodySchema>("FilePathBodySchema")({
-  file_path: PathStringSchema,
+  file_path: FilesystemPathStringSchema,
 }) {}
 
-class BulkEpisodeMappingItem extends Schema.Class<BulkEpisodeMappingItem>("BulkEpisodeMappingItem")(
-  {
-    episode_number: EpisodeNumberSchema,
-    file_path: PathStringSchema,
-  },
-) {}
+const BulkEpisodeMappingItemSchema = Schema.Struct({
+  episode_number: EpisodeNumberSchema,
+  file_path: FilesystemPathStringSchema,
+});
 
 export class BulkEpisodeMappingsBodySchema extends Schema.Class<BulkEpisodeMappingsBodySchema>(
   "BulkEpisodeMappingsBodySchema",
 )({
-  mappings: Schema.Array(BulkEpisodeMappingItem),
+  mappings: Schema.Array(BulkEpisodeMappingItemSchema),
 }) {}
 
 export class SearchAnimeQuerySchema extends Schema.Class<SearchAnimeQuerySchema>(

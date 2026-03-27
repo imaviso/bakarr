@@ -1,4 +1,4 @@
-import { HttpRouter, HttpServerRequest } from "@effect/platform";
+import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { AnimeMutationService } from "../features/anime/service.ts";
@@ -7,7 +7,6 @@ import {
   CatalogOrchestration,
   SearchOrchestration,
 } from "../features/operations/operations-orchestration.ts";
-import { ImageAssetService } from "../features/system/image-asset-service.ts";
 import { MetricsService } from "../features/system/metrics-service.ts";
 import { QualityProfileService } from "../features/system/quality-profile-service.ts";
 import { ReleaseProfileService } from "../features/system/release-profile-service.ts";
@@ -20,7 +19,6 @@ import { recordHttpRequestMetrics } from "../lib/metrics.ts";
 import { setRuntimeLogLevel } from "../lib/logging.ts";
 import { buildDownloadProgressResponse } from "./event-stream.ts";
 import { IdParamsSchema } from "./common-request-schemas.ts";
-import { buildImageAssetResponse } from "./image-asset-response.ts";
 import {
   buildHealthLiveResponse,
   buildHealthOkResponse,
@@ -37,6 +35,7 @@ import {
   SystemLogsQuerySchema,
   UpdateReleaseProfileSchema,
 } from "./system-request-schemas.ts";
+import { systemImageRouter } from "./system-image-router.ts";
 import {
   decodeJsonBody,
   decodeJsonBodyWithLabel,
@@ -75,19 +74,6 @@ const healthRouter = HttpRouter.empty.pipe(
 );
 
 const infoRouter = HttpRouter.empty.pipe(
-  HttpRouter.get(
-    "/api/images/*",
-    authedRouteResponse(
-      Effect.gen(function* () {
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        const { pathname } = new URL(request.url, "http://bakarr.local");
-        const rawRelativePath = pathname.slice("/api/images/".length);
-        return yield* (yield* ImageAssetService).resolveImageAsset(rawRelativePath);
-      }),
-      ({ bytes, filePath }) =>
-        Effect.succeed(buildImageAssetResponse(Uint8Array.from(bytes), filePath)),
-    ),
-  ),
   HttpRouter.get(
     "/api/system/dashboard",
     authedRouteResponse(
@@ -328,6 +314,7 @@ const runtimeRouter = HttpRouter.empty.pipe(
 
 export const systemRouter = HttpRouter.concatAll(
   healthRouter,
+  systemImageRouter,
   infoRouter,
   configRouter,
   logsRouter,
