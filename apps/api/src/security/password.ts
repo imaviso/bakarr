@@ -18,20 +18,6 @@ function toHex(bytes: Uint8Array): string {
   return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
 }
 
-function fromHex(value: string): Uint8Array {
-  if (value.length % 2 !== 0) {
-    throw new Error("Invalid hex input");
-  }
-
-  const bytes = new Uint8Array(value.length / 2);
-
-  for (let index = 0; index < value.length; index += 2) {
-    bytes[index / 2] = Number.parseInt(value.slice(index, index + 2), 16);
-  }
-
-  return bytes;
-}
-
 function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
   if (left.length !== right.length) {
     return false;
@@ -79,6 +65,55 @@ const deriveBits = Effect.fn("Password.deriveBits")(function* (
   return new Uint8Array(bits);
 });
 
+const parseHex = Effect.fn("Password.parseHex")(function* (value: string, message: string) {
+  if (value.length % 2 !== 0) {
+    return yield* new PasswordError({ message });
+  }
+
+  const bytes = new Uint8Array(value.length / 2);
+
+  for (let index = 0; index < value.length; index += 2) {
+    const byte = Number.parseInt(value.slice(index, index + 2), 16);
+
+    if (!Number.isInteger(byte) || byte < 0 || byte > 255) {
+      return yield* new PasswordError({ message });
+    }
+
+    bytes[index / 2] = byte;
+  }
+
+  return bytes;
+});
+
+const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedHash: string) {
+  const parts = storedHash.split("$");
+
+  if (parts.length !== 4) {
+    return yield* new PasswordError({ message: "Invalid stored password hash" });
+  }
+
+  const [scheme, iterationsValue, saltHex, hashHex] = parts;
+
+  if (scheme !== PASSWORD_SCHEME || !iterationsValue || !saltHex || !hashHex) {
+    return yield* new PasswordError({ message: "Invalid stored password hash" });
+  }
+
+  const iterations = Number(iterationsValue);
+
+  if (!Number.isInteger(iterations) || iterations <= 0) {
+    return yield* new PasswordError({ message: "Invalid stored password hash" });
+  }
+
+  const salt = yield* parseHex(saltHex, "Invalid salt format");
+  const hash = yield* parseHex(hashHex, "Invalid hash format");
+
+  return {
+    hash,
+    iterations,
+    salt,
+  };
+});
+
 export const hashPassword = Effect.fn("Password.hash")(function* (password: string) {
   const salt = yield* randomBytesEffect(16);
   const keyMaterial = yield* deriveKeyMaterial(password);
@@ -91,33 +126,7 @@ export const verifyPassword = Effect.fn("Password.verify")(function* (
   password: string,
   storedHash: string,
 ) {
-  const parts = storedHash.split("$");
-
-  if (parts.length !== 4) {
-    return false;
-  }
-
-  const [scheme, iterationsValue, saltHex, hashHex] = parts;
-
-  if (scheme !== PASSWORD_SCHEME || !iterationsValue || !saltHex || !hashHex) {
-    return false;
-  }
-
-  const iterations = Number(iterationsValue);
-
-  if (!Number.isInteger(iterations) || iterations <= 0) {
-    return false;
-  }
-
-  const salt = yield* Effect.try({
-    try: () => fromHex(saltHex),
-    catch: () => new PasswordError({ message: "Invalid salt format" }),
-  });
-
-  const expected = yield* Effect.try({
-    try: () => fromHex(hashHex),
-    catch: () => new PasswordError({ message: "Invalid hash format" }),
-  });
+  const { hash: expected, iterations, salt } = yield* parseStoredHash(storedHash);
 
   const keyMaterial = yield* deriveKeyMaterial(password);
   const actual = yield* deriveBits(keyMaterial, toArrayBuffer(salt), iterations);

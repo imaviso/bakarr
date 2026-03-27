@@ -9,6 +9,11 @@ export class FileSystemError extends Schema.TaggedError<FileSystemError>()("File
   path: Schema.String,
 }) {}
 
+export class PathSegmentError extends Schema.TaggedError<PathSegmentError>()("PathSegmentError", {
+  message: Schema.String,
+  segment: Schema.String,
+}) {}
+
 export interface FileInfo {
   readonly isDirectory: boolean;
   readonly isFile: boolean;
@@ -145,18 +150,6 @@ function toDirEntry(name: string, info: PlatformFileSystem.File.Info): DirEntry 
   };
 }
 
-function toSeekMode(mode: number): "current" | "start" {
-  if (mode === 0) {
-    return "start";
-  }
-
-  if (mode === 1) {
-    return "current";
-  }
-
-  throw new Error(`Unsupported seek mode: ${mode}`);
-}
-
 function toOpenFileHandle(file: PlatformFileSystem.File, path: string | URL): FileHandle {
   return {
     close: () => {
@@ -170,7 +163,11 @@ function toOpenFileHandle(file: PlatformFileSystem.File, path: string | URL): Fi
         }),
       ),
     seek: (offset: number, mode: number) =>
-      wrap(path, "Failed to seek file", file.seek(BigInt(offset), toSeekMode(mode))),
+      resolveSeekMode(path, mode).pipe(
+        Effect.flatMap((seekMode) =>
+          wrap(path, "Failed to seek file", file.seek(BigInt(offset), seekMode)),
+        ),
+      ),
   };
 }
 
@@ -351,10 +348,49 @@ export function sanitizePathSegment(value: string) {
     trimmed.includes("/") ||
     trimmed.includes("\\")
   ) {
-    throw new Error("Invalid path segment");
+    throw new PathSegmentError({
+      message: "Invalid path segment",
+      segment: value,
+    });
   }
 
   return trimmed;
+}
+
+export const sanitizePathSegmentEffect = Effect.fn("FileSystem.sanitizePathSegmentEffect")(
+  function* (value: string) {
+    return yield* Effect.try({
+      try: () => sanitizePathSegment(value),
+      catch: (cause) =>
+        cause instanceof PathSegmentError
+          ? cause
+          : new PathSegmentError({
+              message: "Invalid path segment",
+              segment: value,
+            }),
+    });
+  },
+);
+
+function resolveSeekMode(
+  path: string | URL,
+  mode: number,
+): Effect.Effect<"current" | "start", FileSystemError> {
+  if (mode === 0) {
+    return Effect.succeed("start");
+  }
+
+  if (mode === 1) {
+    return Effect.succeed("current");
+  }
+
+  return Effect.fail(
+    new FileSystemError({
+      cause: new Error(`Unsupported seek mode: ${mode}`),
+      message: `Unsupported seek mode: ${mode}`,
+      path: path.toString(),
+    }),
+  );
 }
 
 export function sanitizeFilename(name: string) {

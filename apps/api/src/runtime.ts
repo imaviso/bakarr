@@ -1,171 +1,42 @@
-import { CommandExecutor, FetchHttpClient } from "@effect/platform";
-import { BunContext } from "@effect/platform-bun";
-import { ConfigProvider, Effect, Layer, ManagedRuntime } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 
-import { AppRuntime } from "./app-runtime.ts";
-import { BackgroundWorkerControllerLive } from "./background-controller.ts";
-import { BackgroundWorkerMonitorLive } from "./background-monitor.ts";
-import { AppConfig, type AppConfigShape } from "./config.ts";
-import { DatabaseLive } from "./db/database.ts";
-import { AniListClient, AniListClientLive } from "./features/anime/anilist.ts";
-import { AnimeEnrollmentServiceLive } from "./features/anime/anime-enrollment-service.ts";
-import {
-  AnimeFileServiceLive,
-  AnimeMutationServiceLive,
-  AnimeQueryServiceLive,
-} from "./features/anime/service.ts";
-import { AuthServiceLive } from "./features/auth/service.ts";
-import { EventBusLive } from "./features/events/event-bus.ts";
-import { EventPublisherLive } from "./features/events/publisher.ts";
-import { LibraryRootsServiceLive } from "./features/library-roots/service.ts";
-import { LibraryBrowseServiceLive } from "./features/operations/library-browse-service.ts";
-import { QBitTorrentClient, QBitTorrentClientLive } from "./features/operations/qbittorrent.ts";
-import { RssClient, RssClientLive } from "./features/operations/rss-client.ts";
-import { SeaDexClient, SeaDexClientLive } from "./features/operations/seadex-client.ts";
+import { makeAppPlatformRuntimeLayer, type RuntimeOptions } from "./app-platform-runtime-layer.ts";
+import { makeBackgroundRuntimeLayer } from "./background-runtime-layer.ts";
+import { makeAnimeRuntimeLayer } from "./features/anime/anime-runtime-layer.ts";
+import { makeAuthRuntimeLayer } from "./features/auth/auth-runtime-layer.ts";
 import { makeOperationsRuntimeLayer } from "./features/operations/operations-runtime-layer.ts";
-import { ImageAssetServiceLive } from "./features/system/image-asset-service.ts";
-import { MetricsServiceLive } from "./features/system/metrics-service.ts";
-import { QualityProfileServiceLive } from "./features/system/quality-profile-service.ts";
-import { ReleaseProfileServiceLive } from "./features/system/release-profile-service.ts";
-import { SystemBootstrapServiceLive } from "./features/system/system-bootstrap-service.ts";
-import { SystemConfigServiceLive } from "./features/system/system-config-service.ts";
-import { SystemDashboardServiceLive } from "./features/system/system-dashboard-service.ts";
-import { SystemLogServiceLive } from "./features/system/system-log-service.ts";
-import { SystemStatusServiceLive } from "./features/system/system-status-service.ts";
-import { DnsResolverLive } from "./lib/dns-resolver.ts";
-import { FileSystemLive } from "./lib/filesystem.ts";
-import { ClockServiceLive } from "./lib/clock.ts";
-import { MediaProbeLive } from "./lib/media-probe.ts";
-import { RuntimeLoggerLayer } from "./lib/logging.ts";
-import { RandomServiceLive } from "./lib/random.ts";
-import { StreamTokenSignerLive } from "./http/stream-token-signer.ts";
-import { TokenHasherLive } from "./security/token-hasher.ts";
+import { makeAppServicesRuntimeLayer } from "./app-services-runtime-layer.ts";
+import { makeSystemRuntimeLayers } from "./features/system/system-runtime-layer.ts";
+import type { AppConfigShape } from "./config.ts";
 
-export interface RuntimeOptions {
-  aniListLayer?: Layer.Layer<AniListClient>;
-  commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor>;
-  configProvider?: ConfigProvider.ConfigProvider;
-  qbitLayer?: Layer.Layer<QBitTorrentClient>;
-  rssLayer?: Layer.Layer<RssClient>;
-  seadexLayer?: Layer.Layer<SeaDexClient>;
-}
+export type { RuntimeOptions } from "./app-platform-runtime-layer.ts";
 
 export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: RuntimeOptions) {
-  const configBaseLayer = options?.configProvider
-    ? AppConfig.layer(overrides).pipe(
-        Layer.provide(Layer.setConfigProvider(options.configProvider)),
-      )
-    : AppConfig.layer(overrides);
-  const configLayer = configBaseLayer.pipe(Layer.provide(RandomServiceLive));
-  const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(ClockServiceLive));
-  const httpClientLayer = FetchHttpClient.layer;
-  const databaseLayer = DatabaseLive.pipe(Layer.provide(configLayer));
-  const eventBusLayer = EventBusLive;
-  const eventPublisherLayer = EventPublisherLive.pipe(
-    Layer.provide(Layer.mergeAll(eventBusLayer, ClockServiceLive)),
-  );
-  const backgroundMonitorLayer = BackgroundWorkerMonitorLive.pipe(Layer.provide(ClockServiceLive));
-  const aniListLayer = options?.aniListLayer
-    ? options.aniListLayer
-    : AniListClientLive.pipe(Layer.provide(Layer.mergeAll(httpClientLayer, ClockServiceLive)));
-  const dnsLayer = DnsResolverLive;
-  const rssLayer = options?.rssLayer
-    ? options.rssLayer
-    : RssClientLive.pipe(
-        Layer.provide(Layer.mergeAll(httpClientLayer, dnsLayer, ClockServiceLive)),
-      );
-  const qbitLayer = options?.qbitLayer
-    ? options.qbitLayer
-    : QBitTorrentClientLive.pipe(Layer.provide(Layer.mergeAll(httpClientLayer, ClockServiceLive)));
-  const seadexLayer = options?.seadexLayer
-    ? options.seadexLayer
-    : SeaDexClientLive.pipe(Layer.provide(Layer.mergeAll(httpClientLayer, ClockServiceLive)));
-  const mediaProbeLayer = options?.commandExecutorLayer
-    ? MediaProbeLive.pipe(Layer.provide(options.commandExecutorLayer))
-    : MediaProbeLive;
-  const externalClientsLayer = Layer.mergeAll(aniListLayer, rssLayer, qbitLayer, seadexLayer);
-  const basePlatformLayer = Layer.mergeAll(
-    BunContext.layer,
-    configLayer,
-    runtimeLayer,
-    RuntimeLoggerLayer,
-    httpClientLayer,
-    databaseLayer,
-    eventBusLayer,
-    eventPublisherLayer,
-    backgroundMonitorLayer,
-    externalClientsLayer,
-    ClockServiceLive,
-    FileSystemLive,
-    mediaProbeLayer,
-    RandomServiceLive,
-    StreamTokenSignerLive.pipe(Layer.provide(RandomServiceLive)),
-    TokenHasherLive,
-  );
-  const platformLayer = options?.commandExecutorLayer
-    ? Layer.mergeAll(basePlatformLayer, options.commandExecutorLayer)
-    : basePlatformLayer;
+  const appPlatformLayer = makeAppPlatformRuntimeLayer(overrides, options);
 
-  const operationsLayer = makeOperationsRuntimeLayer(platformLayer);
-
-  const animeServicesLayer = Layer.mergeAll(
-    AnimeQueryServiceLive,
-    AnimeMutationServiceLive,
-    AnimeFileServiceLive,
-  ).pipe(Layer.provide(platformLayer));
-  const libraryRootsLayer = LibraryRootsServiceLive.pipe(Layer.provide(platformLayer));
-  const controllerLayer = BackgroundWorkerControllerLive.pipe(
-    Layer.provide(Layer.mergeAll(platformLayer, operationsLayer, animeServicesLayer)),
+  const operationsLayer = makeOperationsRuntimeLayer(appPlatformLayer);
+  const animeLayer = makeAnimeRuntimeLayer(appPlatformLayer);
+  const controllerLayer = makeBackgroundRuntimeLayer(appPlatformLayer, operationsLayer, animeLayer);
+  const authLayer = makeAuthRuntimeLayer(appPlatformLayer);
+  const { systemConfigLayer, systemLayer, systemStatusLayer } = makeSystemRuntimeLayers(
+    appPlatformLayer,
+    controllerLayer,
   );
-  const authServiceLayer = AuthServiceLive.pipe(Layer.provide(platformLayer));
-  const systemBootstrapLayer = SystemBootstrapServiceLive.pipe(Layer.provide(platformLayer));
-  const qualityProfileServiceLayer = QualityProfileServiceLive.pipe(Layer.provide(platformLayer));
-  const releaseProfileServiceLayer = ReleaseProfileServiceLive.pipe(Layer.provide(platformLayer));
-  const systemLogServiceLayer = SystemLogServiceLive.pipe(Layer.provide(platformLayer));
-  const systemConfigServiceLayer = SystemConfigServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(platformLayer, controllerLayer)),
-  );
-  const systemStatusServiceLayer = SystemStatusServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(platformLayer, systemConfigServiceLayer)),
-  );
-  const systemDashboardServiceLayer = SystemDashboardServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(platformLayer, systemConfigServiceLayer)),
-  );
-  const servicesLayer = Layer.mergeAll(
-    authServiceLayer,
-    systemBootstrapLayer,
-    systemConfigServiceLayer,
-    systemStatusServiceLayer,
-    systemDashboardServiceLayer,
-    qualityProfileServiceLayer,
-    releaseProfileServiceLayer,
-    systemLogServiceLayer,
-  );
-
-  const appServicesLayer = Layer.mergeAll(
-    libraryRootsLayer,
-    LibraryBrowseServiceLive.pipe(
-      Layer.provide(
-        Layer.mergeAll(platformLayer, operationsLayer, systemConfigServiceLayer, libraryRootsLayer),
-      ),
-    ),
-    MetricsServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(platformLayer, operationsLayer, systemStatusServiceLayer)),
-    ),
-    ImageAssetServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(platformLayer, systemConfigServiceLayer)),
-    ),
-    AnimeEnrollmentServiceLive.pipe(
-      Layer.provide(Layer.mergeAll(platformLayer, operationsLayer, animeServicesLayer)),
-    ),
+  const appServicesLayer = makeAppServicesRuntimeLayer(
+    appPlatformLayer,
+    operationsLayer,
+    systemConfigLayer,
+    systemStatusLayer,
+    animeLayer,
   );
 
   return Layer.mergeAll(
-    platformLayer,
+    appPlatformLayer,
     operationsLayer,
-    animeServicesLayer,
+    animeLayer,
     controllerLayer,
-    servicesLayer,
+    authLayer,
+    systemLayer,
     appServicesLayer,
   );
 }
