@@ -58,16 +58,19 @@ const makeImageAssetService = Effect.gen(function* () {
 
     const config = yield* systemService.getConfig().pipe(Effect.mapError(() => notFoundError()));
 
-    const imagesRoot = config.general.images_path.replace(/\/$/, "");
+    const imagesRoot = yield* fs
+      .realPath(config.general.images_path.replace(/\/$/, ""))
+      .pipe(Effect.mapError(() => notFoundError()));
     const filePath = `${imagesRoot}/${segments.join("/")}`;
+    const canonicalFilePath = yield* fs.realPath(filePath).pipe(Effect.mapError(() => notFoundError()));
 
-    if (!isWithinPathRoot(filePath, imagesRoot) || !isSupportedImageExtension(filePath)) {
+    if (!isWithinPathRoot(canonicalFilePath, imagesRoot) || !isSupportedImageExtension(canonicalFilePath)) {
       return yield* notFoundError();
     }
 
-    const bytes = yield* fs.readFile(filePath).pipe(Effect.mapError(() => notFoundError()));
+    const bytes = yield* fs.readFile(canonicalFilePath).pipe(Effect.mapError(() => notFoundError()));
 
-    return { bytes, filePath } satisfies ImageAssetResult;
+    return { bytes, filePath: canonicalFilePath } satisfies ImageAssetResult;
   });
 
   return { resolveImageAsset } satisfies ImageAssetServiceShape;
