@@ -5,11 +5,11 @@ import { AnimeFileService } from "../features/anime/service.ts";
 import { AuthError } from "../features/auth/service.ts";
 import { ClockService } from "../lib/clock.ts";
 import { FileSystem } from "../lib/filesystem.ts";
-import { createFileChunkStream, type FileByteRange } from "./file-stream.ts";
+import { createFileChunkStream } from "./file-stream.ts";
 import { StreamQuerySchema } from "./anime-request-schemas.ts";
-import { EpisodeStreamRangeError } from "./streaming-errors.ts";
 import { StreamTokenSigner } from "./stream-token-signer.ts";
 import { contentType } from "./route-fs.ts";
+import { parseEpisodeStreamRange } from "./anime-streaming-range.ts";
 
 /** Duration of a signed stream URL in milliseconds (6 hours). */
 const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
@@ -94,7 +94,7 @@ export const buildAnimeStreamResponse = Effect.fn("AnimeStream.buildResponse")(f
   const fileInfo = yield* fs
     .stat(episodeFilePath.filePath)
     .pipe(Effect.mapError(() => new AuthError({ message: "Episode file not found", status: 404 })));
-  const byteRange = yield* parseByteRange(request.headers.range, fileInfo.size);
+  const byteRange = yield* parseEpisodeStreamRange(request.headers.range, fileInfo.size);
 
   return HttpServerResponse.stream(
     createFileChunkStream(fs, episodeFilePath.filePath, {
@@ -119,46 +119,3 @@ export const buildAnimeStreamResponse = Effect.fn("AnimeStream.buildResponse")(f
     },
   );
 });
-
-function parseByteRange(
-  rangeHeader: string | undefined,
-  fileSize: number,
-): Effect.Effect<FileByteRange | undefined, EpisodeStreamRangeError> {
-  if (!rangeHeader) {
-    return Effect.void.pipe(Effect.as(undefined));
-  }
-
-  const match = /^bytes=(\d+)-(\d+)?$/.exec(rangeHeader.trim());
-
-  if (!match) {
-    return Effect.fail(
-      new EpisodeStreamRangeError({
-        fileSize,
-        message: "Requested range not satisfiable",
-        status: 416,
-      }),
-    );
-  }
-
-  const start = Number.parseInt(match[1], 10);
-  const end = match[2] ? Number.parseInt(match[2], 10) : fileSize - 1;
-
-  if (
-    Number.isNaN(start) ||
-    Number.isNaN(end) ||
-    start < 0 ||
-    end < start ||
-    start >= fileSize ||
-    end >= fileSize
-  ) {
-    return Effect.fail(
-      new EpisodeStreamRangeError({
-        fileSize,
-        message: "Requested range not satisfiable",
-        status: 416,
-      }),
-    );
-  }
-
-  return Effect.succeed({ end, start });
-}

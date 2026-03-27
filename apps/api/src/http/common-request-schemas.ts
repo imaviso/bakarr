@@ -8,7 +8,12 @@ import {
 
 export const FilesystemPathStringSchema = Schema.String.pipe(
   Schema.minLength(1),
-  Schema.pattern(/^[^\0]+$/),
+  Schema.filter((value) => !value.includes("\u0000")),
+);
+
+export const AbsoluteFilesystemPathStringSchema = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.filter((value) => value.startsWith("/") && !value.includes("\u0000")),
 );
 
 export const HttpUrlStringSchema = Schema.String.pipe(

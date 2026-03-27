@@ -23,6 +23,7 @@ import {
 } from "./errors.ts";
 import { makeDefaultConfig } from "./defaults.ts";
 import { appendSystemLog } from "./support.ts";
+import { applyRuntimeLogLevelFromConfig } from "./runtime-config.ts";
 import {
   countAnimeUsingProfile,
   listQualityProfileRows,
@@ -110,6 +111,8 @@ const makeSystemConfigService = Effect.gen(function* () {
       persistState: (state) => updateSystemConfigAtomic(db, state.coreRow, state.profileRows),
       previousState,
     });
+
+    yield* applyRuntimeLogLevelFromConfig(nextConfig);
 
     yield* appendSystemLog(
       db,

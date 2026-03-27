@@ -7,10 +7,7 @@ import { FileSystem } from "../../lib/filesystem.ts";
 import { makeTestConfig } from "../../test/config-fixture.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "../../test/filesystem-test.ts";
 import { assertEquals, assertInstanceOf, it } from "../../test/vitest.ts";
-import {
-  SystemConfigService,
-  type SystemConfigServiceShape,
-} from "./system-config-service.ts";
+import { SystemConfigService, type SystemConfigServiceShape } from "./system-config-service.ts";
 import { ImageAssetService, ImageAssetServiceLive } from "./image-asset-service.ts";
 
 it.scoped("resolveImageAsset reads files inside the configured image root", () =>

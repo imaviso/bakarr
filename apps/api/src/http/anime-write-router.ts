@@ -1,0 +1,159 @@
+import { HttpRouter } from "@effect/platform";
+import { Effect } from "effect";
+
+import { AnimeEnrollmentService } from "../features/anime/anime-enrollment-service.ts";
+import { AnimeFileService, AnimeMutationService } from "../features/anime/service.ts";
+import { CatalogOrchestration } from "../features/operations/operations-orchestration.ts";
+import {
+  AddAnimeInputSchema,
+  AnimeEpisodeParamsSchema,
+  BulkEpisodeMappingsBodySchema,
+  FilePathBodySchema,
+  MonitoredBodySchema,
+  PathBodySchema,
+  ProfileNameBodySchema,
+  ReleaseProfileIdsBodySchema,
+} from "./anime-request-schemas.ts";
+import { IdParamsSchema } from "./common-request-schemas.ts";
+import {
+  authedRouteResponse,
+  decodeJsonBody,
+  decodePathParams,
+  jsonResponse,
+  successResponse,
+} from "./router-helpers.ts";
+
+export const animeWriteRouter = HttpRouter.empty.pipe(
+  HttpRouter.post(
+    "/anime",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const body = yield* decodeJsonBody(AddAnimeInputSchema);
+        return yield* (yield* AnimeEnrollmentService).enroll(body);
+      }),
+      jsonResponse,
+    ),
+  ),
+  HttpRouter.del(
+    "/anime/:id",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* AnimeMutationService).deleteAnime(params.id);
+      }),
+      successResponse,
+    ),
+  ),
+  HttpRouter.post(
+    "/anime/:id/monitor",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(MonitoredBodySchema);
+        yield* (yield* AnimeMutationService).setMonitored(params.id, body.monitored);
+      }),
+      successResponse,
+    ),
+  ),
+  HttpRouter.put(
+    "/anime/:id/path",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(PathBodySchema);
+        yield* (yield* AnimeMutationService).updatePath(params.id, body.path);
+      }),
+      successResponse,
+    ),
+  ),
+  HttpRouter.put(
+    "/anime/:id/profile",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(ProfileNameBodySchema);
+        yield* (yield* AnimeMutationService).updateProfile(params.id, body.profile_name);
+      }),
+      successResponse,
+    ),
+  ),
+  HttpRouter.put(
+    "/anime/:id/release-profiles",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(ReleaseProfileIdsBodySchema);
+        yield* (yield* AnimeMutationService).updateReleaseProfiles(params.id, [
+          ...body.release_profile_ids,
+        ]);
+      }),
+      successResponse,
+    ),
+  ),
+  HttpRouter.post(
+    "/anime/:id/episodes/refresh",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        yield* (yield* AnimeMutationService).refreshEpisodes(params.id);
+      }),
+      successResponse,
+    ),
+  ),
+  HttpRouter.post(
+    "/anime/:id/episodes/scan",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* AnimeFileService).scanFolder(params.id);
+      }),
+      jsonResponse,
+    ),
+  ),
+  HttpRouter.del(
+    "/anime/:id/episodes/:episodeNumber/file",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
+        yield* (yield* AnimeFileService).deleteEpisodeFile(params.id, params.episodeNumber);
+      }),
+      successResponse,
+    ),
+  ),
+  HttpRouter.post(
+    "/anime/:id/episodes/:episodeNumber/map",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
+        const body = yield* decodeJsonBody(FilePathBodySchema);
+        yield* (yield* AnimeFileService).mapEpisode(
+          params.id,
+          params.episodeNumber,
+          body.file_path,
+        );
+      }),
+      successResponse,
+    ),
+  ),
+  HttpRouter.post(
+    "/anime/:id/episodes/map/bulk",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        const body = yield* decodeJsonBody(BulkEpisodeMappingsBodySchema);
+        yield* (yield* AnimeFileService).bulkMapEpisodes(params.id, [...body.mappings]);
+      }),
+      successResponse,
+    ),
+  ),
+  HttpRouter.post(
+    "/anime/:id/rename",
+    authedRouteResponse(
+      Effect.gen(function* () {
+        const params = yield* decodePathParams(IdParamsSchema);
+        return yield* (yield* CatalogOrchestration).renameFiles(params.id);
+      }),
+      jsonResponse,
+    ),
+  ),
+);

@@ -8,7 +8,7 @@ import {
   PositiveIntFromStringSchema,
   ReleaseProfileIdSchema,
 } from "../lib/domain-schema.ts";
-import { FilesystemPathStringSchema } from "./common-request-schemas.ts";
+import { AbsoluteFilesystemPathStringSchema } from "./common-request-schemas.ts";
 export { AddAnimeInput as AddAnimeInputSchema } from "../features/anime/add-anime-input.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
@@ -21,7 +21,7 @@ export class MonitoredBodySchema extends Schema.Class<MonitoredBodySchema>("Moni
 }) {}
 
 export class PathBodySchema extends Schema.Class<PathBodySchema>("PathBodySchema")({
-  path: FilesystemPathStringSchema,
+  path: AbsoluteFilesystemPathStringSchema,
 }) {}
 
 export class ProfileNameBodySchema extends Schema.Class<ProfileNameBodySchema>(
@@ -37,12 +37,12 @@ export class ReleaseProfileIdsBodySchema extends Schema.Class<ReleaseProfileIdsB
 }) {}
 
 export class FilePathBodySchema extends Schema.Class<FilePathBodySchema>("FilePathBodySchema")({
-  file_path: FilesystemPathStringSchema,
+  file_path: AbsoluteFilesystemPathStringSchema,
 }) {}
 
 const BulkEpisodeMappingItemSchema = Schema.Struct({
   episode_number: EpisodeNumberSchema,
-  file_path: FilesystemPathStringSchema,
+  file_path: AbsoluteFilesystemPathStringSchema,
 });
 
 export class BulkEpisodeMappingsBodySchema extends Schema.Class<BulkEpisodeMappingsBodySchema>(

@@ -8,11 +8,16 @@ import {
   DownloadEventsExportQuerySchema,
   DownloadEventsQuerySchema,
   ImportFilesBodySchema,
+  ImportUnmappedFolderBodySchema,
   SearchDownloadBodySchema,
   CalendarQuerySchema,
 } from "./operations-request-schemas.ts";
 import { AddAnimeInputSchema } from "./anime-request-schemas.ts";
-import { ConfigSchema, SystemLogExportQuerySchema, SystemLogsQuerySchema } from "./system-request-schemas.ts";
+import {
+  ConfigSchema,
+  SystemLogExportQuerySchema,
+  SystemLogsQuerySchema,
+} from "./system-request-schemas.ts";
 
 function makeValidConfig() {
   return {
@@ -300,13 +305,26 @@ it("AddAnimeInputSchema accepts existing-root flag", () => {
   assertEquals(addAnime._tag, "Right");
 });
 
+it("AddRssFeedBodySchema accepts http(s) RSS URLs", () => {
+  const result = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
+    anime_id: 20,
+    url: "https://example.com/feed.xml",
+  });
+
+  assertEquals(result._tag, "Right");
+});
+
 it("boundary request schemas reject malformed URL, path, and date inputs", () => {
   const rssFeed = Schema.decodeUnknownEither(AddRssFeedBodySchema)({
     anime_id: 20,
     url: "ftp://example.com/feed",
   });
   const browse = Schema.decodeUnknownEither(BrowseQuerySchema)({
-    path: "\u0000",
+    path: "relative/path",
+  });
+  const unmappedImport = Schema.decodeUnknownEither(ImportUnmappedFolderBodySchema)({
+    anime_id: 20,
+    folder_name: "../escape",
   });
   const calendar = Schema.decodeUnknownEither(CalendarQuerySchema)({
     start: "not-a-date",
@@ -317,6 +335,7 @@ it("boundary request schemas reject malformed URL, path, and date inputs", () =>
 
   assertEquals(rssFeed._tag, "Left");
   assertEquals(browse._tag, "Left");
+  assertEquals(unmappedImport._tag, "Left");
   assertEquals(calendar._tag, "Left");
   assertEquals(systemLogExport._tag, "Left");
 });

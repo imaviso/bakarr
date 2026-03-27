@@ -39,8 +39,6 @@ export const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(f
   body: unknown,
 ) {
   const config = yield* AppConfig;
-  const request = yield* HttpServerRequest.HttpServerRequest;
-  const isSecure = request.headers["x-forwarded-proto"] === "https" || request.url.startsWith("https://");
   const response = yield* HttpServerResponse.json(body);
 
   return HttpServerResponse.unsafeSetCookie(response, config.sessionCookieName, token, {
@@ -48,7 +46,7 @@ export const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(f
     maxAge: config.sessionDurationDays * 24 * 60 * 60,
     path: "/",
     sameSite: "lax",
-    secure: isSecure,
+    secure: config.sessionCookieSecure,
   });
 });
 

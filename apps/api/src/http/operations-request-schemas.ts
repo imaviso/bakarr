@@ -10,7 +10,7 @@ import {
   PositiveIntFromStringSchema,
 } from "../lib/domain-schema.ts";
 import {
-  FilesystemPathStringSchema,
+  AbsoluteFilesystemPathStringSchema,
   HttpUrlStringSchema,
   IsoDateTimeStringSchema,
 } from "./common-request-schemas.ts";
@@ -18,6 +18,18 @@ import {
 const NonEmptyStringSchema = Schema.String.pipe(Schema.minLength(1));
 
 const SearchStringSchema = NonEmptyStringSchema;
+
+const BrowsePathStringSchema = Schema.Union(
+  Schema.Literal("."),
+  AbsoluteFilesystemPathStringSchema,
+);
+
+const FolderNameStringSchema = Schema.String.pipe(
+  Schema.minLength(1),
+  Schema.filter((value) =>
+    value !== "." && value !== ".." && !value.includes("/") && !value.includes("\\") && !value.includes("\u0000")
+  ),
+);
 
 export class AddRssFeedBodySchema extends Schema.Class<AddRssFeedBodySchema>(
   "AddRssFeedBodySchema",
@@ -30,7 +42,7 @@ export class AddRssFeedBodySchema extends Schema.Class<AddRssFeedBodySchema>(
 export class BrowseQuerySchema extends Schema.Class<BrowseQuerySchema>("BrowseQuerySchema")({
   limit: Schema.optional(PositiveIntFromStringSchema),
   offset: Schema.optional(NonNegativeIntFromStringSchema),
-  path: Schema.optional(FilesystemPathStringSchema),
+  path: Schema.optional(BrowsePathStringSchema),
 }) {}
 
 export class BulkControlUnmappedFoldersBodySchema extends Schema.Class<BulkControlUnmappedFoldersBodySchema>(
@@ -48,7 +60,7 @@ export class ControlUnmappedFolderBodySchema extends Schema.Class<ControlUnmappe
   "ControlUnmappedFolderBodySchema",
 )({
   action: Schema.Literal("pause", "resume", "reset", "refresh"),
-  path: FilesystemPathStringSchema,
+  path: AbsoluteFilesystemPathStringSchema,
 }) {}
 
 export class DeleteDownloadQuerySchema extends Schema.Class<DeleteDownloadQuerySchema>(
@@ -101,7 +113,7 @@ class ImportFilesItem extends Schema.Class<ImportFilesItem>("ImportFilesItem")({
   episode_numbers: Schema.optional(Schema.Array(EpisodeNumberSchema)),
   season: Schema.optional(Schema.Number),
   source_metadata: Schema.optional(DownloadSourceMetadataSchema),
-  source_path: FilesystemPathStringSchema,
+  source_path: AbsoluteFilesystemPathStringSchema,
 }) {}
 
 export class ImportFilesBodySchema extends Schema.Class<ImportFilesBodySchema>(
@@ -114,7 +126,7 @@ export class ImportUnmappedFolderBodySchema extends Schema.Class<ImportUnmappedF
   "ImportUnmappedFolderBodySchema",
 )({
   anime_id: AnimeIdSchema,
-  folder_name: FilesystemPathStringSchema,
+  folder_name: FolderNameStringSchema,
   profile_name: Schema.optional(NonEmptyStringSchema),
 }) {}
 
@@ -122,7 +134,7 @@ export class ScanImportPathBodySchema extends Schema.Class<ScanImportPathBodySch
   "ScanImportPathBodySchema",
 )({
   anime_id: Schema.optional(AnimeIdSchema),
-  path: FilesystemPathStringSchema,
+  path: AbsoluteFilesystemPathStringSchema,
 }) {}
 
 export class SearchDownloadBodySchema extends Schema.Class<SearchDownloadBodySchema>(
