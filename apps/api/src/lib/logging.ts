@@ -41,11 +41,11 @@ const LOG_LEVELS = {
 
 const runtimeLogLevel = MutableRef.make(LogLevel.Info);
 
-export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(
-  function* (level: string | undefined) {
-    yield* Effect.sync(() => MutableRef.set(runtimeLogLevel, parseRuntimeLogLevel(level)));
-  },
-);
+export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(function* (
+  level: string | undefined,
+) {
+  yield* Effect.sync(() => MutableRef.set(runtimeLogLevel, parseRuntimeLogLevel(level)));
+});
 
 export function getRuntimeLogLevel() {
   return MutableRef.get(runtimeLogLevel);

@@ -52,8 +52,11 @@ export const makeBackgroundWorkerMonitor = Effect.fn("Background.makeBackgroundW
       Ref.update(state, (current) => {
         const nextWorkerStats = update(current[workerName]);
         return new BackgroundWorkerSnapshotModel({
-          ...current,
-          [workerName]: nextWorkerStats,
+          download_sync: workerName === "download_sync" ? nextWorkerStats : current.download_sync,
+          library_scan: workerName === "library_scan" ? nextWorkerStats : current.library_scan,
+          metadata_refresh:
+            workerName === "metadata_refresh" ? nextWorkerStats : current.metadata_refresh,
+          rss: workerName === "rss" ? nextWorkerStats : current.rss,
         });
       });
 

@@ -63,7 +63,8 @@ const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
   } satisfies BackgroundWorkerDependencies;
 
   const controller = yield* makeBackgroundWorkerController({
-    spawnWorkers: (scope, config) => spawnWorkersFromConfig(backgroundWorkerServices, scope, config),
+    spawnWorkers: (scope, config) =>
+      spawnWorkersFromConfig(backgroundWorkerServices, scope, config),
   });
 
   yield* Effect.addFinalizer(() => controller.stop());

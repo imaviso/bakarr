@@ -9,7 +9,6 @@ import { AppConfig, type AppConfigShape } from "./src/config.ts";
 import { makeDotenvConfigProvider } from "./src/config-provider.ts";
 import { migrateDatabase } from "./src/db/migrate.ts";
 import { AuthService } from "./src/features/auth/service.ts";
-import { StoredConfigCorruptError } from "./src/features/system/errors.ts";
 import { SystemBootstrapService } from "./src/features/system/system-bootstrap-service.ts";
 import { SystemConfigService } from "./src/features/system/system-config-service.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
@@ -31,9 +30,7 @@ import { makeApiLayer, makeApiRuntime, type RuntimeOptions } from "./src/runtime
  *    can bind the HTTP server.
  *
  * After bootstrap, main.ts loads the full Config via getConfig to start
- * background workers. If the stored config is corrupt at that point,
- * StoredConfigCorruptError is caught and background workers are skipped with a
- * warning — the API still starts so the operator can re-save config via the UI.
+ * background workers. If config decoding fails, startup fails fast.
  */
 const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   yield* migrateDatabase();
@@ -48,22 +45,7 @@ const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
 
 const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
   const controller = yield* BackgroundWorkerController;
-  const config = yield* (yield* SystemConfigService).getConfig().pipe(
-    Effect.catchTag("StoredConfigCorruptError", (error: StoredConfigCorruptError) =>
-      Effect.logWarning("Stored configuration is corrupt; skipping background worker startup").pipe(
-        Effect.annotateLogs({
-          component: "api",
-          error: error.message,
-          event: "api.background.start.skipped",
-        }),
-        Effect.as(null),
-      ),
-    ),
-  );
-
-  if (!config) {
-    return;
-  }
+  const config = yield* (yield* SystemConfigService).getConfig();
 
   yield* setRuntimeLogLevel(config.general.log_level);
   yield* controller.start(config);
