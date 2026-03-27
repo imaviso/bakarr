@@ -341,6 +341,16 @@ const readRssItems = Effect.fn("RssClient.readRssItems")(function* (
         }),
     ),
   );
+  return yield* readInlineRssItems(text);
+});
+
+const readInlineRssItems = Effect.fn("RssClient.readInlineRssItems")(function* (text: string) {
+  if (Buffer.byteLength(text, "utf8") > MAX_RSS_BYTES) {
+    return yield* new RssFeedTooLargeError({
+      message: `RSS payload exceeded maximum size of ${MAX_RSS_BYTES} bytes`,
+    });
+  }
+
   return yield* parseRssXml(text);
 });
 

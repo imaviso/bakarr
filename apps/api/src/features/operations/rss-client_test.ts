@@ -74,6 +74,32 @@ it.effect("RssClient uses provided HttpClient for feed fetches", () =>
   }),
 );
 
+it.effect("RssClient rejects data URLs before network access", () =>
+  Effect.gen(function* () {
+    let httpCalled = false;
+    const dataUrl = "data:text/xml,%3Crss%3E%3C/rss%3E";
+
+    const exit = yield* Effect.exit(
+      Effect.flatMap(RssClient, (client) => client.fetchItems(dataUrl)).pipe(
+        Effect.provide(
+          rssLayer(
+            makeTrackingHttpClient(() => {
+              httpCalled = true;
+            }),
+            (_name, type) =>
+              type === "A"
+                ? Promise.resolve(["93.184.216.34"])
+                : Promise.reject(makeNotFoundError()),
+          ),
+        ),
+      ),
+    );
+
+    assertRssFailure(exit, RssFeedRejectedError, /disallowed protocol/i);
+    assertEquals(httpCalled, false);
+  }),
+);
+
 it.effect(
   "RssClient fails with a typed rejection when a feed resolves to a private IPv6 address",
   () =>
