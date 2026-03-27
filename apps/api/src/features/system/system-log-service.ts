@@ -7,7 +7,7 @@ import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { EventPublisher } from "../events/publisher.ts";
 import { appendSystemLog, normalizeLevel } from "./support.ts";
-import { loadSystemLogPage } from "./repository.ts";
+import { loadSystemLogPage } from "./repository/stats-repository.ts";
 
 const PAGE_SIZE = 50;
 

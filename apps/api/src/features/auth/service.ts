@@ -13,9 +13,9 @@ import { AppConfig } from "../../config.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { sessions, users } from "../../db/schema.ts";
 import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { toDatabaseError, tryDatabasePromise } from "../../lib/effect-db.ts";
-import { hashPasswordWith, verifyPassword } from "../../security/password.ts";
-import { TokenHasher } from "../../security/token-hasher.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
+import { hashPasswordWith, verifyPassword, type PasswordError } from "../../security/password.ts";
+import { TokenHasher, type TokenHasherError } from "../../security/token-hasher.ts";
 import { randomHexFrom, RandomService } from "../../lib/random.ts";
 import {
   announceBootstrapCredentials,
@@ -34,32 +34,42 @@ export class AuthError extends Schema.TaggedError<AuthError>()("AuthError", {
   status: Schema.Literal(400, 401, 403, 404, 409),
 }) {}
 
+type AuthCryptoError = PasswordError | TokenHasherError;
+
 export interface SessionIdentity {
   readonly token: string;
   readonly user: AuthUser;
 }
 
 export interface AuthServiceShape {
-  readonly ensureBootstrapUser: () => Effect.Effect<void, DatabaseError>;
+  readonly ensureBootstrapUser: () => Effect.Effect<void, DatabaseError | AuthCryptoError>;
   readonly login: (
     request: LoginRequest,
-  ) => Effect.Effect<SessionIdentity & { response: LoginResponse }, AuthError | DatabaseError>;
+  ) => Effect.Effect<
+    SessionIdentity & { response: LoginResponse },
+    AuthError | DatabaseError | AuthCryptoError
+  >;
   readonly loginWithApiKey: (
     request: ApiKeyLoginRequest,
-  ) => Effect.Effect<SessionIdentity & { response: LoginResponse }, AuthError | DatabaseError>;
+  ) => Effect.Effect<
+    SessionIdentity & { response: LoginResponse },
+    AuthError | DatabaseError | AuthCryptoError
+  >;
   readonly resolveViewer: (
     sessionToken: string | undefined,
     apiKey: string | undefined,
-  ) => Effect.Effect<AuthUser | null, DatabaseError>;
-  readonly logout: (sessionToken: string | undefined) => Effect.Effect<void, DatabaseError>;
+  ) => Effect.Effect<AuthUser | null, DatabaseError | AuthCryptoError>;
+  readonly logout: (
+    sessionToken: string | undefined,
+  ) => Effect.Effect<void, DatabaseError | TokenHasherError>;
   readonly changePassword: (
     userId: number,
     request: ChangePasswordRequest,
-  ) => Effect.Effect<void, AuthError | DatabaseError>;
+  ) => Effect.Effect<void, AuthError | DatabaseError | AuthCryptoError>;
   readonly getApiKey: (userId: number) => Effect.Effect<ApiKeyResponse, AuthError | DatabaseError>;
   readonly regenerateApiKey: (
     userId: number,
-  ) => Effect.Effect<ApiKeyResponse, AuthError | DatabaseError>;
+  ) => Effect.Effect<ApiKeyResponse, AuthError | DatabaseError | TokenHasherError>;
 }
 
 export class AuthService extends Context.Tag("@bakarr/api/AuthService")<
@@ -77,10 +87,7 @@ const makeAuthService = Effect.gen(function* () {
   const currentTimeMillis = () => clock.currentTimeMillis;
   const randomHex = (bytes: number) => randomHexFrom(random, bytes);
   const hashPassword = hashPasswordWith(random.randomBytes);
-  const hashToken = (token: string) =>
-    tokenHasher
-      .hashToken(token)
-      .pipe(Effect.mapError((error) => toDatabaseError(error.message)(error.cause ?? error)));
+  const hashToken = tokenHasher.hashToken;
 
   /**
    * Bootstrap user lifecycle (one-way transition):
@@ -115,11 +122,7 @@ const makeAuthService = Effect.gen(function* () {
     const bootstrapPassword = Redacted.value(config.bootstrapPassword);
 
     const now = yield* nowIso();
-    const passwordHash = yield* hashPassword(bootstrapPassword).pipe(
-      Effect.mapError((error) =>
-        toDatabaseError(`Failed to hash password: ${error.message}`)(error.cause),
-      ),
-    );
+    const passwordHash = yield* hashPassword(bootstrapPassword);
 
     const rawApiKey = yield* randomHex(24);
     const hashedApiKey = yield* hashToken(rawApiKey);
@@ -164,11 +167,7 @@ const makeAuthService = Effect.gen(function* () {
       });
     }
 
-    const verified = yield* verifyPassword(request.password, row.passwordHash).pipe(
-      Effect.mapError((error) =>
-        toDatabaseError(`Failed to verify password: ${error.message}`)(error),
-      ),
-    );
+    const verified = yield* verifyPassword(request.password, row.passwordHash);
 
     if (!verified) {
       return yield* AuthError.make({
@@ -315,11 +314,7 @@ const makeAuthService = Effect.gen(function* () {
     }
 
     const userRow = row;
-    const verified = yield* verifyPassword(request.current_password, userRow.passwordHash).pipe(
-      Effect.mapError((error) =>
-        toDatabaseError(`Failed to verify password: ${error.message}`)(error),
-      ),
-    );
+    const verified = yield* verifyPassword(request.current_password, userRow.passwordHash);
 
     if (!verified) {
       return yield* AuthError.make({
@@ -335,11 +330,7 @@ const makeAuthService = Effect.gen(function* () {
       });
     }
 
-    const passwordHash = yield* hashPassword(request.new_password).pipe(
-      Effect.mapError((error) =>
-        toDatabaseError(`Failed to hash password: ${error.message}`)(error.cause),
-      ),
-    );
+    const passwordHash = yield* hashPassword(request.new_password);
 
     // One-way bootstrap transition: password change clears mustChangePassword,
     // invalidates all sessions, and permanently nulls the bootstrap password

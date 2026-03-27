@@ -1,20 +1,14 @@
-import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Effect, Schema } from "effect";
-
-import { DownloadEventsExportSchema } from "../../../../packages/shared/src/index.ts";
+import { HttpRouter } from "@effect/platform";
+import { Effect } from "effect";
 
 import { ClockService } from "../lib/clock.ts";
 import { LibraryBrowseService } from "../features/operations/library-browse-service.ts";
 import {
-  DownloadControlService,
-  DownloadStatusService,
-  DownloadTriggerService,
-  LibraryCommandService,
-  LibraryReadService,
-  RssCommandService,
-  RssReadService,
-  SearchService,
-} from "../features/operations/service-contract.ts";
+  CatalogOrchestration,
+  DownloadOrchestration,
+  SearchOrchestration,
+} from "../features/operations/operations-orchestration.ts";
+import { IdParamsSchema, SearchEpisodeParamsSchema } from "./common-request-schemas.ts";
 import {
   AddRssFeedBodySchema,
   BrowseQuerySchema,
@@ -25,16 +19,14 @@ import {
   DownloadEventsExportQuerySchema,
   DownloadEventsQuerySchema,
   EnabledBodySchema,
-  IdParamsSchema,
   ImportFilesBodySchema,
   ImportUnmappedFolderBodySchema,
   ScanImportPathBodySchema,
   SearchDownloadBodySchema,
-  SearchEpisodeParamsSchema,
   SearchMissingBodySchema,
   SearchReleasesQuerySchema,
   WantedMissingQuerySchema,
-} from "./request-schemas.ts";
+} from "./operations-request-schemas.ts";
 import {
   decodeJsonBodyWithLabel,
   decodeOptionalJsonBody,
@@ -44,23 +36,20 @@ import {
   jsonResponse,
   successResponse,
 } from "./router-helpers.ts";
-import { escapeCsv } from "./route-fs.ts";
-
-const DownloadEventsExportJsonSchema = Schema.parseJson(DownloadEventsExportSchema);
-const encodeDownloadEventsExport = Schema.encodeSync(DownloadEventsExportJsonSchema);
+import { buildDownloadEventsExportResponse } from "./download-events-export.ts";
 
 const readRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
     authedRouteResponse(
-      Effect.flatMap(DownloadStatusService, (service) => service.listDownloadQueue()),
+      Effect.flatMap(CatalogOrchestration, (service) => service.listDownloadQueue()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/downloads/history",
     authedRouteResponse(
-      Effect.flatMap(DownloadStatusService, (service) => service.listDownloadHistory()),
+      Effect.flatMap(CatalogOrchestration, (service) => service.listDownloadHistory()),
       jsonResponse,
     ),
   ),
@@ -69,7 +58,7 @@ const readRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-        return yield* (yield* DownloadStatusService).listDownloadEvents({
+        return yield* (yield* CatalogOrchestration).listDownloadEvents({
           animeId: query.anime_id,
           cursor: query.cursor,
           downloadId: query.download_id,
@@ -92,7 +81,7 @@ const readRouter = HttpRouter.empty.pipe(
           DownloadEventsExportQuerySchema,
           "download events export",
         );
-        const page = yield* (yield* DownloadStatusService).exportDownloadEvents({
+        const page = yield* (yield* CatalogOrchestration).exportDownloadEvents({
           animeId: query.anime_id,
           downloadId: query.download_id,
           endDate: query.end_date,
@@ -105,59 +94,14 @@ const readRouter = HttpRouter.empty.pipe(
         return { format: query.format ?? "json", page };
       }),
       ({ format, page }) => {
-        const exportHeaders = {
-          "X-Bakarr-Exported-Events": String(page.exported),
-          "X-Bakarr-Export-Limit": String(page.limit),
-          "X-Bakarr-Export-Order": page.order,
-          "X-Bakarr-Export-Truncated": String(page.truncated),
-          "X-Bakarr-Generated-At": page.generated_at,
-          "X-Bakarr-Total-Events": String(page.total),
-        };
-
-        if (format === "csv") {
-          const csv = [
-            "id,created_at,event_type,from_status,to_status,anime_id,anime_title,download_id,torrent_name,message,metadata,metadata_json",
-            ...page.events.map((event) =>
-              [
-                String(event.id),
-                event.created_at,
-                escapeCsv(event.event_type),
-                escapeCsv(event.from_status ?? ""),
-                escapeCsv(event.to_status ?? ""),
-                event.anime_id === undefined ? "" : String(event.anime_id),
-                escapeCsv(event.anime_title ?? ""),
-                event.download_id === undefined ? "" : String(event.download_id),
-                escapeCsv(event.torrent_name ?? ""),
-                escapeCsv(event.message),
-                escapeCsv(event.metadata ?? ""),
-                escapeCsv(event.metadata_json ? JSON.stringify(event.metadata_json) : ""),
-              ].join(","),
-            ),
-          ].join("\n");
-
-          return HttpServerResponse.text(csv, {
-            contentType: "text/csv; charset=utf-8",
-            headers: {
-              ...exportHeaders,
-              "Content-Disposition": 'attachment; filename="bakarr-download-events.csv"',
-            },
-          });
-        }
-
-        return HttpServerResponse.text(encodeDownloadEventsExport(page), {
-          contentType: "application/json; charset=utf-8",
-          headers: {
-            ...exportHeaders,
-            "Content-Disposition": 'attachment; filename="bakarr-download-events.json"',
-          },
-        });
+        return buildDownloadEventsExportResponse(page, format);
       },
     ),
   ),
   HttpRouter.get(
     "/rss",
     authedRouteResponse(
-      Effect.flatMap(RssReadService, (service) => service.listRssFeeds()),
+      Effect.flatMap(CatalogOrchestration, (service) => service.listRssFeeds()),
       jsonResponse,
     ),
   ),
@@ -166,7 +110,7 @@ const readRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
-        return yield* (yield* LibraryReadService).getWantedMissing(query.limit ?? 50);
+        return yield* (yield* CatalogOrchestration).getWantedMissing(query.limit ?? 50);
       }),
       jsonResponse,
     ),
@@ -178,7 +122,7 @@ const readRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
         const now = yield* (yield* ClockService).currentTimeMillis;
         const nowIso = new Date(now).toISOString();
-        return yield* (yield* LibraryReadService).getCalendar(
+        return yield* (yield* CatalogOrchestration).getCalendar(
           query.start ?? nowIso,
           query.end ?? nowIso,
         );
@@ -189,7 +133,7 @@ const readRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/library/unmapped",
     authedRouteResponse(
-      Effect.flatMap(LibraryReadService, (service) => service.getUnmappedFolders()),
+      Effect.flatMap(SearchOrchestration, (service) => service.getUnmappedFolders()),
       jsonResponse,
     ),
   ),
@@ -212,7 +156,7 @@ const readRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(SearchReleasesQuerySchema, "search releases");
-        return yield* (yield* SearchService).searchReleases(
+        return yield* (yield* SearchOrchestration).searchReleases(
           query.query ?? "",
           query.anime_id,
           query.category,
@@ -227,7 +171,10 @@ const readRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(SearchEpisodeParamsSchema);
-        return yield* (yield* SearchService).searchEpisode(params.animeId, params.episodeNumber);
+        return yield* (yield* SearchOrchestration).searchEpisode(
+          params.animeId,
+          params.episodeNumber,
+        );
       }),
       jsonResponse,
     ),
@@ -240,7 +187,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
-        yield* (yield* DownloadTriggerService).triggerDownload(body);
+        yield* (yield* DownloadOrchestration).triggerDownload(body);
       }),
       successResponse,
     ),
@@ -254,7 +201,7 @@ const writeRouter = HttpRouter.empty.pipe(
           label: "search missing downloads",
           schema: SearchMissingBodySchema,
         });
-        yield* (yield* DownloadTriggerService).triggerSearchMissing(body.anime_id);
+        yield* (yield* SearchOrchestration).triggerSearchMissing(body.anime_id);
       }),
       successResponse,
     ),
@@ -264,7 +211,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* DownloadControlService).pauseDownload(params.id);
+        yield* (yield* CatalogOrchestration).pauseDownload(params.id);
       }),
       successResponse,
     ),
@@ -274,7 +221,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* DownloadControlService).resumeDownload(params.id);
+        yield* (yield* CatalogOrchestration).resumeDownload(params.id);
       }),
       successResponse,
     ),
@@ -284,7 +231,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* DownloadControlService).retryDownload(params.id);
+        yield* (yield* CatalogOrchestration).retryDownload(params.id);
       }),
       successResponse,
     ),
@@ -294,7 +241,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* DownloadControlService).reconcileDownload(params.id);
+        yield* (yield* CatalogOrchestration).reconcileDownload(params.id);
       }),
       successResponse,
     ),
@@ -302,7 +249,7 @@ const writeRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/downloads/sync",
     authedRouteResponse(
-      Effect.flatMap(DownloadControlService, (service) => service.syncDownloads()),
+      Effect.flatMap(CatalogOrchestration, (service) => service.syncDownloads()),
       successResponse,
     ),
   ),
@@ -312,7 +259,7 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
-        yield* (yield* DownloadControlService).removeDownload(
+        yield* (yield* CatalogOrchestration).removeDownload(
           params.id,
           query.delete_files === "true",
         );
@@ -325,7 +272,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(AddRssFeedBodySchema, "add RSS feed");
-        return yield* (yield* RssCommandService).addRssFeed(body);
+        return yield* (yield* CatalogOrchestration).addRssFeed(body);
       }),
       jsonResponse,
     ),
@@ -335,7 +282,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* RssCommandService).deleteRssFeed(params.id);
+        yield* (yield* CatalogOrchestration).deleteRssFeed(params.id);
       }),
       successResponse,
     ),
@@ -346,7 +293,7 @@ const writeRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(EnabledBodySchema, "toggle RSS feed");
-        yield* (yield* RssCommandService).toggleRssFeed(params.id, body.enabled);
+        yield* (yield* CatalogOrchestration).toggleRssFeed(params.id, body.enabled);
       }),
       successResponse,
     ),
@@ -354,7 +301,7 @@ const writeRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/library/unmapped/scan",
     authedRouteResponse(
-      Effect.flatMap(LibraryCommandService, (service) => service.runUnmappedScan()),
+      Effect.flatMap(SearchOrchestration, (service) => service.runUnmappedScan()),
       successResponse,
     ),
   ),
@@ -366,7 +313,7 @@ const writeRouter = HttpRouter.empty.pipe(
           ControlUnmappedFolderBodySchema,
           "control unmapped folder",
         );
-        yield* (yield* LibraryCommandService).controlUnmappedFolder(body);
+        yield* (yield* SearchOrchestration).controlUnmappedFolder(body);
       }),
       successResponse,
     ),
@@ -379,7 +326,7 @@ const writeRouter = HttpRouter.empty.pipe(
           BulkControlUnmappedFoldersBodySchema,
           "bulk control unmapped folders",
         );
-        yield* (yield* LibraryCommandService).bulkControlUnmappedFolders(body);
+        yield* (yield* SearchOrchestration).bulkControlUnmappedFolders(body);
       }),
       successResponse,
     ),
@@ -392,7 +339,7 @@ const writeRouter = HttpRouter.empty.pipe(
           ImportUnmappedFolderBodySchema,
           "import unmapped folder",
         );
-        yield* (yield* LibraryCommandService).importUnmappedFolder(body);
+        yield* (yield* SearchOrchestration).importUnmappedFolder(body);
       }),
       successResponse,
     ),
@@ -402,7 +349,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ScanImportPathBodySchema, "scan import path");
-        return yield* (yield* LibraryCommandService).scanImportPath(body.path, body.anime_id);
+        return yield* (yield* SearchOrchestration).scanImportPath(body.path, body.anime_id);
       }),
       jsonResponse,
     ),
@@ -412,7 +359,7 @@ const writeRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
-        return yield* (yield* LibraryCommandService).importFiles(body.files);
+        return yield* (yield* CatalogOrchestration).importFiles(body.files);
       }),
       jsonResponse,
     ),

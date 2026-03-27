@@ -3,14 +3,13 @@ import { Schema } from "effect";
 
 import { formatValidationErrorMessage } from "./route-validation.ts";
 import {
-  AddAnimeInputSchema,
-  ConfigSchema,
   DownloadEventsExportQuerySchema,
   DownloadEventsQuerySchema,
   ImportFilesBodySchema,
   SearchDownloadBodySchema,
-  SystemLogsQuerySchema,
-} from "./request-schemas.ts";
+} from "./operations-request-schemas.ts";
+import { AddAnimeInputSchema } from "./anime-request-schemas.ts";
+import { ConfigSchema, SystemLogsQuerySchema } from "./system-request-schemas.ts";
 
 function makeValidConfig() {
   return {

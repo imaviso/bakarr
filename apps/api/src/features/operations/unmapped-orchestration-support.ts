@@ -8,7 +8,7 @@ import { anime, backgroundJobs } from "../../db/schema.ts";
 import {
   type FileSystemShape,
   isWithinPathRoot,
-  sanitizePathSegment,
+  sanitizePathSegmentEffect,
 } from "../../lib/filesystem.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "../../lib/media-identity.ts";
 import {
@@ -23,7 +23,7 @@ import {
   listUnmappedFolderMatchRows,
   loadUnmappedFolderMatchRow,
   upsertUnmappedFolderMatchRows,
-} from "../system/repository.ts";
+} from "../system/repository/unmapped-repository.ts";
 import {
   OperationsConflictError,
   OperationsInputError,
@@ -488,13 +488,14 @@ export function makeUnmappedOrchestrationSupport(input: {
     function* (input: { folder_name: string; anime_id: number; profile_name?: string }) {
       const animeRow = yield* requireAnime(db, input.anime_id);
       const libraryPath = yield* getConfigLibraryPath(db);
-      const folderName = yield* Effect.try({
-        try: () => sanitizePathSegment(input.folder_name),
-        catch: () =>
-          new OperationsInputError({
-            message: "folder_name must be a single folder name",
-          }),
-      });
+      const folderName = yield* sanitizePathSegmentEffect(input.folder_name).pipe(
+        Effect.mapError(
+          () =>
+            new OperationsInputError({
+              message: "folder_name must be a single folder name",
+            }),
+        ),
+      );
       const folderPath = `${libraryPath.replace(/\/$/, "")}/${folderName}`;
 
       if (!isWithinPathRoot(folderPath, libraryPath)) {

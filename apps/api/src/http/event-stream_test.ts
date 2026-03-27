@@ -1,0 +1,59 @@
+import { HttpApp } from "@effect/platform";
+import { Effect, Schema, Stream } from "effect";
+
+import { assertEquals, it } from "../test/vitest.ts";
+import { makeEventBus } from "../features/events/event-bus.ts";
+import { NotificationEventSchema } from "../../../../packages/shared/src/index.ts";
+import { buildDownloadProgressResponse, buildDownloadProgressStream } from "./event-stream.ts";
+
+const sampleDownload = {
+  downloaded_bytes: 256,
+  eta: 0,
+  hash: "abc123",
+  name: "Example Episode",
+  progress: 0.5,
+  speed: 1024,
+  state: "downloading",
+  total_bytes: 512,
+} as const;
+
+it.effect("buildDownloadProgressStream seeds the initial SSE payload", () =>
+  Effect.gen(function* () {
+    const eventBus = yield* makeEventBus({ capacity: 8 });
+    const chunks = yield* Stream.runCollect(
+      buildDownloadProgressStream([sampleDownload], eventBus).pipe(
+        Stream.take(2),
+        Stream.map((chunk) => new TextDecoder().decode(chunk)),
+      ),
+    );
+
+    const [connected, progress] = Array.from(chunks);
+
+    assertEquals(connected, ": connected\n\n");
+    assertEquals(progress.startsWith("data: "), true);
+
+    const encoded = progress.slice("data: ".length, -2);
+    const event = Schema.decodeUnknownEither(Schema.parseJson(NotificationEventSchema))(encoded);
+
+    assertEquals(event._tag, "Right");
+
+    if (event._tag === "Right" && event.right.type === "DownloadProgress") {
+      assertEquals(event.right.type, "DownloadProgress");
+      assertEquals(event.right.payload.downloads.length, 1);
+    }
+  }),
+);
+
+it.effect("buildDownloadProgressResponse sets SSE headers", () =>
+  Effect.gen(function* () {
+    const eventBus = yield* makeEventBus({ capacity: 8 });
+    const handler = HttpApp.toWebHandler(
+      Effect.succeed(buildDownloadProgressResponse([sampleDownload], eventBus)),
+    );
+    const response = yield* Effect.promise(() => handler(new Request("http://localhost/")));
+
+    assertEquals(response.headers.get("Content-Type"), "text/event-stream");
+    assertEquals(response.headers.get("Cache-Control"), "no-cache");
+    assertEquals(response.headers.get("Connection"), "keep-alive");
+  }),
+);

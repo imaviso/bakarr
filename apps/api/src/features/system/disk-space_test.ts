@@ -1,9 +1,10 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, assertThrows, it } from "../../test/vitest.ts";
 import { CommandExecutor } from "@effect/platform";
 import { Effect, Exit } from "effect";
 
 import { makeTestConfig } from "../../test/config-fixture.ts";
 import {
+  DiskSpaceError,
   makeDiskSpaceInspector,
   mapBlockStatsToDiskSpace,
   selectStoragePath,
@@ -19,6 +20,19 @@ it("mapBlockStatsToDiskSpace converts block stats to bytes", () => {
   });
 
   assertEquals(result, { free: 102400, total: 409600 });
+});
+
+it("mapBlockStatsToDiskSpace throws a typed error for invalid stats", () => {
+  assertThrows(
+    () =>
+      mapBlockStatsToDiskSpace({
+        bavail: -1n,
+        blocks: 100n,
+        bsize: 4096n,
+      }),
+    DiskSpaceError,
+    "Invalid available block count",
+  );
 });
 
 it("selectStoragePath prefers library_path", () => {
@@ -52,11 +66,14 @@ it("selectStoragePath falls back to runtime database path", () => {
   assertEquals(selectStoragePath(config, "/runtime/test.sqlite"), "/runtime/test.sqlite");
 });
 
-it.effect("getDiskSpaceSafe fails on error instead of fabricating zeros", () =>
+it.effect("getDiskSpaceSafe fails when df fails", () =>
   Effect.gen(function* () {
+    const commandExecutorStub = makeCommandExecutorStub(() => Effect.die(new Error("df failed")));
+
     const result = yield* Effect.exit(
-      makeDiskSpaceInspector().getDiskSpaceSafe("/nonexistent/path/that/does/not/exist"),
+      makeDiskSpaceInspector(commandExecutorStub).getDiskSpaceSafe("/tmp"),
     );
+
     assertEquals(Exit.isFailure(result), true);
   }),
 );

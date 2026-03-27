@@ -1,5 +1,4 @@
-import { CommandExecutor } from "@effect/platform";
-import { Context, Effect, Layer, Option } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type {
   ActivityItem,
@@ -13,7 +12,7 @@ import { BackgroundWorkerMonitor } from "../../background-monitor.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { ClockService } from "../../lib/clock.ts";
 import { composeBackgroundJobStatuses, findBackgroundJobStatus } from "./background-status.ts";
-import { DiskSpaceError, makeDiskSpaceInspector, selectStoragePath } from "./disk-space.ts";
+import { DiskSpaceError, DiskSpaceInspector, selectStoragePath } from "./disk-space.ts";
 import {
   ConfigValidationError,
   StoredConfigCorruptError,
@@ -31,7 +30,7 @@ import {
   countUpToDateAnimeRows,
   listBackgroundJobRows,
   listRecentSystemLogRows,
-} from "./repository.ts";
+} from "./repository/stats-repository.ts";
 import { SystemConfigService } from "./system-config-service.ts";
 
 export interface SystemStatusServiceShape {
@@ -58,8 +57,7 @@ const makeSystemStatusService = Effect.gen(function* () {
   const runtime = yield* AppRuntime;
   const clock = yield* ClockService;
   const monitor = yield* BackgroundWorkerMonitor;
-  const commandExecutor = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
-  const diskSpaceInspector = makeDiskSpaceInspector(Option.getOrUndefined(commandExecutor));
+  const diskSpaceInspector = yield* DiskSpaceInspector;
   const configService = yield* SystemConfigService;
   const currentTimeMillis = () => clock.currentTimeMillis;
 

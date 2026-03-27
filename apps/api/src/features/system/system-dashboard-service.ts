@@ -24,7 +24,7 @@ import {
   countQueuedDownloads,
   listBackgroundJobRows,
   listRecentDownloadEventRows,
-} from "./repository.ts";
+} from "./repository/stats-repository.ts";
 import { SystemConfigService } from "./system-config-service.ts";
 
 export interface SystemDashboardServiceShape {

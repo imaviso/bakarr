@@ -1,11 +1,8 @@
 /**
- * Internal orchestration tags and layers for the operations feature.
+ * Operations orchestration tags and layers.
  *
- * These are implementation-level building blocks consumed only by the service
- * live layers (rss/library/download/search-service-live.ts) and by the
- * operations-runtime-layer.ts composition entry-point.
- *
- * Nothing outside features/operations/ should import from this module.
+ * These are the public feature services now; routers, workers, and other
+ * callers should depend on these tags directly instead of forwarding layers.
  */
 
 import { Context, Effect, Layer } from "effect";

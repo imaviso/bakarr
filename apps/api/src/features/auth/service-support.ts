@@ -5,6 +5,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import { appConfig, sessions, systemLogs, users } from "../../db/schema.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
+import type { TokenHasherError } from "../../security/token-hasher.ts";
 
 type CurrentTimeMillis = () => Effect.Effect<number>;
 type NowIso = () => Effect.Effect<string>;
@@ -45,7 +46,7 @@ export const findUserById = Effect.fn("Auth.findUserById")(function* (
 export const createSession = Effect.fn("Auth.createSession")(function* (
   db: AppDatabase,
   durationDays: number,
-  hashToken: (token: string) => Effect.Effect<string, import("../../db/database.ts").DatabaseError>,
+  hashToken: (token: string) => Effect.Effect<string, TokenHasherError>,
   userId: number,
   randomHex: RandomHex,
   nowIso: NowIso,

@@ -8,14 +8,6 @@ import {
   ProgressLive,
   SearchOrchestrationLive,
 } from "./operations-orchestration.ts";
-import { LibraryCommandServiceLive, LibraryReadServiceLive } from "./library-service-live.ts";
-import {
-  DownloadControlServiceLive,
-  DownloadStatusServiceLive,
-  DownloadTriggerServiceLive,
-} from "./download-service-live.ts";
-import { RssCommandServiceLive, RssReadServiceLive } from "./rss-service-live.ts";
-import { SearchServiceLive } from "./search-service-live.ts";
 
 export function makeOperationsRuntimeLayer<Out, Err, In>(platformLayer: Layer.Layer<Out, Err, In>) {
   const downloadOrchestrationLayer = DownloadOrchestrationLive.pipe(
@@ -36,16 +28,6 @@ export function makeOperationsRuntimeLayer<Out, Err, In>(platformLayer: Layer.La
     searchOrchestrationLayer,
     catalogOrchestrationLayer,
   ).pipe(Layer.provide(platformLayer));
-  const servicesLayer = Layer.mergeAll(
-    RssReadServiceLive,
-    RssCommandServiceLive,
-    LibraryReadServiceLive,
-    LibraryCommandServiceLive,
-    DownloadStatusServiceLive,
-    DownloadControlServiceLive,
-    DownloadTriggerServiceLive,
-    SearchServiceLive,
-  ).pipe(Layer.provide(Layer.mergeAll(platformLayer, orchestrationLayer)));
 
-  return Layer.mergeAll(orchestrationLayer, servicesLayer);
+  return orchestrationLayer;
 }

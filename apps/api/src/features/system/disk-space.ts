@@ -1,6 +1,5 @@
 import { Command, CommandExecutor } from "@effect/platform";
-
-import { Effect, Schema } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 
@@ -29,6 +28,11 @@ export interface DiskSpaceInspectorShape {
   readonly getDiskSpaceSafe: (path: string) => Effect.Effect<DiskSpace, DiskSpaceError>;
 }
 
+export class DiskSpaceInspector extends Context.Tag("@bakarr/api/DiskSpaceInspector")<
+  DiskSpaceInspector,
+  DiskSpaceInspectorShape
+>() {}
+
 export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
   const blockSize = toPositiveNumber(stat.bsize, "Invalid block size");
   const availableBlocks = toNonNegativeNumber(stat.bavail, "Invalid available block count");
@@ -43,36 +47,20 @@ export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
 function runDfCommand(commandExecutor: CommandExecutor.CommandExecutor, path: string) {
   return Command.make("df", "-Pk", path).pipe(
     Command.string,
-    Effect.mapError(
-      (cause) =>
-        new DiskSpaceError({
-          cause,
-          message: `Failed to get disk space for ${path}`,
-        }),
-    ),
+    Effect.mapError(toDiskSpaceError(`Failed to get disk space for ${path}`)),
     Effect.provideService(CommandExecutor.CommandExecutor, commandExecutor),
   );
 }
 
 export function makeDiskSpaceInspector(
-  commandExecutor?: CommandExecutor.CommandExecutor,
+  commandExecutor: CommandExecutor.CommandExecutor,
 ): DiskSpaceInspectorShape {
   const getDiskSpace = Effect.fn("DiskSpaceInspector.getDiskSpace")(function* (path: string) {
-    if (!commandExecutor) {
-      return yield* new DiskSpaceError({
-        message: `Failed to get disk space for ${path}: command executor unavailable`,
-      });
-    }
-
     const output = yield* runDfCommand(commandExecutor, path);
 
     return yield* Effect.try({
       try: () => mapDfOutputToDiskSpace(path, output),
-      catch: (cause) =>
-        new DiskSpaceError({
-          cause,
-          message: `Failed to parse disk space for ${path}`,
-        }),
+      catch: toDiskSpaceError(`Failed to parse disk space for ${path}`),
     });
   });
 
@@ -97,6 +85,14 @@ export function makeDiskSpaceInspector(
   };
 }
 
+export const DiskSpaceInspectorLive = Layer.effect(
+  DiskSpaceInspector,
+  Effect.gen(function* () {
+    const commandExecutor = yield* CommandExecutor.CommandExecutor;
+    return makeDiskSpaceInspector(commandExecutor);
+  }),
+);
+
 export function selectStoragePath(config: Config, databaseFile: string): string {
   const libraryPath = config.library.library_path.trim();
   if (libraryPath) {
@@ -111,7 +107,7 @@ export function selectStoragePath(config: Config, databaseFile: string): string 
 
 function clampDiskBytes(value: number) {
   if (!Number.isFinite(value) || value < 0) {
-    throw new Error("Invalid disk byte count");
+    throw new DiskSpaceError({ message: "Invalid disk byte count" });
   }
 
   return Math.min(value, Number.MAX_SAFE_INTEGER);
@@ -125,24 +121,24 @@ function mapDfOutputToDiskSpace(path: string, output: string): DiskSpace {
   const dataLine = lines.at(-1);
 
   if (!dataLine) {
-    throw new Error(`df returned no data for path: ${path}`);
+    throw new DiskSpaceError({ message: `df returned no data for path: ${path}` });
   }
 
   const columns = dataLine.split(/\s+/);
 
   if (columns.length < 4) {
-    throw new Error(`Unexpected df output for path: ${path}`);
+    throw new DiskSpaceError({ message: `Unexpected df output for path: ${path}` });
   }
 
   const total = Number(columns[1]);
   const available = Number(columns[3]);
 
   if (!Number.isFinite(total) || total <= 0) {
-    throw new Error(`Invalid total blocks from df for path: ${path}`);
+    throw new DiskSpaceError({ message: `Invalid total blocks from df for path: ${path}` });
   }
 
   if (!Number.isFinite(available) || available < 0) {
-    throw new Error(`Invalid available blocks from df for path: ${path}`);
+    throw new DiskSpaceError({ message: `Invalid available blocks from df for path: ${path}` });
   }
 
   return {
@@ -155,7 +151,7 @@ function toPositiveNumber(value: bigint | number, message: string) {
   const numeric = typeof value === "bigint" ? Number(value) : value;
 
   if (!Number.isFinite(numeric) || numeric <= 0) {
-    throw new Error(message);
+    throw new DiskSpaceError({ message });
   }
 
   return Math.min(numeric, Number.MAX_SAFE_INTEGER);
@@ -165,8 +161,13 @@ function toNonNegativeNumber(value: bigint | number, message: string) {
   const numeric = typeof value === "bigint" ? Number(value) : value;
 
   if (!Number.isFinite(numeric) || numeric < 0) {
-    throw new Error(message);
+    throw new DiskSpaceError({ message });
   }
 
   return Math.min(numeric, Number.MAX_SAFE_INTEGER);
+}
+
+function toDiskSpaceError(message: string) {
+  return (cause: unknown) =>
+    cause instanceof DiskSpaceError ? cause : new DiskSpaceError({ cause, message });
 }

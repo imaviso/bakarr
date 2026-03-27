@@ -1,20 +1,12 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect, Schema, Stream } from "effect";
+import { HttpRouter, HttpServerRequest } from "@effect/platform";
+import { Effect } from "effect";
 
-import type {
-  DownloadStatus,
-  HealthStatus,
-  NotificationEvent,
-  SystemLog,
-} from "../../../../packages/shared/src/index.ts";
-import { NotificationEventSchema, SystemLogSchema } from "../../../../packages/shared/src/index.ts";
 import { AnimeMutationService } from "../features/anime/service.ts";
 import { EventBus } from "../features/events/event-bus.ts";
 import {
-  DownloadStatusService,
-  LibraryCommandService,
-  RssCommandService,
-} from "../features/operations/service-contract.ts";
+  CatalogOrchestration,
+  SearchOrchestration,
+} from "../features/operations/operations-orchestration.ts";
 import { ImageAssetService } from "../features/system/image-asset-service.ts";
 import { MetricsService } from "../features/system/metrics-service.ts";
 import { QualityProfileService } from "../features/system/quality-profile-service.ts";
@@ -23,17 +15,28 @@ import { SystemConfigService } from "../features/system/system-config-service.ts
 import { SystemDashboardService } from "../features/system/system-dashboard-service.ts";
 import { SystemLogService } from "../features/system/system-log-service.ts";
 import { SystemStatusService } from "../features/system/system-status-service.ts";
+import { ClockService } from "../lib/clock.ts";
+import { recordHttpRequestMetrics } from "../lib/metrics.ts";
 import { setRuntimeLogLevel } from "../lib/logging.ts";
+import { buildDownloadProgressResponse } from "./event-stream.ts";
+import { IdParamsSchema } from "./common-request-schemas.ts";
+import { buildImageAssetResponse } from "./image-asset-response.ts";
+import {
+  buildHealthLiveResponse,
+  buildHealthOkResponse,
+  buildHealthReadyResponse,
+} from "./health-response.ts";
+import { buildSystemLogsExportResponse } from "./system-logs-export.ts";
+import { buildPrometheusMetricsResponse } from "./metrics-response.ts";
 import {
   ConfigSchema,
   CreateReleaseProfileSchema,
-  IdParamsSchema,
   NameParamsSchema,
   QualityProfileSchema,
   SystemLogExportQuerySchema,
   SystemLogsQuerySchema,
   UpdateReleaseProfileSchema,
-} from "./request-schemas.ts";
+} from "./system-request-schemas.ts";
 import {
   decodeJsonBody,
   decodeJsonBodyWithLabel,
@@ -45,16 +48,10 @@ import {
   routeResponse,
   successResponse,
 } from "./router-helpers.ts";
-import { contentType, escapeCsv } from "./route-fs.ts";
-
-const NotificationEventJsonSchema = Schema.parseJson(NotificationEventSchema);
-const encodeNotificationEvent = Schema.encodeSync(NotificationEventJsonSchema);
-const SystemLogsJsonSchema = Schema.parseJson(Schema.Array(SystemLogSchema));
-const encodeSystemLogs = Schema.encodeSync(SystemLogsJsonSchema);
 
 const healthRouter = HttpRouter.empty.pipe(
-  HttpRouter.get("/health", HttpServerResponse.json({ status: "ok" } satisfies HealthStatus)),
-  HttpRouter.get("/api/system/health/live", HttpServerResponse.json({ status: "alive" })),
+  HttpRouter.get("/health", buildHealthOkResponse()),
+  HttpRouter.get("/api/system/health/live", buildHealthLiveResponse()),
   HttpRouter.get(
     "/api/system/health/ready",
     routeResponse(
@@ -65,7 +62,7 @@ const healthRouter = HttpRouter.empty.pipe(
         // Catch all known typed failures — any means not ready (fixes P2.8).
         Effect.catchAll(() => Effect.succeed({ checks: { database: false }, ready: false })),
       ),
-      (value) => HttpServerResponse.json(value, { status: value.ready ? 200 : 503 }),
+      buildHealthReadyResponse,
     ),
   ),
   HttpRouter.get(
@@ -88,12 +85,7 @@ const infoRouter = HttpRouter.empty.pipe(
         return yield* (yield* ImageAssetService).resolveImageAsset(rawRelativePath);
       }),
       ({ bytes, filePath }) =>
-        Effect.succeed(
-          HttpServerResponse.uint8Array(Uint8Array.from(bytes), {
-            contentType: contentType(filePath),
-            headers: { "Cache-Control": "public, max-age=31536000, immutable" },
-          }),
-        ),
+        Effect.succeed(buildImageAssetResponse(Uint8Array.from(bytes), filePath)),
     ),
   ),
   HttpRouter.get(
@@ -270,30 +262,7 @@ const logsRouter = HttpRouter.empty.pipe(
         return { format: query.format ?? "json", logs };
       }),
       ({ format, logs }) => {
-        if (format === "csv") {
-          const csv = [
-            "id,level,event_type,message,created_at",
-            ...logs.logs.map(
-              (log) =>
-                `${log.id},${log.level},${escapeCsv(log.event_type)},${escapeCsv(
-                  log.message,
-                )},${log.created_at}`,
-            ),
-          ].join("\n");
-          return HttpServerResponse.text(csv, {
-            contentType: "text/csv; charset=utf-8",
-            headers: {
-              "Content-Disposition": 'attachment; filename="bakarr-logs.csv"',
-            },
-          });
-        }
-
-        return HttpServerResponse.text(encodeSystemLogs([...logs.logs] satisfies SystemLog[]), {
-          contentType: "application/json; charset=utf-8",
-          headers: {
-            "Content-Disposition": 'attachment; filename="bakarr-logs.json"',
-          },
-        });
+        return buildSystemLogsExportResponse(logs, format);
       },
     ),
   ),
@@ -303,14 +272,14 @@ const runtimeRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/api/system/tasks/scan",
     authedRouteResponse(
-      Effect.flatMap(LibraryCommandService, (service) => service.runLibraryScan()),
+      Effect.flatMap(CatalogOrchestration, (service) => service.runLibraryScan()),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/rss",
     authedRouteResponse(
-      Effect.flatMap(RssCommandService, (service) => service.runRssCheck()),
+      Effect.flatMap(SearchOrchestration, (service) => service.runRssCheck()),
       successResponse,
     ),
   ),
@@ -325,32 +294,34 @@ const runtimeRouter = HttpRouter.empty.pipe(
     "/api/events",
     authedRouteResponse(
       Effect.gen(function* () {
-        const downloads = yield* (yield* DownloadStatusService).getDownloadProgress();
+        const downloads = yield* (yield* CatalogOrchestration).getDownloadProgress();
         const eventBus = yield* EventBus;
         return { downloads, eventBus };
       }),
       ({ downloads, eventBus }) =>
-        Effect.succeed(
-          HttpServerResponse.stream(buildEventsStream(downloads, eventBus), {
-            contentType: "text/event-stream",
-            headers: {
-              "Cache-Control": "no-cache",
-              Connection: "keep-alive",
-            },
-          }),
-        ),
+        Effect.succeed(buildDownloadProgressResponse(downloads, eventBus)),
     ),
   ),
   HttpRouter.get(
     "/api/metrics",
     authedRouteResponse(
-      Effect.flatMap(MetricsService, (service) => service.renderPrometheusMetrics()),
-      (body) =>
-        Effect.succeed(
-          HttpServerResponse.text(body, {
-            contentType: "text/plain; version=0.0.4; charset=utf-8",
-          }),
-        ),
+      Effect.gen(function* () {
+        const clock = yield* ClockService;
+        const metricsService = yield* MetricsService;
+        const startedAt = yield* clock.currentMonotonicMillis;
+        yield* metricsService.renderPrometheusMetrics();
+        const finishedAt = yield* clock.currentMonotonicMillis;
+
+        yield* recordHttpRequestMetrics({
+          durationMs: finishedAt - startedAt,
+          method: "GET",
+          route: "/api/metrics",
+          status: 200,
+        });
+
+        return yield* metricsService.renderPrometheusMetrics();
+      }),
+      (body) => Effect.succeed(buildPrometheusMetricsResponse(body)),
     ),
   ),
 );
@@ -362,26 +333,3 @@ export const systemRouter = HttpRouter.concatAll(
   logsRouter,
   runtimeRouter,
 );
-
-function buildEventsStream(downloads: DownloadStatus[], eventBus: typeof EventBus.Service) {
-  return Effect.gen(function* () {
-    const encoder = new TextEncoder();
-    const encodeSse = (payload: string) => encoder.encode(`${payload}\n\n`);
-    const encodeNotificationSse = (event: NotificationEvent) =>
-      encodeSse(`data: ${encodeNotificationEvent(event)}`);
-    const subscription = yield* eventBus.subscribe();
-    const initialEvents = Stream.fromIterable([
-      encodeSse(": connected"),
-      encodeNotificationSse({
-        type: "DownloadProgress",
-        payload: { downloads },
-      }),
-    ]);
-    const liveEvents = Stream.merge(
-      subscription.stream.pipe(Stream.map(encodeNotificationSse)),
-      Stream.tick("15 seconds").pipe(Stream.as(encodeSse(": keep-alive"))),
-    ).pipe(Stream.withSpan("http.events.stream"));
-
-    return Stream.concat(initialEvents, liveEvents).pipe(Stream.ensuring(subscription.close));
-  }).pipe(Stream.unwrap);
-}

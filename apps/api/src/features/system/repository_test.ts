@@ -19,6 +19,11 @@ import { StoredUnmappedFolderCorruptError } from "./errors.ts";
 import { encodeConfigCore } from "./config-codec.ts";
 import { makeDefaultConfig } from "./defaults.ts";
 import {
+  insertSystemConfigRow,
+  loadSystemConfigRow,
+  upsertSystemConfigRow,
+} from "./repository/config-repository.ts";
+import {
   countActiveDownloads,
   countAnimeRows,
   countCompletedDownloads,
@@ -27,21 +32,16 @@ import {
   countFailedDownloads,
   countImportedDownloads,
   countQueuedDownloads,
-  countQueuedOrDownloadingDownloads,
   countRssFeedRows,
-  countRunningBackgroundJobs,
   countUpToDateAnimeRows,
-  decodeUnmappedFolderMatchRow,
-  insertSystemConfigRow,
-  listQualityProfileRows,
-  listUnmappedFolderMatchRows,
-  loadSystemConfigRow,
   loadSystemLogPage,
+} from "./repository/stats-repository.ts";
+import {
+  decodeUnmappedFolderMatchRow,
+  listUnmappedFolderMatchRows,
   loadUnmappedFolderMatchRow,
-  replaceQualityProfileRows,
-  upsertSystemConfigRow,
   upsertUnmappedFolderMatchRows,
-} from "./repository.ts";
+} from "./repository/unmapped-repository.ts";
 
 it.scoped("system repository config helpers insert and upsert config rows", () =>
   withTestDbEffect((db, databaseFile) =>
@@ -346,13 +346,11 @@ it.scoped("system repository query helpers filter logs and count system state", 
       assertEquals(errorPage.total, 1);
       assertEquals(errorPage.rows[0].eventType, "downloads.error");
 
-      assertEquals(yield* countQueuedOrDownloadingDownloads(db), 1);
       assertEquals(yield* countQueuedDownloads(db), 1);
       assertEquals(yield* countActiveDownloads(db), 1);
       assertEquals(yield* countFailedDownloads(db), 1);
       assertEquals(yield* countCompletedDownloads(db), 1);
       assertEquals(yield* countImportedDownloads(db), 1);
-      assertEquals(yield* countRunningBackgroundJobs(db), 1);
       assertEquals(yield* countAnimeRows(db), 1);
       assertEquals(yield* countEpisodeRows(db), 2);
       assertEquals(yield* countDownloadedEpisodeRows(db), 1);
@@ -512,52 +510,6 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
       );
 
       assertEquals(yield* countUpToDateAnimeRows(db), 1);
-    }),
-  ),
-);
-
-it.scoped("replaceQualityProfileRows rolls back when replacement insert fails", () =>
-  withTestDbEffect((db) =>
-    Effect.gen(function* () {
-      yield* Effect.promise(() =>
-        db.insert(schema.qualityProfiles).values({
-          name: "Existing",
-          cutoff: "1080p",
-          upgradeAllowed: true,
-          seadexPreferred: false,
-          allowedQualities: '["1080p"]',
-          minSize: null,
-          maxSize: null,
-        }),
-      );
-
-      const exit = yield* Effect.exit(
-        replaceQualityProfileRows(db, [
-          {
-            name: "Duplicate",
-            cutoff: "1080p",
-            upgradeAllowed: true,
-            seadexPreferred: false,
-            allowedQualities: '["1080p"]',
-            minSize: null,
-            maxSize: null,
-          },
-          {
-            name: "Duplicate",
-            cutoff: "720p",
-            upgradeAllowed: false,
-            seadexPreferred: false,
-            allowedQualities: '["720p"]',
-            minSize: null,
-            maxSize: null,
-          },
-        ]),
-      );
-      assertEquals(exit._tag, "Failure");
-
-      const rows = yield* listQualityProfileRows(db);
-      assertEquals(rows.length, 1);
-      assertEquals(rows[0]?.name, "Existing");
     }),
   ),
 );

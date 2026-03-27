@@ -15,7 +15,7 @@ import {
   insertSystemConfigRow,
   loadAnyQualityProfileRow,
   loadSystemConfigRow,
-} from "./repository.ts";
+} from "./repository/config-repository.ts";
 export interface SystemBootstrapServiceShape {
   /**
    * First-run initialization (idempotent):

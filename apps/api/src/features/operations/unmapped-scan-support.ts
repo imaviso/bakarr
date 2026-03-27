@@ -6,7 +6,10 @@ import { anime } from "../../db/schema.ts";
 import type { DirEntry, FileSystemShape } from "../../lib/filesystem.ts";
 import type { AniListClient } from "../anime/anilist.ts";
 import { markSearchResultsAlreadyInLibraryEffect } from "../anime/repository.ts";
-import { decodeUnmappedFolderMatchRow, listUnmappedFolderMatchRows } from "../system/repository.ts";
+import {
+  decodeUnmappedFolderMatchRow,
+  listUnmappedFolderMatchRows,
+} from "../system/repository/unmapped-repository.ts";
 import { OperationsPathError, OperationsStoredDataError } from "./errors.ts";
 import {
   buildUnmappedFolderSearchQueries,
@@ -21,7 +24,7 @@ import {
   toAnimeSearchCandidate,
 } from "./library-import.ts";
 import { scanVideoFiles } from "./file-scanner.ts";
-import { getConfigLibraryPath } from "./repository.ts";
+import { getConfigLibraryPath } from "./repository/config-repository.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
 export const findLocalFolderAnimeMatch = Effect.fn("OperationsService.findLocalFolderAnimeMatch")(

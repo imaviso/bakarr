@@ -1,5 +1,5 @@
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect, Match, Schema } from "effect";
+import { HttpRouter } from "@effect/platform";
+import { Effect } from "effect";
 
 import {
   AnimeFileService,
@@ -7,28 +7,22 @@ import {
   AnimeQueryService,
 } from "../features/anime/service.ts";
 import { AnimeEnrollmentService } from "../features/anime/anime-enrollment-service.ts";
-import { AuthError } from "../features/auth/service.ts";
-import {
-  LibraryCommandService,
-  LibraryReadService,
-  RssReadService,
-} from "../features/operations/service-contract.ts";
-import { ClockService } from "../lib/clock.ts";
-import { FileSystem } from "../lib/filesystem.ts";
-import { createFileChunkStream, type FileByteRange } from "./file-stream.ts";
+import { CatalogOrchestration } from "../features/operations/operations-orchestration.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
   BulkEpisodeMappingsBodySchema,
   FilePathBodySchema,
-  IdParamsSchema,
   ListAnimeQuerySchema,
   MonitoredBodySchema,
   PathBodySchema,
   ProfileNameBodySchema,
   ReleaseProfileIdsBodySchema,
   SearchAnimeQuerySchema,
-} from "./request-schemas.ts";
+  StreamUrlQuerySchema,
+} from "./anime-request-schemas.ts";
+import { IdParamsSchema } from "./common-request-schemas.ts";
+import { buildAnimeStreamResponse, buildAnimeStreamUrl } from "./anime-streaming.ts";
 import {
   decodeJsonBody,
   decodePathParams,
@@ -38,21 +32,6 @@ import {
   routeResponse,
   successResponse,
 } from "./router-helpers.ts";
-import { EpisodeStreamRangeError } from "./streaming-errors.ts";
-import { StreamTokenSigner } from "./stream-token-signer.ts";
-import { contentType } from "./route-fs.ts";
-
-class StreamQuerySchema extends Schema.Class<StreamQuerySchema>("StreamQuerySchema")({
-  exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
-  sig: Schema.String.pipe(Schema.minLength(1)),
-}) {}
-
-class StreamUrlQuerySchema extends Schema.Class<StreamUrlQuerySchema>("StreamUrlQuerySchema")({
-  episodeNumber: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
-}) {}
-
-/** Duration of a signed stream URL in milliseconds (6 hours). */
-const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
 
 const animeReadRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -124,7 +103,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* RssReadService).listAnimeRssFeeds(params.id);
+        return yield* (yield* CatalogOrchestration).listAnimeRssFeeds(params.id);
       }),
       jsonResponse,
     ),
@@ -134,7 +113,7 @@ const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* LibraryReadService).getRenamePreview(params.id);
+        return yield* (yield* CatalogOrchestration).getRenamePreview(params.id);
       }),
       jsonResponse,
     ),
@@ -270,19 +249,10 @@ const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQuery(StreamUrlQuerySchema);
-        const clock = yield* ClockService;
-        const now = yield* clock.currentTimeMillis;
-        const expiresAt = now + STREAM_EXPIRY_MS;
-        const signer = yield* StreamTokenSigner;
-        const signature = yield* signer
-          .sign({ animeId: params.id, episodeNumber: query.episodeNumber, expiresAt })
-          .pipe(
-            Effect.mapError(
-              () => new AuthError({ message: "Failed to sign stream URL", status: 400 }),
-            ),
-          );
-        const url = `/api/stream/${params.id}/${query.episodeNumber}?exp=${expiresAt}&sig=${signature}`;
-        return { url };
+        return yield* buildAnimeStreamUrl({
+          animeId: params.id,
+          episodeNumber: query.episodeNumber,
+        });
       }),
       jsonResponse,
     ),
@@ -292,7 +262,7 @@ const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* LibraryCommandService).renameFiles(params.id);
+        return yield* (yield* CatalogOrchestration).renameFiles(params.id);
       }),
       jsonResponse,
     ),
@@ -305,96 +275,12 @@ const animeStreamRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        const url = new URL(request.url, "http://bakarr.local");
-        const query = yield* Schema.decodeUnknown(StreamQuerySchema)({
-          exp: url.searchParams.get("exp") ?? "",
-          sig: url.searchParams.get("sig") ?? "",
-        }).pipe(
-          Effect.mapError(() => new AuthError({ message: "Forbidden or expired", status: 403 })),
-        );
-        const clock = yield* ClockService;
-        const nowMillis = yield* clock.currentTimeMillis;
-        const signer = yield* StreamTokenSigner;
-        const isAuthorized = yield* signer
-          .verify({
-            animeId: params.id,
-            episodeNumber: params.episodeNumber,
-            expiresAt: query.exp,
-            nowMillis,
-            signatureHex: query.sig,
-          })
-          .pipe(Effect.mapError((cause) => new AuthError({ message: cause.message, status: 403 })));
-
-        if (!isAuthorized) {
-          return yield* new AuthError({ message: "Forbidden or expired", status: 403 });
-        }
-
-        const animeService = yield* AnimeFileService;
-        const resolvedEpisodeFile = yield* animeService.resolveEpisodeFile(
-          params.id,
-          params.episodeNumber,
-        );
-
-        const notFoundError = (message: string) => new AuthError({ message, status: 404 });
-
-        const episodeFilePath = yield* Match.value(resolvedEpisodeFile).pipe(
-          Match.tag("EpisodeFileUnmapped", "EpisodeFileMissing", () =>
-            Effect.fail(notFoundError("Episode file not found")),
-          ),
-          Match.tag("EpisodeFileRootInaccessible", () =>
-            Effect.fail(notFoundError("Anime root folder is inaccessible")),
-          ),
-          Match.tag("EpisodeFileOutsideRoot", () =>
-            Effect.fail(notFoundError("Episode file mapping is invalid")),
-          ),
-          Match.tag("EpisodeFileResolved", (f) => Effect.succeed(f)),
-          Match.exhaustive,
-        );
-
-        const fs = yield* FileSystem;
-        const fileInfo = yield* fs
-          .stat(episodeFilePath.filePath)
-          .pipe(
-            Effect.mapError(
-              () => new AuthError({ message: "Episode file not found", status: 404 }),
-            ),
-          );
-        const byteRange = yield* parseByteRange(request.headers.range, fileInfo.size);
-
-        return {
-          contentLength: byteRange ? byteRange.end - byteRange.start + 1 : fileInfo.size,
-          contentType: contentType(episodeFilePath.fileName),
-          fileName: episodeFilePath.fileName,
-          fileSize: fileInfo.size,
-          fs,
-          filePath: episodeFilePath.filePath,
-          range: byteRange,
-          status: byteRange ? 206 : 200,
-        };
+        return yield* buildAnimeStreamResponse({
+          animeId: params.id,
+          episodeNumber: params.episodeNumber,
+        });
       }),
-      (value) =>
-        Effect.succeed(
-          HttpServerResponse.stream(
-            createFileChunkStream(value.fs, value.filePath, {
-              range: value.range,
-            }),
-            {
-              contentType: value.contentType,
-              headers: {
-                ...(value.range
-                  ? {
-                      "Content-Range": `bytes ${value.range.start}-${value.range.end}/${value.fileSize}`,
-                    }
-                  : {}),
-                "Accept-Ranges": "bytes",
-                "Content-Disposition": `inline; filename="${value.fileName}"`,
-                "Content-Length": value.contentLength.toString(),
-              },
-              status: value.status,
-            },
-          ),
-        ),
+      Effect.succeed,
     ),
   ),
 );
@@ -404,46 +290,3 @@ export const animeRouter = HttpRouter.concatAll(
   animeWriteRouter,
   animeStreamRouter,
 );
-
-function parseByteRange(
-  rangeHeader: string | undefined,
-  fileSize: number,
-): Effect.Effect<FileByteRange | undefined, EpisodeStreamRangeError> {
-  if (!rangeHeader) {
-    return Effect.void.pipe(Effect.as(undefined));
-  }
-
-  const match = /^bytes=(\d+)-(\d+)?$/.exec(rangeHeader.trim());
-
-  if (!match) {
-    return Effect.fail(
-      new EpisodeStreamRangeError({
-        fileSize,
-        message: "Requested range not satisfiable",
-        status: 416,
-      }),
-    );
-  }
-
-  const start = Number.parseInt(match[1], 10);
-  const end = match[2] ? Number.parseInt(match[2], 10) : fileSize - 1;
-
-  if (
-    Number.isNaN(start) ||
-    Number.isNaN(end) ||
-    start < 0 ||
-    end < start ||
-    start >= fileSize ||
-    end >= fileSize
-  ) {
-    return Effect.fail(
-      new EpisodeStreamRangeError({
-        fileSize,
-        message: "Requested range not satisfiable",
-        status: 416,
-      }),
-    );
-  }
-
-  return Effect.succeed({ end, start });
-}

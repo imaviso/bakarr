@@ -28,7 +28,7 @@ import {
   listQualityProfileRows,
   loadSystemConfigRow,
   updateSystemConfigAtomic,
-} from "./repository.ts";
+} from "./repository/config-repository.ts";
 
 export interface SystemConfigServiceShape {
   readonly getConfig: () => Effect.Effect<

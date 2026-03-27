@@ -14,7 +14,7 @@ import {
   listQualityProfileRows,
   loadQualityProfileRow,
   renameQualityProfileWithCascade,
-} from "./repository.ts";
+} from "./repository/config-repository.ts";
 
 export interface QualityProfileServiceShape {
   readonly listProfiles: () => Effect.Effect<

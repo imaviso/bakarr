@@ -22,6 +22,8 @@ import {
   RssFeedTooLargeError,
 } from "../features/operations/errors.ts";
 import { ExternalCallError } from "../lib/effect-retry.ts";
+import { PasswordError } from "../security/password.ts";
+import { TokenHasherError } from "../security/token-hasher.ts";
 import {
   ConfigValidationError,
   ProfileNotFoundError,
@@ -51,6 +53,7 @@ const knownTaggedRouteErrorSchemas = [
   OperationsInputError,
   OperationsPathError,
   OperationsStoredDataError,
+  PasswordError,
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
@@ -59,6 +62,7 @@ const knownTaggedRouteErrorSchemas = [
   StoredUnmappedFolderCorruptError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
+  TokenHasherError,
 ] as const;
 
 type KnownRouteError = Schema.Schema.Type<Schema.Union<[...typeof knownTaggedRouteErrorSchemas]>>;
@@ -86,6 +90,11 @@ const rssTooLarge = () => ({
   status: 503,
 });
 
+const authCryptoFailure = () => ({
+  message: "Authentication crypto failed",
+  status: 500,
+});
+
 const taggedRouteErrorMappers: {
   [K in TaggedRouteErrorTag]: (error: Extract<TaggedRouteError, { _tag: K }>) => RouteErrorResponse;
 } = {
@@ -110,6 +119,7 @@ const taggedRouteErrorMappers: {
   OperationsInputError: messageStatus(400),
   OperationsPathError: messageStatus(400),
   OperationsStoredDataError: messageStatus(500),
+  PasswordError: authCryptoFailure,
   RssFeedParseError: invalidRssFeed,
   RssFeedRejectedError: messageStatus(400),
   RssFeedTooLargeError: rssTooLarge,
@@ -121,6 +131,7 @@ const taggedRouteErrorMappers: {
   StoredUnmappedFolderCorruptError: messageStatus(500),
   StoredConfigCorruptError: messageStatus(500),
   StoredConfigMissingError: messageStatus(500),
+  TokenHasherError: authCryptoFailure,
 };
 
 const KnownRouteErrorSchema = Schema.Union(...knownTaggedRouteErrorSchemas);
