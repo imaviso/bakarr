@@ -11,13 +11,10 @@ import { makeSkippingSerializedEffectRunner } from "./lib/effect-coalescing.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./lib/logging.ts";
 import type { EventBusShape } from "./features/events/event-bus.ts";
 import type { AnimeMutationServiceShape } from "./features/anime/service.ts";
-import {
-  type DownloadControlServiceShape,
-  type DownloadStatusServiceShape,
-  type DownloadTriggerServiceShape,
-  type LibraryCommandServiceShape,
-  type RssCommandServiceShape,
-} from "./features/operations/service-contract.ts";
+import type {
+  CatalogOrchestrationShape,
+  SearchOrchestrationShape,
+} from "./features/operations/operations-orchestration.ts";
 
 export interface BackgroundWorkerSpawner<R = never> {
   (scope: Scope.Scope, config: Config): Effect.Effect<void, DatabaseError, R>;
@@ -26,13 +23,13 @@ export interface BackgroundWorkerSpawner<R = never> {
 export interface BackgroundWorkerDependencies {
   readonly animeService: Pick<AnimeMutationServiceShape, "refreshMetadataForMonitoredAnime">;
   readonly clock: ClockServiceShape;
-  readonly downloadControlService: DownloadControlServiceShape;
-  readonly downloadStatusService: DownloadStatusServiceShape;
-  readonly downloadTriggerService: DownloadTriggerServiceShape;
+  readonly downloadControlService: Pick<CatalogOrchestrationShape, "syncDownloads">;
+  readonly downloadStatusService: Pick<CatalogOrchestrationShape, "getDownloadProgress">;
+  readonly downloadTriggerService: Pick<SearchOrchestrationShape, "triggerSearchMissing">;
   readonly eventBus: Pick<EventBusShape, "publish">;
-  readonly libraryService: Pick<LibraryCommandServiceShape, "runLibraryScan">;
+  readonly libraryService: Pick<CatalogOrchestrationShape, "runLibraryScan">;
   readonly monitor: BackgroundWorkerMonitorShape;
-  readonly rssService: Pick<RssCommandServiceShape, "runRssCheck">;
+  readonly rssService: Pick<SearchOrchestrationShape, "runRssCheck">;
 }
 
 export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConfig")(function* (
