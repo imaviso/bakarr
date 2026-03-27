@@ -1,6 +1,9 @@
 import { Layer } from "effect";
 
-import { makeAppPlatformCoreRuntimeLayer, type AppPlatformRuntimeOptions } from "./app-platform-runtime-core.ts";
+import {
+  makeAppPlatformCoreRuntimeLayer,
+  type AppPlatformRuntimeOptions,
+} from "./app-platform-runtime-core.ts";
 import { makeAppPlatformCommandExecutorLayer } from "./app-platform-runtime-command.ts";
 import type { AppConfigShape } from "./config.ts";
 

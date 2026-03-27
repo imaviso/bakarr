@@ -20,9 +20,7 @@ import {
   countCompletedUnmappedMatches,
   isUnmappedFolderQueuedForMatch,
 } from "./unmapped-folder-list-support.ts";
-import {
-  markUnmappedFolderMatching,
-} from "./unmapped-folders.ts";
+import { markUnmappedFolderMatching } from "./unmapped-folders.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import type { OperationsCoordinationShape } from "./runtime-support.ts";
 import { makeUnmappedScanQuerySupport } from "./unmapped-orchestration-scan-query.ts";

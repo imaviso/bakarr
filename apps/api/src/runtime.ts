@@ -31,13 +31,7 @@ export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: 
   );
   const httpLayer = Layer.mergeAll(authLayer, systemLayer, appServicesLayer);
 
-  return Layer.mergeAll(
-    platformLayer,
-    operationsLayer,
-    animeLayer,
-    backgroundLayer,
-    httpLayer,
-  );
+  return Layer.mergeAll(platformLayer, operationsLayer, animeLayer, backgroundLayer, httpLayer);
 }
 
 export function makeApiRuntime(

@@ -8,17 +8,31 @@ export function makeCatalogDownloadOrchestration(input: {
     id: number,
     action: "pause" | "resume" | "delete",
     deleteFiles?: boolean,
-  ) => import("effect").Effect.Effect<void, import("./errors.ts").OperationsError | import("../../db/database.ts").DatabaseError>;
+  ) => import("effect").Effect.Effect<
+    void,
+    import("./errors.ts").OperationsError | import("../../db/database.ts").DatabaseError
+  >;
   readonly db: AppDatabase;
   readonly nowIso: () => import("effect").Effect.Effect<string>;
-  readonly publishDownloadProgress: () => import("effect").Effect.Effect<void, import("../../db/database.ts").DatabaseError>;
+  readonly publishDownloadProgress: () => import("effect").Effect.Effect<
+    void,
+    import("../../db/database.ts").DatabaseError
+  >;
   readonly reconcileDownloadByIdEffect: (
     id: number,
-  ) => import("effect").Effect.Effect<void, import("./errors.ts").OperationsError | import("../../db/database.ts").DatabaseError>;
+  ) => import("effect").Effect.Effect<
+    void,
+    import("./errors.ts").OperationsError | import("../../db/database.ts").DatabaseError
+  >;
   readonly retryDownloadById: (
     id: number,
-  ) => import("effect").Effect.Effect<void, import("./errors.ts").OperationsError | import("../../db/database.ts").DatabaseError>;
-  readonly syncDownloadState: (trigger: string) => import("effect").Effect.Effect<void, import("../../db/database.ts").DatabaseError>;
+  ) => import("effect").Effect.Effect<
+    void,
+    import("./errors.ts").OperationsError | import("../../db/database.ts").DatabaseError
+  >;
+  readonly syncDownloadState: (
+    trigger: string,
+  ) => import("effect").Effect.Effect<void, import("../../db/database.ts").DatabaseError>;
   readonly tryDatabasePromise: import("../../lib/effect-db.ts").TryDatabasePromise;
 }) {
   const {

@@ -26,8 +26,13 @@ const BrowsePathStringSchema = Schema.Union(
 
 const FolderNameStringSchema = Schema.String.pipe(
   Schema.minLength(1),
-  Schema.filter((value) =>
-    value !== "." && value !== ".." && !value.includes("/") && !value.includes("\\") && !value.includes("\u0000")
+  Schema.filter(
+    (value) =>
+      value !== "." &&
+      value !== ".." &&
+      !value.includes("/") &&
+      !value.includes("\\") &&
+      !value.includes("\u0000"),
   ),
 );
 

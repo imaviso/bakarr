@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",
-    "build": "bun run typecheck && vite build",
+    "build": "bun run check && vite build",
     "preview": "vite preview",
     "check": "tsc --noEmit",
     "lint": "oxlint --type-aware --type-check"

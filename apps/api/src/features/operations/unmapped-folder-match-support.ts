@@ -2,9 +2,7 @@ import { Effect } from "effect";
 
 import type { ScannerState } from "../../../../../packages/shared/src/index.ts";
 import { anime } from "../../db/schema.ts";
-import {
-  buildUnmappedFolderSearchQueries,
-} from "./unmapped-folders.ts";
+import { buildUnmappedFolderSearchQueries } from "./unmapped-folders.ts";
 import {
   findBestLocalAnimeMatch,
   scoreAnimeRowMatch,
