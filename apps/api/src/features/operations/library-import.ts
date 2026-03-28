@@ -23,10 +23,7 @@ import {
   scoreAnimeSearchResultMatch,
   summarizeEpisodeCoverage,
 } from "../../lib/anime-derivations.ts";
-import {
-  buildEpisodeFilenamePlan,
-  selectNamingFormat,
-} from "./naming-support.ts";
+import { buildEpisodeFilenamePlan, selectNamingFormat } from "./naming-support.ts";
 import { OperationsStoredDataError } from "./errors.ts";
 import { parseResolution } from "./release-ranking.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "../../lib/anime-date-utils.ts";

@@ -108,9 +108,9 @@ const loadRowsByChunk = Effect.fn("OperationsRepository.loadRowsByChunk")(
     }),
 );
 
-const decodeCoveredEpisodes = Effect.fn(
-  "OperationsRepository.decodeCoveredEpisodes",
-)(function* (value: string | null | undefined) {
+const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpisodes")(function* (
+  value: string | null | undefined,
+) {
   if (!value) {
     return undefined;
   }

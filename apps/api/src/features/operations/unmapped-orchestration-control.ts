@@ -28,9 +28,9 @@ import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
 export interface UnmappedControlWorkflowShape {
-  readonly bulkControlUnmappedFolders: (
-    input: { action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed" },
-  ) => Effect.Effect<
+  readonly bulkControlUnmappedFolders: (input: {
+    action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed";
+  }) => Effect.Effect<
     { affectedCount: number },
     DatabaseError | OperationsPathError | OperationsStoredDataError | OperationsAnimeNotFoundError
   >;

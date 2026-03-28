@@ -17,8 +17,7 @@ import type { CatalogLibraryWriteSupportShape } from "./catalog-orchestration-li
 import type { CatalogRssSupportShape } from "./catalog-rss-support.ts";
 import { tryDatabasePromise, toDatabaseError } from "../../lib/effect-db.ts";
 
-export interface CatalogReadServiceShape
-{
+export interface CatalogReadServiceShape {
   readonly exportDownloadEvents: CatalogDownloadViewSupportShape["exportDownloadEvents"];
   readonly getCalendar: CatalogLibraryReadSupportShape["getCalendar"];
   readonly getDownloadProgress: CatalogDownloadViewSupportShape["getDownloadProgress"];
@@ -53,7 +52,8 @@ const makeCatalogWorkflow = Effect.gen(function* () {
     eventBus,
     fs,
     mediaProbe,
-    nowIso: () => clock.currentTimeMillis.pipe(Effect.map((value) => new Date(value).toISOString())),
+    nowIso: () =>
+      clock.currentTimeMillis.pipe(Effect.map((value) => new Date(value).toISOString())),
     publishDownloadProgress: progress.publishDownloadProgress,
     publishLibraryScanProgress: progress.publishLibraryScanProgress,
     reconcileDownloadByIdEffect: downloadControl.reconcileDownloadByIdEffect,
@@ -84,8 +84,7 @@ export const CatalogReadServiceLive = Layer.effect(
   }),
 );
 
-export interface CatalogDownloadControlServiceShape
-{
+export interface CatalogDownloadControlServiceShape {
   readonly pauseDownload: CatalogDownloadActionSupportShape["pauseDownload"];
   readonly reconcileDownload: CatalogDownloadActionSupportShape["reconcileDownload"];
   readonly removeDownload: CatalogDownloadActionSupportShape["removeDownload"];
@@ -94,10 +93,9 @@ export interface CatalogDownloadControlServiceShape
   readonly syncDownloads: CatalogDownloadActionSupportShape["syncDownloads"];
 }
 
-export class CatalogDownloadControlService extends Context.Tag("@bakarr/api/CatalogDownloadControlService")<
-  CatalogDownloadControlService,
-  CatalogDownloadControlServiceShape
->() {}
+export class CatalogDownloadControlService extends Context.Tag(
+  "@bakarr/api/CatalogDownloadControlService",
+)<CatalogDownloadControlService, CatalogDownloadControlServiceShape>() {}
 
 export const CatalogDownloadControlServiceLive = Layer.effect(
   CatalogDownloadControlService,
@@ -115,8 +113,7 @@ export const CatalogDownloadControlServiceLive = Layer.effect(
   }),
 );
 
-export interface CatalogLibraryServiceShape
-{
+export interface CatalogLibraryServiceShape {
   readonly importFiles: CatalogLibraryWriteSupportShape["importFiles"];
   readonly renameFiles: CatalogLibraryWriteSupportShape["renameFiles"];
   readonly runLibraryScan: CatalogLibraryScanSupportShape["runLibraryScan"];
@@ -140,8 +137,7 @@ export const CatalogLibraryServiceLive = Layer.effect(
   }),
 );
 
-export interface CatalogRssServiceShape
-{
+export interface CatalogRssServiceShape {
   readonly addRssFeed: CatalogRssSupportShape["addRssFeed"];
   readonly deleteRssFeed: CatalogRssSupportShape["deleteRssFeed"];
   readonly toggleRssFeed: CatalogRssSupportShape["toggleRssFeed"];

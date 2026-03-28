@@ -116,14 +116,9 @@ export function makeUnmappedImportWorkflow(input: {
         });
       }
 
-      const rootFolder = yield* resolveAnimeRootFolderEffect(
-        db,
-        folderPath,
-        animeRow.titleRomaji,
-        {
-          useExistingRoot: true,
-        },
-      ).pipe(
+      const rootFolder = yield* resolveAnimeRootFolderEffect(db, folderPath, animeRow.titleRomaji, {
+        useExistingRoot: true,
+      }).pipe(
         Effect.catchTag("StoredConfigCorruptError", (e) =>
           Effect.fail(
             new DatabaseError({

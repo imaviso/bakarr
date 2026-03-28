@@ -50,10 +50,9 @@ export interface BackgroundSearchSupportShared {
     episodeNumber: number;
     reason: string;
   }) => Effect.Effect<void, never>;
-  readonly requireQualityProfile: (profileName: string) => Effect.Effect<
-    QualityProfile,
-    DatabaseError | OperationsInputError
-  >;
+  readonly requireQualityProfile: (
+    profileName: string,
+  ) => Effect.Effect<QualityProfile, DatabaseError | OperationsInputError>;
 }
 
 export function makeBackgroundSearchSupportShared(input: BackgroundSearchSupportInput) {

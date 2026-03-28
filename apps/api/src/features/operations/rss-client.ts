@@ -5,10 +5,7 @@ import { ClockService } from "../../lib/clock.ts";
 import { DnsResolver } from "../../lib/dns-resolver.ts";
 import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
 import { RssFeedParseError, RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";
-import {
-  readRssItems,
-  type ParsedRelease,
-} from "./rss-client-parse.ts";
+import { readRssItems, type ParsedRelease } from "./rss-client-parse.ts";
 import { validateUrlForSsrf } from "./rss-client-ssrf.ts";
 
 export { RssFeedParseError, RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";

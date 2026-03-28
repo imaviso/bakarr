@@ -28,10 +28,16 @@ export interface CatalogLibraryWriteSupportShape {
       episode_numbers?: readonly number[];
       season?: number;
     }[],
-  ) => Effect.Effect<ImportResult, DatabaseError | OperationsPathError | OperationsAnimeNotFoundError>;
+  ) => Effect.Effect<
+    ImportResult,
+    DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
+  >;
   readonly renameFiles: (
     animeId: number,
-  ) => Effect.Effect<RenameResult, DatabaseError | OperationsPathError | OperationsAnimeNotFoundError>;
+  ) => Effect.Effect<
+    RenameResult,
+    DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
+  >;
 }
 
 export function makeCatalogLibraryWriteSupport(input: {

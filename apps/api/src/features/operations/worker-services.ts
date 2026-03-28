@@ -2,13 +2,20 @@ import { Context, Effect, Layer } from "effect";
 
 import type { DownloadStatus } from "../../../../../packages/shared/src/index.ts";
 import type { DatabaseError } from "../../db/database.ts";
-import { CatalogDownloadControlService, CatalogLibraryService, CatalogReadService } from "./catalog-service-tags.ts";
+import {
+  CatalogDownloadControlService,
+  CatalogLibraryService,
+  CatalogReadService,
+} from "./catalog-service-tags.ts";
 import { makeSearchWorkflow } from "./search-service-tags.ts";
 import type { OperationsError } from "./errors.ts";
 import type { OperationsStoredDataError } from "./errors.ts";
 
 export interface DownloadLifecycleServiceShape {
-  readonly getDownloadProgress: () => Effect.Effect<DownloadStatus[], DatabaseError | OperationsStoredDataError>;
+  readonly getDownloadProgress: () => Effect.Effect<
+    DownloadStatus[],
+    DatabaseError | OperationsStoredDataError
+  >;
   readonly syncDownloads: () => Effect.Effect<void, DatabaseError>;
 }
 
@@ -53,7 +60,10 @@ export const SearchWorkerServiceLive = Layer.effect(
 );
 
 export interface LibraryScanServiceShape {
-  readonly runLibraryScan: () => Effect.Effect<{ matched: number; scanned: number }, DatabaseError | OperationsError>;
+  readonly runLibraryScan: () => Effect.Effect<
+    { matched: number; scanned: number },
+    DatabaseError | OperationsError
+  >;
 }
 
 export class LibraryScanService extends Context.Tag("@bakarr/api/LibraryScanService")<

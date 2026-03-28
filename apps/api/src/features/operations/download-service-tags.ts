@@ -55,9 +55,13 @@ const makeDownloadOrchestrationEffect = Effect.gen(function* () {
 
 export const DownloadTriggerServiceLive = Layer.effect(
   DownloadTriggerService,
-  Effect.map(makeDownloadOrchestrationEffect, (download) => ({
-    triggerDownload: download.triggerDownload,
-  }) satisfies DownloadTriggerServiceShape),
+  Effect.map(
+    makeDownloadOrchestrationEffect,
+    (download) =>
+      ({
+        triggerDownload: download.triggerDownload,
+      }) satisfies DownloadTriggerServiceShape,
+  ),
 );
 
 export interface DownloadControlServiceShape {
@@ -80,12 +84,16 @@ export class DownloadControlService extends Context.Tag("@bakarr/api/DownloadCon
 
 export const DownloadControlServiceLive = Layer.effect(
   DownloadControlService,
-  Effect.map(makeDownloadOrchestrationEffect, (download) => ({
-    applyDownloadActionEffect: download.applyDownloadActionEffect,
-    reconcileDownloadByIdEffect: download.reconcileDownloadByIdEffect,
-    retryDownloadById: download.retryDownloadById,
-    syncDownloadState: download.syncDownloadState,
-  }) satisfies DownloadControlServiceShape),
+  Effect.map(
+    makeDownloadOrchestrationEffect,
+    (download) =>
+      ({
+        applyDownloadActionEffect: download.applyDownloadActionEffect,
+        reconcileDownloadByIdEffect: download.reconcileDownloadByIdEffect,
+        retryDownloadById: download.retryDownloadById,
+        syncDownloadState: download.syncDownloadState,
+      }) satisfies DownloadControlServiceShape,
+  ),
 );
 
 export interface DownloadProgressServiceShape {
@@ -99,7 +107,11 @@ export class DownloadProgressService extends Context.Tag("@bakarr/api/DownloadPr
 
 export const DownloadProgressServiceLive = Layer.effect(
   DownloadProgressService,
-  Effect.map(makeDownloadOrchestrationEffect, (download) => ({
-    publishDownloadProgress: download.publishDownloadProgress,
-  }) satisfies DownloadProgressServiceShape),
+  Effect.map(
+    makeDownloadOrchestrationEffect,
+    (download) =>
+      ({
+        publishDownloadProgress: download.publishDownloadProgress,
+      }) satisfies DownloadProgressServiceShape,
+  ),
 );
