@@ -60,6 +60,7 @@ it("config codec round-trips config core without mutating arrays", () => {
       default_category: "anime",
       enabled: true,
       password: "secret",
+      trusted_local: true,
       url: "http://localhost:8080",
       username: "admin",
     },
@@ -76,6 +77,7 @@ it("config codec round-trips config core without mutating arrays", () => {
   const decoded = decodeConfigCore(encoded);
   assertEquals(decoded.downloads.remote_path_mappings, [["/remote", "/local"]]);
   assertEquals(decoded.downloads.preferred_groups, ["SubsPlease"]);
+  assertEquals(decoded.qbittorrent.trusted_local, true);
   assertEquals(decoded.scheduler.cron_expression, "0 * * * *");
 });
 

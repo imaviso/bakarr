@@ -82,7 +82,10 @@ it.scoped("triggerDownload persists merged release provenance on queued download
           assertEquals(download.source_metadata?.video_codec, "HEVC");
           assertEquals(download.source_metadata?.audio_codec, "AAC");
           assertEquals(download.source_metadata?.audio_channels, "2.0");
-          assertEquals(download.source_metadata?.decision_reason, "Manual grab from release search");
+          assertEquals(
+            download.source_metadata?.decision_reason,
+            "Manual grab from release search",
+          );
           assertEquals(download.source_metadata?.indexer, "Nyaa");
           assertEquals(download.source_metadata?.selection_kind, "manual");
           assertEquals(download.source_metadata?.trusted, true);

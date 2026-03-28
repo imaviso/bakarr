@@ -180,14 +180,12 @@ it.scoped("download presentation contexts fail for corrupt covered episode metad
   ),
 );
 
-const withTestDbEffect = Effect.fn("DownloadPresentationRepositoryTest.withTestDbEffect")(function* <
-  A,
-  E,
-  R,
->(run: (db: AppDatabase, databaseFile: string) => Effect.Effect<A, E, R>) {
-  return yield* withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
-    run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
-    schema,
-  });
-});
+const withTestDbEffect = Effect.fn("DownloadPresentationRepositoryTest.withTestDbEffect")(
+  function* <A, E, R>(run: (db: AppDatabase, databaseFile: string) => Effect.Effect<A, E, R>) {
+    return yield* withSqliteTestDbEffect({
+      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
+      run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
+      schema,
+    });
+  },
+);

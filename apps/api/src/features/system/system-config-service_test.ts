@@ -15,10 +15,12 @@ describe("SystemConfigService", () => {
       run: (db, _databaseFile) =>
         Effect.gen(function* () {
           const layer = SystemConfigServiceLive.pipe(
-            Layer.provide(Layer.succeed(Database, {
-              client: {} as DatabaseService["client"],
-              db: db as AppDatabase,
-            })),
+            Layer.provide(
+              Layer.succeed(Database, {
+                client: {} as DatabaseService["client"],
+                db: db as AppDatabase,
+              }),
+            ),
           );
 
           const exit = yield* Effect.exit(

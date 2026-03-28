@@ -79,3 +79,31 @@ it("rejects invalid qBittorrent URLs", () =>
       }
     }
   }));
+
+it("rejects private qBittorrent URLs when trusted_local is disabled", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(
+      validateConfigUpdate({
+        countAnimeUsingProfile: () => Effect.succeed(0),
+        existingProfileRows: [],
+        nextConfig: makeTestConfig("./test.sqlite", (config) => ({
+          ...config,
+          qbittorrent: {
+            ...config.qbittorrent,
+            trusted_local: false,
+            url: "http://127.0.0.1:8080",
+          },
+        })),
+      }),
+    );
+
+    assertEquals(Exit.isFailure(exit), true);
+
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assertEquals(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assertEquals(failure.value._tag, "ConfigValidationError");
+      }
+    }
+  }));

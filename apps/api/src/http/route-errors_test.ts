@@ -188,8 +188,8 @@ it("route errors falls back for unknown failures", () => {
 });
 
 it("auth route errors map auth failures locally", () => {
-  assertEquals(
-    mapAuthRouteError({ _tag: "AuthError", message: "forbidden", status: 403 }),
-    { message: "forbidden", status: 403 },
-  );
+  assertEquals(mapAuthRouteError({ _tag: "AuthError", message: "forbidden", status: 403 }), {
+    message: "forbidden",
+    status: 403,
+  });
 });
