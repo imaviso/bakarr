@@ -1,0 +1,118 @@
+import { sql } from "drizzle-orm";
+import { Effect } from "effect";
+
+import { backgroundJobs } from "../db/schema.ts";
+import type { AppDatabase } from "../db/database.ts";
+import { tryDatabasePromise } from "./effect-db.ts";
+
+type NowIso = () => Effect.Effect<string>;
+
+export const markJobStarted = Effect.fn("JobStatus.markJobStarted")(function* (
+  db: AppDatabase,
+  name: string,
+  nowIso: NowIso,
+) {
+  const now = yield* nowIso();
+
+  yield* tryDatabasePromise("Failed to mark job started", () =>
+    db
+      .insert(backgroundJobs)
+      .values({
+        isRunning: true,
+        lastMessage: null,
+        lastRunAt: now,
+        lastStatus: "running",
+        lastSuccessAt: null,
+        name,
+        progressCurrent: null,
+        progressTotal: null,
+        runCount: 1,
+      })
+      .onConflictDoUpdate({
+        target: backgroundJobs.name,
+        set: {
+          isRunning: true,
+          lastMessage: null,
+          lastRunAt: now,
+          lastStatus: "running",
+          progressCurrent: null,
+          progressTotal: null,
+          runCount: sql`${backgroundJobs.runCount} + 1`,
+        },
+      }),
+  );
+});
+
+export const markJobSucceeded = Effect.fn("JobStatus.markJobSucceeded")(function* (
+  db: AppDatabase,
+  name: string,
+  message: string,
+  nowIso: NowIso,
+) {
+  const now = yield* nowIso();
+
+  yield* tryDatabasePromise("Failed to mark job succeeded", () =>
+    db
+      .insert(backgroundJobs)
+      .values({
+        isRunning: false,
+        lastMessage: message,
+        lastRunAt: now,
+        lastStatus: "success",
+        lastSuccessAt: now,
+        name,
+        progressCurrent: null,
+        progressTotal: null,
+        runCount: 1,
+      })
+      .onConflictDoUpdate({
+        target: backgroundJobs.name,
+        set: {
+          isRunning: false,
+          lastMessage: message,
+          lastRunAt: now,
+          lastStatus: "success",
+          lastSuccessAt: now,
+          progressCurrent: null,
+          progressTotal: null,
+        },
+      }),
+  );
+});
+
+export const markJobFailed = Effect.fn("JobStatus.markJobFailed")(function* (
+  db: AppDatabase,
+  name: string,
+  cause: unknown,
+  nowIso: NowIso,
+) {
+  const now = yield* nowIso();
+  const message = cause instanceof Error ? cause.message : String(cause);
+
+  yield* tryDatabasePromise("Failed to mark job failed", () =>
+    db
+      .insert(backgroundJobs)
+      .values({
+        isRunning: false,
+        lastMessage: message,
+        lastRunAt: now,
+        lastStatus: "failed",
+        lastSuccessAt: null,
+        name,
+        progressCurrent: null,
+        progressTotal: null,
+        runCount: 1,
+      })
+      .onConflictDoUpdate({
+        target: backgroundJobs.name,
+        set: {
+          isRunning: false,
+          lastMessage: message,
+          lastRunAt: now,
+          lastStatus: "failed",
+          progressCurrent: null,
+          progressTotal: null,
+        },
+      }),
+  );
+});
