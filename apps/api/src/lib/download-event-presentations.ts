@@ -45,25 +45,26 @@ export const decodeDownloadEventMetadata = Effect.fn(
   );
 });
 
-export const toDownloadEvent = Effect.fn("DownloadEventPresentations.toDownloadEvent")(
-  function* (row: DownloadEventRowLike, context?: DownloadEventPresentationContext) {
-    return {
-      anime_id: row.animeId ?? undefined,
-      anime_image: context?.animeImage,
-      anime_title: context?.animeTitle,
-      created_at: row.createdAt,
-      download_id: row.downloadId ?? undefined,
-      event_type: row.eventType,
-      from_status: row.fromStatus ?? undefined,
-      id: row.id,
-      message: row.message,
-      metadata: row.metadata ?? undefined,
-      metadata_json: yield* decodeDownloadEventMetadata(row.metadata),
-      torrent_name: context?.torrentName,
-      to_status: row.toStatus ?? undefined,
-    } satisfies DownloadEvent;
-  },
-);
+export const toDownloadEvent = Effect.fn("DownloadEventPresentations.toDownloadEvent")(function* (
+  row: DownloadEventRowLike,
+  context?: DownloadEventPresentationContext,
+) {
+  return {
+    anime_id: row.animeId ?? undefined,
+    anime_image: context?.animeImage,
+    anime_title: context?.animeTitle,
+    created_at: row.createdAt,
+    download_id: row.downloadId ?? undefined,
+    event_type: row.eventType,
+    from_status: row.fromStatus ?? undefined,
+    id: row.id,
+    message: row.message,
+    metadata: row.metadata ?? undefined,
+    metadata_json: yield* decodeDownloadEventMetadata(row.metadata),
+    torrent_name: context?.torrentName,
+    to_status: row.toStatus ?? undefined,
+  } satisfies DownloadEvent;
+});
 
 export const loadDownloadEventPresentationContexts = Effect.fn(
   "DownloadEventPresentations.loadDownloadEventPresentationContexts",
@@ -76,7 +77,9 @@ export const loadDownloadEventPresentationContexts = Effect.fn(
     ...new Set(rows.map((row) => row.animeId).filter((value): value is number => value !== null)),
   ];
   const downloadIds = [
-    ...new Set(rows.map((row) => row.downloadId).filter((value): value is number => value !== null)),
+    ...new Set(
+      rows.map((row) => row.downloadId).filter((value): value is number => value !== null),
+    ),
   ];
 
   const animeRows = yield* loadRowsByChunk(animeIds, (chunk) =>

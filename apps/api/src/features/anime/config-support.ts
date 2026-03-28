@@ -4,10 +4,7 @@ import { Effect } from "effect";
 import type { AppDatabase } from "../../db/database.ts";
 import { appConfig } from "../../db/schema.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import {
-  effectDecodeConfigCore,
-  effectDecodeImagePath,
-} from "../system/config-codec.ts";
+import { effectDecodeConfigCore, effectDecodeImagePath } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
 
 export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolveAnimeRootFolder")(
@@ -45,29 +42,29 @@ export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolv
   },
 );
 
-export const getConfiguredImagesPathEffect = Effect.fn("AnimeConfigSupport.getConfiguredImagesPath")(
-  function* (db: AppDatabase) {
-    const rows = yield* tryDatabasePromise("Failed to load configured images path", () =>
-      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
-    );
+export const getConfiguredImagesPathEffect = Effect.fn(
+  "AnimeConfigSupport.getConfiguredImagesPath",
+)(function* (db: AppDatabase) {
+  const rows = yield* tryDatabasePromise("Failed to load configured images path", () =>
+    db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+  );
 
-    return yield* effectDecodeImagePath(rows[0]);
-  },
-);
+  return yield* effectDecodeImagePath(rows[0]);
+});
 
-export const getConfiguredLibraryPathEffect = Effect.fn("AnimeConfigSupport.getConfiguredLibraryPath")(
-  function* (db: AppDatabase) {
-    const rows = yield* tryDatabasePromise("Failed to load configured library path", () =>
-      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
-    );
+export const getConfiguredLibraryPathEffect = Effect.fn(
+  "AnimeConfigSupport.getConfiguredLibraryPath",
+)(function* (db: AppDatabase) {
+  const rows = yield* tryDatabasePromise("Failed to load configured library path", () =>
+    db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
+  );
 
-    const configCore = rows[0]
-      ? yield* effectDecodeConfigCore(rows[0].data)
-      : makeDefaultConfig(":memory:");
+  const configCore = rows[0]
+    ? yield* effectDecodeConfigCore(rows[0].data)
+    : makeDefaultConfig(":memory:");
 
-    return toLibrarySettings(configCore).libraryPath;
-  },
-);
+  return toLibrarySettings(configCore).libraryPath;
+});
 
 function toLibrarySettings(config: {
   downloads: { create_anime_folders: boolean };

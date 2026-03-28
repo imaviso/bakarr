@@ -1,9 +1,7 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import type {
-  AnimeSearchResult,
-} from "../../../../../packages/shared/src/index.ts";
+import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
 import { ClockService } from "../../lib/clock.ts";
 import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
 import {

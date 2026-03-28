@@ -15,15 +15,9 @@ import { encodeAnimeDiscoveryEntries, encodeAnimeSynonyms } from "./discovery-me
 import { toAnimeDto } from "./dto.ts";
 import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "./errors.ts";
 import { cacheAnimeMetadataImages } from "./image-cache.ts";
-import {
-  buildMissingEpisodeRows,
-  findAnimeRootFolderOwnerEffect,
-} from "./repository.ts";
+import { buildMissingEpisodeRows, findAnimeRootFolderOwnerEffect } from "./repository.ts";
 import { insertAnimeAggregateAtomicEffect } from "./aggregate-support.ts";
-import {
-  getConfiguredImagesPathEffect,
-  resolveAnimeRootFolderEffect,
-} from "./config-support.ts";
+import { getConfiguredImagesPathEffect, resolveAnimeRootFolderEffect } from "./config-support.ts";
 import { qualityProfileExistsEffect } from "./profile-support.ts";
 import { tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
 

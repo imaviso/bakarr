@@ -9,10 +9,7 @@ import { encodeNumberList } from "../system/config-codec.ts";
 import { ProfileNotFoundError } from "../system/errors.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import { AnimeConflictError, AnimePathError } from "./errors.ts";
-import {
-  findAnimeRootFolderOwnerEffect,
-  requireAnimeExistsEffect,
-} from "./repository.ts";
+import { findAnimeRootFolderOwnerEffect, requireAnimeExistsEffect } from "./repository.ts";
 import { getConfiguredLibraryPathEffect } from "./config-support.ts";
 import { qualityProfileExistsEffect } from "./profile-support.ts";
 import { tryDatabasePromise, updateAnimeRow, wrapAnimeError } from "./service-support.ts";

@@ -4,9 +4,7 @@ import {
   AnimeDiscoveryEntrySchema,
   AnimeSearchResultSchema,
 } from "../../../../../packages/shared/src/index.ts";
-import type {
-  AnimeDiscoveryEntry,
-} from "../../../../../packages/shared/src/index.ts";
+import type { AnimeDiscoveryEntry } from "../../../../../packages/shared/src/index.ts";
 import { deriveAnimeSeason } from "../../lib/anime-date-utils.ts";
 
 const AnimeMetadataTitleSchema = Schema.Struct({
