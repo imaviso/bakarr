@@ -1,4 +1,4 @@
-import { Cause, Effect, Option, Schedule } from "effect";
+import { Cause, Effect, Option, Schedule, Schema } from "effect";
 import type { Scope } from "effect";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
@@ -10,10 +10,18 @@ import type { ClockServiceShape } from "./lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "./lib/effect-coalescing.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./lib/logging.ts";
 import type { AnimeMutationServiceShape } from "./features/anime/service.ts";
-import type { DownloadLifecycleServiceShape } from "./features/operations/worker-services.ts";
 import type { EventBusShape } from "./features/events/event-bus.ts";
-import type { LibraryScanServiceShape } from "./features/operations/worker-services.ts";
-import type { SearchWorkerServiceShape } from "./features/operations/worker-services.ts";
+import type { CatalogWorkflowShape } from "./features/operations/catalog-service-tags.ts";
+import type { SearchWorkflowShape } from "./features/operations/search-service-tags.ts";
+
+export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
+  "WorkerTimeoutError",
+  {
+    workerName: Schema.String,
+    timeoutMs: Schema.Number,
+    message: Schema.String,
+  },
+) {}
 
 const WORKER_TIMEOUTS: Record<BackgroundWorkerName, number> = {
   download_sync: 30_000,
@@ -24,12 +32,11 @@ const WORKER_TIMEOUTS: Record<BackgroundWorkerName, number> = {
 
 export interface BackgroundWorkerDependencies {
   readonly animeService: AnimeMutationServiceShape;
+  readonly catalogWorkflow: CatalogWorkflowShape;
   readonly clock: ClockServiceShape;
-  readonly downloadLifecycleService: DownloadLifecycleServiceShape;
   readonly eventBus: EventBusShape;
-  readonly libraryService: LibraryScanServiceShape;
   readonly monitor: BackgroundWorkerMonitorShape;
-  readonly searchWorkerService: SearchWorkerServiceShape;
+  readonly searchWorkflow: SearchWorkflowShape;
 }
 
 export interface BackgroundWorkerSpawner<R = never> {
@@ -41,23 +48,15 @@ export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConf
   workerScope: Scope.Scope,
   config: Config,
 ) {
-  const {
-    animeService,
-    clock,
-    downloadLifecycleService,
-    eventBus,
-    libraryService,
-    monitor,
-    searchWorkerService,
-  } = services;
+  const { animeService, catalogWorkflow, clock, eventBus, monitor, searchWorkflow } = services;
   const schedule = buildBackgroundSchedule(config);
   const runRssWorkerTask = Effect.fn("Background.runRssWorkerTask")(function* () {
-    yield* searchWorkerService.runRssCheck();
-    yield* searchWorkerService.triggerSearchMissing();
+    yield* searchWorkflow.runRssCheck();
+    yield* searchWorkflow.triggerSearchMissing();
   });
   const runDownloadSyncWorkerTask = Effect.fn("Background.runDownloadSyncWorkerTask")(function* () {
-    yield* downloadLifecycleService.syncDownloads();
-    const downloads = yield* downloadLifecycleService.getDownloadProgress();
+    yield* catalogWorkflow.syncDownloads();
+    const downloads = yield* catalogWorkflow.getDownloadProgress();
     yield* eventBus.publish({
       type: "DownloadProgress",
       payload: { downloads },
@@ -68,7 +67,7 @@ export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConf
 
   const libraryLoop = yield* withLockEffect(
     "library_scan",
-    libraryService.runLibraryScan(),
+    catalogWorkflow.runLibraryScan(),
     monitor,
     clock,
   );
@@ -143,12 +142,14 @@ export const withLockEffect = Effect.fn("Background.withLockEffect")(function* <
 ) {
   const effectiveTimeout = timeoutMs ?? WORKER_TIMEOUTS[workerName];
   const taskWithTimeout = task.pipe(
-    Effect.timeout(`${effectiveTimeout} millis`),
-    Effect.mapError((error) => {
-      if (error instanceof Error && error.name === "TimeoutException") {
-        return new Error(`Worker timed out after ${effectiveTimeout}ms`);
-      }
-      return error;
+    Effect.timeoutFail({
+      duration: `${effectiveTimeout} millis`,
+      onTimeout: () =>
+        new WorkerTimeoutError({
+          workerName,
+          timeoutMs: effectiveTimeout,
+          message: `Worker timed out after ${effectiveTimeout}ms`,
+        }),
     }),
   );
 
@@ -171,20 +172,21 @@ export const withLockEffect = Effect.fn("Background.withLockEffect")(function* <
         return;
       }
 
-      const prettyCause = Cause.pretty(exit.cause);
-      const isTimeout = prettyCause.includes("timed out");
+      const timeoutError = getWorkerTimeoutError(exit.cause);
+      const errorMessage = timeoutError?.message ?? Cause.pretty(exit.cause);
 
-      yield* monitor.markRunFailed(workerName, prettyCause, durationMs);
+      yield* monitor.markRunFailed(workerName, errorMessage, durationMs);
       yield* Effect.logError(
-        isTimeout ? "background worker timed out" : "background worker failed",
+        timeoutError ? "background worker timed out" : "background worker failed",
       ).pipe(
         Effect.annotateLogs(
           compactLogAnnotations({
             component: "background",
             durationMs,
-            event: isTimeout ? "background.worker.timeout" : "background.worker.failed",
+            event: timeoutError ? "background.worker.timeout" : "background.worker.failed",
+            timeoutMs: timeoutError?.timeoutMs,
             workerName,
-            ...errorLogAnnotations(prettyCause),
+            ...errorLogAnnotations(errorMessage),
           }),
         ),
       );
@@ -206,6 +208,16 @@ export const withLockEffect = Effect.fn("Background.withLockEffect")(function* <
 
   return yield* Effect.succeed(lockedTask);
 });
+
+function getWorkerTimeoutError(cause: Cause.Cause<unknown>) {
+  const failure = Cause.failureOption(cause);
+
+  if (Option.isSome(failure) && failure.value instanceof WorkerTimeoutError) {
+    return failure.value;
+  }
+
+  return null;
+}
 
 export const forkSupervisedWorker = Effect.fn("Background.forkSupervisedWorker")(function* (
   scope: Scope.Scope,
