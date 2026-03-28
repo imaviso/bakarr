@@ -2,24 +2,22 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { AnimeMutationService } from "../features/anime/service.ts";
-import {
-  CatalogOrchestration,
-  SearchOrchestration,
-} from "../features/operations/operations-orchestration.ts";
+import { CatalogLibraryService } from "../features/operations/catalog-service-tags.ts";
+import { SearchWorkerService } from "../features/operations/worker-services.ts";
 import { authedRouteResponse, successResponse } from "./router-helpers.ts";
 
 export const systemTasksRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/api/system/tasks/scan",
     authedRouteResponse(
-      Effect.flatMap(CatalogOrchestration, (service) => service.runLibraryScan()),
+      Effect.flatMap(CatalogLibraryService, (service) => service.runLibraryScan()),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/rss",
     authedRouteResponse(
-      Effect.flatMap(SearchOrchestration, (service) => service.runRssCheck()),
+      Effect.flatMap(SearchWorkerService, (service) => service.runRssCheck()),
       successResponse,
     ),
   ),

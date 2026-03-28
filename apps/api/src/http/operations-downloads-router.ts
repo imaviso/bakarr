@@ -1,7 +1,10 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { CatalogOrchestration } from "../features/operations/operations-orchestration.ts";
+import {
+  CatalogDownloadControlService,
+  CatalogReadService,
+} from "../features/operations/catalog-service-tags.ts";
 import { IdParamsSchema } from "./common-request-schemas.ts";
 import { buildDownloadEventsExportResponse } from "./download-events-export.ts";
 import {
@@ -21,14 +24,14 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
     authedRouteResponse(
-      Effect.flatMap(CatalogOrchestration, (service) => service.listDownloadQueue()),
+      Effect.flatMap(CatalogReadService, (service) => service.listDownloadQueue()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/downloads/history",
     authedRouteResponse(
-      Effect.flatMap(CatalogOrchestration, (service) => service.listDownloadHistory()),
+      Effect.flatMap(CatalogReadService, (service) => service.listDownloadHistory()),
       jsonResponse,
     ),
   ),
@@ -37,7 +40,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-        return yield* (yield* CatalogOrchestration).listDownloadEvents({
+        return yield* (yield* CatalogReadService).listDownloadEvents({
           animeId: query.anime_id,
           cursor: query.cursor,
           downloadId: query.download_id,
@@ -60,7 +63,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           DownloadEventsExportQuerySchema,
           "download events export",
         );
-        const page = yield* (yield* CatalogOrchestration).exportDownloadEvents({
+        const page = yield* (yield* CatalogReadService).exportDownloadEvents({
           animeId: query.anime_id,
           downloadId: query.download_id,
           endDate: query.end_date,
@@ -80,7 +83,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogOrchestration).pauseDownload(params.id);
+        yield* (yield* CatalogDownloadControlService).pauseDownload(params.id);
       }),
       successResponse,
     ),
@@ -90,7 +93,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogOrchestration).resumeDownload(params.id);
+        yield* (yield* CatalogDownloadControlService).resumeDownload(params.id);
       }),
       successResponse,
     ),
@@ -100,7 +103,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogOrchestration).retryDownload(params.id);
+        yield* (yield* CatalogDownloadControlService).retryDownload(params.id);
       }),
       successResponse,
     ),
@@ -110,7 +113,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogOrchestration).reconcileDownload(params.id);
+        yield* (yield* CatalogDownloadControlService).reconcileDownload(params.id);
       }),
       successResponse,
     ),
@@ -118,7 +121,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/downloads/sync",
     authedRouteResponse(
-      Effect.flatMap(CatalogOrchestration, (service) => service.syncDownloads()),
+      Effect.flatMap(CatalogDownloadControlService, (service) => service.syncDownloads()),
       successResponse,
     ),
   ),
@@ -128,7 +131,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
-        yield* (yield* CatalogOrchestration).removeDownload(
+        yield* (yield* CatalogDownloadControlService).removeDownload(
           params.id,
           query.delete_files === "true",
         );

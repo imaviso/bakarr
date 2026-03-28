@@ -2,11 +2,11 @@ import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Match, Schema } from "effect";
 
 import { AnimeFileService } from "../features/anime/service.ts";
-import { AuthError } from "../features/auth/service.ts";
 import { ClockService } from "../lib/clock.ts";
 import { FileSystem } from "../lib/filesystem.ts";
 import { createFileChunkStream } from "./file-stream.ts";
 import { StreamQuerySchema } from "./anime-request-schemas.ts";
+import { EpisodeStreamAccessError } from "./streaming-errors.ts";
 import { StreamTokenSigner } from "./stream-token-signer.ts";
 import { contentType } from "./route-fs.ts";
 import { parseEpisodeStreamRange } from "./anime-streaming-range.ts";
@@ -34,7 +34,9 @@ export const buildAnimeStreamUrl = Effect.fn("AnimeStream.buildUrl")(function* (
   const signature = yield* signer
     .sign({ animeId: input.animeId, episodeNumber: input.episodeNumber, expiresAt })
     .pipe(
-      Effect.mapError(() => new AuthError({ message: "Failed to sign stream URL", status: 400 })),
+      Effect.mapError(
+        () => new EpisodeStreamAccessError({ message: "Failed to sign stream URL", status: 400 }),
+      ),
     );
 
   return {
@@ -50,7 +52,11 @@ export const buildAnimeStreamResponse = Effect.fn("AnimeStream.buildResponse")(f
   const query = yield* Schema.decodeUnknown(StreamQuerySchema)({
     exp: url.searchParams.get("exp") ?? "",
     sig: url.searchParams.get("sig") ?? "",
-  }).pipe(Effect.mapError(() => new AuthError({ message: "Forbidden or expired", status: 403 })));
+  }).pipe(
+    Effect.mapError(
+      () => new EpisodeStreamAccessError({ message: "Forbidden or expired", status: 403 }),
+    ),
+  );
   const clock = yield* ClockService;
   const nowMillis = yield* clock.currentTimeMillis;
   const signer = yield* StreamTokenSigner;
@@ -62,10 +68,14 @@ export const buildAnimeStreamResponse = Effect.fn("AnimeStream.buildResponse")(f
       nowMillis,
       signatureHex: query.sig,
     })
-    .pipe(Effect.mapError((cause) => new AuthError({ message: cause.message, status: 403 })));
+    .pipe(
+      Effect.mapError(
+        (cause) => new EpisodeStreamAccessError({ message: cause.message, status: 403 }),
+      ),
+    );
 
   if (!isAuthorized) {
-    return yield* new AuthError({ message: "Forbidden or expired", status: 403 });
+    return yield* new EpisodeStreamAccessError({ message: "Forbidden or expired", status: 403 });
   }
 
   const animeService = yield* AnimeFileService;
@@ -74,7 +84,8 @@ export const buildAnimeStreamResponse = Effect.fn("AnimeStream.buildResponse")(f
     input.episodeNumber,
   );
 
-  const notFoundError = (message: string) => new AuthError({ message, status: 404 });
+  const notFoundError = (message: string) =>
+    new EpisodeStreamAccessError({ message, status: 404 });
 
   const episodeFilePath = yield* Match.value(resolvedEpisodeFile).pipe(
     Match.tag("EpisodeFileUnmapped", "EpisodeFileMissing", () =>
@@ -93,7 +104,11 @@ export const buildAnimeStreamResponse = Effect.fn("AnimeStream.buildResponse")(f
   const fs = yield* FileSystem;
   const fileInfo = yield* fs
     .stat(episodeFilePath.filePath)
-    .pipe(Effect.mapError(() => new AuthError({ message: "Episode file not found", status: 404 })));
+    .pipe(
+      Effect.mapError(
+        () => new EpisodeStreamAccessError({ message: "Episode file not found", status: 404 }),
+      ),
+    );
   const byteRange = yield* parseEpisodeStreamRange(request.headers.range, fileInfo.size);
 
   return HttpServerResponse.stream(

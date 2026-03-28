@@ -8,7 +8,6 @@ import {
   AnimePathError,
   AnimeStoredDataError,
 } from "../features/anime/errors.ts";
-import { AuthError } from "../features/auth/service.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
@@ -26,13 +25,15 @@ import { PasswordError } from "../security/password.ts";
 import { TokenHasherError } from "../security/token-hasher.ts";
 import {
   ConfigValidationError,
+  ImageAssetNotFoundError,
+  ImageAssetTooLargeError,
   ProfileNotFoundError,
   StoredUnmappedFolderCorruptError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
 } from "../features/system/errors.ts";
 import { DiskSpaceError } from "../features/system/disk-space.ts";
-import { EpisodeStreamRangeError } from "./streaming-errors.ts";
+import { EpisodeStreamAccessError, EpisodeStreamRangeError } from "./streaming-errors.ts";
 import { RequestValidationError } from "./route-validation.ts";
 
 const knownTaggedRouteErrorSchemas = [
@@ -40,14 +41,16 @@ const knownTaggedRouteErrorSchemas = [
   AnimeNotFoundError,
   AnimePathError,
   AnimeStoredDataError,
-  AuthError,
   ConfigValidationError,
   DatabaseError,
   DiskSpaceError,
   DownloadConflictError,
   DownloadNotFoundError,
+  EpisodeStreamAccessError,
   EpisodeStreamRangeError,
   ExternalCallError,
+  ImageAssetNotFoundError,
+  ImageAssetTooLargeError,
   OperationsAnimeNotFoundError,
   OperationsConflictError,
   OperationsInputError,
@@ -102,18 +105,20 @@ const taggedRouteErrorMappers: {
   AnimeNotFoundError: messageStatus(404),
   AnimePathError: messageStatus(400),
   AnimeStoredDataError: messageStatus(500),
-  AuthError: (error) => ({ message: error.message, status: error.status }),
   ConfigValidationError: messageStatus(400),
   DatabaseError: messageStatus(500),
   DiskSpaceError: messageStatus(500),
   DownloadConflictError: messageStatus(409),
   DownloadNotFoundError: messageStatus(404),
+  EpisodeStreamAccessError: (error) => ({ message: error.message, status: error.status }),
   EpisodeStreamRangeError: (error) => ({
     headers: { "Content-Range": `bytes */${error.fileSize}` },
     message: error.message,
     status: error.status,
   }),
   ExternalCallError: serviceUnavailable,
+  ImageAssetNotFoundError: (error) => ({ message: error.message, status: error.status }),
+  ImageAssetTooLargeError: (error) => ({ message: error.message, status: error.status }),
   OperationsAnimeNotFoundError: messageStatus(404),
   OperationsConflictError: messageStatus(409),
   OperationsInputError: messageStatus(400),

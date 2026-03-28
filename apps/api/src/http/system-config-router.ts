@@ -3,6 +3,7 @@ import { Effect } from "effect";
 
 import { QualityProfileService } from "../features/system/quality-profile-service.ts";
 import { ReleaseProfileService } from "../features/system/release-profile-service.ts";
+import { SystemConfigUpdateService } from "../features/system/system-config-update-service.ts";
 import { SystemConfigService } from "../features/system/system-config-service.ts";
 import { IdParamsSchema } from "./common-request-schemas.ts";
 import {
@@ -34,7 +35,7 @@ export const configRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBody(ConfigSchema);
-        yield* (yield* SystemConfigService).updateConfig(body);
+        return yield* (yield* SystemConfigUpdateService).updateConfig(body);
       }),
       successResponse,
     ),

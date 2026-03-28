@@ -1,9 +1,10 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect, ParseResult, Schema } from "effect";
+import { Cause, Effect, ParseResult, Schema } from "effect";
 
 import { mapRouteError } from "./route-errors.ts";
-import { requireViewerFromHttpRequest } from "./route-auth.ts";
+import { mapAuthRouteError, requireViewerFromHttpRequest } from "./route-auth.ts";
 import { formatValidationErrorMessage, RequestValidationError } from "./route-validation.ts";
+import type { RouteErrorResponse } from "./route-types.ts";
 import type { AuthUser } from "../../../../packages/shared/src/index.ts";
 
 export const decodeJsonBody = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
@@ -90,21 +91,25 @@ export const decodeQueryWithLabel = <
 export const routeResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,
   onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
+  mapError: (error: unknown) => RouteErrorResponse = mapRouteError,
 ) =>
-  effect.pipe(
-    Effect.flatMap(onSuccess),
-    Effect.catchAll((error) =>
-      Effect.logError("HTTP route failed").pipe(
-        Effect.annotateLogs({
-          error:
-            typeof error === "object" && error !== null && "_tag" in error
-              ? String(error._tag)
-              : "unknown",
-        }),
-        Effect.as(mapToServerResponse(error)),
+  Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
+    const url = new URL(request.url, "http://bakarr.local");
+
+    return effect.pipe(
+      Effect.flatMap(onSuccess),
+      Effect.tapErrorCause((cause) =>
+        Effect.logError("HTTP route failed").pipe(
+          Effect.annotateLogs({
+            cause: Cause.pretty(cause),
+            http_method: request.method,
+            http_path: url.pathname,
+          }),
+        ),
       ),
-    ),
-  );
+      Effect.catchAll((error) => Effect.succeed(mapToServerResponse(error, mapError))),
+    );
+  });
 
 export const jsonResponse = <A>(value: A) => HttpServerResponse.json(value);
 
@@ -119,9 +124,10 @@ export const withAuthViewer = <A, E, R>(effect: (viewer: AuthUser) => Effect.Eff
 export const authedRouteResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,
   onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
-) => routeResponse(withAuth(effect), onSuccess);
+  mapError: (error: unknown) => RouteErrorResponse = mapAuthRouteError,
+) => routeResponse(withAuth(effect), onSuccess, mapError);
 
-function mapToServerResponse(error: unknown) {
+function mapToServerResponse(error: unknown, mapError: (error: unknown) => RouteErrorResponse) {
   if (ParseResult.isParseError(error)) {
     return HttpServerResponse.text("Invalid request", { status: 400 });
   }
@@ -135,7 +141,7 @@ function mapToServerResponse(error: unknown) {
     return HttpServerResponse.text("Invalid request", { status: 400 });
   }
 
-  const mapped = mapRouteError(error);
+  const mapped = mapError(error);
   const response = HttpServerResponse.text(mapped.message, {
     status: mapped.status,
   });

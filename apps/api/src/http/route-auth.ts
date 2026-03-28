@@ -2,7 +2,10 @@ import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { AppConfig } from "../config.ts";
-import { AuthError, AuthService } from "../features/auth/service.ts";
+import { AuthError } from "../features/auth/errors.ts";
+import { AuthSessionService } from "../features/auth/session-service.ts";
+import { mapRouteError } from "./route-errors.ts";
+import type { RouteErrorResponse } from "./route-types.ts";
 
 export function getApiKey(headerApiKey: string | undefined, authorization: string | undefined) {
   if (headerApiKey) {
@@ -16,13 +19,29 @@ export function getApiKey(headerApiKey: string | undefined, authorization: strin
   return undefined;
 }
 
+export function mapAuthRouteError(error: unknown): RouteErrorResponse {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "_tag" in error &&
+    error._tag === "AuthError"
+  ) {
+    return {
+      message: (error as AuthError).message,
+      status: (error as AuthError).status,
+    };
+  }
+
+  return mapRouteError(error);
+}
+
 export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHttpRequest")(
   function* () {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const config = yield* AppConfig;
     const sessionToken = request.cookies[config.sessionCookieName];
     const apiKey = getApiKey(request.headers["x-api-key"], request.headers["authorization"]);
-    const viewer = yield* Effect.flatMap(AuthService, (auth) =>
+    const viewer = yield* Effect.flatMap(AuthSessionService, (auth) =>
       auth.resolveViewer(sessionToken, apiKey),
     );
 

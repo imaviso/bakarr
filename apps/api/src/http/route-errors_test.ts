@@ -6,7 +6,6 @@ import {
   AnimeNotFoundError,
   AnimePathError,
 } from "../features/anime/errors.ts";
-import { AuthError } from "../features/auth/service.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
@@ -22,13 +21,16 @@ import {
 import { ExternalCallError } from "../lib/effect-retry.ts";
 import {
   ConfigValidationError,
+  ImageAssetNotFoundError,
+  ImageAssetTooLargeError,
   ProfileNotFoundError,
   StoredUnmappedFolderCorruptError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
 } from "../features/system/errors.ts";
 import { mapRouteError } from "./route-errors.ts";
-import { EpisodeStreamRangeError } from "./streaming-errors.ts";
+import { mapAuthRouteError } from "./route-auth.ts";
+import { EpisodeStreamAccessError, EpisodeStreamRangeError } from "./streaming-errors.ts";
 import { RequestValidationError } from "./route-validation.ts";
 
 it("route errors maps known tagged errors to expected responses", () => {
@@ -53,12 +55,26 @@ it("route errors maps known tagged errors to expected responses", () => {
       expected: { message: "missing", status: 500 },
     },
     {
-      error: new AuthError({ message: "forbidden", status: 403 }),
-      expected: { message: "forbidden", status: 403 },
+      error: new EpisodeStreamAccessError({ message: "stream forbidden", status: 403 }),
+      expected: { message: "stream forbidden", status: 403 },
     },
     {
       error: new AnimeNotFoundError({ message: "anime missing" }),
       expected: { message: "anime missing", status: 404 },
+    },
+    {
+      error: new ImageAssetNotFoundError({ message: "Not Found", status: 404 }),
+      expected: { message: "Not Found", status: 404 },
+    },
+    {
+      error: new ImageAssetTooLargeError({
+        message: "Image asset payload exceeded the allowed size",
+        status: 413,
+      }),
+      expected: {
+        message: "Image asset payload exceeded the allowed size",
+        status: 413,
+      },
     },
     {
       error: new DownloadNotFoundError({ message: "download missing" }),
@@ -169,4 +185,11 @@ it("route errors falls back for unknown failures", () => {
     message: "Unexpected server error",
     status: 500,
   });
+});
+
+it("auth route errors map auth failures locally", () => {
+  assertEquals(
+    mapAuthRouteError({ _tag: "AuthError", message: "forbidden", status: 403 }),
+    { message: "forbidden", status: 403 },
+  );
 });

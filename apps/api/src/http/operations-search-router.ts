@@ -2,11 +2,10 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ClockService } from "../lib/clock.ts";
-import {
-  CatalogOrchestration,
-  DownloadOrchestration,
-  SearchOrchestration,
-} from "../features/operations/operations-orchestration.ts";
+import { CatalogReadService } from "../features/operations/catalog-service-tags.ts";
+import { DownloadTriggerService } from "../features/operations/download-service-tags.ts";
+import { SearchQueryService } from "../features/operations/search-service-tags.ts";
+import { SearchWorkerService } from "../features/operations/worker-services.ts";
 import {
   CalendarQuerySchema,
   SearchDownloadBodySchema,
@@ -31,7 +30,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
-        return yield* (yield* CatalogOrchestration).getWantedMissing(query.limit ?? 50);
+        return yield* (yield* CatalogReadService).getWantedMissing(query.limit ?? 50);
       }),
       jsonResponse,
     ),
@@ -43,7 +42,7 @@ export const searchRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
         const now = yield* (yield* ClockService).currentTimeMillis;
         const nowIso = new Date(now).toISOString();
-        return yield* (yield* CatalogOrchestration).getCalendar(
+        return yield* (yield* CatalogReadService).getCalendar(
           query.start ?? nowIso,
           query.end ?? nowIso,
         );
@@ -56,7 +55,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(SearchReleasesQuerySchema, "search releases");
-        return yield* (yield* SearchOrchestration).searchReleases(
+        return yield* (yield* SearchQueryService).searchReleases(
           query.query ?? "",
           query.anime_id,
           query.category,
@@ -71,10 +70,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(SearchEpisodeParamsSchema);
-        return yield* (yield* SearchOrchestration).searchEpisode(
-          params.animeId,
-          params.episodeNumber,
-        );
+        return yield* (yield* SearchQueryService).searchEpisode(params.animeId, params.episodeNumber);
       }),
       jsonResponse,
     ),
@@ -84,7 +80,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
-        yield* (yield* DownloadOrchestration).triggerDownload(body);
+        yield* (yield* DownloadTriggerService).triggerDownload(body);
       }),
       successResponse,
     ),
@@ -98,7 +94,7 @@ export const searchRouter = HttpRouter.empty.pipe(
           label: "search missing downloads",
           schema: SearchMissingBodySchema,
         });
-        yield* (yield* SearchOrchestration).triggerSearchMissing(body.anime_id);
+        yield* (yield* SearchWorkerService).triggerSearchMissing(body.anime_id);
       }),
       successResponse,
     ),

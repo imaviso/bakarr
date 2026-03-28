@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { AnimeEnrollmentService } from "../features/anime/anime-enrollment-service.ts";
 import { AnimeFileService, AnimeMutationService } from "../features/anime/service.ts";
-import { CatalogOrchestration } from "../features/operations/operations-orchestration.ts";
+import { CatalogLibraryService } from "../features/operations/catalog-service-tags.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
@@ -151,7 +151,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* CatalogOrchestration).renameFiles(params.id);
+        return yield* (yield* CatalogLibraryService).renameFiles(params.id);
       }),
       jsonResponse,
     ),
