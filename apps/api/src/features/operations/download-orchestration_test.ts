@@ -1021,7 +1021,7 @@ function makeTestOperationsCoordination(): import("./runtime-support.ts").Operat
   return {
     completeUnmappedScan: () => Effect.void,
     forkUnmappedScanLoop: (_loop: Effect.Effect<void>) => Effect.void,
-    runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) => operation,
+    runExclusiveDownloadTrigger: <A, E, R>(operation: Effect.Effect<A, E, R>) => operation,
     tryBeginUnmappedScan: () => Effect.succeed(false),
   };
 }

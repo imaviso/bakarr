@@ -1,11 +1,12 @@
 import { assertEquals, it } from "./test/vitest.ts";
-import { Deferred, Effect, Fiber, Metric, Scope } from "effect";
+import { Deferred, Effect, Fiber, Logger, Metric, Scope, TestClock } from "effect";
 import type { ClockServiceShape } from "./lib/clock.ts";
 
 import type { Config } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
 import { makeBackgroundWorkerController } from "./background-controller.ts";
 import { makeBackgroundWorkerMonitor } from "./background-monitor.ts";
+import { withLockEffect } from "./background-workers.ts";
 import {
   makeCoalescedEffectRunner,
   makeLatestValuePublisher,
@@ -231,6 +232,33 @@ it.effect("background worker monitor publishes Effect metrics", () =>
         worker: "rss",
       }),
       1,
+    );
+  }),
+);
+
+it.effect("background worker timeouts are tagged and recorded", () =>
+  Effect.gen(function* () {
+    const monitor = yield* makeBackgroundWorkerMonitor(testClock);
+    const messages: string[] = [];
+    const logger = Logger.make<unknown, void>(({ message }) => {
+      messages.push(String(message));
+    });
+    const lockedTask = yield* withLockEffect("rss", Effect.never, monitor, testClock, 1);
+    const fiber = yield* Effect.fork(
+      lockedTask.pipe(Effect.provide(Logger.replace(Logger.defaultLogger, logger))),
+    );
+
+    yield* TestClock.adjust("1 second");
+    yield* Fiber.join(fiber);
+
+    const snapshot = yield* monitor.snapshot();
+
+    assertEquals(snapshot.rss.failureCount, 1);
+    assertEquals(snapshot.rss.lastErrorMessage, "Worker timed out after 1ms");
+    assertEquals(snapshot.rss.runRunning, false);
+    assertEquals(
+      messages.some((message) => message.includes("background worker timed out")),
+      true,
     );
   }),
 );

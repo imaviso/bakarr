@@ -2,56 +2,85 @@ import { assertEquals, it } from "../../test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
+import { AniListClient } from "../anime/anilist.ts";
+import { AnimeImportService } from "../anime/import-service.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { makeTestConfig } from "../../test/config-fixture.ts";
 import { makeSearchOrchestration } from "./search-orchestration.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
+import { toDatabaseError } from "../../lib/effect-db.ts";
 import type { ParsedRelease } from "./rss-client.ts";
 import type { QBitTorrentClient } from "./qbittorrent.ts";
+import { RssClient } from "./rss-client.ts";
+import { SeaDexClient } from "./seadex-client.ts";
 
 it.effect(
   "searchEpisodeReleases fails instead of silently degrading when SeaDex enrichment fails",
   () =>
     Effect.gen(function* () {
+      const aniList = {
+        getAnimeMetadataById: (_id: number) => Effect.succeed(null),
+        searchAnimeMetadata: (_query: string) => Effect.succeed([]),
+      } satisfies typeof AniListClient.Service;
+
+      const animeImportService = {
+        upsertEpisode: () => Effect.succeed(undefined),
+      } satisfies typeof AnimeImportService.Service;
+
+      const eventBus = {
+        publish: () => Effect.void,
+        subscribe: () => Effect.die("unused"),
+      } satisfies typeof EventBus.Service;
+
+      const qbitClient = {
+        addTorrentUrl: () => Effect.die("unused"),
+        deleteTorrent: () => Effect.die("unused"),
+        listTorrentContents: () => Effect.die("unused"),
+        listTorrents: () => Effect.die("unused"),
+        pauseTorrent: () => Effect.die("unused"),
+        resumeTorrent: () => Effect.die("unused"),
+      } satisfies typeof QBitTorrentClient.Service;
+
+      const rssClient = {
+        fetchItems: () => Effect.succeed([makeRelease()]),
+      } satisfies typeof RssClient.Service;
+
+      const seadexClient = {
+        getEntryByAniListId: () =>
+          Effect.fail(
+            new ExternalCallError({
+              cause: new Error("SeaDex unavailable"),
+              message: "SeaDex lookup failed",
+              operation: "seadex.getEntryByAniListId",
+            }),
+          ),
+      } satisfies typeof SeaDexClient.Service;
+
       const orchestration = makeSearchOrchestration({
-        aniList: {} as never,
-        animeImportService: {
-          resolveAnimeRootFolder: () => Effect.succeed("/tmp"),
-          upsertEpisode: () => Effect.void,
-        } as never,
+        aniList,
+        animeImportService,
         coordination: {
           completeUnmappedScan: () => Effect.void,
           forkUnmappedScanLoop: (_loop: Effect.Effect<void>) => Effect.void,
-          runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) => operation,
+          runExclusiveDownloadTrigger: <A, E, R>(operation: Effect.Effect<A, E, R>) => operation,
           tryBeginUnmappedScan: () => Effect.succeed(false),
         },
         db: {} as AppDatabase,
-        dbError: (message) => (cause) => ({ cause, message }) as never,
-        eventBus: {} as typeof EventBus.Service,
+        dbError: toDatabaseError,
+        eventBus,
         fs: {} as FileSystemShape,
         maybeQBitConfig: () => null,
         mediaProbe: {} as MediaProbeShape,
         nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
         publishDownloadProgress: () => Effect.void,
         publishRssCheckProgress: () => Effect.void,
-        qbitClient: {} as typeof QBitTorrentClient.Service,
-        rssClient: {
-          fetchItems: () => Effect.succeed([makeRelease()]),
-        } as never,
-        seadexClient: {
-          getEntryByAniListId: () =>
-            Effect.fail(
-              new ExternalCallError({
-                cause: new Error("SeaDex unavailable"),
-                message: "SeaDex lookup failed",
-                operation: "seadex.getEntryByAniListId",
-              }),
-            ),
-        } as never,
+        qbitClient,
+        rssClient,
+        seadexClient,
         tryDatabasePromise: () => Effect.die("unused"),
-        wrapOperationsError: (_message) => (cause) => cause as never,
+        wrapOperationsError: toDatabaseError,
       });
 
       const config = makeTestConfig("/tmp/test.sqlite", (c) => ({
