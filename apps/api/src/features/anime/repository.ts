@@ -1,12 +1,10 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
-import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
-import { anime, appConfig, episodes, qualityProfiles, systemLogs } from "../../db/schema.ts";
+import { anime, episodes } from "../../db/schema.ts";
+import { inferAiredAt } from "../../lib/anime-derivations.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { effectDecodeConfigCore, effectDecodeImagePath } from "../system/config-codec.ts";
-import { makeDefaultConfig } from "../system/defaults.ts";
 import { AnimeNotFoundError } from "./errors.ts";
 
 type EpisodeWriteDb = Pick<AppDatabase, "insert" | "select" | "update">;
@@ -267,41 +265,6 @@ export const bulkMapEpisodeFilesAtomicEffect = Effect.fn(
   );
 });
 
-export const resolveAnimeRootFolderEffect = Effect.fn("AnimeRepository.resolveAnimeRootFolder")(
-  function* (
-    db: AppDatabase,
-    requestedRootFolder: string,
-    title: string,
-    options: { readonly useExistingRoot?: boolean } = {},
-  ) {
-    const trimmed = requestedRootFolder.trim();
-    const rows = yield* tryDatabasePromise("Failed to resolve anime root folder", () =>
-      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
-    );
-    const configCore = rows[0]
-      ? yield* effectDecodeConfigCore(rows[0].data)
-      : makeDefaultConfig(":memory:");
-    const settings = toLibrarySettings(configCore);
-    const baseRootFolder = trimmed.length > 0 ? trimmed : settings.libraryPath;
-
-    if (options.useExistingRoot && trimmed.length > 0) {
-      return trimmed;
-    }
-
-    if (!settings.createAnimeFolders) {
-      return baseRootFolder;
-    }
-
-    const safeSegment = toSafePathSegment(title);
-
-    if (baseRootFolder.split("/").filter(Boolean).pop() === safeSegment) {
-      return baseRootFolder;
-    }
-
-    return `${baseRootFolder.replace(/\/$/, "")}/${safeSegment}`;
-  },
-);
-
 export interface FutureAiringScheduleEntry {
   readonly airingAt: string;
   readonly episode: number;
@@ -356,39 +319,6 @@ export const updateAnimeEpisodeAirDatesEffect = Effect.fn(
   }
 });
 
-export const markSearchResultsAlreadyInLibraryEffect = Effect.fn(
-  "AnimeRepository.markSearchResultsAlreadyInLibrary",
-)(function* (db: AppDatabase, results: readonly AnimeSearchResult[]) {
-  const ids = [...new Set(results.map((result) => result.id))];
-
-  if (ids.length === 0) {
-    return [...results];
-  }
-
-  const rows = yield* tryDatabasePromise("Failed to mark search results in library", () =>
-    db.select({ id: anime.id }).from(anime).where(inArray(anime.id, ids)),
-  );
-  const libraryIds = new Set(rows.map((row) => row.id));
-
-  return results.map((result) => ({
-    ...result,
-    already_in_library: libraryIds.has(result.id),
-  }));
-});
-
-export const qualityProfileExistsEffect = Effect.fn("AnimeRepository.qualityProfileExists")(
-  function* (db: AppDatabase, name: string) {
-    const rows = yield* tryDatabasePromise("Failed to verify quality profile", () =>
-      db
-        .select({ name: qualityProfiles.name })
-        .from(qualityProfiles)
-        .where(eq(qualityProfiles.name, name))
-        .limit(1),
-    );
-    return rows.length > 0;
-  },
-);
-
 export const findAnimeRootFolderOwnerEffect = Effect.fn("AnimeRepository.findAnimeRootFolderOwner")(
   function* (db: AppDatabase, rootFolder: string) {
     const normalized = normalizeRootFolder(rootFolder);
@@ -423,71 +353,8 @@ function normalizeRootFolder(rootFolder: string) {
   return rootFolder.replace(/\/+$/, "");
 }
 
-export const getConfiguredImagesPathEffect = Effect.fn("AnimeRepository.getConfiguredImagesPath")(
-  function* (db: AppDatabase) {
-    const rows = yield* tryDatabasePromise("Failed to load configured images path", () =>
-      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
-    );
-
-    return yield* effectDecodeImagePath(rows[0]);
-  },
-);
-
-export const getConfiguredLibraryPathEffect = Effect.fn("AnimeRepository.getConfiguredLibraryPath")(
-  function* (db: AppDatabase) {
-    const rows = yield* tryDatabasePromise("Failed to load configured library path", () =>
-      db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
-    );
-
-    const configCore = rows[0]
-      ? yield* effectDecodeConfigCore(rows[0].data)
-      : makeDefaultConfig(":memory:");
-
-    return toLibrarySettings(configCore).libraryPath;
-  },
-);
-
-export const appendAnimeLogEffect = Effect.fn("AnimeRepository.appendAnimeLog")(function* (
-  db: AppDatabase,
-  eventType: string,
-  level: string,
-  message: string,
-  nowIso: NowIso,
-) {
-  const createdAt = yield* nowIso();
-  yield* tryDatabasePromise("Failed to append anime log", () =>
-    db.insert(systemLogs).values({
-      createdAt,
-      details: null,
-      eventType,
-      level,
-      message,
-    }),
-  );
-});
-
-export const insertAnimeAggregateAtomicEffect = Effect.fn(
-  "AnimeRepository.insertAnimeAggregateAtomic",
-)(function* (
-  db: AppDatabase,
-  input: {
-    animeRow: typeof anime.$inferInsert;
-    episodeRows: readonly (typeof episodes.$inferInsert)[];
-    log: typeof systemLogs.$inferInsert;
-  },
-) {
-  yield* tryDatabasePromise("Failed to insert anime aggregate", () =>
-    db.transaction(async (tx) => {
-      await tx.insert(anime).values(input.animeRow);
-
-      if (input.episodeRows.length > 0) {
-        await tx.insert(episodes).values([...input.episodeRows]);
-      }
-
-      await tx.insert(systemLogs).values(input.log);
-    }),
-  );
-});
+export { markSearchResultsAlreadyInLibraryEffect } from "../../lib/anime-search-results.ts";
+export { inferAiredAt };
 
 export function buildMissingEpisodeRows(input: {
   animeId: number;
@@ -537,64 +404,6 @@ export function buildMissingEpisodeRows(input: {
       } satisfies typeof episodes.$inferInsert,
     ];
   });
-}
-
-export function inferAiredAt(
-  status: string,
-  episodeNumber: number,
-  episodeCount: number | undefined,
-  startDate: string | undefined,
-  endDate: string | undefined,
-  futureAiringSchedule?: ReadonlyMap<number, string>,
-  fallbackNowIso?: string,
-) {
-  const scheduledAiringAt = futureAiringSchedule?.get(episodeNumber);
-
-  if (scheduledAiringAt) {
-    return scheduledAiringAt;
-  }
-
-  if (!startDate) {
-    return status === "FINISHED" ? (fallbackNowIso ?? null) : null;
-  }
-
-  const start = new Date(`${startDate}T00:00:00Z`);
-
-  if (Number.isNaN(start.getTime())) {
-    return status === "FINISHED" ? (fallbackNowIso ?? null) : null;
-  }
-
-  if (status === "FINISHED" && endDate && episodeCount && episodeCount > 1) {
-    const end = new Date(`${endDate}T00:00:00Z`);
-
-    if (!Number.isNaN(end.getTime())) {
-      const spanMs = Math.max(end.getTime() - start.getTime(), 0);
-      const intervalMs = episodeCount > 1 ? Math.floor(spanMs / (episodeCount - 1)) : 0;
-      return new Date(start.getTime() + intervalMs * (episodeNumber - 1)).toISOString();
-    }
-  }
-
-  const weeklyMs = 7 * 24 * 60 * 60 * 1000;
-  return new Date(start.getTime() + weeklyMs * (episodeNumber - 1)).toISOString();
-}
-
-function toLibrarySettings(config: {
-  downloads: { create_anime_folders: boolean };
-  library: { library_path: string };
-}) {
-  return {
-    createAnimeFolders: config.downloads.create_anime_folders,
-    libraryPath: config.library.library_path.trim() || "./library",
-  };
-}
-
-function toSafePathSegment(value: string) {
-  return (
-    value
-      .replace(/[<>:"/\\|?*]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim() || "anime"
-  );
 }
 
 function buildEpisodePatchSet(patch: UpsertEpisodePatch, existing: typeof episodes.$inferSelect) {

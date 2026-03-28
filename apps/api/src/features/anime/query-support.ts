@@ -12,12 +12,16 @@ import type {
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
 import type { AniListClient } from "./anilist.ts";
-import { scoreAnimeSearchResultMatch } from "../operations/library-import.ts";
 import { toAnimeDto } from "./dto.ts";
 import { AnimeNotFoundError, AnimeStoredDataError } from "./errors.ts";
-import { getAnimeRowEffect, markSearchResultsAlreadyInLibraryEffect } from "./repository.ts";
+import { getAnimeRowEffect } from "./repository.ts";
 import { tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "../../lib/anime-date-utils.ts";
+import {
+  deriveEpisodeTimelineMetadata,
+  scoreAnimeSearchResultMatch,
+} from "../../lib/anime-derivations.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "../../lib/anime-search-results.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredNumberListEffect,
@@ -313,36 +317,6 @@ export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(f
       };
     });
 });
-
-export function deriveEpisodeTimelineMetadata(
-  aired?: string,
-  now?: Date,
-): Pick<Episode, "airing_status" | "is_future"> {
-  if (!aired) {
-    return { airing_status: "unknown" };
-  }
-
-  if (!now) {
-    return { airing_status: "unknown" };
-  }
-
-  const airedAt = new Date(aired);
-  if (Number.isNaN(airedAt.getTime())) {
-    return { airing_status: "unknown" };
-  }
-
-  if (airedAt > now) {
-    return {
-      airing_status: "future",
-      is_future: true,
-    };
-  }
-
-  return {
-    airing_status: "aired",
-    is_future: false,
-  };
-}
 
 export function annotateAnimeSearchResultsForQuery(
   query: string,

@@ -6,22 +6,26 @@ import { ConfigCoreSchema } from "../system/config-schema.ts";
 import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { anime, appConfig, episodes, systemLogs } from "../../db/schema.ts";
+import { anime, appConfig, episodes, qualityProfiles, systemLogs } from "../../db/schema.ts";
 import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import { encodeConfigCore } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
+import { qualityProfileExistsEffect } from "./profile-support.ts";
 
 import {
   buildMissingEpisodeRows,
   ensureEpisodesEffect,
   findAnimeRootFolderOwnerEffect,
-  getConfiguredImagesPathEffect,
   inferAiredAt,
-  insertAnimeAggregateAtomicEffect,
   markSearchResultsAlreadyInLibraryEffect,
-  resolveAnimeRootFolderEffect,
   upsertEpisodeEffect,
 } from "./repository.ts";
+import {
+  getConfiguredImagesPathEffect,
+  getConfiguredLibraryPathEffect,
+  resolveAnimeRootFolderEffect,
+} from "./config-support.ts";
+import { insertAnimeAggregateAtomicEffect } from "./aggregate-support.ts";
 
 it.scoped("upsertEpisode prevents duplicate anime episode rows", () =>
   withTestDbEffect((db) =>
@@ -321,6 +325,29 @@ it.scoped("anime repository helpers use stored config when available", () =>
 
       assertEquals(yield* resolveAnimeRootFolderEffect(db, "", "Naruto"), "/anime-library");
       assertEquals(yield* getConfiguredImagesPathEffect(db), "./custom-images");
+      assertEquals(yield* getConfiguredLibraryPathEffect(db), "/anime-library");
+    }),
+  ),
+);
+
+it.scoped("qualityProfileExistsEffect checks stored quality profile rows", () =>
+  withTestDbEffect((db) =>
+    Effect.gen(function* () {
+      assertEquals(yield* qualityProfileExistsEffect(db, "Standard"), false);
+
+      yield* Effect.promise(() =>
+        db.insert(qualityProfiles).values({
+          allowedQualities: "1080p",
+          cutoff: "720p",
+          maxSize: null,
+          minSize: null,
+          name: "Standard",
+          seadexPreferred: false,
+          upgradeAllowed: true,
+        }),
+      );
+
+      assertEquals(yield* qualityProfileExistsEffect(db, "Standard"), true);
     }),
   ),
 );

@@ -18,11 +18,13 @@ import { cacheAnimeMetadataImages } from "./image-cache.ts";
 import {
   buildMissingEpisodeRows,
   findAnimeRootFolderOwnerEffect,
-  getConfiguredImagesPathEffect,
-  insertAnimeAggregateAtomicEffect,
-  qualityProfileExistsEffect,
-  resolveAnimeRootFolderEffect,
 } from "./repository.ts";
+import { insertAnimeAggregateAtomicEffect } from "./aggregate-support.ts";
+import {
+  getConfiguredImagesPathEffect,
+  resolveAnimeRootFolderEffect,
+} from "./config-support.ts";
+import { qualityProfileExistsEffect } from "./profile-support.ts";
 import { tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
 
 export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function* (input: {

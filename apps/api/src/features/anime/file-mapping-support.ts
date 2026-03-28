@@ -19,8 +19,7 @@ import {
 } from "../../lib/media-identity.ts";
 import { collectVideoFiles } from "./files.ts";
 import { AnimePathError, type AnimeServiceError } from "./errors.ts";
-import { buildScannedFileMetadata } from "../operations/naming-support.ts";
-import { summarizeEpisodeCoverage } from "../operations/library-import.ts";
+import { buildScannedFileMetadata } from "../../lib/scanned-file-metadata.ts";
 import {
   buildAiringScheduleMap,
   bulkMapEpisodeFilesAtomicEffect,
@@ -32,6 +31,7 @@ import {
 } from "./repository.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { wrapAnimeError } from "./service-support.ts";
+import { summarizeEpisodeCoverage } from "../../lib/anime-derivations.ts";
 
 const mapAnimeDbError = (message: string) => Effect.mapError(wrapAnimeError(message));
 

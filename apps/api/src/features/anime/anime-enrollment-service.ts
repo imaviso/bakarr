@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import type { Anime } from "../../../../../packages/shared/src/index.ts";
 import type { DatabaseError } from "../../db/database.ts";
 import type { ExternalCallError } from "../../lib/effect-retry.ts";
-import { SearchOrchestration } from "../operations/operations-orchestration.ts";
+import { SearchWorkerService } from "../operations/worker-services.ts";
 import type { ProfileNotFoundError } from "../system/errors.ts";
 import type { AddAnimeInput } from "./add-anime-input.ts";
 import type { AnimeServiceError } from "./errors.ts";
@@ -31,7 +31,7 @@ export class AnimeEnrollmentService extends Context.Tag("@bakarr/api/AnimeEnroll
 
 const makeAnimeEnrollmentService = Effect.gen(function* () {
   const animeService = yield* AnimeMutationService;
-  const searchService = yield* SearchOrchestration;
+  const searchService = yield* SearchWorkerService;
 
   const enroll = Effect.fn("AnimeEnrollmentService.enroll")(function* (input: AddAnimeInput) {
     const anime = yield* animeService.addAnime(input);

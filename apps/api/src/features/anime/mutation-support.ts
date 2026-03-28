@@ -10,13 +10,13 @@ import { ProfileNotFoundError } from "../system/errors.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
 import { AnimeConflictError, AnimePathError } from "./errors.ts";
 import {
-  getConfiguredLibraryPathEffect,
-  appendAnimeLogEffect,
   findAnimeRootFolderOwnerEffect,
-  qualityProfileExistsEffect,
   requireAnimeExistsEffect,
 } from "./repository.ts";
+import { getConfiguredLibraryPathEffect } from "./config-support.ts";
+import { qualityProfileExistsEffect } from "./profile-support.ts";
 import { tryDatabasePromise, updateAnimeRow, wrapAnimeError } from "./service-support.ts";
+import { appendSystemLog } from "../system/support.ts";
 
 type AnimeInfoPublisher = Pick<EventPublisherShape, "publishInfo">;
 
@@ -76,7 +76,7 @@ export const updateAnimePathEffect = Effect.fn("AnimeService.updateAnimePathEffe
     yield* tryDatabasePromise("Failed to update anime path", () =>
       input.db.update(anime).set({ rootFolder: canonicalPath }).where(eq(anime.id, input.id)),
     );
-    yield* appendAnimeLogEffect(
+    yield* appendSystemLog(
       input.db,
       "anime.path.updated",
       "success",

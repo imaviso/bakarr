@@ -5,14 +5,13 @@ import type { AppDatabase } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
+import { markJobFailed, markJobStarted, markJobSucceeded } from "../../lib/job-status.ts";
 import type { EventPublisherShape } from "../events/publisher.ts";
-import { markJobFailed, markJobStarted, markJobSucceeded } from "../operations/job-support.ts";
 import { appendSystemLog } from "../system/support.ts";
 import type { AniListClient } from "./anilist.ts";
 import { encodeAnimeDiscoveryEntries, encodeAnimeSynonyms } from "./discovery-metadata-codec.ts";
 import { scanAnimeFolderEffect } from "./file-mapping-support.ts";
 import {
-  appendAnimeLogEffect,
   ensureEpisodesEffect,
   type FutureAiringScheduleEntry,
   getAnimeRowEffect,
@@ -143,7 +142,7 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
       "Failed to refresh episodes",
       nowIso,
     );
-    yield* appendAnimeLogEffect(
+    yield* appendSystemLog(
       input.db,
       "anime.episodes.refreshed",
       "success",
@@ -254,7 +253,7 @@ export const scanAnimeFolderOrchestrationEffect = Effect.fn(
     nowIso,
   });
 
-  yield* appendAnimeLogEffect(
+  yield* appendSystemLog(
     input.db,
     "anime.folder.scanned",
     "success",

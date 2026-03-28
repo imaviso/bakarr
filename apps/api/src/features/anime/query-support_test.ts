@@ -7,12 +7,12 @@ import * as schema from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
+import { deriveEpisodeTimelineMetadata } from "../../lib/anime-derivations.ts";
 import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import { MediaProbeMetadataFound } from "../../lib/media-probe.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "../../test/filesystem-test.ts";
 import {
   annotateAnimeSearchResultsForQuery,
-  deriveEpisodeTimelineMetadata,
   getAnimeByAnilistIdEffect,
   getAnimeEffect,
   listAnimeEffect,

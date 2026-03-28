@@ -17,7 +17,8 @@ import {
   AnimePathError,
   type AnimeServiceError,
 } from "./errors.ts";
-import { appendAnimeLogEffect, requireAnimeExistsEffect } from "./repository.ts";
+import { requireAnimeExistsEffect } from "./repository.ts";
+import { appendSystemLog } from "../system/support.ts";
 import { AniListClient } from "./anilist.ts";
 import { refreshMetadataForMonitoredAnimeEffect } from "./orchestration-support.ts";
 
@@ -65,7 +66,7 @@ export const updateAnimeRow = Effect.fn("AnimeService.updateAnimeRow")(function*
   yield* tryDatabasePromise("Failed to update anime", () =>
     db.update(anime).set(patch).where(eq(anime.id, animeId)),
   );
-  yield* appendAnimeLogEffect(db, "anime.updated", "success", message, nowIso);
+  yield* appendSystemLog(db, "anime.updated", "success", message, nowIso);
   yield* eventPublisher.publishInfo(message);
 });
 
