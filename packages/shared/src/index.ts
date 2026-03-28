@@ -681,12 +681,14 @@ export const QbittorrentConfigSchema: Schema.Schema<{
   username: string;
   password?: string | null;
   default_category: string;
+  trusted_local?: boolean;
 }> = Schema.Struct({
   enabled: Schema.Boolean,
   url: Schema.String,
   username: Schema.String,
   password: Schema.optional(Schema.NullOr(Schema.String)),
   default_category: Schema.String,
+  trusted_local: Schema.optional(Schema.Boolean),
 });
 
 export const NyaaConfigSchema: Schema.Schema<{
