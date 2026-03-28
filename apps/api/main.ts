@@ -25,7 +25,7 @@ import { makeApiLayer, makeApiRuntime, type RuntimeOptions } from "./src/runtime
  *    untouched — corrupt config is NOT repaired here; see getConfig for the
  *    repair contract. Applies stored log level if config is decodable.
  * 3. **Bootstrap user** — Create the initial admin user if no users exist.
- *    See {@link ensureBootstrapUser} in auth/service.ts for lifecycle details.
+ *    See {@link ensureBootstrapUser} in auth/bootstrap-service.ts for lifecycle details.
  * 4. **Return AppConfig** — Hand the resolved env config to the caller so it
  *    can bind the HTTP server.
  *

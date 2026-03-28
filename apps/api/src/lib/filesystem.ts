@@ -77,6 +77,8 @@ export interface FileSystemShape {
   ) => Effect.Effect<void, FileSystemError>;
 }
 
+const DIRECTORY_STAT_CONCURRENCY = 16;
+
 export class FileSystem extends Context.Tag("@bakarr/api/FileSystem")<
   FileSystem,
   FileSystemShape
@@ -203,7 +205,7 @@ function makeFileSystem(
                   Effect.scoped(platformFs.stat(pathService.join(resolvedPath, name))).pipe(
                     Effect.map((info) => toDirEntry(name, info)),
                   ),
-                { concurrency: "unbounded" },
+                { concurrency: DIRECTORY_STAT_CONCURRENCY },
               ),
             ),
           ),
