@@ -1,10 +1,7 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import {
-  CatalogDownloadControlService,
-  CatalogReadService,
-} from "../features/operations/catalog-service-tags.ts";
+import { CatalogWorkflow } from "../features/operations/catalog-service-tags.ts";
 import { IdParamsSchema } from "./common-request-schemas.ts";
 import { buildDownloadEventsExportResponse } from "./download-events-export.ts";
 import {
@@ -24,14 +21,14 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
     authedRouteResponse(
-      Effect.flatMap(CatalogReadService, (service) => service.listDownloadQueue()),
+      Effect.flatMap(CatalogWorkflow, (service) => service.listDownloadQueue()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/downloads/history",
     authedRouteResponse(
-      Effect.flatMap(CatalogReadService, (service) => service.listDownloadHistory()),
+      Effect.flatMap(CatalogWorkflow, (service) => service.listDownloadHistory()),
       jsonResponse,
     ),
   ),
@@ -40,7 +37,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-        return yield* (yield* CatalogReadService).listDownloadEvents({
+        return yield* (yield* CatalogWorkflow).listDownloadEvents({
           animeId: query.anime_id,
           cursor: query.cursor,
           downloadId: query.download_id,
@@ -63,7 +60,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           DownloadEventsExportQuerySchema,
           "download events export",
         );
-        const page = yield* (yield* CatalogReadService).exportDownloadEvents({
+        const page = yield* (yield* CatalogWorkflow).exportDownloadEvents({
           animeId: query.anime_id,
           downloadId: query.download_id,
           endDate: query.end_date,
@@ -83,7 +80,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadControlService).pauseDownload(params.id);
+        yield* (yield* CatalogWorkflow).pauseDownload(params.id);
       }),
       successResponse,
     ),
@@ -93,7 +90,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadControlService).resumeDownload(params.id);
+        yield* (yield* CatalogWorkflow).resumeDownload(params.id);
       }),
       successResponse,
     ),
@@ -103,7 +100,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadControlService).retryDownload(params.id);
+        yield* (yield* CatalogWorkflow).retryDownload(params.id);
       }),
       successResponse,
     ),
@@ -113,7 +110,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadControlService).reconcileDownload(params.id);
+        yield* (yield* CatalogWorkflow).reconcileDownload(params.id);
       }),
       successResponse,
     ),
@@ -121,7 +118,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/downloads/sync",
     authedRouteResponse(
-      Effect.flatMap(CatalogDownloadControlService, (service) => service.syncDownloads()),
+      Effect.flatMap(CatalogWorkflow, (service) => service.syncDownloads()),
       successResponse,
     ),
   ),
@@ -131,10 +128,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
-        yield* (yield* CatalogDownloadControlService).removeDownload(
-          params.id,
-          query.delete_files === "true",
-        );
+        yield* (yield* CatalogWorkflow).removeDownload(params.id, query.delete_files === "true");
       }),
       successResponse,
     ),
