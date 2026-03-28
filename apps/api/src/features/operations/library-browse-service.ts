@@ -8,6 +8,7 @@ import { SystemConfigService } from "../system/system-config-service.ts";
 import { OperationsInputError, OperationsPathError } from "./errors.ts";
 
 const MAX_BROWSE_LIMIT = 500;
+const DIRECTORY_STAT_CONCURRENCY = 16;
 
 export interface BrowseEntry {
   readonly is_directory: boolean;
@@ -186,7 +187,7 @@ function browseFsPath(
                   }),
               ),
             ),
-      { concurrency: "unbounded" },
+      { concurrency: DIRECTORY_STAT_CONCURRENCY },
     );
 
     return {

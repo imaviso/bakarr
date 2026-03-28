@@ -2,7 +2,7 @@ import { Effect } from "effect";
 
 import type { ScannerState } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "../anime/repository.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "../../lib/anime-search-results.ts";
 import { mergeLocalFolderMatch } from "./unmapped-folder-match-support.ts";
 import {
   buildUnmappedFolderSearchQueries,

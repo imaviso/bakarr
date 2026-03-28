@@ -23,9 +23,17 @@ import {
 import { markUnmappedFolderMatching } from "./unmapped-folders.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import type { OperationsCoordinationShape } from "./runtime-support.ts";
+import type { UnmappedScanQueryShape } from "./unmapped-orchestration-scan-query.ts";
 import { makeUnmappedScanQuerySupport } from "./unmapped-orchestration-scan-query.ts";
 
-export type UnmappedScanWorkflowShape = ReturnType<typeof makeUnmappedScanWorkflow>;
+export interface UnmappedScanWorkflowShape {
+  readonly getUnmappedFolders: UnmappedScanQueryShape["getUnmappedFolders"];
+  readonly matchAndPersistUnmappedFolder: UnmappedScanQueryShape["matchAndPersistUnmappedFolder"];
+  readonly runUnmappedScan: () => Effect.Effect<
+    { folderCount: number },
+    DatabaseError | OperationsPathError | import("./errors.ts").OperationsStoredDataError
+  >;
+}
 
 export function makeUnmappedScanWorkflow(input: {
   aniList: typeof AniListClient.Service;
@@ -193,5 +201,5 @@ export function makeUnmappedScanWorkflow(input: {
     getUnmappedFolders,
     matchAndPersistUnmappedFolder,
     runUnmappedScan,
-  };
+  } satisfies UnmappedScanWorkflowShape;
 }

@@ -9,10 +9,10 @@ import type {
 import { DatabaseError } from "../../db/database.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
-import { deriveEpisodeTimelineMetadata } from "../anime/query-support.ts";
 import type { OperationsError } from "./errors.ts";
 import { buildRenamePreview } from "./library-import.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+import { deriveEpisodeTimelineMetadata } from "../../lib/anime-derivations.ts";
 
 export interface CatalogLibraryReadSupportShape {
   readonly getWantedMissing: (limit: number) => Effect.Effect<MissingEpisode[], DatabaseError>;

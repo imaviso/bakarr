@@ -2,6 +2,7 @@ import { Effect } from "effect";
 
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { AniListClient } from "../anime/anilist.ts";
+import { AnimeImportService } from "../anime/import-service.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { RssClient } from "./rss-client.ts";
 import { SeaDexClient } from "./seadex-client.ts";
@@ -25,6 +26,7 @@ export function makeSearchOrchestration(input: {
   fs: FileSystemShape;
   mediaProbe: MediaProbeShape;
   aniList: typeof AniListClient.Service;
+  animeImportService: typeof AnimeImportService.Service;
   rssClient: typeof RssClient.Service;
   seadexClient: typeof SeaDexClient.Service;
   qbitClient: typeof QBitTorrentClient.Service;
@@ -49,6 +51,7 @@ export function makeSearchOrchestration(input: {
     fs,
     mediaProbe,
     aniList,
+    animeImportService,
     rssClient,
     seadexClient,
     qbitClient,
@@ -89,6 +92,7 @@ export function makeSearchOrchestration(input: {
   const { runRssCheck, triggerSearchMissing } = backgroundSearchSupport;
   const unmappedOrchestrationSupport = makeUnmappedOrchestrationSupport({
     aniList,
+    animeImportService,
     db,
     dbError,
     fs,

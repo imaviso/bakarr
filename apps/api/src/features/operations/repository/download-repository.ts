@@ -1,9 +1,7 @@
-import { and, inArray, sql } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
 import type {
   Download,
-  DownloadEvent,
   DownloadSourceMetadata,
   DownloadStatus,
 } from "../../../../../../packages/shared/src/index.ts";
@@ -12,17 +10,12 @@ import {
   DownloadSourceMetadataSchema,
 } from "../../../../../../packages/shared/src/index.ts";
 import { toSharedParsedEpisodeIdentity } from "../../../lib/media-identity.ts";
-import type { AppDatabase } from "../../../db/database.ts";
-import { anime, downloadEvents, downloads, episodes } from "../../../db/schema.ts";
+import type { downloads } from "../../../db/schema.ts";
 import { decodeOptionalNumberList } from "../../system/config-codec.ts";
-import type { DownloadEventPresentationContext, DownloadPresentationContext } from "./types.ts";
+import type { DownloadPresentationContext } from "./types.ts";
 import { OperationsStoredDataError } from "../errors.ts";
 
-const SQLITE_IN_LIST_CHUNK_SIZE = 900;
-const CHUNK_LOAD_CONCURRENCY = 4;
-
 type DownloadRow = typeof downloads.$inferSelect;
-type DownloadEventRow = typeof downloadEvents.$inferSelect;
 
 const DownloadSourceMetadataJsonSchema = Schema.parseJson(DownloadSourceMetadataSchema);
 const DownloadEventMetadataJsonSchema = Schema.parseJson(DownloadEventMetadataSchema);
@@ -67,27 +60,6 @@ export const toDownload = Effect.fn("OperationsRepository.toDownload")(function*
     torrent_name: row.torrentName,
     total_bytes: row.totalBytes ?? undefined,
   } satisfies Download;
-});
-
-export const toDownloadEvent = Effect.fn("OperationsRepository.toDownloadEvent")(function* (
-  row: DownloadEventRow,
-  context?: DownloadEventPresentationContext,
-) {
-  return {
-    anime_id: row.animeId ?? undefined,
-    anime_image: context?.animeImage,
-    anime_title: context?.animeTitle,
-    created_at: row.createdAt,
-    download_id: row.downloadId ?? undefined,
-    event_type: row.eventType,
-    from_status: row.fromStatus ?? undefined,
-    id: row.id,
-    message: row.message,
-    metadata: row.metadata ?? undefined,
-    metadata_json: yield* decodeDownloadEventMetadata(row.metadata),
-    torrent_name: context?.torrentName,
-    to_status: row.toStatus ?? undefined,
-  } satisfies DownloadEvent;
 });
 
 export const toDownloadStatus = Effect.fn("OperationsRepository.toDownloadStatus")(function* (
@@ -175,23 +147,6 @@ export function encodeDownloadEventMetadata(value: {
   });
 }
 
-export const decodeDownloadEventMetadata = Effect.fn(
-  "OperationsRepository.decodeDownloadEventMetadata",
-)(function* (value: string | null | undefined) {
-  if (!value) {
-    return undefined;
-  }
-
-  return yield* Schema.decodeUnknown(DownloadEventMetadataJsonSchema)(value).pipe(
-    Effect.mapError(
-      () =>
-        new OperationsStoredDataError({
-          message: "Stored download event metadata is corrupt",
-        }),
-    ),
-  );
-});
-
 const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpisodes")(function* (
   value: string | null | undefined,
 ) {
@@ -207,169 +162,3 @@ const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpiso
       }),
   });
 });
-
-export const loadDownloadPresentationContexts = Effect.fn(
-  "OperationsRepository.loadDownloadPresentationContexts",
-)(function* (db: AppDatabase, rows: readonly DownloadRow[]) {
-  if (rows.length === 0) {
-    return new Map<number, DownloadPresentationContext>();
-  }
-
-  const animeIds = [...new Set(rows.map((row) => row.animeId))];
-  const animeRows = yield* loadRowsByChunk(animeIds, (chunk) =>
-    Effect.promise(() =>
-      db
-        .select({
-          coverImage: anime.coverImage,
-          id: anime.id,
-        })
-        .from(anime)
-        .where(inArray(anime.id, chunk)),
-    ),
-  );
-  const animeImageById = new Map(
-    animeRows.map((row) => [row.id, row.coverImage ?? undefined] as const),
-  );
-
-  const importedRows = rows.filter((row) => row.status === "imported" || row.reconciledAt !== null);
-  let episodeRows: Array<{
-    animeId: number;
-    filePath: string | null;
-    number: number;
-  }> = [];
-
-  if (importedRows.length > 0) {
-    episodeRows = yield* Effect.promise(() =>
-      db
-        .select({
-          animeId: episodes.animeId,
-          filePath: episodes.filePath,
-          number: episodes.number,
-        })
-        .from(episodes)
-        .where(
-          and(
-            inArray(episodes.animeId, [...new Set(importedRows.map((row) => row.animeId))]),
-            sql`${episodes.filePath} is not null`,
-          ),
-        ),
-    );
-  }
-  const importedPathByEpisode = new Map(
-    episodeRows.flatMap((row) =>
-      row.filePath ? [[`${row.animeId}:${row.number}`, row.filePath] as const] : [],
-    ),
-  );
-
-  const contexts = yield* Effect.forEach(rows, (row) =>
-    Effect.gen(function* () {
-      const coveredEpisodes = (yield* decodeCoveredEpisodes(row.coveredEpisodes)) ?? [];
-      const episodeNumbers = coveredEpisodes.length > 0 ? coveredEpisodes : [row.episodeNumber];
-      const importedPath =
-        episodeNumbers
-          .map((episodeNumber) => importedPathByEpisode.get(`${row.animeId}:${episodeNumber}`))
-          .find((value): value is string => typeof value === "string") ??
-        (row.reconciledAt ? (row.contentPath ?? row.savePath ?? undefined) : undefined);
-
-      return [
-        row.id,
-        {
-          animeImage: animeImageById.get(row.animeId),
-          importedPath,
-        },
-      ] as const;
-    }),
-  );
-
-  return new Map(contexts);
-});
-
-export const loadDownloadEventPresentationContexts = Effect.fn(
-  "OperationsRepository.loadDownloadEventPresentationContexts",
-)(function* (db: AppDatabase, rows: readonly DownloadEventRow[]) {
-  if (rows.length === 0) {
-    return new Map<number, DownloadEventPresentationContext>();
-  }
-
-  const animeIds = [
-    ...new Set(rows.map((row) => row.animeId).filter((value): value is number => value !== null)),
-  ];
-  const downloadIds = [
-    ...new Set(
-      rows.map((row) => row.downloadId).filter((value): value is number => value !== null),
-    ),
-  ];
-
-  const animeRows = yield* loadRowsByChunk(animeIds, (chunk) =>
-    Effect.promise(() =>
-      db
-        .select({
-          coverImage: anime.coverImage,
-          id: anime.id,
-          titleEnglish: anime.titleEnglish,
-          titleRomaji: anime.titleRomaji,
-        })
-        .from(anime)
-        .where(inArray(anime.id, chunk)),
-    ),
-  );
-  const animeById = new Map(animeRows.map((row) => [row.id, row] as const));
-
-  const downloadRows = yield* loadRowsByChunk(downloadIds, (chunk) =>
-    Effect.promise(() =>
-      db
-        .select({
-          id: downloads.id,
-          torrentName: downloads.torrentName,
-        })
-        .from(downloads)
-        .where(inArray(downloads.id, chunk)),
-    ),
-  );
-  const downloadById = new Map(downloadRows.map((row) => [row.id, row] as const));
-
-  return new Map(
-    rows.map((row) => {
-      const animeRow = row.animeId !== null ? animeById.get(row.animeId) : undefined;
-      const downloadRow = row.downloadId !== null ? downloadById.get(row.downloadId) : undefined;
-
-      return [
-        row.id,
-        {
-          animeImage: animeRow?.coverImage ?? undefined,
-          animeTitle: animeRow?.titleEnglish ?? animeRow?.titleRomaji,
-          torrentName: downloadRow?.torrentName ?? undefined,
-        },
-      ] as const;
-    }),
-  );
-});
-
-const loadRowsByChunk = Effect.fn("OperationsRepository.loadRowsByChunk")(
-  <TId, TRow>(
-    ids: readonly TId[],
-    loadChunk: (chunk: readonly TId[]) => Effect.Effect<readonly TRow[]>,
-  ) =>
-    Effect.gen(function* () {
-      if (ids.length === 0) {
-        return [] as TRow[];
-      }
-
-      const chunks = chunkValues(ids, SQLITE_IN_LIST_CHUNK_SIZE);
-      const chunkResults = yield* Effect.forEach(chunks, loadChunk, {
-        concurrency: CHUNK_LOAD_CONCURRENCY,
-      });
-
-      return chunkResults.flatMap((chunk) => [...chunk]);
-    }),
-);
-
-function chunkValues<T>(values: readonly T[], size: number) {
-  const chunks: T[][] = [];
-
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
-
-  return chunks;
-}

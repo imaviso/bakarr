@@ -5,13 +5,8 @@ import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { downloads } from "../../db/schema.ts";
 import { EventBus } from "../events/event-bus.ts";
-import {
-  encodeDownloadSourceMetadata,
-  loadDownloadPresentationContexts,
-  loadRuntimeConfig,
-  requireAnime,
-  toDownloadStatus,
-} from "./repository.ts";
+import { loadDownloadPresentationContexts } from "./repository/download-presentation-repository.ts";
+import { encodeDownloadSourceMetadata, loadRuntimeConfig, requireAnime, toDownloadStatus } from "./repository.ts";
 import {
   buildDownloadSourceMetadataFromRelease,
   mergeDownloadSourceMetadata,

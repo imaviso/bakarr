@@ -20,13 +20,17 @@ import {
   toSharedParsedEpisodeIdentity,
 } from "../../lib/media-identity.ts";
 import {
+  scoreAnimeSearchResultMatch,
+  summarizeEpisodeCoverage,
+} from "../../lib/anime-derivations.ts";
+import {
   buildEpisodeFilenamePlan,
-  buildScannedFileMetadata,
   selectNamingFormat,
 } from "./naming-support.ts";
 import { OperationsStoredDataError } from "./errors.ts";
 import { parseResolution } from "./release-ranking.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "../../lib/anime-date-utils.ts";
+import { buildScannedFileMetadata } from "../../lib/scanned-file-metadata.ts";
 import { currentNamingSettings, requireAnime } from "./repository.ts";
 
 const AnimeGenresJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
@@ -249,50 +253,6 @@ export function titlesMatch(parsedTitle: string, candidate: AnimeSearchResult) {
   return scoreAnimeSearchResultMatch(parsedTitle, candidate) >= 0.55;
 }
 
-export function summarizeEpisodeCoverage(input: {
-  airDate?: string;
-  episodeNumbers?: readonly number[];
-}) {
-  if (input.airDate) {
-    return `Air date ${input.airDate}`;
-  }
-
-  const episodeNumbers = [...new Set(input.episodeNumbers ?? [])]
-    .filter((value) => Number.isFinite(value) && value > 0)
-    .sort((left, right) => left - right);
-
-  if (episodeNumbers.length <= 1) {
-    return undefined;
-  }
-
-  const isContiguous = episodeNumbers.every(
-    (value, index) => index === 0 || value === episodeNumbers[index - 1] + 1,
-  );
-
-  if (isContiguous) {
-    return `Episodes ${episodeNumbers[0]}-${episodeNumbers[episodeNumbers.length - 1]}`;
-  }
-
-  return `Episodes ${episodeNumbers.join(", ")}`;
-}
-
-export function scoreAnimeSearchResultMatch(
-  parsedTitle: string,
-  candidate: Pick<AnimeSearchResult, "title" | "synonyms">,
-) {
-  const target = normalizeTitle(parsedTitle);
-  const titles = [
-    candidate.title.romaji,
-    candidate.title.english,
-    candidate.title.native,
-    ...(candidate.synonyms ?? []),
-  ].filter((value): value is string => typeof value === "string" && value.length > 0);
-
-  return titles.length === 0
-    ? 0
-    : Math.max(...titles.map((title) => scoreTitleMatch(target, normalizeTitle(title))));
-}
-
 export function scoreAnimeRowMatch(
   parsedTitle: string,
   row: Pick<typeof anime.$inferSelect, "titleRomaji" | "titleEnglish" | "titleNative">,
@@ -304,56 +264,6 @@ export function scoreAnimeRowMatch(
       romaji: row.titleRomaji,
     },
   });
-}
-
-function normalizeTitle(value: string) {
-  return romanToArabic(
-    value
-      .toLowerCase()
-      .replace(/\((19|20)\d{2}\)/g, " ")
-      .replace(/\b(?:the|season|part|cour|ova|ona|tv|movie|special)\b/g, " ")
-      .replace(/\biiii?\b/g, " 4 ")
-      .replace(/\biii\b/g, " 3 ")
-      .replace(/\bii\b/g, " 2 ")
-      .replace(/\biv\b/g, " 4 ")
-      .replace(/\bvi\b/g, " 6 ")
-      .replace(/\bv\b/g, " 5 ")
-      .replace(/\bx\b/g, " x ")
-      .replace(/[^a-z0-9]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim(),
-  );
-}
-
-function romanToArabic(value: string) {
-  return value
-    .replace(/\biii\b/g, "3")
-    .replace(/\bii\b/g, "2")
-    .replace(/\biv\b/g, "4")
-    .replace(/\bvi\b/g, "6")
-    .replace(/\bv\b/g, "5")
-    .replace(/\bi\b/g, "1");
-}
-
-function scoreTitleMatch(left: string, right: string) {
-  if (left.length === 0 || right.length === 0) {
-    return 0;
-  }
-
-  if (left === right) {
-    return 1;
-  }
-
-  if (left.includes(right) || right.includes(left)) {
-    return 0.8;
-  }
-
-  const leftTokens = new Set(left.split(" ").filter(Boolean));
-  const rightTokens = new Set(right.split(" ").filter(Boolean));
-  const intersection = [...leftTokens].filter((token) => rightTokens.has(token)).length;
-  const union = new Set([...leftTokens, ...rightTokens]).size;
-
-  return union === 0 ? 0 : intersection / union;
 }
 
 function describeScannedFileMatch(input: {

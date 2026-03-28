@@ -96,7 +96,6 @@ function browseEffect(fs: FileSystemShape, input: { readonly path?: string }) {
             } satisfies LibraryRootsServiceShape),
             Layer.succeed(SystemConfigService, {
               getConfig: () => Effect.succeed(makeTestConfig("./test.sqlite")),
-              updateConfig: () => Effect.die("not used in test"),
             } satisfies SystemConfigServiceShape),
           ),
         ),

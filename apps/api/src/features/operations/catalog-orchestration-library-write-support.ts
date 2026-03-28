@@ -9,7 +9,7 @@ import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { upsertEpisodeFilesAtomic } from "./download-support.ts";
-import { OperationsPathError } from "./errors.ts";
+import { OperationsAnimeNotFoundError, OperationsPathError } from "./errors.ts";
 import { buildRenamePreview } from "./library-import.ts";
 import {
   buildEpisodeFilenamePlan,
@@ -19,7 +19,20 @@ import {
 import { currentImportMode, currentNamingSettings, requireAnime } from "./repository.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
-export type CatalogLibraryWriteSupportShape = ReturnType<typeof makeCatalogLibraryWriteSupport>;
+export interface CatalogLibraryWriteSupportShape {
+  readonly importFiles: (
+    files: readonly {
+      source_path: string;
+      anime_id: number;
+      episode_number: number;
+      episode_numbers?: readonly number[];
+      season?: number;
+    }[],
+  ) => Effect.Effect<ImportResult, DatabaseError | OperationsPathError | OperationsAnimeNotFoundError>;
+  readonly renameFiles: (
+    animeId: number,
+  ) => Effect.Effect<RenameResult, DatabaseError | OperationsPathError | OperationsAnimeNotFoundError>;
+}
 
 export function makeCatalogLibraryWriteSupport(input: {
   db: AppDatabase;
@@ -307,5 +320,5 @@ export function makeCatalogLibraryWriteSupport(input: {
     );
   });
 
-  return { importFiles, renameFiles };
+  return { importFiles, renameFiles } satisfies CatalogLibraryWriteSupportShape;
 }

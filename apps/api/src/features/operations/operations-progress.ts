@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import type { DatabaseError } from "../../db/database.ts";
 import { EventBus } from "../events/event-bus.ts";
-import { DownloadOrchestration } from "./download-orchestration-service.ts";
+import { DownloadProgressService } from "./download-service-tags.ts";
 import { makeOperationsProgressPublishers } from "./runtime-support.ts";
 
 export interface OperationsProgressShape {
@@ -24,11 +24,11 @@ export const ProgressLive = Layer.scoped(
   OperationsProgress,
   Effect.gen(function* () {
     const eventBus = yield* EventBus;
-    const downloadOrchestration = yield* DownloadOrchestration;
+    const downloadProgress = yield* DownloadProgressService;
 
     return yield* makeOperationsProgressPublishers({
       eventBus,
-      publishDownloadProgressEffect: downloadOrchestration.publishDownloadProgress(),
+      publishDownloadProgressEffect: downloadProgress.publishDownloadProgress(),
     });
   }),
 );

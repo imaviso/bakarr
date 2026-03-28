@@ -3,7 +3,17 @@ import { Effect } from "effect";
 import type { DatabaseError } from "../../db/database.ts";
 import type { OperationsError } from "./errors.ts";
 
-export type CatalogDownloadActionSupportShape = ReturnType<typeof makeCatalogDownloadActionSupport>;
+export interface CatalogDownloadActionSupportShape {
+  readonly pauseDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly reconcileDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly removeDownload: (
+    id: number,
+    deleteFiles: boolean,
+  ) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly resumeDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly retryDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly syncDownloads: () => Effect.Effect<void, DatabaseError>;
+}
 
 export function makeCatalogDownloadActionSupport(input: {
   applyDownloadActionEffect: (
@@ -63,5 +73,5 @@ export function makeCatalogDownloadActionSupport(input: {
     resumeDownload,
     retryDownload,
     syncDownloads,
-  };
+  } satisfies CatalogDownloadActionSupportShape;
 }

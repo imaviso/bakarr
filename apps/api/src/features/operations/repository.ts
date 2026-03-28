@@ -5,6 +5,12 @@ export type {
   NamingSettings,
 } from "./repository/types.ts";
 
+export {
+  decodeDownloadEventMetadata,
+  loadDownloadEventPresentationContexts,
+  toDownloadEvent,
+} from "../../lib/download-event-presentations.ts";
+
 export { loadCurrentEpisodeState, requireAnime } from "./repository/anime-repository.ts";
 
 export {
@@ -17,14 +23,10 @@ export {
 export { loadQualityProfile, loadReleaseRules } from "./repository/profile-repository.ts";
 
 export {
-  decodeDownloadEventMetadata,
   decodeDownloadSourceMetadata,
   encodeDownloadEventMetadata,
   encodeDownloadSourceMetadata,
-  loadDownloadEventPresentationContexts,
-  loadDownloadPresentationContexts,
   toDownload,
-  toDownloadEvent,
   toDownloadStatus,
 } from "./repository/download-repository.ts";
 

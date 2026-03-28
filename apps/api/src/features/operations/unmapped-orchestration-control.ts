@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { UnmappedFolder } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
+import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import {
   decodeUnmappedFolderMatchRow,
   listUnmappedFolderMatchRows,
@@ -10,7 +10,9 @@ import {
 } from "../system/repository/unmapped-repository.ts";
 import {
   OperationsConflictError,
+  OperationsAnimeNotFoundError,
   OperationsInputError,
+  OperationsPathError,
   OperationsStoredDataError,
 } from "./errors.ts";
 import { appendLog } from "./job-support.ts";
@@ -25,7 +27,26 @@ import type { UnmappedScanWorkflowShape } from "./unmapped-orchestration-scan.ts
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
-export type UnmappedControlWorkflowShape = ReturnType<typeof makeUnmappedControlWorkflow>;
+export interface UnmappedControlWorkflowShape {
+  readonly bulkControlUnmappedFolders: (
+    input: { action: "pause_queued" | "resume_paused" | "reset_failed" | "retry_failed" },
+  ) => Effect.Effect<
+    { affectedCount: number },
+    DatabaseError | OperationsPathError | OperationsStoredDataError | OperationsAnimeNotFoundError
+  >;
+  readonly controlUnmappedFolder: (input: {
+    action: "pause" | "resume" | "reset" | "refresh";
+    path: string;
+  }) => Effect.Effect<
+    { folderCount: number; folderPath: string },
+    | DatabaseError
+    | OperationsConflictError
+    | OperationsInputError
+    | OperationsPathError
+    | OperationsStoredDataError
+    | OperationsAnimeNotFoundError
+  >;
+}
 
 export function makeUnmappedControlWorkflow(input: {
   db: AppDatabase;
@@ -189,5 +210,5 @@ export function makeUnmappedControlWorkflow(input: {
   return {
     bulkControlUnmappedFolders,
     controlUnmappedFolder,
-  };
+  } satisfies UnmappedControlWorkflowShape;
 }

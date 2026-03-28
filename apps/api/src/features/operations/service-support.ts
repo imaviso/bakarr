@@ -57,10 +57,9 @@ export function wrapOperationsError(message: string) {
       return cause;
     }
 
-    return ExternalCallError.make({
+    return new DatabaseError({
       cause,
       message,
-      operation: message,
     });
   };
 }

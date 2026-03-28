@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
+import type { Config, QualityProfile } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
@@ -36,6 +36,24 @@ export interface BackgroundSearchSupportInput {
   wrapOperationsError: (
     message: string,
   ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
+}
+
+export interface BackgroundSearchSupportShared {
+  readonly logRssSkip: (input: {
+    animeId?: number;
+    feedId: number;
+    feedName: string;
+    reason: string;
+  }) => Effect.Effect<void, never>;
+  readonly logSearchMissingSkip: (input: {
+    animeId: number;
+    episodeNumber: number;
+    reason: string;
+  }) => Effect.Effect<void, never>;
+  readonly requireQualityProfile: (profileName: string) => Effect.Effect<
+    QualityProfile,
+    DatabaseError | OperationsInputError
+  >;
 }
 
 export function makeBackgroundSearchSupportShared(input: BackgroundSearchSupportInput) {
@@ -87,7 +105,5 @@ export function makeBackgroundSearchSupportShared(input: BackgroundSearchSupport
     logRssSkip,
     logSearchMissingSkip,
     requireQualityProfile,
-  };
+  } satisfies BackgroundSearchSupportShared;
 }
-
-export type BackgroundSearchSupportShared = ReturnType<typeof makeBackgroundSearchSupportShared>;

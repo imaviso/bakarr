@@ -1,10 +1,12 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
+import type { ScannerState } from "../../../../../packages/shared/src/index.ts";
+import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { anime, backgroundJobs } from "../../db/schema.ts";
 import { type FileSystemShape } from "../../lib/filesystem.ts";
 import type { AniListClient } from "../anime/anilist.ts";
+import { OperationsPathError, OperationsStoredDataError } from "./errors.ts";
 import {
   deleteUnmappedFolderMatchRowsNotInPaths,
   upsertUnmappedFolderMatchRows,
@@ -19,7 +21,44 @@ import { matchSingleUnmappedFolder } from "./unmapped-scan-match-support.ts";
 import { isUnmappedFolderOutstanding, markUnmappedFolderFailed } from "./unmapped-folders.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
-export type UnmappedScanQueryShape = ReturnType<typeof makeUnmappedScanQuerySupport>;
+export interface UnmappedScanSnapshot {
+  readonly animeRows: ReadonlyArray<typeof anime.$inferSelect>;
+  readonly cachedByPath: ReadonlyMap<string, ScannerState["folders"][number]>;
+  readonly folders: ScannerState["folders"];
+}
+
+export interface UnmappedScanQueryResult {
+  readonly folders: ScannerState["folders"];
+  readonly queuedFolders: ScannerState["folders"];
+  readonly snapshot: UnmappedScanSnapshot;
+}
+
+export interface UnmappedMatchResultFailed {
+  readonly _tag: "Failed";
+  readonly folder: ScannerState["folders"][number];
+}
+
+export interface UnmappedMatchResultMatched {
+  readonly _tag: "Matched";
+  readonly folder: ScannerState["folders"][number];
+}
+
+export type UnmappedMatchResult = UnmappedMatchResultFailed | UnmappedMatchResultMatched;
+
+export interface UnmappedScanQueryShape {
+  readonly getUnmappedFolders: () => Effect.Effect<
+    ScannerState,
+    DatabaseError | OperationsPathError | OperationsStoredDataError
+  >;
+  readonly loadQueuedUnmappedFolders: () => Effect.Effect<
+    UnmappedScanQueryResult,
+    DatabaseError | OperationsPathError | OperationsStoredDataError
+  >;
+  readonly matchAndPersistUnmappedFolder: (
+    matchingFolder: ScannerState["folders"][number],
+    animeRows: ReadonlyArray<typeof anime.$inferSelect>,
+  ) => Effect.Effect<UnmappedMatchResult, DatabaseError | OperationsStoredDataError>;
+}
 
 export function makeUnmappedScanQuerySupport(input: {
   aniList: typeof AniListClient.Service;
@@ -43,7 +82,7 @@ export function makeUnmappedScanQuerySupport(input: {
       );
       const queuedFolders = prepareUnmappedFoldersForScan(folders, snapshot.cachedByPath);
 
-      return { folders, queuedFolders, snapshot };
+      return { folders, queuedFolders, snapshot } satisfies UnmappedScanQueryResult;
     },
   );
 
@@ -78,13 +117,13 @@ export function makeUnmappedScanQuerySupport(input: {
       folders,
       is_scanning: Boolean(job?.isRunning),
       last_updated: job?.lastRunAt ?? now,
-    };
+    } satisfies ScannerState;
   });
 
   const matchAndPersistUnmappedFolder = Effect.fn(
     "OperationsService.matchAndPersistUnmappedFolder",
   )(function* (
-    matchingFolder: ReturnType<typeof prepareUnmappedFoldersForScan>[number],
+    matchingFolder: ScannerState["folders"][number],
     animeRows: ReadonlyArray<typeof anime.$inferSelect>,
   ) {
     const matchResult = yield* Effect.either(
@@ -106,7 +145,7 @@ export function makeUnmappedScanQuerySupport(input: {
       return {
         _tag: "Failed" as const,
         folder: failedFolder,
-      };
+      } satisfies UnmappedMatchResult;
     }
 
     yield* upsertUnmappedFolderMatchRows(db, [matchResult.right], yield* nowIso());
@@ -114,12 +153,12 @@ export function makeUnmappedScanQuerySupport(input: {
     return {
       _tag: "Matched" as const,
       folder: matchResult.right,
-    };
+    } satisfies UnmappedMatchResult;
   });
 
   return {
     getUnmappedFolders,
     loadQueuedUnmappedFolders,
     matchAndPersistUnmappedFolder,
-  };
+  } satisfies UnmappedScanQueryShape;
 }

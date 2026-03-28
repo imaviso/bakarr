@@ -23,14 +23,16 @@ import {
   analyzeScannedFile,
   findBestLocalAnimeMatch,
   scoreAnimeRowMatch,
-  scoreAnimeSearchResultMatch,
-  summarizeEpisodeCoverage,
   titlesMatch,
   toAnimeSearchCandidate,
 } from "./library-import.ts";
 import { buildEpisodeFilenamePlan } from "./naming-support.ts";
 import { currentNamingSettings, requireAnime } from "./repository.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+import {
+  scoreAnimeSearchResultMatch,
+  summarizeEpisodeCoverage,
+} from "../../lib/anime-derivations.ts";
 
 export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")(
   function* (input: {

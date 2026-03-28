@@ -17,6 +17,10 @@ it.effect(
     Effect.gen(function* () {
       const orchestration = makeSearchOrchestration({
         aniList: {} as never,
+        animeImportService: {
+          resolveAnimeRootFolder: () => Effect.succeed("/tmp"),
+          upsertEpisode: () => Effect.void,
+        } as never,
         coordination: {
           completeUnmappedScan: () => Effect.void,
           forkUnmappedScanLoop: (_loop: Effect.Effect<void>) => Effect.void,

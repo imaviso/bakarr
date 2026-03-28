@@ -9,13 +9,12 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { downloadEvents, downloads } from "../../db/schema.ts";
+import { loadDownloadPresentationContexts } from "./repository/download-presentation-repository.ts";
+import { toDownload, toDownloadStatus } from "./repository.ts";
 import {
   loadDownloadEventPresentationContexts,
-  loadDownloadPresentationContexts,
-  toDownload,
   toDownloadEvent,
-  toDownloadStatus,
-} from "./repository.ts";
+} from "../../lib/download-event-presentations.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 
 export interface CatalogDownloadViewSupportShape {

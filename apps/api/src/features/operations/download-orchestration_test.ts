@@ -28,10 +28,12 @@ import { makeOperationsSharedState } from "./runtime-support.ts";
 import { QBitTorrentClient } from "./qbittorrent.ts";
 import {
   decodeDownloadEventMetadata,
-  decodeDownloadSourceMetadata,
   encodeDownloadSourceMetadata,
-  loadDownloadPresentationContexts,
+  loadCurrentEpisodeState,
+  toDownload,
+  toDownloadStatus,
 } from "./repository.ts";
+import { loadDownloadPresentationContexts } from "./repository/download-presentation-repository.ts";
 import { maybeQBitConfig, wrapOperationsError } from "./service-support.ts";
 import { tryDatabasePromise, toDatabaseError } from "../../lib/effect-db.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
@@ -70,22 +72,22 @@ it.scoped("triggerDownload persists merged release provenance on queued download
           const rows = yield* Effect.tryPromise(() => appDb.select().from(downloads).limit(1));
           const [row] = rows;
           assertExists(row);
-          const sourceMetadata = yield* decodeDownloadSourceMetadata(row.sourceMetadata);
+          const download = yield* toDownload(row);
 
-          assertEquals(row.status, "queued");
-          assertEquals(row.coveredEpisodes, "[1]");
-          assertEquals(sourceMetadata?.group, "SubsPlease");
-          assertEquals(sourceMetadata?.parsed_title, "Show");
-          assertEquals(sourceMetadata?.resolution, "720p");
-          assertEquals(sourceMetadata?.video_codec, "HEVC");
-          assertEquals(sourceMetadata?.audio_codec, "AAC");
-          assertEquals(sourceMetadata?.audio_channels, "2.0");
-          assertEquals(sourceMetadata?.decision_reason, "Manual grab from release search");
-          assertEquals(sourceMetadata?.indexer, "Nyaa");
-          assertEquals(sourceMetadata?.selection_kind, "manual");
-          assertEquals(sourceMetadata?.trusted, true);
-          assertEquals(sourceMetadata?.source_url, "https://nyaa.si/view/123");
-          assertEquals(sourceMetadata?.source_identity, {
+          assertEquals(download.status, "queued");
+          assertEquals(download.covered_episodes, [1]);
+          assertEquals(download.source_metadata?.group, "SubsPlease");
+          assertEquals(download.source_metadata?.parsed_title, "Show");
+          assertEquals(download.source_metadata?.resolution, "720p");
+          assertEquals(download.source_metadata?.video_codec, "HEVC");
+          assertEquals(download.source_metadata?.audio_codec, "AAC");
+          assertEquals(download.source_metadata?.audio_channels, "2.0");
+          assertEquals(download.source_metadata?.decision_reason, "Manual grab from release search");
+          assertEquals(download.source_metadata?.indexer, "Nyaa");
+          assertEquals(download.source_metadata?.selection_kind, "manual");
+          assertEquals(download.source_metadata?.trusted, true);
+          assertEquals(download.source_metadata?.source_url, "https://nyaa.si/view/123");
+          assertEquals(download.source_metadata?.source_identity, {
             episode_numbers: [1],
             label: "01",
             scheme: "absolute",
@@ -196,11 +198,14 @@ it.scoped(
             const rows = yield* Effect.tryPromise(() =>
               appDb.select().from(downloads).where(eq(downloads.animeId, 1)),
             );
+            const [download] = rows;
 
             assertEquals(rows.length, 1);
-            assertEquals(rows[0]?.episodeNumber, 1);
-            assertEquals(rows[0]?.status, "queued");
-            assertEquals(rows[0]?.coveredEpisodes, "[1]");
+            assertExists(download);
+            const mappedDownload = yield* toDownloadStatus(download);
+            assertEquals(mappedDownload.episode_number, 1);
+            assertEquals(mappedDownload.state, "queued");
+            assertEquals(mappedDownload.covered_episodes, [1]);
           }),
         ),
       schema,
@@ -349,8 +354,9 @@ it.scoped("retryDownloadById stores structured metadata in retried events", () =
             appDb.select().from(downloads).where(eq(downloads.id, inserted.id)),
           );
           assertExists(updatedRow);
-          assertEquals(updatedRow.status, "queued");
-          assertEquals(updatedRow.retryCount, 2);
+          const updatedDownload = yield* toDownload(updatedRow);
+          assertEquals(updatedDownload.status, "queued");
+          assertEquals(updatedDownload.retry_count, 2);
 
           const eventRows = yield* Effect.tryPromise(() =>
             appDb
@@ -559,27 +565,24 @@ it.scoped(
 
             yield* orchestration.reconcileDownloadByIdEffect(inserted.id);
 
-            const episodeRows = yield* Effect.tryPromise(() =>
-              appDb.select().from(episodes).where(eq(episodes.animeId, 1)).orderBy(episodes.number),
-            );
             const updatedDownloadRows = yield* Effect.tryPromise(() =>
               appDb.select().from(downloads).where(eq(downloads.id, inserted.id)).limit(1),
             );
+            const [updatedDownloadRow] = updatedDownloadRows;
             const expectedPath = `${libraryDir}/Show - 01-02 [WEB-DL 1080p].mkv`;
 
-            assertEquals(
-              episodeRows.map((row) => ({
-                downloaded: row.downloaded,
-                filePath: row.filePath,
-                number: row.number,
-              })),
-              [
-                { downloaded: true, filePath: expectedPath, number: 1 },
-                { downloaded: true, filePath: expectedPath, number: 2 },
-              ],
-            );
-            assertEquals(updatedDownloadRows[0]?.status, "imported");
-            assertExists(updatedDownloadRows[0]?.reconciledAt);
+            assertEquals(yield* loadCurrentEpisodeState(appDb, 1, 1), {
+              downloaded: true,
+              filePath: expectedPath,
+            });
+            assertEquals(yield* loadCurrentEpisodeState(appDb, 1, 2), {
+              downloaded: true,
+              filePath: expectedPath,
+            });
+            assertExists(updatedDownloadRow);
+            const updatedDownload = yield* toDownload(updatedDownloadRow);
+            assertEquals(updatedDownload.status, "imported");
+            assertExists(updatedDownload.reconciled_at);
             assertEquals(yield* readTextFile(fs, expectedPath), "video");
 
             const importedBatchEvents = yield* Effect.tryPromise(() =>
@@ -720,8 +723,11 @@ it.scoped(
             const updated = yield* Effect.tryPromise(() =>
               appDb.select().from(downloads).where(eq(downloads.id, inserted.id)).limit(1),
             );
-            assertEquals(updated[0]?.status, "paused");
-            assertEquals(updated[0]?.coveredEpisodes, "[1,2]");
+            const [updatedDownloadRow] = updated;
+            assertExists(updatedDownloadRow);
+            const updatedDownload = yield* toDownloadStatus(updatedDownloadRow);
+            assertEquals(updatedDownload.state, "paused");
+            assertEquals(updatedDownload.covered_episodes, [1, 2]);
 
             const statusEvents = yield* Effect.tryPromise(() =>
               appDb
@@ -918,22 +924,20 @@ it.scoped(
 
             yield* orchestration.reconcileDownloadByIdEffect(inserted.id);
 
-            const episodeRows = yield* Effect.tryPromise(() =>
-              appDb
-                .select()
-                .from(episodes)
-                .where(and(eq(episodes.animeId, 1), eq(episodes.number, 1)))
-                .limit(1),
-            );
             const updatedDownloadRows = yield* Effect.tryPromise(() =>
               appDb.select().from(downloads).where(eq(downloads.id, inserted.id)).limit(1),
             );
+            const [updatedDownloadRow] = updatedDownloadRows;
             const expectedPath = `${libraryDir}/Show - 01 [WEB-DL 1080p].mkv`;
 
-            assertEquals(episodeRows[0]?.downloaded, true);
-            assertEquals(episodeRows[0]?.filePath, expectedPath);
-            assertEquals(updatedDownloadRows[0]?.status, "imported");
-            assertExists(updatedDownloadRows[0]?.reconciledAt);
+            assertEquals(yield* loadCurrentEpisodeState(appDb, 1, 1), {
+              downloaded: true,
+              filePath: expectedPath,
+            });
+            assertExists(updatedDownloadRow);
+            const updatedDownload = yield* toDownload(updatedDownloadRow);
+            assertEquals(updatedDownload.status, "imported");
+            assertExists(updatedDownload.reconciled_at);
             assertEquals(yield* readTextFile(fs, expectedPath), "video");
             assertEquals(yield* readTextFile(fs, sourcePath), "video");
 

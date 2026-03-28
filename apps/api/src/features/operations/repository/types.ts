@@ -1,4 +1,5 @@
 import type { PreferredTitle } from "../../../../../../packages/shared/src/index.ts";
+export type { DownloadEventPresentationContext } from "../../../lib/download-event-presentations.ts";
 
 export interface CurrentEpisodeState {
   readonly downloaded: boolean;
@@ -14,10 +15,4 @@ export interface NamingSettings {
 export interface DownloadPresentationContext {
   readonly animeImage?: string;
   readonly importedPath?: string;
-}
-
-export interface DownloadEventPresentationContext {
-  readonly animeImage?: string;
-  readonly animeTitle?: string;
-  readonly torrentName?: string;
 }

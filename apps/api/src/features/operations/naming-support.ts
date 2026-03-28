@@ -20,11 +20,9 @@ export {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
   buildEpisodeNamingInputFromPath,
-  buildScannedFileMetadata,
   mergeDownloadSourceMetadata,
   selectAnimeYearForNaming,
 } from "./naming-metadata-support.ts";
-export type { ScannedFileMetadata } from "./naming-metadata-support.ts";
 
 export interface ResolvedNamingPlan {
   readonly formatUsed: string;

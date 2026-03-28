@@ -3,7 +3,6 @@ import { Effect } from "effect";
 
 import { makeTestConfig } from "../../test/config-fixture.ts";
 import { DatabaseError } from "../../db/database.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import {
   DownloadConflictError,
@@ -58,7 +57,7 @@ it.effect("operations service support preserves known errors and wraps unknown o
     assertEquals(wrapOperationsError("ignored")(knownDb), knownDb);
 
     const wrapped = wrapOperationsError("wrapped")(new Error("boom"));
-    assertInstanceOf(wrapped, ExternalCallError);
+    assertInstanceOf(wrapped, DatabaseError);
     assertEquals(wrapped.message, "wrapped");
 
     const dbExit = yield* Effect.exit(

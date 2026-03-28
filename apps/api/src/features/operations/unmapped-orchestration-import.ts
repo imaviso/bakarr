@@ -10,16 +10,34 @@ import {
   sanitizePathSegmentEffect,
 } from "../../lib/filesystem.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "../../lib/media-identity.ts";
+import { inferAiredAt } from "../../lib/anime-derivations.ts";
+import { AnimeImportService } from "../anime/import-service.ts";
+import { resolveAnimeRootFolderEffect } from "../anime/config-support.ts";
 import {
-  inferAiredAt,
-  resolveAnimeRootFolderEffect,
-  upsertEpisodeEffect,
-} from "../anime/repository.ts";
-import { OperationsConflictError, OperationsInputError, OperationsPathError } from "./errors.ts";
+  OperationsAnimeNotFoundError,
+  OperationsConflictError,
+  OperationsInputError,
+  OperationsPathError,
+} from "./errors.ts";
 import { appendLog } from "./job-support.ts";
 import { scanVideoFiles } from "./file-scanner.ts";
 import { getConfigLibraryPath, requireAnime } from "./repository.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+
+export interface UnmappedImportWorkflowShape {
+  readonly importUnmappedFolder: (input: {
+    folder_name: string;
+    anime_id: number;
+    profile_name?: string;
+  }) => Effect.Effect<
+    void,
+    | DatabaseError
+    | OperationsAnimeNotFoundError
+    | OperationsConflictError
+    | OperationsInputError
+    | OperationsPathError
+  >;
+}
 
 export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
   "OperationsService.cleanupPreviousAnimeRootFolderAfterImport",
@@ -55,15 +73,14 @@ export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
   }
 });
 
-export type UnmappedImportWorkflowShape = ReturnType<typeof makeUnmappedImportWorkflow>;
-
 export function makeUnmappedImportWorkflow(input: {
+  animeImportService: typeof AnimeImportService.Service;
   db: AppDatabase;
   fs: FileSystemShape;
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { db, fs, nowIso, tryDatabasePromise } = input;
+  const { animeImportService, db, fs, nowIso, tryDatabasePromise } = input;
 
   const importUnmappedFolder = Effect.fn("OperationsService.importUnmappedFolder")(
     function* (input: { folder_name: string; anime_id: number; profile_name?: string }) {
@@ -99,9 +116,14 @@ export function makeUnmappedImportWorkflow(input: {
         });
       }
 
-      const rootFolder = yield* resolveAnimeRootFolderEffect(db, folderPath, animeRow.titleRomaji, {
-        useExistingRoot: true,
-      }).pipe(
+      const rootFolder = yield* resolveAnimeRootFolderEffect(
+        db,
+        folderPath,
+        animeRow.titleRomaji,
+        {
+          useExistingRoot: true,
+        },
+      ).pipe(
         Effect.catchTag("StoredConfigCorruptError", (e) =>
           Effect.fail(
             new DatabaseError({
@@ -161,29 +183,31 @@ export function makeUnmappedImportWorkflow(input: {
         const currentIso = yield* nowIso();
 
         for (const episodeNumber of episodeNumbers) {
-          yield* upsertEpisodeEffect(db, input.anime_id, episodeNumber, {
-            aired: inferAiredAt(
-              animeRow.status,
-              episodeNumber,
-              animeRow.episodeCount ?? undefined,
-              animeRow.startDate ?? undefined,
-              animeRow.endDate ?? undefined,
-              undefined,
-              currentIso,
-            ),
-            downloaded: true,
-            filePath: file.path,
-            title: null,
-          }).pipe(
-            Effect.catchTag("UpsertEpisodeError", (e) =>
-              Effect.fail(
-                new DatabaseError({
-                  message: "Failed to import unmapped folder",
-                  cause: e,
-                }),
+          yield* animeImportService
+            .upsertEpisode(input.anime_id, episodeNumber, {
+              aired: inferAiredAt(
+                animeRow.status,
+                episodeNumber,
+                animeRow.episodeCount ?? undefined,
+                animeRow.startDate ?? undefined,
+                animeRow.endDate ?? undefined,
+                undefined,
+                currentIso,
               ),
-            ),
-          );
+              downloaded: true,
+              filePath: file.path,
+              title: null,
+            })
+            .pipe(
+              Effect.catchTag("UpsertEpisodeError", (e) =>
+                Effect.fail(
+                  new DatabaseError({
+                    message: "Failed to import unmapped folder",
+                    cause: e,
+                  }),
+                ),
+              ),
+            );
         }
         imported += episodeNumbers.length;
       }
@@ -200,5 +224,5 @@ export function makeUnmappedImportWorkflow(input: {
 
   return {
     importUnmappedFolder,
-  };
+  } satisfies UnmappedImportWorkflowShape;
 }

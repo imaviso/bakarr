@@ -4,6 +4,7 @@ import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { type FileSystemShape } from "../../lib/filesystem.ts";
 import { AniListClient } from "../anime/anilist.ts";
+import { AnimeImportService } from "../anime/import-service.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import { makeUnmappedControlWorkflow } from "./unmapped-orchestration-control.ts";
 import { makeUnmappedImportWorkflow } from "./unmapped-orchestration-import.ts";
@@ -14,6 +15,7 @@ export { cleanupPreviousAnimeRootFolderAfterImport } from "./unmapped-orchestrat
 
 export function makeUnmappedOrchestrationSupport(input: {
   aniList: typeof AniListClient.Service;
+  animeImportService: typeof AnimeImportService.Service;
   db: AppDatabase;
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   coordination: OperationsCoordinationShape;
@@ -21,7 +23,7 @@ export function makeUnmappedOrchestrationSupport(input: {
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { aniList, db, dbError, coordination, fs, tryDatabasePromise } = input;
+  const { aniList, animeImportService, db, dbError, coordination, fs, tryDatabasePromise } = input;
   const { nowIso } = input;
 
   const scanWorkflow = makeUnmappedScanWorkflow({
@@ -43,6 +45,7 @@ export function makeUnmappedOrchestrationSupport(input: {
   });
 
   const importWorkflow = makeUnmappedImportWorkflow({
+    animeImportService,
     db,
     fs,
     nowIso,
