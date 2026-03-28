@@ -18,12 +18,10 @@ import { ConfigValidationError, StoredConfigCorruptError } from "./errors.ts";
 import { makeDefaultConfig } from "./defaults.ts";
 import { appendSystemLog } from "./support.ts";
 import { applyRuntimeLogLevelFromConfig } from "./runtime-config.ts";
-import {
-  countAnimeUsingProfile,
-  listQualityProfileRows,
-  loadSystemConfigRow,
-  updateSystemConfigAtomic,
-} from "./repository/config-repository.ts";
+import { countAnimeUsingProfile } from "./repository/profile-usage-repository.ts";
+import { listQualityProfileRows } from "./repository/quality-profile-repository.ts";
+import { loadSystemConfigRow } from "./repository/system-config-repository.ts";
+import { updateSystemConfigAtomic } from "./repository/config-transaction-repository.ts";
 
 export interface SystemConfigUpdateServiceShape {
   readonly updateConfig: (

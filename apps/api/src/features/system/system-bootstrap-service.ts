@@ -12,10 +12,12 @@ import {
 import { applyRuntimeLogLevelFromConfig } from "./runtime-config.ts";
 import {
   insertQualityProfileRows,
-  insertSystemConfigRow,
   loadAnyQualityProfileRow,
+} from "./repository/quality-profile-repository.ts";
+import {
+  insertSystemConfigRow,
   loadSystemConfigRow,
-} from "./repository/config-repository.ts";
+} from "./repository/system-config-repository.ts";
 export interface SystemBootstrapServiceShape {
   /**
    * First-run initialization (idempotent):

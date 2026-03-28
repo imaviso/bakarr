@@ -9,7 +9,8 @@ import {
 } from "./config-codec.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "./errors.ts";
 import { normalizeConfig } from "./qbittorrent-config.ts";
-import { listQualityProfileRows, loadSystemConfigRow } from "./repository/config-repository.ts";
+import { listQualityProfileRows } from "./repository/quality-profile-repository.ts";
+import { loadSystemConfigRow } from "./repository/system-config-repository.ts";
 
 export interface SystemConfigServiceShape {
   readonly getConfig: () => Effect.Effect<

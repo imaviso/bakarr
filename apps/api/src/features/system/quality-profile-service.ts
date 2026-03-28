@@ -7,14 +7,14 @@ import { StoredConfigCorruptError, ProfileNotFoundError, ConfigValidationError }
 import { effectDecodeQualityProfileRow, encodeQualityProfileRow } from "./config-codec.ts";
 import { appendSystemLog } from "./support.ts";
 import { DEFAULT_QUALITIES } from "./defaults.ts";
+import { countAnimeUsingProfile } from "./repository/profile-usage-repository.ts";
 import {
-  countAnimeUsingProfile,
   deleteQualityProfileRow,
   insertQualityProfileRow,
   listQualityProfileRows,
   loadQualityProfileRow,
   renameQualityProfileWithCascade,
-} from "./repository/config-repository.ts";
+} from "./repository/quality-profile-repository.ts";
 
 export interface QualityProfileServiceShape {
   readonly listProfiles: () => Effect.Effect<

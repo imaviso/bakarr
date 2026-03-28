@@ -12,7 +12,7 @@ import {
   insertReleaseProfileRow,
   listReleaseProfileRows,
   updateReleaseProfileRow,
-} from "./repository/config-repository.ts";
+} from "./repository/release-profile-repository.ts";
 
 export interface ReleaseProfileServiceShape {
   readonly listReleaseProfiles: () => Effect.Effect<
