@@ -15,6 +15,13 @@ import type { EventBusShape } from "./features/events/event-bus.ts";
 import type { LibraryScanServiceShape } from "./features/operations/worker-services.ts";
 import type { SearchWorkerServiceShape } from "./features/operations/worker-services.ts";
 
+const WORKER_TIMEOUTS: Record<BackgroundWorkerName, number> = {
+  download_sync: 30_000,
+  library_scan: 300_000,
+  metadata_refresh: 60_000,
+  rss: 120_000,
+};
+
 export interface BackgroundWorkerDependencies {
   readonly animeService: AnimeMutationServiceShape;
   readonly clock: ClockServiceShape;
@@ -132,13 +139,25 @@ export const withLockEffect = Effect.fn("Background.withLockEffect")(function* <
   task: Effect.Effect<A, E, R>,
   monitor: BackgroundWorkerMonitorShape,
   clock: ClockServiceShape,
+  timeoutMs?: number,
 ) {
+  const effectiveTimeout = timeoutMs ?? WORKER_TIMEOUTS[workerName];
+  const taskWithTimeout = task.pipe(
+    Effect.timeout(`${effectiveTimeout} millis`),
+    Effect.mapError((error) => {
+      if (error instanceof Error && error.name === "TimeoutException") {
+        return new Error(`Worker timed out after ${effectiveTimeout}ms`);
+      }
+      return error;
+    }),
+  );
+
   const runner = yield* makeSkippingSerializedEffectRunner(
     Effect.gen(function* () {
       const startedAt = yield* clock.currentMonotonicMillis;
       yield* monitor.markRunStarted(workerName);
 
-      const exit = yield* Effect.exit(task);
+      const exit = yield* Effect.exit(taskWithTimeout);
       const finishedAt = yield* clock.currentMonotonicMillis;
       const durationMs = durationMsSince(startedAt, finishedAt);
 
@@ -153,14 +172,17 @@ export const withLockEffect = Effect.fn("Background.withLockEffect")(function* <
       }
 
       const prettyCause = Cause.pretty(exit.cause);
+      const isTimeout = prettyCause.includes("timed out");
 
       yield* monitor.markRunFailed(workerName, prettyCause, durationMs);
-      yield* Effect.logError("background worker failed").pipe(
+      yield* Effect.logError(
+        isTimeout ? "background worker timed out" : "background worker failed",
+      ).pipe(
         Effect.annotateLogs(
           compactLogAnnotations({
             component: "background",
             durationMs,
-            event: "background.worker.failed",
+            event: isTimeout ? "background.worker.timeout" : "background.worker.failed",
             workerName,
             ...errorLogAnnotations(prettyCause),
           }),
