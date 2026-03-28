@@ -28,8 +28,13 @@ export function makeCatalogOrchestration(input: {
   reconcileDownloadByIdEffect: (
     id: number,
   ) => Effect.Effect<void, import("./errors.ts").OperationsError | DatabaseError>;
-  syncDownloadState: (trigger: string) => Effect.Effect<void, DatabaseError>;
-  publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
+  syncDownloadState: (
+    trigger: string,
+  ) => Effect.Effect<void, DatabaseError | import("./errors.ts").OperationsInfrastructureError>;
+  publishDownloadProgress: () => Effect.Effect<
+    void,
+    DatabaseError | import("./errors.ts").OperationsInfrastructureError
+  >;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
   libraryReadSupport: CatalogLibraryReadSupportShape;
   nowIso: () => Effect.Effect<string>;

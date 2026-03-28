@@ -38,7 +38,10 @@ export function makeSearchOrchestration(input: {
   dbError: (message: string) => (cause: unknown) => DatabaseError;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
   nowIso: () => Effect.Effect<string>;
-  publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
+  publishDownloadProgress: () => Effect.Effect<
+    void,
+    DatabaseError | import("./errors.ts").OperationsInfrastructureError
+  >;
   publishRssCheckProgress: (input: {
     current: number;
     total: number;
@@ -68,14 +71,12 @@ export function makeSearchOrchestration(input: {
 
   const { searchEpisodeReleases, searchNyaaReleases, searchReleases } = makeSearchReleaseSupport({
     db,
-    dbError,
     rssClient,
     seadexClient,
     wrapOperationsError,
   });
   const backgroundSearchSupport = makeBackgroundSearchSupport({
     db,
-    dbError,
     eventBus,
     maybeQBitConfig,
     nowIso,
@@ -116,7 +117,6 @@ export function makeSearchOrchestration(input: {
   const { scanImportPath } = makeSearchImportPathSupport({
     aniList,
     db,
-    dbError,
     fs,
     mediaProbe,
     tryDatabasePromise,

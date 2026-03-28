@@ -1,7 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { DatabaseError } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import { classifyMediaArtifact } from "../../lib/media-identity.ts";
 import {
@@ -187,15 +186,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
         input.row.animeId,
         relevantEpisodes,
         managedPath,
-      ).pipe(
-        Effect.mapError(
-          (cause) =>
-            new DatabaseError({
-              message: "Failed to reconcile completed download",
-              cause,
-            }),
-        ),
-      );
+      ).pipe(Effect.mapError(input.wrapOperationsError("Failed to reconcile completed download")));
 
       for (const episodeNumber of relevantEpisodes) {
         const existing = episodeMap.get(episodeNumber);

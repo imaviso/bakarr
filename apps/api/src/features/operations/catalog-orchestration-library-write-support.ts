@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { Effect, Either } from "effect";
+import { Effect, Either, Schema } from "effect";
 
 import type { ImportResult, RenameResult } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
@@ -9,7 +9,11 @@ import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { upsertEpisodeFilesAtomic } from "./download-support.ts";
-import { OperationsAnimeNotFoundError, OperationsPathError } from "./errors.ts";
+import {
+  OperationsAnimeNotFoundError,
+  OperationsPathError,
+  OperationsInfrastructureError,
+} from "./errors.ts";
 import { buildRenamePreview } from "./library-import.ts";
 import {
   buildEpisodeFilenamePlan,
@@ -30,7 +34,10 @@ export interface CatalogLibraryWriteSupportShape {
     }[],
   ) => Effect.Effect<
     ImportResult,
-    DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
+    | DatabaseError
+    | OperationsPathError
+    | OperationsAnimeNotFoundError
+    | OperationsInfrastructureError
   >;
   readonly renameFiles: (
     animeId: number,
@@ -48,7 +55,7 @@ export function makeCatalogLibraryWriteSupport(input: {
   mediaProbe: MediaProbeShape;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { db, dbError, eventBus, fs, mediaProbe, tryDatabasePromise } = input;
+  const { db, eventBus, fs, mediaProbe, tryDatabasePromise } = input;
 
   const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (animeId: number) {
     const animeRow = yield* requireAnime(db, animeId);
@@ -240,7 +247,7 @@ export function makeCatalogLibraryWriteSupport(input: {
       ).pipe(
         Effect.mapError(
           (cause) =>
-            new DatabaseError({
+            new OperationsInfrastructureError({
               cause,
               message: "Failed to import episode files atomically",
             }),
@@ -254,7 +261,7 @@ export function makeCatalogLibraryWriteSupport(input: {
 
         yield* rollbackEffect.pipe(
           Effect.catchTag("FileSystemError", (error) =>
-            Effect.logWarning("Failed to rollback filesystem after DB error").pipe(
+            Effect.logWarning("Failed to rollback filesystem after import error").pipe(
               Effect.annotateLogs({
                 destination_path: destination,
                 source_path: file.source_path,
@@ -321,7 +328,12 @@ export function makeCatalogLibraryWriteSupport(input: {
   ) {
     return yield* importFilesBase(files).pipe(
       Effect.mapError((error) =>
-        error instanceof DatabaseError ? error : dbError("Failed to import files")(error),
+        error instanceof DatabaseError || Schema.is(OperationsInfrastructureError)(error)
+          ? error
+          : new OperationsInfrastructureError({
+              message: "Failed to import files",
+              cause: error,
+            }),
       ),
     );
   });

@@ -18,6 +18,7 @@ import {
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
+  OperationsInfrastructureError,
 } from "./errors.ts";
 import { appendLog } from "./job-support.ts";
 import { scanVideoFiles } from "./file-scanner.ts";
@@ -36,6 +37,7 @@ export interface UnmappedImportWorkflowShape {
     | OperationsConflictError
     | OperationsInputError
     | OperationsPathError
+    | OperationsInfrastructureError
   >;
 }
 
@@ -121,7 +123,7 @@ export function makeUnmappedImportWorkflow(input: {
       }).pipe(
         Effect.catchTag("StoredConfigCorruptError", (e) =>
           Effect.fail(
-            new DatabaseError({
+            new OperationsInfrastructureError({
               message: "Failed to import unmapped folder",
               cause: e,
             }),
@@ -196,7 +198,7 @@ export function makeUnmappedImportWorkflow(input: {
             .pipe(
               Effect.catchTag("UpsertEpisodeError", (e) =>
                 Effect.fail(
-                  new DatabaseError({
+                  new OperationsInfrastructureError({
                     message: "Failed to import unmapped folder",
                     cause: e,
                   }),

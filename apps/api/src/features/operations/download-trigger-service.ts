@@ -24,7 +24,12 @@ import {
 } from "./download-lifecycle.ts";
 import { appendLog, loadMissingEpisodeNumbers, recordDownloadEvent } from "./job-support.ts";
 import { parseReleaseName } from "./release-ranking.ts";
-import { DownloadConflictError, type OperationsError, OperationsInputError } from "./errors.ts";
+import {
+  DownloadConflictError,
+  type OperationsError,
+  OperationsInputError,
+  OperationsInfrastructureError,
+} from "./errors.ts";
 import type { ExternalCallError } from "../../lib/effect-retry.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
@@ -56,7 +61,6 @@ export function makeDownloadTriggerService(input: {
     eventBus,
     tryDatabasePromise,
     wrapOperationsError,
-    dbError,
     maybeQBitConfig,
     coordination,
     syncDownloadsWithQBitEffect,
@@ -82,9 +86,14 @@ export function makeDownloadTriggerService(input: {
     function* () {
       const downloads = yield* getDownloadProgressSnapshotEffect().pipe(
         Effect.catchAll((error) =>
-          error instanceof DatabaseError
-            ? Effect.fail(error)
-            : Effect.fail(dbError("Failed to load download progress snapshot")(error)),
+          Effect.fail(
+            error instanceof DatabaseError
+              ? error
+              : new OperationsInfrastructureError({
+                  message: "Failed to load download progress snapshot",
+                  cause: error,
+                }),
+          ),
         ),
       );
 

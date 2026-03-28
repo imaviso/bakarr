@@ -11,6 +11,7 @@ import {
   requireAnime,
 } from "./repository.ts";
 import { makeBackgroundSearchQueueSupport } from "./background-search-queue-support.ts";
+import { OperationsInfrastructureError } from "./errors.ts";
 import type {
   BackgroundSearchSupportInput,
   BackgroundSearchSupportShared,
@@ -28,7 +29,6 @@ export function makeBackgroundSearchMissingSupport(
     publishDownloadProgress,
     searchEpisodeReleases,
     tryDatabasePromise,
-    dbError,
   } = input;
 
   const logSearchMissingSkip = shared.logSearchMissingSkip;
@@ -133,7 +133,10 @@ export function makeBackgroundSearchMissingSupport(
       Effect.mapError((error) =>
         error instanceof DatabaseError
           ? error
-          : dbError("Failed to queue missing-episode search")(error),
+          : new OperationsInfrastructureError({
+              message: "Failed to queue missing-episode search",
+              cause: error,
+            }),
       ),
     );
   });

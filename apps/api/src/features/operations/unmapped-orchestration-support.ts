@@ -23,13 +23,12 @@ export function makeUnmappedOrchestrationSupport(input: {
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { aniList, animeImportService, db, dbError, coordination, fs, tryDatabasePromise } = input;
+  const { aniList, animeImportService, db, coordination, fs, tryDatabasePromise } = input;
   const { nowIso } = input;
 
   const scanWorkflow = makeUnmappedScanWorkflow({
     aniList,
     db,
-    dbError,
     coordination,
     fs,
     nowIso,

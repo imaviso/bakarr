@@ -1,7 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { DatabaseError } from "../../db/database.ts";
 import { episodes } from "../../db/schema.ts";
 import {
   buildEpisodeFilenamePlan,
@@ -132,13 +131,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     },
   ).pipe(Effect.mapError(input.wrapOperationsError("Failed to reconcile completed download")));
   yield* upsertEpisodeFile(input.db, input.row.animeId, input.row.episodeNumber, managedPath).pipe(
-    Effect.mapError(
-      (cause) =>
-        new DatabaseError({
-          message: "Failed to reconcile completed download",
-          cause,
-        }),
-    ),
+    Effect.mapError(input.wrapOperationsError("Failed to reconcile completed download")),
   );
   const singleNow = yield* input.nowIso();
   const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredEpisodes);

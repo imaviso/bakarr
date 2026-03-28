@@ -11,9 +11,9 @@ import { EventBus } from "../events/event-bus.ts";
 export interface OperationsCoordinationShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;
   readonly forkUnmappedScanLoop: (loop: Effect.Effect<void>) => Effect.Effect<void>;
-  readonly runExclusiveDownloadTrigger: <A, E>(
-    operation: Effect.Effect<A, E>,
-  ) => Effect.Effect<A, E>;
+  readonly runExclusiveDownloadTrigger: <A, E, R>(
+    operation: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>;
   readonly tryBeginUnmappedScan: () => Effect.Effect<boolean>;
 }
 
@@ -28,7 +28,7 @@ export const makeOperationsSharedState = Effect.fn("OperationsService.makeShared
       completeUnmappedScan: () => coordinator.finish,
       forkUnmappedScanLoop: (loop: Effect.Effect<void>) =>
         Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
-      runExclusiveDownloadTrigger: <A, E>(operation: Effect.Effect<A, E>) =>
+      runExclusiveDownloadTrigger: <A, E, R>(operation: Effect.Effect<A, E, R>) =>
         coordinator.runSerialized(operation),
       tryBeginUnmappedScan: () => coordinator.tryStart,
     } satisfies OperationsCoordinationShape;
@@ -39,7 +39,10 @@ export const makeOperationsProgressPublishers = Effect.fn(
   "OperationsService.makeProgressPublishers",
 )(function* (input: {
   eventBus: typeof EventBus.Service;
-  publishDownloadProgressEffect: Effect.Effect<void, DatabaseError>;
+  publishDownloadProgressEffect: Effect.Effect<
+    void,
+    DatabaseError | import("./errors.ts").OperationsInfrastructureError
+  >;
 }) {
   const coalescedDownloadProgressPublisher = yield* makeCoalescedEffectRunner(
     input.publishDownloadProgressEffect,

@@ -4,7 +4,11 @@ import type { Config, QualityProfile } from "../../../../../packages/shared/src/
 import type { AppDatabase, DatabaseError } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { type OperationsError, OperationsInputError } from "./errors.ts";
+import {
+  type OperationsError,
+  OperationsInputError,
+  OperationsInfrastructureError,
+} from "./errors.ts";
 import { type ParsedRelease, RssClient } from "./rss-client.ts";
 import { type QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
 import { loadQualityProfile } from "./repository.ts";
@@ -14,14 +18,13 @@ import { EventBus } from "../events/event-bus.ts";
 
 export interface BackgroundSearchSupportInput {
   db: AppDatabase;
-  dbError: (message: string) => (cause: unknown) => DatabaseError;
   coordination: OperationsCoordinationShape;
   eventBus: typeof EventBus.Service;
   maybeQBitConfig: (config: Config) => QBitConfig | null;
   nowIso: () => Effect.Effect<string>;
   qbitClient: typeof QBitTorrentClient.Service;
   rssClient: typeof RssClient.Service;
-  publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
+  publishDownloadProgress: () => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
   publishRssCheckProgress: (input: {
     current: number;
     total: number;

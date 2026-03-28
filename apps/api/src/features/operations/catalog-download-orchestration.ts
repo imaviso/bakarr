@@ -16,7 +16,8 @@ export function makeCatalogDownloadOrchestration(input: {
   readonly nowIso: () => import("effect").Effect.Effect<string>;
   readonly publishDownloadProgress: () => import("effect").Effect.Effect<
     void,
-    import("../../db/database.ts").DatabaseError
+    | import("../../db/database.ts").DatabaseError
+    | import("./errors.ts").OperationsInfrastructureError
   >;
   readonly reconcileDownloadByIdEffect: (
     id: number,
@@ -32,7 +33,11 @@ export function makeCatalogDownloadOrchestration(input: {
   >;
   readonly syncDownloadState: (
     trigger: string,
-  ) => import("effect").Effect.Effect<void, import("../../db/database.ts").DatabaseError>;
+  ) => import("effect").Effect.Effect<
+    void,
+    | import("../../db/database.ts").DatabaseError
+    | import("./errors.ts").OperationsInfrastructureError
+  >;
   readonly tryDatabasePromise: import("../../lib/effect-db.ts").TryDatabasePromise;
 }) {
   const {

@@ -5,6 +5,7 @@ import { DatabaseError } from "../../db/database.ts";
 import { makeDownloadReconciliationService } from "./download-reconciliation-service.ts";
 import { makeDownloadTorrentLifecycleService } from "./download-torrent-lifecycle-service.ts";
 import { makeDownloadTriggerService } from "./download-trigger-service.ts";
+import { OperationsInfrastructureError } from "./errors.ts";
 import { type DownloadOrchestrationInput, mapQBitState } from "./download-orchestration-shared.ts";
 
 export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
@@ -26,15 +27,18 @@ export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
   ) {
     const startedAt = yield* currentMonotonicMillis();
 
-    yield* torrentLifecycleService
-      .syncDownloadsWithQBitEffect()
-      .pipe(
-        Effect.catchAll((error) =>
+    yield* torrentLifecycleService.syncDownloadsWithQBitEffect().pipe(
+      Effect.catchAll((error) =>
+        Effect.fail(
           error instanceof DatabaseError
-            ? Effect.fail(error)
-            : Effect.fail(input.dbError("Failed to sync downloads with qBittorrent")(error)),
+            ? error
+            : new OperationsInfrastructureError({
+                message: "Failed to sync downloads with qBittorrent",
+                cause: error,
+              }),
         ),
-      );
+      ),
+    );
 
     const finishedAt = yield* currentMonotonicMillis();
 

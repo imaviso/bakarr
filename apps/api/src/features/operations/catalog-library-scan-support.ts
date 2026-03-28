@@ -6,7 +6,7 @@ import { anime } from "../../db/schema.ts";
 import { type FileSystemShape } from "../../lib/filesystem.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "../../lib/media-identity.ts";
 import { EventBus } from "../events/event-bus.ts";
-import { OperationsPathError } from "./errors.ts";
+import { OperationsPathError, OperationsInfrastructureError } from "./errors.ts";
 import { markJobFailed, markJobStarted, markJobSucceeded } from "./job-support.ts";
 import { upsertEpisodeFilesAtomic } from "./download-support.ts";
 import { scanVideoFilesStream } from "./file-scanner.ts";
@@ -15,7 +15,7 @@ import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 export interface CatalogLibraryScanSupportShape {
   readonly runLibraryScan: () => Effect.Effect<
     { matched: number; scanned: number },
-    OperationsPathError | DatabaseError
+    OperationsPathError | DatabaseError | OperationsInfrastructureError
   >;
 }
 
@@ -78,7 +78,7 @@ export function makeCatalogLibraryScanSupport(input: {
         yield* upsertEpisodeFilesAtomic(input.db, animeId, episodeNumbers, file.path).pipe(
           Effect.mapError(
             (cause) =>
-              new DatabaseErrorTag({
+              new OperationsInfrastructureError({
                 message: "Failed to run library scan",
                 cause,
               }),
@@ -138,9 +138,16 @@ export function makeCatalogLibraryScanSupport(input: {
     Effect.catchAll((cause) =>
       markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
         Effect.zipRight(
-          cause instanceof DatabaseErrorTag || cause instanceof OperationsPathError
-            ? Effect.fail(cause)
-            : Effect.fail(input.dbError("Failed to run library scan")(cause)),
+          Effect.fail(
+            cause instanceof DatabaseErrorTag ||
+              cause instanceof OperationsPathError ||
+              cause instanceof OperationsInfrastructureError
+              ? cause
+              : new OperationsInfrastructureError({
+                  message: "Failed to run library scan",
+                  cause,
+                }),
+          ),
         ),
       ),
     ),

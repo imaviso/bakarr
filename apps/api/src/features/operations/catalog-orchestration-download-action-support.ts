@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import type { DatabaseError } from "../../db/database.ts";
-import type { OperationsError } from "./errors.ts";
+import type { OperationsError, OperationsInfrastructureError } from "./errors.ts";
 
 export interface CatalogDownloadActionSupportShape {
   readonly pauseDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
@@ -12,7 +12,7 @@ export interface CatalogDownloadActionSupportShape {
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly resumeDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly retryDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
-  readonly syncDownloads: () => Effect.Effect<void, DatabaseError>;
+  readonly syncDownloads: () => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
 }
 
 export function makeCatalogDownloadActionSupport(input: {
@@ -21,10 +21,12 @@ export function makeCatalogDownloadActionSupport(input: {
     action: "pause" | "resume" | "delete",
     deleteFiles?: boolean,
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
-  publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
+  publishDownloadProgress: () => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
   reconcileDownloadByIdEffect: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
   retryDownloadById: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
-  syncDownloadState: (trigger: string) => Effect.Effect<void, DatabaseError>;
+  syncDownloadState: (
+    trigger: string,
+  ) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
 }) {
   const {
     applyDownloadActionEffect,

@@ -8,7 +8,7 @@ import {
   deleteUnmappedFolderMatchRowsNotInPaths,
   upsertUnmappedFolderMatchRows,
 } from "../system/repository/unmapped-repository.ts";
-import { OperationsPathError } from "./errors.ts";
+import { OperationsPathError, OperationsInfrastructureError } from "./errors.ts";
 import {
   appendLog,
   markJobFailed,
@@ -31,20 +31,22 @@ export interface UnmappedScanWorkflowShape {
   readonly matchAndPersistUnmappedFolder: UnmappedScanQueryShape["matchAndPersistUnmappedFolder"];
   readonly runUnmappedScan: () => Effect.Effect<
     { folderCount: number },
-    DatabaseError | OperationsPathError | import("./errors.ts").OperationsStoredDataError
+    | DatabaseError
+    | OperationsPathError
+    | OperationsInfrastructureError
+    | import("./errors.ts").OperationsStoredDataError
   >;
 }
 
 export function makeUnmappedScanWorkflow(input: {
   aniList: typeof AniListClient.Service;
   db: AppDatabase;
-  dbError: (message: string) => (cause: unknown) => DatabaseError;
   coordination: OperationsCoordinationShape;
   fs: FileSystemShape;
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { aniList, db, dbError, coordination, fs, tryDatabasePromise } = input;
+  const { aniList, db, coordination, fs, tryDatabasePromise } = input;
   const { nowIso } = input;
   const { getUnmappedFolders, loadQueuedUnmappedFolders, matchAndPersistUnmappedFolder } =
     makeUnmappedScanQuerySupport({
@@ -134,9 +136,14 @@ export function makeUnmappedScanWorkflow(input: {
     Effect.catchAll((cause) =>
       markJobFailed(db, "unmapped_scan", cause, nowIso).pipe(
         Effect.zipRight(
-          cause instanceof DatabaseError || cause instanceof OperationsPathError
-            ? Effect.fail(cause)
-            : Effect.fail(dbError("Failed to scan unmapped folders")(cause)),
+          Effect.fail(
+            cause instanceof DatabaseError || cause instanceof OperationsPathError
+              ? cause
+              : new OperationsInfrastructureError({
+                  message: "Failed to scan unmapped folders",
+                  cause,
+                }),
+          ),
         ),
       ),
     ),

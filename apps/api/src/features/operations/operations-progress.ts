@@ -2,11 +2,15 @@ import { Context, Effect, Layer } from "effect";
 
 import type { DatabaseError } from "../../db/database.ts";
 import { EventBus } from "../events/event-bus.ts";
-import { DownloadProgressService } from "./download-service-tags.ts";
+import { DownloadWorkflow } from "./download-service-tags.ts";
+import type { OperationsInfrastructureError } from "./errors.ts";
 import { makeOperationsProgressPublishers } from "./runtime-support.ts";
 
 export interface OperationsProgressShape {
-  readonly publishDownloadProgress: () => Effect.Effect<void, DatabaseError>;
+  readonly publishDownloadProgress: () => Effect.Effect<
+    void,
+    DatabaseError | OperationsInfrastructureError
+  >;
   readonly publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
   readonly publishRssCheckProgress: (input: {
     current: number;
@@ -24,11 +28,11 @@ export const ProgressLive = Layer.scoped(
   OperationsProgress,
   Effect.gen(function* () {
     const eventBus = yield* EventBus;
-    const downloadProgress = yield* DownloadProgressService;
+    const downloadWorkflow = yield* DownloadWorkflow;
 
     return yield* makeOperationsProgressPublishers({
       eventBus,
-      publishDownloadProgressEffect: downloadProgress.publishDownloadProgress(),
+      publishDownloadProgressEffect: downloadWorkflow.publishDownloadProgress(),
     });
   }),
 );

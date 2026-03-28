@@ -18,7 +18,11 @@ import { applySeaDexMatch } from "./seadex-matching.ts";
 import { loadRuntimeConfig, requireAnime } from "./repository.ts";
 import { mapSearchCategory, mapSearchFilter, toNyaaSearchResult } from "./search-support.ts";
 import { parseReleaseName } from "./release-ranking.ts";
-import { OperationsInputError, type OperationsError } from "./errors.ts";
+import {
+  OperationsInputError,
+  OperationsInfrastructureError,
+  type OperationsError,
+} from "./errors.ts";
 
 type SearchReleaseError = ExternalCallError | OperationsError | DatabaseError;
 type SearchReleaseSourceError =
@@ -38,9 +42,8 @@ export function makeSearchReleaseSupport(input: {
   rssClient: typeof RssClient.Service;
   seadexClient: typeof SeaDexClient.Service;
   wrapOperationsError: (message: string) => (cause: unknown) => SearchReleaseError;
-  dbError: (message: string) => (cause: unknown) => DatabaseError;
 }) {
-  const { db, rssClient, seadexClient, wrapOperationsError, dbError } = input;
+  const { db, rssClient, seadexClient, wrapOperationsError } = input;
 
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(function* (
     query: string,
@@ -152,7 +155,10 @@ export function makeSearchReleaseSupport(input: {
         error instanceof ExternalCallError ||
         error instanceof OperationsInputError
           ? error
-          : dbError("Failed to search releases")(error),
+          : new OperationsInfrastructureError({
+              message: "Failed to search releases",
+              cause: error,
+            }),
       ),
     );
   });

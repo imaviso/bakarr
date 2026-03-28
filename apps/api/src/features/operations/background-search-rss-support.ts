@@ -17,6 +17,7 @@ import {
   requireAnime,
 } from "./repository.ts";
 import { makeBackgroundSearchQueueSupport } from "./background-search-queue-support.ts";
+import { OperationsInfrastructureError } from "./errors.ts";
 import type {
   BackgroundSearchSupportInput,
   BackgroundSearchSupportShared,
@@ -36,7 +37,6 @@ export function makeBackgroundSearchRssSupport(
     publishRssCheckProgress,
     tryDatabasePromise,
     wrapOperationsError,
-    dbError,
   } = input;
 
   const logRssSkip = shared.logRssSkip;
@@ -205,7 +205,16 @@ export function makeBackgroundSearchRssSupport(
       Effect.withSpan("operations.rss.check"),
       Effect.catchAll((cause) =>
         markJobFailed(db, "rss", cause, nowIso).pipe(
-          Effect.zipRight(Effect.fail(dbError("Failed to run RSS check")(cause))),
+          Effect.zipRight(
+            Effect.fail(
+              cause instanceof DatabaseError
+                ? cause
+                : new OperationsInfrastructureError({
+                    message: "Failed to run RSS check",
+                    cause,
+                  }),
+            ),
+          ),
         ),
       ),
     );
@@ -214,7 +223,12 @@ export function makeBackgroundSearchRssSupport(
   const runRssCheck = Effect.fn("OperationsService.runRssCheck")(function* () {
     return yield* runRssCheckBase().pipe(
       Effect.mapError((error) =>
-        error instanceof DatabaseError ? error : dbError("Failed to run RSS check")(error),
+        error instanceof DatabaseError
+          ? error
+          : new OperationsInfrastructureError({
+              message: "Failed to run RSS check",
+              cause: error,
+            }),
       ),
     );
   });
