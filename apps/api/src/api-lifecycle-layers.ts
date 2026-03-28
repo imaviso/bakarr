@@ -51,12 +51,8 @@ export function makeApiLifecycleLayers(
   const platformLayer = makeAppPlatformRuntimeLayer(overrides, options);
   const animeLayer = makeAnimeRuntimeLayer(platformLayer);
   const downloadSupportLayer = Layer.mergeAll(platformLayer, OperationsSharedStateLive);
-  const downloadServiceLayer = DownloadTriggerServiceLive.pipe(
-    Layer.provide(downloadSupportLayer),
-  );
-  const downloadControlLayer = DownloadControlServiceLive.pipe(
-    Layer.provide(downloadSupportLayer),
-  );
+  const downloadServiceLayer = DownloadTriggerServiceLive.pipe(Layer.provide(downloadSupportLayer));
+  const downloadControlLayer = DownloadControlServiceLive.pipe(Layer.provide(downloadSupportLayer));
   const downloadProgressLayer = DownloadProgressServiceLive.pipe(
     Layer.provide(downloadSupportLayer),
   );
@@ -89,9 +85,7 @@ export function makeApiLifecycleLayers(
     DownloadLifecycleServiceLive,
     LibraryScanServiceLive,
     SearchWorkerServiceLive,
-  ).pipe(
-    Layer.provide(Layer.mergeAll(searchSupportLayer, catalogServiceLayer)),
-  );
+  ).pipe(Layer.provide(Layer.mergeAll(searchSupportLayer, catalogServiceLayer)));
   const operationsLayer = Layer.mergeAll(
     downloadServiceLayer,
     downloadControlLayer,
@@ -107,18 +101,13 @@ export function makeApiLifecycleLayers(
   const backgroundRuntimeControlLayer = BackgroundWorkerRuntimeControlLive.pipe(
     Layer.provide(backgroundControllerLayer),
   );
-  const backgroundLayer = Layer.mergeAll(
-    backgroundControllerLayer,
-    backgroundRuntimeControlLayer,
-  );
+  const backgroundLayer = Layer.mergeAll(backgroundControllerLayer, backgroundRuntimeControlLayer);
   const authLayer = makeAuthRuntimeLayer(platformLayer);
   const systemBootstrapLayer = SystemBootstrapServiceLive.pipe(Layer.provide(platformLayer));
   const qualityProfileServiceLayer = QualityProfileServiceLive.pipe(Layer.provide(platformLayer));
   const releaseProfileServiceLayer = ReleaseProfileServiceLive.pipe(Layer.provide(platformLayer));
   const systemLogServiceLayer = SystemLogServiceLive.pipe(Layer.provide(platformLayer));
-  const systemConfigLayer = SystemConfigServiceLive.pipe(
-    Layer.provide(platformLayer),
-  );
+  const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(platformLayer));
   const systemConfigUpdateLayer = SystemConfigUpdateServiceLive.pipe(
     Layer.provide(Layer.mergeAll(platformLayer, backgroundRuntimeControlLayer)),
   );

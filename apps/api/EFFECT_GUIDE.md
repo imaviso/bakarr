@@ -10,7 +10,7 @@ compatibility layers.
 ## Reference Order
 
 - Start with the local `effect-ts` skill and its bundled references.
-- Check `~/Dev/effect` source, examples, and tests for the pattern most often
+- Check `~/effect` source, examples, and tests for the pattern most often
   used in practice.
 - Use the upstream code-style docs as the tie-breaker for style questions such
   as generators, pipelines, dual APIs, pattern matching, and branded types.
