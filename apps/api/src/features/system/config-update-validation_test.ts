@@ -52,3 +52,30 @@ it("rejects removing profiles that are still referenced", () =>
       }
     }
   }));
+
+it("rejects invalid qBittorrent URLs", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(
+      validateConfigUpdate({
+        countAnimeUsingProfile: () => Effect.succeed(0),
+        existingProfileRows: [],
+        nextConfig: makeTestConfig("./test.sqlite", (config) => ({
+          ...config,
+          qbittorrent: {
+            ...config.qbittorrent,
+            url: "ftp://localhost:8080",
+          },
+        })),
+      }),
+    );
+
+    assertEquals(Exit.isFailure(exit), true);
+
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assertEquals(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assertEquals(failure.value._tag, "ConfigValidationError");
+      }
+    }
+  }));

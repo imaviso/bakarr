@@ -22,6 +22,22 @@ export class ProfileNotFoundError extends Schema.TaggedError<ProfileNotFoundErro
   { message: Schema.String },
 ) {}
 
+export class ImageAssetNotFoundError extends Schema.TaggedError<ImageAssetNotFoundError>()(
+  "ImageAssetNotFoundError",
+  {
+    message: Schema.String,
+    status: Schema.Literal(404),
+  },
+) {}
+
+export class ImageAssetTooLargeError extends Schema.TaggedError<ImageAssetTooLargeError>()(
+  "ImageAssetTooLargeError",
+  {
+    message: Schema.String,
+    status: Schema.Literal(413),
+  },
+) {}
+
 export class StoredUnmappedFolderCorruptError extends Schema.TaggedError<StoredUnmappedFolderCorruptError>()(
   "StoredUnmappedFolderCorruptError",
   { message: Schema.String },

@@ -36,7 +36,7 @@ export type PersistedSystemConfigState = Schema.Schema.Type<
   typeof PersistedSystemConfigStateSchema
 >;
 
-export const persistAndActivateConfig = Effect.fn("SystemConfigService.persistAndActivateConfig")(
+export const persistAndActivateConfig = Effect.fn("SystemConfigUpdateService.persistAndActivateConfig")(
   function* <E>(input: {
     readonly activateConfig: (config: Config) => Effect.Effect<void, E>;
     readonly nextConfig: Config;

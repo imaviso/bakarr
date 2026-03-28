@@ -4,6 +4,7 @@ import * as Cron from "effect/Cron";
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { DatabaseError } from "../../db/database.ts";
 import { ConfigValidationError } from "./errors.ts";
+import { normalizeQBitTorrentConfig } from "./qbittorrent-config.ts";
 
 export interface ExistingConfigProfileRow {
   readonly name: string;
@@ -26,6 +27,8 @@ export const validateConfigUpdate = Effect.fn("ConfigUpdateValidation.validateCo
         });
       }
     }
+
+    yield* normalizeQBitTorrentConfig(input.nextConfig.qbittorrent);
 
     const keptProfileNames = new Set(input.nextConfig.profiles.map((profile) => profile.name));
     const removedProfileNames = input.existingProfileRows

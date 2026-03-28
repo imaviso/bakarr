@@ -2,10 +2,14 @@ import { asc } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
 import { Database, DatabaseError } from "../../db/database.ts";
-import { libraryRoots, type LibraryRoot } from "../../db/schema.ts";
+import { libraryRoots } from "../../db/schema.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 
-export type { LibraryRoot };
+export interface LibraryRoot {
+  readonly id: number;
+  readonly label: string;
+  readonly path: string;
+}
 
 export interface LibraryRootsServiceShape {
   readonly listRoots: () => Effect.Effect<LibraryRoot[], DatabaseError>;
@@ -20,9 +24,22 @@ const makeLibraryRootsService = Effect.gen(function* () {
   const { db } = yield* Database;
 
   const listRoots = Effect.fn("LibraryRootsService.listRoots")(function* () {
-    return yield* tryDatabasePromise("Failed to load library roots", () =>
-      db.select().from(libraryRoots).orderBy(asc(libraryRoots.label)),
+    const rows = yield* tryDatabasePromise("Failed to load library roots", () =>
+      db
+        .select({
+          id: libraryRoots.id,
+          label: libraryRoots.label,
+          path: libraryRoots.path,
+        })
+        .from(libraryRoots)
+        .orderBy(asc(libraryRoots.label)),
     );
+
+    return rows.map((row) => ({
+      id: row.id,
+      label: row.label,
+      path: row.path,
+    }));
   });
 
   return { listRoots } satisfies LibraryRootsServiceShape;

@@ -6,7 +6,7 @@ import { Database, DatabaseError } from "../../db/database.ts";
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
-} from "../operations/repository.ts";
+} from "../../lib/download-event-presentations.ts";
 import { OperationsStoredDataError } from "../operations/errors.ts";
 import {
   composeBackgroundJobStatuses,

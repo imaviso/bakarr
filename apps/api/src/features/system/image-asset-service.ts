@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
-import { AuthError } from "../auth/service.ts";
 import { FileSystem, isWithinPathRoot } from "../../lib/filesystem.ts";
+import { ImageAssetNotFoundError, ImageAssetTooLargeError } from "./errors.ts";
 import { SystemConfigService } from "./system-config-service.ts";
 
 export interface ImageAssetResult {
@@ -14,12 +14,14 @@ export interface ImageAssetServiceShape {
    * Decode, canonicalize, authorize, and load an image asset by its raw
    * URL-encoded relative path under the configured images root.
    *
-   * Fails with a 404 AuthError on any path-traversal, unsupported extension,
-   * out-of-root access, or missing file.
+   * Fails with a 404 ImageAssetNotFoundError on any path-traversal,
+   * unsupported extension, out-of-root access, or missing file.
+   * Fails with a 413 ImageAssetTooLargeError when the file exceeds the
+   * configured image asset size cap.
    */
   readonly resolveImageAsset: (
     rawRelativePath: string,
-  ) => Effect.Effect<ImageAssetResult, AuthError>;
+  ) => Effect.Effect<ImageAssetResult, ImageAssetNotFoundError | ImageAssetTooLargeError>;
 }
 
 export class ImageAssetService extends Context.Tag("@bakarr/api/ImageAssetService")<
@@ -28,13 +30,20 @@ export class ImageAssetService extends Context.Tag("@bakarr/api/ImageAssetServic
 >() {}
 
 const SUPPORTED_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"] as const;
+const MAX_IMAGE_ASSET_BYTES = 8 * 1024 * 1024;
 
 function isSupportedImageExtension(path: string): boolean {
   const lower = path.toLowerCase();
   return SUPPORTED_IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-const notFoundError = () => new AuthError({ message: "Not Found", status: 404 });
+const notFoundError = () => new ImageAssetNotFoundError({ message: "Not Found", status: 404 });
+
+const tooLargeError = () =>
+  new ImageAssetTooLargeError({
+    message: "Image asset payload exceeded the allowed size",
+    status: 413,
+  });
 
 const makeImageAssetService = Effect.gen(function* () {
   const systemService = yield* SystemConfigService;
@@ -74,10 +83,18 @@ const makeImageAssetService = Effect.gen(function* () {
     }
 
     const bytes = yield* fs
+      .stat(canonicalFilePath)
+      .pipe(Effect.mapError(() => notFoundError()));
+
+    if (bytes.size > MAX_IMAGE_ASSET_BYTES) {
+      return yield* tooLargeError();
+    }
+
+    const fileBytes = yield* fs
       .readFile(canonicalFilePath)
       .pipe(Effect.mapError(() => notFoundError()));
 
-    return { bytes, filePath: canonicalFilePath } satisfies ImageAssetResult;
+    return { bytes: fileBytes, filePath: canonicalFilePath } satisfies ImageAssetResult;
   });
 
   return { resolveImageAsset } satisfies ImageAssetServiceShape;

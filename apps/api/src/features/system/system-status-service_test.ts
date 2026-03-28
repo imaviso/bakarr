@@ -1,10 +1,6 @@
 import { CommandExecutor } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import {
-  BackgroundWorkerController,
-  type BackgroundWorkerControllerShape,
-} from "../../background-controller.ts";
 import { AppConfig } from "../../config.ts";
 import { Database, type AppDatabase, type DatabaseService } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
@@ -50,7 +46,6 @@ describe("SystemStatusService", () => {
               client: {} as DatabaseService["client"],
               db: db as AppDatabase,
             }),
-            Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub()),
           );
 
           const diskSpaceLayer = DiskSpaceInspectorLive.pipe(Layer.provide(baseLayer));
@@ -81,15 +76,6 @@ describe("SystemStatusService", () => {
     }),
   );
 });
-
-function makeBackgroundWorkerControllerStub(): BackgroundWorkerControllerShape {
-  return {
-    isStarted: () => Effect.succeed(false),
-    reload: () => Effect.void,
-    start: () => Effect.void,
-    stop: () => Effect.void,
-  };
-}
 
 function makeCommandExecutorStub(
   runAsString: (command: {

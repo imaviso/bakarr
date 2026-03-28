@@ -2,7 +2,7 @@ import { Context, Effect, Layer, Metric } from "effect";
 
 import type { DatabaseError } from "../../db/database.ts";
 import { renderBakarrPrometheusMetrics } from "../../lib/metrics.ts";
-import { CatalogOrchestration } from "../operations/operations-orchestration.ts";
+import { CatalogReadService } from "../operations/catalog-service-tags.ts";
 import type { OperationsError } from "../operations/errors.ts";
 import { SystemStatusService } from "./system-status-service.ts";
 import type { DiskSpaceError } from "./disk-space.ts";
@@ -26,7 +26,7 @@ export class MetricsService extends Context.Tag("@bakarr/api/MetricsService")<
 
 const makeMetricsService = Effect.gen(function* () {
   const systemService = yield* SystemStatusService;
-  const catalogService = yield* CatalogOrchestration;
+  const catalogService = yield* CatalogReadService;
 
   const renderPrometheusMetrics = Effect.fn("MetricsService.renderPrometheusMetrics")(function* () {
     const [status, stats, downloads] = yield* Effect.all([
