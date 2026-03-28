@@ -4,15 +4,15 @@ import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
 import * as BunRuntime from "@effect/platform-bun/BunRuntime";
 import { Effect, Layer } from "effect";
 
-import { BackgroundWorkerController } from "./src/background-controller.ts";
-import { AppConfig, type AppConfigShape } from "./src/config.ts";
+import type { AppConfigShape } from "./src/config.ts";
 import { makeDotenvConfigProvider } from "./src/config-provider.ts";
-import { migrateDatabase } from "./src/db/migrate.ts";
-import { AuthService } from "./src/features/auth/service.ts";
-import { SystemBootstrapService } from "./src/features/system/system-bootstrap-service.ts";
-import { SystemConfigService } from "./src/features/system/system-config-service.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
-import { compactLogAnnotations } from "./src/lib/logging.ts";
+import {
+  bootstrapProgram,
+  logServerStarting,
+  logServerStopping,
+  startBackgroundWorkers,
+} from "./src/api-startup.ts";
 import { makeApiLayer, makeApiRuntime, type RuntimeOptions } from "./src/runtime.ts";
 
 /**
@@ -32,46 +32,6 @@ import { makeApiLayer, makeApiRuntime, type RuntimeOptions } from "./src/runtime
  * After bootstrap, main.ts loads the full Config via getConfig to start
  * background workers. If config decoding fails, startup fails fast.
  */
-const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
-  yield* migrateDatabase();
-
-  yield* (yield* SystemBootstrapService).ensureInitialized();
-
-  const auth = yield* AuthService;
-  yield* auth.ensureBootstrapUser();
-
-  return yield* AppConfig;
-});
-
-const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
-  const controller = yield* BackgroundWorkerController;
-  const config = yield* (yield* SystemConfigService).getConfig();
-
-  yield* controller.start(config);
-});
-
-const logServerStarting = Effect.fn("api.server.logStarting")(function* (config: AppConfigShape) {
-  yield* Effect.logInfo("api server starting").pipe(
-    Effect.annotateLogs(
-      compactLogAnnotations({
-        appVersion: config.appVersion,
-        component: "api",
-        event: "api.server.starting",
-        port: config.port,
-      }),
-    ),
-  );
-});
-
-const logServerStopping = Effect.fn("api.server.logStopping")(function* () {
-  yield* Effect.logInfo("api server shutting down").pipe(
-    Effect.annotateLogs({
-      component: "api",
-      event: "api.server.stopping",
-    }),
-  );
-});
-
 const mainProgram = Effect.fn("api.main")(function* () {
   const config = yield* bootstrapProgram().pipe(Effect.withSpan("api.bootstrap"));
   const httpApp = yield* createHttpApp();
