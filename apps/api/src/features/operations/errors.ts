@@ -52,6 +52,11 @@ export class OperationsStoredDataError extends Schema.TaggedError<OperationsStor
   { message: Schema.String },
 ) {}
 
+export class OperationsInfrastructureError extends Schema.TaggedError<OperationsInfrastructureError>()(
+  "OperationsInfrastructureError",
+  { message: Schema.String, cause: Schema.optional(Schema.Defect) },
+) {}
+
 export type OperationsError =
   | DownloadNotFoundError
   | DownloadConflictError
@@ -60,6 +65,7 @@ export type OperationsError =
   | OperationsInputError
   | OperationsPathError
   | OperationsStoredDataError
+  | OperationsInfrastructureError
   | RssFeedParseError
   | RssFeedRejectedError
   | RssFeedTooLargeError
