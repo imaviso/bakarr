@@ -4,7 +4,7 @@ import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../../config.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { BackgroundWorkerRuntimeControl } from "../../background-runtime-control.ts";
+import { BackgroundWorkerController } from "../../background-controller.ts";
 import { persistAndActivateConfig, type PersistedSystemConfigState } from "./config-activation.ts";
 import { validateConfigUpdate } from "./config-update-validation.ts";
 import {
@@ -38,7 +38,7 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
   const { db } = yield* Database;
   const appConfig = yield* AppConfig;
   const clock = yield* ClockService;
-  const runtimeControl = yield* BackgroundWorkerRuntimeControl;
+  const runtimeControl = yield* BackgroundWorkerController;
   const nowIso = () => nowIsoFromClock(clock);
 
   const updateConfig = Effect.fn("SystemConfigUpdateService.updateConfig")(function* (

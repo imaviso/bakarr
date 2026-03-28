@@ -3,10 +3,10 @@ import { Effect, Layer } from "effect";
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../../config.ts";
 import {
-  BackgroundWorkerRuntimeControl,
-  type BackgroundWorkerRuntimeControlShape,
-} from "../../background-runtime-control.ts";
-import { Database, type AppDatabase, type DatabaseService } from "../../db/database.ts";
+  BackgroundWorkerController,
+  type BackgroundWorkerControllerShape,
+} from "../../background-controller.ts";
+import { Database, type DatabaseService } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import * as schema from "../../db/schema.ts";
 import { ClockServiceLive } from "../../lib/clock.ts";
@@ -32,12 +32,9 @@ describe("SystemConfigUpdateService", () => {
             ClockServiceLive,
             Layer.succeed(Database, {
               client: {} as DatabaseService["client"],
-              db: db as AppDatabase,
+              db,
             }),
-            Layer.succeed(
-              BackgroundWorkerRuntimeControl,
-              makeBackgroundWorkerRuntimeControlStub(reloads),
-            ),
+            Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(reloads)),
           );
           const serviceLayer = Layer.mergeAll(
             SystemConfigServiceLive,
@@ -70,9 +67,7 @@ describe("SystemConfigUpdateService", () => {
   );
 });
 
-function makeBackgroundWorkerRuntimeControlStub(
-  reloads: Config[],
-): BackgroundWorkerRuntimeControlShape {
+function makeBackgroundWorkerControllerStub(reloads: Config[]): BackgroundWorkerControllerShape {
   return {
     isStarted: () => Effect.succeed(false),
     reload: (config) =>

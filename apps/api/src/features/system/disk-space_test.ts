@@ -113,8 +113,8 @@ function makeCommandExecutorStub(
         Effect.map((value) => value.split(/\r?\n/).filter((line) => line.length > 0)),
       ),
     start: () => Effect.die("start not implemented for test"),
-    stream: () => Effect.die("stream not implemented for test") as never,
-    streamLines: () => Effect.die("streamLines not implemented for test") as never,
+    stream: () => Effect.die("stream not implemented for test"),
+    streamLines: () => Effect.die("streamLines not implemented for test"),
     string: (command, _encoding) =>
       runAsString(command as { args: ReadonlyArray<string>; command: string }),
   };

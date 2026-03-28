@@ -21,6 +21,7 @@ import {
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "../features/operations/errors.ts";
+import { WorkerTimeoutError } from "../background-workers.ts";
 import { ExternalCallError } from "../lib/effect-retry.ts";
 import { PasswordError } from "../security/password.ts";
 import { TokenHasherError } from "../security/token-hasher.ts";
@@ -68,6 +69,7 @@ const knownTaggedRouteErrorSchemas = [
   StoredConfigCorruptError,
   StoredConfigMissingError,
   TokenHasherError,
+  WorkerTimeoutError,
 ] as const;
 
 type KnownRouteError = Schema.Schema.Type<Schema.Union<[...typeof knownTaggedRouteErrorSchemas]>>;
@@ -140,6 +142,7 @@ const taggedRouteErrorMappers: {
   StoredConfigCorruptError: messageStatus(500),
   StoredConfigMissingError: messageStatus(500),
   TokenHasherError: authCryptoFailure,
+  WorkerTimeoutError: messageStatus(500),
 };
 
 const KnownRouteErrorSchema = Schema.Union(...knownTaggedRouteErrorSchemas);

@@ -2,7 +2,7 @@ import { CommandExecutor } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
 import { AppConfig } from "../../config.ts";
-import { Database, type AppDatabase, type DatabaseService } from "../../db/database.ts";
+import { Database, type DatabaseService } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { AppRuntime } from "../../app-runtime.ts";
 import { BackgroundWorkerMonitorLive } from "../../background-monitor.ts";
@@ -44,7 +44,7 @@ describe("SystemStatusService", () => {
             Layer.succeed(CommandExecutor.CommandExecutor, commandExecutor),
             Layer.succeed(Database, {
               client: {} as DatabaseService["client"],
-              db: db as AppDatabase,
+              db,
             }),
           );
 
@@ -91,8 +91,8 @@ function makeCommandExecutorStub(
         Effect.map((value) => value.split(/\r?\n/).filter((line) => line.length > 0)),
       ),
     start: () => Effect.die("start not implemented for test"),
-    stream: () => Effect.die("stream not implemented for test") as never,
-    streamLines: () => Effect.die("streamLines not implemented for test") as never,
+    stream: () => Effect.die("stream not implemented for test"),
+    streamLines: () => Effect.die("streamLines not implemented for test"),
     string: (command, _encoding) =>
       runAsString(command as { args: ReadonlyArray<string>; command: string }),
   };

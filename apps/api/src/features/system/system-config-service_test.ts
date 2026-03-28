@@ -1,6 +1,6 @@
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { Database, type AppDatabase, type DatabaseService } from "../../db/database.ts";
+import { Database, type DatabaseService } from "../../db/database.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import { assertEquals, describe, it } from "../../test/vitest.ts";
@@ -18,7 +18,7 @@ describe("SystemConfigService", () => {
             Layer.provide(
               Layer.succeed(Database, {
                 client: {} as DatabaseService["client"],
-                db: db as AppDatabase,
+                db,
               }),
             ),
           );
