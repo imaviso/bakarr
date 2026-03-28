@@ -2,36 +2,19 @@ import { Layer } from "effect";
 
 import { makeAppPlatformRuntimeLayer, type RuntimeOptions } from "./app-platform-runtime-layer.ts";
 import { BackgroundWorkerControllerLive } from "./background-controller-live.ts";
-import { BackgroundWorkerRuntimeControlLive } from "./background-runtime-control.ts";
+import { AuthBootstrapServiceLive } from "./features/auth/bootstrap-service.ts";
+import { AuthCredentialServiceLive } from "./features/auth/credential-service.ts";
+import { AuthSessionServiceLive } from "./features/auth/session-service.ts";
 import { makeAnimeRuntimeLayer } from "./features/anime/anime-runtime-layer.ts";
 import { AnimeEnrollmentServiceLive } from "./features/anime/anime-enrollment-service.ts";
-import { makeAuthRuntimeLayer } from "./features/auth/auth-runtime-layer.ts";
 import { LibraryRootsServiceLive } from "./features/library-roots/service.ts";
 import { LibraryBrowseServiceLive } from "./features/operations/library-browse-service.ts";
-import {
-  CatalogDownloadControlServiceLive,
-  CatalogLibraryServiceLive,
-  CatalogReadServiceLive,
-  CatalogRssServiceLive,
-} from "./features/operations/catalog-service-tags.ts";
+import { CatalogWorkflowLive } from "./features/operations/catalog-service-tags.ts";
 import { CatalogLibraryReadSupportLive } from "./features/operations/catalog-library-read-support-service.ts";
-import {
-  DownloadControlServiceLive,
-  DownloadProgressServiceLive,
-  DownloadTriggerServiceLive,
-} from "./features/operations/download-service-tags.ts";
+import { DownloadWorkflowLive } from "./features/operations/download-service-tags.ts";
 import { OperationsSharedStateLive } from "./features/operations/operations-shared-state.ts";
 import { ProgressLive } from "./features/operations/operations-progress.ts";
-import {
-  ImportPathScanServiceLive,
-  SearchQueryServiceLive,
-  UnmappedFolderServiceLive,
-} from "./features/operations/search-service-tags.ts";
-import {
-  DownloadLifecycleServiceLive,
-  LibraryScanServiceLive,
-  SearchWorkerServiceLive,
-} from "./features/operations/worker-services.ts";
+import { SearchWorkflowLive } from "./features/operations/search-service-tags.ts";
 import { MetricsServiceLive } from "./features/system/metrics-service.ts";
 import { ImageAssetServiceLive } from "./features/system/image-asset-service.ts";
 import { QualityProfileServiceLive } from "./features/system/quality-profile-service.ts";
@@ -52,12 +35,8 @@ export function makeApiLifecycleLayers(
   const animeLayer = makeAnimeRuntimeLayer(platformLayer);
   const sharedStateLayer = OperationsSharedStateLive;
   const downloadSupportLayer = Layer.mergeAll(platformLayer, sharedStateLayer);
-  const downloadServiceLayer = DownloadTriggerServiceLive.pipe(Layer.provide(downloadSupportLayer));
-  const downloadControlLayer = DownloadControlServiceLive.pipe(Layer.provide(downloadSupportLayer));
-  const downloadProgressLayer = DownloadProgressServiceLive.pipe(
-    Layer.provide(downloadSupportLayer),
-  );
-  const progressLayer = ProgressLive.pipe(Layer.provide(downloadProgressLayer));
+  const downloadWorkflowLayer = DownloadWorkflowLive.pipe(Layer.provide(downloadSupportLayer));
+  const progressLayer = ProgressLive.pipe(Layer.provide(downloadWorkflowLayer));
   const searchSupportLayer = Layer.mergeAll(
     platformLayer,
     sharedStateLayer,
@@ -66,51 +45,33 @@ export function makeApiLifecycleLayers(
   );
   const catalogSupportLayer = Layer.mergeAll(
     platformLayer,
-    downloadControlLayer,
-    downloadProgressLayer,
+    downloadWorkflowLayer,
     progressLayer,
     CatalogLibraryReadSupportLive,
   );
-  const catalogServiceLayer = Layer.mergeAll(
-    CatalogDownloadControlServiceLive,
-    CatalogLibraryServiceLive,
-    CatalogReadServiceLive,
-    CatalogRssServiceLive,
-  ).pipe(Layer.provide(catalogSupportLayer));
-  const searchServiceLayer = Layer.mergeAll(
-    ImportPathScanServiceLive,
-    SearchQueryServiceLive,
-    UnmappedFolderServiceLive,
-  ).pipe(Layer.provide(searchSupportLayer));
-  const workerServicesLayer = Layer.mergeAll(
-    DownloadLifecycleServiceLive,
-    LibraryScanServiceLive,
-    SearchWorkerServiceLive,
-  ).pipe(Layer.provide(Layer.mergeAll(searchSupportLayer, catalogServiceLayer)));
+  const catalogWorkflowLayer = CatalogWorkflowLive.pipe(Layer.provide(catalogSupportLayer));
+  const searchWorkflowLayer = SearchWorkflowLive.pipe(Layer.provide(searchSupportLayer));
   const operationsLayer = Layer.mergeAll(
-    downloadServiceLayer,
-    downloadControlLayer,
-    downloadProgressLayer,
-    progressLayer,
-    catalogServiceLayer,
-    searchServiceLayer,
-    workerServicesLayer,
-  ).pipe(Layer.provide(platformLayer));
+    downloadWorkflowLayer,
+    catalogWorkflowLayer,
+    searchWorkflowLayer,
+  );
   const backgroundControllerLayer = BackgroundWorkerControllerLive.pipe(
     Layer.provide(Layer.mergeAll(platformLayer, operationsLayer, animeLayer)),
   );
-  const backgroundRuntimeControlLayer = BackgroundWorkerRuntimeControlLive.pipe(
-    Layer.provide(backgroundControllerLayer),
+  const backgroundLayer = backgroundControllerLayer;
+  const authLayer = Layer.mergeAll(
+    AuthBootstrapServiceLive.pipe(Layer.provide(platformLayer)),
+    AuthCredentialServiceLive.pipe(Layer.provide(platformLayer)),
+    AuthSessionServiceLive.pipe(Layer.provide(platformLayer)),
   );
-  const backgroundLayer = Layer.mergeAll(backgroundControllerLayer, backgroundRuntimeControlLayer);
-  const authLayer = makeAuthRuntimeLayer(platformLayer);
   const systemBootstrapLayer = SystemBootstrapServiceLive.pipe(Layer.provide(platformLayer));
   const qualityProfileServiceLayer = QualityProfileServiceLive.pipe(Layer.provide(platformLayer));
   const releaseProfileServiceLayer = ReleaseProfileServiceLive.pipe(Layer.provide(platformLayer));
   const systemLogServiceLayer = SystemLogServiceLive.pipe(Layer.provide(platformLayer));
   const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(platformLayer));
   const systemConfigUpdateLayer = SystemConfigUpdateServiceLive.pipe(
-    Layer.provide(Layer.mergeAll(platformLayer, backgroundRuntimeControlLayer)),
+    Layer.provide(Layer.mergeAll(platformLayer, backgroundControllerLayer)),
   );
   const systemStatusLayer = SystemStatusServiceLive.pipe(
     Layer.provide(Layer.mergeAll(platformLayer, systemConfigLayer)),

@@ -9,7 +9,10 @@ export type { RuntimeOptions } from "./app-platform-runtime-layer.ts";
 export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: RuntimeOptions) {
   const layers = makeApiLifecycleLayers(overrides, options);
 
-  return Layer.mergeAll(layers.platformLayer, layers.appLayer);
+  return Layer.mergeAll(
+    layers.platformLayer,
+    layers.appLayer.pipe(Layer.provide(layers.platformLayer)),
+  );
 }
 
 export function makeApiRuntime(

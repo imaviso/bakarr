@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { BackgroundWorkerRuntimeControl } from "./background-runtime-control.ts";
+import { BackgroundWorkerController } from "./background-controller.ts";
 import { AppConfig, type AppConfigShape } from "./config.ts";
 import { migrateDatabase } from "./db/migrate.ts";
 import { AuthBootstrapService } from "./features/auth/bootstrap-service.ts";
@@ -20,7 +20,7 @@ export const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
 });
 
 export const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
-  const runtimeControl = yield* BackgroundWorkerRuntimeControl;
+  const runtimeControl = yield* BackgroundWorkerController;
   const config = yield* (yield* SystemConfigService).getConfig();
 
   yield* runtimeControl.start(config);
