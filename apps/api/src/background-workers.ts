@@ -1,7 +1,7 @@
 import { Cause, Effect, Option, Schedule } from "effect";
 import type { Scope } from "effect";
 
-import type { Config, DownloadStatus } from "../../../packages/shared/src/index.ts";
+import type { Config } from "../../../packages/shared/src/index.ts";
 import { buildBackgroundSchedule } from "./background-schedule.ts";
 import type { BackgroundWorkerMonitorShape } from "./background-monitor.ts";
 import { type BackgroundWorkerName } from "./background-worker-model.ts";
@@ -9,27 +9,24 @@ import type { DatabaseError } from "./db/database.ts";
 import type { ClockServiceShape } from "./lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "./lib/effect-coalescing.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./lib/logging.ts";
-import type { EventBusShape } from "./features/events/event-bus.ts";
 import type { AnimeMutationServiceShape } from "./features/anime/service.ts";
-import type {
-  CatalogOrchestrationShape,
-  SearchOrchestrationShape,
-} from "./features/operations/operations-orchestration.ts";
+import type { DownloadLifecycleServiceShape } from "./features/operations/worker-services.ts";
+import type { EventBusShape } from "./features/events/event-bus.ts";
+import type { LibraryScanServiceShape } from "./features/operations/worker-services.ts";
+import type { SearchWorkerServiceShape } from "./features/operations/worker-services.ts";
+
+export interface BackgroundWorkerDependencies {
+  readonly animeService: AnimeMutationServiceShape;
+  readonly clock: ClockServiceShape;
+  readonly downloadLifecycleService: DownloadLifecycleServiceShape;
+  readonly eventBus: EventBusShape;
+  readonly libraryService: LibraryScanServiceShape;
+  readonly monitor: BackgroundWorkerMonitorShape;
+  readonly searchWorkerService: SearchWorkerServiceShape;
+}
 
 export interface BackgroundWorkerSpawner<R = never> {
   (scope: Scope.Scope, config: Config): Effect.Effect<void, DatabaseError, R>;
-}
-
-export interface BackgroundWorkerDependencies {
-  readonly animeService: Pick<AnimeMutationServiceShape, "refreshMetadataForMonitoredAnime">;
-  readonly clock: ClockServiceShape;
-  readonly downloadControlService: Pick<CatalogOrchestrationShape, "syncDownloads">;
-  readonly downloadStatusService: Pick<CatalogOrchestrationShape, "getDownloadProgress">;
-  readonly downloadTriggerService: Pick<SearchOrchestrationShape, "triggerSearchMissing">;
-  readonly eventBus: Pick<EventBusShape, "publish">;
-  readonly libraryService: Pick<CatalogOrchestrationShape, "runLibraryScan">;
-  readonly monitor: BackgroundWorkerMonitorShape;
-  readonly rssService: Pick<SearchOrchestrationShape, "runRssCheck">;
 }
 
 export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConfig")(function* (
@@ -40,22 +37,20 @@ export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConf
   const {
     animeService,
     clock,
-    downloadControlService,
-    downloadStatusService,
-    downloadTriggerService,
+    downloadLifecycleService,
     eventBus,
     libraryService,
     monitor,
-    rssService,
+    searchWorkerService,
   } = services;
   const schedule = buildBackgroundSchedule(config);
   const runRssWorkerTask = Effect.fn("Background.runRssWorkerTask")(function* () {
-    yield* rssService.runRssCheck();
-    yield* downloadTriggerService.triggerSearchMissing();
+    yield* searchWorkerService.runRssCheck();
+    yield* searchWorkerService.triggerSearchMissing();
   });
   const runDownloadSyncWorkerTask = Effect.fn("Background.runDownloadSyncWorkerTask")(function* () {
-    yield* downloadControlService.syncDownloads();
-    const downloads: DownloadStatus[] = yield* downloadStatusService.getDownloadProgress();
+    yield* downloadLifecycleService.syncDownloads();
+    const downloads = yield* downloadLifecycleService.getDownloadProgress();
     yield* eventBus.publish({
       type: "DownloadProgress",
       payload: { downloads },

@@ -1,9 +1,9 @@
 import { Effect } from "effect";
 
-import { BackgroundWorkerController } from "./background-controller.ts";
+import { BackgroundWorkerRuntimeControl } from "./background-runtime-control.ts";
 import { AppConfig, type AppConfigShape } from "./config.ts";
 import { migrateDatabase } from "./db/migrate.ts";
-import { AuthService } from "./features/auth/service.ts";
+import { AuthBootstrapService } from "./features/auth/bootstrap-service.ts";
 import { SystemBootstrapService } from "./features/system/system-bootstrap-service.ts";
 import { SystemConfigService } from "./features/system/system-config-service.ts";
 import { compactLogAnnotations } from "./lib/logging.ts";
@@ -13,17 +13,17 @@ export const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
 
   yield* (yield* SystemBootstrapService).ensureInitialized();
 
-  const auth = yield* AuthService;
+  const auth = yield* AuthBootstrapService;
   yield* auth.ensureBootstrapUser();
 
   return yield* AppConfig;
 });
 
 export const startBackgroundWorkers = Effect.fn("api.background.start")(function* () {
-  const controller = yield* BackgroundWorkerController;
+  const runtimeControl = yield* BackgroundWorkerRuntimeControl;
   const config = yield* (yield* SystemConfigService).getConfig();
 
-  yield* controller.start(config);
+  yield* runtimeControl.start(config);
 });
 
 export const logServerStarting = Effect.fn("api.server.logStarting")(function* (
