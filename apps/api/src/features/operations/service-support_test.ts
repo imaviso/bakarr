@@ -8,6 +8,7 @@ import {
   DownloadConflictError,
   DownloadNotFoundError,
   OperationsAnimeNotFoundError,
+  OperationsInfrastructureError,
   OperationsPathError,
 } from "./errors.ts";
 import { maybeQBitConfig, wrapOperationsError } from "./service-support.ts";
@@ -57,7 +58,7 @@ it.effect("operations service support preserves known errors and wraps unknown o
     assertEquals(wrapOperationsError("ignored")(knownDb), knownDb);
 
     const wrapped = wrapOperationsError("wrapped")(new Error("boom"));
-    assertInstanceOf(wrapped, DatabaseError);
+    assertInstanceOf(wrapped, OperationsInfrastructureError);
     assertEquals(wrapped.message, "wrapped");
 
     const dbExit = yield* Effect.exit(

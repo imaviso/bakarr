@@ -13,6 +13,7 @@ import {
   DownloadNotFoundError,
   OperationsAnimeNotFoundError,
   OperationsConflictError,
+  OperationsInfrastructureError,
   OperationsInputError,
   OperationsPathError,
   OperationsStoredDataError,
@@ -27,6 +28,7 @@ const knownOperationsErrorSchema = Schema.Union(
   DownloadNotFoundError,
   OperationsAnimeNotFoundError,
   OperationsConflictError,
+  OperationsInfrastructureError,
   OperationsInputError,
   OperationsPathError,
   OperationsStoredDataError,
@@ -57,7 +59,7 @@ export function wrapOperationsError(message: string) {
       return cause;
     }
 
-    return new DatabaseError({
+    return new OperationsInfrastructureError({
       cause,
       message,
     });
