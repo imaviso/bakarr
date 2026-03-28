@@ -1,14 +1,13 @@
 import type { Config } from "../../../../../packages/shared/src/index.ts";
-import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
-import { downloads } from "../../db/schema.ts";
-import type { ExternalCallError } from "../../lib/effect-retry.ts";
 import { EventBus } from "../events/event-bus.ts";
+import type { ExternalCallError } from "../../lib/effect-retry.ts";
+import { type OperationsError } from "./errors.ts";
 import { QBitTorrentClient } from "./qbittorrent.ts";
-import { DownloadConflictError, DownloadNotFoundError, type OperationsError } from "./errors.ts";
 import { makeDownloadCompletedTorrentReconciliation } from "./download-reconciliation-completed-torrent.ts";
+import { makeReconcileDownloadByIdEffect } from "./download-reconciliation-lookup.ts";
 
 export function makeDownloadReconciliationService(input: {
   readonly db: AppDatabase;
@@ -29,31 +28,11 @@ export function makeDownloadReconciliationService(input: {
   const { db, tryDatabasePromise } = input;
   const { reconcileCompletedTorrentEffect, maybeCleanupImportedTorrent } =
     makeDownloadCompletedTorrentReconciliation(input);
-
-  const reconcileDownloadByIdEffect = Effect.fn("OperationsService.reconcileDownloadById")(
-    function* (id: number) {
-      const rows = yield* tryDatabasePromise("Failed to reconcile download", () =>
-        db.select().from(downloads).where(eq(downloads.id, id)).limit(1),
-      );
-      const [row] = rows;
-
-      if (!row) {
-        return yield* new DownloadNotFoundError({
-          message: "Download not found",
-        });
-      }
-
-      const contentPath = row.contentPath ?? row.savePath;
-
-      if (!contentPath || !row.infoHash) {
-        return yield* new DownloadConflictError({
-          message: "Download has no reconciliable content path",
-        });
-      }
-
-      yield* reconcileCompletedTorrentEffect(row.infoHash, contentPath ?? undefined);
-    },
-  );
+  const reconcileDownloadByIdEffect = makeReconcileDownloadByIdEffect({
+    db,
+    reconcileCompletedTorrentEffect,
+    tryDatabasePromise,
+  });
 
   return {
     maybeCleanupImportedTorrent,

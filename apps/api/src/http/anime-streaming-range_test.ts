@@ -19,6 +19,10 @@ it("parses suffix episode stream ranges", () => {
 
 it("rejects invalid episode stream ranges", () => {
   const exit = Effect.runSyncExit(parseEpisodeStreamRange("bytes=-0", 100));
+  const multi = Effect.runSyncExit(parseEpisodeStreamRange("bytes=0-1,2-3", 100));
+  const nonByte = Effect.runSyncExit(parseEpisodeStreamRange("items=0-1", 100));
 
   assertEquals(Exit.isFailure(exit), true);
+  assertEquals(Exit.isFailure(multi), true);
+  assertEquals(Exit.isFailure(nonByte), true);
 });

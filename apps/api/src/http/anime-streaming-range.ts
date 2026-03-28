@@ -11,46 +11,83 @@ export function parseEpisodeStreamRange(
     return Effect.sync(() => undefined as undefined);
   }
 
-  const match = /^bytes=(?:(\d+)-(\d*)|-(\d+))$/i.exec(rangeHeader.trim());
+  const normalizedHeader = rangeHeader.trim();
+
+  if (!normalizedHeader.toLowerCase().startsWith("bytes=")) {
+    return failRange(fileSize);
+  }
+
+  const rangeSet = normalizedHeader.slice("bytes=".length).trim();
+
+  if (rangeSet.length === 0 || rangeSet.includes(",")) {
+    return failRange(fileSize);
+  }
+
+  const suffixMatch = /^(\d+)$/.exec(rangeSet.startsWith("-") ? rangeSet.slice(1) : "");
+
+  if (rangeSet.startsWith("-")) {
+    if (!suffixMatch) {
+      return failRange(fileSize);
+    }
+
+    const suffixLength = parseStrictPositiveInteger(suffixMatch[1]);
+
+    if (suffixLength === undefined || fileSize <= 0) {
+      return failRange(fileSize);
+    }
+
+    const resolvedLength = Math.min(suffixLength, fileSize);
+    const start = fileSize - resolvedLength;
+
+    return Effect.succeed({
+      end: fileSize - 1,
+      start,
+    });
+  }
+
+  const match = /^(\d+)-(\d*)$/.exec(rangeSet);
 
   if (!match) {
     return failRange(fileSize);
   }
 
-  const startInput = match[1];
-  const endInput = match[2];
-  const suffixLengthInput = match[3];
+  const start = parseStrictNonNegativeInteger(match[1]);
+  const end = match[2].length > 0 ? parseStrictNonNegativeInteger(match[2]) : fileSize - 1;
 
-  if (startInput !== undefined) {
-    const start = Number.parseInt(startInput, 10);
-    const end = endInput.length > 0 ? Number.parseInt(endInput, 10) : fileSize - 1;
-
-    if (!isValidAbsoluteRange(start, end, fileSize)) {
-      return failRange(fileSize);
-    }
-
-    return Effect.succeed({ end, start });
-  }
-
-  const suffixLength = Number.parseInt(suffixLengthInput, 10);
-
-  if (!Number.isInteger(suffixLength) || suffixLength <= 0 || fileSize <= 0) {
+  if (start === undefined || end === undefined || !isValidAbsoluteRange(start, end, fileSize)) {
     return failRange(fileSize);
   }
 
-  const resolvedLength = Math.min(suffixLength, fileSize);
-  const start = fileSize - resolvedLength;
-
   return Effect.succeed({
-    end: fileSize - 1,
+    end,
     start,
   });
 }
 
+function parseStrictNonNegativeInteger(value: string) {
+  if (!/^\d+$/.test(value)) {
+    return undefined;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
+function parseStrictPositiveInteger(value: string) {
+  const parsed = parseStrictNonNegativeInteger(value);
+
+  if (parsed === undefined || parsed <= 0) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
 function isValidAbsoluteRange(start: number, end: number, fileSize: number) {
   return (
-    Number.isInteger(start) &&
-    Number.isInteger(end) &&
+    Number.isSafeInteger(start) &&
+    Number.isSafeInteger(end) &&
     start >= 0 &&
     end >= start &&
     start < fileSize &&
