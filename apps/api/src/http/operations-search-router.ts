@@ -70,7 +70,10 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(SearchEpisodeParamsSchema);
-        return yield* (yield* SearchQueryService).searchEpisode(params.animeId, params.episodeNumber);
+        return yield* (yield* SearchQueryService).searchEpisode(
+          params.animeId,
+          params.episodeNumber,
+        );
       }),
       jsonResponse,
     ),

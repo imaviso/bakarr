@@ -82,9 +82,7 @@ const makeImageAssetService = Effect.gen(function* () {
       return yield* notFoundError();
     }
 
-    const bytes = yield* fs
-      .stat(canonicalFilePath)
-      .pipe(Effect.mapError(() => notFoundError()));
+    const bytes = yield* fs.stat(canonicalFilePath).pipe(Effect.mapError(() => notFoundError()));
 
     if (bytes.size > MAX_IMAGE_ASSET_BYTES) {
       return yield* tooLargeError();

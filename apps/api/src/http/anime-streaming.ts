@@ -84,8 +84,7 @@ export const buildAnimeStreamResponse = Effect.fn("AnimeStream.buildResponse")(f
     input.episodeNumber,
   );
 
-  const notFoundError = (message: string) =>
-    new EpisodeStreamAccessError({ message, status: 404 });
+  const notFoundError = (message: string) => new EpisodeStreamAccessError({ message, status: 404 });
 
   const episodeFilePath = yield* Match.value(resolvedEpisodeFile).pipe(
     Match.tag("EpisodeFileUnmapped", "EpisodeFileMissing", () =>

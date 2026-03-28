@@ -36,42 +36,40 @@ export type PersistedSystemConfigState = Schema.Schema.Type<
   typeof PersistedSystemConfigStateSchema
 >;
 
-export const persistAndActivateConfig = Effect.fn("SystemConfigUpdateService.persistAndActivateConfig")(
-  function* <E>(input: {
-    readonly activateConfig: (config: Config) => Effect.Effect<void, E>;
-    readonly nextConfig: Config;
-    readonly nextState: PersistedSystemConfigState;
-    readonly persistState: (
-      state: PersistedSystemConfigState,
-    ) => Effect.Effect<void, DatabaseError>;
-    readonly previousState: PersistedSystemConfigState;
-    readonly recordEvent?: (event: ConfigActivationEvent, error?: unknown) => Effect.Effect<void>;
-  }) {
-    const recordEvent = input.recordEvent ?? defaultRecordConfigActivationEvent;
+export const persistAndActivateConfig = Effect.fn(
+  "SystemConfigUpdateService.persistAndActivateConfig",
+)(function* <E>(input: {
+  readonly activateConfig: (config: Config) => Effect.Effect<void, E>;
+  readonly nextConfig: Config;
+  readonly nextState: PersistedSystemConfigState;
+  readonly persistState: (state: PersistedSystemConfigState) => Effect.Effect<void, DatabaseError>;
+  readonly previousState: PersistedSystemConfigState;
+  readonly recordEvent?: (event: ConfigActivationEvent, error?: unknown) => Effect.Effect<void>;
+}) {
+  const recordEvent = input.recordEvent ?? defaultRecordConfigActivationEvent;
 
-    yield* recordEvent("config.validation");
-    yield* input.persistState(input.nextState);
-    yield* recordEvent("config.persisted");
+  yield* recordEvent("config.validation");
+  yield* input.persistState(input.nextState);
+  yield* recordEvent("config.persisted");
 
-    const activationResult = yield* Effect.either(input.activateConfig(input.nextConfig));
+  const activationResult = yield* Effect.either(input.activateConfig(input.nextConfig));
 
-    if (activationResult._tag === "Right") {
-      yield* recordEvent("config.activated");
-      return;
-    }
+  if (activationResult._tag === "Right") {
+    yield* recordEvent("config.activated");
+    return;
+  }
 
-    yield* recordEvent("config.activation_failed", activationResult.left);
+  yield* recordEvent("config.activation_failed", activationResult.left);
 
-    const rollbackResult = yield* Effect.either(input.persistState(input.previousState));
+  const rollbackResult = yield* Effect.either(input.persistState(input.previousState));
 
-    if (rollbackResult._tag === "Left") {
-      yield* recordEvent("config.rollback_failed", rollbackResult.left);
-      return yield* rollbackResult.left;
-    }
+  if (rollbackResult._tag === "Left") {
+    yield* recordEvent("config.rollback_failed", rollbackResult.left);
+    return yield* rollbackResult.left;
+  }
 
-    return yield* Effect.fail(activationResult.left);
-  },
-);
+  return yield* Effect.fail(activationResult.left);
+});
 
 function defaultRecordConfigActivationEvent(event: ConfigActivationEvent, error?: unknown) {
   const annotations = compactLogAnnotations({

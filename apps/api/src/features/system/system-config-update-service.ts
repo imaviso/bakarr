@@ -31,9 +31,10 @@ export interface SystemConfigUpdateServiceShape {
   ) => Effect.Effect<Config, DatabaseError | ConfigValidationError | StoredConfigCorruptError>;
 }
 
-export class SystemConfigUpdateService extends Context.Tag(
-  "@bakarr/api/SystemConfigUpdateService",
-)<SystemConfigUpdateService, SystemConfigUpdateServiceShape>() {}
+export class SystemConfigUpdateService extends Context.Tag("@bakarr/api/SystemConfigUpdateService")<
+  SystemConfigUpdateService,
+  SystemConfigUpdateServiceShape
+>() {}
 
 const makeSystemConfigUpdateService = Effect.gen(function* () {
   const { db } = yield* Database;
