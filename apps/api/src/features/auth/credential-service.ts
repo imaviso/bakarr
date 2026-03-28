@@ -10,11 +10,7 @@ import { randomHexFrom, RandomService } from "../../lib/random.ts";
 import { hashPasswordWith, verifyPassword } from "../../security/password.ts";
 import { TokenHasher, type TokenHasherError } from "../../security/token-hasher.ts";
 import { AuthError, type AuthCryptoError } from "./errors.ts";
-import {
-  changePasswordState,
-  findUserById,
-  regenerateApiKeyState,
-} from "./service-support.ts";
+import { changePasswordState, findUserById, regenerateApiKeyState } from "./service-support.ts";
 
 export interface AuthCredentialServiceShape {
   readonly changePassword: (

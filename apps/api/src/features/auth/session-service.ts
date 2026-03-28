@@ -32,10 +32,16 @@ export interface SessionIdentity {
 export interface AuthSessionServiceShape {
   readonly login: (
     request: LoginRequest,
-  ) => Effect.Effect<SessionIdentity & { response: LoginResponse }, AuthError | DatabaseError | AuthCryptoError>;
+  ) => Effect.Effect<
+    SessionIdentity & { response: LoginResponse },
+    AuthError | DatabaseError | AuthCryptoError
+  >;
   readonly loginWithApiKey: (
     request: ApiKeyLoginRequest,
-  ) => Effect.Effect<SessionIdentity & { response: LoginResponse }, AuthError | DatabaseError | AuthCryptoError>;
+  ) => Effect.Effect<
+    SessionIdentity & { response: LoginResponse },
+    AuthError | DatabaseError | AuthCryptoError
+  >;
   readonly resolveViewer: (
     sessionToken: string | undefined,
     apiKey: string | undefined,
@@ -192,7 +198,9 @@ const makeAuthSessionService = Effect.gen(function* () {
     return row ? toAuthUser(row) : null;
   });
 
-  const logout = Effect.fn("AuthSessionService.logout")(function* (sessionToken: string | undefined) {
+  const logout = Effect.fn("AuthSessionService.logout")(function* (
+    sessionToken: string | undefined,
+  ) {
     if (!sessionToken) {
       return;
     }
