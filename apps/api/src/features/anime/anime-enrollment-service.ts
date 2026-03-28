@@ -3,7 +3,16 @@ import { Context, Effect, Layer } from "effect";
 import type { Anime } from "../../../../../packages/shared/src/index.ts";
 import type { DatabaseError } from "../../db/database.ts";
 import type { ExternalCallError } from "../../lib/effect-retry.ts";
-import { SearchWorkerService } from "../operations/worker-services.ts";
+import type {
+  OperationsError,
+  OperationsInfrastructureError,
+  OperationsPathError,
+  OperationsStoredDataError,
+  RssFeedParseError,
+  RssFeedRejectedError,
+  RssFeedTooLargeError,
+} from "../operations/errors.ts";
+import { SearchWorkflow } from "../operations/search-service-tags.ts";
 import type { ProfileNotFoundError } from "../system/errors.ts";
 import type { AddAnimeInput } from "./add-anime-input.ts";
 import type { AnimeServiceError } from "./errors.ts";
@@ -13,7 +22,14 @@ export type AnimeEnrollmentError =
   | DatabaseError
   | AnimeServiceError
   | ProfileNotFoundError
-  | ExternalCallError;
+  | ExternalCallError
+  | OperationsError
+  | OperationsInfrastructureError
+  | OperationsPathError
+  | OperationsStoredDataError
+  | RssFeedParseError
+  | RssFeedRejectedError
+  | RssFeedTooLargeError;
 
 export interface AnimeEnrollmentServiceShape {
   /**
@@ -31,13 +47,13 @@ export class AnimeEnrollmentService extends Context.Tag("@bakarr/api/AnimeEnroll
 
 const makeAnimeEnrollmentService = Effect.gen(function* () {
   const animeService = yield* AnimeMutationService;
-  const searchService = yield* SearchWorkerService;
+  const searchWorkflow = yield* SearchWorkflow;
 
   const enroll = Effect.fn("AnimeEnrollmentService.enroll")(function* (input: AddAnimeInput) {
     const anime = yield* animeService.addAnime(input);
 
     if (input.monitor_and_search) {
-      yield* searchService.triggerSearchMissing(anime.id);
+      yield* searchWorkflow.triggerSearchMissing(anime.id);
     }
 
     return anime;

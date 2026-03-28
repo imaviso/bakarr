@@ -6,6 +6,7 @@ import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import { assertEquals, assertInstanceOf, it } from "../../test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
+import * as schema from "../../db/schema.ts";
 import { AnimePathError } from "./errors.ts";
 import { updateAnimePathEffect } from "./mutation-support.ts";
 import { encodeConfigCore } from "../system/config-codec.ts";
@@ -66,7 +67,7 @@ it.scoped("updateAnimePathEffect accepts paths inside the configured library roo
 
           const exit = yield* Effect.exit(
             updateAnimePathEffect({
-              db: db as never,
+              db,
               fs,
               id: 20,
               nowIso: () => Effect.succeed("2024-01-02T00:00:00.000Z"),
@@ -86,7 +87,7 @@ it.scoped("updateAnimePathEffect accepts paths inside the configured library roo
           const requestedRootStat = yield* fs.stat(requestedRoot);
           assertEquals(requestedRootStat.isDirectory, true);
         }),
-      schema: {},
+      schema,
     }),
   ),
 );
@@ -146,7 +147,7 @@ it.scoped("updateAnimePathEffect rejects paths outside the configured library ro
 
           const exit = yield* Effect.exit(
             updateAnimePathEffect({
-              db: db as never,
+              db,
               fs,
               id: 20,
               nowIso: () => Effect.succeed("2024-01-02T00:00:00.000Z"),
@@ -170,7 +171,7 @@ it.scoped("updateAnimePathEffect rejects paths outside the configured library ro
           const requestedRootExit = yield* Effect.exit(fs.stat(requestedRoot));
           assertEquals(requestedRootExit._tag, "Failure");
         }),
-      schema: {},
+      schema,
     }),
   ),
 );

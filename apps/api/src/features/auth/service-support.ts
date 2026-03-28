@@ -162,7 +162,7 @@ export const announceBootstrapCredentials = Effect.fn("Auth.announceBootstrapCre
 
         const displayed = yield* terminal.value.display(text).pipe(
           Effect.as(true),
-          Effect.catchAll(() => Effect.succeed(false)),
+          Effect.catchAllCause(() => Effect.succeed(false)),
         );
 
         if (displayed) {

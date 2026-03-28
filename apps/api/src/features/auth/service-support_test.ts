@@ -17,7 +17,7 @@ it.effect("announceBootstrapCredentials logs a fallback message when terminal di
     }).pipe(
       Effect.provideService(Terminal.Terminal, {
         columns: Effect.succeed(80),
-        display: () => Effect.fail(new Error("tty write failed") as never),
+        display: () => Effect.die(new Error("tty write failed")),
         isTTY: Effect.succeed(true),
         readInput: Effect.die("unused"),
         readLine: Effect.die("unused"),
