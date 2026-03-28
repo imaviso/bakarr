@@ -22,7 +22,7 @@ import {
   insertSystemConfigRow,
   loadSystemConfigRow,
   upsertSystemConfigRow,
-} from "./repository/config-repository.ts";
+} from "./repository/system-config-repository.ts";
 import {
   countActiveDownloads,
   countAnimeRows,

@@ -50,7 +50,8 @@ export function makeApiLifecycleLayers(
 ) {
   const platformLayer = makeAppPlatformRuntimeLayer(overrides, options);
   const animeLayer = makeAnimeRuntimeLayer(platformLayer);
-  const downloadSupportLayer = Layer.mergeAll(platformLayer, OperationsSharedStateLive);
+  const sharedStateLayer = OperationsSharedStateLive;
+  const downloadSupportLayer = Layer.mergeAll(platformLayer, sharedStateLayer);
   const downloadServiceLayer = DownloadTriggerServiceLive.pipe(Layer.provide(downloadSupportLayer));
   const downloadControlLayer = DownloadControlServiceLive.pipe(Layer.provide(downloadSupportLayer));
   const downloadProgressLayer = DownloadProgressServiceLive.pipe(
@@ -59,7 +60,7 @@ export function makeApiLifecycleLayers(
   const progressLayer = ProgressLive.pipe(Layer.provide(downloadProgressLayer));
   const searchSupportLayer = Layer.mergeAll(
     platformLayer,
-    OperationsSharedStateLive,
+    sharedStateLayer,
     progressLayer,
     animeLayer,
   );
