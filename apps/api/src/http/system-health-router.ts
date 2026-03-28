@@ -7,29 +7,15 @@ import {
   buildHealthOkResponse,
   buildHealthReadyResponse,
 } from "./health-response.ts";
+import { getHealthReadyState } from "./system-health-ready-support.ts";
 import { authedRouteResponse, jsonResponse, routeResponse } from "./router-helpers.ts";
-
-const notReadyResponse = { checks: { database: false }, ready: false } as const;
 
 export const healthRouter = HttpRouter.empty.pipe(
   HttpRouter.get("/health", buildHealthOkResponse()),
   HttpRouter.get("/api/system/health/live", buildHealthLiveResponse()),
   HttpRouter.get(
     "/api/system/health/ready",
-    routeResponse(
-      Effect.gen(function* () {
-        yield* (yield* SystemStatusService).getSystemStatus();
-        return { checks: { database: true }, ready: true };
-      }).pipe(
-        Effect.catchTags({
-          DatabaseError: () => Effect.succeed(notReadyResponse),
-          DiskSpaceError: () => Effect.succeed(notReadyResponse),
-          StoredConfigCorruptError: () => Effect.succeed(notReadyResponse),
-          StoredConfigMissingError: () => Effect.succeed(notReadyResponse),
-        }),
-      ),
-      buildHealthReadyResponse,
-    ),
+    routeResponse(getHealthReadyState(), buildHealthReadyResponse),
   ),
   HttpRouter.get(
     "/api/system/status",

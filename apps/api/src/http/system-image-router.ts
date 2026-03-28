@@ -1,5 +1,5 @@
-import { HttpRouter, HttpServerRequest } from "@effect/platform";
-import { Effect } from "effect";
+import { HttpRouter } from "@effect/platform";
+import { Effect, Schema } from "effect";
 
 import { ImageAssetService } from "../features/system/image-asset-service.ts";
 import { buildImageAssetResponse } from "./image-asset-response.ts";
@@ -10,9 +10,9 @@ export const systemImageRouter = HttpRouter.empty.pipe(
     "/api/images/*",
     authedRouteResponse(
       Effect.gen(function* () {
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        const { pathname } = new URL(request.url, "http://bakarr.local");
-        const rawRelativePath = pathname.slice("/api/images/".length);
+        const { "*": rawRelativePath } = yield* HttpRouter.schemaPathParams(
+          Schema.Struct({ "*": Schema.String }),
+        );
         return yield* (yield* ImageAssetService).resolveImageAsset(rawRelativePath);
       }),
       ({ bytes, filePath }) =>
