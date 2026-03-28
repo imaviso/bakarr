@@ -15,7 +15,6 @@ import {
 } from "./system-request-schemas.ts";
 import {
   authedRouteResponse,
-  decodeJsonBody,
   decodeJsonBodyWithLabel,
   decodePathParams,
   jsonResponse,
@@ -34,7 +33,7 @@ export const configRouter = HttpRouter.empty.pipe(
     "/api/system/config",
     authedRouteResponse(
       Effect.gen(function* () {
-        const body = yield* decodeJsonBody(ConfigSchema);
+        const body = yield* decodeJsonBodyWithLabel(ConfigSchema, "update system config");
         return yield* (yield* SystemConfigUpdateService).updateConfig(body);
       }),
       successResponse,
@@ -69,7 +68,7 @@ export const configRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(NameParamsSchema);
-        const body = yield* decodeJsonBody(QualityProfileSchema);
+        const body = yield* decodeJsonBodyWithLabel(QualityProfileSchema, "update quality profile");
         return yield* (yield* QualityProfileService).updateProfile(params.name, body);
       }),
       jsonResponse,
@@ -96,7 +95,10 @@ export const configRouter = HttpRouter.empty.pipe(
     "/api/release-profiles",
     authedRouteResponse(
       Effect.gen(function* () {
-        const body = yield* decodeJsonBody(CreateReleaseProfileSchema);
+        const body = yield* decodeJsonBodyWithLabel(
+          CreateReleaseProfileSchema,
+          "create release profile",
+        );
         return yield* (yield* ReleaseProfileService).createReleaseProfile(body);
       }),
       jsonResponse,
@@ -107,7 +109,10 @@ export const configRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        const body = yield* decodeJsonBody(UpdateReleaseProfileSchema);
+        const body = yield* decodeJsonBodyWithLabel(
+          UpdateReleaseProfileSchema,
+          "update release profile",
+        );
         yield* (yield* ReleaseProfileService).updateReleaseProfile(params.id, body);
       }),
       successResponse,
