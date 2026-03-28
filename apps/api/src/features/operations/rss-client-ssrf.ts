@@ -27,82 +27,83 @@ export type UrlValidationResult =
   | { readonly _tag: "Accepted" }
   | { readonly _tag: "Rejected"; readonly reason: string };
 
-export const validateUrlForSsrf = Effect.fn("RssClient.validateUrlForSsrf")(
-  function* (urlString: string, dns: typeof DnsResolver.Service) {
-    const parsedUrlResult = yield* Effect.try({
-      try: () => new URL(urlString),
-      catch: () =>
-        new RssFeedRejectedError({
-          message: "RSS feed URL format is invalid",
-        }),
-    }).pipe(Effect.either);
+export const validateUrlForSsrf = Effect.fn("RssClient.validateUrlForSsrf")(function* (
+  urlString: string,
+  dns: typeof DnsResolver.Service,
+) {
+  const parsedUrlResult = yield* Effect.try({
+    try: () => new URL(urlString),
+    catch: () =>
+      new RssFeedRejectedError({
+        message: "RSS feed URL format is invalid",
+      }),
+  }).pipe(Effect.either);
 
-    if (Either.isLeft(parsedUrlResult)) {
+  if (Either.isLeft(parsedUrlResult)) {
+    return {
+      _tag: "Rejected" as const,
+      reason: parsedUrlResult.left.message,
+    };
+  }
+
+  const parsedUrl = parsedUrlResult.right;
+
+  if (!isAllowedPort(parsedUrl.port)) {
+    return {
+      _tag: "Rejected" as const,
+      reason: `Port ${parsedUrl.port} not allowed`,
+    };
+  }
+
+  const hostname = normalizeHostname(parsedUrl.hostname);
+
+  if (isBlockedHostname(hostname)) {
+    return {
+      _tag: "Rejected" as const,
+      reason: `Hostname ${hostname} is blocked`,
+    };
+  }
+
+  if (isIpLiteral(hostname)) {
+    if (isPrivateIpAddress(hostname)) {
       return {
         _tag: "Rejected" as const,
-        reason: parsedUrlResult.left.message,
+        reason: `IP ${hostname} is private/reserved`,
       };
-    }
-
-    const parsedUrl = parsedUrlResult.right;
-
-    if (!isAllowedPort(parsedUrl.port)) {
-      return {
-        _tag: "Rejected" as const,
-        reason: `Port ${parsedUrl.port} not allowed`,
-      };
-    }
-
-    const hostname = normalizeHostname(parsedUrl.hostname);
-
-    if (isBlockedHostname(hostname)) {
-      return {
-        _tag: "Rejected" as const,
-        reason: `Hostname ${hostname} is blocked`,
-      };
-    }
-
-    if (isIpLiteral(hostname)) {
-      if (isPrivateIpAddress(hostname)) {
-        return {
-          _tag: "Rejected" as const,
-          reason: `IP ${hostname} is private/reserved`,
-        };
-      }
-
-      return { _tag: "Accepted" as const };
-    }
-
-    const resolvedAddrsResult = yield* Effect.either(resolveFeedAddresses(hostname, dns));
-
-    if (Either.isLeft(resolvedAddrsResult)) {
-      return {
-        _tag: "Rejected" as const,
-        reason: resolvedAddrsResult.left.message,
-      };
-    }
-
-    const resolvedAddrs = resolvedAddrsResult.right;
-
-    if (resolvedAddrs.length === 0) {
-      return {
-        _tag: "Rejected" as const,
-        reason: `DNS resolution failed for ${hostname}`,
-      };
-    }
-
-    for (const addr of resolvedAddrs) {
-      if (isPrivateIpAddress(addr)) {
-        return {
-          _tag: "Rejected" as const,
-          reason: `${hostname} resolves to private IP ${addr}`,
-        };
-      }
     }
 
     return { _tag: "Accepted" as const };
-  },
-);
+  }
+
+  const resolvedAddrsResult = yield* Effect.either(resolveFeedAddresses(hostname, dns));
+
+  if (Either.isLeft(resolvedAddrsResult)) {
+    return {
+      _tag: "Rejected" as const,
+      reason: resolvedAddrsResult.left.message,
+    };
+  }
+
+  const resolvedAddrs = resolvedAddrsResult.right;
+
+  if (resolvedAddrs.length === 0) {
+    return {
+      _tag: "Rejected" as const,
+      reason: `DNS resolution failed for ${hostname}`,
+    };
+  }
+
+  for (const addr of resolvedAddrs) {
+    if (isPrivateIpAddress(addr)) {
+      return {
+        _tag: "Rejected" as const,
+        reason: `${hostname} resolves to private IP ${addr}`,
+      };
+    }
+  }
+
+  return { _tag: "Accepted" as const };
+});
 
 const resolveFeedAddresses = Effect.fn("RssClient.resolveFeedAddresses")(function* (
   hostname: string,
