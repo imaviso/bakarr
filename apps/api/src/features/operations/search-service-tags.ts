@@ -15,37 +15,12 @@ import { tryDatabasePromise, toDatabaseError } from "../../lib/effect-db.ts";
 import { makeSearchOrchestration } from "./search-orchestration.ts";
 import { OperationsProgress } from "./operations-progress.ts";
 import { OperationsSharedState } from "./operations-shared-state.ts";
-import type {
-  EpisodeSearchResult,
-  ScanResult,
-  SearchResults,
-} from "../../../../../packages/shared/src/index.ts";
-import type { DatabaseError } from "../../db/database.ts";
-import type { ExternalCallError } from "../../lib/effect-retry.ts";
-import type { OperationsError } from "./errors.ts";
-import type { UnmappedControlWorkflowShape } from "./unmapped-orchestration-control.ts";
-import type { UnmappedImportWorkflowShape } from "./unmapped-orchestration-import.ts";
-import type { UnmappedScanQueryShape } from "./unmapped-orchestration-scan-query.ts";
-import type { UnmappedScanWorkflowShape } from "./unmapped-orchestration-scan.ts";
 
-type SearchServiceError = ExternalCallError | OperationsError | DatabaseError;
+export type SearchWorkflowShape = ReturnType<typeof makeSearchOrchestration>;
 
-export interface SearchQueryServiceShape {
-  readonly searchEpisode: (
-    animeId: number,
-    episodeNumber: number,
-  ) => Effect.Effect<readonly EpisodeSearchResult[], SearchServiceError>;
-  readonly searchReleases: (
-    query: string,
-    animeId?: number,
-    category?: string,
-    filter?: string,
-  ) => Effect.Effect<SearchResults, SearchServiceError>;
-}
-
-export class SearchQueryService extends Context.Tag("@bakarr/api/SearchQueryService")<
-  SearchQueryService,
-  SearchQueryServiceShape
+export class SearchWorkflow extends Context.Tag("@bakarr/api/SearchWorkflow")<
+  SearchWorkflow,
+  SearchWorkflowShape
 >() {}
 
 export const makeSearchWorkflow = Effect.gen(function* () {
@@ -83,65 +58,4 @@ export const makeSearchWorkflow = Effect.gen(function* () {
   });
 });
 
-export const SearchQueryServiceLive = Layer.effect(
-  SearchQueryService,
-  Effect.gen(function* () {
-    const search = yield* makeSearchWorkflow;
-
-    return {
-      searchEpisode: search.searchEpisode,
-      searchReleases: search.searchReleases,
-    };
-  }),
-);
-
-export interface UnmappedFolderServiceShape {
-  readonly bulkControlUnmappedFolders: UnmappedControlWorkflowShape["bulkControlUnmappedFolders"];
-  readonly controlUnmappedFolder: UnmappedControlWorkflowShape["controlUnmappedFolder"];
-  readonly getUnmappedFolders: UnmappedScanQueryShape["getUnmappedFolders"];
-  readonly importUnmappedFolder: UnmappedImportWorkflowShape["importUnmappedFolder"];
-  readonly runUnmappedScan: UnmappedScanWorkflowShape["runUnmappedScan"];
-}
-
-export class UnmappedFolderService extends Context.Tag("@bakarr/api/UnmappedFolderService")<
-  UnmappedFolderService,
-  UnmappedFolderServiceShape
->() {}
-
-export const UnmappedFolderServiceLive = Layer.effect(
-  UnmappedFolderService,
-  Effect.gen(function* () {
-    const search = yield* makeSearchWorkflow;
-
-    return {
-      bulkControlUnmappedFolders: search.bulkControlUnmappedFolders,
-      controlUnmappedFolder: search.controlUnmappedFolder,
-      getUnmappedFolders: search.getUnmappedFolders,
-      importUnmappedFolder: search.importUnmappedFolder,
-      runUnmappedScan: search.runUnmappedScan,
-    };
-  }),
-);
-
-export interface ImportPathScanServiceShape {
-  readonly scanImportPath: (
-    path: string,
-    animeId?: number,
-  ) => Effect.Effect<ScanResult, SearchServiceError>;
-}
-
-export class ImportPathScanService extends Context.Tag("@bakarr/api/ImportPathScanService")<
-  ImportPathScanService,
-  ImportPathScanServiceShape
->() {}
-
-export const ImportPathScanServiceLive = Layer.effect(
-  ImportPathScanService,
-  Effect.gen(function* () {
-    const search = yield* makeSearchWorkflow;
-
-    return {
-      scanImportPath: search.scanImportPath,
-    };
-  }),
-);
+export const SearchWorkflowLive = Layer.effect(SearchWorkflow, makeSearchWorkflow);
