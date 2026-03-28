@@ -13,8 +13,9 @@ export { AddAnimeInput as AddAnimeInputSchema } from "../features/anime/add-anim
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 
-const NonEmptyStringSchema = Schema.String.pipe(Schema.minLength(1));
-const SearchStringSchema = NonEmptyStringSchema;
+const ProfileNameStringSchema = Schema.String.pipe(Schema.minLength(1));
+const AnimeSearchQueryStringSchema = Schema.String.pipe(Schema.minLength(1));
+const StreamSignatureStringSchema = Schema.String.pipe(Schema.minLength(1));
 
 export class MonitoredBodySchema extends Schema.Class<MonitoredBodySchema>("MonitoredBodySchema")({
   monitored: Schema.Boolean,
@@ -27,7 +28,7 @@ export class PathBodySchema extends Schema.Class<PathBodySchema>("PathBodySchema
 export class ProfileNameBodySchema extends Schema.Class<ProfileNameBodySchema>(
   "ProfileNameBodySchema",
 )({
-  profile_name: NonEmptyStringSchema,
+  profile_name: ProfileNameStringSchema,
 }) {}
 
 export class ReleaseProfileIdsBodySchema extends Schema.Class<ReleaseProfileIdsBodySchema>(
@@ -54,7 +55,7 @@ export class BulkEpisodeMappingsBodySchema extends Schema.Class<BulkEpisodeMappi
 export class SearchAnimeQuerySchema extends Schema.Class<SearchAnimeQuerySchema>(
   "SearchAnimeQuerySchema",
 )({
-  q: Schema.optional(SearchStringSchema),
+  q: Schema.optional(AnimeSearchQueryStringSchema),
 }) {}
 
 export class ListAnimeQuerySchema extends Schema.Class<ListAnimeQuerySchema>(
@@ -74,7 +75,7 @@ export class AnimeEpisodeParamsSchema extends Schema.Class<AnimeEpisodeParamsSch
 
 class StreamQuerySchema extends Schema.Class<StreamQuerySchema>("StreamQuerySchema")({
   exp: Schema.NumberFromString.pipe(Schema.int(), Schema.positive()),
-  sig: Schema.String.pipe(Schema.minLength(1)),
+  sig: StreamSignatureStringSchema,
 }) {}
 
 class StreamUrlQuerySchema extends Schema.Class<StreamUrlQuerySchema>("StreamUrlQuerySchema")({

@@ -15,9 +15,19 @@ import {
   IsoDateTimeStringSchema,
 } from "./common-request-schemas.ts";
 
-const NonEmptyStringSchema = Schema.String.pipe(Schema.minLength(1));
-
-const SearchStringSchema = NonEmptyStringSchema;
+const RssFeedNameStringSchema = Schema.String.pipe(Schema.minLength(1));
+const ProfileNameStringSchema = Schema.String.pipe(Schema.minLength(1));
+const SearchQueryStringSchema = Schema.String.pipe(Schema.minLength(1));
+const SearchCategoryStringSchema = Schema.String.pipe(Schema.minLength(1));
+const SearchFilterStringSchema = Schema.String.pipe(Schema.minLength(1));
+const DownloadCursorStringSchema = Schema.String.pipe(Schema.minLength(1));
+const DownloadEventTypeStringSchema = Schema.String.pipe(Schema.minLength(1));
+const DownloadEventStatusStringSchema = Schema.String.pipe(Schema.minLength(1));
+const DecisionReasonStringSchema = Schema.String.pipe(Schema.minLength(1));
+const ReleaseGroupStringSchema = Schema.String.pipe(Schema.minLength(1));
+const TorrentInfoHashStringSchema = Schema.String.pipe(Schema.minLength(1));
+const MagnetLinkStringSchema = Schema.String.pipe(Schema.minLength(1));
+const ReleaseTitleStringSchema = Schema.String.pipe(Schema.minLength(1));
 
 const BrowsePathStringSchema = Schema.Union(
   Schema.Literal("."),
@@ -40,7 +50,7 @@ export class AddRssFeedBodySchema extends Schema.Class<AddRssFeedBodySchema>(
   "AddRssFeedBodySchema",
 )({
   anime_id: AnimeIdSchema,
-  name: Schema.optional(NonEmptyStringSchema),
+  name: Schema.optional(RssFeedNameStringSchema),
   url: HttpUrlStringSchema,
 }) {}
 
@@ -78,14 +88,14 @@ export class DownloadEventsQuerySchema extends Schema.Class<DownloadEventsQueryS
   "DownloadEventsQuerySchema",
 )({
   anime_id: Schema.optional(AnimeIdFromStringSchema),
-  cursor: Schema.optional(NonEmptyStringSchema),
+  cursor: Schema.optional(DownloadCursorStringSchema),
   download_id: Schema.optional(DownloadIdFromStringSchema),
   direction: Schema.optional(Schema.Literal("next", "prev")),
   end_date: Schema.optional(IsoDateTimeStringSchema),
-  event_type: Schema.optional(NonEmptyStringSchema),
+  event_type: Schema.optional(DownloadEventTypeStringSchema),
   limit: Schema.optional(PositiveIntFromStringSchema),
   start_date: Schema.optional(IsoDateTimeStringSchema),
-  status: Schema.optional(NonEmptyStringSchema),
+  status: Schema.optional(DownloadEventStatusStringSchema),
 }) {}
 
 export class DownloadEventsExportQuerySchema extends Schema.Class<DownloadEventsExportQuerySchema>(
@@ -94,12 +104,12 @@ export class DownloadEventsExportQuerySchema extends Schema.Class<DownloadEvents
   anime_id: Schema.optional(AnimeIdFromStringSchema),
   download_id: Schema.optional(DownloadIdFromStringSchema),
   end_date: Schema.optional(IsoDateTimeStringSchema),
-  event_type: Schema.optional(NonEmptyStringSchema),
+  event_type: Schema.optional(DownloadEventTypeStringSchema),
   format: Schema.optional(Schema.Literal("csv", "json")),
   limit: Schema.optional(PositiveIntFromStringSchema),
   order: Schema.optional(Schema.Literal("asc", "desc")),
   start_date: Schema.optional(IsoDateTimeStringSchema),
-  status: Schema.optional(NonEmptyStringSchema),
+  status: Schema.optional(DownloadEventStatusStringSchema),
 }) {}
 
 export class SearchMissingBodySchema extends Schema.Class<SearchMissingBodySchema>(
@@ -132,7 +142,7 @@ export class ImportUnmappedFolderBodySchema extends Schema.Class<ImportUnmappedF
 )({
   anime_id: AnimeIdSchema,
   folder_name: FolderNameStringSchema,
-  profile_name: Schema.optional(NonEmptyStringSchema),
+  profile_name: Schema.optional(ProfileNameStringSchema),
 }) {}
 
 export class ScanImportPathBodySchema extends Schema.Class<ScanImportPathBodySchema>(
@@ -146,23 +156,23 @@ export class SearchDownloadBodySchema extends Schema.Class<SearchDownloadBodySch
   "SearchDownloadBodySchema",
 )({
   anime_id: AnimeIdSchema,
-  decision_reason: Schema.optional(NonEmptyStringSchema),
+  decision_reason: Schema.optional(DecisionReasonStringSchema),
   episode_number: Schema.optional(EpisodeNumberSchema),
-  group: Schema.optional(NonEmptyStringSchema),
-  info_hash: Schema.optional(NonEmptyStringSchema),
+  group: Schema.optional(ReleaseGroupStringSchema),
+  info_hash: Schema.optional(TorrentInfoHashStringSchema),
   is_batch: Schema.optional(Schema.Boolean),
-  magnet: NonEmptyStringSchema,
+  magnet: MagnetLinkStringSchema,
   release_metadata: Schema.optional(DownloadSourceMetadataSchema),
-  title: NonEmptyStringSchema,
+  title: ReleaseTitleStringSchema,
 }) {}
 
 export class SearchReleasesQuerySchema extends Schema.Class<SearchReleasesQuerySchema>(
   "SearchReleasesQuerySchema",
 )({
   anime_id: Schema.optional(AnimeIdFromStringSchema),
-  category: Schema.optional(NonEmptyStringSchema),
-  filter: Schema.optional(NonEmptyStringSchema),
-  query: Schema.optional(SearchStringSchema),
+  category: Schema.optional(SearchCategoryStringSchema),
+  filter: Schema.optional(SearchFilterStringSchema),
+  query: Schema.optional(SearchQueryStringSchema),
 }) {}
 
 export class WantedMissingQuerySchema extends Schema.Class<WantedMissingQuerySchema>(
