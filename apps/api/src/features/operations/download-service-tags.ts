@@ -1,20 +1,20 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { DownloadStatus } from "../../../../../packages/shared/src/index.ts";
-import { Database } from "../../db/database.ts";
-import { ClockService, nowIsoFromClock } from "../../lib/clock.ts";
-import { EventBus } from "../events/event-bus.ts";
-import type { DatabaseError } from "../../db/database.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { makeCatalogDownloadViewSupport } from "./catalog-download-view-support.ts";
-import { OperationsSharedStateLive } from "./runtime-support.ts";
-import { makeOperationsProgressPublishers } from "./operations-progress-publishers.ts";
+import type { DownloadStatus } from "@packages/shared/index.ts";
+import { Database } from "@/db/database.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { makeCatalogDownloadViewSupport } from "@/features/operations/catalog-download-view-support.ts";
+import { OperationsSharedStateLive } from "@/features/operations/runtime-support.ts";
+import { makeOperationsProgressPublishers } from "@/features/operations/operations-progress-publishers.ts";
 import {
   makeDownloadWorkflowRuntime,
   type DownloadWorkflowShape,
-} from "./download-workflow-runtime.ts";
-import type { OperationsInfrastructureError } from "./errors.ts";
-import type { OperationsStoredDataError } from "./errors.ts";
+} from "@/features/operations/download-workflow-runtime.ts";
+import type { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 export class DownloadWorkflow extends Context.Tag("@bakarr/api/DownloadWorkflow")<
   DownloadWorkflow,

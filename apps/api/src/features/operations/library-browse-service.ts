@@ -1,11 +1,11 @@
 import { Context, Effect, Layer } from "effect";
 
-import { DatabaseError } from "../../db/database.ts";
-import { FileSystem, isWithinPathRoot, type FileSystemShape } from "../../lib/filesystem.ts";
-import { LibraryRootsService } from "../library-roots/service.ts";
-import { StoredConfigCorruptError, StoredConfigMissingError } from "../system/errors.ts";
-import { SystemConfigService } from "../system/system-config-service.ts";
-import { OperationsInputError, OperationsPathError } from "./errors.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { FileSystem, isWithinPathRoot, type FileSystemShape } from "@/lib/filesystem.ts";
+import { LibraryRootsService } from "@/features/library-roots/service.ts";
+import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
+import { SystemConfigService } from "@/features/system/system-config-service.ts";
+import { OperationsInputError, OperationsPathError } from "@/features/operations/errors.ts";
 
 const MAX_BROWSE_LIMIT = 500;
 const DIRECTORY_STAT_CONCURRENCY = 16;

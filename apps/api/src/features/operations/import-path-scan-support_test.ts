@@ -1,10 +1,10 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
 import {
   buildEpisodeFileMappingIndex,
   buildScannedFileLibrarySignals,
   buildScannedFileNamingPlan,
-} from "./import-path-scan-support.ts";
+} from "@/features/operations/import-path-scan-support.ts";
 
 it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => {
   const mappingIndex = buildEpisodeFileMappingIndex([

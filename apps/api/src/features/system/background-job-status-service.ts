@@ -1,17 +1,17 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { BackgroundJobStatus } from "../../../../../packages/shared/src/index.ts";
-import type { DatabaseError } from "../../db/database.ts";
-import { Database } from "../../db/database.ts";
-import { BackgroundWorkerMonitor } from "../../background-monitor.ts";
-import { composeBackgroundJobStatuses } from "./background-status.ts";
+import type { BackgroundJobStatus } from "@packages/shared/index.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
+import { BackgroundWorkerMonitor } from "@/background-monitor.ts";
+import { composeBackgroundJobStatuses } from "@/features/system/background-status.ts";
 import {
   ConfigValidationError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
-} from "./errors.ts";
-import { listBackgroundJobRows } from "./repository/stats-repository.ts";
-import { SystemConfigService } from "./system-config-service.ts";
+} from "@/features/system/errors.ts";
+import { listBackgroundJobRows } from "@/features/system/repository/stats-repository.ts";
+import { SystemConfigService } from "@/features/system/system-config-service.ts";
 
 export type BackgroundJobStatusError =
   | DatabaseError

@@ -1,20 +1,20 @@
-import type { Config, DownloadSourceMetadata } from "../../../../../packages/shared/src/index.ts";
+import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { anime, downloadEvents, downloads, systemLogs } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
-import { EventBus } from "../events/event-bus.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime, downloadEvents, downloads, systemLogs } from "@/db/schema.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import {
   currentImportMode,
   decodeDownloadSourceMetadata,
   loadRuntimeConfig,
   requireAnime,
-} from "./repository.ts";
-import { resolveAccessibleDownloadPath } from "./download-lifecycle.ts";
+} from "@/features/operations/repository.ts";
+import { resolveAccessibleDownloadPath } from "@/features/operations/download-lifecycle.ts";
 
 export type DownloadRow = typeof downloads.$inferSelect;
 export type AnimeRow = typeof anime.$inferSelect;

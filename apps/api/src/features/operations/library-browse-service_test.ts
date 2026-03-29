@@ -1,14 +1,20 @@
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { assertEquals, describe, it } from "../../test/vitest.ts";
-import { makeTestConfig } from "../../test/config-fixture.ts";
-import { FileSystem, FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
-import { LibraryBrowseService, LibraryBrowseServiceLive } from "./library-browse-service.ts";
-import { LibraryRootsService, type LibraryRootsServiceShape } from "../library-roots/service.ts";
+import { assertEquals, describe, it } from "@/test/vitest.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
+import { FileSystem, FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
+import {
+  LibraryBrowseService,
+  LibraryBrowseServiceLive,
+} from "@/features/operations/library-browse-service.ts";
+import {
+  LibraryRootsService,
+  type LibraryRootsServiceShape,
+} from "@/features/library-roots/service.ts";
 import {
   SystemConfigService,
   type SystemConfigServiceShape,
-} from "../system/system-config-service.ts";
+} from "@/features/system/system-config-service.ts";
 
 describe("LibraryBrowseService", () => {
   it.effect("fails when the requested directory cannot be read", () =>

@@ -1,19 +1,19 @@
 import { Context, Effect, Layer } from "effect";
 import { eq } from "drizzle-orm";
 
-import { AppConfig } from "../../config.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { appConfig, qualityProfiles } from "../../db/schema.ts";
-import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { DEFAULT_PROFILES, makeDefaultConfig } from "./defaults.ts";
+import { AppConfig } from "@/config.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { appConfig, qualityProfiles } from "@/db/schema.ts";
+import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { DEFAULT_PROFILES, makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
   effectDecodeConfigCore,
   encodeConfigCore,
   encodeQualityProfileRow,
-} from "./config-codec.ts";
-import { applyRuntimeLogLevelFromConfig } from "./runtime-config.ts";
-import { loadSystemConfigRow } from "./repository/system-config-repository.ts";
+} from "@/features/system/config-codec.ts";
+import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
+import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
 export interface SystemBootstrapServiceShape {
   /**
    * First-run initialization (idempotent):

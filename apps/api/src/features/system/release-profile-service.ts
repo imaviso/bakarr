@@ -1,18 +1,24 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { ReleaseProfile } from "../../../../../packages/shared/src/index.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { StoredConfigCorruptError } from "./errors.ts";
-import { effectDecodeReleaseProfileRow, encodeReleaseProfileRow } from "./config-codec.ts";
-import type { CreateReleaseProfileInput, UpdateReleaseProfileInput } from "./config-schema.ts";
-import { appendSystemLog } from "./support.ts";
+import type { ReleaseProfile } from "@packages/shared/index.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import { StoredConfigCorruptError } from "@/features/system/errors.ts";
+import {
+  effectDecodeReleaseProfileRow,
+  encodeReleaseProfileRow,
+} from "@/features/system/config-codec.ts";
+import type {
+  CreateReleaseProfileInput,
+  UpdateReleaseProfileInput,
+} from "@/features/system/config-schema.ts";
+import { appendSystemLog } from "@/features/system/support.ts";
 import {
   deleteReleaseProfileRow,
   insertReleaseProfileRow,
   listReleaseProfileRows,
   updateReleaseProfileRow,
-} from "./repository/release-profile-repository.ts";
+} from "@/features/system/repository/release-profile-repository.ts";
 
 export interface ReleaseProfileServiceShape {
   readonly listReleaseProfiles: () => Effect.Effect<

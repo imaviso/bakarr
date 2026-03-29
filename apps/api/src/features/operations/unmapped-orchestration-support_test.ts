@@ -1,9 +1,9 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Effect } from "effect";
 
-import { FileSystemError } from "../../lib/filesystem.ts";
-import { makeNoopTestFileSystemWithOverridesEffect } from "../../test/filesystem-test.ts";
-import { cleanupPreviousAnimeRootFolderAfterImport } from "./unmapped-orchestration-support.ts";
+import { FileSystemError } from "@/lib/filesystem.ts";
+import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
+import { cleanupPreviousAnimeRootFolderAfterImport } from "@/features/operations/unmapped-orchestration-support.ts";
 
 it.effect(
   "cleanupPreviousAnimeRootFolderAfterImport skips removal when previous folder cannot be read",

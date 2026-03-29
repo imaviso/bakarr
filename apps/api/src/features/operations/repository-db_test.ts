@@ -1,19 +1,19 @@
-import { assertEquals, assertNotEquals, it } from "../../test/vitest.ts";
+import { assertEquals, assertNotEquals, it } from "@/test/vitest.ts";
 import { Cause, Effect, Schema } from "effect";
-import { ConfigCoreSchema } from "../system/config-schema.ts";
+import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
-import * as schema from "../../db/schema.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
-import { anime, appConfig, episodes, qualityProfiles, releaseProfiles } from "../../db/schema.ts";
+import * as schema from "@/db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { anime, appConfig, episodes, qualityProfiles, releaseProfiles } from "@/db/schema.ts";
 import {
   encodeConfigCore,
   encodeNumberList,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
-} from "../system/config-codec.ts";
-import { makeDefaultConfig } from "../system/defaults.ts";
+} from "@/features/system/config-codec.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
   currentImportMode,
   currentNamingSettings,
@@ -25,8 +25,8 @@ import {
   loadReleaseRules,
   loadRuntimeConfig,
   requireAnime,
-} from "./repository.ts";
-import { OperationsAnimeNotFoundError } from "./errors.ts";
+} from "@/features/operations/repository.ts";
+import { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
 
 it.scoped(
   "operations repository helpers load runtime config and config-backed library settings",

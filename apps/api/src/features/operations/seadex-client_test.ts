@@ -1,10 +1,10 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Either, Layer } from "effect";
 
-import { ClockServiceLive } from "../../lib/clock.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { SeaDexClient, SeaDexClientLive } from "./seadex-client.ts";
+import { ClockServiceLive } from "@/lib/clock.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { SeaDexClient, SeaDexClientLive } from "@/features/operations/seadex-client.ts";
 
 it.effect("SeaDexClient fetches and decodes entry by AniList ID", () =>
   Effect.gen(function* () {

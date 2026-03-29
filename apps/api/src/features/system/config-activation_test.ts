@@ -1,9 +1,12 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Effect } from "effect";
 
-import { DatabaseError } from "../../db/database.ts";
-import { makeTestConfig } from "../../test/config-fixture.ts";
-import { persistAndActivateConfig, type PersistedSystemConfigState } from "./config-activation.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
+import {
+  persistAndActivateConfig,
+  type PersistedSystemConfigState,
+} from "@/features/system/config-activation.ts";
 
 it.effect("config activation keeps persisted state when activation succeeds", () =>
   Effect.gen(function* () {

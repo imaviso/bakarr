@@ -1,12 +1,9 @@
 import { Effect } from "effect";
 
-import { type DatabaseError } from "../../db/database.ts";
-import {
-  makeCoalescedEffectRunner,
-  makeLatestValuePublisher,
-} from "../../lib/effect-coalescing.ts";
-import { EventBus } from "../events/event-bus.ts";
-import type { OperationsInfrastructureError } from "./errors.ts";
+import { type DatabaseError } from "@/db/database.ts";
+import { makeCoalescedEffectRunner, makeLatestValuePublisher } from "@/lib/effect-coalescing.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import type { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
 export const makeOperationsProgressPublishers = Effect.fn(
   "OperationsService.makeProgressPublishers",

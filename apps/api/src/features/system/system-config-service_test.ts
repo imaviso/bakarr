@@ -1,12 +1,15 @@
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { Database, type DatabaseService } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
-import { assertEquals, describe, it } from "../../test/vitest.ts";
-import * as schema from "../../db/schema.ts";
-import { StoredConfigMissingError } from "./errors.ts";
-import { SystemConfigService, SystemConfigServiceLive } from "./system-config-service.ts";
+import { Database, type DatabaseService } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { assertEquals, describe, it } from "@/test/vitest.ts";
+import * as schema from "@/db/schema.ts";
+import { StoredConfigMissingError } from "@/features/system/errors.ts";
+import {
+  SystemConfigService,
+  SystemConfigServiceLive,
+} from "@/features/system/system-config-service.ts";
 
 describe("SystemConfigService", () => {
   it.scoped("fails when the stored config row is missing", () =>

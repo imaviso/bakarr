@@ -1,8 +1,8 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { ClockService } from "../../lib/clock.ts";
-import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
 
 interface SeaDexClientShape {
   readonly getEntryByAniListId: (

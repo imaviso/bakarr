@@ -1,15 +1,12 @@
-import type { NamingInput } from "../../lib/naming.ts";
-import type {
-  DownloadAction,
-  DownloadSourceMetadata,
-} from "../../../../../packages/shared/src/index.ts";
+import type { NamingInput } from "@/lib/naming.ts";
+import type { DownloadAction, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import {
   buildPathParseContext,
   parseFileSourceIdentity,
   parseReleaseSourceIdentity,
   toSharedParsedEpisodeIdentity,
-} from "../../lib/media-identity.ts";
-import { extractYearFromDate } from "../../lib/anime-date-utils.ts";
+} from "@/lib/media-identity.ts";
+import { extractYearFromDate } from "@/lib/anime-date-utils.ts";
 import {
   extractAudioChannels,
   extractAudioCodec,
@@ -18,7 +15,7 @@ import {
   extractVideoCodec,
   normalizeAirDate,
   normalizeText,
-} from "../../lib/scanned-file-metadata.ts";
+} from "@/lib/scanned-file-metadata.ts";
 
 export function buildDownloadSourceMetadataFromRelease(input: {
   title: string;

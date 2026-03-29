@@ -1,33 +1,36 @@
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { makeCatalogDownloadOrchestration } from "./catalog-download-orchestration.ts";
-import type { OperationsError, OperationsInfrastructureError } from "./errors.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { makeCatalogDownloadOrchestration } from "@/features/operations/catalog-download-orchestration.ts";
+import type {
+  OperationsError,
+  OperationsInfrastructureError,
+} from "@/features/operations/errors.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export function makeCatalogDownloadRuntime(input: {
   readonly applyDownloadActionEffect: (
     id: number,
     action: "pause" | "resume" | "delete",
     deleteFiles?: boolean,
-  ) => Effect.Effect<void, OperationsError | import("../../db/database.ts").DatabaseError>;
+  ) => Effect.Effect<void, OperationsError | import("@/db/database.ts").DatabaseError>;
   readonly currentTimeMillis: () => Effect.Effect<number>;
   readonly db: AppDatabase;
   readonly publishDownloadProgress: () => Effect.Effect<
     void,
-    import("../../db/database.ts").DatabaseError | OperationsInfrastructureError
+    import("@/db/database.ts").DatabaseError | OperationsInfrastructureError
   >;
   readonly reconcileDownloadByIdEffect: (
     id: number,
-  ) => Effect.Effect<void, OperationsError | import("../../db/database.ts").DatabaseError>;
+  ) => Effect.Effect<void, OperationsError | import("@/db/database.ts").DatabaseError>;
   readonly retryDownloadById: (
     id: number,
-  ) => Effect.Effect<void, OperationsError | import("../../db/database.ts").DatabaseError>;
+  ) => Effect.Effect<void, OperationsError | import("@/db/database.ts").DatabaseError>;
   readonly syncDownloadState: (
     trigger: string,
   ) => Effect.Effect<
     void,
-    import("../../db/database.ts").DatabaseError | OperationsInfrastructureError
+    import("@/db/database.ts").DatabaseError | OperationsInfrastructureError
   >;
   readonly tryDatabasePromise: TryDatabasePromise;
 }) {

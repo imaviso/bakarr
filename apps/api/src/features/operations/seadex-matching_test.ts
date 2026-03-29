@@ -1,8 +1,8 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
-import type { ParsedRelease } from "./rss-client.ts";
-import { applySeaDexMatch, findSeaDexReleaseMatch } from "./seadex-matching.ts";
-import type { SeaDexEntry, SeaDexRelease } from "./seadex-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client.ts";
+import { applySeaDexMatch, findSeaDexReleaseMatch } from "@/features/operations/seadex-matching.ts";
+import type { SeaDexEntry, SeaDexRelease } from "@/features/operations/seadex-client.ts";
 
 it("findSeaDexReleaseMatch matches by info hash first", () => {
   const release = makeRelease({

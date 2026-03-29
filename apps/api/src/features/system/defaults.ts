@@ -1,5 +1,5 @@
-import type { Quality, QualityProfile } from "../../../../../packages/shared/src/index.ts";
-import type { ConfigCore } from "./config-codec.ts";
+import type { Quality, QualityProfile } from "@packages/shared/index.ts";
+import type { ConfigCore } from "@/features/system/config-codec.ts";
 
 export const DEFAULT_QUALITIES: readonly Quality[] = [
   { id: 1, name: "480p", source: "bluray", resolution: 480, rank: 10 },

@@ -7,10 +7,10 @@ import type {
   RenamePreviewItem,
   ScannedFile,
   SkippedFile,
-} from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { anime, episodes } from "../../db/schema.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
+} from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime, episodes } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,
@@ -18,17 +18,17 @@ import {
   getSourceIdentitySeason,
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
-} from "../../lib/media-identity.ts";
+} from "@/lib/media-identity.ts";
+import { scoreAnimeSearchResultMatch, summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
 import {
-  scoreAnimeSearchResultMatch,
-  summarizeEpisodeCoverage,
-} from "../../lib/anime-derivations.ts";
-import { buildEpisodeFilenamePlan, selectNamingFormat } from "./naming-support.ts";
-import { OperationsStoredDataError } from "./errors.ts";
-import { parseResolution } from "./release-ranking.ts";
-import { deriveAnimeSeason, extractYearFromDate } from "../../lib/anime-date-utils.ts";
-import { buildScannedFileMetadata } from "../../lib/scanned-file-metadata.ts";
-import { currentNamingSettings, requireAnime } from "./repository.ts";
+  buildEpisodeFilenamePlan,
+  selectNamingFormat,
+} from "@/features/operations/naming-support.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { parseResolution } from "@/features/operations/release-ranking.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
+import { buildScannedFileMetadata } from "@/lib/scanned-file-metadata.ts";
+import { currentNamingSettings, requireAnime } from "@/features/operations/repository.ts";
 
 const AnimeGenresJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 

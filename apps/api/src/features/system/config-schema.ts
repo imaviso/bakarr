@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { PositiveIntSchema } from "../../lib/domain-schema.ts";
+import { PositiveIntSchema } from "@/lib/domain-schema.ts";
 import {
   ConfigSchema as SharedConfigSchema,
   DownloadsConfigSchema,
@@ -13,7 +13,7 @@ import {
   RemotePathMappingSchema,
   SchedulerConfigSchema,
   StringListSchema,
-} from "../../../../../packages/shared/src/index.ts";
+} from "@packages/shared/index.ts";
 
 export {
   DownloadsConfigSchema,

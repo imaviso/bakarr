@@ -1,7 +1,7 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
-import { downloadEvents, downloads, rssFeeds } from "../../db/schema.ts";
+import { downloadEvents, downloads, rssFeeds } from "@/db/schema.ts";
 import {
   encodeDownloadEventMetadata,
   encodeDownloadSourceMetadata,
@@ -9,8 +9,8 @@ import {
   toDownloadEvent,
   toDownloadStatus,
   toRssFeed,
-} from "./repository.ts";
-import { OperationsStoredDataError } from "./errors.ts";
+} from "@/features/operations/repository.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 it.effect("repository mappers convert RSS feed and download event rows", () =>
   Effect.gen(function* () {

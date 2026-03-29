@@ -1,9 +1,9 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { ClockServiceLive } from "../../lib/clock.ts";
-import { QBitTorrentClient, QBitTorrentClientLive } from "./qbittorrent.ts";
+import { ClockServiceLive } from "@/lib/clock.ts";
+import { QBitTorrentClient, QBitTorrentClientLive } from "@/features/operations/qbittorrent.ts";
 
 it.scoped("QBitTorrentClient uses provided HttpClient", () =>
   Effect.gen(function* () {

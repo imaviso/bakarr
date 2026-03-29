@@ -1,7 +1,11 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
-import { makeTestConfig } from "../../test/config-fixture.ts";
-import { backgroundJobNames, normalizeLevel, toBackgroundJobStatus } from "./support.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
+import {
+  backgroundJobNames,
+  normalizeLevel,
+  toBackgroundJobStatus,
+} from "@/features/system/support.ts";
 
 it("system support normalizes levels and deduplicates job names", () => {
   assertEquals(normalizeLevel("warn"), "warn");

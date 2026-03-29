@@ -5,16 +5,20 @@ import type {
   BackgroundJobStatus,
   LibraryStats,
   SystemStatus,
-} from "../../../../../packages/shared/src/index.ts";
-import { AppConfig } from "../../config.ts";
-import { AppRuntime } from "../../app-runtime.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { ClockService } from "../../lib/clock.ts";
-import { DiskSpaceError, DiskSpaceInspector, selectStoragePath } from "./disk-space.ts";
+} from "@packages/shared/index.ts";
+import { AppConfig } from "@/config.ts";
+import { AppRuntime } from "@/app-runtime.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { ClockService } from "@/lib/clock.ts";
+import {
+  DiskSpaceError,
+  DiskSpaceInspector,
+  selectStoragePath,
+} from "@/features/system/disk-space.ts";
 import {
   BackgroundJobStatusError,
   BackgroundJobStatusService,
-} from "./background-job-status-service.ts";
+} from "@/features/system/background-job-status-service.ts";
 import {
   countActiveDownloads,
   countAnimeRows,
@@ -26,9 +30,9 @@ import {
   countRssFeedRows,
   countUpToDateAnimeRows,
   listRecentSystemLogRows,
-} from "./repository/stats-repository.ts";
-import { SystemConfigService } from "./system-config-service.ts";
-import { findBackgroundJobStatus } from "./background-status.ts";
+} from "@/features/system/repository/stats-repository.ts";
+import { SystemConfigService } from "@/features/system/system-config-service.ts";
+import { findBackgroundJobStatus } from "@/features/system/background-status.ts";
 
 export interface SystemStatusServiceShape {
   readonly getSystemStatus: () => Effect.Effect<

@@ -1,16 +1,16 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
 import {
   BackgroundWorkerSnapshotModel,
   BackgroundWorkerStatsModel,
   initialBackgroundWorkerSnapshot,
-} from "../../background-worker-model.ts";
-import { makeTestConfig } from "../../test/config-fixture.ts";
+} from "@/background-worker-model.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   composeBackgroundJobStatuses,
   countRunningBackgroundJobStatuses,
   findBackgroundJobStatus,
-} from "./background-status.ts";
+} from "@/features/system/background-status.ts";
 
 it("background status composes persisted job rows with live running state", () => {
   const config = makeTestConfig("./test.sqlite");

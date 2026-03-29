@@ -1,10 +1,10 @@
 import { Effect, Either } from "effect";
 import * as Cron from "effect/Cron";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
-import type { DatabaseError } from "../../db/database.ts";
-import { ConfigValidationError } from "./errors.ts";
-import { normalizeQBitTorrentConfig } from "./qbittorrent-config.ts";
+import type { Config } from "@packages/shared/index.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { ConfigValidationError } from "@/features/system/errors.ts";
+import { normalizeQBitTorrentConfig } from "@/features/system/qbittorrent-config.ts";
 
 export interface ExistingConfigProfileRow {
   readonly name: string;

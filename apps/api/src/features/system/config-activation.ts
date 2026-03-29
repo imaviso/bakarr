@@ -1,8 +1,8 @@
 import { Effect, Schema } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
-import type { DatabaseError } from "../../db/database.ts";
-import { compactLogAnnotations, errorLogAnnotations } from "../../lib/logging.ts";
+import type { Config } from "@packages/shared/index.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { compactLogAnnotations, errorLogAnnotations } from "@/lib/logging.ts";
 
 export type ConfigActivationEvent =
   | "config.validation"

@@ -1,19 +1,19 @@
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import { OperationsPathError, OperationsStoredDataError } from "./errors.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
 import {
   decodeUnmappedFolderMatchRow,
   listUnmappedFolderMatchRows,
-} from "../system/repository/unmapped-repository.ts";
+} from "@/features/system/repository/unmapped-repository.ts";
 import {
   ensureFolderMatchStatus,
   listUnmappedFolderEntries,
-} from "./unmapped-folder-list-support.ts";
-import { getConfigLibraryPath } from "./repository/config-repository.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+} from "@/features/operations/unmapped-folder-list-support.ts";
+import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmappedFolderSnapshot")(
   function* (input: {

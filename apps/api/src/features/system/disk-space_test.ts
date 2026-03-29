@@ -1,14 +1,14 @@
-import { assertEquals, assertThrows, it } from "../../test/vitest.ts";
+import { assertEquals, assertThrows, it } from "@/test/vitest.ts";
 import { CommandExecutor } from "@effect/platform";
 import { Effect, Exit } from "effect";
 
-import { makeTestConfig } from "../../test/config-fixture.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   DiskSpaceError,
   makeDiskSpaceInspector,
   mapBlockStatsToDiskSpace,
   selectStoragePath,
-} from "./disk-space.ts";
+} from "@/features/system/disk-space.ts";
 
 const baseConfig = makeTestConfig("./test.sqlite");
 

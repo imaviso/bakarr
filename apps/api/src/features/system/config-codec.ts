@@ -5,9 +5,9 @@ import type {
   QualityProfile,
   ReleaseProfile,
   ReleaseProfileRule,
-} from "../../../../../packages/shared/src/index.ts";
-import { qualityProfiles, releaseProfiles } from "../../db/schema.ts";
-import { StoredConfigCorruptError, StoredConfigMissingError } from "./errors.ts";
+} from "@packages/shared/index.ts";
+import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
+import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
 import {
   ConfigCoreSchema,
   ConfigSchema,
@@ -18,7 +18,7 @@ import {
   ReleaseProfileSchema,
   StringListSchema,
   type UpdateReleaseProfileInput,
-} from "./config-schema.ts";
+} from "@/features/system/config-schema.ts";
 
 export type ConfigCore = Schema.Schema.Type<typeof ConfigCoreSchema>;
 export type ConfigCoreEncoded = Schema.Schema.Encoded<typeof ConfigCoreSchema>;

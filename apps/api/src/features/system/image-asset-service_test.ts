@@ -2,13 +2,16 @@ import { symlink } from "node:fs/promises";
 
 import { Cause, Effect, Layer } from "effect";
 
-import { FileSystem } from "../../lib/filesystem.ts";
-import { makeTestConfig } from "../../test/config-fixture.ts";
-import { withFileSystemSandboxEffect, writeTextFile } from "../../test/filesystem-test.ts";
-import { assertEquals, assertInstanceOf, it } from "../../test/vitest.ts";
-import { ImageAssetNotFoundError, ImageAssetTooLargeError } from "./errors.ts";
-import { SystemConfigService, type SystemConfigServiceShape } from "./system-config-service.ts";
-import { ImageAssetService, ImageAssetServiceLive } from "./image-asset-service.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
+import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
+import { assertEquals, assertInstanceOf, it } from "@/test/vitest.ts";
+import { ImageAssetNotFoundError, ImageAssetTooLargeError } from "@/features/system/errors.ts";
+import {
+  SystemConfigService,
+  type SystemConfigServiceShape,
+} from "@/features/system/system-config-service.ts";
+import { ImageAssetService, ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
 
 it.scoped("resolveImageAsset reads files inside the configured image root", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>

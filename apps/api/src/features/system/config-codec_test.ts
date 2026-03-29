@@ -1,7 +1,7 @@
-import { assertEquals, assertThrows, it } from "../../test/vitest.ts";
+import { assertEquals, assertThrows, it } from "@/test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
-import { qualityProfiles, releaseProfiles } from "../../db/schema.ts";
+import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
 import {
   decodeConfigCore,
   decodeOptionalNumberList,
@@ -13,7 +13,7 @@ import {
   encodeOptionalNumberList,
   encodeQualityProfileRow,
   encodeReleaseProfileRules,
-} from "./config-codec.ts";
+} from "@/features/system/config-codec.ts";
 
 it("config codec round-trips config core without mutating arrays", () => {
   const encoded = encodeConfigCore({

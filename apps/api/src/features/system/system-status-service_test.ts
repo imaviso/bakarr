@@ -1,21 +1,24 @@
 import { CommandExecutor } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { AppConfig } from "../../config.ts";
-import { Database, type DatabaseService } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { AppRuntime } from "../../app-runtime.ts";
-import { BackgroundWorkerMonitorLive } from "../../background-monitor.ts";
-import { ClockServiceLive } from "../../lib/clock.ts";
-import { RandomServiceLive } from "../../lib/random.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
-import { assertEquals, describe, it } from "../../test/vitest.ts";
-import * as schema from "../../db/schema.ts";
-import { BackgroundJobStatusServiceLive } from "./background-job-status-service.ts";
-import { DiskSpaceInspectorLive } from "./disk-space.ts";
-import { StoredConfigMissingError } from "./errors.ts";
-import { SystemConfigServiceLive } from "./system-config-service.ts";
-import { SystemStatusService, SystemStatusServiceLive } from "./system-status-service.ts";
+import { AppConfig } from "@/config.ts";
+import { Database, type DatabaseService } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { AppRuntime } from "@/app-runtime.ts";
+import { BackgroundWorkerMonitorLive } from "@/background-monitor.ts";
+import { ClockServiceLive } from "@/lib/clock.ts";
+import { RandomServiceLive } from "@/lib/random.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { assertEquals, describe, it } from "@/test/vitest.ts";
+import * as schema from "@/db/schema.ts";
+import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
+import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
+import { StoredConfigMissingError } from "@/features/system/errors.ts";
+import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
+import {
+  SystemStatusService,
+  SystemStatusServiceLive,
+} from "@/features/system/system-status-service.ts";
 
 describe("SystemStatusService", () => {
   it.scoped("fails when the stored config row is missing", () =>

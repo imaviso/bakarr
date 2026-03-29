@@ -7,32 +7,29 @@ import type {
   PreferredTitle,
   ScannedFile,
   ScanResult,
-} from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { anime, episodes } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+} from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime, episodes } from "@/db/schema.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
 import {
   type MediaProbeShape,
   mergeProbedMediaMetadata,
   shouldProbeMediaMetadata,
-} from "../../lib/media-probe.ts";
-import type { AniListClient } from "../anime/anilist.ts";
-import { OperationsPathError } from "./errors.ts";
-import { scanVideoFiles } from "./file-scanner.ts";
+} from "@/lib/media-probe.ts";
+import type { AniListClient } from "@/features/anime/anilist.ts";
+import { OperationsPathError } from "@/features/operations/errors.ts";
+import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
 import {
   analyzeScannedFile,
   findBestLocalAnimeMatch,
   scoreAnimeRowMatch,
   titlesMatch,
   toAnimeSearchCandidate,
-} from "./library-import.ts";
-import { buildEpisodeFilenamePlan } from "./naming-support.ts";
-import { currentNamingSettings, requireAnime } from "./repository.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
-import {
-  scoreAnimeSearchResultMatch,
-  summarizeEpisodeCoverage,
-} from "../../lib/anime-derivations.ts";
+} from "@/features/operations/library-import.ts";
+import { buildEpisodeFilenamePlan } from "@/features/operations/naming-support.ts";
+import { currentNamingSettings, requireAnime } from "@/features/operations/repository.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import { scoreAnimeSearchResultMatch, summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
 
 export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")(
   function* (input: {

@@ -1,8 +1,8 @@
 import { Cause, Effect, Exit } from "effect";
 
-import { assertEquals, it } from "../../test/vitest.ts";
-import { makeTestConfig } from "../../test/config-fixture.ts";
-import { validateConfigUpdate } from "./config-update-validation.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
+import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
 
 it("rejects invalid scheduler cron expressions", () =>
   Effect.gen(function* () {

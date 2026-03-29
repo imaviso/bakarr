@@ -1,20 +1,20 @@
 import { Effect } from "effect";
 
-import type { Config, QualityProfile } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
+import type { Config, QualityProfile } from "@packages/shared/index.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
 import {
   type OperationsError,
   OperationsInputError,
   OperationsInfrastructureError,
-} from "./errors.ts";
-import { type ParsedRelease, RssClient } from "./rss-client.ts";
-import { type QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
-import { loadQualityProfile } from "./repository.ts";
-import type { OperationsCoordinationShape } from "./runtime-support.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
-import { EventBus } from "../events/event-bus.ts";
+} from "@/features/operations/errors.ts";
+import { type ParsedRelease, RssClient } from "@/features/operations/rss-client.ts";
+import { type QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { loadQualityProfile } from "@/features/operations/repository.ts";
+import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 
 export interface BackgroundSearchSupportInput {
   db: AppDatabase;

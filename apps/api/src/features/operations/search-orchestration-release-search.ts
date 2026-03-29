@@ -1,28 +1,32 @@
 import { Effect } from "effect";
 
-import type { Config, SearchResults } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DatabaseError } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
-import { compactLogAnnotations, errorLogAnnotations } from "../../lib/logging.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
+import type { Config, SearchResults } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import { compactLogAnnotations, errorLogAnnotations } from "@/lib/logging.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
 import {
   type ParsedRelease,
   RssClient,
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
-} from "./rss-client.ts";
-import { SeaDexClient } from "./seadex-client.ts";
-import { applySeaDexMatch } from "./seadex-matching.ts";
-import { loadRuntimeConfig, requireAnime } from "./repository.ts";
-import { mapSearchCategory, mapSearchFilter, toNyaaSearchResult } from "./search-support.ts";
-import { parseReleaseName } from "./release-ranking.ts";
+} from "@/features/operations/rss-client.ts";
+import { SeaDexClient } from "@/features/operations/seadex-client.ts";
+import { applySeaDexMatch } from "@/features/operations/seadex-matching.ts";
+import { loadRuntimeConfig, requireAnime } from "@/features/operations/repository.ts";
+import {
+  mapSearchCategory,
+  mapSearchFilter,
+  toNyaaSearchResult,
+} from "@/features/operations/search-support.ts";
+import { parseReleaseName } from "@/features/operations/release-ranking.ts";
 import {
   OperationsInputError,
   OperationsInfrastructureError,
   type OperationsError,
-} from "./errors.ts";
+} from "@/features/operations/errors.ts";
 
 type SearchReleaseError = ExternalCallError | OperationsError | DatabaseError;
 type SearchReleaseSourceError =

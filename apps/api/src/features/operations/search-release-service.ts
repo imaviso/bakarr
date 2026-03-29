@@ -1,9 +1,9 @@
 import { Context, Effect, Layer } from "effect";
 
-import { Database } from "../../db/database.ts";
-import { makeSearchReleaseSupport } from "./search-orchestration-release-search.ts";
-import { RssClient } from "./rss-client.ts";
-import { SeaDexClient } from "./seadex-client.ts";
+import { Database } from "@/db/database.ts";
+import { makeSearchReleaseSupport } from "@/features/operations/search-orchestration-release-search.ts";
+import { RssClient } from "@/features/operations/rss-client.ts";
+import { SeaDexClient } from "@/features/operations/seadex-client.ts";
 
 export type SearchReleaseServiceShape = ReturnType<typeof makeSearchReleaseSupport>;
 

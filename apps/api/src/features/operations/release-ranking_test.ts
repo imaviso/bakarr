@@ -1,7 +1,7 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
-import { defaultAppConfig } from "../../config.ts";
-import type { Config, QualityProfile } from "../../../../../packages/shared/src/index.ts";
+import { defaultAppConfig } from "@/config.ts";
+import type { Config, QualityProfile } from "@packages/shared/index.ts";
 import {
   compareEpisodeSearchResults,
   decideDownloadAction,
@@ -9,7 +9,7 @@ import {
   parseEpisodeNumbersFromTitle,
   parseQualityFromTitle,
   parseReleaseName,
-} from "./release-ranking.ts";
+} from "@/features/operations/release-ranking.ts";
 
 const baseConfig: Config = {
   downloads: {

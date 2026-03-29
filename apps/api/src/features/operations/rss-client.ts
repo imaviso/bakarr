@@ -1,16 +1,24 @@
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "@effect/platform";
 import { Context, Effect, Either, Layer } from "effect";
 
-import { ClockService } from "../../lib/clock.ts";
-import { DnsResolver } from "../../lib/dns-resolver.ts";
-import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
-import { RssFeedParseError, RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";
-import { readRssItems, type ParsedRelease } from "./rss-client-parse.ts";
-import { validateUrlForSsrf } from "./rss-client-ssrf.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { DnsResolver } from "@/lib/dns-resolver.ts";
+import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
+import {
+  RssFeedParseError,
+  RssFeedRejectedError,
+  RssFeedTooLargeError,
+} from "@/features/operations/errors.ts";
+import { readRssItems, type ParsedRelease } from "@/features/operations/rss-client-parse.ts";
+import { validateUrlForSsrf } from "@/features/operations/rss-client-ssrf.ts";
 
-export { RssFeedParseError, RssFeedRejectedError, RssFeedTooLargeError } from "./errors.ts";
-export { ParsedReleaseSchema } from "./rss-client-parse.ts";
-export type { ParsedRelease } from "./rss-client-parse.ts";
+export {
+  RssFeedParseError,
+  RssFeedRejectedError,
+  RssFeedTooLargeError,
+} from "@/features/operations/errors.ts";
+export { ParsedReleaseSchema } from "@/features/operations/rss-client-parse.ts";
+export type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 
 interface RssClientShape {
   readonly fetchItems: (

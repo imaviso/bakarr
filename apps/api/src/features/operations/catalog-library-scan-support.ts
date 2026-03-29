@@ -1,16 +1,23 @@
 import { Effect, Ref, Stream } from "effect";
 
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
-import { DatabaseError as DatabaseErrorTag } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
-import { type FileSystemShape } from "../../lib/filesystem.ts";
-import { classifyMediaArtifact, parseFileSourceIdentity } from "../../lib/media-identity.ts";
-import { EventBus } from "../events/event-bus.ts";
-import { OperationsPathError, OperationsInfrastructureError } from "./errors.ts";
-import { markJobFailed, markJobStarted, markJobSucceeded } from "./job-support.ts";
-import { upsertEpisodeFilesAtomic } from "./download-support.ts";
-import { scanVideoFilesStream } from "./file-scanner.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { DatabaseError as DatabaseErrorTag } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import { type FileSystemShape } from "@/lib/filesystem.ts";
+import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import {
+  OperationsPathError,
+  OperationsInfrastructureError,
+} from "@/features/operations/errors.ts";
+import {
+  markJobFailed,
+  markJobStarted,
+  markJobSucceeded,
+} from "@/features/operations/job-support.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download-support.ts";
+import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface CatalogLibraryScanSupportShape {
   readonly runLibraryScan: () => Effect.Effect<

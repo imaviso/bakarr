@@ -1,46 +1,46 @@
-import { assertEquals, assertExists, it } from "../../test/vitest.ts";
+import { assertEquals, assertExists, it } from "@/test/vitest.ts";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import * as schema from "../../db/schema.ts";
-import { anime, appConfig, downloads, episodes } from "../../db/schema.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import { MediaProbeNoMetadata } from "../../lib/media-probe.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
+import type { NotificationEvent } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import * as schema from "@/db/schema.ts";
+import { anime, appConfig, downloads, episodes } from "@/db/schema.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import { MediaProbeNoMetadata } from "@/lib/media-probe.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
   readTextFile,
   withFileSystemSandboxEffect,
   writeTextFile,
-} from "../../test/filesystem-test.ts";
+} from "@/test/filesystem-test.ts";
 import {
   encodeConfigCore,
   encodeNumberList,
   type ConfigCoreEncoded,
-} from "../system/config-codec.ts";
-import { makeDefaultConfig } from "../system/defaults.ts";
+} from "@/features/system/config-codec.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { Schema } from "effect";
-import { ConfigCoreSchema } from "../system/config-schema.ts";
-import { EventBus } from "../events/event-bus.ts";
-import { makeOperationsSharedState } from "./runtime-support.ts";
-import { QBitTorrentClient } from "./qbittorrent.ts";
+import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { makeOperationsSharedState } from "@/features/operations/runtime-support.ts";
+import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import {
   decodeDownloadEventMetadata,
   encodeDownloadSourceMetadata,
   loadCurrentEpisodeState,
   toDownload,
   toDownloadStatus,
-} from "./repository.ts";
-import { loadDownloadPresentationContexts } from "./repository/download-presentation-repository.ts";
-import { maybeQBitConfig } from "./operations-qbit-config.ts";
-import { tryDatabasePromise, toDatabaseError } from "../../lib/effect-db.ts";
-import { makeDownloadReconciliationService } from "./download-reconciliation-service.ts";
-import { makeDownloadTorrentLifecycleService } from "./download-torrent-lifecycle-service.ts";
-import { makeDownloadTriggerService } from "./download-trigger-service.ts";
-import { makeDownloadOrchestration } from "./download-orchestration.ts";
+} from "@/features/operations/repository.ts";
+import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
+import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
+import { tryDatabasePromise, toDatabaseError } from "@/lib/effect-db.ts";
+import { makeDownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
+import { makeDownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
+import { makeDownloadTriggerService } from "@/features/operations/download-trigger-service.ts";
+import { makeDownloadOrchestration } from "@/features/operations/download-orchestration.ts";
 
 it.scoped("triggerDownload persists merged release provenance on queued downloads", () =>
   withSqliteTestDbEffect({
@@ -1034,7 +1034,7 @@ function buildDownloadWorkflowServices(input: {
   readonly db: AppDatabase;
   readonly dbError: (
     message: string,
-  ) => (cause: unknown) => import("../../db/database.ts").DatabaseError;
+  ) => (cause: unknown) => import("@/db/database.ts").DatabaseError;
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
   readonly mediaProbe: MediaProbeShape;

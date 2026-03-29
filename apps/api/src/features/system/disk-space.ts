@@ -1,7 +1,7 @@
 import { Command, CommandExecutor } from "@effect/platform";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
+import type { Config } from "@packages/shared/index.ts";
 
 export const DiskSpaceSchema = Schema.Struct({
   free: Schema.Number,

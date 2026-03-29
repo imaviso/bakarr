@@ -1,12 +1,12 @@
-import type { Config } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DatabaseError } from "../../db/database.ts";
-import { EventBus } from "../events/event-bus.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import type { OperationsCoordinationShape } from "./runtime-support.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
-import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
+import type { Config } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 
 export interface TriggerDownloadInput {
   readonly anime_id: number;
@@ -17,7 +17,7 @@ export interface TriggerDownloadInput {
   readonly info_hash?: string;
   readonly is_batch?: boolean;
   readonly decision_reason?: string;
-  readonly release_metadata?: import("../../../../../packages/shared/src/index.ts").DownloadSourceMetadata;
+  readonly release_metadata?: import("@packages/shared/index.ts").DownloadSourceMetadata;
 }
 
 export interface DownloadOrchestrationInput {

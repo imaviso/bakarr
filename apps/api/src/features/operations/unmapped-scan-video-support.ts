@@ -1,8 +1,8 @@
 import { Effect } from "effect";
 
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import { OperationsPathError } from "./errors.ts";
-import { scanVideoFiles } from "./file-scanner.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import { OperationsPathError } from "@/features/operations/errors.ts";
+import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
 
 export const loadUnmappedFolderVideoSize = Effect.fn(
   "OperationsService.loadUnmappedFolderVideoSize",

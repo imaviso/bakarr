@@ -1,12 +1,12 @@
 import { Effect } from "effect";
 
-import { durationMsSince } from "../../lib/logging.ts";
-import { DatabaseError } from "../../db/database.ts";
-import { OperationsInfrastructureError } from "./errors.ts";
-import { mapQBitState } from "./download-orchestration-shared.ts";
-import { makeDownloadReconciliationService } from "./download-reconciliation-service.ts";
-import { makeDownloadTorrentLifecycleService } from "./download-torrent-lifecycle-service.ts";
-import { makeDownloadTriggerService } from "./download-trigger-service.ts";
+import { durationMsSince } from "@/lib/logging.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
+import { makeDownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
+import { makeDownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
+import { makeDownloadTriggerService } from "@/features/operations/download-trigger-service.ts";
 
 type DownloadReconciliationServiceShape = ReturnType<typeof makeDownloadReconciliationService>;
 type DownloadTorrentLifecycleServiceShape = ReturnType<typeof makeDownloadTorrentLifecycleService>;

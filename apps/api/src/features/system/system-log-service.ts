@@ -1,13 +1,13 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { SystemLogsResponse } from "../../../../../packages/shared/src/index.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { systemLogs } from "../../db/schema.ts";
-import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { EventPublisher } from "../events/publisher.ts";
-import { appendSystemLog, normalizeLevel } from "./support.ts";
-import { loadSystemLogPage } from "./repository/stats-repository.ts";
+import type { SystemLogsResponse } from "@packages/shared/index.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { systemLogs } from "@/db/schema.ts";
+import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { EventPublisher } from "@/features/events/publisher.ts";
+import { appendSystemLog, normalizeLevel } from "@/features/system/support.ts";
+import { loadSystemLogPage } from "@/features/system/repository/stats-repository.ts";
 
 const PAGE_SIZE = 50;
 

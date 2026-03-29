@@ -1,27 +1,30 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { downloads } from "../../db/schema.ts";
-import { EventBus } from "../events/event-bus.ts";
-import { QBitTorrentClient } from "./qbittorrent.ts";
-import { shouldDeleteImportedData, shouldRemoveTorrentOnImport } from "./download-support.ts";
+import type { Config } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { downloads } from "@/db/schema.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import {
+  shouldDeleteImportedData,
+  shouldRemoveTorrentOnImport,
+} from "@/features/operations/download-support.ts";
 import {
   loadDownloadReconciliationContext,
   type DownloadReconciliationContext,
   type MaybeCleanupImportedTorrent,
-} from "./download-reconciliation-shared.ts";
-import { reconcileBatchDownloadEffect } from "./download-reconciliation-batch.ts";
-import { reconcileSingleDownloadEffect } from "./download-reconciliation-single.ts";
+} from "@/features/operations/download-reconciliation-shared.ts";
+import { reconcileBatchDownloadEffect } from "@/features/operations/download-reconciliation-batch.ts";
+import { reconcileSingleDownloadEffect } from "@/features/operations/download-reconciliation-single.ts";
 
 export function makeDownloadCompletedTorrentReconciliation(input: {
   readonly db: AppDatabase;
-  readonly fs: import("../../lib/filesystem.ts").FileSystemShape;
-  readonly mediaProbe: import("../../lib/media-probe.ts").MediaProbeShape;
+  readonly fs: import("@/lib/filesystem.ts").FileSystemShape;
+  readonly mediaProbe: import("@/lib/media-probe.ts").MediaProbeShape;
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly eventBus: typeof EventBus.Service;
-  readonly tryDatabasePromise: import("../../lib/effect-db.ts").TryDatabasePromise;
+  readonly tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise;
   readonly maybeQBitConfig: (config: Config) => import("./qbittorrent.ts").QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
   readonly randomUuid: () => Effect.Effect<string>;

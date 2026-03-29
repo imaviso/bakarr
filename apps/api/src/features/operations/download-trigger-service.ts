@@ -1,40 +1,44 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { DatabaseError } from "../../db/database.ts";
-import { downloads } from "../../db/schema.ts";
-import { EventBus } from "../events/event-bus.ts";
-import { loadDownloadPresentationContexts } from "./repository/download-presentation-repository.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { downloads } from "@/db/schema.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import {
   encodeDownloadSourceMetadata,
   loadRuntimeConfig,
   requireAnime,
   toDownloadStatus,
-} from "./repository.ts";
+} from "@/features/operations/repository.ts";
 import {
   buildDownloadSourceMetadataFromRelease,
   mergeDownloadSourceMetadata,
-} from "./naming-support.ts";
+} from "@/features/operations/naming-support.ts";
 import {
   hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
   parseMagnetInfoHash,
   toCoveredEpisodesJson,
-} from "./download-lifecycle.ts";
-import { appendLog, loadMissingEpisodeNumbers, recordDownloadEvent } from "./job-support.ts";
-import { parseReleaseName } from "./release-ranking.ts";
+} from "@/features/operations/download-lifecycle.ts";
+import {
+  appendLog,
+  loadMissingEpisodeNumbers,
+  recordDownloadEvent,
+} from "@/features/operations/job-support.ts";
+import { parseReleaseName } from "@/features/operations/release-ranking.ts";
 import {
   DownloadConflictError,
   type OperationsError,
   OperationsInputError,
   OperationsInfrastructureError,
-} from "./errors.ts";
-import type { ExternalCallError } from "../../lib/effect-retry.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
-import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
-import type { TriggerDownloadInput } from "./download-orchestration-shared.ts";
-import { resolveRequestedEpisodeNumber } from "./download-orchestration-shared.ts";
+} from "@/features/operations/errors.ts";
+import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import type { TriggerDownloadInput } from "@/features/operations/download-orchestration-shared.ts";
+import { resolveRequestedEpisodeNumber } from "@/features/operations/download-orchestration-shared.ts";
 
 export function makeDownloadTriggerService(input: {
   readonly db: AppDatabase;
@@ -43,7 +47,7 @@ export function makeDownloadTriggerService(input: {
   readonly tryDatabasePromise: TryDatabasePromise;
   readonly dbError: (message: string) => (cause: unknown) => DatabaseError;
   readonly maybeQBitConfig: (
-    config: import("../../../../../packages/shared/src/index.ts").Config,
+    config: import("@packages/shared/index.ts").Config,
   ) => QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
   readonly coordination: import("./runtime-support.ts").OperationsCoordinationShape;

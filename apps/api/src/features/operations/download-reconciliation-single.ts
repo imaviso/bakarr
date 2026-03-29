@@ -1,21 +1,27 @@
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { episodes } from "../../db/schema.ts";
+import { episodes } from "@/db/schema.ts";
 import {
   buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
-} from "./naming-support.ts";
-import { importDownloadedFile, upsertEpisodeFile } from "./download-support.ts";
-import { parseCoveredEpisodesEffect, resolveCompletedContentPath } from "./download-lifecycle.ts";
-import { OperationsInfrastructureError, OperationsPathError } from "./errors.ts";
-import { encodeDownloadEventMetadata } from "./repository.ts";
+} from "@/features/operations/naming-support.ts";
+import { importDownloadedFile, upsertEpisodeFile } from "@/features/operations/download-support.ts";
+import {
+  parseCoveredEpisodesEffect,
+  resolveCompletedContentPath,
+} from "@/features/operations/download-lifecycle.ts";
+import {
+  OperationsInfrastructureError,
+  OperationsPathError,
+} from "@/features/operations/errors.ts";
+import { encodeDownloadEventMetadata } from "@/features/operations/repository.ts";
 import {
   finalizeDownloadImport,
   markDownloadReconciled,
   type DownloadReconciliationContext,
-} from "./download-reconciliation-shared.ts";
+} from "@/features/operations/download-reconciliation-shared.ts";
 
 const mapReconciliationInfrastructureError = (cause: unknown) =>
   new OperationsInfrastructureError({

@@ -1,11 +1,11 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Cause, Effect, Exit, Schema } from "effect";
-import { ConfigCoreSchema } from "./config-schema.ts";
+import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
-import * as schema from "../../db/schema.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
+import * as schema from "@/db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
   anime,
   backgroundJobs,
@@ -14,15 +14,15 @@ import {
   rssFeeds,
   systemLogs,
   unmappedFolderMatches,
-} from "../../db/schema.ts";
-import { StoredUnmappedFolderCorruptError } from "./errors.ts";
-import { encodeConfigCore } from "./config-codec.ts";
-import { makeDefaultConfig } from "./defaults.ts";
+} from "@/db/schema.ts";
+import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
+import { encodeConfigCore } from "@/features/system/config-codec.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
   insertSystemConfigRow,
   loadSystemConfigRow,
   upsertSystemConfigRow,
-} from "./repository/system-config-repository.ts";
+} from "@/features/system/repository/system-config-repository.ts";
 import {
   countActiveDownloads,
   countAnimeRows,
@@ -35,13 +35,13 @@ import {
   countRssFeedRows,
   countUpToDateAnimeRows,
   loadSystemLogPage,
-} from "./repository/stats-repository.ts";
+} from "@/features/system/repository/stats-repository.ts";
 import {
   decodeUnmappedFolderMatchRow,
   listUnmappedFolderMatchRows,
   loadUnmappedFolderMatchRow,
   upsertUnmappedFolderMatchRows,
-} from "./repository/unmapped-repository.ts";
+} from "@/features/system/repository/unmapped-repository.ts";
 
 it.scoped("system repository config helpers insert and upsert config rows", () =>
   withTestDbEffect((db, databaseFile) =>

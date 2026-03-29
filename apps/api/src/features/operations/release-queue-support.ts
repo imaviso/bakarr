@@ -1,17 +1,20 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { DownloadSourceMetadata } from "../../../../../packages/shared/src/index.ts";
-import { DatabaseError } from "../../db/database.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { anime, downloads } from "../../db/schema.ts";
-import { OperationsInfrastructureError } from "./errors.ts";
-import { recordDownloadEvent } from "./job-support.ts";
-import { hasOverlappingDownload, parseCoveredEpisodesEffect } from "./download-lifecycle.ts";
-import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
-import { encodeDownloadSourceMetadata } from "./repository.ts";
-import type { ParsedRelease } from "./rss-client.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
+import { DatabaseError } from "@/db/database.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime, downloads } from "@/db/schema.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { recordDownloadEvent } from "@/features/operations/job-support.ts";
+import {
+  hasOverlappingDownload,
+  parseCoveredEpisodesEffect,
+} from "@/features/operations/download-lifecycle.ts";
+import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { encodeDownloadSourceMetadata } from "@/features/operations/repository.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export const queueParsedReleaseDownload = Effect.fn("OperationsService.queueParsedReleaseDownload")(
   function* (input: {

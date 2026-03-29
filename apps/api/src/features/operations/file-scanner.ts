@@ -1,5 +1,5 @@
 import { Chunk, Effect, Option, Stream } from "effect";
-import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
+import { FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
 
 const SCAN_STAT_CONCURRENCY = 16;
 

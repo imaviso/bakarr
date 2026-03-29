@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
-import { ConfigValidationError } from "./errors.ts";
+import type { Config } from "@packages/shared/index.ts";
+import { ConfigValidationError } from "@/features/system/errors.ts";
 
 function normalizeHostname(hostname: string): string {
   return hostname

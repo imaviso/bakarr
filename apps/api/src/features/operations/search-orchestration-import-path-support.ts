@@ -1,13 +1,16 @@
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { DatabaseError } from "../../db/database.ts";
-import type { AniListClient } from "../anime/anilist.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
-import { OperationsPathError, OperationsInfrastructureError } from "./errors.ts";
-import { scanImportPathEffect } from "./import-path-scan-support.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import type { AniListClient } from "@/features/anime/anilist.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import {
+  OperationsPathError,
+  OperationsInfrastructureError,
+} from "@/features/operations/errors.ts";
+import { scanImportPathEffect } from "@/features/operations/import-path-scan-support.ts";
 
 export interface SearchImportPathSupportInput {
   readonly aniList: typeof AniListClient.Service;

@@ -1,7 +1,10 @@
 import { Effect } from "effect";
 
-import type { DatabaseError } from "../../db/database.ts";
-import type { OperationsError, OperationsInfrastructureError } from "./errors.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import type {
+  OperationsError,
+  OperationsInfrastructureError,
+} from "@/features/operations/errors.ts";
 
 export interface CatalogDownloadActionSupportShape {
   readonly pauseDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;

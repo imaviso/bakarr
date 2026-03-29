@@ -1,12 +1,12 @@
 import { Schema } from "effect";
-import type { BackgroundJobStatus, Config } from "../../../../../packages/shared/src/index.ts";
+import type { BackgroundJobStatus, Config } from "@packages/shared/index.ts";
 import {
   BACKGROUND_JOB_NAMES,
   BACKGROUND_WORKER_NAMES,
   type BackgroundWorkerName,
   type BackgroundWorkerSnapshot,
-} from "../../background-worker-model.ts";
-import { toBackgroundJobStatus } from "./support.ts";
+} from "@/background-worker-model.ts";
+import { toBackgroundJobStatus } from "@/features/system/support.ts";
 
 export const BackgroundJobHistoryRowSchema = Schema.Struct({
   isRunning: Schema.Boolean,

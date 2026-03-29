@@ -1,25 +1,25 @@
 import { Effect } from "effect";
 
-import type { Config, DownloadAction } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
+import type { Config, DownloadAction } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
 import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
   mergeDownloadSourceMetadata,
-} from "./naming-support.ts";
+} from "@/features/operations/naming-support.ts";
 import {
   inferCoveredEpisodeNumbers,
   parseCoveredEpisodesEffect,
   toCoveredEpisodesJson,
   hasOverlappingDownload,
-} from "./download-lifecycle.ts";
-import { parseReleaseName } from "./release-ranking.ts";
-import { queueParsedReleaseDownload } from "./release-queue-support.ts";
-import { type ParsedRelease } from "./rss-client.ts";
-import { type QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
-import type { OperationsCoordinationShape } from "./runtime-support.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+} from "@/features/operations/download-lifecycle.ts";
+import { parseReleaseName } from "@/features/operations/release-ranking.ts";
+import { queueParsedReleaseDownload } from "@/features/operations/release-queue-support.ts";
+import { type ParsedRelease } from "@/features/operations/rss-client.ts";
+import { type QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface BackgroundSearchQueueSupportInput {
   readonly db: AppDatabase;

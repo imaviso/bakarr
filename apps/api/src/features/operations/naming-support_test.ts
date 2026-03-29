@@ -1,4 +1,4 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
 import {
   buildCanonicalEpisodeNamingInput,
@@ -14,7 +14,7 @@ import {
   selectAnimeYearForNaming,
   selectNamingFormat,
   validateNamingMetadata,
-} from "./naming-support.ts";
+} from "@/features/operations/naming-support.ts";
 
 it("buildEpisodeNamingInputFromPath extracts local filename metadata for rename tokens", () => {
   const input = buildEpisodeNamingInputFromPath({

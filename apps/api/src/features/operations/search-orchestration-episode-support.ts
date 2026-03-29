@@ -1,22 +1,22 @@
 import { Effect } from "effect";
 
-import type { Config, EpisodeSearchResult } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DatabaseError } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { OperationsInputError, type OperationsError } from "./errors.ts";
+import type { Config, EpisodeSearchResult } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { OperationsInputError, type OperationsError } from "@/features/operations/errors.ts";
 import {
   loadCurrentEpisodeState,
   loadQualityProfile,
   loadReleaseRules,
   loadRuntimeConfig,
   requireAnime,
-} from "./repository.ts";
-import { compareEpisodeSearchResults } from "./release-ranking.ts";
-import type { ParsedRelease } from "./rss-client.ts";
-import { toEpisodeSearchResult } from "./search-orchestration-episode-result.ts";
-import { OperationsInfrastructureError } from "./errors.ts";
+} from "@/features/operations/repository.ts";
+import { compareEpisodeSearchResults } from "@/features/operations/release-ranking.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client.ts";
+import { toEpisodeSearchResult } from "@/features/operations/search-orchestration-episode-result.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
 export interface SearchEpisodeSupportInput {
   readonly db: AppDatabase;

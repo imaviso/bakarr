@@ -1,28 +1,28 @@
-import { type NamingInput, renderEpisodeFilename } from "../../lib/naming.ts";
+import { type NamingInput, renderEpisodeFilename } from "@/lib/naming.ts";
 import type {
   DownloadSourceMetadata,
   NamingTitleSource,
   ParsedEpisodeIdentity as SharedParsedEpisodeIdentity,
   PreferredTitle,
   RenamePreviewMetadataSnapshot,
-} from "../../../../../packages/shared/src/index.ts";
+} from "@packages/shared/index.ts";
 import {
   getSourceIdentityAirDate,
   getSourceIdentitySeason,
   toSharedParsedEpisodeIdentity,
-} from "../../lib/media-identity.ts";
-import type { ProbedMediaMetadata } from "../../lib/media-probe.ts";
+} from "@/lib/media-identity.ts";
+import type { ProbedMediaMetadata } from "@/lib/media-probe.ts";
 import {
   buildEpisodeNamingInputFromPath,
   selectAnimeYearForNaming,
-} from "./naming-metadata-support.ts";
+} from "@/features/operations/naming-metadata-support.ts";
 export {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
   buildEpisodeNamingInputFromPath,
   mergeDownloadSourceMetadata,
   selectAnimeYearForNaming,
-} from "./naming-metadata-support.ts";
+} from "@/features/operations/naming-metadata-support.ts";
 
 export interface ResolvedNamingPlan {
   readonly formatUsed: string;

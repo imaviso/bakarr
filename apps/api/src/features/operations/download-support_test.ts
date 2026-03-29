@@ -1,21 +1,21 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
-import { anime } from "../../db/schema.ts";
-import { FileSystemError, type FileSystemShape } from "../../lib/filesystem.ts";
+import { anime } from "@/db/schema.ts";
+import { FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
 import {
   makeNoopTestFileSystemWithOverridesEffect,
   readTextFile,
   withFileSystemSandboxEffect,
   writeTextFile,
-} from "../../test/filesystem-test.ts";
-import { makeTestConfig } from "../../test/config-fixture.ts";
+} from "@/test/filesystem-test.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   importDownloadedFile,
   shouldDeleteImportedData,
   shouldReconcileCompletedDownloads,
   shouldRemoveTorrentOnImport,
-} from "./download-support.ts";
+} from "@/features/operations/download-support.ts";
 
 const testRandomUuid = () => Effect.succeed("test-uuid-0000");
 

@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DiskSpaceError } from "./disk-space.ts";
+import { DiskSpaceError } from "@/features/system/disk-space.ts";
 
 export class ConfigValidationError extends Schema.TaggedError<ConfigValidationError>()(
   "ConfigValidationError",

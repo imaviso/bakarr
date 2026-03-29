@@ -1,12 +1,12 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { upsertEpisodeFilesAtomic } from "./download-support.ts";
-import * as schema from "../../db/schema.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download-support.ts";
+import * as schema from "@/db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
   withSqliteTestDbEffect({

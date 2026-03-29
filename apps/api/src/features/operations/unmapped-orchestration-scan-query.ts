@@ -1,25 +1,28 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { ScannerState } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
-import { anime, backgroundJobs } from "../../db/schema.ts";
-import { type FileSystemShape } from "../../lib/filesystem.ts";
-import type { AniListClient } from "../anime/anilist.ts";
-import { OperationsPathError, OperationsStoredDataError } from "./errors.ts";
+import type { ScannerState } from "@packages/shared/index.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { anime, backgroundJobs } from "@/db/schema.ts";
+import { type FileSystemShape } from "@/lib/filesystem.ts";
+import type { AniListClient } from "@/features/anime/anilist.ts";
+import { OperationsPathError, OperationsStoredDataError } from "@/features/operations/errors.ts";
 import {
   deleteUnmappedFolderMatchRowsNotInPaths,
   upsertUnmappedFolderMatchRows,
-} from "../system/repository/unmapped-repository.ts";
+} from "@/features/system/repository/unmapped-repository.ts";
 import {
   prepareUnmappedFoldersForScan,
   toUnmappedMatchErrorMessage,
-} from "./unmapped-folder-list-support.ts";
-import { loadUnmappedFolderSnapshot } from "./unmapped-scan-snapshot-support.ts";
-import { mergeLocalFolderMatch } from "./unmapped-folder-match-support.ts";
-import { matchSingleUnmappedFolder } from "./unmapped-scan-match-support.ts";
-import { isUnmappedFolderOutstanding, markUnmappedFolderFailed } from "./unmapped-folders.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+} from "@/features/operations/unmapped-folder-list-support.ts";
+import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped-scan-snapshot-support.ts";
+import { mergeLocalFolderMatch } from "@/features/operations/unmapped-folder-match-support.ts";
+import { matchSingleUnmappedFolder } from "@/features/operations/unmapped-scan-match-support.ts";
+import {
+  isUnmappedFolderOutstanding,
+  markUnmappedFolderFailed,
+} from "@/features/operations/unmapped-folders.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface UnmappedScanSnapshot {
   readonly animeRows: ReadonlyArray<typeof anime.$inferSelect>;

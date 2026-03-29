@@ -1,20 +1,27 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { Quality, QualityProfile } from "../../../../../packages/shared/src/index.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { StoredConfigCorruptError, ProfileNotFoundError, ConfigValidationError } from "./errors.ts";
-import { effectDecodeQualityProfileRow, encodeQualityProfileRow } from "./config-codec.ts";
-import { appendSystemLog } from "./support.ts";
-import { DEFAULT_QUALITIES } from "./defaults.ts";
-import { countAnimeUsingProfile } from "./repository/profile-usage-repository.ts";
+import type { Quality, QualityProfile } from "@packages/shared/index.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import {
+  StoredConfigCorruptError,
+  ProfileNotFoundError,
+  ConfigValidationError,
+} from "@/features/system/errors.ts";
+import {
+  effectDecodeQualityProfileRow,
+  encodeQualityProfileRow,
+} from "@/features/system/config-codec.ts";
+import { appendSystemLog } from "@/features/system/support.ts";
+import { DEFAULT_QUALITIES } from "@/features/system/defaults.ts";
+import { countAnimeUsingProfile } from "@/features/system/repository/profile-usage-repository.ts";
 import {
   deleteQualityProfileRow,
   insertQualityProfileRow,
   listQualityProfileRows,
   loadQualityProfileRow,
   renameQualityProfileWithCascade,
-} from "./repository/quality-profile-repository.ts";
+} from "@/features/system/repository/quality-profile-repository.ts";
 
 export interface QualityProfileServiceShape {
   readonly listProfiles: () => Effect.Effect<

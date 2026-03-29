@@ -1,6 +1,6 @@
 import { Context, Effect, Exit, Layer, Scope } from "effect";
 
-import { makeSerializedFlagCoordinator } from "../../lib/effect-coalescing.ts";
+import { makeSerializedFlagCoordinator } from "@/lib/effect-coalescing.ts";
 
 export interface OperationsSharedStateShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;

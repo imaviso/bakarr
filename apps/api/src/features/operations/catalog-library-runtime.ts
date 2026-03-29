@@ -1,14 +1,14 @@
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { toDatabaseError, type TryDatabasePromise } from "../../lib/effect-db.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import { EventBus } from "../events/event-bus.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { toDatabaseError, type TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import {
   makeCatalogLibraryReadSupport,
   type CatalogLibraryReadSupportShape,
-} from "./catalog-library-read-support.ts";
+} from "@/features/operations/catalog-library-read-support.ts";
 
 export interface CatalogLibraryRuntimeShape {
   readonly db: AppDatabase;

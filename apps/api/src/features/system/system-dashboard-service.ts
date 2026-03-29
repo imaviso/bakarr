@@ -1,23 +1,23 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { OpsDashboard } from "../../../../../packages/shared/src/index.ts";
-import { Database } from "../../db/database.ts";
+import type { OpsDashboard } from "@packages/shared/index.ts";
+import { Database } from "@/db/database.ts";
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
-} from "../../lib/download-event-presentations.ts";
-import { OperationsStoredDataError } from "../operations/errors.ts";
+} from "@/lib/download-event-presentations.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import {
   BackgroundJobStatusError,
   BackgroundJobStatusService,
-} from "./background-job-status-service.ts";
+} from "@/features/system/background-job-status-service.ts";
 import {
   countActiveDownloads,
   countFailedDownloads,
   countImportedDownloads,
   countQueuedDownloads,
   listRecentDownloadEventRows,
-} from "./repository/stats-repository.ts";
+} from "@/features/system/repository/stats-repository.ts";
 
 export interface SystemDashboardServiceShape {
   readonly getDashboard: () => Effect.Effect<

@@ -1,8 +1,8 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Effect } from "effect";
-import { withFileSystemSandboxEffect, writeTextFile } from "../../test/filesystem-test.ts";
-import { ensureFolderMatchStatus } from "./unmapped-folder-list-support.ts";
-import { loadUnmappedFolderVideoSize } from "./unmapped-scan-video-support.ts";
+import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
+import { ensureFolderMatchStatus } from "@/features/operations/unmapped-folder-list-support.ts";
+import { loadUnmappedFolderVideoSize } from "@/features/operations/unmapped-scan-video-support.ts";
 
 it.scoped("loadUnmappedFolderVideoSize sums nested video files", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>

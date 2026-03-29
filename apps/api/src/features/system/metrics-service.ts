@@ -1,12 +1,12 @@
 import { Context, Effect, Layer, Metric } from "effect";
 
-import type { DatabaseError } from "../../db/database.ts";
-import { renderBakarrPrometheusMetrics } from "../../lib/metrics.ts";
-import { DownloadProgressService } from "../operations/download-service-tags.ts";
-import type { OperationsError } from "../operations/errors.ts";
-import { SystemStatusService } from "./system-status-service.ts";
-import type { DiskSpaceError } from "./disk-space.ts";
-import { BackgroundJobStatusError } from "./background-job-status-service.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import { renderBakarrPrometheusMetrics } from "@/lib/metrics.ts";
+import { DownloadProgressService } from "@/features/operations/download-service-tags.ts";
+import type { OperationsError } from "@/features/operations/errors.ts";
+import { SystemStatusService } from "@/features/system/system-status-service.ts";
+import type { DiskSpaceError } from "@/features/system/disk-space.ts";
+import { BackgroundJobStatusError } from "@/features/system/background-job-status-service.ts";
 
 export type MetricsServiceError =
   | DatabaseError

@@ -1,8 +1,8 @@
 import { Cause, Effect, Exit } from "effect";
 
-import { assertEquals, it } from "../../test/vitest.ts";
-import { makeTestConfig } from "../../test/config-fixture.ts";
-import { normalizeConfig } from "./qbittorrent-config.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
+import { normalizeConfig } from "@/features/system/qbittorrent-config.ts";
 
 it("normalizes qBittorrent config URLs", () =>
   Effect.gen(function* () {

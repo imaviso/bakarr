@@ -1,10 +1,10 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
 import { Effect, Stream } from "effect";
 
-import { type DirEntry, FileSystemError } from "../../lib/filesystem.ts";
-import { makeNoopTestFileSystemWithOverridesEffect } from "../../test/filesystem-test.ts";
-import { scanVideoFiles, scanVideoFilesStream } from "./file-scanner.ts";
+import { type DirEntry, FileSystemError } from "@/lib/filesystem.ts";
+import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
+import { scanVideoFiles, scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 
 const tree = new Map<string, DirEntry[]>([
   ["/library", [entry("show", { isDirectory: true }), entry("notes.txt", { isFile: true })]],

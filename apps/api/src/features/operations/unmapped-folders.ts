@@ -5,8 +5,8 @@ import {
   MAX_UNMAPPED_FOLDER_MATCH_ATTEMPTS,
   type ScannerState,
   type UnmappedFolder,
-} from "../../../../../packages/shared/src/index.ts";
-import { scoreAnimeSearchResultMatch } from "../../lib/anime-derivations.ts";
+} from "@packages/shared/index.ts";
+import { scoreAnimeSearchResultMatch } from "@/lib/anime-derivations.ts";
 
 type UnmappedFolderInput = Pick<ScannerState["folders"][number], "name" | "path">;
 

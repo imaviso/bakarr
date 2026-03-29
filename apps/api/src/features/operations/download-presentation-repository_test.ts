@@ -1,14 +1,14 @@
 import { Cause, Effect, Exit } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import * as schema from "../../db/schema.ts";
-import { anime, episodes } from "../../db/schema.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
-import { assertEquals, it } from "../../test/vitest.ts";
-import { encodeNumberList } from "../system/config-codec.ts";
-import { OperationsStoredDataError } from "./errors.ts";
-import { loadDownloadPresentationContexts } from "./repository/download-presentation-repository.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import * as schema from "@/db/schema.ts";
+import { anime, episodes } from "@/db/schema.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
+import { encodeNumberList } from "@/features/system/config-codec.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 
 it.scoped("download presentation contexts load imported paths", () =>
   withTestDbEffect((db, _databaseFile) =>

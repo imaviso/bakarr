@@ -1,8 +1,8 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Either, Layer, Ref, Schema } from "effect";
 
-import { ClockService } from "../../lib/clock.ts";
-import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
 
 export class QBitConfigModel extends Schema.Class<QBitConfigModel>("QBitConfigModel")({
   baseUrl: Schema.String,

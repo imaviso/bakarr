@@ -1,24 +1,27 @@
 import { Effect, Layer } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
-import { AppConfig } from "../../config.ts";
+import type { Config } from "@packages/shared/index.ts";
+import { AppConfig } from "@/config.ts";
 import {
   BackgroundWorkerController,
   type BackgroundWorkerControllerShape,
-} from "../../background-controller.ts";
-import { Database, type DatabaseService } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import * as schema from "../../db/schema.ts";
-import { ClockServiceLive } from "../../lib/clock.ts";
-import { RandomServiceLive } from "../../lib/random.ts";
-import { makeTestConfig } from "../../test/config-fixture.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
-import { assertEquals, describe, it } from "../../test/vitest.ts";
-import { SystemConfigService, SystemConfigServiceLive } from "./system-config-service.ts";
+} from "@/background-controller.ts";
+import { Database, type DatabaseService } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import * as schema from "@/db/schema.ts";
+import { ClockServiceLive } from "@/lib/clock.ts";
+import { RandomServiceLive } from "@/lib/random.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { assertEquals, describe, it } from "@/test/vitest.ts";
+import {
+  SystemConfigService,
+  SystemConfigServiceLive,
+} from "@/features/system/system-config-service.ts";
 import {
   SystemConfigUpdateService,
   SystemConfigUpdateServiceLive,
-} from "./system-config-update-service.ts";
+} from "@/features/system/system-config-update-service.ts";
 
 describe("SystemConfigUpdateService", () => {
   it.scoped("persists updated config and reloads background workers", () =>

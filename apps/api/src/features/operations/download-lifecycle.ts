@@ -1,18 +1,21 @@
-import type { AppDatabase } from "../../db/database.ts";
-import { downloads } from "../../db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { downloads } from "@/db/schema.ts";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
-import { decodeOptionalNumberList, encodeOptionalNumberList } from "../system/config-codec.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { scanVideoFiles } from "./file-scanner.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+import {
+  decodeOptionalNumberList,
+  encodeOptionalNumberList,
+} from "@/features/system/config-codec.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
 import {
   buildPathParseContext,
   classifyMediaArtifact,
   parseFileSourceIdentity,
-} from "../../lib/media-identity.ts";
-import type { QBitTorrentFile } from "./qbittorrent.ts";
-import { OperationsStoredDataError } from "./errors.ts";
+} from "@/lib/media-identity.ts";
+import type { QBitTorrentFile } from "@/features/operations/qbittorrent.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 export function parseMagnetInfoHash(magnet: string | null | undefined): string | undefined {
   if (!magnet) {

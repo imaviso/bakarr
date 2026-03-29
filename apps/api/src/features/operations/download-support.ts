@@ -1,15 +1,15 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import type { Config, DownloadSourceMetadata } from "../../../../../packages/shared/src/index.ts";
-import { type AppDatabase, isBusySqliteCause } from "../../db/database.ts";
-import { episodes } from "../../db/schema.ts";
-import { anime } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import { isCrossFilesystemError } from "../../lib/fs-errors.ts";
-import type { ProbedMediaMetadata } from "../../lib/media-probe.ts";
+import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
+import { type AppDatabase, isBusySqliteCause } from "@/db/database.ts";
+import { episodes } from "@/db/schema.ts";
+import { anime } from "@/db/schema.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import { isCrossFilesystemError } from "@/lib/fs-errors.ts";
+import type { ProbedMediaMetadata } from "@/lib/media-probe.ts";
 import { Effect, Schema } from "effect";
-import { buildEpisodeFilenamePlan } from "./naming-support.ts";
-import type { PreferredTitle } from "../../../../../packages/shared/src/index.ts";
+import { buildEpisodeFilenamePlan } from "@/features/operations/naming-support.ts";
+import type { PreferredTitle } from "@packages/shared/index.ts";
 
 const SQLITE_BUSY_RETRY_COUNT = 8;
 

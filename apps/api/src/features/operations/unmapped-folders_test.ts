@@ -1,7 +1,7 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Effect } from "effect";
 
-import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
+import type { AnimeSearchResult } from "@packages/shared/index.ts";
 
 import {
   buildUnmappedFolderSearchQueries,
@@ -14,7 +14,7 @@ import {
   mergeUnmappedFolderSuggestions,
   resetUnmappedFolderMatch,
   suggestUnmappedFolders,
-} from "./unmapped-folders.ts";
+} from "@/features/operations/unmapped-folders.ts";
 
 it("buildUnmappedFolderSearchQueries strips release noise and adds fallback titles", () => {
   assertEquals(

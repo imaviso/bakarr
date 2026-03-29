@@ -3,11 +3,11 @@ import type {
   EpisodeSearchResult,
   QualityProfile,
   ReleaseProfileRule,
-} from "../../../../../packages/shared/src/index.ts";
+} from "@packages/shared/index.ts";
 
-import type { ParsedRelease } from "./rss-client.ts";
-import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
-import { decideDownloadAction, parseReleaseName } from "./release-ranking.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client.ts";
+import { parseReleaseSourceIdentity } from "@/lib/media-identity.ts";
+import { decideDownloadAction, parseReleaseName } from "@/features/operations/release-ranking.ts";
 
 type CurrentEpisodeState = { downloaded: boolean; filePath?: string } | null;
 

@@ -1,9 +1,9 @@
 import { ParseResult, Schema, Effect, Stream } from "effect";
 import { XMLParser } from "fast-xml-parser";
 
-import { collectBoundedText } from "../../lib/bounded-stream.ts";
-import { RssFeedParseError, RssFeedTooLargeError } from "./errors.ts";
-import { parseResolution } from "./release-ranking.ts";
+import { collectBoundedText } from "@/lib/bounded-stream.ts";
+import { RssFeedParseError, RssFeedTooLargeError } from "@/features/operations/errors.ts";
+import { parseResolution } from "@/features/operations/release-ranking.ts";
 
 export const ParsedReleaseSchema = Schema.Struct({
   group: Schema.optional(Schema.String),

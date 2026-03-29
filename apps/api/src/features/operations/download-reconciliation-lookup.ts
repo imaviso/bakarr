@@ -1,11 +1,15 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
-import { downloads } from "../../db/schema.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
-import type { ExternalCallError } from "../../lib/effect-retry.ts";
-import { DownloadConflictError, DownloadNotFoundError, type OperationsError } from "./errors.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { downloads } from "@/db/schema.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import {
+  DownloadConflictError,
+  DownloadNotFoundError,
+  type OperationsError,
+} from "@/features/operations/errors.ts";
 
 export function makeReconcileDownloadByIdEffect(input: {
   readonly db: AppDatabase;

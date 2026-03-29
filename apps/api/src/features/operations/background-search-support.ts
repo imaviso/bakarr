@@ -1,9 +1,9 @@
-import { makeBackgroundSearchMissingSupport } from "./background-search-missing-support.ts";
-import { makeBackgroundSearchRssSupport } from "./background-search-rss-support.ts";
+import { makeBackgroundSearchMissingSupport } from "@/features/operations/background-search-missing-support.ts";
+import { makeBackgroundSearchRssSupport } from "@/features/operations/background-search-rss-support.ts";
 import {
   makeBackgroundSearchSupportShared,
   type BackgroundSearchSupportInput,
-} from "./background-search-support-shared.ts";
+} from "@/features/operations/background-search-support-shared.ts";
 
 export function makeBackgroundSearchSupport(input: BackgroundSearchSupportInput) {
   const shared = makeBackgroundSearchSupportShared(input);

@@ -1,27 +1,31 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect, Either, Schema } from "effect";
 
-import type { ImportResult, RenameResult } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DatabaseError } from "../../db/database.ts";
-import { episodes } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import { EventBus } from "../events/event-bus.ts";
-import { upsertEpisodeFilesAtomic } from "./download-support.ts";
+import type { ImportResult, RenameResult } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { episodes } from "@/db/schema.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { upsertEpisodeFilesAtomic } from "@/features/operations/download-support.ts";
 import {
   OperationsAnimeNotFoundError,
   OperationsPathError,
   OperationsInfrastructureError,
-} from "./errors.ts";
-import { buildRenamePreview } from "./library-import.ts";
+} from "@/features/operations/errors.ts";
+import { buildRenamePreview } from "@/features/operations/library-import.ts";
 import {
   buildEpisodeFilenamePlan,
   hasMissingLocalMediaNamingFields,
   selectNamingFormat,
-} from "./naming-support.ts";
-import { currentImportMode, currentNamingSettings, requireAnime } from "./repository.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+} from "@/features/operations/naming-support.ts";
+import {
+  currentImportMode,
+  currentNamingSettings,
+  requireAnime,
+} from "@/features/operations/repository.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface CatalogLibraryWriteSupportShape {
   readonly importFiles: (
@@ -135,7 +139,7 @@ export function makeCatalogLibraryWriteSupport(input: {
       episode_number: number;
       episode_numbers?: readonly number[];
       season?: number;
-      source_metadata?: import("../../../../../packages/shared/src/index.ts").DownloadSourceMetadata;
+      source_metadata?: import("@packages/shared/index.ts").DownloadSourceMetadata;
     }[],
   ) {
     const importedFiles: ImportResult["imported_files"] = [];

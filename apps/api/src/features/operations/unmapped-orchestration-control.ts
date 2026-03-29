@@ -1,31 +1,31 @@
 import { Effect } from "effect";
 
-import type { UnmappedFolder } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
+import type { UnmappedFolder } from "@packages/shared/index.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import {
   decodeUnmappedFolderMatchRow,
   listUnmappedFolderMatchRows,
   loadUnmappedFolderMatchRow,
   upsertUnmappedFolderMatchRows,
-} from "../system/repository/unmapped-repository.ts";
+} from "@/features/system/repository/unmapped-repository.ts";
 import {
   OperationsConflictError,
   OperationsAnimeNotFoundError,
   OperationsInputError,
   OperationsPathError,
   OperationsStoredDataError,
-} from "./errors.ts";
-import { appendLog } from "./job-support.ts";
+} from "@/features/operations/errors.ts";
+import { appendLog } from "@/features/operations/job-support.ts";
 import {
   markUnmappedFolderMatching,
   markUnmappedFolderPaused,
   markUnmappedFolderPending,
   resetUnmappedFolderMatch,
-} from "./unmapped-folders.ts";
-import { loadUnmappedFolderSnapshot } from "./unmapped-scan-snapshot-support.ts";
-import type { UnmappedScanWorkflowShape } from "./unmapped-orchestration-scan.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+} from "@/features/operations/unmapped-folders.ts";
+import { loadUnmappedFolderSnapshot } from "@/features/operations/unmapped-scan-snapshot-support.ts";
+import type { UnmappedScanWorkflowShape } from "@/features/operations/unmapped-orchestration-scan.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface UnmappedControlWorkflowShape {
   readonly bulkControlUnmappedFolders: (input: {

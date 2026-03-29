@@ -1,12 +1,12 @@
-import { assertEquals, assertMatch, it } from "../../test/vitest.ts";
+import { assertEquals, assertMatch, it } from "@/test/vitest.ts";
 
 import {
   fallbackReleases,
   mapSearchCategory,
   mapSearchFilter,
   toNyaaSearchResult,
-} from "./search-support.ts";
-import type { ParsedRelease } from "./rss-client.ts";
+} from "@/features/operations/search-support.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client.ts";
 
 it("mapSearchCategory and mapSearchFilter use expected mappings and fallbacks", () => {
   assertEquals(mapSearchCategory("anime_english", "1_0"), "1_2");

@@ -6,16 +6,16 @@ import type {
   DownloadEventsExport,
   DownloadEventsPage,
   DownloadStatus,
-} from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
-import { downloadEvents, downloads } from "../../db/schema.ts";
-import { loadDownloadPresentationContexts } from "./repository/download-presentation-repository.ts";
-import { toDownload, toDownloadStatus } from "./repository.ts";
+} from "@packages/shared/index.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { downloadEvents, downloads } from "@/db/schema.ts";
+import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
+import { toDownload, toDownloadStatus } from "@/features/operations/repository.ts";
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
-} from "../../lib/download-event-presentations.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+} from "@/lib/download-event-presentations.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface CatalogDownloadViewSupportShape {
   readonly listDownloadEvents: (input?: {

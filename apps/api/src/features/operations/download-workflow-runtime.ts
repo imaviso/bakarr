@@ -1,19 +1,19 @@
 import { Effect } from "effect";
 
-import { Database } from "../../db/database.ts";
-import { ClockService, nowIsoFromClock } from "../../lib/clock.ts";
-import { FileSystem } from "../../lib/filesystem.ts";
-import { MediaProbe } from "../../lib/media-probe.ts";
-import { RandomService } from "../../lib/random.ts";
-import { EventBus } from "../events/event-bus.ts";
-import { makeDownloadOrchestration } from "./download-orchestration.ts";
-import { makeDownloadReconciliationService } from "./download-reconciliation-service.ts";
-import { makeDownloadTorrentLifecycleService } from "./download-torrent-lifecycle-service.ts";
-import { makeDownloadTriggerService } from "./download-trigger-service.ts";
-import { OperationsSharedState } from "./runtime-support.ts";
-import { QBitTorrentClient } from "./qbittorrent.ts";
-import { maybeQBitConfig } from "./operations-qbit-config.ts";
-import { tryDatabasePromise, toDatabaseError } from "../../lib/effect-db.ts";
+import { Database } from "@/db/database.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { MediaProbe } from "@/lib/media-probe.ts";
+import { RandomService } from "@/lib/random.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { makeDownloadOrchestration } from "@/features/operations/download-orchestration.ts";
+import { makeDownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
+import { makeDownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
+import { makeDownloadTriggerService } from "@/features/operations/download-trigger-service.ts";
+import { OperationsSharedState } from "@/features/operations/runtime-support.ts";
+import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
+import { tryDatabasePromise, toDatabaseError } from "@/lib/effect-db.ts";
 
 export type DownloadWorkflowShape = ReturnType<typeof makeDownloadOrchestration>;
 

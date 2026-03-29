@@ -1,8 +1,8 @@
 import { Context, Effect, Layer } from "effect";
 
-import { Database } from "../../db/database.ts";
-import { makeSearchEpisodeSupport } from "./search-orchestration-episode-support.ts";
-import { SearchReleaseService } from "./search-release-service.ts";
+import { Database } from "@/db/database.ts";
+import { makeSearchEpisodeSupport } from "@/features/operations/search-orchestration-episode-support.ts";
+import { SearchReleaseService } from "@/features/operations/search-release-service.ts";
 
 export type SearchEpisodeServiceShape = ReturnType<typeof makeSearchEpisodeSupport>;
 

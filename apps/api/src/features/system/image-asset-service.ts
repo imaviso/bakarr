@@ -1,8 +1,8 @@
 import { Context, Effect, Layer } from "effect";
 
-import { FileSystem, isWithinPathRoot } from "../../lib/filesystem.ts";
-import { ImageAssetNotFoundError, ImageAssetTooLargeError } from "./errors.ts";
-import { SystemConfigService } from "./system-config-service.ts";
+import { FileSystem, isWithinPathRoot } from "@/lib/filesystem.ts";
+import { ImageAssetNotFoundError, ImageAssetTooLargeError } from "@/features/system/errors.ts";
+import { SystemConfigService } from "@/features/system/system-config-service.ts";
 
 export interface ImageAssetResult {
   readonly bytes: Uint8Array;

@@ -1,10 +1,13 @@
 import { Context, Effect, Layer } from "effect";
 
-import { Database } from "../../db/database.ts";
-import { ClockService } from "../../lib/clock.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { DownloadWorkflow, OperationsProgress } from "./download-service-tags.ts";
-import { makeCatalogDownloadRuntime } from "./catalog-download-runtime.ts";
+import { Database } from "@/db/database.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import {
+  DownloadWorkflow,
+  OperationsProgress,
+} from "@/features/operations/download-service-tags.ts";
+import { makeCatalogDownloadRuntime } from "@/features/operations/catalog-download-runtime.ts";
 
 export type CatalogDownloadServiceShape = ReturnType<typeof makeCatalogDownloadRuntime>;
 

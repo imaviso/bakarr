@@ -1,27 +1,30 @@
 import { eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { DatabaseError } from "../../db/database.ts";
-import { downloads, rssFeeds } from "../../db/schema.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { downloads, rssFeeds } from "@/db/schema.ts";
 import {
   loadMissingEpisodeNumbers,
   markJobFailed,
   markJobStarted,
   markJobSucceeded,
-} from "./job-support.ts";
-import { parseEpisodeFromTitle, decideDownloadAction } from "./release-ranking.ts";
+} from "@/features/operations/job-support.ts";
+import {
+  parseEpisodeFromTitle,
+  decideDownloadAction,
+} from "@/features/operations/release-ranking.ts";
 import {
   loadCurrentEpisodeState,
   loadReleaseRules,
   loadRuntimeConfig,
   requireAnime,
-} from "./repository.ts";
-import { makeBackgroundSearchQueueSupport } from "./background-search-queue-support.ts";
-import { OperationsInfrastructureError } from "./errors.ts";
+} from "@/features/operations/repository.ts";
+import { makeBackgroundSearchQueueSupport } from "@/features/operations/background-search-queue-support.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import type {
   BackgroundSearchSupportInput,
   BackgroundSearchSupportShared,
-} from "./background-search-support-shared.ts";
+} from "@/features/operations/background-search-support-shared.ts";
 
 export function makeBackgroundSearchRssSupport(
   input: BackgroundSearchSupportInput,

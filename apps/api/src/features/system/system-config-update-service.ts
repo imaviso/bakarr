@@ -1,27 +1,30 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { Config } from "../../../../../packages/shared/src/index.ts";
-import { AppConfig } from "../../config.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { BackgroundWorkerController } from "../../background-controller.ts";
-import { persistAndActivateConfig, type PersistedSystemConfigState } from "./config-activation.ts";
-import { validateConfigUpdate } from "./config-update-validation.ts";
+import type { Config } from "@packages/shared/index.ts";
+import { AppConfig } from "@/config.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import { BackgroundWorkerController } from "@/background-controller.ts";
+import {
+  persistAndActivateConfig,
+  type PersistedSystemConfigState,
+} from "@/features/system/config-activation.ts";
+import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
 import {
   type ConfigCore,
   encodeConfigCore,
   encodeQualityProfileRow,
   toConfigCore,
-} from "./config-codec.ts";
-import { normalizeConfig } from "./qbittorrent-config.ts";
-import { ConfigValidationError, StoredConfigCorruptError } from "./errors.ts";
-import { makeDefaultConfig } from "./defaults.ts";
-import { appendSystemLog } from "./support.ts";
-import { applyRuntimeLogLevelFromConfig } from "./runtime-config.ts";
-import { countAnimeUsingProfile } from "./repository/profile-usage-repository.ts";
-import { listQualityProfileRows } from "./repository/quality-profile-repository.ts";
-import { loadSystemConfigRow } from "./repository/system-config-repository.ts";
-import { updateSystemConfigAtomic } from "./repository/config-transaction-repository.ts";
+} from "@/features/system/config-codec.ts";
+import { normalizeConfig } from "@/features/system/qbittorrent-config.ts";
+import { ConfigValidationError, StoredConfigCorruptError } from "@/features/system/errors.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
+import { appendSystemLog } from "@/features/system/support.ts";
+import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
+import { countAnimeUsingProfile } from "@/features/system/repository/profile-usage-repository.ts";
+import { listQualityProfileRows } from "@/features/system/repository/quality-profile-repository.ts";
+import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
+import { updateSystemConfigAtomic } from "@/features/system/repository/config-transaction-repository.ts";
 
 export interface SystemConfigUpdateServiceShape {
   readonly updateConfig: (

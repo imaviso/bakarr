@@ -1,30 +1,33 @@
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { DatabaseError } from "../../db/database.ts";
-import { type FileSystemShape } from "../../lib/filesystem.ts";
-import type { AniListClient } from "../anime/anilist.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { type FileSystemShape } from "@/lib/filesystem.ts";
+import type { AniListClient } from "@/features/anime/anilist.ts";
 import {
   deleteUnmappedFolderMatchRowsNotInPaths,
   upsertUnmappedFolderMatchRows,
-} from "../system/repository/unmapped-repository.ts";
-import { OperationsPathError, OperationsInfrastructureError } from "./errors.ts";
+} from "@/features/system/repository/unmapped-repository.ts";
+import {
+  OperationsPathError,
+  OperationsInfrastructureError,
+} from "@/features/operations/errors.ts";
 import {
   appendLog,
   markJobFailed,
   markJobStarted,
   markJobSucceeded,
   updateJobProgress,
-} from "./job-support.ts";
+} from "@/features/operations/job-support.ts";
 import {
   countCompletedUnmappedMatches,
   isUnmappedFolderQueuedForMatch,
-} from "./unmapped-folder-list-support.ts";
-import { markUnmappedFolderMatching } from "./unmapped-folders.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
-import type { OperationsCoordinationShape } from "./runtime-support.ts";
-import type { UnmappedScanQueryShape } from "./unmapped-orchestration-scan-query.ts";
-import { makeUnmappedScanQuerySupport } from "./unmapped-orchestration-scan-query.ts";
+} from "@/features/operations/unmapped-folder-list-support.ts";
+import { markUnmappedFolderMatching } from "@/features/operations/unmapped-folders.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
+import type { UnmappedScanQueryShape } from "@/features/operations/unmapped-orchestration-scan-query.ts";
+import { makeUnmappedScanQuerySupport } from "@/features/operations/unmapped-orchestration-scan-query.ts";
 
 export interface UnmappedScanWorkflowShape {
   readonly getUnmappedFolders: UnmappedScanQueryShape["getUnmappedFolders"];

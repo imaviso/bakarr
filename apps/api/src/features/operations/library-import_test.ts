@@ -1,24 +1,24 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
-import * as schema from "../../db/schema.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { appConfig, episodes } from "../../db/schema.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
+import * as schema from "@/db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { appConfig, episodes } from "@/db/schema.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
   analyzeScannedFile,
   buildRenamePreview,
   findBestLocalAnimeMatch,
   titlesMatch,
   toAnimeSearchCandidate,
-} from "./library-import.ts";
-import { anime } from "../../db/schema.ts";
-import { OperationsStoredDataError } from "./errors.ts";
-import { encodeConfigCore } from "../system/config-codec.ts";
+} from "@/features/operations/library-import.ts";
+import { anime } from "@/db/schema.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { encodeConfigCore } from "@/features/system/config-codec.ts";
 import { Schema } from "effect";
-import { ConfigCoreSchema } from "../system/config-schema.ts";
-import { makeDefaultConfig } from "../system/defaults.ts";
+import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
 
 it("analyzeScannedFile strips release noise and extracts metadata", () => {
   const result = analyzeScannedFile({

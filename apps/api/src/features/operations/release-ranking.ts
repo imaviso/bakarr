@@ -5,8 +5,8 @@ import type {
   Quality,
   QualityProfile,
   ReleaseProfileRule,
-} from "../../../../../packages/shared/src/index.ts";
-import { parseReleaseSourceIdentity } from "../../lib/media-identity.ts";
+} from "@packages/shared/index.ts";
+import { parseReleaseSourceIdentity } from "@/lib/media-identity.ts";
 
 export interface ParsedReleaseName {
   readonly episodeNumber?: number;

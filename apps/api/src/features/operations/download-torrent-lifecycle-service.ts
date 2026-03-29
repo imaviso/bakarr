@@ -1,28 +1,31 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Config, DownloadSourceMetadata } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DatabaseError } from "../../db/database.ts";
-import { downloads } from "../../db/schema.ts";
-import { decodeDownloadSourceMetadata, loadRuntimeConfig } from "./repository.ts";
-import { shouldReconcileCompletedDownloads } from "./download-support.ts";
+import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { downloads } from "@/db/schema.ts";
+import {
+  decodeDownloadSourceMetadata,
+  loadRuntimeConfig,
+} from "@/features/operations/repository.ts";
+import { shouldReconcileCompletedDownloads } from "@/features/operations/download-support.ts";
 import {
   inferCoveredEpisodesFromTorrentContents,
   parseCoveredEpisodesEffect,
   toCoveredEpisodesJson,
-} from "./download-lifecycle.ts";
-import { recordDownloadEvent } from "./job-support.ts";
+} from "@/features/operations/download-lifecycle.ts";
+import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
   OperationsInfrastructureError,
   type OperationsError,
-} from "./errors.ts";
-import type { ExternalCallError } from "../../lib/effect-retry.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
-import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
-import { mapQBitState } from "./download-orchestration-shared.ts";
+} from "@/features/operations/errors.ts";
+import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
 
 export function makeDownloadTorrentLifecycleService(input: {
   readonly db: AppDatabase;

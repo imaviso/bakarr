@@ -1,29 +1,29 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { DatabaseError } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
 import {
   type FileSystemShape,
   isWithinPathRoot,
   sanitizePathSegmentEffect,
-} from "../../lib/filesystem.ts";
-import { classifyMediaArtifact, parseFileSourceIdentity } from "../../lib/media-identity.ts";
-import { inferAiredAt } from "../../lib/anime-derivations.ts";
-import { AnimeImportService } from "../anime/import-service.ts";
-import { resolveAnimeRootFolderEffect } from "../anime/config-support.ts";
+} from "@/lib/filesystem.ts";
+import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
+import { inferAiredAt } from "@/lib/anime-derivations.ts";
+import { AnimeImportService } from "@/features/anime/import-service.ts";
+import { resolveAnimeRootFolderEffect } from "@/features/anime/config-support.ts";
 import {
   OperationsAnimeNotFoundError,
   OperationsConflictError,
   OperationsInputError,
   OperationsPathError,
   OperationsInfrastructureError,
-} from "./errors.ts";
-import { appendLog } from "./job-support.ts";
-import { scanVideoFiles } from "./file-scanner.ts";
-import { getConfigLibraryPath, requireAnime } from "./repository.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+} from "@/features/operations/errors.ts";
+import { appendLog } from "@/features/operations/job-support.ts";
+import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
+import { getConfigLibraryPath, requireAnime } from "@/features/operations/repository.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface UnmappedImportWorkflowShape {
   readonly importUnmappedFolder: (input: {

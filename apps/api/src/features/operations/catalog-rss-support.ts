@@ -1,13 +1,13 @@
 import { desc, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { RssFeed } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
-import { rssFeeds } from "../../db/schema.ts";
-import { appendLog } from "./job-support.ts";
-import type { OperationsError } from "./errors.ts";
-import { requireAnime, toRssFeed } from "./repository.ts";
-import type { TryDatabasePromise } from "../../lib/effect-db.ts";
+import type { RssFeed } from "@packages/shared/index.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { rssFeeds } from "@/db/schema.ts";
+import { appendLog } from "@/features/operations/job-support.ts";
+import type { OperationsError } from "@/features/operations/errors.ts";
+import { requireAnime, toRssFeed } from "@/features/operations/repository.ts";
+import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface CatalogRssSupportShape {
   readonly listRssFeeds: () => Effect.Effect<RssFeed[], DatabaseError>;

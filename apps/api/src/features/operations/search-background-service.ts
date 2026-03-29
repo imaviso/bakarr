@@ -1,16 +1,16 @@
 import { Context, Effect, Layer } from "effect";
 
-import { ClockService, nowIsoFromClock } from "../../lib/clock.ts";
-import { Database } from "../../db/database.ts";
-import { EventBus } from "../events/event-bus.ts";
-import { OperationsProgress } from "./download-service-tags.ts";
-import { makeBackgroundSearchSupport } from "./background-search-support.ts";
-import { OperationsSharedState } from "./runtime-support.ts";
-import { QBitTorrentClient } from "./qbittorrent.ts";
-import { RssClient } from "./rss-client.ts";
-import { maybeQBitConfig } from "./operations-qbit-config.ts";
-import { SearchReleaseService } from "./search-release-service.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { Database } from "@/db/database.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { OperationsProgress } from "@/features/operations/download-service-tags.ts";
+import { makeBackgroundSearchSupport } from "@/features/operations/background-search-support.ts";
+import { OperationsSharedState } from "@/features/operations/runtime-support.ts";
+import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { RssClient } from "@/features/operations/rss-client.ts";
+import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
+import { SearchReleaseService } from "@/features/operations/search-release-service.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export type SearchBackgroundServiceShape = ReturnType<typeof makeBackgroundSearchSupport>;
 

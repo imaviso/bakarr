@@ -1,17 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { DownloadSourceMetadata } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import {
-  backgroundJobs,
-  downloadEvents,
-  downloads,
-  episodes,
-  systemLogs,
-} from "../../db/schema.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { encodeDownloadEventMetadata } from "./repository.ts";
+import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { backgroundJobs, downloadEvents, downloads, episodes, systemLogs } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { encodeDownloadEventMetadata } from "@/features/operations/repository.ts";
 
 type NowIso = () => Effect.Effect<string>;
 

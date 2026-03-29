@@ -1,11 +1,11 @@
-import type { ScannerState } from "../../../../../packages/shared/src/index.ts";
-import type { DirEntry } from "../../lib/filesystem.ts";
+import type { ScannerState } from "@packages/shared/index.ts";
+import type { DirEntry } from "@/lib/filesystem.ts";
 import {
   buildUnmappedFolderSearchQueries,
   hasUnmappedFolderRetryAttemptsRemaining,
   markUnmappedFolderPending,
   markUnmappedFolderRetryPending,
-} from "./unmapped-folders.ts";
+} from "@/features/operations/unmapped-folders.ts";
 
 export function listUnmappedFolderEntries(
   root: string,
