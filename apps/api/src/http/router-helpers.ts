@@ -32,29 +32,6 @@ export const decodeJsonBodyWithLabel = <A, I, R>(schema: Schema.Schema<A, I, R>,
     ),
   );
 
-export const decodeOptionalJsonBody = <A, I, R>(input: {
-  readonly empty: A;
-  readonly label: string;
-  readonly schema: Schema.Schema<A, I, R>;
-}) =>
-  Effect.gen(function* () {
-    const request = yield* HttpServerRequest.HttpServerRequest;
-    const text = yield* request.text;
-
-    if (text.trim().length === 0) {
-      return input.empty;
-    }
-
-    return yield* Schema.decode(Schema.parseJson(input.schema))(text).pipe(
-      Effect.mapError((error) =>
-        RequestValidationError.make({
-          message: formatValidationErrorMessage(`Invalid request body for ${input.label}`, error),
-          status: 400,
-        }),
-      ),
-    );
-  });
-
 export const decodePathParams = <A, I extends Readonly<Record<string, string | undefined>>, R>(
   schema: Schema.Schema<A, I, R>,
 ) => HttpRouter.schemaPathParams(schema);
@@ -107,16 +84,35 @@ export const routeResponse = <A, E, R, E2, R2>(
           }),
         ),
       ),
-      Effect.catchAll((error) => Effect.succeed(mapToServerResponse(error, mapError))),
+      Effect.catchAll((error) => {
+        if (ParseResult.isParseError(error)) {
+          return Effect.succeed(HttpServerResponse.text("Invalid request", { status: 400 }));
+        }
+
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "_tag" in error &&
+          error._tag === "RequestError"
+        ) {
+          return Effect.succeed(HttpServerResponse.text("Invalid request", { status: 400 }));
+        }
+
+        const mapped = mapError(error);
+        const response = HttpServerResponse.text(mapped.message, {
+          status: mapped.status,
+        });
+
+        return Effect.succeed(
+          mapped.headers ? HttpServerResponse.setHeaders(response, mapped.headers) : response,
+        );
+      }),
     );
   });
 
 export const jsonResponse = <A>(value: A) => HttpServerResponse.json(value);
 
 export const successResponse = () => HttpServerResponse.json({ data: null, success: true });
-
-const withAuth = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  Effect.zipRight(requireViewerFromHttpRequest(), effect);
 
 export const withAuthViewer = <A, E, R>(effect: (viewer: AuthUser) => Effect.Effect<A, E, R>) =>
   Effect.flatMap(requireViewerFromHttpRequest(), effect);
@@ -125,26 +121,4 @@ export const authedRouteResponse = <A, E, R, E2, R2>(
   effect: Effect.Effect<A, E, R>,
   onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
   mapError: (error: unknown) => RouteErrorResponse = mapAuthRouteError,
-) => routeResponse(withAuth(effect), onSuccess, mapError);
-
-function mapToServerResponse(error: unknown, mapError: (error: unknown) => RouteErrorResponse) {
-  if (ParseResult.isParseError(error)) {
-    return HttpServerResponse.text("Invalid request", { status: 400 });
-  }
-
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "_tag" in error &&
-    error._tag === "RequestError"
-  ) {
-    return HttpServerResponse.text("Invalid request", { status: 400 });
-  }
-
-  const mapped = mapError(error);
-  const response = HttpServerResponse.text(mapped.message, {
-    status: mapped.status,
-  });
-
-  return mapped.headers ? HttpServerResponse.setHeaders(response, mapped.headers) : response;
-}
+) => routeResponse(Effect.zipRight(requireViewerFromHttpRequest(), effect), onSuccess, mapError);

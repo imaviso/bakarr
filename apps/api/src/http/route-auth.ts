@@ -7,18 +7,6 @@ import { AuthSessionService } from "../features/auth/session-service.ts";
 import { mapRouteError } from "./route-errors.ts";
 import type { RouteErrorResponse } from "./route-types.ts";
 
-export function getApiKey(headerApiKey: string | undefined, authorization: string | undefined) {
-  if (headerApiKey) {
-    return headerApiKey;
-  }
-
-  if (authorization?.startsWith("Bearer ")) {
-    return authorization.slice("Bearer ".length);
-  }
-
-  return undefined;
-}
-
 export function mapAuthRouteError(error: unknown): RouteErrorResponse {
   if (
     typeof error === "object" &&
@@ -40,7 +28,13 @@ export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHtt
     const request = yield* HttpServerRequest.HttpServerRequest;
     const config = yield* AppConfig;
     const sessionToken = request.cookies[config.sessionCookieName];
-    const apiKey = getApiKey(request.headers["x-api-key"], request.headers["authorization"]);
+    const headerApiKey = request.headers["x-api-key"];
+    const authorization = request.headers["authorization"];
+    const apiKey = headerApiKey
+      ? headerApiKey
+      : authorization?.startsWith("Bearer ")
+        ? authorization.slice("Bearer ".length)
+        : undefined;
     const viewer = yield* Effect.flatMap(AuthSessionService, (auth) =>
       auth.resolveViewer(sessionToken, apiKey),
     );
@@ -66,17 +60,5 @@ export const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(f
     path: "/",
     sameSite: "lax",
     secure: config.sessionCookieSecure,
-  });
-});
-
-export const clearSessionResponse = Effect.fn("Http.clearSessionResponse")(function* () {
-  const config = yield* AppConfig;
-  const response = yield* HttpServerResponse.json({
-    data: null,
-    success: true,
-  });
-
-  return HttpServerResponse.expireCookie(response, config.sessionCookieName, {
-    path: "/",
   });
 });
