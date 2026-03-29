@@ -1,11 +1,11 @@
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AppConfig } from "../config.ts";
-import { AuthError } from "../features/auth/errors.ts";
-import { AuthSessionService } from "../features/auth/session-service.ts";
-import { mapRouteError } from "./route-errors.ts";
-import type { RouteErrorResponse } from "./route-types.ts";
+import { AppConfig } from "@/config.ts";
+import { AuthError } from "@/features/auth/errors.ts";
+import { AuthSessionService } from "@/features/auth/session-service.ts";
+import { mapRouteError } from "@/http/route-errors.ts";
+import type { RouteErrorResponse } from "@/http/route-types.ts";
 
 export function mapAuthRouteError(error: unknown): RouteErrorResponse {
   if (

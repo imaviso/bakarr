@@ -1,9 +1,9 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import type { HealthStatus } from "../../../../packages/shared/src/index.ts";
-import { SystemStatusService } from "../features/system/system-status-service.ts";
-import { authedRouteResponse, jsonResponse, routeResponse } from "./router-helpers.ts";
+import type { HealthStatus } from "@packages/shared/index.ts";
+import { SystemStatusService } from "@/features/system/system-status-service.ts";
+import { authedRouteResponse, jsonResponse, routeResponse } from "@/http/router-helpers.ts";
 
 const notReadyResponse = { checks: { database: false }, ready: false } as const;
 

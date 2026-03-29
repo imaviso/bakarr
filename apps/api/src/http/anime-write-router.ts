@@ -1,10 +1,10 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeEnrollmentService } from "../features/anime/anime-enrollment-service.ts";
-import { AnimeFileService } from "../features/anime/file-service.ts";
-import { AnimeMutationService } from "../features/anime/mutation-service.ts";
-import { CatalogLibraryService } from "../features/operations/catalog-library-service.ts";
+import { AnimeEnrollmentService } from "@/features/anime/anime-enrollment-service.ts";
+import { AnimeFileService } from "@/features/anime/file-service.ts";
+import { AnimeMutationService } from "@/features/anime/mutation-service.ts";
+import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
@@ -14,15 +14,15 @@ import {
   PathBodySchema,
   ProfileNameBodySchema,
   ReleaseProfileIdsBodySchema,
-} from "./anime-request-schemas.ts";
-import { IdParamsSchema } from "./common-request-schemas.ts";
+} from "@/http/anime-request-schemas.ts";
+import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodePathParams,
   jsonResponse,
   successResponse,
-} from "./router-helpers.ts";
+} from "@/http/router-helpers.ts";
 
 export const animeWriteRouter = HttpRouter.empty.pipe(
   HttpRouter.post(

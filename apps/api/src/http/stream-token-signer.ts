@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
-import { RandomService } from "../lib/random.ts";
+import { RandomService } from "@/lib/random.ts";
 
 export class StreamTokenSignerError extends Schema.TaggedError<StreamTokenSignerError>()(
   "StreamTokenSignerError",

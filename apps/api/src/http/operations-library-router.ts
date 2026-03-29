@@ -1,9 +1,9 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { LibraryBrowseService } from "../features/operations/library-browse-service.ts";
-import { CatalogLibraryService } from "../features/operations/catalog-library-service.ts";
-import { SearchWorkflow } from "../features/operations/search-service-tags.ts";
+import { LibraryBrowseService } from "@/features/operations/library-browse-service.ts";
+import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
+import { SearchWorkflow } from "@/features/operations/search-service-tags.ts";
 import {
   BulkControlUnmappedFoldersBodySchema,
   BrowseQuerySchema,
@@ -11,14 +11,14 @@ import {
   ImportFilesBodySchema,
   ImportUnmappedFolderBodySchema,
   ScanImportPathBodySchema,
-} from "./operations-request-schemas.ts";
+} from "@/http/operations-request-schemas.ts";
 import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodeQueryWithLabel,
   jsonResponse,
   successResponse,
-} from "./router-helpers.ts";
+} from "@/http/router-helpers.ts";
 
 export const libraryRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

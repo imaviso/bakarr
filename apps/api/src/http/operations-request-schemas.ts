@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { DownloadSourceMetadataSchema } from "../../../../packages/shared/src/index.ts";
+import { DownloadSourceMetadataSchema } from "@packages/shared/index.ts";
 import {
   AnimeIdFromStringSchema,
   AnimeIdSchema,
@@ -8,12 +8,12 @@ import {
   EpisodeNumberSchema,
   NonNegativeIntFromStringSchema,
   PositiveIntFromStringSchema,
-} from "../lib/domain-schema.ts";
+} from "@/lib/domain-schema.ts";
 import {
   AbsoluteFilesystemPathStringSchema,
   HttpUrlStringSchema,
   IsoDateTimeStringSchema,
-} from "./common-request-schemas.ts";
+} from "@/http/common-request-schemas.ts";
 
 const RssFeedNameStringSchema = Schema.String.pipe(Schema.minLength(1));
 const ProfileNameStringSchema = Schema.String.pipe(Schema.minLength(1));

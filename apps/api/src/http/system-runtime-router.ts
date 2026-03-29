@@ -1,8 +1,8 @@
 import { HttpRouter } from "@effect/platform";
 
-import { systemEventsRouter } from "./system-events-router.ts";
-import { systemMetricsRouter } from "./system-metrics-router.ts";
-import { systemTasksRouter } from "./system-tasks-router.ts";
+import { systemEventsRouter } from "@/http/system-events-router.ts";
+import { systemMetricsRouter } from "@/http/system-metrics-router.ts";
+import { systemTasksRouter } from "@/http/system-tasks-router.ts";
 
 export const runtimeRouter = HttpRouter.concatAll(
   systemTasksRouter,

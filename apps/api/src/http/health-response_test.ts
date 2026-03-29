@@ -1,7 +1,7 @@
 import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { assertEquals, it } from "../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
 it.effect("inline health live response returns the live status payload", () =>
   Effect.gen(function* () {

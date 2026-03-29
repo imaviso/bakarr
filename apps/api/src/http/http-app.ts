@@ -1,16 +1,16 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { animeRouter } from "./anime-router.ts";
-import { authRouter } from "./auth-router.ts";
-import { downloadsRouter } from "./operations-downloads-router.ts";
-import { libraryRouter } from "./operations-library-router.ts";
-import { rssRouter } from "./operations-rss-router.ts";
-import { searchRouter } from "./operations-search-router.ts";
-import { isNotFoundError } from "../lib/fs-errors.ts";
-import { FileSystem } from "../lib/filesystem.ts";
-import { contentType } from "./route-fs.ts";
-import { systemRouter } from "./system-router.ts";
+import { animeRouter } from "@/http/anime-router.ts";
+import { authRouter } from "@/http/auth-router.ts";
+import { downloadsRouter } from "@/http/operations-downloads-router.ts";
+import { libraryRouter } from "@/http/operations-library-router.ts";
+import { rssRouter } from "@/http/operations-rss-router.ts";
+import { searchRouter } from "@/http/operations-search-router.ts";
+import { isNotFoundError } from "@/lib/fs-errors.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { contentType } from "@/http/route-fs.ts";
+import { systemRouter } from "@/http/system-router.ts";
 
 const DEFAULT_WEB_DIST_URL = new URL("../../../web/dist/", import.meta.url);
 

@@ -1,16 +1,16 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { CatalogDownloadService } from "../features/operations/catalog-service-tags.ts";
-import { AddRssFeedBodySchema, EnabledBodySchema } from "./operations-request-schemas.ts";
+import { CatalogDownloadService } from "@/features/operations/catalog-service-tags.ts";
+import { AddRssFeedBodySchema, EnabledBodySchema } from "@/http/operations-request-schemas.ts";
 import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodePathParams,
   jsonResponse,
   successResponse,
-} from "./router-helpers.ts";
-import { IdParamsSchema } from "./common-request-schemas.ts";
+} from "@/http/router-helpers.ts";
+import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 
 export const rssRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

@@ -1,10 +1,10 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeMutationService } from "../features/anime/mutation-service.ts";
-import { CatalogLibraryService } from "../features/operations/catalog-library-service.ts";
-import { SearchWorkflow } from "../features/operations/search-service-tags.ts";
-import { authedRouteResponse, successResponse } from "./router-helpers.ts";
+import { AnimeMutationService } from "@/features/anime/mutation-service.ts";
+import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
+import { SearchWorkflow } from "@/features/operations/search-service-tags.ts";
+import { authedRouteResponse, successResponse } from "@/http/router-helpers.ts";
 
 export const systemTasksRouter = HttpRouter.empty.pipe(
   HttpRouter.post(

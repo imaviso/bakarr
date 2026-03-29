@@ -1,25 +1,25 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeFileService } from "../features/anime/file-service.ts";
-import { AnimeQueryService } from "../features/anime/query-service.ts";
-import { CatalogDownloadService } from "../features/operations/catalog-service-tags.ts";
-import { CatalogLibraryService } from "../features/operations/catalog-library-service.ts";
+import { AnimeFileService } from "@/features/anime/file-service.ts";
+import { AnimeQueryService } from "@/features/anime/query-service.ts";
+import { CatalogDownloadService } from "@/features/operations/catalog-service-tags.ts";
+import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
 import {
   ListAnimeQuerySchema,
   SearchAnimeQuerySchema,
   StreamUrlQuerySchema,
-} from "./anime-request-schemas.ts";
-import { IdParamsSchema } from "./common-request-schemas.ts";
-import { ClockService } from "../lib/clock.ts";
-import { EpisodeStreamAccessError } from "./streaming-errors.ts";
-import { StreamTokenSigner } from "./stream-token-signer.ts";
+} from "@/http/anime-request-schemas.ts";
+import { IdParamsSchema } from "@/http/common-request-schemas.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { EpisodeStreamAccessError } from "@/http/streaming-errors.ts";
+import { StreamTokenSigner } from "@/http/stream-token-signer.ts";
 import {
   authedRouteResponse,
   decodePathParams,
   decodeQuery,
   jsonResponse,
-} from "./router-helpers.ts";
+} from "@/http/router-helpers.ts";
 
 const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
 

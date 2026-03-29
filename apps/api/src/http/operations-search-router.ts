@@ -1,17 +1,17 @@
 import { HttpRouter, HttpServerRequest } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
-import { ClockService } from "../lib/clock.ts";
-import { CatalogLibraryService } from "../features/operations/catalog-library-service.ts";
-import { DownloadWorkflow } from "../features/operations/download-service-tags.ts";
-import { SearchWorkflow } from "../features/operations/search-service-tags.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
+import { DownloadWorkflow } from "@/features/operations/download-service-tags.ts";
+import { SearchWorkflow } from "@/features/operations/search-service-tags.ts";
 import {
   CalendarQuerySchema,
   SearchDownloadBodySchema,
   SearchMissingBodySchema,
   SearchReleasesQuerySchema,
   WantedMissingQuerySchema,
-} from "./operations-request-schemas.ts";
+} from "@/http/operations-request-schemas.ts";
 import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
@@ -19,9 +19,9 @@ import {
   decodeQueryWithLabel,
   jsonResponse,
   successResponse,
-} from "./router-helpers.ts";
-import { SearchEpisodeParamsSchema } from "./common-request-schemas.ts";
-import { formatValidationErrorMessage, RequestValidationError } from "./route-validation.ts";
+} from "@/http/router-helpers.ts";
+import { SearchEpisodeParamsSchema } from "@/http/common-request-schemas.ts";
+import { formatValidationErrorMessage, RequestValidationError } from "@/http/route-validation.ts";
 
 export const searchRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

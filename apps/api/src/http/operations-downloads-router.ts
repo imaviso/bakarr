@@ -3,25 +3,22 @@ import { Effect } from "effect";
 
 import { HttpServerResponse } from "@effect/platform";
 import { Schema } from "effect";
-import { CatalogDownloadService } from "../features/operations/catalog-service-tags.ts";
-import {
-  DownloadEventsExportSchema,
-  type DownloadEventsExport,
-} from "../../../../packages/shared/src/index.ts";
-import { IdParamsSchema } from "./common-request-schemas.ts";
-import { escapeCsv } from "./route-fs.ts";
+import { CatalogDownloadService } from "@/features/operations/catalog-service-tags.ts";
+import { DownloadEventsExportSchema, type DownloadEventsExport } from "@packages/shared/index.ts";
+import { IdParamsSchema } from "@/http/common-request-schemas.ts";
+import { escapeCsv } from "@/http/route-fs.ts";
 import {
   DeleteDownloadQuerySchema,
   DownloadEventsExportQuerySchema,
   DownloadEventsQuerySchema,
-} from "./operations-request-schemas.ts";
+} from "@/http/operations-request-schemas.ts";
 import {
   authedRouteResponse,
   decodePathParams,
   decodeQueryWithLabel,
   jsonResponse,
   successResponse,
-} from "./router-helpers.ts";
+} from "@/http/router-helpers.ts";
 
 export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

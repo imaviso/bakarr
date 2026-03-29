@@ -1,11 +1,11 @@
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Cause, Effect, ParseResult, Schema } from "effect";
 
-import { mapRouteError } from "./route-errors.ts";
-import { mapAuthRouteError, requireViewerFromHttpRequest } from "./route-auth.ts";
-import { formatValidationErrorMessage, RequestValidationError } from "./route-validation.ts";
-import type { RouteErrorResponse } from "./route-types.ts";
-import type { AuthUser } from "../../../../packages/shared/src/index.ts";
+import { mapRouteError } from "@/http/route-errors.ts";
+import { mapAuthRouteError, requireViewerFromHttpRequest } from "@/http/route-auth.ts";
+import { formatValidationErrorMessage, RequestValidationError } from "@/http/route-validation.ts";
+import type { RouteErrorResponse } from "@/http/route-types.ts";
+import type { AuthUser } from "@packages/shared/index.ts";
 
 export const decodeJsonBody = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
   HttpServerRequest.schemaBodyJson(schema);

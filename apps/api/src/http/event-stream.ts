@@ -4,8 +4,8 @@ import {
   NotificationEventSchema,
   type DownloadStatus,
   type NotificationEvent,
-} from "../../../../packages/shared/src/index.ts";
-import type { EventBusShape } from "../features/events/event-bus.ts";
+} from "@packages/shared/index.ts";
+import type { EventBusShape } from "@/features/events/event-bus.ts";
 
 export function buildDownloadProgressStream(
   downloads: readonly DownloadStatus[],

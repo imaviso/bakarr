@@ -7,9 +7,9 @@ import {
   NonNegativeIntFromStringSchema,
   PositiveIntFromStringSchema,
   ReleaseProfileIdSchema,
-} from "../lib/domain-schema.ts";
-import { AbsoluteFilesystemPathStringSchema } from "./common-request-schemas.ts";
-export { AddAnimeInput as AddAnimeInputSchema } from "../features/anime/add-anime-input.ts";
+} from "@/lib/domain-schema.ts";
+import { AbsoluteFilesystemPathStringSchema } from "@/http/common-request-schemas.ts";
+export { AddAnimeInput as AddAnimeInputSchema } from "@/features/anime/add-anime-input.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 

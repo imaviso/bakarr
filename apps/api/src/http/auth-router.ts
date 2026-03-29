@@ -5,12 +5,12 @@ import {
   ApiKeyLoginRequestSchema,
   ChangePasswordRequestSchema,
   LoginRequestSchema,
-} from "../../../../packages/shared/src/index.ts";
-import { AppConfig } from "../config.ts";
-import { AuthCredentialService } from "../features/auth/credential-service.ts";
-import { AuthSessionService } from "../features/auth/session-service.ts";
-import { decodeJsonBodyWithLabel, routeResponse, withAuthViewer } from "./router-helpers.ts";
-import { mapAuthRouteError, persistSessionResponse } from "./route-auth.ts";
+} from "@packages/shared/index.ts";
+import { AppConfig } from "@/config.ts";
+import { AuthCredentialService } from "@/features/auth/credential-service.ts";
+import { AuthSessionService } from "@/features/auth/session-service.ts";
+import { decodeJsonBodyWithLabel, routeResponse, withAuthViewer } from "@/http/router-helpers.ts";
+import { mapAuthRouteError, persistSessionResponse } from "@/http/route-auth.ts";
 
 export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.post(

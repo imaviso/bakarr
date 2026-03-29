@@ -1,16 +1,16 @@
 import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platform";
 import { Effect, Match, Schema } from "effect";
 
-import { AnimeFileService } from "../features/anime/file-service.ts";
-import { ClockService } from "../lib/clock.ts";
-import { FileSystem } from "../lib/filesystem.ts";
-import { AnimeEpisodeParamsSchema, StreamQuerySchema } from "./anime-request-schemas.ts";
-import { createFileChunkStream } from "./file-stream.ts";
-import { EpisodeStreamAccessError } from "./streaming-errors.ts";
-import { StreamTokenSigner } from "./stream-token-signer.ts";
-import { contentType } from "./route-fs.ts";
-import { parseEpisodeStreamRange } from "./anime-streaming-range.ts";
-import { decodePathParams, routeResponse } from "./router-helpers.ts";
+import { AnimeFileService } from "@/features/anime/file-service.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { AnimeEpisodeParamsSchema, StreamQuerySchema } from "@/http/anime-request-schemas.ts";
+import { createFileChunkStream } from "@/http/file-stream.ts";
+import { EpisodeStreamAccessError } from "@/http/streaming-errors.ts";
+import { StreamTokenSigner } from "@/http/stream-token-signer.ts";
+import { contentType } from "@/http/route-fs.ts";
+import { parseEpisodeStreamRange } from "@/http/anime-streaming-range.ts";
+import { decodePathParams, routeResponse } from "@/http/router-helpers.ts";
 
 export const animeStreamRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

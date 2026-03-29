@@ -1,25 +1,25 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { QualityProfileService } from "../features/system/quality-profile-service.ts";
-import { ReleaseProfileService } from "../features/system/release-profile-service.ts";
-import { SystemConfigUpdateService } from "../features/system/system-config-update-service.ts";
-import { SystemConfigService } from "../features/system/system-config-service.ts";
-import { IdParamsSchema } from "./common-request-schemas.ts";
+import { QualityProfileService } from "@/features/system/quality-profile-service.ts";
+import { ReleaseProfileService } from "@/features/system/release-profile-service.ts";
+import { SystemConfigUpdateService } from "@/features/system/system-config-update-service.ts";
+import { SystemConfigService } from "@/features/system/system-config-service.ts";
+import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import {
   ConfigSchema,
   CreateReleaseProfileSchema,
   NameParamsSchema,
   QualityProfileSchema,
   UpdateReleaseProfileSchema,
-} from "./system-request-schemas.ts";
+} from "@/http/system-request-schemas.ts";
 import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
   decodePathParams,
   jsonResponse,
   successResponse,
-} from "./router-helpers.ts";
+} from "@/http/router-helpers.ts";
 
 export const configRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

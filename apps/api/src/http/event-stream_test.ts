@@ -1,10 +1,10 @@
 import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
 
-import { assertEquals, it } from "../test/vitest.ts";
-import { makeEventBus } from "../features/events/event-bus.ts";
-import { NotificationEventSchema } from "../../../../packages/shared/src/index.ts";
-import { buildDownloadProgressStream } from "./event-stream.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
+import { makeEventBus } from "@/features/events/event-bus.ts";
+import { NotificationEventSchema } from "@packages/shared/index.ts";
+import { buildDownloadProgressStream } from "@/http/event-stream.ts";
 
 const sampleDownload = {
   downloaded_bytes: 256,

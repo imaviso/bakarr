@@ -1,9 +1,9 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { SystemDashboardService } from "../features/system/system-dashboard-service.ts";
-import { SystemStatusService } from "../features/system/system-status-service.ts";
-import { authedRouteResponse, jsonResponse } from "./router-helpers.ts";
+import { SystemDashboardService } from "@/features/system/system-dashboard-service.ts";
+import { SystemStatusService } from "@/features/system/system-status-service.ts";
+import { authedRouteResponse, jsonResponse } from "@/http/router-helpers.ts";
 
 export const infoRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

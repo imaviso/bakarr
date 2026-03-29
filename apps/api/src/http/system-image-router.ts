@@ -1,9 +1,9 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
-import { ImageAssetService } from "../features/system/image-asset-service.ts";
-import { contentType } from "./route-fs.ts";
-import { authedRouteResponse } from "./router-helpers.ts";
+import { ImageAssetService } from "@/features/system/image-asset-service.ts";
+import { contentType } from "@/http/route-fs.ts";
+import { authedRouteResponse } from "@/http/router-helpers.ts";
 
 export const systemImageRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

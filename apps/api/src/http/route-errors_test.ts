@@ -1,11 +1,7 @@
-import { assertEquals, it } from "../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
-import { DatabaseError } from "../db/database.ts";
-import {
-  AnimeConflictError,
-  AnimeNotFoundError,
-  AnimePathError,
-} from "../features/anime/errors.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "@/features/anime/errors.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
@@ -17,8 +13,8 @@ import {
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
-} from "../features/operations/errors.ts";
-import { ExternalCallError } from "../lib/effect-retry.ts";
+} from "@/features/operations/errors.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
 import {
   ConfigValidationError,
   ImageAssetNotFoundError,
@@ -27,11 +23,11 @@ import {
   StoredUnmappedFolderCorruptError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
-} from "../features/system/errors.ts";
-import { mapRouteError } from "./route-errors.ts";
-import { mapAuthRouteError } from "./route-auth.ts";
-import { EpisodeStreamAccessError, EpisodeStreamRangeError } from "./streaming-errors.ts";
-import { RequestValidationError } from "./route-validation.ts";
+} from "@/features/system/errors.ts";
+import { mapRouteError } from "@/http/route-errors.ts";
+import { mapAuthRouteError } from "@/http/route-auth.ts";
+import { EpisodeStreamAccessError, EpisodeStreamRangeError } from "@/http/streaming-errors.ts";
+import { RequestValidationError } from "@/http/route-validation.ts";
 
 it("route errors maps known tagged errors to expected responses", () => {
   const cases = [

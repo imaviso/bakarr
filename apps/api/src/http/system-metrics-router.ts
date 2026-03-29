@@ -1,10 +1,10 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { MetricsService } from "../features/system/metrics-service.ts";
-import { ClockService } from "../lib/clock.ts";
-import { recordHttpRequestMetrics } from "../lib/metrics.ts";
-import { authedRouteResponse } from "./router-helpers.ts";
+import { MetricsService } from "@/features/system/metrics-service.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { recordHttpRequestMetrics } from "@/lib/metrics.ts";
+import { authedRouteResponse } from "@/http/router-helpers.ts";
 
 export const systemMetricsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(

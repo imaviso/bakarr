@@ -1,13 +1,13 @@
 import { Schema } from "effect";
 
-import type { RouteErrorResponse } from "./route-types.ts";
-import { DatabaseError } from "../db/database.ts";
+import type { RouteErrorResponse } from "@/http/route-types.ts";
+import { DatabaseError } from "@/db/database.ts";
 import {
   AnimeConflictError,
   AnimeNotFoundError,
   AnimePathError,
   AnimeStoredDataError,
-} from "../features/anime/errors.ts";
+} from "@/features/anime/errors.ts";
 import {
   DownloadConflictError,
   DownloadNotFoundError,
@@ -20,11 +20,11 @@ import {
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
-} from "../features/operations/errors.ts";
-import { WorkerTimeoutError } from "../background-workers.ts";
-import { ExternalCallError } from "../lib/effect-retry.ts";
-import { PasswordError } from "../security/password.ts";
-import { TokenHasherError } from "../security/token-hasher.ts";
+} from "@/features/operations/errors.ts";
+import { WorkerTimeoutError } from "@/background-workers.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { PasswordError } from "@/security/password.ts";
+import { TokenHasherError } from "@/security/token-hasher.ts";
 import {
   ConfigValidationError,
   ImageAssetNotFoundError,
@@ -33,10 +33,10 @@ import {
   StoredUnmappedFolderCorruptError,
   StoredConfigCorruptError,
   StoredConfigMissingError,
-} from "../features/system/errors.ts";
-import { DiskSpaceError } from "../features/system/disk-space.ts";
-import { EpisodeStreamAccessError, EpisodeStreamRangeError } from "./streaming-errors.ts";
-import { RequestValidationError } from "./route-validation.ts";
+} from "@/features/system/errors.ts";
+import { DiskSpaceError } from "@/features/system/disk-space.ts";
+import { EpisodeStreamAccessError, EpisodeStreamRangeError } from "@/http/streaming-errors.ts";
+import { RequestValidationError } from "@/http/route-validation.ts";
 
 const knownTaggedRouteErrorSchemas = [
   AnimeConflictError,

@@ -4,7 +4,7 @@ import {
   AnimeIdFromStringSchema,
   EpisodeNumberFromStringSchema,
   PositiveIntFromStringSchema,
-} from "../lib/domain-schema.ts";
+} from "@/lib/domain-schema.ts";
 
 export const FilesystemPathStringSchema = Schema.String.pipe(
   Schema.minLength(1),

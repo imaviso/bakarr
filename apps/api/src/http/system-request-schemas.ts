@@ -5,8 +5,8 @@ import {
   CreateReleaseProfileSchema,
   QualityProfileSchema,
   UpdateReleaseProfileSchema,
-} from "../features/system/config-schema.ts";
-import { IsoDateTimeStringSchema } from "./common-request-schemas.ts";
+} from "@/features/system/config-schema.ts";
+import { IsoDateTimeStringSchema } from "@/http/common-request-schemas.ts";
 
 const ResourceNameStringSchema = Schema.String.pipe(Schema.minLength(1));
 const SystemLogEventTypeStringSchema = Schema.String.pipe(Schema.minLength(1));

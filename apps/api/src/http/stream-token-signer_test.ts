@@ -1,8 +1,8 @@
 import { Effect, Layer } from "effect";
 
-import { RandomService } from "../lib/random.ts";
-import { assertEquals, it } from "../test/vitest.ts";
-import { StreamTokenSigner, StreamTokenSignerLive } from "./stream-token-signer.ts";
+import { RandomService } from "@/lib/random.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
+import { StreamTokenSigner, StreamTokenSignerLive } from "@/http/stream-token-signer.ts";
 
 const randomLayer = Layer.succeed(RandomService, {
   randomBytes: () => Effect.succeed(new Uint8Array(32).fill(7)),

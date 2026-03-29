@@ -1,11 +1,11 @@
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { isNotFoundError } from "../lib/fs-errors.ts";
-import { FileSystem, FileSystemError } from "../lib/filesystem.ts";
-import { assertEquals, assertMatch, it } from "../test/vitest.ts";
-import { makeNoopTestFileSystemWithOverridesEffect } from "../test/filesystem-test.ts";
-import { contentType } from "./route-fs.ts";
+import { isNotFoundError } from "@/lib/fs-errors.ts";
+import { FileSystem, FileSystemError } from "@/lib/filesystem.ts";
+import { assertEquals, assertMatch, it } from "@/test/vitest.ts";
+import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
+import { contentType } from "@/http/route-fs.ts";
 
 const WEB_DIST_URL = new URL("file:///virtual/web/dist/");
 

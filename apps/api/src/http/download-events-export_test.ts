@@ -1,7 +1,7 @@
 import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { assertEquals, it } from "../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
 it.effect("inline download events export response adds export metadata headers", () =>
   Effect.gen(function* () {

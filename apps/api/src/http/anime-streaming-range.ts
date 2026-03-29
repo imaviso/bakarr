@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
-import type { FileByteRange } from "./file-stream.ts";
-import { EpisodeStreamRangeError } from "./streaming-errors.ts";
+import type { FileByteRange } from "@/http/file-stream.ts";
+import { EpisodeStreamRangeError } from "@/http/streaming-errors.ts";
 
 export function parseEpisodeStreamRange(
   rangeHeader: string | undefined,

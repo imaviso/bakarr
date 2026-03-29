@@ -1,7 +1,7 @@
 import { Effect, Exit } from "effect";
 
-import { assertEquals, it } from "../test/vitest.ts";
-import { parseEpisodeStreamRange } from "./anime-streaming-range.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
+import { parseEpisodeStreamRange } from "@/http/anime-streaming-range.ts";
 
 it("parses absolute and open-ended episode stream ranges", () => {
   const absolute = Effect.runSync(parseEpisodeStreamRange("bytes=10-19", 100));

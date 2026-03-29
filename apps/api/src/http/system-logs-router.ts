@@ -1,18 +1,21 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
-import { SystemLogService } from "../features/system/system-log-service.ts";
-import type { SystemLog } from "../../../../packages/shared/src/index.ts";
-import { SystemLogSchema } from "../../../../packages/shared/src/index.ts";
-import { escapeCsv } from "./route-fs.ts";
-import { SystemLogExportQuerySchema, SystemLogsQuerySchema } from "./system-request-schemas.ts";
+import { SystemLogService } from "@/features/system/system-log-service.ts";
+import type { SystemLog } from "@packages/shared/index.ts";
+import { SystemLogSchema } from "@packages/shared/index.ts";
+import { escapeCsv } from "@/http/route-fs.ts";
+import {
+  SystemLogExportQuerySchema,
+  SystemLogsQuerySchema,
+} from "@/http/system-request-schemas.ts";
 import {
   authedRouteResponse,
   decodeQuery,
   decodeQueryWithLabel,
   jsonResponse,
   successResponse,
-} from "./router-helpers.ts";
+} from "@/http/router-helpers.ts";
 
 export const logsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
