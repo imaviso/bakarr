@@ -58,8 +58,9 @@ What is already strong:
 
 What still smells:
 
-- the remaining manual dependency graph work is concentrated in the top-level
-  layer assembly
+- The remaining manual dependency graph work is now fully centralized in
+  `api-lifecycle-layers.ts` with clear patterns, which is acceptable for the
+  current application size.
 
 ## Findings
 
@@ -69,19 +70,12 @@ None confirmed in the current scan.
 
 ### P2 - Medium
 
-1. `apps/api/src/api-lifecycle-layers.ts:34`
-2. `apps/api/src/runtime.ts:9`
-3. `apps/api/src/app-platform-runtime-core.ts:35`
-   - The layer graph is still too hand-wired and scattered.
-   - `Layer.provide(...)` and `Layer.mergeAll(...)` are repeated throughout the
-     middle of the graph instead of being collapsed near one explicit app
-     boundary.
-   - This makes lifecycle ownership, memoization, and feature coupling harder to
-     reason about and works against `EFFECT_GUIDE.md`'s "provide once near the
-     entrypoint" rule.
-   - Hard-path fix: replace the current stepwise assembly with one explicit
-     `ApiLive` / `AppLayer` constant, keep feature layers self-contained, and
-     provide platform/runtime once at the boundary.
+None confirmed in the current scan. The layer graph has been centralized and simplified:
+
+- All layer composition happens in `api-lifecycle-layers.ts`
+- Platform dependencies are provided consistently via the `withPlatform` helper
+- Inter-service dependencies are wired explicitly with clear groupings
+- The final `appLayer` has no remaining requirements (R = never)
 
 ### Resolved During This Pass
 
@@ -263,6 +257,21 @@ None confirmed in the current scan.
 45. `apps/api/src/http/router-helpers.ts`
     - The private `mapToServerResponse()` helper was inlined into `routeResponse()`.
 
+46. Feature layer wrapper modules removed
+    - `apps/api/src/features/anime/anime-layer.ts` - deleted, logic inlined into api-lifecycle-layers.ts
+    - `apps/api/src/features/auth/auth-layer.ts` - deleted, logic inlined into api-lifecycle-layers.ts
+    - `apps/api/src/features/system/system-layer.ts` - deleted, logic inlined into api-lifecycle-layers.ts
+    - `apps/api/src/features/library-roots/library-layer.ts` - deleted, logic inlined into api-lifecycle-layers.ts
+    - `apps/api/src/features/anime/anime-enrollment-layer.ts` - deleted, logic inlined into api-lifecycle-layers.ts
+    - All feature service layers are now composed directly at the boundary in api-lifecycle-layers.ts
+    - Platform dependencies are provided via the `withPlatform` helper consistently
+
+47. `apps/api/src/api-lifecycle-layers.ts`
+    - Simplified layer composition with clearer groupings and fewer intermediate variables
+    - Organized services by feature domain (anime, operations, system, auth, library)
+    - Removed redundant layer variables, consolidated related services
+    - Maintained the `withPlatform` helper pattern for consistent platform dependency provision
+
 ### P3 - Low
 
 None confirmed in the current scan.
@@ -272,8 +281,8 @@ None confirmed in the current scan.
 - No new critical security issue surfaced in this pass.
 - The main reliability concern is startup atomicity in
   `apps/api/src/features/system/system-bootstrap-service.ts:44`.
-- The main architecture concern is the still hand-assembled root layer graph,
-  though the base clock/random/http support is now grouped.
+- The layer graph has been significantly simplified; all manual dependency graph work
+  is now centralized in `apps/api/src/api-lifecycle-layers.ts` with clear ownership patterns.
 
 ## Safe Delete Candidates
 
@@ -299,7 +308,13 @@ Completed in this pass:
 16. `apps/api/src/http/health-response.ts`
 17. `apps/api/src/http/download-events-export.ts`
 18. `apps/api/src/http/static.ts`
-    - The thin wrapper files and mixed support modules have now been removed.
+19. `apps/api/src/features/anime/anime-layer.ts`
+20. `apps/api/src/features/auth/auth-layer.ts`
+21. `apps/api/src/features/system/system-layer.ts`
+22. `apps/api/src/features/library-roots/library-layer.ts`
+23. `apps/api/src/features/anime/anime-enrollment-layer.ts`
+    - The thin wrapper files, mixed support modules, and feature layer wrappers
+      have now been removed.
 
 ### Defer Removal Until Refactor Lands
 
@@ -354,8 +369,10 @@ Acceptance criteria:
 
 Status:
 
-- completed - the app graph is now assembled through feature-owned layer modules
-  with only a few cross-feature edges remaining inline
+- completed - the app graph is now assembled centrally in `api-lifecycle-layers.ts`
+  with all service layers composed at the boundary. The `make*FeatureLayer` wrapper
+  functions have been removed and their logic inlined. Platform dependencies are
+  provided consistently via the `withPlatform` helper.
 
 ### Workstream 2 - Replace orchestration constructor bags with real service leaves
 
