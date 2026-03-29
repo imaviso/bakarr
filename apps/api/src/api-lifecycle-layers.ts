@@ -1,16 +1,19 @@
 import { Layer } from "effect";
 
-import {
-  makeAppPlatformCoreRuntimeLayer,
-  type AppPlatformRuntimeOptions,
-} from "./app-platform-runtime-core.ts";
+import { BackgroundWorkerControllerLive } from "./background-controller-live.ts";
+import { makeAppPlatformCoreRuntimeLayer } from "./app-platform-runtime-core.ts";
 import { DiskSpaceInspectorLive } from "./features/system/disk-space.ts";
 import { MediaProbeLive } from "./lib/media-probe.ts";
-import { BackgroundWorkerControllerLive } from "./background-controller-live.ts";
-import { makeAuthFeatureLayer } from "./features/auth/auth-layer.ts";
-import { makeAnimeFeatureLayer } from "./features/anime/anime-layer.ts";
-import { makeAnimeEnrollmentFeatureLayer } from "./features/anime/anime-enrollment-layer.ts";
-import { makeLibraryFeatureLayer } from "./features/library-roots/library-layer.ts";
+import { AnimeEnrollmentServiceLive } from "./features/anime/anime-enrollment-service.ts";
+import { AnimeFileServiceLive } from "./features/anime/file-service.ts";
+import { AnimeImportServiceLive } from "./features/anime/import-service.ts";
+import { AnimeMutationServiceLive } from "./features/anime/mutation-service.ts";
+import { AnimeQueryServiceLive } from "./features/anime/query-service.ts";
+import { AuthBootstrapServiceLive } from "./features/auth/bootstrap-service.ts";
+import { AuthCredentialServiceLive } from "./features/auth/credential-service.ts";
+import { AuthSessionServiceLive } from "./features/auth/session-service.ts";
+import { LibraryBrowseServiceLive } from "./features/operations/library-browse-service.ts";
+import { LibraryRootsServiceLive } from "./features/library-roots/service.ts";
 import { CatalogDownloadServiceLive } from "./features/operations/catalog-service-tags.ts";
 import { CatalogLibraryServiceLive } from "./features/operations/catalog-library-service.ts";
 import {
@@ -19,61 +22,150 @@ import {
   ProgressLive,
 } from "./features/operations/download-service-tags.ts";
 import { SearchWorkflowLive } from "./features/operations/search-service-tags.ts";
-import { makeSystemFeatureLayer } from "./features/system/system-layer.ts";
+import { BackgroundJobStatusServiceLive } from "./features/system/background-job-status-service.ts";
+import { ImageAssetServiceLive } from "./features/system/image-asset-service.ts";
+import { MetricsServiceLive } from "./features/system/metrics-service.ts";
+import { QualityProfileServiceLive } from "./features/system/quality-profile-service.ts";
+import { ReleaseProfileServiceLive } from "./features/system/release-profile-service.ts";
+import { SystemBootstrapServiceLive } from "./features/system/system-bootstrap-service.ts";
+import { SystemConfigUpdateServiceLive } from "./features/system/system-config-update-service.ts";
+import { SystemConfigServiceLive } from "./features/system/system-config-service.ts";
+import { SystemDashboardServiceLive } from "./features/system/system-dashboard-service.ts";
+import { SystemLogServiceLive } from "./features/system/system-log-service.ts";
+import { SystemStatusServiceLive } from "./features/system/system-status-service.ts";
 import type { AppConfigShape } from "./config.ts";
+import type { AppPlatformRuntimeOptions } from "./app-platform-runtime-core.ts";
 
-function makeOperationsFeatureLayer<APlatform, EPlatform, RPlatform, AAnime, EAnime, RAnime>(
-  platformLayer: Layer.Layer<APlatform, EPlatform, RPlatform>,
-  animeLayer: Layer.Layer<AAnime, EAnime, RAnime>,
-) {
-  const providePlatform = Layer.provideMerge(platformLayer);
-  const downloadWorkflowLayer = DownloadWorkflowLive.pipe(providePlatform);
-  const downloadProgressLayer = DownloadProgressServiceLive.pipe(providePlatform);
-  const progressLayer = ProgressLive.pipe(Layer.provideMerge(downloadWorkflowLayer));
-  const downloadOperationsLayer = Layer.mergeAll(downloadWorkflowLayer, progressLayer);
-  const searchOperationsLayer = Layer.mergeAll(downloadOperationsLayer, animeLayer);
-
-  return Layer.mergeAll(
-    downloadOperationsLayer,
-    downloadProgressLayer,
-    CatalogDownloadServiceLive.pipe(Layer.provideMerge(downloadOperationsLayer)),
-    CatalogLibraryServiceLive.pipe(Layer.provideMerge(downloadOperationsLayer)),
-    SearchWorkflowLive.pipe(Layer.provideMerge(searchOperationsLayer)),
-  );
-}
-
+/**
+ * Build the complete application layer graph.
+ *
+ * All layers are composed at this single boundary. Following EFFECT_GUIDE.md:
+ * - Platform dependencies are provided consistently throughout
+ * - Inter-service dependencies are wired explicitly
+ * - The final appLayer has no remaining requirements (R = never)
+ */
 export function makeApiLifecycleLayers(
   overrides: Partial<AppConfigShape> = {},
   options?: AppPlatformRuntimeOptions,
 ) {
+  // Platform layer: clock, config, database, HTTP clients, media probe, disk space, etc.
   const platformBaseLayer = makeAppPlatformCoreRuntimeLayer(overrides, options);
-  const platformWithOptionalCommandLayer = options?.commandExecutorLayer
-    ? Layer.mergeAll(platformBaseLayer, options.commandExecutorLayer)
+  const commandLayer = options?.commandExecutorLayer;
+  const platformWithCommandLayer = commandLayer
+    ? Layer.mergeAll(platformBaseLayer, commandLayer)
     : platformBaseLayer;
-  const platformLayer = Layer.mergeAll(
-    platformWithOptionalCommandLayer,
-    Layer.mergeAll(DiskSpaceInspectorLive, MediaProbeLive).pipe(
-      Layer.provideMerge(platformWithOptionalCommandLayer),
-    ),
+  const infrastructureLayer = Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive).pipe(
+    Layer.provideMerge(platformWithCommandLayer),
   );
-  const providePlatform = Layer.provideMerge(platformLayer);
-  const animeLayer = makeAnimeFeatureLayer(platformLayer);
-  const operationsLayer = makeOperationsFeatureLayer(platformLayer, animeLayer);
+  const platformLayer = Layer.mergeAll(platformWithCommandLayer, infrastructureLayer);
+
+  // Helper: provide platform to a layer
+  const withPlatform = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
+    layer.pipe(Layer.provideMerge(platformLayer));
+
+  // Anime services (platform-only dependencies)
+  const animeLayer = Layer.mergeAll(
+    withPlatform(AnimeQueryServiceLive),
+    withPlatform(AnimeMutationServiceLive),
+    withPlatform(AnimeFileServiceLive),
+    withPlatform(AnimeImportServiceLive),
+  );
+
+  // Download workflow and progress (interdependent)
+  const downloadWorkflowLayer = withPlatform(DownloadWorkflowLive);
+  const progressLayer = withPlatform(ProgressLive.pipe(Layer.provideMerge(downloadWorkflowLayer)));
+  const downloadBaseLayer = Layer.mergeAll(downloadWorkflowLayer, progressLayer);
+
+  // Catalog services (depend on download base)
+  const catalogLayer = Layer.mergeAll(
+    withPlatform(CatalogDownloadServiceLive.pipe(Layer.provideMerge(downloadBaseLayer))),
+    withPlatform(CatalogLibraryServiceLive.pipe(Layer.provideMerge(downloadBaseLayer))),
+  );
+
+  // Search workflow (needs download base + anime for import service)
+  const searchWorkflowLayer = withPlatform(
+    SearchWorkflowLive.pipe(Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, animeLayer))),
+  );
+
+  // Operations feature (all download/catalog/search services)
+  const operationsLayer = Layer.mergeAll(
+    downloadBaseLayer,
+    withPlatform(DownloadProgressServiceLive),
+    catalogLayer,
+    searchWorkflowLayer,
+  );
+
+  // Background controller (scoped, depends on platform + operations + anime)
   const backgroundControllerLayer = BackgroundWorkerControllerLive.pipe(
     Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, animeLayer)),
   );
-  const authLayer = makeAuthFeatureLayer(platformLayer);
-  const systemLayer = makeSystemFeatureLayer(
-    platformLayer,
-    operationsLayer,
-    backgroundControllerLayer,
+
+  // Auth services (platform-only dependencies)
+  const authLayer = Layer.mergeAll(
+    withPlatform(AuthBootstrapServiceLive),
+    withPlatform(AuthCredentialServiceLive),
+    withPlatform(AuthSessionServiceLive),
   );
-  const libraryLayer = makeLibraryFeatureLayer(platformLayer, operationsLayer, systemLayer);
-  const animeEnrollmentLayer = makeAnimeEnrollmentFeatureLayer(
-    platformLayer,
-    operationsLayer,
-    animeLayer,
+
+  // System config and background status (interdependent)
+  const systemConfigLayer = withPlatform(SystemConfigServiceLive);
+  const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, systemConfigLayer)),
   );
+  const systemBaseLayer = Layer.mergeAll(systemConfigLayer, backgroundJobStatusLayer);
+
+  // System status and dashboard (depend on system base)
+  const systemStatusLayer = SystemStatusServiceLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, systemBaseLayer)),
+  );
+  const systemDashboardLayer = SystemDashboardServiceLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, systemBaseLayer)),
+  );
+
+  // System config update (depends on background controller)
+  const systemConfigUpdateLayer = SystemConfigUpdateServiceLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, backgroundControllerLayer)),
+  );
+
+  // Metrics (depends on operations + system status)
+  const metricsLayer = MetricsServiceLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, systemStatusLayer)),
+  );
+
+  // Image assets (depends on system config)
+  const imageAssetLayer = ImageAssetServiceLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, systemConfigLayer)),
+  );
+
+  // System feature (all system services)
+  const systemLayer = Layer.mergeAll(
+    withPlatform(SystemBootstrapServiceLive),
+    systemBaseLayer,
+    systemConfigUpdateLayer,
+    systemStatusLayer,
+    systemDashboardLayer,
+    withPlatform(QualityProfileServiceLive),
+    withPlatform(ReleaseProfileServiceLive),
+    withPlatform(SystemLogServiceLive),
+    metricsLayer,
+    imageAssetLayer,
+  );
+
+  // Library services (platform + operations + system dependencies)
+  const libraryRootsLayer = withPlatform(LibraryRootsServiceLive);
+  const libraryBrowseLayer = LibraryBrowseServiceLive.pipe(
+    Layer.provideMerge(
+      Layer.mergeAll(platformLayer, operationsLayer, systemLayer, libraryRootsLayer),
+    ),
+  );
+  const libraryLayer = Layer.mergeAll(libraryRootsLayer, libraryBrowseLayer);
+
+  // Anime enrollment (depends on platform + operations + anime)
+  const animeEnrollmentLayer = AnimeEnrollmentServiceLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, animeLayer)),
+  );
+
+  // Complete application layer - all features merged
   const appLayer = Layer.mergeAll(
     operationsLayer,
     animeLayer,
@@ -82,7 +174,7 @@ export function makeApiLifecycleLayers(
     systemLayer,
     libraryLayer,
     animeEnrollmentLayer,
-  ).pipe(providePlatform);
+  );
 
   return {
     appLayer,
