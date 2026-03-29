@@ -16,6 +16,10 @@
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "types": ["@types/bun"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@packages/shared/*": ["../../packages/shared/src/*"]
+    },
     "plugins": [
       {
         "name": "@effect/language-service"
