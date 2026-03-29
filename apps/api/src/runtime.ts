@@ -1,7 +1,7 @@
 import { Effect, ManagedRuntime } from "effect";
 
-import { makeApiLifecycleLayers } from "./api-lifecycle-layers.ts";
-import { type AppPlatformRuntimeOptions } from "./app-platform-runtime-core.ts";
+import { makeApiLifecycleLayers } from "@/api-lifecycle-layers.ts";
+import { type AppPlatformRuntimeOptions } from "@/app-platform-runtime-core.ts";
 
 export type RuntimeOptions = AppPlatformRuntimeOptions;
 

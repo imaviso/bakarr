@@ -1,6 +1,6 @@
 import { FileSystem } from "@effect/platform";
 import { ConfigProvider, Effect, Option, Schema } from "effect";
-import { isSystemNotFoundError } from "./lib/fs-errors.ts";
+import { isSystemNotFoundError } from "@/lib/fs-errors.ts";
 
 const DEFAULT_DOTENV_PATH = ".env";
 

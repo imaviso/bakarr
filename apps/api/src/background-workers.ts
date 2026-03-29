@@ -1,19 +1,19 @@
 import { Cause, Effect, Option, Schedule, Schema } from "effect";
 import type { Scope } from "effect";
 
-import type { Config } from "../../../packages/shared/src/index.ts";
-import { buildBackgroundSchedule } from "./background-schedule.ts";
-import type { BackgroundWorkerMonitorShape } from "./background-monitor.ts";
-import { type BackgroundWorkerName } from "./background-worker-model.ts";
-import type { DatabaseError } from "./db/database.ts";
-import type { ClockServiceShape } from "./lib/clock.ts";
-import { makeSkippingSerializedEffectRunner } from "./lib/effect-coalescing.ts";
-import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./lib/logging.ts";
-import type { AnimeMutationServiceShape } from "./features/anime/mutation-service.ts";
-import type { EventBusShape } from "./features/events/event-bus.ts";
-import type { CatalogDownloadServiceShape } from "./features/operations/catalog-service-tags.ts";
-import type { CatalogLibraryServiceShape } from "./features/operations/catalog-library-service.ts";
-import type { SearchWorkflowShape } from "./features/operations/search-service-tags.ts";
+import type { Config } from "@packages/shared/index.ts";
+import { buildBackgroundSchedule } from "@/background-schedule.ts";
+import type { BackgroundWorkerMonitorShape } from "@/background-monitor.ts";
+import { type BackgroundWorkerName } from "@/background-worker-model.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import type { ClockServiceShape } from "@/lib/clock.ts";
+import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing.ts";
+import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
+import type { AnimeMutationServiceShape } from "@/features/anime/mutation-service.ts";
+import type { EventBusShape } from "@/features/events/event-bus.ts";
+import type { CatalogDownloadServiceShape } from "@/features/operations/catalog-service-tags.ts";
+import type { CatalogLibraryServiceShape } from "@/features/operations/catalog-library-service.ts";
+import type { SearchWorkflowShape } from "@/features/operations/search-service-tags.ts";
 
 export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
   "WorkerTimeoutError",

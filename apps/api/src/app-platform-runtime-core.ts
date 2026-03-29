@@ -2,26 +2,26 @@ import { CommandExecutor, FetchHttpClient } from "@effect/platform";
 import { BunContext } from "@effect/platform-bun";
 import { ConfigProvider, Layer } from "effect";
 
-import { AppRuntime } from "./app-runtime.ts";
-import { AppConfig, type AppConfigShape } from "./config.ts";
-import { DatabaseLive } from "./db/database.ts";
-import { BackgroundWorkerMonitorLive } from "./background-monitor.ts";
-import { AniListClientLive, type AniListClient } from "./features/anime/anilist.ts";
-import { EventBusLive } from "./features/events/event-bus.ts";
-import { EventPublisherLive } from "./features/events/publisher.ts";
+import { AppRuntime } from "@/app-runtime.ts";
+import { AppConfig, type AppConfigShape } from "@/config.ts";
+import { DatabaseLive } from "@/db/database.ts";
+import { BackgroundWorkerMonitorLive } from "@/background-monitor.ts";
+import { AniListClientLive, type AniListClient } from "@/features/anime/anilist.ts";
+import { EventBusLive } from "@/features/events/event-bus.ts";
+import { EventPublisherLive } from "@/features/events/publisher.ts";
 import {
   QBitTorrentClientLive,
   type QBitTorrentClient,
-} from "./features/operations/qbittorrent.ts";
-import { RssClientLive, type RssClient } from "./features/operations/rss-client.ts";
-import { SeaDexClientLive, type SeaDexClient } from "./features/operations/seadex-client.ts";
-import { ClockServiceLive } from "./lib/clock.ts";
-import { DnsResolverLive } from "./lib/dns-resolver.ts";
-import { FileSystemLive } from "./lib/filesystem.ts";
-import { RandomServiceLive } from "./lib/random.ts";
-import { RuntimeLoggerLayer } from "./lib/logging.ts";
-import { StreamTokenSignerLive } from "./http/stream-token-signer.ts";
-import { TokenHasherLive } from "./security/token-hasher.ts";
+} from "@/features/operations/qbittorrent.ts";
+import { RssClientLive, type RssClient } from "@/features/operations/rss-client.ts";
+import { SeaDexClientLive, type SeaDexClient } from "@/features/operations/seadex-client.ts";
+import { ClockServiceLive } from "@/lib/clock.ts";
+import { DnsResolverLive } from "@/lib/dns-resolver.ts";
+import { FileSystemLive } from "@/lib/filesystem.ts";
+import { RandomServiceLive } from "@/lib/random.ts";
+import { RuntimeLoggerLayer } from "@/lib/logging.ts";
+import { StreamTokenSignerLive } from "@/http/stream-token-signer.ts";
+import { TokenHasherLive } from "@/security/token-hasher.ts";
 
 export interface AppPlatformRuntimeOptions {
   readonly aniListLayer?: Layer.Layer<AniListClient>;

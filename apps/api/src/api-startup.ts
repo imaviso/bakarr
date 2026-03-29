@@ -1,12 +1,12 @@
 import { Effect } from "effect";
 
-import { BackgroundWorkerController } from "./background-controller.ts";
-import { AppConfig, type AppConfigShape } from "./config.ts";
-import { migrateDatabase } from "./db/migrate.ts";
-import { AuthBootstrapService } from "./features/auth/bootstrap-service.ts";
-import { SystemBootstrapService } from "./features/system/system-bootstrap-service.ts";
-import { SystemConfigService } from "./features/system/system-config-service.ts";
-import { compactLogAnnotations } from "./lib/logging.ts";
+import { BackgroundWorkerController } from "@/background-controller.ts";
+import { AppConfig, type AppConfigShape } from "@/config.ts";
+import { migrateDatabase } from "@/db/migrate.ts";
+import { AuthBootstrapService } from "@/features/auth/bootstrap-service.ts";
+import { SystemBootstrapService } from "@/features/system/system-bootstrap-service.ts";
+import { SystemConfigService } from "@/features/system/system-config-service.ts";
+import { compactLogAnnotations } from "@/lib/logging.ts";
 
 export const bootstrapProgram = Effect.fn("api.bootstrap")(function* () {
   yield* migrateDatabase();

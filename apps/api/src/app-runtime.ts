@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect";
-import { ClockService } from "./lib/clock.ts";
+import { ClockService } from "@/lib/clock.ts";
 
 export interface AppRuntimeShape {
   readonly startedAt: Date;

@@ -1,7 +1,7 @@
 import { Context, Effect, Exit, Ref, Scope } from "effect";
 
-import type { Config } from "../../../packages/shared/src/index.ts";
-import type { DatabaseError } from "./db/database.ts";
+import type { Config } from "@packages/shared/index.ts";
+import type { DatabaseError } from "@/db/database.ts";
 
 interface ReloadableScopedController<C, E, R = never> {
   readonly isStarted: () => Effect.Effect<boolean>;

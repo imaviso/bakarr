@@ -2,9 +2,9 @@ import { Context, Effect, Layer, Schema } from "effect";
 import { type Client, createClient } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 
-import { AppConfig } from "../config.ts";
-import { isSqliteBusyLock, isSqliteUniqueConstraint } from "./sqlite-errors.ts";
-import * as schema from "./schema.ts";
+import { AppConfig } from "@/config.ts";
+import { isSqliteBusyLock, isSqliteUniqueConstraint } from "@/db/sqlite-errors.ts";
+import * as schema from "@/db/schema.ts";
 
 export type AppDatabase = LibSQLDatabase<typeof schema>;
 

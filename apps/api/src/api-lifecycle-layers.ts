@@ -1,40 +1,40 @@
 import { Layer } from "effect";
 
-import { BackgroundWorkerControllerLive } from "./background-controller-live.ts";
-import { makeAppPlatformCoreRuntimeLayer } from "./app-platform-runtime-core.ts";
-import { DiskSpaceInspectorLive } from "./features/system/disk-space.ts";
-import { MediaProbeLive } from "./lib/media-probe.ts";
-import { AnimeEnrollmentServiceLive } from "./features/anime/anime-enrollment-service.ts";
-import { AnimeFileServiceLive } from "./features/anime/file-service.ts";
-import { AnimeImportServiceLive } from "./features/anime/import-service.ts";
-import { AnimeMutationServiceLive } from "./features/anime/mutation-service.ts";
-import { AnimeQueryServiceLive } from "./features/anime/query-service.ts";
-import { AuthBootstrapServiceLive } from "./features/auth/bootstrap-service.ts";
-import { AuthCredentialServiceLive } from "./features/auth/credential-service.ts";
-import { AuthSessionServiceLive } from "./features/auth/session-service.ts";
-import { LibraryBrowseServiceLive } from "./features/operations/library-browse-service.ts";
-import { LibraryRootsServiceLive } from "./features/library-roots/service.ts";
-import { CatalogDownloadServiceLive } from "./features/operations/catalog-service-tags.ts";
-import { CatalogLibraryServiceLive } from "./features/operations/catalog-library-service.ts";
+import { BackgroundWorkerControllerLive } from "@/background-controller-live.ts";
+import { makeAppPlatformCoreRuntimeLayer } from "@/app-platform-runtime-core.ts";
+import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
+import { MediaProbeLive } from "@/lib/media-probe.ts";
+import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
+import { AnimeFileServiceLive } from "@/features/anime/file-service.ts";
+import { AnimeImportServiceLive } from "@/features/anime/import-service.ts";
+import { AnimeMutationServiceLive } from "@/features/anime/mutation-service.ts";
+import { AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
+import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
+import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
+import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
+import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
+import { LibraryRootsServiceLive } from "@/features/library-roots/service.ts";
+import { CatalogDownloadServiceLive } from "@/features/operations/catalog-service-tags.ts";
+import { CatalogLibraryServiceLive } from "@/features/operations/catalog-library-service.ts";
 import {
   DownloadProgressServiceLive,
   DownloadWorkflowLive,
   ProgressLive,
-} from "./features/operations/download-service-tags.ts";
-import { SearchWorkflowLive } from "./features/operations/search-service-tags.ts";
-import { BackgroundJobStatusServiceLive } from "./features/system/background-job-status-service.ts";
-import { ImageAssetServiceLive } from "./features/system/image-asset-service.ts";
-import { MetricsServiceLive } from "./features/system/metrics-service.ts";
-import { QualityProfileServiceLive } from "./features/system/quality-profile-service.ts";
-import { ReleaseProfileServiceLive } from "./features/system/release-profile-service.ts";
-import { SystemBootstrapServiceLive } from "./features/system/system-bootstrap-service.ts";
-import { SystemConfigUpdateServiceLive } from "./features/system/system-config-update-service.ts";
-import { SystemConfigServiceLive } from "./features/system/system-config-service.ts";
-import { SystemDashboardServiceLive } from "./features/system/system-dashboard-service.ts";
-import { SystemLogServiceLive } from "./features/system/system-log-service.ts";
-import { SystemStatusServiceLive } from "./features/system/system-status-service.ts";
-import type { AppConfigShape } from "./config.ts";
-import type { AppPlatformRuntimeOptions } from "./app-platform-runtime-core.ts";
+} from "@/features/operations/download-service-tags.ts";
+import { SearchWorkflowLive } from "@/features/operations/search-service-tags.ts";
+import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
+import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
+import { MetricsServiceLive } from "@/features/system/metrics-service.ts";
+import { QualityProfileServiceLive } from "@/features/system/quality-profile-service.ts";
+import { ReleaseProfileServiceLive } from "@/features/system/release-profile-service.ts";
+import { SystemBootstrapServiceLive } from "@/features/system/system-bootstrap-service.ts";
+import { SystemConfigUpdateServiceLive } from "@/features/system/system-config-update-service.ts";
+import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
+import { SystemDashboardServiceLive } from "@/features/system/system-dashboard-service.ts";
+import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
+import { SystemStatusServiceLive } from "@/features/system/system-status-service.ts";
+import type { AppConfigShape } from "@/config.ts";
+import type { AppPlatformRuntimeOptions } from "@/app-platform-runtime-core.ts";
 
 /**
  * Build the complete application layer graph.

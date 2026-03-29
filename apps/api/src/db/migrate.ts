@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { migrate } from "drizzle-orm/libsql/migrator";
 
-import { Database, DatabaseError } from "./database.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
 
 export const DRIZZLE_MIGRATIONS_FOLDER = new URL("../../drizzle", import.meta.url).pathname;
 

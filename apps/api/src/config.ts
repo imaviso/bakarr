@@ -1,7 +1,7 @@
 import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted, Schema } from "effect";
 
-import { PositiveIntSchema } from "./lib/domain-schema.ts";
-import { randomHexFrom, RandomService } from "./lib/random.ts";
+import { PositiveIntSchema } from "@/lib/domain-schema.ts";
+import { randomHexFrom, RandomService } from "@/lib/random.ts";
 
 const PortSchema = Schema.Number.pipe(Schema.int(), Schema.between(1, 65_535));
 

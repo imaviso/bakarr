@@ -8,14 +8,14 @@ import {
   type BackgroundWorkerStats,
   BackgroundWorkerStatsModel,
   initialBackgroundWorkerSnapshot,
-} from "./background-worker-model.ts";
-import { ClockService, nowIsoFromClock, type ClockServiceShape } from "./lib/clock.ts";
+} from "@/background-worker-model.ts";
+import { ClockService, nowIsoFromClock, type ClockServiceShape } from "@/lib/clock.ts";
 import {
   preRegisterBackgroundWorkerMetrics,
   recordBackgroundWorkerRun,
   setBackgroundWorkerDaemonRunning,
   setBackgroundWorkerRunRunning,
-} from "./lib/metrics.ts";
+} from "@/lib/metrics.ts";
 
 export interface BackgroundWorkerMonitorShape {
   readonly markDaemonStarted: (workerName: BackgroundWorkerName) => Effect.Effect<void>;

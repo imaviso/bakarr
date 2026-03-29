@@ -1,17 +1,17 @@
-import { assertEquals, it } from "./test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Deferred, Effect, Fiber, Logger, Metric, Scope, TestClock } from "effect";
-import type { ClockServiceShape } from "./lib/clock.ts";
+import type { ClockServiceShape } from "@/lib/clock.ts";
 
-import type { Config } from "../../../packages/shared/src/index.ts";
-import { buildBackgroundSchedule } from "./background-schedule.ts";
-import { makeBackgroundWorkerController } from "./background-controller.ts";
-import { makeBackgroundWorkerMonitor } from "./background-monitor.ts";
-import { withLockEffect } from "./background-workers.ts";
+import type { Config } from "@packages/shared/index.ts";
+import { buildBackgroundSchedule } from "@/background-schedule.ts";
+import { makeBackgroundWorkerController } from "@/background-controller.ts";
+import { makeBackgroundWorkerMonitor } from "@/background-monitor.ts";
+import { withLockEffect } from "@/background-workers.ts";
 import {
   makeCoalescedEffectRunner,
   makeLatestValuePublisher,
   makeSkippingSerializedEffectRunner,
-} from "./lib/effect-coalescing.ts";
+} from "@/lib/effect-coalescing.ts";
 
 const baseConfig: Config = {
   downloads: {

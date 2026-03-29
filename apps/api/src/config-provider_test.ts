@@ -3,10 +3,10 @@ import { randomUUID } from "node:crypto";
 import { rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assertEquals, it } from "./test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Cause, Config, Effect, Exit, Redacted } from "effect";
 
-import { makeDotenvConfigProvider } from "./config-provider.ts";
+import { makeDotenvConfigProvider } from "@/config-provider.ts";
 
 const withBunFs = Effect.provide(BunFileSystem.layer);
 

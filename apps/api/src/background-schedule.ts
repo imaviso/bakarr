@@ -1,7 +1,7 @@
 import * as Cron from "effect/Cron";
 import { Either, Schema } from "effect";
 
-import type { Config } from "../../../packages/shared/src/index.ts";
+import type { Config } from "@packages/shared/index.ts";
 
 const DEFAULT_DOWNLOAD_SYNC_MS = 15_000;
 export class BackgroundSchedule extends Schema.Class<BackgroundSchedule>("BackgroundSchedule")({
