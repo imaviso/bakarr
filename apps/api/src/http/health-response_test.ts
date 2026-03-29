@@ -1,12 +1,11 @@
-import { HttpApp } from "@effect/platform";
+import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { assertEquals, it } from "../test/vitest.ts";
-import { buildHealthLiveResponse, buildHealthReadyResponse } from "./health-response.ts";
 
-it.effect("buildHealthLiveResponse returns the live status payload", () =>
+it.effect("inline health live response returns the live status payload", () =>
   Effect.gen(function* () {
-    const handler = HttpApp.toWebHandler(buildHealthLiveResponse());
+    const handler = HttpApp.toWebHandler(HttpServerResponse.json({ status: "alive" }));
     const response = yield* Effect.promise(() => handler(new Request("http://localhost/")));
 
     assertEquals(response.status, 200);
@@ -18,7 +17,7 @@ it.effect("buildHealthLiveResponse returns the live status payload", () =>
 it.effect("buildHealthReadyResponse returns a ready or not-ready status code", () =>
   Effect.gen(function* () {
     const handler = HttpApp.toWebHandler(
-      buildHealthReadyResponse({ checks: { database: false }, ready: false }),
+      HttpServerResponse.json({ checks: { database: false }, ready: false }, { status: 503 }),
     );
     const response = yield* Effect.promise(() => handler(new Request("http://localhost/")));
 

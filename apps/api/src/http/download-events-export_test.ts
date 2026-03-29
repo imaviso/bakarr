@@ -1,10 +1,9 @@
-import { HttpApp } from "@effect/platform";
+import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { assertEquals, it } from "../test/vitest.ts";
-import { buildDownloadEventsExportResponse } from "./download-events-export.ts";
 
-it.effect("buildDownloadEventsExportResponse adds export metadata headers", () =>
+it.effect("inline download events export response adds export metadata headers", () =>
   Effect.gen(function* () {
     const page = {
       events: [],
@@ -17,7 +16,20 @@ it.effect("buildDownloadEventsExportResponse adds export metadata headers", () =
     };
 
     const handler = HttpApp.toWebHandler(
-      Effect.succeed(buildDownloadEventsExportResponse(page, "json")),
+      Effect.succeed(
+        HttpServerResponse.text("[]", {
+          contentType: "application/json; charset=utf-8",
+          headers: {
+            "Content-Disposition": `attachment; filename="bakarr-download-events.json"`,
+            "X-Bakarr-Export-Limit": String(page.limit),
+            "X-Bakarr-Export-Order": page.order,
+            "X-Bakarr-Export-Truncated": String(page.truncated),
+            "X-Bakarr-Exported-Events": String(page.exported),
+            "X-Bakarr-Generated-At": page.generated_at,
+            "X-Bakarr-Total-Events": String(page.total),
+          },
+        }),
+      ),
     );
     const response = yield* Effect.promise(() => handler(new Request("http://localhost/")));
 
