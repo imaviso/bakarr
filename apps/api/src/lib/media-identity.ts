@@ -16,11 +16,11 @@ import {
   getSourceIdentityAirDate,
   getSourceIdentitySeason,
   toSharedParsedEpisodeIdentity,
-} from "./media-identity-model.ts";
+} from "@/lib/media-identity-model.ts";
 
-import { parseAbsoluteIdentity } from "./media-identity-absolute.ts";
-import { parseDailyIdentity } from "./media-identity-daily.ts";
-import { parseSeasonEpisodeIdentity } from "./media-identity-season.ts";
+import { parseAbsoluteIdentity } from "@/lib/media-identity-absolute.ts";
+import { parseDailyIdentity } from "@/lib/media-identity-daily.ts";
+import { parseSeasonEpisodeIdentity } from "@/lib/media-identity-season.ts";
 
 export interface PathParseContext {
   /** Title inferred from nearest entry folder (e.g. "Overlord II") */
@@ -44,7 +44,7 @@ export interface ParsedMediaFile {
   skip_reason?: string;
 }
 
-export type { ParsedEpisodeIdentity } from "./media-identity-model.ts";
+export type { ParsedEpisodeIdentity } from "@/lib/media-identity-model.ts";
 
 export {
   AbsoluteEpisodeIdentity,
@@ -422,8 +422,8 @@ export function formatEpisodeSegment(input: {
 export {
   rankAnimeCandidates,
   resolveSourceIdentityToEpisodeNumbers,
-} from "./media-identity-ranking.ts";
-export type { ResolvedEpisodeTarget } from "./media-identity-ranking.ts";
+} from "@/lib/media-identity-ranking.ts";
+export type { ResolvedEpisodeTarget } from "@/lib/media-identity-ranking.ts";
 
 // Daily/season/absolute parsing moved to dedicated modules.
 

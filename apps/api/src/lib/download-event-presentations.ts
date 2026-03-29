@@ -1,12 +1,12 @@
 import { inArray } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
-import type { DownloadEvent } from "../../../../packages/shared/src/index.ts";
-import { DownloadEventMetadataSchema } from "../../../../packages/shared/src/index.ts";
-import { anime, downloads } from "../db/schema.ts";
-import type { AppDatabase, DatabaseError } from "../db/database.ts";
-import { OperationsStoredDataError } from "../features/operations/errors.ts";
-import { tryDatabasePromise } from "./effect-db.ts";
+import type { DownloadEvent } from "@packages/shared/index.ts";
+import { DownloadEventMetadataSchema } from "@packages/shared/index.ts";
+import { anime, downloads } from "@/db/schema.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 const DownloadEventMetadataJsonSchema = Schema.parseJson(DownloadEventMetadataSchema);
 

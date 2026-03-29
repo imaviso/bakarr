@@ -6,7 +6,7 @@ import {
   FileSystemLive,
   type FileSystemShape,
   makeFileSystemNoopLayer,
-} from "../lib/filesystem.ts";
+} from "@/lib/filesystem.ts";
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();

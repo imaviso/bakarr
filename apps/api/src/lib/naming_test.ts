@@ -1,5 +1,5 @@
-import { assertEquals, it } from "../test/vitest.ts";
-import { type NamingInput, renderEpisodeFilename } from "./naming.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
+import { type NamingInput, renderEpisodeFilename } from "@/lib/naming.ts";
 
 function makeInput(overrides: Partial<NamingInput> = {}): NamingInput {
   return {

@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { DatabaseError } from "../db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
 
 export type TryDatabasePromise = <A>(
   message: string,

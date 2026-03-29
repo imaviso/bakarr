@@ -1,4 +1,4 @@
-import { assertEquals, it } from "../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 
 import {
   buildPathParseContext,
@@ -8,7 +8,7 @@ import {
   parseReleaseSourceIdentity,
   rankAnimeCandidates,
   resolveSourceIdentityToEpisodeNumbers,
-} from "./media-identity.ts";
+} from "@/lib/media-identity.ts";
 
 // ---------------------------------------------------------------------------
 // Daily / airdate parsing

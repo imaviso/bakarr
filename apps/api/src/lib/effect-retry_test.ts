@@ -1,8 +1,8 @@
-import { assert, assertEquals, it } from "../test/vitest.ts";
+import { assert, assertEquals, it } from "@/test/vitest.ts";
 import { Effect, Either, Fiber, TestClock } from "effect";
 
-import type { ClockServiceShape } from "./clock.ts";
-import { ExternalCallError, makeTryExternal } from "./effect-retry.ts";
+import type { ClockServiceShape } from "@/lib/clock.ts";
+import { ExternalCallError, makeTryExternal } from "@/lib/effect-retry.ts";
 
 it.effect("tryExternal retries transient failures", () =>
   Effect.gen(function* () {

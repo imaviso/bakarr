@@ -1,6 +1,6 @@
-import { assertEquals, describe, it } from "../test/vitest.ts";
+import { assertEquals, describe, it } from "@/test/vitest.ts";
 
-import { isNotFoundError } from "./fs-errors.ts";
+import { isNotFoundError } from "@/lib/fs-errors.ts";
 
 describe("isNotFoundError", () => {
   it("detects ENOENT causes wrapped directly", () => {

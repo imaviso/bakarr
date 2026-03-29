@@ -1,5 +1,5 @@
-import { AbsoluteEpisodeIdentity } from "./media-identity-model.ts";
-import { isYearLike, rangeArray } from "./media-identity-parser-shared.ts";
+import { AbsoluteEpisodeIdentity } from "@/lib/media-identity-model.ts";
+import { isYearLike, rangeArray } from "@/lib/media-identity-parser-shared.ts";
 
 export function parseAbsoluteIdentity(
   extensionless: string,

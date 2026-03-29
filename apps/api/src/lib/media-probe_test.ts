@@ -1,4 +1,4 @@
-import { assertEquals, it } from "../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { CommandExecutor } from "@effect/platform";
 import { Effect, Layer, Logger } from "effect";
 
@@ -10,7 +10,7 @@ import {
   mergeProbedMediaMetadata,
   parseFfprobeJson,
   shouldProbeMediaMetadata,
-} from "./media-probe.ts";
+} from "@/lib/media-probe.ts";
 
 it("parseFfprobeJson extracts canonical media metadata", () => {
   const result = parseFfprobeJson(

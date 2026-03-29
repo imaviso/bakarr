@@ -21,9 +21,9 @@
  * - {audio_channels}     - Audio channels (e.g. "2.0", "5.1")
  */
 
-import { sanitizeFilename } from "./filesystem.ts";
-import { formatEpisodeSegment } from "./media-identity.ts";
-import type { ParsedEpisodeIdentity } from "../../../../packages/shared/src/index.ts";
+import { sanitizeFilename } from "@/lib/filesystem.ts";
+import { formatEpisodeSegment } from "@/lib/media-identity.ts";
+import type { ParsedEpisodeIdentity } from "@packages/shared/index.ts";
 
 export interface NamingInput {
   readonly title: string;

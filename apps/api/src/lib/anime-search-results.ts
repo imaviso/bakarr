@@ -1,10 +1,10 @@
 import { inArray } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AnimeSearchResult } from "../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../db/database.ts";
-import { anime } from "../db/schema.ts";
-import { tryDatabasePromise } from "./effect-db.ts";
+import type { AnimeSearchResult } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export const markSearchResultsAlreadyInLibraryEffect = Effect.fn(
   "AnimeSearchResults.markSearchResultsAlreadyInLibrary",

@@ -1,6 +1,6 @@
 import { Effect, Metric, MetricBoundaries, Schema } from "effect";
 
-import type { BackgroundWorkerName } from "../background-worker-model.ts";
+import type { BackgroundWorkerName } from "@/background-worker-model.ts";
 
 const histogramBoundaries = MetricBoundaries.fromIterable([
   5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000,

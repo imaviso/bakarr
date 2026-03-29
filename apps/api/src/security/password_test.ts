@@ -1,7 +1,7 @@
 import { Cause, Effect } from "effect";
 
-import { assertEquals, assertInstanceOf, it } from "../test/vitest.ts";
-import { PasswordError, verifyPassword } from "./password.ts";
+import { assertEquals, assertInstanceOf, it } from "@/test/vitest.ts";
+import { PasswordError, verifyPassword } from "@/security/password.ts";
 
 it.effect("verifyPassword fails when the stored hash structure is malformed", () =>
   Effect.gen(function* () {

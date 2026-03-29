@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { Effect } from "effect";
 
-import { withFileSystemSandbox, withFileSystemSandboxEffect } from "./filesystem-test.ts";
+import { withFileSystemSandbox, withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 
 export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(function* <
   TSchema extends Record<string, unknown>,

@@ -1,7 +1,7 @@
 import { Effect, Schedule, Schema } from "effect";
 
-import type { ClockServiceShape } from "./clock.ts";
-import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./logging.ts";
+import type { ClockServiceShape } from "@/lib/clock.ts";
+import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
 
 export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
   "ExternalCallError",

@@ -8,15 +8,15 @@
  * operators do not trigger the `no-misused-spread` lint rule.
  */
 
-import type { Config } from "../../../../packages/shared/src/index.ts";
+import type { Config } from "@packages/shared/index.ts";
 import { Schema } from "effect";
-import { ConfigCoreSchema } from "../features/system/config-schema.ts";
+import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import {
   composeConfig,
   type ConfigCore,
   type ConfigCoreEncoded,
-} from "../features/system/config-codec.ts";
-import { makeDefaultConfig } from "../features/system/defaults.ts";
+} from "@/features/system/config-codec.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
 
 export type { ConfigCore, ConfigCoreEncoded };
 

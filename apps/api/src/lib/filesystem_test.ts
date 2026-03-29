@@ -1,8 +1,8 @@
 import { FileSystem as PlatformFileSystem } from "@effect/platform";
 import { Cause, Effect } from "effect";
 
-import { assertEquals, assertInstanceOf, assertThrows, it } from "../test/vitest.ts";
-import { makeNoopTestFileSystemEffect } from "../test/filesystem-test.ts";
+import { assertEquals, assertInstanceOf, assertThrows, it } from "@/test/vitest.ts";
+import { makeNoopTestFileSystemEffect } from "@/test/filesystem-test.ts";
 
 import {
   FileSystemError,
@@ -10,7 +10,7 @@ import {
   isWithinPathRoot,
   sanitizePathSegment,
   sanitizePathSegmentEffect,
-} from "./filesystem.ts";
+} from "@/lib/filesystem.ts";
 
 it("isWithinPathRoot only matches the configured root boundary", () => {
   assertEquals(isWithinPathRoot("/data/downloads", "/data/downloads"), true);

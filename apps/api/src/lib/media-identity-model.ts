@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import type { ParsedEpisodeIdentity as SharedParsedEpisodeIdentity } from "../../../../packages/shared/src/index.ts";
+import type { ParsedEpisodeIdentity as SharedParsedEpisodeIdentity } from "@packages/shared/index.ts";
 
 const EpisodeNumberListSchema = Schema.Array(Schema.Number);
 const AirDateListSchema = Schema.Array(Schema.String);

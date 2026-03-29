@@ -1,4 +1,4 @@
-import type { AnimeSearchResult, Episode } from "../../../../packages/shared/src/index.ts";
+import type { AnimeSearchResult, Episode } from "@packages/shared/index.ts";
 
 export function deriveEpisodeTimelineMetadata(
   aired?: string,

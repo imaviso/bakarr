@@ -1,4 +1,8 @@
-import type { ParsedEpisodeIdentity, ParsedMediaFile, PathParseContext } from "./media-identity.ts";
+import type {
+  ParsedEpisodeIdentity,
+  ParsedMediaFile,
+  PathParseContext,
+} from "@/lib/media-identity.ts";
 
 export interface ResolvedEpisodeTarget {
   anime_id: number;

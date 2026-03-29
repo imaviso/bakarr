@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { backgroundJobs } from "../db/schema.ts";
-import type { AppDatabase } from "../db/database.ts";
-import { tryDatabasePromise } from "./effect-db.ts";
+import { backgroundJobs } from "@/db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 type NowIso = () => Effect.Effect<string>;
 

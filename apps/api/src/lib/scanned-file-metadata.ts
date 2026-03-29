@@ -1,4 +1,4 @@
-import type { ParsedEpisodeIdentity as SharedParsedEpisodeIdentity } from "../../../../packages/shared/src/index.ts";
+import type { ParsedEpisodeIdentity as SharedParsedEpisodeIdentity } from "@packages/shared/index.ts";
 
 export interface ScannedFileMetadata {
   readonly air_date?: string;

@@ -1,5 +1,5 @@
-import { SeasonEpisodeIdentity } from "./media-identity-model.ts";
-import { formatSeasonLabel, rangeArray } from "./media-identity-parser-shared.ts";
+import { SeasonEpisodeIdentity } from "@/lib/media-identity-model.ts";
+import { formatSeasonLabel, rangeArray } from "@/lib/media-identity-parser-shared.ts";
 
 export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity | undefined {
   const rangeMatch = value.match(
