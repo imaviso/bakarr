@@ -1,4 +1,4 @@
-import { assertEquals, assertMatch, it } from "./test/vitest";
+import { assertEquals, assertMatch, it } from "./test/vitest.ts";
 import { Schema } from "effect";
 
 import {
@@ -49,7 +49,7 @@ import {
   SystemStatusSchema,
   UnmappedFolderSchema,
   VideoFileSchema,
-} from "./index";
+} from "./index.ts";
 
 it("shared config schemas accept canonical literal values", () => {
   const importMode = Schema.decodeUnknownEither(ImportModeSchema)("copy");
