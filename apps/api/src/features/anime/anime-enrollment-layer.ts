@@ -17,11 +17,7 @@ export function makeAnimeEnrollmentFeatureLayer<
   operationsLayer: Layer.Layer<AOperations, EOperations, ROperations>,
   animeLayer: Layer.Layer<AAnime, EAnime, RAnime>,
 ) {
-  const animeEnrollmentDependenciesLayer = Layer.mergeAll(
-    platformLayer,
-    operationsLayer,
-    animeLayer,
+  return AnimeEnrollmentServiceLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, animeLayer)),
   );
-
-  return AnimeEnrollmentServiceLive.pipe(Layer.provideMerge(animeEnrollmentDependenciesLayer));
 }

@@ -18,16 +18,12 @@ export function makeLibraryFeatureLayer<
   operationsLayer: Layer.Layer<AOperations, EOperations, ROperations>,
   systemLayer: Layer.Layer<ASystem, ESystem, RSystem>,
 ) {
-  const providePlatform = Layer.provideMerge(platformLayer);
-  const libraryRootsLayer = LibraryRootsServiceLive.pipe(providePlatform);
-  const libraryBrowseDependenciesLayer = Layer.mergeAll(
-    platformLayer,
-    operationsLayer,
-    systemLayer,
-    libraryRootsLayer,
+  const libraryRootsLayer = LibraryRootsServiceLive.pipe(Layer.provideMerge(platformLayer));
+  const libraryBrowseLayer = LibraryBrowseServiceLive.pipe(
+    Layer.provideMerge(
+      Layer.mergeAll(platformLayer, operationsLayer, systemLayer, libraryRootsLayer),
+    ),
   );
-  const provideLibraryBrowseDependencies = Layer.provideMerge(libraryBrowseDependenciesLayer);
-  const libraryBrowseLayer = LibraryBrowseServiceLive.pipe(provideLibraryBrowseDependencies);
 
   return Layer.mergeAll(libraryRootsLayer, libraryBrowseLayer);
 }

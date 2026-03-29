@@ -13,7 +13,8 @@ import {
   logServerStopping,
   startBackgroundWorkers,
 } from "./src/api-startup.ts";
-import { makeApiLayer, makeApiRuntime, type RuntimeOptions } from "./src/runtime.ts";
+import { makeApiRuntime, type RuntimeOptions } from "./src/runtime.ts";
+import { makeApiLifecycleLayers } from "./src/api-lifecycle-layers.ts";
 
 /**
  * Startup sequence (blocking, ordered, fail-fast):
@@ -71,7 +72,7 @@ if (import.meta.main) {
   const dotenvProvider = await Effect.runPromise(loadDotenvConfigProvider());
   BunRuntime.runMain(
     Effect.scoped(mainProgram()).pipe(
-      Effect.provide(makeApiLayer({}, { configProvider: dotenvProvider })),
+      Effect.provide(makeApiLifecycleLayers({}, { configProvider: dotenvProvider }).appLayer),
     ),
   );
 }

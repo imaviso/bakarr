@@ -6,7 +6,7 @@ import {
 } from "./app-platform-runtime-core.ts";
 import { DiskSpaceInspectorLive } from "./features/system/disk-space.ts";
 import { MediaProbeLive } from "./lib/media-probe.ts";
-import { makeBackgroundFeatureLayer } from "./background-layer.ts";
+import { BackgroundWorkerControllerLive } from "./background-controller-live.ts";
 import { makeAuthFeatureLayer } from "./features/auth/auth-layer.ts";
 import { makeAnimeFeatureLayer } from "./features/anime/anime-layer.ts";
 import { makeAnimeEnrollmentFeatureLayer } from "./features/anime/anime-enrollment-layer.ts";
@@ -59,10 +59,8 @@ export function makeApiLifecycleLayers(
   const providePlatform = Layer.provideMerge(platformLayer);
   const animeLayer = makeAnimeFeatureLayer(platformLayer);
   const operationsLayer = makeOperationsFeatureLayer(platformLayer, animeLayer);
-  const backgroundControllerLayer = makeBackgroundFeatureLayer(
-    platformLayer,
-    operationsLayer,
-    animeLayer,
+  const backgroundControllerLayer = BackgroundWorkerControllerLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, animeLayer)),
   );
   const authLayer = makeAuthFeatureLayer(platformLayer);
   const systemLayer = makeSystemFeatureLayer(

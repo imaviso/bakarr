@@ -8,12 +8,10 @@ import { AnimeQueryServiceLive } from "./query-service.ts";
 export function makeAnimeFeatureLayer<APlatform, EPlatform, RPlatform>(
   platformLayer: Layer.Layer<APlatform, EPlatform, RPlatform>,
 ) {
-  const providePlatform = Layer.provideMerge(platformLayer);
-
   return Layer.mergeAll(
-    AnimeQueryServiceLive.pipe(providePlatform),
-    AnimeMutationServiceLive.pipe(providePlatform),
-    AnimeFileServiceLive.pipe(providePlatform),
-    AnimeImportServiceLive.pipe(providePlatform),
+    AnimeQueryServiceLive.pipe(Layer.provideMerge(platformLayer)),
+    AnimeMutationServiceLive.pipe(Layer.provideMerge(platformLayer)),
+    AnimeFileServiceLive.pipe(Layer.provideMerge(platformLayer)),
+    AnimeImportServiceLive.pipe(Layer.provideMerge(platformLayer)),
   );
 }
