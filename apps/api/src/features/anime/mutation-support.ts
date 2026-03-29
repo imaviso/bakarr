@@ -12,7 +12,8 @@ import { AnimeConflictError, AnimePathError } from "./errors.ts";
 import { findAnimeRootFolderOwnerEffect, requireAnimeExistsEffect } from "./repository.ts";
 import { getConfiguredLibraryPathEffect } from "./config-support.ts";
 import { qualityProfileExistsEffect } from "./profile-support.ts";
-import { tryDatabasePromise, updateAnimeRow, wrapAnimeError } from "./service-support.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
+import { updateAnimeRow } from "./update-support.ts";
 import { appendSystemLog } from "../system/support.ts";
 
 type AnimeInfoPublisher = Pick<EventPublisherShape, "publishInfo">;
@@ -40,9 +41,7 @@ export const updateAnimePathEffect = Effect.fn("AnimeService.updateAnimePathEffe
     );
 
     yield* assertAnimePathWithinLibraryRootEffect(input.fs, trimmedPath, canonicalLibraryRoot);
-    yield* requireAnimeExistsEffect(input.db, input.id).pipe(
-      Effect.mapError(wrapAnimeError("Failed to update anime path")),
-    );
+    yield* requireAnimeExistsEffect(input.db, input.id);
 
     yield* input.fs.mkdir(trimmedPath, { recursive: true }).pipe(
       Effect.mapError(

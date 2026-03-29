@@ -17,7 +17,8 @@ import {
   getAnimeRowEffect,
   updateAnimeEpisodeAirDatesEffect,
 } from "./repository.ts";
-import { tryDatabasePromise, updateAnimeRow, wrapAnimeError } from "./service-support.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
+import { updateAnimeRow } from "./update-support.ts";
 
 type AnimeEventPublisher = Pick<EventPublisherShape, "publish" | "publishInfo">;
 
@@ -35,9 +36,7 @@ const syncAnimeMetadataEffect = Effect.fn("AnimeService.syncAnimeMetadataEffect"
     nowIso: () => Effect.Effect<string>;
   }) {
     const { nowIso } = input;
-    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
-      Effect.mapError(wrapAnimeError("Failed to refresh episodes")),
-    );
+    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
     const metadata = yield* input.aniList.getAnimeMetadataById(input.animeId);
 
     if (!metadata) {
@@ -91,7 +90,6 @@ const syncEpisodeScheduleEffect = Effect.fn("AnimeService.syncEpisodeScheduleEff
     readonly endDate: string | null;
   },
   futureAiringSchedule: ReadonlyArray<FutureAiringScheduleEntry> | undefined,
-  errorMessage: string,
   nowIso: () => Effect.Effect<string>,
 ) {
   yield* ensureEpisodesEffect(
@@ -104,7 +102,7 @@ const syncEpisodeScheduleEffect = Effect.fn("AnimeService.syncEpisodeScheduleEff
     futureAiringSchedule,
     false,
     nowIso,
-  ).pipe(Effect.mapError(wrapAnimeError(errorMessage)));
+  );
   yield* updateAnimeEpisodeAirDatesEffect(
     db,
     animeId,
@@ -114,7 +112,7 @@ const syncEpisodeScheduleEffect = Effect.fn("AnimeService.syncEpisodeScheduleEff
     nextAnimeRow.endDate ?? undefined,
     futureAiringSchedule,
     nowIso,
-  ).pipe(Effect.mapError(wrapAnimeError(errorMessage)));
+  );
 });
 
 export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffect")(
@@ -139,7 +137,6 @@ export const refreshEpisodesEffect = Effect.fn("AnimeService.refreshEpisodesEffe
       input.animeId,
       nextAnimeRow,
       metadata?.futureAiringSchedule,
-      "Failed to refresh episodes",
       nowIso,
     );
     yield* appendSystemLog(
@@ -196,7 +193,6 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             animeRow.id,
             nextAnimeRow,
             metadata?.futureAiringSchedule,
-            "Failed to refresh metadata",
             nowIso,
           );
           refreshed += 1;

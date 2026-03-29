@@ -1,24 +1,14 @@
 import { and, eq } from "drizzle-orm";
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, episodes } from "../../db/schema.ts";
 import { inferAiredAt } from "../../lib/anime-derivations.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { AnimeNotFoundError } from "./errors.ts";
+import { AnimeNotFoundError, AnimeStoredDataError } from "./errors.ts";
 
 type EpisodeWriteDb = Pick<AppDatabase, "insert" | "select" | "update">;
 type NowIso = () => Effect.Effect<string>;
-
-export class UpsertEpisodeError extends Schema.TaggedError<UpsertEpisodeError>()(
-  "UpsertEpisodeError",
-  {
-    anime_id: Schema.Number,
-    episode_number: Schema.Number,
-    message: Schema.String,
-    cause: Schema.optional(Schema.Defect),
-  },
-) {}
 
 type UpsertEpisodePatch = {
   aired?: string | null;
@@ -133,11 +123,8 @@ export const upsertEpisodeEffect = Effect.fn("AnimeRepository.upsertEpisode")(fu
   );
 
   if (!existingRows[0]) {
-    return yield* new UpsertEpisodeError({
-      anime_id: animeId,
-      episode_number: episodeNumber,
+    return yield* new AnimeStoredDataError({
       message: "Failed to upsert episode",
-      cause: insertResult.left,
     });
   }
 

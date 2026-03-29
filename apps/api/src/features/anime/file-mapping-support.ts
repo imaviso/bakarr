@@ -30,10 +30,7 @@ import {
   upsertEpisodeEffect,
 } from "./repository.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { wrapAnimeError } from "./service-support.ts";
 import { summarizeEpisodeCoverage } from "../../lib/anime-derivations.ts";
-
-const mapAnimeDbError = (message: string) => Effect.mapError(wrapAnimeError(message));
 
 export class EpisodeFileResolved extends Schema.TaggedClass<EpisodeFileResolved>()(
   "EpisodeFileResolved",
@@ -137,9 +134,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeService.scanAnimeFolderEffe
     mediaProbe: MediaProbeShape;
     nowIso: () => Effect.Effect<string>;
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
-      mapAnimeDbError("Failed to scan anime folder"),
-    );
+    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
     const files = yield* loadAnimeFiles(input.fs, animeRow.rootFolder);
     let found = 0;
     const airingScheduleByEpisode = buildAiringScheduleMap(
@@ -213,7 +208,7 @@ export const scanAnimeFolderEffect = Effect.fn("AnimeService.scanAnimeFolderEffe
           audioCodec: mergedMetadata.audio_codec,
           audioChannels: mergedMetadata.audio_channels,
           title: null,
-        }).pipe(mapAnimeDbError("Failed to scan anime folder"));
+        });
       }
       found += episodeNumbers.length;
     }
@@ -233,14 +228,8 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeService.deleteEpisodeFile
     episodeNumber: number;
     fs: FileSystemShape;
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
-      mapAnimeDbError("Failed to delete episode file"),
-    );
-    const episodeRow = yield* getEpisodeRowEffect(
-      input.db,
-      input.animeId,
-      input.episodeNumber,
-    ).pipe(mapAnimeDbError("Failed to delete episode file"));
+    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
+    const episodeRow = yield* getEpisodeRowEffect(input.db, input.animeId, input.episodeNumber);
 
     if (episodeRow.filePath) {
       const { filePath } = episodeRow;
@@ -270,9 +259,7 @@ export const deleteEpisodeFileEffect = Effect.fn("AnimeService.deleteEpisodeFile
       );
     }
 
-    yield* clearEpisodeMappingEffect(input.db, input.animeId, input.episodeNumber).pipe(
-      mapAnimeDbError("Failed to delete episode file"),
-    );
+    yield* clearEpisodeMappingEffect(input.db, input.animeId, input.episodeNumber);
   },
 );
 
@@ -284,14 +271,10 @@ export const mapEpisodeFileEffect = Effect.fn("AnimeService.mapEpisodeFileEffect
     filePath: string;
     fs: FileSystemShape;
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
-      mapAnimeDbError("Failed to map episode file"),
-    );
+    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
 
     if (input.filePath.trim().length === 0) {
-      yield* clearEpisodeMappingEffect(input.db, input.animeId, input.episodeNumber).pipe(
-        mapAnimeDbError("Failed to map episode file"),
-      );
+      yield* clearEpisodeMappingEffect(input.db, input.animeId, input.episodeNumber);
       return;
     }
 
@@ -306,7 +289,7 @@ export const mapEpisodeFileEffect = Effect.fn("AnimeService.mapEpisodeFileEffect
     yield* upsertEpisodeEffect(input.db, input.animeId, input.episodeNumber, {
       downloaded: true,
       filePath: input.filePath,
-    }).pipe(mapAnimeDbError("Failed to map episode file"));
+    });
   },
 );
 
@@ -317,9 +300,7 @@ export const bulkMapEpisodeFilesEffect = Effect.fn("AnimeService.bulkMapEpisodeF
     fs: FileSystemShape;
     mappings: readonly { episode_number: number; file_path: string }[];
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
-      mapAnimeDbError("Failed to bulk-map episode files"),
-    );
+    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
     const animeRoot = yield* loadAnimeRoot(input.fs, animeRow.rootFolder);
 
     const validated: {
@@ -352,9 +333,7 @@ export const bulkMapEpisodeFilesEffect = Effect.fn("AnimeService.bulkMapEpisodeF
       });
     }
 
-    yield* bulkMapEpisodeFilesAtomicEffect(input.db, input.animeId, validated).pipe(
-      mapAnimeDbError("Failed to bulk-map episode files"),
-    );
+    yield* bulkMapEpisodeFilesAtomicEffect(input.db, input.animeId, validated);
   },
 );
 
@@ -365,9 +344,7 @@ export const listAnimeFilesEffect = Effect.fn("AnimeService.listAnimeFilesEffect
     fs: FileSystemShape;
     mediaProbe: MediaProbeShape;
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
-      mapAnimeDbError("Failed to list video files"),
-    );
+    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
     const files = yield* loadAnimeFiles(input.fs, animeRow.rootFolder);
     const cachedEpisodeRows = yield* tryDatabasePromise("Failed to list video files", () =>
       input.db
@@ -547,14 +524,8 @@ export const resolveEpisodeFileEffect = Effect.fn("AnimeService.resolveEpisodeFi
     episodeNumber: number;
     fs: FileSystemShape;
   }) {
-    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId).pipe(
-      mapAnimeDbError("Failed to resolve episode file"),
-    );
-    const episodeRow = yield* getEpisodeRowEffect(
-      input.db,
-      input.animeId,
-      input.episodeNumber,
-    ).pipe(mapAnimeDbError("Failed to resolve episode file"));
+    const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
+    const episodeRow = yield* getEpisodeRowEffect(input.db, input.animeId, input.episodeNumber);
 
     if (!episodeRow.filePath) {
       return new EpisodeFileUnmapped();

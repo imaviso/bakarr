@@ -19,7 +19,7 @@ import { buildMissingEpisodeRows, findAnimeRootFolderOwnerEffect } from "./repos
 import { insertAnimeAggregateAtomicEffect } from "./aggregate-support.ts";
 import { getConfiguredImagesPathEffect, resolveAnimeRootFolderEffect } from "./config-support.ts";
 import { qualityProfileExistsEffect } from "./profile-support.ts";
-import { tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 
 export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function* (input: {
   aniList: typeof AniListClient.Service;
@@ -61,7 +61,7 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function*
     input.animeInput.root_folder,
     metadata.title.romaji,
     { useExistingRoot: input.animeInput.use_existing_root },
-  ).pipe(Effect.mapError(wrapAnimeError("Failed to add anime")));
+  );
 
   const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(input.db, rootFolder);
 
@@ -80,9 +80,7 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function*
     ),
   );
 
-  const imagesPath = yield* getConfiguredImagesPathEffect(input.db).pipe(
-    Effect.mapError(wrapAnimeError("Failed to add anime")),
-  );
+  const imagesPath = yield* getConfiguredImagesPathEffect(input.db);
   const cachedImages = yield* cacheAnimeMetadataImages(
     input.fs,
     input.httpClient,

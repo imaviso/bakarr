@@ -16,7 +16,7 @@ import { SearchWorkflow } from "../operations/search-service-tags.ts";
 import type { ProfileNotFoundError } from "../system/errors.ts";
 import type { AddAnimeInput } from "./add-anime-input.ts";
 import type { AnimeServiceError } from "./errors.ts";
-import { AnimeMutationService } from "./service.ts";
+import { AnimeMutationService } from "./mutation-service.ts";
 
 export type AnimeEnrollmentError =
   | DatabaseError

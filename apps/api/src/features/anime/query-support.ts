@@ -15,7 +15,7 @@ import type { AniListClient } from "./anilist.ts";
 import { toAnimeDto } from "./dto.ts";
 import { AnimeNotFoundError, AnimeStoredDataError } from "./errors.ts";
 import { getAnimeRowEffect } from "./repository.ts";
-import { tryDatabasePromise, wrapAnimeError } from "./service-support.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "../../lib/anime-date-utils.ts";
 import {
   deriveEpisodeTimelineMetadata,
@@ -219,9 +219,7 @@ export const getAnimeEffect = Effect.fn("AnimeService.getAnimeEffect")(function*
   db: AppDatabase;
   id: number;
 }) {
-  const row = yield* getAnimeRowEffect(input.db, input.id).pipe(
-    Effect.mapError(wrapAnimeError("Failed to load anime")),
-  );
+  const row = yield* getAnimeRowEffect(input.db, input.id);
   const episodeRows = yield* tryDatabasePromise("Failed to load anime", () =>
     input.db.select().from(episodes).where(eq(episodes.animeId, input.id)),
   );

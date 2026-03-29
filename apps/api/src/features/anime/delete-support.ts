@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
-import { tryDatabasePromise } from "./service-support.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { appendSystemLog } from "../system/support.ts";
 
 export const deleteAnimeEffect = Effect.fn("AnimeService.deleteAnimeEffect")(function* (

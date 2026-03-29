@@ -6,6 +6,7 @@ import { appConfig } from "../../db/schema.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { effectDecodeConfigCore, effectDecodeImagePath } from "../system/config-codec.ts";
 import { makeDefaultConfig } from "../system/defaults.ts";
+import { AnimeStoredDataError } from "./errors.ts";
 
 export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolveAnimeRootFolder")(
   function* (
@@ -19,7 +20,14 @@ export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolv
       db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
     );
     const configCore = rows[0]
-      ? yield* effectDecodeConfigCore(rows[0].data)
+      ? yield* effectDecodeConfigCore(rows[0].data).pipe(
+          Effect.mapError(
+            () =>
+              new AnimeStoredDataError({
+                message: "Stored anime configuration is corrupt",
+              }),
+          ),
+        )
       : makeDefaultConfig(":memory:");
     const settings = toLibrarySettings(configCore);
     const baseRootFolder = trimmed.length > 0 ? trimmed : settings.libraryPath;
@@ -49,7 +57,14 @@ export const getConfiguredImagesPathEffect = Effect.fn(
     db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1),
   );
 
-  return yield* effectDecodeImagePath(rows[0]);
+  return yield* effectDecodeImagePath(rows[0]).pipe(
+    Effect.mapError(
+      () =>
+        new AnimeStoredDataError({
+          message: "Stored anime image path configuration is corrupt",
+        }),
+    ),
+  );
 });
 
 export const getConfiguredLibraryPathEffect = Effect.fn(
@@ -60,7 +75,14 @@ export const getConfiguredLibraryPathEffect = Effect.fn(
   );
 
   const configCore = rows[0]
-    ? yield* effectDecodeConfigCore(rows[0].data)
+    ? yield* effectDecodeConfigCore(rows[0].data).pipe(
+        Effect.mapError(
+          () =>
+            new AnimeStoredDataError({
+              message: "Stored anime configuration is corrupt",
+            }),
+        ),
+      )
     : makeDefaultConfig(":memory:");
 
   return toLibrarySettings(configCore).libraryPath;
