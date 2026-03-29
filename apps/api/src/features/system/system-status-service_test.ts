@@ -11,6 +11,7 @@ import { RandomServiceLive } from "../../lib/random.ts";
 import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import { assertEquals, describe, it } from "../../test/vitest.ts";
 import * as schema from "../../db/schema.ts";
+import { BackgroundJobStatusServiceLive } from "./background-job-status-service.ts";
 import { DiskSpaceInspectorLive } from "./disk-space.ts";
 import { StoredConfigMissingError } from "./errors.ts";
 import { SystemConfigServiceLive } from "./system-config-service.ts";
@@ -50,8 +51,18 @@ describe("SystemStatusService", () => {
 
           const diskSpaceLayer = DiskSpaceInspectorLive.pipe(Layer.provide(baseLayer));
           const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(baseLayer));
+          const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
+            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer)),
+          );
           const systemStatusLayer = SystemStatusServiceLive.pipe(
-            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer, diskSpaceLayer)),
+            Layer.provide(
+              Layer.mergeAll(
+                baseLayer,
+                systemConfigLayer,
+                diskSpaceLayer,
+                backgroundJobStatusLayer,
+              ),
+            ),
           );
 
           const exit = yield* Effect.exit(

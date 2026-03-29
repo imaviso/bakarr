@@ -1,40 +1,28 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { OpsDashboard } from "../../../../../packages/shared/src/index.ts";
-import { BackgroundWorkerMonitor } from "../../background-monitor.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
+import { Database } from "../../db/database.ts";
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
 } from "../../lib/download-event-presentations.ts";
 import { OperationsStoredDataError } from "../operations/errors.ts";
 import {
-  composeBackgroundJobStatuses,
-  countRunningBackgroundJobStatuses,
-} from "./background-status.ts";
-import {
-  ConfigValidationError,
-  StoredConfigCorruptError,
-  StoredConfigMissingError,
-} from "./errors.ts";
+  BackgroundJobStatusError,
+  BackgroundJobStatusService,
+} from "./background-job-status-service.ts";
 import {
   countActiveDownloads,
   countFailedDownloads,
   countImportedDownloads,
   countQueuedDownloads,
-  listBackgroundJobRows,
   listRecentDownloadEventRows,
 } from "./repository/stats-repository.ts";
-import { SystemConfigService } from "./system-config-service.ts";
 
 export interface SystemDashboardServiceShape {
   readonly getDashboard: () => Effect.Effect<
     OpsDashboard,
-    | DatabaseError
-    | ConfigValidationError
-    | StoredConfigCorruptError
-    | StoredConfigMissingError
-    | OperationsStoredDataError
+    BackgroundJobStatusError | OperationsStoredDataError
   >;
 }
 
@@ -45,18 +33,14 @@ export class SystemDashboardService extends Context.Tag("@bakarr/api/SystemDashb
 
 const makeSystemDashboardService = Effect.gen(function* () {
   const { db } = yield* Database;
-  const monitor = yield* BackgroundWorkerMonitor;
-  const configService = yield* SystemConfigService;
+  const backgroundJobStatusService = yield* BackgroundJobStatusService;
 
   const getDashboard = Effect.fn("SystemDashboardService.getDashboard")(function* () {
-    const currentConfig = yield* configService.getConfig();
     const queuedDownloads = yield* countQueuedDownloads(db);
     const activeDownloads = yield* countActiveDownloads(db);
     const failedDownloads = yield* countFailedDownloads(db);
     const importedDownloads = yield* countImportedDownloads(db);
-    const jobRows = yield* listBackgroundJobRows(db);
-    const liveSnapshot = yield* monitor.snapshot();
-    const jobs = composeBackgroundJobStatuses(currentConfig, liveSnapshot, jobRows);
+    const snapshot = yield* backgroundJobStatusService.getSnapshot();
     const events = yield* listRecentDownloadEventRows(db, 12);
     const eventContexts = yield* loadDownloadEventPresentationContexts(db, events);
 
@@ -68,10 +52,10 @@ const makeSystemDashboardService = Effect.gen(function* () {
       active_downloads: activeDownloads,
       failed_downloads: failedDownloads,
       imported_downloads: importedDownloads,
-      jobs,
+      jobs: snapshot.jobs,
       queued_downloads: queuedDownloads,
       recent_download_events: recentDownloadEvents,
-      running_jobs: countRunningBackgroundJobStatuses(jobs),
+      running_jobs: snapshot.runningJobs,
     } as OpsDashboard;
   });
 

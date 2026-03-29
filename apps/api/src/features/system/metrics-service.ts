@@ -2,16 +2,15 @@ import { Context, Effect, Layer, Metric } from "effect";
 
 import type { DatabaseError } from "../../db/database.ts";
 import { renderBakarrPrometheusMetrics } from "../../lib/metrics.ts";
-import { CatalogWorkflow } from "../operations/catalog-service-tags.ts";
+import { DownloadProgressService } from "../operations/download-service-tags.ts";
 import type { OperationsError } from "../operations/errors.ts";
 import { SystemStatusService } from "./system-status-service.ts";
 import type { DiskSpaceError } from "./disk-space.ts";
-import type { StoredConfigCorruptError, StoredConfigMissingError } from "./errors.ts";
+import { BackgroundJobStatusError } from "./background-job-status-service.ts";
 
 export type MetricsServiceError =
   | DatabaseError
-  | StoredConfigCorruptError
-  | StoredConfigMissingError
+  | BackgroundJobStatusError
   | DiskSpaceError
   | OperationsError;
 
@@ -26,13 +25,13 @@ export class MetricsService extends Context.Tag("@bakarr/api/MetricsService")<
 
 const makeMetricsService = Effect.gen(function* () {
   const systemService = yield* SystemStatusService;
-  const catalogService = yield* CatalogWorkflow;
+  const downloadProgressService = yield* DownloadProgressService;
 
   const renderPrometheusMetrics = Effect.fn("MetricsService.renderPrometheusMetrics")(function* () {
     const [status, stats, downloads] = yield* Effect.all([
       systemService.getSystemStatus(),
       systemService.getLibraryStats(),
-      catalogService.getDownloadProgress(),
+      downloadProgressService.getDownloadProgress(),
     ]);
     const snapshot = yield* Metric.snapshot;
 

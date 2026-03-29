@@ -8,16 +8,13 @@ import type {
 } from "../../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../../config.ts";
 import { AppRuntime } from "../../app-runtime.ts";
-import { BackgroundWorkerMonitor } from "../../background-monitor.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { ClockService } from "../../lib/clock.ts";
-import { composeBackgroundJobStatuses, findBackgroundJobStatus } from "./background-status.ts";
 import { DiskSpaceError, DiskSpaceInspector, selectStoragePath } from "./disk-space.ts";
 import {
-  ConfigValidationError,
-  StoredConfigCorruptError,
-  StoredConfigMissingError,
-} from "./errors.ts";
+  BackgroundJobStatusError,
+  BackgroundJobStatusService,
+} from "./background-job-status-service.ts";
 import {
   countActiveDownloads,
   countAnimeRows,
@@ -28,22 +25,19 @@ import {
   countQueuedDownloads,
   countRssFeedRows,
   countUpToDateAnimeRows,
-  listBackgroundJobRows,
   listRecentSystemLogRows,
 } from "./repository/stats-repository.ts";
 import { SystemConfigService } from "./system-config-service.ts";
+import { findBackgroundJobStatus } from "./background-status.ts";
 
 export interface SystemStatusServiceShape {
   readonly getSystemStatus: () => Effect.Effect<
     SystemStatus,
-    DatabaseError | StoredConfigCorruptError | StoredConfigMissingError | DiskSpaceError
+    BackgroundJobStatusError | DiskSpaceError
   >;
   readonly getLibraryStats: () => Effect.Effect<LibraryStats, DatabaseError>;
   readonly getActivity: () => Effect.Effect<ActivityItem[], DatabaseError>;
-  readonly getJobs: () => Effect.Effect<
-    BackgroundJobStatus[],
-    DatabaseError | ConfigValidationError | StoredConfigCorruptError | StoredConfigMissingError
-  >;
+  readonly getJobs: () => Effect.Effect<BackgroundJobStatus[], BackgroundJobStatusError>;
 }
 
 export class SystemStatusService extends Context.Tag("@bakarr/api/SystemStatusService")<
@@ -56,9 +50,9 @@ const makeSystemStatusService = Effect.gen(function* () {
   const appConfig = yield* AppConfig;
   const runtime = yield* AppRuntime;
   const clock = yield* ClockService;
-  const monitor = yield* BackgroundWorkerMonitor;
   const diskSpaceInspector = yield* DiskSpaceInspector;
   const configService = yield* SystemConfigService;
+  const backgroundJobStatusService = yield* BackgroundJobStatusService;
   const currentTimeMillis = () => clock.currentTimeMillis;
 
   const getSystemStatus = Effect.fn("SystemStatusService.getSystemStatus")(function* () {
@@ -67,12 +61,10 @@ const makeSystemStatusService = Effect.gen(function* () {
     const diskSpace = yield* diskSpaceInspector.getDiskSpaceSafe(storagePath);
     const queuedDownloads = yield* countQueuedDownloads(db);
     const activeDownloads = yield* countActiveDownloads(db);
-    const jobRows = yield* listBackgroundJobRows(db);
-    const liveSnapshot = yield* monitor.snapshot();
-    const jobs = composeBackgroundJobStatuses(currentConfig, liveSnapshot, jobRows);
-    const rssJob = findBackgroundJobStatus(jobs, "rss");
-    const scanJob = findBackgroundJobStatus(jobs, "library_scan");
-    const metadataRefreshJob = findBackgroundJobStatus(jobs, "metadata_refresh");
+    const snapshot = yield* backgroundJobStatusService.getSnapshot();
+    const rssJob = findBackgroundJobStatus(snapshot.jobs, "rss");
+    const scanJob = findBackgroundJobStatus(snapshot.jobs, "library_scan");
+    const metadataRefreshJob = findBackgroundJobStatus(snapshot.jobs, "metadata_refresh");
     const now = yield* currentTimeMillis();
 
     return {
@@ -127,10 +119,9 @@ const makeSystemStatusService = Effect.gen(function* () {
   });
 
   const getJobs = Effect.fn("SystemStatusService.getJobs")(function* () {
-    const currentConfig = yield* configService.getConfig();
-    const jobRows = yield* listBackgroundJobRows(db);
-    const liveSnapshot = yield* monitor.snapshot();
-    return composeBackgroundJobStatuses(currentConfig, liveSnapshot, jobRows);
+    return yield* backgroundJobStatusService
+      .getSnapshot()
+      .pipe(Effect.map((snapshot) => snapshot.jobs));
   });
 
   return {

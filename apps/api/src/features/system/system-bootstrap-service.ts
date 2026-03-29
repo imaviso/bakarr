@@ -1,8 +1,11 @@
 import { Context, Effect, Layer } from "effect";
+import { eq } from "drizzle-orm";
 
 import { AppConfig } from "../../config.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
+import { appConfig, qualityProfiles } from "../../db/schema.ts";
 import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
+import { tryDatabasePromise } from "../../lib/effect-db.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "./defaults.ts";
 import {
   effectDecodeConfigCore,
@@ -10,14 +13,7 @@ import {
   encodeQualityProfileRow,
 } from "./config-codec.ts";
 import { applyRuntimeLogLevelFromConfig } from "./runtime-config.ts";
-import {
-  insertQualityProfileRows,
-  loadAnyQualityProfileRow,
-} from "./repository/quality-profile-repository.ts";
-import {
-  insertSystemConfigRow,
-  loadSystemConfigRow,
-} from "./repository/system-config-repository.ts";
+import { loadSystemConfigRow } from "./repository/system-config-repository.ts";
 export interface SystemBootstrapServiceShape {
   /**
    * First-run initialization (idempotent):
@@ -42,22 +38,27 @@ const makeSystemBootstrapService = Effect.gen(function* () {
   const nowIso = () => nowIsoFromClock(clock);
 
   const ensureInitialized = Effect.fn("SystemBootstrapService.ensureInitialized")(function* () {
-    const configRow = yield* loadSystemConfigRow(db);
+    const initNow = yield* nowIso();
 
-    if (!configRow) {
-      const initNow = yield* nowIso();
-      yield* insertSystemConfigRow(db, {
-        data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
-        id: 1,
-        updatedAt: initNow,
-      });
-    }
+    yield* tryDatabasePromise("Failed to ensure bootstrap system state", () =>
+      db.transaction(async (tx) => {
+        const configRows = await tx.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1);
 
-    const existingProfile = yield* loadAnyQualityProfileRow(db);
+        if (configRows.length === 0) {
+          await tx.insert(appConfig).values({
+            data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
+            id: 1,
+            updatedAt: initNow,
+          });
+        }
 
-    if (!existingProfile) {
-      yield* insertQualityProfileRows(db, DEFAULT_PROFILES.map(encodeQualityProfileRow));
-    }
+        const existingProfiles = await tx.select().from(qualityProfiles).limit(1);
+
+        if (existingProfiles.length === 0) {
+          await tx.insert(qualityProfiles).values(DEFAULT_PROFILES.map(encodeQualityProfileRow));
+        }
+      }),
+    );
 
     const storedConfig = yield* loadSystemConfigRow(db);
 
