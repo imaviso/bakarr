@@ -1,7 +1,7 @@
-import { assert, assertEquals, assertExists, it } from "../../test/vitest.ts";
+import { assert, assertEquals, assertExists, it } from "@/test/vitest.ts";
 import { Effect, Exit, Fiber, Stream, TestClock } from "effect";
 
-import { makeEventBus } from "./event-bus.ts";
+import { makeEventBus } from "@/features/events/event-bus.ts";
 
 it.effect("event bus fans out events to active subscribers", () =>
   Effect.scoped(

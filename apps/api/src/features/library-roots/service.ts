@@ -1,9 +1,9 @@
 import { asc } from "drizzle-orm";
 import { Context, Effect, Layer } from "effect";
 
-import { Database, DatabaseError } from "../../db/database.ts";
-import { libraryRoots } from "../../db/schema.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { libraryRoots } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface LibraryRoot {
   readonly id: number;

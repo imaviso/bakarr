@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 
-import type { PasswordError } from "../../security/password.ts";
-import type { TokenHasherError } from "../../security/token-hasher.ts";
+import type { PasswordError } from "@/security/password.ts";
+import type { TokenHasherError } from "@/security/token-hasher.ts";
 
 export class AuthError extends Schema.TaggedError<AuthError>()("AuthError", {
   message: Schema.String,

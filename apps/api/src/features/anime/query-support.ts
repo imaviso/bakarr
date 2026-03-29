@@ -8,25 +8,25 @@ import type {
   AnimeSearchResponse,
   AnimeSearchResult,
   Episode,
-} from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { anime, episodes } from "../../db/schema.ts";
-import type { AniListClient } from "./anilist.ts";
-import { toAnimeDto } from "./dto.ts";
-import { AnimeNotFoundError, AnimeStoredDataError } from "./errors.ts";
-import { getAnimeRowEffect } from "./repository.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { deriveAnimeSeason, extractYearFromDate } from "../../lib/anime-date-utils.ts";
+} from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime, episodes } from "@/db/schema.ts";
+import type { AniListClient } from "@/features/anime/anilist.ts";
+import { toAnimeDto } from "@/features/anime/dto.ts";
+import { AnimeNotFoundError, AnimeStoredDataError } from "@/features/anime/errors.ts";
+import { getAnimeRowEffect } from "@/features/anime/repository.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
 import {
   deriveEpisodeTimelineMetadata,
   scoreAnimeSearchResultMatch,
-} from "../../lib/anime-derivations.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "../../lib/anime-search-results.ts";
+} from "@/lib/anime-derivations.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredNumberListEffect,
   decodeStoredStringListEffect,
-} from "./decode-support.ts";
+} from "@/features/anime/decode-support.ts";
 
 export const listAnimeEffect = Effect.fn("AnimeService.listAnimeEffect")(function* (
   db: AppDatabase,

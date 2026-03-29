@@ -2,24 +2,33 @@ import { HttpClient } from "@effect/platform";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import { encodeNumberList, encodeStringList } from "../system/config-codec.ts";
-import { ProfileNotFoundError } from "../system/errors.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { anime, episodes } from "../../db/schema.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { EventPublisherShape } from "../events/publisher.ts";
-import type { AddAnimeInput } from "./add-anime-input.ts";
-import type { AniListClient } from "./anilist.ts";
-import { encodeAnimeDiscoveryEntries, encodeAnimeSynonyms } from "./discovery-metadata-codec.ts";
-import { toAnimeDto } from "./dto.ts";
-import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "./errors.ts";
-import { cacheAnimeMetadataImages } from "./image-cache.ts";
-import { buildMissingEpisodeRows, findAnimeRootFolderOwnerEffect } from "./repository.ts";
-import { insertAnimeAggregateAtomicEffect } from "./aggregate-support.ts";
-import { getConfiguredImagesPathEffect, resolveAnimeRootFolderEffect } from "./config-support.ts";
-import { qualityProfileExistsEffect } from "./profile-support.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
+import { encodeNumberList, encodeStringList } from "@/features/system/config-codec.ts";
+import { ProfileNotFoundError } from "@/features/system/errors.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime, episodes } from "@/db/schema.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { EventPublisherShape } from "@/features/events/publisher.ts";
+import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
+import type { AniListClient } from "@/features/anime/anilist.ts";
+import {
+  encodeAnimeDiscoveryEntries,
+  encodeAnimeSynonyms,
+} from "@/features/anime/discovery-metadata-codec.ts";
+import { toAnimeDto } from "@/features/anime/dto.ts";
+import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "@/features/anime/errors.ts";
+import { cacheAnimeMetadataImages } from "@/features/anime/image-cache.ts";
+import {
+  buildMissingEpisodeRows,
+  findAnimeRootFolderOwnerEffect,
+} from "@/features/anime/repository.ts";
+import { insertAnimeAggregateAtomicEffect } from "@/features/anime/aggregate-support.ts";
+import {
+  getConfiguredImagesPathEffect,
+  resolveAnimeRootFolderEffect,
+} from "@/features/anime/config-support.ts";
+import { qualityProfileExistsEffect } from "@/features/anime/profile-support.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function* (input: {
   aniList: typeof AniListClient.Service;

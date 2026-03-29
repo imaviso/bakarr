@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import type { EventPublisherShape } from "../events/publisher.ts";
-import { appendSystemLog } from "../system/support.ts";
-import { requireAnimeExistsEffect } from "./repository.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import type { EventPublisherShape } from "@/features/events/publisher.ts";
+import { appendSystemLog } from "@/features/system/support.ts";
+import { requireAnimeExistsEffect } from "@/features/anime/repository.ts";
 
 export const updateAnimeRow = Effect.fn("AnimeUpdateSupport.updateAnimeRow")(function* (
   db: AppDatabase,

@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { appConfig, sessions, systemLogs, users } from "../../db/schema.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { appConfig, sessions, systemLogs, users } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export const findUserByUsername = Effect.fn("AuthUserRepository.findUserByUsername")(function* (
   db: AppDatabase,

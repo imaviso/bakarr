@@ -1,9 +1,9 @@
 import { HttpClient } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
-import { collectBoundedBytes } from "../../lib/bounded-stream.ts";
+import { collectBoundedBytes } from "@/lib/bounded-stream.ts";
 
-import type { FileSystemShape } from "../../lib/filesystem.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
 
 export interface CachedAnimeImages {
   readonly bannerImage?: string;

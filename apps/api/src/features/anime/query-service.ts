@@ -1,8 +1,8 @@
 import { Context, Effect, Layer } from "effect";
 
-import { Database, DatabaseError } from "../../db/database.ts";
-import { ClockService } from "../../lib/clock.ts";
-import { AniListClient } from "./anilist.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { AniListClient } from "@/features/anime/anilist.ts";
 import type {
   AnimeListQueryParams,
   AnimeListResponse,
@@ -10,16 +10,20 @@ import type {
   AnimeSearchResult,
   Anime,
   Episode,
-} from "../../../../../packages/shared/src/index.ts";
-import { type AnimeServiceError, AnimeStoredDataError, AnimeNotFoundError } from "./errors.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
+} from "@packages/shared/index.ts";
+import {
+  type AnimeServiceError,
+  AnimeStoredDataError,
+  AnimeNotFoundError,
+} from "@/features/anime/errors.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
 import {
   listAnimeEffect,
   getAnimeEffect,
   searchAnimeEffect,
   getAnimeByAnilistIdEffect,
   listEpisodesEffect,
-} from "./query-support.ts";
+} from "@/features/anime/query-support.ts";
 
 export interface AnimeQueryServiceShape {
   readonly listAnime: (

@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect";
-import { AnimeDiscoveryEntrySchema } from "../../../../../packages/shared/src/index.ts";
-import { AnimeStoredDataError } from "./errors.ts";
+import { AnimeDiscoveryEntrySchema } from "@packages/shared/index.ts";
+import { AnimeStoredDataError } from "@/features/anime/errors.ts";
 
 const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(Schema.Array(AnimeDiscoveryEntrySchema));
 const AnimeSynonymsJsonSchema = Schema.parseJson(Schema.Array(Schema.String));

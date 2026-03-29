@@ -1,13 +1,13 @@
 import { Effect } from "effect";
-import type { Anime, AnimeDiscoveryEntry } from "../../../../../packages/shared/src/index.ts";
-import { anime, episodes } from "../../db/schema.ts";
-import { deriveAnimeSeason, extractYearFromDate } from "../../lib/anime-date-utils.ts";
+import type { Anime, AnimeDiscoveryEntry } from "@packages/shared/index.ts";
+import { anime, episodes } from "@/db/schema.ts";
+import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredNumberListEffect,
   decodeStoredStringListEffect,
   decodeStoredSynonymsEffect,
-} from "./decode-support.ts";
+} from "@/features/anime/decode-support.ts";
 
 interface AnimeDiscoveryMetadata {
   recommended_anime?: AnimeDiscoveryEntry[];

@@ -1,13 +1,13 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { eq } from "drizzle-orm";
 import { Cause, Effect, Exit } from "effect";
 
-import * as schema from "../../db/schema.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
-import { refreshEpisodesEffect } from "./orchestration-support.ts";
+import * as schema from "@/db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { refreshEpisodesEffect } from "@/features/anime/orchestration-support.ts";
 
 it.scoped(
   "refreshEpisodesEffect fails instead of silently using stored metadata when AniList fails",

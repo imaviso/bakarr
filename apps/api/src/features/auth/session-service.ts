@@ -6,19 +6,19 @@ import type {
   AuthUser,
   LoginRequest,
   LoginResponse,
-} from "../../../../../packages/shared/src/index.ts";
-import { AppConfig } from "../../config.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { sessions, users } from "../../db/schema.ts";
-import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { randomHexFrom, RandomService } from "../../lib/random.ts";
-import { verifyPassword } from "../../security/password.ts";
-import { TokenHasher, type TokenHasherError } from "../../security/token-hasher.ts";
-import { AuthError, type AuthCryptoError } from "./errors.ts";
-import { writeAuthLog } from "./audit-log.ts";
-import { findUserByApiKey, findUserByUsername } from "./user-repository.ts";
+} from "@packages/shared/index.ts";
+import { AppConfig } from "@/config.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { sessions, users } from "@/db/schema.ts";
+import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { randomHexFrom, RandomService } from "@/lib/random.ts";
+import { verifyPassword } from "@/security/password.ts";
+import { TokenHasher, type TokenHasherError } from "@/security/token-hasher.ts";
+import { AuthError, type AuthCryptoError } from "@/features/auth/errors.ts";
+import { writeAuthLog } from "@/features/auth/audit-log.ts";
+import { findUserByApiKey, findUserByUsername } from "@/features/auth/user-repository.ts";
 
 export interface SessionIdentity {
   readonly token: string;

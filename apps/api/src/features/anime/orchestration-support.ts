@@ -1,24 +1,27 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import { markJobFailed, markJobStarted, markJobSucceeded } from "../../lib/job-status.ts";
-import type { EventPublisherShape } from "../events/publisher.ts";
-import { appendSystemLog } from "../system/support.ts";
-import type { AniListClient } from "./anilist.ts";
-import { encodeAnimeDiscoveryEntries, encodeAnimeSynonyms } from "./discovery-metadata-codec.ts";
-import { scanAnimeFolderEffect } from "./file-mapping-support.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import type { MediaProbeShape } from "@/lib/media-probe.ts";
+import { markJobFailed, markJobStarted, markJobSucceeded } from "@/lib/job-status.ts";
+import type { EventPublisherShape } from "@/features/events/publisher.ts";
+import { appendSystemLog } from "@/features/system/support.ts";
+import type { AniListClient } from "@/features/anime/anilist.ts";
+import {
+  encodeAnimeDiscoveryEntries,
+  encodeAnimeSynonyms,
+} from "@/features/anime/discovery-metadata-codec.ts";
+import { scanAnimeFolderEffect } from "@/features/anime/file-mapping-support.ts";
 import {
   ensureEpisodesEffect,
   type FutureAiringScheduleEntry,
   getAnimeRowEffect,
   updateAnimeEpisodeAirDatesEffect,
-} from "./repository.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { updateAnimeRow } from "./update-support.ts";
+} from "@/features/anime/repository.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { updateAnimeRow } from "@/features/anime/update-support.ts";
 
 type AnimeEventPublisher = Pick<EventPublisherShape, "publish" | "publishInfo">;
 

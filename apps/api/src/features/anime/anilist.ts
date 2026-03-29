@@ -1,16 +1,16 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
 import { Context, Effect, Layer, Schema } from "effect";
 
-import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
-import { ClockService } from "../../lib/clock.ts";
-import { ExternalCallError, makeTryExternalEffect } from "../../lib/effect-retry.ts";
+import type { AnimeSearchResult } from "@packages/shared/index.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
 import {
   AnimeMetadataFromAniListSchema,
   AnimeSearchResultFromAniListSchema,
   AniListDetailPayloadSchema,
   AniListSearchPayloadSchema,
   type AnimeMetadata,
-} from "./anilist-model.ts";
+} from "@/features/anime/anilist-model.ts";
 
 const ANILIST_URL = "https://graphql.anilist.co";
 

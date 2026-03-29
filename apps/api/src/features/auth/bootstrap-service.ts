@@ -1,16 +1,16 @@
 import { Context, Effect, Layer, Redacted } from "effect";
 
-import { AppConfig } from "../../config.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { users } from "../../db/schema.ts";
-import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
-import { randomHexFrom, RandomService } from "../../lib/random.ts";
-import { hashPasswordWith } from "../../security/password.ts";
-import { TokenHasher } from "../../security/token-hasher.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { announceBootstrapCredentials } from "./bootstrap-output.ts";
-import { writeAuthLog } from "./audit-log.ts";
-import type { AuthCryptoError } from "./errors.ts";
+import { AppConfig } from "@/config.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { users } from "@/db/schema.ts";
+import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import { randomHexFrom, RandomService } from "@/lib/random.ts";
+import { hashPasswordWith } from "@/security/password.ts";
+import { TokenHasher } from "@/security/token-hasher.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { announceBootstrapCredentials } from "@/features/auth/bootstrap-output.ts";
+import { writeAuthLog } from "@/features/auth/audit-log.ts";
+import type { AuthCryptoError } from "@/features/auth/errors.ts";
 
 export interface AuthBootstrapServiceShape {
   readonly ensureBootstrapUser: () => Effect.Effect<void, DatabaseError | AuthCryptoError>;

@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, PubSub, Queue, Scope, Stream } from "effect";
 
-import type { NotificationEvent } from "../../../../../packages/shared/src/index.ts";
+import type { NotificationEvent } from "@packages/shared/index.ts";
 
 export const DEFAULT_EVENT_BUS_CAPACITY = 256;
 

@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { anime, episodes } from "../../db/schema.ts";
-import { inferAiredAt } from "../../lib/anime-derivations.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { AnimeNotFoundError, AnimeStoredDataError } from "./errors.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime, episodes } from "@/db/schema.ts";
+import { inferAiredAt } from "@/lib/anime-derivations.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { AnimeNotFoundError, AnimeStoredDataError } from "@/features/anime/errors.ts";
 
 type EpisodeWriteDb = Pick<AppDatabase, "insert" | "select" | "update">;
 type NowIso = () => Effect.Effect<string>;
@@ -340,7 +340,7 @@ function normalizeRootFolder(rootFolder: string) {
   return rootFolder.replace(/\/+$/, "");
 }
 
-export { markSearchResultsAlreadyInLibraryEffect } from "../../lib/anime-search-results.ts";
+export { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
 export { inferAiredAt };
 
 export function buildMissingEpisodeRows(input: {

@@ -1,15 +1,15 @@
 import { Effect } from "effect";
 
-import { Database } from "../../db/database.ts";
-import { FileSystem } from "../../lib/filesystem.ts";
-import { MediaProbe } from "../../lib/media-probe.ts";
+import { Database } from "@/db/database.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { MediaProbe } from "@/lib/media-probe.ts";
 import {
   bulkMapEpisodeFilesEffect,
   deleteEpisodeFileEffect,
   listAnimeFilesEffect,
   mapEpisodeFileEffect,
   resolveEpisodeFileEffect,
-} from "./file-mapping-support.ts";
+} from "@/features/anime/file-mapping-support.ts";
 
 export const makeAnimeFileOperations = Effect.fn("AnimeService.makeAnimeFileOperations")(
   function* () {

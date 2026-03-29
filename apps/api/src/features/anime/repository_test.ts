@@ -1,16 +1,16 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { eq } from "drizzle-orm";
 import { Cause, Effect, Exit, Schema } from "effect";
-import { ConfigCoreSchema } from "../system/config-schema.ts";
+import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
-import * as schema from "../../db/schema.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { anime, appConfig, episodes, qualityProfiles, systemLogs } from "../../db/schema.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
-import { encodeConfigCore } from "../system/config-codec.ts";
-import { makeDefaultConfig } from "../system/defaults.ts";
-import { qualityProfileExistsEffect } from "./profile-support.ts";
+import * as schema from "@/db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { anime, appConfig, episodes, qualityProfiles, systemLogs } from "@/db/schema.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { encodeConfigCore } from "@/features/system/config-codec.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
+import { qualityProfileExistsEffect } from "@/features/anime/profile-support.ts";
 
 import {
   buildMissingEpisodeRows,
@@ -19,13 +19,13 @@ import {
   inferAiredAt,
   markSearchResultsAlreadyInLibraryEffect,
   upsertEpisodeEffect,
-} from "./repository.ts";
+} from "@/features/anime/repository.ts";
 import {
   getConfiguredImagesPathEffect,
   getConfiguredLibraryPathEffect,
   resolveAnimeRootFolderEffect,
-} from "./config-support.ts";
-import { insertAnimeAggregateAtomicEffect } from "./aggregate-support.ts";
+} from "@/features/anime/config-support.ts";
+import { insertAnimeAggregateAtomicEffect } from "@/features/anime/aggregate-support.ts";
 
 it.scoped("upsertEpisode prevents duplicate anime episode rows", () =>
   withTestDbEffect((db) =>

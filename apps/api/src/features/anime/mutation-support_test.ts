@@ -1,16 +1,16 @@
 import { eq } from "drizzle-orm";
-import { appConfig, anime } from "../../db/schema.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { withFileSystemSandboxEffect } from "../../test/filesystem-test.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
-import { assertEquals, assertInstanceOf, it } from "../../test/vitest.ts";
+import { appConfig, anime } from "@/db/schema.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { assertEquals, assertInstanceOf, it } from "@/test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
-import * as schema from "../../db/schema.ts";
-import { AnimePathError } from "./errors.ts";
-import { updateAnimePathEffect } from "./mutation-support.ts";
-import { encodeConfigCore } from "../system/config-codec.ts";
-import { makeDefaultConfig } from "../system/defaults.ts";
+import * as schema from "@/db/schema.ts";
+import { AnimePathError } from "@/features/anime/errors.ts";
+import { updateAnimePathEffect } from "@/features/anime/mutation-support.ts";
+import { encodeConfigCore } from "@/features/system/config-codec.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
 
 it.scoped("updateAnimePathEffect accepts paths inside the configured library root", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>

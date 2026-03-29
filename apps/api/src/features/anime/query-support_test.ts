@@ -1,16 +1,16 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { eq } from "drizzle-orm";
 import { Effect, Exit } from "effect";
 
-import type { AnimeSearchResult } from "../../../../../packages/shared/src/index.ts";
-import * as schema from "../../db/schema.ts";
-import type { AppDatabase } from "../../db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { deriveEpisodeTimelineMetadata } from "../../lib/anime-derivations.ts";
-import { withSqliteTestDbEffect } from "../../test/database-test.ts";
-import { MediaProbeMetadataFound } from "../../lib/media-probe.ts";
-import { withFileSystemSandboxEffect, writeTextFile } from "../../test/filesystem-test.ts";
+import type { AnimeSearchResult } from "@packages/shared/index.ts";
+import * as schema from "@/db/schema.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { deriveEpisodeTimelineMetadata } from "@/lib/anime-derivations.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { MediaProbeMetadataFound } from "@/lib/media-probe.ts";
+import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import {
   annotateAnimeSearchResultsForQuery,
   getAnimeByAnilistIdEffect,
@@ -18,8 +18,8 @@ import {
   listAnimeEffect,
   listEpisodesEffect,
   searchAnimeEffect,
-} from "./query-support.ts";
-import { listAnimeFilesEffect } from "./file-mapping-support.ts";
+} from "@/features/anime/query-support.ts";
+import { listAnimeFilesEffect } from "@/features/anime/file-mapping-support.ts";
 
 it("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
   const results = annotateAnimeSearchResultsForQuery("Naruto", [

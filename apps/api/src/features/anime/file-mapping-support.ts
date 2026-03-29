@@ -1,25 +1,25 @@
 import { and, eq, isNotNull } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
-import { episodes } from "../../db/schema.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import { isWithinPathRoot } from "../../lib/filesystem.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { episodes } from "@/db/schema.ts";
+import type { FileSystemShape } from "@/lib/filesystem.ts";
+import { isWithinPathRoot } from "@/lib/filesystem.ts";
 import {
   type MediaProbeShape,
   mergeProbedMediaMetadata,
   type ProbedMediaMetadata,
   shouldProbeDetailedMediaMetadata,
-} from "../../lib/media-probe.ts";
-import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
+} from "@/lib/media-probe.ts";
+import type { VideoFile } from "@packages/shared/index.ts";
 import {
   classifyMediaArtifact,
   parseFileSourceIdentity,
   toSharedParsedEpisodeIdentity,
-} from "../../lib/media-identity.ts";
-import { collectVideoFiles } from "./files.ts";
-import { AnimePathError, type AnimeServiceError } from "./errors.ts";
-import { buildScannedFileMetadata } from "../../lib/scanned-file-metadata.ts";
+} from "@/lib/media-identity.ts";
+import { collectVideoFiles } from "@/features/anime/files.ts";
+import { AnimePathError, type AnimeServiceError } from "@/features/anime/errors.ts";
+import { buildScannedFileMetadata } from "@/lib/scanned-file-metadata.ts";
 import {
   buildAiringScheduleMap,
   bulkMapEpisodeFilesAtomicEffect,
@@ -28,9 +28,9 @@ import {
   getEpisodeRowEffect,
   inferAiredAt,
   upsertEpisodeEffect,
-} from "./repository.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { summarizeEpisodeCoverage } from "../../lib/anime-derivations.ts";
+} from "@/features/anime/repository.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
 
 export class EpisodeFileResolved extends Schema.TaggedClass<EpisodeFileResolved>()(
   "EpisodeFileResolved",

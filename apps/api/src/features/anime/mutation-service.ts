@@ -1,32 +1,32 @@
 import { HttpClient } from "@effect/platform";
 import { Context, Effect, Layer } from "effect";
 
-import type { Anime } from "../../../../../packages/shared/src/index.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { EventPublisher } from "../events/publisher.ts";
-import { ClockService, nowIsoFromClock } from "../../lib/clock.ts";
-import { AniListClient } from "./anilist.ts";
-import type { AddAnimeInput } from "./add-anime-input.ts";
+import type { Anime } from "@packages/shared/index.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { EventPublisher } from "@/features/events/publisher.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { AniListClient } from "@/features/anime/anilist.ts";
+import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
 import {
   AnimeConflictError,
   AnimeNotFoundError,
   AnimePathError,
   type AnimeServiceError,
   AnimeStoredDataError,
-} from "./errors.ts";
-import { ProfileNotFoundError } from "../system/errors.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { FileSystem } from "../../lib/filesystem.ts";
-import { addAnimeEffect } from "./add-anime-support.ts";
-import { deleteAnimeEffect } from "./delete-support.ts";
+} from "@/features/anime/errors.ts";
+import { ProfileNotFoundError } from "@/features/system/errors.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { addAnimeEffect } from "@/features/anime/add-anime-support.ts";
+import { deleteAnimeEffect } from "@/features/anime/delete-support.ts";
 import {
   setAnimeMonitoredEffect,
   updateAnimePathEffect,
   updateAnimeProfileEffect,
   updateAnimeReleaseProfilesEffect,
-} from "./mutation-support.ts";
-import { refreshEpisodesEffect } from "./orchestration-support.ts";
-import { makeMetadataRefreshRunner } from "./metadata-refresh.ts";
+} from "@/features/anime/mutation-support.ts";
+import { refreshEpisodesEffect } from "@/features/anime/orchestration-support.ts";
+import { makeMetadataRefreshRunner } from "@/features/anime/metadata-refresh.ts";
 
 export interface AnimeMutationServiceShape {
   readonly addAnime: (

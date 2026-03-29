@@ -1,11 +1,8 @@
 import { Schema } from "effect";
 
-import {
-  AnimeDiscoveryEntrySchema,
-  AnimeSearchResultSchema,
-} from "../../../../../packages/shared/src/index.ts";
-import type { AnimeDiscoveryEntry } from "../../../../../packages/shared/src/index.ts";
-import { deriveAnimeSeason } from "../../lib/anime-date-utils.ts";
+import { AnimeDiscoveryEntrySchema, AnimeSearchResultSchema } from "@packages/shared/index.ts";
+import type { AnimeDiscoveryEntry } from "@packages/shared/index.ts";
+import { deriveAnimeSeason } from "@/lib/anime-date-utils.ts";
 
 const AnimeMetadataTitleSchema = Schema.Struct({
   english: Schema.optional(Schema.String),

@@ -4,7 +4,7 @@ import {
   type AnimeDiscoveryEntry,
   AnimeDiscoveryEntrySchema,
   StringListSchema,
-} from "../../../../../packages/shared/src/index.ts";
+} from "@packages/shared/index.ts";
 
 const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(
   Schema.mutable(Schema.Array(AnimeDiscoveryEntrySchema)),

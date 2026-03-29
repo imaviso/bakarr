@@ -1,9 +1,9 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Deferred, Effect, Fiber, Layer, Ref, TestClock } from "effect";
 
-import { ClockServiceLive } from "../../lib/clock.ts";
-import { makeUnusedEventBusLayer } from "../../test/event-bus-stub.ts";
-import { makeEventPublisher } from "./publisher.ts";
+import { ClockServiceLive } from "@/lib/clock.ts";
+import { makeUnusedEventBusLayer } from "@/test/event-bus-stub.ts";
+import { makeEventPublisher } from "@/features/events/publisher.ts";
 
 it.scoped("event publisher coalesces rapid info messages to the newest message", () =>
   Effect.gen(function* () {

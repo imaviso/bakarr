@@ -1,9 +1,9 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Layer } from "effect";
 
-import { AniListClient, AniListClientLive } from "./anilist.ts";
-import { ClockServiceLive } from "../../lib/clock.ts";
+import { AniListClient, AniListClientLive } from "@/features/anime/anilist.ts";
+import { ClockServiceLive } from "@/lib/clock.ts";
 
 it.scoped("AniListClient uses provided HttpClient for search", () =>
   Effect.gen(function* () {

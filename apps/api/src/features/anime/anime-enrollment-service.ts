@@ -1,8 +1,8 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { Anime } from "../../../../../packages/shared/src/index.ts";
-import type { DatabaseError } from "../../db/database.ts";
-import type { ExternalCallError } from "../../lib/effect-retry.ts";
+import type { Anime } from "@packages/shared/index.ts";
+import type { DatabaseError } from "@/db/database.ts";
+import type { ExternalCallError } from "@/lib/effect-retry.ts";
 import type {
   OperationsError,
   OperationsInfrastructureError,
@@ -11,12 +11,12 @@ import type {
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
-} from "../operations/errors.ts";
-import { SearchWorkflow } from "../operations/search-service-tags.ts";
-import type { ProfileNotFoundError } from "../system/errors.ts";
-import type { AddAnimeInput } from "./add-anime-input.ts";
-import type { AnimeServiceError } from "./errors.ts";
-import { AnimeMutationService } from "./mutation-service.ts";
+} from "@/features/operations/errors.ts";
+import { SearchWorkflow } from "@/features/operations/search-service-tags.ts";
+import type { ProfileNotFoundError } from "@/features/system/errors.ts";
+import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
+import type { AnimeServiceError } from "@/features/anime/errors.ts";
+import { AnimeMutationService } from "@/features/anime/mutation-service.ts";
 
 export type AnimeEnrollmentError =
   | DatabaseError

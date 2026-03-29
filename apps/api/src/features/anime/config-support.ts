@@ -1,12 +1,12 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { appConfig } from "../../db/schema.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { effectDecodeConfigCore, effectDecodeImagePath } from "../system/config-codec.ts";
-import { makeDefaultConfig } from "../system/defaults.ts";
-import { AnimeStoredDataError } from "./errors.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { appConfig } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { effectDecodeConfigCore, effectDecodeImagePath } from "@/features/system/config-codec.ts";
+import { makeDefaultConfig } from "@/features/system/defaults.ts";
+import { AnimeStoredDataError } from "@/features/anime/errors.ts";
 
 export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolveAnimeRootFolder")(
   function* (

@@ -2,19 +2,22 @@ import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { win32 as PathForUtilities } from "node:path";
 
-import type { AppDatabase } from "../../db/database.ts";
-import { anime } from "../../db/schema.ts";
-import { isWithinPathRoot, type FileSystemShape } from "../../lib/filesystem.ts";
-import { encodeNumberList } from "../system/config-codec.ts";
-import { ProfileNotFoundError } from "../system/errors.ts";
-import type { EventPublisherShape } from "../events/publisher.ts";
-import { AnimeConflictError, AnimePathError } from "./errors.ts";
-import { findAnimeRootFolderOwnerEffect, requireAnimeExistsEffect } from "./repository.ts";
-import { getConfiguredLibraryPathEffect } from "./config-support.ts";
-import { qualityProfileExistsEffect } from "./profile-support.ts";
-import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { updateAnimeRow } from "./update-support.ts";
-import { appendSystemLog } from "../system/support.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import { isWithinPathRoot, type FileSystemShape } from "@/lib/filesystem.ts";
+import { encodeNumberList } from "@/features/system/config-codec.ts";
+import { ProfileNotFoundError } from "@/features/system/errors.ts";
+import type { EventPublisherShape } from "@/features/events/publisher.ts";
+import { AnimeConflictError, AnimePathError } from "@/features/anime/errors.ts";
+import {
+  findAnimeRootFolderOwnerEffect,
+  requireAnimeExistsEffect,
+} from "@/features/anime/repository.ts";
+import { getConfiguredLibraryPathEffect } from "@/features/anime/config-support.ts";
+import { qualityProfileExistsEffect } from "@/features/anime/profile-support.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { updateAnimeRow } from "@/features/anime/update-support.ts";
+import { appendSystemLog } from "@/features/system/support.ts";
 
 type AnimeInfoPublisher = Pick<EventPublisherShape, "publishInfo">;
 

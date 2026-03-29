@@ -1,9 +1,9 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
-import { anime, episodes } from "../../db/schema.ts";
-import { AnimeStoredDataError } from "./errors.ts";
-import { toAnimeDto } from "./dto.ts";
+import { anime, episodes } from "@/db/schema.ts";
+import { AnimeStoredDataError } from "@/features/anime/errors.ts";
+import { toAnimeDto } from "@/features/anime/dto.ts";
 
 it.effect("toAnimeDto builds progress, metadata, and decoded arrays", () =>
   Effect.gen(function* () {

@@ -1,9 +1,9 @@
-import { assertEquals, it } from "../../test/vitest.ts";
+import { assertEquals, it } from "@/test/vitest.ts";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Exit } from "effect";
 
-import { exists, withFileSystemSandboxEffect } from "../../test/filesystem-test.ts";
-import { cacheAnimeMetadataImages } from "./image-cache.ts";
+import { exists, withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
+import { cacheAnimeMetadataImages } from "@/features/anime/image-cache.ts";
 
 it.scoped("cacheAnimeMetadataImages uses provided HttpClient for remote images", () =>
   Effect.gen(function* () {

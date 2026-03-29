@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-import { AnimeIdSchema, ReleaseProfileIdSchema } from "../../lib/domain-schema.ts";
+import { AnimeIdSchema, ReleaseProfileIdSchema } from "@/lib/domain-schema.ts";
 
 const ReleaseProfileIdArraySchema = Schema.Array(ReleaseProfileIdSchema);
 

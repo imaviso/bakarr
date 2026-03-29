@@ -1,15 +1,15 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { VideoFile } from "../../../../../packages/shared/src/index.ts";
-import { Database, DatabaseError } from "../../db/database.ts";
-import { ClockService, nowIsoFromClock } from "../../lib/clock.ts";
-import { FileSystem } from "../../lib/filesystem.ts";
-import { MediaProbe } from "../../lib/media-probe.ts";
-import { EventPublisher } from "../events/publisher.ts";
-import { makeAnimeFileOperations } from "./service-wiring.ts";
-import { scanAnimeFolderOrchestrationEffect } from "./orchestration-support.ts";
-import { type AnimeServiceError } from "./errors.ts";
-import type { EpisodeFileResolution } from "./file-mapping-support.ts";
+import type { VideoFile } from "@packages/shared/index.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { MediaProbe } from "@/lib/media-probe.ts";
+import { EventPublisher } from "@/features/events/publisher.ts";
+import { makeAnimeFileOperations } from "@/features/anime/service-wiring.ts";
+import { scanAnimeFolderOrchestrationEffect } from "@/features/anime/orchestration-support.ts";
+import { type AnimeServiceError } from "@/features/anime/errors.ts";
+import type { EpisodeFileResolution } from "@/features/anime/file-mapping-support.ts";
 
 export interface AnimeFileServiceShape {
   readonly scanFolder: (
