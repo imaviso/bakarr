@@ -4,11 +4,9 @@ import { Effect } from "effect";
 import type { Config } from "../../../../../packages/shared/src/index.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { downloads } from "../../db/schema.ts";
-import type { ExternalCallError } from "../../lib/effect-retry.ts";
 import { EventBus } from "../events/event-bus.ts";
 import { QBitTorrentClient } from "./qbittorrent.ts";
 import { shouldDeleteImportedData, shouldRemoveTorrentOnImport } from "./download-support.ts";
-import { type OperationsError } from "./errors.ts";
 import {
   loadDownloadReconciliationContext,
   type DownloadReconciliationContext,
@@ -24,11 +22,6 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: import("../../lib/effect-db.ts").TryDatabasePromise;
-  readonly wrapOperationsError: (
-    message: string,
-  ) => (
-    cause: unknown,
-  ) => ExternalCallError | OperationsError | import("../../db/database.ts").DatabaseError;
   readonly maybeQBitConfig: (config: Config) => import("./qbittorrent.ts").QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
   readonly randomUuid: () => Effect.Effect<string>;
@@ -40,7 +33,6 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
     qbitClient,
     eventBus,
     tryDatabasePromise,
-    wrapOperationsError,
     maybeQBitConfig: maybeQBitConfigFromInput,
   } = input;
   const { nowIso } = input;
@@ -105,7 +97,6 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
           randomUuid,
           row,
           tryDatabasePromise,
-          wrapOperationsError,
           contentPath,
         });
 

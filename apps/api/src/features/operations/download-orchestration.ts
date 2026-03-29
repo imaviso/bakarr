@@ -2,25 +2,24 @@ import { Effect } from "effect";
 
 import { durationMsSince } from "../../lib/logging.ts";
 import { DatabaseError } from "../../db/database.ts";
+import { OperationsInfrastructureError } from "./errors.ts";
+import { mapQBitState } from "./download-orchestration-shared.ts";
 import { makeDownloadReconciliationService } from "./download-reconciliation-service.ts";
 import { makeDownloadTorrentLifecycleService } from "./download-torrent-lifecycle-service.ts";
 import { makeDownloadTriggerService } from "./download-trigger-service.ts";
-import { OperationsInfrastructureError } from "./errors.ts";
-import { type DownloadOrchestrationInput, mapQBitState } from "./download-orchestration-shared.ts";
 
-export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
-  const { currentMonotonicMillis } = input;
-  const reconciliationService = makeDownloadReconciliationService(input);
+type DownloadReconciliationServiceShape = ReturnType<typeof makeDownloadReconciliationService>;
+type DownloadTorrentLifecycleServiceShape = ReturnType<typeof makeDownloadTorrentLifecycleService>;
+type DownloadTriggerServiceShape = ReturnType<typeof makeDownloadTriggerService>;
 
-  const torrentLifecycleService = makeDownloadTorrentLifecycleService({
-    ...input,
-    reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,
-  });
-
-  const triggerService = makeDownloadTriggerService({
-    ...input,
-    syncDownloadsWithQBitEffect: torrentLifecycleService.syncDownloadsWithQBitEffect,
-  });
+export function makeDownloadOrchestration(input: {
+  readonly currentMonotonicMillis: () => Effect.Effect<number>;
+  readonly reconciliationService: DownloadReconciliationServiceShape;
+  readonly torrentLifecycleService: DownloadTorrentLifecycleServiceShape;
+  readonly triggerService: DownloadTriggerServiceShape;
+}) {
+  const { currentMonotonicMillis, reconciliationService, torrentLifecycleService, triggerService } =
+    input;
 
   const syncDownloadState = Effect.fn("operations.downloads.sync_state")(function* (
     trigger: string,
@@ -53,7 +52,6 @@ export function makeDownloadOrchestration(input: DownloadOrchestrationInput) {
 
   return {
     applyDownloadActionEffect: torrentLifecycleService.applyDownloadActionEffect,
-    getDownloadProgressSnapshotEffect: triggerService.getDownloadProgressSnapshotEffect,
     maybeCleanupImportedTorrent: reconciliationService.maybeCleanupImportedTorrent,
     publishDownloadProgress: triggerService.publishDownloadProgress,
     reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,

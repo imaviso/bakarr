@@ -41,9 +41,18 @@ export function makeSearchReleaseSupport(input: {
   db: AppDatabase;
   rssClient: typeof RssClient.Service;
   seadexClient: typeof SeaDexClient.Service;
-  wrapOperationsError: (message: string) => (cause: unknown) => SearchReleaseError;
 }) {
-  const { db, rssClient, seadexClient, wrapOperationsError } = input;
+  const { db, rssClient, seadexClient } = input;
+
+  const mapSearchReleaseError = (cause: unknown): SearchReleaseError =>
+    cause instanceof DatabaseError ||
+    cause instanceof ExternalCallError ||
+    cause instanceof OperationsInputError
+      ? cause
+      : new OperationsInfrastructureError({
+          message: "Failed to search releases",
+          cause,
+        });
 
   const searchNyaaReleases = Effect.fn("OperationsService.searchNyaaReleases")(function* (
     query: string,
@@ -121,12 +130,12 @@ export function makeSearchReleaseSupport(input: {
 
     const runtimeConfig = yield* loadRuntimeConfig(db);
     const results = yield* searchNyaaReleases(searchQuery, runtimeConfig, category, filter).pipe(
-      Effect.mapError(wrapOperationsError("Failed to search releases")),
+      Effect.mapError(mapSearchReleaseError),
     );
 
     const enrichedResults = animeRow
       ? yield* enrichSeaDexReleases(animeRow, results, runtimeConfig).pipe(
-          Effect.mapError(wrapOperationsError("Failed to search releases")),
+          Effect.mapError(mapSearchReleaseError),
         )
       : results;
 

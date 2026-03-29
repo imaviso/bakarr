@@ -1,22 +1,36 @@
 import { Context, Effect, Layer } from "effect";
 
-import { Database } from "../../db/database.ts";
-import { ClockService, nowIsoFromClock } from "../../lib/clock.ts";
-import { FileSystem } from "../../lib/filesystem.ts";
-import { MediaProbe } from "../../lib/media-probe.ts";
-import { AniListClient } from "../anime/anilist.ts";
-import { AnimeImportService } from "../anime/import-service.ts";
-import { EventBus } from "../events/event-bus.ts";
-import { QBitTorrentClient } from "./qbittorrent.ts";
-import { RssClient } from "./rss-client.ts";
-import { SeaDexClient } from "./seadex-client.ts";
-import { maybeQBitConfig, wrapOperationsError } from "./service-support.ts";
-import { tryDatabasePromise, toDatabaseError } from "../../lib/effect-db.ts";
-import { makeSearchOrchestration } from "./search-orchestration.ts";
-import { OperationsProgress } from "./operations-progress.ts";
-import { OperationsSharedState } from "./operations-shared-state.ts";
+import {
+  SearchBackgroundService,
+  SearchBackgroundServiceLive,
+  type SearchBackgroundServiceShape,
+} from "./search-background-service.ts";
+import {
+  SearchEpisodeService,
+  SearchEpisodeServiceLive,
+  type SearchEpisodeServiceShape,
+} from "./search-episode-service.ts";
+import {
+  SearchImportPathService,
+  SearchImportPathServiceLive,
+  type SearchImportPathServiceShape,
+} from "./search-import-path-service.ts";
+import {
+  SearchReleaseService,
+  SearchReleaseServiceLive,
+  type SearchReleaseServiceShape,
+} from "./search-release-service.ts";
+import {
+  SearchUnmappedService,
+  SearchUnmappedServiceLive,
+  type SearchUnmappedServiceShape,
+} from "./search-unmapped-service.ts";
 
-export type SearchWorkflowShape = ReturnType<typeof makeSearchOrchestration>;
+export type SearchWorkflowShape = SearchBackgroundServiceShape &
+  SearchEpisodeServiceShape &
+  SearchImportPathServiceShape &
+  SearchReleaseServiceShape &
+  SearchUnmappedServiceShape;
 
 export class SearchWorkflow extends Context.Tag("@bakarr/api/SearchWorkflow")<
   SearchWorkflow,
@@ -24,38 +38,31 @@ export class SearchWorkflow extends Context.Tag("@bakarr/api/SearchWorkflow")<
 >() {}
 
 export const makeSearchWorkflow = Effect.gen(function* () {
-  const { db } = yield* Database;
-  const eventBus = yield* EventBus;
-  const aniList = yield* AniListClient;
-  const animeImportService = yield* AnimeImportService;
-  const qbitClient = yield* QBitTorrentClient;
-  const rssClient = yield* RssClient;
-  const seadexClient = yield* SeaDexClient;
-  const fs = yield* FileSystem;
-  const mediaProbe = yield* MediaProbe;
-  const clock = yield* ClockService;
-  const sharedState = yield* OperationsSharedState;
-  const progress = yield* OperationsProgress;
+  const backgroundSearchService = yield* SearchBackgroundService;
+  const searchEpisodeService = yield* SearchEpisodeService;
+  const searchImportPathService = yield* SearchImportPathService;
+  const searchReleaseService = yield* SearchReleaseService;
+  const searchUnmappedService = yield* SearchUnmappedService;
 
-  return makeSearchOrchestration({
-    aniList,
-    animeImportService,
-    coordination: sharedState,
-    db,
-    dbError: toDatabaseError,
-    eventBus,
-    fs,
-    mediaProbe,
-    maybeQBitConfig,
-    nowIso: () => nowIsoFromClock(clock),
-    publishDownloadProgress: progress.publishDownloadProgress,
-    publishRssCheckProgress: progress.publishRssCheckProgress,
-    qbitClient,
-    rssClient,
-    seadexClient,
-    tryDatabasePromise,
-    wrapOperationsError,
-  });
+  return {
+    ...backgroundSearchService,
+    ...searchEpisodeService,
+    ...searchImportPathService,
+    ...searchReleaseService,
+    ...searchUnmappedService,
+  } satisfies SearchWorkflowShape;
 });
 
-export const SearchWorkflowLive = Layer.effect(SearchWorkflow, makeSearchWorkflow);
+const searchReleaseLayer = SearchReleaseServiceLive;
+
+const searchWorkflowDependenciesLayer = Layer.mergeAll(
+  SearchBackgroundServiceLive.pipe(Layer.provideMerge(searchReleaseLayer)),
+  SearchEpisodeServiceLive.pipe(Layer.provideMerge(searchReleaseLayer)),
+  SearchImportPathServiceLive,
+  SearchUnmappedServiceLive,
+);
+
+export const SearchWorkflowLive = Layer.effect(SearchWorkflow, makeSearchWorkflow).pipe(
+  Layer.provideMerge(searchReleaseLayer),
+  Layer.provide(searchWorkflowDependenciesLayer),
+);

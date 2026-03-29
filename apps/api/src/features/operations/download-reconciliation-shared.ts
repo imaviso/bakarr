@@ -29,14 +29,6 @@ export type DownloadReconciliationContext = {
   readonly fs: FileSystemShape;
   readonly mediaProbe: MediaProbeShape;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly wrapOperationsError: (
-    message: string,
-  ) => (
-    cause: unknown,
-  ) =>
-    | import("./errors.ts").OperationsError
-    | import("../../db/database.ts").DatabaseError
-    | import("../../lib/effect-retry.ts").ExternalCallError;
   readonly nowIso: () => Effect.Effect<string>;
   readonly randomUuid: () => Effect.Effect<string>;
   readonly maybeCleanupImportedTorrent: MaybeCleanupImportedTorrent;
@@ -129,7 +121,6 @@ export const loadDownloadReconciliationContext = Effect.fn(
     | "maybeCleanupImportedTorrent"
     | "nowIso"
     | "randomUuid"
-    | "wrapOperationsError"
     | "row"
     | "tryDatabasePromise"
   > & {
@@ -165,6 +156,5 @@ export const loadDownloadReconciliationContext = Effect.fn(
     row: input.row,
     storedSourceMetadata,
     tryDatabasePromise: input.tryDatabasePromise,
-    wrapOperationsError: input.wrapOperationsError,
   } satisfies DownloadReconciliationContext;
 });

@@ -5,8 +5,7 @@ import type { DownloadSourceMetadata } from "../../../../../packages/shared/src/
 import { DatabaseError } from "../../db/database.ts";
 import type { AppDatabase } from "../../db/database.ts";
 import { anime, downloads } from "../../db/schema.ts";
-import type { OperationsError } from "./errors.ts";
-import type { ExternalCallError } from "../../lib/effect-retry.ts";
+import { OperationsInfrastructureError } from "./errors.ts";
 import { recordDownloadEvent } from "./job-support.ts";
 import { hasOverlappingDownload, parseCoveredEpisodesEffect } from "./download-lifecycle.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
@@ -30,10 +29,15 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
     qbitConfig: QBitConfig | null;
     nowIso: () => Effect.Effect<string>;
     tryDatabasePromise: TryDatabasePromise;
-    wrapOperationsError: (
-      message: string,
-    ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   }) {
+    const mapQBitError = (message: string) => (cause: unknown) =>
+      cause instanceof DatabaseError
+        ? cause
+        : new OperationsInfrastructureError({
+            message,
+            cause,
+          });
+
     const coveredEpisodeNumbers = yield* parseCoveredEpisodesEffect(input.coveredEpisodes);
     const now = yield* input.nowIso();
 
@@ -103,7 +107,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
         yield* input.tryDatabasePromise("Cleanup failed download", () =>
           input.db.delete(downloads).where(eq(downloads.id, insertedId)),
         );
-        return yield* input.wrapOperationsError(input.contextMessage)(qbitResult.left);
+        return yield* mapQBitError(input.contextMessage)(qbitResult.left);
       }
 
       status = "downloading";

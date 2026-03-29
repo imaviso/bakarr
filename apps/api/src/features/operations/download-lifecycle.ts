@@ -46,7 +46,9 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
       return undefined;
     }
 
-    const files = yield* scanVideoFiles(fs, contentPath);
+    const files = yield* scanVideoFiles(fs, contentPath).pipe(
+      Effect.catchTag("FileSystemError", () => Effect.succeed([])),
+    );
     const candidates = files.filter((file) => {
       const classification = classifyMediaArtifact(file.path, file.name);
       return classification.kind !== "extra" && classification.kind !== "sample";
@@ -87,7 +89,9 @@ export const resolveBatchContentPaths = Effect.fn("Operations.resolveBatchConten
     return [];
   }
 
-  const files = yield* scanVideoFiles(fs, contentPath);
+  const files = yield* scanVideoFiles(fs, contentPath).pipe(
+    Effect.catchTag("FileSystemError", () => Effect.succeed([])),
+  );
   return files
     .filter((file) => {
       const classification = classifyMediaArtifact(file.path, file.name);

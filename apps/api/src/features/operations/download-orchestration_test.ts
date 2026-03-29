@@ -8,6 +8,7 @@ import * as schema from "../../db/schema.ts";
 import { anime, appConfig, downloads, episodes } from "../../db/schema.ts";
 import { DRIZZLE_MIGRATIONS_FOLDER } from "../../db/migrate.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
+import type { MediaProbeShape } from "../../lib/media-probe.ts";
 import { MediaProbeNoMetadata } from "../../lib/media-probe.ts";
 import { withSqliteTestDbEffect } from "../../test/database-test.ts";
 import {
@@ -34,8 +35,11 @@ import {
   toDownloadStatus,
 } from "./repository.ts";
 import { loadDownloadPresentationContexts } from "./repository/download-presentation-repository.ts";
-import { maybeQBitConfig, wrapOperationsError } from "./service-support.ts";
+import { maybeQBitConfig } from "./operations-qbit-config.ts";
 import { tryDatabasePromise, toDatabaseError } from "../../lib/effect-db.ts";
+import { makeDownloadReconciliationService } from "./download-reconciliation-service.ts";
+import { makeDownloadTorrentLifecycleService } from "./download-torrent-lifecycle-service.ts";
+import { makeDownloadTriggerService } from "./download-trigger-service.ts";
 import { makeDownloadOrchestration } from "./download-orchestration.ts";
 
 it.scoped("triggerDownload persists merged release provenance on queued downloads", () =>
@@ -670,7 +674,8 @@ it.scoped(
                 .returning({ id: downloads.id }),
             );
 
-            const orchestration = makeDownloadOrchestration({
+            const downloadServices = buildDownloadWorkflowServices({
+              coordination: makeTestOperationsCoordination(),
               db: appDb,
               dbError: toDatabaseError,
               eventBus: {
@@ -712,13 +717,16 @@ it.scoped(
                 pauseTorrent: () => Effect.void,
                 resumeTorrent: () => Effect.void,
               } as unknown as typeof QBitTorrentClient.Service,
-              coordination: makeTestOperationsCoordination(),
-              tryDatabasePromise,
-              wrapOperationsError,
-              currentMonotonicMillis: () => Effect.succeed(0),
-              currentTimeMillis: () => Effect.succeed(1704067200000),
               nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
               randomUuid: () => Effect.succeed("test-uuid-0000"),
+              tryDatabasePromise,
+            });
+
+            const orchestration = makeDownloadOrchestration({
+              currentMonotonicMillis: () => Effect.succeed(0),
+              reconciliationService: downloadServices.reconciliationService,
+              torrentLifecycleService: downloadServices.torrentLifecycleService,
+              triggerService: downloadServices.triggerService,
             });
 
             yield* orchestration.syncDownloadsWithQBitEffect();
@@ -985,7 +993,8 @@ function createDownloadOrchestrationForTest(
   fs: FileSystemShape,
   coordination = makeTestOperationsCoordination(),
 ) {
-  return makeDownloadOrchestration({
+  const downloadServices = buildDownloadWorkflowServices({
+    coordination,
     db,
     dbError: toDatabaseError,
     eventBus: {
@@ -1007,14 +1016,68 @@ function createDownloadOrchestrationForTest(
       pauseTorrent: () => Effect.void,
       resumeTorrent: () => Effect.void,
     } as unknown as typeof QBitTorrentClient.Service,
-    coordination,
-    tryDatabasePromise,
-    wrapOperationsError,
-    currentMonotonicMillis: () => Effect.succeed(0),
-    currentTimeMillis: () => Effect.succeed(1704067200000),
-    nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
     randomUuid: () => Effect.succeed("test-uuid-0000"),
+    tryDatabasePromise,
+    nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
   });
+
+  return makeDownloadOrchestration({
+    currentMonotonicMillis: () => Effect.succeed(0),
+    reconciliationService: downloadServices.reconciliationService,
+    torrentLifecycleService: downloadServices.torrentLifecycleService,
+    triggerService: downloadServices.triggerService,
+  });
+}
+
+function buildDownloadWorkflowServices(input: {
+  readonly coordination: import("./runtime-support.ts").OperationsCoordinationShape;
+  readonly db: AppDatabase;
+  readonly dbError: (
+    message: string,
+  ) => (cause: unknown) => import("../../db/database.ts").DatabaseError;
+  readonly eventBus: typeof EventBus.Service;
+  readonly fs: FileSystemShape;
+  readonly mediaProbe: MediaProbeShape;
+  readonly maybeQBitConfig: typeof maybeQBitConfig;
+  readonly qbitClient: typeof QBitTorrentClient.Service;
+  readonly randomUuid: () => Effect.Effect<string>;
+  readonly tryDatabasePromise: typeof tryDatabasePromise;
+  readonly nowIso: () => Effect.Effect<string>;
+}) {
+  const reconciliationService = makeDownloadReconciliationService({
+    db: input.db,
+    eventBus: input.eventBus,
+    fs: input.fs,
+    mediaProbe: input.mediaProbe,
+    maybeQBitConfig: input.maybeQBitConfig,
+    nowIso: input.nowIso,
+    qbitClient: input.qbitClient,
+    randomUuid: input.randomUuid,
+    tryDatabasePromise: input.tryDatabasePromise,
+  });
+
+  const torrentLifecycleService = makeDownloadTorrentLifecycleService({
+    db: input.db,
+    maybeQBitConfig: input.maybeQBitConfig,
+    qbitClient: input.qbitClient,
+    nowIso: input.nowIso,
+    reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,
+    tryDatabasePromise: input.tryDatabasePromise,
+  });
+
+  const triggerService = makeDownloadTriggerService({
+    coordination: input.coordination,
+    db: input.db,
+    dbError: input.dbError,
+    eventBus: input.eventBus,
+    maybeQBitConfig: input.maybeQBitConfig,
+    nowIso: input.nowIso,
+    qbitClient: input.qbitClient,
+    syncDownloadsWithQBitEffect: torrentLifecycleService.syncDownloadsWithQBitEffect,
+    tryDatabasePromise: input.tryDatabasePromise,
+  });
+
+  return { reconciliationService, torrentLifecycleService, triggerService };
 }
 
 function makeTestOperationsCoordination(): import("./runtime-support.ts").OperationsCoordinationShape {

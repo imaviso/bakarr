@@ -1,48 +1,18 @@
-import { assertEquals, it } from "../../test/vitest.ts";
 import { Cause, Effect, Exit } from "effect";
 
+import { anime } from "../../db/schema.ts";
 import type { AppDatabase } from "../../db/database.ts";
-import { AniListClient } from "../anime/anilist.ts";
-import { AnimeImportService } from "../anime/import-service.ts";
-import type { FileSystemShape } from "../../lib/filesystem.ts";
-import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import { EventBus } from "../events/event-bus.ts";
+import { assertEquals, it } from "../../test/vitest.ts";
 import { makeTestConfig } from "../../test/config-fixture.ts";
-import { makeSearchOrchestration } from "./search-orchestration.ts";
 import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { toDatabaseError } from "../../lib/effect-db.ts";
-import type { ParsedRelease } from "./rss-client.ts";
-import type { QBitTorrentClient } from "./qbittorrent.ts";
-import { RssClient } from "./rss-client.ts";
+import { RssClient, type ParsedRelease } from "./rss-client.ts";
 import { SeaDexClient } from "./seadex-client.ts";
+import { makeSearchReleaseSupport } from "./search-orchestration-release-search.ts";
 
 it.effect(
   "searchEpisodeReleases fails instead of silently degrading when SeaDex enrichment fails",
   () =>
     Effect.gen(function* () {
-      const aniList = {
-        getAnimeMetadataById: (_id: number) => Effect.succeed(null),
-        searchAnimeMetadata: (_query: string) => Effect.succeed([]),
-      } satisfies typeof AniListClient.Service;
-
-      const animeImportService = {
-        upsertEpisode: () => Effect.succeed(undefined),
-      } satisfies typeof AnimeImportService.Service;
-
-      const eventBus = {
-        publish: () => Effect.void,
-        subscribe: () => Effect.die("unused"),
-      } satisfies typeof EventBus.Service;
-
-      const qbitClient = {
-        addTorrentUrl: () => Effect.die("unused"),
-        deleteTorrent: () => Effect.die("unused"),
-        listTorrentContents: () => Effect.die("unused"),
-        listTorrents: () => Effect.die("unused"),
-        pauseTorrent: () => Effect.die("unused"),
-        resumeTorrent: () => Effect.die("unused"),
-      } satisfies typeof QBitTorrentClient.Service;
-
       const rssClient = {
         fetchItems: () => Effect.succeed([makeRelease()]),
       } satisfies typeof RssClient.Service;
@@ -58,29 +28,10 @@ it.effect(
           ),
       } satisfies typeof SeaDexClient.Service;
 
-      const orchestration = makeSearchOrchestration({
-        aniList,
-        animeImportService,
-        coordination: {
-          completeUnmappedScan: () => Effect.void,
-          forkUnmappedScanLoop: (_loop: Effect.Effect<void>) => Effect.void,
-          runExclusiveDownloadTrigger: <A, E, R>(operation: Effect.Effect<A, E, R>) => operation,
-          tryBeginUnmappedScan: () => Effect.succeed(false),
-        },
+      const searchReleaseService = makeSearchReleaseSupport({
         db: {} as AppDatabase,
-        dbError: toDatabaseError,
-        eventBus,
-        fs: {} as FileSystemShape,
-        maybeQBitConfig: () => null,
-        mediaProbe: {} as MediaProbeShape,
-        nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
-        publishDownloadProgress: () => Effect.void,
-        publishRssCheckProgress: () => Effect.void,
-        qbitClient,
         rssClient,
         seadexClient,
-        tryDatabasePromise: () => Effect.die("unused"),
-        wrapOperationsError: toDatabaseError,
       });
 
       const config = makeTestConfig("/tmp/test.sqlite", (c) => ({
@@ -89,7 +40,7 @@ it.effect(
       }));
 
       const exit = yield* Effect.exit(
-        orchestration.searchEpisodeReleases(
+        searchReleaseService.searchEpisodeReleases(
           {
             addedAt: "2024-01-01T00:00:00.000Z",
             bannerImage: null,
@@ -119,7 +70,7 @@ it.effect(
             titleEnglish: null,
             titleNative: null,
             titleRomaji: "Show",
-          },
+          } as typeof anime.$inferSelect,
           1,
           config,
         ),

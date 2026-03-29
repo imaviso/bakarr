@@ -13,7 +13,12 @@ import {
   toCoveredEpisodesJson,
 } from "./download-lifecycle.ts";
 import { recordDownloadEvent } from "./job-support.ts";
-import { DownloadConflictError, DownloadNotFoundError, type OperationsError } from "./errors.ts";
+import {
+  DownloadConflictError,
+  DownloadNotFoundError,
+  OperationsInfrastructureError,
+  type OperationsError,
+} from "./errors.ts";
 import type { ExternalCallError } from "../../lib/effect-retry.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
@@ -23,9 +28,6 @@ export function makeDownloadTorrentLifecycleService(input: {
   readonly db: AppDatabase;
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly wrapOperationsError: (
-    message: string,
-  ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
   readonly reconcileCompletedTorrentEffect: (
@@ -33,15 +35,17 @@ export function makeDownloadTorrentLifecycleService(input: {
     contentPath: string | undefined,
   ) => Effect.Effect<void, ExternalCallError | OperationsError | DatabaseError>;
 }) {
-  const {
-    db,
-    qbitClient,
-    tryDatabasePromise,
-    wrapOperationsError,
-    maybeQBitConfig,
-    reconcileCompletedTorrentEffect,
-  } = input;
+  const { db, qbitClient, tryDatabasePromise, maybeQBitConfig, reconcileCompletedTorrentEffect } =
+    input;
   const { nowIso } = input;
+
+  const mapQBitError = (message: string) => (cause: unknown) =>
+    cause instanceof DatabaseError
+      ? cause
+      : new OperationsInfrastructureError({
+          message,
+          cause,
+        });
 
   const refineBatchCoverageFromTorrentFiles = Effect.fn(
     "OperationsService.refineBatchCoverageFromTorrentFiles",
@@ -260,15 +264,15 @@ export function makeDownloadTorrentLifecycleService(input: {
       if (action === "pause") {
         yield* qbitClient
           .pauseTorrent(qbitConfig, row.infoHash)
-          .pipe(Effect.mapError(wrapOperationsError("Failed to pause download")));
+          .pipe(Effect.mapError(mapQBitError("Failed to pause download")));
       } else if (action === "resume") {
         yield* qbitClient
           .resumeTorrent(qbitConfig, row.infoHash)
-          .pipe(Effect.mapError(wrapOperationsError("Failed to resume download")));
+          .pipe(Effect.mapError(mapQBitError("Failed to resume download")));
       } else {
         yield* qbitClient
           .deleteTorrent(qbitConfig, row.infoHash, deleteFiles)
-          .pipe(Effect.mapError(wrapOperationsError("Failed to remove download")));
+          .pipe(Effect.mapError(mapQBitError("Failed to remove download")));
       }
     }
 
@@ -352,7 +356,7 @@ export function makeDownloadTorrentLifecycleService(input: {
     if (qbitConfig) {
       yield* qbitClient
         .addTorrentUrl(qbitConfig, row.magnet)
-        .pipe(Effect.mapError(wrapOperationsError("Failed to retry download")));
+        .pipe(Effect.mapError(mapQBitError("Failed to retry download")));
     }
 
     const retryNow = yield* nowIso();

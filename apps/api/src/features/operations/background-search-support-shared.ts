@@ -36,9 +36,6 @@ export interface BackgroundSearchSupportInput {
     config: Config,
   ) => Effect.Effect<readonly ParsedRelease[], ExternalCallError | OperationsError | DatabaseError>;
   tryDatabasePromise: TryDatabasePromise;
-  wrapOperationsError: (
-    message: string,
-  ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
 }
 
 export interface BackgroundSearchSupportShared {

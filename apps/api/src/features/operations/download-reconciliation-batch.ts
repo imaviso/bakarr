@@ -14,12 +14,18 @@ import {
   resolveBatchContentPaths,
   resolveReconciledBatchEpisodeNumbers,
 } from "./download-lifecycle.ts";
-import { OperationsPathError } from "./errors.ts";
+import { OperationsInfrastructureError, OperationsPathError } from "./errors.ts";
 import { encodeDownloadEventMetadata } from "./repository.ts";
 import {
   finalizeDownloadImport,
   type DownloadReconciliationContext,
 } from "./download-reconciliation-shared.ts";
+
+const mapReconciliationInfrastructureError = (cause: unknown) =>
+  new OperationsInfrastructureError({
+    cause,
+    message: "Failed to reconcile completed download",
+  });
 
 type BatchEpisodeRow = {
   readonly aired: string | null;
@@ -180,13 +186,13 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
           preferredTitle: input.runtimeConfig.library.preferred_title,
           randomUuid: input.randomUuid,
         },
-      ).pipe(Effect.mapError(input.wrapOperationsError("Failed to reconcile completed download")));
+      ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
       yield* upsertEpisodeFilesAtomic(
         input.db,
         input.row.animeId,
         relevantEpisodes,
         managedPath,
-      ).pipe(Effect.mapError(input.wrapOperationsError("Failed to reconcile completed download")));
+      ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
 
       for (const episodeNumber of relevantEpisodes) {
         const existing = episodeMap.get(episodeNumber);

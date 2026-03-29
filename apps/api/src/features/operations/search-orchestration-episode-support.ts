@@ -4,7 +4,7 @@ import type { Config, EpisodeSearchResult } from "../../../../../packages/shared
 import type { AppDatabase } from "../../db/database.ts";
 import { DatabaseError } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
-import type { ExternalCallError } from "../../lib/effect-retry.ts";
+import { ExternalCallError } from "../../lib/effect-retry.ts";
 import { OperationsInputError, type OperationsError } from "./errors.ts";
 import {
   loadCurrentEpisodeState,
@@ -16,6 +16,7 @@ import {
 import { compareEpisodeSearchResults } from "./release-ranking.ts";
 import type { ParsedRelease } from "./rss-client.ts";
 import { toEpisodeSearchResult } from "./search-orchestration-episode-result.ts";
+import { OperationsInfrastructureError } from "./errors.ts";
 
 export interface SearchEpisodeSupportInput {
   readonly db: AppDatabase;
@@ -24,15 +25,22 @@ export interface SearchEpisodeSupportInput {
     episodeNumber: number,
     config: Config,
   ) => Effect.Effect<readonly ParsedRelease[], ExternalCallError | OperationsError | DatabaseError>;
-  readonly wrapOperationsError: (
-    message: string,
-  ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
 }
 
 export type SearchEpisodeAnimeRow = typeof anime.$inferSelect;
 
 export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
-  const { db, searchEpisodeReleases, wrapOperationsError } = input;
+  const { db, searchEpisodeReleases } = input;
+
+  const mapSearchEpisodeError = (
+    cause: unknown,
+  ): ExternalCallError | OperationsError | DatabaseError =>
+    cause instanceof DatabaseError || cause instanceof ExternalCallError
+      ? cause
+      : new OperationsInfrastructureError({
+          message: "Failed to search episode releases",
+          cause,
+        });
 
   const searchEpisode = Effect.fn("OperationsService.searchEpisode")(function* (
     animeId: number,
@@ -51,7 +59,7 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
     const rules = yield* loadReleaseRules(db, animeRow);
     const currentEpisode = yield* loadCurrentEpisodeState(db, animeId, episodeNumber);
     const results = yield* searchEpisodeReleases(animeRow, episodeNumber, runtimeConfig).pipe(
-      Effect.mapError(wrapOperationsError("Failed to search episode releases")),
+      Effect.mapError(mapSearchEpisodeError),
     );
 
     return results

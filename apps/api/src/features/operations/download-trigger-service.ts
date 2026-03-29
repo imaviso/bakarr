@@ -41,9 +41,6 @@ export function makeDownloadTriggerService(input: {
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly wrapOperationsError: (
-    message: string,
-  ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   readonly dbError: (message: string) => (cause: unknown) => DatabaseError;
   readonly maybeQBitConfig: (
     config: import("../../../../../packages/shared/src/index.ts").Config,
@@ -60,7 +57,6 @@ export function makeDownloadTriggerService(input: {
     qbitClient,
     eventBus,
     tryDatabasePromise,
-    wrapOperationsError,
     maybeQBitConfig,
     coordination,
     syncDownloadsWithQBitEffect,
@@ -229,7 +225,10 @@ export function makeDownloadTriggerService(input: {
         yield* tryDatabasePromise("Cleanup failed download", () =>
           db.delete(downloads).where(eq(downloads.id, insertedId)),
         );
-        return yield* wrapOperationsError("Failed to trigger download")(qbitResult.left);
+        return yield* new OperationsInfrastructureError({
+          message: "Failed to trigger download",
+          cause: qbitResult.left,
+        });
       }
 
       status = "downloading";
@@ -285,7 +284,6 @@ export function makeDownloadTriggerService(input: {
   });
 
   return {
-    getDownloadProgressSnapshotEffect,
     publishDownloadProgress,
     triggerDownload,
   };

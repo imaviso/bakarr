@@ -4,8 +4,6 @@ import { DatabaseError } from "../../db/database.ts";
 import { EventBus } from "../events/event-bus.ts";
 import type { FileSystemShape } from "../../lib/filesystem.ts";
 import type { MediaProbeShape } from "../../lib/media-probe.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { type OperationsError } from "./errors.ts";
 import type { OperationsCoordinationShape } from "./runtime-support.ts";
 import type { TryDatabasePromise } from "../../lib/effect-db.ts";
 import type { QBitConfig, QBitTorrentClient } from "./qbittorrent.ts";
@@ -29,9 +27,6 @@ export interface DownloadOrchestrationInput {
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly wrapOperationsError: (
-    message: string,
-  ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
   readonly dbError: (message: string) => (cause: unknown) => DatabaseError;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly coordination: OperationsCoordinationShape;

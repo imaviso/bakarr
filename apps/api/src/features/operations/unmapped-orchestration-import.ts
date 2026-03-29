@@ -121,7 +121,7 @@ export function makeUnmappedImportWorkflow(input: {
       const rootFolder = yield* resolveAnimeRootFolderEffect(db, folderPath, animeRow.titleRomaji, {
         useExistingRoot: true,
       }).pipe(
-        Effect.catchTag("StoredConfigCorruptError", (e) =>
+        Effect.catchTag("AnimeStoredDataError", (e) =>
           Effect.fail(
             new OperationsInfrastructureError({
               message: "Failed to import unmapped folder",
@@ -196,7 +196,7 @@ export function makeUnmappedImportWorkflow(input: {
               title: null,
             })
             .pipe(
-              Effect.catchTag("UpsertEpisodeError", (e) =>
+              Effect.catchTag("AnimeStoredDataError", (e) =>
                 Effect.fail(
                   new OperationsInfrastructureError({
                     message: "Failed to import unmapped folder",

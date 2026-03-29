@@ -9,13 +9,19 @@ import {
 } from "./naming-support.ts";
 import { importDownloadedFile, upsertEpisodeFile } from "./download-support.ts";
 import { parseCoveredEpisodesEffect, resolveCompletedContentPath } from "./download-lifecycle.ts";
-import { OperationsPathError } from "./errors.ts";
+import { OperationsInfrastructureError, OperationsPathError } from "./errors.ts";
 import { encodeDownloadEventMetadata } from "./repository.ts";
 import {
   finalizeDownloadImport,
   markDownloadReconciled,
   type DownloadReconciliationContext,
 } from "./download-reconciliation-shared.ts";
+
+const mapReconciliationInfrastructureError = (cause: unknown) =>
+  new OperationsInfrastructureError({
+    cause,
+    message: "Failed to reconcile completed download",
+  });
 
 export const reconcileSingleDownloadEffect = Effect.fn(
   "OperationsService.reconcileCompletedTorrentSingle",
@@ -129,9 +135,9 @@ export const reconcileSingleDownloadEffect = Effect.fn(
       preferredTitle: input.runtimeConfig.library.preferred_title,
       randomUuid: input.randomUuid,
     },
-  ).pipe(Effect.mapError(input.wrapOperationsError("Failed to reconcile completed download")));
+  ).pipe(Effect.mapError(mapReconciliationInfrastructureError));
   yield* upsertEpisodeFile(input.db, input.row.animeId, input.row.episodeNumber, managedPath).pipe(
-    Effect.mapError(input.wrapOperationsError("Failed to reconcile completed download")),
+    Effect.mapError(mapReconciliationInfrastructureError),
   );
   const singleNow = yield* input.nowIso();
   const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredEpisodes);

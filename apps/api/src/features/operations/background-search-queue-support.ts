@@ -1,10 +1,8 @@
 import { Effect } from "effect";
 
 import type { Config, DownloadAction } from "../../../../../packages/shared/src/index.ts";
-import type { AppDatabase, DatabaseError } from "../../db/database.ts";
+import type { AppDatabase } from "../../db/database.ts";
 import { anime } from "../../db/schema.ts";
-import { ExternalCallError } from "../../lib/effect-retry.ts";
-import { type OperationsError } from "./errors.ts";
 import {
   buildDownloadSelectionMetadata,
   buildDownloadSourceMetadataFromRelease,
@@ -30,13 +28,10 @@ export interface BackgroundSearchQueueSupportInput {
   readonly nowIso: () => Effect.Effect<string>;
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly wrapOperationsError: (
-    message: string,
-  ) => (cause: unknown) => ExternalCallError | OperationsError | DatabaseError;
 }
 
 export function makeBackgroundSearchQueueSupport(input: BackgroundSearchQueueSupportInput) {
-  const { db, coordination, nowIso, qbitClient, tryDatabasePromise, wrapOperationsError } = input;
+  const { db, coordination, nowIso, qbitClient, tryDatabasePromise } = input;
 
   const queueReleaseIfEligible = Effect.fn("OperationsService.queueReleaseIfEligible")(
     function* (input: {
@@ -108,7 +103,6 @@ export function makeBackgroundSearchQueueSupport(input: BackgroundSearchQueueSup
           qbitClient,
           qbitConfig: input.qbitConfig,
           tryDatabasePromise,
-          wrapOperationsError,
         });
       });
 

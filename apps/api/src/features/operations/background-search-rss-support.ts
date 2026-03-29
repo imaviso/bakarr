@@ -36,7 +36,6 @@ export function makeBackgroundSearchRssSupport(
     publishDownloadProgress,
     publishRssCheckProgress,
     tryDatabasePromise,
-    wrapOperationsError,
   } = input;
 
   const logRssSkip = shared.logRssSkip;
@@ -59,13 +58,16 @@ export function makeBackgroundSearchRssSupport(
         feed: (typeof feeds)[number],
         _index: number,
       ) {
-        const items = yield* rssClient
-          .fetchItems(feed.url)
-          .pipe(
-            Effect.mapError((error) =>
-              wrapOperationsError(`Failed to fetch RSS feed '${feed.name ?? feed.url}'`)(error),
-            ),
-          );
+        const items = yield* rssClient.fetchItems(feed.url).pipe(
+          Effect.mapError((error) =>
+            error instanceof DatabaseError
+              ? error
+              : new OperationsInfrastructureError({
+                  message: `Failed to fetch RSS feed '${feed.name ?? feed.url}'`,
+                  cause: error,
+                }),
+          ),
+        );
         const animeRow = yield* requireAnime(db, feed.animeId);
 
         if (!animeRow.monitored) {
