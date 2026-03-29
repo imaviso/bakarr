@@ -1,4 +1,3 @@
-import { HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
 
 import {
@@ -7,9 +6,6 @@ import {
   type NotificationEvent,
 } from "../../../../packages/shared/src/index.ts";
 import type { EventBusShape } from "../features/events/event-bus.ts";
-
-const NotificationEventJsonSchema = Schema.parseJson(NotificationEventSchema);
-const encodeNotificationEvent = Schema.encodeSync(NotificationEventJsonSchema);
 
 export function buildDownloadProgressStream(
   downloads: readonly DownloadStatus[],
@@ -20,7 +16,7 @@ export function buildDownloadProgressStream(
       const encoder = new TextEncoder();
       const encodeSse = (payload: string) => encoder.encode(`${payload}\n\n`);
       const encodeNotificationSse = (event: NotificationEvent) =>
-        encodeSse(`data: ${encodeNotificationEvent(event)}`);
+        encodeSse(`data: ${Schema.encodeSync(Schema.parseJson(NotificationEventSchema))(event)}`);
 
       const subscription = yield* eventBus.subscribe();
       const initialEvents = Stream.fromIterable([
@@ -38,17 +34,4 @@ export function buildDownloadProgressStream(
       return Stream.concat(initialEvents, liveEvents);
     }),
   );
-}
-
-export function buildDownloadProgressResponse(
-  downloads: readonly DownloadStatus[],
-  eventBus: EventBusShape,
-) {
-  return HttpServerResponse.stream(buildDownloadProgressStream(downloads, eventBus), {
-    contentType: "text/event-stream",
-    headers: {
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
 }

@@ -1,10 +1,10 @@
-import { HttpApp } from "@effect/platform";
+import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
 
 import { assertEquals, it } from "../test/vitest.ts";
 import { makeEventBus } from "../features/events/event-bus.ts";
 import { NotificationEventSchema } from "../../../../packages/shared/src/index.ts";
-import { buildDownloadProgressResponse, buildDownloadProgressStream } from "./event-stream.ts";
+import { buildDownloadProgressStream } from "./event-stream.ts";
 
 const sampleDownload = {
   downloaded_bytes: 256,
@@ -48,7 +48,15 @@ it.effect("buildDownloadProgressResponse sets SSE headers", () =>
   Effect.gen(function* () {
     const eventBus = yield* makeEventBus({ capacity: 8 });
     const handler = HttpApp.toWebHandler(
-      Effect.succeed(buildDownloadProgressResponse([sampleDownload], eventBus)),
+      Effect.succeed(
+        HttpServerResponse.stream(buildDownloadProgressStream([sampleDownload], eventBus), {
+          contentType: "text/event-stream",
+          headers: {
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        }),
+      ),
     );
     const response = yield* Effect.promise(() => handler(new Request("http://localhost/")));
 
