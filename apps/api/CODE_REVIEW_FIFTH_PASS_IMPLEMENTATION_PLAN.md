@@ -138,33 +138,32 @@ None confirmed in the current scan.
       service separately.
 
 14. `apps/api/src/runtime.ts`
-    - `makeApiRuntime` now calls the lifecycle assembly directly, while
-      `makeApiLayer` remains only as a thin compatibility alias for the
-      bootstrap entrypoint.
+    - `makeApiRuntime` now calls the lifecycle assembly directly, and the old
+      `makeApiLayer` passthrough has been removed.
 
 15. `apps/api/src/features/system/system-layer.ts`
     - Repeated platform-provide chains are now collapsed into a few named layer
       constants, making the system feature graph easier to read.
 
 16. `apps/api/src/features/anime/anime-layer.ts`
-    - The shared platform-provide step is now hoisted into one local alias
-      instead of being repeated for each anime service.
+    - The anime feature wrapper is back to direct per-service `Layer.provideMerge(...)`
+      calls after the temporary alias was removed.
 
 17. `apps/api/src/features/auth/auth-layer.ts`
-    - The shared platform-provide step is now hoisted into one local alias
-      instead of being repeated for each auth service.
+    - The auth feature wrapper is back to direct per-service `Layer.provideMerge(...)`
+      calls after the temporary alias was removed.
 
 18. `apps/api/src/features/library-roots/library-layer.ts`
-    - The shared dependency-provide steps are now hoisted into local aliases,
-      making the library feature wiring easier to scan.
+    - The library feature wiring is back to a direct, explicit composition after
+      briefly experimenting with local aliases.
 
 19. `apps/api/src/background-layer.ts`
-    - The background feature dependencies are now named before they are
-      provided, which makes the single wrapper easier to read.
+    - The background wrapper has been removed and inlined into
+      `api-lifecycle-layers.ts`.
 
 20. `apps/api/src/features/anime/anime-enrollment-layer.ts`
-    - The anime enrollment dependencies are now named before they are provided,
-      which makes the single wrapper easier to read.
+    - The anime enrollment wrapper is back to one direct `Layer.provideMerge(...)`
+      call after the temporary alias was removed.
 
 21. `apps/api/src/features/system/system-layer.ts`
     - Repeated `Layer.provideMerge(platformLayer)` calls are now hoisted into a
@@ -173,6 +172,96 @@ None confirmed in the current scan.
 22. `apps/api/src/api-lifecycle-layers.ts`
     - The platform-provide alias is now hoisted at the root assembly boundary,
       reducing repetition in the top-level graph.
+
+23. `apps/api/src/http/system-health-ready-support.ts`
+    - The ready-state helper was inlined into `system-health-router.ts` and the
+      standalone support file was removed.
+
+24. `apps/api/src/http/system-metrics-route-support.ts`
+    - The metrics rendering helper was inlined into `system-metrics-router.ts`
+      and the standalone support file was removed.
+
+25. `apps/api/src/http/metrics-response.ts`
+    - The Prometheus response wrapper was inlined into `system-metrics-router.ts`
+      and the standalone helper plus its direct test were removed.
+
+26. `apps/api/src/http/image-asset-response.ts`
+    - The image response wrapper was inlined into `system-image-router.ts` and
+      the standalone helper plus its direct test were removed.
+
+27. `apps/api/src/http/health-response.ts`
+    - All health response helpers were inlined into `system-health-router.ts`
+      and the standalone helper file was removed.
+
+28. `apps/api/src/http/system-logs-export.ts`
+    - The system logs export response helper was inlined into
+      `system-logs-router.ts` and the standalone helper was removed.
+
+29. `apps/api/src/http/event-stream.ts`
+    - `buildDownloadProgressResponse()` was inlined into
+      `system-events-router.ts`, while the stream-building helper stayed in
+      place.
+
+30. `apps/api/src/http/download-events-export.ts`
+    - `buildDownloadEventsExportResponse()` was inlined into
+      `operations-downloads-router.ts`, while the direct test was updated to
+      use inline response construction.
+
+31. `apps/api/src/http/route-auth.ts`
+    - `clearSessionResponse()` was inlined into the `/logout` route in
+      `auth-router.ts`.
+
+32. `apps/api/src/http/router-helpers.ts`
+    - `decodeOptionalJsonBody()` was inlined into `operations-search-router.ts`.
+
+33. `apps/api/src/http/router-helpers.ts`
+    - The private `withAuth()` wrapper was inlined into `authedRouteResponse()`.
+
+34. `apps/api/src/http/system-metrics-router.ts`
+    - The private `renderSystemMetricsBody()` wrapper was inlined into the
+      `/api/metrics` route handler.
+
+35. `apps/api/src/http/static.ts`
+    - The private `notFoundResponse()` wrapper was inlined into the static file
+      fallback path in `http-app.ts`.
+
+36. `apps/api/src/http/static.ts`
+    - The private `serveIndexHtmlEffect()` wrapper was inlined into
+      `http-app.ts`.
+
+37. `apps/api/src/http/static.ts`
+    - The private `isAssetPath()` predicate was inlined into the static file
+      404 fallback branch in `http-app.ts`.
+
+38. `apps/api/src/http/static.ts`
+    - The private `serveStaticAssetEffect()` wrapper was inlined into
+      `http-app.ts`.
+
+39. `apps/api/src/http/route-auth.ts`
+    - The private `getApiKey()` helper was inlined into
+      `requireViewerFromHttpRequest()`.
+
+40. `apps/api/src/http/static.ts`
+    - The standalone static helper file was removed after the route logic was
+      inlined into `http-app.ts`.
+
+41. `apps/api/src/http/operations-downloads-router.ts`
+    - The private download-events export encoder was inlined into the export
+      response branch.
+
+42. `apps/api/src/http/system-logs-router.ts`
+    - The private system logs export encoder was inlined into the export branch.
+
+43. `apps/api/src/http/event-stream.ts`
+    - The private notification-event encoder was inlined into the SSE payload
+      builder.
+
+44. `apps/api/src/http/anime-streaming.ts`
+    - The standalone anime stream helper file was removed after
+      `buildAnimeStreamResponse()` was inlined into the route handler.
+
+45. `apps/api/src/http/router-helpers.ts`
+    - The private `mapToServerResponse()` helper was inlined into `routeResponse()`.
 
 ### P3 - Low
 
@@ -199,7 +288,18 @@ Completed in this pass:
 5. `apps/api/src/features/operations/service-support.ts`
 6. `apps/api/src/features/anime/service-support.ts`
 7. `apps/api/src/features/anime/service.ts`
-   - The thin wrapper files and mixed support modules have now been removed.
+8. `apps/api/src/background-layer.ts`
+9. `apps/api/src/http/system-health-ready-support.ts`
+10. `apps/api/src/http/system-metrics-route-support.ts`
+11. `apps/api/src/http/metrics-response.ts`
+12. `apps/api/src/http/metrics-response_test.ts`
+13. `apps/api/src/http/image-asset-response.ts`
+14. `apps/api/src/http/image-asset-response_test.ts`
+15. `apps/api/src/http/system-logs-export.ts`
+16. `apps/api/src/http/health-response.ts`
+17. `apps/api/src/http/download-events-export.ts`
+18. `apps/api/src/http/static.ts`
+    - The thin wrapper files and mixed support modules have now been removed.
 
 ### Defer Removal Until Refactor Lands
 
