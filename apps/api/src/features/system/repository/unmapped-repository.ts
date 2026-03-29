@@ -1,15 +1,12 @@
 import { eq, notInArray } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
-import {
-  type UnmappedFolder,
-  AnimeSearchResultSchema,
-} from "../../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../../db/database.ts";
-import { unmappedFolderMatches } from "../../../db/schema.ts";
-import { tryDatabasePromise } from "../../../lib/effect-db.ts";
-import { buildUnmappedFolderSearchQueries } from "../../operations/unmapped-folders.ts";
-import { StoredUnmappedFolderCorruptError } from "../errors.ts";
+import { type UnmappedFolder, AnimeSearchResultSchema } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { unmappedFolderMatches } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped-folders.ts";
+import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 
 const AnimeSearchResultListJsonSchema = Schema.parseJson(Schema.Array(AnimeSearchResultSchema));
 const encodeAnimeSearchResultList = Schema.encodeSync(AnimeSearchResultListJsonSchema);

@@ -1,9 +1,9 @@
 import { count, eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../../db/database.ts";
-import { anime } from "../../../db/schema.ts";
-import { tryDatabasePromise } from "../../../lib/effect-db.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { anime } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export const countAnimeUsingProfile = Effect.fn("ProfileUsageRepository.countAnimeUsingProfile")(
   function* (db: AppDatabase, profileName: string) {

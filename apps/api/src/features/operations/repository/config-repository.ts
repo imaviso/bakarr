@@ -1,16 +1,16 @@
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../../db/database.ts";
-import { DatabaseError } from "../../../db/database.ts";
-import { appConfig, qualityProfiles } from "../../../db/schema.ts";
-import { tryDatabasePromise } from "../../../lib/effect-db.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { appConfig, qualityProfiles } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
   composeConfig,
   effectDecodeQualityProfileRow,
   effectDecodeStoredConfigRow,
   effectDecodeStoredLibraryConfig,
-} from "../../system/config-codec.ts";
-import type { NamingSettings } from "./types.ts";
+} from "@/features/system/config-codec.ts";
+import type { NamingSettings } from "@/features/operations/repository/types.ts";
 
 const mapConfigError = (message: string) =>
   Effect.mapError((cause: unknown) =>

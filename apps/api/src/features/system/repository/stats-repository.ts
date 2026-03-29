@@ -1,7 +1,7 @@
 import { and, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase } from "../../../db/database.ts";
+import type { AppDatabase } from "@/db/database.ts";
 import {
   anime,
   backgroundJobs,
@@ -10,9 +10,9 @@ import {
   episodes,
   rssFeeds,
   systemLogs,
-} from "../../../db/schema.ts";
-import { tryDatabasePromise } from "../../../lib/effect-db.ts";
-import { eventTypeCondition } from "../support.ts";
+} from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { eventTypeCondition } from "@/features/system/support.ts";
 
 const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere")(function* (
   db: AppDatabase,

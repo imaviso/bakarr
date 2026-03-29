@@ -1,19 +1,15 @@
 import { Effect, Schema } from "effect";
 
-import type {
-  Download,
-  DownloadSourceMetadata,
-  DownloadStatus,
-} from "../../../../../../packages/shared/src/index.ts";
+import type { Download, DownloadSourceMetadata, DownloadStatus } from "@packages/shared/index.ts";
 import {
   DownloadEventMetadataSchema,
   DownloadSourceMetadataSchema,
-} from "../../../../../../packages/shared/src/index.ts";
-import { toSharedParsedEpisodeIdentity } from "../../../lib/media-identity.ts";
-import type { downloads } from "../../../db/schema.ts";
-import { decodeOptionalNumberList } from "../../system/config-codec.ts";
-import type { DownloadPresentationContext } from "./types.ts";
-import { OperationsStoredDataError } from "../errors.ts";
+} from "@packages/shared/index.ts";
+import { toSharedParsedEpisodeIdentity } from "@/lib/media-identity.ts";
+import type { downloads } from "@/db/schema.ts";
+import { decodeOptionalNumberList } from "@/features/system/config-codec.ts";
+import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 type DownloadRow = typeof downloads.$inferSelect;
 

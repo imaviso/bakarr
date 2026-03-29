@@ -1,19 +1,16 @@
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type {
-  QualityProfile,
-  ReleaseProfileRule,
-} from "../../../../../../packages/shared/src/index.ts";
-import type { AppDatabase } from "../../../db/database.ts";
-import { DatabaseError } from "../../../db/database.ts";
-import { qualityProfiles, releaseProfiles } from "../../../db/schema.ts";
-import { tryDatabasePromise } from "../../../lib/effect-db.ts";
+import type { QualityProfile, ReleaseProfileRule } from "@packages/shared/index.ts";
+import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
   effectDecodeNumberList,
   effectDecodeQualityProfileRow,
   effectDecodeReleaseProfileRules,
-} from "../../system/config-codec.ts";
+} from "@/features/system/config-codec.ts";
 
 const mapDecodeError = (message: string) =>
   Effect.mapError((cause: unknown) =>

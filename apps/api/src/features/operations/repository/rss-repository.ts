@@ -1,4 +1,4 @@
-import type { RssFeed } from "../../../../../../packages/shared/src/index.ts";
+import type { RssFeed } from "@packages/shared/index.ts";
 
 export function toRssFeed(row: {
   animeId: number;

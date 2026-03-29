@@ -1,12 +1,12 @@
 import { and, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { AppDatabase, DatabaseError } from "../../../db/database.ts";
-import { anime, downloads, episodes } from "../../../db/schema.ts";
-import { decodeOptionalNumberList } from "../../system/config-codec.ts";
-import { OperationsStoredDataError } from "../errors.ts";
-import type { DownloadPresentationContext } from "./types.ts";
-import { tryDatabasePromise } from "../../../lib/effect-db.ts";
+import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { anime, downloads, episodes } from "@/db/schema.ts";
+import { decodeOptionalNumberList } from "@/features/system/config-codec.ts";
+import { OperationsStoredDataError } from "@/features/operations/errors.ts";
+import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 const SQLITE_IN_LIST_CHUNK_SIZE = 900;
 const CHUNK_LOAD_CONCURRENCY = 4;
