@@ -1,7 +1,7 @@
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect, Match, Schema } from "effect";
 
-import { AnimeFileService } from "../features/anime/service.ts";
+import { AnimeFileService } from "../features/anime/file-service.ts";
 import { ClockService } from "../lib/clock.ts";
 import { FileSystem } from "../lib/filesystem.ts";
 import { createFileChunkStream } from "./file-stream.ts";

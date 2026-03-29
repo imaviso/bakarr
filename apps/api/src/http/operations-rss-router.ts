@@ -1,7 +1,7 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { CatalogWorkflow } from "../features/operations/catalog-service-tags.ts";
+import { CatalogDownloadService } from "../features/operations/catalog-service-tags.ts";
 import { AddRssFeedBodySchema, EnabledBodySchema } from "./operations-request-schemas.ts";
 import {
   authedRouteResponse,
@@ -16,7 +16,7 @@ export const rssRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/rss",
     authedRouteResponse(
-      Effect.flatMap(CatalogWorkflow, (service) => service.listRssFeeds()),
+      Effect.flatMap(CatalogDownloadService, (service) => service.listRssFeeds()),
       jsonResponse,
     ),
   ),
@@ -25,7 +25,7 @@ export const rssRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(AddRssFeedBodySchema, "add RSS feed");
-        return yield* (yield* CatalogWorkflow).addRssFeed(body);
+        return yield* (yield* CatalogDownloadService).addRssFeed(body);
       }),
       jsonResponse,
     ),
@@ -35,7 +35,7 @@ export const rssRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogWorkflow).deleteRssFeed(params.id);
+        yield* (yield* CatalogDownloadService).deleteRssFeed(params.id);
       }),
       successResponse,
     ),
@@ -46,7 +46,7 @@ export const rssRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(EnabledBodySchema, "toggle RSS feed");
-        yield* (yield* CatalogWorkflow).toggleRssFeed(params.id, body.enabled);
+        yield* (yield* CatalogDownloadService).toggleRssFeed(params.id, body.enabled);
       }),
       successResponse,
     ),
