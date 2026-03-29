@@ -11,7 +11,7 @@ import {
   makeCoalescedEffectRunner,
   makeLatestValuePublisher,
   makeSkippingSerializedEffectRunner,
-} from "./features/operations/service-support.ts";
+} from "./lib/effect-coalescing.ts";
 
 const baseConfig: Config = {
   downloads: {

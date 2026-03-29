@@ -36,21 +36,25 @@ export function makeAppPlatformCoreRuntimeLayer(
   overrides: Partial<AppConfigShape> = {},
   options?: AppPlatformRuntimeOptions,
 ) {
+  const coreSupportLayer = Layer.mergeAll(
+    ClockServiceLive,
+    RandomServiceLive,
+    FetchHttpClient.layer,
+  );
   const configBaseLayer = options?.configProvider
     ? AppConfig.layer(overrides).pipe(
         Layer.provide(Layer.setConfigProvider(options.configProvider)),
       )
     : AppConfig.layer(overrides);
-  const configLayer = configBaseLayer.pipe(Layer.provide(RandomServiceLive));
-  const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(ClockServiceLive));
-  const httpClientLayer = FetchHttpClient.layer;
-  const sharedExternalClientSupportLayer = Layer.mergeAll(httpClientLayer, ClockServiceLive);
-  const dnsClientSupportLayer = Layer.mergeAll(httpClientLayer, DnsResolverLive, ClockServiceLive);
+  const configLayer = configBaseLayer.pipe(Layer.provide(coreSupportLayer));
+  const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(coreSupportLayer));
+  const sharedExternalClientSupportLayer = coreSupportLayer;
+  const dnsClientSupportLayer = Layer.mergeAll(coreSupportLayer, DnsResolverLive);
   const databaseLayer = DatabaseLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
-  const eventSupportLayer = Layer.mergeAll(eventBusLayer, ClockServiceLive);
+  const eventSupportLayer = Layer.mergeAll(eventBusLayer, coreSupportLayer);
   const eventPublisherLayer = EventPublisherLive.pipe(Layer.provide(eventSupportLayer));
-  const backgroundMonitorLayer = BackgroundWorkerMonitorLive.pipe(Layer.provide(ClockServiceLive));
+  const backgroundMonitorLayer = BackgroundWorkerMonitorLive.pipe(Layer.provide(coreSupportLayer));
   const aniListLayer = options?.aniListLayer
     ? options.aniListLayer
     : AniListClientLive.pipe(Layer.provide(sharedExternalClientSupportLayer));
@@ -67,19 +71,17 @@ export function makeAppPlatformCoreRuntimeLayer(
 
   return Layer.mergeAll(
     BunContext.layer,
+    coreSupportLayer,
     configLayer,
     runtimeLayer,
     RuntimeLoggerLayer,
-    httpClientLayer,
     databaseLayer,
     eventBusLayer,
     eventPublisherLayer,
     backgroundMonitorLayer,
     externalClientLayer,
-    ClockServiceLive,
     FileSystemLive,
-    RandomServiceLive,
-    StreamTokenSignerLive.pipe(Layer.provide(RandomServiceLive)),
+    StreamTokenSignerLive.pipe(Layer.provide(coreSupportLayer)),
     TokenHasherLive,
   );
 }

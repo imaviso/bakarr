@@ -9,9 +9,10 @@ import type { DatabaseError } from "./db/database.ts";
 import type { ClockServiceShape } from "./lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "./lib/effect-coalescing.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "./lib/logging.ts";
-import type { AnimeMutationServiceShape } from "./features/anime/service.ts";
+import type { AnimeMutationServiceShape } from "./features/anime/mutation-service.ts";
 import type { EventBusShape } from "./features/events/event-bus.ts";
-import type { CatalogWorkflowShape } from "./features/operations/catalog-service-tags.ts";
+import type { CatalogDownloadServiceShape } from "./features/operations/catalog-service-tags.ts";
+import type { CatalogLibraryServiceShape } from "./features/operations/catalog-library-service.ts";
 import type { SearchWorkflowShape } from "./features/operations/search-service-tags.ts";
 
 export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
@@ -32,7 +33,8 @@ const WORKER_TIMEOUTS: Record<BackgroundWorkerName, number> = {
 
 export interface BackgroundWorkerDependencies {
   readonly animeService: AnimeMutationServiceShape;
-  readonly catalogWorkflow: CatalogWorkflowShape;
+  readonly catalogDownloadService: CatalogDownloadServiceShape;
+  readonly catalogLibraryService: CatalogLibraryServiceShape;
   readonly clock: ClockServiceShape;
   readonly eventBus: EventBusShape;
   readonly monitor: BackgroundWorkerMonitorShape;
@@ -48,15 +50,23 @@ export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConf
   workerScope: Scope.Scope,
   config: Config,
 ) {
-  const { animeService, catalogWorkflow, clock, eventBus, monitor, searchWorkflow } = services;
+  const {
+    animeService,
+    catalogDownloadService,
+    catalogLibraryService,
+    clock,
+    eventBus,
+    monitor,
+    searchWorkflow,
+  } = services;
   const schedule = buildBackgroundSchedule(config);
   const runRssWorkerTask = Effect.fn("Background.runRssWorkerTask")(function* () {
     yield* searchWorkflow.runRssCheck();
     yield* searchWorkflow.triggerSearchMissing();
   });
   const runDownloadSyncWorkerTask = Effect.fn("Background.runDownloadSyncWorkerTask")(function* () {
-    yield* catalogWorkflow.syncDownloads();
-    const downloads = yield* catalogWorkflow.getDownloadProgress();
+    yield* catalogDownloadService.syncDownloads();
+    const downloads = yield* catalogDownloadService.getDownloadProgress();
     yield* eventBus.publish({
       type: "DownloadProgress",
       payload: { downloads },
@@ -67,7 +77,7 @@ export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConf
 
   const libraryLoop = yield* withLockEffect(
     "library_scan",
-    catalogWorkflow.runLibraryScan(),
+    catalogLibraryService.runLibraryScan(),
     monitor,
     clock,
   );

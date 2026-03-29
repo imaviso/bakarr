@@ -1,23 +1,18 @@
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { Effect, ManagedRuntime } from "effect";
 
 import { makeApiLifecycleLayers } from "./api-lifecycle-layers.ts";
-import { type RuntimeOptions } from "./app-platform-runtime-layer.ts";
+import { type AppPlatformRuntimeOptions } from "./app-platform-runtime-core.ts";
 import type { AppConfigShape } from "./config.ts";
 
-export type { RuntimeOptions } from "./app-platform-runtime-layer.ts";
+export type RuntimeOptions = AppPlatformRuntimeOptions;
 
 export function makeApiLayer(overrides: Partial<AppConfigShape> = {}, options?: RuntimeOptions) {
-  const layers = makeApiLifecycleLayers(overrides, options);
-
-  return Layer.mergeAll(
-    layers.platformLayer,
-    layers.appLayer.pipe(Layer.provide(layers.platformLayer)),
-  );
+  return makeApiLifecycleLayers(overrides, options).appLayer;
 }
 
 export function makeApiRuntime(
-  overrides: Partial<AppConfigShape> = {},
-  options?: Parameters<typeof makeApiLayer>[1],
+  overrides: Parameters<typeof makeApiLifecycleLayers>[0] = {},
+  options?: Parameters<typeof makeApiLifecycleLayers>[1],
 ) {
   return ManagedRuntime.make(makeApiLayer(overrides, options));
 }
