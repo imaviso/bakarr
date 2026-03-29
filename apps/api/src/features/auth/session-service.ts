@@ -8,6 +8,7 @@ import type {
   LoginResponse,
 } from "../../../../../packages/shared/src/index.ts";
 import { AppConfig } from "../../config.ts";
+import type { AppDatabase } from "../../db/database.ts";
 import { Database, DatabaseError } from "../../db/database.ts";
 import { sessions, users } from "../../db/schema.ts";
 import { nowIsoFromClock, ClockService } from "../../lib/clock.ts";
@@ -16,13 +17,8 @@ import { randomHexFrom, RandomService } from "../../lib/random.ts";
 import { verifyPassword } from "../../security/password.ts";
 import { TokenHasher, type TokenHasherError } from "../../security/token-hasher.ts";
 import { AuthError, type AuthCryptoError } from "./errors.ts";
-import {
-  createSession,
-  expiresAtIso,
-  findUserByApiKey,
-  findUserByUsername,
-  writeLog,
-} from "./service-support.ts";
+import { writeAuthLog } from "./audit-log.ts";
+import { findUserByApiKey, findUserByUsername } from "./user-repository.ts";
 
 export interface SessionIdentity {
   readonly token: string;
@@ -55,6 +51,43 @@ export class AuthSessionService extends Context.Tag("@bakarr/api/AuthSessionServ
   AuthSessionService,
   AuthSessionServiceShape
 >() {}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const expiresAtIso = Effect.fn("AuthSessionService.expiresAtIso")(function* (
+  durationDays: number,
+  currentTimeMillis: () => Effect.Effect<number>,
+) {
+  const now = yield* currentTimeMillis();
+  return new Date(now + durationDays * DAY_MS).toISOString();
+});
+
+const createSession = Effect.fn("AuthSessionService.createSession")(function* (
+  db: AppDatabase,
+  durationDays: number,
+  hashToken: (token: string) => Effect.Effect<string, TokenHasherError>,
+  userId: number,
+  randomHex: (bytes: number) => Effect.Effect<string>,
+  nowIso: () => Effect.Effect<string>,
+  currentTimeMillis: () => Effect.Effect<number>,
+) {
+  const token = yield* randomHex(32);
+  const tokenHash = yield* hashToken(token);
+  const now = yield* nowIso();
+  const expiresAt = yield* expiresAtIso(durationDays, currentTimeMillis);
+
+  yield* tryDatabasePromise("Failed to create session", () =>
+    db.insert(sessions).values({
+      createdAt: now,
+      expiresAt,
+      lastSeenAt: now,
+      token: tokenHash,
+      userId,
+    }),
+  );
+
+  return token;
+});
 
 const makeAuthSessionService = Effect.gen(function* () {
   const { db } = yield* Database;
@@ -96,7 +129,7 @@ const makeAuthSessionService = Effect.gen(function* () {
       currentTimeMillis,
     );
 
-    yield* writeLog(
+    yield* writeAuthLog(
       db,
       {
         eventType: "auth.login",
@@ -130,7 +163,7 @@ const makeAuthSessionService = Effect.gen(function* () {
       currentTimeMillis,
     );
 
-    yield* writeLog(
+    yield* writeAuthLog(
       db,
       {
         eventType: "auth.login.api_key",

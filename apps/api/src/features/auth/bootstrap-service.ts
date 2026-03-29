@@ -8,7 +8,8 @@ import { randomHexFrom, RandomService } from "../../lib/random.ts";
 import { hashPasswordWith } from "../../security/password.ts";
 import { TokenHasher } from "../../security/token-hasher.ts";
 import { tryDatabasePromise } from "../../lib/effect-db.ts";
-import { announceBootstrapCredentials, writeLog } from "./service-support.ts";
+import { announceBootstrapCredentials } from "./bootstrap-output.ts";
+import { writeAuthLog } from "./audit-log.ts";
 import type { AuthCryptoError } from "./errors.ts";
 
 export interface AuthBootstrapServiceShape {
@@ -83,7 +84,7 @@ const makeAuthBootstrapService = Effect.gen(function* () {
         .onConflictDoNothing(),
     );
 
-    yield* writeLog(
+    yield* writeAuthLog(
       db,
       {
         eventType: "bootstrap.user.created",

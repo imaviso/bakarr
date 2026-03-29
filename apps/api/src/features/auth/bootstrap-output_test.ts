@@ -2,7 +2,7 @@ import { Terminal } from "@effect/platform";
 import { Effect, Logger } from "effect";
 
 import { assertEquals, it } from "../../test/vitest.ts";
-import { announceBootstrapCredentials } from "./service-support.ts";
+import { announceBootstrapCredentials } from "./bootstrap-output.ts";
 
 it.effect("announceBootstrapCredentials logs a fallback message when terminal display fails", () =>
   Effect.gen(function* () {
