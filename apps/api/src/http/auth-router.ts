@@ -10,7 +10,7 @@ import { AppConfig } from "../config.ts";
 import { AuthCredentialService } from "../features/auth/credential-service.ts";
 import { AuthSessionService } from "../features/auth/session-service.ts";
 import { decodeJsonBodyWithLabel, routeResponse, withAuthViewer } from "./router-helpers.ts";
-import { clearSessionResponse, mapAuthRouteError, persistSessionResponse } from "./route-auth.ts";
+import { mapAuthRouteError, persistSessionResponse } from "./route-auth.ts";
 
 export const authRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
@@ -43,9 +43,19 @@ export const authRouter = HttpRouter.empty.pipe(
         const request = yield* HttpServerRequest.HttpServerRequest;
         const token = request.cookies[config.sessionCookieName];
         yield* Effect.flatMap(AuthSessionService, (auth) => auth.logout(token));
-        return undefined;
       }),
-      () => clearSessionResponse(),
+      () =>
+        Effect.gen(function* () {
+          const config = yield* AppConfig;
+          const response = yield* HttpServerResponse.json({
+            data: null,
+            success: true,
+          });
+
+          return HttpServerResponse.expireCookie(response, config.sessionCookieName, {
+            path: "/",
+          });
+        }),
       mapAuthRouteError,
     ),
   ),

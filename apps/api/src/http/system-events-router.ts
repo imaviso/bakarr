@@ -1,9 +1,9 @@
-import { HttpRouter } from "@effect/platform";
+import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { EventBus } from "../features/events/event-bus.ts";
 import { DownloadProgressService } from "../features/operations/download-service-tags.ts";
-import { buildDownloadProgressResponse } from "./event-stream.ts";
+import { buildDownloadProgressStream } from "./event-stream.ts";
 import { authedRouteResponse } from "./router-helpers.ts";
 
 export const systemEventsRouter = HttpRouter.empty.pipe(
@@ -16,7 +16,15 @@ export const systemEventsRouter = HttpRouter.empty.pipe(
         return { downloads, eventBus };
       }),
       ({ downloads, eventBus }) =>
-        Effect.succeed(buildDownloadProgressResponse(downloads, eventBus)),
+        Effect.succeed(
+          HttpServerResponse.stream(buildDownloadProgressStream(downloads, eventBus), {
+            contentType: "text/event-stream",
+            headers: {
+              "Cache-Control": "no-cache",
+              Connection: "keep-alive",
+            },
+          }),
+        ),
     ),
   ),
 );

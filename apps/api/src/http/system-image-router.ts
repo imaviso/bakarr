@@ -1,8 +1,8 @@
-import { HttpRouter } from "@effect/platform";
+import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
 import { ImageAssetService } from "../features/system/image-asset-service.ts";
-import { buildImageAssetResponse } from "./image-asset-response.ts";
+import { contentType } from "./route-fs.ts";
 import { authedRouteResponse } from "./router-helpers.ts";
 
 export const systemImageRouter = HttpRouter.empty.pipe(
@@ -16,7 +16,12 @@ export const systemImageRouter = HttpRouter.empty.pipe(
         return yield* (yield* ImageAssetService).resolveImageAsset(rawRelativePath);
       }),
       ({ bytes, filePath }) =>
-        Effect.succeed(buildImageAssetResponse(Uint8Array.from(bytes), filePath)),
+        Effect.succeed(
+          HttpServerResponse.uint8Array(Uint8Array.from(bytes), {
+            contentType: contentType(filePath),
+            headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+          }),
+        ),
     ),
   ),
 );

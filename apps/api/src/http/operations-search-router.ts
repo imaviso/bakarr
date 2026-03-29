@@ -1,5 +1,5 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { HttpRouter, HttpServerRequest } from "@effect/platform";
+import { Effect, Schema } from "effect";
 
 import { ClockService } from "../lib/clock.ts";
 import { CatalogLibraryService } from "../features/operations/catalog-library-service.ts";
@@ -15,13 +15,13 @@ import {
 import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
-  decodeOptionalJsonBody,
   decodePathParams,
   decodeQueryWithLabel,
   jsonResponse,
   successResponse,
 } from "./router-helpers.ts";
 import { SearchEpisodeParamsSchema } from "./common-request-schemas.ts";
+import { formatValidationErrorMessage, RequestValidationError } from "./route-validation.ts";
 
 export const searchRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -88,10 +88,25 @@ export const searchRouter = HttpRouter.empty.pipe(
     "/downloads/search-missing",
     authedRouteResponse(
       Effect.gen(function* () {
-        const body = yield* decodeOptionalJsonBody({
-          empty: new SearchMissingBodySchema({ anime_id: undefined }),
-          label: "search missing downloads",
-          schema: SearchMissingBodySchema,
+        const body = yield* Effect.gen(function* () {
+          const request = yield* HttpServerRequest.HttpServerRequest;
+          const text = yield* request.text;
+
+          if (text.trim().length === 0) {
+            return new SearchMissingBodySchema({ anime_id: undefined });
+          }
+
+          return yield* Schema.decode(Schema.parseJson(SearchMissingBodySchema))(text).pipe(
+            Effect.mapError((error) =>
+              RequestValidationError.make({
+                message: formatValidationErrorMessage(
+                  "Invalid request body for search missing downloads",
+                  error,
+                ),
+                status: 400,
+              }),
+            ),
+          );
         });
         yield* (yield* SearchWorkflow).triggerSearchMissing(body.anime_id);
       }),

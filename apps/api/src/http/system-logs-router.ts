@@ -1,8 +1,10 @@
-import { HttpRouter } from "@effect/platform";
-import { Effect } from "effect";
+import { HttpRouter, HttpServerResponse } from "@effect/platform";
+import { Effect, Schema } from "effect";
 
 import { SystemLogService } from "../features/system/system-log-service.ts";
-import { buildSystemLogsExportResponse } from "./system-logs-export.ts";
+import type { SystemLog } from "../../../../packages/shared/src/index.ts";
+import { SystemLogSchema } from "../../../../packages/shared/src/index.ts";
+import { escapeCsv } from "./route-fs.ts";
 import { SystemLogExportQuerySchema, SystemLogsQuerySchema } from "./system-request-schemas.ts";
 import {
   authedRouteResponse,
@@ -51,7 +53,40 @@ export const logsRouter = HttpRouter.empty.pipe(
         });
         return { format: query.format ?? "json", logs };
       }),
-      ({ format, logs }) => buildSystemLogsExportResponse(logs, format),
+      ({ format, logs }) => {
+        if (format === "csv") {
+          const csv = [
+            "id,level,event_type,message,created_at",
+            ...logs.logs.map(
+              (log) =>
+                `${log.id},${log.level},${escapeCsv(log.event_type)},${escapeCsv(log.message)},${log.created_at}`,
+            ),
+          ].join("\n");
+
+          return Effect.succeed(
+            HttpServerResponse.text(csv, {
+              contentType: "text/csv; charset=utf-8",
+              headers: {
+                "Content-Disposition": `attachment; filename="bakarr-logs.csv"`,
+              },
+            }),
+          );
+        }
+
+        return Effect.succeed(
+          HttpServerResponse.text(
+            Schema.encodeSync(Schema.parseJson(Schema.Array(SystemLogSchema)))([
+              ...logs.logs,
+            ] satisfies SystemLog[]),
+            {
+              contentType: "application/json; charset=utf-8",
+              headers: {
+                "Content-Disposition": `attachment; filename="bakarr-logs.json"`,
+              },
+            },
+          ),
+        );
+      },
     ),
   ),
 );

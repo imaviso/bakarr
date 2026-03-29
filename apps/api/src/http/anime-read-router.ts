@@ -11,13 +11,17 @@ import {
   StreamUrlQuerySchema,
 } from "./anime-request-schemas.ts";
 import { IdParamsSchema } from "./common-request-schemas.ts";
-import { buildAnimeStreamUrl } from "./anime-streaming.ts";
+import { ClockService } from "../lib/clock.ts";
+import { EpisodeStreamAccessError } from "./streaming-errors.ts";
+import { StreamTokenSigner } from "./stream-token-signer.ts";
 import {
   authedRouteResponse,
   decodePathParams,
   decodeQuery,
   jsonResponse,
 } from "./router-helpers.ts";
+
+const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
 
 export const animeReadRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -110,10 +114,26 @@ export const animeReadRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQuery(StreamUrlQuerySchema);
-        return yield* buildAnimeStreamUrl({
-          animeId: params.id,
-          episodeNumber: query.episodeNumber,
-        });
+        const clock = yield* ClockService;
+        const now = yield* clock.currentTimeMillis;
+        const expiresAt = now + STREAM_EXPIRY_MS;
+        const signer = yield* StreamTokenSigner;
+        const signature = yield* signer
+          .sign({
+            animeId: params.id,
+            episodeNumber: query.episodeNumber,
+            expiresAt,
+          })
+          .pipe(
+            Effect.mapError(
+              () =>
+                new EpisodeStreamAccessError({ message: "Failed to sign stream URL", status: 400 }),
+            ),
+          );
+
+        return {
+          url: `/api/stream/${params.id}/${query.episodeNumber}?exp=${expiresAt}&sig=${signature}`,
+        };
       }),
       jsonResponse,
     ),
