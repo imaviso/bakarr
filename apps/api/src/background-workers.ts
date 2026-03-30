@@ -13,7 +13,7 @@ import type { AnimeMutationServiceShape } from "@/features/anime/mutation-servic
 import type { EventBusShape } from "@/features/events/event-bus.ts";
 import type { CatalogDownloadServiceShape } from "@/features/operations/catalog-service-tags.ts";
 import type { CatalogLibraryServiceShape } from "@/features/operations/catalog-library-service.ts";
-import type { SearchWorkflowShape } from "@/features/operations/search-service-tags.ts";
+import type { SearchBackgroundServiceShape } from "@/features/operations/search-background-service.ts";
 
 export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
   "WorkerTimeoutError",
@@ -38,7 +38,7 @@ export interface BackgroundWorkerDependencies {
   readonly clock: ClockServiceShape;
   readonly eventBus: EventBusShape;
   readonly monitor: BackgroundWorkerMonitorShape;
-  readonly searchWorkflow: SearchWorkflowShape;
+  readonly searchBackgroundService: SearchBackgroundServiceShape;
 }
 
 export interface BackgroundWorkerSpawner<R = never> {
@@ -57,12 +57,12 @@ export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConf
     clock,
     eventBus,
     monitor,
-    searchWorkflow,
+    searchBackgroundService,
   } = services;
   const schedule = buildBackgroundSchedule(config);
   const runRssWorkerTask = Effect.fn("Background.runRssWorkerTask")(function* () {
-    yield* searchWorkflow.runRssCheck();
-    yield* searchWorkflow.triggerSearchMissing();
+    yield* searchBackgroundService.runRssCheck();
+    yield* searchBackgroundService.triggerSearchMissing();
   });
   const runDownloadSyncWorkerTask = Effect.fn("Background.runDownloadSyncWorkerTask")(function* () {
     yield* catalogDownloadService.syncDownloads();

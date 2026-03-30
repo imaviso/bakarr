@@ -21,7 +21,11 @@ import {
   DownloadWorkflowLive,
   ProgressLive,
 } from "@/features/operations/download-service-tags.ts";
-import { SearchWorkflowLive } from "@/features/operations/search-service-tags.ts";
+import { SearchBackgroundServiceLive } from "@/features/operations/search-background-service.ts";
+import { SearchEpisodeServiceLive } from "@/features/operations/search-episode-service.ts";
+import { SearchImportPathServiceLive } from "@/features/operations/search-import-path-service.ts";
+import { SearchReleaseServiceLive } from "@/features/operations/search-release-service.ts";
+import { SearchUnmappedServiceLive } from "@/features/operations/search-unmapped-service.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
 import { MetricsServiceLive } from "@/features/system/metrics-service.ts";
@@ -82,9 +86,28 @@ export function makeApiLifecycleLayers(
     withPlatform(CatalogLibraryServiceLive.pipe(Layer.provideMerge(downloadBaseLayer))),
   );
 
-  // Search workflow (needs download base + anime for import service)
-  const searchWorkflowLayer = withPlatform(
-    SearchWorkflowLive.pipe(Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, animeLayer))),
+  // Search services (direct leaf capabilities)
+  const searchReleaseLayer = withPlatform(SearchReleaseServiceLive);
+  const searchEpisodeLayer = withPlatform(
+    SearchEpisodeServiceLive.pipe(Layer.provideMerge(searchReleaseLayer)),
+  );
+  const searchImportPathLayer = withPlatform(SearchImportPathServiceLive);
+  const searchUnmappedLayer = withPlatform(
+    SearchUnmappedServiceLive.pipe(
+      Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, animeLayer)),
+    ),
+  );
+  const searchBackgroundLayer = withPlatform(
+    SearchBackgroundServiceLive.pipe(
+      Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, searchReleaseLayer)),
+    ),
+  );
+  const searchLayer = Layer.mergeAll(
+    searchReleaseLayer,
+    searchEpisodeLayer,
+    searchImportPathLayer,
+    searchUnmappedLayer,
+    searchBackgroundLayer,
   );
 
   // Operations feature (all download/catalog/search services)
@@ -92,7 +115,7 @@ export function makeApiLifecycleLayers(
     downloadBaseLayer,
     withPlatform(DownloadProgressServiceLive),
     catalogLayer,
-    searchWorkflowLayer,
+    searchLayer,
   );
 
   // Background controller (scoped, depends on platform + operations + anime)

@@ -11,7 +11,7 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { BackgroundWorkerMonitor } from "@/background-monitor.ts";
 import { CatalogDownloadService } from "@/features/operations/catalog-service-tags.ts";
 import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
-import { SearchWorkflow } from "@/features/operations/search-service-tags.ts";
+import { SearchBackgroundService } from "@/features/operations/search-background-service.ts";
 
 const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
   const animeService = yield* AnimeMutationService;
@@ -20,7 +20,7 @@ const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
   const monitor = yield* BackgroundWorkerMonitor;
   const catalogDownloadService = yield* CatalogDownloadService;
   const catalogLibraryService = yield* CatalogLibraryService;
-  const searchWorkflow = yield* SearchWorkflow;
+  const searchBackgroundService = yield* SearchBackgroundService;
 
   const controller = yield* makeBackgroundWorkerController({
     spawnWorkers: (scope, config) =>
@@ -32,7 +32,7 @@ const makeBackgroundWorkerControllerLive = Effect.gen(function* () {
           clock,
           eventBus,
           monitor,
-          searchWorkflow,
+          searchBackgroundService,
         },
         scope,
         config,
