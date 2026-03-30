@@ -1,9 +1,35 @@
+import * as Migrator from "@effect/sql/Migrator";
+import * as SqlClient from "@effect/sql/SqlClient";
+import type * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
 import { Effect } from "effect";
-import { migrate } from "drizzle-orm/libsql/migrator";
 
 import { Database, DatabaseError } from "@/db/database.ts";
+import { embeddedDrizzleMigrations } from "@/generated/embedded-drizzle-migrations.ts";
 
-export const DRIZZLE_MIGRATIONS_FOLDER = new URL("../../drizzle", import.meta.url).pathname;
+const applyMigrationStatements = Effect.fn("Database.applyMigrationStatements")(function* (
+  statements: readonly string[],
+) {
+  const sql = yield* SqlClient.SqlClient;
+
+  yield* Effect.forEach(statements, (statement) => sql.unsafe(statement), { discard: true });
+});
+
+const embeddedDrizzleMigrationLoader = Migrator.fromRecord(
+  Object.fromEntries(
+    Object.entries(embeddedDrizzleMigrations).map(([migrationName, statements]) => [
+      migrationName,
+      applyMigrationStatements(statements),
+    ]),
+  ),
+);
+
+export const runEmbeddedDrizzleMigrations = Effect.fn("Database.runEmbeddedDrizzleMigrations")(
+  function* (client: BunSqliteClient.SqliteClient) {
+    return yield* Migrator.make({})({ loader: embeddedDrizzleMigrationLoader }).pipe(
+      Effect.provideService(SqlClient.SqlClient, client),
+    );
+  },
+);
 
 /**
  * Startup migration strategy (blocking, fail-fast):
@@ -18,14 +44,15 @@ export const DRIZZLE_MIGRATIONS_FOLDER = new URL("../../drizzle", import.meta.ur
  * database should not silently serve requests.
  */
 export const migrateDatabase = Effect.fn("Database.migrate")(function* () {
-  const { db } = yield* Database;
+  const { client } = yield* Database;
 
-  yield* Effect.tryPromise({
-    try: () => migrate(db, { migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER }),
-    catch: (cause) =>
-      new DatabaseError({
-        cause,
-        message: "Failed to run database migrations",
-      }),
-  });
+  yield* runEmbeddedDrizzleMigrations(client).pipe(
+    Effect.mapError(
+      (cause) =>
+        new DatabaseError({
+          cause,
+          message: "Failed to run database migrations",
+        }),
+    ),
+  );
 });

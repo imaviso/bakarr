@@ -30,11 +30,14 @@ export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHtt
     const sessionToken = request.cookies[config.sessionCookieName];
     const headerApiKey = request.headers["x-api-key"];
     const authorization = request.headers["authorization"];
-    const apiKey = headerApiKey
-      ? headerApiKey
-      : authorization?.startsWith("Bearer ")
-        ? authorization.slice("Bearer ".length)
-        : undefined;
+    let apiKey: string | undefined;
+
+    if (headerApiKey) {
+      apiKey = headerApiKey;
+    } else if (authorization?.startsWith("Bearer ")) {
+      apiKey = authorization.slice("Bearer ".length);
+    }
+
     const viewer = yield* Effect.flatMap(AuthSessionService, (auth) =>
       auth.resolveViewer(sessionToken, apiKey),
     );

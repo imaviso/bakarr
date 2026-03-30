@@ -3,7 +3,6 @@ import { Cause, Effect, Exit, Layer } from "effect";
 
 import { AppConfig } from "@/config.ts";
 import { Database, type DatabaseService } from "@/db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import { AppRuntime } from "@/app-runtime.ts";
 import { BackgroundWorkerMonitorLive } from "@/background-monitor.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
@@ -23,7 +22,6 @@ import {
 describe("SystemStatusService", () => {
   it.scoped("fails when the stored config row is missing", () =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) =>
         Effect.gen(function* () {
           const commandExecutor = makeCommandExecutorStub((command) => {

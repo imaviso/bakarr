@@ -5,12 +5,10 @@ import { Effect } from "effect";
 import { upsertEpisodeFilesAtomic } from "@/features/operations/download-support.ts";
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 
 it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -50,7 +48,6 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
 
 it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -100,7 +97,6 @@ it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
 
 it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;

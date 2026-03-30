@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 import { appConfig, anime } from "@/db/schema.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { assertEquals, assertInstanceOf, it } from "@/test/vitest.ts";
@@ -15,7 +14,6 @@ import { makeDefaultConfig } from "@/features/system/defaults.ts";
 it.scoped("updateAnimePathEffect accepts paths inside the configured library root", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) =>
         Effect.gen(function* () {
           const libraryRoot = `${root}/library`;
@@ -95,7 +93,6 @@ it.scoped("updateAnimePathEffect accepts paths inside the configured library roo
 it.scoped("updateAnimePathEffect rejects paths outside the configured library root", () =>
   withFileSystemSandboxEffect(({ fs, root }) =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) =>
         Effect.gen(function* () {
           const libraryRoot = `${root}/library`;

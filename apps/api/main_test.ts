@@ -1,5 +1,4 @@
 import { assert, assertEquals, assertExists, assertMatch, it } from "./src/test/vitest.ts";
-import { createClient } from "@libsql/client";
 import { CommandExecutor } from "@effect/platform";
 import { HttpApp } from "@effect/platform";
 import { Effect, Layer, Redacted } from "effect";
@@ -10,6 +9,7 @@ import { mapQBitState } from "./src/features/operations/download-orchestration-s
 import { type ParsedRelease, RssClient } from "./src/features/operations/rss-client.ts";
 import { SeaDexClient, type SeaDexEntry } from "./src/features/operations/seadex-client.ts";
 import { platformFsTest } from "./src/test/platform-filesystem-test.ts";
+import { createClient } from "./src/test/sqlite-client.ts";
 import type { AnimeSearchResult } from "../../packages/shared/src/index.ts";
 
 const {
@@ -4709,7 +4709,7 @@ function makeCommandExecutorStub(
 async function waitForSql(
   client: ReturnType<typeof createClient>,
   sql: string,
-  args: Parameters<typeof client.execute>[1],
+  args: ReadonlyArray<unknown> | undefined,
   predicate: (rows: Array<Record<string, unknown>>) => boolean,
   timeoutMs = 5000,
 ) {

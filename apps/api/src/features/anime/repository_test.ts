@@ -5,7 +5,6 @@ import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import { anime, appConfig, episodes, qualityProfiles, systemLogs } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { encodeConfigCore } from "@/features/system/config-codec.ts";
@@ -457,7 +456,6 @@ const withTestDbEffect = Effect.fn("AnimeRepositoryTest.withTestDbEffect")(funct
   run: (db: AppDatabase) => Effect.Effect<A, E, R>,
 ) {
   return yield* withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) => run(db as AppDatabase),
     schema,
   });

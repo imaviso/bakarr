@@ -1,12 +1,14 @@
+import * as SqlClient from "@effect/sql/SqlClient";
+import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
+import * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
 import { Context, Effect, Layer, Schema } from "effect";
-import { type Client, createClient } from "@libsql/client";
-import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
+import type { SqliteRemoteDatabase } from "drizzle-orm/sqlite-proxy";
 
 import { AppConfig } from "@/config.ts";
 import { isSqliteBusyLock, isSqliteUniqueConstraint } from "@/db/sqlite-errors.ts";
 import * as schema from "@/db/schema.ts";
 
-export type AppDatabase = LibSQLDatabase<typeof schema>;
+export type AppDatabase = SqliteRemoteDatabase<typeof schema>;
 
 export class DatabaseError extends Schema.TaggedError<DatabaseError>()("DatabaseError", {
   cause: Schema.Defect,
@@ -27,7 +29,7 @@ export function isBusySqliteCause(cause: unknown): boolean {
 }
 
 export interface DatabaseService {
-  readonly client: Client;
+  readonly client: BunSqliteClient.SqliteClient;
   readonly db: AppDatabase;
 }
 
@@ -39,22 +41,24 @@ const sqliteSetupError = (cause: unknown) =>
     message: "Failed to open the SQLite database",
   });
 
-const executeSql = Effect.fn("Database.executeSql")(function* (client: Client, statement: string) {
-  return yield* Effect.tryPromise({
-    try: () => client.execute(statement),
-    catch: sqliteSetupError,
-  });
+const executeSql = Effect.fn("Database.executeSql")(function* <A extends Record<string, unknown>>(
+  client: BunSqliteClient.SqliteClient,
+  statement: string,
+) {
+  return yield* client.unsafe<A>(statement).pipe(Effect.mapError(sqliteSetupError));
 });
 
-const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* (client: Client) {
+const setAndVerifyPragmas = Effect.fn("Database.setAndVerifyPragmas")(function* (
+  client: BunSqliteClient.SqliteClient,
+) {
   yield* executeSql(client, "PRAGMA journal_mode = WAL");
   yield* executeSql(client, "PRAGMA foreign_keys = ON");
 
-  const journalMode = yield* executeSql(client, "PRAGMA journal_mode");
-  const foreignKeys = yield* executeSql(client, "PRAGMA foreign_keys");
+  const journalMode = yield* executeSql<Record<string, unknown>>(client, "PRAGMA journal_mode");
+  const foreignKeys = yield* executeSql<Record<string, unknown>>(client, "PRAGMA foreign_keys");
 
-  const journalModeValue = toSqlitePragmaValue(journalMode.rows[0]?.[0]);
-  const foreignKeysValue = toSqlitePragmaValue(foreignKeys.rows[0]?.[0]);
+  const journalModeValue = toSqlitePragmaValue(firstRowValue(journalMode[0]));
+  const foreignKeysValue = toSqlitePragmaValue(firstRowValue(foreignKeys[0]));
 
   if (journalModeValue.toLowerCase() !== "wal") {
     yield* Effect.logWarning("SQLite pragma mismatch").pipe(
@@ -90,33 +94,31 @@ function toSqlitePragmaValue(value: unknown) {
   return "";
 }
 
+function firstRowValue(row: Record<string, unknown> | undefined) {
+  return row ? Object.values(row)[0] : undefined;
+}
+
 const makeDatabase = Effect.gen(function* () {
   const config = yield* AppConfig;
-  const client = yield* Effect.acquireRelease(
-    Effect.try({
-      try: () =>
-        createClient({
-          url: toDatabaseUrl(config.databaseFile),
-        }),
-      catch: sqliteSetupError,
+  const clientContext = yield* Layer.build(
+    BunSqliteClient.layer({
+      create: true,
+      filename: config.databaseFile,
+      readwrite: true,
     }),
-    (client) => Effect.sync(() => client.close()),
-  );
+  ).pipe(Effect.mapError(sqliteSetupError));
+  const client = Context.get(clientContext, BunSqliteClient.SqliteClient);
 
   yield* setAndVerifyPragmas(client);
 
+  const db = yield* SqliteDrizzle.make<typeof schema>({ schema }).pipe(
+    Effect.provideService(SqlClient.SqlClient, client),
+  );
+
   return {
     client,
-    db: drizzle({ client, schema }),
+    db,
   };
 });
 
 export const DatabaseLive = Layer.scoped(Database, makeDatabase);
-
-function toDatabaseUrl(databaseFile: string): string {
-  if (databaseFile.startsWith("file:")) {
-    return databaseFile;
-  }
-
-  return `file:${databaseFile}`;
-}

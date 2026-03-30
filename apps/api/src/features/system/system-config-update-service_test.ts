@@ -7,7 +7,6 @@ import {
   type BackgroundWorkerControllerShape,
 } from "@/background-controller.ts";
 import { Database, type DatabaseService } from "@/db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import * as schema from "@/db/schema.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { RandomServiceLive } from "@/lib/random.ts";
@@ -26,7 +25,6 @@ import {
 describe("SystemConfigUpdateService", () => {
   it.scoped("persists updated config and reloads background workers", () =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) =>
         Effect.gen(function* () {
           const reloads: Config[] = [];

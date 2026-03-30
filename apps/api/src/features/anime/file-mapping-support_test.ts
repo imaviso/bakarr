@@ -2,7 +2,6 @@ import { assertEquals, it } from "@/test/vitest.ts";
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
@@ -28,7 +27,6 @@ const insertAnime = Effect.fn("Test.insertAnime")(function* (db: AppDatabase, ro
 
 it.scoped("resolveEpisodeFileEffect returns resolved file when mapping is valid", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
@@ -65,7 +63,6 @@ it.scoped("resolveEpisodeFileEffect returns resolved file when mapping is valid"
 
 it.scoped("resolveEpisodeFileEffect returns unmapped state when no file path is stored", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
@@ -96,7 +93,6 @@ it.scoped("resolveEpisodeFileEffect returns unmapped state when no file path is 
 
 it.scoped("resolveEpisodeFileEffect returns missing state when mapped file is inaccessible", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
@@ -130,7 +126,6 @@ it.scoped(
   "resolveEpisodeFileEffect returns root inaccessible state when anime root is inaccessible",
   () =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db) =>
         withFileSystemSandboxEffect(({ fs, root }) =>
           Effect.gen(function* () {
@@ -165,7 +160,6 @@ it.scoped(
   "resolveEpisodeFileEffect returns outside-root state when mapping escapes anime root",
   () =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db) =>
         withFileSystemSandboxEffect(({ fs, root }) =>
           Effect.gen(function* () {

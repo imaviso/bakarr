@@ -1,7 +1,6 @@
 import { Cause, Effect, Exit } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import * as schema from "@/db/schema.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -183,7 +182,6 @@ it.scoped("download presentation contexts fail for corrupt covered episode metad
 const withTestDbEffect = Effect.fn("DownloadPresentationRepositoryTest.withTestDbEffect")(
   function* <A, E, R>(run: (db: AppDatabase, databaseFile: string) => Effect.Effect<A, E, R>) {
     return yield* withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
       schema,
     });

@@ -5,7 +5,6 @@ import { Effect, Exit } from "effect";
 import type { AnimeSearchResult } from "@packages/shared/index.ts";
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { deriveEpisodeTimelineMetadata } from "@/lib/anime-derivations.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -75,7 +74,6 @@ it("deriveEpisodeTimelineMetadata marks future and aired episodes", () => {
 
 it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
         Effect.gen(function* () {
@@ -136,7 +134,6 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
 
 it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
         Effect.gen(function* () {
@@ -235,7 +232,6 @@ it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
 
 it.scoped("getAnimeByAnilistIdEffect returns related and recommended metadata", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -278,7 +274,6 @@ it.scoped("getAnimeByAnilistIdEffect returns related and recommended metadata", 
 
 it.scoped("getAnimeEffect returns discovery metadata from database storage", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -326,7 +321,6 @@ it.scoped("getAnimeEffect returns discovery metadata from database storage", () 
 
 it.scoped("getAnimeEffect uses stored discovery metadata from database", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -377,7 +371,6 @@ it.scoped("getAnimeEffect uses stored discovery metadata from database", () =>
 
 it.scoped("searchAnimeEffect fails when AniList search fails", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -407,7 +400,6 @@ it.scoped("searchAnimeEffect fails when AniList search fails", () =>
 
 it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -469,7 +461,6 @@ function makeAniListStub(metadata: {
 
 it.scoped("listAnimeEffect returns paginated results with defaults", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -505,7 +496,6 @@ it.scoped("listAnimeEffect returns paginated results with defaults", () =>
 
 it.scoped("listAnimeEffect respects limit and offset", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -549,7 +539,6 @@ it.scoped("listAnimeEffect respects limit and offset", () =>
 
 it.scoped("listAnimeEffect caps limit at 500", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -578,7 +567,6 @@ it.scoped("listAnimeEffect caps limit at 500", () =>
 
 it.scoped("listAnimeEffect floors limit at 1", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -607,7 +595,6 @@ it.scoped("listAnimeEffect floors limit at 1", () =>
 
 it.scoped("listAnimeEffect floors negative offset at 0", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -636,7 +623,6 @@ it.scoped("listAnimeEffect floors negative offset at 0", () =>
 
 it.scoped("listAnimeEffect aggregates episode download counts", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -675,7 +661,6 @@ it.scoped("listAnimeEffect aggregates episode download counts", () =>
 
 it.scoped("listAnimeEffect filters by monitored status", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -728,7 +713,6 @@ it.scoped("listAnimeEffect filters by monitored status", () =>
 
 it.scoped("listAnimeEffect includes progress and metadata fields needed by list UI", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -780,7 +764,6 @@ it.scoped("listAnimeEffect includes progress and metadata fields needed by list 
 
 it.scoped("listAnimeEffect fails when stored anime JSON metadata is corrupt", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;

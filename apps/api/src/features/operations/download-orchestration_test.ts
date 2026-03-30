@@ -6,7 +6,6 @@ import type { NotificationEvent } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { anime, appConfig, downloads, episodes } from "@/db/schema.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { MediaProbeShape } from "@/lib/media-probe.ts";
 import { MediaProbeNoMetadata } from "@/lib/media-probe.ts";
@@ -44,7 +43,6 @@ import { makeDownloadOrchestration } from "@/features/operations/download-orches
 
 it.scoped("triggerDownload persists merged release provenance on queued downloads", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) =>
       withLibraryDir(({ fs, libraryDir }) =>
         Effect.gen(function* () {
@@ -116,7 +114,6 @@ it.scoped("triggerDownload persists merged release provenance on queued download
 
 it.scoped("triggerDownload stores source metadata in queued download event payload", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) =>
       withLibraryDir(({ fs, libraryDir }) =>
         Effect.gen(function* () {
@@ -171,7 +168,6 @@ it.scoped(
   "triggerDownload prevents overlapping episode queue races across concurrent callers",
   () =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) =>
         withLibraryDir(({ fs, libraryDir }) =>
           Effect.gen(function* () {
@@ -221,7 +217,6 @@ it.scoped(
 
 it.scoped("applyDownloadActionEffect stores structured metadata on pause and resume events", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) =>
       withLibraryDir(({ fs, libraryDir }) =>
         Effect.gen(function* () {
@@ -307,7 +302,6 @@ it.scoped("applyDownloadActionEffect stores structured metadata on pause and res
 
 it.scoped("retryDownloadById stores structured metadata in retried events", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) =>
       withLibraryDir(({ fs, libraryDir }) =>
         Effect.gen(function* () {
@@ -396,7 +390,6 @@ it.scoped("retryDownloadById stores structured metadata in retried events", () =
 
 it.scoped("applyDownloadActionEffect stores structured metadata on delete events", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) =>
       withLibraryDir(({ fs, libraryDir }) =>
         Effect.gen(function* () {
@@ -485,7 +478,6 @@ it.scoped(
   "reconcileDownloadByIdEffect imports lone generic batch files using stored coverage and provenance",
   () =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) =>
         withLibraryAndDownloadDirs(({ fs, libraryDir, downloadDir }) =>
           Effect.gen(function* () {
@@ -624,7 +616,6 @@ it.scoped(
   "syncDownloadsWithQBitEffect stores structured metadata for status and coverage events",
   () =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) =>
         withLibraryDir(({ fs, libraryDir }) =>
           Effect.gen(function* () {
@@ -797,7 +788,6 @@ it.scoped(
   "loadDownloadPresentationContexts falls back to reconciled download path when no episode row is mapped",
   () =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) =>
         withLibraryDir(({ libraryDir }) =>
           Effect.gen(function* () {
@@ -858,7 +848,6 @@ it.scoped(
   "reconcileDownloadByIdEffect imports generic completed files using stored provenance",
   () =>
     withSqliteTestDbEffect({
-      migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
       run: (db, databaseFile) =>
         withLibraryAndDownloadDirs(({ fs, libraryDir, downloadDir }) =>
           Effect.gen(function* () {

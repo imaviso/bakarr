@@ -4,7 +4,6 @@ import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
   anime,
@@ -615,7 +614,6 @@ const withTestDbEffect = Effect.fn("SystemRepositoryTest.withTestDbEffect")(func
   run: (db: AppDatabase, databaseFile: string) => Effect.Effect<A, E, R>,
 ) {
   return yield* withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
     schema,
   });

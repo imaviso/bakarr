@@ -3,7 +3,6 @@ import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { DRIZZLE_MIGRATIONS_FOLDER } from "@/db/migrate.ts";
 import { appConfig, episodes } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import {
@@ -136,7 +135,6 @@ it("analyzeScannedFile marks unknown files as needing manual mapping", () => {
 
 it.scoped("buildRenamePreview fills naming tokens from existing file metadata", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -199,7 +197,6 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
 
 it.scoped("buildRenamePreview respects preferred English title and movie naming format", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
@@ -260,7 +257,6 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
 
 it.scoped("buildRenamePreview reports fallback when season metadata is missing", () =>
   withSqliteTestDbEffect({
-    migrationsFolder: DRIZZLE_MIGRATIONS_FOLDER,
     run: (db, databaseFile) =>
       Effect.gen(function* () {
         const appDb = db as AppDatabase;
