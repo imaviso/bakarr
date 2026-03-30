@@ -409,6 +409,12 @@ const makeMediaProbe = (
   return { probeVideoFile };
 };
 
+const makeUnavailableMediaProbe = (message: string): MediaProbeShape => ({
+  probeVideoFile: Effect.fn("MediaProbe.probeVideoFile")(function* () {
+    return new MediaProbeUnavailable({ message });
+  }),
+});
+
 export const MediaProbeLive = Layer.effect(
   MediaProbe,
   Effect.gen(function* () {
@@ -416,9 +422,9 @@ export const MediaProbeLive = Layer.effect(
     const executorOption = yield* Effect.serviceOption(CommandExecutor.CommandExecutor);
 
     if (Option.isNone(executorOption)) {
-      return yield* Effect.fail(
-        new MediaProbeUnavailable({ message: "ffprobe is unavailable: command executor missing" }),
-      );
+      const message = "ffprobe is unavailable: command executor missing";
+      yield* Effect.logWarning("ffprobe unavailable").pipe(Effect.annotateLogs({ message }));
+      return makeUnavailableMediaProbe(message);
     }
 
     const availability = yield* runFfprobeCommandWith(
@@ -428,7 +434,10 @@ export const MediaProbeLive = Layer.effect(
     );
 
     if (availability instanceof MediaProbeFailure) {
-      return yield* Effect.fail(new MediaProbeUnavailable({ message: availability.message }));
+      yield* Effect.logWarning("ffprobe unavailable").pipe(
+        Effect.annotateLogs({ message: availability.message }),
+      );
+      return makeUnavailableMediaProbe(availability.message);
     }
 
     return makeMediaProbe(ffprobeSemaphore, executorOption.value);

@@ -156,6 +156,16 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
   }),
 );
 
+it.effect("MediaProbe returns unavailable when ffprobe is missing", () =>
+  Effect.gen(function* () {
+    const result = yield* Effect.flatMap(MediaProbe, (mediaProbe) =>
+      mediaProbe.probeVideoFile("/tmp/missing.mkv"),
+    ).pipe(Effect.provide(MediaProbeLive));
+
+    assertEquals(result._tag, "MediaProbeUnavailable");
+  }),
+);
+
 it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", () =>
   Effect.gen(function* () {
     const messages: string[] = [];
