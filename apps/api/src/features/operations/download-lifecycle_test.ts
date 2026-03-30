@@ -2,16 +2,18 @@ import { assertEquals, assertThrows, it } from "@/test/vitest.ts";
 
 import {
   applyRemotePathMappings,
-  inferCoveredEpisodeNumbers,
-  inferCoveredEpisodesFromTorrentContents,
-  parseCoveredEpisodes,
   parseMagnetInfoHash,
   resolveAccessibleDownloadPath,
   resolveBatchContentPaths,
   resolveCompletedContentPath,
+} from "@/features/operations/download-paths.ts";
+import {
+  inferCoveredEpisodeNumbers,
+  inferCoveredEpisodesFromTorrentContents,
+  parseCoveredEpisodes,
   resolveReconciledBatchEpisodeNumbers,
   toCoveredEpisodesJson,
-} from "@/features/operations/download-lifecycle.ts";
+} from "@/features/operations/download-coverage.ts";
 import { Effect } from "effect";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";

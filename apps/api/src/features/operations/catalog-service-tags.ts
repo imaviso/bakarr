@@ -1,15 +1,15 @@
 import { Context, Effect, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
-import { ClockService } from "@/lib/clock.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
   DownloadWorkflow,
   OperationsProgress,
 } from "@/features/operations/download-service-tags.ts";
-import { makeCatalogDownloadRuntime } from "@/features/operations/catalog-download-runtime.ts";
+import { makeCatalogDownloadOrchestration } from "@/features/operations/catalog-download-orchestration.ts";
 
-export type CatalogDownloadServiceShape = ReturnType<typeof makeCatalogDownloadRuntime>;
+export type CatalogDownloadServiceShape = ReturnType<typeof makeCatalogDownloadOrchestration>;
 
 export class CatalogDownloadService extends Context.Tag("@bakarr/api/CatalogDownloadService")<
   CatalogDownloadService,
@@ -22,14 +22,14 @@ const makeCatalogDownloadService = Effect.gen(function* () {
   const progress = yield* OperationsProgress;
   const clock = yield* ClockService;
 
-  return makeCatalogDownloadRuntime({
+  return makeCatalogDownloadOrchestration({
     applyDownloadActionEffect: downloadWorkflow.applyDownloadActionEffect,
-    currentTimeMillis: () => clock.currentTimeMillis,
     db,
-    publishDownloadProgress: progress.publishDownloadProgress,
     reconcileDownloadByIdEffect: downloadWorkflow.reconcileDownloadByIdEffect,
     retryDownloadById: downloadWorkflow.retryDownloadById,
     syncDownloadState: downloadWorkflow.syncDownloadState,
+    nowIso: () => nowIsoFromClock(clock),
+    publishDownloadProgress: progress.publishDownloadProgress,
     tryDatabasePromise,
   });
 });

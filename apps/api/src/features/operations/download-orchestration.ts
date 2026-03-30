@@ -1,8 +1,6 @@
 import { Effect } from "effect";
 
 import { durationMsSince } from "@/lib/logging.ts";
-import { DatabaseError } from "@/db/database.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
 import { makeDownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
 import { makeDownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
@@ -26,18 +24,7 @@ export function makeDownloadOrchestration(input: {
   ) {
     const startedAt = yield* currentMonotonicMillis();
 
-    yield* torrentLifecycleService.syncDownloadsWithQBitEffect().pipe(
-      Effect.catchAll((error) =>
-        Effect.fail(
-          error instanceof DatabaseError
-            ? error
-            : new OperationsInfrastructureError({
-                message: "Failed to sync downloads with qBittorrent",
-                cause: error,
-              }),
-        ),
-      ),
-    );
+    yield* torrentLifecycleService.syncDownloadsWithQBitEffect();
 
     const finishedAt = yield* currentMonotonicMillis();
 

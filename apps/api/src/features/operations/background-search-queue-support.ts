@@ -9,11 +9,11 @@ import {
   mergeDownloadSourceMetadata,
 } from "@/features/operations/naming-support.ts";
 import {
+  hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
   parseCoveredEpisodesEffect,
   toCoveredEpisodesJson,
-  hasOverlappingDownload,
-} from "@/features/operations/download-lifecycle.ts";
+} from "@/features/operations/download-coverage.ts";
 import { parseReleaseName } from "@/features/operations/release-ranking.ts";
 import { queueParsedReleaseDownload } from "@/features/operations/release-queue-support.ts";
 import { type ParsedRelease } from "@/features/operations/rss-client.ts";

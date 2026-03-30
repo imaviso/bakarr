@@ -11,7 +11,7 @@ import {
 } from "@/features/operations/errors.ts";
 import { type ParsedRelease, RssClient } from "@/features/operations/rss-client.ts";
 import { type QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
-import { loadQualityProfile } from "@/features/operations/repository.ts";
+import { loadQualityProfile } from "@/features/operations/repository/profile-repository.ts";
 import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";

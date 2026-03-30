@@ -8,15 +8,13 @@ import {
   selectNamingFormat,
 } from "@/features/operations/naming-support.ts";
 import { importDownloadedFile, upsertEpisodeFile } from "@/features/operations/download-support.ts";
-import {
-  parseCoveredEpisodesEffect,
-  resolveCompletedContentPath,
-} from "@/features/operations/download-lifecycle.ts";
+import { parseCoveredEpisodesEffect } from "@/features/operations/download-coverage.ts";
+import { resolveCompletedContentPath } from "@/features/operations/download-paths.ts";
 import {
   OperationsInfrastructureError,
   OperationsPathError,
 } from "@/features/operations/errors.ts";
-import { encodeDownloadEventMetadata } from "@/features/operations/repository.ts";
+import { encodeDownloadEventMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
   finalizeDownloadImport,
   markDownloadReconciled,

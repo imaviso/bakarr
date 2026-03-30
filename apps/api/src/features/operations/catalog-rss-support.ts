@@ -6,7 +6,8 @@ import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { rssFeeds } from "@/db/schema.ts";
 import { appendLog } from "@/features/operations/job-support.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
-import { requireAnime, toRssFeed } from "@/features/operations/repository.ts";
+import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface CatalogRssSupportShape {

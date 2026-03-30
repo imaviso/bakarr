@@ -14,14 +14,14 @@ import {
 } from "@/features/operations/download-support.ts";
 import {
   parseCoveredEpisodesEffect,
-  resolveBatchContentPaths,
   resolveReconciledBatchEpisodeNumbers,
-} from "@/features/operations/download-lifecycle.ts";
+} from "@/features/operations/download-coverage.ts";
+import { resolveBatchContentPaths } from "@/features/operations/download-paths.ts";
 import {
   OperationsInfrastructureError,
   OperationsPathError,
 } from "@/features/operations/errors.ts";
-import { encodeDownloadEventMetadata } from "@/features/operations/repository.ts";
+import { encodeDownloadEventMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
   finalizeDownloadImport,
   type DownloadReconciliationContext,

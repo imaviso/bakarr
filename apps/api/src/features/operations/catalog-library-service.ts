@@ -1,14 +1,14 @@
 import { Context, Effect, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
-import { ClockService } from "@/lib/clock.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { MediaProbe } from "@/lib/media-probe.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsProgress } from "@/features/operations/download-service-tags.ts";
 import { makeCatalogLibraryOrchestration } from "@/features/operations/catalog-library-orchestration.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { makeCatalogLibraryRuntime } from "@/features/operations/catalog-library-runtime.ts";
+import { makeCatalogLibraryReadSupport } from "@/features/operations/catalog-library-read-support.ts";
 
 export type CatalogLibraryServiceShape = ReturnType<typeof makeCatalogLibraryOrchestration>;
 
@@ -26,16 +26,21 @@ export const CatalogLibraryServiceLive = Layer.effect(
     const mediaProbe = yield* MediaProbe;
     const clock = yield* ClockService;
     const progress = yield* OperationsProgress;
-    const runtime = makeCatalogLibraryRuntime({
+    const libraryReadSupport = makeCatalogLibraryReadSupport({
       currentTimeMillis: () => clock.currentTimeMillis,
       db,
-      eventBus,
-      fs,
-      mediaProbe,
-      publishLibraryScanProgress: progress.publishLibraryScanProgress,
       tryDatabasePromise,
     });
 
-    return makeCatalogLibraryOrchestration(runtime);
+    return makeCatalogLibraryOrchestration({
+      db,
+      eventBus,
+      fs,
+      libraryReadSupport,
+      mediaProbe,
+      nowIso: () => nowIsoFromClock(clock),
+      publishLibraryScanProgress: progress.publishLibraryScanProgress,
+      tryDatabasePromise,
+    });
   }),
 );

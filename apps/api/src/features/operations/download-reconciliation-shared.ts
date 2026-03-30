@@ -8,13 +8,11 @@ import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { MediaProbeShape } from "@/lib/media-probe.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import {
-  currentImportMode,
-  decodeDownloadSourceMetadata,
-  loadRuntimeConfig,
-  requireAnime,
-} from "@/features/operations/repository.ts";
-import { resolveAccessibleDownloadPath } from "@/features/operations/download-lifecycle.ts";
+import { currentImportMode } from "@/features/operations/repository/config-repository.ts";
+import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
+import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
+import { resolveAccessibleDownloadPath } from "@/features/operations/download-paths.ts";
 
 export type DownloadRow = typeof downloads.$inferSelect;
 export type AnimeRow = typeof anime.$inferSelect;

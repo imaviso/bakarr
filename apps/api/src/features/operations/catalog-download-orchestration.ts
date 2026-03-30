@@ -2,6 +2,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import { makeCatalogDownloadActionSupport } from "@/features/operations/catalog-orchestration-download-action-support.ts";
 import { makeCatalogDownloadViewSupport } from "@/features/operations/catalog-download-view-support.ts";
 import { makeCatalogRssSupport } from "@/features/operations/catalog-rss-support.ts";
+import type { OperationsError } from "@/features/operations/errors.ts";
 
 export function makeCatalogDownloadOrchestration(input: {
   readonly applyDownloadActionEffect: (
@@ -34,7 +35,7 @@ export function makeCatalogDownloadOrchestration(input: {
     trigger: string,
   ) => import("effect").Effect.Effect<
     void,
-    import("@/db/database.ts").DatabaseError | import("./errors.ts").OperationsInfrastructureError
+    import("@/db/database.ts").DatabaseError | OperationsError
   >;
   readonly tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise;
 }) {

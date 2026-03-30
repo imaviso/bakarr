@@ -10,7 +10,10 @@ import type {
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { downloadEvents, downloads } from "@/db/schema.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
-import { toDownload, toDownloadStatus } from "@/features/operations/repository.ts";
+import {
+  toDownload,
+  toDownloadStatus,
+} from "@/features/operations/repository/download-repository.ts";
 import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,

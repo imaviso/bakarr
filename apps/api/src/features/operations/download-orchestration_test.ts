@@ -27,12 +27,12 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { makeOperationsSharedState } from "@/features/operations/runtime-support.ts";
 import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import {
-  decodeDownloadEventMetadata,
   encodeDownloadSourceMetadata,
-  loadCurrentEpisodeState,
   toDownload,
   toDownloadStatus,
-} from "@/features/operations/repository.ts";
+} from "@/features/operations/repository/download-repository.ts";
+import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
+import { decodeDownloadEventMetadata } from "@/lib/download-event-presentations.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { tryDatabasePromise, toDatabaseError } from "@/lib/effect-db.ts";

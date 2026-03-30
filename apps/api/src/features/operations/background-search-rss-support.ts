@@ -13,12 +13,10 @@ import {
   parseEpisodeFromTitle,
   decideDownloadAction,
 } from "@/features/operations/release-ranking.ts";
-import {
-  loadCurrentEpisodeState,
-  loadReleaseRules,
-  loadRuntimeConfig,
-  requireAnime,
-} from "@/features/operations/repository.ts";
+import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
+import { loadReleaseRules } from "@/features/operations/repository/profile-repository.ts";
+import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
+import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { makeBackgroundSearchQueueSupport } from "@/features/operations/background-search-queue-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import type {

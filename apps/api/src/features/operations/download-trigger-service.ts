@@ -6,12 +6,12 @@ import { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
+import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import {
   encodeDownloadSourceMetadata,
-  loadRuntimeConfig,
-  requireAnime,
   toDownloadStatus,
-} from "@/features/operations/repository.ts";
+} from "@/features/operations/repository/download-repository.ts";
 import {
   buildDownloadSourceMetadataFromRelease,
   mergeDownloadSourceMetadata,
@@ -19,9 +19,9 @@ import {
 import {
   hasOverlappingDownload,
   inferCoveredEpisodeNumbers,
-  parseMagnetInfoHash,
   toCoveredEpisodesJson,
-} from "@/features/operations/download-lifecycle.ts";
+} from "@/features/operations/download-coverage.ts";
+import { parseMagnetInfoHash } from "@/features/operations/download-paths.ts";
 import {
   appendLog,
   loadMissingEpisodeNumbers,
@@ -97,7 +97,7 @@ export function makeDownloadTriggerService(input: {
         ),
       );
 
-      yield* eventBus.publish({
+      return yield* eventBus.publish({
         type: "DownloadProgress",
         payload: { downloads },
       });

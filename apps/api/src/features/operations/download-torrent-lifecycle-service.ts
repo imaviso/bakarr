@@ -5,16 +5,14 @@ import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
-import {
-  decodeDownloadSourceMetadata,
-  loadRuntimeConfig,
-} from "@/features/operations/repository.ts";
+import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
+import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { shouldReconcileCompletedDownloads } from "@/features/operations/download-support.ts";
 import {
   inferCoveredEpisodesFromTorrentContents,
   parseCoveredEpisodesEffect,
   toCoveredEpisodesJson,
-} from "@/features/operations/download-lifecycle.ts";
+} from "@/features/operations/download-coverage.ts";
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import {
   DownloadConflictError,

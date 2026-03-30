@@ -15,7 +15,10 @@ export interface CatalogDownloadActionSupportShape {
   ) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly resumeDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
   readonly retryDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
-  readonly syncDownloads: () => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  readonly syncDownloads: () => Effect.Effect<
+    void,
+    DatabaseError | OperationsError | OperationsInfrastructureError
+  >;
 }
 
 export function makeCatalogDownloadActionSupport(input: {
@@ -27,9 +30,7 @@ export function makeCatalogDownloadActionSupport(input: {
   publishDownloadProgress: () => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
   reconcileDownloadByIdEffect: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
   retryDownloadById: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
-  syncDownloadState: (
-    trigger: string,
-  ) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  syncDownloadState: (trigger: string) => Effect.Effect<void, DatabaseError | OperationsError>;
 }) {
   const {
     applyDownloadActionEffect,
