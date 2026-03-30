@@ -14,11 +14,11 @@ import { qualityProfileExistsEffect } from "@/features/anime/profile-support.ts"
 import {
   buildMissingEpisodeRows,
   ensureEpisodesEffect,
-  findAnimeRootFolderOwnerEffect,
-  inferAiredAt,
-  markSearchResultsAlreadyInLibraryEffect,
-  upsertEpisodeEffect,
-} from "@/features/anime/repository.ts";
+} from "@/features/anime/anime-schedule-repository.ts";
+import { upsertEpisodeEffect } from "@/features/anime/anime-episode-repository.ts";
+import { findAnimeRootFolderOwnerEffect } from "@/features/anime/anime-read-repository.ts";
+import { inferAiredAt } from "@/lib/anime-derivations.ts";
+import { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
 import {
   getConfiguredImagesPathEffect,
   getConfiguredLibraryPathEffect,

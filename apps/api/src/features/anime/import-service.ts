@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
-import { upsertEpisodeEffect } from "@/features/anime/repository.ts";
+import { upsertEpisodeEffect } from "@/features/anime/anime-episode-repository.ts";
 
 export interface AnimeImportServiceShape {
   readonly upsertEpisode: (

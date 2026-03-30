@@ -12,7 +12,7 @@ import { AnimeConflictError, AnimePathError } from "@/features/anime/errors.ts";
 import {
   findAnimeRootFolderOwnerEffect,
   requireAnimeExistsEffect,
-} from "@/features/anime/repository.ts";
+} from "@/features/anime/anime-read-repository.ts";
 import { getConfiguredLibraryPathEffect } from "@/features/anime/config-support.ts";
 import { qualityProfileExistsEffect } from "@/features/anime/profile-support.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";

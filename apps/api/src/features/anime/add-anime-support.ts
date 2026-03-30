@@ -18,10 +18,8 @@ import {
 import { toAnimeDto } from "@/features/anime/dto.ts";
 import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "@/features/anime/errors.ts";
 import { cacheAnimeMetadataImages } from "@/features/anime/image-cache.ts";
-import {
-  buildMissingEpisodeRows,
-  findAnimeRootFolderOwnerEffect,
-} from "@/features/anime/repository.ts";
+import { buildMissingEpisodeRows } from "@/features/anime/anime-schedule-repository.ts";
+import { findAnimeRootFolderOwnerEffect } from "@/features/anime/anime-read-repository.ts";
 import { insertAnimeAggregateAtomicEffect } from "@/features/anime/aggregate-support.ts";
 import {
   getConfiguredImagesPathEffect,

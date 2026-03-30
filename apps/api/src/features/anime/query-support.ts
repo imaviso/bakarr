@@ -14,7 +14,7 @@ import { anime, episodes } from "@/db/schema.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
 import { toAnimeDto } from "@/features/anime/dto.ts";
 import { AnimeNotFoundError, AnimeStoredDataError } from "@/features/anime/errors.ts";
-import { getAnimeRowEffect } from "@/features/anime/repository.ts";
+import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
 import {

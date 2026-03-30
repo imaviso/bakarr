@@ -14,12 +14,12 @@ import {
   encodeAnimeSynonyms,
 } from "@/features/anime/discovery-metadata-codec.ts";
 import { scanAnimeFolderEffect } from "@/features/anime/file-mapping-support.ts";
+import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
 import {
   ensureEpisodesEffect,
   type FutureAiringScheduleEntry,
-  getAnimeRowEffect,
   updateAnimeEpisodeAirDatesEffect,
-} from "@/features/anime/repository.ts";
+} from "@/features/anime/anime-schedule-repository.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { updateAnimeRow } from "@/features/anime/update-support.ts";
 

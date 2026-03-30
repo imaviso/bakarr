@@ -6,7 +6,7 @@ import { anime } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import type { EventPublisherShape } from "@/features/events/publisher.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
-import { requireAnimeExistsEffect } from "@/features/anime/repository.ts";
+import { requireAnimeExistsEffect } from "@/features/anime/anime-read-repository.ts";
 
 export const updateAnimeRow = Effect.fn("AnimeUpdateSupport.updateAnimeRow")(function* (
   db: AppDatabase,

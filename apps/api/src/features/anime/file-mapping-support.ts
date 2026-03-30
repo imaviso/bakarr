@@ -21,16 +21,14 @@ import { collectVideoFiles } from "@/features/anime/files.ts";
 import { AnimePathError, type AnimeServiceError } from "@/features/anime/errors.ts";
 import { buildScannedFileMetadata } from "@/lib/scanned-file-metadata.ts";
 import {
-  buildAiringScheduleMap,
   bulkMapEpisodeFilesAtomicEffect,
   clearEpisodeMappingEffect,
-  getAnimeRowEffect,
-  getEpisodeRowEffect,
-  inferAiredAt,
   upsertEpisodeEffect,
-} from "@/features/anime/repository.ts";
+} from "@/features/anime/anime-episode-repository.ts";
+import { getAnimeRowEffect, getEpisodeRowEffect } from "@/features/anime/anime-read-repository.ts";
+import { buildAiringScheduleMap } from "@/features/anime/anime-schedule-repository.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
+import { inferAiredAt, summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
 
 export class EpisodeFileResolved extends Schema.TaggedClass<EpisodeFileResolved>()(
   "EpisodeFileResolved",
