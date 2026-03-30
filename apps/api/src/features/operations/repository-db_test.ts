@@ -14,17 +14,23 @@ import {
 } from "@/features/system/config-codec.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
+  getConfigLibraryPath,
   currentImportMode,
   currentNamingSettings,
+  loadRuntimeConfig,
+} from "@/features/operations/repository/config-repository.ts";
+import {
   decodeDownloadSourceMetadata,
   encodeDownloadSourceMetadata,
-  getConfigLibraryPath,
+} from "@/features/operations/repository/download-repository.ts";
+import {
   loadCurrentEpisodeState,
+  requireAnime,
+} from "@/features/operations/repository/anime-repository.ts";
+import {
   loadQualityProfile,
   loadReleaseRules,
-  loadRuntimeConfig,
-  requireAnime,
-} from "@/features/operations/repository.ts";
+} from "@/features/operations/repository/profile-repository.ts";
 import { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
 
 it.scoped(

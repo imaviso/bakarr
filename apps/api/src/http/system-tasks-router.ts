@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { AnimeMutationService } from "@/features/anime/mutation-service.ts";
 import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
-import { SearchWorkflow } from "@/features/operations/search-service-tags.ts";
+import { SearchBackgroundService } from "@/features/operations/search-background-service.ts";
 import { authedRouteResponse, successResponse } from "@/http/router-helpers.ts";
 
 export const systemTasksRouter = HttpRouter.empty.pipe(
@@ -17,7 +17,7 @@ export const systemTasksRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/api/system/tasks/rss",
     authedRouteResponse(
-      Effect.flatMap(SearchWorkflow, (service) => service.runRssCheck()),
+      Effect.flatMap(SearchBackgroundService, (service) => service.runRssCheck()),
       successResponse,
     ),
   ),

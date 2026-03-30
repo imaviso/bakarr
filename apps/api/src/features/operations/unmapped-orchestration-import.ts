@@ -22,7 +22,8 @@ import {
 } from "@/features/operations/errors.ts";
 import { appendLog } from "@/features/operations/job-support.ts";
 import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
-import { getConfigLibraryPath, requireAnime } from "@/features/operations/repository.ts";
+import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface UnmappedImportWorkflowShape {

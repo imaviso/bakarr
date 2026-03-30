@@ -6,10 +6,10 @@ import {
   encodeDownloadEventMetadata,
   encodeDownloadSourceMetadata,
   toDownload,
-  toDownloadEvent,
   toDownloadStatus,
-  toRssFeed,
-} from "@/features/operations/repository.ts";
+} from "@/features/operations/repository/download-repository.ts";
+import { toDownloadEvent } from "@/lib/download-event-presentations.ts";
+import { toRssFeed } from "@/features/operations/repository/rss-repository.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 it.effect("repository mappers convert RSS feed and download event rows", () =>

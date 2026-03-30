@@ -27,7 +27,8 @@ import {
   toAnimeSearchCandidate,
 } from "@/features/operations/library-import.ts";
 import { buildEpisodeFilenamePlan } from "@/features/operations/naming-support.ts";
-import { currentNamingSettings, requireAnime } from "@/features/operations/repository.ts";
+import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { currentNamingSettings } from "@/features/operations/repository/config-repository.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import { scoreAnimeSearchResultMatch, summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
 

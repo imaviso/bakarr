@@ -15,7 +15,8 @@ import {
 } from "@/features/operations/rss-client.ts";
 import { SeaDexClient } from "@/features/operations/seadex-client.ts";
 import { applySeaDexMatch } from "@/features/operations/seadex-matching.ts";
-import { loadRuntimeConfig, requireAnime } from "@/features/operations/repository.ts";
+import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import {
   mapSearchCategory,
   mapSearchFilter,

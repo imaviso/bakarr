@@ -10,9 +10,9 @@ import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import {
   hasOverlappingDownload,
   parseCoveredEpisodesEffect,
-} from "@/features/operations/download-lifecycle.ts";
+} from "@/features/operations/download-coverage.ts";
 import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
-import { encodeDownloadSourceMetadata } from "@/features/operations/repository.ts";
+import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 

@@ -4,7 +4,9 @@ import { Effect, Schema } from "effect";
 import { ClockService } from "@/lib/clock.ts";
 import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
 import { DownloadWorkflow } from "@/features/operations/download-service-tags.ts";
-import { SearchWorkflow } from "@/features/operations/search-service-tags.ts";
+import { SearchBackgroundService } from "@/features/operations/search-background-service.ts";
+import { SearchEpisodeService } from "@/features/operations/search-episode-service.ts";
+import { SearchReleaseService } from "@/features/operations/search-release-service.ts";
 import {
   CalendarQuerySchema,
   SearchDownloadBodySchema,
@@ -54,7 +56,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(SearchReleasesQuerySchema, "search releases");
-        return yield* (yield* SearchWorkflow).searchReleases(
+        return yield* (yield* SearchReleaseService).searchReleases(
           query.query ?? "",
           query.anime_id,
           query.category,
@@ -69,7 +71,10 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(SearchEpisodeParamsSchema);
-        return yield* (yield* SearchWorkflow).searchEpisode(params.animeId, params.episodeNumber);
+        return yield* (yield* SearchEpisodeService).searchEpisode(
+          params.animeId,
+          params.episodeNumber,
+        );
       }),
       jsonResponse,
     ),
@@ -108,7 +113,7 @@ export const searchRouter = HttpRouter.empty.pipe(
             ),
           );
         });
-        yield* (yield* SearchWorkflow).triggerSearchMissing(body.anime_id);
+        yield* (yield* SearchBackgroundService).triggerSearchMissing(body.anime_id);
       }),
       successResponse,
     ),

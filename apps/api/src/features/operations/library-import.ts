@@ -28,7 +28,8 @@ import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { parseResolution } from "@/features/operations/release-ranking.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
 import { buildScannedFileMetadata } from "@/lib/scanned-file-metadata.ts";
-import { currentNamingSettings, requireAnime } from "@/features/operations/repository.ts";
+import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
+import { currentNamingSettings } from "@/features/operations/repository/config-repository.ts";
 
 const AnimeGenresJsonSchema = Schema.parseJson(Schema.Array(Schema.String));
 

@@ -187,6 +187,7 @@ export function makeUnmappedScanWorkflow(input: {
         Effect.catchAllCause((cause) =>
           Effect.logError("Unmapped scan loop failed").pipe(
             Effect.annotateLogs({ error: cause.toString() }),
+            Effect.asVoid,
           ),
         ),
         Effect.ensuring(coordination.completeUnmappedScan()),

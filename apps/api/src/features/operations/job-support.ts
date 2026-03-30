@@ -5,7 +5,7 @@ import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { backgroundJobs, downloadEvents, downloads, episodes, systemLogs } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { encodeDownloadEventMetadata } from "@/features/operations/repository.ts";
+import { encodeDownloadEventMetadata } from "@/features/operations/repository/download-repository.ts";
 
 type NowIso = () => Effect.Effect<string>;
 

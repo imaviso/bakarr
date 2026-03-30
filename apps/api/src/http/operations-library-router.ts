@@ -3,7 +3,8 @@ import { Effect } from "effect";
 
 import { LibraryBrowseService } from "@/features/operations/library-browse-service.ts";
 import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
-import { SearchWorkflow } from "@/features/operations/search-service-tags.ts";
+import { SearchImportPathService } from "@/features/operations/search-import-path-service.ts";
+import { SearchUnmappedService } from "@/features/operations/search-unmapped-service.ts";
 import {
   BulkControlUnmappedFoldersBodySchema,
   BrowseQuerySchema,
@@ -24,7 +25,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/library/unmapped",
     authedRouteResponse(
-      Effect.flatMap(SearchWorkflow, (service) => service.getUnmappedFolders()),
+      Effect.flatMap(SearchUnmappedService, (service) => service.getUnmappedFolders()),
       jsonResponse,
     ),
   ),
@@ -45,7 +46,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/library/unmapped/scan",
     authedRouteResponse(
-      Effect.flatMap(SearchWorkflow, (service) => service.runUnmappedScan()),
+      Effect.flatMap(SearchUnmappedService, (service) => service.runUnmappedScan()),
       successResponse,
     ),
   ),
@@ -57,7 +58,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           ControlUnmappedFolderBodySchema,
           "control unmapped folder",
         );
-        yield* (yield* SearchWorkflow).controlUnmappedFolder(body);
+        yield* (yield* SearchUnmappedService).controlUnmappedFolder(body);
       }),
       successResponse,
     ),
@@ -70,7 +71,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           BulkControlUnmappedFoldersBodySchema,
           "bulk control unmapped folders",
         );
-        yield* (yield* SearchWorkflow).bulkControlUnmappedFolders(body);
+        yield* (yield* SearchUnmappedService).bulkControlUnmappedFolders(body);
       }),
       successResponse,
     ),
@@ -83,7 +84,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
           ImportUnmappedFolderBodySchema,
           "import unmapped folder",
         );
-        yield* (yield* SearchWorkflow).importUnmappedFolder(body);
+        yield* (yield* SearchUnmappedService).importUnmappedFolder(body);
       }),
       successResponse,
     ),
@@ -93,7 +94,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ScanImportPathBodySchema, "scan import path");
-        return yield* (yield* SearchWorkflow).scanImportPath(body.path, body.anime_id);
+        return yield* (yield* SearchImportPathService).scanImportPath(body.path, body.anime_id);
       }),
       jsonResponse,
     ),
