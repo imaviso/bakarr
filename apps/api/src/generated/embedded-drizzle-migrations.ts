@@ -42,7 +42,9 @@ export const embeddedDrizzleMigrations = {
   "0006_skinny_omega_sentinel": [
     "ALTER TABLE `downloads` ADD `is_batch` integer DEFAULT false NOT NULL;",
   ],
-  "0007_tan_boom_boom": ["ALTER TABLE `downloads` ADD `covered_episodes` text;"],
+  "0007_tan_boom_boom": [
+    "ALTER TABLE `downloads` ADD `covered_episodes` text;",
+  ],
   "0008_certain_post": [
     "ALTER TABLE `downloads` ADD `retry_count` integer DEFAULT 0 NOT NULL;",
     "ALTER TABLE `downloads` ADD `last_error_at` text;",
@@ -66,7 +68,9 @@ export const embeddedDrizzleMigrations = {
     "ALTER TABLE `background_jobs` ADD `progress_total` integer;",
     "CREATE TABLE `unmapped_folder_matches` (\n  `path` text PRIMARY KEY NOT NULL,\n  `name` text NOT NULL,\n  `size` integer NOT NULL DEFAULT 0,\n  `match_status` text NOT NULL DEFAULT 'pending',\n  `suggested_matches` text NOT NULL DEFAULT '[]',\n  `last_matched_at` text,\n  `last_match_error` text,\n  `updated_at` text NOT NULL\n);",
   ],
-  "0014_bootstrap_password_storage": ["ALTER TABLE `app_config` ADD `bootstrap_password` text;"],
+  "0014_bootstrap_password_storage": [
+    "ALTER TABLE `app_config` ADD `bootstrap_password` text;",
+  ],
   "0015_anime_root_folder_unique": [
     "-- Reject future anime rows whose root folders overlap an existing mapping.\n-- Using triggers keeps upgrades safe for databases that already contain conflicts.\nCREATE TRIGGER IF NOT EXISTS anime_root_folder_no_overlap_insert\nBEFORE INSERT ON anime\nFOR EACH ROW\nWHEN EXISTS (\n  SELECT 1\n  FROM anime\n  WHERE\n    rtrim(root_folder, '/') = rtrim(NEW.root_folder, '/')\n    OR instr(rtrim(NEW.root_folder, '/') || '/', rtrim(root_folder, '/') || '/') = 1\n    OR instr(rtrim(root_folder, '/') || '/', rtrim(NEW.root_folder, '/') || '/') = 1\n)\nBEGIN\n  SELECT RAISE(ABORT, 'anime root_folder overlaps existing anime');\nEND;",
     "CREATE TRIGGER IF NOT EXISTS anime_root_folder_no_overlap_update\nBEFORE UPDATE OF root_folder ON anime\nFOR EACH ROW\nWHEN EXISTS (\n  SELECT 1\n  FROM anime\n  WHERE\n    id != NEW.id\n    AND (\n      rtrim(root_folder, '/') = rtrim(NEW.root_folder, '/')\n      OR instr(rtrim(NEW.root_folder, '/') || '/', rtrim(root_folder, '/') || '/') = 1\n      OR instr(rtrim(root_folder, '/') || '/', rtrim(NEW.root_folder, '/') || '/') = 1\n    )\n)\nBEGIN\n  SELECT RAISE(ABORT, 'anime root_folder overlaps existing anime');\nEND;",
@@ -83,7 +87,9 @@ export const embeddedDrizzleMigrations = {
     "ALTER TABLE `anime` ADD `next_airing_at` text;",
     "ALTER TABLE `anime` ADD `next_airing_episode` integer;",
   ],
-  "0019_download_source_metadata": ["ALTER TABLE `downloads` ADD `source_metadata` text;"],
+  "0019_download_source_metadata": [
+    "ALTER TABLE `downloads` ADD `source_metadata` text;",
+  ],
   "0020_anime_discovery_metadata": [
     "ALTER TABLE `anime` ADD `synonyms` text;",
     "ALTER TABLE `anime` ADD `related_anime` text;",
