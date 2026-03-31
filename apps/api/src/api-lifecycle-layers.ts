@@ -4,11 +4,14 @@ import { BackgroundWorkerControllerLive } from "@/background-controller-live.ts"
 import { makeAppPlatformCoreRuntimeLayer } from "@/app-platform-runtime-core.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
 import { MediaProbeLive } from "@/lib/media-probe.ts";
+import { AnimeCreateServiceLive } from "@/features/anime/anime-create-service.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
+import { AnimeEpisodeRefreshServiceLive } from "@/features/anime/anime-episode-refresh-service.ts";
+import { AnimeDeleteServiceLive } from "@/features/anime/anime-delete-service.ts";
 import { AnimeFileMutationServiceLive } from "@/features/anime/file-mutation-service.ts";
 import { AnimeFileReadServiceLive } from "@/features/anime/file-read-service.ts";
 import { AnimeMetadataRefreshServiceLive } from "@/features/anime/metadata-refresh-service.ts";
-import { AnimeMutationServiceLive } from "@/features/anime/mutation-service.ts";
+import { AnimeSettingsServiceLive } from "@/features/anime/anime-settings-service.ts";
 import { AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
 import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
 import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
@@ -72,7 +75,10 @@ export function makeApiLifecycleLayers(
   // Anime services (platform-only dependencies)
   const animeLayer = Layer.mergeAll(
     withPlatform(AnimeQueryServiceLive),
-    withPlatform(AnimeMutationServiceLive),
+    withPlatform(AnimeCreateServiceLive),
+    withPlatform(AnimeDeleteServiceLive),
+    withPlatform(AnimeSettingsServiceLive),
+    withPlatform(AnimeEpisodeRefreshServiceLive),
     withPlatform(AnimeFileReadServiceLive),
     withPlatform(AnimeFileMutationServiceLive),
     withPlatform(AnimeMetadataRefreshServiceLive),

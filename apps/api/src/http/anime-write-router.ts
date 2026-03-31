@@ -2,8 +2,10 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { AnimeEnrollmentService } from "@/features/anime/anime-enrollment-service.ts";
+import { AnimeEpisodeRefreshService } from "@/features/anime/anime-episode-refresh-service.ts";
+import { AnimeDeleteService } from "@/features/anime/anime-delete-service.ts";
 import { AnimeFileMutationService } from "@/features/anime/file-mutation-service.ts";
-import { AnimeMutationService } from "@/features/anime/mutation-service.ts";
+import { AnimeSettingsService } from "@/features/anime/anime-settings-service.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog-orchestration-library-write-support.ts";
 import {
   AddAnimeInputSchema,
@@ -40,7 +42,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* AnimeMutationService).deleteAnime(params.id);
+        yield* (yield* AnimeDeleteService).deleteAnime(params.id);
       }),
       successResponse,
     ),
@@ -51,7 +53,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(MonitoredBodySchema, "update monitored status");
-        yield* (yield* AnimeMutationService).setMonitored(params.id, body.monitored);
+        yield* (yield* AnimeSettingsService).setMonitored(params.id, body.monitored);
       }),
       successResponse,
     ),
@@ -62,7 +64,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(PathBodySchema, "update anime path");
-        yield* (yield* AnimeMutationService).updatePath(params.id, body.path);
+        yield* (yield* AnimeSettingsService).updatePath(params.id, body.path);
       }),
       successResponse,
     ),
@@ -73,7 +75,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(ProfileNameBodySchema, "update anime profile");
-        yield* (yield* AnimeMutationService).updateProfile(params.id, body.profile_name);
+        yield* (yield* AnimeSettingsService).updateProfile(params.id, body.profile_name);
       }),
       successResponse,
     ),
@@ -87,7 +89,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
           ReleaseProfileIdsBodySchema,
           "update release profiles",
         );
-        yield* (yield* AnimeMutationService).updateReleaseProfiles(params.id, [
+        yield* (yield* AnimeSettingsService).updateReleaseProfiles(params.id, [
           ...body.release_profile_ids,
         ]);
       }),
@@ -99,7 +101,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* AnimeMutationService).refreshEpisodes(params.id);
+        yield* (yield* AnimeEpisodeRefreshService).refreshEpisodes(params.id);
       }),
       successResponse,
     ),
