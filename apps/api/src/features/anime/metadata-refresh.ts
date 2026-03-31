@@ -4,7 +4,7 @@ import { Database } from "@/db/database.ts";
 import { makeSingleFlightEffectRunner } from "@/lib/effect-coalescing.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
-import { refreshMetadataForMonitoredAnimeEffect } from "@/features/anime/orchestration-support.ts";
+import { refreshMetadataForMonitoredAnimeEffect } from "@/features/anime/anime-metadata-refresh-job.ts";
 
 export const makeMetadataRefreshRunner = Effect.fn("AnimeMetadataRefresh.makeRunner")(function* () {
   const { db } = yield* Database;

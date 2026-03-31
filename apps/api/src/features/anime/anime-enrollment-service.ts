@@ -12,7 +12,7 @@ import type {
   RssFeedRejectedError,
   RssFeedTooLargeError,
 } from "@/features/operations/errors.ts";
-import { SearchBackgroundService } from "@/features/operations/search-background-service.ts";
+import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
 import type { ProfileNotFoundError } from "@/features/system/errors.ts";
 import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
@@ -47,7 +47,7 @@ export class AnimeEnrollmentService extends Context.Tag("@bakarr/api/AnimeEnroll
 
 const makeAnimeEnrollmentService = Effect.gen(function* () {
   const animeService = yield* AnimeMutationService;
-  const searchBackgroundService = yield* SearchBackgroundService;
+  const searchBackgroundService = yield* SearchBackgroundMissingService;
 
   const enroll = Effect.fn("AnimeEnrollmentService.enroll")(function* (input: AddAnimeInput) {
     const anime = yield* animeService.addAnime(input);

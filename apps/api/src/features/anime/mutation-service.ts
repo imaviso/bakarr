@@ -25,8 +25,7 @@ import {
   updateAnimeProfileEffect,
   updateAnimeReleaseProfilesEffect,
 } from "@/features/anime/mutation-support.ts";
-import { refreshEpisodesEffect } from "@/features/anime/orchestration-support.ts";
-import { makeMetadataRefreshRunner } from "@/features/anime/metadata-refresh.ts";
+import { refreshEpisodesEffect } from "@/features/anime/anime-episode-refresh.ts";
 
 export interface AnimeMutationServiceShape {
   readonly addAnime: (
@@ -61,10 +60,6 @@ export interface AnimeMutationServiceShape {
   readonly refreshEpisodes: (
     animeId: number,
   ) => Effect.Effect<void, AnimeServiceError | DatabaseError | ExternalCallError>;
-  readonly refreshMetadataForMonitoredAnime: () => Effect.Effect<
-    { refreshed: number },
-    DatabaseError | ExternalCallError | AnimeServiceError
-  >;
 }
 
 export class AnimeMutationService extends Context.Tag("@bakarr/api/AnimeMutationService")<
@@ -81,7 +76,6 @@ export const AnimeMutationServiceLive = Layer.effect(
     const fs = yield* FileSystem;
     const httpClient = yield* HttpClient.HttpClient;
     const clock = yield* ClockService;
-    const metadataRefreshRunner = yield* makeMetadataRefreshRunner();
 
     return {
       addAnime: Effect.fn("AnimeMutationService.addAnime")(function* (input: AddAnimeInput) {
@@ -108,11 +102,6 @@ export const AnimeMutationServiceLive = Layer.effect(
           eventPublisher,
           nowIso: () => nowIsoFromClock(clock),
         });
-      }),
-      refreshMetadataForMonitoredAnime: Effect.fn(
-        "AnimeMutationService.refreshMetadataForMonitoredAnime",
-      )(function* () {
-        return yield* metadataRefreshRunner.trigger;
       }),
       setMonitored: Effect.fn("AnimeMutationService.setMonitored")(function* (
         id: number,

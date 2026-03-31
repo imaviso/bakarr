@@ -6,7 +6,7 @@ import * as schema from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { refreshEpisodesEffect } from "@/features/anime/orchestration-support.ts";
+import { refreshEpisodesEffect } from "@/features/anime/anime-episode-refresh.ts";
 
 it.scoped(
   "refreshEpisodesEffect fails instead of silently using stored metadata when AniList fails",
