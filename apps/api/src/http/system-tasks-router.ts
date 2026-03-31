@@ -1,30 +1,32 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeMutationService } from "@/features/anime/mutation-service.ts";
-import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
-import { SearchBackgroundService } from "@/features/operations/search-background-service.ts";
+import { AnimeMetadataRefreshService } from "@/features/anime/metadata-refresh-service.ts";
+import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-support.ts";
+import { SearchBackgroundRssService } from "@/features/operations/background-search-rss-support.ts";
 import { authedRouteResponse, successResponse } from "@/http/router-helpers.ts";
 
 export const systemTasksRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/api/system/tasks/scan",
     authedRouteResponse(
-      Effect.flatMap(CatalogLibraryService, (service) => service.runLibraryScan()),
+      Effect.flatMap(CatalogLibraryScanService, (service) => service.runLibraryScan()),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/rss",
     authedRouteResponse(
-      Effect.flatMap(SearchBackgroundService, (service) => service.runRssCheck()),
+      Effect.flatMap(SearchBackgroundRssService, (service) => service.runRssCheck()),
       successResponse,
     ),
   ),
   HttpRouter.post(
     "/api/system/tasks/metadata-refresh",
     authedRouteResponse(
-      Effect.flatMap(AnimeMutationService, (service) => service.refreshMetadataForMonitoredAnime()),
+      Effect.flatMap(AnimeMetadataRefreshService, (service) =>
+        service.refreshMetadataForMonitoredAnime(),
+      ),
       successResponse,
     ),
   ),

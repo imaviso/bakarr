@@ -1,7 +1,7 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { CatalogDownloadService } from "@/features/operations/catalog-service-tags.ts";
+import { CatalogDownloadService } from "@/features/operations/catalog-download-orchestration.ts";
 import { AddRssFeedBodySchema, EnabledBodySchema } from "@/http/operations-request-schemas.ts";
 import {
   authedRouteResponse,

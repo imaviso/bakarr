@@ -2,8 +2,8 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { LibraryBrowseService } from "@/features/operations/library-browse-service.ts";
-import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
-import { SearchImportPathService } from "@/features/operations/search-import-path-service.ts";
+import { CatalogLibraryWriteService } from "@/features/operations/catalog-orchestration-library-write-support.ts";
+import { SearchImportPathService } from "@/features/operations/search-orchestration-import-path-support.ts";
 import { SearchUnmappedService } from "@/features/operations/search-unmapped-service.ts";
 import {
   BulkControlUnmappedFoldersBodySchema,
@@ -104,7 +104,7 @@ export const libraryRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ImportFilesBodySchema, "import files");
-        return yield* (yield* CatalogLibraryService).importFiles(body.files);
+        return yield* (yield* CatalogLibraryWriteService).importFiles(body.files);
       }),
       jsonResponse,
     ),

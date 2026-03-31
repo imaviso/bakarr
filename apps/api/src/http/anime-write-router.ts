@@ -2,9 +2,9 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { AnimeEnrollmentService } from "@/features/anime/anime-enrollment-service.ts";
-import { AnimeFileService } from "@/features/anime/file-service.ts";
+import { AnimeFileMutationService } from "@/features/anime/file-mutation-service.ts";
 import { AnimeMutationService } from "@/features/anime/mutation-service.ts";
-import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
+import { CatalogLibraryWriteService } from "@/features/operations/catalog-orchestration-library-write-support.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
@@ -109,7 +109,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeFileService).scanFolder(params.id);
+        return yield* (yield* AnimeFileMutationService).scanFolder(params.id);
       }),
       jsonResponse,
     ),
@@ -119,7 +119,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
-        yield* (yield* AnimeFileService).deleteEpisodeFile(params.id, params.episodeNumber);
+        yield* (yield* AnimeFileMutationService).deleteEpisodeFile(params.id, params.episodeNumber);
       }),
       successResponse,
     ),
@@ -130,7 +130,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(FilePathBodySchema, "map episode file");
-        yield* (yield* AnimeFileService).mapEpisode(
+        yield* (yield* AnimeFileMutationService).mapEpisode(
           params.id,
           params.episodeNumber,
           body.file_path,
@@ -148,7 +148,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
           BulkEpisodeMappingsBodySchema,
           "bulk map episodes",
         );
-        yield* (yield* AnimeFileService).bulkMapEpisodes(params.id, [...body.mappings]);
+        yield* (yield* AnimeFileMutationService).bulkMapEpisodes(params.id, [...body.mappings]);
       }),
       successResponse,
     ),
@@ -158,7 +158,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* CatalogLibraryService).renameFiles(params.id);
+        return yield* (yield* CatalogLibraryWriteService).renameFiles(params.id);
       }),
       jsonResponse,
     ),

@@ -2,11 +2,11 @@ import { HttpRouter, HttpServerRequest } from "@effect/platform";
 import { Effect, Schema } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
-import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
-import { DownloadWorkflow } from "@/features/operations/download-service-tags.ts";
-import { SearchBackgroundService } from "@/features/operations/search-background-service.ts";
-import { SearchEpisodeService } from "@/features/operations/search-episode-service.ts";
-import { SearchReleaseService } from "@/features/operations/search-release-service.ts";
+import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-support.ts";
+import { DownloadWorkflow } from "@/features/operations/download-workflow-service.ts";
+import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
+import { SearchEpisodeService } from "@/features/operations/search-orchestration-episode-support.ts";
+import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
 import {
   CalendarQuerySchema,
   SearchDownloadBodySchema,
@@ -31,7 +31,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(WantedMissingQuerySchema, "wanted missing");
-        return yield* (yield* CatalogLibraryService).getWantedMissing(query.limit ?? 50);
+        return yield* (yield* CatalogLibraryReadService).getWantedMissing(query.limit ?? 50);
       }),
       jsonResponse,
     ),
@@ -43,7 +43,7 @@ export const searchRouter = HttpRouter.empty.pipe(
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
         const now = yield* (yield* ClockService).currentTimeMillis;
         const nowIso = new Date(now).toISOString();
-        return yield* (yield* CatalogLibraryService).getCalendar(
+        return yield* (yield* CatalogLibraryReadService).getCalendar(
           query.start ?? nowIso,
           query.end ?? nowIso,
         );
@@ -113,7 +113,7 @@ export const searchRouter = HttpRouter.empty.pipe(
             ),
           );
         });
-        yield* (yield* SearchBackgroundService).triggerSearchMissing(body.anime_id);
+        yield* (yield* SearchBackgroundMissingService).triggerSearchMissing(body.anime_id);
       }),
       successResponse,
     ),

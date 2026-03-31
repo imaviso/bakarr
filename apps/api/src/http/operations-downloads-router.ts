@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { HttpServerResponse } from "@effect/platform";
 import { Schema } from "effect";
-import { CatalogDownloadService } from "@/features/operations/catalog-service-tags.ts";
+import { CatalogDownloadService } from "@/features/operations/catalog-download-orchestration.ts";
 import { DownloadEventsExportSchema, type DownloadEventsExport } from "@packages/shared/index.ts";
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import { escapeCsv } from "@/http/route-fs.ts";

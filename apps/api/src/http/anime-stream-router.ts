@@ -1,7 +1,7 @@
 import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platform";
 import { Effect, Match, Schema } from "effect";
 
-import { AnimeFileService } from "@/features/anime/file-service.ts";
+import { AnimeFileReadService } from "@/features/anime/file-read-service.ts";
 import { ClockService } from "@/lib/clock.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { AnimeEpisodeParamsSchema, StreamQuerySchema } from "@/http/anime-request-schemas.ts";
@@ -53,7 +53,7 @@ export const animeStreamRouter = HttpRouter.empty.pipe(
           });
         }
 
-        const animeService = yield* AnimeFileService;
+        const animeService = yield* AnimeFileReadService;
         const resolvedEpisodeFile = yield* animeService.resolveEpisodeFile(
           params.id,
           params.episodeNumber,

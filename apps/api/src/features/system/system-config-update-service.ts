@@ -4,7 +4,7 @@ import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
-import { BackgroundWorkerController } from "@/background-controller.ts";
+import { BackgroundWorkerController } from "@/background-controller-core.ts";
 import {
   persistAndActivateConfig,
   type PersistedSystemConfigState,

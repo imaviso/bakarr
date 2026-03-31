@@ -5,7 +5,7 @@ import { AppConfig } from "@/config.ts";
 import {
   BackgroundWorkerController,
   type BackgroundWorkerControllerShape,
-} from "@/background-controller.ts";
+} from "@/background-controller-core.ts";
 import { Database, type DatabaseService } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";

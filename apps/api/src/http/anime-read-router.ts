@@ -1,10 +1,10 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeFileService } from "@/features/anime/file-service.ts";
+import { AnimeFileReadService } from "@/features/anime/file-read-service.ts";
 import { AnimeQueryService } from "@/features/anime/query-service.ts";
-import { CatalogDownloadService } from "@/features/operations/catalog-service-tags.ts";
-import { CatalogLibraryService } from "@/features/operations/catalog-library-service.ts";
+import { CatalogDownloadService } from "@/features/operations/catalog-download-orchestration.ts";
+import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-support.ts";
 import {
   ListAnimeQuerySchema,
   SearchAnimeQuerySchema,
@@ -83,7 +83,7 @@ export const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeFileService).listFiles(params.id);
+        return yield* (yield* AnimeFileReadService).listFiles(params.id);
       }),
       jsonResponse,
     ),
@@ -103,7 +103,7 @@ export const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* CatalogLibraryService).getRenamePreview(params.id);
+        return yield* (yield* CatalogLibraryReadService).getRenamePreview(params.id);
       }),
       jsonResponse,
     ),
