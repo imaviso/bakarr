@@ -2,7 +2,7 @@ import { HttpServer } from "@effect/platform";
 import { BunFileSystem } from "@effect/platform-bun";
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
 import * as BunRuntime from "@effect/platform-bun/BunRuntime";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, ManagedRuntime } from "effect";
 
 import type { AppConfigShape } from "./src/config.ts";
 import { makeDotenvConfigProvider } from "./src/config-provider.ts";
@@ -13,8 +13,13 @@ import {
   logServerStopping,
   startBackgroundWorkers,
 } from "./src/api-startup.ts";
-import { makeApiRuntime, type RuntimeOptions } from "./src/runtime.ts";
 import { makeApiLifecycleLayers } from "./src/api-lifecycle-layers.ts";
+
+type RuntimeOptions = Parameters<typeof makeApiLifecycleLayers>[1];
+
+function makeApiRuntime(overrides: Partial<AppConfigShape> = {}, options?: RuntimeOptions) {
+  return ManagedRuntime.make(makeApiLifecycleLayers(overrides, options).appLayer);
+}
 
 /**
  * Startup sequence (blocking, ordered, fail-fast):

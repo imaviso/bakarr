@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 
-import { BackgroundWorkerController } from "@/background-controller.ts";
+import { BackgroundWorkerController } from "@/background-controller-core.ts";
 import { AppConfig, type AppConfigShape } from "@/config.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
 import { AuthBootstrapService } from "@/features/auth/bootstrap-service.ts";

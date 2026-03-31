@@ -4,7 +4,7 @@ import type { ClockServiceShape } from "@/lib/clock.ts";
 
 import type { Config } from "@packages/shared/index.ts";
 import { buildBackgroundSchedule } from "@/background-schedule.ts";
-import { makeBackgroundWorkerController } from "@/background-controller.ts";
+import { makeBackgroundWorkerController } from "@/background-controller-core.ts";
 import { makeBackgroundWorkerMonitor } from "@/background-monitor.ts";
 import { withLockEffect } from "@/background-workers.ts";
 import {

@@ -4,16 +4,19 @@ import type { Scope } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { buildBackgroundSchedule } from "@/background-schedule.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background-monitor.ts";
+import { BackgroundWorkerMonitor } from "@/background-monitor.ts";
 import { type BackgroundWorkerName } from "@/background-worker-model.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { ClockServiceShape } from "@/lib/clock.ts";
+import { ClockService } from "@/lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
-import type { AnimeMutationServiceShape } from "@/features/anime/mutation-service.ts";
-import type { EventBusShape } from "@/features/events/event-bus.ts";
-import type { CatalogDownloadServiceShape } from "@/features/operations/catalog-service-tags.ts";
-import type { CatalogLibraryServiceShape } from "@/features/operations/catalog-library-service.ts";
-import type { SearchBackgroundServiceShape } from "@/features/operations/search-background-service.ts";
+import { AnimeMetadataRefreshService } from "@/features/anime/metadata-refresh-service.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { CatalogDownloadService } from "@/features/operations/catalog-download-orchestration.ts";
+import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-support.ts";
+import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
+import { SearchBackgroundRssService } from "@/features/operations/background-search-rss-support.ts";
 
 export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
   "WorkerTimeoutError",
@@ -31,38 +34,26 @@ const WORKER_TIMEOUTS: Record<BackgroundWorkerName, number> = {
   rss: 120_000,
 };
 
-export interface BackgroundWorkerDependencies {
-  readonly animeService: AnimeMutationServiceShape;
-  readonly catalogDownloadService: CatalogDownloadServiceShape;
-  readonly catalogLibraryService: CatalogLibraryServiceShape;
-  readonly clock: ClockServiceShape;
-  readonly eventBus: EventBusShape;
-  readonly monitor: BackgroundWorkerMonitorShape;
-  readonly searchBackgroundService: SearchBackgroundServiceShape;
-}
-
 export interface BackgroundWorkerSpawner<R = never> {
   (scope: Scope.Scope, config: Config): Effect.Effect<void, DatabaseError, R>;
 }
 
 export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConfig")(function* (
-  services: BackgroundWorkerDependencies,
   workerScope: Scope.Scope,
   config: Config,
 ) {
-  const {
-    animeService,
-    catalogDownloadService,
-    catalogLibraryService,
-    clock,
-    eventBus,
-    monitor,
-    searchBackgroundService,
-  } = services;
+  const catalogDownloadService = yield* CatalogDownloadService;
+  const catalogLibraryScanService = yield* CatalogLibraryScanService;
+  const clock = yield* ClockService;
+  const eventBus = yield* EventBus;
+  const monitor = yield* BackgroundWorkerMonitor;
+  const metadataRefreshService = yield* AnimeMetadataRefreshService;
+  const searchBackgroundMissingService = yield* SearchBackgroundMissingService;
+  const searchBackgroundRssService = yield* SearchBackgroundRssService;
   const schedule = buildBackgroundSchedule(config);
   const runRssWorkerTask = Effect.fn("Background.runRssWorkerTask")(function* () {
-    yield* searchBackgroundService.runRssCheck();
-    yield* searchBackgroundService.triggerSearchMissing();
+    yield* searchBackgroundRssService.runRssCheck();
+    yield* searchBackgroundMissingService.triggerSearchMissing();
   });
   const runDownloadSyncWorkerTask = Effect.fn("Background.runDownloadSyncWorkerTask")(function* () {
     yield* catalogDownloadService.syncDownloads();
@@ -77,14 +68,14 @@ export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConf
 
   const libraryLoop = yield* withLockEffect(
     "library_scan",
-    catalogLibraryService.runLibraryScan(),
+    catalogLibraryScanService.runLibraryScan(),
     monitor,
     clock,
   );
 
   const metadataRefreshLoop = yield* withLockEffect(
     "metadata_refresh",
-    animeService.refreshMetadataForMonitoredAnime().pipe(Effect.asVoid),
+    metadataRefreshService.refreshMetadataForMonitoredAnime().pipe(Effect.asVoid),
     monitor,
     clock,
   );

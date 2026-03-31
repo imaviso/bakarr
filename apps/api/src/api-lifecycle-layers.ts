@@ -5,8 +5,9 @@ import { makeAppPlatformCoreRuntimeLayer } from "@/app-platform-runtime-core.ts"
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
 import { MediaProbeLive } from "@/lib/media-probe.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
-import { AnimeFileServiceLive } from "@/features/anime/file-service.ts";
-import { AnimeImportServiceLive } from "@/features/anime/import-service.ts";
+import { AnimeFileMutationServiceLive } from "@/features/anime/file-mutation-service.ts";
+import { AnimeFileReadServiceLive } from "@/features/anime/file-read-service.ts";
+import { AnimeMetadataRefreshServiceLive } from "@/features/anime/metadata-refresh-service.ts";
 import { AnimeMutationServiceLive } from "@/features/anime/mutation-service.ts";
 import { AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
 import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
@@ -14,17 +15,18 @@ import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts
 import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
 import { LibraryRootsServiceLive } from "@/features/library-roots/service.ts";
-import { CatalogDownloadServiceLive } from "@/features/operations/catalog-service-tags.ts";
-import { CatalogLibraryServiceLive } from "@/features/operations/catalog-library-service.ts";
-import {
-  DownloadProgressServiceLive,
-  DownloadWorkflowLive,
-  ProgressLive,
-} from "@/features/operations/download-service-tags.ts";
-import { SearchBackgroundServiceLive } from "@/features/operations/search-background-service.ts";
-import { SearchEpisodeServiceLive } from "@/features/operations/search-episode-service.ts";
-import { SearchImportPathServiceLive } from "@/features/operations/search-import-path-service.ts";
-import { SearchReleaseServiceLive } from "@/features/operations/search-release-service.ts";
+import { CatalogDownloadServiceLive } from "@/features/operations/catalog-download-orchestration.ts";
+import { CatalogLibraryReadServiceLive } from "@/features/operations/catalog-library-read-support.ts";
+import { CatalogLibraryScanServiceLive } from "@/features/operations/catalog-library-scan-support.ts";
+import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog-orchestration-library-write-support.ts";
+import { DownloadProgressServiceLive } from "@/features/operations/catalog-download-view-support.ts";
+import { DownloadWorkflowLive } from "@/features/operations/download-workflow-service.ts";
+import { ProgressLive } from "@/features/operations/operations-progress-service.ts";
+import { SearchBackgroundMissingServiceLive } from "@/features/operations/background-search-missing-support.ts";
+import { SearchBackgroundRssServiceLive } from "@/features/operations/background-search-rss-support.ts";
+import { SearchEpisodeServiceLive } from "@/features/operations/search-orchestration-episode-support.ts";
+import { SearchImportPathServiceLive } from "@/features/operations/search-orchestration-import-path-support.ts";
+import { SearchReleaseServiceLive } from "@/features/operations/search-orchestration-release-search.ts";
 import { SearchUnmappedServiceLive } from "@/features/operations/search-unmapped-service.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
@@ -71,8 +73,9 @@ export function makeApiLifecycleLayers(
   const animeLayer = Layer.mergeAll(
     withPlatform(AnimeQueryServiceLive),
     withPlatform(AnimeMutationServiceLive),
-    withPlatform(AnimeFileServiceLive),
-    withPlatform(AnimeImportServiceLive),
+    withPlatform(AnimeFileReadServiceLive),
+    withPlatform(AnimeFileMutationServiceLive),
+    withPlatform(AnimeMetadataRefreshServiceLive),
   );
 
   // Download workflow and progress (interdependent)
@@ -83,7 +86,9 @@ export function makeApiLifecycleLayers(
   // Catalog services (depend on download base)
   const catalogLayer = Layer.mergeAll(
     withPlatform(CatalogDownloadServiceLive.pipe(Layer.provideMerge(downloadBaseLayer))),
-    withPlatform(CatalogLibraryServiceLive.pipe(Layer.provideMerge(downloadBaseLayer))),
+    withPlatform(CatalogLibraryReadServiceLive),
+    withPlatform(CatalogLibraryWriteServiceLive),
+    withPlatform(CatalogLibraryScanServiceLive.pipe(Layer.provideMerge(downloadBaseLayer))),
   );
 
   // Search services (direct leaf capabilities)
@@ -97,9 +102,16 @@ export function makeApiLifecycleLayers(
       Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, animeLayer)),
     ),
   );
-  const searchBackgroundLayer = withPlatform(
-    SearchBackgroundServiceLive.pipe(
-      Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, searchReleaseLayer)),
+  const searchBackgroundLayer = Layer.mergeAll(
+    withPlatform(
+      SearchBackgroundMissingServiceLive.pipe(
+        Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, searchReleaseLayer)),
+      ),
+    ),
+    withPlatform(
+      SearchBackgroundRssServiceLive.pipe(
+        Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, searchReleaseLayer)),
+      ),
     ),
   );
   const searchLayer = Layer.mergeAll(
