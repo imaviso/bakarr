@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
+import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { decideDownloadAction } from "@/features/operations/release-ranking.ts";
@@ -10,13 +11,22 @@ import { loadRuntimeConfig } from "@/features/operations/repository/config-repos
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { makeBackgroundSearchQueueSupport } from "@/features/operations/background-search-queue-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
+import { OperationsSharedState } from "@/features/operations/runtime-support.ts";
+import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
+import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import type {
-  BackgroundSearchSupportInput,
+  BackgroundSearchMissingSupportInput,
   BackgroundSearchSupportShared,
 } from "@/features/operations/background-search-support-shared.ts";
+import { makeBackgroundSearchSupportShared } from "@/features/operations/background-search-support-shared.ts";
 
 export function makeBackgroundSearchMissingSupport(
-  input: BackgroundSearchSupportInput,
+  input: BackgroundSearchMissingSupportInput,
   shared: BackgroundSearchSupportShared,
 ) {
   const {
@@ -143,3 +153,39 @@ export function makeBackgroundSearchMissingSupport(
     triggerSearchMissing,
   };
 }
+
+export type SearchBackgroundMissingServiceShape = ReturnType<
+  typeof makeBackgroundSearchMissingSupport
+>;
+
+export class SearchBackgroundMissingService extends Context.Tag(
+  "@bakarr/api/SearchBackgroundMissingService",
+)<SearchBackgroundMissingService, SearchBackgroundMissingServiceShape>() {}
+
+export const SearchBackgroundMissingServiceLive = Layer.effect(
+  SearchBackgroundMissingService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const eventBus = yield* EventBus;
+    const qbitClient = yield* QBitTorrentClient;
+    const clock = yield* ClockService;
+    const progress = yield* OperationsProgress;
+    const sharedState = yield* OperationsSharedState;
+    const searchReleaseService = yield* SearchReleaseService;
+
+    const input: BackgroundSearchMissingSupportInput = {
+      coordination: sharedState,
+      db,
+      eventBus,
+      maybeQBitConfig,
+      nowIso: () => nowIsoFromClock(clock),
+      publishDownloadProgress: progress.publishDownloadProgress,
+      qbitClient,
+      searchEpisodeReleases: searchReleaseService.searchEpisodeReleases,
+      tryDatabasePromise,
+    };
+
+    const shared = makeBackgroundSearchSupportShared(input);
+    return makeBackgroundSearchMissingSupport(input, shared);
+  }),
+);

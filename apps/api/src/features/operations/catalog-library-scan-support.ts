@@ -1,7 +1,8 @@
-import { Effect, Ref } from "effect";
+import { Context, Effect, Layer, Ref } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
+import { Database } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import {
   OperationsPathError,
@@ -12,9 +13,11 @@ import {
   markJobStarted,
   markJobSucceeded,
 } from "@/features/operations/job-support.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
+import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 import { scanAnimeLibraryRow } from "@/features/operations/catalog-library-scan-row-support.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 
 export interface CatalogLibraryScanSupportShape {
   readonly runLibraryScan: () => Effect.Effect<
@@ -93,3 +96,32 @@ export function makeCatalogLibraryScanSupport(input: {
 
   return { runLibraryScan };
 }
+
+export type CatalogLibraryScanServiceShape = CatalogLibraryScanSupportShape;
+
+export class CatalogLibraryScanService extends Context.Tag("@bakarr/api/CatalogLibraryScanService")<
+  CatalogLibraryScanService,
+  CatalogLibraryScanServiceShape
+>() {}
+
+const makeCatalogLibraryScanService = Effect.gen(function* () {
+  const { db } = yield* Database;
+  const eventBus = yield* EventBus;
+  const fs = yield* FileSystem;
+  const clock = yield* ClockService;
+  const progress = yield* OperationsProgress;
+
+  return makeCatalogLibraryScanSupport({
+    db,
+    eventBus,
+    fs,
+    nowIso: () => nowIsoFromClock(clock),
+    publishLibraryScanProgress: progress.publishLibraryScanProgress,
+    tryDatabasePromise,
+  });
+});
+
+export const CatalogLibraryScanServiceLive = Layer.effect(
+  CatalogLibraryScanService,
+  makeCatalogLibraryScanService,
+);

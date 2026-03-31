@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type {
   Download,
@@ -8,7 +8,10 @@ import type {
   DownloadStatus,
 } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { downloadEvents, downloads } from "@/db/schema.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import {
   toDownload,
@@ -257,6 +260,37 @@ export function makeCatalogDownloadViewSupport(input: {
     listDownloadQueue,
   };
 }
+
+export interface DownloadProgressServiceShape {
+  readonly getDownloadProgress: () => Effect.Effect<
+    DownloadStatus[],
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
+}
+
+export class DownloadProgressService extends Context.Tag("@bakarr/api/DownloadProgressService")<
+  DownloadProgressService,
+  DownloadProgressServiceShape
+>() {}
+
+const makeDownloadProgressService = Effect.gen(function* () {
+  const { db } = yield* Database;
+  const clock = yield* ClockService;
+  const readSupport = makeCatalogDownloadViewSupport({
+    db,
+    nowIso: () => nowIsoFromClock(clock),
+    tryDatabasePromise,
+  });
+
+  return {
+    getDownloadProgress: readSupport.getDownloadProgress,
+  } satisfies DownloadProgressServiceShape;
+});
+
+export const DownloadProgressServiceLive = Layer.effect(
+  DownloadProgressService,
+  makeDownloadProgressService,
+);
 
 const hasAdjacentDownloadEvent = Effect.fn("OperationsService.hasAdjacentDownloadEvent")(function* (
   db: AppDatabase,

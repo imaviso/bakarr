@@ -16,7 +16,7 @@ import {
 } from "@/features/operations/download-coverage.ts";
 import { parseReleaseName } from "@/features/operations/release-ranking.ts";
 import { queueParsedReleaseDownload } from "@/features/operations/release-queue-support.ts";
-import { type ParsedRelease } from "@/features/operations/rss-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { type QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";

@@ -1,8 +1,12 @@
-import type { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
+import { Database } from "@/db/database.ts";
 import type { AppDatabase } from "@/db/database.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { MediaProbe } from "@/lib/media-probe.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { MediaProbeShape } from "@/lib/media-probe.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import {
   importLibraryFiles,
@@ -50,3 +54,29 @@ export function makeCatalogLibraryWriteSupport(input: {
     renameFiles: (animeId) => renameLibraryFiles({ db, eventBus, fs, tryDatabasePromise, animeId }),
   } satisfies CatalogLibraryWriteSupportShape;
 }
+
+export type CatalogLibraryWriteServiceShape = CatalogLibraryWriteSupportShape;
+
+export class CatalogLibraryWriteService extends Context.Tag(
+  "@bakarr/api/CatalogLibraryWriteService",
+)<CatalogLibraryWriteService, CatalogLibraryWriteServiceShape>() {}
+
+const makeCatalogLibraryWriteService = Effect.gen(function* () {
+  const { db } = yield* Database;
+  const eventBus = yield* EventBus;
+  const fs = yield* FileSystem;
+  const mediaProbe = yield* MediaProbe;
+
+  return makeCatalogLibraryWriteSupport({
+    db,
+    eventBus,
+    fs,
+    mediaProbe,
+    tryDatabasePromise,
+  });
+});
+
+export const CatalogLibraryWriteServiceLive = Layer.effect(
+  CatalogLibraryWriteService,
+  makeCatalogLibraryWriteService,
+);

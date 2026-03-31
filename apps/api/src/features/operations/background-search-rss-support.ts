@@ -1,7 +1,8 @@
 import { eq, inArray } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
 import { downloads, rssFeeds } from "@/db/schema.ts";
 import {
   loadMissingEpisodeNumbers,
@@ -19,13 +20,22 @@ import { loadRuntimeConfig } from "@/features/operations/repository/config-repos
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { makeBackgroundSearchQueueSupport } from "@/features/operations/background-search-queue-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
+import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
+import { OperationsSharedState } from "@/features/operations/runtime-support.ts";
+import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { RssClient } from "@/features/operations/rss-client.ts";
+import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import type {
-  BackgroundSearchSupportInput,
+  BackgroundSearchRssSupportInput,
   BackgroundSearchSupportShared,
 } from "@/features/operations/background-search-support-shared.ts";
+import { makeBackgroundSearchSupportShared } from "@/features/operations/background-search-support-shared.ts";
 
 export function makeBackgroundSearchRssSupport(
-  input: BackgroundSearchSupportInput,
+  input: BackgroundSearchRssSupportInput,
   shared: BackgroundSearchSupportShared,
 ) {
   const {
@@ -240,3 +250,38 @@ export function makeBackgroundSearchRssSupport(
     runRssCheck,
   };
 }
+
+export type SearchBackgroundRssServiceShape = ReturnType<typeof makeBackgroundSearchRssSupport>;
+
+export class SearchBackgroundRssService extends Context.Tag(
+  "@bakarr/api/SearchBackgroundRssService",
+)<SearchBackgroundRssService, SearchBackgroundRssServiceShape>() {}
+
+export const SearchBackgroundRssServiceLive = Layer.effect(
+  SearchBackgroundRssService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const eventBus = yield* EventBus;
+    const qbitClient = yield* QBitTorrentClient;
+    const rssClient = yield* RssClient;
+    const clock = yield* ClockService;
+    const progress = yield* OperationsProgress;
+    const sharedState = yield* OperationsSharedState;
+
+    const input: BackgroundSearchRssSupportInput = {
+      coordination: sharedState,
+      db,
+      eventBus,
+      maybeQBitConfig,
+      nowIso: () => nowIsoFromClock(clock),
+      publishDownloadProgress: progress.publishDownloadProgress,
+      publishRssCheckProgress: progress.publishRssCheckProgress,
+      qbitClient,
+      rssClient,
+      tryDatabasePromise,
+    };
+
+    const shared = makeBackgroundSearchSupportShared(input);
+    return makeBackgroundSearchRssSupport(input, shared);
+  }),
+);

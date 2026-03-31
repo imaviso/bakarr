@@ -1,10 +1,13 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { CalendarEvent, MissingEpisode, RenamePreviewItem } from "@packages/shared/index.ts";
+import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
+import { ClockService } from "@/lib/clock.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { buildRenamePreview } from "@/features/operations/library-import.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
@@ -131,6 +134,29 @@ export function makeCatalogLibraryReadSupport(input: {
     getWantedMissing,
   };
 }
+
+export type CatalogLibraryReadServiceShape = CatalogLibraryReadSupportShape;
+
+export class CatalogLibraryReadService extends Context.Tag("@bakarr/api/CatalogLibraryReadService")<
+  CatalogLibraryReadService,
+  CatalogLibraryReadServiceShape
+>() {}
+
+const makeCatalogLibraryReadService = Effect.gen(function* () {
+  const { db } = yield* Database;
+  const clock = yield* ClockService;
+
+  return makeCatalogLibraryReadSupport({
+    currentTimeMillis: () => clock.currentTimeMillis,
+    db,
+    tryDatabasePromise,
+  });
+});
+
+export const CatalogLibraryReadServiceLive = Layer.effect(
+  CatalogLibraryReadService,
+  makeCatalogLibraryReadService,
+);
 
 function isAllDayAiring(aired?: string | null) {
   return !aired?.includes("T");

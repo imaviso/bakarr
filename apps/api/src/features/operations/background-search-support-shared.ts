@@ -2,40 +2,44 @@ import { Effect } from "effect";
 
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { anime } from "@/db/schema.ts";
-import { ExternalCallError } from "@/lib/effect-retry.ts";
+import type { AnimeRow } from "@/db/schema.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import {
   type OperationsError,
   OperationsInputError,
   OperationsInfrastructureError,
 } from "@/features/operations/errors.ts";
-import { type ParsedRelease, RssClient } from "@/features/operations/rss-client.ts";
-import { type QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import type { BackgroundSearchQueueSupportInput } from "@/features/operations/background-search-queue-support.ts";
+import { RssClient } from "@/features/operations/rss-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { loadQualityProfile } from "@/features/operations/repository/profile-repository.ts";
-import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
+import type { ExternalCallError } from "@/lib/effect-retry.ts";
 
-export interface BackgroundSearchSupportInput {
-  db: AppDatabase;
-  coordination: OperationsCoordinationShape;
-  eventBus: typeof EventBus.Service;
-  maybeQBitConfig: (config: Config) => QBitConfig | null;
-  nowIso: () => Effect.Effect<string>;
-  qbitClient: typeof QBitTorrentClient.Service;
-  rssClient: typeof RssClient.Service;
-  publishDownloadProgress: () => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
-  publishRssCheckProgress: (input: {
+export interface BackgroundSearchMissingSupportInput extends BackgroundSearchQueueSupportInput {
+  readonly eventBus: typeof EventBus.Service;
+  readonly publishDownloadProgress: () => Effect.Effect<
+    void,
+    DatabaseError | OperationsInfrastructureError
+  >;
+  readonly searchEpisodeReleases: (
+    animeRow: AnimeRow,
+    episodeNumber: number,
+    config: Config,
+  ) => Effect.Effect<readonly ParsedRelease[], ExternalCallError | OperationsError | DatabaseError>;
+}
+
+export interface BackgroundSearchRssSupportInput extends BackgroundSearchQueueSupportInput {
+  readonly eventBus: typeof EventBus.Service;
+  readonly publishDownloadProgress: () => Effect.Effect<
+    void,
+    DatabaseError | OperationsInfrastructureError
+  >;
+  readonly publishRssCheckProgress: (input: {
     current: number;
     total: number;
     feed_name: string;
   }) => Effect.Effect<void>;
-  searchEpisodeReleases: (
-    animeRow: typeof anime.$inferSelect,
-    episodeNumber: number,
-    config: Config,
-  ) => Effect.Effect<readonly ParsedRelease[], ExternalCallError | OperationsError | DatabaseError>;
-  tryDatabasePromise: TryDatabasePromise;
+  readonly rssClient: typeof RssClient.Service;
 }
 
 export interface BackgroundSearchSupportShared {
@@ -55,7 +59,7 @@ export interface BackgroundSearchSupportShared {
   ) => Effect.Effect<QualityProfile, DatabaseError | OperationsInputError>;
 }
 
-export function makeBackgroundSearchSupportShared(input: BackgroundSearchSupportInput) {
+export function makeBackgroundSearchSupportShared(input: { db: AppDatabase }) {
   const { db } = input;
 
   const logSearchMissingSkip = (input: {
