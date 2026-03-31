@@ -16,7 +16,7 @@ import { SearchBackgroundMissingService } from "@/features/operations/background
 import type { ProfileNotFoundError } from "@/features/system/errors.ts";
 import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
-import { AnimeMutationService } from "@/features/anime/mutation-service.ts";
+import { AnimeCreateService } from "@/features/anime/anime-create-service.ts";
 
 export type AnimeEnrollmentError =
   | DatabaseError
@@ -46,7 +46,7 @@ export class AnimeEnrollmentService extends Context.Tag("@bakarr/api/AnimeEnroll
 >() {}
 
 const makeAnimeEnrollmentService = Effect.gen(function* () {
-  const animeService = yield* AnimeMutationService;
+  const animeService = yield* AnimeCreateService;
   const searchBackgroundService = yield* SearchBackgroundMissingService;
 
   const enroll = Effect.fn("AnimeEnrollmentService.enroll")(function* (input: AddAnimeInput) {
