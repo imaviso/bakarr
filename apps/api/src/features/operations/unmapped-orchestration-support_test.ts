@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { FileSystemError } from "@/lib/filesystem.ts";
 import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
-import { cleanupPreviousAnimeRootFolderAfterImport } from "@/features/operations/unmapped-orchestration-support.ts";
+import { cleanupPreviousAnimeRootFolderAfterImport } from "@/features/operations/unmapped-orchestration-import.ts";
 
 it.effect(
   "cleanupPreviousAnimeRootFolderAfterImport skips removal when previous folder cannot be read",

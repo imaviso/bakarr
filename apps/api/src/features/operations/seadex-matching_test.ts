@@ -1,6 +1,6 @@
 import { assertEquals, it } from "@/test/vitest.ts";
 
-import type { ParsedRelease } from "@/features/operations/rss-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { applySeaDexMatch, findSeaDexReleaseMatch } from "@/features/operations/seadex-matching.ts";
 import type { SeaDexEntry, SeaDexRelease } from "@/features/operations/seadex-client.ts";
 

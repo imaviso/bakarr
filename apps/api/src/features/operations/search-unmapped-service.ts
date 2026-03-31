@@ -4,12 +4,15 @@ import { Database } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
-import { AnimeImportService } from "@/features/anime/import-service.ts";
-import { makeUnmappedOrchestrationSupport } from "@/features/operations/unmapped-orchestration-support.ts";
+import { makeUnmappedControlWorkflow } from "@/features/operations/unmapped-orchestration-control.ts";
+import { makeUnmappedImportWorkflow } from "@/features/operations/unmapped-orchestration-import.ts";
+import { makeUnmappedScanWorkflow } from "@/features/operations/unmapped-orchestration-scan.ts";
 import { OperationsSharedState } from "@/features/operations/runtime-support.ts";
-import { toDatabaseError, tryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
-export type SearchUnmappedServiceShape = ReturnType<typeof makeUnmappedOrchestrationSupport>;
+export type SearchUnmappedServiceShape = ReturnType<typeof makeUnmappedScanWorkflow> &
+  ReturnType<typeof makeUnmappedControlWorkflow> &
+  ReturnType<typeof makeUnmappedImportWorkflow>;
 
 export class SearchUnmappedService extends Context.Tag("@bakarr/api/SearchUnmappedService")<
   SearchUnmappedService,
@@ -21,20 +24,38 @@ export const SearchUnmappedServiceLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const aniList = yield* AniListClient;
-    const animeImportService = yield* AnimeImportService;
     const fs = yield* FileSystem;
     const clock = yield* ClockService;
     const sharedState = yield* OperationsSharedState;
 
-    return makeUnmappedOrchestrationSupport({
+    const scanWorkflow = makeUnmappedScanWorkflow({
       aniList,
-      animeImportService,
-      coordination: sharedState,
       db,
-      dbError: toDatabaseError,
+      coordination: sharedState,
       fs,
       nowIso: () => nowIsoFromClock(clock),
       tryDatabasePromise,
     });
+
+    const controlWorkflow = makeUnmappedControlWorkflow({
+      db,
+      fs,
+      matchAndPersistUnmappedFolder: scanWorkflow.matchAndPersistUnmappedFolder,
+      nowIso: () => nowIsoFromClock(clock),
+      tryDatabasePromise,
+    });
+
+    const importWorkflow = makeUnmappedImportWorkflow({
+      db,
+      fs,
+      nowIso: () => nowIsoFromClock(clock),
+      tryDatabasePromise,
+    });
+
+    return {
+      ...scanWorkflow,
+      ...controlWorkflow,
+      ...importWorkflow,
+    } satisfies SearchUnmappedServiceShape;
   }),
 );

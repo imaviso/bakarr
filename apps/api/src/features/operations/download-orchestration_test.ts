@@ -35,8 +35,9 @@ import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-
 import { decodeDownloadEventMetadata } from "@/lib/download-event-presentations.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
-import { tryDatabasePromise, toDatabaseError } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { makeDownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
+import { makeDownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
 import { makeDownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
 import { makeDownloadTriggerService } from "@/features/operations/download-trigger-service.ts";
 import { makeDownloadOrchestration } from "@/features/operations/download-orchestration.ts";
@@ -668,7 +669,6 @@ it.scoped(
             const downloadServices = buildDownloadWorkflowServices({
               coordination: makeTestOperationsCoordination(),
               db: appDb,
-              dbError: toDatabaseError,
               eventBus: {
                 publish: () => Effect.void,
               } as unknown as typeof EventBus.Service,
@@ -716,6 +716,7 @@ it.scoped(
             const orchestration = makeDownloadOrchestration({
               currentMonotonicMillis: () => Effect.succeed(0),
               reconciliationService: downloadServices.reconciliationService,
+              progressSupport: downloadServices.progressSupport,
               torrentLifecycleService: downloadServices.torrentLifecycleService,
               triggerService: downloadServices.triggerService,
             });
@@ -985,7 +986,6 @@ function createDownloadOrchestrationForTest(
   const downloadServices = buildDownloadWorkflowServices({
     coordination,
     db,
-    dbError: toDatabaseError,
     eventBus: {
       publish: (event: NotificationEvent) =>
         Effect.sync(() => {
@@ -1013,6 +1013,7 @@ function createDownloadOrchestrationForTest(
   return makeDownloadOrchestration({
     currentMonotonicMillis: () => Effect.succeed(0),
     reconciliationService: downloadServices.reconciliationService,
+    progressSupport: downloadServices.progressSupport,
     torrentLifecycleService: downloadServices.torrentLifecycleService,
     triggerService: downloadServices.triggerService,
   });
@@ -1021,9 +1022,6 @@ function createDownloadOrchestrationForTest(
 function buildDownloadWorkflowServices(input: {
   readonly coordination: import("./runtime-support.ts").OperationsCoordinationShape;
   readonly db: AppDatabase;
-  readonly dbError: (
-    message: string,
-  ) => (cause: unknown) => import("@/db/database.ts").DatabaseError;
   readonly eventBus: typeof EventBus.Service;
   readonly fs: FileSystemShape;
   readonly mediaProbe: MediaProbeShape;
@@ -1054,19 +1052,25 @@ function buildDownloadWorkflowServices(input: {
     tryDatabasePromise: input.tryDatabasePromise,
   });
 
-  const triggerService = makeDownloadTriggerService({
-    coordination: input.coordination,
+  const progressSupport = makeDownloadProgressSupport({
     db: input.db,
-    dbError: input.dbError,
     eventBus: input.eventBus,
-    maybeQBitConfig: input.maybeQBitConfig,
-    nowIso: input.nowIso,
-    qbitClient: input.qbitClient,
     syncDownloadsWithQBitEffect: torrentLifecycleService.syncDownloadsWithQBitEffect,
     tryDatabasePromise: input.tryDatabasePromise,
   });
 
-  return { reconciliationService, torrentLifecycleService, triggerService };
+  const triggerService = makeDownloadTriggerService({
+    coordination: input.coordination,
+    db: input.db,
+    eventBus: input.eventBus,
+    maybeQBitConfig: input.maybeQBitConfig,
+    nowIso: input.nowIso,
+    qbitClient: input.qbitClient,
+    publishDownloadProgress: progressSupport.publishDownloadProgress,
+    tryDatabasePromise: input.tryDatabasePromise,
+  });
+
+  return { progressSupport, reconciliationService, torrentLifecycleService, triggerService };
 }
 
 function makeTestOperationsCoordination(): import("./runtime-support.ts").OperationsCoordinationShape {

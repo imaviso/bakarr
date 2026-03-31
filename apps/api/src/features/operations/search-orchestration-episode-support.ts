@@ -1,7 +1,8 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { Config, EpisodeSearchResult } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
@@ -14,9 +15,10 @@ import {
 import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { compareEpisodeSearchResults } from "@/features/operations/release-ranking.ts";
-import type { ParsedRelease } from "@/features/operations/rss-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { toEpisodeSearchResult } from "@/features/operations/search-orchestration-episode-result.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
 
 export interface SearchEpisodeSupportInput {
   readonly db: AppDatabase;
@@ -79,3 +81,23 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
     searchEpisode,
   };
 }
+
+export type SearchEpisodeServiceShape = ReturnType<typeof makeSearchEpisodeSupport>;
+
+export class SearchEpisodeService extends Context.Tag("@bakarr/api/SearchEpisodeService")<
+  SearchEpisodeService,
+  SearchEpisodeServiceShape
+>() {}
+
+export const SearchEpisodeServiceLive = Layer.effect(
+  SearchEpisodeService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const searchReleaseService = yield* SearchReleaseService;
+
+    return makeSearchEpisodeSupport({
+      db,
+      searchEpisodeReleases: searchReleaseService.searchEpisodeReleases,
+    });
+  }),
+);

@@ -12,14 +12,6 @@ import {
 import { readRssItems, type ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { validateUrlForSsrf } from "@/features/operations/rss-client-ssrf.ts";
 
-export {
-  RssFeedParseError,
-  RssFeedRejectedError,
-  RssFeedTooLargeError,
-} from "@/features/operations/errors.ts";
-export { ParsedReleaseSchema } from "@/features/operations/rss-client-parse.ts";
-export type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
-
 interface RssClientShape {
   readonly fetchItems: (
     url: string,

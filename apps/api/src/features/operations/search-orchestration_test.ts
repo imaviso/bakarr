@@ -5,7 +5,8 @@ import type { AppDatabase } from "@/db/database.ts";
 import { assertEquals, it } from "@/test/vitest.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
-import { RssClient, type ParsedRelease } from "@/features/operations/rss-client.ts";
+import { RssClient } from "@/features/operations/rss-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { SeaDexClient } from "@/features/operations/seadex-client.ts";
 import { makeSearchReleaseSupport } from "@/features/operations/search-orchestration-release-search.ts";
 

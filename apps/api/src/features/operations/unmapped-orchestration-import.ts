@@ -11,7 +11,6 @@ import {
 } from "@/lib/filesystem.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
 import { inferAiredAt } from "@/lib/anime-derivations.ts";
-import { AnimeImportService } from "@/features/anime/import-service.ts";
 import { resolveAnimeRootFolderEffect } from "@/features/anime/config-support.ts";
 import {
   OperationsAnimeNotFoundError,
@@ -24,6 +23,7 @@ import { appendLog } from "@/features/operations/job-support.ts";
 import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
+import { upsertEpisodeEffect } from "@/features/anime/anime-episode-repository.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface UnmappedImportWorkflowShape {
@@ -77,13 +77,12 @@ export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
 });
 
 export function makeUnmappedImportWorkflow(input: {
-  animeImportService: typeof AnimeImportService.Service;
   db: AppDatabase;
   fs: FileSystemShape;
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { animeImportService, db, fs, nowIso, tryDatabasePromise } = input;
+  const { db, fs, nowIso, tryDatabasePromise } = input;
 
   const importUnmappedFolder = Effect.fn("OperationsService.importUnmappedFolder")(
     function* (input: { folder_name: string; anime_id: number; profile_name?: string }) {
@@ -181,31 +180,29 @@ export function makeUnmappedImportWorkflow(input: {
         const currentIso = yield* nowIso();
 
         for (const episodeNumber of episodeNumbers) {
-          yield* animeImportService
-            .upsertEpisode(input.anime_id, episodeNumber, {
-              aired: inferAiredAt(
-                animeRow.status,
-                episodeNumber,
-                animeRow.episodeCount ?? undefined,
-                animeRow.startDate ?? undefined,
-                animeRow.endDate ?? undefined,
-                undefined,
-                currentIso,
+          yield* upsertEpisodeEffect(db, input.anime_id, episodeNumber, {
+            aired: inferAiredAt(
+              animeRow.status,
+              episodeNumber,
+              animeRow.episodeCount ?? undefined,
+              animeRow.startDate ?? undefined,
+              animeRow.endDate ?? undefined,
+              undefined,
+              currentIso,
+            ),
+            downloaded: true,
+            filePath: file.path,
+            title: null,
+          }).pipe(
+            Effect.catchTag("AnimeStoredDataError", (e) =>
+              Effect.fail(
+                new OperationsInfrastructureError({
+                  message: "Failed to import unmapped folder",
+                  cause: e,
+                }),
               ),
-              downloaded: true,
-              filePath: file.path,
-              title: null,
-            })
-            .pipe(
-              Effect.catchTag("AnimeStoredDataError", (e) =>
-                Effect.fail(
-                  new OperationsInfrastructureError({
-                    message: "Failed to import unmapped folder",
-                    cause: e,
-                  }),
-                ),
-              ),
-            );
+            ),
+          );
         }
         imported += episodeNumbers.length;
       }

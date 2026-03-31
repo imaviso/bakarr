@@ -1,11 +1,12 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import type { AniListClient } from "@/features/anime/anilist.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { MediaProbeShape } from "@/lib/media-probe.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import { AniListClient } from "@/features/anime/anilist.ts";
+import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
+import { MediaProbe, type MediaProbeShape } from "@/lib/media-probe.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 import {
   OperationsPathError,
   OperationsInfrastructureError,
@@ -51,3 +52,28 @@ export function makeSearchImportPathSupport(input: SearchImportPathSupportInput)
     scanImportPath,
   };
 }
+
+export type SearchImportPathServiceShape = ReturnType<typeof makeSearchImportPathSupport>;
+
+export class SearchImportPathService extends Context.Tag("@bakarr/api/SearchImportPathService")<
+  SearchImportPathService,
+  SearchImportPathServiceShape
+>() {}
+
+export const SearchImportPathServiceLive = Layer.effect(
+  SearchImportPathService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const aniList = yield* AniListClient;
+    const fs = yield* FileSystem;
+    const mediaProbe = yield* MediaProbe;
+
+    return makeSearchImportPathSupport({
+      aniList,
+      db,
+      fs,
+      mediaProbe,
+      tryDatabasePromise,
+    });
+  }),
+);

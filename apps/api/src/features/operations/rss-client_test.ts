@@ -5,13 +5,12 @@ import { Cause, Effect, Exit, Layer } from "effect";
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { DnsLookupError, DnsResolver } from "@/lib/dns-resolver.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { RssClient, RssClientLive } from "@/features/operations/rss-client.ts";
 import {
-  RssClient,
-  RssClientLive,
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
-} from "@/features/operations/rss-client.ts";
+} from "@/features/operations/errors.ts";
 
 function makeDnsLayer(mock: (name: string, type: "A" | "AAAA") => Promise<string[]>) {
   return Layer.succeed(DnsResolver, {

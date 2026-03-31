@@ -1,6 +1,5 @@
 import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { MediaProbeShape } from "@/lib/media-probe.ts";
@@ -27,7 +26,6 @@ export interface DownloadOrchestrationInput {
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly dbError: (message: string) => (cause: unknown) => DatabaseError;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly coordination: OperationsCoordinationShape;
   readonly currentMonotonicMillis: () => import("effect").Effect.Effect<number>;

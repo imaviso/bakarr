@@ -6,7 +6,7 @@ import {
   mapSearchFilter,
   toNyaaSearchResult,
 } from "@/features/operations/search-support.ts";
-import type { ParsedRelease } from "@/features/operations/rss-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 
 it("mapSearchCategory and mapSearchFilter use expected mappings and fallbacks", () => {
   assertEquals(mapSearchCategory("anime_english", "1_0"), "1_2");

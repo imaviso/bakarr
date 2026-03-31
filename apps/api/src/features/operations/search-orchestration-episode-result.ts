@@ -5,7 +5,7 @@ import type {
   ReleaseProfileRule,
 } from "@packages/shared/index.ts";
 
-import type { ParsedRelease } from "@/features/operations/rss-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { parseReleaseSourceIdentity } from "@/lib/media-identity.ts";
 import { decideDownloadAction, parseReleaseName } from "@/features/operations/release-ranking.ts";
 

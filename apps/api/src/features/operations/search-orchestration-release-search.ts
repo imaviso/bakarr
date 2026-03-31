@@ -1,18 +1,19 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { Config, SearchResults } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { compactLogAnnotations, errorLogAnnotations } from "@/lib/logging.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { RssClient } from "@/features/operations/rss-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import {
-  type ParsedRelease,
-  RssClient,
   RssFeedParseError,
   RssFeedRejectedError,
   RssFeedTooLargeError,
-} from "@/features/operations/rss-client.ts";
+} from "@/features/operations/errors.ts";
 import { SeaDexClient } from "@/features/operations/seadex-client.ts";
 import { applySeaDexMatch } from "@/features/operations/seadex-matching.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
@@ -242,3 +243,25 @@ function collectEpisodeSearchReleases(
     return results;
   });
 }
+
+export type SearchReleaseServiceShape = ReturnType<typeof makeSearchReleaseSupport>;
+
+export class SearchReleaseService extends Context.Tag("@bakarr/api/SearchReleaseService")<
+  SearchReleaseService,
+  SearchReleaseServiceShape
+>() {}
+
+export const SearchReleaseServiceLive = Layer.effect(
+  SearchReleaseService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const rssClient = yield* RssClient;
+    const seadexClient = yield* SeaDexClient;
+
+    return makeSearchReleaseSupport({
+      db,
+      rssClient,
+      seadexClient,
+    });
+  }),
+);

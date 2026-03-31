@@ -13,7 +13,7 @@ import {
 } from "@/features/operations/download-coverage.ts";
 import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
-import type { ParsedRelease } from "@/features/operations/rss-client.ts";
+import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export const queueParsedReleaseDownload = Effect.fn("OperationsService.queueParsedReleaseDownload")(
