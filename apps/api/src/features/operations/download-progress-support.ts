@@ -1,10 +1,11 @@
 import { desc, inArray } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
-import type { AppDatabase } from "@/db/database.ts";
+import { Database, type AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
+import { DownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import { toDownloadStatus } from "@/features/operations/repository/download-repository.ts";
 import {
@@ -12,7 +13,14 @@ import {
   OperationsInfrastructureError,
 } from "@/features/operations/errors.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
+
+export type DownloadProgressSupportShape = ReturnType<typeof makeDownloadProgressSupport>;
+
+export class DownloadProgressSupport extends Context.Tag("@bakarr/api/DownloadProgressSupport")<
+  DownloadProgressSupport,
+  DownloadProgressSupportShape
+>() {}
 
 export interface DownloadProgressSupportInput {
   readonly db: AppDatabase;
@@ -68,3 +76,19 @@ export function makeDownloadProgressSupport(input: DownloadProgressSupportInput)
     publishDownloadProgress,
   };
 }
+
+export const DownloadProgressSupportLive = Layer.effect(
+  DownloadProgressSupport,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const eventBus = yield* EventBus;
+    const torrentLifecycleService = yield* DownloadTorrentLifecycleService;
+
+    return makeDownloadProgressSupport({
+      db,
+      eventBus,
+      syncDownloadsWithQBitEffect: torrentLifecycleService.syncDownloadsWithQBitEffect,
+      tryDatabasePromise,
+    });
+  }),
+);

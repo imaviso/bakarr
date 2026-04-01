@@ -18,12 +18,12 @@ import { parseReleaseName } from "@/features/operations/release-ranking.ts";
 import { queueParsedReleaseDownload } from "@/features/operations/release-queue-support.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { type QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
-import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
+import type { DownloadTriggerCoordinatorShape } from "@/features/operations/runtime-support.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface BackgroundSearchQueueSupportInput {
   readonly db: AppDatabase;
-  readonly coordination: OperationsCoordinationShape;
+  readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
   readonly qbitClient: typeof QBitTorrentClient.Service;
@@ -31,7 +31,7 @@ export interface BackgroundSearchQueueSupportInput {
 }
 
 export function makeBackgroundSearchQueueSupport(input: BackgroundSearchQueueSupportInput) {
-  const { db, coordination, nowIso, qbitClient, tryDatabasePromise } = input;
+  const { db, downloadTriggerCoordinator, nowIso, qbitClient, tryDatabasePromise } = input;
 
   const queueReleaseIfEligible = Effect.fn("OperationsService.queueReleaseIfEligible")(
     function* (input: {
@@ -106,7 +106,7 @@ export function makeBackgroundSearchQueueSupport(input: BackgroundSearchQueueSup
         });
       });
 
-      return yield* coordination.runExclusiveDownloadTrigger(queueEffect);
+      return yield* downloadTriggerCoordinator.runExclusiveDownloadTrigger(queueEffect);
     },
   );
 

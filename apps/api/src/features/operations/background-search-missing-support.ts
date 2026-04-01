@@ -14,16 +14,14 @@ import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
-import { OperationsSharedState } from "@/features/operations/runtime-support.ts";
+import { BackgroundSearchShared } from "@/features/operations/background-search-support-shared.ts";
+import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
 import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import type {
-  BackgroundSearchMissingSupportInput,
-  BackgroundSearchSupportShared,
-} from "@/features/operations/background-search-support-shared.ts";
-import { makeBackgroundSearchSupportShared } from "@/features/operations/background-search-support-shared.ts";
+import type { BackgroundSearchMissingSupportInput } from "@/features/operations/background-search-support-shared.ts";
+import type { BackgroundSearchSupportShared } from "@/features/operations/background-search-support-shared.ts";
 
 export function makeBackgroundSearchMissingSupport(
   input: BackgroundSearchMissingSupportInput,
@@ -170,12 +168,13 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
     const qbitClient = yield* QBitTorrentClient;
     const clock = yield* ClockService;
     const progress = yield* OperationsProgress;
-    const sharedState = yield* OperationsSharedState;
+    const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
     const searchReleaseService = yield* SearchReleaseService;
+    const shared = yield* BackgroundSearchShared;
 
     const input: BackgroundSearchMissingSupportInput = {
-      coordination: sharedState,
       db,
+      downloadTriggerCoordinator,
       eventBus,
       maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
@@ -185,7 +184,6 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
       tryDatabasePromise,
     };
 
-    const shared = makeBackgroundSearchSupportShared(input);
     return makeBackgroundSearchMissingSupport(input, shared);
   }),
 );

@@ -2,9 +2,7 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { HttpServerResponse } from "@effect/platform";
-import { Schema } from "effect";
 import { CatalogDownloadService } from "@/features/operations/catalog-download-orchestration.ts";
-import { DownloadEventsExportSchema, type DownloadEventsExport } from "@packages/shared/index.ts";
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import { escapeCsv } from "@/http/route-fs.ts";
 import {
@@ -63,7 +61,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           DownloadEventsExportQuerySchema,
           "download events export",
         );
-        const page = yield* (yield* CatalogDownloadService).exportDownloadEvents({
+        const service = yield* CatalogDownloadService;
+        const page = yield* service.exportDownloadEvents({
           animeId: query.anime_id,
           downloadId: query.download_id,
           endDate: query.end_date,
@@ -73,9 +72,36 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           startDate: query.start_date,
           status: query.status,
         });
-        return { format: query.format ?? "json", page };
+
+        if ((query.format ?? "json") === "csv") {
+          return {
+            format: "csv" as const,
+            page,
+          };
+        }
+
+        const streamed = yield* service.streamDownloadEventsExportJson({
+          animeId: query.anime_id,
+          downloadId: query.download_id,
+          endDate: query.end_date,
+          eventType: query.event_type,
+          limit: query.limit,
+          order: query.order,
+          startDate: query.start_date,
+          status: query.status,
+        });
+
+        return {
+          format: "json" as const,
+          page: {
+            ...page,
+            events: [],
+          },
+          stream: streamed.stream,
+        };
       }),
-      ({ format, page }) => {
+      (result) => {
+        const { format, page } = result;
         const exportHeaders = {
           "X-Bakarr-Export-Limit": String(page.limit),
           "X-Bakarr-Export-Order": page.order,
@@ -115,18 +141,13 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           });
         }
 
-        return HttpServerResponse.text(
-          Schema.encodeSync(Schema.parseJson(DownloadEventsExportSchema))(
-            page as DownloadEventsExport,
-          ),
-          {
-            contentType: "application/json; charset=utf-8",
-            headers: {
-              ...exportHeaders,
-              "Content-Disposition": `attachment; filename="bakarr-download-events.json"`,
-            },
+        return HttpServerResponse.stream(result.stream, {
+          contentType: "application/json; charset=utf-8",
+          headers: {
+            ...exportHeaders,
+            "Content-Disposition": `attachment; filename="bakarr-download-events.json"`,
           },
-        );
+        });
       },
     ),
   ),

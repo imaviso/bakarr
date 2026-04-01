@@ -2,15 +2,12 @@ import { Effect } from "effect";
 
 import { durationMsSince } from "@/lib/logging.ts";
 import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
-import { makeDownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
-import { makeDownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
-import { makeDownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
-import { makeDownloadTriggerService } from "@/features/operations/download-trigger-service.ts";
+import type { DownloadProgressSupportShape } from "@/features/operations/download-progress-support.ts";
+import type { DownloadReconciliationServiceShape } from "@/features/operations/download-reconciliation-service.ts";
+import type { DownloadTorrentLifecycleServiceShape } from "@/features/operations/download-torrent-lifecycle-service.ts";
+import type { DownloadTriggerServiceShape } from "@/features/operations/download-trigger-coordinator-service.ts";
 
-type DownloadReconciliationServiceShape = ReturnType<typeof makeDownloadReconciliationService>;
-type DownloadProgressSupportShape = ReturnType<typeof makeDownloadProgressSupport>;
-type DownloadTorrentLifecycleServiceShape = ReturnType<typeof makeDownloadTorrentLifecycleService>;
-type DownloadTriggerServiceShape = ReturnType<typeof makeDownloadTriggerService>;
+export type DownloadWorkflowShape = ReturnType<typeof makeDownloadOrchestration>;
 
 export function makeDownloadOrchestration(input: {
   readonly currentMonotonicMillis: () => Effect.Effect<number>;

@@ -1,34 +1,18 @@
 import { Layer } from "effect";
 
 import { BackgroundWorkerControllerLive } from "@/background-controller-live.ts";
+import { BackgroundWorkerJobsLive } from "@/background-worker-jobs.ts";
 import { makeAppPlatformCoreRuntimeLayer } from "@/app-platform-runtime-core.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
 import { MediaProbeLive } from "@/lib/media-probe.ts";
-import { AnimeCreateServiceLive } from "@/features/anime/anime-create-service.ts";
+import { AnimeFeatureLive } from "@/features/anime/anime-feature-layer.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
-import { AnimeEpisodeRefreshServiceLive } from "@/features/anime/anime-episode-refresh-service.ts";
-import { AnimeDeleteServiceLive } from "@/features/anime/anime-delete-service.ts";
-import { AnimeMetadataRefreshServiceLive } from "@/features/anime/metadata-refresh-service.ts";
-import { AnimeSettingsServiceLive } from "@/features/anime/anime-settings-service.ts";
-import { AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
 import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
 import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
 import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
 import { LibraryRootsServiceLive } from "@/features/library-roots/service.ts";
-import { CatalogDownloadServiceLive } from "@/features/operations/catalog-download-orchestration.ts";
-import { CatalogLibraryReadServiceLive } from "@/features/operations/catalog-library-read-support.ts";
-import { CatalogLibraryScanServiceLive } from "@/features/operations/catalog-library-scan-support.ts";
-import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog-orchestration-library-write-support.ts";
-import { DownloadProgressServiceLive } from "@/features/operations/catalog-download-view-support.ts";
-import { DownloadWorkflowLive } from "@/features/operations/download-workflow-service.ts";
-import { ProgressLive } from "@/features/operations/operations-progress-service.ts";
-import { SearchBackgroundMissingServiceLive } from "@/features/operations/background-search-missing-support.ts";
-import { SearchBackgroundRssServiceLive } from "@/features/operations/background-search-rss-support.ts";
-import { SearchEpisodeServiceLive } from "@/features/operations/search-orchestration-episode-support.ts";
-import { SearchImportPathServiceLive } from "@/features/operations/search-orchestration-import-path-support.ts";
-import { SearchReleaseServiceLive } from "@/features/operations/search-orchestration-release-search.ts";
-import { SearchUnmappedServiceLive } from "@/features/operations/search-unmapped-service.ts";
+import { OperationsFeatureLive } from "@/features/operations/operations-feature-layer.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
 import { MetricsServiceLive } from "@/features/system/metrics-service.ts";
@@ -70,71 +54,15 @@ export function makeApiLifecycleLayers(
   const withPlatform = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
     layer.pipe(Layer.provideMerge(platformLayer));
 
-  // Anime services (platform-only dependencies)
-  const animeLayer = Layer.mergeAll(
-    withPlatform(AnimeQueryServiceLive),
-    withPlatform(AnimeCreateServiceLive),
-    withPlatform(AnimeDeleteServiceLive),
-    withPlatform(AnimeSettingsServiceLive),
-    withPlatform(AnimeEpisodeRefreshServiceLive),
-    withPlatform(AnimeMetadataRefreshServiceLive),
-  );
-
-  // Download workflow and progress (interdependent)
-  const downloadWorkflowLayer = withPlatform(DownloadWorkflowLive);
-  const progressLayer = withPlatform(ProgressLive.pipe(Layer.provideMerge(downloadWorkflowLayer)));
-  const downloadBaseLayer = Layer.mergeAll(downloadWorkflowLayer, progressLayer);
-
-  // Catalog services (depend on download base)
-  const catalogLayer = Layer.mergeAll(
-    withPlatform(CatalogDownloadServiceLive.pipe(Layer.provideMerge(downloadBaseLayer))),
-    withPlatform(CatalogLibraryReadServiceLive),
-    withPlatform(CatalogLibraryWriteServiceLive),
-    withPlatform(CatalogLibraryScanServiceLive.pipe(Layer.provideMerge(downloadBaseLayer))),
-  );
-
-  // Search services (direct leaf capabilities)
-  const searchReleaseLayer = withPlatform(SearchReleaseServiceLive);
-  const searchEpisodeLayer = withPlatform(
-    SearchEpisodeServiceLive.pipe(Layer.provideMerge(searchReleaseLayer)),
-  );
-  const searchImportPathLayer = withPlatform(SearchImportPathServiceLive);
-  const searchUnmappedLayer = withPlatform(
-    SearchUnmappedServiceLive.pipe(
-      Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, animeLayer)),
-    ),
-  );
-  const searchBackgroundLayer = Layer.mergeAll(
-    withPlatform(
-      SearchBackgroundMissingServiceLive.pipe(
-        Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, searchReleaseLayer)),
-      ),
-    ),
-    withPlatform(
-      SearchBackgroundRssServiceLive.pipe(
-        Layer.provideMerge(Layer.mergeAll(downloadBaseLayer, searchReleaseLayer)),
-      ),
-    ),
-  );
-  const searchLayer = Layer.mergeAll(
-    searchReleaseLayer,
-    searchEpisodeLayer,
-    searchImportPathLayer,
-    searchUnmappedLayer,
-    searchBackgroundLayer,
-  );
-
-  // Operations feature (all download/catalog/search services)
-  const operationsLayer = Layer.mergeAll(
-    downloadBaseLayer,
-    withPlatform(DownloadProgressServiceLive),
-    catalogLayer,
-    searchLayer,
+  const animeLayer = withPlatform(AnimeFeatureLive);
+  const operationsLayer = withPlatform(OperationsFeatureLive);
+  const backgroundWorkerJobsLayer = BackgroundWorkerJobsLive.pipe(
+    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, animeLayer)),
   );
 
   // Background controller (scoped, depends on platform + operations + anime)
   const backgroundControllerLayer = BackgroundWorkerControllerLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, animeLayer)),
+    Layer.provideMerge(Layer.mergeAll(platformLayer, backgroundWorkerJobsLayer)),
   );
 
   // Auth services (platform-only dependencies)

@@ -2,9 +2,8 @@ import { HttpServer } from "@effect/platform";
 import { BunFileSystem } from "@effect/platform-bun";
 import * as BunHttpServer from "@effect/platform-bun/BunHttpServer";
 import * as BunRuntime from "@effect/platform-bun/BunRuntime";
-import { Effect, Layer, ManagedRuntime } from "effect";
+import { Effect, Layer } from "effect";
 
-import type { AppConfigShape } from "./src/config.ts";
 import { makeDotenvConfigProvider } from "./src/config-provider.ts";
 import { createHttpApp } from "./src/http/http-app.ts";
 import {
@@ -14,12 +13,6 @@ import {
   startBackgroundWorkers,
 } from "./src/api-startup.ts";
 import { makeApiLifecycleLayers } from "./src/api-lifecycle-layers.ts";
-
-type RuntimeOptions = Parameters<typeof makeApiLifecycleLayers>[1];
-
-function makeApiRuntime(overrides: Partial<AppConfigShape> = {}, options?: RuntimeOptions) {
-  return ManagedRuntime.make(makeApiLifecycleLayers(overrides, options).appLayer);
-}
 
 /**
  * Startup sequence (blocking, ordered, fail-fast):
@@ -55,29 +48,11 @@ const loadDotenvConfigProvider = Effect.fn("api.loadDotenvConfigProvider")(funct
   return yield* makeDotenvConfigProvider().pipe(Effect.provide(BunFileSystem.layer));
 });
 
-export async function bootstrap(
-  overrides: Partial<AppConfigShape> = {},
-  runtimeOptions?: RuntimeOptions,
-) {
-  const runtime = makeApiRuntime(overrides, runtimeOptions);
-  const config = await runtime.runPromise(
-    bootstrapProgram().pipe(Effect.withSpan("api.bootstrap")),
-  );
-
-  const httpApp = await runtime.runPromise(createHttpApp());
-
-  return {
-    config,
-    httpApp,
-    runtime,
-  };
-}
-
 if (import.meta.main) {
   const dotenvProvider = await Effect.runPromise(loadDotenvConfigProvider());
   BunRuntime.runMain(
     Effect.scoped(mainProgram()).pipe(
       Effect.provide(makeApiLifecycleLayers({}, { configProvider: dotenvProvider }).appLayer),
-    ),
+    ) as Effect.Effect<never, unknown, never>,
   );
 }

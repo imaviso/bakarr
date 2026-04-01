@@ -1,5 +1,5 @@
-import { HttpRouter, HttpServerRequest } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { HttpRouter } from "@effect/platform";
+import { Effect } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-support.ts";
@@ -17,13 +17,13 @@ import {
 import {
   authedRouteResponse,
   decodeJsonBodyWithLabel,
+  decodeOptionalJsonBodyWithLabel,
   decodePathParams,
   decodeQueryWithLabel,
   jsonResponse,
   successResponse,
 } from "@/http/router-helpers.ts";
 import { SearchEpisodeParamsSchema } from "@/http/common-request-schemas.ts";
-import { formatValidationErrorMessage, RequestValidationError } from "@/http/route-validation.ts";
 
 export const searchRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -93,26 +93,11 @@ export const searchRouter = HttpRouter.empty.pipe(
     "/downloads/search-missing",
     authedRouteResponse(
       Effect.gen(function* () {
-        const body = yield* Effect.gen(function* () {
-          const request = yield* HttpServerRequest.HttpServerRequest;
-          const text = yield* request.text;
-
-          if (text.trim().length === 0) {
-            return new SearchMissingBodySchema({ anime_id: undefined });
-          }
-
-          return yield* Schema.decode(Schema.parseJson(SearchMissingBodySchema))(text).pipe(
-            Effect.mapError((error) =>
-              RequestValidationError.make({
-                message: formatValidationErrorMessage(
-                  "Invalid request body for search missing downloads",
-                  error,
-                ),
-                status: 400,
-              }),
-            ),
-          );
-        });
+        const body = yield* decodeOptionalJsonBodyWithLabel(
+          SearchMissingBodySchema,
+          "search missing downloads",
+          new SearchMissingBodySchema({ anime_id: undefined }),
+        );
         yield* (yield* SearchBackgroundMissingService).triggerSearchMissing(body.anime_id);
       }),
       successResponse,

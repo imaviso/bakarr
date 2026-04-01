@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or, sql } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Stream } from "effect";
 
 import type {
   Download,
@@ -22,6 +22,8 @@ import {
   toDownloadEvent,
 } from "@/lib/download-event-presentations.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+
+const textEncoder = new TextEncoder();
 
 export interface CatalogDownloadViewSupportShape {
   readonly listDownloadEvents: (input?: {
@@ -51,6 +53,19 @@ export interface CatalogDownloadViewSupportShape {
     DownloadEventsExport,
     DatabaseError | import("./errors.ts").OperationsStoredDataError
   >;
+  readonly streamDownloadEventsExportJson: (input?: {
+    readonly animeId?: number;
+    readonly downloadId?: number;
+    readonly endDate?: string;
+    readonly eventType?: string;
+    readonly limit?: number;
+    readonly order?: "asc" | "desc";
+    readonly startDate?: string;
+    readonly status?: string;
+  }) => Effect.Effect<
+    DownloadEventExportStreamShape,
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
   readonly listDownloadQueue: () => Effect.Effect<
     Download[],
     DatabaseError | import("./errors.ts").OperationsStoredDataError
@@ -63,6 +78,31 @@ export interface CatalogDownloadViewSupportShape {
     DownloadStatus[],
     DatabaseError | import("./errors.ts").OperationsStoredDataError
   >;
+}
+
+export interface DownloadEventExportHeader {
+  readonly exported: number;
+  readonly generated_at: string;
+  readonly limit: number;
+  readonly order: "asc" | "desc";
+  readonly total: number;
+  readonly truncated: boolean;
+}
+
+export interface DownloadEventExportQuery {
+  readonly animeId?: number;
+  readonly downloadId?: number;
+  readonly endDate?: string;
+  readonly eventType?: string;
+  readonly limit?: number;
+  readonly order?: "asc" | "desc";
+  readonly startDate?: string;
+  readonly status?: string;
+}
+
+export interface DownloadEventExportStreamShape {
+  readonly header: DownloadEventExportHeader;
+  readonly stream: Stream.Stream<Uint8Array, never>;
 }
 
 type DownloadEventQueryInput = {
@@ -220,6 +260,47 @@ export function makeCatalogDownloadViewSupport(input: {
     } satisfies DownloadEventsExport;
   });
 
+  const streamDownloadEventsExportJson = Effect.fn(
+    "OperationsService.streamDownloadEventsExportJson",
+  )(function* (queryInput: DownloadEventExportQuery = {}) {
+    const page = yield* exportDownloadEvents(queryInput);
+    const events = page.events;
+    const suffixMetadata = JSON.stringify({
+      exported: page.exported,
+      generated_at: page.generated_at,
+      limit: page.limit,
+      order: page.order,
+      total: page.total,
+      truncated: page.truncated,
+    });
+    const objectPrefix = textEncoder.encode('{"events":[');
+    const objectSuffix = textEncoder.encode(`],${suffixMetadata.slice(1)}`);
+
+    const eventStream = Stream.fromIterable(events).pipe(
+      Stream.zipWithIndex,
+      Stream.map(([event, index]) =>
+        textEncoder.encode(`${index === 0 ? "" : ","}${JSON.stringify(event)}`),
+      ),
+    );
+
+    const stream = Stream.concat(
+      Stream.fromIterable([objectPrefix]),
+      Stream.concat(eventStream, Stream.fromIterable([objectSuffix])),
+    );
+
+    return {
+      header: {
+        exported: page.exported,
+        generated_at: page.generated_at,
+        limit: page.limit,
+        order: page.order,
+        total: page.total,
+        truncated: page.truncated,
+      },
+      stream,
+    } satisfies DownloadEventExportStreamShape;
+  });
+
   const listDownloadQueue = Effect.fn("OperationsService.listDownloadQueue")(function* () {
     const rows = yield* input.tryDatabasePromise("Failed to list download queue", () =>
       input.db
@@ -258,6 +339,7 @@ export function makeCatalogDownloadViewSupport(input: {
     listDownloadEvents,
     listDownloadHistory,
     listDownloadQueue,
+    streamDownloadEventsExportJson,
   };
 }
 

@@ -1,12 +1,3 @@
-import type { Config } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
-import type { FileSystemShape } from "@/lib/filesystem.ts";
-import type { MediaProbeShape } from "@/lib/media-probe.ts";
-import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
-import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
-
 export interface TriggerDownloadInput {
   readonly anime_id: number;
   readonly magnet: string;
@@ -17,21 +8,6 @@ export interface TriggerDownloadInput {
   readonly is_batch?: boolean;
   readonly decision_reason?: string;
   readonly release_metadata?: import("@packages/shared/index.ts").DownloadSourceMetadata;
-}
-
-export interface DownloadOrchestrationInput {
-  readonly db: AppDatabase;
-  readonly fs: FileSystemShape;
-  readonly mediaProbe: MediaProbeShape;
-  readonly qbitClient: typeof QBitTorrentClient.Service;
-  readonly eventBus: typeof EventBus.Service;
-  readonly tryDatabasePromise: TryDatabasePromise;
-  readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
-  readonly coordination: OperationsCoordinationShape;
-  readonly currentMonotonicMillis: () => import("effect").Effect.Effect<number>;
-  readonly currentTimeMillis: () => import("effect").Effect.Effect<number>;
-  readonly nowIso: () => import("effect").Effect.Effect<string>;
-  readonly randomUuid: () => import("effect").Effect.Effect<string>;
 }
 
 export function resolveRequestedEpisodeNumber(input: {

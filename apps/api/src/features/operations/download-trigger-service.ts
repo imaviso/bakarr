@@ -32,6 +32,7 @@ import {
 import type { TriggerDownloadInput } from "@/features/operations/download-orchestration-shared.ts";
 import { resolveRequestedEpisodeNumber } from "@/features/operations/download-orchestration-shared.ts";
 import type { QBitConfig } from "@/features/operations/qbittorrent.ts";
+import type { DownloadTriggerCoordinatorShape } from "@/features/operations/runtime-support.ts";
 
 export function makeDownloadTriggerService(input: {
   readonly db: import("@/db/database.ts").AppDatabase;
@@ -42,7 +43,7 @@ export function makeDownloadTriggerService(input: {
     config: import("@packages/shared/index.ts").Config,
   ) => QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
-  readonly coordination: import("./runtime-support.ts").OperationsCoordinationShape;
+  readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
   readonly publishDownloadProgress: () => Effect.Effect<
     void,
     DatabaseError | OperationsInfrastructureError
@@ -54,7 +55,7 @@ export function makeDownloadTriggerService(input: {
     eventBus,
     tryDatabasePromise,
     maybeQBitConfig: maybeQBitConfigFromInput,
-    coordination,
+    downloadTriggerCoordinator,
     publishDownloadProgress,
   } = input;
   const { nowIso } = input;
@@ -241,7 +242,7 @@ export function makeDownloadTriggerService(input: {
   const triggerDownload = Effect.fn("OperationsService.triggerDownload")(function* (
     input: TriggerDownloadInput,
   ) {
-    return yield* coordination.runExclusiveDownloadTrigger(
+    return yield* downloadTriggerCoordinator.runExclusiveDownloadTrigger(
       executeTriggerDownload(input).pipe(Effect.withSpan("operations.downloads.trigger")),
     );
   });

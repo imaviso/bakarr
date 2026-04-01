@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
@@ -14,6 +14,7 @@ import { RssClient } from "@/features/operations/rss-client.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { loadQualityProfile } from "@/features/operations/repository/profile-repository.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import { Database } from "@/db/database.ts";
 
 export interface BackgroundSearchMissingSupportInput extends BackgroundSearchQueueSupportInput {
   readonly eventBus: typeof EventBus.Service;
@@ -58,6 +59,11 @@ export interface BackgroundSearchSupportShared {
     profileName: string,
   ) => Effect.Effect<QualityProfile, DatabaseError | OperationsInputError>;
 }
+
+export class BackgroundSearchShared extends Context.Tag("@bakarr/api/BackgroundSearchShared")<
+  BackgroundSearchShared,
+  BackgroundSearchSupportShared
+>() {}
 
 export function makeBackgroundSearchSupportShared(input: { db: AppDatabase }) {
   const { db } = input;
@@ -110,3 +116,11 @@ export function makeBackgroundSearchSupportShared(input: { db: AppDatabase }) {
     requireQualityProfile,
   } satisfies BackgroundSearchSupportShared;
 }
+
+export const BackgroundSearchSharedLive = Layer.effect(
+  BackgroundSearchShared,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    return makeBackgroundSearchSupportShared({ db });
+  }),
+);

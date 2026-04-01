@@ -4592,9 +4592,9 @@ async function createTestContext(options?: {
   rssLayer?: Layer.Layer<RssClient>;
   seadexLayer?: Layer.Layer<SeaDexClient>;
 }) {
-  const { bootstrap } = await import("./main.ts");
+  const { bootstrapApiTestRuntime } = await import("./src/api-test-bootstrap.ts");
   const databaseFile = await makeTempFile({ suffix: ".sqlite" });
-  const { httpApp, runtime } = await bootstrap(
+  const { httpApp, runtime } = await bootstrapApiTestRuntime(
     {
       bootstrapPassword: Redacted.make("admin"),
       bootstrapUsername: "admin",

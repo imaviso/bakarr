@@ -23,16 +23,14 @@ import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
-import { OperationsSharedState } from "@/features/operations/runtime-support.ts";
+import { BackgroundSearchShared } from "@/features/operations/background-search-support-shared.ts";
+import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
 import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import { RssClient } from "@/features/operations/rss-client.ts";
 import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import type {
-  BackgroundSearchRssSupportInput,
-  BackgroundSearchSupportShared,
-} from "@/features/operations/background-search-support-shared.ts";
-import { makeBackgroundSearchSupportShared } from "@/features/operations/background-search-support-shared.ts";
+import type { BackgroundSearchRssSupportInput } from "@/features/operations/background-search-support-shared.ts";
+import type { BackgroundSearchSupportShared } from "@/features/operations/background-search-support-shared.ts";
 
 export function makeBackgroundSearchRssSupport(
   input: BackgroundSearchRssSupportInput,
@@ -266,11 +264,12 @@ export const SearchBackgroundRssServiceLive = Layer.effect(
     const rssClient = yield* RssClient;
     const clock = yield* ClockService;
     const progress = yield* OperationsProgress;
-    const sharedState = yield* OperationsSharedState;
+    const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
+    const shared = yield* BackgroundSearchShared;
 
     const input: BackgroundSearchRssSupportInput = {
-      coordination: sharedState,
       db,
+      downloadTriggerCoordinator,
       eventBus,
       maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
@@ -281,7 +280,6 @@ export const SearchBackgroundRssServiceLive = Layer.effect(
       tryDatabasePromise,
     };
 
-    const shared = makeBackgroundSearchSupportShared(input);
     return makeBackgroundSearchRssSupport(input, shared);
   }),
 );

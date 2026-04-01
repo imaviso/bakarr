@@ -7,8 +7,7 @@ import { MediaProbe } from "@/lib/media-probe.ts";
 import { EventPublisher } from "@/features/events/publisher.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { AnimeEnrollmentService } from "@/features/anime/anime-enrollment-service.ts";
-import { AnimeEpisodeRefreshService } from "@/features/anime/anime-episode-refresh-service.ts";
-import { AnimeDeleteService } from "@/features/anime/anime-delete-service.ts";
+import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-service.ts";
 import { AnimeSettingsService } from "@/features/anime/anime-settings-service.ts";
 import { scanAnimeFolderOrchestrationEffect } from "@/features/anime/anime-folder-scan-orchestration.ts";
 import {
@@ -52,7 +51,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* AnimeDeleteService).deleteAnime(params.id);
+        yield* (yield* AnimeMaintenanceService).deleteAnime(params.id);
       }),
       successResponse,
     ),
@@ -111,7 +110,7 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* AnimeEpisodeRefreshService).refreshEpisodes(params.id);
+        yield* (yield* AnimeMaintenanceService).refreshEpisodes(params.id);
       }),
       successResponse,
     ),

@@ -7,7 +7,7 @@ import { AniListClient } from "@/features/anime/anilist.ts";
 import { makeUnmappedControlWorkflow } from "@/features/operations/unmapped-orchestration-control.ts";
 import { makeUnmappedImportWorkflow } from "@/features/operations/unmapped-orchestration-import.ts";
 import { makeUnmappedScanWorkflow } from "@/features/operations/unmapped-orchestration-scan.ts";
-import { OperationsSharedState } from "@/features/operations/runtime-support.ts";
+import { UnmappedScanCoordinator } from "@/features/operations/runtime-support.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export type SearchUnmappedServiceShape = ReturnType<typeof makeUnmappedScanWorkflow> &
@@ -26,12 +26,12 @@ export const SearchUnmappedServiceLive = Layer.effect(
     const aniList = yield* AniListClient;
     const fs = yield* FileSystem;
     const clock = yield* ClockService;
-    const sharedState = yield* OperationsSharedState;
+    const unmappedScanCoordinator = yield* UnmappedScanCoordinator;
 
     const scanWorkflow = makeUnmappedScanWorkflow({
       aniList,
       db,
-      coordination: sharedState,
+      unmappedScanCoordinator,
       fs,
       nowIso: () => nowIsoFromClock(clock),
       tryDatabasePromise,

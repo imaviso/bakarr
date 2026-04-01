@@ -3,20 +3,13 @@ import type { Scope } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { buildBackgroundSchedule } from "@/background-schedule.ts";
+import type { BackgroundWorkerJobsShape } from "@/background-worker-jobs.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background-monitor.ts";
-import { BackgroundWorkerMonitor } from "@/background-monitor.ts";
 import { type BackgroundWorkerName } from "@/background-worker-model.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { ClockServiceShape } from "@/lib/clock.ts";
-import { ClockService } from "@/lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
-import { AnimeMetadataRefreshService } from "@/features/anime/metadata-refresh-service.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
-import { CatalogDownloadService } from "@/features/operations/catalog-download-orchestration.ts";
-import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-support.ts";
-import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
-import { SearchBackgroundRssService } from "@/features/operations/background-search-rss-support.ts";
 
 export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
   "WorkerTimeoutError",
@@ -38,101 +31,85 @@ export interface BackgroundWorkerSpawner<R = never> {
   (scope: Scope.Scope, config: Config): Effect.Effect<void, DatabaseError, R>;
 }
 
-export const spawnWorkersFromConfig = Effect.fn("Background.spawnWorkersFromConfig")(function* (
-  workerScope: Scope.Scope,
-  config: Config,
-) {
-  const catalogDownloadService = yield* CatalogDownloadService;
-  const catalogLibraryScanService = yield* CatalogLibraryScanService;
-  const clock = yield* ClockService;
-  const eventBus = yield* EventBus;
-  const monitor = yield* BackgroundWorkerMonitor;
-  const metadataRefreshService = yield* AnimeMetadataRefreshService;
-  const searchBackgroundMissingService = yield* SearchBackgroundMissingService;
-  const searchBackgroundRssService = yield* SearchBackgroundRssService;
-  const schedule = buildBackgroundSchedule(config);
-  const runRssWorkerTask = Effect.fn("Background.runRssWorkerTask")(function* () {
-    yield* searchBackgroundRssService.runRssCheck();
-    yield* searchBackgroundMissingService.triggerSearchMissing();
-  });
-  const runDownloadSyncWorkerTask = Effect.fn("Background.runDownloadSyncWorkerTask")(function* () {
-    yield* catalogDownloadService.syncDownloads();
-    const downloads = yield* catalogDownloadService.getDownloadProgress();
-    yield* eventBus.publish({
-      type: "DownloadProgress",
-      payload: { downloads },
-    });
-  });
+export function makeBackgroundWorkerSpawner(input: {
+  readonly clock: ClockServiceShape;
+  readonly jobs: BackgroundWorkerJobsShape;
+  readonly monitor: BackgroundWorkerMonitorShape;
+}): BackgroundWorkerSpawner {
+  const { clock, jobs, monitor } = input;
 
-  const rssLoop = yield* withLockEffect("rss", runRssWorkerTask(), monitor, clock);
-
-  const libraryLoop = yield* withLockEffect(
-    "library_scan",
-    catalogLibraryScanService.runLibraryScan(),
-    monitor,
-    clock,
-  );
-
-  const metadataRefreshLoop = yield* withLockEffect(
-    "metadata_refresh",
-    metadataRefreshService.refreshMetadataForMonitoredAnime().pipe(Effect.asVoid),
-    monitor,
-    clock,
-  );
-
-  const downloadSyncLoop = yield* withLockEffect(
-    "download_sync",
-    runDownloadSyncWorkerTask(),
-    monitor,
-    clock,
-  );
-
-  yield* forkSupervisedWorker(
-    workerScope,
-    "download_sync",
-    repeatWorker(downloadSyncLoop, {
-      intervalMs: schedule.downloadSyncMs,
-    }),
-    monitor,
-  );
-
-  if (schedule.rssCronExpression !== null || schedule.rssCheckMs !== null) {
-    yield* forkSupervisedWorker(
-      workerScope,
-      "rss",
-      repeatWorker(rssLoop, {
-        cronExpression: schedule.rssCronExpression,
-        initialDelayMs: schedule.initialDelayMs,
-        intervalMs: schedule.rssCheckMs ?? undefined,
-      }),
-      monitor,
-    );
-  }
-
-  if (schedule.libraryScanMs !== null) {
-    yield* forkSupervisedWorker(
-      workerScope,
+  return Effect.fn("Background.spawnWorkersFromConfig")(function* (
+    workerScope: Scope.Scope,
+    config: Config,
+  ) {
+    const schedule = buildBackgroundSchedule(config);
+    const rssLoop = yield* withLockEffect("rss", jobs.runRssWorkerTask(), monitor, clock);
+    const libraryLoop = yield* withLockEffect(
       "library_scan",
-      repeatWorker(libraryLoop, {
-        initialDelayMs: schedule.initialDelayMs,
-        intervalMs: schedule.libraryScanMs,
-      }),
+      jobs.runLibraryScanWorkerTask(),
       monitor,
+      clock,
     );
-  }
+    const metadataRefreshLoop = yield* withLockEffect(
+      "metadata_refresh",
+      jobs.runMetadataRefreshWorkerTask(),
+      monitor,
+      clock,
+    );
+    const downloadSyncLoop = yield* withLockEffect(
+      "download_sync",
+      jobs.runDownloadSyncWorkerTask(),
+      monitor,
+      clock,
+    );
 
-  if (schedule.metadataRefreshMs !== null) {
     yield* forkSupervisedWorker(
       workerScope,
-      "metadata_refresh",
-      repeatWorker(metadataRefreshLoop, {
-        initialDelayMs: schedule.initialDelayMs,
-        intervalMs: schedule.metadataRefreshMs,
+      "download_sync",
+      repeatWorker(downloadSyncLoop, {
+        intervalMs: schedule.downloadSyncMs,
       }),
       monitor,
     );
-  }
-});
+
+    if (schedule.rssCronExpression !== null || schedule.rssCheckMs !== null) {
+      yield* forkSupervisedWorker(
+        workerScope,
+        "rss",
+        repeatWorker(rssLoop, {
+          cronExpression: schedule.rssCronExpression,
+          initialDelayMs: schedule.initialDelayMs,
+          intervalMs: schedule.rssCheckMs ?? undefined,
+        }),
+        monitor,
+      );
+    }
+
+    if (schedule.libraryScanMs !== null) {
+      yield* forkSupervisedWorker(
+        workerScope,
+        "library_scan",
+        repeatWorker(libraryLoop, {
+          initialDelayMs: schedule.initialDelayMs,
+          intervalMs: schedule.libraryScanMs,
+        }),
+        monitor,
+      );
+    }
+
+    if (schedule.metadataRefreshMs !== null) {
+      yield* forkSupervisedWorker(
+        workerScope,
+        "metadata_refresh",
+        repeatWorker(metadataRefreshLoop, {
+          initialDelayMs: schedule.initialDelayMs,
+          intervalMs: schedule.metadataRefreshMs,
+        }),
+        monitor,
+      );
+    }
+  });
+}
 
 export const withLockEffect = Effect.fn("Background.withLockEffect")(function* <A, E, R>(
   workerName: BackgroundWorkerName,

@@ -12,25 +12,26 @@ export const decodeJsonBody = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
 
 export const decodeJsonBodyWithLabel = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string) =>
   HttpServerRequest.schemaBodyJson(schema).pipe(
-    Effect.catchTag("RequestError", () =>
-      Effect.fail(
-        RequestValidationError.make({
-          message: `Invalid JSON for ${label}`,
-          status: 400,
-        }),
-      ),
-    ),
-    Effect.catchAll((error) =>
-      ParseResult.isParseError(error)
-        ? Effect.fail(
-            RequestValidationError.make({
-              message: formatValidationErrorMessage(`Invalid request body for ${label}`, error),
-              status: 400,
-            }),
-          )
-        : Effect.fail(error),
-    ),
+    Effect.mapError((error) => mapLabeledBodyDecodeError(label, error)),
   );
+
+export const decodeOptionalJsonBodyWithLabel = <A, I, R>(
+  schema: Schema.Schema<A, I, R>,
+  label: string,
+  emptyBodyValue: A,
+) =>
+  Effect.gen(function* () {
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const text = yield* request.text;
+
+    if (text.trim().length === 0) {
+      return emptyBodyValue;
+    }
+
+    return yield* Schema.decode(Schema.parseJson(schema))(text).pipe(
+      Effect.mapError((error) => mapLabeledBodyDecodeError(label, error)),
+    );
+  });
 
 export const decodePathParams = <A, I extends Readonly<Record<string, string | undefined>>, R>(
   schema: Schema.Schema<A, I, R>,
@@ -122,3 +123,26 @@ export const authedRouteResponse = <A, E, R, E2, R2>(
   onSuccess: (value: A) => Effect.Effect<HttpServerResponse.HttpServerResponse, E2, R2>,
   mapError: (error: unknown) => RouteErrorResponse = mapAuthRouteError,
 ) => routeResponse(Effect.zipRight(requireViewerFromHttpRequest(), effect), onSuccess, mapError);
+
+function mapLabeledBodyDecodeError(label: string, error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "_tag" in error &&
+    error._tag === "RequestError"
+  ) {
+    return RequestValidationError.make({
+      message: `Invalid JSON for ${label}`,
+      status: 400,
+    });
+  }
+
+  if (ParseResult.isParseError(error)) {
+    return RequestValidationError.make({
+      message: formatValidationErrorMessage(`Invalid request body for ${label}`, error),
+      status: 400,
+    });
+  }
+
+  return error;
+}

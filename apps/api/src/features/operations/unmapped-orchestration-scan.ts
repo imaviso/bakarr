@@ -25,7 +25,7 @@ import {
 } from "@/features/operations/unmapped-folder-list-support.ts";
 import { markUnmappedFolderMatching } from "@/features/operations/unmapped-folders.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
-import type { OperationsCoordinationShape } from "@/features/operations/runtime-support.ts";
+import type { UnmappedScanCoordinatorShape } from "@/features/operations/runtime-support.ts";
 import type { UnmappedScanQueryShape } from "@/features/operations/unmapped-orchestration-scan-query.ts";
 import { makeUnmappedScanQuerySupport } from "@/features/operations/unmapped-orchestration-scan-query.ts";
 
@@ -44,12 +44,12 @@ export interface UnmappedScanWorkflowShape {
 export function makeUnmappedScanWorkflow(input: {
   aniList: typeof AniListClient.Service;
   db: AppDatabase;
-  coordination: OperationsCoordinationShape;
+  unmappedScanCoordinator: UnmappedScanCoordinatorShape;
   fs: FileSystemShape;
   nowIso: () => Effect.Effect<string>;
   tryDatabasePromise: TryDatabasePromise;
 }) {
-  const { aniList, db, coordination, fs, tryDatabasePromise } = input;
+  const { aniList, db, fs, tryDatabasePromise, unmappedScanCoordinator } = input;
   const { nowIso } = input;
   const { getUnmappedFolders, loadQueuedUnmappedFolders, matchAndPersistUnmappedFolder } =
     makeUnmappedScanQuerySupport({
@@ -167,7 +167,7 @@ export function makeUnmappedScanWorkflow(input: {
   });
 
   const startUnmappedScanLoop = Effect.fn("OperationsService.startUnmappedScanLoop")(function* () {
-    const alreadyRunning = yield* coordination.tryBeginUnmappedScan();
+    const alreadyRunning = yield* unmappedScanCoordinator.tryBeginUnmappedScan();
 
     if (alreadyRunning) {
       return { folderCount: 0 };
@@ -190,16 +190,16 @@ export function makeUnmappedScanWorkflow(input: {
             Effect.asVoid,
           ),
         ),
-        Effect.ensuring(coordination.completeUnmappedScan()),
+        Effect.ensuring(unmappedScanCoordinator.completeUnmappedScan()),
       );
 
-      yield* coordination.forkUnmappedScanLoop(loop);
+      yield* unmappedScanCoordinator.forkUnmappedScanLoop(loop);
       forked = true;
 
       return { folderCount };
     } finally {
       if (!forked) {
-        yield* coordination.completeUnmappedScan();
+        yield* unmappedScanCoordinator.completeUnmappedScan();
       }
     }
   });
