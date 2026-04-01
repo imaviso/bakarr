@@ -10,7 +10,6 @@ import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export type CatalogDownloadReadServiceShape = Pick<
   CatalogDownloadViewSupportShape,
-  | "exportDownloadEvents"
   | "getDownloadProgress"
   | "listDownloadEvents"
   | "listDownloadHistory"
@@ -35,7 +34,6 @@ export const CatalogDownloadReadServiceLive = Layer.effect(
     });
 
     return CatalogDownloadReadService.of({
-      exportDownloadEvents: support.exportDownloadEvents,
       getDownloadProgress: support.getDownloadProgress,
       listDownloadEvents: support.listDownloadEvents,
       listDownloadHistory: support.listDownloadHistory,

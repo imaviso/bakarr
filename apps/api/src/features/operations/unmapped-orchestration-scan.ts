@@ -136,16 +136,20 @@ export function makeUnmappedScanWorkflow(input: {
 
       return { folderCount: queuedFolders.length };
     },
+    Effect.catchTag("DatabaseError", (error) =>
+      markJobFailed(db, "unmapped_scan", error, nowIso).pipe(Effect.zipRight(Effect.fail(error))),
+    ),
+    Effect.catchTag("OperationsPathError", (error) =>
+      markJobFailed(db, "unmapped_scan", error, nowIso).pipe(Effect.zipRight(Effect.fail(error))),
+    ),
     Effect.catchAll((cause) =>
       markJobFailed(db, "unmapped_scan", cause, nowIso).pipe(
         Effect.zipRight(
           Effect.fail(
-            cause instanceof DatabaseError || cause instanceof OperationsPathError
-              ? cause
-              : new OperationsInfrastructureError({
-                  message: "Failed to scan unmapped folders",
-                  cause,
-                }),
+            new OperationsInfrastructureError({
+              message: "Failed to scan unmapped folders",
+              cause,
+            }),
           ),
         ),
       ),

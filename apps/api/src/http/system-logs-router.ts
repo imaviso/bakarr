@@ -1,17 +1,13 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Effect, Schema } from "effect";
+import { Effect } from "effect";
 
 import { SystemLogService } from "@/features/system/system-log-service.ts";
-import type { SystemLog } from "@packages/shared/index.ts";
-import { SystemLogSchema } from "@packages/shared/index.ts";
-import { escapeCsv } from "@/http/route-fs.ts";
 import {
   SystemLogExportQuerySchema,
   SystemLogsQuerySchema,
 } from "@/http/system-request-schemas.ts";
 import {
   authedRouteResponse,
-  decodeQuery,
   decodeQueryWithLabel,
   jsonResponse,
   successResponse,
@@ -45,31 +41,38 @@ export const logsRouter = HttpRouter.empty.pipe(
     "/api/system/logs/export",
     authedRouteResponse(
       Effect.gen(function* () {
-        const query = yield* decodeQuery(SystemLogExportQuerySchema);
-        const logs = yield* (yield* SystemLogService).getLogs({
+        const query = yield* decodeQueryWithLabel(SystemLogExportQuerySchema, "system log export");
+        const service = yield* SystemLogService;
+        const input = {
           endDate: query.end_date,
           eventType: query.event_type,
           level: query.level,
-          page: 1,
-          pageSize: 10_000,
           startDate: query.start_date,
-        });
-        return { format: query.format ?? "json", logs };
-      }),
-      ({ format, logs }) => {
-        if (format === "csv") {
-          const csv = [
-            "id,level,event_type,message,created_at",
-            ...logs.logs.map(
-              (log) =>
-                `${log.id},${log.level},${escapeCsv(log.event_type)},${escapeCsv(log.message)},${log.created_at}`,
-            ),
-          ].join("\n");
+        };
 
+        if ((query.format ?? "json") === "csv") {
+          const exported = yield* service.streamLogExportCsv(input);
+          return { format: "csv" as const, exported };
+        }
+
+        const exported = yield* service.streamLogExportJson(input);
+        return { format: "json" as const, exported };
+      }),
+      ({ format, exported }) => {
+        const exportHeaders = {
+          "X-Bakarr-Export-Limit": String(exported.header.limit),
+          "X-Bakarr-Export-Truncated": String(exported.header.truncated),
+          "X-Bakarr-Exported-Logs": String(exported.header.exported),
+          "X-Bakarr-Generated-At": exported.header.generated_at,
+          "X-Bakarr-Total-Logs": String(exported.header.total),
+        };
+
+        if (format === "csv") {
           return Effect.succeed(
-            HttpServerResponse.text(csv, {
+            HttpServerResponse.stream(exported.stream, {
               contentType: "text/csv; charset=utf-8",
               headers: {
+                ...exportHeaders,
                 "Content-Disposition": `attachment; filename="bakarr-logs.csv"`,
               },
             }),
@@ -77,17 +80,13 @@ export const logsRouter = HttpRouter.empty.pipe(
         }
 
         return Effect.succeed(
-          HttpServerResponse.text(
-            Schema.encodeSync(Schema.parseJson(Schema.Array(SystemLogSchema)))([
-              ...logs.logs,
-            ] satisfies SystemLog[]),
-            {
-              contentType: "application/json; charset=utf-8",
-              headers: {
-                "Content-Disposition": `attachment; filename="bakarr-logs.json"`,
-              },
+          HttpServerResponse.stream(exported.stream, {
+            contentType: "application/json; charset=utf-8",
+            headers: {
+              ...exportHeaders,
+              "Content-Disposition": `attachment; filename="bakarr-logs.json"`,
             },
-          ),
+          }),
         );
       },
     ),

@@ -4,7 +4,6 @@ import { Chunk, Effect, Option, Stream } from "effect";
 import type {
   Download,
   DownloadEvent,
-  DownloadEventsExport,
   DownloadEventsPage,
   DownloadStatus,
 } from "@packages/shared/index.ts";
@@ -36,19 +35,6 @@ export interface CatalogDownloadViewSupportShape {
     readonly status?: string;
   }) => Effect.Effect<
     DownloadEventsPage,
-    DatabaseError | import("./errors.ts").OperationsStoredDataError
-  >;
-  readonly exportDownloadEvents: (input?: {
-    readonly animeId?: number;
-    readonly downloadId?: number;
-    readonly endDate?: string;
-    readonly eventType?: string;
-    readonly limit?: number;
-    readonly order?: "asc" | "desc";
-    readonly startDate?: string;
-    readonly status?: string;
-  }) => Effect.Effect<
-    DownloadEventsExport,
     DatabaseError | import("./errors.ts").OperationsStoredDataError
   >;
   readonly streamDownloadEventsExportJson: (input?: {
@@ -113,12 +99,18 @@ export interface DownloadEventExportQuery {
 
 export interface DownloadEventExportStreamShape {
   readonly header: DownloadEventExportHeader;
-  readonly stream: Stream.Stream<Uint8Array, never>;
+  readonly stream: Stream.Stream<
+    Uint8Array,
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
 }
 
 export interface DownloadEventCsvExportStreamShape {
   readonly header: DownloadEventExportHeader;
-  readonly stream: Stream.Stream<Uint8Array, never>;
+  readonly stream: Stream.Stream<
+    Uint8Array,
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
 }
 
 type DownloadEventQueryInput = {
@@ -241,55 +233,6 @@ export function makeCatalogDownloadViewSupport(input: {
       prev_cursor: newerExists && firstRowId ? String(firstRowId) : undefined,
       total,
     } satisfies DownloadEventsPage;
-  });
-
-  const exportDownloadEvents = Effect.fn("OperationsService.exportDownloadEvents")(function* (
-    queryInput: {
-      animeId?: number;
-      downloadId?: number;
-      endDate?: string;
-      eventType?: string;
-      limit?: number;
-      order?: "asc" | "desc";
-      startDate?: string;
-      status?: string;
-    } = {},
-  ) {
-    const limit = Math.max(1, Math.min(queryInput.limit ?? 10_000, 50_000));
-    const order = queryInput.order === "asc" ? "asc" : "desc";
-    const baseConditions = buildDownloadEventConditions(queryInput);
-
-    const query = input.db
-      .select()
-      .from(downloadEvents)
-      .orderBy(order === "asc" ? asc(downloadEvents.id) : desc(downloadEvents.id))
-      .limit(limit + 1);
-    const rows = yield* input.tryDatabasePromise("Failed to export download events", () =>
-      baseConditions.length > 0 ? query.where(and(...baseConditions)) : query,
-    );
-    const totalRows = yield* input.tryDatabasePromise("Failed to count download events", () => {
-      const totalQuery = input.db.select({ count: sql<number>`count(*)` }).from(downloadEvents);
-      return baseConditions.length > 0 ? totalQuery.where(and(...baseConditions)) : totalQuery;
-    });
-
-    const truncated = rows.length > limit;
-    const exportRows = truncated ? rows.slice(0, limit) : rows;
-    const contexts = yield* loadDownloadEventPresentationContexts(input.db, exportRows);
-    const events = yield* Effect.forEach(exportRows, (row) =>
-      toDownloadEvent(row, contexts.get(row.id)),
-    );
-    const total = Number(totalRows[0]?.count ?? 0);
-
-    const generatedAt = yield* nowIso();
-    return {
-      events,
-      total,
-      exported: events.length,
-      truncated,
-      limit,
-      order,
-      generated_at: generatedAt,
-    } satisfies DownloadEventsExport;
   });
 
   const streamDownloadEventsExportJson = Effect.fn(
@@ -418,7 +361,6 @@ export function makeCatalogDownloadViewSupport(input: {
   });
 
   return {
-    exportDownloadEvents,
     getDownloadProgress,
     listDownloadEvents,
     listDownloadHistory,
@@ -476,7 +418,7 @@ function streamDownloadEvents(
   db: AppDatabase,
   tryDatabasePromise: TryDatabasePromise,
   plan: DownloadEventExportPlan,
-): Stream.Stream<DownloadEvent, never> {
+): Stream.Stream<DownloadEvent, DatabaseError | import("./errors.ts").OperationsStoredDataError> {
   const pageSize = 500;
 
   return Stream.unfoldChunkEffect(
@@ -528,7 +470,7 @@ function streamDownloadEvents(
           },
         ] as const);
       }),
-  ).pipe(Stream.catchAll(() => Stream.empty));
+  );
 }
 
 function escapeCsv(value: string): string {

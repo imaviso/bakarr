@@ -1,7 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
 import {
   RssFeedParseError,
   RssFeedRejectedError,
@@ -21,7 +20,6 @@ export interface BackgroundSearchRssRunnerServiceShape {
     | RssFeedRejectedError
     | RssFeedTooLargeError
   >;
-  readonly publishRssEvent: typeof EventBus.Service.publish;
 }
 
 export class BackgroundSearchRssRunnerService extends Context.Tag(
@@ -31,7 +29,6 @@ export class BackgroundSearchRssRunnerService extends Context.Tag(
 export const BackgroundSearchRssRunnerServiceLive = Layer.effect(
   BackgroundSearchRssRunnerService,
   Effect.gen(function* () {
-    const eventBus = yield* EventBus;
     const rssClient = yield* RssClient;
 
     const fetchItems = Effect.fn("BackgroundSearchRssRunnerService.fetchItems")((url: string) =>
@@ -40,7 +37,6 @@ export const BackgroundSearchRssRunnerServiceLive = Layer.effect(
 
     return BackgroundSearchRssRunnerService.of({
       fetchItems,
-      publishRssEvent: eventBus.publish,
     });
   }),
 );

@@ -103,32 +103,48 @@ const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
   Layer.provide(operationsProgressLayer),
 );
 
-export const OperationsFeatureLive = Layer.mergeAll(
-  downloadTriggerCoordinatorLayer,
-  unmappedScanCoordinatorLayer,
-  backgroundSearchQualityProfileLayer,
-  backgroundSearchSkipLogLayer,
-  backgroundSearchQueueLayer,
-  backgroundSearchRssRunnerLayer,
+const downloadCoreLayer = Layer.mergeAll(
   downloadReconciliationLayer,
   downloadTorrentLifecycleLayer,
   downloadProgressSupportLayer,
   downloadTriggerLayer,
-  operationsProgressLayer,
-  catalogDownloadReadLayer,
-  catalogDownloadCommandLayer,
-  catalogRssLayer,
-  LibraryRootsQueryServiceLive,
-  CatalogLibraryReadServiceLive,
-  CatalogLibraryWriteServiceLive,
-  catalogLibraryScanLayer,
-  searchReleaseLayer,
-  searchEpisodeLayer,
-  SearchImportPathServiceLive,
+);
+const backgroundSearchCoreLayer = Layer.mergeAll(
+  backgroundSearchQualityProfileLayer,
+  backgroundSearchQueueLayer,
+  backgroundSearchSkipLogLayer,
+);
+const unmappedCoreLayer = Layer.mergeAll(
   unmappedScanLayer,
   unmappedScanMatchLayer,
   unmappedControlLayer,
   unmappedImportLayer,
+);
+const catalogCoreLayer = Layer.mergeAll(
+  catalogDownloadReadLayer,
+  catalogDownloadCommandLayer,
+  catalogRssLayer,
+  CatalogLibraryReadServiceLive,
+  CatalogLibraryWriteServiceLive,
+  catalogLibraryScanLayer,
+);
+const searchCoreLayer = Layer.mergeAll(
+  searchReleaseLayer,
+  searchEpisodeLayer,
+  SearchImportPathServiceLive,
   searchBackgroundMissingLayer,
   searchBackgroundRssLayer,
+);
+
+export const OperationsFeatureLive = Layer.mergeAll(
+  downloadTriggerCoordinatorLayer,
+  unmappedScanCoordinatorLayer,
+  backgroundSearchRssRunnerLayer,
+  backgroundSearchCoreLayer,
+  downloadCoreLayer,
+  operationsProgressLayer,
+  catalogCoreLayer,
+  unmappedCoreLayer,
+  searchCoreLayer,
+  LibraryRootsQueryServiceLive,
 );

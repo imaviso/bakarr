@@ -11,7 +11,6 @@ import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
 import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
 import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
-import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
 import { OperationsFeatureLive } from "@/features/operations/operations-feature-layer.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
@@ -26,6 +25,11 @@ import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
 import { SystemStatusServiceLive } from "@/features/system/system-status-service.ts";
 import type { AppConfigShape } from "@/config.ts";
 import type { AppPlatformRuntimeOptions } from "@/app-platform-runtime-core.ts";
+
+const withProvidedLayer =
+  <P, PE, PR>(provided: Layer.Layer<P, PE, PR>) =>
+  <A, E, R>(layer: Layer.Layer<A, E, R>) =>
+    layer.pipe(Layer.provideMerge(provided));
 
 /**
  * Build the complete application layer graph.
@@ -50,9 +54,7 @@ export function makeApiLifecycleLayers(
   );
   const platformLayer = Layer.mergeAll(platformWithCommandLayer, infrastructureLayer);
 
-  // Helper: provide platform to a layer
-  const withPlatform = <A, E, R>(layer: Layer.Layer<A, E, R>) =>
-    layer.pipe(Layer.provideMerge(platformLayer));
+  const withPlatform = withProvidedLayer(platformLayer);
 
   const animeLayer = withPlatform(AnimeFeatureLive);
   const operationsLayer = withPlatform(OperationsFeatureLive);
@@ -117,13 +119,10 @@ export function makeApiLifecycleLayers(
   );
 
   // Library services (platform + operations + system dependencies)
-  const libraryRootsLayer = withPlatform(LibraryRootsQueryServiceLive);
   const libraryBrowseLayer = LibraryBrowseServiceLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(platformLayer, operationsLayer, systemLayer, libraryRootsLayer),
-    ),
+    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, systemLayer)),
   );
-  const libraryLayer = Layer.mergeAll(libraryRootsLayer, libraryBrowseLayer);
+  const libraryLayer = Layer.mergeAll(libraryBrowseLayer);
 
   // Anime enrollment (depends on platform + operations + anime)
   const animeEnrollmentLayer = AnimeEnrollmentServiceLive.pipe(

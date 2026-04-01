@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { Config, DownloadAction } from "@packages/shared/index.ts";
-import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
+import { Database, type DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import {
   buildDownloadSelectionMetadata,
@@ -21,7 +21,7 @@ import { QBitTorrentClient, type QBitConfig } from "@/features/operations/qbitto
 import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { maybeQBitConfig as maybeQBitConfigFromConfig } from "@/features/operations/operations-qbit-config.ts";
-import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
 export interface BackgroundSearchQueueServiceShape {
@@ -47,108 +47,6 @@ export class BackgroundSearchQueueService extends Context.Tag(
   "@bakarr/api/BackgroundSearchQueueService",
 )<BackgroundSearchQueueService, BackgroundSearchQueueServiceShape>() {}
 
-function makeBackgroundSearchQueueService(input: {
-  db: AppDatabase;
-  downloadTriggerCoordinator: typeof DownloadTriggerCoordinator.Service;
-  nowIso: () => Effect.Effect<string>;
-  qbitClient: typeof QBitTorrentClient.Service;
-  tryDatabasePromise: TryDatabasePromise;
-}) {
-  const { db, downloadTriggerCoordinator, nowIso, qbitClient, tryDatabasePromise } = input;
-
-  const queueReleaseIfEligible = Effect.fn("BackgroundSearchQueueService.queueReleaseIfEligible")(
-    function* (input: {
-      animeRow: typeof anime.$inferSelect;
-      contextMessage: string;
-      decisionReason?: string;
-      action?: DownloadAction;
-      episodeNumber: number;
-      eventMessage: string;
-      eventType: string;
-      item: ParsedRelease;
-      missingEpisodes: readonly number[];
-      qbitConfig: QBitConfig | null;
-    }) {
-      const parsedRelease = parseReleaseName(input.item.title);
-      const coveredEpisodes = toCoveredEpisodesJson(
-        inferCoveredEpisodeNumbers({
-          explicitEpisodes: parsedRelease.episodeNumbers,
-          isBatch: parsedRelease.isBatch,
-          totalEpisodes: input.animeRow.episodeCount,
-          missingEpisodes: input.missingEpisodes,
-          requestedEpisode: input.episodeNumber,
-        }),
-      );
-
-      const queueEffect = Effect.gen(function* () {
-        const parsedCoveredEpisodes = yield* parseCoveredEpisodesEffect(coveredEpisodes);
-        const overlapping = yield* hasOverlappingDownload(
-          db,
-          input.animeRow.id,
-          input.item.infoHash,
-          parsedCoveredEpisodes,
-        );
-
-        if (overlapping) {
-          return { _tag: "skipped" } as const;
-        }
-
-        yield* queueParsedReleaseDownload({
-          animeRow: input.animeRow,
-          contextMessage: input.contextMessage,
-          coveredEpisodes,
-          db,
-          episodeNumber: input.episodeNumber,
-          eventMessage: input.eventMessage,
-          eventType: input.eventType,
-          isBatch: parsedRelease.isBatch,
-          item: input.item,
-          nowIso,
-          sourceMetadata: mergeDownloadSourceMetadata(
-            buildDownloadSourceMetadataFromRelease({
-              ...buildDownloadSelectionMetadata(input.action),
-              decisionReason: input.decisionReason,
-              group: input.item.group,
-              indexer: "Nyaa",
-              isSeadex: input.item.isSeaDex,
-              isSeadexBest: input.item.isSeaDexBest,
-              remake: input.item.remake,
-              seadexComparison: input.item.seaDexComparison,
-              seadexDualAudio: input.item.seaDexDualAudio,
-              seadexNotes: input.item.seaDexNotes,
-              seadexReleaseGroup: input.item.seaDexReleaseGroup,
-              seadexTags: input.item.seaDexTags,
-              sourceUrl: input.item.viewUrl,
-              title: input.item.title,
-              trusted: input.item.trusted,
-            }),
-          ),
-          qbitClient,
-          qbitConfig: input.qbitConfig,
-          tryDatabasePromise,
-        });
-
-        return { _tag: "queued" } as const;
-      });
-
-      return yield* downloadTriggerCoordinator.runExclusiveDownloadTrigger(queueEffect).pipe(
-        Effect.mapError(
-          (cause) =>
-            new OperationsInfrastructureError({
-              message: "Failed to queue background release",
-              cause,
-            }),
-        ),
-      );
-    },
-  );
-
-  return BackgroundSearchQueueService.of({
-    queueReleaseIfEligible,
-    maybeQBitConfig: maybeQBitConfigFromConfig,
-  });
-}
-
 export const BackgroundSearchQueueServiceLive = Layer.effect(
   BackgroundSearchQueueService,
   Effect.gen(function* () {
@@ -157,12 +55,98 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
     const qbitClient = yield* QBitTorrentClient;
     const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
 
-    return makeBackgroundSearchQueueService({
-      db,
-      downloadTriggerCoordinator,
-      nowIso: () => nowIsoFromClock(clock),
-      qbitClient,
-      tryDatabasePromise,
+    const nowIso = () => nowIsoFromClock(clock);
+
+    const queueReleaseIfEligible = Effect.fn("BackgroundSearchQueueService.queueReleaseIfEligible")(
+      function* (input: {
+        animeRow: typeof anime.$inferSelect;
+        contextMessage: string;
+        decisionReason?: string;
+        action?: DownloadAction;
+        episodeNumber: number;
+        eventMessage: string;
+        eventType: string;
+        item: ParsedRelease;
+        missingEpisodes: readonly number[];
+        qbitConfig: QBitConfig | null;
+      }) {
+        const parsedRelease = parseReleaseName(input.item.title);
+        const coveredEpisodes = toCoveredEpisodesJson(
+          inferCoveredEpisodeNumbers({
+            explicitEpisodes: parsedRelease.episodeNumbers,
+            isBatch: parsedRelease.isBatch,
+            totalEpisodes: input.animeRow.episodeCount,
+            missingEpisodes: input.missingEpisodes,
+            requestedEpisode: input.episodeNumber,
+          }),
+        );
+
+        const queueEffect = Effect.gen(function* () {
+          const parsedCoveredEpisodes = yield* parseCoveredEpisodesEffect(coveredEpisodes);
+          const overlapping = yield* hasOverlappingDownload(
+            db,
+            input.animeRow.id,
+            input.item.infoHash,
+            parsedCoveredEpisodes,
+          );
+
+          if (overlapping) {
+            return { _tag: "skipped" } as const;
+          }
+
+          yield* queueParsedReleaseDownload({
+            animeRow: input.animeRow,
+            contextMessage: input.contextMessage,
+            coveredEpisodes,
+            db,
+            episodeNumber: input.episodeNumber,
+            eventMessage: input.eventMessage,
+            eventType: input.eventType,
+            isBatch: parsedRelease.isBatch,
+            item: input.item,
+            nowIso,
+            sourceMetadata: mergeDownloadSourceMetadata(
+              buildDownloadSourceMetadataFromRelease({
+                ...buildDownloadSelectionMetadata(input.action),
+                decisionReason: input.decisionReason,
+                group: input.item.group,
+                indexer: "Nyaa",
+                isSeadex: input.item.isSeaDex,
+                isSeadexBest: input.item.isSeaDexBest,
+                remake: input.item.remake,
+                seadexComparison: input.item.seaDexComparison,
+                seadexDualAudio: input.item.seaDexDualAudio,
+                seadexNotes: input.item.seaDexNotes,
+                seadexReleaseGroup: input.item.seaDexReleaseGroup,
+                seadexTags: input.item.seaDexTags,
+                sourceUrl: input.item.viewUrl,
+                title: input.item.title,
+                trusted: input.item.trusted,
+              }),
+            ),
+            qbitClient,
+            qbitConfig: input.qbitConfig,
+            tryDatabasePromise,
+          });
+
+          return { _tag: "queued" } as const;
+        });
+
+        return yield* downloadTriggerCoordinator.runExclusiveDownloadTrigger(queueEffect).pipe(
+          Effect.mapError(
+            (cause) =>
+              new OperationsInfrastructureError({
+                message: "Failed to queue background release",
+                cause,
+              }),
+          ),
+        );
+      },
+    );
+
+    return BackgroundSearchQueueService.of({
+      queueReleaseIfEligible,
+      maybeQBitConfig: maybeQBitConfigFromConfig,
     });
   }),
 );

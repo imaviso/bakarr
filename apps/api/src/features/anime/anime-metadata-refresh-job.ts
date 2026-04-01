@@ -70,6 +70,20 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
 
     return { refreshed };
   }).pipe(
+    Effect.catchTag("ExternalCallError", (error) =>
+      markJobFailed(input.db, "metadata_refresh", error, nowIso).pipe(
+        Effect.zipRight(
+          appendSystemLog(
+            input.db,
+            "system.task.metadata_refresh.failed",
+            "error",
+            error.message,
+            nowIso,
+          ),
+        ),
+        Effect.zipRight(Effect.fail(error)),
+      ),
+    ),
     Effect.catchAll((cause) =>
       markJobFailed(input.db, "metadata_refresh", cause, nowIso).pipe(
         Effect.zipRight(
