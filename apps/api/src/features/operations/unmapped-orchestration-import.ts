@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Context, Effect, Layer, Stream } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
-import { anime } from "@/db/schema.ts";
+import { anime, episodes } from "@/db/schema.ts";
 import {
   type FileSystemShape,
   isWithinPathRoot,
@@ -20,11 +20,14 @@ import {
   OperationsInfrastructureError,
 } from "@/features/operations/errors.ts";
 import { appendLog } from "@/features/operations/job-support.ts";
-import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
+import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { getConfigLibraryPath } from "@/features/operations/repository/config-repository.ts";
-import { upsertEpisodeEffect } from "@/features/anime/anime-episode-repository.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import { Database } from "@/db/database.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface UnmappedImportWorkflowShape {
   readonly importUnmappedFolder: (input: {
@@ -41,6 +44,11 @@ export interface UnmappedImportWorkflowShape {
     | OperationsInfrastructureError
   >;
 }
+
+export class UnmappedImportService extends Context.Tag("@bakarr/api/UnmappedImportService")<
+  UnmappedImportService,
+  UnmappedImportWorkflowShape
+>() {}
 
 export const cleanupPreviousAnimeRootFolderAfterImport = Effect.fn(
   "OperationsService.cleanupPreviousAnimeRootFolderAfterImport",
@@ -83,6 +91,12 @@ export function makeUnmappedImportWorkflow(input: {
   tryDatabasePromise: TryDatabasePromise;
 }) {
   const { db, fs, nowIso, tryDatabasePromise } = input;
+
+  type EpisodeImportMapping = {
+    readonly aired: string | null;
+    readonly episodeNumber: number;
+    readonly filePath: string;
+  };
 
   const importUnmappedFolder = Effect.fn("OperationsService.importUnmappedFolder")(
     function* (input: { folder_name: string; anime_id: number; profile_name?: string }) {
@@ -137,75 +151,89 @@ export function makeUnmappedImportWorkflow(input: {
           ? requestedProfileName
           : animeRow.profileName;
 
-      const files = yield* scanVideoFiles(fs, folderPath).pipe(
-        Effect.mapError(
-          () =>
-            new OperationsPathError({
-              message: `Folder is inaccessible: ${folderPath}`,
-            }),
+      const fallbackNowIso = yield* nowIso();
+      const episodeMappings = yield* Stream.runFold(
+        scanVideoFilesStream(fs, folderPath).pipe(
+          Stream.mapError(
+            () =>
+              new OperationsPathError({
+                message: `Folder is inaccessible: ${folderPath}`,
+              }),
+          ),
         ),
+        [] as EpisodeImportMapping[],
+        (acc, file) => {
+          const classification = classifyMediaArtifact(file.path, file.name);
+          if (classification.kind === "extra" || classification.kind === "sample") {
+            return acc;
+          }
+
+          const parsed = parseFileSourceIdentity(file.path);
+          const identity = parsed.source_identity;
+          if (!identity || identity.scheme === "daily") {
+            return acc;
+          }
+
+          const episodeNumbers = identity.episode_numbers;
+          if (episodeNumbers.length === 0) {
+            return acc;
+          }
+
+          for (const episodeNumber of episodeNumbers) {
+            acc.push({
+              aired: inferAiredAt(
+                animeRow.status,
+                episodeNumber,
+                animeRow.episodeCount ?? undefined,
+                animeRow.startDate ?? undefined,
+                animeRow.endDate ?? undefined,
+                undefined,
+                fallbackNowIso,
+              ),
+              episodeNumber,
+              filePath: file.path,
+            });
+          }
+
+          return acc;
+        },
       );
 
       yield* tryDatabasePromise("Failed to import unmapped folder", () =>
-        db
-          .update(anime)
-          .set({
-            profileName: nextProfileName,
-            rootFolder,
-          })
-          .where(eq(anime.id, input.anime_id)),
+        db.transaction(async (tx) => {
+          await tx
+            .update(anime)
+            .set({
+              profileName: nextProfileName,
+              rootFolder,
+            })
+            .where(eq(anime.id, input.anime_id));
+
+          for (const mapping of episodeMappings) {
+            await tx
+              .insert(episodes)
+              .values({
+                aired: mapping.aired,
+                animeId: input.anime_id,
+                downloaded: true,
+                filePath: mapping.filePath,
+                number: mapping.episodeNumber,
+                title: null,
+              })
+              .onConflictDoUpdate({
+                target: [episodes.animeId, episodes.number],
+                set: {
+                  downloaded: true,
+                  filePath: mapping.filePath,
+                },
+              });
+          }
+        }),
       );
 
       yield* cleanupPreviousAnimeRootFolderAfterImport(fs, animeRow.rootFolder, rootFolder);
 
-      let imported = 0;
-
-      for (const file of files) {
-        const classification = classifyMediaArtifact(file.path, file.name);
-        if (classification.kind === "extra" || classification.kind === "sample") {
-          continue;
-        }
-
-        const parsed = parseFileSourceIdentity(file.path);
-        const identity = parsed.source_identity;
-        if (!identity || identity.scheme === "daily") {
-          continue;
-        }
-
-        const episodeNumbers = identity.episode_numbers;
-        if (episodeNumbers.length === 0) {
-          continue;
-        }
-
-        const currentIso = yield* nowIso();
-
-        for (const episodeNumber of episodeNumbers) {
-          yield* upsertEpisodeEffect(db, input.anime_id, episodeNumber, {
-            aired: inferAiredAt(
-              animeRow.status,
-              episodeNumber,
-              animeRow.episodeCount ?? undefined,
-              animeRow.startDate ?? undefined,
-              animeRow.endDate ?? undefined,
-              undefined,
-              currentIso,
-            ),
-            downloaded: true,
-            filePath: file.path,
-            title: null,
-          }).pipe(
-            Effect.catchTag("AnimeStoredDataError", (e) =>
-              Effect.fail(
-                new OperationsInfrastructureError({
-                  message: "Failed to import unmapped folder",
-                  cause: e,
-                }),
-              ),
-            ),
-          );
-        }
-        imported += episodeNumbers.length;
-      }
+      const imported = episodeMappings.length;
 
       yield* appendLog(
         db,
@@ -221,3 +249,19 @@ export function makeUnmappedImportWorkflow(input: {
     importUnmappedFolder,
   } satisfies UnmappedImportWorkflowShape;
 }
+
+export const UnmappedImportServiceLive = Layer.effect(
+  UnmappedImportService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const fs = yield* FileSystem;
+    const clock = yield* ClockService;
+
+    return makeUnmappedImportWorkflow({
+      db,
+      fs,
+      nowIso: () => nowIsoFromClock(clock),
+      tryDatabasePromise,
+    });
+  }),
+);

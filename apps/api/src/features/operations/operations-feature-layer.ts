@@ -7,10 +7,8 @@ import { BackgroundSearchQualityProfileServiceLive } from "@/features/operations
 import { BackgroundSearchQueueServiceLive } from "@/features/operations/background-search-queue-service.ts";
 import { BackgroundSearchSkipLogServiceLive } from "@/features/operations/background-search-skip-log-service.ts";
 import { CatalogDownloadCommandServiceLive } from "@/features/operations/catalog-download-command-service.ts";
-import {
-  CatalogDownloadReadServiceLive,
-  CatalogLibraryReadServiceLive,
-} from "@/features/operations/catalog-download-view-support.ts";
+import { CatalogDownloadReadServiceLive } from "@/features/operations/catalog-download-read-service.ts";
+import { CatalogLibraryReadServiceLive } from "@/features/operations/catalog-library-read-service.ts";
 import {
   CatalogLibraryScanServiceLive,
   CatalogLibraryWriteServiceLive,
@@ -19,7 +17,7 @@ import { CatalogRssServiceLive } from "@/features/operations/catalog-rss-service
 import { DownloadProgressSupportLive } from "@/features/operations/download-progress-support.ts";
 import { DownloadReconciliationServiceLive } from "@/features/operations/download-reconciliation-service.ts";
 import { DownloadTorrentLifecycleServiceLive } from "@/features/operations/download-torrent-lifecycle-service.ts";
-import { DownloadTriggerServiceLive } from "@/features/operations/download-trigger-coordinator-service.ts";
+import { DownloadTriggerServiceLive } from "@/features/operations/download-trigger-service.ts";
 import { ProgressLive } from "@/features/operations/operations-progress-service.ts";
 import {
   DownloadTriggerCoordinatorLive,
@@ -29,11 +27,8 @@ import { SearchEpisodeServiceLive } from "@/features/operations/search-orchestra
 import { SearchImportPathServiceLive } from "@/features/operations/search-orchestration-import-path-support.ts";
 import { SearchReleaseServiceLive } from "@/features/operations/search-orchestration-release-search.ts";
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped-control-service.ts";
-import { UnmappedImportServiceLive } from "@/features/operations/unmapped-import-service.ts";
-import {
-  UnmappedScanMatchServiceLive,
-  UnmappedScanServiceLive,
-} from "@/features/operations/unmapped-scan-service.ts";
+import { UnmappedImportServiceLive } from "@/features/operations/unmapped-orchestration-import.ts";
+import { UnmappedScanServiceLive } from "@/features/operations/unmapped-scan-service.ts";
 import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
 
 const downloadTriggerCoordinatorLayer = DownloadTriggerCoordinatorLive;
@@ -61,8 +56,7 @@ const operationsProgressLayer = ProgressLive.pipe(
 const searchReleaseLayer = SearchReleaseServiceLive;
 const searchEpisodeLayer = SearchEpisodeServiceLive.pipe(Layer.provide(searchReleaseLayer));
 const unmappedScanLayer = UnmappedScanServiceLive.pipe(Layer.provide(unmappedScanCoordinatorLayer));
-const unmappedScanMatchLayer = UnmappedScanMatchServiceLive;
-const unmappedControlLayer = UnmappedControlServiceLive.pipe(Layer.provide(unmappedScanMatchLayer));
+const unmappedControlLayer = UnmappedControlServiceLive.pipe(Layer.provide(unmappedScanLayer));
 const unmappedImportLayer = UnmappedImportServiceLive;
 const backgroundSearchQualityProfileLayer = BackgroundSearchQualityProfileServiceLive;
 const backgroundSearchSkipLogLayer = BackgroundSearchSkipLogServiceLive;
@@ -128,7 +122,6 @@ const backgroundSearchCoreLayer = Layer.mergeAll(
 );
 const unmappedCoreLayer = Layer.mergeAll(
   unmappedScanLayer,
-  unmappedScanMatchLayer,
   unmappedControlLayer,
   unmappedImportLayer,
 );

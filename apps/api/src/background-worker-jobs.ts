@@ -5,7 +5,7 @@ import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-serv
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog-download-view-support.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-support.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";

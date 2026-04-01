@@ -32,7 +32,19 @@ export const decodeOptionalJsonBodyWithLabel = <A, I, R>(
 
 export const decodePathParams = <A, I extends Readonly<Record<string, string | undefined>>, R>(
   schema: Schema.Schema<A, I, R>,
-) => HttpRouter.schemaPathParams(schema);
+) =>
+  HttpRouter.schemaPathParams(schema).pipe(
+    Effect.catchAll((error) =>
+      ParseResult.isParseError(error)
+        ? Effect.fail(
+            RequestValidationError.make({
+              message: formatValidationErrorMessage("Invalid path parameters", error),
+              status: 400,
+            }),
+          )
+        : Effect.fail(error),
+    ),
+  );
 
 export const decodeQuery = <
   A,
@@ -40,7 +52,19 @@ export const decodeQuery = <
   R,
 >(
   schema: Schema.Schema<A, I, R>,
-) => HttpServerRequest.schemaSearchParams(schema);
+) =>
+  HttpServerRequest.schemaSearchParams(schema).pipe(
+    Effect.catchAll((error) =>
+      ParseResult.isParseError(error)
+        ? Effect.fail(
+            RequestValidationError.make({
+              message: formatValidationErrorMessage("Invalid query parameters", error),
+              status: 400,
+            }),
+          )
+        : Effect.fail(error),
+    ),
+  );
 
 export const decodeQueryWithLabel = <
   A,
@@ -71,8 +95,6 @@ export const routeResponse = <A, E, R, E2, R2>(
   Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
     const url = new URL(request.url, "http://bakarr.local");
 
-    const invalidRequest = HttpServerResponse.text("Invalid request", { status: 400 });
-
     return effect.pipe(
       Effect.flatMap(onSuccess),
       Effect.tapErrorCause((cause) =>
@@ -84,8 +106,6 @@ export const routeResponse = <A, E, R, E2, R2>(
           }),
         ),
       ),
-      Effect.catchIf(ParseResult.isParseError, () => Effect.succeed(invalidRequest)),
-      Effect.catchIf(isRequestErrorTag, () => Effect.succeed(invalidRequest)),
       Effect.catchAll((error) =>
         Effect.sync(() => {
           const mapped = mapError(error);
@@ -135,10 +155,4 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
   }
 
   return error;
-}
-
-function isRequestErrorTag(error: unknown): error is { readonly _tag: "RequestError" } {
-  return (
-    typeof error === "object" && error !== null && "_tag" in error && error._tag === "RequestError"
-  );
 }

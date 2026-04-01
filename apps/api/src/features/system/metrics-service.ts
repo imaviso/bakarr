@@ -2,7 +2,7 @@ import { Context, Effect, Layer, Metric } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { renderBakarrPrometheusMetrics } from "@/lib/metrics.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog-download-view-support.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { SystemStatusService } from "@/features/system/system-status-service.ts";
 import type { DiskSpaceError } from "@/features/system/disk-space.ts";
@@ -28,10 +28,10 @@ const makeMetricsService = Effect.gen(function* () {
   const downloadReadService = yield* CatalogDownloadReadService;
 
   const renderPrometheusMetrics = Effect.fn("MetricsService.renderPrometheusMetrics")(function* () {
-    const [status, stats, downloads] = yield* Effect.all([
+    const [status, stats, downloadSummary] = yield* Effect.all([
       systemService.getSystemStatus(),
       systemService.getLibraryStats(),
-      downloadReadService.getDownloadProgress(),
+      downloadReadService.getDownloadRuntimeSummary(),
     ]);
     const snapshot = yield* Metric.snapshot;
 
@@ -50,7 +50,7 @@ const makeMetricsService = Effect.gen(function* () {
         "# TYPE bakarr_missing_episodes gauge",
         `bakarr_missing_episodes ${stats.missing_episodes}`,
         "# TYPE bakarr_active_download_items gauge",
-        `bakarr_active_download_items ${downloads.length}`,
+        `bakarr_active_download_items ${downloadSummary.active_count}`,
         ...renderBakarrPrometheusMetrics(snapshot),
       ].join("\n") + "\n"
     );

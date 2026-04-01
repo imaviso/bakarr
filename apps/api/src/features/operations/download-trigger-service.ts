@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 import { eq } from "drizzle-orm";
 
 import { DatabaseError } from "@/db/database.ts";
@@ -33,6 +33,12 @@ import type { TriggerDownloadInput } from "@/features/operations/download-orches
 import { resolveRequestedEpisodeNumber } from "@/features/operations/download-orchestration-shared.ts";
 import type { QBitConfig } from "@/features/operations/qbittorrent.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/runtime-support.ts";
+import { Database } from "@/db/database.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
+import { DownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
+import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
 
 export function makeDownloadTriggerService(input: {
   readonly db: import("@/db/database.ts").AppDatabase;
@@ -251,3 +257,33 @@ export function makeDownloadTriggerService(input: {
     triggerDownload,
   };
 }
+
+export type DownloadTriggerServiceShape = ReturnType<typeof makeDownloadTriggerService>;
+
+export class DownloadTriggerService extends Context.Tag("@bakarr/api/DownloadTriggerService")<
+  DownloadTriggerService,
+  DownloadTriggerServiceShape
+>() {}
+
+export const DownloadTriggerServiceLive = Layer.effect(
+  DownloadTriggerService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const eventBus = yield* EventBus;
+    const qbitClient = yield* QBitTorrentClient;
+    const clock = yield* ClockService;
+    const progressSupport = yield* DownloadProgressSupport;
+    const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
+
+    return makeDownloadTriggerService({
+      db,
+      downloadTriggerCoordinator,
+      eventBus,
+      maybeQBitConfig,
+      nowIso: () => nowIsoFromClock(clock),
+      publishDownloadProgress: progressSupport.publishDownloadProgress,
+      qbitClient,
+      tryDatabasePromise,
+    });
+  }),
+);

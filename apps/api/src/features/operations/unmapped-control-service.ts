@@ -7,7 +7,7 @@ import type {
   OperationsAnimeNotFoundError,
   OperationsPathError,
 } from "@/features/operations/errors.ts";
-import { UnmappedScanMatchService } from "@/features/operations/unmapped-scan-service.ts";
+import { UnmappedScanService } from "@/features/operations/unmapped-scan-service.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
   decodeUnmappedFolderMatchRow,
@@ -62,7 +62,7 @@ const makeUnmappedControlService = Effect.gen(function* () {
   const { db } = yield* Database;
   const fs = yield* FileSystem;
   const clock = yield* ClockService;
-  const scanMatchService = yield* UnmappedScanMatchService;
+  const scanService = yield* UnmappedScanService;
   const nowIso = () => nowIsoFromClock(clock);
 
   const controlUnmappedFolder = Effect.fn("OperationsService.controlUnmappedFolder")(
@@ -127,7 +127,7 @@ const makeUnmappedControlService = Effect.gen(function* () {
         const matchingFolder = markUnmappedFolderMatching(target);
         yield* upsertUnmappedFolderMatchRows(db, [matchingFolder], yield* nowIso());
 
-        const matchResult = yield* scanMatchService.matchAndPersistUnmappedFolder(
+        const matchResult = yield* scanService.matchAndPersistUnmappedFolder(
           matchingFolder,
           snapshot.animeRows,
         );

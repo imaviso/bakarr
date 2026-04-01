@@ -5,7 +5,7 @@ import { AnimeFileService } from "@/features/anime/anime-file-service.ts";
 import { AnimeQueryService } from "@/features/anime/query-service.ts";
 import { AnimeStreamService } from "@/features/anime/anime-stream-service.ts";
 import { CatalogRssService } from "@/features/operations/catalog-rss-service.ts";
-import { CatalogLibraryReadService } from "@/features/operations/catalog-download-view-support.ts";
+import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-service.ts";
 import {
   ListAnimeQuerySchema,
   SearchAnimeQuerySchema,

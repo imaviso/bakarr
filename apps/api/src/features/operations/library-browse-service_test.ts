@@ -17,6 +17,31 @@ import {
 } from "@/features/system/system-config-service.ts";
 
 describe("LibraryBrowseService", () => {
+  it.effect("applies a default bounded limit when omitted", () =>
+    Effect.gen(function* () {
+      const fs = makeBrowseFileSystem({
+        readDir: () =>
+          Effect.succeed(
+            Array.from({ length: 150 }, (_, index) => ({
+              isDirectory: false,
+              isFile: true,
+              isSymlink: false,
+              name: `episode-${String(index + 1).padStart(3, "0")}.mkv`,
+            })),
+          ),
+      });
+
+      const result = yield* browseEffect(fs, {
+        path: "/allowed/library",
+      });
+
+      assertEquals(result.limit, 100);
+      assertEquals(result.entries.length, 100);
+      assertEquals(result.has_more, true);
+      assertEquals(result.total, 150);
+    }),
+  );
+
   it.effect("fails when the requested directory cannot be read", () =>
     Effect.gen(function* () {
       const fs = makeBrowseFileSystem({

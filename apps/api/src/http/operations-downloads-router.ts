@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { HttpServerResponse } from "@effect/platform";
 import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog-download-view-support.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import {
   DeleteDownloadQuerySchema,

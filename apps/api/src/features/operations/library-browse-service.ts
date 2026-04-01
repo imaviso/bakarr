@@ -8,6 +8,7 @@ import { SystemConfigService } from "@/features/system/system-config-service.ts"
 import { OperationsInputError, OperationsPathError } from "@/features/operations/errors.ts";
 
 const MAX_BROWSE_LIMIT = 500;
+const DEFAULT_BROWSE_LIMIT = 100;
 const DIRECTORY_STAT_CONCURRENCY = 16;
 
 export interface BrowseEntry {
@@ -76,10 +77,14 @@ const makeLibraryBrowseService = Effect.gen(function* () {
         path,
       }));
 
-      const requestedLimit = input.limit ?? 100;
-      const limit = Math.min(Math.max(1, requestedLimit), MAX_BROWSE_LIMIT);
       const offset = Math.max(0, input.offset ?? 0);
       const total = entries.length;
+      const requestedLimit = input.limit ?? DEFAULT_BROWSE_LIMIT;
+      const limit = Math.min(
+        Math.max(1, requestedLimit),
+        MAX_BROWSE_LIMIT,
+        Math.max(0, total - offset),
+      );
 
       return {
         current_path: ".",
@@ -135,11 +140,6 @@ function browseFsPath(
   options: { readonly limit?: number; readonly offset?: number },
 ): Effect.Effect<BrowseResult, OperationsPathError> {
   return Effect.gen(function* () {
-    const requestedLimit = options.limit;
-    const limit =
-      requestedLimit === undefined
-        ? undefined
-        : Math.min(Math.max(1, requestedLimit), MAX_BROWSE_LIMIT);
     const offset = Math.max(0, options.offset ?? 0);
 
     const dirEntries = yield* fs.readDir(path).pipe(
@@ -165,10 +165,14 @@ function browseFsPath(
     );
 
     const total = allEntries.length;
-    const paginatedBase =
-      limit === undefined ? allEntries.slice(offset) : allEntries.slice(offset, offset + limit);
-    const hasMore = limit === undefined ? false : offset + limit < total;
-    const responseLimit = limit ?? paginatedBase.length;
+    const requestedLimit = options.limit ?? DEFAULT_BROWSE_LIMIT;
+    const limit = Math.min(
+      Math.max(1, requestedLimit),
+      MAX_BROWSE_LIMIT,
+      Math.max(0, total - offset),
+    );
+    const paginatedBase = allEntries.slice(offset, offset + limit);
+    const hasMore = offset + limit < total;
 
     const paginatedEntries = yield* Effect.forEach(
       paginatedBase,
@@ -194,7 +198,7 @@ function browseFsPath(
       current_path: path,
       entries: paginatedEntries,
       has_more: hasMore,
-      limit: responseLimit,
+      limit,
       offset,
       parent_path: path === "." ? undefined : path.split("/").slice(0, -1).join("/") || "/",
       total,

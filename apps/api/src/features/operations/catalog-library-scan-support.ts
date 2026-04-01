@@ -52,7 +52,7 @@ export interface CatalogLibraryWriteServiceShape {
   >;
 }
 
-export function makeCatalogLibraryScanSupport(input: {
+function makeCatalogLibraryScanSupport(input: {
   db: AppDatabase;
   eventBus: typeof EventBus.Service;
   fs: FileSystemShape;

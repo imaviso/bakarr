@@ -5,7 +5,7 @@ import { LibraryBrowseService } from "@/features/operations/library-browse-servi
 import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-scan-support.ts";
 import { SearchImportPathService } from "@/features/operations/search-orchestration-import-path-support.ts";
 import { UnmappedControlService } from "@/features/operations/unmapped-control-service.ts";
-import { UnmappedImportService } from "@/features/operations/unmapped-import-service.ts";
+import { UnmappedImportService } from "@/features/operations/unmapped-orchestration-import.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped-scan-service.ts";
 import {
   BulkControlUnmappedFoldersBodySchema,
