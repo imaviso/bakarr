@@ -13,9 +13,7 @@ import {
   type DownloadEventExportQuery,
   type DownloadEventExportStreamShape,
 } from "@/features/operations/catalog-download-event-read-support.ts";
-import {
-  makeCatalogDownloadListReads,
-} from "@/features/operations/catalog-download-list-read-support.ts";
+import { makeCatalogDownloadListReads } from "@/features/operations/catalog-download-list-read-support.ts";
 import {
   makeCatalogDownloadProgressReads,
   type DownloadRuntimeSummary,

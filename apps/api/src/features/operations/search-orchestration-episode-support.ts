@@ -12,16 +12,22 @@ import {
   loadQualityProfile,
   loadReleaseRules,
 } from "@/features/operations/repository/profile-repository.ts";
-import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { compareEpisodeSearchResults } from "@/features/operations/release-ranking.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { toEpisodeSearchResult } from "@/features/operations/search-orchestration-episode-result.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface SearchEpisodeSupportInput {
   readonly db: AppDatabase;
+  readonly getRuntimeConfig: () => Effect.Effect<
+    Config,
+    RuntimeConfigSnapshotError,
+    RuntimeConfigSnapshotService
+  >;
   readonly searchEpisodeReleases: (
     animeRow: SearchEpisodeAnimeRow,
     episodeNumber: number,
@@ -32,7 +38,7 @@ export interface SearchEpisodeSupportInput {
 export type SearchEpisodeAnimeRow = typeof anime.$inferSelect;
 
 export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
-  const { db, searchEpisodeReleases } = input;
+  const { db, getRuntimeConfig, searchEpisodeReleases } = input;
 
   const mapSearchEpisodeError = (
     cause: unknown,
@@ -49,7 +55,7 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
     episodeNumber: number,
   ) {
     const animeRow = yield* requireAnime(db, animeId);
-    const runtimeConfig = yield* loadRuntimeConfig(db);
+    const runtimeConfig = yield* getRuntimeConfig();
     const profile = yield* loadQualityProfile(db, animeRow.profileName);
 
     if (!profile) {
@@ -94,9 +100,11 @@ export const SearchEpisodeServiceLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const searchReleaseService = yield* SearchReleaseService;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     return makeSearchEpisodeSupport({
       db,
+      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
       searchEpisodeReleases: searchReleaseService.searchEpisodeReleases,
     });
   }),

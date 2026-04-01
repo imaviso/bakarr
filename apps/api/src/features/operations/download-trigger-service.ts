@@ -6,7 +6,6 @@ import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
   buildDownloadSourceMetadataFromRelease,
@@ -39,6 +38,8 @@ import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { DownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export function makeDownloadTriggerService(input: {
   readonly db: import("@/db/database.ts").AppDatabase;
@@ -48,6 +49,11 @@ export function makeDownloadTriggerService(input: {
   readonly maybeQBitConfig: (
     config: import("@packages/shared/index.ts").Config,
   ) => QBitConfig | null;
+  readonly getRuntimeConfig: () => Effect.Effect<
+    import("@packages/shared/index.ts").Config,
+    RuntimeConfigSnapshotError,
+    RuntimeConfigSnapshotService
+  >;
   readonly nowIso: () => Effect.Effect<string>;
   readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
   readonly publishDownloadProgress: () => Effect.Effect<
@@ -63,6 +69,7 @@ export function makeDownloadTriggerService(input: {
     maybeQBitConfig: maybeQBitConfigFromInput,
     downloadTriggerCoordinator,
     publishDownloadProgress,
+    getRuntimeConfig,
   } = input;
   const { nowIso } = input;
 
@@ -72,7 +79,7 @@ export function makeDownloadTriggerService(input: {
     const animeRow = yield* requireAnime(db, triggerInput.anime_id);
 
     const now = yield* nowIso();
-    const runtimeConfig = yield* loadRuntimeConfig(db);
+    const runtimeConfig = yield* getRuntimeConfig();
     const parsedRelease = parseReleaseName(triggerInput.title);
     const effectiveIsBatch = triggerInput.is_batch ?? parsedRelease.isBatch;
     const requestedEpisode = resolveRequestedEpisodeNumber({
@@ -274,11 +281,13 @@ export const DownloadTriggerServiceLive = Layer.effect(
     const clock = yield* ClockService;
     const progressSupport = yield* DownloadProgressSupport;
     const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     return makeDownloadTriggerService({
       db,
       downloadTriggerCoordinator,
       eventBus,
+      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
       maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
       publishDownloadProgress: progressSupport.publishDownloadProgress,

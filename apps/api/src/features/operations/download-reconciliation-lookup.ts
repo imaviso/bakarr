@@ -10,13 +10,17 @@ import {
   DownloadNotFoundError,
   type OperationsError,
 } from "@/features/operations/errors.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export function makeReconcileDownloadByIdEffect(input: {
   readonly db: AppDatabase;
   readonly reconcileCompletedTorrentEffect: (
     infoHash: string,
     contentPath: string | undefined,
-  ) => Effect.Effect<void, ExternalCallError | OperationsError | DatabaseError>;
+  ) => Effect.Effect<
+    void,
+    ExternalCallError | OperationsError | DatabaseError | RuntimeConfigSnapshotError
+  >;
   readonly tryDatabasePromise: TryDatabasePromise;
 }) {
   const { db, reconcileCompletedTorrentEffect, tryDatabasePromise } = input;

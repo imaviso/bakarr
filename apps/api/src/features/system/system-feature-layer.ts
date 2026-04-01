@@ -5,38 +5,43 @@ import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts"
 import { MetricsServiceLive } from "@/features/system/metrics-service.ts";
 import { QualityProfileServiceLive } from "@/features/system/quality-profile-service.ts";
 import { ReleaseProfileServiceLive } from "@/features/system/release-profile-service.ts";
+import type { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemBootstrapServiceLive } from "@/features/system/system-bootstrap-service.ts";
 import { SystemConfigUpdateServiceLive } from "@/features/system/system-config-update-service.ts";
-import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
-import { SystemDashboardServiceLive } from "@/features/system/system-dashboard-service.ts";
+import type { SystemConfigService } from "@/features/system/system-config-service.ts";
 import { SystemLogServiceLive } from "@/features/system/system-log-service.ts";
-import { SystemStatusServiceLive } from "@/features/system/system-status-service.ts";
-import { SystemSummaryServiceLive } from "@/features/system/system-summary-service.ts";
+import { SystemReadServiceLive } from "@/features/system/system-read-service.ts";
 
-const systemConfigLayer = SystemConfigServiceLive;
+export function makeSystemFeatureLive(input: {
+  readonly runtimeConfigSnapshotLayer: Layer.Layer<RuntimeConfigSnapshotService, unknown, never>;
+  readonly systemConfigLayer: Layer.Layer<SystemConfigService, unknown, never>;
+}) {
+  const { runtimeConfigSnapshotLayer, systemConfigLayer } = input;
 
-const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(Layer.provide(systemConfigLayer));
+  const systemConfigUpdateLayer = SystemConfigUpdateServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(systemConfigLayer, runtimeConfigSnapshotLayer)),
+  );
 
-const systemSummaryLayer = SystemSummaryServiceLive.pipe(
-  Layer.provide(Layer.mergeAll(systemConfigLayer, backgroundJobStatusLayer)),
-);
+  const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
+    Layer.provide(runtimeConfigSnapshotLayer),
+  );
 
-const systemStatusLayer = SystemStatusServiceLive.pipe(Layer.provide(systemSummaryLayer));
-const systemDashboardLayer = SystemDashboardServiceLive.pipe(Layer.provide(systemSummaryLayer));
-const metricsLayer = MetricsServiceLive.pipe(Layer.provide(systemSummaryLayer));
-const imageAssetLayer = ImageAssetServiceLive.pipe(Layer.provide(systemConfigLayer));
+  const systemReadLayer = SystemReadServiceLive.pipe(
+    Layer.provide(Layer.mergeAll(runtimeConfigSnapshotLayer, backgroundJobStatusLayer)),
+  );
 
-export const SystemFeatureLive = Layer.mergeAll(
-  SystemBootstrapServiceLive,
-  systemConfigLayer,
-  backgroundJobStatusLayer,
-  SystemConfigUpdateServiceLive,
-  systemSummaryLayer,
-  systemStatusLayer,
-  systemDashboardLayer,
-  metricsLayer,
-  imageAssetLayer,
-  QualityProfileServiceLive,
-  ReleaseProfileServiceLive,
-  SystemLogServiceLive,
-);
+  const metricsLayer = MetricsServiceLive.pipe(Layer.provide(systemReadLayer));
+  const imageAssetLayer = ImageAssetServiceLive.pipe(Layer.provide(systemConfigLayer));
+
+  return Layer.mergeAll(
+    SystemBootstrapServiceLive,
+    backgroundJobStatusLayer,
+    systemConfigUpdateLayer,
+    systemReadLayer,
+    metricsLayer,
+    imageAssetLayer,
+    QualityProfileServiceLive,
+    ReleaseProfileServiceLive,
+    SystemLogServiceLive,
+  );
+}

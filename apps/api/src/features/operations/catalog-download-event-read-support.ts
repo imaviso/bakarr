@@ -87,7 +87,9 @@ export function makeCatalogDownloadEventReads(input: {
 
     if (cursorId) {
       cursorCondition =
-        queryInput.direction === "prev" ? gt(downloadEvents.id, cursorId) : lt(downloadEvents.id, cursorId);
+        queryInput.direction === "prev"
+          ? gt(downloadEvents.id, cursorId)
+          : lt(downloadEvents.id, cursorId);
     }
     const conditions = cursorCondition ? [...baseConditions, cursorCondition] : baseConditions;
     const query = db
@@ -106,15 +108,27 @@ export function makeCatalogDownloadEventReads(input: {
     const pageRows = hasExtraRow ? rows.slice(0, limit) : rows;
     const orderedRows = queryInput.direction === "prev" ? [...pageRows].reverse() : pageRows;
     const contexts = yield* loadDownloadEventPresentationContexts(db, orderedRows);
-    const events = yield* Effect.forEach(orderedRows, (row) => toDownloadEvent(row, contexts.get(row.id)));
+    const events = yield* Effect.forEach(orderedRows, (row) =>
+      toDownloadEvent(row, contexts.get(row.id)),
+    );
     const total = Number(totalRows[0]?.count ?? 0);
     const firstRowId = orderedRows[0]?.id;
     const lastRowId = orderedRows[orderedRows.length - 1]?.id;
     const newerExists = firstRowId
-      ? yield* hasAdjacentDownloadEvent(db, tryDatabasePromise, baseConditions, gt(downloadEvents.id, firstRowId))
+      ? yield* hasAdjacentDownloadEvent(
+          db,
+          tryDatabasePromise,
+          baseConditions,
+          gt(downloadEvents.id, firstRowId),
+        )
       : false;
     const olderExists = lastRowId
-      ? yield* hasAdjacentDownloadEvent(db, tryDatabasePromise, baseConditions, lt(downloadEvents.id, lastRowId))
+      ? yield* hasAdjacentDownloadEvent(
+          db,
+          tryDatabasePromise,
+          baseConditions,
+          lt(downloadEvents.id, lastRowId),
+        )
       : false;
 
     return {
@@ -145,7 +159,9 @@ export function makeCatalogDownloadEventReads(input: {
 
     const eventStream = streamDownloadEvents(db, tryDatabasePromise, plan).pipe(
       Stream.zipWithIndex,
-      Stream.map(([event, index]) => textEncoder.encode(`${index === 0 ? "" : ","}${JSON.stringify(event)}`)),
+      Stream.map(([event, index]) =>
+        textEncoder.encode(`${index === 0 ? "" : ","}${JSON.stringify(event)}`),
+      ),
     );
 
     const stream = Stream.concat(
@@ -223,12 +239,17 @@ function buildDownloadEventConditions(queryInput: DownloadEventQueryInput) {
     queryInput.eventType ? eq(downloadEvents.eventType, queryInput.eventType) : undefined,
     queryInput.startDate ? gte(downloadEvents.createdAt, queryInput.startDate) : undefined,
     queryInput.status
-      ? or(eq(downloadEvents.fromStatus, queryInput.status), eq(downloadEvents.toStatus, queryInput.status))
+      ? or(
+          eq(downloadEvents.fromStatus, queryInput.status),
+          eq(downloadEvents.toStatus, queryInput.status),
+        )
       : undefined,
   ].filter((value): value is Exclude<typeof value, undefined> => value !== undefined);
 }
 
-function buildDownloadEventExportPlan(queryInput: DownloadEventExportQuery = {}): DownloadEventExportPlan {
+function buildDownloadEventExportPlan(
+  queryInput: DownloadEventExportQuery = {},
+): DownloadEventExportPlan {
   return {
     baseConditions: buildDownloadEventConditions(queryInput),
     limit: Math.max(1, Math.min(queryInput.limit ?? 10_000, 50_000)),
@@ -263,7 +284,9 @@ const loadDownloadEventExportMetadata = Effect.fn(
 ) {
   const totalRows = yield* tryDatabasePromise("Failed to count download events", () => {
     const totalQuery = db.select({ count: sql<number>`count(*)` }).from(downloadEvents);
-    return plan.baseConditions.length > 0 ? totalQuery.where(and(...plan.baseConditions)) : totalQuery;
+    return plan.baseConditions.length > 0
+      ? totalQuery.where(and(...plan.baseConditions))
+      : totalQuery;
   });
   const total = Number(totalRows[0]?.count ?? 0);
   const generated_at = yield* nowIso();
@@ -297,9 +320,14 @@ function streamDownloadEvents(
         let cursorCondition: SQL<unknown> | undefined;
 
         if (state.cursor !== undefined) {
-          cursorCondition = plan.order === "asc" ? gt(downloadEvents.id, state.cursor) : lt(downloadEvents.id, state.cursor);
+          cursorCondition =
+            plan.order === "asc"
+              ? gt(downloadEvents.id, state.cursor)
+              : lt(downloadEvents.id, state.cursor);
         }
-        const conditions = cursorCondition ? [...plan.baseConditions, cursorCondition] : [...plan.baseConditions];
+        const conditions = cursorCondition
+          ? [...plan.baseConditions, cursorCondition]
+          : [...plan.baseConditions];
 
         const rows = yield* tryDatabasePromise("Failed to stream download events", () => {
           const query = db
@@ -316,7 +344,9 @@ function streamDownloadEvents(
         }
 
         const contexts = yield* loadDownloadEventPresentationContexts(db, rows);
-        const events = yield* Effect.forEach(rows, (row) => toDownloadEvent(row, contexts.get(row.id)));
+        const events = yield* Effect.forEach(rows, (row) =>
+          toDownloadEvent(row, contexts.get(row.id)),
+        );
         const lastId = rows[rows.length - 1]?.id;
 
         return Option.some([

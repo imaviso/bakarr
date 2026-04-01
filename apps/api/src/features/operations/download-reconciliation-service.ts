@@ -13,6 +13,8 @@ import { makeReconcileDownloadByIdEffect } from "@/features/operations/download-
 import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 import type { QBitConfig } from "@/features/operations/qbittorrent.ts";
 import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export type DownloadReconciliationServiceShape = ReturnType<
   typeof makeDownloadReconciliationService
@@ -32,6 +34,7 @@ export function makeDownloadReconciliationService(input: {
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
   readonly randomUuid: () => Effect.Effect<string>;
+  readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
 }) {
   const { db, tryDatabasePromise } = input;
   const { reconcileCompletedTorrentEffect, maybeCleanupImportedTorrent } =
@@ -59,12 +62,14 @@ export const DownloadReconciliationServiceLive = Layer.effect(
     const qbitClient = yield* QBitTorrentClient;
     const clock = yield* ClockService;
     const random = yield* RandomService;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     return makeDownloadReconciliationService({
       db,
       eventBus,
       fs,
       mediaProbe,
+      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
       maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
       qbitClient,

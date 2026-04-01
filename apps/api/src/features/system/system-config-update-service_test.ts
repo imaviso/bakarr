@@ -21,6 +21,7 @@ import {
   SystemConfigUpdateService,
   SystemConfigUpdateServiceLive,
 } from "@/features/system/system-config-update-service.ts";
+import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 
 describe("SystemConfigUpdateService", () => {
   it.scoped("persists updated config and reloads background workers", () =>
@@ -37,10 +38,18 @@ describe("SystemConfigUpdateService", () => {
             }),
             Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(reloads)),
           );
-          const serviceLayer = Layer.mergeAll(
-            SystemConfigServiceLive,
-            SystemConfigUpdateServiceLive,
-          ).pipe(Layer.provide(baseLayer));
+          const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(baseLayer));
+          const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
+            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer)),
+          );
+          const updateServiceLayer = SystemConfigUpdateServiceLive.pipe(
+            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer, runtimeConfigSnapshotLayer)),
+          );
+          const fullLayer = Layer.mergeAll(
+            systemConfigLayer,
+            runtimeConfigSnapshotLayer,
+            updateServiceLayer,
+          );
 
           const nextConfig = makeTestConfig(databaseFile, (config) => ({
             ...config,
@@ -61,7 +70,7 @@ describe("SystemConfigUpdateService", () => {
             assertEquals(current.general.images_path, "/images/custom");
             assertEquals(reloads.length, 1);
             assertEquals(reloads[0]?.general.images_path, "/images/custom");
-          }).pipe(Effect.provide(serviceLayer));
+          }).pipe(Effect.provide(fullLayer));
         }),
       schema,
     }),

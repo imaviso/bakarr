@@ -5,19 +5,15 @@ import type { DatabaseError } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
 import { BackgroundWorkerMonitor } from "@/background-monitor.ts";
 import { composeBackgroundJobStatuses } from "@/features/system/background-status.ts";
-import {
-  ConfigValidationError,
-  StoredConfigCorruptError,
-  StoredConfigMissingError,
-} from "@/features/system/errors.ts";
+import { ConfigValidationError } from "@/features/system/errors.ts";
 import { listBackgroundJobRows } from "@/features/system/repository/stats-repository.ts";
-import { SystemConfigService } from "@/features/system/system-config-service.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export type BackgroundJobStatusError =
   | DatabaseError
   | ConfigValidationError
-  | StoredConfigCorruptError
-  | StoredConfigMissingError;
+  | RuntimeConfigSnapshotError;
 
 export interface BackgroundJobStatusSnapshot {
   readonly jobs: BackgroundJobStatus[];
@@ -35,10 +31,10 @@ export class BackgroundJobStatusService extends Context.Tag(
 const makeBackgroundJobStatusService = Effect.gen(function* () {
   const { db } = yield* Database;
   const monitor = yield* BackgroundWorkerMonitor;
-  const configService = yield* SystemConfigService;
+  const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
   const getSnapshot = Effect.fn("BackgroundJobStatusService.getSnapshot")(function* () {
-    const currentConfig = yield* configService.getConfig();
+    const currentConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
     const jobRows = yield* listBackgroundJobRows(db);
     const liveSnapshot = yield* monitor.snapshot();
     const jobs = composeBackgroundJobStatuses(currentConfig, liveSnapshot, jobRows);

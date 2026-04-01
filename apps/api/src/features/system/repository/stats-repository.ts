@@ -131,6 +131,82 @@ export const countRssFeedRows = Effect.fn("SystemStatsRepository.countRssFeedRow
   return value;
 });
 
+export const loadSystemLibraryStatsAggregate = Effect.fn(
+  "SystemStatsRepository.loadSystemLibraryStatsAggregate",
+)(function* (db: AppDatabase) {
+  const [{ totalAnime }] = yield* tryDatabasePromise("Failed to count anime", () =>
+    db.select({ totalAnime: count() }).from(anime),
+  );
+  const [{ monitoredAnime }] = yield* tryDatabasePromise("Failed to count monitored anime", () =>
+    db.select({ monitoredAnime: count() }).from(anime).where(eq(anime.monitored, true)),
+  );
+  const [{ totalEpisodes }] = yield* tryDatabasePromise("Failed to count episodes", () =>
+    db.select({ totalEpisodes: count() }).from(episodes),
+  );
+  const [{ downloadedEpisodes }] = yield* tryDatabasePromise(
+    "Failed to count downloaded episodes",
+    () =>
+      db
+        .select({ downloadedEpisodes: count() })
+        .from(episodes)
+        .where(eq(episodes.downloaded, true)),
+  );
+  const [{ totalRssFeeds }] = yield* tryDatabasePromise("Failed to count RSS feeds", () =>
+    db.select({ totalRssFeeds: count() }).from(rssFeeds),
+  );
+  const [{ completedDownloads }] = yield* tryDatabasePromise(
+    "Failed to count completed downloads",
+    () =>
+      db
+        .select({ completedDownloads: count() })
+        .from(downloads)
+        .where(eq(downloads.status, "completed")),
+  );
+  const upToDateAnime = yield* countUpToDateAnimeRows(db);
+
+  return {
+    completedDownloads,
+    downloadedEpisodes,
+    monitoredAnime,
+    totalAnime,
+    totalEpisodes,
+    totalRssFeeds,
+    upToDateAnime,
+  } as const;
+});
+
+export const loadSystemDownloadStatsAggregate = Effect.fn(
+  "SystemStatsRepository.loadSystemDownloadStatsAggregate",
+)(function* (db: AppDatabase) {
+  const [{ queuedDownloads }] = yield* tryDatabasePromise("Failed to count queued downloads", () =>
+    db.select({ queuedDownloads: count() }).from(downloads).where(eq(downloads.status, "queued")),
+  );
+  const [{ activeDownloads }] = yield* tryDatabasePromise("Failed to count active downloads", () =>
+    db
+      .select({ activeDownloads: count() })
+      .from(downloads)
+      .where(sql`${downloads.status} in ('downloading', 'paused')`),
+  );
+  const [{ failedDownloads }] = yield* tryDatabasePromise("Failed to count failed downloads", () =>
+    db.select({ failedDownloads: count() }).from(downloads).where(eq(downloads.status, "error")),
+  );
+  const [{ importedDownloads }] = yield* tryDatabasePromise(
+    "Failed to count imported downloads",
+    () =>
+      db
+        .select({ importedDownloads: count() })
+        .from(downloads)
+        .where(eq(downloads.status, "imported")),
+  );
+
+  return {
+    activeDownloads,
+    failedDownloads,
+    importedDownloads,
+    queuedDownloads,
+  } as const;
+});
+
 export const listBackgroundJobRows = Effect.fn("SystemStatsRepository.listBackgroundJobRows")(
   function* (db: AppDatabase) {
     return yield* tryDatabasePromise("Failed to list background jobs", () =>

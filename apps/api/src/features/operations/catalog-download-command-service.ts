@@ -10,19 +10,49 @@ import type {
 } from "@/features/operations/errors.ts";
 import { durationMsSince } from "@/lib/logging.ts";
 import { ClockService } from "@/lib/clock.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface CatalogDownloadCommandServiceShape {
-  readonly pauseDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
-  readonly reconcileDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  readonly pauseDownload: (
+    id: number,
+  ) => Effect.Effect<
+    void,
+    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+  >;
+  readonly reconcileDownload: (
+    id: number,
+  ) => Effect.Effect<
+    void,
+    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+  >;
   readonly removeDownload: (
     id: number,
     deleteFiles: boolean,
-  ) => Effect.Effect<void, OperationsError | DatabaseError>;
-  readonly resumeDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
-  readonly retryDownload: (id: number) => Effect.Effect<void, OperationsError | DatabaseError>;
+  ) => Effect.Effect<
+    void,
+    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+  >;
+  readonly resumeDownload: (
+    id: number,
+  ) => Effect.Effect<
+    void,
+    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+  >;
+  readonly retryDownload: (
+    id: number,
+  ) => Effect.Effect<
+    void,
+    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+  >;
   readonly syncDownloads: () => Effect.Effect<
     void,
-    DatabaseError | OperationsError | OperationsInfrastructureError
+    DatabaseError | OperationsError | OperationsInfrastructureError | RuntimeConfigSnapshotError,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
   >;
 }
 

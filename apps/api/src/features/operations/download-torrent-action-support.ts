@@ -10,12 +10,13 @@ import {
   DownloadNotFoundError,
   OperationsInfrastructureError,
 } from "@/features/operations/errors.ts";
-import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import { parseCoveredEpisodesEffect } from "@/features/operations/download-coverage.ts";
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import type { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentActionSupportInput {
   readonly db: AppDatabase;
@@ -23,10 +24,15 @@ export interface DownloadTorrentActionSupportInput {
   readonly tryDatabasePromise: TryDatabasePromise;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
+  readonly getRuntimeConfig: () => Effect.Effect<
+    Config,
+    RuntimeConfigSnapshotError,
+    RuntimeConfigSnapshotService
+  >;
 }
 
 export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSupportInput) {
-  const { db, qbitClient, tryDatabasePromise, maybeQBitConfig } = input;
+  const { db, qbitClient, tryDatabasePromise, maybeQBitConfig, getRuntimeConfig } = input;
   const { nowIso } = input;
 
   const mapQBitError = (message: string) => (cause: unknown) =>
@@ -53,7 +59,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       });
     }
 
-    const runtimeConfig = yield* loadRuntimeConfig(db);
+    const runtimeConfig = yield* getRuntimeConfig();
     const qbitConfig = maybeQBitConfig(runtimeConfig);
 
     if (qbitConfig && row.infoHash) {
@@ -145,7 +151,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       });
     }
 
-    const runtimeConfig = yield* loadRuntimeConfig(db);
+    const runtimeConfig = yield* getRuntimeConfig();
     const qbitConfig = maybeQBitConfig(runtimeConfig);
     const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
 

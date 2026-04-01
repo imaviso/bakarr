@@ -6,18 +6,31 @@ import type { AnimeServiceError } from "@/features/anime/errors.ts";
 import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-service.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
-import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
-import { SearchBackgroundRssService } from "@/features/operations/background-search-rss-support.ts";
+import { BackgroundSearchRssWorkerService } from "@/features/operations/background-search-rss-worker-service.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface BackgroundWorkerJobsShape {
-  readonly runDownloadSyncWorkerTask: () => Effect.Effect<void, DatabaseError | OperationsError>;
+  readonly runDownloadSyncWorkerTask: () => Effect.Effect<
+    void,
+    DatabaseError | OperationsError | RuntimeConfigSnapshotError,
+    RuntimeConfigSnapshotService
+  >;
   readonly runLibraryScanWorkerTask: () => Effect.Effect<void, DatabaseError | OperationsError>;
   readonly runMetadataRefreshWorkerTask: () => Effect.Effect<
     void,
     DatabaseError | ExternalCallError | AnimeServiceError
   >;
-  readonly runRssWorkerTask: () => Effect.Effect<void, DatabaseError | OperationsError>;
+  readonly runRssWorkerTask: () => Effect.Effect<
+    void,
+    | DatabaseError
+    | ExternalCallError
+    | OperationsError
+    | AnimeServiceError
+    | RuntimeConfigSnapshotError,
+    RuntimeConfigSnapshotService
+  >;
 }
 
 export class BackgroundWorkerJobs extends Context.Tag("@bakarr/api/BackgroundWorkerJobs")<
@@ -31,12 +44,10 @@ export const BackgroundWorkerJobsLive = Layer.effect(
     const downloadCommandService = yield* CatalogDownloadCommandService;
     const catalogLibraryScanService = yield* CatalogLibraryScanService;
     const animeMaintenanceService = yield* AnimeMaintenanceService;
-    const searchBackgroundMissingService = yield* SearchBackgroundMissingService;
-    const searchBackgroundRssService = yield* SearchBackgroundRssService;
+    const backgroundSearchRssWorkerService = yield* BackgroundSearchRssWorkerService;
 
     const runRssWorkerTask = Effect.fn("Background.runRssWorkerTask")(function* () {
-      yield* searchBackgroundRssService.runRssCheck();
-      yield* searchBackgroundMissingService.triggerSearchMissing();
+      yield* backgroundSearchRssWorkerService.runRssWorker();
     });
 
     const runDownloadSyncWorkerTask = Effect.fn("Background.runDownloadSyncWorkerTask")(

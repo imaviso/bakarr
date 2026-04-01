@@ -17,7 +17,6 @@ import {
 import { SeaDexClient } from "@/features/operations/seadex-client.ts";
 import { applySeaDexMatch } from "@/features/operations/seadex-matching.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import {
   mapSearchCategory,
   mapSearchFilter,
@@ -29,6 +28,8 @@ import {
   OperationsInfrastructureError,
   type OperationsError,
 } from "@/features/operations/errors.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 type SearchReleaseError = ExternalCallError | OperationsError | DatabaseError;
 type SearchReleaseSourceError =
@@ -45,10 +46,15 @@ type SearchNyaaReleases = (
 
 export function makeSearchReleaseSupport(input: {
   db: AppDatabase;
+  getRuntimeConfig: () => Effect.Effect<
+    Config,
+    RuntimeConfigSnapshotError,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+  >;
   rssClient: typeof RssClient.Service;
   seadexClient: typeof SeaDexClient.Service;
 }) {
-  const { db, rssClient, seadexClient } = input;
+  const { db, getRuntimeConfig, rssClient, seadexClient } = input;
 
   const mapSearchReleaseError = (cause: unknown): SearchReleaseError =>
     cause instanceof DatabaseError ||
@@ -134,7 +140,7 @@ export function makeSearchReleaseSupport(input: {
       });
     }
 
-    const runtimeConfig = yield* loadRuntimeConfig(db);
+    const runtimeConfig = yield* getRuntimeConfig();
     const results = yield* searchNyaaReleases(searchQuery, runtimeConfig, category, filter).pipe(
       Effect.mapError(mapSearchReleaseError),
     );
@@ -257,9 +263,11 @@ export const SearchReleaseServiceLive = Layer.effect(
     const { db } = yield* Database;
     const rssClient = yield* RssClient;
     const seadexClient = yield* SeaDexClient;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     return makeSearchReleaseSupport({
       db,
+      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
       rssClient,
       seadexClient,
     });

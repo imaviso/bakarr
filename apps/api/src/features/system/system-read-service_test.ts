@@ -12,15 +12,11 @@ import { assertEquals, describe, it } from "@/test/vitest.ts";
 import * as schema from "@/db/schema.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
-import { StoredConfigMissingError } from "@/features/system/errors.ts";
+import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
-import {
-  SystemStatusService,
-  SystemStatusServiceLive,
-} from "@/features/system/system-status-service.ts";
-import { SystemSummaryServiceLive } from "@/features/system/system-summary-service.ts";
+import { SystemReadService, SystemReadServiceLive } from "@/features/system/system-read-service.ts";
 
-describe("SystemStatusService", () => {
+describe("SystemReadService", () => {
   it.scoped("fails when the stored config row is missing", () =>
     withSqliteTestDbEffect({
       run: (db, databaseFile) =>
@@ -53,21 +49,27 @@ describe("SystemStatusService", () => {
 
           const diskSpaceLayer = DiskSpaceInspectorLive.pipe(Layer.provide(baseLayer));
           const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(baseLayer));
-          const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
+          const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
             Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer)),
           );
-          const systemSummaryLayer = SystemSummaryServiceLive.pipe(
-            Layer.provide(
-              Layer.mergeAll(baseLayer, systemConfigLayer, diskSpaceLayer, backgroundJobStatusLayer),
-            ),
+          const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
+            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer, runtimeConfigSnapshotLayer)),
           );
-          const systemStatusLayer = SystemStatusServiceLive.pipe(
-            Layer.provide(Layer.mergeAll(baseLayer, systemSummaryLayer)),
+          const systemReadLayer = SystemReadServiceLive.pipe(
+            Layer.provide(
+              Layer.mergeAll(
+                baseLayer,
+                diskSpaceLayer,
+                systemConfigLayer,
+                runtimeConfigSnapshotLayer,
+                backgroundJobStatusLayer,
+              ),
+            ),
           );
 
           const exit = yield* Effect.exit(
-            Effect.flatMap(SystemStatusService, (service) => service.getSystemStatus()).pipe(
-              Effect.provide(systemStatusLayer),
+            Effect.flatMap(SystemReadService, (service) => service.getSystemStatus()).pipe(
+              Effect.provide(systemReadLayer),
             ),
           );
 
@@ -79,7 +81,6 @@ describe("SystemStatusService", () => {
 
             if (failure._tag === "Some") {
               assertEquals(failure.value._tag, "StoredConfigMissingError");
-              assertEquals(failure.value instanceof StoredConfigMissingError, true);
             }
           }
         }),

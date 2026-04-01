@@ -4,11 +4,15 @@ import { renderBakarrPrometheusMetrics } from "@/lib/metrics.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import type { DiskSpaceError } from "@/features/system/disk-space.ts";
 import { BackgroundJobStatusError } from "@/features/system/background-job-status-service.ts";
-import {
-  SystemSummaryService,
-} from "@/features/system/system-summary-service.ts";
+import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
+import { SystemReadService } from "@/features/system/system-read-service.ts";
 
-export type MetricsServiceError = DatabaseError | BackgroundJobStatusError | DiskSpaceError;
+export type MetricsServiceError =
+  | BackgroundJobStatusError
+  | DatabaseError
+  | DiskSpaceError
+  | StoredConfigCorruptError
+  | StoredConfigMissingError;
 
 export interface MetricsServiceShape {
   readonly renderPrometheusMetrics: () => Effect.Effect<string, MetricsServiceError>;
@@ -22,11 +26,11 @@ export class MetricsService extends Context.Tag("@bakarr/api/MetricsService")<
 export const MetricsServiceLive = Layer.effect(
   MetricsService,
   Effect.gen(function* () {
-    const summaryService = yield* SystemSummaryService;
+    const systemReadService = yield* SystemReadService;
 
     const renderPrometheusMetrics = Effect.fn("MetricsService.renderPrometheusMetrics")(
       function* () {
-        const metricsSummary = yield* summaryService.getRuntimeMetricsSummary();
+        const metricsSummary = yield* systemReadService.getRuntimeMetricsSummary();
         const snapshot = yield* Metric.snapshot;
 
         return (

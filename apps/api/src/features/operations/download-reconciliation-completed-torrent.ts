@@ -17,6 +17,7 @@ import {
 } from "@/features/operations/download-reconciliation-shared.ts";
 import { reconcileBatchDownloadEffect } from "@/features/operations/download-reconciliation-batch.ts";
 import { reconcileSingleDownloadEffect } from "@/features/operations/download-reconciliation-single.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export function makeDownloadCompletedTorrentReconciliation(input: {
   readonly db: AppDatabase;
@@ -28,6 +29,7 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
   readonly maybeQBitConfig: (config: Config) => import("./qbittorrent.ts").QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
   readonly randomUuid: () => Effect.Effect<string>;
+  readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
 }) {
   const {
     db,
@@ -101,6 +103,7 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
           row,
           tryDatabasePromise,
           contentPath,
+          getRuntimeConfig: input.getRuntimeConfig,
         });
 
       if (!context) {

@@ -7,20 +7,30 @@ import { anime, episodes } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { decideDownloadAction } from "@/features/operations/release-ranking.ts";
 import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
-import { loadQualityProfile, loadReleaseRules } from "@/features/operations/repository/profile-repository.ts";
-import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
+import {
+  loadQualityProfile,
+  loadReleaseRules,
+} from "@/features/operations/repository/profile-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search-queue-service.ts";
-import { OperationsInfrastructureError, OperationsInputError } from "@/features/operations/errors.ts";
+import {
+  OperationsInfrastructureError,
+  OperationsInputError,
+} from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
 import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface SearchBackgroundMissingServiceShape {
   readonly triggerSearchMissing: (
     animeId?: number,
-  ) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  ) => Effect.Effect<
+    void,
+    DatabaseError | OperationsInfrastructureError,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+  >;
 }
 
 export class SearchBackgroundMissingService extends Context.Tag(
@@ -36,6 +46,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
     const progress = yield* OperationsProgress;
     const searchReleaseService = yield* SearchReleaseService;
     const queueService = yield* BackgroundSearchQueueService;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
     const nowIso = () => nowIsoFromClock(clock);
 
     const requireQualityProfile = Effect.fn("BackgroundSearchMissing.requireQualityProfile")(
@@ -53,11 +64,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
     );
 
     const logSearchMissingSkip = Effect.fn("BackgroundSearchMissing.logSearchMissingSkip")(
-      function* (input: {
-        animeId: number;
-        episodeNumber: number;
-        reason: string;
-      }) {
+      function* (input: { animeId: number; episodeNumber: number; reason: string }) {
         yield* Effect.logDebug("Skipping missing-episode background action").pipe(
           Effect.annotateLogs({
             animeId: input.animeId,
@@ -94,7 +101,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
           .orderBy(episodes.aired, anime.titleRomaji)
           .limit(10),
       );
-      const runtimeConfig = yield* loadRuntimeConfig(db);
+      const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
       let queued = 0;
       const missingEpisodesByAnimeId = new Map<number, number[]>();
 

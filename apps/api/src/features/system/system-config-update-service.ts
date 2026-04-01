@@ -21,6 +21,7 @@ import { ConfigValidationError, StoredConfigCorruptError } from "@/features/syst
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 import { applyRuntimeLogLevelFromConfig } from "@/features/system/runtime-config.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { countAnimeUsingProfile } from "@/features/system/repository/profile-usage-repository.ts";
 import { listQualityProfileRows } from "@/features/system/repository/quality-profile-repository.ts";
 import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
@@ -42,6 +43,7 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
   const appConfig = yield* AppConfig;
   const clock = yield* ClockService;
   const runtimeControl = yield* BackgroundWorkerController;
+  const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const nowIso = () => nowIsoFromClock(clock);
 
   const updateConfig = Effect.fn("SystemConfigUpdateService.updateConfig")(function* (
@@ -78,7 +80,10 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
     };
 
     yield* persistAndActivateConfig({
-      activateConfig: (value) => runtimeControl.reload(value),
+      activateConfig: (value) =>
+        runtimeControl
+          .reload(value)
+          .pipe(Effect.zipRight(runtimeConfigSnapshot.replaceRuntimeConfig(value))),
       nextConfig: normalizedConfig,
       nextState,
       persistState: (state) => updateSystemConfigAtomic(db, state.coreRow, state.profileRows),

@@ -15,6 +15,7 @@ import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { DownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export type DownloadTorrentLifecycleServiceShape = DownloadTorrentActionSupportShape &
   DownloadTorrentSyncSupportShape;
@@ -42,9 +43,11 @@ export const DownloadTorrentLifecycleServiceLive = Layer.effect(
     const qbitClient = yield* QBitTorrentClient;
     const clock = yield* ClockService;
     const reconciliationService = yield* DownloadReconciliationService;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     return makeDownloadTorrentLifecycleService({
       db,
+      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
       maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
       qbitClient,

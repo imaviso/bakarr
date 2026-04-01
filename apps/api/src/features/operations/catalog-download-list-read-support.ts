@@ -34,14 +34,20 @@ export function makeCatalogDownloadListReads(input: {
     const limit = Math.max(1, Math.min(queryInput.limit ?? 200, 1000));
     const cursorId =
       queryInput.cursor && /^\d+$/.test(queryInput.cursor) ? Number(queryInput.cursor) : undefined;
-    const query = db.select().from(downloads).orderBy(desc(downloads.id)).limit(limit + 1);
+    const query = db
+      .select()
+      .from(downloads)
+      .orderBy(desc(downloads.id))
+      .limit(limit + 1);
     const rows = yield* tryDatabasePromise("Failed to list download history", () =>
       cursorId ? query.where(lt(downloads.id, cursorId)) : query,
     );
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
     const contexts = yield* loadDownloadPresentationContexts(db, pageRows);
-    const mappedRows = yield* Effect.forEach(pageRows, (row) => toDownload(row, contexts.get(row.id)));
+    const mappedRows = yield* Effect.forEach(pageRows, (row) =>
+      toDownload(row, contexts.get(row.id)),
+    );
     const countRows = yield* tryDatabasePromise("Failed to count download history", () =>
       db.select({ count: sql<number>`count(*)` }).from(downloads),
     );

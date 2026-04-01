@@ -3,6 +3,7 @@ import { Layer } from "effect";
 import { SearchBackgroundMissingServiceLive } from "@/features/operations/background-search-missing-support.ts";
 import { BackgroundSearchRssFeedServiceLive } from "@/features/operations/background-search-rss-feed-service.ts";
 import { SearchBackgroundRssServiceLive } from "@/features/operations/background-search-rss-support.ts";
+import { BackgroundSearchRssWorkerServiceLive } from "@/features/operations/background-search-rss-worker-service.ts";
 import { BackgroundSearchQueueServiceLive } from "@/features/operations/background-search-queue-service.ts";
 import { CatalogDownloadCommandServiceLive } from "@/features/operations/catalog-download-command-service.ts";
 import { CatalogDownloadReadServiceLive } from "@/features/operations/catalog-download-read-service.ts";
@@ -14,6 +15,7 @@ import { DownloadProgressSupportLive } from "@/features/operations/download-prog
 import { DownloadReconciliationServiceLive } from "@/features/operations/download-reconciliation-service.ts";
 import { DownloadTorrentLifecycleServiceLive } from "@/features/operations/download-torrent-lifecycle-service.ts";
 import { DownloadTriggerServiceLive } from "@/features/operations/download-trigger-service.ts";
+import { ImportPathScanServiceLive } from "@/features/operations/import-path-scan-service.ts";
 import { ProgressLive } from "@/features/operations/operations-progress-service.ts";
 import {
   DownloadTriggerCoordinatorLive,
@@ -74,7 +76,11 @@ const searchBackgroundMissingLayer = SearchBackgroundMissingServiceLive.pipe(
 );
 const searchBackgroundRssLayer = SearchBackgroundRssServiceLive.pipe(
   Layer.provide(
-    Layer.mergeAll(backgroundSearchRssFeedLayer, backgroundSearchQueueLayer, operationsProgressLayer),
+    Layer.mergeAll(
+      backgroundSearchRssFeedLayer,
+      backgroundSearchQueueLayer,
+      operationsProgressLayer,
+    ),
   ),
 );
 
@@ -83,6 +89,15 @@ export const OperationsBackgroundSearchBundleLive = Layer.mergeAll(
   backgroundSearchRssFeedLayer,
   searchBackgroundMissingLayer,
   searchBackgroundRssLayer,
+  BackgroundSearchRssWorkerServiceLive.pipe(
+    Layer.provide(
+      Layer.mergeAll(
+        searchBackgroundRssLayer,
+        searchBackgroundMissingLayer,
+        operationsProgressLayer,
+      ),
+    ),
+  ),
 );
 
 const searchEpisodeLayer = SearchEpisodeServiceLive.pipe(Layer.provide(searchReleaseLayer));
@@ -102,12 +117,15 @@ export const OperationsUnmappedBundleLive = Layer.mergeAll(
   UnmappedImportServiceLive,
 );
 
-const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(Layer.provide(operationsProgressLayer));
+const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
+  Layer.provide(operationsProgressLayer),
+);
 
 export const OperationsLibraryBundleLive = Layer.mergeAll(
   CatalogLibraryReadServiceLive,
   CatalogLibraryWriteServiceLive,
   catalogLibraryScanLayer,
+  ImportPathScanServiceLive,
   CatalogRssServiceLive,
   LibraryRootsQueryServiceLive,
 );

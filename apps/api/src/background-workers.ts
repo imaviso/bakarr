@@ -3,7 +3,7 @@ import type { Scope } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { buildBackgroundSchedule } from "@/background-schedule.ts";
-import type { BackgroundWorkerJobsShape } from "@/background-worker-jobs.ts";
+import type { BackgroundTaskRunnerShape } from "@/background-task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background-monitor.ts";
 import { type BackgroundWorkerName } from "@/background-worker-model.ts";
 import type { DatabaseError } from "@/db/database.ts";
@@ -32,36 +32,26 @@ export interface BackgroundWorkerSpawner<R = never> {
 }
 
 export function makeBackgroundWorkerSpawner(input: {
-  readonly clock: ClockServiceShape;
-  readonly jobs: BackgroundWorkerJobsShape;
+  readonly taskRunner: BackgroundTaskRunnerShape;
   readonly monitor: BackgroundWorkerMonitorShape;
 }): BackgroundWorkerSpawner {
-  const { clock, jobs, monitor } = input;
+  const { taskRunner, monitor } = input;
 
   return Effect.fn("Background.spawnWorkersFromConfig")(function* (
     workerScope: Scope.Scope,
     config: Config,
   ) {
     const schedule = buildBackgroundSchedule(config);
-    const rssLoop = yield* withLockEffect("rss", jobs.runRssWorkerTask(), monitor, clock);
-    const libraryLoop = yield* withLockEffect(
-      "library_scan",
-      jobs.runLibraryScanWorkerTask(),
-      monitor,
-      clock,
-    );
-    const metadataRefreshLoop = yield* withLockEffect(
-      "metadata_refresh",
-      jobs.runMetadataRefreshWorkerTask(),
-      monitor,
-      clock,
-    );
-    const downloadSyncLoop = yield* withLockEffect(
-      "download_sync",
-      jobs.runDownloadSyncWorkerTask(),
-      monitor,
-      clock,
-    );
+    const downloadSyncLoop = taskRunner
+      .runDownloadSyncWorkerTask()
+      .pipe(Effect.catchAllCause(() => Effect.void));
+    const rssLoop = taskRunner.runRssWorkerTask().pipe(Effect.catchAllCause(() => Effect.void));
+    const libraryLoop = taskRunner
+      .runLibraryScanWorkerTask()
+      .pipe(Effect.catchAllCause(() => Effect.void));
+    const metadataRefreshLoop = taskRunner
+      .runMetadataRefreshWorkerTask()
+      .pipe(Effect.catchAllCause(() => Effect.void));
 
     yield* forkSupervisedWorker(
       workerScope,
@@ -176,6 +166,88 @@ export const withLockEffect = Effect.fn("Background.withLockEffect")(function* <
   );
 
   const lockedTask: Effect.Effect<void, never, R> = Effect.gen(function* () {
+    const result = yield* runner.trigger;
+
+    if (Option.isNone(result)) {
+      yield* monitor.markRunSkipped(workerName);
+      return;
+    }
+  });
+
+  return yield* Effect.succeed(lockedTask);
+});
+
+export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")(function* <
+  A,
+  E,
+  R,
+>(
+  workerName: BackgroundWorkerName,
+  task: Effect.Effect<A, E, R>,
+  monitor: BackgroundWorkerMonitorShape,
+  clock: ClockServiceShape,
+  timeoutMs?: number,
+) {
+  const effectiveTimeout = timeoutMs ?? WORKER_TIMEOUTS[workerName];
+  const taskWithTimeout = task.pipe(
+    Effect.timeoutFail({
+      duration: `${effectiveTimeout} millis`,
+      onTimeout: () =>
+        new WorkerTimeoutError({
+          workerName,
+          timeoutMs: effectiveTimeout,
+          message: `Worker timed out after ${effectiveTimeout}ms`,
+        }),
+    }),
+  );
+
+  const runner = yield* makeSkippingSerializedEffectRunner(
+    Effect.gen(function* () {
+      const startedAt = yield* clock.currentMonotonicMillis;
+      yield* monitor.markRunStarted(workerName);
+
+      const exit = yield* Effect.exit(taskWithTimeout);
+      const finishedAt = yield* clock.currentMonotonicMillis;
+      const durationMs = durationMsSince(startedAt, finishedAt);
+
+      if (exit._tag === "Success") {
+        yield* monitor.markRunSucceeded(workerName, durationMs);
+        return;
+      }
+
+      if (Cause.isInterruptedOnly(exit.cause)) {
+        yield* monitor.markRunInterrupted(workerName);
+        return;
+      }
+
+      const timeoutError = getWorkerTimeoutError(exit.cause);
+      const errorMessage = timeoutError?.message ?? Cause.pretty(exit.cause);
+
+      yield* monitor.markRunFailed(workerName, errorMessage, durationMs);
+      yield* Effect.logError(
+        timeoutError ? "background worker timed out" : "background worker failed",
+      ).pipe(
+        Effect.annotateLogs(
+          compactLogAnnotations({
+            component: "background",
+            durationMs,
+            event: timeoutError ? "background.worker.timeout" : "background.worker.failed",
+            timeoutMs: timeoutError?.timeoutMs,
+            workerName,
+            ...errorLogAnnotations(errorMessage),
+          }),
+        ),
+      );
+
+      if (Cause.isDie(exit.cause)) {
+        return yield* Effect.die(Cause.squash(exit.cause));
+      }
+
+      return yield* Effect.failCause(exit.cause);
+    }),
+  );
+
+  const lockedTask: Effect.Effect<void, E | WorkerTimeoutError, R> = Effect.gen(function* () {
     const result = yield* runner.trigger;
 
     if (Option.isNone(result)) {

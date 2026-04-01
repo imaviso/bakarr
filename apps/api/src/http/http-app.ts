@@ -1,4 +1,4 @@
-import { HttpRouter, HttpServerRequest } from "@effect/platform";
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { embeddedWebAssets } from "@/generated/embedded-web-assets.ts";
@@ -33,6 +33,10 @@ export function createHttpApp(
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest;
         const url = new URL(request.url, "http://bakarr.local");
+
+        if (url.pathname.startsWith("/api/")) {
+          return HttpServerResponse.empty({ status: 404 });
+        }
 
         return createEmbeddedWebResponse({
           assets: staticWebAssets,

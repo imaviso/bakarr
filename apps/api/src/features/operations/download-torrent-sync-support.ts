@@ -11,12 +11,12 @@ import {
   toCoveredEpisodesJson,
 } from "@/features/operations/download-coverage.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
-import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
 import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
 import type { QBitConfig } from "@/features/operations/qbittorrent.ts";
 import type { DownloadTorrentActionSupportInput } from "@/features/operations/download-torrent-action-support.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentSyncSupportInput extends DownloadTorrentActionSupportInput {
   readonly reconcileCompletedTorrentEffect: (
@@ -24,13 +24,22 @@ export interface DownloadTorrentSyncSupportInput extends DownloadTorrentActionSu
     contentPath: string | undefined,
   ) => Effect.Effect<
     void,
-    ExternalCallError | import("@/features/operations/errors.ts").OperationsError | DatabaseError
+    | ExternalCallError
+    | import("@/features/operations/errors.ts").OperationsError
+    | DatabaseError
+    | RuntimeConfigSnapshotError
   >;
 }
 
 export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupportInput) {
-  const { db, qbitClient, tryDatabasePromise, maybeQBitConfig, reconcileCompletedTorrentEffect } =
-    input;
+  const {
+    db,
+    qbitClient,
+    tryDatabasePromise,
+    maybeQBitConfig,
+    reconcileCompletedTorrentEffect,
+    getRuntimeConfig,
+  } = input;
   const { nowIso } = input;
 
   const refineBatchCoverageFromTorrentFiles = Effect.fn(
@@ -110,7 +119,7 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
 
   const syncDownloadsWithQBitEffect = Effect.fn("OperationsService.syncDownloadsWithQBit")(
     function* () {
-      const config = yield* loadRuntimeConfig(db);
+      const config = yield* getRuntimeConfig();
       const qbitConfig = maybeQBitConfig(config);
 
       if (!qbitConfig) {

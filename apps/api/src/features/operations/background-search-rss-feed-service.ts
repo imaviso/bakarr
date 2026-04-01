@@ -7,14 +7,20 @@ import { downloads, rssFeeds } from "@/db/schema.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { RssClient } from "@/features/operations/rss-client.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search-queue-service.ts";
-import { OperationsInfrastructureError, OperationsInputError } from "@/features/operations/errors.ts";
+import {
+  OperationsInfrastructureError,
+  OperationsInputError,
+} from "@/features/operations/errors.ts";
 import { loadMissingEpisodeNumbers } from "@/features/operations/job-support.ts";
 import {
   parseEpisodeFromTitle,
   decideDownloadAction,
 } from "@/features/operations/release-ranking.ts";
 import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
-import { loadQualityProfile, loadReleaseRules } from "@/features/operations/repository/profile-repository.ts";
+import {
+  loadQualityProfile,
+  loadReleaseRules,
+} from "@/features/operations/repository/profile-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 

@@ -102,15 +102,17 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
       ),
     ];
     const candidatePaths = [
-      ...new Set(analyzed.map((entry) => entry.scanned.source_path).filter((value) => value.length > 0)),
+      ...new Set(
+        analyzed.map((entry) => entry.scanned.source_path).filter((value) => value.length > 0),
+      ),
     ];
     const candidateAnimeIds = animeRows.map((row) => row.id);
     const mappedEpisodeRows =
-      candidatePaths.length > 0 || (candidateAnimeIds.length > 0 && episodeNumberCandidates.length > 0)
+      candidatePaths.length > 0 ||
+      (candidateAnimeIds.length > 0 && episodeNumberCandidates.length > 0)
         ? yield* input.tryDatabasePromise("Failed to scan import path", () => {
-            const byPath = candidatePaths.length > 0
-              ? inArray(episodes.filePath, candidatePaths)
-              : undefined;
+            const byPath =
+              candidatePaths.length > 0 ? inArray(episodes.filePath, candidatePaths) : undefined;
             const byAnimeEpisode =
               candidateAnimeIds.length > 0 && episodeNumberCandidates.length > 0
                 ? and(
@@ -118,12 +120,13 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
                     inArray(episodes.number, episodeNumberCandidates),
                   )
                 : undefined;
-            const whereClause =
-              byPath && byAnimeEpisode
-                ? or(byPath, byAnimeEpisode)
-                : byPath
-                  ? byPath
-                  : byAnimeEpisode;
+            let whereClause = byAnimeEpisode;
+
+            if (byPath && byAnimeEpisode) {
+              whereClause = or(byPath, byAnimeEpisode);
+            } else if (byPath) {
+              whereClause = byPath;
+            }
 
             const query = input.db
               .select({

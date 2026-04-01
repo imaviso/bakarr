@@ -32,21 +32,21 @@ export function makeCatalogDownloadProgressReads(input: {
     return yield* Effect.forEach(rows, (row) => toDownloadStatus(row, contexts.get(row.id)));
   });
 
-  const getDownloadProgressBootstrap = Effect.fn(
-    "OperationsService.getDownloadProgressBootstrap",
-  )(function* (input: { limit?: number } = {}) {
-    const limit = Math.max(1, Math.min(input.limit ?? 200, 500));
-    const rows = yield* tryDatabasePromise("Failed to build download progress snapshot", () =>
-      db
-        .select()
-        .from(downloads)
-        .where(inArray(downloads.status, ["queued", "downloading", "paused"]))
-        .orderBy(desc(downloads.id))
-        .limit(limit),
-    );
-    const contexts = yield* loadDownloadPresentationContexts(db, rows);
-    return yield* Effect.forEach(rows, (row) => toDownloadStatus(row, contexts.get(row.id)));
-  });
+  const getDownloadProgressBootstrap = Effect.fn("OperationsService.getDownloadProgressBootstrap")(
+    function* (input: { limit?: number } = {}) {
+      const limit = Math.max(1, Math.min(input.limit ?? 200, 500));
+      const rows = yield* tryDatabasePromise("Failed to build download progress snapshot", () =>
+        db
+          .select()
+          .from(downloads)
+          .where(inArray(downloads.status, ["queued", "downloading", "paused"]))
+          .orderBy(desc(downloads.id))
+          .limit(limit),
+      );
+      const contexts = yield* loadDownloadPresentationContexts(db, rows);
+      return yield* Effect.forEach(rows, (row) => toDownloadStatus(row, contexts.get(row.id)));
+    },
+  );
 
   const getDownloadRuntimeSummary = Effect.fn("OperationsService.getDownloadRuntimeSummary")(
     function* () {

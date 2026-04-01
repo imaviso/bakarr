@@ -29,16 +29,17 @@ it.effect(
           ),
       } satisfies typeof SeaDexClient.Service;
 
-      const searchReleaseService = makeSearchReleaseSupport({
-        db: {} as AppDatabase,
-        rssClient,
-        seadexClient,
-      });
-
       const config = makeTestConfig("/tmp/test.sqlite", (c) => ({
         ...c,
         downloads: { ...c.downloads, use_seadex: true },
       }));
+
+      const searchReleaseService = makeSearchReleaseSupport({
+        db: {} as AppDatabase,
+        getRuntimeConfig: () => Effect.succeed(config),
+        rssClient,
+        seadexClient,
+      });
 
       const exit = yield* Effect.exit(
         searchReleaseService.searchEpisodeReleases(

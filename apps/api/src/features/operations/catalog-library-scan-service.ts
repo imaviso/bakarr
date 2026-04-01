@@ -35,9 +35,7 @@ function makeCatalogLibraryScanSupport(input: {
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogLibraryScanServiceShape {
   const { nowIso } = input;
-  const runLibraryScan = Effect.fn(
-    "OperationsService.runLibraryScan",
-  )(
+  const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(
     function* () {
       yield* markJobStarted(input.db, "library_scan", nowIso);
 

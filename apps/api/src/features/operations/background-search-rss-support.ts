@@ -4,23 +4,19 @@ import { Context, Effect, Layer } from "effect";
 import { DatabaseError } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
 import { rssFeeds } from "@/db/schema.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
-import {
-  markJobFailed,
-  markJobStarted,
-  markJobSucceeded,
-} from "@/features/operations/job-support.ts";
-import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { BackgroundSearchRssFeedService } from "@/features/operations/background-search-rss-feed-service.ts";
-import {
-  OperationsInfrastructureError,
-} from "@/features/operations/errors.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { ExternalCallError } from "@/lib/effect-retry.ts";
 
 export interface SearchBackgroundRssServiceShape {
-  readonly runRssCheck: () => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
+  readonly runRssCheck: () => Effect.Effect<
+    { readonly newItems: number; readonly totalFeeds: number },
+    DatabaseError | OperationsInfrastructureError | ExternalCallError,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+  >;
 }
 
 export class SearchBackgroundRssService extends Context.Tag(
@@ -31,23 +27,17 @@ export const SearchBackgroundRssServiceLive = Layer.effect(
   SearchBackgroundRssService,
   Effect.gen(function* () {
     const { db } = yield* Database;
-    const eventBus = yield* EventBus;
-    const clock = yield* ClockService;
     const progress = yield* OperationsProgress;
     const rssFeedService = yield* BackgroundSearchRssFeedService;
-    const nowIso = () => nowIsoFromClock(clock);
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
-    const runRssCheckBase = Effect.fn("OperationsService.runRssCheckBase")(function* () {
-      yield* markJobStarted(db, "rss", nowIso);
-
+    const runRssCheck = Effect.fn("OperationsService.runRssCheck")(function* () {
       return yield* Effect.gen(function* () {
         const feeds = yield* tryDatabasePromise("Failed to run RSS check", () =>
           db.select().from(rssFeeds).where(eq(rssFeeds.enabled, true)),
         );
-        const runtimeConfig = yield* loadRuntimeConfig(db);
+        const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
         let newItems = 0;
-
-        yield* eventBus.publish({ type: "RssCheckStarted" });
 
         const processRssFeed = Effect.fn("operations.rss.feed")(function* (
           feed: (typeof feeds)[number],
@@ -66,46 +56,26 @@ export const SearchBackgroundRssServiceLive = Layer.effect(
           newItems += yield* processRssFeed(feed, index);
         }
 
-        yield* markJobSucceeded(db, "rss", `Queued ${newItems} release(s)`, nowIso);
-        yield* eventBus.publish({
-          type: "RssCheckFinished",
-          payload: { new_items: newItems, total_feeds: feeds.length },
-        });
-        yield* progress.publishDownloadProgress();
-
-        return undefined;
+        return { newItems, totalFeeds: feeds.length } as const;
       }).pipe(
         Effect.withSpan("operations.rss.check"),
-        Effect.catchTag("DatabaseError", (error) =>
-          markJobFailed(db, "rss", error, nowIso).pipe(Effect.zipRight(Effect.fail(error))),
-        ),
-        Effect.catchTag("OperationsInfrastructureError", (error) =>
-          markJobFailed(db, "rss", error, nowIso).pipe(Effect.zipRight(Effect.fail(error))),
-        ),
-        Effect.catchAllDefect((defect) =>
-          markJobFailed(db, "rss", defect, nowIso).pipe(
-            Effect.zipRight(
-              Effect.fail(
-                new OperationsInfrastructureError({
-                  message: "Failed to run RSS check",
-                  cause: defect,
-                }),
-              ),
-            ),
-          ),
-        ),
-      );
-    });
-
-    const runRssCheck = Effect.fn("OperationsService.runRssCheck")(function* () {
-      return yield* runRssCheckBase().pipe(
         Effect.mapError((error) =>
-          error instanceof DatabaseError
+          error instanceof DatabaseError ||
+          error instanceof ExternalCallError ||
+          error instanceof OperationsInfrastructureError
             ? error
             : new OperationsInfrastructureError({
                 message: "Failed to run RSS check",
                 cause: error,
               }),
+        ),
+        Effect.catchAllDefect((defect) =>
+          Effect.fail(
+            new OperationsInfrastructureError({
+              message: "Failed to run RSS check",
+              cause: defect,
+            }),
+          ),
         ),
       );
     });

@@ -11,8 +11,8 @@ import { EventBus } from "@/features/events/event-bus.ts";
 import { currentImportMode } from "@/features/operations/repository/config-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { decodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
-import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { resolveAccessibleDownloadPath } from "@/features/operations/download-paths.ts";
+import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export type DownloadRow = typeof downloads.$inferSelect;
 export type AnimeRow = typeof anime.$inferSelect;
@@ -38,6 +38,8 @@ export type DownloadReconciliationContext = {
   readonly storedSourceMetadata: DownloadSourceMetadata | undefined;
   readonly resolvedContentRoot: string;
 };
+
+type RuntimeConfigLoader = () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
 
 export const finalizeDownloadImport = Effect.fn("OperationsService.finalizeDownloadImport")(
   function* (input: {
@@ -123,12 +125,13 @@ export const loadDownloadReconciliationContext = Effect.fn(
     | "tryDatabasePromise"
   > & {
     readonly contentPath: string;
+    readonly getRuntimeConfig: RuntimeConfigLoader;
   },
 ) {
   const storedSourceMetadata = yield* decodeDownloadSourceMetadata(input.row.sourceMetadata);
   const animeRow = yield* requireAnime(input.db, input.row.animeId);
   const importMode = yield* currentImportMode(input.db);
-  const runtimeConfig = yield* loadRuntimeConfig(input.db);
+  const runtimeConfig = yield* input.getRuntimeConfig();
   const resolvedContentRoot = yield* resolveAccessibleDownloadPath(
     input.fs,
     input.contentPath,
