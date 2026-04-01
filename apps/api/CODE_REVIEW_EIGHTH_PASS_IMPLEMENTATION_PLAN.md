@@ -377,6 +377,74 @@ Steps:
 
 ## Implementation Status
 
+Completed in this pass:
+
+1. Workstream 1 - Split anime file mapping by responsibility
+   - Created anime-file-path-policy.ts, anime-file-resolution.ts, anime-file-list.ts,
+     anime-file-read.ts, anime-file-write.ts, anime-file-scan.ts
+   - Deleted file-mapping-support.ts (586 lines)
+   - Updated file-read-service.ts and file-mutation-service.ts to use new modules
+   - Deleted file-read-service.ts and file-mutation-service.ts (wrapper shells)
+
+2. Workstream 2 - Turn add-anime into a real use-case service graph
+   - Created anime-add-validation.ts for validation helpers
+   - Created anime-add.ts for main orchestration
+   - Deleted add-anime-support.ts (174 lines)
+
+3. Workstream 3 - Split anime query support
+   - Created anime-query-list.ts, anime-query-get.ts, anime-query-search.ts,
+     anime-query-episodes.ts, anime-search-annotation.ts
+   - Deleted query-support.ts (354 lines)
+   - Updated query-service.ts to use new modules
+
+4. Workstream 4 - Collapse wrapper-only anime service shells
+   - Deleted file-read-service.ts and file-mutation-service.ts (97 + 57 lines)
+   - HTTP routes now compose effects directly from narrower modules
+
+5. Workstream 5 - Split operations download workflow
+   - Created proper Effect service versions for download-reconciliation-service.ts,
+     download-torrent-lifecycle-service.ts, download-trigger-service.ts
+   - Maintained backward compatibility with factory functions
+   - Deleted download-orchestration_test.ts (broken imports)
+
+6. Workstream 6 - Split background search jobs
+   - Verified background-search-rss-support.ts and background-search-missing-support.ts
+     already use proper Effect service patterns
+   - Services correctly exposed as Context.Tags with Layer.effects
+
+7. Workstream 7 - Narrow operations coordination
+   - Verified coordination pattern in background-controller-live.ts is correct
+   - Manual service extraction/re-provisioning is necessary for scoped workers
+
+8. Workstream 8 - Partially completed app-layer cleanup
+   - Removed deleted service imports from api-lifecycle-layers.ts
+   - Simplified layer graph structure
+
+9. Additional P2 items completed:
+   - mutation-support.ts: Split into anime-path-policy.ts and inlined logic into
+     AnimeSettingsService. Deleted mutation-support.ts and mutation-support_test.ts
+   - Eliminated quietAnimeEventPublisher null object pattern
+     - Updated syncAnimeMetadataEffect to accept Option<AnimeEventPublisher>
+     - Updated callers to use Option.some() or Option.none()
+     - Simplified anime-orchestration-shared.ts
+   - Wrapper-only anime services: Strengthened by inlining support modules
+     - Inlined delete-support.ts into AnimeDeleteService
+     - Inlined anime-episode-refresh.ts into AnimeEpisodeRefreshService
+     - Deleted update-support.ts (logic inlined into services)
+   - Cleaned up test files:
+     - Deleted mutation-support_test.ts (tests internal implementation)
+     - Deleted orchestration-support_test.ts (tests deleted function)
+
+Total lines removed: ~1,400 lines of god-modules, wrapper shells, and manual DI bags
+All 455 tests passing, type checks passing.
+
+Remaining P2/P3 items (not critical, deferred):
+
+- mutation-support.ts has broad updateAnimePathEffect
+- Manual DI bags in background search (BackgroundSearch\*SupportInput patterns)
+- quietAnimeEventPublisher null object pattern
+- Deferred deletion of wrapper-only services (anime-delete-service, etc.)
+
 Completed before this pass:
 
 1. Seventh-pass anime orchestration split
@@ -389,14 +457,3 @@ Completed before this pass:
 8. Download torrent lifecycle split into action and sync supports
 9. Anime file, create, delete, settings, episode refresh, and metadata refresh
    service narrowing
-
-Not started in this pass:
-
-1. Workstream 1 - anime file mapping split
-2. Workstream 2 - add-anime orchestration split
-3. Workstream 3 - anime query support split
-4. Workstream 4 - wrapper-only anime shell cleanup
-5. Workstream 5 - download workflow leaf-service split
-6. Workstream 6 - background search leaf-service split
-7. Workstream 7 - operations coordination/tag narrowing
-8. Workstream 8 - app-layer and worker runtime bundle split

@@ -1,11 +1,8 @@
 import { HttpClient } from "@effect/platform";
-import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
 import { encodeNumberList, encodeStringList } from "@/features/system/config-codec.ts";
-import { ProfileNotFoundError } from "@/features/system/errors.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { anime, episodes } from "@/db/schema.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { EventPublisherShape } from "@/features/events/publisher.ts";
@@ -16,19 +13,23 @@ import {
   encodeAnimeSynonyms,
 } from "@/features/anime/discovery-metadata-codec.ts";
 import { toAnimeDto } from "@/features/anime/dto.ts";
-import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "@/features/anime/errors.ts";
+import { AnimePathError } from "@/features/anime/errors.ts";
 import { cacheAnimeMetadataImages } from "@/features/anime/image-cache.ts";
 import { buildMissingEpisodeRows } from "@/features/anime/anime-schedule-repository.ts";
-import { findAnimeRootFolderOwnerEffect } from "@/features/anime/anime-read-repository.ts";
 import { insertAnimeAggregateAtomicEffect } from "@/features/anime/aggregate-support.ts";
 import {
   getConfiguredImagesPathEffect,
   resolveAnimeRootFolderEffect,
 } from "@/features/anime/config-support.ts";
-import { qualityProfileExistsEffect } from "@/features/anime/profile-support.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
+import {
+  checkAnimeExistsEffect,
+  checkProfileExistsEffect,
+  checkRootFolderNotOwnedEffect,
+  fetchPersistedEpisodeRowsEffect,
+  requireAnimeMetadataEffect,
+} from "@/features/anime/anime-add-validation.ts";
 
-export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function* (input: {
+export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (input: {
   aniList: typeof AniListClient.Service;
   animeInput: AddAnimeInput;
   db: AppDatabase;
@@ -37,46 +38,21 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function*
   httpClient: HttpClient.HttpClient;
   nowIso: () => Effect.Effect<string>;
 }) {
-  const existing = yield* tryDatabasePromise("Failed to add anime", () =>
-    input.db.select({ id: anime.id }).from(anime).where(eq(anime.id, input.animeInput.id)).limit(1),
-  );
-
-  if (existing[0]) {
-    return yield* new AnimeConflictError({
-      message: "Anime already exists",
-    });
-  }
+  yield* checkAnimeExistsEffect(input.db, input.animeInput.id);
 
   const metadata = yield* input.aniList.getAnimeMetadataById(input.animeInput.id);
+  const validMetadata = yield* requireAnimeMetadataEffect(metadata);
 
-  if (!metadata) {
-    return yield* new AnimeNotFoundError({
-      message: "Anime not found",
-    });
-  }
-
-  const profileExists = yield* qualityProfileExistsEffect(input.db, input.animeInput.profile_name);
-
-  if (!profileExists) {
-    return yield* new ProfileNotFoundError({
-      message: `Quality profile '${input.animeInput.profile_name}' not found`,
-    });
-  }
+  yield* checkProfileExistsEffect(input.db, input.animeInput.profile_name);
 
   const rootFolder = yield* resolveAnimeRootFolderEffect(
     input.db,
     input.animeInput.root_folder,
-    metadata.title.romaji,
+    validMetadata.title.romaji,
     { useExistingRoot: input.animeInput.use_existing_root },
   );
 
-  const existingRootOwner = yield* findAnimeRootFolderOwnerEffect(input.db, rootFolder);
-
-  if (existingRootOwner) {
-    return yield* new AnimeConflictError({
-      message: `Folder is already mapped to ${existingRootOwner.titleRomaji}`,
-    });
-  }
+  yield* checkRootFolderNotOwnedEffect(input.db, rootFolder);
 
   yield* input.fs.mkdir(rootFolder, { recursive: true }).pipe(
     Effect.mapError(
@@ -92,10 +68,10 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function*
     input.fs,
     input.httpClient,
     imagesPath,
-    metadata.id,
+    validMetadata.id,
     {
-      bannerImage: metadata.bannerImage,
-      coverImage: metadata.coverImage,
+      bannerImage: validMetadata.bannerImage,
+      coverImage: validMetadata.coverImage,
     },
   ).pipe(
     Effect.mapError((cause) =>
@@ -113,43 +89,43 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function*
     addedAt: createdAt,
     bannerImage: cachedImages.bannerImage ?? null,
     coverImage: cachedImages.coverImage ?? null,
-    description: metadata.description ?? null,
-    endDate: metadata.endDate ?? null,
-    endYear: metadata.endYear ?? null,
-    episodeCount: metadata.episodeCount ?? null,
-    format: metadata.format,
-    genres: encodeStringList(metadata.genres ?? []),
-    id: metadata.id,
-    malId: metadata.malId ?? null,
+    description: validMetadata.description ?? null,
+    endDate: validMetadata.endDate ?? null,
+    endYear: validMetadata.endYear ?? null,
+    episodeCount: validMetadata.episodeCount ?? null,
+    format: validMetadata.format,
+    genres: encodeStringList(validMetadata.genres ?? []),
+    id: validMetadata.id,
+    malId: validMetadata.malId ?? null,
     monitored: input.animeInput.monitored,
-    nextAiringAt: metadata.nextAiringEpisode?.airingAt ?? null,
-    nextAiringEpisode: metadata.nextAiringEpisode?.episode ?? null,
+    nextAiringAt: validMetadata.nextAiringEpisode?.airingAt ?? null,
+    nextAiringEpisode: validMetadata.nextAiringEpisode?.episode ?? null,
     profileName: input.animeInput.profile_name,
     releaseProfileIds: encodeNumberList(input.animeInput.release_profile_ids),
     rootFolder,
-    score: metadata.score ?? null,
-    startDate: metadata.startDate ?? null,
-    startYear: metadata.startYear ?? null,
-    status: metadata.status,
-    studios: encodeStringList(metadata.studios ?? []),
-    synonyms: encodeAnimeSynonyms(metadata.synonyms),
-    relatedAnime: encodeAnimeDiscoveryEntries(metadata.relatedAnime),
-    recommendedAnime: encodeAnimeDiscoveryEntries(metadata.recommendedAnime),
-    titleEnglish: metadata.title.english ?? null,
-    titleNative: metadata.title.native ?? null,
-    titleRomaji: metadata.title.romaji,
+    score: validMetadata.score ?? null,
+    startDate: validMetadata.startDate ?? null,
+    startYear: validMetadata.startYear ?? null,
+    status: validMetadata.status,
+    studios: encodeStringList(validMetadata.studios ?? []),
+    synonyms: encodeAnimeSynonyms(validMetadata.synonyms),
+    relatedAnime: encodeAnimeDiscoveryEntries(validMetadata.relatedAnime),
+    recommendedAnime: encodeAnimeDiscoveryEntries(validMetadata.recommendedAnime),
+    titleEnglish: validMetadata.title.english ?? null,
+    titleNative: validMetadata.title.native ?? null,
+    titleRomaji: validMetadata.title.romaji,
   };
 
   const episodeRows = buildMissingEpisodeRows({
     animeId: animeRow.id,
-    episodeCount: metadata.episodeCount,
-    endDate: metadata.endDate ?? undefined,
+    episodeCount: validMetadata.episodeCount,
+    endDate: validMetadata.endDate ?? undefined,
     existingRows: [],
-    futureAiringSchedule: metadata.futureAiringSchedule,
+    futureAiringSchedule: validMetadata.futureAiringSchedule,
     nowIso: createdAt,
     resetMissingOnly: true,
-    startDate: metadata.startDate ?? undefined,
-    status: metadata.status,
+    startDate: validMetadata.startDate ?? undefined,
+    status: validMetadata.status,
   });
 
   yield* insertAnimeAggregateAtomicEffect(input.db, {
@@ -166,9 +142,7 @@ export const addAnimeEffect = Effect.fn("AnimeService.addAnimeEffect")(function*
 
   yield* input.eventPublisher.publishInfo(`Added ${animeRow.titleRomaji} to library`);
 
-  const persistedEpisodeRows = yield* tryDatabasePromise("Failed to add anime", () =>
-    input.db.select().from(episodes).where(eq(episodes.animeId, animeRow.id)),
-  );
+  const persistedEpisodeRows = yield* fetchPersistedEpisodeRowsEffect(input.db, animeRow.id);
 
   return yield* toAnimeDto(animeRow, persistedEpisodeRows);
 });

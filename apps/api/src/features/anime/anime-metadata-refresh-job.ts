@@ -1,10 +1,9 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
-import { quietAnimeEventPublisher } from "@/features/anime/anime-orchestration-shared.ts";
 import { syncEpisodeScheduleEffect } from "@/features/anime/anime-episode-schedule-sync.ts";
 import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
@@ -42,7 +41,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             aniList: input.aniList,
             animeId: animeRow.id,
             db: input.db,
-            eventPublisher: quietAnimeEventPublisher,
+            eventPublisher: Option.none(),
             nowIso,
           });
 

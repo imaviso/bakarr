@@ -1,34 +1,24 @@
 import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type {
-  Anime,
-  AnimeListQueryParams,
-  AnimeListResponse,
-  AnimeSearchResponse,
-  AnimeSearchResult,
-  Episode,
-} from "@packages/shared/index.ts";
+import type { Anime, AnimeListQueryParams, AnimeListResponse } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
-import type { AniListClient } from "@/features/anime/anilist.ts";
-import { toAnimeDto } from "@/features/anime/dto.ts";
-import { AnimeNotFoundError, AnimeStoredDataError } from "@/features/anime/errors.ts";
-import { getAnimeRowEffect } from "@/features/anime/anime-read-repository.ts";
+import { AnimeStoredDataError } from "@/features/anime/errors.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { deriveAnimeSeason, extractYearFromDate } from "@/lib/anime-date-utils.ts";
-import {
-  deriveEpisodeTimelineMetadata,
-  scoreAnimeSearchResultMatch,
-} from "@/lib/anime-derivations.ts";
-import { markSearchResultsAlreadyInLibraryEffect } from "@/lib/anime-search-results.ts";
 import {
   decodeStoredDiscoveryEntriesEffect,
   decodeStoredNumberListEffect,
   decodeStoredStringListEffect,
 } from "@/features/anime/decode-support.ts";
 
-export const listAnimeEffect = Effect.fn("AnimeService.listAnimeEffect")(function* (
+interface EpisodeStats {
+  readonly downloaded: number;
+  readonly latestDownloadedEpisode?: number;
+}
+
+export const listAnimeEffect = Effect.fn("AnimeQueryList.listAnimeEffect")(function* (
   db: AppDatabase,
   params: AnimeListQueryParams = {},
 ) {
@@ -51,10 +41,7 @@ export const listAnimeEffect = Effect.fn("AnimeService.listAnimeEffect")(functio
   ]);
 
   const animeIds = animeRows.map((row) => row.id);
-  const episodeStatsByAnimeId = new Map<
-    number,
-    { downloaded: number; latestDownloadedEpisode?: number }
-  >();
+  const episodeStatsByAnimeId = new Map<number, EpisodeStats>();
 
   if (animeIds.length > 0) {
     const episodeStats = yield* tryDatabasePromise("Failed to list anime", () =>
@@ -126,10 +113,7 @@ export const listAnimeEffect = Effect.fn("AnimeService.listAnimeEffect")(functio
 
 function toAnimeDtoProgress(
   row: typeof anime.$inferSelect,
-  progress?: {
-    downloaded: number;
-    latestDownloadedEpisode?: number;
-  },
+  progress?: EpisodeStats,
   missingNumbers: readonly number[] = [],
 ): Effect.Effect<Anime, AnimeStoredDataError> {
   const downloaded = progress?.downloaded ?? 0;
@@ -213,142 +197,4 @@ function toAnimeDtoProgress(
       },
     };
   });
-}
-
-export const getAnimeEffect = Effect.fn("AnimeService.getAnimeEffect")(function* (input: {
-  db: AppDatabase;
-  id: number;
-}) {
-  const row = yield* getAnimeRowEffect(input.db, input.id);
-  const episodeRows = yield* tryDatabasePromise("Failed to load anime", () =>
-    input.db.select().from(episodes).where(eq(episodes.animeId, input.id)),
-  );
-
-  return yield* toAnimeDto(row, episodeRows);
-});
-
-export const searchAnimeEffect = Effect.fn("AnimeService.searchAnimeEffect")(function* (input: {
-  aniList: typeof AniListClient.Service;
-  db: AppDatabase;
-  query: string;
-}) {
-  const results = yield* input.aniList.searchAnimeMetadata(input.query);
-
-  const annotated = annotateAnimeSearchResultsForQuery(input.query, results);
-
-  const marked = yield* markSearchResultsAlreadyInLibraryEffect(input.db, annotated);
-
-  return {
-    degraded: false,
-    results: marked,
-  } satisfies AnimeSearchResponse;
-});
-
-export const getAnimeByAnilistIdEffect = Effect.fn("AnimeService.getAnimeByAnilistIdEffect")(
-  function* (input: { aniList: typeof AniListClient.Service; db: AppDatabase; id: number }) {
-    const metadata = yield* input.aniList.getAnimeMetadataById(input.id);
-
-    if (!metadata) {
-      return yield* new AnimeNotFoundError({
-        message: "Anime not found",
-      });
-    }
-
-    const existing = yield* tryDatabasePromise("Failed to check library status", () =>
-      input.db.select({ id: anime.id }).from(anime).where(eq(anime.id, input.id)).limit(1),
-    );
-
-    return {
-      already_in_library: Boolean(existing[0]),
-      banner_image: metadata.bannerImage,
-      cover_image: metadata.coverImage,
-      description: metadata.description,
-      end_date: metadata.endDate,
-      end_year: metadata.endYear,
-      episode_count: metadata.episodeCount,
-      format: metadata.format,
-      genres: metadata.genres ? [...metadata.genres] : undefined,
-      id: metadata.id,
-      recommended_anime: metadata.recommendedAnime ? [...metadata.recommendedAnime] : undefined,
-      related_anime: metadata.relatedAnime ? [...metadata.relatedAnime] : undefined,
-      season: deriveAnimeSeason(metadata.startDate),
-      season_year: metadata.startYear,
-      start_date: metadata.startDate,
-      start_year: metadata.startYear,
-      status: metadata.status,
-      synonyms: metadata.synonyms ? [...metadata.synonyms] : undefined,
-      title: metadata.title,
-    } satisfies AnimeSearchResult;
-  },
-);
-
-export const listEpisodesEffect = Effect.fn("AnimeService.listEpisodesEffect")(function* (input: {
-  animeId: number;
-  db: AppDatabase;
-  now: Date;
-}) {
-  const rows = yield* tryDatabasePromise("Failed to list episodes", () =>
-    input.db.select().from(episodes).where(eq(episodes.animeId, input.animeId)),
-  );
-
-  return rows
-    .sort((left, right) => left.number - right.number)
-    .map((row): Episode => {
-      const timeline = deriveEpisodeTimelineMetadata(row.aired ?? undefined, input.now);
-
-      return {
-        aired: row.aired ?? undefined,
-        airing_status: timeline.airing_status,
-        audio_channels: row.audioChannels ?? undefined,
-        audio_codec: row.audioCodec ?? undefined,
-        downloaded: row.downloaded,
-        duration_seconds: row.durationSeconds ?? undefined,
-        file_path: row.filePath ?? undefined,
-        file_size: row.fileSize ?? undefined,
-        group: row.groupName ?? undefined,
-        is_future: timeline.is_future,
-        number: row.number,
-        quality: row.quality ?? undefined,
-        resolution: row.resolution ?? undefined,
-        title: row.title ?? undefined,
-        video_codec: row.videoCodec ?? undefined,
-      };
-    });
-});
-
-export function annotateAnimeSearchResultsForQuery(
-  query: string,
-  results: readonly AnimeSearchResult[],
-) {
-  const trimmed = query.trim();
-
-  if (trimmed.length === 0) {
-    return [...results];
-  }
-
-  return results.map((result) => {
-    const confidence = roundConfidence(scoreAnimeSearchResultMatch(trimmed, result));
-
-    return {
-      ...result,
-      match_confidence: confidence,
-      match_reason: describeAnimeSearchMatch(trimmed, confidence),
-    } satisfies AnimeSearchResult;
-  });
-}
-
-function describeAnimeSearchMatch(query: string, confidence: number) {
-  if (confidence >= 0.99) {
-    return `Exact title match for ${JSON.stringify(query)}`;
-  }
-
-  if (confidence >= 0.8) {
-    return `Strong title match for ${JSON.stringify(query)}`;
-  }
-
-  return `Partial title match for ${JSON.stringify(query)}`;
-}
-
-function roundConfidence(value: number) {
-  return Math.round(value * 100) / 100;
 }

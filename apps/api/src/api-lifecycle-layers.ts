@@ -8,8 +8,6 @@ import { AnimeCreateServiceLive } from "@/features/anime/anime-create-service.ts
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
 import { AnimeEpisodeRefreshServiceLive } from "@/features/anime/anime-episode-refresh-service.ts";
 import { AnimeDeleteServiceLive } from "@/features/anime/anime-delete-service.ts";
-import { AnimeFileMutationServiceLive } from "@/features/anime/file-mutation-service.ts";
-import { AnimeFileReadServiceLive } from "@/features/anime/file-read-service.ts";
 import { AnimeMetadataRefreshServiceLive } from "@/features/anime/metadata-refresh-service.ts";
 import { AnimeSettingsServiceLive } from "@/features/anime/anime-settings-service.ts";
 import { AnimeQueryServiceLive } from "@/features/anime/query-service.ts";
@@ -79,8 +77,6 @@ export function makeApiLifecycleLayers(
     withPlatform(AnimeDeleteServiceLive),
     withPlatform(AnimeSettingsServiceLive),
     withPlatform(AnimeEpisodeRefreshServiceLive),
-    withPlatform(AnimeFileReadServiceLive),
-    withPlatform(AnimeFileMutationServiceLive),
     withPlatform(AnimeMetadataRefreshServiceLive),
   );
 

@@ -4,7 +4,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { MediaProbeShape } from "@/lib/media-probe.ts";
 import type { AnimeEventPublisher } from "@/features/anime/anime-orchestration-shared.ts";
-import { scanAnimeFolderEffect } from "@/features/anime/file-mapping-support.ts";
+import { scanAnimeFolderEffect } from "@/features/anime/anime-file-scan.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 
 export const scanAnimeFolderOrchestrationEffect = Effect.fn(

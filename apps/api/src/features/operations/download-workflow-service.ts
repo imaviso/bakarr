@@ -9,15 +9,15 @@ import { RandomService } from "@/lib/random.ts";
 import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { makeDownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
-import { makeDownloadOrchestration } from "@/features/operations/download-orchestration.ts";
 import { makeDownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
 import { makeDownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
 import { makeDownloadTriggerService } from "@/features/operations/download-trigger-service.ts";
+import { makeDownloadOrchestration } from "@/features/operations/download-orchestration.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
   OperationsSharedState,
   OperationsSharedStateLive,
 } from "@/features/operations/runtime-support.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export type DownloadWorkflowShape = ReturnType<typeof makeDownloadOrchestration>;
 
@@ -35,24 +35,26 @@ const makeDownloadWorkflowService = Effect.gen(function* () {
   const clock = yield* ClockService;
   const random = yield* RandomService;
   const sharedState = yield* OperationsSharedState;
+  const nowIso = () => nowIsoFromClock(clock);
+  const randomUuid = () => random.randomUuid;
 
   const reconciliationService = makeDownloadReconciliationService({
     db,
-    eventBus,
     fs,
     mediaProbe,
-    maybeQBitConfig,
-    nowIso: () => nowIsoFromClock(clock),
     qbitClient,
-    randomUuid: () => random.randomUuid,
+    eventBus,
     tryDatabasePromise,
+    maybeQBitConfig,
+    nowIso,
+    randomUuid,
   });
 
   const torrentLifecycleService = makeDownloadTorrentLifecycleService({
     db,
     maybeQBitConfig,
     qbitClient,
-    nowIso: () => nowIsoFromClock(clock),
+    nowIso,
     reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,
     tryDatabasePromise,
   });
@@ -69,7 +71,7 @@ const makeDownloadWorkflowService = Effect.gen(function* () {
     db,
     eventBus,
     maybeQBitConfig,
-    nowIso: () => nowIsoFromClock(clock),
+    nowIso,
     qbitClient,
     publishDownloadProgress: progressSupport.publishDownloadProgress,
     tryDatabasePromise,

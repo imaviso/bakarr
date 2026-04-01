@@ -10,15 +10,15 @@ import { deriveEpisodeTimelineMetadata } from "@/lib/anime-derivations.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { MediaProbeMetadataFound } from "@/lib/media-probe.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
+import { listAnimeEffect } from "@/features/anime/anime-query-list.ts";
+import { getAnimeEffect } from "@/features/anime/anime-query-get.ts";
 import {
-  annotateAnimeSearchResultsForQuery,
-  getAnimeByAnilistIdEffect,
-  getAnimeEffect,
-  listAnimeEffect,
-  listEpisodesEffect,
   searchAnimeEffect,
-} from "@/features/anime/query-support.ts";
-import { listAnimeFilesEffect } from "@/features/anime/file-mapping-support.ts";
+  getAnimeByAnilistIdEffect,
+} from "@/features/anime/anime-query-search.ts";
+import { listEpisodesEffect } from "@/features/anime/anime-query-episodes.ts";
+import { annotateAnimeSearchResultsForQuery } from "@/features/anime/anime-search-annotation.ts";
+import { listAnimeFilesEffect } from "@/features/anime/anime-file-list.ts";
 
 it("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
   const results = annotateAnimeSearchResultsForQuery("Naruto", [

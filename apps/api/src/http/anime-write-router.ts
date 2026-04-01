@@ -1,11 +1,21 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
+import { Database } from "@/db/database.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { MediaProbe } from "@/lib/media-probe.ts";
+import { EventPublisher } from "@/features/events/publisher.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { AnimeEnrollmentService } from "@/features/anime/anime-enrollment-service.ts";
 import { AnimeEpisodeRefreshService } from "@/features/anime/anime-episode-refresh-service.ts";
 import { AnimeDeleteService } from "@/features/anime/anime-delete-service.ts";
-import { AnimeFileMutationService } from "@/features/anime/file-mutation-service.ts";
 import { AnimeSettingsService } from "@/features/anime/anime-settings-service.ts";
+import { scanAnimeFolderOrchestrationEffect } from "@/features/anime/anime-folder-scan-orchestration.ts";
+import {
+  deleteEpisodeFileEffect,
+  mapEpisodeFileEffect,
+  bulkMapEpisodeFilesEffect,
+} from "@/features/anime/anime-file-write.ts";
 import { CatalogLibraryWriteService } from "@/features/operations/catalog-orchestration-library-write-support.ts";
 import {
   AddAnimeInputSchema,
@@ -111,7 +121,19 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeFileMutationService).scanFolder(params.id);
+        const { db } = yield* Database;
+        const eventPublisher = yield* EventPublisher;
+        const fs = yield* FileSystem;
+        const mediaProbe = yield* MediaProbe;
+        const clock = yield* ClockService;
+        return yield* scanAnimeFolderOrchestrationEffect({
+          animeId: params.id,
+          db,
+          eventPublisher,
+          fs,
+          mediaProbe,
+          nowIso: () => nowIsoFromClock(clock),
+        });
       }),
       jsonResponse,
     ),
@@ -121,7 +143,14 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
-        yield* (yield* AnimeFileMutationService).deleteEpisodeFile(params.id, params.episodeNumber);
+        const { db } = yield* Database;
+        const fs = yield* FileSystem;
+        yield* deleteEpisodeFileEffect({
+          animeId: params.id,
+          db,
+          episodeNumber: params.episodeNumber,
+          fs,
+        });
       }),
       successResponse,
     ),
@@ -132,11 +161,15 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
         const body = yield* decodeJsonBodyWithLabel(FilePathBodySchema, "map episode file");
-        yield* (yield* AnimeFileMutationService).mapEpisode(
-          params.id,
-          params.episodeNumber,
-          body.file_path,
-        );
+        const { db } = yield* Database;
+        const fs = yield* FileSystem;
+        yield* mapEpisodeFileEffect({
+          animeId: params.id,
+          db,
+          episodeNumber: params.episodeNumber,
+          filePath: body.file_path,
+          fs,
+        });
       }),
       successResponse,
     ),
@@ -150,7 +183,14 @@ export const animeWriteRouter = HttpRouter.empty.pipe(
           BulkEpisodeMappingsBodySchema,
           "bulk map episodes",
         );
-        yield* (yield* AnimeFileMutationService).bulkMapEpisodes(params.id, [...body.mappings]);
+        const { db } = yield* Database;
+        const fs = yield* FileSystem;
+        yield* bulkMapEpisodeFilesEffect({
+          animeId: params.id,
+          db,
+          fs,
+          mappings: [...body.mappings],
+        });
       }),
       successResponse,
     ),

@@ -16,7 +16,7 @@ import {
 import { ProfileNotFoundError } from "@/features/system/errors.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
-import { addAnimeEffect } from "@/features/anime/add-anime-support.ts";
+import { addAnimeEffect } from "@/features/anime/anime-add.ts";
 
 export interface AnimeCreateServiceShape {
   readonly addAnime: (

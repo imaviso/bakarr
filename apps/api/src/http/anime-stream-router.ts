@@ -1,9 +1,10 @@
 import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platform";
 import { Effect, Match, Schema } from "effect";
 
-import { AnimeFileReadService } from "@/features/anime/file-read-service.ts";
-import { ClockService } from "@/lib/clock.ts";
+import { Database } from "@/db/database.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
+import { resolveEpisodeFileEffect } from "@/features/anime/anime-file-read.ts";
+import { ClockService } from "@/lib/clock.ts";
 import { AnimeEpisodeParamsSchema, StreamQuerySchema } from "@/http/anime-request-schemas.ts";
 import { createFileChunkStream } from "@/http/file-stream.ts";
 import { EpisodeStreamAccessError } from "@/http/streaming-errors.ts";
@@ -53,11 +54,14 @@ export const animeStreamRouter = HttpRouter.empty.pipe(
           });
         }
 
-        const animeService = yield* AnimeFileReadService;
-        const resolvedEpisodeFile = yield* animeService.resolveEpisodeFile(
-          params.id,
-          params.episodeNumber,
-        );
+        const { db } = yield* Database;
+        const fs = yield* FileSystem;
+        const resolvedEpisodeFile = yield* resolveEpisodeFileEffect({
+          animeId: params.id,
+          db,
+          episodeNumber: params.episodeNumber,
+          fs,
+        });
 
         const notFoundError = (message: string) =>
           new EpisodeStreamAccessError({ message, status: 404 });
@@ -76,7 +80,6 @@ export const animeStreamRouter = HttpRouter.empty.pipe(
           Match.exhaustive,
         );
 
-        const fs = yield* FileSystem;
         const fileInfo = yield* fs
           .stat(episodeFilePath.filePath)
           .pipe(

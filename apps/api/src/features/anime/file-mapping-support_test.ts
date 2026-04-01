@@ -5,7 +5,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
-import { resolveEpisodeFileEffect } from "@/features/anime/file-mapping-support.ts";
+import { resolveEpisodeFileEffect } from "@/features/anime/anime-file-read.ts";
 
 const insertAnime = Effect.fn("Test.insertAnime")(function* (db: AppDatabase, rootFolder: string) {
   yield* Effect.tryPromise(() =>

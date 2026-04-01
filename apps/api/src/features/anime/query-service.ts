@@ -17,13 +17,13 @@ import {
   AnimeNotFoundError,
 } from "@/features/anime/errors.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { listAnimeEffect } from "@/features/anime/anime-query-list.ts";
+import { getAnimeEffect } from "@/features/anime/anime-query-get.ts";
 import {
-  listAnimeEffect,
-  getAnimeEffect,
   searchAnimeEffect,
   getAnimeByAnilistIdEffect,
-  listEpisodesEffect,
-} from "@/features/anime/query-support.ts";
+} from "@/features/anime/anime-query-search.ts";
+import { listEpisodesEffect } from "@/features/anime/anime-query-episodes.ts";
 
 export interface AnimeQueryServiceShape {
   readonly listAnime: (

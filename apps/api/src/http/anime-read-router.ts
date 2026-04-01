@@ -1,7 +1,10 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { AnimeFileReadService } from "@/features/anime/file-read-service.ts";
+import { Database } from "@/db/database.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { MediaProbe } from "@/lib/media-probe.ts";
+import { listAnimeFilesEffect } from "@/features/anime/anime-file-list.ts";
 import { AnimeQueryService } from "@/features/anime/query-service.ts";
 import { CatalogDownloadService } from "@/features/operations/catalog-download-orchestration.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-support.ts";
@@ -83,7 +86,15 @@ export const animeReadRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        return yield* (yield* AnimeFileReadService).listFiles(params.id);
+        const { db } = yield* Database;
+        const fs = yield* FileSystem;
+        const mediaProbe = yield* MediaProbe;
+        return yield* listAnimeFilesEffect({
+          animeId: params.id,
+          db,
+          fs,
+          mediaProbe,
+        });
       }),
       jsonResponse,
     ),

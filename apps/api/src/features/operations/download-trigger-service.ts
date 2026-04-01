@@ -1,10 +1,10 @@
-import { eq } from "drizzle-orm";
 import { Effect } from "effect";
+import { eq } from "drizzle-orm";
 
-import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
+import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
@@ -29,16 +29,15 @@ import {
   OperationsInputError,
   OperationsInfrastructureError,
 } from "@/features/operations/errors.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
-import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download-orchestration-shared.ts";
 import { resolveRequestedEpisodeNumber } from "@/features/operations/download-orchestration-shared.ts";
+import type { QBitConfig } from "@/features/operations/qbittorrent.ts";
 
 export function makeDownloadTriggerService(input: {
-  readonly db: AppDatabase;
+  readonly db: import("@/db/database.ts").AppDatabase;
   readonly qbitClient: typeof QBitTorrentClient.Service;
   readonly eventBus: typeof EventBus.Service;
-  readonly tryDatabasePromise: TryDatabasePromise;
+  readonly tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise;
   readonly maybeQBitConfig: (
     config: import("@packages/shared/index.ts").Config,
   ) => QBitConfig | null;
@@ -54,7 +53,7 @@ export function makeDownloadTriggerService(input: {
     qbitClient,
     eventBus,
     tryDatabasePromise,
-    maybeQBitConfig,
+    maybeQBitConfig: maybeQBitConfigFromInput,
     coordination,
     publishDownloadProgress,
   } = input;
@@ -174,7 +173,7 @@ export function makeDownloadTriggerService(input: {
 
     const insertedId = insertResult.right[0].id;
     let status = "queued";
-    const qbitConfig = maybeQBitConfig(runtimeConfig);
+    const qbitConfig: QBitConfig | null = maybeQBitConfigFromInput(runtimeConfig);
 
     if (qbitConfig && triggerInput.magnet) {
       const qbitResult = yield* Effect.either(
@@ -199,6 +198,7 @@ export function makeDownloadTriggerService(input: {
           .where(eq(downloads.id, insertedId)),
       );
     }
+
     yield* recordDownloadEvent(
       db,
       {
@@ -215,6 +215,7 @@ export function makeDownloadTriggerService(input: {
       },
       nowIso,
     );
+
     yield* appendLog(
       db,
       "downloads.triggered",
@@ -224,6 +225,7 @@ export function makeDownloadTriggerService(input: {
         : `Queued download for ${animeRow.titleRomaji} episode ${requestedEpisode}`,
       nowIso,
     );
+
     yield* eventBus.publish({
       type: "DownloadStarted",
       payload: {
@@ -232,6 +234,7 @@ export function makeDownloadTriggerService(input: {
         title: triggerInput.title,
       },
     });
+
     yield* publishDownloadProgress();
   });
 
