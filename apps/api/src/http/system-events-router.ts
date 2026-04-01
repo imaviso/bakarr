@@ -2,7 +2,7 @@ import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { EventBus } from "@/features/events/event-bus.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog-download-view-support.ts";
 import { buildDownloadProgressStream } from "@/http/event-stream.ts";
 import { authedRouteResponse } from "@/http/router-helpers.ts";
 

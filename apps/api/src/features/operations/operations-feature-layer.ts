@@ -1,16 +1,20 @@
 import { Layer } from "effect";
 
 import { SearchBackgroundMissingServiceLive } from "@/features/operations/background-search-missing-support.ts";
+import { BackgroundSearchRssFeedServiceLive } from "@/features/operations/background-search-rss-feed-service.ts";
 import { SearchBackgroundRssServiceLive } from "@/features/operations/background-search-rss-support.ts";
 import { BackgroundSearchQualityProfileServiceLive } from "@/features/operations/background-search-quality-profile-service.ts";
 import { BackgroundSearchQueueServiceLive } from "@/features/operations/background-search-queue-service.ts";
-import { BackgroundSearchRssRunnerServiceLive } from "@/features/operations/background-search-rss-runner-service.ts";
 import { BackgroundSearchSkipLogServiceLive } from "@/features/operations/background-search-skip-log-service.ts";
 import { CatalogDownloadCommandServiceLive } from "@/features/operations/catalog-download-command-service.ts";
-import { CatalogDownloadReadServiceLive } from "@/features/operations/catalog-download-read-service.ts";
-import { CatalogLibraryReadServiceLive } from "@/features/operations/catalog-library-read-support.ts";
-import { CatalogLibraryScanServiceLive } from "@/features/operations/catalog-library-scan-support.ts";
-import { CatalogLibraryWriteServiceLive } from "@/features/operations/catalog-orchestration-library-write-support.ts";
+import {
+  CatalogDownloadReadServiceLive,
+  CatalogLibraryReadServiceLive,
+} from "@/features/operations/catalog-download-view-support.ts";
+import {
+  CatalogLibraryScanServiceLive,
+  CatalogLibraryWriteServiceLive,
+} from "@/features/operations/catalog-library-scan-support.ts";
 import { CatalogRssServiceLive } from "@/features/operations/catalog-rss-service.ts";
 import { DownloadProgressSupportLive } from "@/features/operations/download-progress-support.ts";
 import { DownloadReconciliationServiceLive } from "@/features/operations/download-reconciliation-service.ts";
@@ -65,7 +69,15 @@ const backgroundSearchSkipLogLayer = BackgroundSearchSkipLogServiceLive;
 const backgroundSearchQueueLayer = BackgroundSearchQueueServiceLive.pipe(
   Layer.provide(downloadTriggerCoordinatorLayer),
 );
-const backgroundSearchRssRunnerLayer = BackgroundSearchRssRunnerServiceLive;
+const backgroundSearchRssFeedLayer = BackgroundSearchRssFeedServiceLive.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      backgroundSearchQualityProfileLayer,
+      backgroundSearchQueueLayer,
+      backgroundSearchSkipLogLayer,
+    ),
+  ),
+);
 const searchBackgroundMissingLayer = SearchBackgroundMissingServiceLive.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -80,10 +92,10 @@ const searchBackgroundMissingLayer = SearchBackgroundMissingServiceLive.pipe(
 const searchBackgroundRssLayer = SearchBackgroundRssServiceLive.pipe(
   Layer.provide(
     Layer.mergeAll(
+      backgroundSearchRssFeedLayer,
       backgroundSearchQualityProfileLayer,
       backgroundSearchQueueLayer,
       backgroundSearchSkipLogLayer,
-      backgroundSearchRssRunnerLayer,
       operationsProgressLayer,
     ),
   ),
@@ -139,7 +151,6 @@ const searchCoreLayer = Layer.mergeAll(
 export const OperationsFeatureLive = Layer.mergeAll(
   downloadTriggerCoordinatorLayer,
   unmappedScanCoordinatorLayer,
-  backgroundSearchRssRunnerLayer,
   backgroundSearchCoreLayer,
   downloadCoreLayer,
   operationsProgressLayer,

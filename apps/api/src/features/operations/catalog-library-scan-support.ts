@@ -18,11 +18,37 @@ import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 import { scanAnimeLibraryRow } from "@/features/operations/catalog-library-scan-row-support.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import {
+  importLibraryFiles,
+  type LibraryImportFileInput,
+} from "@/features/operations/catalog-library-write-import-support.ts";
+import { renameLibraryFiles } from "@/features/operations/catalog-library-write-rename-support.ts";
+import type { ImportResult, RenameResult } from "@packages/shared/index.ts";
+import type { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
+import { MediaProbe } from "@/lib/media-probe.ts";
 
 export interface CatalogLibraryScanSupportShape {
   readonly runLibraryScan: () => Effect.Effect<
     { matched: number; scanned: number },
     OperationsPathError | DatabaseError | OperationsInfrastructureError
+  >;
+}
+
+export interface CatalogLibraryWriteServiceShape {
+  readonly importFiles: (
+    files: readonly LibraryImportFileInput[],
+  ) => Effect.Effect<
+    ImportResult,
+    | DatabaseError
+    | OperationsPathError
+    | OperationsInfrastructureError
+    | OperationsAnimeNotFoundError
+  >;
+  readonly renameFiles: (
+    animeId: number,
+  ) => Effect.Effect<
+    RenameResult,
+    DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
   >;
 }
 
@@ -124,4 +150,46 @@ const makeCatalogLibraryScanService = Effect.gen(function* () {
 export const CatalogLibraryScanServiceLive = Layer.effect(
   CatalogLibraryScanService,
   makeCatalogLibraryScanService,
+);
+
+export class CatalogLibraryWriteService extends Context.Tag(
+  "@bakarr/api/CatalogLibraryWriteService",
+)<CatalogLibraryWriteService, CatalogLibraryWriteServiceShape>() {}
+
+export const CatalogLibraryWriteServiceLive = Layer.effect(
+  CatalogLibraryWriteService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const eventBus = yield* EventBus;
+    const fs = yield* FileSystem;
+    const mediaProbe = yield* MediaProbe;
+
+    const importFiles = Effect.fn("OperationsService.importFiles")(function* (
+      files: readonly LibraryImportFileInput[],
+    ) {
+      return yield* importLibraryFiles({
+        db,
+        eventBus,
+        files,
+        fs,
+        mediaProbe,
+        tryDatabasePromise,
+      });
+    });
+
+    const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (animeId: number) {
+      return yield* renameLibraryFiles({
+        animeId,
+        db,
+        eventBus,
+        fs,
+        tryDatabasePromise,
+      });
+    });
+
+    return CatalogLibraryWriteService.of({
+      importFiles,
+      renameFiles,
+    });
+  }),
 );

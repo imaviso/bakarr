@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Cause, Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -142,7 +142,10 @@ export function makeUnmappedScanWorkflow(input: {
     Effect.catchTag("OperationsPathError", (error) =>
       markJobFailed(db, "unmapped_scan", error, nowIso).pipe(Effect.zipRight(Effect.fail(error))),
     ),
-    Effect.catchAll((cause) =>
+    Effect.catchTag("OperationsStoredDataError", (error) =>
+      markJobFailed(db, "unmapped_scan", error, nowIso).pipe(Effect.zipRight(Effect.fail(error))),
+    ),
+    Effect.catchAllCause((cause) =>
       markJobFailed(db, "unmapped_scan", cause, nowIso).pipe(
         Effect.zipRight(
           Effect.fail(
@@ -190,8 +193,8 @@ export function makeUnmappedScanWorkflow(input: {
       const loop = unmappedScanLoop().pipe(
         Effect.catchAllCause((cause) =>
           Effect.logError("Unmapped scan loop failed").pipe(
-            Effect.annotateLogs({ error: cause.toString() }),
-            Effect.asVoid,
+            Effect.annotateLogs({ error: Cause.pretty(cause) }),
+            Effect.zipRight(Effect.failCause(cause)),
           ),
         ),
         Effect.ensuring(unmappedScanCoordinator.completeUnmappedScan()),

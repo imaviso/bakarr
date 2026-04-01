@@ -2,7 +2,7 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { LibraryBrowseService } from "@/features/operations/library-browse-service.ts";
-import { CatalogLibraryWriteService } from "@/features/operations/catalog-orchestration-library-write-support.ts";
+import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-scan-support.ts";
 import { SearchImportPathService } from "@/features/operations/search-orchestration-import-path-support.ts";
 import { UnmappedControlService } from "@/features/operations/unmapped-control-service.ts";
 import { UnmappedImportService } from "@/features/operations/unmapped-import-service.ts";

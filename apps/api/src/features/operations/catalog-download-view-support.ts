@@ -1,14 +1,16 @@
 import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or, sql, type SQL } from "drizzle-orm";
-import { Chunk, Effect, Option, Stream } from "effect";
+import { Chunk, Context, Effect, Layer, Option, Stream } from "effect";
 
 import type {
   Download,
   DownloadEvent,
+  DownloadHistoryPage,
   DownloadEventsPage,
   DownloadStatus,
 } from "@packages/shared/index.ts";
-import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { downloadEvents, downloads } from "@/db/schema.ts";
+import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { anime, downloadEvents, downloads, episodes } from "@/db/schema.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import {
   toDownload,
@@ -18,11 +20,23 @@ import {
   loadDownloadEventPresentationContexts,
   toDownloadEvent,
 } from "@/lib/download-event-presentations.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
+import { deriveEpisodeTimelineMetadata } from "@/lib/anime-derivations.ts";
+import { buildRenamePreview } from "@/features/operations/library-import.ts";
+import type { CalendarEvent, MissingEpisode, RenamePreviewItem } from "@packages/shared/index.ts";
+import type { OperationsError } from "@/features/operations/errors.ts";
 
 const textEncoder = new TextEncoder();
 
 export interface CatalogDownloadViewSupportShape {
+  readonly getWantedMissing: (limit: number) => Effect.Effect<MissingEpisode[], DatabaseError>;
+  readonly getCalendar: (
+    start: string,
+    end: string,
+  ) => Effect.Effect<CalendarEvent[], DatabaseError>;
+  readonly getRenamePreview: (
+    animeId: number,
+  ) => Effect.Effect<RenamePreviewItem[], OperationsError | DatabaseError>;
   readonly listDownloadEvents: (input?: {
     readonly animeId?: number;
     readonly cursor?: string;
@@ -67,8 +81,11 @@ export interface CatalogDownloadViewSupportShape {
     Download[],
     DatabaseError | import("./errors.ts").OperationsStoredDataError
   >;
-  readonly listDownloadHistory: () => Effect.Effect<
-    Download[],
+  readonly listDownloadHistory: (input?: {
+    readonly cursor?: string;
+    readonly limit?: number;
+  }) => Effect.Effect<
+    DownloadHistoryPage,
     DatabaseError | import("./errors.ts").OperationsStoredDataError
   >;
   readonly getDownloadProgress: () => Effect.Effect<
@@ -112,6 +129,16 @@ export interface DownloadEventCsvExportStreamShape {
     DatabaseError | import("./errors.ts").OperationsStoredDataError
   >;
 }
+
+export type CatalogLibraryReadServiceShape = Pick<
+  CatalogDownloadViewSupportShape,
+  "getCalendar" | "getRenamePreview" | "getWantedMissing"
+>;
+
+export class CatalogLibraryReadService extends Context.Tag("@bakarr/api/CatalogLibraryReadService")<
+  CatalogLibraryReadService,
+  CatalogLibraryReadServiceShape
+>() {}
 
 type DownloadEventQueryInput = {
   animeId?: number;
@@ -160,6 +187,103 @@ export function makeCatalogDownloadViewSupport(input: {
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogDownloadViewSupportShape {
   const { nowIso } = input;
+  const getWantedMissing = Effect.fn("OperationsService.getWantedMissing")(function* (
+    limit: number,
+  ) {
+    const now = new Date(yield* nowIso()).toISOString();
+    const rows = yield* input.tryDatabasePromise("Failed to load wanted episodes", () =>
+      input.db
+        .select({
+          animeId: anime.id,
+          animeTitle: anime.titleRomaji,
+          coverImage: anime.coverImage,
+          nextAiringAt: anime.nextAiringAt,
+          nextAiringEpisode: anime.nextAiringEpisode,
+          episodeNumber: episodes.number,
+          title: episodes.title,
+          aired: episodes.aired,
+        })
+        .from(episodes)
+        .innerJoin(anime, eq(anime.id, episodes.animeId))
+        .where(
+          and(
+            eq(anime.monitored, true),
+            eq(episodes.downloaded, false),
+            sql`${episodes.aired} is not null`,
+            sql`${episodes.aired} <= ${now}`,
+          ),
+        )
+        .orderBy(episodes.aired, anime.titleRomaji)
+        .limit(Math.max(1, limit)),
+    );
+
+    return rows.map((row) => {
+      const timeline = deriveEpisodeTimelineMetadata(row.aired ?? undefined, new Date(now));
+
+      return {
+        aired: row.aired ?? undefined,
+        airing_status: timeline.airing_status,
+        anime_id: row.animeId,
+        anime_image: row.coverImage ?? undefined,
+        anime_title: row.animeTitle,
+        episode_number: row.episodeNumber,
+        episode_title: row.title ?? undefined,
+        is_future: timeline.is_future,
+        next_airing_episode:
+          row.nextAiringAt && row.nextAiringEpisode
+            ? {
+                airing_at: row.nextAiringAt,
+                episode: row.nextAiringEpisode,
+              }
+            : undefined,
+      } satisfies MissingEpisode;
+    });
+  });
+
+  const getCalendar = Effect.fn("OperationsService.getCalendar")(function* (
+    start: string,
+    end: string,
+  ) {
+    const now = new Date(yield* nowIso());
+    const nowIsoValue = now.toISOString();
+    const rows = yield* input.tryDatabasePromise("Failed to load calendar events", () =>
+      input.db
+        .select()
+        .from(episodes)
+        .innerJoin(anime, eq(anime.id, episodes.animeId))
+        .where(and(sql`${episodes.aired} >= ${start}`, sql`${episodes.aired} <= ${end}`))
+        .orderBy(episodes.aired, anime.titleRomaji),
+    );
+
+    return rows.map(({ anime: animeRow, episodes: episodeRow }) => {
+      const timeline = deriveEpisodeTimelineMetadata(episodeRow.aired ?? undefined, now);
+
+      return {
+        all_day: isAllDayAiring(episodeRow.aired),
+        end: episodeRow.aired ?? nowIsoValue,
+        extended_props: {
+          airing_status: timeline.airing_status,
+          anime_id: animeRow.id,
+          anime_image: animeRow.coverImage ?? undefined,
+          anime_title: animeRow.titleRomaji,
+          downloaded: episodeRow.downloaded,
+          episode_number: episodeRow.number,
+          episode_title: episodeRow.title ?? undefined,
+          is_future: timeline.is_future,
+        },
+        id: `${animeRow.id}-${episodeRow.number}`,
+        start: episodeRow.aired ?? nowIsoValue,
+        title: buildCalendarEventTitle(animeRow.titleRomaji, episodeRow),
+      } satisfies CalendarEvent;
+    });
+  });
+
+  const getRenamePreview = Effect.fn("OperationsService.getRenamePreview")(function* (
+    animeId: number,
+  ) {
+    return yield* buildRenamePreview(input.db, animeId);
+  });
+
   const listDownloadEvents = Effect.fn("OperationsService.listDownloadEvents")(function* (
     queryInput: {
       animeId?: number;
@@ -340,12 +464,39 @@ export function makeCatalogDownloadViewSupport(input: {
     return yield* Effect.forEach(rows, (row) => toDownload(row, contexts.get(row.id)));
   });
 
-  const listDownloadHistory = Effect.fn("OperationsService.listDownloadHistory")(function* () {
+  const listDownloadHistory = Effect.fn("OperationsService.listDownloadHistory")(function* (
+    queryInput: { cursor?: string; limit?: number } = {},
+  ) {
+    const limit = Math.max(1, Math.min(queryInput.limit ?? 200, 1000));
+    const cursorId =
+      queryInput.cursor && /^\d+$/.test(queryInput.cursor) ? Number(queryInput.cursor) : undefined;
+    const query = input.db
+      .select()
+      .from(downloads)
+      .orderBy(desc(downloads.id))
+      .limit(limit + 1);
     const rows = yield* input.tryDatabasePromise("Failed to list download history", () =>
-      input.db.select().from(downloads).orderBy(desc(downloads.id)),
+      cursorId ? query.where(lt(downloads.id, cursorId)) : query,
     );
-    const contexts = yield* loadDownloadPresentationContexts(input.db, rows);
-    return yield* Effect.forEach(rows, (row) => toDownload(row, contexts.get(row.id)));
+    const hasMore = rows.length > limit;
+    const pageRows = hasMore ? rows.slice(0, limit) : rows;
+    const contexts = yield* loadDownloadPresentationContexts(input.db, pageRows);
+    const mappedRows = yield* Effect.forEach(pageRows, (row) =>
+      toDownload(row, contexts.get(row.id)),
+    );
+    const countRows = yield* input.tryDatabasePromise("Failed to count download history", () =>
+      input.db.select({ count: sql<number>`count(*)` }).from(downloads),
+    );
+    const total = Number(countRows[0]?.count ?? 0);
+    const nextCursor = hasMore ? pageRows[pageRows.length - 1]?.id : undefined;
+
+    return {
+      downloads: mappedRows,
+      has_more: hasMore,
+      limit,
+      next_cursor: nextCursor ? String(nextCursor) : undefined,
+      total,
+    } satisfies DownloadHistoryPage;
   });
 
   const getDownloadProgress = Effect.fn("OperationsService.getDownloadProgress")(function* () {
@@ -361,10 +512,13 @@ export function makeCatalogDownloadViewSupport(input: {
   });
 
   return {
+    getCalendar,
     getDownloadProgress,
     listDownloadEvents,
     listDownloadHistory,
     listDownloadQueue,
+    getRenamePreview,
+    getWantedMissing,
     streamDownloadEventsExportCsv,
     streamDownloadEventsExportJson,
   };
@@ -479,4 +633,72 @@ function escapeCsv(value: string): string {
   }
 
   return value;
+}
+
+export type CatalogDownloadReadServiceShape = Pick<
+  CatalogDownloadViewSupportShape,
+  | "getDownloadProgress"
+  | "listDownloadEvents"
+  | "listDownloadHistory"
+  | "listDownloadQueue"
+  | "streamDownloadEventsExportCsv"
+  | "streamDownloadEventsExportJson"
+>;
+
+export class CatalogDownloadReadService extends Context.Tag(
+  "@bakarr/api/CatalogDownloadReadService",
+)<CatalogDownloadReadService, CatalogDownloadReadServiceShape>() {}
+
+export const CatalogDownloadReadServiceLive = Layer.effect(
+  CatalogDownloadReadService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const clock = yield* ClockService;
+    const support = makeCatalogDownloadViewSupport({
+      db,
+      nowIso: () => nowIsoFromClock(clock),
+      tryDatabasePromise,
+    });
+
+    return CatalogDownloadReadService.of({
+      getDownloadProgress: support.getDownloadProgress,
+      listDownloadEvents: support.listDownloadEvents,
+      listDownloadHistory: support.listDownloadHistory,
+      listDownloadQueue: support.listDownloadQueue,
+      streamDownloadEventsExportCsv: support.streamDownloadEventsExportCsv,
+      streamDownloadEventsExportJson: support.streamDownloadEventsExportJson,
+    });
+  }),
+);
+
+export const CatalogLibraryReadServiceLive = Layer.effect(
+  CatalogLibraryReadService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const clock = yield* ClockService;
+    const support = makeCatalogDownloadViewSupport({
+      db,
+      nowIso: () => nowIsoFromClock(clock),
+      tryDatabasePromise,
+    });
+
+    return CatalogLibraryReadService.of({
+      getCalendar: support.getCalendar,
+      getRenamePreview: support.getRenamePreview,
+      getWantedMissing: support.getWantedMissing,
+    });
+  }),
+);
+
+function isAllDayAiring(aired?: string | null) {
+  return !aired?.includes("T");
+}
+
+function buildCalendarEventTitle(
+  animeTitle: string,
+  episodeRow: { number: number; title: string | null },
+) {
+  return episodeRow.title
+    ? `${animeTitle} - Episode ${episodeRow.number}: ${episodeRow.title}`
+    : `${animeTitle} - Episode ${episodeRow.number}`;
 }

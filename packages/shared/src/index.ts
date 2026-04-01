@@ -495,6 +495,22 @@ export const DownloadSchema: Schema.Schema<Download> = Schema.mutable(
   }),
 );
 
+export interface DownloadHistoryPage {
+  downloads: Download[];
+  limit: number;
+  total: number;
+  has_more: boolean;
+  next_cursor?: string;
+}
+
+export const DownloadHistoryPageSchema: Schema.Schema<DownloadHistoryPage> = Schema.Struct({
+  downloads: Schema.mutable(Schema.Array(DownloadSchema)),
+  limit: Schema.Number,
+  total: Schema.Number,
+  has_more: Schema.Boolean,
+  next_cursor: Schema.optional(Schema.String),
+});
+
 export interface LibraryRoot {
   id: number;
   label: string;

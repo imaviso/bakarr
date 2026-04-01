@@ -64,12 +64,24 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
           .select()
           .from(episodes)
           .innerJoin(anime, eq(anime.id, episodes.animeId))
-          .where(and(...missingConditions)),
+          .where(and(...missingConditions))
+          .orderBy(episodes.aired, anime.titleRomaji)
+          .limit(10),
       );
       const runtimeConfig = yield* loadRuntimeConfig(db);
       let queued = 0;
+      const missingEpisodesByAnimeId = new Map<number, number[]>();
 
-      for (const row of missingRows.slice(0, 10)) {
+      for (const row of missingRows) {
+        const existing = missingEpisodesByAnimeId.get(row.anime.id);
+        if (existing) {
+          existing.push(row.episodes.number);
+        } else {
+          missingEpisodesByAnimeId.set(row.anime.id, [row.episodes.number]);
+        }
+      }
+
+      for (const row of missingRows) {
         const profile = yield* qualityProfileService.requireQualityProfile(row.anime.profileName);
         const rules = yield* loadReleaseRules(db, row.anime);
         const currentEpisode = yield* loadCurrentEpisodeState(
@@ -111,9 +123,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
           eventMessage: `Queued ${best.item.title}`,
           eventType: "download.search_missing.queued",
           item: best.item,
-          missingEpisodes: missingRows
-            .filter((entry) => entry.anime.id === row.anime.id)
-            .map((entry) => entry.episodes.number),
+          missingEpisodes: missingEpisodesByAnimeId.get(row.anime.id) ?? [],
           qbitConfig: queueService.maybeQBitConfig(runtimeConfig),
         });
 

@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
 import { DownloadTriggerService } from "@/features/operations/download-trigger-coordinator-service.ts";
-import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-support.ts";
+import { CatalogLibraryReadService } from "@/features/operations/catalog-download-view-support.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
 import { SearchEpisodeService } from "@/features/operations/search-orchestration-episode-support.ts";
 import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";

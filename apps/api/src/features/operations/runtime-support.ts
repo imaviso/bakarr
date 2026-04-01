@@ -30,7 +30,9 @@ export const DownloadTriggerCoordinatorLive = Layer.effect(
 
 export interface UnmappedScanCoordinatorShape {
   readonly completeUnmappedScan: () => Effect.Effect<void>;
-  readonly forkUnmappedScanLoop: (loop: Effect.Effect<void>) => Effect.Effect<void>;
+  readonly forkUnmappedScanLoop: <A, E, R>(
+    loop: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<void, never, R>;
   readonly tryBeginUnmappedScan: () => Effect.Effect<boolean>;
 }
 
@@ -48,7 +50,7 @@ const makeUnmappedScanCoordinator = Effect.fn("OperationsService.makeUnmappedSca
 
     return {
       completeUnmappedScan: () => coordinator.finish,
-      forkUnmappedScanLoop: (loop: Effect.Effect<void>) =>
+      forkUnmappedScanLoop: <A, E, R>(loop: Effect.Effect<A, E, R>) =>
         Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
       tryBeginUnmappedScan: () => coordinator.tryStart,
     } satisfies UnmappedScanCoordinatorShape;

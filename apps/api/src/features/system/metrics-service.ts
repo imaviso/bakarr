@@ -2,7 +2,7 @@ import { Context, Effect, Layer, Metric } from "effect";
 
 import type { DatabaseError } from "@/db/database.ts";
 import { renderBakarrPrometheusMetrics } from "@/lib/metrics.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog-download-view-support.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { SystemStatusService } from "@/features/system/system-status-service.ts";
 import type { DiskSpaceError } from "@/features/system/disk-space.ts";

@@ -5,7 +5,7 @@ import { AnimeFileService } from "@/features/anime/anime-file-service.ts";
 import { AnimeEnrollmentService } from "@/features/anime/anime-enrollment-service.ts";
 import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-service.ts";
 import { AnimeSettingsService } from "@/features/anime/anime-settings-service.ts";
-import { CatalogLibraryWriteService } from "@/features/operations/catalog-orchestration-library-write-support.ts";
+import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-scan-support.ts";
 import {
   AddAnimeInputSchema,
   AnimeEpisodeParamsSchema,
