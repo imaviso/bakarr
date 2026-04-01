@@ -1336,6 +1336,8 @@ export interface ScanResult {
   files: ScannedFile[];
   skipped: SkippedFile[];
   candidates: AnimeSearchResult[];
+  truncated?: boolean;
+  total_scanned?: number;
 }
 
 export const ScanResultSchema: Schema.Schema<ScanResult> = Schema.mutable(
@@ -1343,6 +1345,8 @@ export const ScanResultSchema: Schema.Schema<ScanResult> = Schema.mutable(
     files: Schema.mutable(Schema.Array(ScannedFileSchema)),
     skipped: Schema.mutable(Schema.Array(SkippedFileSchema)),
     candidates: Schema.mutable(Schema.Array(Schema.suspend(() => AnimeSearchResultSchema))),
+    truncated: Schema.optional(Schema.Boolean),
+    total_scanned: Schema.optional(Schema.Number),
   }),
 );
 

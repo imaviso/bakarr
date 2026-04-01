@@ -5,14 +5,9 @@ import { Database, type AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { DownloadTorrentLifecycleService } from "@/features/operations/download-torrent-lifecycle-service.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import { toDownloadStatus } from "@/features/operations/repository/download-repository.ts";
-import {
-  type OperationsError,
-  OperationsInfrastructureError,
-} from "@/features/operations/errors.ts";
-import type { ExternalCallError } from "@/lib/effect-retry.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 
 export type DownloadProgressSupportShape = ReturnType<typeof makeDownloadProgressSupport>;
@@ -25,20 +20,15 @@ export class DownloadProgressSupport extends Context.Tag("@bakarr/api/DownloadPr
 export interface DownloadProgressSupportInput {
   readonly db: AppDatabase;
   readonly eventBus: typeof EventBus.Service;
-  readonly syncDownloadsWithQBitEffect: () => Effect.Effect<
-    void,
-    ExternalCallError | OperationsError | DatabaseError
-  >;
   readonly tryDatabasePromise: TryDatabasePromise;
 }
 
 export function makeDownloadProgressSupport(input: DownloadProgressSupportInput) {
-  const { db, eventBus, syncDownloadsWithQBitEffect, tryDatabasePromise } = input;
+  const { db, eventBus, tryDatabasePromise } = input;
 
   const getDownloadProgressSnapshotEffect = Effect.fn(
     "OperationsService.getDownloadProgressSnapshot",
   )(function* () {
-    yield* syncDownloadsWithQBitEffect();
     const rows = yield* tryDatabasePromise("Failed to load download progress snapshot", () =>
       db
         .select()
@@ -80,12 +70,10 @@ export const DownloadProgressSupportLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const eventBus = yield* EventBus;
-    const torrentLifecycleService = yield* DownloadTorrentLifecycleService;
 
     return makeDownloadProgressSupport({
       db,
       eventBus,
-      syncDownloadsWithQBitEffect: torrentLifecycleService.syncDownloadsWithQBitEffect,
       tryDatabasePromise,
     });
   }),

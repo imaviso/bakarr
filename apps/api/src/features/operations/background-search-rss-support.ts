@@ -12,7 +12,9 @@ import {
 } from "@/features/operations/job-support.ts";
 import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { BackgroundSearchRssFeedService } from "@/features/operations/background-search-rss-feed-service.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import {
+  OperationsInfrastructureError,
+} from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
@@ -71,7 +73,7 @@ export const SearchBackgroundRssServiceLive = Layer.effect(
         });
         yield* progress.publishDownloadProgress();
 
-        return { newItems };
+        return undefined;
       }).pipe(
         Effect.withSpan("operations.rss.check"),
         Effect.catchTag("DatabaseError", (error) =>
@@ -80,13 +82,13 @@ export const SearchBackgroundRssServiceLive = Layer.effect(
         Effect.catchTag("OperationsInfrastructureError", (error) =>
           markJobFailed(db, "rss", error, nowIso).pipe(Effect.zipRight(Effect.fail(error))),
         ),
-        Effect.catchAll((cause) =>
-          markJobFailed(db, "rss", cause, nowIso).pipe(
+        Effect.catchAllDefect((defect) =>
+          markJobFailed(db, "rss", defect, nowIso).pipe(
             Effect.zipRight(
               Effect.fail(
                 new OperationsInfrastructureError({
                   message: "Failed to run RSS check",
-                  cause,
+                  cause: defect,
                 }),
               ),
             ),

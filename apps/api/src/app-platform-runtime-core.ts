@@ -36,15 +36,9 @@ export function makeAppPlatformCoreRuntimeLayer(
   overrides: Partial<AppConfigShape> = {},
   options?: AppPlatformRuntimeOptions,
 ) {
-  const coreSupportLayer = Layer.mergeAll(
-    ClockServiceLive,
-    RandomServiceLive,
-    FetchHttpClient.layer,
-  );
+  const coreSupportLayer = Layer.mergeAll(ClockServiceLive, RandomServiceLive, FetchHttpClient.layer);
   const configBaseLayer = options?.configProvider
-    ? AppConfig.layer(overrides).pipe(
-        Layer.provide(Layer.setConfigProvider(options.configProvider)),
-      )
+    ? AppConfig.layer(overrides).pipe(Layer.provide(Layer.setConfigProvider(options.configProvider)))
     : AppConfig.layer(overrides);
   const configLayer = configBaseLayer.pipe(Layer.provide(coreSupportLayer));
   const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(coreSupportLayer));

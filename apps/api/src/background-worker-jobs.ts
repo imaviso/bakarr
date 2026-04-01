@@ -3,10 +3,8 @@ import { Context, Effect, Layer } from "effect";
 import type { DatabaseError } from "@/db/database.ts";
 import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-service.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
 import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
-import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-support.ts";
+import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-service.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search-rss-support.ts";
@@ -30,9 +28,7 @@ export class BackgroundWorkerJobs extends Context.Tag("@bakarr/api/BackgroundWor
 export const BackgroundWorkerJobsLive = Layer.effect(
   BackgroundWorkerJobs,
   Effect.gen(function* () {
-    const eventBus = yield* EventBus;
     const downloadCommandService = yield* CatalogDownloadCommandService;
-    const downloadReadService = yield* CatalogDownloadReadService;
     const catalogLibraryScanService = yield* CatalogLibraryScanService;
     const animeMaintenanceService = yield* AnimeMaintenanceService;
     const searchBackgroundMissingService = yield* SearchBackgroundMissingService;
@@ -46,11 +42,6 @@ export const BackgroundWorkerJobsLive = Layer.effect(
     const runDownloadSyncWorkerTask = Effect.fn("Background.runDownloadSyncWorkerTask")(
       function* () {
         yield* downloadCommandService.syncDownloads();
-        const downloads = yield* downloadReadService.getDownloadProgress();
-        yield* eventBus.publish({
-          type: "DownloadProgress",
-          payload: { downloads },
-        });
       },
     );
 

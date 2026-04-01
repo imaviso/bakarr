@@ -7,6 +7,7 @@ import {
   DownloadIdFromStringSchema,
   EpisodeNumberSchema,
   NonNegativeIntFromStringSchema,
+  PositiveIntSchema,
   PositiveIntFromStringSchema,
 } from "@/lib/domain-schema.ts";
 import {
@@ -149,6 +150,7 @@ export class ScanImportPathBodySchema extends Schema.Class<ScanImportPathBodySch
   "ScanImportPathBodySchema",
 )({
   anime_id: Schema.optional(AnimeIdSchema),
+  limit: Schema.optional(PositiveIntSchema),
   path: AbsoluteFilesystemPathStringSchema,
 }) {}
 

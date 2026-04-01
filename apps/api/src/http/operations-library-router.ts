@@ -2,8 +2,18 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { LibraryBrowseService } from "@/features/operations/library-browse-service.ts";
-import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-scan-support.ts";
-import { SearchImportPathService } from "@/features/operations/search-orchestration-import-path-support.ts";
+import { CatalogLibraryWriteService } from "@/features/operations/catalog-library-write-service.ts";
+import { DatabaseError } from "@/db/database.ts";
+import { AniListClient } from "@/features/anime/anilist.ts";
+import { Database } from "@/db/database.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
+import { MediaProbe } from "@/lib/media-probe.ts";
+import {
+  OperationsInfrastructureError,
+  OperationsPathError,
+} from "@/features/operations/errors.ts";
+import { scanImportPathEffect } from "@/features/operations/import-path-scan-support.ts";
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { UnmappedControlService } from "@/features/operations/unmapped-control-service.ts";
 import { UnmappedImportService } from "@/features/operations/unmapped-orchestration-import.ts";
 import { UnmappedScanService } from "@/features/operations/unmapped-scan-service.ts";
@@ -96,7 +106,30 @@ export const libraryRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(ScanImportPathBodySchema, "scan import path");
-        return yield* (yield* SearchImportPathService).scanImportPath(body.path, body.anime_id);
+        const { db } = yield* Database;
+        const aniList = yield* AniListClient;
+        const fs = yield* FileSystem;
+        const mediaProbe = yield* MediaProbe;
+
+        return yield* scanImportPathEffect({
+          aniList,
+          animeId: body.anime_id,
+          db,
+          fs,
+          limit: body.limit,
+          mediaProbe,
+          path: body.path,
+          tryDatabasePromise,
+        }).pipe(
+          Effect.mapError((error) =>
+            error instanceof DatabaseError || error instanceof OperationsPathError
+              ? error
+              : new OperationsInfrastructureError({
+                  message: "Failed to scan import path",
+                  cause: error,
+                }),
+          ),
+        );
       }),
       jsonResponse,
     ),

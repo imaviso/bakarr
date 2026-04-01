@@ -1,5 +1,5 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { and, eq, inArray, or } from "drizzle-orm";
+import { Effect, Stream } from "effect";
 
 import type {
   AnimeSearchResult,
@@ -18,7 +18,8 @@ import {
 } from "@/lib/media-probe.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
 import { OperationsPathError } from "@/features/operations/errors.ts";
-import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
+import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
+import { resolveImportScanLimit } from "@/features/operations/import-path-scan-policy.ts";
 import {
   analyzeScannedFile,
   findBestLocalAnimeMatch,
@@ -38,6 +39,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
     animeId?: number;
     db: AppDatabase;
     fs: FileSystemShape;
+    limit?: number;
     mediaProbe: MediaProbeShape;
     path: string;
     tryDatabasePromise: TryDatabasePromise;
@@ -51,16 +53,23 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
       ),
     );
 
-    const files = [
-      ...(yield* scanVideoFiles(input.fs, canonicalPath).pipe(
+    const limit = resolveImportScanLimit(input.limit);
+    const scannedFiles = Array.from(
+      yield* scanVideoFilesStream(input.fs, canonicalPath).pipe(
+        Stream.take(limit + 1),
+        Stream.runCollect,
         Effect.mapError(
           () =>
             new OperationsPathError({
               message: `Import path is inaccessible: ${canonicalPath}`,
             }),
         ),
-      )),
-    ].sort((a, b) => a.path.localeCompare(b.path));
+      ),
+    );
+    const truncated = scannedFiles.length > limit;
+    const files = (truncated ? scannedFiles.slice(0, limit) : scannedFiles).sort((a, b) =>
+      a.path.localeCompare(b.path),
+    );
     const animeRows = input.animeId
       ? [yield* requireAnime(input.db, input.animeId!)]
       : yield* input.tryDatabasePromise("Failed to scan import path", () =>
@@ -87,10 +96,36 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
       enrichScannedImportFile,
       { concurrency: 4 },
     );
+    const episodeNumberCandidates = [
+      ...new Set(
+        enrichedEpisodeNumbers(analyzed.map((entry) => entry.scanned)).filter((value) => value > 0),
+      ),
+    ];
+    const candidatePaths = [
+      ...new Set(analyzed.map((entry) => entry.scanned.source_path).filter((value) => value.length > 0)),
+    ];
+    const candidateAnimeIds = animeRows.map((row) => row.id);
     const mappedEpisodeRows =
-      files.length > 0
-        ? yield* input.tryDatabasePromise("Failed to scan import path", () =>
-            input.db
+      candidatePaths.length > 0 || (candidateAnimeIds.length > 0 && episodeNumberCandidates.length > 0)
+        ? yield* input.tryDatabasePromise("Failed to scan import path", () => {
+            const byPath = candidatePaths.length > 0
+              ? inArray(episodes.filePath, candidatePaths)
+              : undefined;
+            const byAnimeEpisode =
+              candidateAnimeIds.length > 0 && episodeNumberCandidates.length > 0
+                ? and(
+                    inArray(episodes.animeId, candidateAnimeIds),
+                    inArray(episodes.number, episodeNumberCandidates),
+                  )
+                : undefined;
+            const whereClause =
+              byPath && byAnimeEpisode
+                ? or(byPath, byAnimeEpisode)
+                : byPath
+                  ? byPath
+                  : byAnimeEpisode;
+
+            const query = input.db
               .select({
                 anime_id: episodes.animeId,
                 anime_title: anime.titleRomaji,
@@ -98,18 +133,14 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
                 file_path: episodes.filePath,
               })
               .from(episodes)
-              .innerJoin(anime, eq(episodes.animeId, anime.id))
-              .where(sql`${episodes.filePath} is not null`),
-          )
+              .innerJoin(anime, eq(episodes.animeId, anime.id));
+
+            return whereClause ? query.where(whereClause) : Promise.resolve([]);
+          })
         : [];
     const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
     const namingSettings = yield* currentNamingSettings(input.db);
     const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
-    const episodeNumberCandidates = [
-      ...new Set(
-        enrichedEpisodeNumbers(analyzed.map((entry) => entry.scanned)).filter((value) => value > 0),
-      ),
-    ];
     const scopedEpisodeRows =
       animeRows.length > 0 && episodeNumberCandidates.length > 0
         ? yield* input.tryDatabasePromise("Failed to scan import path", () =>
@@ -256,6 +287,8 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
         };
       }),
       skipped: skippedFiles,
+      total_scanned: analyzed.length,
+      truncated: truncated || undefined,
     } satisfies ScanResult;
   },
 );

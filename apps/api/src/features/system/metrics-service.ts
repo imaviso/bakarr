@@ -1,18 +1,14 @@
 import { Context, Effect, Layer, Metric } from "effect";
 
-import type { DatabaseError } from "@/db/database.ts";
 import { renderBakarrPrometheusMetrics } from "@/lib/metrics.ts";
-import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
-import type { OperationsError } from "@/features/operations/errors.ts";
-import { SystemStatusService } from "@/features/system/system-status-service.ts";
+import type { DatabaseError } from "@/db/database.ts";
 import type { DiskSpaceError } from "@/features/system/disk-space.ts";
 import { BackgroundJobStatusError } from "@/features/system/background-job-status-service.ts";
+import {
+  SystemSummaryService,
+} from "@/features/system/system-summary-service.ts";
 
-export type MetricsServiceError =
-  | DatabaseError
-  | BackgroundJobStatusError
-  | DiskSpaceError
-  | OperationsError;
+export type MetricsServiceError = DatabaseError | BackgroundJobStatusError | DiskSpaceError;
 
 export interface MetricsServiceShape {
   readonly renderPrometheusMetrics: () => Effect.Effect<string, MetricsServiceError>;
@@ -23,40 +19,38 @@ export class MetricsService extends Context.Tag("@bakarr/api/MetricsService")<
   MetricsServiceShape
 >() {}
 
-const makeMetricsService = Effect.gen(function* () {
-  const systemService = yield* SystemStatusService;
-  const downloadReadService = yield* CatalogDownloadReadService;
+export const MetricsServiceLive = Layer.effect(
+  MetricsService,
+  Effect.gen(function* () {
+    const summaryService = yield* SystemSummaryService;
 
-  const renderPrometheusMetrics = Effect.fn("MetricsService.renderPrometheusMetrics")(function* () {
-    const [status, stats, downloadSummary] = yield* Effect.all([
-      systemService.getSystemStatus(),
-      systemService.getLibraryStats(),
-      downloadReadService.getDownloadRuntimeSummary(),
-    ]);
-    const snapshot = yield* Metric.snapshot;
+    const renderPrometheusMetrics = Effect.fn("MetricsService.renderPrometheusMetrics")(
+      function* () {
+        const metricsSummary = yield* summaryService.getRuntimeMetricsSummary();
+        const snapshot = yield* Metric.snapshot;
 
-    return (
-      [
-        "# TYPE bakarr_active_torrents gauge",
-        `bakarr_active_torrents ${status.active_torrents}`,
-        "# TYPE bakarr_pending_downloads gauge",
-        `bakarr_pending_downloads ${status.pending_downloads}`,
-        "# TYPE bakarr_total_anime gauge",
-        `bakarr_total_anime ${stats.total_anime}`,
-        "# TYPE bakarr_total_episodes gauge",
-        `bakarr_total_episodes ${stats.total_episodes}`,
-        "# TYPE bakarr_downloaded_episodes gauge",
-        `bakarr_downloaded_episodes ${stats.downloaded_episodes}`,
-        "# TYPE bakarr_missing_episodes gauge",
-        `bakarr_missing_episodes ${stats.missing_episodes}`,
-        "# TYPE bakarr_active_download_items gauge",
-        `bakarr_active_download_items ${downloadSummary.active_count}`,
-        ...renderBakarrPrometheusMetrics(snapshot),
-      ].join("\n") + "\n"
+        return (
+          [
+            "# TYPE bakarr_active_torrents gauge",
+            `bakarr_active_torrents ${metricsSummary.active_torrents}`,
+            "# TYPE bakarr_pending_downloads gauge",
+            `bakarr_pending_downloads ${metricsSummary.pending_downloads}`,
+            "# TYPE bakarr_total_anime gauge",
+            `bakarr_total_anime ${metricsSummary.total_anime}`,
+            "# TYPE bakarr_total_episodes gauge",
+            `bakarr_total_episodes ${metricsSummary.total_episodes}`,
+            "# TYPE bakarr_downloaded_episodes gauge",
+            `bakarr_downloaded_episodes ${metricsSummary.downloaded_episodes}`,
+            "# TYPE bakarr_missing_episodes gauge",
+            `bakarr_missing_episodes ${metricsSummary.missing_episodes}`,
+            "# TYPE bakarr_active_download_items gauge",
+            `bakarr_active_download_items ${metricsSummary.active_download_items}`,
+            ...renderBakarrPrometheusMetrics(snapshot),
+          ].join("\n") + "\n"
+        );
+      },
     );
-  });
 
-  return { renderPrometheusMetrics } satisfies MetricsServiceShape;
-});
-
-export const MetricsServiceLive = Layer.effect(MetricsService, makeMetricsService);
+    return { renderPrometheusMetrics } satisfies MetricsServiceShape;
+  }),
+);

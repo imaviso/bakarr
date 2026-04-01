@@ -7,13 +7,11 @@ import { anime, episodes } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { decideDownloadAction } from "@/features/operations/release-ranking.ts";
 import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
-import { loadReleaseRules } from "@/features/operations/repository/profile-repository.ts";
+import { loadQualityProfile, loadReleaseRules } from "@/features/operations/repository/profile-repository.ts";
 import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import { BackgroundSearchQualityProfileService } from "@/features/operations/background-search-quality-profile-service.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search-queue-service.ts";
-import { BackgroundSearchSkipLogService } from "@/features/operations/background-search-skip-log-service.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { OperationsInfrastructureError, OperationsInputError } from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
 import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
@@ -38,9 +36,37 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
     const progress = yield* OperationsProgress;
     const searchReleaseService = yield* SearchReleaseService;
     const queueService = yield* BackgroundSearchQueueService;
-    const qualityProfileService = yield* BackgroundSearchQualityProfileService;
-    const skipLogService = yield* BackgroundSearchSkipLogService;
     const nowIso = () => nowIsoFromClock(clock);
+
+    const requireQualityProfile = Effect.fn("BackgroundSearchMissing.requireQualityProfile")(
+      function* (profileName: string) {
+        const profile = yield* loadQualityProfile(db, profileName);
+
+        if (!profile) {
+          return yield* new OperationsInputError({
+            message: `Quality profile '${profileName}' not found`,
+          });
+        }
+
+        return profile;
+      },
+    );
+
+    const logSearchMissingSkip = Effect.fn("BackgroundSearchMissing.logSearchMissingSkip")(
+      function* (input: {
+        animeId: number;
+        episodeNumber: number;
+        reason: string;
+      }) {
+        yield* Effect.logDebug("Skipping missing-episode background action").pipe(
+          Effect.annotateLogs({
+            animeId: input.animeId,
+            episodeNumber: input.episodeNumber,
+            reason: input.reason,
+          }),
+        );
+      },
+    );
 
     const triggerSearchMissingBase = Effect.fn("operations.search.missing")(function* (
       animeId?: number,
@@ -82,7 +108,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
       }
 
       for (const row of missingRows) {
-        const profile = yield* qualityProfileService.requireQualityProfile(row.anime.profileName);
+        const profile = yield* requireQualityProfile(row.anime.profileName);
         const rules = yield* loadReleaseRules(db, row.anime);
         const currentEpisode = yield* loadCurrentEpisodeState(
           db,
@@ -102,7 +128,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
           .find((entry) => entry.action.Accept || entry.action.Upgrade);
 
         if (!best) {
-          yield* skipLogService.logSearchMissingSkip({
+          yield* logSearchMissingSkip({
             animeId: row.anime.id,
             episodeNumber: row.episodes.number,
             reason: "no acceptable release candidates",
@@ -128,7 +154,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
         });
 
         if (queueResult._tag === "skipped") {
-          yield* skipLogService.logSearchMissingSkip({
+          yield* logSearchMissingSkip({
             animeId: row.anime.id,
             episodeNumber: row.episodes.number,
             reason: "overlapping download already queued",

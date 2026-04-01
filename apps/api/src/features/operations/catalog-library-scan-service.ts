@@ -18,37 +18,11 @@ import { FileSystem, type FileSystemShape } from "@/lib/filesystem.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
 import { scanAnimeLibraryRow } from "@/features/operations/catalog-library-scan-row-support.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import {
-  importLibraryFiles,
-  type LibraryImportFileInput,
-} from "@/features/operations/catalog-library-write-import-support.ts";
-import { renameLibraryFiles } from "@/features/operations/catalog-library-write-rename-support.ts";
-import type { ImportResult, RenameResult } from "@packages/shared/index.ts";
-import type { OperationsAnimeNotFoundError } from "@/features/operations/errors.ts";
-import { MediaProbe } from "@/lib/media-probe.ts";
 
-export interface CatalogLibraryScanSupportShape {
+export interface CatalogLibraryScanServiceShape {
   readonly runLibraryScan: () => Effect.Effect<
     { matched: number; scanned: number },
     OperationsPathError | DatabaseError | OperationsInfrastructureError
-  >;
-}
-
-export interface CatalogLibraryWriteServiceShape {
-  readonly importFiles: (
-    files: readonly LibraryImportFileInput[],
-  ) => Effect.Effect<
-    ImportResult,
-    | DatabaseError
-    | OperationsPathError
-    | OperationsInfrastructureError
-    | OperationsAnimeNotFoundError
-  >;
-  readonly renameFiles: (
-    animeId: number,
-  ) => Effect.Effect<
-    RenameResult,
-    DatabaseError | OperationsPathError | OperationsAnimeNotFoundError
   >;
 }
 
@@ -59,9 +33,11 @@ function makeCatalogLibraryScanSupport(input: {
   nowIso: () => Effect.Effect<string>;
   publishLibraryScanProgress: (scanned: number) => Effect.Effect<void>;
   tryDatabasePromise: TryDatabasePromise;
-}): CatalogLibraryScanSupportShape {
+}): CatalogLibraryScanServiceShape {
   const { nowIso } = input;
-  const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(
+  const runLibraryScan = Effect.fn(
+    "OperationsService.runLibraryScan",
+  )(
     function* () {
       yield* markJobStarted(input.db, "library_scan", nowIso);
 
@@ -123,73 +99,27 @@ function makeCatalogLibraryScanSupport(input: {
   return { runLibraryScan };
 }
 
-export type CatalogLibraryScanServiceShape = CatalogLibraryScanSupportShape;
-
 export class CatalogLibraryScanService extends Context.Tag("@bakarr/api/CatalogLibraryScanService")<
   CatalogLibraryScanService,
   CatalogLibraryScanServiceShape
 >() {}
 
-const makeCatalogLibraryScanService = Effect.gen(function* () {
-  const { db } = yield* Database;
-  const eventBus = yield* EventBus;
-  const fs = yield* FileSystem;
-  const clock = yield* ClockService;
-  const progress = yield* OperationsProgress;
-
-  return makeCatalogLibraryScanSupport({
-    db,
-    eventBus,
-    fs,
-    nowIso: () => nowIsoFromClock(clock),
-    publishLibraryScanProgress: progress.publishLibraryScanProgress,
-    tryDatabasePromise,
-  });
-});
-
 export const CatalogLibraryScanServiceLive = Layer.effect(
   CatalogLibraryScanService,
-  makeCatalogLibraryScanService,
-);
-
-export class CatalogLibraryWriteService extends Context.Tag(
-  "@bakarr/api/CatalogLibraryWriteService",
-)<CatalogLibraryWriteService, CatalogLibraryWriteServiceShape>() {}
-
-export const CatalogLibraryWriteServiceLive = Layer.effect(
-  CatalogLibraryWriteService,
   Effect.gen(function* () {
     const { db } = yield* Database;
     const eventBus = yield* EventBus;
     const fs = yield* FileSystem;
-    const mediaProbe = yield* MediaProbe;
+    const clock = yield* ClockService;
+    const progress = yield* OperationsProgress;
 
-    const importFiles = Effect.fn("OperationsService.importFiles")(function* (
-      files: readonly LibraryImportFileInput[],
-    ) {
-      return yield* importLibraryFiles({
-        db,
-        eventBus,
-        files,
-        fs,
-        mediaProbe,
-        tryDatabasePromise,
-      });
-    });
-
-    const renameFiles = Effect.fn("OperationsService.renameFiles")(function* (animeId: number) {
-      return yield* renameLibraryFiles({
-        animeId,
-        db,
-        eventBus,
-        fs,
-        tryDatabasePromise,
-      });
-    });
-
-    return CatalogLibraryWriteService.of({
-      importFiles,
-      renameFiles,
+    return makeCatalogLibraryScanSupport({
+      db,
+      eventBus,
+      fs,
+      nowIso: () => nowIsoFromClock(clock),
+      publishLibraryScanProgress: progress.publishLibraryScanProgress,
+      tryDatabasePromise,
     });
   }),
 );

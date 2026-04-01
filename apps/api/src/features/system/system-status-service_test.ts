@@ -18,6 +18,7 @@ import {
   SystemStatusService,
   SystemStatusServiceLive,
 } from "@/features/system/system-status-service.ts";
+import { SystemSummaryServiceLive } from "@/features/system/system-summary-service.ts";
 
 describe("SystemStatusService", () => {
   it.scoped("fails when the stored config row is missing", () =>
@@ -55,15 +56,13 @@ describe("SystemStatusService", () => {
           const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
             Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer)),
           );
-          const systemStatusLayer = SystemStatusServiceLive.pipe(
+          const systemSummaryLayer = SystemSummaryServiceLive.pipe(
             Layer.provide(
-              Layer.mergeAll(
-                baseLayer,
-                systemConfigLayer,
-                diskSpaceLayer,
-                backgroundJobStatusLayer,
-              ),
+              Layer.mergeAll(baseLayer, systemConfigLayer, diskSpaceLayer, backgroundJobStatusLayer),
             ),
+          );
+          const systemStatusLayer = SystemStatusServiceLive.pipe(
+            Layer.provide(Layer.mergeAll(baseLayer, systemSummaryLayer)),
           );
 
           const exit = yield* Effect.exit(

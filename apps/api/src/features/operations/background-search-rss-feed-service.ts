@@ -6,17 +6,15 @@ import { Database, DatabaseError } from "@/db/database.ts";
 import { downloads, rssFeeds } from "@/db/schema.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { RssClient } from "@/features/operations/rss-client.ts";
-import { BackgroundSearchQualityProfileService } from "@/features/operations/background-search-quality-profile-service.ts";
 import { BackgroundSearchQueueService } from "@/features/operations/background-search-queue-service.ts";
-import { BackgroundSearchSkipLogService } from "@/features/operations/background-search-skip-log-service.ts";
-import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
+import { OperationsInfrastructureError, OperationsInputError } from "@/features/operations/errors.ts";
 import { loadMissingEpisodeNumbers } from "@/features/operations/job-support.ts";
 import {
   parseEpisodeFromTitle,
   decideDownloadAction,
 } from "@/features/operations/release-ranking.ts";
 import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
-import { loadReleaseRules } from "@/features/operations/repository/profile-repository.ts";
+import { loadQualityProfile, loadReleaseRules } from "@/features/operations/repository/profile-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
@@ -38,9 +36,37 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
     const clock = yield* ClockService;
     const rssClient = yield* RssClient;
     const queueService = yield* BackgroundSearchQueueService;
-    const qualityProfileService = yield* BackgroundSearchQualityProfileService;
-    const skipLogService = yield* BackgroundSearchSkipLogService;
     const nowIso = () => nowIsoFromClock(clock);
+
+    const requireQualityProfile = Effect.fn("BackgroundSearchRssFeed.requireQualityProfile")(
+      function* (profileName: string) {
+        const profile = yield* loadQualityProfile(db, profileName);
+
+        if (!profile) {
+          return yield* new OperationsInputError({
+            message: `Quality profile '${profileName}' not found`,
+          });
+        }
+
+        return profile;
+      },
+    );
+
+    const logRssSkip = Effect.fn("BackgroundSearchRssFeed.logRssSkip")(function* (input: {
+      animeId?: number;
+      feedId: number;
+      feedName: string;
+      reason: string;
+    }) {
+      yield* Effect.logDebug("Skipping RSS background action").pipe(
+        Effect.annotateLogs({
+          animeId: input.animeId,
+          feedId: input.feedId,
+          feedName: input.feedName,
+          reason: input.reason,
+        }),
+      );
+    });
 
     const processFeed = Effect.fn("BackgroundSearchRssFeedService.processFeed")(function* (
       feed: typeof rssFeeds.$inferSelect,
@@ -60,7 +86,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
             const animeRow = yield* requireAnime(db, feed.animeId);
 
             if (!animeRow.monitored) {
-              yield* skipLogService.logRssSkip({
+              yield* logRssSkip({
                 animeId: animeRow.id,
                 feedId: feed.id,
                 feedName: feed.name ?? feed.url,
@@ -69,15 +95,13 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
               return 0;
             }
 
-            const profile = yield* qualityProfileService.requireQualityProfile(
-              animeRow.profileName,
-            );
+            const profile = yield* requireQualityProfile(animeRow.profileName);
             const rules = yield* loadReleaseRules(db, animeRow);
             let queuedForFeed = 0;
 
             const slice = items.slice(0, 10);
             if (slice.length === 0) {
-              yield* skipLogService.logRssSkip({
+              yield* logRssSkip({
                 animeId: animeRow.id,
                 feedId: feed.id,
                 feedName: feed.name ?? feed.url,
@@ -102,7 +126,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
 
             for (const item of slice) {
               if (existingHashes.has(item.infoHash.toLowerCase())) {
-                yield* skipLogService.logRssSkip({
+                yield* logRssSkip({
                   animeId: animeRow.id,
                   feedId: feed.id,
                   feedName: feed.name ?? feed.url,
@@ -114,7 +138,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
               const episodeNumber = parseEpisodeFromTitle(item.title);
 
               if (episodeNumber == null) {
-                yield* skipLogService.logRssSkip({
+                yield* logRssSkip({
                   animeId: animeRow.id,
                   feedId: feed.id,
                   feedName: feed.name ?? feed.url,
@@ -133,7 +157,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
               );
 
               if (!(action.Accept || action.Upgrade)) {
-                yield* skipLogService.logRssSkip({
+                yield* logRssSkip({
                   animeId: animeRow.id,
                   feedId: feed.id,
                   feedName: feed.name ?? feed.url,
@@ -162,7 +186,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
               });
 
               if (queueResult._tag === "skipped") {
-                yield* skipLogService.logRssSkip({
+                yield* logRssSkip({
                   animeId: animeRow.id,
                   feedId: feed.id,
                   feedName: feed.name ?? feed.url,
