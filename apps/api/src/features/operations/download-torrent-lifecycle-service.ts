@@ -43,11 +43,11 @@ export const DownloadTorrentLifecycleServiceLive = Layer.effect(
     const qbitClient = yield* QBitTorrentClient;
     const clock = yield* ClockService;
     const reconciliationService = yield* DownloadReconciliationService;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
     return makeDownloadTorrentLifecycleService({
       db,
-      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
+      getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
       maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
       qbitClient,

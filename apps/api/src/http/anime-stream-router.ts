@@ -2,12 +2,8 @@ import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platf
 import { Effect } from "effect";
 
 import { AnimeStreamService } from "@/features/anime/anime-stream-service.ts";
-import { FileSystem } from "@/lib/filesystem.ts";
 import { AnimeEpisodeParamsSchema, StreamQuerySchema } from "@/http/anime-request-schemas.ts";
-import { createFileChunkStream } from "@/http/file-stream.ts";
 import { EpisodeStreamAccessError } from "@/http/streaming-errors.ts";
-import { contentType } from "@/http/route-fs.ts";
-import { parseEpisodeStreamRange } from "@/http/anime-streaming-range.ts";
 import { decodePathParams, decodeQueryWithLabel, routeResponse } from "@/http/router-helpers.ts";
 
 export const animeStreamRouter = HttpRouter.empty.pipe(
@@ -23,40 +19,20 @@ export const animeStreamRouter = HttpRouter.empty.pipe(
         );
 
         const request = yield* HttpServerRequest.HttpServerRequest;
-        const streamFile = yield* (yield* AnimeStreamService).resolveAuthorizedEpisodeStreamFile({
+        const streamService = yield* AnimeStreamService;
+        const response = yield* streamService.buildEpisodeStreamResponse({
           animeId: params.id,
           episodeNumber: params.episodeNumber,
           expiresAt: query.exp,
+          rangeHeader: request.headers.range,
           signatureHex: query.sig,
         });
-        const byteRange = yield* parseEpisodeStreamRange(
-          request.headers.range,
-          streamFile.fileSize,
-        );
-        const fs = yield* FileSystem;
 
-        return HttpServerResponse.stream(
-          createFileChunkStream(fs, streamFile.filePath, {
-            range: byteRange,
-          }),
-          {
-            contentType: contentType(streamFile.fileName),
-            headers: {
-              ...(byteRange
-                ? {
-                    "Content-Range": `bytes ${byteRange.start}-${byteRange.end}/${streamFile.fileSize}`,
-                  }
-                : {}),
-              "Accept-Ranges": "bytes",
-              "Content-Disposition": `inline; filename="${streamFile.fileName}"`,
-              "Content-Length": (byteRange
-                ? byteRange.end - byteRange.start + 1
-                : streamFile.fileSize
-              ).toString(),
-            },
-            status: byteRange ? 206 : 200,
-          },
-        );
+        return HttpServerResponse.stream(response.stream, {
+          contentType: response.contentType,
+          headers: response.headers,
+          status: response.status,
+        });
       }),
       Effect.succeed,
     ),

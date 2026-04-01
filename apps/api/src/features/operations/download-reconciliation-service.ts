@@ -62,14 +62,14 @@ export const DownloadReconciliationServiceLive = Layer.effect(
     const qbitClient = yield* QBitTorrentClient;
     const clock = yield* ClockService;
     const random = yield* RandomService;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
     return makeDownloadReconciliationService({
       db,
       eventBus,
       fs,
       mediaProbe,
-      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
+      getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
       maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
       qbitClient,

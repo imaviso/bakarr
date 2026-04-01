@@ -1,37 +1,39 @@
-import { and, eq, inArray, or } from "drizzle-orm";
-import { Effect, Stream } from "effect";
+import { Effect } from "effect";
 
-import type {
-  AnimeSearchResult,
-  FileEpisodeMapping,
-  PreferredTitle,
-  ScannedFile,
-  ScanResult,
-} from "@packages/shared/index.ts";
+import type { AnimeSearchResult, ScanResult } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { anime, episodes } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
-import {
-  type MediaProbeShape,
-  mergeProbedMediaMetadata,
-  shouldProbeMediaMetadata,
-} from "@/lib/media-probe.ts";
+import { type MediaProbeShape } from "@/lib/media-probe.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
-import { OperationsPathError } from "@/features/operations/errors.ts";
-import { scanVideoFilesStream } from "@/features/operations/file-scanner.ts";
-import { resolveImportScanLimit } from "@/features/operations/import-path-scan-policy.ts";
 import {
-  analyzeScannedFile,
   findBestLocalAnimeMatch,
   scoreAnimeRowMatch,
-  titlesMatch,
   toAnimeSearchCandidate,
 } from "@/features/operations/library-import.ts";
-import { buildEpisodeFilenamePlan } from "@/features/operations/naming-support.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import { currentNamingSettings } from "@/features/operations/repository/config-repository.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
-import { scoreAnimeSearchResultMatch, summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
+import { summarizeEpisodeCoverage } from "@/lib/anime-derivations.ts";
+import {
+  findBestRemoteCandidate,
+  enrichedEpisodeNumbers,
+  roundConfidence,
+} from "@/features/operations/import-path-scan-candidate-support.ts";
+import {
+  buildEpisodeFileMappingIndex,
+  buildScannedFileLibrarySignals,
+  buildScannedFileNamingPlan,
+  selectEpisodeRowsForFile,
+} from "@/features/operations/import-path-scan-result-support.ts";
+import {
+  discoverImportScanFiles,
+  extractScanCandidatePaths,
+} from "@/features/operations/import-path-scan-discovery-support.ts";
+import { enrichImportScanFiles } from "@/features/operations/import-path-scan-enrichment-support.ts";
+import {
+  loadImportScanAnimeRows,
+  loadImportScanNamingSettings,
+  loadMappedEpisodeRows,
+  loadScopedEpisodeRows,
+} from "@/features/operations/import-path-scan-library-support.ts";
 
 export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathEffect")(
   function* (input: {
@@ -44,128 +46,47 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
     path: string;
     tryDatabasePromise: TryDatabasePromise;
   }) {
-    const canonicalPath = yield* input.fs.realPath(input.path).pipe(
-      Effect.mapError(
-        () =>
-          new OperationsPathError({
-            message: `Import path is inaccessible: ${input.path}`,
-          }),
-      ),
-    );
-
-    const limit = resolveImportScanLimit(input.limit);
-    const scannedFiles = Array.from(
-      yield* scanVideoFilesStream(input.fs, canonicalPath).pipe(
-        Stream.take(limit + 1),
-        Stream.runCollect,
-        Effect.mapError(
-          () =>
-            new OperationsPathError({
-              message: `Import path is inaccessible: ${canonicalPath}`,
-            }),
-        ),
-      ),
-    );
-    const truncated = scannedFiles.length > limit;
-    const files = (truncated ? scannedFiles.slice(0, limit) : scannedFiles).sort((a, b) =>
-      a.path.localeCompare(b.path),
-    );
-    const animeRows = input.animeId
-      ? [yield* requireAnime(input.db, input.animeId!)]
-      : yield* input.tryDatabasePromise("Failed to scan import path", () =>
-          input.db.select().from(anime),
-        );
-    const analyzed = files.map((file) => analyzeScannedFile(file, canonicalPath));
-    const episodeFiles = analyzed.filter((entry) => !entry.skipped);
-    const skippedFiles = analyzed.filter((entry) => entry.skipped).map((entry) => entry.skipped!);
-    const enrichScannedImportFile = Effect.fn("OperationsService.enrichScannedImportFile")(
-      function* (file: ScannedFile) {
-        if (!shouldProbeMediaMetadata(file)) {
-          return file;
-        }
-
-        const probeResult = yield* input.mediaProbe.probeVideoFile(file.source_path);
-        return mergeProbedMediaMetadata(
-          file,
-          probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
-        );
-      },
-    );
-    const enrichedFiles = yield* Effect.forEach(
-      episodeFiles.map((entry) => entry.scanned),
-      enrichScannedImportFile,
-      { concurrency: 4 },
-    );
+    const discovery = yield* discoverImportScanFiles({
+      fs: input.fs,
+      limit: input.limit,
+      path: input.path,
+    });
+    const animeRows = yield* loadImportScanAnimeRows({
+      animeId: input.animeId,
+      db: input.db,
+      tryDatabasePromise: input.tryDatabasePromise,
+    });
+    const enrichedFiles = yield* enrichImportScanFiles({
+      files: discovery.episodeFiles.map((entry) => entry.scanned),
+      mediaProbe: input.mediaProbe,
+    });
     const episodeNumberCandidates = [
       ...new Set(
-        enrichedEpisodeNumbers(analyzed.map((entry) => entry.scanned)).filter((value) => value > 0),
+        enrichedEpisodeNumbers(discovery.analyzed.map((entry) => entry.scanned)).filter(
+          (value) => value > 0,
+        ),
       ),
     ];
-    const candidatePaths = [
-      ...new Set(
-        analyzed.map((entry) => entry.scanned.source_path).filter((value) => value.length > 0),
-      ),
-    ];
+    const candidatePaths = extractScanCandidatePaths(
+      discovery.analyzed.map((entry) => entry.scanned),
+    );
     const candidateAnimeIds = animeRows.map((row) => row.id);
-    const mappedEpisodeRows =
-      candidatePaths.length > 0 ||
-      (candidateAnimeIds.length > 0 && episodeNumberCandidates.length > 0)
-        ? yield* input.tryDatabasePromise("Failed to scan import path", () => {
-            const byPath =
-              candidatePaths.length > 0 ? inArray(episodes.filePath, candidatePaths) : undefined;
-            const byAnimeEpisode =
-              candidateAnimeIds.length > 0 && episodeNumberCandidates.length > 0
-                ? and(
-                    inArray(episodes.animeId, candidateAnimeIds),
-                    inArray(episodes.number, episodeNumberCandidates),
-                  )
-                : undefined;
-            let whereClause = byAnimeEpisode;
-
-            if (byPath && byAnimeEpisode) {
-              whereClause = or(byPath, byAnimeEpisode);
-            } else if (byPath) {
-              whereClause = byPath;
-            }
-
-            const query = input.db
-              .select({
-                anime_id: episodes.animeId,
-                anime_title: anime.titleRomaji,
-                episode_number: episodes.number,
-                file_path: episodes.filePath,
-              })
-              .from(episodes)
-              .innerJoin(anime, eq(episodes.animeId, anime.id));
-
-            return whereClause ? query.where(whereClause) : Promise.resolve([]);
-          })
-        : [];
+    const mappedEpisodeRows = yield* loadMappedEpisodeRows({
+      candidateAnimeIds,
+      candidatePaths,
+      db: input.db,
+      episodeNumberCandidates,
+      tryDatabasePromise: input.tryDatabasePromise,
+    });
     const mappingIndex = buildEpisodeFileMappingIndex(mappedEpisodeRows);
-    const namingSettings = yield* currentNamingSettings(input.db);
+    const namingSettings = yield* loadImportScanNamingSettings(input.db);
     const animeRowsById = new Map(animeRows.map((row) => [row.id, row]));
-    const scopedEpisodeRows =
-      animeRows.length > 0 && episodeNumberCandidates.length > 0
-        ? yield* input.tryDatabasePromise("Failed to scan import path", () =>
-            input.db
-              .select({
-                aired: episodes.aired,
-                animeId: episodes.animeId,
-                number: episodes.number,
-                title: episodes.title,
-              })
-              .from(episodes)
-              .where(
-                and(
-                  inArray(
-                    episodes.animeId,
-                    animeRows.map((row) => row.id),
-                  ),
-                  inArray(episodes.number, episodeNumberCandidates),
-                ),
-              ),
-          )
-        : [];
+    const scopedEpisodeRows = yield* loadScopedEpisodeRows({
+      animeIds: animeRows.map((row) => row.id),
+      db: input.db,
+      episodeNumberCandidates,
+      tryDatabasePromise: input.tryDatabasePromise,
+    });
     const episodeRowsByAnimeEpisode = new Map(
       scopedEpisodeRows.map((row) => [`${row.animeId}:${row.number}`, row] as const),
     );
@@ -178,7 +99,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
     } else {
       const parsedTitles = [
         ...new Set(
-          episodeFiles
+          discovery.episodeFiles
             .map((entry) => entry.scanned.parsed_title)
             .filter((value) => value.length > 0),
         ),
@@ -199,7 +120,7 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
 
     return {
       candidates: [...candidateMap.values()],
-      files: episodeFiles.map((_entry, index) => {
+      files: discovery.episodeFiles.map((_entry, index) => {
         const file = enrichedFiles[index]!;
         const localMatch = input.animeId
           ? animeRows[0]
@@ -289,264 +210,9 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
           warnings: file.warnings,
         };
       }),
-      skipped: skippedFiles,
-      total_scanned: analyzed.length,
-      truncated: truncated || undefined,
+      skipped: discovery.skippedFiles,
+      total_scanned: discovery.analyzed.length,
+      truncated: discovery.truncated || undefined,
     } satisfies ScanResult;
   },
 );
-
-function findBestRemoteCandidate(parsedTitle: string, candidates: readonly AnimeSearchResult[]) {
-  let bestCandidate: AnimeSearchResult | undefined;
-  let bestScore = 0;
-
-  for (const candidate of candidates) {
-    if (candidate.already_in_library || !titlesMatch(parsedTitle, candidate)) {
-      continue;
-    }
-
-    const score = scoreAnimeSearchResultMatch(parsedTitle, candidate);
-    if (score > bestScore) {
-      bestCandidate = candidate;
-      bestScore = score;
-    }
-  }
-
-  return bestCandidate
-    ? { candidate: bestCandidate, confidence: roundConfidence(bestScore) }
-    : undefined;
-}
-
-function roundConfidence(value: number) {
-  return Math.round(value * 100) / 100;
-}
-
-function enrichedEpisodeNumbers(
-  files: readonly Pick<ScannedFile, "episode_number" | "episode_numbers">[],
-) {
-  return files.flatMap((file) => {
-    if (file.episode_numbers?.length) {
-      return file.episode_numbers;
-    }
-
-    return file.episode_number > 0 ? [file.episode_number] : [];
-  });
-}
-
-export function buildScannedFileNamingPlan(input: {
-  animeRow?: {
-    endDate?: string | null;
-    endYear?: number | null;
-    format: string;
-    rootFolder?: string;
-    startDate?: string | null;
-    startYear?: number | null;
-    titleEnglish?: string | null;
-    titleNative?: string | null;
-    titleRomaji: string;
-  };
-  episodeRows?: readonly { aired?: string | null; title?: string | null }[];
-  file: Pick<
-    ScannedFile,
-    | "air_date"
-    | "audio_channels"
-    | "audio_codec"
-    | "episode_number"
-    | "episode_numbers"
-    | "episode_title"
-    | "group"
-    | "quality"
-    | "resolution"
-    | "season"
-    | "source_path"
-    | "source_identity"
-    | "video_codec"
-  >;
-  namingSettings: {
-    movieNamingFormat: string;
-    namingFormat: string;
-    preferredTitle: PreferredTitle;
-  };
-}) {
-  if (!input.animeRow) {
-    return {};
-  }
-
-  const episodeNumbers = toEpisodeNumbers(input.file);
-
-  if (episodeNumbers.length === 0) {
-    return {};
-  }
-
-  const plan = buildEpisodeFilenamePlan({
-    animeRow: input.animeRow,
-    downloadSourceMetadata: {
-      air_date: input.file.air_date,
-      audio_channels: input.file.audio_channels,
-      audio_codec: input.file.audio_codec,
-      episode_title: input.file.episode_title,
-      group: input.file.group,
-      quality: input.file.quality,
-      resolution: input.file.resolution,
-      source_identity: input.file.source_identity,
-      video_codec: input.file.video_codec,
-    },
-    episodeNumbers,
-    episodeRows: input.episodeRows,
-    filePath: input.file.source_path,
-    localMediaMetadata: {
-      audio_channels: input.file.audio_channels,
-      audio_codec: input.file.audio_codec,
-      resolution: input.file.resolution,
-      video_codec: input.file.video_codec,
-    },
-    namingFormat:
-      input.animeRow.format === "MOVIE"
-        ? input.namingSettings.movieNamingFormat
-        : input.namingSettings.namingFormat,
-    preferredTitle: input.namingSettings.preferredTitle,
-    season: input.file.season,
-  });
-
-  return {
-    naming_filename: `${plan.baseName}${extensionFromPath(input.file.source_path)}`,
-    naming_fallback_used: plan.fallbackUsed || undefined,
-    naming_format_used: plan.formatUsed,
-    naming_metadata_snapshot: plan.metadataSnapshot,
-    naming_missing_fields: plan.missingFields.length > 0 ? [...plan.missingFields] : undefined,
-    naming_warnings: plan.warnings.length > 0 ? [...plan.warnings] : undefined,
-  } satisfies Pick<
-    ScannedFile,
-    | "naming_fallback_used"
-    | "naming_filename"
-    | "naming_format_used"
-    | "naming_metadata_snapshot"
-    | "naming_missing_fields"
-    | "naming_warnings"
-  >;
-}
-
-function extensionFromPath(path: string) {
-  return path.includes(".") ? path.slice(path.lastIndexOf(".")) : ".mkv";
-}
-
-function selectEpisodeRowsForFile(
-  file: Pick<ScannedFile, "episode_number" | "episode_numbers">,
-  rowsByAnimeEpisode: Map<
-    string,
-    {
-      aired?: string | null;
-      animeId: number;
-      number: number;
-      title?: string | null;
-    }
-  >,
-  animeId?: number,
-) {
-  if (!animeId) {
-    return undefined;
-  }
-
-  const episodeNumbers = toEpisodeNumbers(file);
-
-  return episodeNumbers.flatMap((episodeNumber) => {
-    const row = rowsByAnimeEpisode.get(`${animeId}:${episodeNumber}`);
-    return row ? [{ aired: row.aired, title: row.title }] : [];
-  });
-}
-
-type EpisodeFileMappingRow = {
-  anime_id: number;
-  anime_title: string;
-  episode_number: number;
-  file_path: string | null;
-};
-
-type EpisodeFileMappingIndex = {
-  byAnimeEpisode: Map<string, EpisodeFileMappingRow>;
-  byPath: Map<string, FileEpisodeMapping>;
-};
-
-export function buildEpisodeFileMappingIndex(
-  rows: readonly EpisodeFileMappingRow[],
-): EpisodeFileMappingIndex {
-  const byAnimeEpisode = new Map<string, EpisodeFileMappingRow>();
-  const byPath = new Map<string, FileEpisodeMapping>();
-
-  for (const row of rows) {
-    if (!row.file_path) {
-      continue;
-    }
-
-    byAnimeEpisode.set(`${row.anime_id}:${row.episode_number}`, row);
-
-    const existing = byPath.get(row.file_path);
-    if (existing) {
-      const episodeNumbers = new Set([...(existing.episode_numbers ?? []), row.episode_number]);
-      byPath.set(row.file_path, {
-        ...existing,
-        episode_numbers: [...episodeNumbers].sort((left, right) => left - right),
-      });
-      continue;
-    }
-
-    byPath.set(row.file_path, {
-      anime_id: row.anime_id,
-      anime_title: row.anime_title,
-      episode_numbers: [row.episode_number],
-      file_path: row.file_path,
-    });
-  }
-
-  return { byAnimeEpisode, byPath };
-}
-
-export function buildScannedFileLibrarySignals(input: {
-  file: Pick<ScannedFile, "episode_number" | "episode_numbers" | "source_path">;
-  mappingIndex: EpisodeFileMappingIndex;
-  targetAnime?: { id: number; title: string };
-}) {
-  const existing_mapping = input.mappingIndex.byPath.get(input.file.source_path);
-  const episodeNumbers = toEpisodeNumbers(input.file);
-  const { targetAnime } = input;
-
-  if (!targetAnime || episodeNumbers.length === 0) {
-    return { existing_mapping };
-  }
-
-  const conflicts = episodeNumbers.flatMap((episodeNumber) => {
-    const existing = input.mappingIndex.byAnimeEpisode.get(`${targetAnime.id}:${episodeNumber}`);
-
-    if (!existing || existing.file_path === input.file.source_path) {
-      return [];
-    }
-
-    return [existing];
-  });
-
-  if (conflicts.length === 0) {
-    return { existing_mapping };
-  }
-
-  const episode_conflict: FileEpisodeMapping = {
-    anime_id: targetAnime.id,
-    anime_title: targetAnime.title,
-    episode_numbers: [...new Set(conflicts.map((row) => row.episode_number))].sort(
-      (left, right) => left - right,
-    ),
-    file_path: conflicts[0]?.file_path ?? undefined,
-  };
-
-  return {
-    episode_conflict,
-    existing_mapping,
-  };
-}
-
-function toEpisodeNumbers(file: Pick<ScannedFile, "episode_number" | "episode_numbers">) {
-  if (file.episode_numbers?.length) {
-    return file.episode_numbers;
-  }
-
-  return file.episode_number > 0 ? [file.episode_number] : [];
-}

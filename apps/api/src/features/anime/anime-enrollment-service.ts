@@ -8,7 +8,6 @@ import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
-import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type {
   OperationsError,
   OperationsInfrastructureError,
@@ -43,9 +42,7 @@ export interface AnimeEnrollmentServiceShape {
    * kick off a missing-episode search. This keeps cross-service orchestration
    * out of the HTTP layer.
    */
-  readonly enroll: (
-    input: AddAnimeInput,
-  ) => Effect.Effect<Anime, AnimeEnrollmentError, RuntimeConfigSnapshotService>;
+  readonly enroll: (input: AddAnimeInput) => Effect.Effect<Anime, AnimeEnrollmentError>;
 }
 
 export class AnimeEnrollmentService extends Context.Tag("@bakarr/api/AnimeEnrollmentService")<

@@ -4,7 +4,7 @@ import {
   buildEpisodeFileMappingIndex,
   buildScannedFileLibrarySignals,
   buildScannedFileNamingPlan,
-} from "@/features/operations/import-path-scan-support.ts";
+} from "@/features/operations/import-path-scan-result-support.ts";
 
 it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => {
   const mappingIndex = buildEpisodeFileMappingIndex([

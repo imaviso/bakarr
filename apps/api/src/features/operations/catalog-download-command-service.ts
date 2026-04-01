@@ -15,44 +15,23 @@ import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-confi
 export interface CatalogDownloadCommandServiceShape {
   readonly pauseDownload: (
     id: number,
-  ) => Effect.Effect<
-    void,
-    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
-    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
-  >;
+  ) => Effect.Effect<void, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
   readonly reconcileDownload: (
     id: number,
-  ) => Effect.Effect<
-    void,
-    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
-    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
-  >;
+  ) => Effect.Effect<void, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
   readonly removeDownload: (
     id: number,
     deleteFiles: boolean,
-  ) => Effect.Effect<
-    void,
-    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
-    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
-  >;
+  ) => Effect.Effect<void, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
   readonly resumeDownload: (
     id: number,
-  ) => Effect.Effect<
-    void,
-    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
-    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
-  >;
+  ) => Effect.Effect<void, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
   readonly retryDownload: (
     id: number,
-  ) => Effect.Effect<
-    void,
-    OperationsError | DatabaseError | RuntimeConfigSnapshotError,
-    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
-  >;
+  ) => Effect.Effect<void, OperationsError | DatabaseError | RuntimeConfigSnapshotError>;
   readonly syncDownloads: () => Effect.Effect<
     void,
-    DatabaseError | OperationsError | OperationsInfrastructureError | RuntimeConfigSnapshotError,
-    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+    DatabaseError | OperationsError | OperationsInfrastructureError | RuntimeConfigSnapshotError
   >;
 }
 

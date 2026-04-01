@@ -51,8 +51,7 @@ export function makeDownloadTriggerService(input: {
   ) => QBitConfig | null;
   readonly getRuntimeConfig: () => Effect.Effect<
     import("@packages/shared/index.ts").Config,
-    RuntimeConfigSnapshotError,
-    RuntimeConfigSnapshotService
+    RuntimeConfigSnapshotError
   >;
   readonly nowIso: () => Effect.Effect<string>;
   readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
@@ -281,13 +280,13 @@ export const DownloadTriggerServiceLive = Layer.effect(
     const clock = yield* ClockService;
     const progressSupport = yield* DownloadProgressSupport;
     const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
     return makeDownloadTriggerService({
       db,
       downloadTriggerCoordinator,
       eventBus,
-      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
+      getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
       maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
       publishDownloadProgress: progressSupport.publishDownloadProgress,

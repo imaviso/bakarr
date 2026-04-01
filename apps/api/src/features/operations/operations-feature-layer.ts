@@ -42,7 +42,7 @@ const downloadTriggerLayer = DownloadTriggerServiceLive.pipe(
   Layer.provide(Layer.mergeAll(downloadProgressSupportLayer, downloadTriggerCoordinatorLayer)),
 );
 
-export const OperationsDownloadBundleLive = Layer.mergeAll(
+const operationsDownloadBundleLayer = Layer.mergeAll(
   downloadReconciliationLayer,
   downloadTorrentLifecycleLayer,
   downloadProgressSupportLayer,
@@ -59,7 +59,7 @@ export const OperationsDownloadBundleLive = Layer.mergeAll(
   ),
 );
 
-const operationsProgressLayer = ProgressLive.pipe(Layer.provide(OperationsDownloadBundleLive));
+const operationsProgressLayer = ProgressLive.pipe(Layer.provide(operationsDownloadBundleLayer));
 
 const backgroundSearchQueueLayer = BackgroundSearchQueueServiceLive.pipe(
   Layer.provide(downloadTriggerCoordinatorLayer),
@@ -84,7 +84,7 @@ const searchBackgroundRssLayer = SearchBackgroundRssServiceLive.pipe(
   ),
 );
 
-export const OperationsBackgroundSearchBundleLive = Layer.mergeAll(
+const operationsBackgroundSearchBundleLayer = Layer.mergeAll(
   backgroundSearchQueueLayer,
   backgroundSearchRssFeedLayer,
   searchBackgroundMissingLayer,
@@ -102,16 +102,16 @@ export const OperationsBackgroundSearchBundleLive = Layer.mergeAll(
 
 const searchEpisodeLayer = SearchEpisodeServiceLive.pipe(Layer.provide(searchReleaseLayer));
 
-export const OperationsSearchBundleLive = Layer.mergeAll(
+const operationsSearchBundleLayer = Layer.mergeAll(
   searchReleaseLayer,
   searchEpisodeLayer,
-  OperationsBackgroundSearchBundleLive,
+  operationsBackgroundSearchBundleLayer,
 );
 
 const unmappedScanLayer = UnmappedScanServiceLive.pipe(Layer.provide(unmappedScanCoordinatorLayer));
 const unmappedControlLayer = UnmappedControlServiceLive.pipe(Layer.provide(unmappedScanLayer));
 
-export const OperationsUnmappedBundleLive = Layer.mergeAll(
+const operationsUnmappedBundleLayer = Layer.mergeAll(
   unmappedScanLayer,
   unmappedControlLayer,
   UnmappedImportServiceLive,
@@ -121,7 +121,7 @@ const catalogLibraryScanLayer = CatalogLibraryScanServiceLive.pipe(
   Layer.provide(operationsProgressLayer),
 );
 
-export const OperationsLibraryBundleLive = Layer.mergeAll(
+const operationsLibraryBundleLayer = Layer.mergeAll(
   CatalogLibraryReadServiceLive,
   CatalogLibraryWriteServiceLive,
   catalogLibraryScanLayer,
@@ -130,16 +130,16 @@ export const OperationsLibraryBundleLive = Layer.mergeAll(
   LibraryRootsQueryServiceLive,
 );
 
-export const OperationsRuntimeBundleLive = Layer.mergeAll(
+const operationsRuntimeBundleLayer = Layer.mergeAll(
   downloadTriggerCoordinatorLayer,
   unmappedScanCoordinatorLayer,
   operationsProgressLayer,
 );
 
 export const OperationsFeatureLive = Layer.mergeAll(
-  OperationsRuntimeBundleLive,
-  OperationsDownloadBundleLive,
-  OperationsSearchBundleLive,
-  OperationsLibraryBundleLive,
-  OperationsUnmappedBundleLive,
+  operationsRuntimeBundleLayer,
+  operationsDownloadBundleLayer,
+  operationsSearchBundleLayer,
+  operationsLibraryBundleLayer,
+  operationsUnmappedBundleLayer,
 );

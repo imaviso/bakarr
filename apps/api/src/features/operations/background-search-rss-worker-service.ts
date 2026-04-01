@@ -14,16 +14,11 @@ import type { OperationsError } from "@/features/operations/errors.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export type BackgroundSearchRssWorkerError = DatabaseError | ExternalCallError | OperationsError;
 
 export interface BackgroundSearchRssWorkerServiceShape {
-  readonly runRssWorker: () => Effect.Effect<
-    void,
-    BackgroundSearchRssWorkerError,
-    RuntimeConfigSnapshotService
-  >;
+  readonly runRssWorker: () => Effect.Effect<void, BackgroundSearchRssWorkerError>;
 }
 
 export class BackgroundSearchRssWorkerService extends Context.Tag(

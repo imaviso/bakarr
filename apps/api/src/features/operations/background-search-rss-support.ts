@@ -14,8 +14,7 @@ import { ExternalCallError } from "@/lib/effect-retry.ts";
 export interface SearchBackgroundRssServiceShape {
   readonly runRssCheck: () => Effect.Effect<
     { readonly newItems: number; readonly totalFeeds: number },
-    DatabaseError | OperationsInfrastructureError | ExternalCallError,
-    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
+    DatabaseError | OperationsInfrastructureError | ExternalCallError
   >;
 }
 

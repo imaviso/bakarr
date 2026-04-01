@@ -26,11 +26,7 @@ import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-s
 export interface SearchBackgroundMissingServiceShape {
   readonly triggerSearchMissing: (
     animeId?: number,
-  ) => Effect.Effect<
-    void,
-    DatabaseError | OperationsInfrastructureError,
-    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
-  >;
+  ) => Effect.Effect<void, DatabaseError | OperationsInfrastructureError>;
 }
 
 export class SearchBackgroundMissingService extends Context.Tag(

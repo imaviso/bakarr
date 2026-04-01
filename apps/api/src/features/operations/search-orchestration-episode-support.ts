@@ -23,11 +23,7 @@ import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-confi
 
 export interface SearchEpisodeSupportInput {
   readonly db: AppDatabase;
-  readonly getRuntimeConfig: () => Effect.Effect<
-    Config,
-    RuntimeConfigSnapshotError,
-    RuntimeConfigSnapshotService
-  >;
+  readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
   readonly searchEpisodeReleases: (
     animeRow: SearchEpisodeAnimeRow,
     episodeNumber: number,
@@ -100,11 +96,11 @@ export const SearchEpisodeServiceLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const searchReleaseService = yield* SearchReleaseService;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
     return makeSearchEpisodeSupport({
       db,
-      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
+      getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
       searchEpisodeReleases: searchReleaseService.searchEpisodeReleases,
     });
   }),

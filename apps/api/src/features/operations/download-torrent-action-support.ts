@@ -15,7 +15,6 @@ import { parseCoveredEpisodesEffect } from "@/features/operations/download-cover
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
 import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
-import type { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentActionSupportInput {
@@ -24,11 +23,7 @@ export interface DownloadTorrentActionSupportInput {
   readonly tryDatabasePromise: TryDatabasePromise;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
-  readonly getRuntimeConfig: () => Effect.Effect<
-    Config,
-    RuntimeConfigSnapshotError,
-    RuntimeConfigSnapshotService
-  >;
+  readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
 }
 
 export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSupportInput) {

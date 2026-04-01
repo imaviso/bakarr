@@ -46,11 +46,7 @@ type SearchNyaaReleases = (
 
 export function makeSearchReleaseSupport(input: {
   db: AppDatabase;
-  getRuntimeConfig: () => Effect.Effect<
-    Config,
-    RuntimeConfigSnapshotError,
-    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotService
-  >;
+  getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
   rssClient: typeof RssClient.Service;
   seadexClient: typeof SeaDexClient.Service;
 }) {
@@ -263,11 +259,11 @@ export const SearchReleaseServiceLive = Layer.effect(
     const { db } = yield* Database;
     const rssClient = yield* RssClient;
     const seadexClient = yield* SeaDexClient;
-    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
     return makeSearchReleaseSupport({
       db,
-      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
+      getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
       rssClient,
       seadexClient,
     });

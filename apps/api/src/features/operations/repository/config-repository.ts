@@ -4,7 +4,6 @@ import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import {
   composeConfig,
   effectDecodeQualityProfileRow,
@@ -36,14 +35,6 @@ export const loadRuntimeConfig = Effect.fn("ConfigRepository.loadRuntimeConfig")
 
   return composeConfig(core, profiles);
 });
-
-export const loadRuntimeConfigSnapshot = Effect.fn("ConfigRepository.loadRuntimeConfigSnapshot")(
-  function* () {
-    return yield* Effect.flatMap(RuntimeConfigSnapshotService, (service) =>
-      service.getRuntimeConfig(),
-    );
-  },
-);
 
 export const getConfigLibraryPath = Effect.fn("ConfigRepository.getConfigLibraryPath")(function* (
   db: AppDatabase,

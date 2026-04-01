@@ -8,10 +8,7 @@ import {
 } from "@/features/operations/qbittorrent.ts";
 import { RssClientLive, type RssClient } from "@/features/operations/rss-client.ts";
 import { SeaDexClientLive, type SeaDexClient } from "@/features/operations/seadex-client.ts";
-import { StreamTokenSignerLive } from "@/http/stream-token-signer.ts";
-import { ClockServiceLive } from "@/lib/clock.ts";
 import { DnsResolverLive } from "@/lib/dns-resolver.ts";
-import { RandomServiceLive } from "@/lib/random.ts";
 
 export interface AppExternalClientLayerOptions {
   readonly aniListLayer?: Layer.Layer<AniListClient>;
@@ -21,7 +18,7 @@ export interface AppExternalClientLayerOptions {
 }
 
 export function makeAppExternalClientLayer(options?: AppExternalClientLayerOptions) {
-  const externalClientSupportLayer = Layer.mergeAll(ClockServiceLive, FetchHttpClient.layer);
+  const externalClientSupportLayer = FetchHttpClient.layer;
   const dnsClientSupportLayer = Layer.mergeAll(externalClientSupportLayer, DnsResolverLive);
 
   const aniListLayer = options?.aniListLayer
@@ -37,11 +34,5 @@ export function makeAppExternalClientLayer(options?: AppExternalClientLayerOptio
     ? options.seadexLayer
     : SeaDexClientLive.pipe(Layer.provide(externalClientSupportLayer));
 
-  return Layer.mergeAll(
-    aniListLayer,
-    rssLayer,
-    qbitLayer,
-    seadexLayer,
-    StreamTokenSignerLive.pipe(Layer.provide(RandomServiceLive)),
-  );
+  return Layer.mergeAll(aniListLayer, rssLayer, qbitLayer, seadexLayer);
 }
