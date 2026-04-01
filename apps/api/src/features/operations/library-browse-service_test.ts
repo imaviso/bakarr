@@ -8,9 +8,9 @@ import {
   LibraryBrowseServiceLive,
 } from "@/features/operations/library-browse-service.ts";
 import {
-  LibraryRootsService,
-  type LibraryRootsServiceShape,
-} from "@/features/library-roots/service.ts";
+  LibraryRootsQueryService,
+  type LibraryRootsQueryServiceShape,
+} from "@/features/operations/library-roots-query-service.ts";
 import {
   SystemConfigService,
   type SystemConfigServiceShape,
@@ -96,10 +96,10 @@ function browseEffect(fs: FileSystemShape, input: { readonly path?: string }) {
         Layer.provide(
           Layer.mergeAll(
             Layer.succeed(FileSystem, fs),
-            Layer.succeed(LibraryRootsService, {
+            Layer.succeed(LibraryRootsQueryService, {
               listRoots: () =>
                 Effect.succeed([{ id: 1, label: "default", path: "/allowed/library" }]),
-            } satisfies LibraryRootsServiceShape),
+            } satisfies LibraryRootsQueryServiceShape),
             Layer.succeed(SystemConfigService, {
               getConfig: () => Effect.succeed(makeTestConfig("./test.sqlite")),
             } satisfies SystemConfigServiceShape),

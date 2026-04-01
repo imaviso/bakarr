@@ -4,7 +4,8 @@ import type { DatabaseError } from "@/db/database.ts";
 import { AnimeMaintenanceService } from "@/features/anime/anime-maintenance-service.ts";
 import type { AnimeServiceError } from "@/features/anime/errors.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { CatalogDownloadService } from "@/features/operations/catalog-download-orchestration.ts";
+import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
 import { CatalogLibraryScanService } from "@/features/operations/catalog-library-scan-support.ts";
 import type { OperationsError } from "@/features/operations/errors.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
@@ -30,7 +31,8 @@ export const BackgroundWorkerJobsLive = Layer.effect(
   BackgroundWorkerJobs,
   Effect.gen(function* () {
     const eventBus = yield* EventBus;
-    const catalogDownloadService = yield* CatalogDownloadService;
+    const downloadCommandService = yield* CatalogDownloadCommandService;
+    const downloadReadService = yield* CatalogDownloadReadService;
     const catalogLibraryScanService = yield* CatalogLibraryScanService;
     const animeMaintenanceService = yield* AnimeMaintenanceService;
     const searchBackgroundMissingService = yield* SearchBackgroundMissingService;
@@ -43,8 +45,8 @@ export const BackgroundWorkerJobsLive = Layer.effect(
 
     const runDownloadSyncWorkerTask = Effect.fn("Background.runDownloadSyncWorkerTask")(
       function* () {
-        yield* catalogDownloadService.syncDownloads();
-        const downloads = yield* catalogDownloadService.getDownloadProgress();
+        yield* downloadCommandService.syncDownloads();
+        const downloads = yield* downloadReadService.getDownloadProgress();
         yield* eventBus.publish({
           type: "DownloadProgress",
           payload: { downloads },

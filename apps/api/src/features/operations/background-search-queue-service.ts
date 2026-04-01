@@ -1,7 +1,7 @@
-import { Effect } from "effect";
+import { Context, Effect, Layer } from "effect";
 
 import type { Config, DownloadAction } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
+import { Database, type AppDatabase, type DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import {
   buildDownloadSelectionMetadata,
@@ -17,23 +17,46 @@ import {
 import { parseReleaseName } from "@/features/operations/release-ranking.ts";
 import { queueParsedReleaseDownload } from "@/features/operations/release-queue-support.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
-import { type QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
-import type { DownloadTriggerCoordinatorShape } from "@/features/operations/runtime-support.ts";
-import type { TryDatabasePromise } from "@/lib/effect-db.ts";
+import { QBitTorrentClient, type QBitConfig } from "@/features/operations/qbittorrent.ts";
+import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
+import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
+import { maybeQBitConfig as maybeQBitConfigFromConfig } from "@/features/operations/operations-qbit-config.ts";
+import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
-export interface BackgroundSearchQueueSupportInput {
-  readonly db: AppDatabase;
-  readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
+export interface BackgroundSearchQueueServiceShape {
+  readonly queueReleaseIfEligible: (input: {
+    animeRow: typeof anime.$inferSelect;
+    contextMessage: string;
+    decisionReason?: string;
+    action?: DownloadAction;
+    episodeNumber: number;
+    eventMessage: string;
+    eventType: string;
+    item: ParsedRelease;
+    missingEpisodes: readonly number[];
+    qbitConfig: QBitConfig | null;
+  }) => Effect.Effect<
+    { readonly _tag: "skipped" } | { readonly _tag: "queued" },
+    DatabaseError | OperationsInfrastructureError
+  >;
   readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
-  readonly nowIso: () => Effect.Effect<string>;
-  readonly qbitClient: typeof QBitTorrentClient.Service;
-  readonly tryDatabasePromise: TryDatabasePromise;
 }
 
-export function makeBackgroundSearchQueueSupport(input: BackgroundSearchQueueSupportInput) {
+export class BackgroundSearchQueueService extends Context.Tag(
+  "@bakarr/api/BackgroundSearchQueueService",
+)<BackgroundSearchQueueService, BackgroundSearchQueueServiceShape>() {}
+
+function makeBackgroundSearchQueueService(input: {
+  db: AppDatabase;
+  downloadTriggerCoordinator: typeof DownloadTriggerCoordinator.Service;
+  nowIso: () => Effect.Effect<string>;
+  qbitClient: typeof QBitTorrentClient.Service;
+  tryDatabasePromise: TryDatabasePromise;
+}) {
   const { db, downloadTriggerCoordinator, nowIso, qbitClient, tryDatabasePromise } = input;
 
-  const queueReleaseIfEligible = Effect.fn("OperationsService.queueReleaseIfEligible")(
+  const queueReleaseIfEligible = Effect.fn("BackgroundSearchQueueService.queueReleaseIfEligible")(
     function* (input: {
       animeRow: typeof anime.$inferSelect;
       contextMessage: string;
@@ -70,7 +93,7 @@ export function makeBackgroundSearchQueueSupport(input: BackgroundSearchQueueSup
           return { _tag: "skipped" } as const;
         }
 
-        return yield* queueParsedReleaseDownload({
+        yield* queueParsedReleaseDownload({
           animeRow: input.animeRow,
           contextMessage: input.contextMessage,
           coveredEpisodes,
@@ -104,13 +127,42 @@ export function makeBackgroundSearchQueueSupport(input: BackgroundSearchQueueSup
           qbitConfig: input.qbitConfig,
           tryDatabasePromise,
         });
+
+        return { _tag: "queued" } as const;
       });
 
-      return yield* downloadTriggerCoordinator.runExclusiveDownloadTrigger(queueEffect);
+      return yield* downloadTriggerCoordinator.runExclusiveDownloadTrigger(queueEffect).pipe(
+        Effect.mapError(
+          (cause) =>
+            new OperationsInfrastructureError({
+              message: "Failed to queue background release",
+              cause,
+            }),
+        ),
+      );
     },
   );
 
-  return {
+  return BackgroundSearchQueueService.of({
     queueReleaseIfEligible,
-  };
+    maybeQBitConfig: maybeQBitConfigFromConfig,
+  });
 }
+
+export const BackgroundSearchQueueServiceLive = Layer.effect(
+  BackgroundSearchQueueService,
+  Effect.gen(function* () {
+    const { db } = yield* Database;
+    const clock = yield* ClockService;
+    const qbitClient = yield* QBitTorrentClient;
+    const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
+
+    return makeBackgroundSearchQueueService({
+      db,
+      downloadTriggerCoordinator,
+      nowIso: () => nowIsoFromClock(clock),
+      qbitClient,
+      tryDatabasePromise,
+    });
+  }),
+);

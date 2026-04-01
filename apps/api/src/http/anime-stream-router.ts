@@ -1,17 +1,14 @@
 import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platform";
-import { Effect, Match, Schema } from "effect";
+import { Effect } from "effect";
 
-import { Database } from "@/db/database.ts";
+import { AnimeStreamService } from "@/features/anime/anime-stream-service.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
-import { resolveEpisodeFileEffect } from "@/features/anime/anime-file-read.ts";
-import { ClockService } from "@/lib/clock.ts";
 import { AnimeEpisodeParamsSchema, StreamQuerySchema } from "@/http/anime-request-schemas.ts";
 import { createFileChunkStream } from "@/http/file-stream.ts";
 import { EpisodeStreamAccessError } from "@/http/streaming-errors.ts";
-import { StreamTokenSigner } from "@/http/stream-token-signer.ts";
 import { contentType } from "@/http/route-fs.ts";
 import { parseEpisodeStreamRange } from "@/http/anime-streaming-range.ts";
-import { decodePathParams, routeResponse } from "@/http/router-helpers.ts";
+import { decodePathParams, decodeQueryWithLabel, routeResponse } from "@/http/router-helpers.ts";
 
 export const animeStreamRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -19,94 +16,42 @@ export const animeStreamRouter = HttpRouter.empty.pipe(
     routeResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
-
-        const request = yield* HttpServerRequest.HttpServerRequest;
-        const url = new URL(request.url, "http://bakarr.local");
-        const query = yield* Schema.decodeUnknown(StreamQuerySchema)({
-          exp: url.searchParams.get("exp") ?? "",
-          sig: url.searchParams.get("sig") ?? "",
-        }).pipe(
+        const query = yield* decodeQueryWithLabel(StreamQuerySchema, "stream access").pipe(
           Effect.mapError(
             () => new EpisodeStreamAccessError({ message: "Forbidden or expired", status: 403 }),
           ),
         );
-        const clock = yield* ClockService;
-        const nowMillis = yield* clock.currentTimeMillis;
-        const signer = yield* StreamTokenSigner;
-        const isAuthorized = yield* signer
-          .verify({
-            animeId: params.id,
-            episodeNumber: params.episodeNumber,
-            expiresAt: query.exp,
-            nowMillis,
-            signatureHex: query.sig,
-          })
-          .pipe(
-            Effect.mapError(
-              (cause) => new EpisodeStreamAccessError({ message: cause.message, status: 403 }),
-            ),
-          );
 
-        if (!isAuthorized) {
-          return yield* new EpisodeStreamAccessError({
-            message: "Forbidden or expired",
-            status: 403,
-          });
-        }
-
-        const { db } = yield* Database;
-        const fs = yield* FileSystem;
-        const resolvedEpisodeFile = yield* resolveEpisodeFileEffect({
+        const request = yield* HttpServerRequest.HttpServerRequest;
+        const streamFile = yield* (yield* AnimeStreamService).resolveAuthorizedEpisodeStreamFile({
           animeId: params.id,
-          db,
           episodeNumber: params.episodeNumber,
-          fs,
+          expiresAt: query.exp,
+          signatureHex: query.sig,
         });
-
-        const notFoundError = (message: string) =>
-          new EpisodeStreamAccessError({ message, status: 404 });
-
-        const episodeFilePath = yield* Match.value(resolvedEpisodeFile).pipe(
-          Match.tag("EpisodeFileUnmapped", "EpisodeFileMissing", () =>
-            Effect.fail(notFoundError("Episode file not found")),
-          ),
-          Match.tag("EpisodeFileRootInaccessible", () =>
-            Effect.fail(notFoundError("Anime root folder is inaccessible")),
-          ),
-          Match.tag("EpisodeFileOutsideRoot", () =>
-            Effect.fail(notFoundError("Episode file mapping is invalid")),
-          ),
-          Match.tag("EpisodeFileResolved", (f) => Effect.succeed(f)),
-          Match.exhaustive,
+        const byteRange = yield* parseEpisodeStreamRange(
+          request.headers.range,
+          streamFile.fileSize,
         );
-
-        const fileInfo = yield* fs
-          .stat(episodeFilePath.filePath)
-          .pipe(
-            Effect.mapError(
-              () =>
-                new EpisodeStreamAccessError({ message: "Episode file not found", status: 404 }),
-            ),
-          );
-        const byteRange = yield* parseEpisodeStreamRange(request.headers.range, fileInfo.size);
+        const fs = yield* FileSystem;
 
         return HttpServerResponse.stream(
-          createFileChunkStream(fs, episodeFilePath.filePath, {
+          createFileChunkStream(fs, streamFile.filePath, {
             range: byteRange,
           }),
           {
-            contentType: contentType(episodeFilePath.fileName),
+            contentType: contentType(streamFile.fileName),
             headers: {
               ...(byteRange
                 ? {
-                    "Content-Range": `bytes ${byteRange.start}-${byteRange.end}/${fileInfo.size}`,
+                    "Content-Range": `bytes ${byteRange.start}-${byteRange.end}/${streamFile.fileSize}`,
                   }
                 : {}),
               "Accept-Ranges": "bytes",
-              "Content-Disposition": `inline; filename="${episodeFilePath.fileName}"`,
+              "Content-Disposition": `inline; filename="${streamFile.fileName}"`,
               "Content-Length": (byteRange
                 ? byteRange.end - byteRange.start + 1
-                : fileInfo.size
+                : streamFile.fileSize
               ).toString(),
             },
             status: byteRange ? 206 : 200,

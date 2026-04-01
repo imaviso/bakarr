@@ -4,6 +4,7 @@ import { Context, Effect, Layer } from "effect";
 import { DatabaseError } from "@/db/database.ts";
 import { Database } from "@/db/database.ts";
 import { downloads, rssFeeds } from "@/db/schema.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import {
   loadMissingEpisodeNumbers,
   markJobFailed,
@@ -18,38 +19,48 @@ import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-
 import { loadReleaseRules } from "@/features/operations/repository/profile-repository.ts";
 import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import { makeBackgroundSearchQueueSupport } from "@/features/operations/background-search-queue-support.ts";
+import { BackgroundSearchQualityProfileService } from "@/features/operations/background-search-quality-profile-service.ts";
+import { BackgroundSearchQueueService } from "@/features/operations/background-search-queue-service.ts";
+import { BackgroundSearchRssRunnerService } from "@/features/operations/background-search-rss-runner-service.ts";
+import { BackgroundSearchSkipLogService } from "@/features/operations/background-search-skip-log-service.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
-import { BackgroundSearchShared } from "@/features/operations/background-search-support-shared.ts";
-import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
-import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
-import { RssClient } from "@/features/operations/rss-client.ts";
-import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import type { BackgroundSearchRssSupportInput } from "@/features/operations/background-search-support-shared.ts";
-import type { BackgroundSearchSupportShared } from "@/features/operations/background-search-support-shared.ts";
 
-export function makeBackgroundSearchRssSupport(
-  input: BackgroundSearchRssSupportInput,
-  shared: BackgroundSearchSupportShared,
-) {
+interface BackgroundSearchRssSupportInput {
+  readonly db: typeof Database.Service.db;
+  readonly eventBus: typeof EventBus.Service;
+  readonly fetchItems: typeof BackgroundSearchRssRunnerService.Service.fetchItems;
+  readonly logRssSkip: typeof BackgroundSearchSkipLogService.Service.logRssSkip;
+  readonly nowIso: () => Effect.Effect<string>;
+  readonly publishDownloadProgress: () => Effect.Effect<
+    void,
+    DatabaseError | OperationsInfrastructureError
+  >;
+  readonly publishRssCheckProgress: (input: {
+    current: number;
+    total: number;
+    feed_name: string;
+  }) => Effect.Effect<void>;
+  readonly queueReleaseIfEligible: typeof BackgroundSearchQueueService.Service.queueReleaseIfEligible;
+  readonly maybeQBitConfig: typeof BackgroundSearchQueueService.Service.maybeQBitConfig;
+  readonly requireQualityProfile: typeof BackgroundSearchQualityProfileService.Service.requireQualityProfile;
+}
+
+export function makeBackgroundSearchRssSupport(input: BackgroundSearchRssSupportInput) {
   const {
     db,
     eventBus,
-    rssClient,
+    fetchItems,
+    queueReleaseIfEligible,
     maybeQBitConfig,
+    requireQualityProfile,
+    logRssSkip,
     nowIso,
     publishDownloadProgress,
     publishRssCheckProgress,
-    tryDatabasePromise,
   } = input;
-
-  const logRssSkip = shared.logRssSkip;
-  const requireQualityProfile = shared.requireQualityProfile;
-  const { queueReleaseIfEligible } = makeBackgroundSearchQueueSupport(input);
 
   const runRssCheckBase = Effect.fn("OperationsService.runRssCheckBase")(function* () {
     yield* markJobStarted(db, "rss", nowIso);
@@ -67,7 +78,7 @@ export function makeBackgroundSearchRssSupport(
         feed: (typeof feeds)[number],
         _index: number,
       ) {
-        const items = yield* rssClient.fetchItems(feed.url).pipe(
+        const items = yield* fetchItems(feed.url).pipe(
           Effect.mapError((error) =>
             error instanceof DatabaseError
               ? error
@@ -214,16 +225,17 @@ export function makeBackgroundSearchRssSupport(
       return { newItems };
     }).pipe(
       Effect.withSpan("operations.rss.check"),
+      Effect.catchTag("DatabaseError", (error) =>
+        markJobFailed(db, "rss", error, nowIso).pipe(Effect.zipRight(Effect.fail(error))),
+      ),
       Effect.catchAll((cause) =>
         markJobFailed(db, "rss", cause, nowIso).pipe(
           Effect.zipRight(
             Effect.fail(
-              cause instanceof DatabaseError
-                ? cause
-                : new OperationsInfrastructureError({
-                    message: "Failed to run RSS check",
-                    cause,
-                  }),
+              new OperationsInfrastructureError({
+                message: "Failed to run RSS check",
+                cause,
+              }),
             ),
           ),
         ),
@@ -260,26 +272,26 @@ export const SearchBackgroundRssServiceLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const eventBus = yield* EventBus;
-    const qbitClient = yield* QBitTorrentClient;
-    const rssClient = yield* RssClient;
     const clock = yield* ClockService;
     const progress = yield* OperationsProgress;
-    const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
-    const shared = yield* BackgroundSearchShared;
+    const queueService = yield* BackgroundSearchQueueService;
+    const qualityProfileService = yield* BackgroundSearchQualityProfileService;
+    const skipLogService = yield* BackgroundSearchSkipLogService;
+    const rssRunnerService = yield* BackgroundSearchRssRunnerService;
 
     const input: BackgroundSearchRssSupportInput = {
       db,
-      downloadTriggerCoordinator,
       eventBus,
-      maybeQBitConfig,
+      fetchItems: rssRunnerService.fetchItems,
+      logRssSkip: skipLogService.logRssSkip,
+      maybeQBitConfig: queueService.maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
       publishDownloadProgress: progress.publishDownloadProgress,
       publishRssCheckProgress: progress.publishRssCheckProgress,
-      qbitClient,
-      rssClient,
-      tryDatabasePromise,
+      queueReleaseIfEligible: queueService.queueReleaseIfEligible,
+      requireQualityProfile: qualityProfileService.requireQualityProfile,
     };
 
-    return makeBackgroundSearchRssSupport(input, shared);
+    return makeBackgroundSearchRssSupport(input);
   }),
 );

@@ -1,17 +1,15 @@
-import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or, sql } from "drizzle-orm";
-import { Context, Effect, Layer, Stream } from "effect";
+import { and, asc, desc, eq, gt, gte, inArray, lt, lte, or, sql, type SQL } from "drizzle-orm";
+import { Chunk, Effect, Option, Stream } from "effect";
 
 import type {
   Download,
+  DownloadEvent,
   DownloadEventsExport,
   DownloadEventsPage,
   DownloadStatus,
 } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
-import { Database } from "@/db/database.ts";
-import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { downloadEvents, downloads } from "@/db/schema.ts";
-import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
 import {
   toDownload,
@@ -66,6 +64,19 @@ export interface CatalogDownloadViewSupportShape {
     DownloadEventExportStreamShape,
     DatabaseError | import("./errors.ts").OperationsStoredDataError
   >;
+  readonly streamDownloadEventsExportCsv: (input?: {
+    readonly animeId?: number;
+    readonly downloadId?: number;
+    readonly endDate?: string;
+    readonly eventType?: string;
+    readonly limit?: number;
+    readonly order?: "asc" | "desc";
+    readonly startDate?: string;
+    readonly status?: string;
+  }) => Effect.Effect<
+    DownloadEventCsvExportStreamShape,
+    DatabaseError | import("./errors.ts").OperationsStoredDataError
+  >;
   readonly listDownloadQueue: () => Effect.Effect<
     Download[],
     DatabaseError | import("./errors.ts").OperationsStoredDataError
@@ -105,6 +116,11 @@ export interface DownloadEventExportStreamShape {
   readonly stream: Stream.Stream<Uint8Array, never>;
 }
 
+export interface DownloadEventCsvExportStreamShape {
+  readonly header: DownloadEventExportHeader;
+  readonly stream: Stream.Stream<Uint8Array, never>;
+}
+
 type DownloadEventQueryInput = {
   animeId?: number;
   downloadId?: number;
@@ -113,6 +129,12 @@ type DownloadEventQueryInput = {
   startDate?: string;
   status?: string;
 };
+
+interface DownloadEventExportPlan {
+  readonly baseConditions: readonly SQL<unknown>[];
+  readonly limit: number;
+  readonly order: "asc" | "desc";
+}
 
 function buildDownloadEventConditions(queryInput: DownloadEventQueryInput) {
   return [
@@ -128,6 +150,16 @@ function buildDownloadEventConditions(queryInput: DownloadEventQueryInput) {
         )
       : undefined,
   ].filter((value): value is Exclude<typeof value, undefined> => value !== undefined);
+}
+
+function buildDownloadEventExportPlan(
+  queryInput: DownloadEventExportQuery = {},
+): DownloadEventExportPlan {
+  return {
+    baseConditions: buildDownloadEventConditions(queryInput),
+    limit: Math.max(1, Math.min(queryInput.limit ?? 10_000, 50_000)),
+    order: queryInput.order === "asc" ? "asc" : "desc",
+  };
 }
 
 export function makeCatalogDownloadViewSupport(input: {
@@ -263,20 +295,25 @@ export function makeCatalogDownloadViewSupport(input: {
   const streamDownloadEventsExportJson = Effect.fn(
     "OperationsService.streamDownloadEventsExportJson",
   )(function* (queryInput: DownloadEventExportQuery = {}) {
-    const page = yield* exportDownloadEvents(queryInput);
-    const events = page.events;
+    const plan = buildDownloadEventExportPlan(queryInput);
+    const metadata = yield* loadDownloadEventExportMetadata(
+      input.db,
+      input.tryDatabasePromise,
+      plan,
+      nowIso,
+    );
     const suffixMetadata = JSON.stringify({
-      exported: page.exported,
-      generated_at: page.generated_at,
-      limit: page.limit,
-      order: page.order,
-      total: page.total,
-      truncated: page.truncated,
+      exported: metadata.exported,
+      generated_at: metadata.generated_at,
+      limit: metadata.limit,
+      order: metadata.order,
+      total: metadata.total,
+      truncated: metadata.truncated,
     });
     const objectPrefix = textEncoder.encode('{"events":[');
     const objectSuffix = textEncoder.encode(`],${suffixMetadata.slice(1)}`);
 
-    const eventStream = Stream.fromIterable(events).pipe(
+    const eventStream = streamDownloadEvents(input.db, input.tryDatabasePromise, plan).pipe(
       Stream.zipWithIndex,
       Stream.map(([event, index]) =>
         textEncoder.encode(`${index === 0 ? "" : ","}${JSON.stringify(event)}`),
@@ -290,15 +327,62 @@ export function makeCatalogDownloadViewSupport(input: {
 
     return {
       header: {
-        exported: page.exported,
-        generated_at: page.generated_at,
-        limit: page.limit,
-        order: page.order,
-        total: page.total,
-        truncated: page.truncated,
+        exported: metadata.exported,
+        generated_at: metadata.generated_at,
+        limit: metadata.limit,
+        order: metadata.order,
+        total: metadata.total,
+        truncated: metadata.truncated,
       },
       stream,
     } satisfies DownloadEventExportStreamShape;
+  });
+
+  const streamDownloadEventsExportCsv = Effect.fn(
+    "OperationsService.streamDownloadEventsExportCsv",
+  )(function* (queryInput: DownloadEventExportQuery = {}) {
+    const plan = buildDownloadEventExportPlan(queryInput);
+    const metadata = yield* loadDownloadEventExportMetadata(
+      input.db,
+      input.tryDatabasePromise,
+      plan,
+      nowIso,
+    );
+    const csvHeader = textEncoder.encode(
+      "id,created_at,event_type,from_status,to_status,anime_id,anime_title,download_id,torrent_name,message,metadata,metadata_json\n",
+    );
+    const csvRows = streamDownloadEvents(input.db, input.tryDatabasePromise, plan).pipe(
+      Stream.map((event) =>
+        textEncoder.encode(
+          [
+            String(event.id),
+            event.created_at,
+            escapeCsv(event.event_type),
+            escapeCsv(event.from_status ?? ""),
+            escapeCsv(event.to_status ?? ""),
+            event.anime_id === undefined ? "" : String(event.anime_id),
+            escapeCsv(event.anime_title ?? ""),
+            event.download_id === undefined ? "" : String(event.download_id),
+            escapeCsv(event.torrent_name ?? ""),
+            escapeCsv(event.message),
+            escapeCsv(event.metadata ?? ""),
+            escapeCsv(event.metadata_json ? JSON.stringify(event.metadata_json) : ""),
+          ].join(",") + "\n",
+        ),
+      ),
+    );
+
+    return {
+      header: {
+        exported: metadata.exported,
+        generated_at: metadata.generated_at,
+        limit: metadata.limit,
+        order: metadata.order,
+        total: metadata.total,
+        truncated: metadata.truncated,
+      },
+      stream: Stream.concat(Stream.fromIterable([csvHeader]), csvRows),
+    } satisfies DownloadEventCsvExportStreamShape;
   });
 
   const listDownloadQueue = Effect.fn("OperationsService.listDownloadQueue")(function* () {
@@ -339,40 +423,10 @@ export function makeCatalogDownloadViewSupport(input: {
     listDownloadEvents,
     listDownloadHistory,
     listDownloadQueue,
+    streamDownloadEventsExportCsv,
     streamDownloadEventsExportJson,
   };
 }
-
-export interface DownloadProgressServiceShape {
-  readonly getDownloadProgress: () => Effect.Effect<
-    DownloadStatus[],
-    DatabaseError | import("./errors.ts").OperationsStoredDataError
-  >;
-}
-
-export class DownloadProgressService extends Context.Tag("@bakarr/api/DownloadProgressService")<
-  DownloadProgressService,
-  DownloadProgressServiceShape
->() {}
-
-const makeDownloadProgressService = Effect.gen(function* () {
-  const { db } = yield* Database;
-  const clock = yield* ClockService;
-  const readSupport = makeCatalogDownloadViewSupport({
-    db,
-    nowIso: () => nowIsoFromClock(clock),
-    tryDatabasePromise,
-  });
-
-  return {
-    getDownloadProgress: readSupport.getDownloadProgress,
-  } satisfies DownloadProgressServiceShape;
-});
-
-export const DownloadProgressServiceLive = Layer.effect(
-  DownloadProgressService,
-  makeDownloadProgressService,
-);
 
 const hasAdjacentDownloadEvent = Effect.fn("OperationsService.hasAdjacentDownloadEvent")(function* (
   db: AppDatabase,
@@ -390,3 +444,97 @@ const hasAdjacentDownloadEvent = Effect.fn("OperationsService.hasAdjacentDownloa
 
   return rows.length > 0;
 });
+
+const loadDownloadEventExportMetadata = Effect.fn(
+  "OperationsService.loadDownloadEventExportMetadata",
+)(function* (
+  db: AppDatabase,
+  tryDatabasePromise: TryDatabasePromise,
+  plan: DownloadEventExportPlan,
+  nowIso: () => Effect.Effect<string>,
+) {
+  const totalRows = yield* tryDatabasePromise("Failed to count download events", () => {
+    const totalQuery = db.select({ count: sql<number>`count(*)` }).from(downloadEvents);
+    return plan.baseConditions.length > 0
+      ? totalQuery.where(and(...plan.baseConditions))
+      : totalQuery;
+  });
+  const total = Number(totalRows[0]?.count ?? 0);
+  const generated_at = yield* nowIso();
+
+  return {
+    exported: Math.min(total, plan.limit),
+    generated_at,
+    limit: plan.limit,
+    order: plan.order,
+    total,
+    truncated: total > plan.limit,
+  } satisfies DownloadEventExportHeader;
+});
+
+function streamDownloadEvents(
+  db: AppDatabase,
+  tryDatabasePromise: TryDatabasePromise,
+  plan: DownloadEventExportPlan,
+): Stream.Stream<DownloadEvent, never> {
+  const pageSize = 500;
+
+  return Stream.unfoldChunkEffect(
+    { emitted: 0, cursor: undefined as number | undefined },
+    (state) =>
+      Effect.gen(function* () {
+        const remaining = plan.limit - state.emitted;
+        if (remaining <= 0) {
+          return Option.none<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>();
+        }
+
+        let cursorCondition: SQL<unknown> | undefined;
+
+        if (state.cursor !== undefined) {
+          cursorCondition =
+            plan.order === "asc"
+              ? gt(downloadEvents.id, state.cursor)
+              : lt(downloadEvents.id, state.cursor);
+        }
+        const conditions = cursorCondition
+          ? [...plan.baseConditions, cursorCondition]
+          : [...plan.baseConditions];
+
+        const rows = yield* tryDatabasePromise("Failed to stream download events", () => {
+          const query = db
+            .select()
+            .from(downloadEvents)
+            .orderBy(plan.order === "asc" ? asc(downloadEvents.id) : desc(downloadEvents.id))
+            .limit(Math.min(pageSize, remaining));
+
+          return conditions.length > 0 ? query.where(and(...conditions)) : query;
+        });
+
+        if (rows.length === 0) {
+          return Option.none<readonly [Chunk.Chunk<DownloadEvent>, typeof state]>();
+        }
+
+        const contexts = yield* loadDownloadEventPresentationContexts(db, rows);
+        const events = yield* Effect.forEach(rows, (row) =>
+          toDownloadEvent(row, contexts.get(row.id)),
+        );
+        const lastId = rows[rows.length - 1]?.id;
+
+        return Option.some([
+          Chunk.fromIterable(events),
+          {
+            emitted: state.emitted + events.length,
+            cursor: lastId,
+          },
+        ] as const);
+      }),
+  ).pipe(Stream.catchAll(() => Stream.empty));
+}
+
+function escapeCsv(value: string): string {
+  if (/[",\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+
+  return value;
+}

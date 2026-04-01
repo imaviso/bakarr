@@ -53,15 +53,13 @@ export function makeDownloadProgressSupport(input: DownloadProgressSupportInput)
   const publishDownloadProgress = Effect.fn("OperationsService.publishDownloadProgress")(
     function* () {
       const downloads = yield* getDownloadProgressSnapshotEffect().pipe(
-        Effect.catchAll((error) =>
-          Effect.fail(
-            error instanceof DatabaseError
-              ? error
-              : new OperationsInfrastructureError({
-                  message: "Failed to load download progress snapshot",
-                  cause: error,
-                }),
-          ),
+        Effect.mapError((error) =>
+          error instanceof DatabaseError
+            ? error
+            : new OperationsInfrastructureError({
+                message: "Failed to load download progress snapshot",
+                cause: error,
+              }),
         ),
       );
 

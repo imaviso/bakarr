@@ -11,19 +11,19 @@ export interface LibraryRoot {
   readonly path: string;
 }
 
-export interface LibraryRootsServiceShape {
+export interface LibraryRootsQueryServiceShape {
   readonly listRoots: () => Effect.Effect<LibraryRoot[], DatabaseError>;
 }
 
-export class LibraryRootsService extends Context.Tag("@bakarr/api/LibraryRootsService")<
-  LibraryRootsService,
-  LibraryRootsServiceShape
+export class LibraryRootsQueryService extends Context.Tag("@bakarr/api/LibraryRootsQueryService")<
+  LibraryRootsQueryService,
+  LibraryRootsQueryServiceShape
 >() {}
 
-const makeLibraryRootsService = Effect.gen(function* () {
+const makeLibraryRootsQueryService = Effect.gen(function* () {
   const { db } = yield* Database;
 
-  const listRoots = Effect.fn("LibraryRootsService.listRoots")(function* () {
+  const listRoots = Effect.fn("LibraryRootsQueryService.listRoots")(function* () {
     const rows = yield* tryDatabasePromise("Failed to load library roots", () =>
       db
         .select({
@@ -42,7 +42,10 @@ const makeLibraryRootsService = Effect.gen(function* () {
     }));
   });
 
-  return { listRoots } satisfies LibraryRootsServiceShape;
+  return { listRoots } satisfies LibraryRootsQueryServiceShape;
 });
 
-export const LibraryRootsServiceLive = Layer.effect(LibraryRootsService, makeLibraryRootsService);
+export const LibraryRootsQueryServiceLive = Layer.effect(
+  LibraryRootsQueryService,
+  makeLibraryRootsQueryService,
+);

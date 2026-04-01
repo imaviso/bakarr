@@ -2,7 +2,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot, type FileSystemShape } from "@/lib/filesystem.ts";
-import { LibraryRootsService } from "@/features/library-roots/service.ts";
+import { LibraryRootsQueryService } from "@/features/operations/library-roots-query-service.ts";
 import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
 import { SystemConfigService } from "@/features/system/system-config-service.ts";
 import { OperationsInputError, OperationsPathError } from "@/features/operations/errors.ts";
@@ -49,7 +49,7 @@ export class LibraryBrowseService extends Context.Tag("@bakarr/api/LibraryBrowse
 
 const makeLibraryBrowseService = Effect.gen(function* () {
   const systemService = yield* SystemConfigService;
-  const libraryRootsService = yield* LibraryRootsService;
+  const libraryRootsService = yield* LibraryRootsQueryService;
   const fs = yield* FileSystem;
 
   const browse = Effect.fn("LibraryBrowseService.browse")(function* (input: {

@@ -11,7 +11,7 @@ import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
 import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
 import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
-import { LibraryRootsServiceLive } from "@/features/library-roots/service.ts";
+import { LibraryRootsQueryServiceLive } from "@/features/operations/library-roots-query-service.ts";
 import { OperationsFeatureLive } from "@/features/operations/operations-feature-layer.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
@@ -117,7 +117,7 @@ export function makeApiLifecycleLayers(
   );
 
   // Library services (platform + operations + system dependencies)
-  const libraryRootsLayer = withPlatform(LibraryRootsServiceLive);
+  const libraryRootsLayer = withPlatform(LibraryRootsQueryServiceLive);
   const libraryBrowseLayer = LibraryBrowseServiceLive.pipe(
     Layer.provideMerge(
       Layer.mergeAll(platformLayer, operationsLayer, systemLayer, libraryRootsLayer),

@@ -2,7 +2,7 @@ import { HttpRouter, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { EventBus } from "@/features/events/event-bus.ts";
-import { DownloadProgressService } from "@/features/operations/catalog-download-view-support.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
 import { buildDownloadProgressStream } from "@/http/event-stream.ts";
 import { authedRouteResponse } from "@/http/router-helpers.ts";
 
@@ -11,7 +11,7 @@ export const systemEventsRouter = HttpRouter.empty.pipe(
     "/api/events",
     authedRouteResponse(
       Effect.gen(function* () {
-        const downloads = yield* (yield* DownloadProgressService).getDownloadProgress();
+        const downloads = yield* (yield* CatalogDownloadReadService).getDownloadProgress();
         const eventBus = yield* EventBus;
         return { downloads, eventBus };
       }),

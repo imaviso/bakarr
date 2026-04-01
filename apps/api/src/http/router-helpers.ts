@@ -7,9 +7,6 @@ import { formatValidationErrorMessage, RequestValidationError } from "@/http/rou
 import type { RouteErrorResponse } from "@/http/route-types.ts";
 import type { AuthUser } from "@packages/shared/index.ts";
 
-export const decodeJsonBody = <A, I, R>(schema: Schema.Schema<A, I, R>) =>
-  HttpServerRequest.schemaBodyJson(schema);
-
 export const decodeJsonBodyWithLabel = <A, I, R>(schema: Schema.Schema<A, I, R>, label: string) =>
   HttpServerRequest.schemaBodyJson(schema).pipe(
     Effect.mapError((error) => mapLabeledBodyDecodeError(label, error)),
@@ -74,6 +71,8 @@ export const routeResponse = <A, E, R, E2, R2>(
   Effect.flatMap(HttpServerRequest.HttpServerRequest, (request) => {
     const url = new URL(request.url, "http://bakarr.local");
 
+    const invalidRequest = HttpServerResponse.text("Invalid request", { status: 400 });
+
     return effect.pipe(
       Effect.flatMap(onSuccess),
       Effect.tapErrorCause((cause) =>
@@ -85,29 +84,20 @@ export const routeResponse = <A, E, R, E2, R2>(
           }),
         ),
       ),
-      Effect.catchAll((error) => {
-        if (ParseResult.isParseError(error)) {
-          return Effect.succeed(HttpServerResponse.text("Invalid request", { status: 400 }));
-        }
+      Effect.catchIf(ParseResult.isParseError, () => Effect.succeed(invalidRequest)),
+      Effect.catchIf(isRequestErrorTag, () => Effect.succeed(invalidRequest)),
+      Effect.catchAll((error) =>
+        Effect.sync(() => {
+          const mapped = mapError(error);
+          const response = HttpServerResponse.text(mapped.message, {
+            status: mapped.status,
+          });
 
-        if (
-          typeof error === "object" &&
-          error !== null &&
-          "_tag" in error &&
-          error._tag === "RequestError"
-        ) {
-          return Effect.succeed(HttpServerResponse.text("Invalid request", { status: 400 }));
-        }
-
-        const mapped = mapError(error);
-        const response = HttpServerResponse.text(mapped.message, {
-          status: mapped.status,
-        });
-
-        return Effect.succeed(
-          mapped.headers ? HttpServerResponse.setHeaders(response, mapped.headers) : response,
-        );
-      }),
+          return mapped.headers
+            ? HttpServerResponse.setHeaders(response, mapped.headers)
+            : response;
+        }),
+      ),
     );
   });
 
@@ -145,4 +135,10 @@ function mapLabeledBodyDecodeError(label: string, error: unknown) {
   }
 
   return error;
+}
+
+function isRequestErrorTag(error: unknown): error is { readonly _tag: "RequestError" } {
+  return (
+    typeof error === "object" && error !== null && "_tag" in error && error._tag === "RequestError"
+  );
 }

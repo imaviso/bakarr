@@ -4,42 +4,52 @@ import { Context, Effect, Layer } from "effect";
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
+import { EventBus } from "@/features/events/event-bus.ts";
 import { decideDownloadAction } from "@/features/operations/release-ranking.ts";
 import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
 import { loadReleaseRules } from "@/features/operations/repository/profile-repository.ts";
 import { loadRuntimeConfig } from "@/features/operations/repository/config-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import { makeBackgroundSearchQueueSupport } from "@/features/operations/background-search-queue-support.ts";
+import { BackgroundSearchQualityProfileService } from "@/features/operations/background-search-quality-profile-service.ts";
+import { BackgroundSearchQueueService } from "@/features/operations/background-search-queue-service.ts";
+import { BackgroundSearchSkipLogService } from "@/features/operations/background-search-skip-log-service.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { EventBus } from "@/features/events/event-bus.ts";
 import { OperationsProgress } from "@/features/operations/operations-progress-service.ts";
-import { BackgroundSearchShared } from "@/features/operations/background-search-support-shared.ts";
-import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
-import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
-import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import type { BackgroundSearchMissingSupportInput } from "@/features/operations/background-search-support-shared.ts";
-import type { BackgroundSearchSupportShared } from "@/features/operations/background-search-support-shared.ts";
 
-export function makeBackgroundSearchMissingSupport(
-  input: BackgroundSearchMissingSupportInput,
-  shared: BackgroundSearchSupportShared,
-) {
+interface BackgroundSearchMissingSupportInput {
+  readonly db: typeof Database.Service.db;
+  readonly eventBus: typeof EventBus.Service;
+  readonly logSearchMissingSkip: (input: {
+    animeId: number;
+    episodeNumber: number;
+    reason: string;
+  }) => Effect.Effect<void, never>;
+  readonly nowIso: () => Effect.Effect<string>;
+  readonly publishDownloadProgress: () => Effect.Effect<
+    void,
+    DatabaseError | OperationsInfrastructureError
+  >;
+  readonly queueReleaseIfEligible: typeof BackgroundSearchQueueService.Service.queueReleaseIfEligible;
+  readonly maybeQBitConfig: typeof BackgroundSearchQueueService.Service.maybeQBitConfig;
+  readonly requireQualityProfile: typeof BackgroundSearchQualityProfileService.Service.requireQualityProfile;
+  readonly searchEpisodeReleases: typeof SearchReleaseService.Service.searchEpisodeReleases;
+}
+
+export function makeBackgroundSearchMissingSupport(input: BackgroundSearchMissingSupportInput) {
   const {
     db,
     eventBus,
-    maybeQBitConfig,
     nowIso,
     publishDownloadProgress,
+    queueReleaseIfEligible,
+    maybeQBitConfig,
+    requireQualityProfile,
+    logSearchMissingSkip,
     searchEpisodeReleases,
-    tryDatabasePromise,
   } = input;
-
-  const logSearchMissingSkip = shared.logSearchMissingSkip;
-  const requireQualityProfile = shared.requireQualityProfile;
-  const { queueReleaseIfEligible } = makeBackgroundSearchQueueSupport(input);
 
   const triggerSearchMissingBase = Effect.fn("operations.search.missing")(function* (
     animeId?: number,
@@ -165,25 +175,25 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const eventBus = yield* EventBus;
-    const qbitClient = yield* QBitTorrentClient;
     const clock = yield* ClockService;
     const progress = yield* OperationsProgress;
-    const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
     const searchReleaseService = yield* SearchReleaseService;
-    const shared = yield* BackgroundSearchShared;
+    const queueService = yield* BackgroundSearchQueueService;
+    const qualityProfileService = yield* BackgroundSearchQualityProfileService;
+    const skipLogService = yield* BackgroundSearchSkipLogService;
 
     const input: BackgroundSearchMissingSupportInput = {
       db,
-      downloadTriggerCoordinator,
       eventBus,
-      maybeQBitConfig,
+      logSearchMissingSkip: skipLogService.logSearchMissingSkip,
+      maybeQBitConfig: queueService.maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
       publishDownloadProgress: progress.publishDownloadProgress,
-      qbitClient,
+      queueReleaseIfEligible: queueService.queueReleaseIfEligible,
+      requireQualityProfile: qualityProfileService.requireQualityProfile,
       searchEpisodeReleases: searchReleaseService.searchEpisodeReleases,
-      tryDatabasePromise,
     };
 
-    return makeBackgroundSearchMissingSupport(input, shared);
+    return makeBackgroundSearchMissingSupport(input);
   }),
 );

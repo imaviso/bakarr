@@ -2,8 +2,8 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
+import { DownloadTriggerService } from "@/features/operations/download-trigger-coordinator-service.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-support.ts";
-import { DownloadWorkflow } from "@/features/operations/download-workflow-service.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
 import { SearchEpisodeService } from "@/features/operations/search-orchestration-episode-support.ts";
 import { SearchReleaseService } from "@/features/operations/search-orchestration-release-search.ts";
@@ -84,7 +84,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const body = yield* decodeJsonBodyWithLabel(SearchDownloadBodySchema, "search download");
-        yield* (yield* DownloadWorkflow).triggerDownload(body);
+        yield* (yield* DownloadTriggerService).triggerDownload(body);
       }),
       successResponse,
     ),

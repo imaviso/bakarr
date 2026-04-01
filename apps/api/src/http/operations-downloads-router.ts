@@ -2,9 +2,9 @@ import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
 import { HttpServerResponse } from "@effect/platform";
-import { CatalogDownloadService } from "@/features/operations/catalog-download-orchestration.ts";
+import { CatalogDownloadCommandService } from "@/features/operations/catalog-download-command-service.ts";
+import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
-import { escapeCsv } from "@/http/route-fs.ts";
 import {
   DeleteDownloadQuerySchema,
   DownloadEventsExportQuerySchema,
@@ -22,14 +22,14 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
     authedRouteResponse(
-      Effect.flatMap(CatalogDownloadService, (service) => service.listDownloadQueue()),
+      Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadQueue()),
       jsonResponse,
     ),
   ),
   HttpRouter.get(
     "/downloads/history",
     authedRouteResponse(
-      Effect.flatMap(CatalogDownloadService, (service) => service.listDownloadHistory()),
+      Effect.flatMap(CatalogDownloadReadService, (service) => service.listDownloadHistory()),
       jsonResponse,
     ),
   ),
@@ -38,7 +38,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(DownloadEventsQuerySchema, "download events");
-        return yield* (yield* CatalogDownloadService).listDownloadEvents({
+        return yield* (yield* CatalogDownloadReadService).listDownloadEvents({
           animeId: query.anime_id,
           cursor: query.cursor,
           downloadId: query.download_id,
@@ -61,8 +61,8 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           DownloadEventsExportQuerySchema,
           "download events export",
         );
-        const service = yield* CatalogDownloadService;
-        const page = yield* service.exportDownloadEvents({
+        const service = yield* CatalogDownloadReadService;
+        const input = {
           animeId: query.anime_id,
           downloadId: query.download_id,
           endDate: query.end_date,
@@ -71,68 +71,38 @@ export const downloadsRouter = HttpRouter.empty.pipe(
           order: query.order,
           startDate: query.start_date,
           status: query.status,
-        });
+        };
 
         if ((query.format ?? "json") === "csv") {
+          const streamed = yield* service.streamDownloadEventsExportCsv(input);
           return {
             format: "csv" as const,
-            page,
+            header: streamed.header,
+            stream: streamed.stream,
           };
         }
 
-        const streamed = yield* service.streamDownloadEventsExportJson({
-          animeId: query.anime_id,
-          downloadId: query.download_id,
-          endDate: query.end_date,
-          eventType: query.event_type,
-          limit: query.limit,
-          order: query.order,
-          startDate: query.start_date,
-          status: query.status,
-        });
+        const streamed = yield* service.streamDownloadEventsExportJson(input);
 
         return {
           format: "json" as const,
-          page: {
-            ...page,
-            events: [],
-          },
+          header: streamed.header,
           stream: streamed.stream,
         };
       }),
       (result) => {
-        const { format, page } = result;
+        const { format, header } = result;
         const exportHeaders = {
-          "X-Bakarr-Export-Limit": String(page.limit),
-          "X-Bakarr-Export-Order": page.order,
-          "X-Bakarr-Export-Truncated": String(page.truncated),
-          "X-Bakarr-Exported-Events": String(page.exported),
-          "X-Bakarr-Generated-At": page.generated_at,
-          "X-Bakarr-Total-Events": String(page.total),
+          "X-Bakarr-Export-Limit": String(header.limit),
+          "X-Bakarr-Export-Order": header.order,
+          "X-Bakarr-Export-Truncated": String(header.truncated),
+          "X-Bakarr-Exported-Events": String(header.exported),
+          "X-Bakarr-Generated-At": header.generated_at,
+          "X-Bakarr-Total-Events": String(header.total),
         };
 
         if (format === "csv") {
-          const csv = [
-            "id,created_at,event_type,from_status,to_status,anime_id,anime_title,download_id,torrent_name,message,metadata,metadata_json",
-            ...page.events.map((event) =>
-              [
-                String(event.id),
-                event.created_at,
-                escapeCsv(event.event_type),
-                escapeCsv(event.from_status ?? ""),
-                escapeCsv(event.to_status ?? ""),
-                event.anime_id === undefined ? "" : String(event.anime_id),
-                escapeCsv(event.anime_title ?? ""),
-                event.download_id === undefined ? "" : String(event.download_id),
-                escapeCsv(event.torrent_name ?? ""),
-                escapeCsv(event.message),
-                escapeCsv(event.metadata ?? ""),
-                escapeCsv(event.metadata_json ? JSON.stringify(event.metadata_json) : ""),
-              ].join(","),
-            ),
-          ].join("\n");
-
-          return HttpServerResponse.text(csv, {
+          return HttpServerResponse.stream(result.stream, {
             contentType: "text/csv; charset=utf-8",
             headers: {
               ...exportHeaders,
@@ -156,7 +126,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadService).pauseDownload(params.id);
+        yield* (yield* CatalogDownloadCommandService).pauseDownload(params.id);
       }),
       successResponse,
     ),
@@ -166,7 +136,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadService).resumeDownload(params.id);
+        yield* (yield* CatalogDownloadCommandService).resumeDownload(params.id);
       }),
       successResponse,
     ),
@@ -176,7 +146,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadService).retryDownload(params.id);
+        yield* (yield* CatalogDownloadCommandService).retryDownload(params.id);
       }),
       successResponse,
     ),
@@ -186,7 +156,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadService).reconcileDownload(params.id);
+        yield* (yield* CatalogDownloadCommandService).reconcileDownload(params.id);
       }),
       successResponse,
     ),
@@ -194,7 +164,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.post(
     "/downloads/sync",
     authedRouteResponse(
-      Effect.flatMap(CatalogDownloadService, (service) => service.syncDownloads()),
+      Effect.flatMap(CatalogDownloadCommandService, (service) => service.syncDownloads()),
       successResponse,
     ),
   ),
@@ -204,7 +174,7 @@ export const downloadsRouter = HttpRouter.empty.pipe(
       Effect.gen(function* () {
         const params = yield* decodePathParams(IdParamsSchema);
         const query = yield* decodeQueryWithLabel(DeleteDownloadQuerySchema, "delete download");
-        yield* (yield* CatalogDownloadService).removeDownload(
+        yield* (yield* CatalogDownloadCommandService).removeDownload(
           params.id,
           query.delete_files === "true",
         );
