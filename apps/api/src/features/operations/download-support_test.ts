@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
 import { anime } from "@/db/schema.ts";
@@ -13,6 +12,7 @@ import {
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
   importDownloadedFile,
+  ImportFileError,
   shouldDeleteImportedData,
   shouldReconcileCompletedDownloads,
   shouldRemoveTorrentOnImport,
@@ -124,6 +124,13 @@ it.scoped(
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
           assert.deepStrictEqual(failure._tag, "Some");
+          if (failure._tag === "Some") {
+            assert.deepStrictEqual(failure.value instanceof ImportFileError, true);
+            assert.deepStrictEqual(
+              failure.value.message,
+              "Failed to move file to temp destination",
+            );
+          }
         }
       }),
     ),

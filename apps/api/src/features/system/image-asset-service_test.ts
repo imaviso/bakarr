@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import { symlink } from "node:fs/promises";
 
 import { Cause, Effect, Layer } from "effect";
@@ -7,7 +6,7 @@ import { FileSystemError } from "@/lib/filesystem.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import {
   ImageAssetAccessError,
   ImageAssetNotFoundError,

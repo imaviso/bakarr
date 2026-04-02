@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
 import { Effect, Exit } from "effect";
 
@@ -24,15 +23,19 @@ it("mapBlockStatsToDiskSpace converts block stats to bytes", () => {
 });
 
 it("mapBlockStatsToDiskSpace throws a typed error for invalid stats", () => {
-  assert.throws(
-    () =>
-      mapBlockStatsToDiskSpace({
-        bavail: -1n,
-        blocks: 100n,
-        bsize: 4096n,
-      }),
-    (error) => error instanceof DiskSpaceError && error.message === "Invalid available block count",
-  );
+  try {
+    mapBlockStatsToDiskSpace({
+      bavail: -1n,
+      blocks: 100n,
+      bsize: 4096n,
+    });
+    assert.fail("Expected DiskSpaceError");
+  } catch (error) {
+    assert.deepStrictEqual(error instanceof DiskSpaceError, true);
+    if (error instanceof DiskSpaceError) {
+      assert.deepStrictEqual(error.message, "Invalid available block count");
+    }
+  }
 });
 
 it("selectStoragePath prefers library_path", () => {

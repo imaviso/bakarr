@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { type NamingInput, renderEpisodeFilename } from "@/lib/naming.ts";
 
 function makeInput(overrides: Partial<NamingInput> = {}): NamingInput {

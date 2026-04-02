@@ -32,11 +32,10 @@ const makeSystemConfigService = Effect.gen(function* () {
     const profiles = yield* listQualityProfileRows(db);
 
     const core = yield* effectDecodeStoredConfigRow(storedConfig).pipe(
-      Effect.catchTag("StoredConfigCorruptError", () =>
+      Effect.catchTag("StoredConfigCorruptError", (error) =>
         Effect.fail(
           new StoredConfigCorruptError({
-            message:
-              "Stored configuration is corrupt and could not be decoded. Re-save config to repair.",
+            message: `${error.message}. Re-save config to repair.`,
           }),
         ),
       ),
@@ -58,3 +57,13 @@ const makeSystemConfigService = Effect.gen(function* () {
 });
 
 export const SystemConfigServiceLive = Layer.effect(SystemConfigService, makeSystemConfigService);
+
+export function redactConfigSecrets(config: Config): Config {
+  return {
+    ...config,
+    qbittorrent: {
+      ...config.qbittorrent,
+      password: null,
+    },
+  } satisfies Config;
+}

@@ -1,28 +1,41 @@
-import assert from "node:assert/strict";
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { Database, type DatabaseService } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { describe, it } from "@effect/vitest";
+import { makeDatabaseServiceStub } from "@/test/stubs.ts";
+import { assert, describe, it } from "@effect/vitest";
 import * as schema from "@/db/schema.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
+import { makeTestConfig } from "@/test/config-fixture.ts";
 import {
+  redactConfigSecrets,
   SystemConfigService,
   SystemConfigServiceLive,
 } from "@/features/system/system-config-service.ts";
 
 describe("SystemConfigService", () => {
+  it.effect("redactConfigSecrets strips qBittorrent password for API responses", () =>
+    Effect.gen(function* () {
+      const redacted = redactConfigSecrets(
+        makeTestConfig("./test.sqlite", (config) => ({
+          ...config,
+          qbittorrent: {
+            ...config.qbittorrent,
+            password: "secret-pass",
+          },
+        })),
+      );
+
+      assert.deepStrictEqual(redacted.qbittorrent.password, null);
+    }),
+  );
+
   it.scoped("fails when the stored config row is missing", () =>
     withSqliteTestDbEffect({
       run: (db, _databaseFile) =>
         Effect.gen(function* () {
           const layer = SystemConfigServiceLive.pipe(
-            Layer.provide(
-              Layer.succeed(Database, {
-                client: {} as DatabaseService["client"],
-                db,
-              }),
-            ),
+            Layer.provide(Layer.succeed(Database, makeDatabaseServiceStub(db))),
           );
 
           const exit = yield* Effect.exit(

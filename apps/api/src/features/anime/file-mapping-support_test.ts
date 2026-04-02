@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
@@ -31,7 +30,7 @@ it.scoped("resolveEpisodeFileEffect returns resolved file when mapping is valid"
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
-          const appDb = db as AppDatabase;
+          const appDb: AppDatabase = db;
           const filePath = `${root}/Episode 1.mkv`;
           yield* writeTextFile(fs, filePath, "video");
           yield* insertAnime(appDb, root);
@@ -67,7 +66,7 @@ it.scoped("resolveEpisodeFileEffect returns unmapped state when no file path is 
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
-          const appDb = db as AppDatabase;
+          const appDb: AppDatabase = db;
           yield* insertAnime(appDb, root);
           yield* Effect.tryPromise(() =>
             appDb.insert(schema.episodes).values({
@@ -97,7 +96,7 @@ it.scoped("resolveEpisodeFileEffect returns missing state when mapped file is in
     run: (db) =>
       withFileSystemSandboxEffect(({ fs, root }) =>
         Effect.gen(function* () {
-          const appDb = db as AppDatabase;
+          const appDb: AppDatabase = db;
           const filePath = `${root}/Missing Episode.mkv`;
           yield* insertAnime(appDb, root);
           yield* Effect.tryPromise(() =>
@@ -130,7 +129,7 @@ it.scoped(
       run: (db) =>
         withFileSystemSandboxEffect(({ fs, root }) =>
           Effect.gen(function* () {
-            const appDb = db as AppDatabase;
+            const appDb: AppDatabase = db;
             const filePath = `${root}/Episode 1.mkv`;
             yield* writeTextFile(fs, filePath, "video");
             yield* insertAnime(appDb, `${root}/missing-root`);
@@ -164,7 +163,7 @@ it.scoped(
       run: (db) =>
         withFileSystemSandboxEffect(({ fs, root }) =>
           Effect.gen(function* () {
-            const appDb = db as AppDatabase;
+            const appDb: AppDatabase = db;
             const animeRoot = `${root}/anime`;
             const externalRoot = `${root}/external`;
             const filePath = `${externalRoot}/Episode 1.mkv`;

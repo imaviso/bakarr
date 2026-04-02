@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
+import * as SqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import { it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
 import { HttpApp } from "@effect/platform";
+import * as Context from "effect/Context";
 import { Effect, Layer, Option, Redacted } from "effect";
+import * as Exit from "effect/Exit";
+import * as EffectLayer from "effect/Layer";
+import * as Scope from "effect/Scope";
 import { tmpdir } from "node:os";
 import { AniListClient } from "./src/features/anime/anilist.ts";
 import { type QBitTorrent, QBitTorrentClient } from "./src/features/operations/qbittorrent.ts";
@@ -11,7 +16,6 @@ import { RssClient } from "./src/features/operations/rss-client.ts";
 import type { ParsedRelease } from "./src/features/operations/rss-client-parse.ts";
 import { SeaDexClient, type SeaDexEntry } from "./src/features/operations/seadex-client.ts";
 import { platformFsTest } from "./src/test/platform-filesystem-test.ts";
-import { createClient } from "./src/test/sqlite-client.ts";
 import type { AnimeSearchResult } from "../../packages/shared/src/index.ts";
 
 const {
@@ -4625,39 +4629,41 @@ async function createTestContext(options?: {
   rssLayer?: Layer.Layer<RssClient>;
   seadexLayer?: Layer.Layer<SeaDexClient>;
 }) {
-  const { bootstrapApiTestRuntime } = await import("./src/api-test-bootstrap.ts");
+  const { bootstrapApiTestRuntimeEffect } = await import("./src/api-test-bootstrap.ts");
   const databaseFile = await makeTempFile({ suffix: ".sqlite" });
-  const { httpApp, runtime } = await bootstrapApiTestRuntime(
-    {
-      bootstrapPassword: Redacted.make("admin"),
-      bootstrapUsername: "admin",
-      databaseFile,
-      port: 9999,
-    },
-    {
-      aniListLayer: testAniListLayer,
-      commandExecutorLayer: Layer.succeed(
-        CommandExecutor.CommandExecutor,
-        makeCommandExecutorStub((command) => {
-          if (command.command === "df") {
-            return Effect.succeed(
-              "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/test 1000 250 750 25% /tmp",
-            );
-          }
+  const { httpApp, runtime } = await Effect.runPromise(
+    bootstrapApiTestRuntimeEffect(
+      {
+        bootstrapPassword: Redacted.make("admin"),
+        bootstrapUsername: "admin",
+        databaseFile,
+        port: 9999,
+      },
+      {
+        aniListLayer: testAniListLayer,
+        commandExecutorLayer: Layer.succeed(
+          CommandExecutor.CommandExecutor,
+          makeCommandExecutorStub((command) => {
+            if (command.command === "df") {
+              return Effect.succeed(
+                "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/test 1000 250 750 25% /tmp",
+              );
+            }
 
-          if (command.command === "ffprobe") {
-            return Effect.succeed(
-              command.args.includes("-version") ? "ffprobe version test" : '{"streams":[]}',
-            );
-          }
+            if (command.command === "ffprobe") {
+              return Effect.succeed(
+                command.args.includes("-version") ? "ffprobe version test" : '{"streams":[]}',
+              );
+            }
 
-          return Effect.die(new Error(`unexpected command in test runtime: ${command.command}`));
-        }),
-      ),
-      qbitLayer: options?.qbitLayer,
-      rssLayer: options?.rssLayer ?? testRssLayer,
-      seadexLayer: options?.seadexLayer ?? testSeaDexLayer,
-    },
+            return Effect.die(new Error(`unexpected command in test runtime: ${command.command}`));
+          }),
+        ),
+        qbitLayer: options?.qbitLayer,
+        rssLayer: options?.rssLayer ?? testRssLayer,
+        seadexLayer: options?.seadexLayer ?? testSeaDexLayer,
+      },
+    ),
   );
   const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
   const app = {
@@ -4738,6 +4744,46 @@ function makeCommandExecutorStub(
     string: (command, _encoding) =>
       runAsString(command as { args: ReadonlyArray<string>; command: string }),
   };
+}
+
+function createClient(input: { readonly url: string }) {
+  const databaseFile = toDatabaseFile(input.url);
+  const scope = Effect.runSync(Scope.make());
+  const clientContext = Effect.runSync(
+    EffectLayer.buildWithScope(
+      SqliteClient.layer({
+        filename: databaseFile,
+        readonly: false,
+      }),
+      scope,
+    ),
+  );
+  const client = Context.get(clientContext, SqliteClient.SqliteClient);
+
+  return {
+    close() {
+      Effect.runSync(Scope.close(scope, Exit.succeed(undefined)));
+    },
+    async execute(
+      sqlOrStatement: { readonly args?: ReadonlyArray<unknown>; readonly sql: string } | string,
+      args: ReadonlyArray<unknown> = [],
+    ) {
+      const statement =
+        typeof sqlOrStatement === "string"
+          ? { args, sql: sqlOrStatement }
+          : { args: sqlOrStatement.args ?? [], sql: sqlOrStatement.sql };
+
+      const rows = await Effect.runPromise(
+        client.unsafe(statement.sql, statement.args).withoutTransform,
+      );
+
+      return { rows: rows as Array<Record<string, unknown>> };
+    },
+  };
+}
+
+function toDatabaseFile(url: string) {
+  return url.startsWith("file:") ? url.slice("file:".length) : url;
 }
 
 async function waitForSql(

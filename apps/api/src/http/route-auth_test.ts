@@ -8,8 +8,7 @@ import {
   type AuthSessionServiceShape,
 } from "@/features/auth/session-service.ts";
 import { persistSessionResponse, requireViewerFromHttpRequest } from "@/http/route-auth.ts";
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import type { AuthUser } from "@packages/shared/index.ts";
 
 const sampleViewer: AuthUser = {

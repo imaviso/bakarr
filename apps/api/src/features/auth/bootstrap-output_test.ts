@@ -1,8 +1,7 @@
-import assert from "node:assert/strict";
 import { Terminal } from "@effect/platform";
 import { Effect, Logger } from "effect";
 
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { announceBootstrapCredentials } from "@/features/auth/bootstrap-output.ts";
 
 it.effect("announceBootstrapCredentials logs a fallback message when terminal display fails", () =>

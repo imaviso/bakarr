@@ -1,4 +1,4 @@
-import { Effect, Logger, LogLevel } from "effect";
+import { Context, Effect, Layer, Logger, LogLevel, Ref } from "effect";
 
 export function compactLogAnnotations(
   annotations: Record<string, unknown>,
@@ -38,38 +38,71 @@ const LOG_LEVELS = {
   warn: LogLevel.Warning,
 } as const;
 
-let runtimeLogLevel: LogLevel.LogLevel = LogLevel.Info;
+export interface RuntimeLogLevelStateShape {
+  readonly get: Effect.Effect<LogLevel.LogLevel>;
+  readonly set: (level: string | undefined) => Effect.Effect<void>;
+}
+
+export class RuntimeLogLevelState extends Context.Tag("@bakarr/api/RuntimeLogLevelState")<
+  RuntimeLogLevelState,
+  RuntimeLogLevelStateShape
+>() {}
+
+export const RuntimeLogLevelStateLive = Layer.effect(
+  RuntimeLogLevelState,
+  Effect.gen(function* () {
+    const ref = yield* Ref.make(LogLevel.Info);
+
+    return RuntimeLogLevelState.of({
+      get: Ref.get(ref),
+      set: (level) => Ref.set(ref, parseRuntimeLogLevel(level)),
+    });
+  }),
+);
 
 export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(function* (
   level: string | undefined,
 ) {
-  runtimeLogLevel = parseRuntimeLogLevel(level);
+  const state = yield* RuntimeLogLevelState;
+  yield* state.set(level);
 });
 
-export const RuntimeLoggerLayer = Logger.replace(
-  Logger.defaultLogger,
-  Logger.make<unknown, void>((options) =>
-    Effect.sync(() => {
-      if (options.logLevel.ordinal < runtimeLogLevel.ordinal) {
-        return;
-      }
+const RuntimeLoggerLive = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const state = yield* RuntimeLogLevelState;
 
-      const line = Logger.jsonLogger.log(options);
+    return Logger.replace(
+      Logger.defaultLogger,
+      Logger.make<unknown, void>((options) =>
+        Effect.gen(function* () {
+          const runtimeLogLevel = yield* state.get;
 
-      switch (options.logLevel.label) {
-        case "ERROR":
-        case "FATAL":
-          console.error(line);
-          break;
-        case "WARN":
-          console.warn(line);
-          break;
-        default:
-          console.log(line);
-          break;
-      }
-    }),
-  ),
+          if (options.logLevel.ordinal < runtimeLogLevel.ordinal) {
+            return;
+          }
+
+          const line = Logger.jsonLogger.log(options);
+
+          switch (options.logLevel.label) {
+            case "ERROR":
+            case "FATAL":
+              console.error(line);
+              break;
+            case "WARN":
+              console.warn(line);
+              break;
+            default:
+              console.log(line);
+              break;
+          }
+        }),
+      ),
+    );
+  }),
+);
+
+export const RuntimeLoggerLayer = Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLoggerLive).pipe(
+  Layer.provide(RuntimeLogLevelStateLive),
 );
 
 function parseRuntimeLogLevel(level: string | undefined) {

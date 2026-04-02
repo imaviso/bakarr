@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import { Effect, Layer } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
@@ -7,13 +6,15 @@ import {
   BackgroundWorkerController,
   type BackgroundWorkerControllerShape,
 } from "@/background-controller-core.ts";
-import { Database, type DatabaseService } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
+import { RuntimeLogLevelStateLive } from "@/lib/logging.ts";
 import { RandomServiceLive } from "@/lib/random.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { describe, it } from "@effect/vitest";
+import { makeDatabaseServiceStub } from "@/test/stubs.ts";
+import { assert, describe, it } from "@effect/vitest";
 import {
   SystemConfigService,
   SystemConfigServiceLive,
@@ -33,10 +34,8 @@ describe("SystemConfigUpdateService", () => {
           const baseLayer = Layer.mergeAll(
             AppConfig.layer({ databaseFile }).pipe(Layer.provide(RandomServiceLive)),
             ClockServiceLive,
-            Layer.succeed(Database, {
-              client: {} as DatabaseService["client"],
-              db,
-            }),
+            RuntimeLogLevelStateLive,
+            Layer.succeed(Database, makeDatabaseServiceStub(db)),
             Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(reloads)),
           );
           const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(baseLayer));
@@ -69,8 +68,64 @@ describe("SystemConfigUpdateService", () => {
 
             assert.deepStrictEqual(updated.general.images_path, "/images/custom");
             assert.deepStrictEqual(current.general.images_path, "/images/custom");
+            assert.deepStrictEqual(updated.qbittorrent.password, nextConfig.qbittorrent.password);
             assert.deepStrictEqual(reloads.length, 1);
             assert.deepStrictEqual(reloads[0]?.general.images_path, "/images/custom");
+          }).pipe(Effect.provide(fullLayer));
+        }),
+      schema,
+    }),
+  );
+
+  it.scoped("preserves the stored qBittorrent password when the update omits it", () =>
+    withSqliteTestDbEffect({
+      run: (db, databaseFile) =>
+        Effect.gen(function* () {
+          const baseLayer = Layer.mergeAll(
+            AppConfig.layer({ databaseFile }).pipe(Layer.provide(RandomServiceLive)),
+            ClockServiceLive,
+            RuntimeLogLevelStateLive,
+            Layer.succeed(Database, makeDatabaseServiceStub(db)),
+            Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub([])),
+          );
+          const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(baseLayer));
+          const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
+            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer)),
+          );
+          const updateServiceLayer = SystemConfigUpdateServiceLive.pipe(
+            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer, runtimeConfigSnapshotLayer)),
+          );
+          const fullLayer = Layer.mergeAll(
+            systemConfigLayer,
+            runtimeConfigSnapshotLayer,
+            updateServiceLayer,
+          );
+
+          const nextConfig = makeTestConfig(databaseFile, (config) => ({
+            ...config,
+            qbittorrent: {
+              ...config.qbittorrent,
+              enabled: true,
+              password: "secret-pass",
+            },
+          }));
+
+          yield* Effect.gen(function* () {
+            const updateService = yield* SystemConfigUpdateService;
+            const configService = yield* SystemConfigService;
+
+            yield* updateService.updateConfig(nextConfig);
+            const updated = yield* updateService.updateConfig({
+              ...nextConfig,
+              qbittorrent: {
+                ...nextConfig.qbittorrent,
+                password: null,
+              },
+            });
+            const current = yield* configService.getConfig();
+
+            assert.deepStrictEqual(updated.qbittorrent.password, "secret-pass");
+            assert.deepStrictEqual(current.qbittorrent.password, "secret-pass");
           }).pipe(Effect.provide(fullLayer));
         }),
       schema,

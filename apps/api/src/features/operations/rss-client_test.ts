@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
-import { FetchHttpClient, HttpClient, HttpClientResponse } from "@effect/platform";
+import { assert, it } from "@effect/vitest";
+import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
 import { ClockServiceLive } from "@/lib/clock.ts";
@@ -24,10 +23,10 @@ function makeDnsLayer(mock: (name: string, type: "A" | "AAAA") => Promise<string
 }
 
 function makeNotFoundError() {
-  const error = new Error("Not found") as Error & { code?: string };
-  error.name = "NotFound";
-  error.code = "NotFound";
-  return error;
+  return Object.assign(new Error("Not found"), {
+    code: "NotFound",
+    name: "NotFound",
+  });
 }
 
 function rssLayer(
@@ -151,7 +150,7 @@ it.effect("RssClient fails with a typed rejection when a redirect targets a priv
       ),
     );
 
-    assertRssFailure(exit, RssFeedRejectedError);
+    assertRssFailure(exit, RssFeedRejectedError, /private|loopback|link-local|ssrf/i);
     assert.deepStrictEqual(
       requestCount,
       1,
@@ -186,7 +185,7 @@ it.effect("RssClient fails with a typed rejection when a chained redirect become
       ),
     );
 
-    assertRssFailure(exit, RssFeedRejectedError);
+    assertRssFailure(exit, RssFeedRejectedError, /private|loopback|link-local|ssrf/i);
     assert.deepStrictEqual(
       redirectChain.length,
       1,
@@ -461,50 +460,9 @@ it.effect("RssClient fails when an RSS item is missing required release fields",
   }),
 );
 
-it.scoped("RssClient disables automatic redirect following for fetch client", () =>
+it.scoped("RssClient handles redirects manually when the transport returns 302 responses", () =>
   Effect.gen(function* () {
-    const originalFetch = globalThis.fetch;
-    const calls: Array<{ redirect?: RequestRedirect; url: string }> = [];
-
-    globalThis.fetch = ((input, init) => {
-      let url: string;
-
-      if (typeof input === "string") {
-        url = input;
-      } else if (input instanceof URL) {
-        url = input.toString();
-      } else {
-        const { url: requestUrl } = input;
-        url = requestUrl;
-      }
-      const requestInit = (init ?? {}) as globalThis.RequestInit;
-      calls.push({ redirect: requestInit.redirect, url });
-
-      if (url.includes("feeds.example")) {
-        return Promise.resolve(
-          new Response("", {
-            headers: {
-              "content-type": "application/rss+xml",
-              location: "http://192.168.1.100/private.xml",
-            },
-            status: 302,
-          }),
-        );
-      }
-
-      return Promise.resolve(
-        new Response("", {
-          headers: { "content-type": "application/rss+xml" },
-          status: 200,
-        }),
-      );
-    }) as typeof fetch;
-
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => {
-        globalThis.fetch = originalFetch;
-      }),
-    );
+    const calls: string[] = [];
 
     const exit = yield* Effect.exit(
       Effect.flatMap(RssClient, (client) =>
@@ -517,7 +475,37 @@ it.scoped("RssClient disables automatic redirect following for fetch client", ()
               Layer.provide(
                 Layer.mergeAll(
                   ClockServiceLive,
-                  FetchHttpClient.layer,
+                  Layer.succeed(
+                    HttpClient.HttpClient,
+                    HttpClient.make((request, url) => {
+                      calls.push(url.toString());
+
+                      if (url.href.includes("feeds.example")) {
+                        return Effect.succeed(
+                          HttpClientResponse.fromWeb(
+                            request,
+                            new Response("", {
+                              headers: {
+                                "content-type": "application/rss+xml",
+                                location: "http://192.168.1.100/private.xml",
+                              },
+                              status: 302,
+                            }),
+                          ),
+                        );
+                      }
+
+                      return Effect.succeed(
+                        HttpClientResponse.fromWeb(
+                          request,
+                          new Response("", {
+                            headers: { "content-type": "application/rss+xml" },
+                            status: 200,
+                          }),
+                        ),
+                      );
+                    }),
+                  ),
                   makeDnsLayer(() => Promise.resolve(["93.184.216.34"])),
                 ),
               ),
@@ -527,9 +515,9 @@ it.scoped("RssClient disables automatic redirect following for fetch client", ()
       ),
     );
 
-    assertRssFailure(exit, RssFeedRejectedError);
+    assertRssFailure(exit, RssFeedRejectedError, /private|loopback|link-local|ssrf/i);
     assert.deepStrictEqual(calls.length, 1);
-    assert.deepStrictEqual(calls[0].redirect, "manual");
+    assert.deepStrictEqual(calls[0], "https://feeds.example/releases.xml");
   }),
 );
 

@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Layer, Option } from "effect";
 

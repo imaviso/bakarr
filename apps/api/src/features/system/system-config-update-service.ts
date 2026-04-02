@@ -4,6 +4,7 @@ import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import { RuntimeLogLevelState } from "@/lib/logging.ts";
 import { BackgroundWorkerController } from "@/background-controller-core.ts";
 import {
   persistAndActivateConfig,
@@ -11,6 +12,7 @@ import {
 } from "@/features/system/config-activation.ts";
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
 import {
+  effectDecodeStoredConfigRow,
   type ConfigCore,
   encodeConfigCore,
   encodeQualityProfileRow,
@@ -44,13 +46,23 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
   const clock = yield* ClockService;
   const runtimeControl = yield* BackgroundWorkerController;
   const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
+  const runtimeLogLevelState = yield* RuntimeLogLevelState;
   const nowIso = () => nowIsoFromClock(clock);
 
   const updateConfig = Effect.fn("SystemConfigUpdateService.updateConfig")(function* (
     nextConfig: Config,
   ) {
     const existingProfileRows = yield* listQualityProfileRows(db);
-    const normalizedConfig = yield* normalizeConfig(nextConfig);
+    const previousConfigRow = yield* loadSystemConfigRow(db);
+    const currentPassword = yield* effectDecodeStoredConfigRow(previousConfigRow).pipe(
+      Effect.map((config) => config.qbittorrent.password),
+      Effect.catchTag("StoredConfigMissingError", () =>
+        Effect.succeed(makeDefaultConfig(appConfig.databaseFile).qbittorrent.password),
+      ),
+      Effect.catchTag("StoredConfigCorruptError", () => Effect.succeed(null)),
+    );
+    const effectiveConfig = preserveStoredQBitPassword(currentPassword, nextConfig);
+    const normalizedConfig = yield* normalizeConfig(effectiveConfig);
     yield* validateConfigUpdate({
       countAnimeUsingProfile: (profileName) => countAnimeUsingProfile(db, profileName),
       existingProfileRows,
@@ -59,7 +71,6 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
 
     const core: ConfigCore = toConfigCore(normalizedConfig);
     const updatedAt = yield* nowIso();
-    const previousConfigRow = yield* loadSystemConfigRow(db);
     const previousState: PersistedSystemConfigState = {
       coreRow: previousConfigRow
         ? {
@@ -90,7 +101,7 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
       previousState,
     });
 
-    yield* applyRuntimeLogLevelFromConfig(normalizedConfig);
+    yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, normalizedConfig);
 
     yield* appendSystemLog(
       db,
@@ -110,3 +121,26 @@ export const SystemConfigUpdateServiceLive = Layer.effect(
   SystemConfigUpdateService,
   makeSystemConfigUpdateService,
 );
+
+function preserveStoredQBitPassword(
+  currentPassword: string | null | undefined,
+  nextConfig: Config,
+): Config {
+  const nextPassword = nextConfig.qbittorrent.password?.trim();
+
+  if (!nextConfig.qbittorrent.enabled || nextPassword) {
+    return nextConfig;
+  }
+
+  if (!currentPassword) {
+    return nextConfig;
+  }
+
+  return {
+    ...nextConfig,
+    qbittorrent: {
+      ...nextConfig.qbittorrent,
+      password: currentPassword,
+    },
+  } satisfies Config;
+}

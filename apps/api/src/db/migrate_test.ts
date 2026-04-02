@@ -1,11 +1,10 @@
-import assert from "node:assert/strict";
 import * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
 import { Context, Effect, Exit, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 
 it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
   withFileSystemSandboxEffect(({ root }) =>

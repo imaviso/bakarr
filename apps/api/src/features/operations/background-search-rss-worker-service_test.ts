@@ -1,8 +1,7 @@
-import assert from "node:assert/strict";
-import { Effect, Exit, Layer } from "effect";
+import { Cause, Effect, Exit, Layer } from "effect";
 import { eq } from "drizzle-orm";
 
-import { Database, type DatabaseService } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { EventBus, type EventBusShape } from "@/features/events/event-bus.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
@@ -20,7 +19,8 @@ import { ClockServiceLive } from "@/lib/clock.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { describe, it } from "@effect/vitest";
+import { makeDatabaseServiceStub } from "@/test/stubs.ts";
+import { assert, describe, it } from "@effect/vitest";
 
 describe("BackgroundSearchRssWorkerService", () => {
   it.scoped("marks success when RSS and missing search both complete", () =>
@@ -33,10 +33,7 @@ describe("BackgroundSearchRssWorkerService", () => {
 
           const baseLayer = Layer.mergeAll(
             ClockServiceLive,
-            Layer.succeed(Database, {
-              client: {} as DatabaseService["client"],
-              db,
-            }),
+            Layer.succeed(Database, makeDatabaseServiceStub(db)),
             Layer.succeed(EventBus, makeEventBusStub(events)),
             Layer.succeed(OperationsProgress, makeOperationsProgressStub()),
             Layer.succeed(RuntimeConfigSnapshotService, {
@@ -95,10 +92,7 @@ describe("BackgroundSearchRssWorkerService", () => {
 
           const baseLayer = Layer.mergeAll(
             ClockServiceLive,
-            Layer.succeed(Database, {
-              client: {} as DatabaseService["client"],
-              db,
-            }),
+            Layer.succeed(Database, makeDatabaseServiceStub(db)),
             Layer.succeed(EventBus, makeEventBusStub(events)),
             Layer.succeed(OperationsProgress, makeOperationsProgressStub()),
             Layer.succeed(RuntimeConfigSnapshotService, {
@@ -134,6 +128,13 @@ describe("BackgroundSearchRssWorkerService", () => {
           assert.deepStrictEqual(Exit.isFailure(exit), true);
           assert.deepStrictEqual(calls, ["rss", "missing"]);
           assert.deepStrictEqual(events, ["RssCheckStarted"]);
+          if (Exit.isFailure(exit)) {
+            const failure = Cause.failureOption(exit.cause);
+            assert.deepStrictEqual(failure._tag, "Some");
+            if (failure._tag === "Some") {
+              assert.deepStrictEqual(failure.value._tag, "OperationsInfrastructureError");
+            }
+          }
 
           const [job] = yield* Effect.promise(() =>
             db
@@ -160,10 +161,7 @@ describe("BackgroundSearchRssWorkerService", () => {
 
           const baseLayer = Layer.mergeAll(
             ClockServiceLive,
-            Layer.succeed(Database, {
-              client: {} as DatabaseService["client"],
-              db,
-            }),
+            Layer.succeed(Database, makeDatabaseServiceStub(db)),
             Layer.succeed(EventBus, makeEventBusStub(events)),
             Layer.succeed(OperationsProgress, makeOperationsProgressStub()),
             Layer.succeed(RuntimeConfigSnapshotService, {
@@ -198,6 +196,13 @@ describe("BackgroundSearchRssWorkerService", () => {
           assert.deepStrictEqual(Exit.isFailure(exit), true);
           assert.deepStrictEqual(calls, ["rss"]);
           assert.deepStrictEqual(events, ["RssCheckStarted"]);
+          if (Exit.isFailure(exit)) {
+            const failure = Cause.failureOption(exit.cause);
+            assert.deepStrictEqual(failure._tag, "Some");
+            if (failure._tag === "Some") {
+              assert.deepStrictEqual(failure.value._tag, "OperationsInfrastructureError");
+            }
+          }
 
           const [job] = yield* Effect.promise(() =>
             db

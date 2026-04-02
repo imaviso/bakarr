@@ -1,50 +1,42 @@
-import assert from "node:assert/strict";
 import { Cause, Effect, Exit } from "effect";
 
+import * as dbSchema from "@/db/schema.ts";
 import { anime } from "@/db/schema.ts";
-import type { AppDatabase } from "@/db/database.ts";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
+import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { RssClient } from "@/features/operations/rss-client.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { SeaDexClient } from "@/features/operations/seadex-client.ts";
 import { makeSearchReleaseSupport } from "@/features/operations/search-orchestration-release-search.ts";
 
-it.effect(
+it.scoped(
   "searchEpisodeReleases fails instead of silently degrading when SeaDex enrichment fails",
   () =>
-    Effect.gen(function* () {
-      const rssClient = {
-        fetchItems: () => Effect.succeed([makeRelease()]),
-      } satisfies typeof RssClient.Service;
+    withSqliteTestDbEffect({
+      run: (db) =>
+        Effect.gen(function* () {
+          const rssClient = {
+            fetchItems: () => Effect.succeed([makeRelease()]),
+          } satisfies typeof RssClient.Service;
 
-      const seadexClient = {
-        getEntryByAniListId: () =>
-          Effect.fail(
-            new ExternalCallError({
-              cause: new Error("SeaDex unavailable"),
-              message: "SeaDex lookup failed",
-              operation: "seadex.getEntryByAniListId",
-            }),
-          ),
-      } satisfies typeof SeaDexClient.Service;
+          const seadexClient = {
+            getEntryByAniListId: () =>
+              Effect.fail(
+                new ExternalCallError({
+                  cause: new Error("SeaDex unavailable"),
+                  message: "SeaDex lookup failed",
+                  operation: "seadex.getEntryByAniListId",
+                }),
+              ),
+          } satisfies typeof SeaDexClient.Service;
 
-      const config = makeTestConfig("/tmp/test.sqlite", (c) => ({
-        ...c,
-        downloads: { ...c.downloads, use_seadex: true },
-      }));
-
-      const searchReleaseService = makeSearchReleaseSupport({
-        db: {} as AppDatabase,
-        getRuntimeConfig: () => Effect.succeed(config),
-        rssClient,
-        seadexClient,
-      });
-
-      const exit = yield* Effect.exit(
-        searchReleaseService.searchEpisodeReleases(
-          {
+          const config = makeTestConfig("/tmp/test.sqlite", (c) => ({
+            ...c,
+            downloads: { ...c.downloads, use_seadex: true },
+          }));
+          const animeRow: typeof anime.$inferSelect = {
             addedAt: "2024-01-01T00:00:00.000Z",
             bannerImage: null,
             coverImage: null,
@@ -73,20 +65,29 @@ it.effect(
             titleEnglish: null,
             titleNative: null,
             titleRomaji: "Show",
-          } as typeof anime.$inferSelect,
-          1,
-          config,
-        ),
-      );
+          };
 
-      assert.deepStrictEqual(Exit.isFailure(exit), true);
-      if (Exit.isFailure(exit)) {
-        const failure = Cause.failureOption(exit.cause);
-        assert.deepStrictEqual(failure._tag, "Some");
-        if (failure._tag === "Some") {
-          assert.deepStrictEqual(failure.value._tag, "ExternalCallError");
-        }
-      }
+          const searchReleaseService = makeSearchReleaseSupport({
+            db,
+            getRuntimeConfig: () => Effect.succeed(config),
+            rssClient,
+            seadexClient,
+          });
+
+          const exit = yield* Effect.exit(
+            searchReleaseService.searchEpisodeReleases(animeRow, 1, config),
+          );
+
+          assert.deepStrictEqual(Exit.isFailure(exit), true);
+          if (Exit.isFailure(exit)) {
+            const failure = Cause.failureOption(exit.cause);
+            assert.deepStrictEqual(failure._tag, "Some");
+            if (failure._tag === "Some") {
+              assert.deepStrictEqual(failure.value._tag, "ExternalCallError");
+            }
+          }
+        }),
+      schema: dbSchema,
     }),
 );
 

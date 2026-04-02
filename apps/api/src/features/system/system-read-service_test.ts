@@ -1,15 +1,15 @@
-import assert from "node:assert/strict";
 import { CommandExecutor } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
 import { AppConfig } from "@/config.ts";
-import { Database, type DatabaseService } from "@/db/database.ts";
+import { Database } from "@/db/database.ts";
 import { AppRuntime } from "@/app-runtime.ts";
 import { BackgroundWorkerMonitorLive } from "@/background-monitor.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { RandomServiceLive } from "@/lib/random.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { describe, it } from "@effect/vitest";
+import { commandName, makeCommandExecutorStub, makeDatabaseServiceStub } from "@/test/stubs.ts";
+import { assert, describe, it } from "@effect/vitest";
 import * as schema from "@/db/schema.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
@@ -28,8 +28,10 @@ describe("SystemReadService", () => {
       run: (db, databaseFile) =>
         Effect.gen(function* () {
           const commandExecutor = makeCommandExecutorStub((command) => {
-            if (command.command !== "df") {
-              return Effect.die(new Error(`unexpected command: ${command.command}`));
+            const name = commandName(command);
+
+            if (name !== "df") {
+              return Effect.die(new Error(`unexpected command: ${name ?? "unknown"}`));
             }
 
             return Effect.succeed(
@@ -47,10 +49,7 @@ describe("SystemReadService", () => {
             BackgroundWorkerMonitorLive.pipe(Layer.provide(ClockServiceLive)),
             ClockServiceLive,
             Layer.succeed(CommandExecutor.CommandExecutor, commandExecutor),
-            Layer.succeed(Database, {
-              client: {} as DatabaseService["client"],
-              db,
-            }),
+            Layer.succeed(Database, makeDatabaseServiceStub(db)),
           );
 
           const diskSpaceLayer = DiskSpaceInspectorLive.pipe(Layer.provide(baseLayer));
@@ -118,24 +117,3 @@ describe("SystemReadService", () => {
     }),
   );
 });
-
-function makeCommandExecutorStub(
-  runAsString: (command: {
-    readonly args: ReadonlyArray<string>;
-    readonly command: string;
-  }) => Effect.Effect<string, never>,
-): CommandExecutor.CommandExecutor {
-  return {
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
-    exitCode: () => Effect.die("exitCode not implemented for test"),
-    lines: (command, _encoding) =>
-      runAsString(command as { args: ReadonlyArray<string>; command: string }).pipe(
-        Effect.map((value) => value.split(/\r?\n/).filter((line) => line.length > 0)),
-      ),
-    start: () => Effect.die("start not implemented for test"),
-    stream: () => Effect.die("stream not implemented for test"),
-    streamLines: () => Effect.die("streamLines not implemented for test"),
-    string: (command, _encoding) =>
-      runAsString(command as { args: ReadonlyArray<string>; command: string }),
-  };
-}

@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
 import { Effect, Layer, Logger } from "effect";
 

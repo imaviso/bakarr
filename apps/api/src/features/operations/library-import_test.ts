@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "@/db/schema.ts";
@@ -140,7 +139,7 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
   withSqliteTestDbEffect({
     run: (db, databaseFile) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         const rootFolder = "/mnt/media2/Shows/Nisemonogatari (2012)";
         const namingFormat =
           "{title} - S{season:02}E{episode:02} - {episode_title} [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]";
@@ -202,7 +201,7 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
   withSqliteTestDbEffect({
     run: (db, databaseFile) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
 
         yield* Effect.tryPromise(() =>
           appDb.insert(appConfig).values({
@@ -262,7 +261,7 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
   withSqliteTestDbEffect({
     run: (db, databaseFile) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         const namingFormat = "{title} - S{season:02}E{episode:02}";
 
         yield* Effect.tryPromise(() =>

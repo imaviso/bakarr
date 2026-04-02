@@ -1,123 +1,53 @@
-import assert from "node:assert/strict";
-import { CommandExecutor, HttpApp } from "@effect/platform";
-import { ManagedRuntime, Effect, Layer, Redacted } from "effect";
+import { HttpApp } from "@effect/platform";
+import { Effect } from "effect";
 
-import { makeApiLifecycleLayers } from "@/api-lifecycle-layers.ts";
-import { createHttpApp } from "@/http/http-app.ts";
+import { createHttpAppFallbackResponse } from "@/http/http-app.ts";
 import { type EmbeddedWebAsset } from "@/http/embedded-web.ts";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 
-it.scoped("http app returns 404 for unknown api routes without serving the app shell", () =>
-  withHttpHandlerEffect(
-    makeAssets({
-      "index.html": "<html><body>app shell</body></html>",
-    }),
-    (handler) =>
-      Effect.gen(function* () {
-        const response = yield* Effect.promise(() =>
-          handler(new Request("http://bakarr.local/api/unknown")),
-        );
-
-        assert.deepStrictEqual(response.status, 404);
-        assert.deepStrictEqual(yield* Effect.promise(() => response.text()), "");
-      }),
-  ),
-);
-
-it.scoped("http app falls back to embedded index.html for app routes", () =>
-  withHttpHandlerEffect(
-    makeAssets({
-      "index.html": "<html><body>app shell</body></html>",
-    }),
-    (handler) =>
-      Effect.gen(function* () {
-        const response = yield* Effect.promise(() =>
-          handler(new Request("http://bakarr.local/library")),
-        );
-
-        assert.deepStrictEqual(response.status, 200);
-        assert.match(yield* Effect.promise(() => response.text()), /app shell/);
-      }),
-  ),
-);
-
-const withHttpHandlerEffect = Effect.fn("Test.withHttpHandlerEffect")(function* <A, E, R>(
-  assets: Record<string, EmbeddedWebAsset>,
-  run: (handler: (request: Request) => Promise<Response>) => Effect.Effect<A, E, R>,
-) {
-  const runtime = ManagedRuntime.make(
-    makeApiLifecycleLayers(
-      {
-        bootstrapPassword: Redacted.make("admin"),
-        bootstrapUsername: "admin",
-        databaseFile: `/tmp/bakarr-http-app-test-${crypto.randomUUID()}.sqlite`,
-        port: 9999,
-      },
-      {
-        commandExecutorLayer: Layer.succeed(
-          CommandExecutor.CommandExecutor,
-          makeCommandExecutorStub((command) => {
-            const name = commandName(command);
-            const args = commandArgs(command);
-
-            if (name === "df") {
-              return Effect.succeed(
-                "Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/test 1000 250 750 25% /tmp",
-              );
-            }
-
-            if (name === "ffprobe") {
-              return Effect.succeed(
-                args.includes("-version") ? "ffprobe version test" : '{"streams":[]}',
-              );
-            }
-
-            return Effect.die(
-              new Error(`unexpected command in test runtime: ${name ?? "unknown"}`),
-            );
+it.effect(
+  "http app fallback returns 404 for unknown api routes without serving the app shell",
+  () =>
+    Effect.gen(function* () {
+      const handler = HttpApp.toWebHandler(
+        createHttpAppFallbackResponse({
+          assets: makeAssets({
+            "index.html": "<html><body>app shell</body></html>",
           }),
-        ),
-      },
-    ).appLayer,
-  );
+          method: "GET",
+          pathname: "/api/unknown",
+        }),
+      );
 
-  return yield* Effect.acquireUseRelease(
-    Effect.tryPromise(async () => {
-      const httpApp = await runtime.runPromise(createHttpApp({ staticWebAssets: assets }));
-      const handler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
-      return { handler, runtime };
+      const response = yield* Effect.promise(() =>
+        handler(new Request("http://bakarr.local/api/unknown")),
+      );
+
+      assert.deepStrictEqual(response.status, 404);
+      assert.deepStrictEqual(yield* Effect.promise(() => response.text()), "");
     }),
-    ({ handler }) => run(handler),
-    ({ runtime }) => Effect.promise(() => runtime.dispose()),
-  );
-});
+);
 
-function makeCommandExecutorStub(
-  runAsString: (
-    command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
-  ) => Effect.Effect<string, never>,
-): CommandExecutor.CommandExecutor {
-  return {
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
-    exitCode: () => {
-      throw new Error("exitCode not implemented for test");
-    },
-    lines: (command, _encoding) =>
-      runAsString(command).pipe(
-        Effect.map((value) => value.split(/\r?\n/).filter((line) => line.length > 0)),
-      ),
-    start: () => {
-      throw new Error("start not implemented for test");
-    },
-    stream: () => {
-      throw new Error("stream not implemented for test");
-    },
-    streamLines: () => {
-      throw new Error("streamLines not implemented for test");
-    },
-    string: (command, _encoding) => runAsString(command),
-  };
-}
+it.effect("http app fallback serves embedded index.html for app routes", () =>
+  Effect.gen(function* () {
+    const handler = HttpApp.toWebHandler(
+      createHttpAppFallbackResponse({
+        assets: makeAssets({
+          "index.html": "<html><body>app shell</body></html>",
+        }),
+        method: "GET",
+        pathname: "/library",
+      }),
+    );
+
+    const response = yield* Effect.promise(() =>
+      handler(new Request("http://bakarr.local/library")),
+    );
+
+    assert.deepStrictEqual(response.status, 200);
+    assert.match(yield* Effect.promise(() => response.text()), /app shell/);
+  }),
+);
 
 function makeAssets(input: Record<string, string>) {
   const encoder = new TextEncoder();
@@ -138,23 +68,4 @@ function makeAssets(input: Record<string, string>) {
       ];
     }),
   );
-}
-
-function commandArgs(command: Parameters<CommandExecutor.CommandExecutor["string"]>[0]) {
-  if (typeof command === "object" && command !== null && "args" in command) {
-    const { args } = command;
-    return Array.isArray(args)
-      ? args.filter((value): value is string => typeof value === "string")
-      : [];
-  }
-
-  return [];
-}
-
-function commandName(command: Parameters<CommandExecutor.CommandExecutor["string"]>[0]) {
-  if (typeof command === "object" && command !== null && "command" in command) {
-    return typeof command.command === "string" ? command.command : undefined;
-  }
-
-  return undefined;
 }

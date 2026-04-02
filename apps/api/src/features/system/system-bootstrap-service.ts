@@ -5,6 +5,7 @@ import { AppConfig } from "@/config.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
 import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
+import { RuntimeLogLevelState } from "@/lib/logging.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { DEFAULT_PROFILES, makeDefaultConfig } from "@/features/system/defaults.ts";
 import {
@@ -35,6 +36,7 @@ const makeSystemBootstrapService = Effect.gen(function* () {
   const { db } = yield* Database;
   const config = yield* AppConfig;
   const clock = yield* ClockService;
+  const runtimeLogLevelState = yield* RuntimeLogLevelState;
   const nowIso = () => nowIsoFromClock(clock);
 
   const ensureInitialized = Effect.fn("SystemBootstrapService.ensureInitialized")(function* () {
@@ -66,7 +68,7 @@ const makeSystemBootstrapService = Effect.gen(function* () {
       const decoded = yield* effectDecodeConfigCore(storedConfig.data).pipe(Effect.either);
 
       if (decoded._tag === "Right") {
-        yield* applyRuntimeLogLevelFromConfig(decoded.right);
+        yield* applyRuntimeLogLevelFromConfig(runtimeLogLevelState, decoded.right);
       }
     }
   });

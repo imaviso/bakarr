@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Option, Schema } from "effect";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
@@ -86,7 +85,7 @@ it.scoped(
         assert.deepStrictEqual(namingSettings.preferredTitle, defaults.library.preferred_title);
 
         const storedProfile = yield* loadQualityProfile(db, "Default");
-        assert.notDeepStrictEqual(storedProfile, null);
+        assert.deepStrictEqual(storedProfile === null, false);
         assert.deepStrictEqual(storedProfile!.max_size, "4GB");
 
         const fallbackProfile = yield* loadQualityProfile(db, "Missing");
@@ -188,7 +187,7 @@ it.scoped("operations repository helpers load anime release rules and episode st
       assert.deepStrictEqual(notFoundExit._tag, "Failure");
       if (notFoundExit._tag === "Failure") {
         const failure = Cause.failureOption(notFoundExit.cause);
-        assert.notDeepStrictEqual(failure._tag, "None");
+        assert.deepStrictEqual(failure._tag === "None", false);
         if (failure._tag === "Some") {
           assert.deepStrictEqual(failure.value instanceof OperationsAnimeNotFoundError, true);
         }
@@ -242,7 +241,7 @@ it.effect("operations repository metadata decoders fail for corrupt stored JSON"
     assert.deepStrictEqual(exit._tag, "Failure");
     if (exit._tag === "Failure") {
       const failure = Cause.failureOption(exit.cause);
-      assert.notDeepStrictEqual(failure._tag, "None");
+      assert.deepStrictEqual(failure._tag === "None", false);
       if (failure._tag === "Some") {
         assert.deepStrictEqual(failure.value._tag, "OperationsStoredDataError");
       }
@@ -256,7 +255,7 @@ const withTestDbEffect = Effect.fn("OperationsRepositoryDbTest.withTestDbEffect"
   R,
 >(run: (db: AppDatabase, databaseFile: string) => Effect.Effect<A, E, R>) {
   return yield* withSqliteTestDbEffect({
-    run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
+    run: (db, databaseFile) => run(db, databaseFile),
     schema,
   });
 });

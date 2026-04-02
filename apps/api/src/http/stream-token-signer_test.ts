@@ -1,8 +1,7 @@
-import assert from "node:assert/strict";
 import { Effect, Layer } from "effect";
 
 import { RandomService } from "@/lib/random.ts";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { StreamTokenSigner, StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
 
 const randomLayer = Layer.succeed(RandomService, {

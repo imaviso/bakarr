@@ -1,7 +1,6 @@
-import assert from "node:assert/strict";
 import { Cause, Effect, Exit } from "effect";
 
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { normalizeConfig } from "@/features/system/qbittorrent-config.ts";
 

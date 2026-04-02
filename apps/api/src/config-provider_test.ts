@@ -1,10 +1,9 @@
-import assert from "node:assert/strict";
 import { BunFileSystem } from "@effect/platform-bun";
 import { randomUUID } from "node:crypto";
 import { rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Cause, Config, Effect, Exit, Redacted } from "effect";
 
 import { makeDotenvConfigProvider } from "@/config-provider.ts";

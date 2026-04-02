@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { ensureFolderMatchStatus } from "@/features/operations/unmapped-folder-list-support.ts";

@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -12,7 +11,7 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
 
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
@@ -51,7 +50,7 @@ it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
 
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
@@ -100,7 +99,7 @@ it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
 
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({

@@ -1,7 +1,6 @@
-import assert from "node:assert/strict";
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { describe, it } from "@effect/vitest";
+import { assert, describe, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { FileSystem, FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
 import {

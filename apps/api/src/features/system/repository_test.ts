@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit, Schema } from "effect";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
@@ -615,7 +614,7 @@ const withTestDbEffect = Effect.fn("SystemRepositoryTest.withTestDbEffect")(func
   run: (db: AppDatabase, databaseFile: string) => Effect.Effect<A, E, R>,
 ) {
   return yield* withSqliteTestDbEffect({
-    run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
+    run: (db, databaseFile) => run(db, databaseFile),
     schema,
   });
 });

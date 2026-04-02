@@ -1,24 +1,13 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
-import { Cause, Effect, Exit, Layer } from "effect";
+import { Cause, Effect, Exit, Fiber, Layer, TestClock } from "effect";
 
-import { ClockServiceLive } from "@/lib/clock.ts";
+import { ClockService, ClockServiceLive } from "@/lib/clock.ts";
 import { QBitTorrentClient, QBitTorrentClientLive } from "@/features/operations/qbittorrent.ts";
 
 it.scoped("QBitTorrentClient uses provided HttpClient", () =>
   Effect.gen(function* () {
-    const originalFetch = globalThis.fetch;
-
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => {
-        globalThis.fetch = originalFetch;
-      }),
-    );
-    yield* Effect.sync(() => {
-      globalThis.fetch = (() =>
-        Promise.reject(new Error("unexpected global fetch"))) as unknown as typeof fetch;
-    });
+    let requestCount = 0;
 
     const torrents = yield* Effect.flatMap(QBitTorrentClient, (client) =>
       client.listTorrents({
@@ -32,7 +21,12 @@ it.scoped("QBitTorrentClient uses provided HttpClient", () =>
           Layer.provide(
             Layer.mergeAll(
               ClockServiceLive,
-              Layer.succeed(HttpClient.HttpClient, makeQBitClient()),
+              Layer.succeed(
+                HttpClient.HttpClient,
+                makeQBitClient(() => {
+                  requestCount += 1;
+                }),
+              ),
             ),
           ),
         ),
@@ -56,6 +50,7 @@ it.scoped("QBitTorrentClient uses provided HttpClient", () =>
         },
       ],
     );
+    assert.deepStrictEqual(requestCount > 0, true);
   }),
 );
 
@@ -99,105 +94,116 @@ it.effect("QBitTorrentClient can load torrent contents", () =>
   }),
 );
 
-it("QBitTorrentClient does not re-authenticate cached sessions for unrelated transport failures", async () => {
-  const loginCalls: string[] = [];
-  const infoCookies: string[] = [];
-  const clientLayer = QBitTorrentClientLive.pipe(
-    Layer.provide(
-      Layer.mergeAll(
-        ClockServiceLive,
-        Layer.succeed(
-          HttpClient.HttpClient,
-          HttpClient.make((request, url) => {
-            if (url.pathname === "/api/v2/auth/login") {
-              const sessionId = loginCalls.length === 0 ? "abc123" : "def456";
-              loginCalls.push(sessionId);
-              return Effect.succeed(
-                HttpClientResponse.fromWeb(
-                  request,
-                  new Response("Ok.", {
-                    headers: { "set-cookie": `SID=${sessionId}; HttpOnly` },
-                    status: 200,
-                  }),
-                ),
-              );
-            }
-
-            if (url.pathname === "/api/v2/torrents/info") {
-              const cookie = request.headers["cookie"] ?? "";
-              infoCookies.push(cookie);
-
-              if (cookie.includes("SID=abc123") && infoCookies.length === 1) {
-                return Effect.succeed(
-                  HttpClientResponse.fromWeb(
-                    request,
-                    new Response("[]", {
-                      headers: { "content-type": "application/json" },
-                      status: 200,
-                    }),
-                  ),
-                );
-              }
-
-              if (cookie.includes("SID=abc123")) {
-                return Effect.fail(
-                  new HttpClientError.RequestError({
-                    request,
-                    reason: "Transport",
-                    cause: new Error("network failed after 403 retries"),
-                    description: "network failed after 403 retries",
-                  }),
-                );
-              }
-
-              return Effect.succeed(
-                HttpClientResponse.fromWeb(
-                  request,
-                  new Response("[]", {
-                    headers: { "content-type": "application/json" },
-                    status: 200,
-                  }),
-                ),
-              );
-            }
-
-            return Effect.succeed(
-              HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
-            );
-          }),
-        ),
-      ),
-    ),
-  );
-
-  const config = {
-    baseUrl: "https://qbit.example",
-    password: "secret",
-    username: "demo",
-  };
-
-  const program = Effect.flatMap(QBitTorrentClient, (client) =>
+it.effect(
+  "QBitTorrentClient does not re-authenticate cached sessions for unrelated transport failures",
+  () =>
     Effect.gen(function* () {
-      yield* client.listTorrents(config);
-      const secondExit = yield* Effect.exit(client.listTorrents(config));
+      const loginCalls: string[] = [];
+      const infoCookies: string[] = [];
+      const clientLayer = QBitTorrentClientLive.pipe(
+        Layer.provide(
+          Layer.mergeAll(
+            Layer.succeed(ClockService, {
+              currentMonotonicMillis: TestClock.currentTimeMillis,
+              currentTimeMillis: TestClock.currentTimeMillis,
+            }),
+            Layer.succeed(
+              HttpClient.HttpClient,
+              HttpClient.make((request, url) => {
+                if (url.pathname === "/api/v2/auth/login") {
+                  const sessionId = loginCalls.length === 0 ? "abc123" : "def456";
+                  loginCalls.push(sessionId);
+                  return Effect.succeed(
+                    HttpClientResponse.fromWeb(
+                      request,
+                      new Response("Ok.", {
+                        headers: { "set-cookie": `SID=${sessionId}; HttpOnly` },
+                        status: 200,
+                      }),
+                    ),
+                  );
+                }
 
-      assert.deepStrictEqual(loginCalls, ["abc123"]);
-      assert.deepStrictEqual(Exit.isFailure(secondExit), true);
-      if (Exit.isFailure(secondExit)) {
-        const failure = Cause.failureOption(secondExit.cause);
-        assert.deepStrictEqual(failure._tag, "Some");
-        if (failure._tag === "Some") {
-          assert.deepStrictEqual(failure.value._tag, "ExternalCallError");
-        }
-      }
+                if (url.pathname === "/api/v2/torrents/info") {
+                  const cookie = request.headers["cookie"] ?? "";
+                  infoCookies.push(cookie);
+
+                  if (cookie.includes("SID=abc123") && infoCookies.length === 1) {
+                    return Effect.succeed(
+                      HttpClientResponse.fromWeb(
+                        request,
+                        new Response("[]", {
+                          headers: { "content-type": "application/json" },
+                          status: 200,
+                        }),
+                      ),
+                    );
+                  }
+
+                  if (cookie.includes("SID=abc123")) {
+                    return Effect.fail(
+                      new HttpClientError.RequestError({
+                        request,
+                        reason: "Transport",
+                        cause: new Error("network failed after 403 retries"),
+                        description: "network failed after 403 retries",
+                      }),
+                    );
+                  }
+
+                  return Effect.succeed(
+                    HttpClientResponse.fromWeb(
+                      request,
+                      new Response("[]", {
+                        headers: { "content-type": "application/json" },
+                        status: 200,
+                      }),
+                    ),
+                  );
+                }
+
+                return Effect.succeed(
+                  HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
+                );
+              }),
+            ),
+          ),
+        ),
+      );
+
+      const config = {
+        baseUrl: "https://qbit.example",
+        password: "secret",
+        username: "demo",
+      };
+
+      yield* Effect.flatMap(QBitTorrentClient, (client) =>
+        Effect.gen(function* () {
+          yield* client.listTorrents(config);
+          const secondCall = yield* client.listTorrents(config).pipe(Effect.exit, Effect.fork);
+
+          yield* TestClock.adjust("31 seconds");
+
+          const secondExit = yield* Fiber.join(secondCall);
+
+          assert.deepStrictEqual(loginCalls, ["abc123"]);
+          assert.deepStrictEqual(Exit.isFailure(secondExit), true);
+          if (Exit.isFailure(secondExit)) {
+            const failure = Cause.failureOption(secondExit.cause);
+            assert.deepStrictEqual(failure._tag, "Some");
+            if (failure._tag === "Some") {
+              assert.deepStrictEqual(failure.value._tag, "ExternalCallError");
+            }
+          }
+        }),
+      ).pipe(Effect.provide(clientLayer));
     }),
-  ).pipe(Effect.provide(clientLayer));
+);
 
-  await Effect.runPromise(program);
-}, 10000);
-
-function makeQBitClient() {
+function makeQBitClient(onRequest?: () => void) {
   return HttpClient.make((request, url) => {
+    onRequest?.();
+
     if (url.pathname === "/api/v2/auth/login") {
       return Effect.succeed(
         HttpClientResponse.fromWeb(

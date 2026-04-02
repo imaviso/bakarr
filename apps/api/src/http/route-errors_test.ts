@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 
 import { DatabaseError } from "@/db/database.ts";
 import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "@/features/anime/errors.ts";

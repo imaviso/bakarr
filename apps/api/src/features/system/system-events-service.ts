@@ -8,8 +8,7 @@ import type { OperationsStoredDataError } from "@/features/operations/errors.ts"
 
 export interface SystemEventsServiceShape {
   readonly buildEventsStream: () => Effect.Effect<
-    Stream.Stream<NotificationEvent>,
-    DatabaseError | OperationsStoredDataError
+    Stream.Stream<NotificationEvent, DatabaseError | OperationsStoredDataError>
   >;
 }
 
@@ -25,10 +24,16 @@ export const SystemEventsServiceLive = Layer.effect(
     const downloadsReadService = yield* CatalogDownloadReadService;
 
     const buildEventsStream = Effect.fn("SystemEventsService.buildEventsStream")(function* () {
-      const downloads: readonly DownloadStatus[] =
-        yield* downloadsReadService.getDownloadProgressBootstrap();
+      return Stream.unwrapScoped(
+        Effect.gen(function* () {
+          const subscription = yield* eventBus.subscribe();
+          const downloads: readonly DownloadStatus[] =
+            yield* downloadsReadService.getDownloadProgressBootstrap();
+          const bufferedEvents = yield* subscription.takeBuffered;
 
-      return buildDownloadProgressEventStream(downloads, eventBus);
+          return buildDownloadProgressEventStream(downloads, bufferedEvents, subscription);
+        }),
+      );
     });
 
     return SystemEventsService.of({ buildEventsStream });
@@ -37,22 +42,27 @@ export const SystemEventsServiceLive = Layer.effect(
 
 function buildDownloadProgressEventStream(
   downloads: readonly DownloadStatus[],
-  eventBus: typeof EventBus.Service,
+  bufferedEvents: readonly NotificationEvent[],
+  subscription: import("@/features/events/event-bus.ts").EventSubscription,
 ) {
-  return Stream.unwrapScoped(
-    Effect.gen(function* () {
-      const subscription = yield* eventBus.subscribe();
-      const initialEvents = Stream.fromIterable<NotificationEvent>([
-        {
-          type: "DownloadProgress",
-          payload: { downloads: [...downloads] },
-        },
-      ]);
+  const latestBufferedDownloadProgress = bufferedEvents.reduce<NotificationEvent | undefined>(
+    (latest, event) => (event.type === "DownloadProgress" ? event : latest),
+    undefined,
+  );
+  const initialDownloads =
+    latestBufferedDownloadProgress?.type === "DownloadProgress"
+      ? latestBufferedDownloadProgress.payload.downloads
+      : downloads;
+  const pendingEvents = bufferedEvents.filter((event) => event.type !== "DownloadProgress");
 
-      return Stream.concat(
-        initialEvents,
-        subscription.stream.pipe(Stream.withSpan("system.events.stream")),
-      );
-    }),
+  return Stream.concat(
+    Stream.fromIterable<NotificationEvent>([
+      {
+        type: "DownloadProgress",
+        payload: { downloads: [...initialDownloads] },
+      },
+      ...pendingEvents,
+    ]),
+    subscription.stream.pipe(Stream.withSpan("system.events.stream")),
   );
 }

@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import { Cause, Effect, Exit, Layer } from "effect";
 
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
@@ -8,7 +7,7 @@ import {
 } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigService } from "@/features/system/system-config-service.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 
 it.effect("RuntimeConfigSnapshotService caches loaded config", () =>
   Effect.gen(function* () {

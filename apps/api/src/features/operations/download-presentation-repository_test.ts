@@ -1,11 +1,10 @@
-import assert from "node:assert/strict";
 import { Cause, Effect, Exit } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { encodeNumberList } from "@/features/system/config-codec.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
@@ -183,7 +182,7 @@ it.scoped("download presentation contexts fail for corrupt covered episode metad
 const withTestDbEffect = Effect.fn("DownloadPresentationRepositoryTest.withTestDbEffect")(
   function* <A, E, R>(run: (db: AppDatabase, databaseFile: string) => Effect.Effect<A, E, R>) {
     return yield* withSqliteTestDbEffect({
-      run: (db, databaseFile) => run(db as AppDatabase, databaseFile),
+      run: (db, databaseFile) => run(db, databaseFile),
       schema,
     });
   },

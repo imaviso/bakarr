@@ -34,11 +34,7 @@ export function createHttpApp(
         const request = yield* HttpServerRequest.HttpServerRequest;
         const url = new URL(request.url, "http://bakarr.local");
 
-        if (url.pathname.startsWith("/api/")) {
-          return HttpServerResponse.empty({ status: 404 });
-        }
-
-        return createEmbeddedWebResponse({
+        return createHttpAppFallbackResponse({
           assets: staticWebAssets,
           method: request.method,
           pathname: url.pathname,
@@ -47,4 +43,20 @@ export function createHttpApp(
     ),
     HttpRouter.toHttpApp,
   );
+}
+
+export function createHttpAppFallbackResponse(input: {
+  readonly assets: Record<string, EmbeddedWebAsset>;
+  readonly method: string;
+  readonly pathname: string;
+}) {
+  if (input.pathname.startsWith("/api/")) {
+    return HttpServerResponse.empty({ status: 404 });
+  }
+
+  return createEmbeddedWebResponse({
+    assets: input.assets,
+    method: input.method,
+    pathname: input.pathname,
+  });
 }

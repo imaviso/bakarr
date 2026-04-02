@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Deferred, Effect, Fiber, Layer, Ref, TestClock } from "effect";
 
 import { ClockServiceLive } from "@/lib/clock.ts";

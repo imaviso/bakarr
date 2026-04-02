@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Cause, Effect, Exit, Schema } from "effect";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
@@ -166,7 +165,7 @@ it.scoped("insertAnimeAggregateAtomic rolls back anime inserts when a later writ
               audioCodec: null,
               animeId: 77,
               durationSeconds: null,
-              number: 2,
+              number: 1,
               fileSize: null,
               groupName: null,
               quality: null,
@@ -179,7 +178,7 @@ it.scoped("insertAnimeAggregateAtomic rolls back anime inserts when a later writ
             },
           ],
           log: {
-            eventType: null as unknown as string,
+            eventType: "anime.created",
             level: "success",
             message: "This should fail",
             createdAt: "2024-01-01T00:00:00.000Z",
@@ -460,7 +459,7 @@ const withTestDbEffect = Effect.fn("AnimeRepositoryTest.withTestDbEffect")(funct
   run: (db: AppDatabase) => Effect.Effect<A, E, R>,
 ) {
   return yield* withSqliteTestDbEffect({
-    run: (db) => run(db as AppDatabase),
+    run: (db) => run(db),
     schema,
   });
 });

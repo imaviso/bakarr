@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Schema } from "effect";
 
 import { formatValidationErrorMessage } from "@/http/route-validation.ts";

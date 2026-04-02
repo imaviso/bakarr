@@ -5,6 +5,7 @@ import type { NotificationEvent } from "@packages/shared/index.ts";
 export const DEFAULT_EVENT_BUS_CAPACITY = 256;
 
 export interface EventSubscription {
+  readonly takeBuffered: Effect.Effect<readonly NotificationEvent[]>;
   readonly stream: Stream.Stream<NotificationEvent>;
 }
 
@@ -37,6 +38,16 @@ export function makeEventBus(options: { readonly capacity?: number } = {}) {
       );
 
       return {
+        takeBuffered: Queue.takeAll(pubsubQueue).pipe(
+          Effect.flatMap((pending) =>
+            Effect.forEach(pending, (event) => Queue.offer(slidingQueue, event), {
+              concurrency: "unbounded",
+              discard: true,
+            }).pipe(Effect.as(pending)),
+          ),
+          Effect.zipRight(Queue.takeAll(slidingQueue)),
+          Effect.map((events) => Array.from(events)),
+        ),
         stream: Stream.fromQueue(slidingQueue, { shutdown: false }),
       } satisfies EventSubscription;
     });

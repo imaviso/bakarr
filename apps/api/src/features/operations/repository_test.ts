@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
 import { downloadEvents, downloads, rssFeeds } from "@/db/schema.ts";

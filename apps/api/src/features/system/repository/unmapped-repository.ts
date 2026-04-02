@@ -1,7 +1,12 @@
 import { eq, notInArray } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 
-import { type UnmappedFolder, AnimeSearchResultSchema } from "@packages/shared/index.ts";
+import {
+  type UnmappedFolder,
+  AnimeSearchResultSchema,
+  UnmappedFolderMatchStatusSchema,
+  UnmappedFolderSchema,
+} from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { unmappedFolderMatches } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
@@ -98,16 +103,33 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
         }),
     ),
   );
+  const matchStatus = yield* Schema.decodeUnknown(UnmappedFolderMatchStatusSchema)(
+    row.matchStatus,
+  ).pipe(
+    Effect.mapError(
+      () =>
+        new StoredUnmappedFolderCorruptError({
+          message: `Stored unmapped folder match status is corrupt for ${row.path}`,
+        }),
+    ),
+  );
 
-  return {
+  return yield* Schema.decodeUnknown(UnmappedFolderSchema)({
     match_attempts: row.matchAttempts,
     last_match_error: row.lastMatchError ?? undefined,
     last_matched_at: row.lastMatchedAt ?? undefined,
-    match_status: row.matchStatus as UnmappedFolder["match_status"],
+    match_status: matchStatus,
     name: row.name,
     path: row.path,
     search_queries: buildUnmappedFolderSearchQueries(row.name),
     size: row.size,
     suggested_matches: suggestedMatches,
-  } satisfies UnmappedFolder;
+  }).pipe(
+    Effect.mapError(
+      () =>
+        new StoredUnmappedFolderCorruptError({
+          message: `Stored unmapped folder row is corrupt for ${row.path}`,
+        }),
+    ),
+  );
 });

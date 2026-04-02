@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { applySeaDexMatch, findSeaDexReleaseMatch } from "@/features/operations/seadex-matching.ts";

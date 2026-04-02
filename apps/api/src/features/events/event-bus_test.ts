@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { Effect, Exit, Fiber, Stream, TestClock } from "effect";
 
 import { makeEventBus } from "@/features/events/event-bus.ts";

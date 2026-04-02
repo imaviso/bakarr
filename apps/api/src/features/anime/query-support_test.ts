@@ -1,7 +1,6 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
-import { Effect, Exit, Option } from "effect";
+import { Cause, Effect, Exit, Option } from "effect";
 
 import type { AnimeSearchResult } from "@packages/shared/index.ts";
 import * as schema from "@/db/schema.ts";
@@ -11,6 +10,7 @@ import { deriveEpisodeTimelineMetadata } from "@/lib/anime-derivations.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { MediaProbeMetadataFound } from "@/lib/media-probe.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
+import { AnimeStoredDataError } from "@/features/anime/errors.ts";
 import { listAnimeEffect } from "@/features/anime/anime-query-list.ts";
 import { getAnimeEffect } from "@/features/anime/anime-query-get.ts";
 import {
@@ -78,7 +78,7 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
     run: (db) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
         Effect.gen(function* () {
-          const appDb = db as AppDatabase;
+          const appDb: AppDatabase = db;
           const filePath = `${root}/Episode 1.mkv`;
           yield* writeTextFile(fs, filePath, "test");
 
@@ -138,7 +138,7 @@ it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
     run: (db) =>
       withFileSystemSandboxEffect(({ root, fs }) =>
         Effect.gen(function* () {
-          const appDb = db as AppDatabase;
+          const appDb: AppDatabase = db;
           const filePath = `${root}/Episode 1.mkv`;
           yield* writeTextFile(fs, filePath, "test");
 
@@ -235,7 +235,7 @@ it.scoped("getAnimeByAnilistIdEffect returns related and recommended metadata", 
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         const result = yield* getAnimeByAnilistIdEffect({
           aniList: makeAniListStub({
             bannerImage: "https://example.com/banner.png",
@@ -277,7 +277,7 @@ it.scoped("getAnimeEffect returns discovery metadata from database storage", () 
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
             addedAt: "2024-01-01T00:00:00.000Z",
@@ -324,7 +324,7 @@ it.scoped("getAnimeEffect uses stored discovery metadata from database", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
             addedAt: "2024-01-01T00:00:00.000Z",
@@ -374,7 +374,7 @@ it.scoped("searchAnimeEffect fails when AniList search fails", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         const result = yield* Effect.exit(
           searchAnimeEffect({
             aniList: {
@@ -394,6 +394,14 @@ it.scoped("searchAnimeEffect fails when AniList search fails", () =>
         );
 
         assert.deepStrictEqual(Exit.isFailure(result), true);
+        if (Exit.isFailure(result)) {
+          const failure = Cause.failureOption(result.cause);
+          assert.deepStrictEqual(failure._tag, "Some");
+          if (failure._tag === "Some") {
+            assert.deepStrictEqual(failure.value instanceof ExternalCallError, true);
+            assert.deepStrictEqual(failure.value.message, "AniList search failed");
+          }
+        }
       }),
     schema,
   }),
@@ -403,7 +411,7 @@ it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds",
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         const result = yield* searchAnimeEffect({
           aniList: {
             getAnimeMetadataById: () => Effect.succeed(Option.none()),
@@ -464,7 +472,7 @@ it.scoped("listAnimeEffect returns paginated results with defaults", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         for (let i = 1; i <= 5; i++) {
           yield* Effect.tryPromise(() =>
             appDb.insert(schema.anime).values({
@@ -499,7 +507,7 @@ it.scoped("listAnimeEffect respects limit and offset", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         for (let i = 1; i <= 10; i++) {
           yield* Effect.tryPromise(() =>
             appDb.insert(schema.anime).values({
@@ -542,7 +550,7 @@ it.scoped("listAnimeEffect caps limit at 500", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
             id: 1,
@@ -570,7 +578,7 @@ it.scoped("listAnimeEffect floors limit at 1", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
             id: 1,
@@ -598,7 +606,7 @@ it.scoped("listAnimeEffect floors negative offset at 0", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
             id: 1,
@@ -626,7 +634,7 @@ it.scoped("listAnimeEffect aggregates episode download counts", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
             id: 1,
@@ -664,7 +672,7 @@ it.scoped("listAnimeEffect filters by monitored status", () =>
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values([
             {
@@ -716,7 +724,7 @@ it.scoped("listAnimeEffect includes progress and metadata fields needed by list 
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
             id: 10,
@@ -767,7 +775,7 @@ it.scoped("listAnimeEffect fails when stored anime JSON metadata is corrupt", ()
   withSqliteTestDbEffect({
     run: (db) =>
       Effect.gen(function* () {
-        const appDb = db as AppDatabase;
+        const appDb: AppDatabase = db;
         yield* Effect.tryPromise(() =>
           appDb.insert(schema.anime).values({
             id: 10,
@@ -786,6 +794,14 @@ it.scoped("listAnimeEffect fails when stored anime JSON metadata is corrupt", ()
 
         const result = yield* Effect.exit(listAnimeEffect(appDb));
         assert.deepStrictEqual(Exit.isFailure(result), true);
+        if (Exit.isFailure(result)) {
+          const failure = Cause.failureOption(result.cause);
+          assert.deepStrictEqual(failure._tag, "Some");
+          if (failure._tag === "Some") {
+            assert.deepStrictEqual(failure.value instanceof AnimeStoredDataError, true);
+            assert.match(failure.value.message, /genres/i);
+          }
+        }
       }),
     schema,
   }),

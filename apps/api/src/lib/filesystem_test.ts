@@ -1,8 +1,7 @@
 import { FileSystem as PlatformFileSystem } from "@effect/platform";
-import { Cause, Effect } from "effect";
+import { Brand, Cause, Effect } from "effect";
 
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { makeNoopTestFileSystemEffect } from "@/test/filesystem-test.ts";
 
 import {
@@ -104,9 +103,11 @@ it.effect("openFile.seek rejects unsupported seek modes with typed errors", () =
 );
 
 function makeFakePlatformFile(): PlatformFileSystem.File {
+  const descriptor = Brand.nominal<PlatformFileSystem.File.Descriptor>()(0);
+
   return {
     [PlatformFileSystem.FileTypeId]: PlatformFileSystem.FileTypeId,
-    fd: 0 as PlatformFileSystem.File.Descriptor,
+    fd: descriptor,
     read: () => Effect.die("unexpected read call"),
     readAlloc: () => Effect.die("unexpected readAlloc call"),
     seek: () => Effect.die("unexpected seek call"),

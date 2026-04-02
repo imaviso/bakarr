@@ -1,7 +1,6 @@
-import assert from "node:assert/strict";
 import { Cause, Effect } from "effect";
 
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 import { PasswordError, verifyPassword } from "@/security/password.ts";
 
 it.effect("verifyPassword fails when the stored hash structure is malformed", () =>

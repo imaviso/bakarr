@@ -4,7 +4,10 @@ import { Effect } from "effect";
 import { QualityProfileService } from "@/features/system/quality-profile-service.ts";
 import { ReleaseProfileService } from "@/features/system/release-profile-service.ts";
 import { SystemConfigUpdateService } from "@/features/system/system-config-update-service.ts";
-import { SystemConfigService } from "@/features/system/system-config-service.ts";
+import {
+  redactConfigSecrets,
+  SystemConfigService,
+} from "@/features/system/system-config-service.ts";
 import { IdParamsSchema } from "@/http/common-request-schemas.ts";
 import {
   ConfigSchema,
@@ -25,7 +28,9 @@ export const configRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/api/system/config",
     authedRouteResponse(
-      Effect.flatMap(SystemConfigService, (service) => service.getConfig()),
+      Effect.flatMap(SystemConfigService, (service) =>
+        service.getConfig().pipe(Effect.map(redactConfigSecrets)),
+      ),
       jsonResponse,
     ),
   ),

@@ -1,9 +1,7 @@
 import * as SqliteClient from "@effect/sql-sqlite-node/SqliteClient";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
-import * as Scope from "effect/Scope";
 
 type ExecuteStatement = {
   readonly args?: ReadonlyArray<unknown>;
@@ -15,46 +13,50 @@ type ExecuteResult = {
 };
 
 export interface SqliteTestClient {
-  close(): void;
-  execute(statement: ExecuteStatement): Promise<ExecuteResult>;
-  execute(sql: string, args?: ReadonlyArray<unknown>): Promise<ExecuteResult>;
-}
-
-export function createClient(input: { readonly url: string }): SqliteTestClient {
-  const databaseFile = toDatabaseFile(input.url);
-  const scope = Effect.runSync(Scope.make());
-  const clientContext = Effect.runSync(
-    Layer.buildWithScope(
-      SqliteClient.layer({
-        filename: databaseFile,
-        readonly: false,
-      }),
-      scope,
-    ),
-  );
-  const client = Context.get(clientContext, SqliteClient.SqliteClient);
-
-  return {
-    close() {
-      Effect.runSync(Scope.close(scope, Exit.succeed(undefined)));
-    },
-    async execute(
-      sqlOrStatement: ExecuteStatement | string,
-      args: ReadonlyArray<unknown> = [],
-    ): Promise<ExecuteResult> {
-      const statement =
-        typeof sqlOrStatement === "string"
-          ? { args, sql: sqlOrStatement }
-          : { args: sqlOrStatement.args ?? [], sql: sqlOrStatement.sql };
-
-      const rows = await Effect.runPromise(
-        client.unsafe(statement.sql, statement.args).withoutTransform,
-      );
-
-      return { rows: rows as Array<Record<string, unknown>> };
-    },
+  readonly execute: {
+    (statement: ExecuteStatement): Effect.Effect<ExecuteResult, unknown>;
+    (sql: string, args?: ReadonlyArray<unknown>): Effect.Effect<ExecuteResult, unknown>;
   };
 }
+
+export const withSqliteTestClientEffect = Effect.fn("Test.withSqliteTestClientEffect")(function* <
+  A,
+  E,
+  R,
+>(input: {
+  readonly url: string;
+  readonly run: (client: SqliteTestClient) => Effect.Effect<A, E, R>;
+}) {
+  const databaseFile = toDatabaseFile(input.url);
+
+  return yield* Effect.scoped(
+    Effect.gen(function* () {
+      const clientContext = yield* Layer.build(
+        SqliteClient.layer({
+          filename: databaseFile,
+          readonly: false,
+        }),
+      );
+      const client = Context.get(clientContext, SqliteClient.SqliteClient);
+
+      const execute = Effect.fn("Test.SqliteTestClient.execute")(function* (
+        sqlOrStatement: ExecuteStatement | string,
+        args: ReadonlyArray<unknown> = [],
+      ) {
+        const statement =
+          typeof sqlOrStatement === "string"
+            ? { args, sql: sqlOrStatement }
+            : { args: sqlOrStatement.args ?? [], sql: sqlOrStatement.sql };
+
+        const rows = yield* client.unsafe(statement.sql, statement.args).withoutTransform;
+
+        return { rows: rows as Array<Record<string, unknown>> };
+      });
+
+      return yield* input.run({ execute });
+    }),
+  );
+});
 
 function toDatabaseFile(url: string) {
   return url.startsWith("file:") ? url.slice("file:".length) : url;

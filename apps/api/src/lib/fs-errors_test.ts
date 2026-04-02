@@ -1,12 +1,10 @@
-import assert from "node:assert/strict";
-import { describe, it } from "@effect/vitest";
+import { assert, describe, it } from "@effect/vitest";
 
 import { isNotFoundError } from "@/lib/fs-errors.ts";
 
 describe("isNotFoundError", () => {
   it("detects ENOENT causes wrapped directly", () => {
-    const cause = new Error("missing") as Error & { code?: string };
-    cause.code = "ENOENT";
+    const cause = Object.assign(new Error("missing"), { code: "ENOENT" });
 
     assert.deepStrictEqual(isNotFoundError({ cause }), true);
   });

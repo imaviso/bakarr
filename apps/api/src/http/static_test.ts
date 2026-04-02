@@ -1,9 +1,8 @@
-import assert from "node:assert/strict";
 import { HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/embedded-web.ts";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 
 it.effect("static app falls back to index.html for app routes", () =>
   Effect.gen(function* () {

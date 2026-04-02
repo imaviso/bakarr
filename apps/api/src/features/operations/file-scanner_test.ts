@@ -1,7 +1,6 @@
-import assert from "node:assert/strict";
-import { it } from "@effect/vitest";
+import { assert, it } from "@effect/vitest";
 
-import { Effect, Stream } from "effect";
+import { Cause, Effect, Exit, Stream } from "effect";
 
 import { type DirEntry, FileSystemError } from "@/lib/filesystem.ts";
 import { makeNoopTestFileSystemWithOverridesEffect } from "@/test/filesystem-test.ts";
@@ -60,6 +59,14 @@ it.effect("scanVideoFiles fails when the root path is inaccessible", () =>
     const exit = yield* Effect.exit(scanVideoFiles(mockFs, "/library/show/season-2/broken"));
 
     assert.deepStrictEqual(exit._tag, "Failure");
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assert.deepStrictEqual(failure.value instanceof FileSystemError, true);
+        assert.deepStrictEqual(failure.value.path, "/library/show/season-2/broken");
+      }
+    }
   }),
 );
 
@@ -193,6 +200,14 @@ it.effect("scanVideoFilesStream fails when encountering inaccessible subdirector
     );
 
     assert.deepStrictEqual(exit._tag, "Failure");
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assert.deepStrictEqual(failure.value instanceof FileSystemError, true);
+        assert.deepStrictEqual(failure.value.path, "/library/show2");
+      }
+    }
   }),
 );
 
