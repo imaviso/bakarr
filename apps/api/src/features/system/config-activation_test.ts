@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
@@ -29,8 +30,8 @@ it.effect("config activation keeps persisted state when activation succeeds", ()
       }),
     );
 
-    assertEquals(exit._tag, "Success");
-    assertEquals(persisted, [nextState]);
+    assert.deepStrictEqual(exit._tag, "Success");
+    assert.deepStrictEqual(persisted, [nextState]);
   }),
 );
 
@@ -59,8 +60,8 @@ it.effect("config activation rolls persisted state back when activation fails", 
       }),
     );
 
-    assertEquals(exit._tag, "Failure");
-    assertEquals(persisted, [nextState, previousState]);
+    assert.deepStrictEqual(exit._tag, "Failure");
+    assert.deepStrictEqual(persisted, [nextState, previousState]);
   }),
 );
 

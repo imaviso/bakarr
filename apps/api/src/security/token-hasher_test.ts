@@ -1,7 +1,8 @@
 import { Effect } from "effect";
 
 import { TokenHasher, TokenHasherLive } from "@/security/token-hasher.ts";
-import { assertEquals, assertMatch, assertNotEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 it.effect("TokenHasher produces stable SHA-256 hex digests", () =>
   Effect.gen(function* () {
@@ -17,9 +18,9 @@ it.effect("TokenHasher produces stable SHA-256 hex digests", () =>
       hasher.hashToken("bakarr-session-token-2"),
     ).pipe(Effect.provide(TokenHasherLive));
 
-    assertEquals(first, second);
-    assertEquals(first.length, 64);
-    assertMatch(first, /^[0-9a-f]{64}$/);
-    assertNotEquals(first, different);
+    assert.deepStrictEqual(first, second);
+    assert.deepStrictEqual(first.length, 64);
+    assert.match(first, /^[0-9a-f]{64}$/);
+    assert.notDeepStrictEqual(first, different);
   }),
 );

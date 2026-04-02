@@ -1,10 +1,11 @@
+import assert from "node:assert/strict";
 import { CommandExecutor, HttpApp } from "@effect/platform";
 import { ManagedRuntime, Effect, Layer, Redacted } from "effect";
 
 import { makeApiLifecycleLayers } from "@/api-lifecycle-layers.ts";
 import { createHttpApp } from "@/http/http-app.ts";
 import { type EmbeddedWebAsset } from "@/http/embedded-web.ts";
-import { assertEquals, assertMatch, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 
 it.scoped("http app returns 404 for unknown api routes without serving the app shell", () =>
   withHttpHandlerEffect(
@@ -17,8 +18,8 @@ it.scoped("http app returns 404 for unknown api routes without serving the app s
           handler(new Request("http://bakarr.local/api/unknown")),
         );
 
-        assertEquals(response.status, 404);
-        assertEquals(yield* Effect.promise(() => response.text()), "");
+        assert.deepStrictEqual(response.status, 404);
+        assert.deepStrictEqual(yield* Effect.promise(() => response.text()), "");
       }),
   ),
 );
@@ -34,8 +35,8 @@ it.scoped("http app falls back to embedded index.html for app routes", () =>
           handler(new Request("http://bakarr.local/library")),
         );
 
-        assertEquals(response.status, 200);
-        assertMatch(yield* Effect.promise(() => response.text()), /app shell/);
+        assert.deepStrictEqual(response.status, 200);
+        assert.match(yield* Effect.promise(() => response.text()), /app shell/);
       }),
   ),
 );

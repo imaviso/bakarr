@@ -6,7 +6,6 @@ export const DEFAULT_EVENT_BUS_CAPACITY = 256;
 
 export interface EventSubscription {
   readonly stream: Stream.Stream<NotificationEvent>;
-  readonly take: Effect.Effect<NotificationEvent, unknown>;
 }
 
 export interface EventBusShape {
@@ -39,7 +38,6 @@ export function makeEventBus(options: { readonly capacity?: number } = {}) {
 
       return {
         stream: Stream.fromQueue(slidingQueue, { shutdown: false }),
-        take: Queue.take(slidingQueue),
       } satisfies EventSubscription;
     });
 

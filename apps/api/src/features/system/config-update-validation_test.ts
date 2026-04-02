@@ -1,6 +1,7 @@
+import assert from "node:assert/strict";
 import { Cause, Effect, Exit } from "effect";
 
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
 
@@ -21,13 +22,13 @@ it("rejects invalid scheduler cron expressions", () =>
       }),
     );
 
-    assertEquals(Exit.isFailure(exit), true);
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
 
     if (Exit.isFailure(exit)) {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "ConfigValidationError");
+        assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
       }
     }
   }));
@@ -42,13 +43,13 @@ it("rejects removing profiles that are still referenced", () =>
       }),
     );
 
-    assertEquals(Exit.isFailure(exit), true);
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
 
     if (Exit.isFailure(exit)) {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "ConfigValidationError");
+        assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
       }
     }
   }));
@@ -69,13 +70,13 @@ it("rejects invalid qBittorrent URLs", () =>
       }),
     );
 
-    assertEquals(Exit.isFailure(exit), true);
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
 
     if (Exit.isFailure(exit)) {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "ConfigValidationError");
+        assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
       }
     }
   }));
@@ -97,13 +98,13 @@ it("rejects private qBittorrent URLs when trusted_local is disabled", () =>
       }),
     );
 
-    assertEquals(Exit.isFailure(exit), true);
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
 
     if (Exit.isFailure(exit)) {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "ConfigValidationError");
+        assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
       }
     }
   }));

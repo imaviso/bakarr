@@ -1,10 +1,11 @@
+import assert from "node:assert/strict";
 import { Cause, Effect, Exit } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { encodeNumberList } from "@/features/system/config-codec.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import { loadDownloadPresentationContexts } from "@/features/operations/repository/download-presentation-repository.ts";
@@ -87,7 +88,7 @@ it.scoped("download presentation contexts load imported paths", () =>
 
       const contexts = yield* loadDownloadPresentationContexts(db, [row]);
 
-      assertEquals(contexts.get(row.id), {
+      assert.deepStrictEqual(contexts.get(row.id), {
         animeImage: "https://example.com/naruto.jpg",
         importedPath: "/library/Naruto/Naruto - 01.mkv",
       });
@@ -167,12 +168,12 @@ it.scoped("download presentation contexts fail for corrupt covered episode metad
 
       const exit = yield* Effect.exit(loadDownloadPresentationContexts(db, [row]));
 
-      assertEquals(Exit.isFailure(exit), true);
+      assert.deepStrictEqual(Exit.isFailure(exit), true);
       if (Exit.isFailure(exit)) {
         const failure = Cause.failureOption(exit.cause);
-        assertEquals(failure._tag, "Some");
+        assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assertEquals(failure.value instanceof OperationsStoredDataError, true);
+          assert.deepStrictEqual(failure.value instanceof OperationsStoredDataError, true);
         }
       }
     }),

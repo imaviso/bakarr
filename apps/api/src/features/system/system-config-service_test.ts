@@ -1,8 +1,9 @@
+import assert from "node:assert/strict";
 import { Cause, Effect, Exit, Layer } from "effect";
 
 import { Database, type DatabaseService } from "@/db/database.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { assertEquals, describe, it } from "@/test/vitest.ts";
+import { describe, it } from "@effect/vitest";
 import * as schema from "@/db/schema.ts";
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
 import {
@@ -30,15 +31,15 @@ describe("SystemConfigService", () => {
             ),
           );
 
-          assertEquals(Exit.isFailure(exit), true);
+          assert.deepStrictEqual(Exit.isFailure(exit), true);
 
           if (Exit.isFailure(exit)) {
             const failure = Cause.failureOption(exit.cause);
-            assertEquals(failure._tag, "Some", Cause.pretty(exit.cause));
+            assert.deepStrictEqual(failure._tag, "Some", Cause.pretty(exit.cause));
 
             if (failure._tag === "Some") {
-              assertEquals(failure.value._tag, "StoredConfigMissingError");
-              assertEquals(failure.value instanceof StoredConfigMissingError, true);
+              assert.deepStrictEqual(failure.value._tag, "StoredConfigMissingError");
+              assert.deepStrictEqual(failure.value instanceof StoredConfigMissingError, true);
             }
           }
         }),

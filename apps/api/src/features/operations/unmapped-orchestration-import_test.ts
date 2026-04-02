@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
 import { Effect, Schema } from "effect";
 import { dirname } from "node:path";
@@ -8,7 +9,7 @@ import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { makeUnmappedImportWorkflow } from "@/features/operations/unmapped-orchestration-import.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { createClient } from "@/test/sqlite-client.ts";
 import { makeTestFileSystemEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
@@ -79,18 +80,18 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
           }),
         );
 
-        assertEquals(exit._tag, "Failure");
+        assert.deepStrictEqual(exit._tag, "Failure");
 
         const [animeRow] = yield* Effect.tryPromise(() =>
           appDb.select().from(anime).where(eq(anime.id, 20)).limit(1),
         );
-        assertEquals(animeRow.profileName, "Default");
-        assertEquals(animeRow.rootFolder, "/library/Old Show");
+        assert.deepStrictEqual(animeRow.profileName, "Default");
+        assert.deepStrictEqual(animeRow.rootFolder, "/library/Old Show");
 
         const episodeRows = yield* Effect.tryPromise(() =>
           appDb.select().from(episodes).where(eq(episodes.animeId, 20)),
         );
-        assertEquals(episodeRows.length, 0);
+        assert.deepStrictEqual(episodeRows.length, 0);
       }),
     schema,
   }),

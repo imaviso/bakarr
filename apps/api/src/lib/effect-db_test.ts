@@ -1,4 +1,5 @@
-import { assert, assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Effect, Either, Fiber, TestClock } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
@@ -22,8 +23,8 @@ it.effect("tryDatabasePromise retries SQLITE_BUSY failures until success", () =>
 
     const result = yield* Fiber.join(fiber);
 
-    assertEquals(result, "ok");
-    assertEquals(attempts, 3);
+    assert.deepStrictEqual(result, "ok");
+    assert.deepStrictEqual(attempts, 3);
   }),
 );
 
@@ -36,9 +37,9 @@ it.effect("tryDatabasePromise stops immediately for non-busy failures", () =>
       throw new Error("constraint failed");
     }).pipe(Effect.either);
 
-    assert(Either.isLeft(result));
-    assert(result.left instanceof DatabaseError);
-    assertEquals(result.left.message, "db failed");
-    assertEquals(attempts, 1);
+    assert.ok(Either.isLeft(result));
+    assert.ok(result.left instanceof DatabaseError);
+    assert.deepStrictEqual(result.left.message, "db failed");
+    assert.deepStrictEqual(attempts, 1);
   }),
 );

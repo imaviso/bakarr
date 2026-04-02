@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 import {
   buildEpisodeFileMappingIndex,
@@ -22,7 +23,7 @@ it("buildScannedFileLibrarySignals reports existing exact-path mappings", () => 
     },
   ]);
 
-  assertEquals(
+  assert.deepStrictEqual(
     buildScannedFileLibrarySignals({
       file: {
         episode_number: 1,
@@ -59,7 +60,7 @@ it("buildScannedFileLibrarySignals reports duplicate episode conflicts", () => {
     },
   ]);
 
-  assertEquals(
+  assert.deepStrictEqual(
     buildScannedFileLibrarySignals({
       file: {
         episode_number: 1,
@@ -115,14 +116,14 @@ it("buildScannedFileNamingPlan exposes naming details for matched anime files", 
     },
   });
 
-  assertEquals(result.naming_fallback_used, undefined);
-  assertEquals(result.naming_filename, "Naruto - S01E01 [WEB-DL 1080p].mkv");
-  assertEquals(
+  assert.deepStrictEqual(result.naming_fallback_used, undefined);
+  assert.deepStrictEqual(result.naming_filename, "Naruto - S01E01 [WEB-DL 1080p].mkv");
+  assert.deepStrictEqual(
     result.naming_format_used,
     "{title} - S{season:02}E{episode:02} [{quality} {resolution}]",
   );
-  assertEquals(result.naming_metadata_snapshot?.episode_title, "Enter Naruto Uzumaki!");
-  assertEquals(result.naming_metadata_snapshot?.title_source, "preferred_romaji");
+  assert.deepStrictEqual(result.naming_metadata_snapshot?.episode_title, "Enter Naruto Uzumaki!");
+  assert.deepStrictEqual(result.naming_metadata_snapshot?.title_source, "preferred_romaji");
 });
 
 it("buildScannedFileNamingPlan avoids duplicate resolution when quality already includes it", () => {
@@ -159,7 +160,7 @@ it("buildScannedFileNamingPlan avoids duplicate resolution when quality already 
     },
   });
 
-  assertEquals(result.naming_filename, "Jigokuraku - S01E01 [WEB-DL 1080p].mkv");
+  assert.deepStrictEqual(result.naming_filename, "Jigokuraku - S01E01 [WEB-DL 1080p].mkv");
 });
 
 it("buildScannedFileNamingPlan keeps extension logic within file basename", () => {
@@ -196,5 +197,5 @@ it("buildScannedFileNamingPlan keeps extension logic within file basename", () =
     },
   });
 
-  assertEquals(result.naming_filename, "Test - S01E01.mkv");
+  assert.deepStrictEqual(result.naming_filename, "Test - S01E01.mkv");
 });

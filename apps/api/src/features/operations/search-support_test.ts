@@ -1,4 +1,5 @@
-import { assertEquals, assertMatch, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 import {
   fallbackReleases,
@@ -9,11 +10,11 @@ import {
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 
 it("mapSearchCategory and mapSearchFilter use expected mappings and fallbacks", () => {
-  assertEquals(mapSearchCategory("anime_english", "1_0"), "1_2");
-  assertEquals(mapSearchCategory("unknown", "1_0"), "1_0");
+  assert.deepStrictEqual(mapSearchCategory("anime_english", "1_0"), "1_2");
+  assert.deepStrictEqual(mapSearchCategory("unknown", "1_0"), "1_0");
 
-  assertEquals(mapSearchFilter("trusted_only", "0"), "2");
-  assertEquals(mapSearchFilter("unknown", "0"), "0");
+  assert.deepStrictEqual(mapSearchFilter("trusted_only", "0"), "2");
+  assert.deepStrictEqual(mapSearchFilter("unknown", "0"), "0");
 });
 
 it("toNyaaSearchResult preserves release fields and parses episode number", () => {
@@ -42,24 +43,24 @@ it("toNyaaSearchResult preserves release fields and parses episode number", () =
 
   const result = toNyaaSearchResult(release);
 
-  assertEquals(result.info_hash, release.infoHash);
-  assertEquals(result.indexer, "Nyaa");
-  assertEquals(result.parsed_group, "SubsPlease");
-  assertEquals(result.parsed_quality, "WEB-DL 1080p");
-  assertEquals(result.parsed_episode, "1");
-  assertEquals(result.parsed_episode_label, "01");
-  assertEquals(result.parsed_episode_numbers, [1]);
-  assertEquals(result.parsed_resolution, "1080p");
-  assertEquals(result.trusted, true);
-  assertEquals(result.remake, false);
-  assertEquals(result.view_url, "https://nyaa.si/view/1");
-  assertEquals(result.is_seadex, true);
-  assertEquals(result.is_seadex_best, false);
-  assertEquals(result.seadex_release_group, "SeaDexGroup");
-  assertEquals(result.seadex_tags, ["Best", "Dual Audio"]);
-  assertEquals(result.seadex_notes, "Preferred release");
-  assertEquals(result.seadex_comparison, "https://releases.moe/compare/example");
-  assertEquals(result.seadex_dual_audio, true);
+  assert.deepStrictEqual(result.info_hash, release.infoHash);
+  assert.deepStrictEqual(result.indexer, "Nyaa");
+  assert.deepStrictEqual(result.parsed_group, "SubsPlease");
+  assert.deepStrictEqual(result.parsed_quality, "WEB-DL 1080p");
+  assert.deepStrictEqual(result.parsed_episode, "1");
+  assert.deepStrictEqual(result.parsed_episode_label, "01");
+  assert.deepStrictEqual(result.parsed_episode_numbers, [1]);
+  assert.deepStrictEqual(result.parsed_resolution, "1080p");
+  assert.deepStrictEqual(result.trusted, true);
+  assert.deepStrictEqual(result.remake, false);
+  assert.deepStrictEqual(result.view_url, "https://nyaa.si/view/1");
+  assert.deepStrictEqual(result.is_seadex, true);
+  assert.deepStrictEqual(result.is_seadex_best, false);
+  assert.deepStrictEqual(result.seadex_release_group, "SeaDexGroup");
+  assert.deepStrictEqual(result.seadex_tags, ["Best", "Dual Audio"]);
+  assert.deepStrictEqual(result.seadex_notes, "Preferred release");
+  assert.deepStrictEqual(result.seadex_comparison, "https://releases.moe/compare/example");
+  assert.deepStrictEqual(result.seadex_dual_audio, true);
 });
 
 it("toNyaaSearchResult maps daily releases to parsed air date", () => {
@@ -83,20 +84,20 @@ it("toNyaaSearchResult maps daily releases to parsed air date", () => {
 
   const result = toNyaaSearchResult(release);
 
-  assertEquals(result.parsed_air_date, "2025-03-14");
-  assertEquals(result.parsed_episode_numbers, undefined);
+  assert.deepStrictEqual(result.parsed_air_date, "2025-03-14");
+  assert.deepStrictEqual(result.parsed_episode_numbers, undefined);
 });
 
 it("fallbackReleases builds a trusted placeholder release from title", () => {
   const [release] = fallbackReleases("naruto", "Naruto Shippuden");
 
-  assertEquals(release.group, "SubsPlease");
-  assertEquals(release.isSeaDex, false);
-  assertEquals(release.isSeaDexBest, false);
-  assertEquals(release.resolution, "1080p");
-  assertEquals(release.trusted, true);
-  assertEquals(toNyaaSearchResult(release).indexer, "Nyaa");
-  assertMatch(release.magnet, /^magnet:\?xt=urn:btih:[a-f0-9]+&dn=/);
-  assertMatch(release.infoHash, /^[a-f0-9]+$/);
-  assertEquals(release.title.includes("Naruto Shippuden"), true);
+  assert.deepStrictEqual(release.group, "SubsPlease");
+  assert.deepStrictEqual(release.isSeaDex, false);
+  assert.deepStrictEqual(release.isSeaDexBest, false);
+  assert.deepStrictEqual(release.resolution, "1080p");
+  assert.deepStrictEqual(release.trusted, true);
+  assert.deepStrictEqual(toNyaaSearchResult(release).indexer, "Nyaa");
+  assert.match(release.magnet, /^magnet:\?xt=urn:btih:[a-f0-9]+&dn=/);
+  assert.match(release.infoHash, /^[a-f0-9]+$/);
+  assert.deepStrictEqual(release.title.includes("Naruto Shippuden"), true);
 });

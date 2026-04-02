@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
 import * as schema from "@/db/schema.ts";
@@ -26,11 +27,11 @@ it("analyzeScannedFile strips release noise and extracts metadata", () => {
   });
   const parsed = result.scanned;
 
-  assertEquals(parsed.episode_number, 3);
-  assertEquals(parsed.coverage_summary, undefined);
-  assertEquals(parsed.group, "SubsPlease");
-  assertEquals(parsed.resolution, "1080p");
-  assertEquals(parsed.season, 2);
+  assert.deepStrictEqual(parsed.episode_number, 3);
+  assert.deepStrictEqual(parsed.coverage_summary, undefined);
+  assert.deepStrictEqual(parsed.group, "SubsPlease");
+  assert.deepStrictEqual(parsed.resolution, "1080p");
+  assert.deepStrictEqual(parsed.season, 2);
 });
 
 it("analyzeScannedFile handles Sonarr and Plex style episode names", () => {
@@ -40,16 +41,16 @@ it("analyzeScannedFile handles Sonarr and Plex style episode names", () => {
   });
   const parsed = result.scanned;
 
-  assertEquals(parsed.episode_number, 1);
-  assertEquals(parsed.coverage_summary, undefined);
-  assertEquals(parsed.episode_title, "Good Day to You♡ Quit Playing the Guitar!!!");
-  assertEquals(parsed.audio_channels, "2.0");
-  assertEquals(parsed.audio_codec, "AAC");
-  assertEquals(parsed.match_reason, "Parsed S01E01 from the filename");
-  assertEquals(parsed.quality, "WEB-DL");
-  assertEquals(parsed.resolution, "1080p");
-  assertEquals(parsed.season, 1);
-  assertEquals(parsed.video_codec, "AVC");
+  assert.deepStrictEqual(parsed.episode_number, 1);
+  assert.deepStrictEqual(parsed.coverage_summary, undefined);
+  assert.deepStrictEqual(parsed.episode_title, "Good Day to You♡ Quit Playing the Guitar!!!");
+  assert.deepStrictEqual(parsed.audio_channels, "2.0");
+  assert.deepStrictEqual(parsed.audio_codec, "AAC");
+  assert.deepStrictEqual(parsed.match_reason, "Parsed S01E01 from the filename");
+  assert.deepStrictEqual(parsed.quality, "WEB-DL");
+  assert.deepStrictEqual(parsed.resolution, "1080p");
+  assert.deepStrictEqual(parsed.season, 1);
+  assert.deepStrictEqual(parsed.video_codec, "AVC");
 });
 
 it("analyzeScannedFile preserves multi-episode local ranges", () => {
@@ -59,13 +60,13 @@ it("analyzeScannedFile preserves multi-episode local ranges", () => {
   });
   const parsed = result.scanned;
 
-  assertEquals(parsed.episode_number, 1);
-  assertEquals(parsed.coverage_summary, "Episodes 1-2");
-  assertEquals(parsed.episode_numbers, [1, 2]);
-  assertEquals(parsed.episode_title, undefined);
-  assertEquals(parsed.match_reason, "Parsed S01E01-E02 from the filename");
-  assertEquals(parsed.season, 1);
-  assertEquals(parsed.warnings, undefined);
+  assert.deepStrictEqual(parsed.episode_number, 1);
+  assert.deepStrictEqual(parsed.coverage_summary, "Episodes 1-2");
+  assert.deepStrictEqual(parsed.episode_numbers, [1, 2]);
+  assert.deepStrictEqual(parsed.episode_title, undefined);
+  assert.deepStrictEqual(parsed.match_reason, "Parsed S01E01-E02 from the filename");
+  assert.deepStrictEqual(parsed.season, 1);
+  assert.deepStrictEqual(parsed.warnings, undefined);
 });
 
 it("analyzeScannedFile skips extras and samples", () => {
@@ -73,14 +74,14 @@ it("analyzeScannedFile skips extras and samples", () => {
     name: "Featurette.mkv",
     path: "/library/Extras/Featurette.mkv",
   });
-  assertEquals(extra.skipped !== undefined, true);
-  assertEquals(extra.skipped!.reason.length > 0, true);
+  assert.deepStrictEqual(extra.skipped !== undefined, true);
+  assert.deepStrictEqual(extra.skipped!.reason.length > 0, true);
 
   const sample = analyzeScannedFile({
     name: "sample-Show.S01E01.mkv",
     path: "/library/sample-Show.S01E01.mkv",
   });
-  assertEquals(sample.skipped !== undefined, true);
+  assert.deepStrictEqual(sample.skipped !== undefined, true);
 });
 
 it("analyzeScannedFile populates source_identity for season episodes", () => {
@@ -90,12 +91,12 @@ it("analyzeScannedFile populates source_identity for season episodes", () => {
   });
   const parsed = result.scanned;
 
-  assertEquals(parsed.source_identity?.scheme, "season");
-  assertEquals(parsed.source_identity?.season, 2);
-  assertEquals(parsed.source_identity?.episode_numbers, [3]);
-  assertEquals(parsed.source_identity?.label, "S02E03");
-  assertEquals(parsed.episode_number, 3);
-  assertEquals(parsed.season, 2);
+  assert.deepStrictEqual(parsed.source_identity?.scheme, "season");
+  assert.deepStrictEqual(parsed.source_identity?.season, 2);
+  assert.deepStrictEqual(parsed.source_identity?.episode_numbers, [3]);
+  assert.deepStrictEqual(parsed.source_identity?.label, "S02E03");
+  assert.deepStrictEqual(parsed.episode_number, 3);
+  assert.deepStrictEqual(parsed.season, 2);
 });
 
 it("analyzeScannedFile populates source_identity for daily episodes", () => {
@@ -105,16 +106,18 @@ it("analyzeScannedFile populates source_identity for daily episodes", () => {
   });
   const parsed = result.scanned;
 
-  assertEquals(parsed.source_identity?.scheme, "daily");
-  assertEquals(parsed.air_date, "2025-03-14");
-  assertEquals(parsed.coverage_summary, "Air date 2025-03-14");
-  assertEquals(
+  assert.deepStrictEqual(parsed.source_identity?.scheme, "daily");
+  assert.deepStrictEqual(parsed.air_date, "2025-03-14");
+  assert.deepStrictEqual(parsed.coverage_summary, "Air date 2025-03-14");
+  assert.deepStrictEqual(
     parsed.match_reason,
     "Parsed a daily air date from the filename; choose the episode mapping before import",
   );
-  assertEquals(parsed.source_identity?.air_dates, ["2025-03-14"]);
-  assertEquals(parsed.needs_manual_mapping, true);
-  assertEquals(parsed.warnings, ["Parsed a daily air date; set the episode number before import"]);
+  assert.deepStrictEqual(parsed.source_identity?.air_dates, ["2025-03-14"]);
+  assert.deepStrictEqual(parsed.needs_manual_mapping, true);
+  assert.deepStrictEqual(parsed.warnings, [
+    "Parsed a daily air date; set the episode number before import",
+  ]);
 });
 
 it("analyzeScannedFile marks unknown files as needing manual mapping", () => {
@@ -124,13 +127,13 @@ it("analyzeScannedFile marks unknown files as needing manual mapping", () => {
   });
   const parsed = result.scanned;
 
-  assertEquals(parsed.needs_manual_mapping, true);
-  assertEquals(parsed.episode_number, 0);
-  assertEquals(
+  assert.deepStrictEqual(parsed.needs_manual_mapping, true);
+  assert.deepStrictEqual(parsed.episode_number, 0);
+  assert.deepStrictEqual(
     parsed.match_reason,
     "No reliable episode identity found in the filename; review this file before import",
   );
-  assertEquals(parsed.warnings, ["No reliable episode identity found in filename"]);
+  assert.deepStrictEqual(parsed.warnings, ["No reliable episode identity found in filename"]);
 });
 
 it.scoped("buildRenamePreview fills naming tokens from existing file metadata", () =>
@@ -180,16 +183,16 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
 
         const preview = yield* buildRenamePreview(appDb, 1);
 
-        assertEquals(preview.length, 1);
-        assertEquals(
+        assert.deepStrictEqual(preview.length, 1);
+        assert.deepStrictEqual(
           preview[0].new_filename,
           "Nisemonogatari - S01E01 - Karen Bee, Part 1 [1080p][HEVC][AAC][MTBB].mkv",
         );
-        assertEquals(preview[0].fallback_used, undefined);
-        assertEquals(preview[0].format_used, namingFormat);
-        assertEquals(preview[0].metadata_snapshot?.episode_title, "Karen Bee, Part 1");
-        assertEquals(preview[0].metadata_snapshot?.title_source, "preferred_romaji");
-        assertEquals(preview[0].metadata_snapshot?.video_codec, "HEVC");
+        assert.deepStrictEqual(preview[0].fallback_used, undefined);
+        assert.deepStrictEqual(preview[0].format_used, namingFormat);
+        assert.deepStrictEqual(preview[0].metadata_snapshot?.episode_title, "Karen Bee, Part 1");
+        assert.deepStrictEqual(preview[0].metadata_snapshot?.title_source, "preferred_romaji");
+        assert.deepStrictEqual(preview[0].metadata_snapshot?.video_codec, "HEVC");
       }),
     schema,
   }),
@@ -245,11 +248,11 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
 
         const preview = yield* buildRenamePreview(appDb, 1);
 
-        assertEquals(preview.length, 1);
-        assertEquals(preview[0].new_filename, "Your Name. (2016).mkv");
-        assertEquals(preview[0].format_used, "{title} ({year})");
-        assertEquals(preview[0].metadata_snapshot?.title, "Your Name.");
-        assertEquals(preview[0].metadata_snapshot?.title_source, "preferred_english");
+        assert.deepStrictEqual(preview.length, 1);
+        assert.deepStrictEqual(preview[0].new_filename, "Your Name. (2016).mkv");
+        assert.deepStrictEqual(preview[0].format_used, "{title} ({year})");
+        assert.deepStrictEqual(preview[0].metadata_snapshot?.title, "Your Name.");
+        assert.deepStrictEqual(preview[0].metadata_snapshot?.title_source, "preferred_english");
       }),
     schema,
   }),
@@ -298,11 +301,11 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
 
         const preview = yield* buildRenamePreview(appDb, 1);
 
-        assertEquals(preview[0].new_filename, "Show - 01.mkv");
-        assertEquals(preview[0].fallback_used, true);
-        assertEquals(preview[0].missing_fields, ["season"]);
-        assertEquals(preview[0].warnings?.length, 2);
-        assertEquals(preview[0].metadata_snapshot?.source_identity?.label, "01");
+        assert.deepStrictEqual(preview[0].new_filename, "Show - 01.mkv");
+        assert.deepStrictEqual(preview[0].fallback_used, true);
+        assert.deepStrictEqual(preview[0].missing_fields, ["season"]);
+        assert.deepStrictEqual(preview[0].warnings?.length, 2);
+        assert.deepStrictEqual(preview[0].metadata_snapshot?.source_identity?.label, "01");
       }),
     schema,
   }),
@@ -340,8 +343,11 @@ it("findBestLocalAnimeMatch handles title normalization and rejects weak matches
     titleRomaji: "Bleach",
   });
 
-  assertEquals(findBestLocalAnimeMatch("Naruto Season 2", [naruto, bleach])?.id, 20);
-  assertEquals(findBestLocalAnimeMatch("Completely Different Show", [naruto, bleach]), undefined);
+  assert.deepStrictEqual(findBestLocalAnimeMatch("Naruto Season 2", [naruto, bleach])?.id, 20);
+  assert.deepStrictEqual(
+    findBestLocalAnimeMatch("Completely Different Show", [naruto, bleach]),
+    undefined,
+  );
 });
 
 it.effect("titlesMatch checks normalized candidate titles", () =>
@@ -376,17 +382,17 @@ it.effect("titlesMatch checks normalized candidate titles", () =>
       }),
     );
 
-    assertEquals(titlesMatch("My Hero Academia 2", candidate), true);
-    assertEquals(titlesMatch("One Piece", candidate), false);
-    assertEquals(candidate.banner_image, "/images/banner.jpg");
-    assertEquals(candidate.description, "Hero school");
-    assertEquals(candidate.end_date, "2020-06-01");
-    assertEquals(candidate.end_year, 2020);
-    assertEquals(candidate.genres, ["Action", "School"]);
-    assertEquals(candidate.season, "spring");
-    assertEquals(candidate.season_year, 2019);
-    assertEquals(candidate.start_date, "2019-04-06");
-    assertEquals(candidate.start_year, 2019);
+    assert.deepStrictEqual(titlesMatch("My Hero Academia 2", candidate), true);
+    assert.deepStrictEqual(titlesMatch("One Piece", candidate), false);
+    assert.deepStrictEqual(candidate.banner_image, "/images/banner.jpg");
+    assert.deepStrictEqual(candidate.description, "Hero school");
+    assert.deepStrictEqual(candidate.end_date, "2020-06-01");
+    assert.deepStrictEqual(candidate.end_year, 2020);
+    assert.deepStrictEqual(candidate.genres, ["Action", "School"]);
+    assert.deepStrictEqual(candidate.season, "spring");
+    assert.deepStrictEqual(candidate.season_year, 2019);
+    assert.deepStrictEqual(candidate.start_date, "2019-04-06");
+    assert.deepStrictEqual(candidate.start_year, 2019);
   }),
 );
 
@@ -402,12 +408,12 @@ it.effect("toAnimeSearchCandidate fails for corrupt stored genres", () =>
       ),
     );
 
-    assertEquals(Exit.isFailure(exit), true);
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assertEquals(failure.value instanceof OperationsStoredDataError, true);
+        assert.deepStrictEqual(failure.value instanceof OperationsStoredDataError, true);
       }
     }
   }),

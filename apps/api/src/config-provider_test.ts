@@ -1,9 +1,10 @@
+import assert from "node:assert/strict";
 import { BunFileSystem } from "@effect/platform-bun";
 import { randomUUID } from "node:crypto";
 import { rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { Cause, Config, Effect, Exit, Redacted } from "effect";
 
 import { makeDotenvConfigProvider } from "@/config-provider.ts";
@@ -44,9 +45,9 @@ it.scoped("dotenv provider uses .env values when env vars are missing", () =>
           }).pipe(Effect.withConfigProvider(provider)),
         );
 
-        assertEquals(result.port, 9200);
-        assertEquals(result.username, "dotenv-admin");
-        assertEquals(result.password, "super-secret");
+        assert.deepStrictEqual(result.port, 9200);
+        assert.deepStrictEqual(result.username, "dotenv-admin");
+        assert.deepStrictEqual(result.password, "super-secret");
       }),
   ),
 );
@@ -61,7 +62,7 @@ it.scoped("dotenv provider prioritizes environment variables over .env", () =>
         Config.number("PORT").pipe(Effect.withConfigProvider(provider)),
       );
 
-      assertEquals(result, 9300);
+      assert.deepStrictEqual(result, 9300);
     }),
   ),
 );
@@ -77,7 +78,7 @@ it.scoped("dotenv provider handles missing dotenv file", () =>
       Config.string("SESSION_COOKIE_NAME").pipe(Effect.withConfigProvider(provider)),
     );
 
-    assertEquals(value, "from-env");
+    assert.deepStrictEqual(value, "from-env");
   }),
 );
 
@@ -113,11 +114,11 @@ it.scoped("dotenv provider parses export comments and quoted values", () =>
           }).pipe(Effect.withConfigProvider(provider)),
         );
 
-        assertEquals(result.username, "from-export");
-        assertEquals(result.cookie, "session-from-dotenv");
-        assertEquals(result.port, 9401);
-        assertEquals(result.password, "line1\nline2 # kept");
-        assertEquals(result.missing, "raw # kept");
+        assert.deepStrictEqual(result.username, "from-export");
+        assert.deepStrictEqual(result.cookie, "session-from-dotenv");
+        assert.deepStrictEqual(result.port, 9401);
+        assert.deepStrictEqual(result.password, "line1\nline2 # kept");
+        assert.deepStrictEqual(result.missing, "raw # kept");
       }),
   ),
 );
@@ -129,17 +130,17 @@ it.scoped("dotenv provider fails with line information on parse errors", () =>
         makeDotenvConfigProvider({ path: dotenvFile }).pipe(withBunFs),
       );
 
-      assertEquals(Exit.isFailure(exit), true);
+      assert.deepStrictEqual(Exit.isFailure(exit), true);
 
       if (Exit.isFailure(exit)) {
         const failure = Cause.failureOption(exit.cause);
-        assertEquals(failure._tag, "Some");
+        assert.deepStrictEqual(failure._tag, "Some");
 
         if (failure._tag === "Some") {
-          assertEquals(failure.value._tag, "DotenvParseError");
+          assert.deepStrictEqual(failure.value._tag, "DotenvParseError");
 
           if (failure.value._tag === "DotenvParseError") {
-            assertEquals(failure.value.line, 2);
+            assert.deepStrictEqual(failure.value.line, 2);
           }
         }
       }

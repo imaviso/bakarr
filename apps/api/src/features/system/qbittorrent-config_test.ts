@@ -1,6 +1,7 @@
+import assert from "node:assert/strict";
 import { Cause, Effect, Exit } from "effect";
 
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { normalizeConfig } from "@/features/system/qbittorrent-config.ts";
 
@@ -17,8 +18,8 @@ it("normalizes qBittorrent config URLs", () =>
 
     const normalized = yield* normalizeConfig(config);
 
-    assertEquals(normalized.qbittorrent.url, "http://localhost:8080");
-    assertEquals(normalized.qbittorrent.trusted_local, true);
+    assert.deepStrictEqual(normalized.qbittorrent.url, "http://localhost:8080");
+    assert.deepStrictEqual(normalized.qbittorrent.trusted_local, true);
   }));
 
 it("rejects loopback qBittorrent URLs when trusted_local is disabled", () =>
@@ -34,12 +35,38 @@ it("rejects loopback qBittorrent URLs when trusted_local is disabled", () =>
 
     const exit = yield* Effect.exit(normalizeConfig(config));
 
-    assertEquals(Exit.isFailure(exit), true);
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
     if (Exit.isFailure(exit)) {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "ConfigValidationError");
+        assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
+      }
+    }
+  }));
+
+it("rejects qBittorrent URLs with credentials as typed validation failures", () =>
+  Effect.gen(function* () {
+    const config = makeTestConfig("./test.sqlite", (value) => ({
+      ...value,
+      qbittorrent: {
+        ...value.qbittorrent,
+        url: "https://demo:secret@qbit.example",
+      },
+    }));
+
+    const exit = yield* Effect.exit(normalizeConfig(config));
+
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assert.deepStrictEqual(failure.value._tag, "ConfigValidationError");
+        assert.deepStrictEqual(
+          failure.value.message,
+          "qBittorrent URL must not include credentials",
+        );
       }
     }
   }));

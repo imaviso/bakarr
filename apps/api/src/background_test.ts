@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Deferred, Effect, Fiber, Logger, Metric, Scope, TestClock } from "effect";
 import type { ClockServiceShape } from "@/lib/clock.ts";
 
@@ -99,11 +100,11 @@ function runInScope<A, E>(
 it("build background schedule enables RSS and library loops", () => {
   const schedule = buildBackgroundSchedule(baseConfig);
 
-  assertEquals(schedule.initialDelayMs, 5_000);
-  assertEquals(schedule.downloadSyncMs, 15_000);
-  assertEquals(schedule.rssCheckMs, 30 * 60 * 1000);
-  assertEquals(schedule.libraryScanMs, 12 * 60 * 60 * 1000);
-  assertEquals(schedule.metadataRefreshMs, 24 * 60 * 60 * 1000);
+  assert.deepStrictEqual(schedule.initialDelayMs, 5_000);
+  assert.deepStrictEqual(schedule.downloadSyncMs, 15_000);
+  assert.deepStrictEqual(schedule.rssCheckMs, 30 * 60 * 1000);
+  assert.deepStrictEqual(schedule.libraryScanMs, 12 * 60 * 60 * 1000);
+  assert.deepStrictEqual(schedule.metadataRefreshMs, 24 * 60 * 60 * 1000);
 });
 
 it("build background schedule disables loops when config disables them", () => {
@@ -119,10 +120,10 @@ it("build background schedule disables loops when config disables them", () => {
     },
   });
 
-  assertEquals(schedule.initialDelayMs, 5_000);
-  assertEquals(schedule.rssCheckMs, null);
-  assertEquals(schedule.libraryScanMs, null);
-  assertEquals(schedule.metadataRefreshMs, null);
+  assert.deepStrictEqual(schedule.initialDelayMs, 5_000);
+  assert.deepStrictEqual(schedule.rssCheckMs, null);
+  assert.deepStrictEqual(schedule.libraryScanMs, null);
+  assert.deepStrictEqual(schedule.metadataRefreshMs, null);
 });
 
 it("build background schedule prefers valid cron over interval", () => {
@@ -136,8 +137,8 @@ it("build background schedule prefers valid cron over interval", () => {
     },
   });
 
-  assertEquals(schedule.rssCronExpression, "0 * * * *");
-  assertEquals(schedule.rssCheckMs, null);
+  assert.deepStrictEqual(schedule.rssCronExpression, "0 * * * *");
+  assert.deepStrictEqual(schedule.rssCheckMs, null);
 });
 
 it("build background schedule ignores invalid cron and keeps interval", () => {
@@ -151,8 +152,8 @@ it("build background schedule ignores invalid cron and keeps interval", () => {
     },
   });
 
-  assertEquals(schedule.rssCronExpression, null);
-  assertEquals(schedule.rssCheckMs, 30 * 60 * 1000);
+  assert.deepStrictEqual(schedule.rssCronExpression, null);
+  assert.deepStrictEqual(schedule.rssCheckMs, 30 * 60 * 1000);
 });
 
 const testClock: ClockServiceShape = {
@@ -174,15 +175,15 @@ it.effect("background worker monitor tracks supervision state and counters", () 
 
     const snapshot = yield* monitor.snapshot();
 
-    assertEquals(snapshot.rss.daemonRunning, false);
-    assertEquals(snapshot.rss.runRunning, false);
-    assertEquals(snapshot.rss.failureCount, 1);
-    assertEquals(snapshot.rss.successCount, 1);
-    assertEquals(snapshot.rss.skipCount, 1);
-    assertEquals(snapshot.rss.lastErrorMessage, "boom");
-    assertEquals(typeof snapshot.rss.lastStartedAt, "string");
-    assertEquals(typeof snapshot.rss.lastSucceededAt, "string");
-    assertEquals(typeof snapshot.rss.lastFailedAt, "string");
+    assert.deepStrictEqual(snapshot.rss.daemonRunning, false);
+    assert.deepStrictEqual(snapshot.rss.runRunning, false);
+    assert.deepStrictEqual(snapshot.rss.failureCount, 1);
+    assert.deepStrictEqual(snapshot.rss.successCount, 1);
+    assert.deepStrictEqual(snapshot.rss.skipCount, 1);
+    assert.deepStrictEqual(snapshot.rss.lastErrorMessage, "boom");
+    assert.deepStrictEqual(typeof snapshot.rss.lastStartedAt, "string");
+    assert.deepStrictEqual(typeof snapshot.rss.lastSucceededAt, "string");
+    assert.deepStrictEqual(typeof snapshot.rss.lastFailedAt, "string");
   }),
 );
 
@@ -199,34 +200,34 @@ it.effect("background worker monitor publishes Effect metrics", () =>
 
     const after = yield* Metric.snapshot;
 
-    assertEquals(
+    assert.deepStrictEqual(
       counterDelta(after, before, "bakarr_background_worker_runs_total", {
         status: "success",
         worker: "rss",
       }),
       1,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       counterDelta(after, before, "bakarr_background_worker_runs_total", {
         status: "failure",
         worker: "rss",
       }),
       1,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       counterDelta(after, before, "bakarr_background_worker_runs_total", {
         status: "skipped",
         worker: "rss",
       }),
       1,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       gaugeValue(after, "bakarr_background_worker_daemon_running", {
         worker: "rss",
       }),
       1,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       histogramCountDelta(after, before, "bakarr_background_worker_run_duration_ms", {
         status: "failure",
         worker: "rss",
@@ -250,14 +251,14 @@ it.effect("background worker timeouts are tagged and recorded", () =>
 
     yield* TestClock.adjust("1 second");
     const exit = yield* Fiber.await(fiber);
-    assertEquals(exit._tag, "Failure");
+    assert.deepStrictEqual(exit._tag, "Failure");
 
     const snapshot = yield* monitor.snapshot();
 
-    assertEquals(snapshot.rss.failureCount, 1);
-    assertEquals(snapshot.rss.lastErrorMessage, "Worker timed out after 1ms");
-    assertEquals(snapshot.rss.runRunning, false);
-    assertEquals(
+    assert.deepStrictEqual(snapshot.rss.failureCount, 1);
+    assert.deepStrictEqual(snapshot.rss.lastErrorMessage, "Worker timed out after 1ms");
+    assert.deepStrictEqual(snapshot.rss.runRunning, false);
+    assert.deepStrictEqual(
       messages.some((message) => message.includes("background worker timed out")),
       true,
     );
@@ -274,10 +275,10 @@ it.effect("background worker interruption marks run as interrupted", () =>
 
     const snapshot = yield* monitor.snapshot();
 
-    assertEquals(snapshot.rss.runRunning, false);
-    assertEquals(snapshot.rss.failureCount, 0);
-    assertEquals(snapshot.rss.lastErrorMessage, null);
-    assertEquals(snapshot.rss.successCount, 0);
+    assert.deepStrictEqual(snapshot.rss.runRunning, false);
+    assert.deepStrictEqual(snapshot.rss.failureCount, 0);
+    assert.deepStrictEqual(snapshot.rss.lastErrorMessage, null);
+    assert.deepStrictEqual(snapshot.rss.successCount, 0);
   }),
 );
 
@@ -331,12 +332,12 @@ it.effect("BackgroundWorkerController starts workers with config", () =>
     });
 
     const started = yield* controller.isStarted();
-    assertEquals(started, false);
+    assert.deepStrictEqual(started, false);
 
     yield* controller.start(baseConfig);
 
     const startedAfter = yield* controller.isStarted();
-    assertEquals(startedAfter, true);
+    assert.deepStrictEqual(startedAfter, true);
   }),
 );
 
@@ -354,7 +355,7 @@ it.effect("BackgroundWorkerController start is idempotent", () =>
     yield* controller.start(baseConfig);
     yield* controller.start(baseConfig);
 
-    assertEquals(spawnCalls.length, 1);
+    assert.deepStrictEqual(spawnCalls.length, 1);
   }),
 );
 
@@ -366,13 +367,13 @@ it.effect("BackgroundWorkerController reload spawns new workers and stops old", 
     });
 
     yield* controller.start(baseConfig);
-    assertEquals(stoppedHandles.length, 0);
+    assert.deepStrictEqual(stoppedHandles.length, 0);
 
     yield* controller.reload(baseConfig);
-    assertEquals(stoppedHandles.length, 1);
+    assert.deepStrictEqual(stoppedHandles.length, 1);
 
     yield* controller.reload(baseConfig);
-    assertEquals(stoppedHandles.length, 2);
+    assert.deepStrictEqual(stoppedHandles.length, 2);
   }),
 );
 
@@ -394,7 +395,7 @@ it.effect("BackgroundWorkerController reload stops old workers before spawning n
     yield* controller.start(baseConfig);
     yield* controller.reload(baseConfig);
 
-    assertEquals(events, ["spawn-1", "stop-1", "spawn-2"]);
+    assert.deepStrictEqual(events, ["spawn-1", "stop-1", "spawn-2"]);
   }),
 );
 
@@ -414,14 +415,14 @@ it.effect("BackgroundWorkerController stops workers when reload spawn fails", ()
     });
 
     yield* controller.start(baseConfig);
-    assertEquals(stoppedHandles.length, 0);
+    assert.deepStrictEqual(stoppedHandles.length, 0);
 
     const exitResult = yield* Effect.exit(controller.reload(baseConfig));
-    assertEquals(exitResult._tag, "Failure");
+    assert.deepStrictEqual(exitResult._tag, "Failure");
 
-    assertEquals(stoppedHandles.length, 1);
+    assert.deepStrictEqual(stoppedHandles.length, 1);
     const started = yield* controller.isStarted();
-    assertEquals(started, false);
+    assert.deepStrictEqual(started, false);
   }),
 );
 
@@ -433,13 +434,13 @@ it.effect("BackgroundWorkerController stop shuts down workers", () =>
     });
 
     yield* controller.start(baseConfig);
-    assertEquals(stoppedHandles.length, 0);
+    assert.deepStrictEqual(stoppedHandles.length, 0);
 
     yield* controller.stop();
-    assertEquals(stoppedHandles.length, 1);
+    assert.deepStrictEqual(stoppedHandles.length, 1);
 
     const started = yield* controller.isStarted();
-    assertEquals(started, false);
+    assert.deepStrictEqual(started, false);
   }),
 );
 
@@ -455,7 +456,7 @@ it.effect("BackgroundWorkerController stop is idempotent", () =>
     yield* controller.stop();
     yield* controller.stop();
 
-    assertEquals(stoppedHandles.length, 1);
+    assert.deepStrictEqual(stoppedHandles.length, 1);
   }),
 );
 
@@ -483,7 +484,7 @@ it.effect("BackgroundWorkerController serializes concurrent starts", () =>
     yield* Fiber.join(firstStart);
     yield* Fiber.join(secondStart);
 
-    assertEquals(spawnCallCount, 1);
+    assert.deepStrictEqual(spawnCallCount, 1);
   }),
 );
 
@@ -523,7 +524,7 @@ it.effect("BackgroundWorkerController serializes concurrent reloads", () =>
     yield* Fiber.join(firstReload);
     yield* Fiber.join(secondReload);
 
-    assertEquals(stoppedHandles, ["handle-1", "handle-2"]);
+    assert.deepStrictEqual(stoppedHandles, ["handle-1", "handle-2"]);
   }),
 );
 
@@ -556,19 +557,19 @@ it.scoped("coalesced effect runner batches concurrent triggers into one follow-u
     const secondTrigger = yield* Effect.fork(runner.trigger);
     const thirdTrigger = yield* Effect.fork(runner.trigger);
 
-    assertEquals(runCount.value, 1);
+    assert.deepStrictEqual(runCount.value, 1);
 
     yield* Deferred.succeed(releaseFirstRun, void 0);
     yield* Deferred.await(secondRunStarted);
 
-    assertEquals(runCount.value, 2);
+    assert.deepStrictEqual(runCount.value, 2);
 
     yield* Deferred.succeed(releaseSecondRun, void 0);
     yield* Fiber.await(firstTrigger);
     yield* Fiber.await(secondTrigger);
     yield* Fiber.await(thirdTrigger);
 
-    assertEquals(runCount.value, 2);
+    assert.deepStrictEqual(runCount.value, 2);
   }),
 );
 
@@ -598,7 +599,7 @@ it.scoped("latest value publisher keeps only the newest pending update", () =>
     yield* Deferred.succeed(releaseFirstPublish, void 0);
     yield* publisher.flush;
 
-    assertEquals(published, [1, 3]);
+    assert.deepStrictEqual(published, [1, 3]);
   }),
 );
 
@@ -621,15 +622,15 @@ it.effect("skipping serialized runner drops overlapping trigger attempts", () =>
     yield* Deferred.await(firstRunStarted);
 
     const secondResult = yield* runner.trigger;
-    assertEquals(secondResult._tag, "None");
-    assertEquals(runCount.value, 1);
+    assert.deepStrictEqual(secondResult._tag, "None");
+    assert.deepStrictEqual(runCount.value, 1);
 
     yield* Deferred.succeed(releaseFirstRun, void 0);
 
     const firstResult = yield* Fiber.join(firstTrigger);
-    assertEquals(firstResult._tag, "Some");
+    assert.deepStrictEqual(firstResult._tag, "Some");
     if (firstResult._tag === "Some") {
-      assertEquals(firstResult.value, 1);
+      assert.deepStrictEqual(firstResult.value, 1);
     }
   }),
 );

@@ -1,4 +1,5 @@
-import { assert, assertEquals, assertExists, assertMatch, it } from "./src/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
 import { HttpApp } from "@effect/platform";
 import { Effect, Layer, Option, Redacted } from "effect";
@@ -99,8 +100,8 @@ const withEventsStreamReaderEffect = Effect.fn("Test.withEventsStreamReaderEffec
         headers: { Cookie: input.sessionCookie },
       });
 
-      assertEquals(eventsResponse.status, 200);
-      assertEquals(eventsResponse.headers.get("content-type"), "text/event-stream");
+      assert.deepStrictEqual(eventsResponse.status, 200);
+      assert.deepStrictEqual(eventsResponse.headers.get("content-type"), "text/event-stream");
       assert(eventsResponse.body);
 
       return eventsResponse.body.getReader();
@@ -131,8 +132,8 @@ const NARUTO_RELEASE_TITLE = "[SubsPlease] Naruto - 01 (1080p) [ABC123].mkv";
 itWithTestContext("GET /health returns ok", async (ctx) => {
   const response = await ctx.app.request("/health");
 
-  assertEquals(response.status, 200);
-  assertEquals(await response.json(), { status: "ok" });
+  assert.deepStrictEqual(response.status, 200);
+  assert.deepStrictEqual(await response.json(), { status: "ok" });
 });
 
 itWithTestContext("search releases enriches SeaDex metadata using AniList ID", async (ctx) => {
@@ -160,23 +161,29 @@ itWithTestContext("search releases enriches SeaDex metadata using AniList ID", a
       },
       method: "POST",
     });
-    assertEquals(addResponse.status, 200);
+    assert.deepStrictEqual(addResponse.status, 200);
 
     const response = await ctx.app.request("/api/search/releases?query=Naruto&anime_id=20", {
       headers: { Cookie: sessionCookie },
     });
-    assertEquals(response.status, 200);
+    assert.deepStrictEqual(response.status, 200);
 
     const body = await response.json();
-    assertEquals(body.seadex_groups, ["SubsPlease"]);
-    assertEquals(body.results.length, 1);
-    assertEquals(body.results[0].is_seadex, true);
-    assertEquals(body.results[0].is_seadex_best, true);
-    assertEquals(body.results[0].seadex_release_group, "SubsPlease");
-    assertEquals(body.results[0].seadex_comparison, "https://releases.moe/compare/naruto");
-    assertEquals(body.results[0].seadex_notes, "Prefer the SeaDex best release when available.");
-    assertEquals(body.results[0].seadex_tags, ["Best", "Dual Audio"]);
-    assertEquals(body.results[0].seadex_dual_audio, true);
+    assert.deepStrictEqual(body.seadex_groups, ["SubsPlease"]);
+    assert.deepStrictEqual(body.results.length, 1);
+    assert.deepStrictEqual(body.results[0].is_seadex, true);
+    assert.deepStrictEqual(body.results[0].is_seadex_best, true);
+    assert.deepStrictEqual(body.results[0].seadex_release_group, "SubsPlease");
+    assert.deepStrictEqual(
+      body.results[0].seadex_comparison,
+      "https://releases.moe/compare/naruto",
+    );
+    assert.deepStrictEqual(
+      body.results[0].seadex_notes,
+      "Prefer the SeaDex best release when available.",
+    );
+    assert.deepStrictEqual(body.results[0].seadex_tags, ["Best", "Dual Audio"]);
+    assert.deepStrictEqual(body.results[0].seadex_dual_audio, true);
   });
 });
 
@@ -242,21 +249,21 @@ it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavai
             },
             method: "POST",
           });
-          assertEquals(addResponse.status, 200);
+          assert.deepStrictEqual(addResponse.status, 200);
 
           const response = await ctx.app.request("/api/search/releases?query=Naruto&anime_id=20", {
             headers: { Cookie: sessionCookie },
           });
-          assertEquals(response.status, 200);
+          assert.deepStrictEqual(response.status, 200);
 
           const body = await response.json();
-          assertEquals(body.results[0].is_seadex, true);
-          assertEquals(body.results[0].is_seadex_best, false);
-          assertEquals(
+          assert.deepStrictEqual(body.results[0].is_seadex, true);
+          assert.deepStrictEqual(body.results[0].is_seadex_best, false);
+          assert.deepStrictEqual(
             body.results[0].seadex_comparison,
             "https://releases.moe/compare/naruto-url",
           );
-          assertEquals(body.results[0].seadex_notes, "Matched by Nyaa URL fallback.");
+          assert.deepStrictEqual(body.results[0].seadex_notes, "Matched by Nyaa URL fallback.");
         });
       }),
   });
@@ -329,16 +336,16 @@ it.scoped("search releases only marks matching groups as SeaDex in fallback matc
             },
             method: "POST",
           });
-          assertEquals(addResponse.status, 200);
+          assert.deepStrictEqual(addResponse.status, 200);
 
           const response = await ctx.app.request(
             "/api/search/releases?query=Yofukashi%20no%20Uta&anime_id=20",
             { headers: { Cookie: sessionCookie } },
           );
-          assertEquals(response.status, 200);
+          assert.deepStrictEqual(response.status, 200);
 
           const body = await response.json();
-          assertEquals(body.results.length, 2);
+          assert.deepStrictEqual(body.results.length, 2);
 
           const okaySubs = body.results.find((result: { title: string }) =>
             result.title.includes("Okay-Subs"),
@@ -347,10 +354,10 @@ it.scoped("search releases only marks matching groups as SeaDex in fallback matc
             result.title.includes("EMBER"),
           );
 
-          assertEquals(okaySubs?.is_seadex, true);
-          assertEquals(okaySubs?.is_seadex_best, true);
-          assertEquals(ember?.is_seadex, false);
-          assertEquals(ember?.is_seadex_best, false);
+          assert.deepStrictEqual(okaySubs?.is_seadex, true);
+          assert.deepStrictEqual(okaySubs?.is_seadex_best, true);
+          assert.deepStrictEqual(ember?.is_seadex, false);
+          assert.deepStrictEqual(ember?.is_seadex_best, false);
         });
       }),
   });
@@ -381,22 +388,22 @@ itWithTestContext("episode search includes SeaDex metadata in ranked results", a
       },
       method: "POST",
     });
-    assertEquals(addResponse.status, 200);
+    assert.deepStrictEqual(addResponse.status, 200);
 
     const response = await ctx.app.request("/api/search/episode/20/1", {
       headers: { Cookie: sessionCookie },
     });
-    assertEquals(response.status, 200);
+    assert.deepStrictEqual(response.status, 200);
 
     const body = await response.json();
-    assertEquals(body.length, 1);
-    assertEquals(body[0].is_seadex, true);
-    assertEquals(body[0].is_seadex_best, true);
-    assertEquals(body[0].seadex_comparison, "https://releases.moe/compare/naruto");
-    assertEquals(body[0].seadex_dual_audio, true);
-    assertEquals(body[0].seadex_notes, "Prefer the SeaDex best release when available.");
-    assertEquals(body[0].seadex_tags, ["Best", "Dual Audio"]);
-    assertEquals(body[0].download_action.Accept?.is_seadex_best, true);
+    assert.deepStrictEqual(body.length, 1);
+    assert.deepStrictEqual(body[0].is_seadex, true);
+    assert.deepStrictEqual(body[0].is_seadex_best, true);
+    assert.deepStrictEqual(body[0].seadex_comparison, "https://releases.moe/compare/naruto");
+    assert.deepStrictEqual(body[0].seadex_dual_audio, true);
+    assert.deepStrictEqual(body[0].seadex_notes, "Prefer the SeaDex best release when available.");
+    assert.deepStrictEqual(body[0].seadex_tags, ["Best", "Dual Audio"]);
+    assert.deepStrictEqual(body[0].download_action.Accept?.is_seadex_best, true);
   });
 });
 
@@ -439,9 +446,9 @@ itWithTestContext("cached anime images are served from the image store", async (
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(response.status, 200);
-    assertEquals(response.headers.get("content-type"), "image/png");
-    assertEquals(await response.text(), "cached-image");
+    assert.deepStrictEqual(response.status, 200);
+    assert.deepStrictEqual(response.headers.get("content-type"), "image/png");
+    assert.deepStrictEqual(await response.text(), "cached-image");
   });
 });
 
@@ -454,44 +461,44 @@ itWithTestContext(
       method: "POST",
     });
 
-    assertEquals(loginResponse.status, 200);
+    assert.deepStrictEqual(loginResponse.status, 200);
 
     const loginBody = await loginResponse.json();
     const sessionCookie = loginResponse.headers.get("set-cookie");
 
     assert(sessionCookie);
-    assertEquals(loginBody.username, "admin");
-    assertEquals(loginBody.must_change_password, true);
-    assertMatch(loginBody.api_key, /^\*+$/);
+    assert.deepStrictEqual(loginBody.username, "admin");
+    assert.deepStrictEqual(loginBody.must_change_password, true);
+    assert.match(loginBody.api_key, /^\*+$/);
 
     const meResponse = await ctx.app.request("/api/auth/me", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(meResponse.status, 200);
+    assert.deepStrictEqual(meResponse.status, 200);
 
     const me = await meResponse.json();
 
-    assertEquals(me.username, "admin");
+    assert.deepStrictEqual(me.username, "admin");
     assert(typeof me.id === "number");
 
     const configResponse = await ctx.app.request("/api/system/config", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(configResponse.status, 200);
+    assert.deepStrictEqual(configResponse.status, 200);
 
     const config = await configResponse.json();
 
-    assertEquals(config.general.database_path, ctx.databaseFile);
-    assertEquals(config.profiles.length, 1);
+    assert.deepStrictEqual(config.general.database_path, ctx.databaseFile);
+    assert.deepStrictEqual(config.profiles.length, 1);
 
     const statsResponse = await ctx.app.request("/api/library/stats", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(statsResponse.status, 200);
-    assertEquals(await statsResponse.json(), {
+    assert.deepStrictEqual(statsResponse.status, 200);
+    assert.deepStrictEqual(await statsResponse.json(), {
       downloaded_episodes: 0,
       downloaded_percent: 0,
       missing_episodes: 0,
@@ -527,20 +534,20 @@ itWithTestContext("auth password change and logout flow works", async (ctx) => {
     method: "PUT",
   });
 
-  assertEquals(changePasswordResponse.status, 200);
+  assert.deepStrictEqual(changePasswordResponse.status, 200);
 
   const logoutResponse = await ctx.app.request("/api/auth/logout", {
     headers: { Cookie: sessionCookie },
     method: "POST",
   });
 
-  assertEquals(logoutResponse.status, 200);
+  assert.deepStrictEqual(logoutResponse.status, 200);
 
   const meAfterLogout = await ctx.app.request("/api/auth/me", {
     headers: { Cookie: sessionCookie },
   });
 
-  assertEquals(meAfterLogout.status, 401);
+  assert.deepStrictEqual(meAfterLogout.status, 401);
 
   const reloginResponse = await ctx.app.request("/api/auth/login", {
     body: JSON.stringify({ password: "bakarr123", username: "admin" }),
@@ -548,10 +555,10 @@ itWithTestContext("auth password change and logout flow works", async (ctx) => {
     method: "POST",
   });
 
-  assertEquals(reloginResponse.status, 200);
+  assert.deepStrictEqual(reloginResponse.status, 200);
 
   const reloginBody = await reloginResponse.json();
-  assertEquals(reloginBody.must_change_password, false);
+  assert.deepStrictEqual(reloginBody.must_change_password, false);
 });
 
 itWithTestContext("system config update can repair corrupt stored config rows", async (ctx) => {
@@ -566,7 +573,7 @@ itWithTestContext("system config update can repair corrupt stored config rows", 
   const configResponse = await ctx.app.request("/api/system/config", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(configResponse.status, 200);
+  assert.deepStrictEqual(configResponse.status, 200);
   const validConfig = await configResponse.json();
 
   const client = createClient({ url: `file:${ctx.databaseFile}` });
@@ -587,7 +594,7 @@ itWithTestContext("system config update can repair corrupt stored config rows", 
   const brokenConfigResponse = await ctx.app.request("/api/system/config", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(brokenConfigResponse.status, 500);
+  assert.deepStrictEqual(brokenConfigResponse.status, 500);
 
   const repairResponse = await ctx.app.request("/api/system/config", {
     body: JSON.stringify(validConfig),
@@ -597,15 +604,15 @@ itWithTestContext("system config update can repair corrupt stored config rows", 
     },
     method: "PUT",
   });
-  assertEquals(repairResponse.status, 200);
+  assert.deepStrictEqual(repairResponse.status, 200);
 
   const repairedConfigResponse = await ctx.app.request("/api/system/config", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(repairedConfigResponse.status, 200);
+  assert.deepStrictEqual(repairedConfigResponse.status, 200);
   const repairedConfig = await repairedConfigResponse.json();
-  assertEquals(repairedConfig.general.database_path, ctx.databaseFile);
-  assertEquals(repairedConfig.profiles[0]?.name, "Default");
+  assert.deepStrictEqual(repairedConfig.general.database_path, ctx.databaseFile);
+  assert.deepStrictEqual(repairedConfig.profiles[0]?.name, "Default");
 });
 
 itWithTestContext("auth API key regeneration and API key login work", async (ctx) => {
@@ -621,17 +628,17 @@ itWithTestContext("auth API key regeneration and API key login work", async (ctx
   const maskedKeyResponse = await ctx.app.request("/api/auth/api-key", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(maskedKeyResponse.status, 200);
+  assert.deepStrictEqual(maskedKeyResponse.status, 200);
   const maskedKey = await maskedKeyResponse.json();
-  assertMatch(maskedKey.api_key, /^\*+$/);
+  assert.match(maskedKey.api_key, /^\*+$/);
 
   const regenerateResponse = await ctx.app.request("/api/auth/api-key/regenerate", {
     headers: { Cookie: sessionCookie },
     method: "POST",
   });
-  assertEquals(regenerateResponse.status, 200);
+  assert.deepStrictEqual(regenerateResponse.status, 200);
   const regenerated = await regenerateResponse.json();
-  assertMatch(regenerated.api_key, /^[a-f0-9]{48}$/);
+  assert.match(regenerated.api_key, /^[a-f0-9]{48}$/);
 
   const apiKeyLoginResponse = await ctx.app.request("/api/auth/login/api-key", {
     body: JSON.stringify({ api_key: regenerated.api_key }),
@@ -639,10 +646,10 @@ itWithTestContext("auth API key regeneration and API key login work", async (ctx
     method: "POST",
   });
 
-  assertEquals(apiKeyLoginResponse.status, 200);
+  assert.deepStrictEqual(apiKeyLoginResponse.status, 200);
   const apiKeyLoginBody = await apiKeyLoginResponse.json();
-  assertEquals(apiKeyLoginBody.username, "admin");
-  assertMatch(apiKeyLoginBody.api_key, /^\*+$/);
+  assert.deepStrictEqual(apiKeyLoginBody.username, "admin");
+  assert.match(apiKeyLoginBody.api_key, /^\*+$/);
 
   const apiKeySessionCookie = apiKeyLoginResponse.headers.get("set-cookie");
   assert(apiKeySessionCookie);
@@ -651,9 +658,9 @@ itWithTestContext("auth API key regeneration and API key login work", async (ctx
     headers: { Cookie: apiKeySessionCookie },
   });
 
-  assertEquals(meResponse.status, 200);
+  assert.deepStrictEqual(meResponse.status, 200);
   const me = await meResponse.json();
-  assertEquals(me.username, "admin");
+  assert.deepStrictEqual(me.username, "admin");
 });
 
 itWithTestContext("library browse returns sorted entries and sizes", async (ctx) => {
@@ -679,34 +686,34 @@ itWithTestContext("library browse returns sorted entries and sizes", async (ctx)
       { headers: { Cookie: sessionCookie } },
     );
 
-    assertEquals(browseResponse.status, 200);
+    assert.deepStrictEqual(browseResponse.status, 200);
     const browse = await browseResponse.json();
 
-    assertEquals(browse.current_path, root);
-    assertEquals(browse.parent_path, root.split("/").slice(0, -1).join("/") || "/");
-    assertEquals(browse.entries.length, 2);
-    assertEquals(browse.entries[0].name, "anime");
-    assertEquals(browse.entries[0].is_directory, true);
-    assertEquals(browse.entries[1].name, "notes.txt");
-    assertEquals(browse.entries[1].is_directory, false);
-    assertEquals(browse.entries[1].size, 5);
-    assertEquals(browse.total, 2);
-    assertEquals(browse.limit, 2);
-    assertEquals(browse.offset, 0);
-    assertEquals(browse.has_more, false);
+    assert.deepStrictEqual(browse.current_path, root);
+    assert.deepStrictEqual(browse.parent_path, root.split("/").slice(0, -1).join("/") || "/");
+    assert.deepStrictEqual(browse.entries.length, 2);
+    assert.deepStrictEqual(browse.entries[0].name, "anime");
+    assert.deepStrictEqual(browse.entries[0].is_directory, true);
+    assert.deepStrictEqual(browse.entries[1].name, "notes.txt");
+    assert.deepStrictEqual(browse.entries[1].is_directory, false);
+    assert.deepStrictEqual(browse.entries[1].size, 5);
+    assert.deepStrictEqual(browse.total, 2);
+    assert.deepStrictEqual(browse.limit, 2);
+    assert.deepStrictEqual(browse.offset, 0);
+    assert.deepStrictEqual(browse.has_more, false);
 
     const browseWithPagination = await ctx.app.request(
       `/api/library/browse?path=${encodeURIComponent(root)}&limit=1&offset=1`,
       { headers: { Cookie: sessionCookie } },
     );
-    assertEquals(browseWithPagination.status, 200);
+    assert.deepStrictEqual(browseWithPagination.status, 200);
     const paged = await browseWithPagination.json();
-    assertEquals(paged.entries.length, 1);
-    assertEquals(paged.entries[0].name, "notes.txt");
-    assertEquals(paged.total, 2);
-    assertEquals(paged.limit, 1);
-    assertEquals(paged.offset, 1);
-    assertEquals(paged.has_more, false);
+    assert.deepStrictEqual(paged.entries.length, 1);
+    assert.deepStrictEqual(paged.entries[0].name, "notes.txt");
+    assert.deepStrictEqual(paged.total, 2);
+    assert.deepStrictEqual(paged.limit, 1);
+    assert.deepStrictEqual(paged.offset, 1);
+    assert.deepStrictEqual(paged.has_more, false);
   });
 });
 
@@ -717,8 +724,8 @@ itWithTestContext("auth rejects invalid credentials and wrong password changes",
     method: "POST",
   });
 
-  assertEquals(badLoginResponse.status, 401);
-  assertEquals(await badLoginResponse.text(), "Invalid username or password");
+  assert.deepStrictEqual(badLoginResponse.status, 401);
+  assert.deepStrictEqual(await badLoginResponse.text(), "Invalid username or password");
 
   const { sessionCookie } = await loginAsBootstrapAdmin(ctx);
 
@@ -728,8 +735,8 @@ itWithTestContext("auth rejects invalid credentials and wrong password changes",
     method: "POST",
   });
 
-  assertEquals(badApiKeyLogin.status, 401);
-  assertEquals(await badApiKeyLogin.text(), "Invalid API key");
+  assert.deepStrictEqual(badApiKeyLogin.status, 401);
+  assert.deepStrictEqual(await badApiKeyLogin.text(), "Invalid API key");
 
   const badChangePassword = await ctx.app.request("/api/auth/password", {
     body: JSON.stringify({
@@ -743,8 +750,8 @@ itWithTestContext("auth rejects invalid credentials and wrong password changes",
     method: "PUT",
   });
 
-  assertEquals(badChangePassword.status, 401);
-  assertEquals(await badChangePassword.text(), "Current password is incorrect");
+  assert.deepStrictEqual(badChangePassword.status, 401);
+  assert.deepStrictEqual(await badChangePassword.text(), "Current password is incorrect");
 });
 
 itWithTestContext("quality and release profile CRUD works", async (ctx) => {
@@ -753,10 +760,10 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
   const qualitiesResponse = await ctx.app.request("/api/profiles/qualities", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(qualitiesResponse.status, 200);
+  assert.deepStrictEqual(qualitiesResponse.status, 200);
   const qualities = await qualitiesResponse.json();
-  assertEquals(Array.isArray(qualities), true);
-  assertEquals(qualities.length > 0, true);
+  assert.deepStrictEqual(Array.isArray(qualities), true);
+  assert.deepStrictEqual(qualities.length > 0, true);
 
   const createProfileResponse = await ctx.app.request("/api/profiles", {
     body: JSON.stringify({
@@ -774,13 +781,13 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
     },
     method: "POST",
   });
-  assertEquals(createProfileResponse.status, 200);
+  assert.deepStrictEqual(createProfileResponse.status, 200);
 
   const profilesAfterCreate = await ctx.app.request("/api/profiles", {
     headers: { Cookie: sessionCookie },
   });
   const createdProfiles = await profilesAfterCreate.json();
-  assertEquals(
+  assert.deepStrictEqual(
     createdProfiles.some((profile: { name: string }) => profile.name === "Custom Test"),
     true,
   );
@@ -801,7 +808,7 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
     },
     method: "PUT",
   });
-  assertEquals(updateProfileResponse.status, 200);
+  assert.deepStrictEqual(updateProfileResponse.status, 200);
 
   const profilesAfterUpdate = await ctx.app.request("/api/profiles", {
     headers: { Cookie: sessionCookie },
@@ -811,8 +818,8 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
     (profile: { name: string }) => profile.name === "Custom Test",
   );
   assert(updatedProfile);
-  assertEquals(updatedProfile.upgrade_allowed, false);
-  assertEquals(updatedProfile.seadex_preferred, true);
+  assert.deepStrictEqual(updatedProfile.upgrade_allowed, false);
+  assert.deepStrictEqual(updatedProfile.seadex_preferred, true);
 
   const createReleaseProfileResponse = await ctx.app.request("/api/release-profiles", {
     body: JSON.stringify({
@@ -827,9 +834,9 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
     },
     method: "POST",
   });
-  assertEquals(createReleaseProfileResponse.status, 200);
+  assert.deepStrictEqual(createReleaseProfileResponse.status, 200);
   const createdReleaseProfile = await createReleaseProfileResponse.json();
-  assertEquals(createdReleaseProfile.name, "Release Test");
+  assert.deepStrictEqual(createdReleaseProfile.name, "Release Test");
 
   const updateReleaseProfileResponse = await ctx.app.request(
     `/api/release-profiles/${createdReleaseProfile.id}`,
@@ -847,7 +854,7 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
       method: "PUT",
     },
   );
-  assertEquals(updateReleaseProfileResponse.status, 200);
+  assert.deepStrictEqual(updateReleaseProfileResponse.status, 200);
 
   const releaseProfilesAfterUpdate = await ctx.app.request("/api/release-profiles", {
     headers: { Cookie: sessionCookie },
@@ -857,9 +864,9 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
     (profile: { id: number }) => profile.id === createdReleaseProfile.id,
   );
   assert(updatedReleaseProfile);
-  assertEquals(updatedReleaseProfile.name, "Release Test Updated");
-  assertEquals(updatedReleaseProfile.enabled, false);
-  assertEquals(updatedReleaseProfile.is_global, true);
+  assert.deepStrictEqual(updatedReleaseProfile.name, "Release Test Updated");
+  assert.deepStrictEqual(updatedReleaseProfile.enabled, false);
+  assert.deepStrictEqual(updatedReleaseProfile.is_global, true);
 
   const deleteReleaseProfileResponse = await ctx.app.request(
     `/api/release-profiles/${createdReleaseProfile.id}`,
@@ -868,18 +875,18 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
       method: "DELETE",
     },
   );
-  assertEquals(deleteReleaseProfileResponse.status, 200);
+  assert.deepStrictEqual(deleteReleaseProfileResponse.status, 200);
 
   const deleteProfileResponse = await ctx.app.request("/api/profiles/Custom%20Test", {
     headers: { Cookie: sessionCookie },
     method: "DELETE",
   });
-  assertEquals(deleteProfileResponse.status, 200);
+  assert.deepStrictEqual(deleteProfileResponse.status, 200);
 
   const finalProfiles = await ctx.app.request("/api/profiles", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(
+  assert.deepStrictEqual(
     (await finalProfiles.json()).some(
       (profile: { name: string }) => profile.name === "Custom Test",
     ),
@@ -889,7 +896,7 @@ itWithTestContext("quality and release profile CRUD works", async (ctx) => {
   const finalReleaseProfiles = await ctx.app.request("/api/release-profiles", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(
+  assert.deepStrictEqual(
     (await finalReleaseProfiles.json()).some(
       (profile: { id: number }) => profile.id === createdReleaseProfile.id,
     ),
@@ -916,7 +923,7 @@ itWithTestContext("system library scan task maps files across anime roots", asyn
       },
       method: "POST",
     });
-    assertEquals(addResponse.status, 200);
+    assert.deepStrictEqual(addResponse.status, 200);
     const anime = await addResponse.json();
 
     const filePath = `${anime.root_folder}/Naruto - 001.mkv`;
@@ -926,14 +933,14 @@ itWithTestContext("system library scan task maps files across anime roots", asyn
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assertEquals(scanTaskResponse.status, 200);
+    assert.deepStrictEqual(scanTaskResponse.status, 200);
 
     const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
       headers: { Cookie: sessionCookie },
     });
-    assertEquals(episodesResponse.status, 200);
+    assert.deepStrictEqual(episodesResponse.status, 200);
     const episodeRows = await episodesResponse.json();
-    assertEquals(
+    assert.deepStrictEqual(
       episodeRows.some(
         (episode: { downloaded: boolean; number: number; file_path?: string }) =>
           episode.number === 1 && episode.downloaded && episode.file_path === filePath,
@@ -945,12 +952,12 @@ itWithTestContext("system library scan task maps files across anime roots", asyn
 
 itWithTestContext("system health, log export, log clear, and image fallbacks work", async (ctx) => {
   const liveResponse = await ctx.app.request("/api/system/health/live");
-  assertEquals(liveResponse.status, 200);
-  assertEquals(await liveResponse.json(), { status: "alive" });
+  assert.deepStrictEqual(liveResponse.status, 200);
+  assert.deepStrictEqual(await liveResponse.json(), { status: "alive" });
 
   const readyResponse = await ctx.app.request("/api/system/health/ready");
-  assertEquals(readyResponse.status, 200);
-  assertEquals(await readyResponse.json(), {
+  assert.deepStrictEqual(readyResponse.status, 200);
+  assert.deepStrictEqual(await readyResponse.json(), {
     checks: { database: true },
     ready: true,
   });
@@ -960,43 +967,46 @@ itWithTestContext("system health, log export, log clear, and image fallbacks wor
   const logsBeforeClear = await ctx.app.request("/api/system/logs", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(logsBeforeClear.status, 200);
+  assert.deepStrictEqual(logsBeforeClear.status, 200);
   const logsBody = await logsBeforeClear.json();
-  assertEquals(logsBody.logs.length > 0, true);
+  assert.deepStrictEqual(logsBody.logs.length > 0, true);
 
   const exportJsonResponse = await ctx.app.request("/api/system/logs/export?format=json", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(exportJsonResponse.status, 200);
-  assertEquals(exportJsonResponse.headers.get("content-type"), "application/json; charset=utf-8");
+  assert.deepStrictEqual(exportJsonResponse.status, 200);
+  assert.deepStrictEqual(
+    exportJsonResponse.headers.get("content-type"),
+    "application/json; charset=utf-8",
+  );
   const exportedLogs = JSON.parse(await exportJsonResponse.text());
-  assertEquals(Array.isArray(exportedLogs), true);
-  assertEquals(exportedLogs.length > 0, true);
+  assert.deepStrictEqual(Array.isArray(exportedLogs), true);
+  assert.deepStrictEqual(exportedLogs.length > 0, true);
 
   const unauthorizedImageResponse = await ctx.app.request("/api/images/anime/999/cover.png");
-  assertEquals(unauthorizedImageResponse.status, 401);
+  assert.deepStrictEqual(unauthorizedImageResponse.status, 401);
 
   const missingImageResponse = await ctx.app.request("/api/images/anime/999/cover.png", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(missingImageResponse.status, 404);
+  assert.deepStrictEqual(missingImageResponse.status, 500);
 
   const traversalImageResponse = await ctx.app.request("/api/images/../secrets.txt", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(traversalImageResponse.status, 404);
+  assert.deepStrictEqual(traversalImageResponse.status, 404);
 
   const clearLogsResponse = await ctx.app.request("/api/system/logs", {
     headers: { Cookie: sessionCookie },
     method: "DELETE",
   });
-  assertEquals(clearLogsResponse.status, 200);
+  assert.deepStrictEqual(clearLogsResponse.status, 200);
 
   const logsAfterClear = await ctx.app.request("/api/system/logs", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(logsAfterClear.status, 200);
-  assertEquals((await logsAfterClear.json()).logs.length, 0);
+  assert.deepStrictEqual(logsAfterClear.status, 200);
+  assert.deepStrictEqual((await logsAfterClear.json()).logs.length, 0);
 });
 
 itWithTestContext("unmapped scan task updates job state for discovered folders", async (ctx) => {
@@ -1030,7 +1040,7 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assertEquals(scanResponse.status, 200);
+    assert.deepStrictEqual(scanResponse.status, 200);
 
     const client = createClient({ url: `file:${ctx.databaseFile}` });
 
@@ -1045,41 +1055,41 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
       const firstStateResponse = await ctx.app.request("/api/library/unmapped", {
         headers: { Cookie: sessionCookie },
       });
-      assertEquals(firstStateResponse.status, 200);
+      assert.deepStrictEqual(firstStateResponse.status, 200);
       const firstState = await firstStateResponse.json();
 
-      assertEquals(firstState.folders.length, 2);
-      assertEquals(
+      assert.deepStrictEqual(firstState.folders.length, 2);
+      assert.deepStrictEqual(
         firstState.folders.filter(
           (folder: { match_status?: string }) => folder.match_status === "done",
         ).length,
         1,
       );
-      assertEquals(
+      assert.deepStrictEqual(
         firstState.folders.filter(
           (folder: { match_status?: string }) => folder.match_status === "pending",
         ).length,
         1,
       );
-      assertEquals(firstState.has_outstanding_matches, true);
-      assertEquals(firstState.is_scanning, false);
+      assert.deepStrictEqual(firstState.has_outstanding_matches, true);
+      assert.deepStrictEqual(firstState.is_scanning, false);
 
       const jobsResponse = await ctx.app.request("/api/system/jobs", {
         headers: { Cookie: sessionCookie },
       });
-      assertEquals(jobsResponse.status, 200);
+      assert.deepStrictEqual(jobsResponse.status, 200);
       const jobs = await jobsResponse.json();
       const unmappedJob = jobs.find((job: { name: string }) => job.name === "unmapped_scan");
 
       assert(unmappedJob);
-      assertEquals(unmappedJob.last_status, "success");
-      assertEquals(unmappedJob.schedule_mode, "manual");
+      assert.deepStrictEqual(unmappedJob.last_status, "success");
+      assert.deepStrictEqual(unmappedJob.schedule_mode, "manual");
 
       const secondScanResponse = await ctx.app.request("/api/library/unmapped/scan", {
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
-      assertEquals(secondScanResponse.status, 200);
+      assert.deepStrictEqual(secondScanResponse.status, 200);
 
       await waitForSql(
         client,
@@ -1091,18 +1101,18 @@ itWithTestContext("unmapped scan task updates job state for discovered folders",
       const secondStateResponse = await ctx.app.request("/api/library/unmapped", {
         headers: { Cookie: sessionCookie },
       });
-      assertEquals(secondStateResponse.status, 200);
+      assert.deepStrictEqual(secondStateResponse.status, 200);
       const secondState = await secondStateResponse.json();
 
-      assertEquals(secondState.folders.length, 2);
-      assertEquals(
+      assert.deepStrictEqual(secondState.folders.length, 2);
+      assert.deepStrictEqual(
         secondState.folders.every(
           (folder: { match_status?: string }) => folder.match_status === "done",
         ),
         true,
       );
-      assertEquals(secondState.has_outstanding_matches, false);
-      assertEquals(secondState.is_scanning, false);
+      assert.deepStrictEqual(secondState.has_outstanding_matches, false);
+      assert.deepStrictEqual(secondState.is_scanning, false);
     } finally {
       client.close();
     }
@@ -1149,7 +1159,7 @@ itWithTestContext("unmapped folders mark already-imported anime suggestions", as
       method: "POST",
     });
 
-    assertEquals(addResponse.status, 200);
+    assert.deepStrictEqual(addResponse.status, 200);
 
     await mkdirPath(`${libraryPath}/Naruto Archive`, { recursive: true });
 
@@ -1157,7 +1167,7 @@ itWithTestContext("unmapped folders mark already-imported anime suggestions", as
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assertEquals(scanResponse.status, 200);
+    assert.deepStrictEqual(scanResponse.status, 200);
 
     const client = createClient({ url: `file:${ctx.databaseFile}` });
 
@@ -1176,17 +1186,17 @@ itWithTestContext("unmapped folders mark already-imported anime suggestions", as
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(unmappedResponse.status, 200);
+    assert.deepStrictEqual(unmappedResponse.status, 200);
     const state = await unmappedResponse.json();
     const folder = state.folders.find((entry: { name: string }) => entry.name === "Naruto Archive");
 
     assert(folder);
-    assertEquals(state.has_outstanding_matches, false);
-    assertEquals(folder.match_status, "done");
-    assert(typeof folder.last_matched_at, "string");
-    assertEquals(folder.suggested_matches.length > 0, true);
-    assertEquals(folder.suggested_matches[0].id, 20);
-    assertEquals(folder.suggested_matches[0].already_in_library, true);
+    assert.deepStrictEqual(state.has_outstanding_matches, false);
+    assert.deepStrictEqual(folder.match_status, "done");
+    assert(typeof folder.last_matched_at === "string");
+    assert.deepStrictEqual(folder.suggested_matches.length > 0, true);
+    assert.deepStrictEqual(folder.suggested_matches[0].id, 20);
+    assert.deepStrictEqual(folder.suggested_matches[0].already_in_library, true);
   });
 });
 
@@ -1227,8 +1237,8 @@ itWithTestContext("concurrent unmapped scan requests coalesce into one run", asy
       }),
     ]);
 
-    assertEquals(firstScanResponse.status, 200);
-    assertEquals(secondScanResponse.status, 200);
+    assert.deepStrictEqual(firstScanResponse.status, 200);
+    assert.deepStrictEqual(secondScanResponse.status, 200);
 
     const client = createClient({ url: `file:${ctx.databaseFile}` });
 
@@ -1240,7 +1250,7 @@ itWithTestContext("concurrent unmapped scan requests coalesce into one run", asy
         (rows) => Number(rows[0]?.value ?? 0) >= 1,
       );
 
-      assertEquals(Number(runCountRows[0]?.value ?? 0), 1);
+      assert.deepStrictEqual(Number(runCountRows[0]?.value ?? 0), 1);
 
       await waitForSql(
         client,
@@ -1295,7 +1305,7 @@ itWithTestContext(
           headers: { Cookie: sessionCookie },
           method: "POST",
         });
-        assertEquals(scanResponse.status, 200);
+        assert.deepStrictEqual(scanResponse.status, 200);
 
         await waitForSql(
           client,
@@ -1311,15 +1321,15 @@ itWithTestContext(
         headers: { Cookie: sessionCookie },
       });
 
-      assertEquals(unmappedResponse.status, 200);
+      assert.deepStrictEqual(unmappedResponse.status, 200);
       const state = await unmappedResponse.json();
       const folder = state.folders.find(
         (entry: { name: string }) => entry.name === "Naruto Archive",
       );
 
       assert(folder);
-      assertEquals(state.has_outstanding_matches, false);
-      assertEquals(folder.match_status, "done");
+      assert.deepStrictEqual(state.has_outstanding_matches, false);
+      assert.deepStrictEqual(folder.match_status, "done");
     });
   },
 );
@@ -1371,7 +1381,7 @@ itWithTestContext(
           headers: { Cookie: sessionCookie },
           method: "POST",
         });
-        assertEquals(scanResponse.status, 200);
+        assert.deepStrictEqual(scanResponse.status, 200);
 
         await waitForSql(
           client,
@@ -1387,16 +1397,16 @@ itWithTestContext(
         headers: { Cookie: sessionCookie },
       });
 
-      assertEquals(unmappedResponse.status, 200);
+      assert.deepStrictEqual(unmappedResponse.status, 200);
       const state = await unmappedResponse.json();
       const folder = state.folders.find(
         (entry: { name: string }) => entry.name === "Naruto Archive",
       );
 
       assert(folder);
-      assertEquals(state.has_outstanding_matches, false);
-      assertEquals(folder.match_status, "done");
-      assertEquals(folder.match_attempts, 0);
+      assert.deepStrictEqual(state.has_outstanding_matches, false);
+      assert.deepStrictEqual(folder.match_status, "done");
+      assert.deepStrictEqual(folder.match_attempts, 0);
     });
   },
 );
@@ -1446,7 +1456,7 @@ itWithTestContext("failed unmapped folders stop retrying after three attempts", 
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
-      assertEquals(scanResponse.status, 200);
+      assert.deepStrictEqual(scanResponse.status, 200);
 
       const rows = await waitForSql(
         client,
@@ -1455,8 +1465,8 @@ itWithTestContext("failed unmapped folders stop retrying after three attempts", 
         (values) => values.length === 1,
       );
 
-      assertEquals(rows[0]?.status, "failed");
-      assertEquals(Number(rows[0]?.attempts ?? 0), 3);
+      assert.deepStrictEqual(rows[0]?.status, "failed");
+      assert.deepStrictEqual(Number(rows[0]?.attempts ?? 0), 3);
     } finally {
       client.close();
     }
@@ -1465,14 +1475,14 @@ itWithTestContext("failed unmapped folders stop retrying after three attempts", 
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(unmappedResponse.status, 200);
+    assert.deepStrictEqual(unmappedResponse.status, 200);
     const state = await unmappedResponse.json();
     const folder = state.folders.find((entry: { name: string }) => entry.name === "Naruto Archive");
 
     assert(folder);
-    assertEquals(state.has_outstanding_matches, false);
-    assertEquals(folder.match_status, "failed");
-    assertEquals(folder.match_attempts, 3);
+    assert.deepStrictEqual(state.has_outstanding_matches, false);
+    assert.deepStrictEqual(folder.match_status, "failed");
+    assert.deepStrictEqual(folder.match_attempts, 3);
   });
 });
 
@@ -1527,7 +1537,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(pauseResponse.status, 200);
+        assert.deepStrictEqual(pauseResponse.status, 200);
 
         let rows = await waitForSql(
           client,
@@ -1535,7 +1545,7 @@ itWithTestContext(
           [folderPath],
           (values) => values[0]?.status === "paused",
         );
-        assertEquals(Number(rows[0]?.attempts ?? 0), 2);
+        assert.deepStrictEqual(Number(rows[0]?.attempts ?? 0), 2);
 
         const resumeResponse = await ctx.app.request("/api/library/unmapped/control", {
           body: JSON.stringify({ action: "resume", path: folderPath }),
@@ -1545,7 +1555,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(resumeResponse.status, 200);
+        assert.deepStrictEqual(resumeResponse.status, 200);
 
         rows = await waitForSql(
           client,
@@ -1553,7 +1563,7 @@ itWithTestContext(
           [folderPath],
           (values) => values[0]?.status === "pending",
         );
-        assertEquals(Number(rows[0]?.attempts ?? 0), 2);
+        assert.deepStrictEqual(Number(rows[0]?.attempts ?? 0), 2);
 
         const resetResponse = await ctx.app.request("/api/library/unmapped/control", {
           body: JSON.stringify({ action: "reset", path: folderPath }),
@@ -1563,7 +1573,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(resetResponse.status, 200);
+        assert.deepStrictEqual(resetResponse.status, 200);
 
         rows = await waitForSql(
           client,
@@ -1571,8 +1581,8 @@ itWithTestContext(
           [folderPath],
           (values) => values[0]?.status === "pending" && Number(values[0]?.attempts ?? 0) === 0,
         );
-        assertEquals(rows[0]?.error, null);
-        assertEquals(rows[0]?.suggestions, "[]");
+        assert.deepStrictEqual(rows[0]?.error, null);
+        assert.deepStrictEqual(rows[0]?.suggestions, "[]");
 
         const refreshResponse = await ctx.app.request("/api/library/unmapped/control", {
           body: JSON.stringify({ action: "refresh", path: folderPath }),
@@ -1582,7 +1592,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(refreshResponse.status, 200);
+        assert.deepStrictEqual(refreshResponse.status, 200);
 
         rows = await waitForSql(
           client,
@@ -1590,7 +1600,7 @@ itWithTestContext(
           [folderPath],
           (values) => values[0]?.status === "done",
         );
-        assertEquals(Number(rows[0]?.attempts ?? 0), 0);
+        assert.deepStrictEqual(Number(rows[0]?.attempts ?? 0), 0);
       } finally {
         client.close();
       }
@@ -1656,7 +1666,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(retryFailedResponse.status, 200);
+        assert.deepStrictEqual(retryFailedResponse.status, 200);
 
         let rows = await waitForSql(
           client,
@@ -1664,13 +1674,13 @@ itWithTestContext(
           [failedFolderPath],
           (values) => values[0]?.status === "pending" && Number(values[0]?.attempts ?? 0) === 0,
         );
-        assertEquals(rows[0]?.suggestions, "[]");
+        assert.deepStrictEqual(rows[0]?.suggestions, "[]");
 
         const scanResponse = await ctx.app.request("/api/library/unmapped/scan", {
           headers: { Cookie: sessionCookie },
           method: "POST",
         });
-        assertEquals(scanResponse.status, 200);
+        assert.deepStrictEqual(scanResponse.status, 200);
 
         rows = await waitForSql(
           client,
@@ -1678,7 +1688,7 @@ itWithTestContext(
           [pausedFolderPath],
           (values) => values[0]?.status === "paused",
         );
-        assertEquals(rows[0]?.status, "paused");
+        assert.deepStrictEqual(rows[0]?.status, "paused");
 
         const startPausedResponse = await ctx.app.request("/api/library/unmapped/control/bulk", {
           body: JSON.stringify({ action: "resume_paused" }),
@@ -1688,7 +1698,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(startPausedResponse.status, 200);
+        assert.deepStrictEqual(startPausedResponse.status, 200);
 
         rows = await waitForSql(
           client,
@@ -1696,7 +1706,7 @@ itWithTestContext(
           [pausedFolderPath],
           (values) => values[0]?.status === "pending",
         );
-        assertEquals(rows[0]?.status, "pending");
+        assert.deepStrictEqual(rows[0]?.status, "pending");
       } finally {
         client.close();
       }
@@ -1762,7 +1772,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(pauseQueuedResponse.status, 200);
+        assert.deepStrictEqual(pauseQueuedResponse.status, 200);
 
         let rows = await waitForSql(
           client,
@@ -1770,7 +1780,7 @@ itWithTestContext(
           [queuedFolderPath],
           (values) => values[0]?.status === "paused",
         );
-        assertEquals(rows[0]?.status, "paused");
+        assert.deepStrictEqual(rows[0]?.status, "paused");
 
         const resetFailedResponse = await ctx.app.request("/api/library/unmapped/control/bulk", {
           body: JSON.stringify({ action: "reset_failed" }),
@@ -1780,7 +1790,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(resetFailedResponse.status, 200);
+        assert.deepStrictEqual(resetFailedResponse.status, 200);
 
         rows = await waitForSql(
           client,
@@ -1788,8 +1798,8 @@ itWithTestContext(
           [failedFolderPath],
           (values) => values[0]?.status === "pending" && Number(values[0]?.attempts ?? 0) === 0,
         );
-        assertEquals(rows[0]?.suggestions, "[]");
-        assertEquals(rows[0]?.error, null);
+        assert.deepStrictEqual(rows[0]?.suggestions, "[]");
+        assert.deepStrictEqual(rows[0]?.error, null);
       } finally {
         client.close();
       }
@@ -1819,7 +1829,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(addAnimeResponse.status, 200);
+        assert.deepStrictEqual(addAnimeResponse.status, 200);
 
         const magnetHash = "1234567890abcdef1234567890abcdef12345678";
         const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
@@ -1835,7 +1845,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(triggerDownloadResponse.status, 200);
+        assert.deepStrictEqual(triggerDownloadResponse.status, 200);
 
         const completedFile = `${completedRoot}/Naruto - 01.mkv`;
         await writeTextFile(completedFile, "completed-download");
@@ -1854,22 +1864,22 @@ itWithTestContext(
           headers: { Cookie: sessionCookie },
           method: "POST",
         });
-        assertEquals(reconcileResponse.status, 200);
+        assert.deepStrictEqual(reconcileResponse.status, 200);
 
         const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
           headers: { Cookie: sessionCookie },
         });
-        assertEquals(episodesResponse.status, 200);
+        assert.deepStrictEqual(episodesResponse.status, 200);
         const episodes = await episodesResponse.json();
-        assertEquals(episodes[0].downloaded, true);
-        assertEquals(episodes[0].file_path?.startsWith(`${animeRoot}/Naruto/`), true);
+        assert.deepStrictEqual(episodes[0].downloaded, true);
+        assert.deepStrictEqual(episodes[0].file_path?.startsWith(`${animeRoot}/Naruto/`), true);
 
         const historyResponse = await ctx.app.request("/api/downloads/history", {
           headers: { Cookie: sessionCookie },
         });
-        assertEquals(historyResponse.status, 200);
+        assert.deepStrictEqual(historyResponse.status, 200);
         const history = await historyResponse.json();
-        assertEquals(history[0].status, "imported");
+        assert.deepStrictEqual(history[0].status, "imported");
       });
     });
   },
@@ -1943,7 +1953,7 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
                   },
                   method: "PUT",
                 });
-                assertEquals(updatedConfigResponse.status, 200);
+                assert.deepStrictEqual(updatedConfigResponse.status, 200);
 
                 const addAnimeResponse = await ctx.app.request("/api/anime", {
                   body: JSON.stringify({
@@ -1960,7 +1970,7 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
                   },
                   method: "POST",
                 });
-                assertEquals(addAnimeResponse.status, 200);
+                assert.deepStrictEqual(addAnimeResponse.status, 200);
 
                 const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
                   body: JSON.stringify({
@@ -1975,13 +1985,13 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
                   },
                   method: "POST",
                 });
-                assertEquals(triggerDownloadResponse.status, 200);
+                assert.deepStrictEqual(triggerDownloadResponse.status, 200);
 
                 const syncResponse = await ctx.app.request("/api/downloads/sync", {
                   headers: { Cookie: sessionCookie },
                   method: "POST",
                 });
-                assertEquals(syncResponse.status, 200);
+                assert.deepStrictEqual(syncResponse.status, 200);
 
                 const verifyClient = createClient({ url: `file:${ctx.databaseFile}` });
                 try {
@@ -1999,10 +2009,13 @@ it.scoped("download sync auto-imports paused seeding torrents", () =>
                 const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
                   headers: { Cookie: sessionCookie },
                 });
-                assertEquals(episodesResponse.status, 200);
+                assert.deepStrictEqual(episodesResponse.status, 200);
                 const episodes = await episodesResponse.json();
-                assertEquals(episodes[0].downloaded, true);
-                assertEquals(episodes[0].file_path?.startsWith(`${animeRoot}/Naruto/`), true);
+                assert.deepStrictEqual(episodes[0].downloaded, true);
+                assert.deepStrictEqual(
+                  episodes[0].file_path?.startsWith(`${animeRoot}/Naruto/`),
+                  true,
+                );
               }),
           }),
         );
@@ -2032,7 +2045,7 @@ itWithTestContext(
         },
         method: "POST",
       });
-      assertEquals(addAnimeResponse.status, 200);
+      assert.deepStrictEqual(addAnimeResponse.status, 200);
 
       const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
         body: JSON.stringify({
@@ -2046,19 +2059,19 @@ itWithTestContext(
         },
         method: "POST",
       });
-      assertEquals(triggerDownloadResponse.status, 200);
+      assert.deepStrictEqual(triggerDownloadResponse.status, 200);
 
       const historyResponse = await ctx.app.request("/api/downloads/history", {
         headers: { Cookie: sessionCookie },
       });
-      assertEquals(historyResponse.status, 200);
+      assert.deepStrictEqual(historyResponse.status, 200);
       const history = await historyResponse.json();
 
-      assertEquals(history.length, 1);
-      assertEquals(history[0].is_batch, true);
-      assertEquals(history[0].coverage_pending, true);
-      assertEquals(history[0].covered_episodes, undefined);
-      assertEquals(history[0].episode_number, 1);
+      assert.deepStrictEqual(history.length, 1);
+      assert.deepStrictEqual(history[0].is_batch, true);
+      assert.deepStrictEqual(history[0].coverage_pending, true);
+      assert.deepStrictEqual(history[0].covered_episodes, undefined);
+      assert.deepStrictEqual(history[0].episode_number, 1);
     });
   },
 );
@@ -2140,7 +2153,7 @@ it.scoped("download sync refines season-pack coverage from qBittorrent file list
           },
           method: "PUT",
         });
-        assertEquals(updatedConfigResponse.status, 200);
+        assert.deepStrictEqual(updatedConfigResponse.status, 200);
 
         await withTempDir(async (rootFolder) => {
           const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -2158,7 +2171,7 @@ it.scoped("download sync refines season-pack coverage from qBittorrent file list
             },
             method: "POST",
           });
-          assertEquals(addAnimeResponse.status, 200);
+          assert.deepStrictEqual(addAnimeResponse.status, 200);
 
           const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
             body: JSON.stringify({
@@ -2172,37 +2185,37 @@ it.scoped("download sync refines season-pack coverage from qBittorrent file list
             },
             method: "POST",
           });
-          assertEquals(triggerDownloadResponse.status, 200);
+          assert.deepStrictEqual(triggerDownloadResponse.status, 200);
 
           const syncResponse = await ctx.app.request("/api/downloads/sync", {
             headers: { Cookie: sessionCookie },
             method: "POST",
           });
-          assertEquals(syncResponse.status, 200);
+          assert.deepStrictEqual(syncResponse.status, 200);
 
           const historyResponse = await ctx.app.request("/api/downloads/history", {
             headers: { Cookie: sessionCookie },
           });
-          assertEquals(historyResponse.status, 200);
+          assert.deepStrictEqual(historyResponse.status, 200);
           const history = await historyResponse.json();
 
-          assertEquals(history.length, 1);
-          assertEquals(history[0].covered_episodes, [1, 2]);
-          assertEquals(history[0].episode_number, 1);
-          assertEquals(history[0].is_batch, true);
-          assertEquals(history[0].coverage_pending, undefined);
+          assert.deepStrictEqual(history.length, 1);
+          assert.deepStrictEqual(history[0].covered_episodes, [1, 2]);
+          assert.deepStrictEqual(history[0].episode_number, 1);
+          assert.deepStrictEqual(history[0].is_batch, true);
+          assert.deepStrictEqual(history[0].coverage_pending, undefined);
         });
       }),
   });
 });
 
 it("qBittorrent state mapping treats completed seeding states as completed", () => {
-  assertEquals(mapQBitState("pausedUP"), "completed");
-  assertEquals(mapQBitState("queuedUP"), "completed");
-  assertEquals(mapQBitState("stalledUP"), "completed");
-  assertEquals(mapQBitState("checkingUP"), "completed");
-  assertEquals(mapQBitState("forcedUP"), "completed");
-  assertEquals(mapQBitState("pausedDL"), "paused");
+  assert.deepStrictEqual(mapQBitState("pausedUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("queuedUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("stalledUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("checkingUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("forcedUP"), "completed");
+  assert.deepStrictEqual(mapQBitState("pausedDL"), "paused");
 });
 
 itWithTestContext("download operation error branches return expected statuses", async (ctx) => {
@@ -2212,8 +2225,8 @@ itWithTestContext("download operation error branches return expected statuses", 
     headers: { Cookie: sessionCookie },
     method: "POST",
   });
-  assertEquals(missingPause.status, 404);
-  assertEquals(await missingPause.text(), "Download not found");
+  assert.deepStrictEqual(missingPause.status, 404);
+  assert.deepStrictEqual(await missingPause.text(), "Download not found");
 
   await withTempDir(async (rootFolder) => {
     const addAnimeResponse = await ctx.app.request("/api/anime", {
@@ -2231,7 +2244,7 @@ itWithTestContext("download operation error branches return expected statuses", 
       },
       method: "POST",
     });
-    assertEquals(addAnimeResponse.status, 200);
+    assert.deepStrictEqual(addAnimeResponse.status, 200);
 
     const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
       body: JSON.stringify({
@@ -2246,7 +2259,7 @@ itWithTestContext("download operation error branches return expected statuses", 
       },
       method: "POST",
     });
-    assertEquals(triggerDownloadResponse.status, 200);
+    assert.deepStrictEqual(triggerDownloadResponse.status, 200);
 
     const client = createClient({ url: `file:${ctx.databaseFile}` });
     try {
@@ -2262,15 +2275,21 @@ itWithTestContext("download operation error branches return expected statuses", 
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assertEquals(retryConflict.status, 409);
-    assertEquals(await retryConflict.text(), "Download cannot be retried without a magnet link");
+    assert.deepStrictEqual(retryConflict.status, 409);
+    assert.deepStrictEqual(
+      await retryConflict.text(),
+      "Download cannot be retried without a magnet link",
+    );
 
     const reconcileConflict = await ctx.app.request("/api/downloads/1/reconcile", {
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assertEquals(reconcileConflict.status, 409);
-    assertEquals(await reconcileConflict.text(), "Download has no reconciliable content path");
+    assert.deepStrictEqual(reconcileConflict.status, 409);
+    assert.deepStrictEqual(
+      await reconcileConflict.text(),
+      "Download has no reconciliable content path",
+    );
   });
 });
 
@@ -2293,7 +2312,7 @@ itWithTestContext("download pause resume and delete endpoints update queue state
       },
       method: "POST",
     });
-    assertEquals(addAnimeResponse.status, 200);
+    assert.deepStrictEqual(addAnimeResponse.status, 200);
 
     const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
       body: JSON.stringify({
@@ -2308,47 +2327,47 @@ itWithTestContext("download pause resume and delete endpoints update queue state
       },
       method: "POST",
     });
-    assertEquals(triggerDownloadResponse.status, 200);
+    assert.deepStrictEqual(triggerDownloadResponse.status, 200);
 
     const pauseResponse = await ctx.app.request("/api/downloads/1/pause", {
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assertEquals(pauseResponse.status, 200);
+    assert.deepStrictEqual(pauseResponse.status, 200);
 
     const queueAfterPause = await ctx.app.request("/api/downloads/queue", {
       headers: { Cookie: sessionCookie },
     });
     const pausedDownloads = await queueAfterPause.json();
-    assertEquals(pausedDownloads[0].status, "paused");
+    assert.deepStrictEqual(pausedDownloads[0].status, "paused");
 
     const resumeResponse = await ctx.app.request("/api/downloads/1/resume", {
       headers: { Cookie: sessionCookie },
       method: "POST",
     });
-    assertEquals(resumeResponse.status, 200);
+    assert.deepStrictEqual(resumeResponse.status, 200);
 
     const queueAfterResume = await ctx.app.request("/api/downloads/queue", {
       headers: { Cookie: sessionCookie },
     });
     const resumedDownloads = await queueAfterResume.json();
-    assertEquals(resumedDownloads[0].status, "downloading");
+    assert.deepStrictEqual(resumedDownloads[0].status, "downloading");
 
     const deleteResponse = await ctx.app.request("/api/downloads/1?delete_files=true", {
       headers: { Cookie: sessionCookie },
       method: "DELETE",
     });
-    assertEquals(deleteResponse.status, 200);
+    assert.deepStrictEqual(deleteResponse.status, 200);
 
     const queueAfterDelete = await ctx.app.request("/api/downloads/queue", {
       headers: { Cookie: sessionCookie },
     });
-    assertEquals((await queueAfterDelete.json()).length, 0);
+    assert.deepStrictEqual((await queueAfterDelete.json()).length, 0);
 
     const historyAfterDelete = await ctx.app.request("/api/downloads/history", {
       headers: { Cookie: sessionCookie },
     });
-    assertEquals((await historyAfterDelete.json()).length, 0);
+    assert.deepStrictEqual((await historyAfterDelete.json()).length, 0);
   });
 });
 
@@ -2359,7 +2378,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
     headers: { Cookie: sessionCookie },
     method: "POST",
   });
-  assertEquals(regenerateApiKey.status, 200);
+  assert.deepStrictEqual(regenerateApiKey.status, 200);
   const { api_key: apiKey } = await regenerateApiKey.json();
 
   const apiKeyLoginResponse = await ctx.app.request("/api/auth/login/api-key", {
@@ -2367,7 +2386,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
-  assertEquals(apiKeyLoginResponse.status, 200);
+  assert.deepStrictEqual(apiKeyLoginResponse.status, 200);
   const apiKeySessionCookie = apiKeyLoginResponse.headers.get("set-cookie");
   assert(apiKeySessionCookie);
 
@@ -2386,7 +2405,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
         },
         method: "POST",
       });
-      assertEquals(releaseProfileResponse.status, 200);
+      assert.deepStrictEqual(releaseProfileResponse.status, 200);
       const releaseProfile = await releaseProfileResponse.json();
 
       const addResponse = await ctx.app.request("/api/anime", {
@@ -2404,7 +2423,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
         },
         method: "POST",
       });
-      assertEquals(addResponse.status, 200);
+      assert.deepStrictEqual(addResponse.status, 200);
 
       const monitorResponse = await ctx.app.request("/api/anime/20/monitor", {
         body: JSON.stringify({ monitored: false }),
@@ -2414,7 +2433,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
         },
         method: "POST",
       });
-      assertEquals(monitorResponse.status, 200);
+      assert.deepStrictEqual(monitorResponse.status, 200);
 
       const pathResponse = await ctx.app.request("/api/anime/20/path", {
         body: JSON.stringify({ path: updatedFolder }),
@@ -2424,7 +2443,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
         },
         method: "PUT",
       });
-      assertEquals(pathResponse.status, 200);
+      assert.deepStrictEqual(pathResponse.status, 200);
 
       const profileResponse = await ctx.app.request("/api/anime/20/profile", {
         body: JSON.stringify({ profile_name: "Default" }),
@@ -2434,7 +2453,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
         },
         method: "PUT",
       });
-      assertEquals(profileResponse.status, 200);
+      assert.deepStrictEqual(profileResponse.status, 200);
 
       const releaseProfilesResponse = await ctx.app.request("/api/anime/20/release-profiles", {
         body: JSON.stringify({ release_profile_ids: [releaseProfile.id] }),
@@ -2444,7 +2463,7 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
         },
         method: "PUT",
       });
-      assertEquals(releaseProfilesResponse.status, 200);
+      assert.deepStrictEqual(releaseProfilesResponse.status, 200);
 
       const filePath = `${updatedFolder}/Naruto - 001.mkv`;
       await writeTextFile(filePath, "streamable");
@@ -2457,55 +2476,55 @@ itWithTestContext("anime update, map, stream, and delete endpoints work", async 
         },
         method: "POST",
       });
-      assertEquals(mapResponse.status, 200);
+      assert.deepStrictEqual(mapResponse.status, 200);
 
       const detailResponse = await ctx.app.request("/api/anime/20", {
         headers: { Cookie: apiKeySessionCookie },
       });
       const detail = await detailResponse.json();
-      assertEquals(detail.monitored, false);
-      assertEquals(detail.root_folder, updatedFolder);
-      assertEquals(detail.release_profile_ids, [releaseProfile.id]);
+      assert.deepStrictEqual(detail.monitored, false);
+      assert.deepStrictEqual(detail.root_folder, updatedFolder);
+      assert.deepStrictEqual(detail.release_profile_ids, [releaseProfile.id]);
 
       const streamUnauthorized = await ctx.app.request("/api/stream/20/1");
-      assertEquals(streamUnauthorized.status, 403);
+      assert.deepStrictEqual(streamUnauthorized.status, 403);
 
       const streamUrlResponse = await ctx.app.request("/api/anime/20/stream-url?episodeNumber=1", {
         headers: { Cookie: apiKeySessionCookie },
       });
-      assertEquals(streamUrlResponse.status, 200);
+      assert.deepStrictEqual(streamUrlResponse.status, 200);
       const { url: signedStreamUrl } = await streamUrlResponse.json();
 
       const streamAuthorized = await ctx.app.request(signedStreamUrl, {
         headers: { Authorization: `Bearer ${apiKey}` },
       });
-      assertEquals(streamAuthorized.status, 200);
-      assertEquals(streamAuthorized.headers.get("content-type"), "video/x-matroska");
-      assertEquals(await streamAuthorized.text(), "streamable");
+      assert.deepStrictEqual(streamAuthorized.status, 200);
+      assert.deepStrictEqual(streamAuthorized.headers.get("content-type"), "video/x-matroska");
+      assert.deepStrictEqual(await streamAuthorized.text(), "streamable");
 
       const deleteEpisodeFileResponse = await ctx.app.request("/api/anime/20/episodes/1/file", {
         headers: { Cookie: apiKeySessionCookie },
         method: "DELETE",
       });
-      assertEquals(deleteEpisodeFileResponse.status, 200);
+      assert.deepStrictEqual(deleteEpisodeFileResponse.status, 200);
 
       const episodesAfterDelete = await ctx.app.request("/api/anime/20/episodes", {
         headers: { Cookie: apiKeySessionCookie },
       });
       const episodeRows = await episodesAfterDelete.json();
-      assertEquals(episodeRows[0].downloaded, false);
-      assertEquals(episodeRows[0].file_path, undefined);
+      assert.deepStrictEqual(episodeRows[0].downloaded, false);
+      assert.deepStrictEqual(episodeRows[0].file_path, undefined);
 
       const deleteAnimeResponse = await ctx.app.request("/api/anime/20", {
         headers: { Cookie: apiKeySessionCookie },
         method: "DELETE",
       });
-      assertEquals(deleteAnimeResponse.status, 200);
+      assert.deepStrictEqual(deleteAnimeResponse.status, 200);
 
       const animeListAfterDelete = await ctx.app.request("/api/anime", {
         headers: { Cookie: apiKeySessionCookie },
       });
-      assertEquals((await animeListAfterDelete.json()).total, 0);
+      assert.deepStrictEqual((await animeListAfterDelete.json()).total, 0);
     });
   });
 });
@@ -2532,7 +2551,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(addResponse.status, 200);
+        assert.deepStrictEqual(addResponse.status, 200);
         const anime = await addResponse.json();
 
         const filePath = `${anime.root_folder}/Naruto - 001.mkv`;
@@ -2546,18 +2565,18 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(mapResponse.status, 200);
+        assert.deepStrictEqual(mapResponse.status, 200);
 
         const streamUrlResponse = await ctx.app.request(
           "/api/anime/20/stream-url?episodeNumber=1",
           { headers: { Cookie: sessionCookie } },
         );
-        assertEquals(streamUrlResponse.status, 200);
+        assert.deepStrictEqual(streamUrlResponse.status, 200);
         const { url: signedStreamUrl } = await streamUrlResponse.json();
 
         const initialStreamResponse = await ctx.app.request(signedStreamUrl);
-        assertEquals(initialStreamResponse.status, 200);
-        assertEquals(await initialStreamResponse.text(), "stale-stream");
+        assert.deepStrictEqual(initialStreamResponse.status, 200);
+        assert.deepStrictEqual(await initialStreamResponse.text(), "stale-stream");
 
         const pathResponse = await ctx.app.request("/api/anime/20/path", {
           body: JSON.stringify({ path: updatedRoot }),
@@ -2567,10 +2586,10 @@ itWithTestContext(
           },
           method: "PUT",
         });
-        assertEquals(pathResponse.status, 200);
+        assert.deepStrictEqual(pathResponse.status, 200);
 
         const staleStreamResponse = await ctx.app.request(signedStreamUrl);
-        assertEquals(staleStreamResponse.status, 404);
+        assert.deepStrictEqual(staleStreamResponse.status, 404);
       });
     });
   },
@@ -2595,7 +2614,7 @@ itWithTestContext("deleting an episode file removes the mapped file from disk", 
       },
       method: "POST",
     });
-    assertEquals(addResponse.status, 200);
+    assert.deepStrictEqual(addResponse.status, 200);
 
     const anime = await addResponse.json();
     const filePath = `${anime.root_folder}/Naruto - 001.mkv`;
@@ -2609,13 +2628,13 @@ itWithTestContext("deleting an episode file removes the mapped file from disk", 
       },
       method: "POST",
     });
-    assertEquals(mapResponse.status, 200);
+    assert.deepStrictEqual(mapResponse.status, 200);
 
     const deleteResponse = await ctx.app.request("/api/anime/20/episodes/1/file", {
       headers: { Cookie: sessionCookie },
       method: "DELETE",
     });
-    assertEquals(deleteResponse.status, 200);
+    assert.deepStrictEqual(deleteResponse.status, 200);
 
     let removed = false;
     try {
@@ -2623,7 +2642,7 @@ itWithTestContext("deleting an episode file removes the mapped file from disk", 
     } catch {
       removed = true;
     }
-    assertEquals(removed, true);
+    assert.deepStrictEqual(removed, true);
   });
 });
 
@@ -2635,11 +2654,11 @@ itWithTestContext(
     const searchResponse = await ctx.app.request("/api/anime/search?q=naruto", {
       headers: { Cookie: sessionCookie },
     });
-    assertEquals(searchResponse.status, 200);
+    assert.deepStrictEqual(searchResponse.status, 200);
     const searchResults = await searchResponse.json();
-    assertEquals(searchResults.degraded, false);
-    assertEquals(searchResults.results.length > 0, true);
-    assertEquals(
+    assert.deepStrictEqual(searchResults.degraded, false);
+    assert.deepStrictEqual(searchResults.results.length > 0, true);
+    assert.deepStrictEqual(
       searchResults.results.some((item: { id: number }) => item.id === 20),
       true,
     );
@@ -2647,10 +2666,10 @@ itWithTestContext(
     const detailResponse = await ctx.app.request("/api/anime/anilist/20", {
       headers: { Cookie: sessionCookie },
     });
-    assertEquals(detailResponse.status, 200);
+    assert.deepStrictEqual(detailResponse.status, 200);
     const detail = await detailResponse.json();
-    assertEquals(detail.id, 20);
-    assertEquals(detail.title.romaji, "Naruto");
+    assert.deepStrictEqual(detail.id, 20);
+    assert.deepStrictEqual(detail.title.romaji, "Naruto");
   },
 );
 
@@ -2673,7 +2692,7 @@ itWithTestContext("RSS feed toggle and delete endpoints update feed state", asyn
       },
       method: "POST",
     });
-    assertEquals(addAnimeResponse.status, 200);
+    assert.deepStrictEqual(addAnimeResponse.status, 200);
 
     const addFeedResponse = await ctx.app.request("/api/rss", {
       body: JSON.stringify({
@@ -2687,9 +2706,9 @@ itWithTestContext("RSS feed toggle and delete endpoints update feed state", asyn
       },
       method: "POST",
     });
-    assertEquals(addFeedResponse.status, 200);
+    assert.deepStrictEqual(addFeedResponse.status, 200);
     const feed = await addFeedResponse.json();
-    assertEquals(feed.enabled, true);
+    assert.deepStrictEqual(feed.enabled, true);
 
     const toggleResponse = await ctx.app.request(`/api/rss/${feed.id}/toggle`, {
       body: JSON.stringify({ enabled: false }),
@@ -2699,27 +2718,27 @@ itWithTestContext("RSS feed toggle and delete endpoints update feed state", asyn
       },
       method: "PUT",
     });
-    assertEquals(toggleResponse.status, 200);
+    assert.deepStrictEqual(toggleResponse.status, 200);
 
     const animeFeedsAfterToggle = await ctx.app.request("/api/anime/20/rss", {
       headers: { Cookie: sessionCookie },
     });
-    assertEquals(animeFeedsAfterToggle.status, 200);
+    assert.deepStrictEqual(animeFeedsAfterToggle.status, 200);
     const toggledFeeds = await animeFeedsAfterToggle.json();
     const toggledFeed = toggledFeeds.find((item: { id: number }) => item.id === feed.id);
     assert(toggledFeed);
-    assertEquals(toggledFeed.enabled, false);
+    assert.deepStrictEqual(toggledFeed.enabled, false);
 
     const deleteResponse = await ctx.app.request(`/api/rss/${feed.id}`, {
       headers: { Cookie: sessionCookie },
       method: "DELETE",
     });
-    assertEquals(deleteResponse.status, 200);
+    assert.deepStrictEqual(deleteResponse.status, 200);
 
     const animeFeedsAfterDelete = await ctx.app.request("/api/anime/20/rss", {
       headers: { Cookie: sessionCookie },
     });
-    assertEquals(
+    assert.deepStrictEqual(
       (await animeFeedsAfterDelete.json()).some((item: { id: number }) => item.id === feed.id),
       false,
     );
@@ -2734,16 +2753,19 @@ itWithTestContext("validation errors return 400 for malformed or invalid request
     headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
     method: "POST",
   });
-  assertEquals(malformedJsonResponse.status, 400);
-  assertEquals(await malformedJsonResponse.text(), "Invalid JSON for create quality profile");
+  assert.deepStrictEqual(malformedJsonResponse.status, 400);
+  assert.deepStrictEqual(
+    await malformedJsonResponse.text(),
+    "Invalid JSON for create quality profile",
+  );
 
   const invalidBodyResponse = await ctx.app.request("/api/profiles", {
     body: JSON.stringify({ name: "Incomplete" }),
     headers: { Cookie: sessionCookie, "Content-Type": "application/json" },
     method: "POST",
   });
-  assertEquals(invalidBodyResponse.status, 400);
-  assertMatch(
+  assert.deepStrictEqual(invalidBodyResponse.status, 400);
+  assert.match(
     await invalidBodyResponse.text(),
     /^Invalid request body for create quality profile: .*: is missing(?:; .*: is missing)*$/,
   );
@@ -2751,8 +2773,8 @@ itWithTestContext("validation errors return 400 for malformed or invalid request
   const invalidQueryResponse = await ctx.app.request("/api/system/logs?page=0", {
     headers: { Cookie: sessionCookie },
   });
-  assertEquals(invalidQueryResponse.status, 400);
-  assertMatch(
+  assert.deepStrictEqual(invalidQueryResponse.status, 400);
+  assert.match(
     await invalidQueryResponse.text(),
     /^Invalid query parameters for system logs: page: Expected a positive number, actual 0; page: Expected undefined, actual "0"$/,
   );
@@ -2778,21 +2800,21 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
       method: "POST",
     });
 
-    assertEquals(addResponse.status, 200);
+    assert.deepStrictEqual(addResponse.status, 200);
 
     const anime = await addResponse.json();
-    assertEquals(anime.id, 20);
-    assertEquals(anime.title.romaji, "Naruto");
-    assertEquals(anime.profile_name, "Default");
-    assertEquals(anime.root_folder, `${rootFolder}/Naruto`);
+    assert.deepStrictEqual(anime.id, 20);
+    assert.deepStrictEqual(anime.title.romaji, "Naruto");
+    assert.deepStrictEqual(anime.profile_name, "Default");
+    assert.deepStrictEqual(anime.root_folder, `${rootFolder}/Naruto`);
 
     const listResponse = await ctx.app.request("/api/anime", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(listResponse.status, 200);
+    assert.deepStrictEqual(listResponse.status, 200);
     const list = await listResponse.json();
-    assertEquals(list.total, 1);
+    assert.deepStrictEqual(list.total, 1);
 
     const paginatedListResponse = await ctx.app.request(
       "/api/anime?limit=1&offset=0&monitored=true",
@@ -2800,30 +2822,30 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
         headers: { Cookie: sessionCookie },
       },
     );
-    assertEquals(paginatedListResponse.status, 200);
+    assert.deepStrictEqual(paginatedListResponse.status, 200);
     const paginatedList = await paginatedListResponse.json();
-    assertEquals(paginatedList.limit, 1);
-    assertEquals(paginatedList.offset, 0);
-    assertEquals(paginatedList.total, 1);
-    assertEquals(paginatedList.items.length, 1);
+    assert.deepStrictEqual(paginatedList.limit, 1);
+    assert.deepStrictEqual(paginatedList.offset, 0);
+    assert.deepStrictEqual(paginatedList.total, 1);
+    assert.deepStrictEqual(paginatedList.items.length, 1);
 
     const detailResponse = await ctx.app.request("/api/anime/20", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(detailResponse.status, 200);
+    assert.deepStrictEqual(detailResponse.status, 200);
     const detail = await detailResponse.json();
-    assertEquals(detail.episode_count, 220);
+    assert.deepStrictEqual(detail.episode_count, 220);
 
     const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(episodesResponse.status, 200);
+    assert.deepStrictEqual(episodesResponse.status, 200);
     const episodes = await episodesResponse.json();
-    assertEquals(episodes.length, 220);
-    assertEquals(episodes[0].number, 1);
-    assertEquals(episodes[0].downloaded, false);
+    assert.deepStrictEqual(episodes.length, 220);
+    assert.deepStrictEqual(episodes[0].number, 1);
+    assert.deepStrictEqual(episodes[0].downloaded, false);
 
     await writeTextFile(`${anime.root_folder}/Naruto - 001.mkv`, "fake video data");
 
@@ -2832,30 +2854,30 @@ itWithTestContext("anime CRUD and episode scan flow works", async (ctx) => {
       method: "POST",
     });
 
-    assertEquals(scanResponse.status, 200);
-    assertEquals(await scanResponse.json(), { found: 1, total: 1 });
+    assert.deepStrictEqual(scanResponse.status, 200);
+    assert.deepStrictEqual(await scanResponse.json(), { found: 1, total: 1 });
 
     const filesResponse = await ctx.app.request("/api/anime/20/files", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(filesResponse.status, 200);
+    assert.deepStrictEqual(filesResponse.status, 200);
     const files = await filesResponse.json();
-    assertEquals(files.length, 1);
-    assertEquals(files[0].episode_number, 1);
+    assert.deepStrictEqual(files.length, 1);
+    assert.deepStrictEqual(files[0].episode_number, 1);
 
     const episodesAfterScanResponse = await ctx.app.request("/api/anime/20/episodes", {
       headers: { Cookie: sessionCookie },
     });
 
     const episodesAfterScan = await episodesAfterScanResponse.json();
-    assertEquals(episodesAfterScan[0].downloaded, true);
+    assert.deepStrictEqual(episodesAfterScan[0].downloaded, true);
 
     const statsResponse = await ctx.app.request("/api/library/stats", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(await statsResponse.json(), {
+    assert.deepStrictEqual(await statsResponse.json(), {
       downloaded_episodes: 1,
       downloaded_percent: 0,
       missing_episodes: 219,
@@ -2933,15 +2955,15 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         method: "POST",
       });
 
-      assertEquals(rssAdd.status, 200);
+      assert.deepStrictEqual(rssAdd.status, 200);
 
       const rssList = await ctx.app.request("/api/rss", {
         headers: { Cookie: sessionCookie },
       });
 
       const feeds = await rssList.json();
-      assertEquals(feeds.length, 1);
-      assertEquals(feeds[0].anime_id, 11061);
+      assert.deepStrictEqual(feeds.length, 1);
+      assert.deepStrictEqual(feeds[0].anime_id, 11061);
 
       const client = createClient({ url: `file:${ctx.databaseFile}` });
       try {
@@ -2963,12 +2985,12 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
 
       const missing = await wanted.json();
       assert(missing.length > 0);
-      assertEquals(missing[0].anime_id, 11061);
-      assertEquals(
+      assert.deepStrictEqual(missing[0].anime_id, 11061);
+      assert.deepStrictEqual(
         missing.some((item: { episode_number: number }) => item.episode_number === 2),
         false,
       );
-      assertEquals(
+      assert.deepStrictEqual(
         missing.some((item: { episode_number: number }) => item.episode_number === 3),
         false,
       );
@@ -2978,16 +3000,16 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       });
 
       const preview = await renamePreview.json();
-      assertEquals(preview.length, 1);
-      assertMatch(preview[0].new_filename, /Hunter x Hunter/);
+      assert.deepStrictEqual(preview.length, 1);
+      assert.match(preview[0].new_filename, /Hunter x Hunter/);
 
       const renameExec = await ctx.app.request("/api/anime/11061/rename", {
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
 
-      assertEquals(renameExec.status, 200);
-      assertEquals((await renameExec.json()).renamed, 1);
+      assert.deepStrictEqual(renameExec.status, 200);
+      assert.deepStrictEqual((await renameExec.json()).renamed, 1);
 
       await writeTextFile(`${importFolder}/import-me-002.mkv`, "video import");
 
@@ -3001,8 +3023,8 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       });
 
       const scanBody = await importScan.json();
-      assertEquals(scanBody.files.length, 1);
-      assertEquals(scanBody.files[0].episode_number, 2);
+      assert.deepStrictEqual(scanBody.files.length, 1);
+      assert.deepStrictEqual(scanBody.files[0].episode_number, 2);
 
       const importExecute = await ctx.app.request("/api/library/import", {
         body: JSON.stringify({
@@ -3022,7 +3044,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       });
 
       const importBody = await importExecute.json();
-      assertEquals(importBody.imported, 1);
+      assert.deepStrictEqual(importBody.imported, 1);
 
       const releaseSearch = await ctx.app.request("/api/search/releases?query=hunter", {
         headers: { Cookie: sessionCookie },
@@ -3036,7 +3058,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
       });
 
       const episodeSearchBody = await episodeSearch.json();
-      assertEquals(episodeSearchBody.length, 1);
+      assert.deepStrictEqual(episodeSearchBody.length, 1);
 
       const triggerDownload = await ctx.app.request("/api/search/download", {
         body: JSON.stringify({
@@ -3052,14 +3074,14 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         method: "POST",
       });
 
-      assertEquals(triggerDownload.status, 200);
+      assert.deepStrictEqual(triggerDownload.status, 200);
 
       const history = await ctx.app.request("/api/downloads/history", {
         headers: { Cookie: sessionCookie },
       });
 
       const historyBody = await history.json();
-      assertEquals(historyBody.length, 1);
+      assert.deepStrictEqual(historyBody.length, 1);
 
       const downloadId = historyBody[0].id;
 
@@ -3068,35 +3090,35 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         method: "POST",
       });
 
-      assertEquals(pauseResponse.status, 200);
+      assert.deepStrictEqual(pauseResponse.status, 200);
 
       const resumeResponse = await ctx.app.request(`/api/downloads/${downloadId}/resume`, {
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
 
-      assertEquals(resumeResponse.status, 200);
+      assert.deepStrictEqual(resumeResponse.status, 200);
 
       const retryResponse = await ctx.app.request(`/api/downloads/${downloadId}/retry`, {
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
 
-      assertEquals(retryResponse.status, 200);
+      assert.deepStrictEqual(retryResponse.status, 200);
 
       const syncResponse = await ctx.app.request("/api/downloads/sync", {
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
 
-      assertEquals(syncResponse.status, 200);
+      assert.deepStrictEqual(syncResponse.status, 200);
 
       const reconcileResponse = await ctx.app.request(`/api/downloads/${downloadId}/reconcile`, {
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
 
-      assertEquals(reconcileResponse.status, 409);
+      assert.deepStrictEqual(reconcileResponse.status, 409);
 
       const filteredLogs = await ctx.app.request(
         "/api/system/logs?event_type=downloads.triggered&level=success&page=1",
@@ -3105,10 +3127,10 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         },
       );
 
-      assertEquals(filteredLogs.status, 200);
+      assert.deepStrictEqual(filteredLogs.status, 200);
       const filteredLogsBody = await filteredLogs.json();
       assert(filteredLogsBody.logs.length >= 1);
-      assertEquals(
+      assert.deepStrictEqual(
         filteredLogsBody.logs.every(
           (log: { event_type: string; level: string }) =>
             log.event_type === "downloads.triggered" && log.level === "success",
@@ -3123,31 +3145,31 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         },
       );
 
-      assertEquals(exportLogs.status, 200);
-      assertEquals((await exportLogs.text()).includes("downloads.triggered"), true);
+      assert.deepStrictEqual(exportLogs.status, 200);
+      assert.deepStrictEqual((await exportLogs.text()).includes("downloads.triggered"), true);
 
       const jobsResponse = await ctx.app.request("/api/system/jobs", {
         headers: { Cookie: sessionCookie },
       });
 
-      assertEquals(jobsResponse.status, 200);
-      assertEquals(Array.isArray(await jobsResponse.json()), true);
+      assert.deepStrictEqual(jobsResponse.status, 200);
+      assert.deepStrictEqual(Array.isArray(await jobsResponse.json()), true);
 
       const eventsResponse = await ctx.app.request("/api/downloads/events", {
         headers: { Cookie: sessionCookie },
       });
 
-      assertEquals(eventsResponse.status, 200);
+      assert.deepStrictEqual(eventsResponse.status, 200);
       const events = await eventsResponse.json();
-      assertEquals(Array.isArray(events.events), true);
-      assertEquals(typeof events.total, "number");
-      assertEquals(typeof events.has_more, "boolean");
-      assertEquals(
+      assert.deepStrictEqual(Array.isArray(events.events), true);
+      assert.deepStrictEqual(typeof events.total, "number");
+      assert.deepStrictEqual(typeof events.has_more, "boolean");
+      assert.deepStrictEqual(
         typeof events.next_cursor === "string" || events.next_cursor === undefined,
         true,
       );
-      assertEquals(events.events.length >= 1, true);
-      assertEquals(
+      assert.deepStrictEqual(events.events.length >= 1, true);
+      assert.deepStrictEqual(
         events.events.some(
           (event: { anime_title?: string; download_id?: number; torrent_name?: string }) =>
             event.download_id === downloadId &&
@@ -3164,11 +3186,11 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         },
       );
 
-      assertEquals(filteredEventsResponse.status, 200);
+      assert.deepStrictEqual(filteredEventsResponse.status, 200);
       const filteredEvents = await filteredEventsResponse.json();
-      assertEquals(filteredEvents.limit, 5);
-      assertEquals(filteredEvents.events.length >= 1, true);
-      assertEquals(
+      assert.deepStrictEqual(filteredEvents.limit, 5);
+      assert.deepStrictEqual(filteredEvents.events.length >= 1, true);
+      assert.deepStrictEqual(
         filteredEvents.events.every(
           (event: { download_id?: number }) => event.download_id === downloadId,
         ),
@@ -3185,9 +3207,9 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         : undefined;
 
       if (cursorFilteredEventsResponse) {
-        assertEquals(cursorFilteredEventsResponse.status, 200);
+        assert.deepStrictEqual(cursorFilteredEventsResponse.status, 200);
         const cursorFilteredEvents = await cursorFilteredEventsResponse.json();
-        assertEquals(Array.isArray(cursorFilteredEvents.events), true);
+        assert.deepStrictEqual(Array.isArray(cursorFilteredEvents.events), true);
       }
 
       const statusFilteredEventsResponse = await ctx.app.request(
@@ -3197,17 +3219,17 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         },
       );
 
-      assertEquals(statusFilteredEventsResponse.status, 200);
+      assert.deepStrictEqual(statusFilteredEventsResponse.status, 200);
       const statusFilteredEvents = await statusFilteredEventsResponse.json();
-      assertEquals(statusFilteredEvents.events.length >= 1, true);
-      assertEquals(
+      assert.deepStrictEqual(statusFilteredEvents.events.length >= 1, true);
+      assert.deepStrictEqual(
         statusFilteredEvents.events.every(
           (event: { from_status?: string; to_status?: string }) =>
             event.from_status === "queued" || event.to_status === "queued",
         ),
         true,
       );
-      assertEquals(
+      assert.deepStrictEqual(
         typeof statusFilteredEvents.next_cursor === "string" ||
           statusFilteredEvents.next_cursor === undefined,
         true,
@@ -3220,19 +3242,19 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         },
       );
 
-      assertEquals(exportEventsJsonResponse.status, 200);
-      assertEquals(
+      assert.deepStrictEqual(exportEventsJsonResponse.status, 200);
+      assert.deepStrictEqual(
         exportEventsJsonResponse.headers.get("content-type"),
         "application/json; charset=utf-8",
       );
-      assertEquals(exportEventsJsonResponse.headers.get("x-bakarr-export-order"), "asc");
+      assert.deepStrictEqual(exportEventsJsonResponse.headers.get("x-bakarr-export-order"), "asc");
       const exportEventsJson = await exportEventsJsonResponse.json();
-      assertEquals(Array.isArray(exportEventsJson.events), true);
-      assertEquals(typeof exportEventsJson.total, "number");
-      assertEquals(typeof exportEventsJson.exported, "number");
-      assertEquals(typeof exportEventsJson.truncated, "boolean");
-      assertEquals(typeof exportEventsJson.generated_at, "string");
-      assertEquals(
+      assert.deepStrictEqual(Array.isArray(exportEventsJson.events), true);
+      assert.deepStrictEqual(typeof exportEventsJson.total, "number");
+      assert.deepStrictEqual(typeof exportEventsJson.exported, "number");
+      assert.deepStrictEqual(typeof exportEventsJson.truncated, "boolean");
+      assert.deepStrictEqual(typeof exportEventsJson.generated_at, "string");
+      assert.deepStrictEqual(
         exportEventsJson.events.every(
           (event: { download_id?: number }) => event.download_id === downloadId,
         ),
@@ -3246,22 +3268,25 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         },
       );
 
-      assertEquals(exportEventsCsvResponse.status, 200);
-      assertEquals(exportEventsCsvResponse.headers.get("content-type"), "text/csv; charset=utf-8");
-      assertEquals(exportEventsCsvResponse.headers.get("x-bakarr-export-limit"), "5");
+      assert.deepStrictEqual(exportEventsCsvResponse.status, 200);
+      assert.deepStrictEqual(
+        exportEventsCsvResponse.headers.get("content-type"),
+        "text/csv; charset=utf-8",
+      );
+      assert.deepStrictEqual(exportEventsCsvResponse.headers.get("x-bakarr-export-limit"), "5");
       const exportEventsCsvBody = await exportEventsCsvResponse.text();
-      assertEquals(exportEventsCsvBody.includes("id,created_at,event_type"), true);
-      assertEquals(exportEventsCsvBody.split("\n").length >= 2, true);
+      assert.deepStrictEqual(exportEventsCsvBody.includes("id,created_at,event_type"), true);
+      assert.deepStrictEqual(exportEventsCsvBody.split("\n").length >= 2, true);
 
       const dashboardResponse = await ctx.app.request("/api/system/dashboard", {
         headers: { Cookie: sessionCookie },
       });
 
-      assertEquals(dashboardResponse.status, 200);
+      assert.deepStrictEqual(dashboardResponse.status, 200);
       const dashboard = await dashboardResponse.json();
-      assertEquals(typeof dashboard.queued_downloads, "number");
-      assertEquals(Array.isArray(dashboard.recent_download_events), true);
-      assertEquals(
+      assert.deepStrictEqual(typeof dashboard.queued_downloads, "number");
+      assert.deepStrictEqual(Array.isArray(dashboard.recent_download_events), true);
+      assert.deepStrictEqual(
         dashboard.recent_download_events.some(
           (event: { anime_title?: string; torrent_name?: string }) =>
             typeof event.anime_title === "string" && typeof event.torrent_name === "string",
@@ -3274,13 +3299,13 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         method: "DELETE",
       });
 
-      assertEquals(deleteResponse.status, 200);
+      assert.deepStrictEqual(deleteResponse.status, 200);
 
       const historyAfterDelete = await ctx.app.request("/api/downloads/history", {
         headers: { Cookie: sessionCookie },
       });
 
-      assertEquals((await historyAfterDelete.json()).length, 0);
+      assert.deepStrictEqual((await historyAfterDelete.json()).length, 0);
 
       const calendar = await ctx.app.request(
         `/api/calendar?start=${encodeURIComponent(
@@ -3291,7 +3316,7 @@ itWithTestContext("rss, wanted, rename, and download helper endpoints work", asy
         },
       );
 
-      assertEquals(calendar.status, 200);
+      assert.deepStrictEqual(calendar.status, 200);
       assert((await calendar.json()).length >= 1);
     });
   });
@@ -3333,47 +3358,47 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       method: "POST",
     });
 
-    assertEquals(rssTask.status, 200);
+    assert.deepStrictEqual(rssTask.status, 200);
 
     const statusAfterRss = await ctx.app.request("/api/system/status", {
       headers: { Cookie: sessionCookie },
     });
 
     const statusBody = await statusAfterRss.json();
-    assertEquals(typeof statusBody.last_rss, "string");
+    assert.deepStrictEqual(typeof statusBody.last_rss, "string");
 
     const queueAfterRss = await ctx.app.request("/api/downloads/queue", {
       headers: { Cookie: sessionCookie },
     });
 
     const queueRssBody = await queueAfterRss.json();
-    assertEquals(queueRssBody.length, 1);
+    assert.deepStrictEqual(queueRssBody.length, 1);
 
     const metricsResponse = await ctx.app.request("/api/metrics", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(metricsResponse.status, 200);
+    assert.deepStrictEqual(metricsResponse.status, 200);
     const metricsText = await metricsResponse.text();
-    assertEquals(metricsText.includes("bakarr_total_anime"), true);
-    assertEquals(metricsText.includes("bakarr_active_download_items"), true);
-    assertEquals(
+    assert.deepStrictEqual(metricsText.includes("bakarr_total_anime"), true);
+    assert.deepStrictEqual(metricsText.includes("bakarr_active_download_items"), true);
+    assert.deepStrictEqual(
       metricsText.includes('bakarr_background_worker_daemon_running{worker="download_sync"}'),
       true,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       metricsText.includes(
         'bakarr_background_worker_runs_total{status="success",worker="download_sync"}',
       ),
       true,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       metricsText.includes(
         'bakarr_http_requests_total{method="GET",route="/api/metrics",status="200"} 1',
       ),
       false,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       metricsText.includes(
         'bakarr_http_request_duration_ms_bucket{method="GET",route="/api/metrics",status="200",le="10"}',
       ),
@@ -3389,7 +3414,7 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       method: "POST",
     });
 
-    assertEquals(searchMissing.status, 200);
+    assert.deepStrictEqual(searchMissing.status, 200);
 
     const history = await ctx.app.request("/api/downloads/history", {
       headers: { Cookie: sessionCookie },
@@ -3405,9 +3430,9 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       },
     );
 
-    assertEquals(eventFeedResponse.status, 200);
+    assert.deepStrictEqual(eventFeedResponse.status, 200);
     const eventFeed = await eventFeedResponse.json();
-    assertEquals(Array.isArray(eventFeed.events), true);
+    assert.deepStrictEqual(Array.isArray(eventFeed.events), true);
     const rssOrMissingEvent = eventFeed.events.find(
       (event: {
         event_type: string;
@@ -3422,10 +3447,13 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
         event.event_type === "download.rss.queued" ||
         event.event_type === "download.search_missing.queued",
     );
-    assertExists(rssOrMissingEvent);
-    assertEquals(rssOrMissingEvent?.metadata_json?.source_metadata?.indexer, "Nyaa");
-    assertEquals(typeof rssOrMissingEvent?.metadata_json?.source_metadata?.trusted, "boolean");
-    assertEquals(
+    assert(rssOrMissingEvent);
+    assert.deepStrictEqual(rssOrMissingEvent?.metadata_json?.source_metadata?.indexer, "Nyaa");
+    assert.deepStrictEqual(
+      typeof rssOrMissingEvent?.metadata_json?.source_metadata?.trusted,
+      "boolean",
+    );
+    assert.deepStrictEqual(
       rssOrMissingEvent?.metadata_json?.source_metadata?.source_url?.startsWith(
         "https://nyaa.si/view/",
       ),
@@ -3437,21 +3465,21 @@ itWithTestContext("rss task and missing-search task queue downloads", async (ctx
       method: "POST",
     });
 
-    assertEquals(scanTask.status, 200);
+    assert.deepStrictEqual(scanTask.status, 200);
 
     const statusAfterScan = await ctx.app.request("/api/system/status", {
       headers: { Cookie: sessionCookie },
     });
 
     const scanStatusBody = await statusAfterScan.json();
-    assertEquals(typeof scanStatusBody.last_scan, "string");
+    assert.deepStrictEqual(typeof scanStatusBody.last_scan, "string");
 
     const episodeSearch = await ctx.app.request("/api/search/episode/20/1", {
       headers: { Cookie: sessionCookie },
     });
 
     const episodeSearchBody = await episodeSearch.json();
-    assertEquals(episodeSearch.status, 200);
+    assert.deepStrictEqual(episodeSearch.status, 200);
     assert(episodeSearchBody.length >= 1);
     assert(
       episodeSearchBody[0].download_action.Accept ||
@@ -3511,16 +3539,16 @@ itWithTestContext("missing-search ignores episodes that have not aired yet", asy
       method: "POST",
     });
 
-    assertEquals(searchMissing.status, 200);
+    assert.deepStrictEqual(searchMissing.status, 200);
 
     const history = await ctx.app.request("/api/downloads/history", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(history.status, 200);
+    assert.deepStrictEqual(history.status, 200);
     const downloads = await history.json();
 
-    assertEquals(
+    assert.deepStrictEqual(
       downloads.some((download: { episode_number: number }) => download.episode_number === 2),
       false,
     );
@@ -3547,14 +3575,14 @@ itWithTestContext("wanted and global missing search ignore unmonitored anime", a
       method: "POST",
     });
 
-    assertEquals(addAnimeResponse.status, 200);
+    assert.deepStrictEqual(addAnimeResponse.status, 200);
 
     const wantedResponse = await ctx.app.request("/api/wanted/missing?limit=20", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(wantedResponse.status, 200);
-    assertEquals(await wantedResponse.json(), []);
+    assert.deepStrictEqual(wantedResponse.status, 200);
+    assert.deepStrictEqual(await wantedResponse.json(), []);
 
     const globalSearchResponse = await ctx.app.request("/api/downloads/search-missing", {
       body: JSON.stringify({}),
@@ -3565,14 +3593,14 @@ itWithTestContext("wanted and global missing search ignore unmonitored anime", a
       method: "POST",
     });
 
-    assertEquals(globalSearchResponse.status, 200);
+    assert.deepStrictEqual(globalSearchResponse.status, 200);
 
     const historyResponse = await ctx.app.request("/api/downloads/history", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(historyResponse.status, 200);
-    assertEquals(await historyResponse.json(), []);
+    assert.deepStrictEqual(historyResponse.status, 200);
+    assert.deepStrictEqual(await historyResponse.json(), []);
 
     const directSearchResponse = await ctx.app.request("/api/downloads/search-missing", {
       body: JSON.stringify({ anime_id: 20 }),
@@ -3583,16 +3611,16 @@ itWithTestContext("wanted and global missing search ignore unmonitored anime", a
       method: "POST",
     });
 
-    assertEquals(directSearchResponse.status, 200);
+    assert.deepStrictEqual(directSearchResponse.status, 200);
 
     const directHistoryResponse = await ctx.app.request("/api/downloads/history", {
       headers: { Cookie: sessionCookie },
     });
 
-    assertEquals(directHistoryResponse.status, 200);
+    assert.deepStrictEqual(directHistoryResponse.status, 200);
     const downloads = await directHistoryResponse.json();
-    assertEquals(downloads.length > 0, true);
-    assertEquals(downloads[0].anime_id, 20);
+    assert.deepStrictEqual(downloads.length > 0, true);
+    assert.deepStrictEqual(downloads[0].anime_id, 20);
   });
 });
 
@@ -3617,7 +3645,7 @@ itWithTestContext("manual import succeeds for files outside configured roots", a
         method: "POST",
       });
 
-      assertEquals(addAnimeResponse.status, 200);
+      assert.deepStrictEqual(addAnimeResponse.status, 200);
 
       const sourcePath = `${importFolder}/manual-import-001.mkv`;
       await writeTextFile(sourcePath, "video import");
@@ -3631,9 +3659,9 @@ itWithTestContext("manual import succeeds for files outside configured roots", a
         method: "POST",
       });
 
-      assertEquals(importScan.status, 200);
+      assert.deepStrictEqual(importScan.status, 200);
       const scanBody = await importScan.json();
-      assertEquals(scanBody.files.length, 1);
+      assert.deepStrictEqual(scanBody.files.length, 1);
 
       const importExecute = await ctx.app.request("/api/library/import", {
         body: JSON.stringify({
@@ -3652,10 +3680,10 @@ itWithTestContext("manual import succeeds for files outside configured roots", a
         method: "POST",
       });
 
-      assertEquals(importExecute.status, 200);
+      assert.deepStrictEqual(importExecute.status, 200);
       const importBody = await importExecute.json();
-      assertEquals(importBody.imported, 1);
-      assertEquals(importBody.failed, 0);
+      assert.deepStrictEqual(importBody.imported, 1);
+      assert.deepStrictEqual(importBody.failed, 0);
     });
   });
 });
@@ -3680,13 +3708,13 @@ itWithTestContext("events endpoint streams initial state and live notifications"
       method: "POST",
     });
 
-    assertEquals(addAnimeResponse.status, 200);
+    assert.deepStrictEqual(addAnimeResponse.status, 200);
 
     await withEventsStreamReader(ctx, sessionCookie, async (reader) => {
       const initialChunk = await readUntilMatch(reader, /"type":"DownloadProgress"/);
-      assertMatch(initialChunk, /: connected/);
-      assertMatch(initialChunk, /"type":"DownloadProgress"/);
-      assertMatch(initialChunk, /"downloads":\[\]/);
+      assert.match(initialChunk, /: connected/);
+      assert.match(initialChunk, /"type":"DownloadProgress"/);
+      assert.match(initialChunk, /"downloads":\[\]/);
 
       const triggerDownload = await ctx.app.request("/api/search/download", {
         body: JSON.stringify({
@@ -3702,14 +3730,14 @@ itWithTestContext("events endpoint streams initial state and live notifications"
         method: "POST",
       });
 
-      assertEquals(triggerDownload.status, 200);
+      assert.deepStrictEqual(triggerDownload.status, 200);
 
       const streamed = await readUntilMatch(
         reader,
         /"type":"DownloadStarted"|"type":"DownloadProgress"/,
       );
 
-      assertMatch(streamed, /"type":"DownloadStarted"|"type":"DownloadProgress"/);
+      assert.match(streamed, /"type":"DownloadStarted"|"type":"DownloadProgress"/);
     });
   });
 });
@@ -3736,7 +3764,7 @@ itWithTestContext(
         method: "POST",
       });
 
-      assertEquals(addAnimeResponse.status, 200);
+      assert.deepStrictEqual(addAnimeResponse.status, 200);
 
       await withEventsStreamReader(ctx, sessionCookie, async (firstReader) => {
         await readUntilMatch(firstReader, /"type":"DownloadProgress"/);
@@ -3746,7 +3774,7 @@ itWithTestContext(
 
       await withEventsStreamReader(ctx, sessionCookie, async (secondReader) => {
         const secondInitial = await readUntilMatch(secondReader, /"type":"DownloadProgress"/);
-        assertMatch(secondInitial, /: connected/);
+        assert.match(secondInitial, /: connected/);
 
         const triggerDownload = await ctx.app.request("/api/search/download", {
           body: JSON.stringify({
@@ -3762,14 +3790,14 @@ itWithTestContext(
           method: "POST",
         });
 
-        assertEquals(triggerDownload.status, 200);
+        assert.deepStrictEqual(triggerDownload.status, 200);
 
         const streamed = await readUntilMatch(
           secondReader,
           /"type":"DownloadStarted"|"type":"DownloadProgress"/,
         );
 
-        assertMatch(streamed, /"type":"DownloadStarted"|"type":"DownloadProgress"/);
+        assert.match(streamed, /"type":"DownloadStarted"|"type":"DownloadProgress"/);
       });
     });
   },
@@ -3795,7 +3823,7 @@ itWithTestContext("events stream emits RSS and library scan progress updates", a
       method: "POST",
     });
 
-    assertEquals(addAnimeResponse.status, 200);
+    assert.deepStrictEqual(addAnimeResponse.status, 200);
 
     await writeTextFile(`${rootFolder}/Naruto - 001.mkv`, "video");
 
@@ -3810,7 +3838,7 @@ itWithTestContext("events stream emits RSS and library scan progress updates", a
       method: "POST",
     });
 
-    assertEquals(addFeedResponse.status, 200);
+    assert.deepStrictEqual(addFeedResponse.status, 200);
 
     await withEventsStreamReader(ctx, sessionCookie, async (reader) => {
       await readUntilMatch(reader, /"type":"DownloadProgress"/);
@@ -3820,20 +3848,20 @@ itWithTestContext("events stream emits RSS and library scan progress updates", a
         method: "POST",
       });
 
-      assertEquals(rssTask.status, 200);
+      assert.deepStrictEqual(rssTask.status, 200);
 
       const rssProgress = await readUntilMatch(reader, /"type":"RssCheckProgress"/);
-      assertMatch(rssProgress, /"type":"RssCheckProgress"/);
+      assert.match(rssProgress, /"type":"RssCheckProgress"/);
 
       const scanTask = await ctx.app.request("/api/system/tasks/scan", {
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
 
-      assertEquals(scanTask.status, 200);
+      assert.deepStrictEqual(scanTask.status, 200);
 
       const scanProgress = await readUntilMatch(reader, /"type":"LibraryScanProgress"/);
-      assertMatch(scanProgress, /"type":"LibraryScanProgress"/);
+      assert.match(scanProgress, /"type":"LibraryScanProgress"/);
     });
   });
 });
@@ -3860,7 +3888,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(addAnimeResponse.status, 200);
+        assert.deepStrictEqual(addAnimeResponse.status, 200);
 
         const magnetHash = "abcdef1234567890abcdef1234567890abcdef12";
         const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
@@ -3877,7 +3905,7 @@ itWithTestContext(
           },
           method: "POST",
         });
-        assertEquals(triggerDownloadResponse.status, 200);
+        assert.deepStrictEqual(triggerDownloadResponse.status, 200);
 
         const batchFolder = `${completedRoot}/batch`;
         await mkdirPath(batchFolder, { recursive: true });
@@ -3898,25 +3926,25 @@ itWithTestContext(
           headers: { Cookie: sessionCookie },
           method: "POST",
         });
-        assertEquals(reconcileResponse.status, 200);
+        assert.deepStrictEqual(reconcileResponse.status, 200);
 
         const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
           headers: { Cookie: sessionCookie },
         });
-        assertEquals(episodesResponse.status, 200);
+        assert.deepStrictEqual(episodesResponse.status, 200);
         const episodes = await episodesResponse.json();
-        assertEquals(episodes[0].downloaded, true);
-        assertEquals(episodes[1].downloaded, true);
-        assertEquals(episodes[0].file_path?.includes(`${animeRoot}/Naruto/`), true);
-        assertEquals(episodes[1].file_path?.includes(`${animeRoot}/Naruto/`), true);
+        assert.deepStrictEqual(episodes[0].downloaded, true);
+        assert.deepStrictEqual(episodes[1].downloaded, true);
+        assert.deepStrictEqual(episodes[0].file_path?.includes(`${animeRoot}/Naruto/`), true);
+        assert.deepStrictEqual(episodes[1].file_path?.includes(`${animeRoot}/Naruto/`), true);
 
         const historyResponse = await ctx.app.request("/api/downloads/history", {
           headers: { Cookie: sessionCookie },
         });
-        assertEquals(historyResponse.status, 200);
+        assert.deepStrictEqual(historyResponse.status, 200);
         const history = await historyResponse.json();
-        assertEquals(history[0].status, "imported");
-        assertEquals(history[0].is_batch, true);
+        assert.deepStrictEqual(history[0].status, "imported");
+        assert.deepStrictEqual(history[0].is_batch, true);
       });
     });
   },
@@ -3942,7 +3970,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
         },
         method: "POST",
       });
-      assertEquals(addAnimeResponse.status, 200);
+      assert.deepStrictEqual(addAnimeResponse.status, 200);
       const anime = await addAnimeResponse.json();
 
       const existingEpisodeOne = `${anime.root_folder}/Naruto - 001.mkv`;
@@ -3958,7 +3986,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
         },
         method: "POST",
       });
-      assertEquals(mapEpisodeOne.status, 200);
+      assert.deepStrictEqual(mapEpisodeOne.status, 200);
 
       const mapEpisodeTwo = await ctx.app.request("/api/anime/20/episodes/2/map", {
         body: JSON.stringify({ file_path: existingEpisodeTwo }),
@@ -3968,7 +3996,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
         },
         method: "POST",
       });
-      assertEquals(mapEpisodeTwo.status, 200);
+      assert.deepStrictEqual(mapEpisodeTwo.status, 200);
 
       const magnetHash = "abcdef1234567890abcdef1234567890abcdef12";
       const triggerDownloadResponse = await ctx.app.request("/api/search/download", {
@@ -3985,7 +4013,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
         },
         method: "POST",
       });
-      assertEquals(triggerDownloadResponse.status, 200);
+      assert.deepStrictEqual(triggerDownloadResponse.status, 200);
 
       const batchFolder = `${completedRoot}/batch`;
       await mkdirPath(batchFolder, { recursive: true });
@@ -4006,7 +4034,7 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
         headers: { Cookie: sessionCookie },
         method: "POST",
       });
-      assertEquals(reconcileResponse.status, 200);
+      assert.deepStrictEqual(reconcileResponse.status, 200);
 
       const verifyClient = createClient({ url: `file:${ctx.databaseFile}` });
       try {
@@ -4017,8 +4045,8 @@ itWithTestContext("batch reconcile marks already-imported episodes as reconciled
           reconciledAt?: string | null;
           status?: string;
         };
-        assertEquals(row.status, "imported");
-        assertEquals(typeof row.reconciledAt, "string");
+        assert.deepStrictEqual(row.status, "imported");
+        assert.deepStrictEqual(typeof row.reconciledAt, "string");
       } finally {
         verifyClient.close();
       }
@@ -4068,10 +4096,10 @@ itWithTestContext(
         method: "POST",
       });
 
-      assertEquals(addResponse.status, 200);
+      assert.deepStrictEqual(addResponse.status, 200);
       const anime = await addResponse.json();
-      assertEquals(anime.root_folder.startsWith(libraryPath), true);
-      assertEquals(anime.root_folder, `${libraryPath}/Naruto`);
+      assert.deepStrictEqual(anime.root_folder.startsWith(libraryPath), true);
+      assert.deepStrictEqual(anime.root_folder, `${libraryPath}/Naruto`);
     });
   },
 );
@@ -4123,15 +4151,15 @@ itWithTestContext(
         method: "POST",
       });
 
-      assertEquals(addResponse.status, 200);
+      assert.deepStrictEqual(addResponse.status, 200);
 
       const beforeImport = await ctx.app.request("/api/library/unmapped", {
         headers: { Cookie: sessionCookie },
       });
-      assertEquals(beforeImport.status, 200);
+      assert.deepStrictEqual(beforeImport.status, 200);
       const beforeState = await beforeImport.json();
-      assertEquals(beforeState.folders.length, 1);
-      assertEquals(beforeState.folders[0].name, folderName);
+      assert.deepStrictEqual(beforeState.folders.length, 1);
+      assert.deepStrictEqual(beforeState.folders[0].name, folderName);
 
       const importResponse = await ctx.app.request("/api/library/unmapped/import", {
         body: JSON.stringify({ anime_id: 20, folder_name: folderName }),
@@ -4142,19 +4170,19 @@ itWithTestContext(
         method: "POST",
       });
 
-      assertEquals(importResponse.status, 200);
+      assert.deepStrictEqual(importResponse.status, 200);
 
       const animeResponse = await ctx.app.request("/api/anime/20", {
         headers: { Cookie: sessionCookie },
       });
       const anime = await animeResponse.json();
-      assertEquals(anime.root_folder, folderPath);
+      assert.deepStrictEqual(anime.root_folder, folderPath);
 
       const episodesResponse = await ctx.app.request("/api/anime/20/episodes", {
         headers: { Cookie: sessionCookie },
       });
       const episodeRows = await episodesResponse.json();
-      assertEquals(
+      assert.deepStrictEqual(
         episodeRows.some(
           (episode: { downloaded: boolean; number: number; file_path?: string }) =>
             episode.number === 1 && episode.downloaded && episode.file_path?.includes(folderName),
@@ -4165,9 +4193,9 @@ itWithTestContext(
       const afterImport = await ctx.app.request("/api/library/unmapped", {
         headers: { Cookie: sessionCookie },
       });
-      assertEquals(afterImport.status, 200);
+      assert.deepStrictEqual(afterImport.status, 200);
       const afterState = await afterImport.json();
-      assertEquals(afterState.folders.length, 0);
+      assert.deepStrictEqual(afterState.folders.length, 0);
     });
   },
 );
@@ -4196,9 +4224,9 @@ itWithTestContext("adding an anime can keep an existing folder as its root", asy
       method: "POST",
     });
 
-    assertEquals(addResponse.status, 200);
+    assert.deepStrictEqual(addResponse.status, 200);
     const anime = await addResponse.json();
-    assertEquals(anime.root_folder, existingFolder);
+    assert.deepStrictEqual(anime.root_folder, existingFolder);
   });
 });
 
@@ -4228,7 +4256,7 @@ itWithTestContext(
         method: "POST",
       });
 
-      assertEquals(firstAddResponse.status, 200);
+      assert.deepStrictEqual(firstAddResponse.status, 200);
 
       const secondAddResponse = await ctx.app.request("/api/anime", {
         body: JSON.stringify({
@@ -4247,7 +4275,7 @@ itWithTestContext(
         method: "POST",
       });
 
-      assertEquals(secondAddResponse.status, 409);
+      assert.deepStrictEqual(secondAddResponse.status, 409);
     });
   },
 );
@@ -4274,12 +4302,12 @@ itWithTestContext(
         method: "POST",
       });
 
-      assertEquals(addResponse.status, 200);
+      assert.deepStrictEqual(addResponse.status, 200);
       const anime = await addResponse.json();
-      assertEquals(anime.root_folder, `${rootFolder}/Hunter x Hunter (2011)`);
+      assert.deepStrictEqual(anime.root_folder, `${rootFolder}/Hunter x Hunter (2011)`);
 
       const stats = await statPath(anime.root_folder);
-      assertEquals(stats.type === "Directory", true);
+      assert.deepStrictEqual(stats.type === "Directory", true);
     });
   },
 );
@@ -4356,12 +4384,12 @@ itWithTestContext("import scan matches local anime by parsed filename", async (c
             method: "POST",
           });
 
-          assertEquals(scanResponse.status, 200);
+          assert.deepStrictEqual(scanResponse.status, 200);
           const scanBody = await scanResponse.json();
-          assertEquals(scanBody.files.length, 2);
-          assertEquals(scanBody.files[0].matched_anime?.id, 11061);
-          assertEquals(scanBody.files[0].suggested_candidate_id, 11061);
-          assertEquals(scanBody.files[1].suggested_candidate_id, 140960);
+          assert.deepStrictEqual(scanBody.files.length, 2);
+          assert.deepStrictEqual(scanBody.files[0].matched_anime?.id, 11061);
+          assert.deepStrictEqual(scanBody.files[0].suggested_candidate_id, 11061);
+          assert.deepStrictEqual(scanBody.files[1].suggested_candidate_id, 140960);
         } finally {
           await removePath(spyFolder, { recursive: true }).catch(() => undefined);
         }
@@ -4410,8 +4438,8 @@ itWithTestContext("bulk map accepts empty file path as unmap", async (ctx) => {
       headers: { Cookie: sessionCookie },
     });
     const episodes = await episodesResponse.json();
-    assertEquals(episodes[0].downloaded, false);
-    assertEquals(episodes[0].file_path, undefined);
+    assert.deepStrictEqual(episodes[0].downloaded, false);
+    assert.deepStrictEqual(episodes[0].file_path, undefined);
   });
 });
 

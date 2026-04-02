@@ -1,7 +1,8 @@
 import { FileSystem as PlatformFileSystem } from "@effect/platform";
 import { Cause, Effect } from "effect";
 
-import { assertEquals, assertInstanceOf, assertThrows, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { makeNoopTestFileSystemEffect } from "@/test/filesystem-test.ts";
 
 import {
@@ -13,25 +14,37 @@ import {
 } from "@/lib/filesystem.ts";
 
 it("isWithinPathRoot only matches the configured root boundary", () => {
-  assertEquals(isWithinPathRoot("/data/downloads", "/data/downloads"), true);
-  assertEquals(isWithinPathRoot("/data/downloads/show/episode.mkv", "/data/downloads"), true);
-  assertEquals(isWithinPathRoot("/data/downloads-evil/show/episode.mkv", "/data/downloads"), false);
-  assertEquals(isWithinPathRoot("/data/downloads-other", "/data/downloads/"), false);
+  assert.deepStrictEqual(isWithinPathRoot("/data/downloads", "/data/downloads"), true);
+  assert.deepStrictEqual(
+    isWithinPathRoot("/data/downloads/show/episode.mkv", "/data/downloads"),
+    true,
+  );
+  assert.deepStrictEqual(
+    isWithinPathRoot("/data/downloads-evil/show/episode.mkv", "/data/downloads"),
+    false,
+  );
+  assert.deepStrictEqual(isWithinPathRoot("/data/downloads-other", "/data/downloads/"), false);
 });
 
 it("isWithinPathRoot accepts Windows-style child paths", () => {
-  assertEquals(isWithinPathRoot("C:\\downloads\\show\\episode.mkv", "C:\\downloads"), true);
-  assertEquals(isWithinPathRoot("C:\\downloads-evil\\show\\episode.mkv", "C:\\downloads"), false);
+  assert.deepStrictEqual(
+    isWithinPathRoot("C:\\downloads\\show\\episode.mkv", "C:\\downloads"),
+    true,
+  );
+  assert.deepStrictEqual(
+    isWithinPathRoot("C:\\downloads-evil\\show\\episode.mkv", "C:\\downloads"),
+    false,
+  );
 });
 
 it("isWithinPathRoot handles relative paths", () => {
-  assertEquals(isWithinPathRoot("./library/show/episode.mkv", "./library"), true);
-  assertEquals(isWithinPathRoot("./library-evil/show/episode.mkv", "./library"), false);
+  assert.deepStrictEqual(isWithinPathRoot("./library/show/episode.mkv", "./library"), true);
+  assert.deepStrictEqual(isWithinPathRoot("./library-evil/show/episode.mkv", "./library"), false);
 });
 
 it("sanitizePathSegment rejects traversal and nested path inputs", () => {
   for (const value of ["../etc", "..", "nested/show", "nested\\show", ""]) {
-    assertThrows(() => sanitizePathSegment(value), PathSegmentError);
+    assert.throws(() => sanitizePathSegment(value), PathSegmentError);
   }
 });
 
@@ -40,23 +53,23 @@ it("sanitizePathSegment allows plain folder names within root", () => {
   const libraryRoot = "/library";
   const folderPath = `${libraryRoot}/${segment}`;
 
-  assertEquals(segment, "My Show Season 2");
-  assertEquals(isWithinPathRoot(folderPath, libraryRoot), true);
+  assert.deepStrictEqual(segment, "My Show Season 2");
+  assert.deepStrictEqual(isWithinPathRoot(folderPath, libraryRoot), true);
 });
 
 it.effect("sanitizePathSegmentEffect rejects traversal inputs with typed errors", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(sanitizePathSegmentEffect("nested/show"));
 
-    assertEquals(exit._tag, "Failure");
+    assert.deepStrictEqual(exit._tag, "Failure");
 
     if (exit._tag === "Failure") {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
 
       if (failure._tag === "Some") {
-        assertInstanceOf(failure.value, PathSegmentError);
-        assertEquals(failure.value.message, "Invalid path segment");
+        assert.ok(failure.value instanceof PathSegmentError);
+        assert.deepStrictEqual(failure.value.message, "Invalid path segment");
       }
     }
   }),
@@ -76,15 +89,15 @@ it.effect("openFile.seek rejects unsupported seek modes with typed errors", () =
       ),
     );
 
-    assertEquals(exit._tag, "Failure");
+    assert.deepStrictEqual(exit._tag, "Failure");
 
     if (exit._tag === "Failure") {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
 
       if (failure._tag === "Some") {
-        assertInstanceOf(failure.value, FileSystemError);
-        assertEquals(failure.value.message, "Unsupported seek mode: 2");
+        assert.ok(failure.value instanceof FileSystemError);
+        assert.deepStrictEqual(failure.value.message, "Unsupported seek mode: 2");
       }
     }
   }),

@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 
@@ -34,13 +35,13 @@ it.scoped("upsertEpisodeFilesAtomic inserts multiple episodes atomically", () =>
         const rows = yield* Effect.tryPromise(() =>
           appDb.select().from(schema.episodes).where(eq(schema.episodes.animeId, 1)),
         );
-        assertEquals(rows.length, 3);
+        assert.deepStrictEqual(rows.length, 3);
 
         const numbers = rows.map((r) => r.number).sort((a, b) => a - b);
-        assertEquals(numbers, [1, 2, 3]);
+        assert.deepStrictEqual(numbers, [1, 2, 3]);
 
-        assertEquals(rows[0].downloaded, true);
-        assertEquals(rows[0].filePath, "/test/episode.mkv");
+        assert.deepStrictEqual(rows[0].downloaded, true);
+        assert.deepStrictEqual(rows[0].filePath, "/test/episode.mkv");
       }),
     schema,
   }),
@@ -85,11 +86,11 @@ it.scoped("upsertEpisodeFilesAtomic updates existing episodes", () =>
             .orderBy(schema.episodes.number),
         );
 
-        assertEquals(rows.length, 2);
-        assertEquals(rows[0].downloaded, true);
-        assertEquals(rows[0].filePath, "/new.mkv");
-        assertEquals(rows[1].downloaded, true);
-        assertEquals(rows[1].filePath, "/new.mkv");
+        assert.deepStrictEqual(rows.length, 2);
+        assert.deepStrictEqual(rows[0].downloaded, true);
+        assert.deepStrictEqual(rows[0].filePath, "/new.mkv");
+        assert.deepStrictEqual(rows[1].downloaded, true);
+        assert.deepStrictEqual(rows[1].filePath, "/new.mkv");
       }),
     schema,
   }),
@@ -120,7 +121,7 @@ it.scoped("upsertEpisodeFilesAtomic handles empty episode list", () =>
         yield* upsertEpisodeFilesAtomic(appDb, 1, [], "/test/episode.mkv");
 
         const rows = yield* Effect.tryPromise(() => appDb.select().from(schema.episodes));
-        assertEquals(rows.length, 0);
+        assert.deepStrictEqual(rows.length, 0);
       }),
     schema,
   }),

@@ -1,4 +1,5 @@
-import { assert, assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Effect, Either, Fiber, TestClock } from "effect";
 
 import type { ClockServiceShape } from "@/lib/clock.ts";
@@ -23,8 +24,8 @@ it.effect("tryExternal retries transient failures", () =>
 
     const result = yield* Fiber.join(fiber);
 
-    assertEquals(result, "ok");
-    assertEquals(attempts, 3);
+    assert.deepStrictEqual(result, "ok");
+    assert.deepStrictEqual(attempts, 3);
   }),
 );
 
@@ -52,8 +53,8 @@ it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
 
     const result = yield* Fiber.join(fiber);
 
-    assert(Either.isLeft(result));
-    assert(result.left instanceof ExternalCallError);
+    assert.ok(Either.isLeft(result));
+    assert.ok(result.left instanceof ExternalCallError);
   }),
 );
 
@@ -70,10 +71,10 @@ it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
       { idempotent: false },
     )().pipe(Effect.either);
 
-    assert(Either.isLeft(result));
-    assert(result.left instanceof ExternalCallError);
-    assertEquals(result.left.operation, "test.non-idempotent");
-    assertEquals(attempts, 1);
+    assert.ok(Either.isLeft(result));
+    assert.ok(result.left instanceof ExternalCallError);
+    assert.deepStrictEqual(result.left.operation, "test.non-idempotent");
+    assert.deepStrictEqual(attempts, 1);
   }),
 );
 

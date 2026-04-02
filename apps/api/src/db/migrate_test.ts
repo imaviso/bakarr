@@ -1,10 +1,11 @@
+import assert from "node:assert/strict";
 import * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
 import { Context, Effect, Exit, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
 import { migrateDatabase } from "@/db/migrate.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 
 it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
   withFileSystemSandboxEffect(({ root }) =>
@@ -29,8 +30,8 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
         const first = yield* Effect.exit(migrateDatabase().pipe(Effect.provide(databaseLayer)));
         const second = yield* Effect.exit(migrateDatabase().pipe(Effect.provide(databaseLayer)));
 
-        assertEquals(Exit.isSuccess(first), true);
-        assertEquals(Exit.isSuccess(second), true);
+        assert.deepStrictEqual(Exit.isSuccess(first), true);
+        assert.deepStrictEqual(Exit.isSuccess(second), true);
       }),
     ),
   ),

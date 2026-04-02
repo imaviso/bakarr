@@ -1,6 +1,7 @@
+import assert from "node:assert/strict";
 import { Cause, Effect, Exit, Layer } from "effect";
 
-import { assertEquals, describe, it } from "@/test/vitest.ts";
+import { describe, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { FileSystem, FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
 import {
@@ -35,10 +36,10 @@ describe("LibraryBrowseService", () => {
         path: "/allowed/library",
       });
 
-      assertEquals(result.limit, 100);
-      assertEquals(result.entries.length, 100);
-      assertEquals(result.has_more, true);
-      assertEquals(result.total, 150);
+      assert.deepStrictEqual(result.limit, 100);
+      assert.deepStrictEqual(result.entries.length, 100);
+      assert.deepStrictEqual(result.has_more, true);
+      assert.deepStrictEqual(result.total, 150);
     }),
   );
 
@@ -61,13 +62,13 @@ describe("LibraryBrowseService", () => {
         }),
       );
 
-      assertEquals(exit._tag, "Failure");
+      assert.deepStrictEqual(exit._tag, "Failure");
 
       if (Exit.isFailure(exit)) {
         const failure = Cause.failureOption(exit.cause);
-        assertEquals(failure._tag, "Some");
+        assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assertEquals(failure.value._tag, "OperationsPathError");
+          assert.deepStrictEqual(failure.value._tag, "OperationsPathError");
         }
       }
     }),
@@ -101,13 +102,13 @@ describe("LibraryBrowseService", () => {
         }),
       );
 
-      assertEquals(exit._tag, "Failure");
+      assert.deepStrictEqual(exit._tag, "Failure");
 
       if (Exit.isFailure(exit)) {
         const failure = Cause.failureOption(exit.cause);
-        assertEquals(failure._tag, "Some");
+        assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assertEquals(failure.value._tag, "OperationsPathError");
+          assert.deepStrictEqual(failure.value._tag, "OperationsPathError");
         }
       }
     }),

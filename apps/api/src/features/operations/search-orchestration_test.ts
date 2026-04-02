@@ -1,8 +1,9 @@
+import assert from "node:assert/strict";
 import { Cause, Effect, Exit } from "effect";
 
 import { anime } from "@/db/schema.ts";
 import type { AppDatabase } from "@/db/database.ts";
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { RssClient } from "@/features/operations/rss-client.ts";
@@ -78,12 +79,12 @@ it.effect(
         ),
       );
 
-      assertEquals(Exit.isFailure(exit), true);
+      assert.deepStrictEqual(Exit.isFailure(exit), true);
       if (Exit.isFailure(exit)) {
         const failure = Cause.failureOption(exit.cause);
-        assertEquals(failure._tag, "Some");
+        assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assertEquals(failure.value._tag, "ExternalCallError");
+          assert.deepStrictEqual(failure.value._tag, "ExternalCallError");
         }
       }
     }),

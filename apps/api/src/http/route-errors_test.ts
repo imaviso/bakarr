@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 import { DatabaseError } from "@/db/database.ts";
 import { AnimeConflictError, AnimeNotFoundError, AnimePathError } from "@/features/anime/errors.ts";
@@ -17,6 +18,7 @@ import {
 import { ExternalCallError } from "@/lib/effect-retry.ts";
 import {
   ConfigValidationError,
+  ImageAssetAccessError,
   ImageAssetNotFoundError,
   ImageAssetTooLargeError,
   ProfileNotFoundError,
@@ -60,6 +62,13 @@ it("route errors maps known tagged errors to expected responses", () => {
     {
       error: new AnimeNotFoundError({ message: "anime missing" }),
       expected: { message: "anime missing", status: 404 },
+    },
+    {
+      error: new ImageAssetAccessError({
+        message: "Image asset bytes could not be read",
+        status: 500,
+      }),
+      expected: { message: "Image asset bytes could not be read", status: 500 },
     },
     {
       error: new ImageAssetNotFoundError({ message: "Not Found", status: 404 }),
@@ -154,12 +163,12 @@ it("route errors maps known tagged errors to expected responses", () => {
   ] as const;
 
   for (const testCase of cases) {
-    assertEquals(mapRouteError(testCase.error), testCase.expected);
+    assert.deepStrictEqual(mapRouteError(testCase.error), testCase.expected);
   }
 });
 
 it("route errors preserves range headers for episode streaming", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     mapRouteError(
       new EpisodeStreamRangeError({
         fileSize: 1024,
@@ -176,19 +185,22 @@ it("route errors preserves range headers for episode streaming", () => {
 });
 
 it("route errors falls back for unknown failures", () => {
-  assertEquals(mapRouteError(new Error("boom")), {
+  assert.deepStrictEqual(mapRouteError(new Error("boom")), {
     message: "Unexpected server error",
     status: 500,
   });
-  assertEquals(mapRouteError("boom"), {
+  assert.deepStrictEqual(mapRouteError("boom"), {
     message: "Unexpected server error",
     status: 500,
   });
 });
 
 it("auth route errors map auth failures locally", () => {
-  assertEquals(mapAuthRouteError({ _tag: "AuthError", message: "forbidden", status: 403 }), {
-    message: "forbidden",
-    status: 403,
-  });
+  assert.deepStrictEqual(
+    mapAuthRouteError({ _tag: "AuthError", message: "forbidden", status: 403 }),
+    {
+      message: "forbidden",
+      status: 403,
+    },
+  );
 });

@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 import {
   BackgroundWorkerSnapshotModel,
@@ -47,11 +48,11 @@ it("background status composes persisted job rows with live running state", () =
   ]);
   const rssJob = findBackgroundJobStatus(jobs, "rss");
 
-  assertEquals(rssJob?.is_running, true);
-  assertEquals(rssJob?.last_status, "running");
-  assertEquals(rssJob?.last_run_at, "2024-01-03T00:00:00.000Z");
-  assertEquals(rssJob?.run_count, 4);
-  assertEquals(countRunningBackgroundJobStatuses(jobs), 1);
+  assert.deepStrictEqual(rssJob?.is_running, true);
+  assert.deepStrictEqual(rssJob?.last_status, "running");
+  assert.deepStrictEqual(rssJob?.last_run_at, "2024-01-03T00:00:00.000Z");
+  assert.deepStrictEqual(rssJob?.run_count, 4);
+  assert.deepStrictEqual(countRunningBackgroundJobStatuses(jobs), 1);
 });
 
 it("background status falls back to live failure details for workers without history rows", () => {
@@ -78,8 +79,8 @@ it("background status falls back to live failure details for workers without his
   const downloadSyncJob = findBackgroundJobStatus(jobs, "download_sync");
   const metadataRefreshJob = findBackgroundJobStatus(jobs, "metadata_refresh");
 
-  assertEquals(downloadSyncJob?.last_status, "failed");
-  assertEquals(downloadSyncJob?.last_message, "sync failed");
-  assertEquals(downloadSyncJob?.run_count, 1);
-  assertEquals(metadataRefreshJob?.schedule_value, "24h");
+  assert.deepStrictEqual(downloadSyncJob?.last_status, "failed");
+  assert.deepStrictEqual(downloadSyncJob?.last_message, "sync failed");
+  assert.deepStrictEqual(downloadSyncJob?.run_count, 1);
+  assert.deepStrictEqual(metadataRefreshJob?.schedule_value, "24h");
 });

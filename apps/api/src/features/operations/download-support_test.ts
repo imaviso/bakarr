@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
 import { anime } from "@/db/schema.ts";
@@ -30,13 +31,13 @@ it("download support helpers use config values and defaults", () => {
     },
   }));
 
-  assertEquals(shouldReconcileCompletedDownloads(config), false);
-  assertEquals(shouldRemoveTorrentOnImport(config), false);
-  assertEquals(shouldDeleteImportedData(config), true);
+  assert.deepStrictEqual(shouldReconcileCompletedDownloads(config), false);
+  assert.deepStrictEqual(shouldRemoveTorrentOnImport(config), false);
+  assert.deepStrictEqual(shouldDeleteImportedData(config), true);
 
-  assertEquals(shouldReconcileCompletedDownloads(null), true);
-  assertEquals(shouldRemoveTorrentOnImport(undefined), true);
-  assertEquals(shouldDeleteImportedData(undefined), false);
+  assert.deepStrictEqual(shouldReconcileCompletedDownloads(null), true);
+  assert.deepStrictEqual(shouldRemoveTorrentOnImport(undefined), true);
+  assert.deepStrictEqual(shouldDeleteImportedData(undefined), false);
 });
 
 it.scoped("importDownloadedFile keeps existing destination when staging copy fails", () =>
@@ -75,9 +76,9 @@ it.scoped("importDownloadedFile keeps existing destination when staging copy fai
         ),
       );
 
-      assertEquals(exit._tag, "Failure");
+      assert.deepStrictEqual(exit._tag, "Failure");
       const destinationContents = yield* readTextFile(fs, destinationPath);
-      assertEquals(destinationContents, "existing");
+      assert.deepStrictEqual(destinationContents, "existing");
     }),
   ),
 );
@@ -118,11 +119,11 @@ it.scoped(
           ),
         );
 
-        assertEquals(Exit.isFailure(exit), true);
-        assertEquals(yield* readTextFile(fs, sourcePath), "incoming");
+        assert.deepStrictEqual(Exit.isFailure(exit), true);
+        assert.deepStrictEqual(yield* readTextFile(fs, sourcePath), "incoming");
         if (Exit.isFailure(exit)) {
           const failure = Cause.failureOption(exit.cause);
-          assertEquals(failure._tag, "Some");
+          assert.deepStrictEqual(failure._tag, "Some");
         }
       }),
     ),
@@ -156,9 +157,9 @@ it.scoped(
           { namingFormat, randomUuid: testRandomUuid },
         );
 
-        assertEquals(destination, expectedDestination);
-        assertEquals(yield* readTextFile(fs, destination), "incoming");
-        assertEquals(yield* readTextFile(fs, sourcePath), "incoming");
+        assert.deepStrictEqual(destination, expectedDestination);
+        assert.deepStrictEqual(yield* readTextFile(fs, destination), "incoming");
+        assert.deepStrictEqual(yield* readTextFile(fs, sourcePath), "incoming");
       }),
     );
   },
@@ -194,7 +195,7 @@ it.scoped("importDownloadedFile respects preferred title when building destinati
         },
       );
 
-      assertEquals(destination, expectedDestination);
+      assert.deepStrictEqual(destination, expectedDestination);
     }),
   ),
 );
@@ -228,7 +229,7 @@ it.scoped("importDownloadedFile uses episode DB metadata and fallback naming pla
         },
       );
 
-      assertEquals(destination, expectedDestination);
+      assert.deepStrictEqual(destination, expectedDestination);
     }),
   ),
 );
@@ -270,7 +271,7 @@ it.scoped("importDownloadedFile reuses stored provenance when source path is wea
         },
       );
 
-      assertEquals(destination, expectedDestination);
+      assert.deepStrictEqual(destination, expectedDestination);
     }),
   ),
 );
@@ -310,7 +311,7 @@ it.scoped("importDownloadedFile uses local media metadata when heuristics are mi
         },
       );
 
-      assertEquals(destination, expectedDestination);
+      assert.deepStrictEqual(destination, expectedDestination);
     }),
   ),
 );

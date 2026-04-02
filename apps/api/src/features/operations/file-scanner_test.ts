@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 import { Effect, Stream } from "effect";
 
@@ -26,7 +27,10 @@ it.effect("scanVideoFilesStream streams matching files from accessible tree", ()
       Effect.map((items) => Array.from(items, (file) => file.path)),
     );
 
-    assertEquals(files, ["/library/show/episode-01.mkv", "/library/show/season-2/episode-02.mp4"]);
+    assert.deepStrictEqual(files, [
+      "/library/show/episode-01.mkv",
+      "/library/show/season-2/episode-02.mp4",
+    ]);
   }),
 );
 
@@ -35,7 +39,7 @@ it.effect("scanVideoFiles collects iterator output", () =>
     const mockFs = yield* makeAccessibleMockFs();
     const files = yield* scanVideoFiles(mockFs, "/library");
 
-    assertEquals(files, [
+    assert.deepStrictEqual(files, [
       {
         name: "episode-01.mkv",
         path: "/library/show/episode-01.mkv",
@@ -55,7 +59,7 @@ it.effect("scanVideoFiles fails when the root path is inaccessible", () =>
     const mockFs = yield* makeMockFs();
     const exit = yield* Effect.exit(scanVideoFiles(mockFs, "/library/show/season-2/broken"));
 
-    assertEquals(exit._tag, "Failure");
+    assert.deepStrictEqual(exit._tag, "Failure");
   }),
 );
 
@@ -81,8 +85,11 @@ it.effect("scanVideoFilesStream uses streaming dir reader when available", () =>
       Effect.map((items) => Array.from(items, (file) => file.path)),
     );
 
-    assertEquals(files, ["/library/show/episode-01.mkv", "/library/show/season-2/episode-02.mp4"]);
-    assertEquals(streamed > 0, true);
+    assert.deepStrictEqual(files, [
+      "/library/show/episode-01.mkv",
+      "/library/show/season-2/episode-02.mp4",
+    ]);
+    assert.deepStrictEqual(streamed > 0, true);
   }),
 );
 
@@ -126,8 +133,8 @@ it.effect("scanVideoFilesStream handles symlink cycles without infinite recursio
       Effect.map((items) => Array.from(items, (file) => file.path)),
     );
 
-    assertEquals(files.length, 1);
-    assertEquals(files[0], "/library/show/episode.mkv");
+    assert.deepStrictEqual(files.length, 1);
+    assert.deepStrictEqual(files[0], "/library/show/episode.mkv");
   }),
 );
 
@@ -185,7 +192,7 @@ it.effect("scanVideoFilesStream fails when encountering inaccessible subdirector
       Stream.runCollect(scanVideoFilesStream(inaccessibleFs, "/library")),
     );
 
-    assertEquals(exit._tag, "Failure");
+    assert.deepStrictEqual(exit._tag, "Failure");
   }),
 );
 

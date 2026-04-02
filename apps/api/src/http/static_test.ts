@@ -1,8 +1,9 @@
+import assert from "node:assert/strict";
 import { HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
 import { createEmbeddedWebResponse, type EmbeddedWebAsset } from "@/http/embedded-web.ts";
-import { assertEquals, assertMatch, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 
 it.effect("static app falls back to index.html for app routes", () =>
   Effect.gen(function* () {
@@ -13,8 +14,8 @@ it.effect("static app falls back to index.html for app routes", () =>
       url: "http://bakarr.local/library",
     });
 
-    assertEquals(response.status, 200);
-    assertMatch(yield* Effect.promise(() => response.text()), /app shell/);
+    assert.deepStrictEqual(response.status, 200);
+    assert.match(yield* Effect.promise(() => response.text()), /app shell/);
   }),
 );
 
@@ -27,8 +28,8 @@ it.effect("static app returns 404 for missing asset paths instead of serving ind
       url: "http://bakarr.local/assets/app.js",
     });
 
-    assertEquals(response.status, 404);
-    assertMatch(yield* Effect.promise(() => response.text()), /not found/i);
+    assert.deepStrictEqual(response.status, 404);
+    assert.match(yield* Effect.promise(() => response.text()), /not found/i);
   }),
 );
 
@@ -39,8 +40,8 @@ it.effect("static app returns 503 when the embedded app shell is unavailable", (
       url: "http://bakarr.local/library",
     });
 
-    assertEquals(response.status, 503);
-    assertMatch(yield* Effect.promise(() => response.text()), /bundle unavailable/i);
+    assert.deepStrictEqual(response.status, 503);
+    assert.match(yield* Effect.promise(() => response.text()), /bundle unavailable/i);
   }),
 );
 

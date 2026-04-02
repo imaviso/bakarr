@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Cause, Effect, Exit, Schema } from "effect";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
@@ -44,9 +45,9 @@ it.scoped("upsertEpisode prevents duplicate anime episode rows", () =>
       const rows = yield* Effect.promise(() =>
         db.select().from(episodes).where(eq(episodes.animeId, 1)),
       );
-      assertEquals(rows.length, 1);
-      assertEquals(rows[0]?.number, 1);
-      assertEquals(rows[0]?.title, "Episode 1 updated");
+      assert.deepStrictEqual(rows.length, 1);
+      assert.deepStrictEqual(rows[0]?.number, 1);
+      assert.deepStrictEqual(rows[0]?.title, "Episode 1 updated");
     }),
   ),
 );
@@ -106,7 +107,7 @@ it.scoped("ensureEpisodes rejects duplicate episode inserts for same anime", () 
           }),
         ),
       );
-      assertEquals(duplicateInsert._tag, "Failure");
+      assert.deepStrictEqual(duplicateInsert._tag, "Failure");
     }),
   ),
 );
@@ -185,7 +186,7 @@ it.scoped("insertAnimeAggregateAtomic rolls back anime inserts when a later writ
           },
         }),
       );
-      assertEquals(exit._tag, "Failure");
+      assert.deepStrictEqual(exit._tag, "Failure");
 
       const animeRows = yield* Effect.promise(() =>
         db.select().from(anime).where(eq(anime.id, 77)),
@@ -197,9 +198,9 @@ it.scoped("insertAnimeAggregateAtomic rolls back anime inserts when a later writ
         db.select().from(systemLogs).where(eq(systemLogs.message, "This should fail")),
       );
 
-      assertEquals(animeRows.length, 0);
-      assertEquals(episodeRows.length, 0);
-      assertEquals(logRows.length, 0);
+      assert.deepStrictEqual(animeRows.length, 0);
+      assert.deepStrictEqual(episodeRows.length, 0);
+      assert.deepStrictEqual(logRows.length, 0);
     }),
   ),
 );
@@ -234,8 +235,8 @@ it("buildMissingEpisodeRows creates rows only for missing episodes", () => {
     ],
   });
 
-  assertEquals(rows.length, 2);
-  assertEquals(
+  assert.deepStrictEqual(rows.length, 2);
+  assert.deepStrictEqual(
     rows.map((row) => row.number),
     [2, 3],
   );
@@ -251,7 +252,7 @@ it("inferAiredAt prefers AniList future schedule over heuristics", () => {
     new Map([[12, "2024-03-20T12:00:00.000Z"]]),
   );
 
-  assertEquals(airedAt, "2024-03-20T12:00:00.000Z");
+  assert.deepStrictEqual(airedAt, "2024-03-20T12:00:00.000Z");
 });
 
 it.scoped("resolveAnimeRootFolder can preserve an existing folder root", () =>
@@ -264,7 +265,7 @@ it.scoped("resolveAnimeRootFolder can preserve an existing folder root", () =>
         { useExistingRoot: true },
       );
 
-      assertEquals(rootFolder, "/library/Naruto Fansub");
+      assert.deepStrictEqual(rootFolder, "/library/Naruto Fansub");
     }),
   ),
 );
@@ -281,22 +282,22 @@ it.scoped("anime repository helpers fail explicitly on corrupt stored config", (
       );
 
       const rootFolderExit = yield* Effect.exit(resolveAnimeRootFolderEffect(db, "", "Naruto"));
-      assertEquals(Exit.isFailure(rootFolderExit), true);
+      assert.deepStrictEqual(Exit.isFailure(rootFolderExit), true);
       if (Exit.isFailure(rootFolderExit)) {
         const failure = Cause.failureOption(rootFolderExit.cause);
-        assertEquals(failure._tag, "Some");
+        assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assertEquals(failure.value._tag, "AnimeStoredDataError");
+          assert.deepStrictEqual(failure.value._tag, "AnimeStoredDataError");
         }
       }
 
       const imagesPathExit = yield* Effect.exit(getConfiguredImagesPathEffect(db));
-      assertEquals(Exit.isFailure(imagesPathExit), true);
+      assert.deepStrictEqual(Exit.isFailure(imagesPathExit), true);
       if (Exit.isFailure(imagesPathExit)) {
         const failure = Cause.failureOption(imagesPathExit.cause);
-        assertEquals(failure._tag, "Some");
+        assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assertEquals(failure.value._tag, "AnimeStoredDataError");
+          assert.deepStrictEqual(failure.value._tag, "AnimeStoredDataError");
         }
       }
     }),
@@ -322,9 +323,12 @@ it.scoped("anime repository helpers use stored config when available", () =>
         }),
       );
 
-      assertEquals(yield* resolveAnimeRootFolderEffect(db, "", "Naruto"), "/anime-library");
-      assertEquals(yield* getConfiguredImagesPathEffect(db), "./custom-images");
-      assertEquals(yield* getConfiguredLibraryPathEffect(db), "/anime-library");
+      assert.deepStrictEqual(
+        yield* resolveAnimeRootFolderEffect(db, "", "Naruto"),
+        "/anime-library",
+      );
+      assert.deepStrictEqual(yield* getConfiguredImagesPathEffect(db), "./custom-images");
+      assert.deepStrictEqual(yield* getConfiguredLibraryPathEffect(db), "/anime-library");
     }),
   ),
 );
@@ -332,7 +336,7 @@ it.scoped("anime repository helpers use stored config when available", () =>
 it.scoped("qualityProfileExistsEffect checks stored quality profile rows", () =>
   withTestDbEffect((db) =>
     Effect.gen(function* () {
-      assertEquals(yield* qualityProfileExistsEffect(db, "Standard"), false);
+      assert.deepStrictEqual(yield* qualityProfileExistsEffect(db, "Standard"), false);
 
       yield* Effect.promise(() =>
         db.insert(qualityProfiles).values({
@@ -346,7 +350,7 @@ it.scoped("qualityProfileExistsEffect checks stored quality profile rows", () =>
         }),
       );
 
-      assertEquals(yield* qualityProfileExistsEffect(db, "Standard"), true);
+      assert.deepStrictEqual(yield* qualityProfileExistsEffect(db, "Standard"), true);
     }),
   ),
 );
@@ -395,8 +399,8 @@ it.scoped("markSearchResultsAlreadyInLibrary annotates local matches", () =>
         },
       ]);
 
-      assertEquals(results[0]?.already_in_library, true);
-      assertEquals(results[1]?.already_in_library, false);
+      assert.deepStrictEqual(results[0]?.already_in_library, true);
+      assert.deepStrictEqual(results[1]?.already_in_library, false);
     }),
   ),
 );
@@ -407,8 +411,8 @@ it.scoped("findAnimeRootFolderOwner returns the mapped anime for a root", () =>
       yield* insertAnimeEffect(db, 20, 12);
 
       const owner = yield* findAnimeRootFolderOwnerEffect(db, "/library/Show-20");
-      assertEquals(owner?.id, 20);
-      assertEquals(owner?.titleRomaji, "Show 20");
+      assert.deepStrictEqual(owner?.id, 20);
+      assert.deepStrictEqual(owner?.titleRomaji, "Show 20");
     }),
   ),
 );
@@ -420,7 +424,7 @@ it.scoped("findAnimeRootFolderOwner handles trailing slash parents", () =>
 
       const owner = yield* findAnimeRootFolderOwnerEffect(db, "/library/Naruto/Season 1");
 
-      assertEquals(owner?.id, 21);
+      assert.deepStrictEqual(owner?.id, 21);
     }),
   ),
 );
@@ -433,7 +437,7 @@ it.scoped("anime root-folder triggers reject overlapping roots", () =>
       const overlappingInsert = yield* Effect.exit(
         Effect.tryPromise(() => insertAnimeWithRoot(db, 31, 12, "/library/Naruto/Season 1")),
       );
-      assertEquals(overlappingInsert._tag, "Failure");
+      assert.deepStrictEqual(overlappingInsert._tag, "Failure");
     }),
   ),
 );

@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Either, Layer, Option } from "effect";
 
@@ -39,7 +40,10 @@ it.effect("SeaDexClient fetches and decodes entry by AniList ID", () =>
       ),
     );
 
-    assertEquals(result, Option.some(expectedEntry()));
+    assert.deepStrictEqual(Option.isSome(result), true);
+    if (Option.isSome(result)) {
+      assert.deepStrictEqual(structuredClone(result.value), expectedEntry());
+    }
   }),
 );
 
@@ -49,7 +53,7 @@ it.effect("SeaDexClient returns none when entry is missing", () =>
       client.getEntryByAniListId(999),
     ).pipe(Effect.provide(makeSeaDexLayer({ items: [] })));
 
-    assertEquals(result, Option.none());
+    assert.deepStrictEqual(result, Option.none());
   }),
 );
 
@@ -74,10 +78,10 @@ it.effect("SeaDexClient wraps schema mismatches as ExternalCallError", () =>
       ),
     );
 
-    assertEquals(Either.isLeft(result), true);
+    assert.deepStrictEqual(Either.isLeft(result), true);
     if (Either.isLeft(result)) {
-      assertEquals(result.left instanceof ExternalCallError, true);
-      assertEquals(result.left.message, "SeaDex response decode failed");
+      assert.deepStrictEqual(result.left instanceof ExternalCallError, true);
+      assert.deepStrictEqual(result.left.message, "SeaDex response decode failed");
     }
   }),
 );
@@ -95,7 +99,7 @@ function makeSeaDexLayer(payload: unknown) {
 
 function makeSeaDexHttpClient(payload: unknown) {
   return HttpClient.make((request, url) => {
-    assertEquals(url.pathname, "/api/collections/entries/records");
+    assert.deepStrictEqual(url.pathname, "/api/collections/entries/records");
 
     return Effect.succeed(
       HttpClientResponse.fromWeb(

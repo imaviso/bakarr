@@ -1,4 +1,5 @@
-import { assertEquals, assertMatch, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Schema } from "effect";
 
 import { formatValidationErrorMessage } from "@/http/route-validation.ts";
@@ -103,12 +104,12 @@ it("ConfigSchema rejects malformed config fields with localized paths", () => {
     },
   });
 
-  assertEquals(result._tag, "Left");
+  assert.deepStrictEqual(result._tag, "Left");
 
   if (result._tag === "Left") {
-    assertMatch(result.left.message, /remote_path_mappings/);
-    assertMatch(result.left.message, /import_mode/);
-    assertMatch(result.left.message, /preferred_title/);
+    assert.match(result.left.message, /remote_path_mappings/);
+    assert.match(result.left.message, /import_mode/);
+    assert.match(result.left.message, /preferred_title/);
   }
 });
 
@@ -122,17 +123,17 @@ it("formatValidationErrorMessage formats schema errors as concise path summaries
   };
   const result = Schema.decodeUnknownEither(ConfigSchema)(input);
 
-  assertEquals(result._tag, "Left");
+  assert.deepStrictEqual(result._tag, "Left");
 
   if (result._tag === "Left") {
     const message = formatValidationErrorMessage(
       "Invalid request body for system config",
       result.left,
     );
-    assertMatch(message, /system config/);
-    assertMatch(message, /library\.import_mode/);
-    assertMatch(message, /actual "Copy"/);
-    assertEquals(message.includes("readonly downloads"), false);
+    assert.match(message, /system config/);
+    assert.match(message, /library\.import_mode/);
+    assert.match(message, /actual "Copy"/);
+    assert.deepStrictEqual(message.includes("readonly downloads"), false);
   }
 });
 
@@ -150,11 +151,11 @@ it("SearchDownloadBodySchema rejects non-positive and fractional identifiers", (
     { errors: "all" },
   );
 
-  assertEquals(result._tag, "Left");
+  assert.deepStrictEqual(result._tag, "Left");
 
   if (result._tag === "Left") {
-    assertMatch(result.left.message, /anime_id/);
-    assertMatch(result.left.message, /episode_number/);
+    assert.match(result.left.message, /anime_id/);
+    assert.match(result.left.message, /episode_number/);
   }
 });
 
@@ -184,7 +185,7 @@ it("SearchDownloadBodySchema accepts structured release metadata", () => {
     title: "[SubsPlease] Show - 02 (1080p)",
   });
 
-  assertEquals(result._tag, "Right");
+  assert.deepStrictEqual(result._tag, "Right");
 });
 
 it("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids", () => {
@@ -214,16 +215,16 @@ it("AddAnimeInputSchema and ImportFilesBodySchema require positive integer ids",
     { errors: "all" },
   );
 
-  assertEquals(addAnime._tag, "Left");
-  assertEquals(importFiles._tag, "Left");
+  assert.deepStrictEqual(addAnime._tag, "Left");
+  assert.deepStrictEqual(importFiles._tag, "Left");
 
   if (addAnime._tag === "Left") {
-    assertMatch(addAnime.left.message, /id/);
-    assertMatch(addAnime.left.message, /release_profile_ids/);
+    assert.match(addAnime.left.message, /id/);
+    assert.match(addAnime.left.message, /release_profile_ids/);
   }
 
   if (importFiles._tag === "Left") {
-    assertMatch(importFiles.left.message, /episode_number/);
+    assert.match(importFiles.left.message, /episode_number/);
   }
 });
 
@@ -248,7 +249,7 @@ it("ImportFilesBodySchema accepts source metadata for naming reuse", () => {
     ],
   });
 
-  assertEquals(importFiles._tag, "Right");
+  assert.deepStrictEqual(importFiles._tag, "Right");
 });
 
 it("DownloadEventsQuerySchema accepts filtered query params", () => {
@@ -264,7 +265,7 @@ it("DownloadEventsQuerySchema accepts filtered query params", () => {
     status: "imported",
   });
 
-  assertEquals(query._tag, "Right");
+  assert.deepStrictEqual(query._tag, "Right");
 });
 
 it("DownloadEventsExportQuerySchema accepts export query params", () => {
@@ -280,7 +281,7 @@ it("DownloadEventsExportQuerySchema accepts export query params", () => {
     status: "imported",
   });
 
-  assertEquals(query._tag, "Right");
+  assert.deepStrictEqual(query._tag, "Right");
 });
 
 it("SystemLogsQuerySchema rejects unsupported log levels", () => {
@@ -288,7 +289,7 @@ it("SystemLogsQuerySchema rejects unsupported log levels", () => {
     level: "verbose",
   });
 
-  assertEquals(query._tag, "Left");
+  assert.deepStrictEqual(query._tag, "Left");
 });
 
 it("AddAnimeInputSchema accepts existing-root flag", () => {
@@ -302,7 +303,7 @@ it("AddAnimeInputSchema accepts existing-root flag", () => {
     use_existing_root: true,
   });
 
-  assertEquals(addAnime._tag, "Right");
+  assert.deepStrictEqual(addAnime._tag, "Right");
 });
 
 it("AddRssFeedBodySchema accepts http(s) RSS URLs", () => {
@@ -311,7 +312,7 @@ it("AddRssFeedBodySchema accepts http(s) RSS URLs", () => {
     url: "https://example.com/feed.xml",
   });
 
-  assertEquals(result._tag, "Right");
+  assert.deepStrictEqual(result._tag, "Right");
 });
 
 it("boundary request schemas reject malformed URL, path, and date inputs", () => {
@@ -333,9 +334,9 @@ it("boundary request schemas reject malformed URL, path, and date inputs", () =>
     start_date: "2026-03-18 00:00:00",
   });
 
-  assertEquals(rssFeed._tag, "Left");
-  assertEquals(browse._tag, "Left");
-  assertEquals(unmappedImport._tag, "Left");
-  assertEquals(calendar._tag, "Left");
-  assertEquals(systemLogExport._tag, "Left");
+  assert.deepStrictEqual(rssFeed._tag, "Left");
+  assert.deepStrictEqual(browse._tag, "Left");
+  assert.deepStrictEqual(unmappedImport._tag, "Left");
+  assert.deepStrictEqual(calendar._tag, "Left");
+  assert.deepStrictEqual(systemLogExport._tag, "Left");
 });

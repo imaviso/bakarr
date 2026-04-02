@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { eq } from "drizzle-orm";
 import { Effect, Exit, Option } from "effect";
 
@@ -37,10 +38,10 @@ it("annotateAnimeSearchResultsForQuery adds confidence and reasons", () => {
     },
   ] satisfies AnimeSearchResult[]);
 
-  assertEquals(results[0]?.match_confidence, 1);
-  assertEquals(results[0]?.match_reason, 'Exact title match for "Naruto"');
-  assertEquals(results[1]?.match_confidence, 0.8);
-  assertEquals(results[1]?.match_reason, 'Strong title match for "Naruto"');
+  assert.deepStrictEqual(results[0]?.match_confidence, 1);
+  assert.deepStrictEqual(results[0]?.match_reason, 'Exact title match for "Naruto"');
+  assert.deepStrictEqual(results[1]?.match_confidence, 0.8);
+  assert.deepStrictEqual(results[1]?.match_reason, 'Strong title match for "Naruto"');
 });
 
 it("annotateAnimeSearchResultsForQuery considers synonyms", () => {
@@ -52,22 +53,22 @@ it("annotateAnimeSearchResultsForQuery considers synonyms", () => {
     },
   ] satisfies AnimeSearchResult[]);
 
-  assertEquals(results[0]?.match_confidence, 1);
-  assertEquals(results[0]?.match_reason, 'Exact title match for "Boku no Hero Academia"');
+  assert.deepStrictEqual(results[0]?.match_confidence, 1);
+  assert.deepStrictEqual(results[0]?.match_reason, 'Exact title match for "Boku no Hero Academia"');
 });
 
 it("deriveEpisodeTimelineMetadata marks future and aired episodes", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     deriveEpisodeTimelineMetadata("2024-01-10T02:30:00.000Z", new Date("2024-01-09T12:00:00.000Z")),
     { airing_status: "future", is_future: true },
   );
 
-  assertEquals(
+  assert.deepStrictEqual(
     deriveEpisodeTimelineMetadata("2024-01-08T02:30:00.000Z", new Date("2024-01-09T12:00:00.000Z")),
     { airing_status: "aired", is_future: false },
   );
 
-  assertEquals(deriveEpisodeTimelineMetadata(undefined), {
+  assert.deepStrictEqual(deriveEpisodeTimelineMetadata(undefined), {
     airing_status: "unknown",
   });
 });
@@ -120,12 +121,12 @@ it.scoped("listEpisodesEffect fills missing media metadata from ffprobe", () =>
             now: new Date("2024-01-02T00:00:00.000Z"),
           });
 
-          assertEquals(result[0]?.resolution, "1080p");
-          assertEquals(result[0]?.video_codec, "HEVC");
-          assertEquals(result[0]?.audio_codec, "AAC");
-          assertEquals(result[0]?.audio_channels, "2.0");
-          assertEquals(result[0]?.duration_seconds, 1440);
-          assertEquals(result[0]?.file_size, 4);
+          assert.deepStrictEqual(result[0]?.resolution, "1080p");
+          assert.deepStrictEqual(result[0]?.video_codec, "HEVC");
+          assert.deepStrictEqual(result[0]?.audio_codec, "AAC");
+          assert.deepStrictEqual(result[0]?.audio_channels, "2.0");
+          assert.deepStrictEqual(result[0]?.duration_seconds, 1440);
+          assert.deepStrictEqual(result[0]?.file_size, 4);
         }),
       ),
     schema,
@@ -200,16 +201,16 @@ it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
           );
           const [row] = episodeRows;
 
-          assertEquals(first[0]?.resolution, "1080p");
-          assertEquals(first[0]?.video_codec, "HEVC");
-          assertEquals(first[0]?.audio_codec, "AAC");
-          assertEquals(first[0]?.audio_channels, "2.0");
-          assertEquals(first[0]?.duration_seconds, 1440);
-          assertEquals(row?.resolution, "1080p");
-          assertEquals(row?.videoCodec, "HEVC");
-          assertEquals(row?.audioCodec, "AAC");
-          assertEquals(row?.audioChannels, "2.0");
-          assertEquals(row?.durationSeconds, 1440);
+          assert.deepStrictEqual(first[0]?.resolution, "1080p");
+          assert.deepStrictEqual(first[0]?.video_codec, "HEVC");
+          assert.deepStrictEqual(first[0]?.audio_codec, "AAC");
+          assert.deepStrictEqual(first[0]?.audio_channels, "2.0");
+          assert.deepStrictEqual(first[0]?.duration_seconds, 1440);
+          assert.deepStrictEqual(row?.resolution, "1080p");
+          assert.deepStrictEqual(row?.videoCodec, "HEVC");
+          assert.deepStrictEqual(row?.audioCodec, "AAC");
+          assert.deepStrictEqual(row?.audioChannels, "2.0");
+          assert.deepStrictEqual(row?.durationSeconds, 1440);
 
           const second = yield* listAnimeFilesEffect({
             animeId: 101,
@@ -218,12 +219,12 @@ it.scoped("listAnimeFilesEffect caches probed metadata to episode rows", () =>
             mediaProbe,
           });
 
-          assertEquals(second[0]?.resolution, "1080p");
-          assertEquals(second[0]?.video_codec, "HEVC");
-          assertEquals(second[0]?.audio_codec, "AAC");
-          assertEquals(second[0]?.audio_channels, "2.0");
-          assertEquals(second[0]?.duration_seconds, 1440);
-          assertEquals(probeCalls, 1);
+          assert.deepStrictEqual(second[0]?.resolution, "1080p");
+          assert.deepStrictEqual(second[0]?.video_codec, "HEVC");
+          assert.deepStrictEqual(second[0]?.audio_codec, "AAC");
+          assert.deepStrictEqual(second[0]?.audio_channels, "2.0");
+          assert.deepStrictEqual(second[0]?.duration_seconds, 1440);
+          assert.deepStrictEqual(probeCalls, 1);
         }),
       ),
     schema,
@@ -264,9 +265,9 @@ it.scoped("getAnimeByAnilistIdEffect returns related and recommended metadata", 
           id: 55,
         });
 
-        assertEquals(result.related_anime?.[0]?.relation_type, "SEQUEL");
-        assertEquals(result.recommended_anime?.[0]?.title.english, "Recommendation");
-        assertEquals(result.synonyms, ["Stub Alias"]);
+        assert.deepStrictEqual(result.related_anime?.[0]?.relation_type, "SEQUEL");
+        assert.deepStrictEqual(result.recommended_anime?.[0]?.title.english, "Recommendation");
+        assert.deepStrictEqual(result.synonyms, ["Stub Alias"]);
       }),
     schema,
   }),
@@ -311,9 +312,9 @@ it.scoped("getAnimeEffect returns discovery metadata from database storage", () 
           id: 80,
         });
 
-        assertEquals(result.related_anime?.[0]?.relation_type, "PREQUEL");
-        assertEquals(result.recommended_anime?.[0]?.title.english, "Recommended Show");
-        assertEquals(result.synonyms, ["Alias One", "Alias Two"]);
+        assert.deepStrictEqual(result.related_anime?.[0]?.relation_type, "PREQUEL");
+        assert.deepStrictEqual(result.recommended_anime?.[0]?.title.english, "Recommended Show");
+        assert.deepStrictEqual(result.synonyms, ["Alias One", "Alias Two"]);
       }),
     schema,
   }),
@@ -358,12 +359,12 @@ it.scoped("getAnimeEffect uses stored discovery metadata from database", () =>
           id: 90,
         });
 
-        assertEquals(result.id, 90);
-        assertEquals(result.synonyms, ["Alt Title", "Another Name"]);
-        assertEquals(result.related_anime?.length, 1);
-        assertEquals(result.related_anime?.[0]?.id, 91);
-        assertEquals(result.recommended_anime?.length, 1);
-        assertEquals(result.recommended_anime?.[0]?.id, 92);
+        assert.deepStrictEqual(result.id, 90);
+        assert.deepStrictEqual(result.synonyms, ["Alt Title", "Another Name"]);
+        assert.deepStrictEqual(result.related_anime?.length, 1);
+        assert.deepStrictEqual(result.related_anime?.[0]?.id, 91);
+        assert.deepStrictEqual(result.recommended_anime?.length, 1);
+        assert.deepStrictEqual(result.recommended_anime?.[0]?.id, 92);
       }),
     schema,
   }),
@@ -392,7 +393,7 @@ it.scoped("searchAnimeEffect fails when AniList search fails", () =>
           }),
         );
 
-        assertEquals(Exit.isFailure(result), true);
+        assert.deepStrictEqual(Exit.isFailure(result), true);
       }),
     schema,
   }),
@@ -419,9 +420,9 @@ it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds",
           query: "bake",
         });
 
-        assertEquals(result.degraded, false);
-        assertEquals(result.results.length, 1);
-        assertEquals(result.results[0]?.id, 202);
+        assert.deepStrictEqual(result.degraded, false);
+        assert.deepStrictEqual(result.results.length, 1);
+        assert.deepStrictEqual(result.results[0]?.id, 202);
       }),
     schema,
   }),
@@ -484,11 +485,11 @@ it.scoped("listAnimeEffect returns paginated results with defaults", () =>
 
         const result = yield* listAnimeEffect(appDb);
 
-        assertEquals(result.total, 5);
-        assertEquals(result.offset, 0);
-        assertEquals(result.limit, 100);
-        assertEquals(result.items.length, 5);
-        assertEquals(result.has_more, false);
+        assert.deepStrictEqual(result.total, 5);
+        assert.deepStrictEqual(result.offset, 0);
+        assert.deepStrictEqual(result.limit, 100);
+        assert.deepStrictEqual(result.items.length, 5);
+        assert.deepStrictEqual(result.has_more, false);
       }),
     schema,
   }),
@@ -518,20 +519,20 @@ it.scoped("listAnimeEffect respects limit and offset", () =>
         }
 
         const page1 = yield* listAnimeEffect(appDb, { limit: 3, offset: 0 });
-        assertEquals(page1.items.length, 3);
-        assertEquals(page1.items[0].id, 1);
-        assertEquals(page1.has_more, true);
-        assertEquals(page1.total, 10);
+        assert.deepStrictEqual(page1.items.length, 3);
+        assert.deepStrictEqual(page1.items[0].id, 1);
+        assert.deepStrictEqual(page1.has_more, true);
+        assert.deepStrictEqual(page1.total, 10);
 
         const page2 = yield* listAnimeEffect(appDb, { limit: 3, offset: 3 });
-        assertEquals(page2.items.length, 3);
-        assertEquals(page2.items[0].id, 4);
-        assertEquals(page2.has_more, true);
+        assert.deepStrictEqual(page2.items.length, 3);
+        assert.deepStrictEqual(page2.items[0].id, 4);
+        assert.deepStrictEqual(page2.has_more, true);
 
         const page4 = yield* listAnimeEffect(appDb, { limit: 3, offset: 9 });
-        assertEquals(page4.items.length, 1);
-        assertEquals(page4.items[0].id, 10);
-        assertEquals(page4.has_more, false);
+        assert.deepStrictEqual(page4.items.length, 1);
+        assert.deepStrictEqual(page4.items[0].id, 10);
+        assert.deepStrictEqual(page4.has_more, false);
       }),
     schema,
   }),
@@ -559,7 +560,7 @@ it.scoped("listAnimeEffect caps limit at 500", () =>
         );
 
         const result = yield* listAnimeEffect(appDb, { limit: 1000 });
-        assertEquals(result.limit, 500);
+        assert.deepStrictEqual(result.limit, 500);
       }),
     schema,
   }),
@@ -587,7 +588,7 @@ it.scoped("listAnimeEffect floors limit at 1", () =>
         );
 
         const result = yield* listAnimeEffect(appDb, { limit: 0 });
-        assertEquals(result.limit, 1);
+        assert.deepStrictEqual(result.limit, 1);
       }),
     schema,
   }),
@@ -615,7 +616,7 @@ it.scoped("listAnimeEffect floors negative offset at 0", () =>
         );
 
         const result = yield* listAnimeEffect(appDb, { offset: -10 });
-        assertEquals(result.offset, 0);
+        assert.deepStrictEqual(result.offset, 0);
       }),
     schema,
   }),
@@ -652,8 +653,8 @@ it.scoped("listAnimeEffect aggregates episode download counts", () =>
         );
 
         const result = yield* listAnimeEffect(appDb);
-        assertEquals(result.items.length, 1);
-        assertEquals(result.items[0].progress.downloaded, 2);
+        assert.deepStrictEqual(result.items.length, 1);
+        assert.deepStrictEqual(result.items[0].progress.downloaded, 2);
       }),
     schema,
   }),
@@ -696,16 +697,16 @@ it.scoped("listAnimeEffect filters by monitored status", () =>
         );
 
         const allResults = yield* listAnimeEffect(appDb);
-        assertEquals(allResults.total, 2);
-        assertEquals(allResults.items.length, 2);
+        assert.deepStrictEqual(allResults.total, 2);
+        assert.deepStrictEqual(allResults.items.length, 2);
 
         const monitoredOnly = yield* listAnimeEffect(appDb, { monitored: true });
-        assertEquals(monitoredOnly.total, 1);
-        assertEquals(monitoredOnly.items[0].id, 1);
+        assert.deepStrictEqual(monitoredOnly.total, 1);
+        assert.deepStrictEqual(monitoredOnly.items[0].id, 1);
 
         const unmonitoredOnly = yield* listAnimeEffect(appDb, { monitored: false });
-        assertEquals(unmonitoredOnly.total, 1);
-        assertEquals(unmonitoredOnly.items[0].id, 2);
+        assert.deepStrictEqual(unmonitoredOnly.total, 1);
+        assert.deepStrictEqual(unmonitoredOnly.items[0].id, 2);
       }),
     schema,
   }),
@@ -743,20 +744,20 @@ it.scoped("listAnimeEffect includes progress and metadata fields needed by list 
         );
 
         const result = yield* listAnimeEffect(appDb);
-        assertEquals(result.items.length, 1);
+        assert.deepStrictEqual(result.items.length, 1);
 
         const [anime] = result.items;
-        assertEquals(anime.progress.downloaded, 1);
-        assertEquals(anime.progress.total, 3);
-        assertEquals(anime.progress.downloaded_percent, 33);
-        assertEquals(anime.progress.is_up_to_date, false);
-        assertEquals(anime.progress.latest_downloaded_episode, 1);
-        assertEquals(anime.progress.next_missing_episode, 2);
-        assertEquals(anime.progress.missing, [2, 3]);
-        assertEquals(anime.score, 87);
-        assertEquals(anime.studios, ["Studio A"]);
-        assertEquals(anime.release_profile_ids, [1, 2]);
-        assertEquals(anime.genres, ["Action"]);
+        assert.deepStrictEqual(anime.progress.downloaded, 1);
+        assert.deepStrictEqual(anime.progress.total, 3);
+        assert.deepStrictEqual(anime.progress.downloaded_percent, 33);
+        assert.deepStrictEqual(anime.progress.is_up_to_date, false);
+        assert.deepStrictEqual(anime.progress.latest_downloaded_episode, 1);
+        assert.deepStrictEqual(anime.progress.next_missing_episode, 2);
+        assert.deepStrictEqual(anime.progress.missing, [2, 3]);
+        assert.deepStrictEqual(anime.score, 87);
+        assert.deepStrictEqual(anime.studios, ["Studio A"]);
+        assert.deepStrictEqual(anime.release_profile_ids, [1, 2]);
+        assert.deepStrictEqual(anime.genres, ["Action"]);
       }),
     schema,
   }),
@@ -784,7 +785,7 @@ it.scoped("listAnimeEffect fails when stored anime JSON metadata is corrupt", ()
         );
 
         const result = yield* Effect.exit(listAnimeEffect(appDb));
-        assertEquals(Exit.isFailure(result), true);
+        assert.deepStrictEqual(Exit.isFailure(result), true);
       }),
     schema,
   }),

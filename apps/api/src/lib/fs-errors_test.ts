@@ -1,4 +1,5 @@
-import { assertEquals, describe, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { describe, it } from "@effect/vitest";
 
 import { isNotFoundError } from "@/lib/fs-errors.ts";
 
@@ -7,7 +8,7 @@ describe("isNotFoundError", () => {
     const cause = new Error("missing") as Error & { code?: string };
     cause.code = "ENOENT";
 
-    assertEquals(isNotFoundError({ cause }), true);
+    assert.deepStrictEqual(isNotFoundError({ cause }), true);
   });
 
   it("detects Effect SystemError not-found causes", () => {
@@ -16,6 +17,6 @@ describe("isNotFoundError", () => {
       reason: "NotFound",
     };
 
-    assertEquals(isNotFoundError({ cause }), true);
+    assert.deepStrictEqual(isNotFoundError({ cause }), true);
   });
 });

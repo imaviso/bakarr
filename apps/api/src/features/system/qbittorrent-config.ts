@@ -65,34 +65,38 @@ function isPrivateQBitHost(hostname: string): boolean {
   return false;
 }
 
-function normalizeBaseUrl(raw: string): string {
-  const parsed = new URL(raw.trim());
+const configValidationError = (message: string) => new ConfigValidationError({ message });
+
+const parseUrl = (raw: string) =>
+  Effect.try({
+    try: () => new URL(raw.trim()),
+    catch: () => configValidationError("qBittorrent URL is invalid"),
+  });
+
+const normalizeBaseUrl = Effect.fn("SystemConfig.normalizeQBitTorrentBaseUrl")(function* (
+  raw: string,
+) {
+  const parsed = yield* parseUrl(raw);
 
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error("qBittorrent URL must use http or https");
+    return yield* configValidationError("qBittorrent URL must use http or https");
   }
 
   if (parsed.username || parsed.password) {
-    throw new Error("qBittorrent URL must not include credentials");
+    return yield* configValidationError("qBittorrent URL must not include credentials");
   }
 
   if (parsed.search || parsed.hash) {
-    throw new Error("qBittorrent URL must not include query or fragment");
+    return yield* configValidationError("qBittorrent URL must not include query or fragment");
   }
 
   const pathname = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
   return `${parsed.origin}${pathname}`;
-}
+});
 
 export const normalizeQBitTorrentConfig = Effect.fn("SystemConfig.normalizeQBitTorrentConfig")(
   function* (config: Config["qbittorrent"]) {
-    const normalizedUrl = yield* Effect.try({
-      try: () => normalizeBaseUrl(config.url),
-      catch: (cause) =>
-        new ConfigValidationError({
-          message: cause instanceof Error ? cause.message : "qBittorrent URL is invalid",
-        }),
-    });
+    const normalizedUrl = yield* normalizeBaseUrl(config.url);
     const trustedLocal = config.trusted_local ?? true;
     const host = new URL(normalizedUrl).hostname;
 

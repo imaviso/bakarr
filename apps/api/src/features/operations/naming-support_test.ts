@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 import {
   buildCanonicalEpisodeNamingInput,
@@ -26,15 +27,15 @@ it("buildEpisodeNamingInputFromPath extracts local filename metadata for rename 
     rootFolder: "/mnt/media2/Shows/Nisemonogatari (2012)",
   });
 
-  assertEquals(input.episodeTitle, "Karen Bee, Part 1");
-  assertEquals(input.group, "MTBB");
-  assertEquals(input.quality, undefined);
-  assertEquals(input.resolution, "1080p");
-  assertEquals(input.season, 1);
-  assertEquals(input.videoCodec, "HEVC");
-  assertEquals(input.audioCodec, "AAC");
-  assertEquals(input.audioChannels, undefined);
-  assertEquals(input.year, 2012);
+  assert.deepStrictEqual(input.episodeTitle, "Karen Bee, Part 1");
+  assert.deepStrictEqual(input.group, "MTBB");
+  assert.deepStrictEqual(input.quality, undefined);
+  assert.deepStrictEqual(input.resolution, "1080p");
+  assert.deepStrictEqual(input.season, 1);
+  assert.deepStrictEqual(input.videoCodec, "HEVC");
+  assert.deepStrictEqual(input.audioCodec, "AAC");
+  assert.deepStrictEqual(input.audioChannels, undefined);
+  assert.deepStrictEqual(input.year, 2012);
 });
 
 it("buildEpisodeNamingInputFromPath keeps stored episode title over filename fallback", () => {
@@ -45,11 +46,11 @@ it("buildEpisodeNamingInputFromPath keeps stored episode title over filename fal
     filePath: "/library/Show Name - S01E01 - Source Episode Title [1080p].mkv",
   });
 
-  assertEquals(input.episodeTitle, "Canonical Episode Title");
+  assert.deepStrictEqual(input.episodeTitle, "Canonical Episode Title");
 });
 
 it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     selectAnimeTitleForNaming(
       {
         titleEnglish: "English Title",
@@ -61,7 +62,7 @@ it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
     "English Title",
   );
 
-  assertEquals(
+  assert.deepStrictEqual(
     selectAnimeTitleForNaming(
       {
         titleEnglish: null,
@@ -73,7 +74,7 @@ it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
     "Romaji Title",
   );
 
-  assertEquals(
+  assert.deepStrictEqual(
     selectAnimeTitleForNaming(
       {
         titleEnglish: "English Title",
@@ -87,7 +88,7 @@ it("selectAnimeTitleForNaming honors preferred title with fallback", () => {
 });
 
 it("selectAnimeTitleForNamingDetails reports which title source won", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     selectAnimeTitleForNamingDetails(
       {
         titleEnglish: null,
@@ -109,12 +110,15 @@ it("selectNamingFormat uses movie format only for movies", () => {
     namingFormat: "{title} - {episode_segment}",
   };
 
-  assertEquals(selectNamingFormat({ format: "MOVIE" }, settings), "{title} ({year})");
-  assertEquals(selectNamingFormat({ format: "TV" }, settings), "{title} - {episode_segment}");
+  assert.deepStrictEqual(selectNamingFormat({ format: "MOVIE" }, settings), "{title} ({year})");
+  assert.deepStrictEqual(
+    selectNamingFormat({ format: "TV" }, settings),
+    "{title} - {episode_segment}",
+  );
 });
 
 it("selectAnimeYearForNaming prefers preserved year metadata", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     selectAnimeYearForNaming({
       endDate: "2017-01-01",
       endYear: 2017,
@@ -126,7 +130,7 @@ it("selectAnimeYearForNaming prefers preserved year metadata", () => {
 });
 
 it("inspectNamingFormat and validation identify missing fields", () => {
-  assertEquals(inspectNamingFormat("{title} - S{season:02}E{episode:02}"), [
+  assert.deepStrictEqual(inspectNamingFormat("{title} - S{season:02}E{episode:02}"), [
     "title",
     "season",
     "episode",
@@ -137,7 +141,7 @@ it("inspectNamingFormat and validation identify missing fields", () => {
     title: "Naruto",
   });
 
-  assertEquals(validation.missingFields, ["season"]);
+  assert.deepStrictEqual(validation.missingFields, ["season"]);
 });
 
 it("resolveFilenameRenderPlan falls back when critical tokens are missing", () => {
@@ -150,8 +154,8 @@ it("resolveFilenameRenderPlan falls back when critical tokens are missing", () =
     },
   });
 
-  assertEquals(result.fallbackUsed, true);
-  assertEquals(result.formatUsed, "{title} - {episode_segment}");
+  assert.deepStrictEqual(result.fallbackUsed, true);
+  assert.deepStrictEqual(result.formatUsed, "{title} - {episode_segment}");
 });
 
 it("buildCanonicalEpisodeNamingInput prefers DB data and preserves daily air date", () => {
@@ -172,9 +176,9 @@ it("buildCanonicalEpisodeNamingInput prefers DB data and preserves daily air dat
     filePath: "/downloads/Show.2025-03-14.mkv",
   });
 
-  assertEquals(result.namingInput.airDate, "2025-03-14");
-  assertEquals(result.namingInput.episodeTitle, "DB Title");
-  assertEquals(result.namingInput.year, 2025);
+  assert.deepStrictEqual(result.namingInput.airDate, "2025-03-14");
+  assert.deepStrictEqual(result.namingInput.episodeTitle, "DB Title");
+  assert.deepStrictEqual(result.namingInput.year, 2025);
 });
 
 it("buildCanonicalEpisodeNamingInput warns on ambiguous multi-episode metadata", () => {
@@ -189,9 +193,9 @@ it("buildCanonicalEpisodeNamingInput warns on ambiguous multi-episode metadata",
     filePath: "/downloads/Show - 01-02.mkv",
   });
 
-  assertEquals(result.namingInput.episodeTitle, undefined);
-  assertEquals(result.namingInput.airDate, undefined);
-  assertEquals(result.warnings.length, 2);
+  assert.deepStrictEqual(result.namingInput.episodeTitle, undefined);
+  assert.deepStrictEqual(result.namingInput.airDate, undefined);
+  assert.deepStrictEqual(result.warnings.length, 2);
 });
 
 it("buildEpisodeFilenamePlan exposes fallback and warning details", () => {
@@ -209,9 +213,9 @@ it("buildEpisodeFilenamePlan exposes fallback and warning details", () => {
     preferredTitle: "romaji",
   });
 
-  assertEquals(plan.baseName, "Show - 01");
-  assertEquals(plan.fallbackUsed, true);
-  assertEquals(plan.missingFields, ["season"]);
+  assert.deepStrictEqual(plan.baseName, "Show - 01");
+  assert.deepStrictEqual(plan.fallbackUsed, true);
+  assert.deepStrictEqual(plan.missingFields, ["season"]);
 });
 
 it("buildEpisodeFilenamePlan fills media tokens from local metadata when heuristics are weak", () => {
@@ -234,9 +238,9 @@ it("buildEpisodeFilenamePlan fills media tokens from local metadata when heurist
     preferredTitle: "romaji",
   });
 
-  assertEquals(plan.baseName, "Show - 01 [1080p][HEVC][AAC 2.0]");
-  assertEquals(plan.metadataSnapshot.video_codec, "HEVC");
-  assertEquals(plan.metadataSnapshot.audio_channels, "2.0");
+  assert.deepStrictEqual(plan.baseName, "Show - 01 [1080p][HEVC][AAC 2.0]");
+  assert.deepStrictEqual(plan.metadataSnapshot.video_codec, "HEVC");
+  assert.deepStrictEqual(plan.metadataSnapshot.audio_channels, "2.0");
 });
 
 it("buildDownloadSourceMetadataFromRelease extracts provenance from release title", () => {
@@ -253,16 +257,16 @@ it("buildDownloadSourceMetadataFromRelease extracts provenance from release titl
     trusted: true,
   });
 
-  assertEquals(metadata.chosen_from_seadex, true);
-  assertEquals(metadata.group, "SubsPlease");
-  assertEquals(metadata.indexer, "Nyaa");
-  assertEquals(metadata.previous_quality, "WEB-DL 720p");
-  assertEquals(metadata.previous_score, 7);
-  assertEquals(metadata.resolution, "1080p");
-  assertEquals(metadata.selection_kind, "upgrade");
-  assertEquals(metadata.selection_score, 12);
-  assertEquals(metadata.video_codec, "HEVC");
-  assertEquals(metadata.audio_codec, "AAC");
+  assert.deepStrictEqual(metadata.chosen_from_seadex, true);
+  assert.deepStrictEqual(metadata.group, "SubsPlease");
+  assert.deepStrictEqual(metadata.indexer, "Nyaa");
+  assert.deepStrictEqual(metadata.previous_quality, "WEB-DL 720p");
+  assert.deepStrictEqual(metadata.previous_score, 7);
+  assert.deepStrictEqual(metadata.resolution, "1080p");
+  assert.deepStrictEqual(metadata.selection_kind, "upgrade");
+  assert.deepStrictEqual(metadata.selection_score, 12);
+  assert.deepStrictEqual(metadata.video_codec, "HEVC");
+  assert.deepStrictEqual(metadata.audio_codec, "AAC");
 });
 
 it("buildDownloadSourceMetadataFromRelease expands heuristic coverage for BluRay and codec tags", () => {
@@ -270,11 +274,11 @@ it("buildDownloadSourceMetadataFromRelease expands heuristic coverage for BluRay
     title: "[Group] Movie Title (2025) [BDMV 2160p] [VP9] [TrueHD 6ch]",
   });
 
-  assertEquals(metadata.quality, "BluRay");
-  assertEquals(metadata.resolution, "2160p");
-  assertEquals(metadata.video_codec, "VP9");
-  assertEquals(metadata.audio_codec, "TrueHD");
-  assertEquals(metadata.audio_channels, "5.1");
+  assert.deepStrictEqual(metadata.quality, "BluRay");
+  assert.deepStrictEqual(metadata.resolution, "2160p");
+  assert.deepStrictEqual(metadata.video_codec, "VP9");
+  assert.deepStrictEqual(metadata.audio_codec, "TrueHD");
+  assert.deepStrictEqual(metadata.audio_channels, "5.1");
 });
 
 it("buildDownloadSourceMetadataFromRelease marks BD releases as BluRay", () => {
@@ -282,9 +286,9 @@ it("buildDownloadSourceMetadataFromRelease marks BD releases as BluRay", () => {
     title: "Jigokuraku - S01E01 v2 (BD 1080p HEVC) [Vodes]",
   });
 
-  assertEquals(metadata.quality, "BluRay");
-  assertEquals(metadata.resolution, "1080p");
-  assertEquals(metadata.video_codec, "HEVC");
+  assert.deepStrictEqual(metadata.quality, "BluRay");
+  assert.deepStrictEqual(metadata.resolution, "1080p");
+  assert.deepStrictEqual(metadata.video_codec, "HEVC");
 });
 
 it("buildEpisodeNamingInputFromPath recognizes plain WEB releases and 2ch audio", () => {
@@ -294,10 +298,10 @@ it("buildEpisodeNamingInputFromPath recognizes plain WEB releases and 2ch audio"
     filePath: "/downloads/[Group] Show Name - 01 [WEB 1080p] [VP9] [Opus 2ch].mkv",
   });
 
-  assertEquals(input.quality, "WEB");
-  assertEquals(input.videoCodec, "VP9");
-  assertEquals(input.audioCodec, "Opus");
-  assertEquals(input.audioChannels, "2.0");
+  assert.deepStrictEqual(input.quality, "WEB");
+  assert.deepStrictEqual(input.videoCodec, "VP9");
+  assert.deepStrictEqual(input.audioCodec, "Opus");
+  assert.deepStrictEqual(input.audioChannels, "2.0");
 });
 
 it("mergeDownloadSourceMetadata preserves baseline fields and overlays UI metadata", () => {
@@ -324,21 +328,21 @@ it("mergeDownloadSourceMetadata preserves baseline fields and overlays UI metada
     },
   );
 
-  assertEquals(merged.chosen_from_seadex, true);
-  assertEquals(merged.group, "SubsPlease");
-  assertEquals(merged.indexer, "Nyaa");
-  assertEquals(merged.previous_quality, "WEB-DL 720p");
-  assertEquals(merged.previous_score, 7);
-  assertEquals(merged.resolution, "1080p");
-  assertEquals(merged.selection_kind, "upgrade");
-  assertEquals(merged.selection_score, 12);
-  assertEquals(merged.source_identity, {
+  assert.deepStrictEqual(merged.chosen_from_seadex, true);
+  assert.deepStrictEqual(merged.group, "SubsPlease");
+  assert.deepStrictEqual(merged.indexer, "Nyaa");
+  assert.deepStrictEqual(merged.previous_quality, "WEB-DL 720p");
+  assert.deepStrictEqual(merged.previous_score, 7);
+  assert.deepStrictEqual(merged.resolution, "1080p");
+  assert.deepStrictEqual(merged.selection_kind, "upgrade");
+  assert.deepStrictEqual(merged.selection_score, 12);
+  assert.deepStrictEqual(merged.source_identity, {
     episode_numbers: [1],
     label: "01",
     scheme: "absolute",
   });
-  assertEquals(merged.source_url, "https://nyaa.si/view/1");
-  assertEquals(merged.trusted, true);
+  assert.deepStrictEqual(merged.source_url, "https://nyaa.si/view/1");
+  assert.deepStrictEqual(merged.trusted, true);
 });
 
 it("buildDownloadSelectionMetadata extracts compact ranking context", () => {
@@ -378,14 +382,14 @@ it("buildDownloadSelectionMetadata extracts compact ranking context", () => {
     },
   });
 
-  assertEquals(upgrade, {
+  assert.deepStrictEqual(upgrade, {
     chosen_from_seadex: true,
     previous_quality: "WEB-DL 720p",
     previous_score: 7,
     selection_kind: "upgrade",
     selection_score: 12,
   });
-  assertEquals(accept, {
+  assert.deepStrictEqual(accept, {
     chosen_from_seadex: undefined,
     selection_kind: "accept",
     selection_score: 12,

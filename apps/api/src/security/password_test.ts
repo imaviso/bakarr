@@ -1,21 +1,22 @@
+import assert from "node:assert/strict";
 import { Cause, Effect } from "effect";
 
-import { assertEquals, assertInstanceOf, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { PasswordError, verifyPassword } from "@/security/password.ts";
 
 it.effect("verifyPassword fails when the stored hash structure is malformed", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(verifyPassword("secret", "broken-hash"));
 
-    assertEquals(exit._tag, "Failure");
+    assert.deepStrictEqual(exit._tag, "Failure");
 
     if (exit._tag === "Failure") {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
 
       if (failure._tag === "Some") {
-        assertInstanceOf(failure.value, PasswordError);
-        assertEquals(failure.value.message, "Invalid stored password hash");
+        assert.ok(failure.value instanceof PasswordError);
+        assert.deepStrictEqual(failure.value.message, "Invalid stored password hash");
       }
     }
   }),
@@ -25,15 +26,15 @@ it.effect("verifyPassword fails when the stored hash hex is invalid", () =>
   Effect.gen(function* () {
     const exit = yield* Effect.exit(verifyPassword("secret", "pbkdf2_sha256$310000$zz$zz"));
 
-    assertEquals(exit._tag, "Failure");
+    assert.deepStrictEqual(exit._tag, "Failure");
 
     if (exit._tag === "Failure") {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
 
       if (failure._tag === "Some") {
-        assertInstanceOf(failure.value, PasswordError);
-        assertEquals(failure.value.message, "Invalid salt format");
+        assert.ok(failure.value instanceof PasswordError);
+        assert.deepStrictEqual(failure.value.message, "Invalid salt format");
       }
     }
   }),

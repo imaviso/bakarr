@@ -1,7 +1,8 @@
+import assert from "node:assert/strict";
 import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 
 it.effect("inline download events export response adds export metadata headers", () =>
   Effect.gen(function* () {
@@ -33,11 +34,14 @@ it.effect("inline download events export response adds export metadata headers",
     );
     const response = yield* Effect.promise(() => handler(new Request("http://localhost/")));
 
-    assertEquals(response.headers.get("X-Bakarr-Exported-Events"), "3");
-    assertEquals(response.headers.get("X-Bakarr-Export-Limit"), "50");
-    assertEquals(response.headers.get("X-Bakarr-Export-Order"), "desc");
-    assertEquals(response.headers.get("X-Bakarr-Export-Truncated"), "true");
-    assertEquals(response.headers.get("X-Bakarr-Generated-At"), "2026-03-27T00:00:00.000Z");
-    assertEquals(response.headers.get("X-Bakarr-Total-Events"), "12");
+    assert.deepStrictEqual(response.headers.get("X-Bakarr-Exported-Events"), "3");
+    assert.deepStrictEqual(response.headers.get("X-Bakarr-Export-Limit"), "50");
+    assert.deepStrictEqual(response.headers.get("X-Bakarr-Export-Order"), "desc");
+    assert.deepStrictEqual(response.headers.get("X-Bakarr-Export-Truncated"), "true");
+    assert.deepStrictEqual(
+      response.headers.get("X-Bakarr-Generated-At"),
+      "2026-03-27T00:00:00.000Z",
+    );
+    assert.deepStrictEqual(response.headers.get("X-Bakarr-Total-Events"), "12");
   }),
 );

@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { Effect, Layer } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
@@ -12,7 +13,7 @@ import { ClockServiceLive } from "@/lib/clock.ts";
 import { RandomServiceLive } from "@/lib/random.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { assertEquals, describe, it } from "@/test/vitest.ts";
+import { describe, it } from "@effect/vitest";
 import {
   SystemConfigService,
   SystemConfigServiceLive,
@@ -66,10 +67,10 @@ describe("SystemConfigUpdateService", () => {
             const updated = yield* updateService.updateConfig(nextConfig);
             const current = yield* configService.getConfig();
 
-            assertEquals(updated.general.images_path, "/images/custom");
-            assertEquals(current.general.images_path, "/images/custom");
-            assertEquals(reloads.length, 1);
-            assertEquals(reloads[0]?.general.images_path, "/images/custom");
+            assert.deepStrictEqual(updated.general.images_path, "/images/custom");
+            assert.deepStrictEqual(current.general.images_path, "/images/custom");
+            assert.deepStrictEqual(reloads.length, 1);
+            assert.deepStrictEqual(reloads[0]?.general.images_path, "/images/custom");
           }).pipe(Effect.provide(fullLayer));
         }),
       schema,

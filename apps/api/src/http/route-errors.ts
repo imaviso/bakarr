@@ -26,6 +26,7 @@ import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { PasswordError } from "@/security/password.ts";
 import { TokenHasherError } from "@/security/token-hasher.ts";
 import {
+  ImageAssetAccessError,
   ConfigValidationError,
   ImageAssetNotFoundError,
   ImageAssetTooLargeError,
@@ -54,6 +55,7 @@ const knownTaggedRouteErrorSchemas = [
   EpisodeStreamAccessError,
   EpisodeStreamRangeError,
   ExternalCallError,
+  ImageAssetAccessError,
   ImageAssetNotFoundError,
   ImageAssetTooLargeError,
   OperationsAnimeNotFoundError,
@@ -124,6 +126,7 @@ const taggedRouteErrorMappers: {
     status: error.status,
   }),
   ExternalCallError: serviceUnavailable,
+  ImageAssetAccessError: (error) => ({ message: error.message, status: error.status }),
   ImageAssetNotFoundError: (error) => ({ message: error.message, status: error.status }),
   ImageAssetTooLargeError: (error) => ({ message: error.message, status: error.status }),
   OperationsAnimeNotFoundError: messageStatus(404),

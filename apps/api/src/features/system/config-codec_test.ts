@@ -1,4 +1,5 @@
-import { assertEquals, assertThrows, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Cause, Effect, Exit } from "effect";
 
 import { qualityProfiles, releaseProfiles } from "@/db/schema.ts";
@@ -75,10 +76,10 @@ it("config codec round-trips config core without mutating arrays", () => {
   });
 
   const decoded = decodeConfigCore(encoded);
-  assertEquals(decoded.downloads.remote_path_mappings, [["/remote", "/local"]]);
-  assertEquals(decoded.downloads.preferred_groups, ["SubsPlease"]);
-  assertEquals(decoded.qbittorrent.trusted_local, true);
-  assertEquals(decoded.scheduler.cron_expression, "0 * * * *");
+  assert.deepStrictEqual(decoded.downloads.remote_path_mappings, [["/remote", "/local"]]);
+  assert.deepStrictEqual(decoded.downloads.preferred_groups, ["SubsPlease"]);
+  assert.deepStrictEqual(decoded.qbittorrent.trusted_local, true);
+  assert.deepStrictEqual(decoded.scheduler.cron_expression, "0 * * * *");
 });
 
 it("profile codecs encode and decode quality and release profile rows", () => {
@@ -92,26 +93,29 @@ it("profile codecs encode and decode quality and release profile rows", () => {
     upgrade_allowed: true,
   });
 
-  assertEquals(decodeQualityProfileRow(qualityRow satisfies typeof qualityProfiles.$inferSelect), {
-    allowed_qualities: ["1080p", "720p"],
-    cutoff: "1080p",
-    max_size: "4GB",
-    min_size: "700MB",
-    name: "Default",
-    seadex_preferred: true,
-    upgrade_allowed: true,
-  });
+  assert.deepStrictEqual(
+    decodeQualityProfileRow(qualityRow satisfies typeof qualityProfiles.$inferSelect),
+    {
+      allowed_qualities: ["1080p", "720p"],
+      cutoff: "1080p",
+      max_size: "4GB",
+      min_size: "700MB",
+      name: "Default",
+      seadex_preferred: true,
+      upgrade_allowed: true,
+    },
+  );
 
   const rulesJson = encodeReleaseProfileRules([
     { rule_type: "preferred", score: 10, term: "SubsPlease" },
     { rule_type: "must", score: 0, term: "1080p" },
   ]);
-  assertEquals(decodeReleaseProfileRules(rulesJson), [
+  assert.deepStrictEqual(decodeReleaseProfileRules(rulesJson), [
     { rule_type: "preferred", score: 10, term: "SubsPlease" },
     { rule_type: "must", score: 0, term: "1080p" },
   ]);
 
-  assertEquals(
+  assert.deepStrictEqual(
     decodeReleaseProfileRow({
       enabled: true,
       id: 1,
@@ -133,33 +137,33 @@ it("profile codecs encode and decode quality and release profile rows", () => {
 });
 
 it("optional number list codec canonicalizes positive values and rejects corrupt stored JSON", () => {
-  assertEquals(encodeOptionalNumberList([3, 1, 3, 2]), "[1,2,3]");
-  assertEquals(encodeOptionalNumberList([]), null);
-  assertEquals(decodeOptionalNumberList("[3,1,2]"), [1, 2, 3]);
-  assertThrows(() => decodeOptionalNumberList("not-json"));
-  assertThrows(() => decodeOptionalNumberList("[0,-1,2]"));
-  assertThrows(() => encodeOptionalNumberList([3, -1, 2]));
+  assert.deepStrictEqual(encodeOptionalNumberList([3, 1, 3, 2]), "[1,2,3]");
+  assert.deepStrictEqual(encodeOptionalNumberList([]), null);
+  assert.deepStrictEqual(decodeOptionalNumberList("[3,1,2]"), [1, 2, 3]);
+  assert.throws(() => decodeOptionalNumberList("not-json"));
+  assert.throws(() => decodeOptionalNumberList("[0,-1,2]"));
+  assert.throws(() => encodeOptionalNumberList([3, -1, 2]));
 });
 
 it.effect("stored config row decoder fails with typed errors for missing and corrupt rows", () =>
   Effect.gen(function* () {
     const missingExit = yield* Effect.exit(effectDecodeStoredConfigRow(undefined));
-    assertEquals(Exit.isFailure(missingExit), true);
+    assert.deepStrictEqual(Exit.isFailure(missingExit), true);
     if (Exit.isFailure(missingExit)) {
       const failure = Cause.failureOption(missingExit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "StoredConfigMissingError");
+        assert.deepStrictEqual(failure.value._tag, "StoredConfigMissingError");
       }
     }
 
     const corruptExit = yield* Effect.exit(effectDecodeStoredConfigRow({ data: "{not-json" }));
-    assertEquals(Exit.isFailure(corruptExit), true);
+    assert.deepStrictEqual(Exit.isFailure(corruptExit), true);
     if (Exit.isFailure(corruptExit)) {
       const failure = Cause.failureOption(corruptExit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "StoredConfigCorruptError");
+        assert.deepStrictEqual(failure.value._tag, "StoredConfigCorruptError");
       }
     }
   }),

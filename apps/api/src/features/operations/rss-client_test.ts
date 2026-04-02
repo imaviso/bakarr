@@ -1,4 +1,5 @@
-import { assertEquals, assertMatch, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
@@ -50,7 +51,7 @@ it.effect("RssClient uses provided HttpClient for feed fetches", () =>
       type === "A" ? Promise.resolve(["93.184.216.34"]) : Promise.reject(makeNotFoundError()),
     );
 
-    assertEquals(items, [
+    assert.deepStrictEqual(items, [
       {
         group: "SubsPlease",
         infoHash: "abcdef0123456789abcdef0123456789abcdef01",
@@ -95,7 +96,7 @@ it.effect("RssClient rejects data URLs before network access", () =>
     );
 
     assertRssFailure(exit, RssFeedRejectedError, /disallowed protocol/i);
-    assertEquals(httpCalled, false);
+    assert.deepStrictEqual(httpCalled, false);
   }),
 );
 
@@ -116,7 +117,7 @@ it.effect(
       );
 
       assertRssFailure(exit, RssFeedRejectedError, /private ip/i);
-      assertEquals(httpCalled, false);
+      assert.deepStrictEqual(httpCalled, false);
     }),
 );
 
@@ -134,7 +135,7 @@ it.effect("RssClient fails with a typed rejection when DNS resolution fails", ()
     );
 
     assertRssFailure(exit, RssFeedRejectedError, /dns resolution failed/i);
-    assertEquals(httpCalled, false);
+    assert.deepStrictEqual(httpCalled, false);
   }),
 );
 
@@ -151,7 +152,11 @@ it.effect("RssClient fails with a typed rejection when a redirect targets a priv
     );
 
     assertRssFailure(exit, RssFeedRejectedError);
-    assertEquals(requestCount, 1, "Should only make initial request, not follow redirect");
+    assert.deepStrictEqual(
+      requestCount,
+      1,
+      "Should only make initial request, not follow redirect",
+    );
   }),
 );
 
@@ -182,8 +187,12 @@ it.effect("RssClient fails with a typed rejection when a chained redirect become
     );
 
     assertRssFailure(exit, RssFeedRejectedError);
-    assertEquals(redirectChain.length, 1, "Should reach redirect but block on private IP");
-    assertEquals(requestCount, 1);
+    assert.deepStrictEqual(
+      redirectChain.length,
+      1,
+      "Should reach redirect but block on private IP",
+    );
+    assert.deepStrictEqual(requestCount, 1);
   }),
 );
 
@@ -205,7 +214,11 @@ it.effect("RssClient aborts redirect loops with a typed rejection", () =>
     );
 
     assertRssFailure(exit, RssFeedRejectedError, /redirect loop/i);
-    assertEquals(requestCount <= 6, true, "Should stop at max redirect hops (5 + initial)");
+    assert.deepStrictEqual(
+      requestCount <= 6,
+      true,
+      "Should stop at max redirect hops (5 + initial)",
+    );
   }),
 );
 
@@ -215,8 +228,8 @@ it.effect("RssClient handles non-redirect valid feed", () =>
       Promise.resolve(["93.184.216.34"]),
     );
 
-    assertEquals(items.length, 1);
-    assertEquals(items[0].title, "[SubsPlease] Example Show - 01 (1080p) [SeaDex]");
+    assert.deepStrictEqual(items.length, 1);
+    assert.deepStrictEqual(items[0].title, "[SubsPlease] Example Show - 01 (1080p) [SeaDex]");
   }),
 );
 
@@ -357,7 +370,7 @@ it.effect("RssClient accepts feeds under byte cap", () =>
       () => Promise.resolve(["93.184.216.34"]),
     );
 
-    assertEquals(items.length, 1);
+    assert.deepStrictEqual(items.length, 1);
   }),
 );
 
@@ -515,8 +528,8 @@ it.scoped("RssClient disables automatic redirect following for fetch client", ()
     );
 
     assertRssFailure(exit, RssFeedRejectedError);
-    assertEquals(calls.length, 1);
-    assertEquals(calls[0].redirect, "manual");
+    assert.deepStrictEqual(calls.length, 1);
+    assert.deepStrictEqual(calls[0].redirect, "manual");
   }),
 );
 
@@ -537,14 +550,14 @@ function assertRssFailure(
   expected: typeof RssFeedParseError | typeof RssFeedRejectedError | typeof RssFeedTooLargeError,
   message?: RegExp,
 ) {
-  assertEquals(Exit.isFailure(exit), true);
+  assert.deepStrictEqual(Exit.isFailure(exit), true);
   if (Exit.isFailure(exit)) {
     const failure = Cause.failureOption(exit.cause);
-    assertEquals(failure._tag, "Some");
+    assert.deepStrictEqual(failure._tag, "Some");
     if (failure._tag === "Some") {
-      assertEquals(failure.value instanceof expected, true);
+      assert.deepStrictEqual(failure.value instanceof expected, true);
       if (message) {
-        assertMatch(failure.value.message, message);
+        assert.match(failure.value.message, message);
       }
     }
   }

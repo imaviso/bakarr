@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Deferred, Effect, Fiber, Layer, Ref, TestClock } from "effect";
 
 import { ClockServiceLive } from "@/lib/clock.ts";
@@ -29,7 +30,7 @@ it.scoped("event publisher coalesces rapid info messages to the newest message",
     yield* Fiber.await(third);
     yield* publisher.shutdown;
 
-    assertEquals(yield* Ref.get(state), ["three"]);
+    assert.deepStrictEqual(yield* Ref.get(state), ["three"]);
   }).pipe(
     Effect.provide(
       Layer.mergeAll(ClockServiceLive, makeUnusedEventBusLayer("unused in publisher test")),

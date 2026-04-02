@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { CommandExecutor } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
@@ -8,7 +9,7 @@ import { BackgroundWorkerMonitorLive } from "@/background-monitor.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { RandomServiceLive } from "@/lib/random.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { assertEquals, describe, it } from "@/test/vitest.ts";
+import { describe, it } from "@effect/vitest";
 import * as schema from "@/db/schema.ts";
 import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
@@ -102,14 +103,14 @@ describe("SystemReadService", () => {
             ),
           );
 
-          assertEquals(Exit.isFailure(exit), true);
+          assert.deepStrictEqual(Exit.isFailure(exit), true);
 
           if (Exit.isFailure(exit)) {
             const failure = Cause.failureOption(exit.cause);
-            assertEquals(failure._tag, "Some", Cause.pretty(exit.cause));
+            assert.deepStrictEqual(failure._tag, "Some", Cause.pretty(exit.cause));
 
             if (failure._tag === "Some") {
-              assertEquals(failure.value._tag, "StoredConfigMissingError");
+              assert.deepStrictEqual(failure.value._tag, "StoredConfigMissingError");
             }
           }
         }),

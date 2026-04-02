@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
 import { Cause, Effect, Exit, Layer } from "effect";
 
@@ -38,7 +39,7 @@ it.scoped("QBitTorrentClient uses provided HttpClient", () =>
       ),
     );
 
-    assertEquals(
+    assert.deepStrictEqual(
       torrents.map((torrent) => structuredClone(torrent)),
       [
         {
@@ -82,7 +83,7 @@ it.effect("QBitTorrentClient can load torrent contents", () =>
       ),
     );
 
-    assertEquals(
+    assert.deepStrictEqual(
       files.map((file) => structuredClone(file)),
       [
         {
@@ -180,13 +181,13 @@ it("QBitTorrentClient does not re-authenticate cached sessions for unrelated tra
       yield* client.listTorrents(config);
       const secondExit = yield* Effect.exit(client.listTorrents(config));
 
-      assertEquals(loginCalls, ["abc123"]);
-      assertEquals(Exit.isFailure(secondExit), true);
+      assert.deepStrictEqual(loginCalls, ["abc123"]);
+      assert.deepStrictEqual(Exit.isFailure(secondExit), true);
       if (Exit.isFailure(secondExit)) {
         const failure = Cause.failureOption(secondExit.cause);
-        assertEquals(failure._tag, "Some");
+        assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assertEquals(failure.value._tag, "ExternalCallError");
+          assert.deepStrictEqual(failure.value._tag, "ExternalCallError");
         }
       }
     }),

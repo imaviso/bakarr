@@ -1,12 +1,11 @@
 import { HttpRouter, HttpServerResponse } from "@effect/platform";
-import { Effect, Schema, Stream } from "effect";
+import { Effect, Stream } from "effect";
 
 import { SystemEventsService } from "@/features/system/system-events-service.ts";
+import { encodeNotificationEventSse } from "@/http/event-stream.ts";
 import { authedRouteResponse } from "@/http/router-helpers.ts";
-import { NotificationEventSchema } from "@packages/shared/index.ts";
 
 const sseEncoder = new TextEncoder();
-const encodeNotificationEvent = Schema.encodeSync(Schema.parseJson(NotificationEventSchema));
 
 export const systemEventsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
@@ -17,11 +16,7 @@ export const systemEventsRouter = HttpRouter.empty.pipe(
         const sseStream = Stream.concat(
           Stream.fromIterable([sseEncoder.encode(": connected\n\n")]),
           Stream.merge(
-            stream.pipe(
-              Stream.map((event) =>
-                sseEncoder.encode(`data: ${encodeNotificationEvent(event)}\n\n`),
-              ),
-            ),
+            stream.pipe(Stream.mapEffect(encodeNotificationEventSse)),
             Stream.tick("15 seconds").pipe(Stream.as(sseEncoder.encode(": keep-alive\n\n"))),
           ).pipe(Stream.withSpan("http.events.stream")),
         );

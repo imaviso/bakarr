@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import type { AnimeSearchResult } from "@packages/shared/index.ts";
@@ -17,12 +18,12 @@ import {
 } from "@/features/operations/unmapped-folders.ts";
 
 it("buildUnmappedFolderSearchQueries strips release noise and adds fallback titles", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     buildUnmappedFolderSearchQueries("Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG"),
     ["Scissor Seven Season 4", "Scissor Seven"],
   );
 
-  assertEquals(buildUnmappedFolderSearchQueries("Mono (2025)"), ["Mono"]);
+  assert.deepStrictEqual(buildUnmappedFolderSearchQueries("Mono (2025)"), ["Mono"]);
 });
 
 it.effect(
@@ -69,15 +70,18 @@ it.effect(
         },
       );
 
-      assertEquals(calls, ["Scissor Seven Season 4", "Scissor Seven", "Mono"]);
-      assertEquals(suggestions[0].search_queries, ["Scissor Seven Season 4", "Scissor Seven"]);
-      assertEquals(suggestions[0].suggested_matches[0]?.id, 1);
-      assertEquals(suggestions[0].suggested_matches[0]?.match_confidence, 1);
-      assertEquals(
+      assert.deepStrictEqual(calls, ["Scissor Seven Season 4", "Scissor Seven", "Mono"]);
+      assert.deepStrictEqual(suggestions[0].search_queries, [
+        "Scissor Seven Season 4",
+        "Scissor Seven",
+      ]);
+      assert.deepStrictEqual(suggestions[0].suggested_matches[0]?.id, 1);
+      assert.deepStrictEqual(suggestions[0].suggested_matches[0]?.match_confidence, 1);
+      assert.deepStrictEqual(
         suggestions[0].suggested_matches[0]?.match_reason,
         'Matched AniList search after removing season or release noise from "Scissor.Seven.S04.1080p.NF.WEB-DL.AAC2.0.H.264-VARYG"',
       );
-      assertEquals(suggestions[1].suggested_matches[0]?.id, 2);
+      assert.deepStrictEqual(suggestions[1].suggested_matches[0]?.id, 2);
     }),
 );
 
@@ -109,18 +113,18 @@ it("unmapped folder helpers track matching status transitions", () => {
   const failed = markUnmappedFolderFailed(base, "rate limited", "2024-01-01T00:00:00.000Z");
   const pending = markUnmappedFolderPending(done);
 
-  assertEquals(matching.match_status, "matching");
-  assertEquals(done.match_status, "done");
-  assertEquals(done.match_attempts, 0);
-  assertEquals(done.suggested_matches[0]?.id, 20);
-  assertEquals(done.suggested_matches[0]?.match_confidence, 0.98);
-  assertEquals(typeof done.last_matched_at, "string");
-  assertEquals(failed.match_status, "failed");
-  assertEquals(failed.match_attempts, 1);
-  assertEquals(failed.last_match_error, "rate limited");
-  assertEquals(pending.match_status, "pending");
-  assertEquals(pending.match_attempts, 0);
-  assertEquals(pending.last_match_error, undefined);
+  assert.deepStrictEqual(matching.match_status, "matching");
+  assert.deepStrictEqual(done.match_status, "done");
+  assert.deepStrictEqual(done.match_attempts, 0);
+  assert.deepStrictEqual(done.suggested_matches[0]?.id, 20);
+  assert.deepStrictEqual(done.suggested_matches[0]?.match_confidence, 0.98);
+  assert.deepStrictEqual(typeof done.last_matched_at, "string");
+  assert.deepStrictEqual(failed.match_status, "failed");
+  assert.deepStrictEqual(failed.match_attempts, 1);
+  assert.deepStrictEqual(failed.last_match_error, "rate limited");
+  assert.deepStrictEqual(pending.match_status, "pending");
+  assert.deepStrictEqual(pending.match_attempts, 0);
+  assert.deepStrictEqual(pending.last_match_error, undefined);
 });
 
 it("unmapped folder helpers support pause and reset controls", () => {
@@ -145,15 +149,15 @@ it("unmapped folder helpers support pause and reset controls", () => {
   const paused = markUnmappedFolderPaused(base);
   const reset = resetUnmappedFolderMatch(base);
 
-  assertEquals(paused.match_status, "paused");
-  assertEquals(paused.match_attempts, 2);
-  assertEquals(paused.last_match_error, "rate limited");
+  assert.deepStrictEqual(paused.match_status, "paused");
+  assert.deepStrictEqual(paused.match_attempts, 2);
+  assert.deepStrictEqual(paused.last_match_error, "rate limited");
 
-  assertEquals(reset.match_status, "pending");
-  assertEquals(reset.match_attempts, 0);
-  assertEquals(reset.last_match_error, undefined);
-  assertEquals(reset.last_matched_at, undefined);
-  assertEquals(reset.suggested_matches, []);
+  assert.deepStrictEqual(reset.match_status, "pending");
+  assert.deepStrictEqual(reset.match_attempts, 0);
+  assert.deepStrictEqual(reset.last_match_error, undefined);
+  assert.deepStrictEqual(reset.last_matched_at, undefined);
+  assert.deepStrictEqual(reset.suggested_matches, []);
 });
 
 it("unmapped folder retry helpers stop after three failed attempts", () => {
@@ -166,8 +170,8 @@ it("unmapped folder retry helpers stop after three failed attempts", () => {
     match_status: "failed" as const,
   };
 
-  assertEquals(hasUnmappedFolderRetryAttemptsRemaining(retryable), true);
-  assertEquals(isUnmappedFolderOutstanding(retryable), true);
-  assertEquals(hasUnmappedFolderRetryAttemptsRemaining(exhausted), false);
-  assertEquals(isUnmappedFolderOutstanding(exhausted), false);
+  assert.deepStrictEqual(hasUnmappedFolderRetryAttemptsRemaining(retryable), true);
+  assert.deepStrictEqual(isUnmappedFolderOutstanding(retryable), true);
+  assert.deepStrictEqual(hasUnmappedFolderRetryAttemptsRemaining(exhausted), false);
+  assert.deepStrictEqual(isUnmappedFolderOutstanding(exhausted), false);
 });

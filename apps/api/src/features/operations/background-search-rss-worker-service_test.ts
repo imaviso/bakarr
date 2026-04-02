@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { Effect, Exit, Layer } from "effect";
 import { eq } from "drizzle-orm";
 
@@ -19,7 +20,7 @@ import { ClockServiceLive } from "@/lib/clock.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { assertEquals, describe, it } from "@/test/vitest.ts";
+import { describe, it } from "@effect/vitest";
 
 describe("BackgroundSearchRssWorkerService", () => {
   it.scoped("marks success when RSS and missing search both complete", () =>
@@ -64,9 +65,9 @@ describe("BackgroundSearchRssWorkerService", () => {
             ).pipe(Effect.provide(Layer.mergeAll(baseLayer, workerLayer))),
           );
 
-          assertEquals(Exit.isSuccess(exit), true);
-          assertEquals(calls, ["rss", "missing"]);
-          assertEquals(events, ["RssCheckStarted", "RssCheckFinished"]);
+          assert.deepStrictEqual(Exit.isSuccess(exit), true);
+          assert.deepStrictEqual(calls, ["rss", "missing"]);
+          assert.deepStrictEqual(events, ["RssCheckStarted", "RssCheckFinished"]);
 
           const [job] = yield* Effect.promise(() =>
             db
@@ -76,9 +77,9 @@ describe("BackgroundSearchRssWorkerService", () => {
               .limit(1),
           );
 
-          assertEquals(job.lastStatus, "success");
-          assertEquals(job.isRunning, false);
-          assertEquals(job.lastMessage, "Queued 3 release(s)");
+          assert.deepStrictEqual(job.lastStatus, "success");
+          assert.deepStrictEqual(job.isRunning, false);
+          assert.deepStrictEqual(job.lastMessage, "Queued 3 release(s)");
         }),
       schema,
     }),
@@ -130,9 +131,9 @@ describe("BackgroundSearchRssWorkerService", () => {
             ).pipe(Effect.provide(Layer.mergeAll(baseLayer, workerLayer))),
           );
 
-          assertEquals(Exit.isFailure(exit), true);
-          assertEquals(calls, ["rss", "missing"]);
-          assertEquals(events, ["RssCheckStarted"]);
+          assert.deepStrictEqual(Exit.isFailure(exit), true);
+          assert.deepStrictEqual(calls, ["rss", "missing"]);
+          assert.deepStrictEqual(events, ["RssCheckStarted"]);
 
           const [job] = yield* Effect.promise(() =>
             db
@@ -142,8 +143,8 @@ describe("BackgroundSearchRssWorkerService", () => {
               .limit(1),
           );
 
-          assertEquals(job.lastStatus, "failed");
-          assertEquals(job.isRunning, false);
+          assert.deepStrictEqual(job.lastStatus, "failed");
+          assert.deepStrictEqual(job.isRunning, false);
         }),
       schema,
     }),
@@ -194,9 +195,9 @@ describe("BackgroundSearchRssWorkerService", () => {
             ).pipe(Effect.provide(Layer.mergeAll(baseLayer, workerLayer))),
           );
 
-          assertEquals(Exit.isFailure(exit), true);
-          assertEquals(calls, ["rss"]);
-          assertEquals(events, ["RssCheckStarted"]);
+          assert.deepStrictEqual(Exit.isFailure(exit), true);
+          assert.deepStrictEqual(calls, ["rss"]);
+          assert.deepStrictEqual(events, ["RssCheckStarted"]);
 
           const [job] = yield* Effect.promise(() =>
             db
@@ -206,8 +207,8 @@ describe("BackgroundSearchRssWorkerService", () => {
               .limit(1),
           );
 
-          assertEquals(job.lastStatus, "failed");
-          assertEquals(job.isRunning, false);
+          assert.deepStrictEqual(job.lastStatus, "failed");
+          assert.deepStrictEqual(job.isRunning, false);
         }),
       schema,
     }),

@@ -1,16 +1,17 @@
+import assert from "node:assert/strict";
 import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect } from "effect";
 
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 
 it.effect("inline health live response returns the live status payload", () =>
   Effect.gen(function* () {
     const handler = HttpApp.toWebHandler(HttpServerResponse.json({ status: "alive" }));
     const response = yield* Effect.promise(() => handler(new Request("http://localhost/")));
 
-    assertEquals(response.status, 200);
-    assertEquals(response.headers.get("Content-Type"), "application/json");
-    assertEquals(yield* Effect.promise(() => response.json()), { status: "alive" });
+    assert.deepStrictEqual(response.status, 200);
+    assert.deepStrictEqual(response.headers.get("Content-Type"), "application/json");
+    assert.deepStrictEqual(yield* Effect.promise(() => response.json()), { status: "alive" });
   }),
 );
 
@@ -21,8 +22,8 @@ it.effect("buildHealthReadyResponse returns a ready or not-ready status code", (
     );
     const response = yield* Effect.promise(() => handler(new Request("http://localhost/")));
 
-    assertEquals(response.status, 503);
-    assertEquals(yield* Effect.promise(() => response.json()), {
+    assert.deepStrictEqual(response.status, 503);
+    assert.deepStrictEqual(yield* Effect.promise(() => response.json()), {
       checks: { database: false },
       ready: false,
     });

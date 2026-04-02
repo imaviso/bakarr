@@ -1,7 +1,8 @@
+import assert from "node:assert/strict";
 import { Effect, Layer } from "effect";
 
 import { RandomService } from "@/lib/random.ts";
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { StreamTokenSigner, StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
 
 const randomLayer = Layer.succeed(RandomService, {
@@ -26,7 +27,7 @@ it.effect("StreamTokenSigner signs and verifies matching stream payloads", () =>
       signatureHex: signature,
     });
 
-    assertEquals(isValid, true);
+    assert.deepStrictEqual(isValid, true);
   }).pipe(Effect.provide(StreamTokenSignerLive.pipe(Layer.provide(randomLayer)))),
 );
 
@@ -47,6 +48,6 @@ it.effect("StreamTokenSigner rejects expired stream payloads", () =>
       signatureHex: signature,
     });
 
-    assertEquals(isValid, false);
+    assert.deepStrictEqual(isValid, false);
   }).pipe(Effect.provide(StreamTokenSignerLive.pipe(Layer.provide(randomLayer)))),
 );

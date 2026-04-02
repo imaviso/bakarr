@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { type NamingInput, renderEpisodeFilename } from "@/lib/naming.ts";
 
 function makeInput(overrides: Partial<NamingInput> = {}): NamingInput {
@@ -10,59 +11,77 @@ function makeInput(overrides: Partial<NamingInput> = {}): NamingInput {
 }
 
 it("naming: {title} renders anime title", () => {
-  assertEquals(renderEpisodeFilename("{title}", makeInput({ title: "Naruto" })), "Naruto");
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{title}", makeInput({ title: "Naruto" })),
+    "Naruto",
+  );
 });
 
 it("naming: {title} sanitizes filesystem-unsafe characters", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("{title}", makeInput({ title: 'Re:Zero / "Another"' })),
     "Re Zero Another",
   );
 });
 
 it("naming: {episode} pads to 2 digits by default", () => {
-  assertEquals(renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [5] })), "05");
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [5] })),
+    "05",
+  );
 });
 
 it("naming: {episode:02} pads to 2 digits", () => {
-  assertEquals(renderEpisodeFilename("{episode:02}", makeInput({ episodeNumbers: [3] })), "03");
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{episode:02}", makeInput({ episodeNumbers: [3] })),
+    "03",
+  );
 });
 
 it("naming: {episode:03} pads to 3 digits", () => {
-  assertEquals(renderEpisodeFilename("{episode:03}", makeInput({ episodeNumbers: [5] })), "005");
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{episode:03}", makeInput({ episodeNumbers: [5] })),
+    "005",
+  );
 });
 
 it("naming: {episode} with large number does not truncate", () => {
-  assertEquals(renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [142] })), "142");
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [142] })),
+    "142",
+  );
 });
 
 it("naming: {episode} with no episodes uses 0", () => {
-  assertEquals(renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [] })), "00");
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{episode}", makeInput({ episodeNumbers: [] })),
+    "00",
+  );
 });
 
 it("naming: {episode_segment} single episode", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("{episode_segment}", makeInput({ episodeNumbers: [3] })),
     "03",
   );
 });
 
 it("naming: {episode_segment} multi-episode range", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("{episode_segment}", makeInput({ episodeNumbers: [3, 4] })),
     "03-04",
   );
 });
 
 it("naming: {episode_segment} episode >= 100 uses 3-digit pad", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("{episode_segment}", makeInput({ episodeNumbers: [142] })),
     "142",
   );
 });
 
 it("naming: {source_episode_segment} uses source label when available", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{source_episode_segment}",
       makeInput({
@@ -79,53 +98,59 @@ it("naming: {source_episode_segment} uses source label when available", () => {
 });
 
 it("naming: {source_episode_segment} falls back to segment when no source", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("{source_episode_segment}", makeInput({ episodeNumbers: [7] })),
     "07",
   );
 });
 
 it("naming: {season} pads to 2 digits by default", () => {
-  assertEquals(renderEpisodeFilename("{season}", makeInput({ season: 2 })), "02");
+  assert.deepStrictEqual(renderEpisodeFilename("{season}", makeInput({ season: 2 })), "02");
 });
 
 it("naming: {season:02} pads to 2 digits", () => {
-  assertEquals(renderEpisodeFilename("{season:02}", makeInput({ season: 1 })), "01");
+  assert.deepStrictEqual(renderEpisodeFilename("{season:02}", makeInput({ season: 1 })), "01");
 });
 
 it("naming: {season} renders empty when not provided", () => {
-  assertEquals(renderEpisodeFilename("{season}", makeInput()), "");
+  assert.deepStrictEqual(renderEpisodeFilename("{season}", makeInput()), "");
 });
 
 it("naming: {air_date} renders date", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("{air_date}", makeInput({ airDate: "2025-03-14" })),
     "2025-03-14",
   );
 });
 
 it("naming: {air_date} renders empty when not provided", () => {
-  assertEquals(renderEpisodeFilename("{air_date}", makeInput()), "");
+  assert.deepStrictEqual(renderEpisodeFilename("{air_date}", makeInput()), "");
 });
 
 it("naming: {group} renders release group", () => {
-  assertEquals(renderEpisodeFilename("{group}", makeInput({ group: "SubsPlease" })), "SubsPlease");
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{group}", makeInput({ group: "SubsPlease" })),
+    "SubsPlease",
+  );
 });
 
 it("naming: {group} renders empty when not provided", () => {
-  assertEquals(renderEpisodeFilename("{group}", makeInput()), "");
+  assert.deepStrictEqual(renderEpisodeFilename("{group}", makeInput()), "");
 });
 
 it("naming: {resolution} renders resolution", () => {
-  assertEquals(renderEpisodeFilename("{resolution}", makeInput({ resolution: "1080p" })), "1080p");
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{resolution}", makeInput({ resolution: "1080p" })),
+    "1080p",
+  );
 });
 
 it("naming: {resolution} renders empty when not provided", () => {
-  assertEquals(renderEpisodeFilename("{resolution}", makeInput()), "");
+  assert.deepStrictEqual(renderEpisodeFilename("{resolution}", makeInput()), "");
 });
 
 it("naming: default format '{title} - {episode_segment}'", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - {episode_segment}",
       makeInput({ title: "Naruto", episodeNumbers: [5] }),
@@ -135,7 +160,7 @@ it("naming: default format '{title} - {episode_segment}'", () => {
 });
 
 it("naming: complex format with all tokens", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} - [{group}] [{resolution}]",
       makeInput({
@@ -151,7 +176,7 @@ it("naming: complex format with all tokens", () => {
 });
 
 it("naming: format with multiple episode tokens", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - {episode_segment} ({episode:03})",
       makeInput({ title: "Bleach", episodeNumbers: [5] }),
@@ -161,7 +186,7 @@ it("naming: format with multiple episode tokens", () => {
 });
 
 it("naming: cleans up dangling separator when group is empty", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - {episode_segment} - {group}",
       makeInput({ title: "Naruto", episodeNumbers: [1] }),
@@ -171,7 +196,7 @@ it("naming: cleans up dangling separator when group is empty", () => {
 });
 
 it("naming: cleans up leading separator when title token is first and empty optional follows", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{group} - {title} - {episode_segment}",
       makeInput({ title: "Naruto", episodeNumbers: [1] }),
@@ -181,7 +206,7 @@ it("naming: cleans up leading separator when title token is first and empty opti
 });
 
 it("naming: cleans up multiple dangling separators", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - {group} - {resolution} - {episode_segment}",
       makeInput({ title: "Naruto", episodeNumbers: [1] }),
@@ -191,7 +216,7 @@ it("naming: cleans up multiple dangling separators", () => {
 });
 
 it("naming: token used multiple times in format", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title}/{title} - {episode_segment}",
       makeInput({ title: "Naruto", episodeNumbers: [5] }),
@@ -201,7 +226,7 @@ it("naming: token used multiple times in format", () => {
 });
 
 it("naming: unknown tokens are left as-is", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("{title} - {unknown_token}", makeInput({ title: "Naruto" })),
     "Naruto - {unknown_token}",
   );
@@ -212,7 +237,7 @@ it("naming: unknown tokens are left as-is", () => {
 // ---------------------------------------------------------------------------
 
 it("naming: JoJo Sonarr-style S{season}E{episode} with apostrophe and year in title", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} [{group}][{resolution}]",
       makeInput({
@@ -228,7 +253,7 @@ it("naming: JoJo Sonarr-style S{season}E{episode} with apostrophe and year in ti
 });
 
 it("naming: JoJo with source_episode_segment from parsed identity", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - {source_episode_segment} [{group}][{resolution}]",
       makeInput({
@@ -250,7 +275,7 @@ it("naming: JoJo with source_episode_segment from parsed identity", () => {
 });
 
 it("naming: JoJo with empty optional tokens cleans up empty brackets", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} - [{group}][{resolution}]",
       makeInput({
@@ -264,7 +289,7 @@ it("naming: JoJo with empty optional tokens cleans up empty brackets", () => {
 });
 
 it("naming: Nukitashi Sonarr-style with group and resolution", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} [{group}][{resolution}]",
       makeInput({
@@ -280,7 +305,7 @@ it("naming: Nukitashi Sonarr-style with group and resolution", () => {
 });
 
 it("naming: Nukitashi with source_episode_segment", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - {source_episode_segment} [{group}][{resolution}]",
       makeInput({
@@ -302,7 +327,7 @@ it("naming: Nukitashi with source_episode_segment", () => {
 });
 
 it("naming: partial optional tokens — group filled, resolution empty", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} [{group}][{resolution}]",
       makeInput({
@@ -317,7 +342,7 @@ it("naming: partial optional tokens — group filled, resolution empty", () => {
 });
 
 it("naming: {episode_title} renders episode title", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - {episode_segment} - {episode_title}",
       makeInput({
@@ -331,7 +356,7 @@ it("naming: {episode_title} renders episode title", () => {
 });
 
 it("naming: {episode_title} empty when not provided", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - {episode_segment} - {episode_title}",
       makeInput({ title: "Naruto", episodeNumbers: [1] }),
@@ -341,7 +366,7 @@ it("naming: {episode_title} empty when not provided", () => {
 });
 
 it("naming: {year} renders start year", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} ({year}) - {episode_segment}",
       makeInput({
@@ -355,7 +380,7 @@ it("naming: {year} renders start year", () => {
 });
 
 it("naming: {year} empty cleans up parentheses", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} ({year}) - {episode_segment}",
       makeInput({ title: "Naruto", episodeNumbers: [1] }),
@@ -365,18 +390,21 @@ it("naming: {year} empty cleans up parentheses", () => {
 });
 
 it("naming: {quality} renders quality source", () => {
-  assertEquals(renderEpisodeFilename("{quality}", makeInput({ quality: "WEB-DL" })), "WEB-DL");
+  assert.deepStrictEqual(
+    renderEpisodeFilename("{quality}", makeInput({ quality: "WEB-DL" })),
+    "WEB-DL",
+  );
 });
 
 it("naming: {quality} empty when not provided", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("{title} - {quality}", makeInput({ title: "Naruto" })),
     "Naruto",
   );
 });
 
 it("naming: {quality} omits duplicated resolution when {resolution} is present", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - [{quality} {resolution}]",
       makeInput({
@@ -390,7 +418,7 @@ it("naming: {quality} omits duplicated resolution when {resolution} is present",
 });
 
 it("naming: {quality} can become empty when it only repeats resolution", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - [{quality} {resolution}]",
       makeInput({
@@ -404,35 +432,35 @@ it("naming: {quality} can become empty when it only repeats resolution", () => {
 });
 
 it("naming: {video_codec} renders codec", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("[{video_codec}]", makeInput({ videoCodec: "x265" })),
     "[x265]",
   );
 });
 
 it("naming: {video_codec} empty cleans up brackets", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("{title} [{video_codec}]", makeInput({ title: "Naruto" })),
     "Naruto",
   );
 });
 
 it("naming: {audio_codec} renders codec", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("[{audio_codec}]", makeInput({ audioCodec: "FLAC" })),
     "[FLAC]",
   );
 });
 
 it("naming: {audio_channels} renders channel layout", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename("[{audio_channels}]", makeInput({ audioChannels: "2.0" })),
     "[2.0]",
   );
 });
 
 it("naming: full JoJo Sonarr-style with episode title and codecs", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} ({year}) - S{season:02}E{episode:02} - {episode_title} [{quality}-{resolution}][{audio_codec} {audio_channels}][{video_codec}]",
       makeInput({
@@ -453,7 +481,7 @@ it("naming: full JoJo Sonarr-style with episode title and codecs", () => {
 });
 
 it("naming: full Nukitashi Sonarr-style with all new tokens", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - S{season:02}E{episode:02} - {episode_title} [{quality}-{resolution}][{audio_codec} {audio_channels}][{video_codec}] - [{group}]",
       makeInput({
@@ -474,7 +502,7 @@ it("naming: full Nukitashi Sonarr-style with all new tokens", () => {
 });
 
 it("naming: wrapped segments collapse empty inner tokens", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     renderEpisodeFilename(
       "{title} - [{quality} {resolution}][{video_codec}][{audio_codec} {audio_channels}][{group}]",
       makeInput({

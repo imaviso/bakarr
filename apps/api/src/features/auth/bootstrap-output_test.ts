@@ -1,7 +1,8 @@
+import assert from "node:assert/strict";
 import { Terminal } from "@effect/platform";
 import { Effect, Logger } from "effect";
 
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { announceBootstrapCredentials } from "@/features/auth/bootstrap-output.ts";
 
 it.effect("announceBootstrapCredentials logs a fallback message when terminal display fails", () =>
@@ -26,11 +27,11 @@ it.effect("announceBootstrapCredentials logs a fallback message when terminal di
       Effect.provide(Logger.replace(Logger.defaultLogger, logger)),
     );
 
-    assertEquals(
+    assert.deepStrictEqual(
       messages.some((message) => message.includes("Failed to display bootstrap credentials")),
       true,
     );
-    assertEquals(
+    assert.deepStrictEqual(
       messages.some((message) => message.includes("INITIAL SETUP")),
       true,
     );

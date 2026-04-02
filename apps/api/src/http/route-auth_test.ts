@@ -8,7 +8,8 @@ import {
   type AuthSessionServiceShape,
 } from "@/features/auth/session-service.ts";
 import { persistSessionResponse, requireViewerFromHttpRequest } from "@/http/route-auth.ts";
-import { assertEquals, assertExists, assertMatch, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import type { AuthUser } from "@packages/shared/index.ts";
 
 const sampleViewer: AuthUser = {
@@ -49,9 +50,9 @@ it.effect("requireViewerFromHttpRequest prefers x-api-key over bearer authorizat
       ),
     );
 
-    assertEquals(viewer, sampleViewer);
-    assertEquals(seenSessionToken, "session-token");
-    assertEquals(seenApiKey, "header-token");
+    assert.deepStrictEqual(viewer, sampleViewer);
+    assert.deepStrictEqual(seenSessionToken, "session-token");
+    assert.deepStrictEqual(seenApiKey, "header-token");
   }),
 );
 
@@ -81,8 +82,8 @@ it.effect("requireViewerFromHttpRequest falls back to bearer token when x-api-ke
       ),
     );
 
-    assertEquals(viewer, sampleViewer);
-    assertEquals(seenApiKey, "bearer-token");
+    assert.deepStrictEqual(viewer, sampleViewer);
+    assert.deepStrictEqual(seenApiKey, "bearer-token");
   }),
 );
 
@@ -101,14 +102,14 @@ it.effect("requireViewerFromHttpRequest fails with AuthError when viewer is miss
       ),
     );
 
-    assertEquals(exit._tag, "Failure");
+    assert.deepStrictEqual(exit._tag, "Failure");
     if (exit._tag === "Failure") {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some");
+      assert.deepStrictEqual(failure._tag, "Some");
       if (failure._tag === "Some") {
-        assertEquals(failure.value instanceof AuthError, true);
+        assert.deepStrictEqual(failure.value instanceof AuthError, true);
         if (failure.value instanceof AuthError) {
-          assertEquals(failure.value.status, 401);
+          assert.deepStrictEqual(failure.value.status, 401);
         }
       }
     }
@@ -130,12 +131,12 @@ it.effect("persistSessionResponse sets secure cookie flags when configured", () 
     const webResponse = HttpServerResponse.toWeb(response);
     const setCookie = webResponse.headers.get("set-cookie");
 
-    assertExists(setCookie);
-    assertMatch(setCookie, /^auth_session=session-token/i);
-    assertMatch(setCookie, /Max-Age=604800/i);
-    assertMatch(setCookie, /HttpOnly/i);
-    assertMatch(setCookie, /SameSite=Lax/i);
-    assertMatch(setCookie, /Secure/i);
+    assert.ok(setCookie != null);
+    assert.match(setCookie, /^auth_session=session-token/i);
+    assert.match(setCookie, /Max-Age=604800/i);
+    assert.match(setCookie, /HttpOnly/i);
+    assert.match(setCookie, /SameSite=Lax/i);
+    assert.match(setCookie, /Secure/i);
   }),
 );
 
@@ -155,8 +156,8 @@ it.effect("persistSessionResponse omits secure flag when disabled", () =>
     const webResponse = HttpServerResponse.toWeb(response);
     const setCookie = webResponse.headers.get("set-cookie");
 
-    assertExists(setCookie);
-    assertEquals(setCookie.includes("Secure"), false);
+    assert.ok(setCookie != null);
+    assert.deepStrictEqual(setCookie.includes("Secure"), false);
   }),
 );
 

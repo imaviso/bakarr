@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Effect, Either } from "effect";
 
 import { defaultAppConfig } from "@/config.ts";
@@ -79,23 +80,29 @@ const baseProfile: QualityProfile = {
 it("parse release name extracts group, episode, and quality", () => {
   const parsed = parseReleaseName("[SubsPlease] Frieren - 05 (1080p) [WEB-DL]");
 
-  assertEquals(parsed.group, "SubsPlease");
-  assertEquals(parsed.episodeNumber, 5);
-  assertEquals(parsed.resolution, "1080p");
-  assertEquals(parsed.quality.name, "WEB-DL 1080p");
+  assert.deepStrictEqual(parsed.group, "SubsPlease");
+  assert.deepStrictEqual(parsed.episodeNumber, 5);
+  assert.deepStrictEqual(parsed.resolution, "1080p");
+  assert.deepStrictEqual(parsed.quality.name, "WEB-DL 1080p");
 });
 
 it("parse quality prefers bluray remux over webdl", () => {
-  assertEquals(parseQualityFromTitle("[Group] Show - 01 [1080p BluRay]").name, "BluRay 1080p");
-  assertEquals(parseQualityFromTitle("[Group] Show - 01 [1080p Remux]").name, "BluRay 1080p Remux");
-  assertEquals(
+  assert.deepStrictEqual(
+    parseQualityFromTitle("[Group] Show - 01 [1080p BluRay]").name,
+    "BluRay 1080p",
+  );
+  assert.deepStrictEqual(
+    parseQualityFromTitle("[Group] Show - 01 [1080p Remux]").name,
+    "BluRay 1080p Remux",
+  );
+  assert.deepStrictEqual(
     parseQualityFromTitle("[Group] Show S01 (BD 1080p HEVC Opus) [Dual-Audio]").name,
     "BluRay 1080p",
   );
 });
 
 it("parse quality falls back to Unknown when no source and no resolution exist", () => {
-  assertEquals(parseQualityFromTitle("unknown").name, "Unknown");
+  assert.deepStrictEqual(parseQualityFromTitle("unknown").name, "Unknown");
 });
 
 it("decide download accepts new release and upgrades higher quality", () => {
@@ -116,7 +123,7 @@ it("decide download accepts new release and upgrades higher quality", () => {
     baseConfig,
   );
 
-  assertEquals(Boolean(accepted.Accept), true);
+  assert.deepStrictEqual(Boolean(accepted.Accept), true);
 
   const upgraded = decideDownloadAction(
     baseProfile,
@@ -140,7 +147,7 @@ it("decide download accepts new release and upgrades higher quality", () => {
     baseConfig,
   );
 
-  assertEquals(Boolean(upgraded.Upgrade), true);
+  assert.deepStrictEqual(Boolean(upgraded.Upgrade), true);
 });
 
 it("seadex release can upgrade same-quality current file", () => {
@@ -166,8 +173,8 @@ it("seadex release can upgrade same-quality current file", () => {
     baseConfig,
   );
 
-  assertEquals(Boolean(decision.Upgrade), true);
-  assertEquals(decision.Upgrade?.is_seadex_best, true);
+  assert.deepStrictEqual(Boolean(decision.Upgrade), true);
+  assert.deepStrictEqual(decision.Upgrade?.is_seadex_best, true);
 });
 
 it("seadex scoring is disabled when runtime config disables seadex", () => {
@@ -199,7 +206,7 @@ it("seadex scoring is disabled when runtime config disables seadex", () => {
     },
   );
 
-  assertEquals(decision.Reject?.reason, "already at quality cutoff");
+  assert.deepStrictEqual(decision.Reject?.reason, "already at quality cutoff");
 });
 
 it("seadex tags and config preferences boost release score", () => {
@@ -266,9 +273,9 @@ it("seadex tags and config preferences boost release score", () => {
     },
   );
 
-  assertEquals(Boolean(preferred.Accept), true);
-  assertEquals(Boolean(fallback.Accept), true);
-  assertEquals((preferred.Accept?.score ?? 0) > (fallback.Accept?.score ?? 0), true);
+  assert.deepStrictEqual(Boolean(preferred.Accept), true);
+  assert.deepStrictEqual(Boolean(fallback.Accept), true);
+  assert.deepStrictEqual((preferred.Accept?.score ?? 0) > (fallback.Accept?.score ?? 0), true);
 });
 
 it("negative SeaDex notes can reduce release score", () => {
@@ -329,9 +336,9 @@ it("negative SeaDex notes can reduce release score", () => {
     },
   );
 
-  assertEquals(Boolean(recommended.Accept), true);
-  assertEquals(Boolean(problematic.Accept), true);
-  assertEquals((recommended.Accept?.score ?? 0) > (problematic.Accept?.score ?? 0), true);
+  assert.deepStrictEqual(Boolean(recommended.Accept), true);
+  assert.deepStrictEqual(Boolean(problematic.Accept), true);
+  assert.deepStrictEqual((recommended.Accept?.score ?? 0) > (problematic.Accept?.score ?? 0), true);
 });
 
 it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
@@ -382,9 +389,9 @@ it("SeaDex best metadata outranks high-seeder non-SeaDex releases", () => {
     },
   );
 
-  assertEquals(Boolean(seadex.Accept), true);
-  assertEquals(Boolean(popular.Accept), true);
-  assertEquals((seadex.Accept?.score ?? 0) > (popular.Accept?.score ?? 0), true);
+  assert.deepStrictEqual(Boolean(seadex.Accept), true);
+  assert.deepStrictEqual(Boolean(popular.Accept), true);
+  assert.deepStrictEqual((seadex.Accept?.score ?? 0) > (popular.Accept?.score ?? 0), true);
 });
 
 it("SeaDex notes mentioning the release group boost the matching release", () => {
@@ -437,9 +444,9 @@ it("SeaDex notes mentioning the release group boost the matching release", () =>
     },
   );
 
-  assertEquals(Boolean(matched.Accept), true);
-  assertEquals(Boolean(unmatched.Accept), true);
-  assertEquals((matched.Accept?.score ?? 0) > (unmatched.Accept?.score ?? 0), true);
+  assert.deepStrictEqual(Boolean(matched.Accept), true);
+  assert.deepStrictEqual(Boolean(unmatched.Accept), true);
+  assert.deepStrictEqual((matched.Accept?.score ?? 0) > (unmatched.Accept?.score ?? 0), true);
 });
 
 it("compare episode search results prefers higher scores before seeders", () => {
@@ -481,7 +488,7 @@ it("compare episode search results prefers higher scores before seeders", () => 
     title: "right",
   };
 
-  assertEquals(
+  assert.deepStrictEqual(
     Math.sign(compareEpisodeSearchResults(lowerScoreMoreSeeders, higherScoreFewerSeeders)),
     1,
   );
@@ -519,7 +526,7 @@ it("compare episode search results prefers accepted higher-seeder entries", () =
     title: "right",
   };
 
-  assertEquals(Math.sign(compareEpisodeSearchResults(left, right)), 1);
+  assert.deepStrictEqual(Math.sign(compareEpisodeSearchResults(left, right)), 1);
 });
 
 it("cutoff blocks better-quality upgrades once cutoff is met", () => {
@@ -550,7 +557,7 @@ it("cutoff blocks better-quality upgrades once cutoff is met", () => {
     baseConfig,
   );
 
-  assertEquals(decision.Reject?.reason, "already at quality cutoff");
+  assert.deepStrictEqual(decision.Reject?.reason, "already at quality cutoff");
 });
 
 it("unknown current quality does not block higher-quality upgrade", () => {
@@ -579,8 +586,11 @@ it("unknown current quality does not block higher-quality upgrade", () => {
     baseConfig,
   );
 
-  assertEquals(decision.Upgrade?.reason, "better quality available");
-  assertEquals(decision.Upgrade?.quality.name, parseQualityFromTitle("1080p BluRay").name);
+  assert.deepStrictEqual(decision.Upgrade?.reason, "better quality available");
+  assert.deepStrictEqual(
+    decision.Upgrade?.quality.name,
+    parseQualityFromTitle("1080p BluRay").name,
+  );
 });
 
 it.effect("invalid quality profile size labels fail validation", () =>
@@ -590,9 +600,9 @@ it.effect("invalid quality profile size labels fail validation", () =>
       min_size: "not-a-size",
     }).pipe(Effect.either);
 
-    assertEquals(Either.isLeft(result), true);
+    assert.deepStrictEqual(Either.isLeft(result), true);
     if (Either.isLeft(result)) {
-      assertEquals(result.left.message, "Invalid quality profile size label: not-a-size");
+      assert.deepStrictEqual(result.left.message, "Invalid quality profile size label: not-a-size");
     }
   }),
 );
@@ -636,28 +646,28 @@ it("compare episode search results prefers better quality over seeders when scor
     title: "right",
   };
 
-  assertEquals(
+  assert.deepStrictEqual(
     Math.sign(compareEpisodeSearchResults(lowQualityMoreSeeders, highQualityFewerSeeders)),
     1,
   );
 });
 
 it("episode parser handles sxxexx and dash patterns", () => {
-  assertEquals(parseEpisodeFromTitle("Show.S01E07.1080p.WEB.mkv"), 7);
-  assertEquals(parseEpisodeFromTitle("[Group] Show - 12 [1080p]"), 12);
+  assert.deepStrictEqual(parseEpisodeFromTitle("Show.S01E07.1080p.WEB.mkv"), 7);
+  assert.deepStrictEqual(parseEpisodeFromTitle("[Group] Show - 12 [1080p]"), 12);
 });
 
 it("episode parser handles ranges and season packs", () => {
-  assertEquals(parseEpisodeNumbersFromTitle("[Group] Show - 01-03 [1080p]"), [1, 2, 3]);
-  assertEquals(parseEpisodeNumbersFromTitle("Show S01E01-E04 1080p"), [1, 2, 3, 4]);
+  assert.deepStrictEqual(parseEpisodeNumbersFromTitle("[Group] Show - 01-03 [1080p]"), [1, 2, 3]);
+  assert.deepStrictEqual(parseEpisodeNumbersFromTitle("Show S01E01-E04 1080p"), [1, 2, 3, 4]);
 
   const parsed = parseReleaseName("[Group] Show - 01-12 Batch [1080p]");
-  assertEquals(parsed.isBatch, true);
-  assertEquals(parsed.episodeNumbers.length, 12);
+  assert.deepStrictEqual(parsed.isBatch, true);
+  assert.deepStrictEqual(parsed.episodeNumbers.length, 12);
 
   const seasonPack = parseReleaseName(
     "[Flugel] Chainsaw Man S01 (BD 1080p HEVC Opus) [Multi Audio]",
   );
-  assertEquals(seasonPack.isBatch, true);
-  assertEquals(seasonPack.episodeNumbers, []);
+  assert.deepStrictEqual(seasonPack.isBatch, true);
+  assert.deepStrictEqual(seasonPack.episodeNumbers, []);
 });

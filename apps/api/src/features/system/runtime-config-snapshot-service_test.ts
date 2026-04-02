@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { Cause, Effect, Exit, Layer } from "effect";
 
 import { StoredConfigMissingError } from "@/features/system/errors.ts";
@@ -7,7 +8,7 @@ import {
 } from "@/features/system/runtime-config-snapshot-service.ts";
 import { SystemConfigService } from "@/features/system/system-config-service.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 
 it.effect("RuntimeConfigSnapshotService caches loaded config", () =>
   Effect.gen(function* () {
@@ -30,8 +31,8 @@ it.effect("RuntimeConfigSnapshotService caches loaded config", () =>
       Effect.all([service.getRuntimeConfig(), service.getRuntimeConfig()]),
     ).pipe(Effect.provide(layer));
 
-    assertEquals(loaded, [config, config]);
-    assertEquals(calls, 1);
+    assert.deepStrictEqual(loaded, [config, config]);
+    assert.deepStrictEqual(calls, 1);
   }),
 );
 
@@ -60,8 +61,8 @@ it.effect("RuntimeConfigSnapshotService returns replaced config without loading"
       }),
     ).pipe(Effect.provide(layer));
 
-    assertEquals(result, replaced);
-    assertEquals(calls, 0);
+    assert.deepStrictEqual(result, replaced);
+    assert.deepStrictEqual(calls, 0);
   }),
 );
 
@@ -83,14 +84,14 @@ it.effect("RuntimeConfigSnapshotService forwards SystemConfigService failures", 
       ),
     );
 
-    assertEquals(Exit.isFailure(exit), true);
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
 
     if (Exit.isFailure(exit)) {
       const failure = Cause.failureOption(exit.cause);
-      assertEquals(failure._tag, "Some", Cause.pretty(exit.cause));
+      assert.deepStrictEqual(failure._tag, "Some", Cause.pretty(exit.cause));
 
       if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "StoredConfigMissingError");
+        assert.deepStrictEqual(failure.value._tag, "StoredConfigMissingError");
       }
     }
   }),

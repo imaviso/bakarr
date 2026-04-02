@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Exit } from "effect";
 
@@ -38,8 +39,8 @@ it.scoped("cacheAnimeMetadataImages uses provided HttpClient for remote images",
           coverImage: "https://example.com/cover",
         });
 
-        assertEquals(result.coverImage, "/api/images/anime/55/cover.png");
-        assertEquals(yield* exists(fs, `${root}/anime/55/cover.png`), true);
+        assert.deepStrictEqual(result.coverImage, "/api/images/anime/55/cover.png");
+        assert.deepStrictEqual(yield* exists(fs, `${root}/anime/55/cover.png`), true);
       }),
     );
   }),
@@ -54,10 +55,10 @@ it.scoped("cacheAnimeMetadataImages saves cover and banner files locally", () =>
         coverImage: dataUrl,
       });
 
-      assertEquals(result.coverImage, "/api/images/anime/99/cover.png");
-      assertEquals(result.bannerImage, "/api/images/anime/99/banner.png");
-      assertEquals(yield* exists(fs, `${root}/anime/99/cover.png`), true);
-      assertEquals(yield* exists(fs, `${root}/anime/99/banner.png`), true);
+      assert.deepStrictEqual(result.coverImage, "/api/images/anime/99/cover.png");
+      assert.deepStrictEqual(result.bannerImage, "/api/images/anime/99/banner.png");
+      assert.deepStrictEqual(yield* exists(fs, `${root}/anime/99/cover.png`), true);
+      assert.deepStrictEqual(yield* exists(fs, `${root}/anime/99/banner.png`), true);
     }),
   ),
 );
@@ -92,9 +93,9 @@ it.scoped("cacheAnimeMetadataImages fails on unsupported image types", () =>
           }),
         );
 
-        assertEquals(Exit.isFailure(result), true);
-        assertEquals(yield* exists(fs, `${root}/anime/77/cover.png`), false);
-        assertEquals(yield* exists(fs, `${root}/anime/77/banner.png`), false);
+        assert.deepStrictEqual(Exit.isFailure(result), true);
+        assert.deepStrictEqual(yield* exists(fs, `${root}/anime/77/cover.png`), false);
+        assert.deepStrictEqual(yield* exists(fs, `${root}/anime/77/banner.png`), false);
       }),
     );
   }),
@@ -131,8 +132,8 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by Content-Length", (
           }),
         );
 
-        assertEquals(Exit.isFailure(result), true);
-        assertEquals(yield* exists(fs, `${root}/anime/77/cover.png`), false);
+        assert.deepStrictEqual(Exit.isFailure(result), true);
+        assert.deepStrictEqual(yield* exists(fs, `${root}/anime/77/cover.png`), false);
       }),
     );
   }),
@@ -173,8 +174,8 @@ it.scoped("cacheAnimeMetadataImages fails oversized images by streamed bytes", (
           }),
         );
 
-        assertEquals(Exit.isFailure(result), true);
-        assertEquals(yield* exists(fs, `${root}/anime/77/cover.png`), false);
+        assert.deepStrictEqual(Exit.isFailure(result), true);
+        assert.deepStrictEqual(yield* exists(fs, `${root}/anime/77/cover.png`), false);
       }),
     );
   }),

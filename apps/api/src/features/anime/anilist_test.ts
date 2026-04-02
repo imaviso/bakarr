@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
 import { Effect, Layer, Option } from "effect";
 
@@ -94,33 +95,39 @@ it.scoped("AniListClient decodes search responses from the provided HttpClient",
     const first = results[0];
     const expectedFirst = expected[0];
 
-    assertEquals(results.length, expected.length);
-    assertEquals(first?.already_in_library, expectedFirst?.already_in_library);
-    assertEquals(first?.banner_image, expectedFirst?.banner_image);
-    assertEquals(first?.cover_image, expectedFirst?.cover_image);
-    assertEquals(first?.description, expectedFirst?.description);
-    assertEquals(first?.end_date, expectedFirst?.end_date);
-    assertEquals(first?.end_year, expectedFirst?.end_year);
-    assertEquals(first?.episode_count, expectedFirst?.episode_count);
-    assertEquals(first?.format, expectedFirst?.format);
-    assertEquals(first?.genres, expectedFirst?.genres);
-    assertEquals(first?.id, expectedFirst?.id);
-    assertEquals(first?.season, expectedFirst?.season);
-    assertEquals(first?.season_year, expectedFirst?.season_year);
-    assertEquals(first?.start_date, expectedFirst?.start_date);
-    assertEquals(first?.start_year, expectedFirst?.start_year);
-    assertEquals(first?.status, expectedFirst?.status);
-    assertEquals(first?.synonyms, expectedFirst?.synonyms);
-    assertEquals(first?.title, expectedFirst?.title);
-    assertEquals(first?.related_anime?.length, expectedFirst?.related_anime.length);
-    assertEquals(first?.related_anime?.[0]?.id, expectedFirst?.related_anime[0]?.id);
-    assertEquals(
+    assert.deepStrictEqual(results.length, expected.length);
+    assert.deepStrictEqual(first?.already_in_library, expectedFirst?.already_in_library);
+    assert.deepStrictEqual(first?.banner_image, expectedFirst?.banner_image);
+    assert.deepStrictEqual(first?.cover_image, expectedFirst?.cover_image);
+    assert.deepStrictEqual(first?.description, expectedFirst?.description);
+    assert.deepStrictEqual(first?.end_date, expectedFirst?.end_date);
+    assert.deepStrictEqual(first?.end_year, expectedFirst?.end_year);
+    assert.deepStrictEqual(first?.episode_count, expectedFirst?.episode_count);
+    assert.deepStrictEqual(first?.format, expectedFirst?.format);
+    assert.deepStrictEqual(first?.genres, expectedFirst?.genres);
+    assert.deepStrictEqual(first?.id, expectedFirst?.id);
+    assert.deepStrictEqual(first?.season, expectedFirst?.season);
+    assert.deepStrictEqual(first?.season_year, expectedFirst?.season_year);
+    assert.deepStrictEqual(first?.start_date, expectedFirst?.start_date);
+    assert.deepStrictEqual(first?.start_year, expectedFirst?.start_year);
+    assert.deepStrictEqual(first?.status, expectedFirst?.status);
+    assert.deepStrictEqual(first?.synonyms, expectedFirst?.synonyms);
+    assert.deepStrictEqual(first?.title, expectedFirst?.title);
+    assert.deepStrictEqual(first?.related_anime?.length, expectedFirst?.related_anime.length);
+    assert.deepStrictEqual(first?.related_anime?.[0]?.id, expectedFirst?.related_anime[0]?.id);
+    assert.deepStrictEqual(
       first?.related_anime?.[0]?.relation_type,
       expectedFirst?.related_anime[0]?.relation_type,
     );
-    assertEquals(first?.recommended_anime?.length, expectedFirst?.recommended_anime.length);
-    assertEquals(first?.recommended_anime?.[0]?.id, expectedFirst?.recommended_anime[0]?.id);
-    assertEquals(requestCount, 1);
+    assert.deepStrictEqual(
+      first?.recommended_anime?.length,
+      expectedFirst?.recommended_anime.length,
+    );
+    assert.deepStrictEqual(
+      first?.recommended_anime?.[0]?.id,
+      expectedFirst?.recommended_anime[0]?.id,
+    );
+    assert.deepStrictEqual(requestCount, 1);
   }),
 );
 
@@ -221,36 +228,42 @@ it.scoped("AniListClient decodes detail responses from the provided HttpClient",
       client.getAnimeMetadataById(321),
     ).pipe(Effect.provide(clientLayer));
 
-    assertEquals(Option.isSome(result), true);
+    assert.deepStrictEqual(Option.isSome(result), true);
     if (Option.isSome(result)) {
       const expected = expectedDetailResult();
 
-      assertEquals(result.value.bannerImage, expected.bannerImage);
-      assertEquals(result.value.coverImage, expected.coverImage);
-      assertEquals(result.value.description, expected.description);
-      assertEquals(result.value.endDate, expected.endDate);
-      assertEquals(result.value.endYear, expected.endYear);
-      assertEquals(result.value.episodeCount, expected.episodeCount);
-      assertEquals(result.value.format, expected.format);
-      assertEquals(result.value.futureAiringSchedule, expected.futureAiringSchedule);
-      assertEquals(result.value.genres, expected.genres);
-      assertEquals(result.value.id, expected.id);
-      assertEquals(result.value.malId, expected.malId);
-      assertEquals(result.value.nextAiringEpisode, expected.nextAiringEpisode);
-      assertEquals(result.value.recommendedAnime?.length, expected.recommendedAnime.length);
-      assertEquals(result.value.recommendedAnime?.[0]?.id, expected.recommendedAnime[0]?.id);
-      assertEquals(result.value.relatedAnime?.length, expected.relatedAnime.length);
-      assertEquals(result.value.relatedAnime?.[0]?.id, expected.relatedAnime[0]?.id);
-      assertEquals(result.value.score, expected.score);
-      assertEquals(result.value.startDate, expected.startDate);
-      assertEquals(result.value.startYear, expected.startYear);
-      assertEquals(result.value.status, expected.status);
-      assertEquals(result.value.studios, expected.studios);
-      assertEquals(result.value.synonyms, expected.synonyms);
-      assertEquals(result.value.title, expected.title);
+      assert.deepStrictEqual(result.value.bannerImage, expected.bannerImage);
+      assert.deepStrictEqual(result.value.coverImage, expected.coverImage);
+      assert.deepStrictEqual(result.value.description, expected.description);
+      assert.deepStrictEqual(result.value.endDate, expected.endDate);
+      assert.deepStrictEqual(result.value.endYear, expected.endYear);
+      assert.deepStrictEqual(result.value.episodeCount, expected.episodeCount);
+      assert.deepStrictEqual(result.value.format, expected.format);
+      assert.deepStrictEqual(result.value.futureAiringSchedule, expected.futureAiringSchedule);
+      assert.deepStrictEqual(result.value.genres, expected.genres);
+      assert.deepStrictEqual(result.value.id, expected.id);
+      assert.deepStrictEqual(result.value.malId, expected.malId);
+      assert.deepStrictEqual(result.value.nextAiringEpisode, expected.nextAiringEpisode);
+      assert.deepStrictEqual(
+        result.value.recommendedAnime?.length,
+        expected.recommendedAnime.length,
+      );
+      assert.deepStrictEqual(
+        result.value.recommendedAnime?.[0]?.id,
+        expected.recommendedAnime[0]?.id,
+      );
+      assert.deepStrictEqual(result.value.relatedAnime?.length, expected.relatedAnime.length);
+      assert.deepStrictEqual(result.value.relatedAnime?.[0]?.id, expected.relatedAnime[0]?.id);
+      assert.deepStrictEqual(result.value.score, expected.score);
+      assert.deepStrictEqual(result.value.startDate, expected.startDate);
+      assert.deepStrictEqual(result.value.startYear, expected.startYear);
+      assert.deepStrictEqual(result.value.status, expected.status);
+      assert.deepStrictEqual(result.value.studios, expected.studios);
+      assert.deepStrictEqual(result.value.synonyms, expected.synonyms);
+      assert.deepStrictEqual(result.value.title, expected.title);
     }
 
-    assertEquals(requestCount, 1);
+    assert.deepStrictEqual(requestCount, 1);
   }),
 );
 

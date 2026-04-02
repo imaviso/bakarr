@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Cause, Effect, Exit, Schema } from "effect";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
@@ -52,7 +53,7 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
       });
 
       const initial = yield* loadSystemConfigRow(db);
-      assertEquals(initial?.id, 1);
+      assert.deepStrictEqual(initial?.id, 1);
 
       const updatedEncoded = yield* Schema.encode(ConfigCoreSchema)(
         makeDefaultConfig(databaseFile),
@@ -68,8 +69,8 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
       });
 
       const updated = yield* loadSystemConfigRow(db);
-      assertEquals(updated?.updatedAt, "2024-01-02T00:00:00.000Z");
-      assertEquals(updated?.data.includes("/new-library"), true);
+      assert.deepStrictEqual(updated?.updatedAt, "2024-01-02T00:00:00.000Z");
+      assert.deepStrictEqual(updated?.data.includes("/new-library"), true);
     }),
   ),
 );
@@ -333,8 +334,8 @@ it.scoped("system repository query helpers filter logs and count system state", 
         page: 1,
         pageSize: 10,
       });
-      assertEquals(scanPage.total, 1);
-      assertEquals(scanPage.rows[0].message, "scan start");
+      assert.deepStrictEqual(scanPage.total, 1);
+      assert.deepStrictEqual(scanPage.rows[0].message, "scan start");
 
       const errorPage = yield* loadSystemLogPage(db, {
         level: "error",
@@ -342,18 +343,18 @@ it.scoped("system repository query helpers filter logs and count system state", 
         pageSize: 10,
         startDate: "2024-01-02T00:00:00.000Z",
       });
-      assertEquals(errorPage.total, 1);
-      assertEquals(errorPage.rows[0].eventType, "downloads.error");
+      assert.deepStrictEqual(errorPage.total, 1);
+      assert.deepStrictEqual(errorPage.rows[0].eventType, "downloads.error");
 
-      assertEquals(yield* countQueuedDownloads(db), 1);
-      assertEquals(yield* countActiveDownloads(db), 1);
-      assertEquals(yield* countFailedDownloads(db), 1);
-      assertEquals(yield* countCompletedDownloads(db), 1);
-      assertEquals(yield* countImportedDownloads(db), 1);
-      assertEquals(yield* countAnimeRows(db), 1);
-      assertEquals(yield* countEpisodeRows(db), 2);
-      assertEquals(yield* countDownloadedEpisodeRows(db), 1);
-      assertEquals(yield* countRssFeedRows(db), 1);
+      assert.deepStrictEqual(yield* countQueuedDownloads(db), 1);
+      assert.deepStrictEqual(yield* countActiveDownloads(db), 1);
+      assert.deepStrictEqual(yield* countFailedDownloads(db), 1);
+      assert.deepStrictEqual(yield* countCompletedDownloads(db), 1);
+      assert.deepStrictEqual(yield* countImportedDownloads(db), 1);
+      assert.deepStrictEqual(yield* countAnimeRows(db), 1);
+      assert.deepStrictEqual(yield* countEpisodeRows(db), 2);
+      assert.deepStrictEqual(yield* countDownloadedEpisodeRows(db), 1);
+      assert.deepStrictEqual(yield* countRssFeedRows(db), 1);
     }),
   ),
 );
@@ -508,7 +509,7 @@ it.scoped("countUpToDateAnimeRows counts monitored anime with complete downloads
         ]),
       );
 
-      assertEquals(yield* countUpToDateAnimeRows(db), 1);
+      assert.deepStrictEqual(yield* countUpToDateAnimeRows(db), 1);
     }),
   ),
 );
@@ -541,14 +542,14 @@ it.scoped("unmapped folder match rows persist cached suggestions", () =>
       );
 
       const rows = yield* listUnmappedFolderMatchRows(db);
-      assertEquals(rows.length, 1);
-      assertEquals(rows[0]?.path, "/library/Naruto Archive");
+      assert.deepStrictEqual(rows.length, 1);
+      assert.deepStrictEqual(rows[0]?.path, "/library/Naruto Archive");
 
       const decoded = yield* decodeUnmappedFolderMatchRow(rows[0]!);
-      assertEquals(decoded.match_status, "done");
-      assertEquals(decoded.search_queries, ["Naruto Archive"]);
-      assertEquals(decoded.suggested_matches[0]?.id, 20);
-      assertEquals(decoded.suggested_matches[0]?.match_confidence, 0.97);
+      assert.deepStrictEqual(decoded.match_status, "done");
+      assert.deepStrictEqual(decoded.search_queries, ["Naruto Archive"]);
+      assert.deepStrictEqual(decoded.suggested_matches[0]?.id, 20);
+      assert.deepStrictEqual(decoded.suggested_matches[0]?.match_confidence, 0.97);
     }),
   ),
 );
@@ -573,12 +574,12 @@ it.scoped("decodeUnmappedFolderMatchRow fails for corrupt stored suggestions", (
       const row = yield* loadUnmappedFolderMatchRow(db, "/library/Broken");
       const exit = yield* Effect.exit(decodeUnmappedFolderMatchRow(row!));
 
-      assertEquals(Exit.isFailure(exit), true);
+      assert.deepStrictEqual(Exit.isFailure(exit), true);
       if (Exit.isFailure(exit)) {
         const failure = Cause.failureOption(exit.cause);
-        assertEquals(failure._tag, "Some");
+        assert.deepStrictEqual(failure._tag, "Some");
         if (failure._tag === "Some") {
-          assertEquals(failure.value instanceof StoredUnmappedFolderCorruptError, true);
+          assert.deepStrictEqual(failure.value instanceof StoredUnmappedFolderCorruptError, true);
         }
       }
     }),
@@ -604,8 +605,8 @@ it.scoped("loadUnmappedFolderMatchRow returns a row by folder path", () =>
 
       const row = yield* loadUnmappedFolderMatchRow(db, "/library/Naruto Archive");
 
-      assertEquals(row?.path, "/library/Naruto Archive");
-      assertEquals(row?.matchStatus, "paused");
+      assert.deepStrictEqual(row?.path, "/library/Naruto Archive");
+      assert.deepStrictEqual(row?.matchStatus, "paused");
     }),
   ),
 );

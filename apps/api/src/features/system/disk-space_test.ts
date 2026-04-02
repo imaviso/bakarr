@@ -1,4 +1,5 @@
-import { assertEquals, assertThrows, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
 import { Effect, Exit } from "effect";
 
@@ -19,19 +20,18 @@ it("mapBlockStatsToDiskSpace converts block stats to bytes", () => {
     bsize: 4096n,
   });
 
-  assertEquals(result, { free: 102400, total: 409600 });
+  assert.deepStrictEqual(result, { free: 102400, total: 409600 });
 });
 
 it("mapBlockStatsToDiskSpace throws a typed error for invalid stats", () => {
-  assertThrows(
+  assert.throws(
     () =>
       mapBlockStatsToDiskSpace({
         bavail: -1n,
         blocks: 100n,
         bsize: 4096n,
       }),
-    DiskSpaceError,
-    "Invalid available block count",
+    (error) => error instanceof DiskSpaceError && error.message === "Invalid available block count",
   );
 });
 
@@ -42,7 +42,7 @@ it("selectStoragePath prefers library_path", () => {
     downloads: { ...baseConfig.downloads, root_path: "/downloads" },
     general: { ...baseConfig.general, database_path: "/db/test.sqlite" },
   };
-  assertEquals(selectStoragePath(config, "/runtime/test.sqlite"), "/library");
+  assert.deepStrictEqual(selectStoragePath(config, "/runtime/test.sqlite"), "/library");
 });
 
 it("selectStoragePath falls back to downloads root_path", () => {
@@ -52,7 +52,7 @@ it("selectStoragePath falls back to downloads root_path", () => {
     downloads: { ...baseConfig.downloads, root_path: "/downloads" },
     general: { ...baseConfig.general, database_path: "/db/test.sqlite" },
   };
-  assertEquals(selectStoragePath(config, "/runtime/test.sqlite"), "/downloads");
+  assert.deepStrictEqual(selectStoragePath(config, "/runtime/test.sqlite"), "/downloads");
 });
 
 it("selectStoragePath falls back to runtime database path", () => {
@@ -63,7 +63,7 @@ it("selectStoragePath falls back to runtime database path", () => {
     general: { ...baseConfig.general, database_path: "/db/config.sqlite" },
   };
 
-  assertEquals(selectStoragePath(config, "/runtime/test.sqlite"), "/runtime/test.sqlite");
+  assert.deepStrictEqual(selectStoragePath(config, "/runtime/test.sqlite"), "/runtime/test.sqlite");
 });
 
 it.effect("getDiskSpaceSafe fails when df fails", () =>
@@ -74,7 +74,7 @@ it.effect("getDiskSpaceSafe fails when df fails", () =>
       makeDiskSpaceInspector(commandExecutorStub).getDiskSpaceSafe("/tmp"),
     );
 
-    assertEquals(Exit.isFailure(result), true);
+    assert.deepStrictEqual(Exit.isFailure(result), true);
   }),
 );
 
@@ -92,10 +92,10 @@ it.effect("getDiskSpaceSafe returns real values for valid path", () =>
 
     const result = yield* makeDiskSpaceInspector(commandExecutorStub).getDiskSpaceSafe("/tmp");
 
-    assertEquals(typeof result.free, "number");
-    assertEquals(typeof result.total, "number");
-    assertEquals(result.free, 768000);
-    assertEquals(result.total, 1024000);
+    assert.deepStrictEqual(typeof result.free, "number");
+    assert.deepStrictEqual(typeof result.total, "number");
+    assert.deepStrictEqual(result.free, 768000);
+    assert.deepStrictEqual(result.total, 1024000);
   }),
 );
 

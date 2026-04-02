@@ -1,4 +1,5 @@
-import { assertEquals, assertNotEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Cause, Effect, Option, Schema } from "effect";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
@@ -68,25 +69,28 @@ it.scoped(
         );
 
         const runtimeConfig = yield* loadRuntimeConfig(db);
-        assertEquals(runtimeConfig.library.library_path, "/anime-library");
-        assertEquals(runtimeConfig.library.import_mode, "move");
-        assertEquals(runtimeConfig.profiles.length, 1);
-        assertEquals(runtimeConfig.profiles[0].name, "Default");
+        assert.deepStrictEqual(runtimeConfig.library.library_path, "/anime-library");
+        assert.deepStrictEqual(runtimeConfig.library.import_mode, "move");
+        assert.deepStrictEqual(runtimeConfig.profiles.length, 1);
+        assert.deepStrictEqual(runtimeConfig.profiles[0].name, "Default");
 
-        assertEquals(yield* getConfigLibraryPath(db), "/anime-library");
-        assertEquals(yield* currentImportMode(db), "move");
+        assert.deepStrictEqual(yield* getConfigLibraryPath(db), "/anime-library");
+        assert.deepStrictEqual(yield* currentImportMode(db), "move");
 
         const namingSettings = yield* currentNamingSettings(db);
-        assertEquals(namingSettings.namingFormat, defaults.library.naming_format);
-        assertEquals(namingSettings.movieNamingFormat, defaults.library.movie_naming_format);
-        assertEquals(namingSettings.preferredTitle, defaults.library.preferred_title);
+        assert.deepStrictEqual(namingSettings.namingFormat, defaults.library.naming_format);
+        assert.deepStrictEqual(
+          namingSettings.movieNamingFormat,
+          defaults.library.movie_naming_format,
+        );
+        assert.deepStrictEqual(namingSettings.preferredTitle, defaults.library.preferred_title);
 
         const storedProfile = yield* loadQualityProfile(db, "Default");
-        assertNotEquals(storedProfile, null);
-        assertEquals(storedProfile!.max_size, "4GB");
+        assert.notDeepStrictEqual(storedProfile, null);
+        assert.deepStrictEqual(storedProfile!.max_size, "4GB");
 
         const fallbackProfile = yield* loadQualityProfile(db, "Missing");
-        assertEquals(fallbackProfile, null);
+        assert.deepStrictEqual(fallbackProfile, null);
       }),
     ),
 );
@@ -162,31 +166,31 @@ it.scoped("operations repository helpers load anime release rules and episode st
       );
 
       const animeRow = yield* requireAnime(db, 20);
-      assertEquals(animeRow.titleRomaji, "Naruto");
+      assert.deepStrictEqual(animeRow.titleRomaji, "Naruto");
 
       const releaseRules = yield* loadReleaseRules(db, animeRow);
-      assertEquals(releaseRules, [
+      assert.deepStrictEqual(releaseRules, [
         { rule_type: "preferred", score: 10, term: "SubsPlease" },
         { rule_type: "must", score: 0, term: "1080p" },
       ]);
 
       const episodeState = yield* loadCurrentEpisodeState(db, 20, 1);
-      assertEquals(episodeState._tag, "Some");
+      assert.deepStrictEqual(episodeState._tag, "Some");
       if (episodeState._tag === "Some") {
-        assertEquals(episodeState.value, {
+        assert.deepStrictEqual(episodeState.value, {
           downloaded: true,
           filePath: "/library/Naruto/Naruto - 01.mkv",
         });
       }
-      assertEquals(yield* loadCurrentEpisodeState(db, 20, 2), Option.none());
+      assert.deepStrictEqual(yield* loadCurrentEpisodeState(db, 20, 2), Option.none());
 
       const notFoundExit = yield* Effect.exit(requireAnime(db, 999));
-      assertEquals(notFoundExit._tag, "Failure");
+      assert.deepStrictEqual(notFoundExit._tag, "Failure");
       if (notFoundExit._tag === "Failure") {
         const failure = Cause.failureOption(notFoundExit.cause);
-        assertNotEquals(failure._tag, "None");
+        assert.notDeepStrictEqual(failure._tag, "None");
         if (failure._tag === "Some") {
-          assertEquals(failure.value instanceof OperationsAnimeNotFoundError, true);
+          assert.deepStrictEqual(failure.value instanceof OperationsAnimeNotFoundError, true);
         }
       }
     }),
@@ -212,7 +216,7 @@ it.effect("operations repository helpers encode and decode download provenance",
       },
     });
 
-    assertEquals(yield* decodeDownloadSourceMetadata(encoded), {
+    assert.deepStrictEqual(yield* decodeDownloadSourceMetadata(encoded), {
       chosen_from_seadex: true,
       decision_reason: "Accepted (WEB-DL 1080p, score 12)",
       group: "SubsPlease",
@@ -235,12 +239,12 @@ it.effect("operations repository metadata decoders fail for corrupt stored JSON"
   Effect.gen(function* () {
     const exit = yield* Effect.exit(decodeDownloadSourceMetadata("not-json"));
 
-    assertEquals(exit._tag, "Failure");
+    assert.deepStrictEqual(exit._tag, "Failure");
     if (exit._tag === "Failure") {
       const failure = Cause.failureOption(exit.cause);
-      assertNotEquals(failure._tag, "None");
+      assert.notDeepStrictEqual(failure._tag, "None");
       if (failure._tag === "Some") {
-        assertEquals(failure.value._tag, "OperationsStoredDataError");
+        assert.deepStrictEqual(failure.value._tag, "OperationsStoredDataError");
       }
     }
   }),

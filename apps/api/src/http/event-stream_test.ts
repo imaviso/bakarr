@@ -1,7 +1,8 @@
+import assert from "node:assert/strict";
 import { HttpApp, HttpServerResponse } from "@effect/platform";
 import { Effect, Schema, Stream } from "effect";
 
-import { assertEquals, it } from "@/test/vitest.ts";
+import { it } from "@effect/vitest";
 import { makeEventBus } from "@/features/events/event-bus.ts";
 import { NotificationEventSchema } from "@packages/shared/index.ts";
 import { buildDownloadProgressStream } from "@/http/event-stream.ts";
@@ -29,17 +30,17 @@ it.effect("buildDownloadProgressStream seeds the initial SSE payload", () =>
 
     const [connected, progress] = Array.from(chunks);
 
-    assertEquals(connected, ": connected\n\n");
-    assertEquals(progress.startsWith("data: "), true);
+    assert.deepStrictEqual(connected, ": connected\n\n");
+    assert.deepStrictEqual(progress.startsWith("data: "), true);
 
     const encoded = progress.slice("data: ".length, -2);
     const event = Schema.decodeUnknownEither(Schema.parseJson(NotificationEventSchema))(encoded);
 
-    assertEquals(event._tag, "Right");
+    assert.deepStrictEqual(event._tag, "Right");
 
     if (event._tag === "Right" && event.right.type === "DownloadProgress") {
-      assertEquals(event.right.type, "DownloadProgress");
-      assertEquals(event.right.payload.downloads.length, 1);
+      assert.deepStrictEqual(event.right.type, "DownloadProgress");
+      assert.deepStrictEqual(event.right.payload.downloads.length, 1);
     }
   }),
 );
@@ -60,8 +61,8 @@ it.effect("buildDownloadProgressResponse sets SSE headers", () =>
     );
     const response = yield* Effect.promise(() => handler(new Request("http://localhost/")));
 
-    assertEquals(response.headers.get("Content-Type"), "text/event-stream");
-    assertEquals(response.headers.get("Cache-Control"), "no-cache");
-    assertEquals(response.headers.get("Connection"), "keep-alive");
+    assert.deepStrictEqual(response.headers.get("Content-Type"), "text/event-stream");
+    assert.deepStrictEqual(response.headers.get("Cache-Control"), "no-cache");
+    assert.deepStrictEqual(response.headers.get("Connection"), "keep-alive");
   }),
 );

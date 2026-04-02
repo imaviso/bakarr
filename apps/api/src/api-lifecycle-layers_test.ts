@@ -4,7 +4,8 @@ import { Redacted } from "effect";
 import { makeApiLifecycleLayers } from "@/api-lifecycle-layers.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
 import { BackgroundWorkerController } from "@/background-controller-core.ts";
-import { assert, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 it.effect("api lifecycle app layer resolves background controller and anilist overrides", () =>
   Effect.gen(function* () {
@@ -26,7 +27,7 @@ it.effect("api lifecycle app layer resolves background controller and anilist ov
     const controller = yield* BackgroundWorkerController.pipe(Effect.provide(appLayer));
     const started = yield* controller.isStarted();
 
-    assert(controller);
-    assert(started === false);
+    assert.ok(controller);
+    assert.ok(started === false);
   }),
 );

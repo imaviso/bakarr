@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import { makeNoopTestFileSystemEffect } from "@/test/filesystem-test.ts";
@@ -11,6 +12,6 @@ it.effect("filesystem noop layer can override readFile behavior", () =>
 
     const bytes = yield* fs.readFile("/virtual/file.bin");
 
-    assertEquals(Array.from(bytes), [1, 2, 3]);
+    assert.deepStrictEqual(Array.from(bytes), [1, 2, 3]);
   }),
 );

@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
@@ -50,10 +51,10 @@ it.scoped("resolveEpisodeFileEffect returns resolved file when mapping is valid"
             fs,
           });
 
-          assertEquals(result._tag, "EpisodeFileResolved");
+          assert.deepStrictEqual(result._tag, "EpisodeFileResolved");
           if (result._tag === "EpisodeFileResolved") {
-            assertEquals(result.fileName, "Episode 1.mkv");
-            assertEquals(result.filePath, filePath);
+            assert.deepStrictEqual(result.fileName, "Episode 1.mkv");
+            assert.deepStrictEqual(result.filePath, filePath);
           }
         }),
       ),
@@ -84,7 +85,7 @@ it.scoped("resolveEpisodeFileEffect returns unmapped state when no file path is 
             fs,
           });
 
-          assertEquals(result._tag, "EpisodeFileUnmapped");
+          assert.deepStrictEqual(result._tag, "EpisodeFileUnmapped");
         }),
       ),
     schema,
@@ -115,7 +116,7 @@ it.scoped("resolveEpisodeFileEffect returns missing state when mapped file is in
             fs,
           });
 
-          assertEquals(result._tag, "EpisodeFileMissing");
+          assert.deepStrictEqual(result._tag, "EpisodeFileMissing");
         }),
       ),
     schema,
@@ -149,7 +150,7 @@ it.scoped(
               fs,
             });
 
-            assertEquals(result._tag, "EpisodeFileRootInaccessible");
+            assert.deepStrictEqual(result._tag, "EpisodeFileRootInaccessible");
           }),
         ),
       schema,
@@ -189,7 +190,7 @@ it.scoped(
               fs,
             });
 
-            assertEquals(result._tag, "EpisodeFileOutsideRoot");
+            assert.deepStrictEqual(result._tag, "EpisodeFileOutsideRoot");
           }),
         ),
       schema,

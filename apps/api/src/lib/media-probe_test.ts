@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
 import { Effect, Layer, Logger } from "effect";
 
@@ -35,9 +36,9 @@ it("parseFfprobeJson extracts canonical media metadata", () => {
     }),
   );
 
-  assertEquals(result._tag, "MediaProbeMetadataFound");
+  assert.deepStrictEqual(result._tag, "MediaProbeMetadataFound");
   if (result._tag === "MediaProbeMetadataFound") {
-    assertEquals(result.metadata, {
+    assert.deepStrictEqual(result.metadata, {
       audio_channels: "2.0",
       audio_codec: "AAC",
       duration_seconds: 1440,
@@ -50,11 +51,11 @@ it("parseFfprobeJson extracts canonical media metadata", () => {
 it("parseFfprobeJson returns typed failure for invalid output", () => {
   const result = parseFfprobeJson('{"streams":"bad"}');
 
-  assertEquals(result._tag, "MediaProbeFailure");
+  assert.deepStrictEqual(result._tag, "MediaProbeFailure");
 });
 
 it("mergeProbedMediaMetadata fills only missing fields", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     mergeProbedMediaMetadata<{
       audio_channels?: string;
       audio_codec?: string;
@@ -85,7 +86,7 @@ it("mergeProbedMediaMetadata fills only missing fields", () => {
 });
 
 it("shouldProbeMediaMetadata checks for unresolved media details", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     shouldProbeMediaMetadata({
       audio_channels: "2.0",
       audio_codec: "AAC",
@@ -94,7 +95,7 @@ it("shouldProbeMediaMetadata checks for unresolved media details", () => {
     }),
     false,
   );
-  assertEquals(
+  assert.deepStrictEqual(
     shouldProbeMediaMetadata({
       audio_channels: undefined,
       audio_codec: "AAC",
@@ -106,8 +107,8 @@ it("shouldProbeMediaMetadata checks for unresolved media details", () => {
 });
 
 it("FFPROBE_CONCURRENCY_LIMIT is defined and reasonable", () => {
-  assertEquals(FFPROBE_CONCURRENCY_LIMIT > 0, true);
-  assertEquals(FFPROBE_CONCURRENCY_LIMIT <= 4, true);
+  assert.deepStrictEqual(FFPROBE_CONCURRENCY_LIMIT > 0, true);
+  assert.deepStrictEqual(FFPROBE_CONCURRENCY_LIMIT <= 4, true);
 });
 
 it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
@@ -152,7 +153,7 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
       ),
     );
 
-    assertEquals(maxActive <= FFPROBE_CONCURRENCY_LIMIT, true);
+    assert.deepStrictEqual(maxActive <= FFPROBE_CONCURRENCY_LIMIT, true);
   }),
 );
 
@@ -162,7 +163,7 @@ it.effect("MediaProbe returns unavailable when ffprobe is missing", () =>
       mediaProbe.probeVideoFile("/tmp/missing.mkv"),
     ).pipe(Effect.provide(MediaProbeLive));
 
-    assertEquals(result._tag, "MediaProbeUnavailable");
+    assert.deepStrictEqual(result._tag, "MediaProbeUnavailable");
   }),
 );
 
@@ -196,8 +197,8 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
       ),
     );
 
-    assertEquals(result._tag, "MediaProbeFailure");
-    assertEquals(
+    assert.deepStrictEqual(result._tag, "MediaProbeFailure");
+    assert.deepStrictEqual(
       messages.some((message) => message.includes("ffprobe output was invalid")),
       true,
     );

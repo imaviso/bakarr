@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Effect } from "effect";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { ensureFolderMatchStatus } from "@/features/operations/unmapped-folder-list-support.ts";
@@ -15,7 +16,7 @@ it.scoped("loadUnmappedFolderVideoSize sums nested video files", () =>
 
       const size = yield* loadUnmappedFolderVideoSize(fs, root);
 
-      assertEquals(size, 25);
+      assert.deepStrictEqual(size, 25);
     }),
   ),
 );
@@ -25,7 +26,7 @@ it.scoped("loadUnmappedFolderVideoSize fails when folder is inaccessible", () =>
     Effect.gen(function* () {
       const exit = yield* Effect.exit(loadUnmappedFolderVideoSize(fs, `${root}/missing`));
 
-      assertEquals(exit._tag, "Failure");
+      assert.deepStrictEqual(exit._tag, "Failure");
     }),
   ),
 );
@@ -55,7 +56,7 @@ it("ensureFolderMatchStatus preserves cached size", () => {
     ],
   });
 
-  assertEquals(merged.size, 2048);
-  assertEquals(merged.match_status, "failed");
-  assertEquals(merged.match_attempts, 2);
+  assert.deepStrictEqual(merged.size, 2048);
+  assert.deepStrictEqual(merged.match_status, "failed");
+  assert.deepStrictEqual(merged.match_attempts, 2);
 });

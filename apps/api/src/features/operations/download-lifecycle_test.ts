@@ -1,4 +1,5 @@
-import { assertEquals, assertThrows, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 import {
   applyRemotePathMappings,
@@ -19,11 +20,11 @@ import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-te
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 it("parseMagnetInfoHash extracts btih from magnet links", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     parseMagnetInfoHash("magnet:?xt=urn:btih:ABCDEF1234567890&dn=Example"),
     Option.some("abcdef1234567890"),
   );
-  assertEquals(parseMagnetInfoHash(undefined), Option.none());
+  assert.deepStrictEqual(parseMagnetInfoHash(undefined), Option.none());
 });
 
 it.scoped("resolveCompletedContentPath prefers matching episode files inside directories", () =>
@@ -36,8 +37,8 @@ it.scoped("resolveCompletedContentPath prefers matching episode files inside dir
       yield* writeTextFile(fs, first, "one");
       yield* writeTextFile(fs, second, "two");
 
-      assertEquals(yield* resolveCompletedContentPath(fs, dir, 2), Option.some(second));
-      assertEquals(yield* resolveCompletedContentPath(fs, first, 1), Option.some(first));
+      assert.deepStrictEqual(yield* resolveCompletedContentPath(fs, dir, 2), Option.some(second));
+      assert.deepStrictEqual(yield* resolveCompletedContentPath(fs, first, 1), Option.some(first));
     }),
   ),
 );
@@ -52,7 +53,7 @@ it.scoped("resolveCompletedContentPath matches daily files by expected air date"
       yield* writeTextFile(fs, first, "one");
       yield* writeTextFile(fs, second, "two");
 
-      assertEquals(
+      assert.deepStrictEqual(
         yield* resolveCompletedContentPath(fs, dir, 1, {
           expectedAirDate: "2025-03-21",
         }),
@@ -70,7 +71,7 @@ it.scoped("resolveCompletedContentPath falls back to a lone generic video file",
       const file = `${dir}/download.mkv`;
       yield* writeTextFile(fs, file, "video");
 
-      assertEquals(yield* resolveCompletedContentPath(fs, dir, 7), Option.some(file));
+      assert.deepStrictEqual(yield* resolveCompletedContentPath(fs, dir, 7), Option.some(file));
     }),
   ),
 );
@@ -87,7 +88,7 @@ it.scoped("resolveBatchContentPaths collects video files from completed batch di
       yield* writeTextFile(fs, second, "two");
       yield* writeTextFile(fs, ignored, "ignore");
 
-      assertEquals(yield* resolveBatchContentPaths(fs, dir), [first, second]);
+      assert.deepStrictEqual(yield* resolveBatchContentPaths(fs, dir), [first, second]);
     }),
   ),
 );
@@ -100,13 +101,13 @@ it.scoped(
         const file = `${root}/Show Season Pack.mkv`;
         yield* writeTextFile(fs, file, "season");
 
-        assertEquals(yield* resolveBatchContentPaths(fs, file), [file]);
+        assert.deepStrictEqual(yield* resolveBatchContentPaths(fs, file), [file]);
       }),
     ),
 );
 
 it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing tails for batches", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [3, 4, 5],
       isBatch: true,
@@ -117,7 +118,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
     [3, 4, 5],
   );
 
-  assertEquals(
+  assert.deepStrictEqual(
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: true,
@@ -128,7 +129,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
     [5, 6, 7],
   );
 
-  assertEquals(
+  assert.deepStrictEqual(
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: true,
@@ -139,7 +140,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
     [5, 6],
   );
 
-  assertEquals(
+  assert.deepStrictEqual(
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: false,
@@ -150,7 +151,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
     [5],
   );
 
-  assertEquals(
+  assert.deepStrictEqual(
     inferCoveredEpisodeNumbers({
       explicitEpisodes: [],
       isBatch: true,
@@ -163,7 +164,7 @@ it("inferCoveredEpisodeNumbers prefers explicit ranges and falls back to missing
 });
 
 it("inferCoveredEpisodesFromTorrentContents parses real batch file lists", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     inferCoveredEpisodesFromTorrentContents({
       files: [
         {
@@ -198,7 +199,7 @@ it("inferCoveredEpisodesFromTorrentContents parses real batch file lists", () =>
 });
 
 it("resolveReconciledBatchEpisodeNumbers falls back to covered episodes for lone generic files", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     resolveReconciledBatchEpisodeNumbers({
       coveredEpisodes: [1, 2, 3],
       path: "/downloads/Show Season Pack.mkv",
@@ -207,7 +208,7 @@ it("resolveReconciledBatchEpisodeNumbers falls back to covered episodes for lone
     [1, 2, 3],
   );
 
-  assertEquals(
+  assert.deepStrictEqual(
     resolveReconciledBatchEpisodeNumbers({
       coveredEpisodes: [1, 2, 3],
       path: "/downloads/Show Season Pack.mkv",
@@ -218,7 +219,7 @@ it("resolveReconciledBatchEpisodeNumbers falls back to covered episodes for lone
 });
 
 it("applyRemotePathMappings rewrites qBittorrent remote paths", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     applyRemotePathMappings("/remote/downloads/show/episode.mkv", [
       ["/remote/downloads", "/local/downloads"],
     ]),
@@ -230,17 +231,17 @@ it.effect(
   "covered episode serialization round-trips optional values and rejects corrupt data",
   () =>
     Effect.gen(function* () {
-      assertEquals(toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
-      assertEquals(parseCoveredEpisodes("[1,2,3]"), [1, 2, 3]);
-      assertEquals(toCoveredEpisodesJson([]), null);
-      assertEquals(parseCoveredEpisodes(null), []);
+      assert.deepStrictEqual(toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
+      assert.deepStrictEqual(parseCoveredEpisodes("[1,2,3]"), [1, 2, 3]);
+      assert.deepStrictEqual(toCoveredEpisodesJson([]), null);
+      assert.deepStrictEqual(parseCoveredEpisodes(null), []);
 
-      assertThrows(() => parseCoveredEpisodes("not-json"), OperationsStoredDataError);
+      assert.throws(() => parseCoveredEpisodes("not-json"), OperationsStoredDataError);
     }),
 );
 
 it("applyRemotePathMappings returns multiple matching candidates and skips invalid mappings", () => {
-  assertEquals(
+  assert.deepStrictEqual(
     applyRemotePathMappings("/remote/downloads/show/episode.mkv", [
       ["", "/ignored"],
       ["/different", "/ignored"],
@@ -261,7 +262,7 @@ it.scoped(
         const localFile = `${localRoot}/show/episode.mkv`;
         yield* writeTextFile(fs, localFile, "video");
 
-        assertEquals(
+        assert.deepStrictEqual(
           yield* resolveAccessibleDownloadPath(fs, "/remote/downloads/show/episode.mkv", [
             ["/remote/downloads", localRoot],
           ]),

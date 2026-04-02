@@ -38,6 +38,15 @@ export class ImageAssetTooLargeError extends Schema.TaggedError<ImageAssetTooLar
   },
 ) {}
 
+export class ImageAssetAccessError extends Schema.TaggedError<ImageAssetAccessError>()(
+  "ImageAssetAccessError",
+  {
+    cause: Schema.optional(Schema.Defect),
+    message: Schema.String,
+    status: Schema.Literal(500),
+  },
+) {}
+
 export class StoredUnmappedFolderCorruptError extends Schema.TaggedError<StoredUnmappedFolderCorruptError>()(
   "StoredUnmappedFolderCorruptError",
   { message: Schema.String },

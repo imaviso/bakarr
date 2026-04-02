@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 import { Effect } from "effect";
 
 import { FileSystemError } from "@/lib/filesystem.ts";
@@ -32,6 +33,6 @@ it.effect(
         "/library/New Show",
       );
 
-      assertEquals(removeCalls, 0);
+      assert.deepStrictEqual(removeCalls, 0);
     }),
 );

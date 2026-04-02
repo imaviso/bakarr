@@ -1,4 +1,5 @@
-import { assertEquals, it } from "@/test/vitest.ts";
+import assert from "node:assert/strict";
+import { it } from "@effect/vitest";
 
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { applySeaDexMatch, findSeaDexReleaseMatch } from "@/features/operations/seadex-matching.ts";
@@ -17,7 +18,7 @@ it("findSeaDexReleaseMatch matches by info hash first", () => {
     }),
   ];
 
-  assertEquals(findSeaDexReleaseMatch(release, candidates), candidates[0]);
+  assert.deepStrictEqual(findSeaDexReleaseMatch(release, candidates), candidates[0]);
 });
 
 it("findSeaDexReleaseMatch can match via tracker URL when hash is missing", () => {
@@ -36,7 +37,7 @@ it("findSeaDexReleaseMatch can match via tracker URL when hash is missing", () =
     }),
   ];
 
-  assertEquals(findSeaDexReleaseMatch(release, candidates), candidates[0]);
+  assert.deepStrictEqual(findSeaDexReleaseMatch(release, candidates), candidates[0]);
 });
 
 it("findSeaDexReleaseMatch falls back to best-scored group match", () => {
@@ -61,7 +62,7 @@ it("findSeaDexReleaseMatch falls back to best-scored group match", () => {
     }),
   ];
 
-  assertEquals(findSeaDexReleaseMatch(release, candidates), candidates[1]);
+  assert.deepStrictEqual(findSeaDexReleaseMatch(release, candidates), candidates[1]);
 });
 
 it("findSeaDexReleaseMatch does not match on tracker alone", () => {
@@ -82,7 +83,7 @@ it("findSeaDexReleaseMatch does not match on tracker alone", () => {
     }),
   ];
 
-  assertEquals(findSeaDexReleaseMatch(release, candidates), undefined);
+  assert.deepStrictEqual(findSeaDexReleaseMatch(release, candidates), undefined);
 });
 
 it("applySeaDexMatch annotates parsed release with SeaDex metadata", () => {
@@ -108,7 +109,7 @@ it("applySeaDexMatch annotates parsed release with SeaDex metadata", () => {
     ],
   };
 
-  assertEquals(applySeaDexMatch(release, entry), {
+  assert.deepStrictEqual(applySeaDexMatch(release, entry), {
     ...release,
     isSeaDex: true,
     isSeaDexBest: true,
