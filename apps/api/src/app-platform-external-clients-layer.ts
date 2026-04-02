@@ -6,7 +6,11 @@ import {
   QBitTorrentClientLive,
   type QBitTorrentClient,
 } from "@/features/operations/qbittorrent.ts";
-import { RssClientLive, type RssClient } from "@/features/operations/rss-client.ts";
+import {
+  RssClientLive,
+  RssTransportLive,
+  type RssClient,
+} from "@/features/operations/rss-client.ts";
 import { SeaDexClientLive, type SeaDexClient } from "@/features/operations/seadex-client.ts";
 import { DnsResolverLive } from "@/lib/dns-resolver.ts";
 
@@ -19,14 +23,13 @@ export interface AppExternalClientLayerOptions {
 
 export function makeAppExternalClientLayer(options?: AppExternalClientLayerOptions) {
   const externalClientSupportLayer = FetchHttpClient.layer;
-  const dnsClientSupportLayer = Layer.mergeAll(externalClientSupportLayer, DnsResolverLive);
 
   const aniListLayer = options?.aniListLayer
     ? options.aniListLayer
     : AniListClientLive.pipe(Layer.provide(externalClientSupportLayer));
   const rssLayer = options?.rssLayer
     ? options.rssLayer
-    : RssClientLive.pipe(Layer.provide(dnsClientSupportLayer));
+    : RssClientLive.pipe(Layer.provide(Layer.mergeAll(DnsResolverLive, RssTransportLive)));
   const qbitLayer = options?.qbitLayer
     ? options.qbitLayer
     : QBitTorrentClientLive.pipe(Layer.provide(externalClientSupportLayer));

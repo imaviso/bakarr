@@ -11,29 +11,29 @@ export const httpMetrics = {
     "bakarr_http_request_duration_ms",
     histogramBoundaries,
     "HTTP request duration in milliseconds",
-  ).register(),
+  ),
   requestsTotal: Metric.counter("bakarr_http_requests_total", {
     description: "Total HTTP requests handled by route",
     incremental: true,
-  }).register(),
+  }),
 } as const;
 
 export const backgroundMetrics = {
   daemonRunning: Metric.gauge("bakarr_background_worker_daemon_running", {
     description: "Whether a background worker daemon is active",
-  }).register(),
+  }),
   runDuration: Metric.histogram(
     "bakarr_background_worker_run_duration_ms",
     histogramBoundaries,
     "Background worker run duration in milliseconds",
-  ).register(),
+  ),
   runRunning: Metric.gauge("bakarr_background_worker_run_running", {
     description: "Whether a background worker run is currently active",
-  }).register(),
+  }),
   runsTotal: Metric.counter("bakarr_background_worker_runs_total", {
     description: "Total background worker runs by outcome",
     incremental: true,
-  }).register(),
+  }),
 } as const;
 
 export const recordHttpRequestMetrics = Effect.fn("Metrics.recordHttpRequest")(function* (input: {

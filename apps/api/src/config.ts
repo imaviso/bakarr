@@ -42,7 +42,7 @@ export const defaultAppConfig = new AppConfigModel({
   databaseFile: "./bakarr.sqlite",
   port: 8000,
   sessionCookieName: "bakarr_session",
-  sessionCookieSecure: false,
+  sessionCookieSecure: true,
   sessionDurationDays: 30,
 });
 

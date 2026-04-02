@@ -9,63 +9,61 @@ import {
   SystemEventsServiceLive,
 } from "@/features/system/system-events-service.ts";
 
-it.effect("SystemEventsService does not lose buffered events during stream bootstrap", () =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const eventBus = yield* makeEventBus();
-      const latestDownloads = [sampleDownload("downloading")];
-      const snapshotDownloads = [sampleDownload("queued")];
-      const systemEventsLayer = SystemEventsServiceLive.pipe(
-        Layer.provide(
-          Layer.mergeAll(
-            Layer.succeed(EventBus, eventBus),
-            Layer.succeed(CatalogDownloadReadService, {
-              getDownloadProgress: () => Effect.succeed(snapshotDownloads),
-              getDownloadProgressBootstrap: () =>
-                Effect.gen(function* () {
-                  yield* eventBus.publish({ type: "Info", payload: { message: "bootstrapping" } });
-                  yield* eventBus.publish({
-                    type: "DownloadProgress",
-                    payload: { downloads: latestDownloads },
-                  });
-                  return snapshotDownloads;
-                }),
-              getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 1 }),
-              listDownloadEvents: () => {
-                throw new Error("unused in test");
-              },
-              listDownloadHistory: () => {
-                throw new Error("unused in test");
-              },
-              listDownloadQueue: () => {
-                throw new Error("unused in test");
-              },
-              streamDownloadEventsExportCsv: () => {
-                throw new Error("unused in test");
-              },
-              streamDownloadEventsExportJson: () => {
-                throw new Error("unused in test");
-              },
-            }),
-          ),
+it.scoped("SystemEventsService does not lose buffered events during stream bootstrap", () =>
+  Effect.gen(function* () {
+    const eventBus = yield* makeEventBus();
+    const latestDownloads = [sampleDownload("downloading")];
+    const snapshotDownloads = [sampleDownload("queued")];
+    const systemEventsLayer = SystemEventsServiceLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          Layer.succeed(EventBus, eventBus),
+          Layer.succeed(CatalogDownloadReadService, {
+            getDownloadProgress: () => Effect.succeed(snapshotDownloads),
+            getDownloadProgressBootstrap: () =>
+              Effect.gen(function* () {
+                yield* eventBus.publish({ type: "Info", payload: { message: "bootstrapping" } });
+                yield* eventBus.publish({
+                  type: "DownloadProgress",
+                  payload: { downloads: latestDownloads },
+                });
+                return snapshotDownloads;
+              }),
+            getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 1 }),
+            listDownloadEvents: () => {
+              throw new Error("unused in test");
+            },
+            listDownloadHistory: () => {
+              throw new Error("unused in test");
+            },
+            listDownloadQueue: () => {
+              throw new Error("unused in test");
+            },
+            streamDownloadEventsExportCsv: () => {
+              throw new Error("unused in test");
+            },
+            streamDownloadEventsExportJson: () => {
+              throw new Error("unused in test");
+            },
+          }),
         ),
-      );
+      ),
+    );
 
-      const events = yield* Effect.flatMap(SystemEventsService, (service) =>
-        service
-          .buildEventsStream()
-          .pipe(Effect.flatMap((stream) => Stream.runCollect(stream.pipe(Stream.take(2))))),
-      ).pipe(Effect.provide(systemEventsLayer));
+    const events = yield* Effect.flatMap(SystemEventsService, (service) =>
+      service
+        .buildEventsStream()
+        .pipe(Effect.flatMap((stream) => Stream.runCollect(stream.pipe(Stream.take(2))))),
+    ).pipe(Effect.provide(systemEventsLayer));
 
-      assert.deepStrictEqual(Array.from(events), [
-        {
-          type: "DownloadProgress",
-          payload: { downloads: latestDownloads },
-        },
-        { type: "Info", payload: { message: "bootstrapping" } },
-      ]);
-    }),
-  ),
+    assert.deepStrictEqual(Array.from(events), [
+      {
+        type: "DownloadProgress",
+        payload: { downloads: latestDownloads },
+      },
+      { type: "Info", payload: { message: "bootstrapping" } },
+    ]);
+  }),
 );
 
 function sampleDownload(state: DownloadStatus["state"]): DownloadStatus {

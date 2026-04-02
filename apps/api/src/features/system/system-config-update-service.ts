@@ -54,14 +54,37 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
   ) {
     const existingProfileRows = yield* listQualityProfileRows(db);
     const previousConfigRow = yield* loadSystemConfigRow(db);
-    const currentPassword = yield* effectDecodeStoredConfigRow(previousConfigRow).pipe(
-      Effect.map((config) => config.qbittorrent.password),
+    const currentPasswordResult = yield* effectDecodeStoredConfigRow(previousConfigRow).pipe(
+      Effect.map((config) => ({
+        password: config.qbittorrent.password,
+        storedConfigCorrupt: false,
+      })),
       Effect.catchTag("StoredConfigMissingError", () =>
-        Effect.succeed(makeDefaultConfig(appConfig.databaseFile).qbittorrent.password),
+        Effect.succeed({
+          password: makeDefaultConfig(appConfig.databaseFile).qbittorrent.password,
+          storedConfigCorrupt: false,
+        }),
       ),
-      Effect.catchTag("StoredConfigCorruptError", () => Effect.succeed(null)),
+      Effect.catchTag("StoredConfigCorruptError", () =>
+        Effect.succeed({
+          password: null,
+          storedConfigCorrupt: true,
+        }),
+      ),
     );
-    const effectiveConfig = preserveStoredQBitPassword(currentPassword, nextConfig);
+
+    if (
+      currentPasswordResult.storedConfigCorrupt &&
+      nextConfig.qbittorrent.enabled &&
+      !nextConfig.qbittorrent.password?.trim()
+    ) {
+      return yield* new StoredConfigCorruptError({
+        message:
+          "Stored configuration is corrupt. Re-enter the qBittorrent password before saving repaired config.",
+      });
+    }
+
+    const effectiveConfig = preserveStoredQBitPassword(currentPasswordResult.password, nextConfig);
     const normalizedConfig = yield* normalizeConfig(effectiveConfig);
     yield* validateConfigUpdate({
       countAnimeUsingProfile: (profileName) => countAnimeUsingProfile(db, profileName),

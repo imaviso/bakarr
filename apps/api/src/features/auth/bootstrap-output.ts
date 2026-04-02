@@ -3,14 +3,17 @@ import { Effect } from "effect";
 
 export const announceBootstrapCredentials = Effect.fn(
   "AuthBootstrapOutput.announceBootstrapCredentials",
-)(function* (input: { username: string; password: string }) {
+)(function* (input: { username: string; password?: string }) {
   const terminal = yield* Effect.serviceOption(Terminal.Terminal);
+  const details = input.password
+    ? `* Username: ${input.username}\n* Password: ${input.password}\n`
+    : `* Username: ${input.username}\n* Password: use the configured bootstrap credential\n`;
 
   if (terminal._tag === "Some") {
     const isTTY = yield* terminal.value.isTTY;
 
     if (isTTY) {
-      const text = `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n* Username: ${input.username}\n* Password: ${input.password}\n* Please log in and change your password.\n*************************************************************\n`;
+      const text = `\n*************************************************************\n* INITIAL SETUP\n* Bootstrap user created.\n${details}* Please log in and change your password.\n*************************************************************\n`;
 
       const displayed = yield* terminal.value.display(text).pipe(
         Effect.as(true),

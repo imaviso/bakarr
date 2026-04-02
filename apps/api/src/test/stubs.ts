@@ -1,4 +1,5 @@
 import { CommandExecutor } from "@effect/platform";
+import type { PlatformError } from "@effect/platform/Error";
 import { Effect } from "effect";
 
 import type { AppDatabase, DatabaseService } from "@/db/database.ts";
@@ -12,10 +13,10 @@ export function makeDatabaseServiceStub(db: AppDatabase): DatabaseService {
   };
 }
 
-export function makeCommandExecutorStub(
+export function makeCommandExecutorStub<E extends PlatformError = never>(
   runAsString: (
     command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
-  ) => Effect.Effect<string, never>,
+  ) => Effect.Effect<string, E>,
 ): CommandExecutor.CommandExecutor {
   return {
     [CommandExecutor.TypeId]: CommandExecutor.TypeId,

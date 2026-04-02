@@ -28,9 +28,16 @@ it.scoped("migrateDatabase applies embedded migrations idempotently", () =>
 
         const first = yield* Effect.exit(migrateDatabase().pipe(Effect.provide(databaseLayer)));
         const second = yield* Effect.exit(migrateDatabase().pipe(Effect.provide(databaseLayer)));
+        const tables = yield* client.unsafe<{ name: string }>(
+          "select name from sqlite_master where type = 'table' and name in ('users', 'anime', 'downloads') order by name",
+        );
 
         assert.deepStrictEqual(Exit.isSuccess(first), true);
         assert.deepStrictEqual(Exit.isSuccess(second), true);
+        assert.deepStrictEqual(
+          tables.map((row) => row.name),
+          ["anime", "downloads", "users"],
+        );
       }),
     ),
   ),

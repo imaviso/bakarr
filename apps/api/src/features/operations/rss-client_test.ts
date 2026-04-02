@@ -1,11 +1,15 @@
 import { assert, it } from "@effect/vitest";
-import { HttpClient, HttpClientResponse } from "@effect/platform";
-import { Cause, Effect, Exit, Layer } from "effect";
+import { Cause, Effect, Exit, Layer, Stream } from "effect";
 
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { DnsLookupError, DnsResolver } from "@/lib/dns-resolver.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
-import { RssClient, RssClientLive } from "@/features/operations/rss-client.ts";
+import {
+  RssClient,
+  RssClientLive,
+  RssTransport,
+  type RssTransportShape,
+} from "@/features/operations/rss-client.ts";
 import {
   RssFeedParseError,
   RssFeedRejectedError,
@@ -30,21 +34,36 @@ function makeNotFoundError() {
 }
 
 function rssLayer(
-  httpClient: HttpClient.HttpClient,
+  execute: (url: string) => Effect.Effect<Response, unknown>,
   dnsMock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
 ) {
+  const transport: RssTransportShape = {
+    execute: (target) =>
+      execute(target.parsedUrl.href).pipe(
+        Effect.flatMap((response) =>
+          Effect.promise(() => response.arrayBuffer()).pipe(
+            Effect.map((body) => ({
+              headers: response.headers,
+              status: response.status,
+              stream: Stream.fromIterable([new Uint8Array(body)]),
+            })),
+          ),
+        ),
+      ),
+  };
+
   return RssClientLive.pipe(
     Layer.provide(
       Layer.mergeAll(
         ClockServiceLive,
-        Layer.succeed(HttpClient.HttpClient, httpClient),
+        Layer.succeed(RssTransport, transport),
         makeDnsLayer(dnsMock),
       ),
     ),
   );
 }
 
-it.effect("RssClient uses provided HttpClient for feed fetches", () =>
+it.effect("RssClient uses provided transport for feed fetches", () =>
   Effect.gen(function* () {
     const items = yield* fetchFeedItemsEffect(makeRssHttpClient(), (_name, type) =>
       type === "A" ? Promise.resolve(["93.184.216.34"]) : Promise.reject(makeNotFoundError()),
@@ -250,104 +269,85 @@ function makeRssHttpClient() {
   </channel>
 </rss>`;
 
-  return HttpClient.make((request) =>
+  return (_url: string) =>
     Effect.succeed(
-      HttpClientResponse.fromWeb(
-        request,
-        new Response(xml, {
-          headers: { "content-type": "application/rss+xml" },
-          status: 200,
-        }),
-      ),
-    ),
-  );
+      new Response(xml, {
+        headers: { "content-type": "application/rss+xml" },
+        status: 200,
+      }),
+    );
 }
 
 function makeTrackingHttpClient(onRequest: () => void) {
-  return HttpClient.make((request) => {
+  return (_url: string) => {
     onRequest();
 
     return Effect.succeed(
-      HttpClientResponse.fromWeb(
-        request,
-        new Response("", {
-          headers: { "content-type": "application/rss+xml" },
-          status: 200,
-        }),
-      ),
+      new Response("", {
+        headers: { "content-type": "application/rss+xml" },
+        status: 200,
+      }),
     );
-  });
+  };
 }
 
 function makeRedirectHttpClient(onRequest: () => void, redirectLocation: string) {
-  return HttpClient.make((request) => {
+  return (_url: string) => {
     onRequest();
 
     return Effect.succeed(
-      HttpClientResponse.fromWeb(
-        request,
-        new Response("", {
-          headers: {
-            "content-type": "application/rss+xml",
-            location: redirectLocation,
-          },
-          status: 302,
-        }),
-      ),
+      new Response("", {
+        headers: {
+          "content-type": "application/rss+xml",
+          location: redirectLocation,
+        },
+        status: 302,
+      }),
     );
-  });
+  };
 }
 
 function makeChainedRedirectHttpClient(onRequest: () => void, onRedirect: (url: string) => void) {
-  return HttpClient.make((request) => {
+  return (url: string) => {
     onRequest();
-    onRedirect(request.url);
+    onRedirect(url);
 
-    if (request.url.includes("feeds.example")) {
+    if (url.includes("feeds.example")) {
       return Effect.succeed(
-        HttpClientResponse.fromWeb(
-          request,
-          new Response("", {
-            headers: {
-              "content-type": "application/rss+xml",
-              location: "https://private.example/redirect.xml",
-            },
-            status: 302,
-          }),
-        ),
+        new Response("", {
+          headers: {
+            "content-type": "application/rss+xml",
+            location: "https://private.example/redirect.xml",
+          },
+          status: 302,
+        }),
       );
     }
 
     return Effect.succeed(
-      HttpClientResponse.fromWeb(
-        request,
-        new Response("", {
-          headers: { "content-type": "application/rss+xml" },
-          status: 200,
-        }),
-      ),
+      new Response("", {
+        headers: { "content-type": "application/rss+xml" },
+        status: 200,
+      }),
     );
-  });
+  };
 }
 
 function makeLoopingRedirectHttpClient(onRequest: () => void, onVisit: (url: string) => void) {
-  return HttpClient.make((request) => {
+  return (url: string) => {
     onRequest();
-    onVisit(request.url);
+    onVisit(url);
 
     return Effect.succeed(
-      HttpClientResponse.fromWeb(
-        request,
-        new Response("", {
-          headers: {
-            "content-type": "application/rss+xml",
-            location: "https://feeds.example/loop1.xml",
-          },
-          status: 302,
-        }),
-      ),
+      new Response("", {
+        headers: {
+          "content-type": "application/rss+xml",
+          location: "https://feeds.example/loop1.xml",
+        },
+        status: 302,
+      }),
     );
-  });
+  };
 }
 
 it.effect("RssClient accepts feeds under byte cap", () =>
@@ -355,17 +355,13 @@ it.effect("RssClient accepts feeds under byte cap", () =>
     const smallFeed = `<?xml version="1.0"?><rss><channel><item><title>[SubsPlease] Test - 01 (1080p)</title><link>https://nyaa.si/download/123456.torrent</link><nyaa:infoHash>abcdef0123456789abcdef0123456789abcdef01</nyaa:infoHash><nyaa:size>1.2 GiB</nyaa:size><pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate><nyaa:seeders>34</nyaa:seeders><nyaa:leechers>12</nyaa:leechers><nyaa:trusted>Yes</nyaa:trusted><nyaa:remake>No</nyaa:remake></item></channel></rss>`;
 
     const items = yield* fetchFeedItemsEffect(
-      HttpClient.make((request) =>
+      (_url: string) =>
         Effect.succeed(
-          HttpClientResponse.fromWeb(
-            request,
-            new Response(smallFeed, {
-              headers: { "content-type": "application/xml" },
-              status: 200,
-            }),
-          ),
+          new Response(smallFeed, {
+            headers: { "content-type": "application/xml" },
+            status: 200,
+          }),
         ),
-      ),
       () => Promise.resolve(["93.184.216.34"]),
     );
 
@@ -379,17 +375,13 @@ it.effect("RssClient fails with a typed error when feed payload exceeds the byte
 
     const exit = yield* Effect.exit(
       fetchFeedItemsEffect(
-        HttpClient.make((request) =>
+        (_url: string) =>
           Effect.succeed(
-            HttpClientResponse.fromWeb(
-              request,
-              new Response(largeFeed, {
-                headers: { "content-type": "application/xml" },
-                status: 200,
-              }),
-            ),
+            new Response(largeFeed, {
+              headers: { "content-type": "application/xml" },
+              status: 200,
+            }),
           ),
-        ),
         () => Promise.resolve(["93.184.216.34"]),
       ),
     );
@@ -402,17 +394,13 @@ it.effect("RssClient fails with a typed parse error for invalid RSS payloads", (
   Effect.gen(function* () {
     const exit = yield* Effect.exit(
       fetchFeedItemsEffect(
-        HttpClient.make((request) =>
+        (_url: string) =>
           Effect.succeed(
-            HttpClientResponse.fromWeb(
-              request,
-              new Response("<rss><channel></channel></rss>", {
-                headers: { "content-type": "application/xml" },
-                status: 200,
-              }),
-            ),
+            new Response("<rss><channel></channel></rss>", {
+              headers: { "content-type": "application/xml" },
+              status: 200,
+            }),
           ),
-        ),
         () => Promise.resolve(["93.184.216.34"]),
       ),
     );
@@ -441,17 +429,13 @@ it.effect("RssClient fails when an RSS item is missing required release fields",
 
     const exit = yield* Effect.exit(
       fetchFeedItemsEffect(
-        HttpClient.make((request) =>
+        (_url: string) =>
           Effect.succeed(
-            HttpClientResponse.fromWeb(
-              request,
-              new Response(xml, {
-                headers: { "content-type": "application/rss+xml" },
-                status: 200,
-              }),
-            ),
+            new Response(xml, {
+              headers: { "content-type": "application/rss+xml" },
+              status: 200,
+            }),
           ),
-        ),
         () => Promise.resolve(["93.184.216.34"]),
       ),
     );
@@ -475,37 +459,24 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
               Layer.provide(
                 Layer.mergeAll(
                   ClockServiceLive,
-                  Layer.succeed(
-                    HttpClient.HttpClient,
-                    HttpClient.make((request, url) => {
-                      calls.push(url.toString());
+                  Layer.succeed(RssTransport, {
+                    execute: (target) => {
+                      calls.push(target.parsedUrl.href);
 
-                      if (url.href.includes("feeds.example")) {
-                        return Effect.succeed(
-                          HttpClientResponse.fromWeb(
-                            request,
-                            new Response("", {
-                              headers: {
+                      return Effect.succeed({
+                        headers: new Headers(
+                          target.parsedUrl.href.includes("feeds.example")
+                            ? {
                                 "content-type": "application/rss+xml",
                                 location: "http://192.168.1.100/private.xml",
-                              },
-                              status: 302,
-                            }),
-                          ),
-                        );
-                      }
-
-                      return Effect.succeed(
-                        HttpClientResponse.fromWeb(
-                          request,
-                          new Response("", {
-                            headers: { "content-type": "application/rss+xml" },
-                            status: 200,
-                          }),
+                              }
+                            : { "content-type": "application/rss+xml" },
                         ),
-                      );
-                    }),
-                  ),
+                        status: target.parsedUrl.href.includes("feeds.example") ? 302 : 200,
+                        stream: Stream.empty,
+                      });
+                    },
+                  }),
                   makeDnsLayer(() => Promise.resolve(["93.184.216.34"])),
                 ),
               ),
@@ -522,12 +493,12 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
 );
 
 function fetchFeedItemsEffect(
-  httpClient: HttpClient.HttpClient,
+  execute: (url: string) => Effect.Effect<Response, unknown>,
   dnsMock: (name: string, type: "A" | "AAAA") => Promise<string[]>,
 ) {
   return Effect.flatMap(RssClient, (client) =>
     client.fetchItems("https://feeds.example/releases.xml"),
-  ).pipe(Effect.provide(Layer.mergeAll(rssLayer(httpClient, dnsMock), ClockServiceLive)));
+  ).pipe(Effect.provide(Layer.mergeAll(rssLayer(execute, dnsMock), ClockServiceLive)));
 }
 
 function assertRssFailure(

@@ -1,8 +1,9 @@
 import { assert, it } from "@effect/vitest";
-import { CommandExecutor } from "@effect/platform";
-import { Effect, Exit } from "effect";
+import * as PlatformError from "@effect/platform/Error";
+import { Cause, Effect, Exit } from "effect";
 
 import { makeTestConfig } from "@/test/config-fixture.ts";
+import { commandName, makeCommandExecutorStub } from "@/test/stubs.ts";
 import {
   DiskSpaceError,
   makeDiskSpaceInspector,
@@ -71,21 +72,41 @@ it("selectStoragePath falls back to runtime database path", () => {
 
 it.effect("getDiskSpaceSafe fails when df fails", () =>
   Effect.gen(function* () {
-    const commandExecutorStub = makeCommandExecutorStub(() => Effect.die(new Error("df failed")));
+    const commandExecutorStub = makeCommandExecutorStub(() =>
+      Effect.fail(
+        new PlatformError.SystemError({
+          cause: new Error("df failed"),
+          description: "df failed",
+          method: "string",
+          module: "Command",
+          reason: "Unknown",
+        }),
+      ),
+    );
 
     const result = yield* Effect.exit(
       makeDiskSpaceInspector(commandExecutorStub).getDiskSpaceSafe("/tmp"),
     );
 
     assert.deepStrictEqual(Exit.isFailure(result), true);
+    if (Exit.isFailure(result)) {
+      const failure = Cause.failureOption(result.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assert.deepStrictEqual(failure.value instanceof DiskSpaceError, true);
+        assert.match(failure.value.message, /failed to get disk space/i);
+      }
+    }
   }),
 );
 
 it.effect("getDiskSpaceSafe returns real values for valid path", () =>
   Effect.gen(function* () {
     const commandExecutorStub = makeCommandExecutorStub((command) => {
-      if (command.command !== "df") {
-        return Effect.die(new Error(`unexpected command: ${command.command}`));
+      const name = commandName(command);
+
+      if (name !== "df") {
+        return Effect.die(new Error(`unexpected command: ${name ?? "unknown"}`));
       }
 
       return Effect.succeed(
@@ -101,24 +122,3 @@ it.effect("getDiskSpaceSafe returns real values for valid path", () =>
     assert.deepStrictEqual(result.total, 1024000);
   }),
 );
-
-function makeCommandExecutorStub(
-  runAsString: (command: {
-    readonly args: ReadonlyArray<string>;
-    readonly command: string;
-  }) => Effect.Effect<string, never>,
-): CommandExecutor.CommandExecutor {
-  return {
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
-    exitCode: () => Effect.die("exitCode not implemented for test"),
-    lines: (command, _encoding) =>
-      runAsString(command as { args: ReadonlyArray<string>; command: string }).pipe(
-        Effect.map((value) => value.split(/\r?\n/).filter((line) => line.length > 0)),
-      ),
-    start: () => Effect.die("start not implemented for test"),
-    stream: () => Effect.die("stream not implemented for test"),
-    streamLines: () => Effect.die("streamLines not implemented for test"),
-    string: (command, _encoding) =>
-      runAsString(command as { args: ReadonlyArray<string>; command: string }),
-  };
-}

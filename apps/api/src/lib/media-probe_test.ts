@@ -11,6 +11,10 @@ import {
   parseFfprobeJson,
   shouldProbeMediaMetadata,
 } from "@/lib/media-probe.ts";
+import {
+  commandArgs,
+  makeCommandExecutorStub as makeSharedCommandExecutorStub,
+} from "@/test/stubs.ts";
 
 it("parseFfprobeJson extracts canonical media metadata", () => {
   const result = parseFfprobeJson(
@@ -116,7 +120,7 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
     let maxActive = 0;
 
     const commandExecutorStub = makeCommandExecutorStub((command) => {
-      if (command.args.includes("-version")) {
+      if (commandArgs(command).includes("-version")) {
         return Effect.succeed("ffprobe version test");
       }
 
@@ -185,7 +189,7 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
               Layer.succeed(
                 CommandExecutor.CommandExecutor,
                 makeCommandExecutorStub((command) =>
-                  command.args.includes("-version")
+                  commandArgs(command).includes("-version")
                     ? Effect.succeed("ffprobe version test")
                     : Effect.succeed('{"streams":"bad"}'),
                 ),
@@ -205,32 +209,15 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
 );
 
 function makeCommandExecutorStub(
-  runAsString: (command: {
-    readonly args: ReadonlyArray<string>;
-    readonly command: string;
-  }) => Effect.Effect<string, never>,
+  runAsString: (
+    command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
+  ) => Effect.Effect<string, never>,
 ): CommandExecutor.CommandExecutor {
   const parseOutput = (output: string): MediaProbeCommandOutput => ({
     stdout: output,
   });
 
-  return {
-    [CommandExecutor.TypeId]: CommandExecutor.TypeId,
-    exitCode: () => Effect.die("exitCode not implemented for test"),
-    lines: (command, _encoding) =>
-      runAsString(command as { args: ReadonlyArray<string>; command: string }).pipe(
-        Effect.map((value) =>
-          parseOutput(value)
-            .stdout.split(/\r?\n/)
-            .filter((line) => line.length > 0),
-        ),
-      ),
-    start: () => Effect.die("start not implemented for test"),
-    stream: () => Effect.die("stream not implemented for test"),
-    streamLines: () => Effect.die("streamLines not implemented for test"),
-    string: (command, _encoding) =>
-      runAsString(command as { args: ReadonlyArray<string>; command: string }).pipe(
-        Effect.map((value) => parseOutput(value).stdout),
-      ),
-  };
+  return makeSharedCommandExecutorStub((command) =>
+    runAsString(command).pipe(Effect.map((value) => parseOutput(value).stdout)),
+  );
 }

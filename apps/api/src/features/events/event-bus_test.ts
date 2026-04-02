@@ -3,71 +3,65 @@ import { Effect, Exit, Fiber, Stream, TestClock } from "effect";
 
 import { makeEventBus } from "@/features/events/event-bus.ts";
 
-it.effect("event bus fans out events to active subscribers", () =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const eventBus = yield* makeEventBus({ capacity: 8 });
-      const first = yield* eventBus.subscribe();
-      const second = yield* eventBus.subscribe();
-      const event = { type: "Info", payload: { message: "hello" } } as const;
+it.scoped("event bus fans out events to active subscribers", () =>
+  Effect.gen(function* () {
+    const eventBus = yield* makeEventBus({ capacity: 8 });
+    const first = yield* eventBus.subscribe();
+    const second = yield* eventBus.subscribe();
+    const event = { type: "Info", payload: { message: "hello" } } as const;
 
-      yield* eventBus.publish(event);
+    yield* eventBus.publish(event);
 
-      const firstEvent = yield* takeNextEvent(first.stream);
-      const secondEvent = yield* takeNextEvent(second.stream);
+    const firstEvent = yield* takeNextEvent(first.stream);
+    const secondEvent = yield* takeNextEvent(second.stream);
 
-      assert.deepStrictEqual(
-        [firstEvent, secondEvent],
-        [
-          { type: "Info", payload: { message: "hello" } },
-          { type: "Info", payload: { message: "hello" } },
-        ],
-      );
-    }),
-  ),
+    assert.deepStrictEqual(
+      [firstEvent, secondEvent],
+      [
+        { type: "Info", payload: { message: "hello" } },
+        { type: "Info", payload: { message: "hello" } },
+      ],
+    );
+  }),
 );
 
-it.effect("event bus uses sliding backpressure for slow subscribers", () =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const eventBus = yield* makeEventBus({ capacity: 2 });
-      const subscription = yield* eventBus.subscribe();
+it.scoped("event bus uses sliding backpressure for slow subscribers", () =>
+  Effect.gen(function* () {
+    const eventBus = yield* makeEventBus({ capacity: 2 });
+    const subscription = yield* eventBus.subscribe();
 
-      yield* eventBus.publish({ type: "Info", payload: { message: "one" } });
-      yield* eventBus.publish({ type: "Info", payload: { message: "two" } });
-      yield* eventBus.publish({ type: "Info", payload: { message: "three" } });
+    yield* eventBus.publish({ type: "Info", payload: { message: "one" } });
+    yield* eventBus.publish({ type: "Info", payload: { message: "two" } });
+    yield* eventBus.publish({ type: "Info", payload: { message: "three" } });
 
-      const first = yield* takeNextEvent(subscription.stream);
-      const second = yield* takeNextEvent(subscription.stream);
+    const first = yield* takeNextEvent(subscription.stream);
+    const second = yield* takeNextEvent(subscription.stream);
 
-      assert.deepStrictEqual(
-        [first, second],
-        [
-          { type: "Info", payload: { message: "two" } },
-          { type: "Info", payload: { message: "three" } },
-        ],
-      );
-    }),
-  ),
-);
-
-it.effect("event bus subscriptions expose a stream view", () =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const eventBus = yield* makeEventBus({ capacity: 8 });
-      const subscription = yield* eventBus.subscribe();
-
-      yield* eventBus.publish({ type: "Info", payload: { message: "one" } });
-      yield* eventBus.publish({ type: "Info", payload: { message: "two" } });
-
-      const events = yield* Stream.runCollect(subscription.stream.pipe(Stream.take(2)));
-
-      assert.deepStrictEqual(Array.from(events), [
-        { type: "Info", payload: { message: "one" } },
+    assert.deepStrictEqual(
+      [first, second],
+      [
         { type: "Info", payload: { message: "two" } },
-      ]);
-    }),
-  ),
+        { type: "Info", payload: { message: "three" } },
+      ],
+    );
+  }),
+);
+
+it.scoped("event bus subscriptions expose a stream view", () =>
+  Effect.gen(function* () {
+    const eventBus = yield* makeEventBus({ capacity: 8 });
+    const subscription = yield* eventBus.subscribe();
+
+    yield* eventBus.publish({ type: "Info", payload: { message: "one" } });
+    yield* eventBus.publish({ type: "Info", payload: { message: "two" } });
+
+    const events = yield* Stream.runCollect(subscription.stream.pipe(Stream.take(2)));
+
+    assert.deepStrictEqual(Array.from(events), [
+      { type: "Info", payload: { message: "one" } },
+      { type: "Info", payload: { message: "two" } },
+    ]);
+  }),
 );
 
 it.effect("event bus subscriptions are interrupted when the scope closes", () =>
