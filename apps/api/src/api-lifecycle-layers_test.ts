@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Option } from "effect";
 import { Redacted } from "effect";
 
 import { makeApiLifecycleLayers } from "@/api-lifecycle-layers.ts";
@@ -9,7 +9,7 @@ import { assert, it } from "@/test/vitest.ts";
 it.effect("api lifecycle app layer resolves background controller and anilist overrides", () =>
   Effect.gen(function* () {
     const aniListLayer = Layer.succeed(AniListClient, {
-      getAnimeMetadataById: (_id: number) => Effect.succeed(null),
+      getAnimeMetadataById: (_id: number) => Effect.succeed(Option.none()),
       searchAnimeMetadata: (_query: string) => Effect.succeed([]),
     });
 

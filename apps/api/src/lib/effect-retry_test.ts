@@ -2,7 +2,7 @@ import { assert, assertEquals, it } from "@/test/vitest.ts";
 import { Effect, Either, Fiber, TestClock } from "effect";
 
 import type { ClockServiceShape } from "@/lib/clock.ts";
-import { ExternalCallError, makeTryExternal } from "@/lib/effect-retry.ts";
+import { ExternalCallError, makeTryExternal, makeTryExternalEffect } from "@/lib/effect-retry.ts";
 
 it.effect("tryExternal retries transient failures", () =>
   Effect.gen(function* () {
@@ -54,6 +54,26 @@ it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
 
     assert(Either.isLeft(result));
     assert(result.left instanceof ExternalCallError);
+  }),
+);
+
+it.effect("tryExternalEffect does not retry non-idempotent failures", () =>
+  Effect.gen(function* () {
+    let attempts = 0;
+    const tryExternalEffect = makeTryExternalEffect(testClock);
+
+    const result = yield* tryExternalEffect(
+      "test.non-idempotent",
+      Effect.sync(() => {
+        attempts += 1;
+      }).pipe(Effect.zipRight(Effect.fail(new Error("boom")))),
+      { idempotent: false },
+    )().pipe(Effect.either);
+
+    assert(Either.isLeft(result));
+    assert(result.left instanceof ExternalCallError);
+    assertEquals(result.left.operation, "test.non-idempotent");
+    assertEquals(attempts, 1);
   }),
 );
 

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { AnimeSearchResponse, AnimeSearchResult } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -32,11 +32,12 @@ export const getAnimeByAnilistIdEffect = Effect.fn("AnimeQuerySearch.getAnimeByA
   function* (input: { aniList: typeof AniListClient.Service; db: AppDatabase; id: number }) {
     const metadata = yield* input.aniList.getAnimeMetadataById(input.id);
 
-    if (!metadata) {
+    if (Option.isNone(metadata)) {
       return yield* new AnimeNotFoundError({
         message: "Anime not found",
       });
     }
+    const metadataValue = metadata.value;
 
     const existing = yield* tryDatabasePromise("Failed to check library status", () =>
       input.db.select({ id: anime.id }).from(anime).where(eq(anime.id, input.id)).limit(1),
@@ -44,24 +45,26 @@ export const getAnimeByAnilistIdEffect = Effect.fn("AnimeQuerySearch.getAnimeByA
 
     return {
       already_in_library: Boolean(existing[0]),
-      banner_image: metadata.bannerImage,
-      cover_image: metadata.coverImage,
-      description: metadata.description,
-      end_date: metadata.endDate,
-      end_year: metadata.endYear,
-      episode_count: metadata.episodeCount,
-      format: metadata.format,
-      genres: metadata.genres ? [...metadata.genres] : undefined,
-      id: metadata.id,
-      recommended_anime: metadata.recommendedAnime ? [...metadata.recommendedAnime] : undefined,
-      related_anime: metadata.relatedAnime ? [...metadata.relatedAnime] : undefined,
-      season: deriveAnimeSeason(metadata.startDate),
-      season_year: metadata.startYear,
-      start_date: metadata.startDate,
-      start_year: metadata.startYear,
-      status: metadata.status,
-      synonyms: metadata.synonyms ? [...metadata.synonyms] : undefined,
-      title: metadata.title,
+      banner_image: metadataValue.bannerImage,
+      cover_image: metadataValue.coverImage,
+      description: metadataValue.description,
+      end_date: metadataValue.endDate,
+      end_year: metadataValue.endYear,
+      episode_count: metadataValue.episodeCount,
+      format: metadataValue.format,
+      genres: metadataValue.genres ? [...metadataValue.genres] : undefined,
+      id: metadataValue.id,
+      recommended_anime: metadataValue.recommendedAnime
+        ? [...metadataValue.recommendedAnime]
+        : undefined,
+      related_anime: metadataValue.relatedAnime ? [...metadataValue.relatedAnime] : undefined,
+      season: deriveAnimeSeason(metadataValue.startDate),
+      season_year: metadataValue.startYear,
+      start_date: metadataValue.startDate,
+      start_year: metadataValue.startYear,
+      status: metadataValue.status,
+      synonyms: metadataValue.synonyms ? [...metadataValue.synonyms] : undefined,
+      title: metadataValue.title,
     } satisfies AnimeSearchResult;
   },
 );

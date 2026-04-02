@@ -1,6 +1,6 @@
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, downloadEvents, downloads, systemLogs } from "@/db/schema.ts";
@@ -138,11 +138,11 @@ export const loadDownloadReconciliationContext = Effect.fn(
     runtimeConfig.downloads.remote_path_mappings,
   );
 
-  if (!resolvedContentRoot) {
-    return null;
+  if (Option.isNone(resolvedContentRoot)) {
+    return Option.none();
   }
 
-  return {
+  return Option.some({
     db: input.db,
     animeRow,
     importMode,
@@ -151,11 +151,11 @@ export const loadDownloadReconciliationContext = Effect.fn(
     mediaProbe: input.mediaProbe,
     maybeCleanupImportedTorrent: input.maybeCleanupImportedTorrent,
     nowIso: input.nowIso,
-    resolvedContentRoot,
+    resolvedContentRoot: resolvedContentRoot.value,
     randomUuid: input.randomUuid,
     runtimeConfig,
     row: input.row,
     storedSourceMetadata,
     tryDatabasePromise: input.tryDatabasePromise,
-  } satisfies DownloadReconciliationContext;
+  } satisfies DownloadReconciliationContext);
 });

@@ -1,3 +1,5 @@
+import { Effect } from "effect";
+
 import type {
   Config,
   DownloadAction,
@@ -13,6 +15,7 @@ import {
   parseQualityFromTitle,
   parseResolution,
 } from "@/features/operations/release-ranking-quality.ts";
+import { OperationsInputError } from "@/features/operations/errors.ts";
 import { parseReleaseName } from "@/features/operations/release-ranking-parse.ts";
 import type {
   RankedCurrentEpisode,
@@ -26,6 +29,19 @@ export function decideDownloadAction(
   release: RankedRelease,
   config: Config,
 ): DownloadAction {
+  const minSizeBytesResult = parseSizeLabelToBytes(profile.min_size);
+  if (minSizeBytesResult._tag === "Left") {
+    return { Reject: { reason: minSizeBytesResult.left.message } };
+  }
+
+  const maxSizeBytesResult = parseSizeLabelToBytes(profile.max_size);
+  if (maxSizeBytesResult._tag === "Left") {
+    return { Reject: { reason: maxSizeBytesResult.left.message } };
+  }
+
+  const minSizeBytes = minSizeBytesResult.right;
+  const maxSizeBytes = maxSizeBytesResult.right;
+
   const parsed = parseReleaseName(release.title);
   const releaseQuality = parsed.quality;
 
@@ -44,11 +60,11 @@ export function decideDownloadAction(
     return { Reject: { reason: "quality not allowed in profile" } };
   }
 
-  if (profile.min_size && release.sizeBytes < parseSizeLabelToBytes(profile.min_size)) {
+  if (minSizeBytes !== null && release.sizeBytes < minSizeBytes) {
     return { Reject: { reason: "size too small" } };
   }
 
-  if (profile.max_size && release.sizeBytes > parseSizeLabelToBytes(profile.max_size)) {
+  if (maxSizeBytes !== null && release.sizeBytes > maxSizeBytes) {
     return { Reject: { reason: "size too big" } };
   }
 
@@ -160,6 +176,20 @@ export function decideDownloadAction(
 
   return { Reject: { reason: "no quality improvement" } };
 }
+
+export const validateQualityProfileSizeLabels = Effect.fn(
+  "Operations.validateQualityProfileSizeLabels",
+)(function* (profile: QualityProfile) {
+  const minSizeBytesResult = parseSizeLabelToBytes(profile.min_size);
+  if (minSizeBytesResult._tag === "Left") {
+    return yield* minSizeBytesResult.left;
+  }
+
+  const maxSizeBytesResult = parseSizeLabelToBytes(profile.max_size);
+  if (maxSizeBytesResult._tag === "Left") {
+    return yield* maxSizeBytesResult.left;
+  }
+});
 
 export function compareEpisodeSearchResults(
   left: EpisodeSearchResult,
@@ -304,13 +334,34 @@ function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function parseSizeLabelToBytes(value: string): number {
+function parseSizeLabelToBytes(
+  value: string | null | undefined,
+): { _tag: "Left"; left: OperationsInputError } | { _tag: "Right"; right: number | null } {
+  if (!value || value.trim().length === 0) {
+    return { _tag: "Right", right: null };
+  }
+
   const match = value.match(/([0-9.]+)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)/i);
   if (!match) {
-    return Number.parseFloat(value) || 0;
+    return {
+      _tag: "Left",
+      left: new OperationsInputError({
+        message: `Invalid quality profile size label: ${value}`,
+      }),
+    };
   }
   const amount = Number.parseFloat(match[1]);
   const unit = match[2].toUpperCase();
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return {
+      _tag: "Left",
+      left: new OperationsInputError({
+        message: `Invalid quality profile size label: ${value}`,
+      }),
+    };
+  }
+
   let multiplier = 1024 ** 4;
 
   if (unit === "B") {
@@ -322,5 +373,5 @@ function parseSizeLabelToBytes(value: string): number {
   } else if (unit === "GIB" || unit === "GB") {
     multiplier = 1024 ** 3;
   }
-  return Math.round(amount * multiplier);
+  return { _tag: "Right", right: Math.round(amount * multiplier) };
 }

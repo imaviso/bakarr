@@ -35,7 +35,10 @@ import {
   StoredConfigMissingError,
 } from "@/features/system/errors.ts";
 import { DiskSpaceError } from "@/features/system/disk-space.ts";
-import { EpisodeStreamAccessError, EpisodeStreamRangeError } from "@/http/streaming-errors.ts";
+import {
+  EpisodeStreamAccessError,
+  EpisodeStreamRangeError,
+} from "@/features/anime/anime-stream-errors.ts";
 import { RequestValidationError } from "@/http/route-validation.ts";
 
 const knownTaggedRouteErrorSchemas = [

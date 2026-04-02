@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -43,6 +43,11 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
       yield* torrentClientService
         .deleteTorrentIfEnabled(infoHash, shouldDeleteImportedData(config))
         .pipe(
+          Effect.flatMap((result) =>
+            result._tag === "Disabled"
+              ? Effect.logDebug("Skipped qBittorrent cleanup because it is disabled")
+              : Effect.void,
+          ),
           Effect.catchAll((cause) =>
             Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
               Effect.annotateLogs({
@@ -74,33 +79,33 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
         return;
       }
 
-      const context: DownloadReconciliationContext | null =
-        yield* loadDownloadReconciliationContext({
-          db,
-          eventBus,
-          fs,
-          mediaProbe,
-          maybeCleanupImportedTorrent,
-          nowIso,
-          randomUuid,
-          row,
-          tryDatabasePromise,
-          contentPath,
-          getRuntimeConfig: input.getRuntimeConfig,
-        });
+      const context = yield* loadDownloadReconciliationContext({
+        db,
+        eventBus,
+        fs,
+        mediaProbe,
+        maybeCleanupImportedTorrent,
+        nowIso,
+        randomUuid,
+        row,
+        tryDatabasePromise,
+        contentPath,
+        getRuntimeConfig: input.getRuntimeConfig,
+      });
 
-      if (!context) {
+      if (Option.isNone(context)) {
         return;
       }
+      const contextValue: DownloadReconciliationContext = context.value;
 
-      if (context.row.isBatch) {
-        const handledBatch = yield* reconcileBatchDownloadEffect(context);
+      if (contextValue.row.isBatch) {
+        const handledBatch = yield* reconcileBatchDownloadEffect(contextValue);
         if (handledBatch) {
           return;
         }
       }
 
-      yield* reconcileSingleDownloadEffect(context);
+      yield* reconcileSingleDownloadEffect(contextValue);
     },
   );
 

@@ -13,33 +13,49 @@ import {
   RuntimeConfigSnapshotService,
   type RuntimeConfigSnapshotError,
 } from "@/features/system/runtime-config-snapshot-service.ts";
+import { OperationsInputError } from "@/features/operations/errors.ts";
 
 type TorrentClientServiceError =
   | ExternalCallError
+  | OperationsInputError
   | QBitTorrentClientError
   | RuntimeConfigSnapshotError;
+
+type TorrentClientConfigState =
+  | {
+      readonly _tag: "Disabled";
+    }
+  | {
+      readonly _tag: "Enabled";
+      readonly config: import("@/features/operations/qbittorrent.ts").QBitConfig;
+    };
 
 export interface TorrentClientServiceShape {
   readonly addTorrentUrlIfEnabled: (
     url: string,
-  ) => Effect.Effect<boolean, TorrentClientServiceError>;
+  ) => Effect.Effect<{ readonly _tag: "Disabled" | "Added" }, TorrentClientServiceError>;
   readonly deleteTorrentIfEnabled: (
     hash: string,
     deleteFiles: boolean,
-  ) => Effect.Effect<boolean, TorrentClientServiceError>;
+  ) => Effect.Effect<{ readonly _tag: "Deleted" | "Disabled" }, TorrentClientServiceError>;
   readonly listTorrentContentsIfEnabled: (
     hash: string,
-  ) => Effect.Effect<readonly QBitTorrentFile[] | null, TorrentClientServiceError>;
+  ) => Effect.Effect<
+    | { readonly _tag: "Disabled" }
+    | { readonly _tag: "Found"; readonly files: readonly QBitTorrentFile[] },
+    TorrentClientServiceError
+  >;
   readonly listTorrentsIfEnabled: () => Effect.Effect<
-    readonly QBitTorrent[] | null,
+    | { readonly _tag: "Disabled" }
+    | { readonly _tag: "Found"; readonly torrents: readonly QBitTorrent[] },
     TorrentClientServiceError
   >;
   readonly pauseTorrentIfEnabled: (
     hash: string,
-  ) => Effect.Effect<boolean, TorrentClientServiceError>;
+  ) => Effect.Effect<{ readonly _tag: "Disabled" | "Paused" }, TorrentClientServiceError>;
   readonly resumeTorrentIfEnabled: (
     hash: string,
-  ) => Effect.Effect<boolean, TorrentClientServiceError>;
+  ) => Effect.Effect<{ readonly _tag: "Disabled" | "Resumed" }, TorrentClientServiceError>;
 }
 
 export class TorrentClientService extends Context.Tag("@bakarr/api/TorrentClientService")<
@@ -48,16 +64,26 @@ export class TorrentClientService extends Context.Tag("@bakarr/api/TorrentClient
 >() {}
 
 const maybeQBitConfig = (config: Config) => {
-  if (!config.qbittorrent.enabled || !config.qbittorrent.password) {
-    return null;
+  if (!config.qbittorrent.enabled) {
+    return { _tag: "Disabled" } as const;
   }
 
-  return new QBitConfigModel({
-    baseUrl: config.qbittorrent.url,
-    category: config.qbittorrent.default_category,
-    password: config.qbittorrent.password,
-    username: config.qbittorrent.username,
-  });
+  if (!config.qbittorrent.password) {
+    return {
+      _tag: "InvalidConfig",
+      reason: "qBittorrent is enabled but password is missing",
+    } as const;
+  }
+
+  return {
+    _tag: "Enabled",
+    config: new QBitConfigModel({
+      baseUrl: config.qbittorrent.url,
+      category: config.qbittorrent.default_category,
+      password: config.qbittorrent.password,
+      username: config.qbittorrent.username,
+    }),
+  } as const;
 };
 
 export const TorrentClientServiceLive = Layer.effect(
@@ -68,29 +94,38 @@ export const TorrentClientServiceLive = Layer.effect(
 
     const resolveConfig = Effect.fn("TorrentClientService.resolveConfig")(function* () {
       const runtimeConfig = yield* runtimeConfigSnapshot.getRuntimeConfig();
-      return maybeQBitConfig(runtimeConfig);
+      const state = maybeQBitConfig(runtimeConfig);
+
+      if (state._tag === "InvalidConfig") {
+        return yield* new OperationsInputError({
+          message: state.reason,
+        });
+      }
+
+      return state satisfies TorrentClientConfigState;
     });
 
     const addTorrentUrlIfEnabled = Effect.fn("TorrentClientService.addTorrentUrlIfEnabled")(
       function* (url: string) {
         const qbitConfig = yield* resolveConfig();
-        if (!qbitConfig) {
-          return false;
+        if (qbitConfig._tag === "Disabled") {
+          return { _tag: "Disabled" } as const;
         }
 
-        yield* qbitClient.addTorrentUrl(qbitConfig, url);
-        return true;
+        yield* qbitClient.addTorrentUrl(qbitConfig.config, url);
+        return { _tag: "Added" } as const;
       },
     );
 
     const listTorrentsIfEnabled = Effect.fn("TorrentClientService.listTorrentsIfEnabled")(
       function* () {
         const qbitConfig = yield* resolveConfig();
-        if (!qbitConfig) {
-          return null;
+        if (qbitConfig._tag === "Disabled") {
+          return { _tag: "Disabled" } as const;
         }
 
-        return yield* qbitClient.listTorrents(qbitConfig);
+        const torrents = yield* qbitClient.listTorrents(qbitConfig.config);
+        return { _tag: "Found", torrents } as const;
       },
     );
 
@@ -98,46 +133,47 @@ export const TorrentClientServiceLive = Layer.effect(
       "TorrentClientService.listTorrentContentsIfEnabled",
     )(function* (hash: string) {
       const qbitConfig = yield* resolveConfig();
-      if (!qbitConfig) {
-        return null;
+      if (qbitConfig._tag === "Disabled") {
+        return { _tag: "Disabled" } as const;
       }
 
-      return yield* qbitClient.listTorrentContents(qbitConfig, hash);
+      const files = yield* qbitClient.listTorrentContents(qbitConfig.config, hash);
+      return { _tag: "Found", files } as const;
     });
 
     const pauseTorrentIfEnabled = Effect.fn("TorrentClientService.pauseTorrentIfEnabled")(
       function* (hash: string) {
         const qbitConfig = yield* resolveConfig();
-        if (!qbitConfig) {
-          return false;
+        if (qbitConfig._tag === "Disabled") {
+          return { _tag: "Disabled" } as const;
         }
 
-        yield* qbitClient.pauseTorrent(qbitConfig, hash);
-        return true;
+        yield* qbitClient.pauseTorrent(qbitConfig.config, hash);
+        return { _tag: "Paused" } as const;
       },
     );
 
     const resumeTorrentIfEnabled = Effect.fn("TorrentClientService.resumeTorrentIfEnabled")(
       function* (hash: string) {
         const qbitConfig = yield* resolveConfig();
-        if (!qbitConfig) {
-          return false;
+        if (qbitConfig._tag === "Disabled") {
+          return { _tag: "Disabled" } as const;
         }
 
-        yield* qbitClient.resumeTorrent(qbitConfig, hash);
-        return true;
+        yield* qbitClient.resumeTorrent(qbitConfig.config, hash);
+        return { _tag: "Resumed" } as const;
       },
     );
 
     const deleteTorrentIfEnabled = Effect.fn("TorrentClientService.deleteTorrentIfEnabled")(
       function* (hash: string, deleteFiles: boolean) {
         const qbitConfig = yield* resolveConfig();
-        if (!qbitConfig) {
-          return false;
+        if (qbitConfig._tag === "Disabled") {
+          return { _tag: "Disabled" } as const;
         }
 
-        yield* qbitClient.deleteTorrent(qbitConfig, hash, deleteFiles);
-        return true;
+        yield* qbitClient.deleteTorrent(qbitConfig.config, hash, deleteFiles);
+        return { _tag: "Deleted" } as const;
       },
     );
 

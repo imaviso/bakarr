@@ -1,5 +1,5 @@
 import { eq, inArray } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
@@ -15,6 +15,7 @@ import { loadMissingEpisodeNumbers } from "@/features/operations/job-support.ts"
 import {
   parseEpisodeFromTitle,
   decideDownloadAction,
+  validateQualityProfileSizeLabels,
 } from "@/features/operations/release-ranking.ts";
 import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
 import {
@@ -102,6 +103,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
             }
 
             const profile = yield* requireQualityProfile(animeRow.profileName);
+            yield* validateQualityProfileSizeLabels(profile);
             const rules = yield* loadReleaseRules(db, animeRow);
             let queuedForFeed = 0;
 
@@ -113,6 +115,13 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 feedName: feed.name ?? feed.url,
                 reason: "feed returned no items",
               });
+              const feedCheckedAt = yield* nowIso();
+              yield* tryDatabasePromise("Failed to run RSS check", () =>
+                db
+                  .update(rssFeeds)
+                  .set({ lastChecked: feedCheckedAt })
+                  .where(eq(rssFeeds.id, feed.id)),
+              );
               return 0;
             }
 
@@ -157,7 +166,7 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
               const action = decideDownloadAction(
                 profile,
                 rules,
-                currentEpisode,
+                Option.getOrNull(currentEpisode),
                 item,
                 runtimeConfig,
               );

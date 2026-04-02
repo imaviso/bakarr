@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertExists, assertMatch, it } from "./src/test/vitest.ts";
 import { CommandExecutor } from "@effect/platform";
 import { HttpApp } from "@effect/platform";
-import { Effect, Layer, Redacted } from "effect";
+import { Effect, Layer, Option, Redacted } from "effect";
 import { tmpdir } from "node:os";
 import { AniListClient } from "./src/features/anime/anilist.ts";
 import { type QBitTorrent, QBitTorrentClient } from "./src/features/operations/qbittorrent.ts";
@@ -183,24 +183,26 @@ itWithTestContext("search releases enriches SeaDex metadata using AniList ID", a
 it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavailable", () => {
   const seadexLayer = Layer.succeed(SeaDexClient, {
     getEntryByAniListId: (_aniListId: number) =>
-      Effect.succeed({
-        alID: 20,
-        comparison: "https://releases.moe/compare/naruto-url",
-        incomplete: false,
-        notes: "Matched by Nyaa URL fallback.",
-        releases: [
-          {
-            dualAudio: false,
-            groupedUrl: "https://releases.moe/collections/naruto-url",
-            infoHash: undefined,
-            isBest: false,
-            releaseGroup: "OtherGroup",
-            tags: ["Alt"],
-            tracker: "Nyaa",
-            url: "https://nyaa.si/download/7891011.torrent",
-          },
-        ],
-      }),
+      Effect.succeed(
+        Option.some({
+          alID: 20,
+          comparison: "https://releases.moe/compare/naruto-url",
+          incomplete: false,
+          notes: "Matched by Nyaa URL fallback.",
+          releases: [
+            {
+              dualAudio: false,
+              groupedUrl: "https://releases.moe/collections/naruto-url",
+              infoHash: undefined,
+              isBest: false,
+              releaseGroup: "OtherGroup",
+              tags: ["Alt"],
+              tracker: "Nyaa",
+              url: "https://nyaa.si/download/7891011.torrent",
+            },
+          ],
+        }),
+      ),
   });
   const rssLayer = Layer.succeed(RssClient, {
     fetchItems: (_url: string) =>
@@ -263,24 +265,26 @@ it.scoped("search releases can match SeaDex by Nyaa URL when info hash is unavai
 it.scoped("search releases only marks matching groups as SeaDex in fallback matching", () => {
   const seadexLayer = Layer.succeed(SeaDexClient, {
     getEntryByAniListId: (_aniListId: number) =>
-      Effect.succeed({
-        alID: 20,
-        comparison: "https://releases.moe/compare/yofukashi",
-        incomplete: false,
-        notes: "Okay-Subs is the recommended release.",
-        releases: [
-          {
-            dualAudio: false,
-            groupedUrl: "https://releases.moe/collections/yofukashi",
-            infoHash: undefined,
-            isBest: true,
-            releaseGroup: "Okay-Subs",
-            tags: ["Best"],
-            tracker: "Nyaa",
-            url: "https://nyaa.si/view/999999",
-          },
-        ],
-      }),
+      Effect.succeed(
+        Option.some({
+          alID: 20,
+          comparison: "https://releases.moe/compare/yofukashi",
+          incomplete: false,
+          notes: "Okay-Subs is the recommended release.",
+          releases: [
+            {
+              dualAudio: false,
+              groupedUrl: "https://releases.moe/collections/yofukashi",
+              infoHash: undefined,
+              isBest: true,
+              releaseGroup: "Okay-Subs",
+              tags: ["Best"],
+              tracker: "Nyaa",
+              url: "https://nyaa.si/view/999999",
+            },
+          ],
+        }),
+      ),
   });
   const rssLayer = Layer.succeed(RssClient, {
     fetchItems: (_url: string) =>
@@ -4509,7 +4513,8 @@ const testAniListLayer = Layer.succeed(AniListClient, {
     }
     return Effect.succeed(results);
   },
-  getAnimeMetadataById: (id: number) => Effect.succeed(TEST_ANIME_METADATA.get(id) ?? null),
+  getAnimeMetadataById: (id: number) =>
+    Effect.succeed(Option.fromNullable(TEST_ANIME_METADATA.get(id))),
 });
 
 function deterministicHex(input: string): string {
@@ -4584,7 +4589,7 @@ const testRssLayer = Layer.succeed(RssClient, {
 
 const testSeaDexLayer = Layer.succeed(SeaDexClient, {
   getEntryByAniListId: (aniListId: number) =>
-    Effect.succeed(TEST_SEADEX_ENTRIES.get(aniListId) ?? null),
+    Effect.succeed(Option.fromNullable(TEST_SEADEX_ENTRIES.get(aniListId))),
 });
 
 async function createTestContext(options?: {

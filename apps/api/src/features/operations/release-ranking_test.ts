@@ -1,4 +1,5 @@
 import { assertEquals, it } from "@/test/vitest.ts";
+import { Effect, Either } from "effect";
 
 import { defaultAppConfig } from "@/config.ts";
 import type { Config, QualityProfile } from "@packages/shared/index.ts";
@@ -9,6 +10,7 @@ import {
   parseEpisodeNumbersFromTitle,
   parseQualityFromTitle,
   parseReleaseName,
+  validateQualityProfileSizeLabels,
 } from "@/features/operations/release-ranking.ts";
 
 const baseConfig: Config = {
@@ -90,6 +92,10 @@ it("parse quality prefers bluray remux over webdl", () => {
     parseQualityFromTitle("[Group] Show S01 (BD 1080p HEVC Opus) [Dual-Audio]").name,
     "BluRay 1080p",
   );
+});
+
+it("parse quality falls back to Unknown when no source and no resolution exist", () => {
+  assertEquals(parseQualityFromTitle("unknown").name, "Unknown");
 });
 
 it("decide download accepts new release and upgrades higher quality", () => {
@@ -546,6 +552,50 @@ it("cutoff blocks better-quality upgrades once cutoff is met", () => {
 
   assertEquals(decision.Reject?.reason, "already at quality cutoff");
 });
+
+it("unknown current quality does not block higher-quality upgrade", () => {
+  const decision = decideDownloadAction(
+    {
+      ...baseProfile,
+      allowed_qualities: ["2160p", "1080p", "720p"],
+    },
+    [],
+    {
+      downloaded: true,
+      filePath: "Show Episode 01",
+      isSeaDex: false,
+      isSeaDexBest: false,
+    },
+    {
+      group: "SubsPlease",
+      isSeaDex: false,
+      isSeaDexBest: false,
+      remake: false,
+      seeders: 50,
+      sizeBytes: 1024 ** 3,
+      title: "[SubsPlease] Show - 01 [1080p BluRay]",
+      trusted: true,
+    },
+    baseConfig,
+  );
+
+  assertEquals(decision.Upgrade?.reason, "better quality available");
+  assertEquals(decision.Upgrade?.quality.name, parseQualityFromTitle("1080p BluRay").name);
+});
+
+it.effect("invalid quality profile size labels fail validation", () =>
+  Effect.gen(function* () {
+    const result = yield* validateQualityProfileSizeLabels({
+      ...baseProfile,
+      min_size: "not-a-size",
+    }).pipe(Effect.either);
+
+    assertEquals(Either.isLeft(result), true);
+    if (Either.isLeft(result)) {
+      assertEquals(result.left.message, "Invalid quality profile size label: not-a-size");
+    }
+  }),
+);
 
 it("compare episode search results prefers better quality over seeders when score ties", () => {
   const lowQualityMoreSeeders = {

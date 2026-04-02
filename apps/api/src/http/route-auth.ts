@@ -1,5 +1,5 @@
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Effect } from "effect";
+import { Duration, Effect, Option } from "effect";
 
 import { AppConfig } from "@/config.ts";
 import { AuthError } from "@/features/auth/errors.ts";
@@ -42,11 +42,11 @@ export const requireViewerFromHttpRequest = Effect.fn("Http.requireViewerFromHtt
       auth.resolveViewer(sessionToken, apiKey),
     );
 
-    if (!viewer) {
+    if (Option.isNone(viewer)) {
       return yield* new AuthError({ message: "Unauthorized", status: 401 });
     }
 
-    return viewer;
+    return viewer.value;
   },
 );
 
@@ -59,7 +59,7 @@ export const persistSessionResponse = Effect.fn("Http.persistSessionResponse")(f
 
   return HttpServerResponse.unsafeSetCookie(response, config.sessionCookieName, token, {
     httpOnly: true,
-    maxAge: config.sessionDurationDays * 24 * 60 * 60,
+    maxAge: Duration.days(config.sessionDurationDays),
     path: "/",
     sameSite: "lax",
     secure: config.sessionCookieSecure,

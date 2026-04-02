@@ -4,7 +4,7 @@ import { ConfigProvider, Layer } from "effect";
 
 import { AppRuntime } from "@/app-runtime.ts";
 import { AppConfig, type AppConfigShape } from "@/config.ts";
-import { DatabaseLive } from "@/db/database.ts";
+import { DatabaseLayerLive, DatabaseSqlClientLive } from "@/db/database.ts";
 import { BackgroundWorkerMonitorLive } from "@/background-monitor.ts";
 import { EventBusLive } from "@/features/events/event-bus.ts";
 import { EventPublisherLive } from "@/features/events/publisher.ts";
@@ -35,7 +35,10 @@ export function makeAppPlatformCoreRuntimeLayer(
     : AppConfig.layer(overrides);
   const configLayer = configBaseLayer.pipe(Layer.provide(coreSupportLayer));
   const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(coreSupportLayer));
-  const databaseLayer = DatabaseLive.pipe(Layer.provide(configLayer));
+  const databaseSqlLayer = DatabaseSqlClientLive.pipe(Layer.provide(configLayer));
+  const databaseLayer = DatabaseLayerLive.pipe(
+    Layer.provide(Layer.mergeAll(configLayer, databaseSqlLayer)),
+  );
   const eventBusLayer = EventBusLive;
   const eventSupportLayer = Layer.mergeAll(eventBusLayer, coreSupportLayer);
   const eventPublisherLayer = EventPublisherLive.pipe(Layer.provide(eventSupportLayer));

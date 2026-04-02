@@ -1,16 +1,17 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import { classifyMediaArtifact, parseFileSourceIdentity } from "@/lib/media-identity.ts";
 import { scanVideoFiles } from "@/features/operations/file-scanner.ts";
 
-export function parseMagnetInfoHash(magnet: string | null | undefined): string | undefined {
+export function parseMagnetInfoHash(magnet: string | null | undefined): Option.Option<string> {
   if (!magnet) {
-    return undefined;
+    return Option.none();
   }
 
   const match = magnet.match(/xt=urn:btih:([^&]+)/i);
-  return match?.[1]?.toLowerCase();
+
+  return match?.[1] ? Option.some(match[1].toLowerCase()) : Option.none();
 }
 
 export const resolveCompletedContentPath = Effect.fn("Operations.resolveCompletedContentPath")(
@@ -23,17 +24,17 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
     const statResult = yield* Effect.either(fs.stat(contentPath));
 
     if (statResult._tag === "Left") {
-      return undefined;
+      return Option.none();
     }
 
     const stat = statResult.right;
 
     if (stat.isFile) {
-      return contentPath;
+      return Option.some(contentPath);
     }
 
     if (!stat.isDirectory) {
-      return undefined;
+      return Option.none();
     }
 
     const files = yield* scanVideoFiles(fs, contentPath).pipe(
@@ -48,14 +49,14 @@ export const resolveCompletedContentPath = Effect.fn("Operations.resolveComplete
     );
 
     if (matching) {
-      return matching.path;
+      return Option.some(matching.path);
     }
 
     if (candidates.length === 1) {
-      return candidates[0].path;
+      return Option.some(candidates[0].path);
     }
 
-    return undefined;
+    return Option.none();
   },
 );
 
@@ -98,11 +99,11 @@ export const resolveAccessibleDownloadPath = Effect.fn("Operations.resolveAccess
       const statResult = yield* Effect.either(fs.stat(candidate));
 
       if (statResult._tag === "Right") {
-        return candidate;
+        return Option.some(candidate);
       }
     }
 
-    return undefined;
+    return Option.none();
   },
 );
 

@@ -1,4 +1,5 @@
 import { Cause, Effect, Option, Schedule, Schema } from "effect";
+import { Exit } from "effect";
 import type { Scope } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
@@ -37,21 +38,52 @@ export function makeBackgroundWorkerSpawner(input: {
 }): BackgroundWorkerSpawner {
   const { taskRunner, monitor } = input;
 
+  const keepWorkerAlive = Effect.fn("Background.keepWorkerAlive")(function* <E>(
+    workerName: BackgroundWorkerName,
+    exit: Exit.Exit<void, E>,
+  ) {
+    if (exit._tag === "Success") {
+      return;
+    }
+
+    if (Cause.isInterruptedOnly(exit.cause)) {
+      return yield* Effect.interrupt;
+    }
+
+    if (Cause.isDie(exit.cause)) {
+      return yield* Effect.die(Cause.squash(exit.cause));
+    }
+
+    yield* Effect.logWarning("background worker run failed; keeping daemon alive").pipe(
+      Effect.annotateLogs(
+        compactLogAnnotations({
+          component: "background",
+          event: "background.worker.run.failed",
+          workerName,
+          error: Cause.pretty(exit.cause),
+        }),
+      ),
+    );
+  });
+
+  const resilientRun = <E>(workerName: BackgroundWorkerName, task: Effect.Effect<void, E>) =>
+    task.pipe(
+      Effect.exit,
+      Effect.flatMap((exit) => keepWorkerAlive(workerName, exit)),
+    );
+
   return Effect.fn("Background.spawnWorkersFromConfig")(function* (
     workerScope: Scope.Scope,
     config: Config,
   ) {
     const schedule = buildBackgroundSchedule(config);
-    const downloadSyncLoop = taskRunner
-      .runDownloadSyncWorkerTask()
-      .pipe(Effect.catchAllCause(() => Effect.void));
-    const rssLoop = taskRunner.runRssWorkerTask().pipe(Effect.catchAllCause(() => Effect.void));
-    const libraryLoop = taskRunner
-      .runLibraryScanWorkerTask()
-      .pipe(Effect.catchAllCause(() => Effect.void));
-    const metadataRefreshLoop = taskRunner
-      .runMetadataRefreshWorkerTask()
-      .pipe(Effect.catchAllCause(() => Effect.void));
+    const downloadSyncLoop = resilientRun("download_sync", taskRunner.runDownloadSyncWorkerTask());
+    const rssLoop = resilientRun("rss", taskRunner.runRssWorkerTask());
+    const libraryLoop = resilientRun("library_scan", taskRunner.runLibraryScanWorkerTask());
+    const metadataRefreshLoop = resilientRun(
+      "metadata_refresh",
+      taskRunner.runMetadataRefreshWorkerTask(),
+    );
 
     yield* forkSupervisedWorker(
       workerScope,
@@ -153,6 +185,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
       ).pipe(
         Effect.annotateLogs(
           compactLogAnnotations({
+            cause: Cause.pretty(exit.cause),
             component: "background",
             durationMs,
             event: timeoutError ? "background.worker.timeout" : "background.worker.failed",
@@ -171,7 +204,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
     }),
   );
 
-  const lockedTask: Effect.Effect<void, E | WorkerTimeoutError, R> = Effect.gen(function* () {
+  const lockedTask = Effect.gen(function* () {
     const result = yield* runner.trigger;
 
     if (Option.isNone(result)) {
@@ -180,7 +213,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
     }
   });
 
-  return yield* Effect.succeed(lockedTask);
+  return lockedTask;
 });
 
 function getWorkerTimeoutError(cause: Cause.Cause<unknown>) {

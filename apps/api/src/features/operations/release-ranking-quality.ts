@@ -63,11 +63,17 @@ export function parseResolution(title: string): string | undefined {
 export function parseQualityFromTitle(title: string): Quality {
   const lower = title.toLowerCase();
   const parsedResolution = parseResolution(title);
-  const resolution = parsedResolution ? Number(parsedResolution.replace("p", "")) : 1080;
   const source = inferSource(lower);
 
+  if (!parsedResolution && source === "Unknown") {
+    return stripSourceKind(QUALITY_DEFS[QUALITY_DEFS.length - 1]);
+  }
+
+  const resolution = parsedResolution ? Number(parsedResolution.replace("p", "")) : 1080;
+  const normalizedSource = source === "Unknown" ? "WebDl" : source;
+
   const exact = QUALITY_DEFS.find(
-    (quality) => quality.sourceKind === source && quality.resolution === resolution,
+    (quality) => quality.sourceKind === normalizedSource && quality.resolution === resolution,
   );
   if (exact) {
     return stripSourceKind(exact);
@@ -124,7 +130,7 @@ function inferSource(lower: string): QualitySource {
   if (lower.includes("hdtv")) return "HDTV";
   if (lower.includes("dvd")) return "DVD";
   if (lower.includes("sdtv")) return "SDTV";
-  return "WebDl";
+  return "Unknown";
 }
 
 function stripSourceKind(quality: Quality & { readonly sourceKind?: QualitySource }): Quality {

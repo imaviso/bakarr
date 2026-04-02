@@ -1,7 +1,7 @@
 import { FileSystem as PlatformFileSystem, Path as PlatformPath } from "@effect/platform";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { win32 as PathForUtilities } from "node:path";
-import { Context, Effect, Layer, Schema, Scope, Stream } from "effect";
+import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect";
 
 export class FileSystemError extends Schema.TaggedError<FileSystemError>()("FileSystemError", {
   cause: Schema.Defect,
@@ -47,7 +47,7 @@ export interface RemoveOptions {
 
 export interface FileHandle {
   readonly close: () => void;
-  readonly read: (buffer: Uint8Array) => Effect.Effect<number | null, FileSystemError>;
+  readonly read: (buffer: Uint8Array) => Effect.Effect<Option.Option<number>, FileSystemError>;
   readonly seek: (offset: number, mode: number) => Effect.Effect<void, FileSystemError>;
 }
 
@@ -161,7 +161,7 @@ function toOpenFileHandle(file: PlatformFileSystem.File, path: string | URL): Fi
       wrap(path, "Failed to read file", file.read(buffer)).pipe(
         Effect.map((size) => {
           const bytesRead = Number(size);
-          return bytesRead === 0 ? null : bytesRead;
+          return bytesRead === 0 ? Option.none() : Option.some(bytesRead);
         }),
       ),
     seek: (offset: number, mode: number) =>

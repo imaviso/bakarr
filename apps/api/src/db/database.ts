@@ -99,15 +99,7 @@ function firstRowValue(row: Record<string, unknown> | undefined) {
 }
 
 const makeDatabase = Effect.gen(function* () {
-  const config = yield* AppConfig;
-  const clientContext = yield* Layer.build(
-    BunSqliteClient.layer({
-      create: true,
-      filename: config.databaseFile,
-      readwrite: true,
-    }),
-  ).pipe(Effect.mapError(sqliteSetupError));
-  const client = Context.get(clientContext, BunSqliteClient.SqliteClient);
+  const client = yield* BunSqliteClient.SqliteClient;
 
   yield* setAndVerifyPragmas(client);
 
@@ -122,3 +114,17 @@ const makeDatabase = Effect.gen(function* () {
 });
 
 export const DatabaseLive = Layer.scoped(Database, makeDatabase);
+
+export const DatabaseSqlClientLive = Layer.unwrapEffect(
+  Effect.gen(function* () {
+    const config = yield* AppConfig;
+
+    return BunSqliteClient.layer({
+      create: true,
+      filename: config.databaseFile,
+      readwrite: true,
+    }).pipe(Layer.mapError(sqliteSetupError));
+  }),
+);
+
+export const DatabaseLayerLive = DatabaseLive.pipe(Layer.provide(DatabaseSqlClientLive));

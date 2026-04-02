@@ -15,4 +15,5 @@ export {
 export {
   compareEpisodeSearchResults,
   decideDownloadAction,
+  validateQualityProfileSizeLabels,
 } from "@/features/operations/release-ranking-policy.ts";

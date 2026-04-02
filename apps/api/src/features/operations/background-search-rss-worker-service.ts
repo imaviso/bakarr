@@ -38,10 +38,13 @@ export const BackgroundSearchRssWorkerServiceLive = Layer.effect(
 
     const runRssWorker = Effect.fn("BackgroundSearchRssWorkerService.runRssWorker")(function* () {
       return yield* Effect.gen(function* () {
+        yield* Effect.annotateCurrentSpan("job", "rss");
         yield* markJobStarted(db, "rss", nowIso);
         yield* eventBus.publish({ type: "RssCheckStarted" });
 
         const result = yield* rssService.runRssCheck();
+        yield* Effect.annotateCurrentSpan("totalFeeds", result.totalFeeds);
+        yield* Effect.annotateCurrentSpan("newItems", result.newItems);
         yield* missingService.triggerSearchMissing();
 
         yield* markJobSucceeded(db, "rss", `Queued ${result.newItems} release(s)`, nowIso);
@@ -52,7 +55,10 @@ export const BackgroundSearchRssWorkerServiceLive = Layer.effect(
         yield* progress.publishDownloadProgress();
       }).pipe(
         Effect.catchAllCause((cause) =>
-          markJobFailed(db, "rss", cause, nowIso).pipe(Effect.zipRight(Effect.failCause(cause))),
+          markJobFailed(db, "rss", cause, nowIso).pipe(
+            Effect.catchAll(() => Effect.void),
+            Effect.zipRight(Effect.failCause(cause)),
+          ),
         ),
       );
     });

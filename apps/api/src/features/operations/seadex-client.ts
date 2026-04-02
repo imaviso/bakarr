@@ -1,5 +1,5 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
 import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
@@ -7,7 +7,7 @@ import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts"
 interface SeaDexClientShape {
   readonly getEntryByAniListId: (
     aniListId: number,
-  ) => Effect.Effect<SeaDexEntry | null, ExternalCallError>;
+  ) => Effect.Effect<Option.Option<SeaDexEntry>, ExternalCallError>;
 }
 
 export class SeaDexClient extends Context.Tag("@bakarr/api/SeaDexClient")<
@@ -119,16 +119,16 @@ export const SeaDexClientLive = Layer.effect(
 
       const entry = decoded.items.at(0);
       if (!entry) {
-        return null;
+        return Option.none();
       }
 
-      return {
+      return Option.some({
         alID: entry.alID,
         comparison: entry.comparison,
         incomplete: entry.incomplete,
         notes: entry.notes,
         releases: entry.expand.trs,
-      } satisfies SeaDexEntry;
+      } satisfies SeaDexEntry);
     });
 
     return {

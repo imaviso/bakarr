@@ -35,12 +35,29 @@ export class DiskSpaceInspector extends Context.Tag("@bakarr/api/DiskSpaceInspec
 
 export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
   const blockSize = toPositiveNumber(stat.bsize, "Invalid block size");
+  if (blockSize._tag === "Left") {
+    throw blockSize.left;
+  }
   const availableBlocks = toNonNegativeNumber(stat.bavail, "Invalid available block count");
+  if (availableBlocks._tag === "Left") {
+    throw availableBlocks.left;
+  }
   const totalBlocks = toPositiveNumber(stat.blocks, "Invalid total block count");
+  if (totalBlocks._tag === "Left") {
+    throw totalBlocks.left;
+  }
+  const free = clampDiskBytes(availableBlocks.right * blockSize.right);
+  if (free._tag === "Left") {
+    throw free.left;
+  }
+  const total = clampDiskBytes(totalBlocks.right * blockSize.right);
+  if (total._tag === "Left") {
+    throw total.left;
+  }
 
   return {
-    free: clampDiskBytes(availableBlocks * blockSize),
-    total: clampDiskBytes(totalBlocks * blockSize),
+    free: free.right,
+    total: total.right,
   };
 }
 
@@ -58,10 +75,9 @@ export function makeDiskSpaceInspector(
   const getDiskSpace = Effect.fn("DiskSpaceInspector.getDiskSpace")(function* (path: string) {
     const output = yield* runDfCommand(commandExecutor, path);
 
-    return yield* Effect.try({
-      try: () => mapDfOutputToDiskSpace(path, output),
-      catch: toDiskSpaceError(`Failed to parse disk space for ${path}`),
-    });
+    return yield* mapDfOutputToDiskSpaceEffect(path, output).pipe(
+      Effect.mapError(toDiskSpaceError(`Failed to parse disk space for ${path}`)),
+    );
   });
 
   const getDiskSpaceSafe = Effect.fn("DiskSpaceInspector.getDiskSpaceSafe")(
@@ -107,13 +123,32 @@ export function selectStoragePath(config: Config, databaseFile: string): string 
 
 function clampDiskBytes(value: number) {
   if (!Number.isFinite(value) || value < 0) {
-    throw new DiskSpaceError({ message: "Invalid disk byte count" });
+    return {
+      _tag: "Left" as const,
+      left: new DiskSpaceError({ message: "Invalid disk byte count" }),
+    };
   }
 
-  return Math.min(value, Number.MAX_SAFE_INTEGER);
+  return {
+    _tag: "Right" as const,
+    right: Math.min(value, Number.MAX_SAFE_INTEGER),
+  };
 }
 
-function mapDfOutputToDiskSpace(path: string, output: string): DiskSpace {
+const mapDfOutputToDiskSpaceEffect = Effect.fn("DiskSpace.mapDfOutputToDiskSpaceEffect")(function* (
+  path: string,
+  output: string,
+) {
+  const result = mapDfOutputToDiskSpaceEither(path, output);
+
+  if (result._tag === "Left") {
+    return yield* result.left;
+  }
+
+  return result.right;
+});
+
+function mapDfOutputToDiskSpaceEither(path: string, output: string) {
   const lines = output
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -121,29 +156,53 @@ function mapDfOutputToDiskSpace(path: string, output: string): DiskSpace {
   const dataLine = lines.at(-1);
 
   if (!dataLine) {
-    throw new DiskSpaceError({ message: `df returned no data for path: ${path}` });
+    return {
+      _tag: "Left" as const,
+      left: new DiskSpaceError({ message: `df returned no data for path: ${path}` }),
+    };
   }
 
   const columns = dataLine.split(/\s+/);
 
   if (columns.length < 4) {
-    throw new DiskSpaceError({ message: `Unexpected df output for path: ${path}` });
+    return {
+      _tag: "Left" as const,
+      left: new DiskSpaceError({ message: `Unexpected df output for path: ${path}` }),
+    };
   }
 
   const total = Number(columns[1]);
   const available = Number(columns[3]);
 
   if (!Number.isFinite(total) || total <= 0) {
-    throw new DiskSpaceError({ message: `Invalid total blocks from df for path: ${path}` });
+    return {
+      _tag: "Left" as const,
+      left: new DiskSpaceError({ message: `Invalid total blocks from df for path: ${path}` }),
+    };
   }
 
   if (!Number.isFinite(available) || available < 0) {
-    throw new DiskSpaceError({ message: `Invalid available blocks from df for path: ${path}` });
+    return {
+      _tag: "Left" as const,
+      left: new DiskSpaceError({ message: `Invalid available blocks from df for path: ${path}` }),
+    };
+  }
+
+  const free = clampDiskBytes(available * 1024);
+  if (free._tag === "Left") {
+    return free;
+  }
+  const totalBytes = clampDiskBytes(total * 1024);
+  if (totalBytes._tag === "Left") {
+    return totalBytes;
   }
 
   return {
-    free: clampDiskBytes(available * 1024),
-    total: clampDiskBytes(total * 1024),
+    _tag: "Right" as const,
+    right: {
+      free: free.right,
+      total: totalBytes.right,
+    },
   };
 }
 
@@ -151,20 +210,32 @@ function toPositiveNumber(value: bigint | number, message: string) {
   const numeric = typeof value === "bigint" ? Number(value) : value;
 
   if (!Number.isFinite(numeric) || numeric <= 0) {
-    throw new DiskSpaceError({ message });
+    return {
+      _tag: "Left" as const,
+      left: new DiskSpaceError({ message }),
+    };
   }
 
-  return Math.min(numeric, Number.MAX_SAFE_INTEGER);
+  return {
+    _tag: "Right" as const,
+    right: Math.min(numeric, Number.MAX_SAFE_INTEGER),
+  };
 }
 
 function toNonNegativeNumber(value: bigint | number, message: string) {
   const numeric = typeof value === "bigint" ? Number(value) : value;
 
   if (!Number.isFinite(numeric) || numeric < 0) {
-    throw new DiskSpaceError({ message });
+    return {
+      _tag: "Left" as const,
+      left: new DiskSpaceError({ message }),
+    };
   }
 
-  return Math.min(numeric, Number.MAX_SAFE_INTEGER);
+  return {
+    _tag: "Right" as const,
+    right: Math.min(numeric, Number.MAX_SAFE_INTEGER),
+  };
 }
 
 function toDiskSpaceError(message: string) {

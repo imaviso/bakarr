@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 import { eq } from "drizzle-orm";
 
 import { DatabaseError } from "@/db/database.ts";
@@ -62,6 +62,8 @@ export function makeDownloadTriggerService(input: {
   const executeTriggerDownload = Effect.fn("OperationsService.executeTriggerDownload")(function* (
     triggerInput: TriggerDownloadInput,
   ) {
+    yield* Effect.annotateCurrentSpan("animeId", triggerInput.anime_id);
+
     const animeRow = yield* requireAnime(db, triggerInput.anime_id);
 
     const now = yield* nowIso();
@@ -73,12 +75,17 @@ export function makeDownloadTriggerService(input: {
       isBatch: effectiveIsBatch,
     });
 
+    yield* Effect.annotateCurrentSpan("isBatch", effectiveIsBatch);
+    yield* Effect.annotateCurrentSpan("hasMagnet", Boolean(triggerInput.magnet));
+
     if (!requestedEpisode) {
       return yield* new OperationsInputError({
         message:
           "episode_number is required when the release title does not include episode information",
       });
     }
+
+    yield* Effect.annotateCurrentSpan("episodeNumber", requestedEpisode);
 
     const missingEpisodes = yield* loadMissingEpisodeNumbers(db, animeRow.id);
     const shouldDeferBatchCoverage = effectiveIsBatch && parsedRelease.episodeNumbers.length === 0;
@@ -109,8 +116,13 @@ export function makeDownloadTriggerService(input: {
       }),
       triggerInput.release_metadata,
     );
-    const infoHash =
-      (triggerInput.info_hash ?? parseMagnetInfoHash(triggerInput.magnet))?.toLowerCase() ?? null;
+    const explicitInfoHash = triggerInput.info_hash
+      ? Option.some(triggerInput.info_hash.toLowerCase())
+      : Option.none();
+    const inferredInfoHash = parseMagnetInfoHash(triggerInput.magnet);
+    const infoHash = Option.getOrNull(
+      Option.isSome(explicitInfoHash) ? explicitInfoHash : inferredInfoHash,
+    );
 
     if (infoHash) {
       const overlapping = yield* hasOverlappingDownload(
@@ -188,7 +200,7 @@ export function makeDownloadTriggerService(input: {
         });
       }
 
-      if (qbitResult.right) {
+      if (qbitResult.right._tag === "Added") {
         status = "downloading";
         yield* tryDatabasePromise("Update download status", () =>
           db
@@ -241,6 +253,8 @@ export function makeDownloadTriggerService(input: {
   const triggerDownload = Effect.fn("OperationsService.triggerDownload")(function* (
     input: TriggerDownloadInput,
   ) {
+    yield* Effect.annotateCurrentSpan("animeId", input.anime_id);
+
     return yield* downloadTriggerCoordinator.runExclusiveDownloadTrigger(
       executeTriggerDownload(input).pipe(Effect.withSpan("operations.downloads.trigger")),
     );

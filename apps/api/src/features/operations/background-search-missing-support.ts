@@ -1,11 +1,14 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { decideDownloadAction } from "@/features/operations/release-ranking.ts";
+import {
+  decideDownloadAction,
+  validateQualityProfileSizeLabels,
+} from "@/features/operations/release-ranking.ts";
 import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
 import {
   loadQualityProfile,
@@ -112,6 +115,7 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
 
       for (const row of missingRows) {
         const profile = yield* requireQualityProfile(row.anime.profileName);
+        yield* validateQualityProfileSizeLabels(profile);
         const rules = yield* loadReleaseRules(db, row.anime);
         const currentEpisode = yield* loadCurrentEpisodeState(
           db,
@@ -125,7 +129,13 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
         );
         const best = candidates
           .map((item) => ({
-            action: decideDownloadAction(profile, rules, currentEpisode, item, runtimeConfig),
+            action: decideDownloadAction(
+              profile,
+              rules,
+              Option.getOrNull(currentEpisode),
+              item,
+              runtimeConfig,
+            ),
             item,
           }))
           .find((entry) => entry.action.Accept || entry.action.Upgrade);

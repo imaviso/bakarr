@@ -37,11 +37,13 @@ function makeCatalogLibraryScanSupport(input: {
   const { nowIso } = input;
   const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(
     function* () {
+      yield* Effect.annotateCurrentSpan("job", "library_scan");
       yield* markJobStarted(input.db, "library_scan", nowIso);
 
       const animeRows = yield* input.tryDatabasePromise("Failed to run library scan", () =>
         input.db.select().from(anime),
       );
+      yield* Effect.annotateCurrentSpan("animeCount", animeRows.length);
       const scannedRef = yield* Ref.make(0);
       const matchedRef = yield* Ref.make(0);
 
@@ -64,6 +66,8 @@ function makeCatalogLibraryScanSupport(input: {
 
       const scanned = yield* Ref.get(scannedRef);
       const matched = yield* Ref.get(matchedRef);
+      yield* Effect.annotateCurrentSpan("scannedFiles", scanned);
+      yield* Effect.annotateCurrentSpan("matchedFiles", matched);
 
       yield* markJobSucceeded(
         input.db,
@@ -81,14 +85,17 @@ function makeCatalogLibraryScanSupport(input: {
     Effect.catchTags({
       DatabaseError: (cause) =>
         markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
+          Effect.catchAll(() => Effect.void),
           Effect.zipRight(Effect.fail(cause)),
         ),
       OperationsInfrastructureError: (cause) =>
         markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
+          Effect.catchAll(() => Effect.void),
           Effect.zipRight(Effect.fail(cause)),
         ),
       OperationsPathError: (cause) =>
         markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
+          Effect.catchAll(() => Effect.void),
           Effect.zipRight(Effect.fail(cause)),
         ),
     }),

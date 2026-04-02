@@ -35,7 +35,7 @@ const makeFetchItems = (
       try: () => new URL(url),
       catch: () =>
         new RssFeedRejectedError({
-          message: `RSS feed URL is invalid: ${url}`,
+          message: "RSS feed URL is invalid",
         }),
     });
 
@@ -51,7 +51,7 @@ const makeFetchItems = (
     for (let hop = 0; hop <= MAX_REDIRECT_HOPS; hop++) {
       if (visitedUrls.has(currentUrl)) {
         yield* Effect.logWarning("RSS feed rejected: redirect loop detected").pipe(
-          Effect.annotateLogs({ url: currentUrl, hop }),
+          Effect.annotateLogs({ hop, rss_url: sanitizeRssUrlForLogs(currentUrl) }),
         );
         return yield* new RssFeedRejectedError({
           message: "RSS feed rejected: redirect loop detected",
@@ -65,7 +65,7 @@ const makeFetchItems = (
           Effect.annotateLogs({
             hop,
             reason: validationResult.reason,
-            url: currentUrl,
+            rss_url: sanitizeRssUrlForLogs(currentUrl),
           }),
         );
         return yield* new RssFeedRejectedError({
@@ -84,7 +84,7 @@ const makeFetchItems = (
         const itemsResult = yield* Effect.either(readRssItems(response.stream));
         if (Either.isLeft(itemsResult)) {
           yield* Effect.logWarning(itemsResult.left.message).pipe(
-            Effect.annotateLogs({ url: currentUrl }),
+            Effect.annotateLogs({ rss_url: sanitizeRssUrlForLogs(currentUrl) }),
           );
           return yield* itemsResult.left;
         }
@@ -103,7 +103,7 @@ const makeFetchItems = (
 
         const redirectResult = yield* Effect.try({
           try: () => new URL(location, currentUrl),
-          catch: () => new InvalidRedirectUrlError(location),
+          catch: () => new InvalidRedirectUrlError(),
         }).pipe(Effect.either);
 
         if (Either.isLeft(redirectResult)) {
@@ -119,8 +119,8 @@ const makeFetchItems = (
         if (redirectUrl.protocol !== "http:" && redirectUrl.protocol !== "https:") {
           yield* Effect.logWarning("RSS feed rejected: redirect to disallowed scheme").pipe(
             Effect.annotateLogs({
-              redirectUrl: redirectUrl.href,
-              url: currentUrl,
+              redirect_url: sanitizeRssUrlForLogs(redirectUrl.href),
+              rss_url: sanitizeRssUrlForLogs(currentUrl),
             }),
           );
           return yield* new RssFeedRejectedError({
@@ -140,7 +140,10 @@ const makeFetchItems = (
     }
 
     yield* Effect.logWarning("RSS feed rejected: too many redirects").pipe(
-      Effect.annotateLogs({ redirectCount: MAX_REDIRECT_HOPS, url }),
+      Effect.annotateLogs({
+        redirectCount: MAX_REDIRECT_HOPS,
+        rss_url: sanitizeRssUrlForLogs(url),
+      }),
     );
     return yield* new RssFeedRejectedError({
       message: "RSS feed rejected: too many redirects",
@@ -169,9 +172,18 @@ export const RssClientLive = Layer.effect(
   }),
 );
 
+function sanitizeRssUrlForLogs(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  } catch {
+    return "[invalid-url]";
+  }
+}
+
 class InvalidRedirectUrlError extends Error {
-  constructor(readonly location: string) {
-    super(`Invalid redirect URL: ${location}`);
+  constructor() {
+    super("Invalid redirect URL");
     this.name = "InvalidRedirectUrlError";
   }
 }

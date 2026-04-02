@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config, SearchResults } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -70,6 +70,9 @@ export function makeSearchReleaseSupport(input: {
   ) {
     const resolvedCategory = mapSearchCategory(category, config.nyaa.default_category || "1_2");
     const resolvedFilter = mapSearchFilter(filter, config.nyaa.filter_remakes ? "1" : "0");
+    yield* Effect.annotateCurrentSpan("queryLength", query.length);
+    yield* Effect.annotateCurrentSpan("category", resolvedCategory);
+    yield* Effect.annotateCurrentSpan("filter", resolvedFilter);
     const url = buildNyaaSearchUrl(query, resolvedCategory, resolvedFilter);
     return [...(yield* rssClient.fetchItems(url))];
   });
@@ -99,11 +102,11 @@ export function makeSearchReleaseSupport(input: {
       ),
     );
 
-    if (!entry || entry.releases.length === 0) {
+    if (Option.isNone(entry) || entry.value.releases.length === 0) {
       return [...releases];
     }
 
-    return releases.map((release) => applySeaDexMatch(release, entry));
+    return releases.map((release) => applySeaDexMatch(release, entry.value));
   });
 
   const searchEpisodeReleases = Effect.fn("OperationsService.searchEpisodeReleases")(function* (
@@ -111,6 +114,9 @@ export function makeSearchReleaseSupport(input: {
     episodeNumber: number,
     config: Config,
   ) {
+    yield* Effect.annotateCurrentSpan("animeId", animeRow.id);
+    yield* Effect.annotateCurrentSpan("episodeNumber", episodeNumber);
+
     const results = yield* collectEpisodeSearchReleases(
       animeRow,
       episodeNumber,
@@ -118,7 +124,9 @@ export function makeSearchReleaseSupport(input: {
       searchNyaaReleases,
     );
 
-    return yield* enrichSeaDexReleases(animeRow, results.slice(0, 10), config);
+    const enriched = yield* enrichSeaDexReleases(animeRow, results.slice(0, 10), config);
+    yield* Effect.annotateCurrentSpan("resultCount", enriched.length);
+    return enriched;
   });
 
   const searchReleasesBase = Effect.fn("OperationsService.searchReleasesBase")(function* (
@@ -127,6 +135,10 @@ export function makeSearchReleaseSupport(input: {
     category?: string,
     filter?: string,
   ) {
+    if (animeId !== undefined) {
+      yield* Effect.annotateCurrentSpan("animeId", animeId);
+    }
+
     const animeRow = animeId ? yield* requireAnime(db, animeId) : null;
     const searchQuery = (query || animeRow?.titleRomaji || "").trim();
 
@@ -146,6 +158,8 @@ export function makeSearchReleaseSupport(input: {
           Effect.mapError(mapSearchReleaseError),
         )
       : results;
+
+    yield* Effect.annotateCurrentSpan("resultCount", enrichedResults.length);
 
     return {
       results: enrichedResults.map(toNyaaSearchResult),

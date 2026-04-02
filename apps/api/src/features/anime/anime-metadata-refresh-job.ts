@@ -7,7 +7,12 @@ import type { AniListClient } from "@/features/anime/anilist.ts";
 import { syncEpisodeScheduleEffect } from "@/features/anime/anime-episode-schedule-sync.ts";
 import { syncAnimeMetadataEffect } from "@/features/anime/anime-metadata-sync.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { markJobFailed, markJobStarted, markJobSucceeded } from "@/lib/job-status.ts";
+import {
+  formatJobFailureMessage,
+  markJobFailed,
+  markJobStarted,
+  markJobSucceeded,
+} from "@/lib/job-status.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
 
 export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
@@ -72,6 +77,7 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
   }).pipe(
     Effect.catchTag("ExternalCallError", (error) =>
       markJobFailed(input.db, "metadata_refresh", error, nowIso).pipe(
+        Effect.catchAll(() => Effect.void),
         Effect.zipRight(
           appendSystemLog(
             input.db,
@@ -79,21 +85,22 @@ export const refreshMetadataForMonitoredAnimeEffect = Effect.fn(
             "error",
             error.message,
             nowIso,
-          ),
+          ).pipe(Effect.catchAll(() => Effect.void)),
         ),
         Effect.zipRight(Effect.fail(error)),
       ),
     ),
     Effect.catchAll((cause) =>
       markJobFailed(input.db, "metadata_refresh", cause, nowIso).pipe(
+        Effect.catchAll(() => Effect.void),
         Effect.zipRight(
           appendSystemLog(
             input.db,
             "system.task.metadata_refresh.failed",
             "error",
-            cause instanceof Error ? cause.message : String(cause),
+            formatJobFailureMessage(cause),
             nowIso,
-          ),
+          ).pipe(Effect.catchAll(() => Effect.void)),
         ),
         Effect.zipRight(Effect.fail(cause)),
       ),

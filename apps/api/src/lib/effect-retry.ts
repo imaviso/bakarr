@@ -1,4 +1,4 @@
-import { Effect, Schedule, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import type { ClockServiceShape } from "@/lib/clock.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
@@ -12,9 +12,7 @@ export class ExternalCallError extends Schema.TaggedError<ExternalCallError>()(
   },
 ) {}
 
-const retryPolicy = Schedule.exponential("200 millis").pipe(Schedule.compose(Schedule.recurs(2)));
-
-const noRetryPolicy = Schedule.recurs(0);
+const EXTERNAL_RETRY_DELAYS_MS = [200, 400] as const;
 
 export const makeTryExternal =
   (clock: ClockServiceShape) =>
@@ -42,19 +40,46 @@ export const makeTryExternalEffect =
     Effect.fn(`external.${operation}`)(
       function* () {
         const startedAt = yield* clock.currentMonotonicMillis;
-        const policy = options?.idempotent === false ? noRetryPolicy : retryPolicy;
+        const allowRetry = options?.idempotent !== false;
+        const maxAttempts = allowRetry ? EXTERNAL_RETRY_DELAYS_MS.length + 1 : 1;
 
-        const result = yield* effect.pipe(
-          Effect.timeout("10 seconds"),
-          Effect.retry(policy),
-          Effect.scoped,
-          Effect.mapError((cause) => toExternalCallError(operation, cause)),
+        const runAttempt = (attemptNumber: number): Effect.Effect<A, ExternalCallError, R> =>
+          effect.pipe(
+            Effect.timeout("10 seconds"),
+            Effect.scoped,
+            Effect.mapError((cause) => toExternalCallError(operation, cause)),
+            Effect.catchTag("ExternalCallError", (error) => {
+              const retryDelayMs = allowRetry
+                ? EXTERNAL_RETRY_DELAYS_MS[attemptNumber - 1]
+                : undefined;
+
+              if (retryDelayMs === undefined) {
+                return Effect.fail(error);
+              }
+
+              return Effect.logWarning("external call attempt failed; retrying").pipe(
+                Effect.annotateLogs(
+                  compactLogAnnotations({
+                    attempt: attemptNumber,
+                    maxAttempts,
+                    nextDelayMs: retryDelayMs,
+                    ...errorLogAnnotations(error),
+                  }),
+                ),
+                Effect.zipRight(Effect.sleep(`${retryDelayMs} millis`)),
+                Effect.zipRight(runAttempt(attemptNumber + 1)),
+              );
+            }),
+          );
+
+        const result = yield* runAttempt(1).pipe(
           Effect.tapBoth({
             onSuccess: () =>
               Effect.gen(function* () {
                 const finishedAt = yield* clock.currentMonotonicMillis;
                 yield* Effect.logInfo("external call completed").pipe(
                   Effect.annotateLogs({
+                    maxAttempts,
                     durationMs: durationMsSince(startedAt, finishedAt),
                   }),
                 );
@@ -66,6 +91,7 @@ export const makeTryExternalEffect =
                   Effect.annotateLogs(
                     compactLogAnnotations({
                       durationMs: durationMsSince(startedAt, finishedAt),
+                      maxAttempts,
                       ...errorLogAnnotations(error),
                     }),
                   ),

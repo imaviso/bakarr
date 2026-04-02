@@ -264,6 +264,23 @@ it.effect("background worker timeouts are tagged and recorded", () =>
   }),
 );
 
+it.effect("background worker interruption marks run as interrupted", () =>
+  Effect.gen(function* () {
+    const monitor = yield* makeBackgroundWorkerMonitor(testClock);
+    const lockedTask = yield* withLockEffectOrFail("rss", Effect.never, monitor, testClock, 10_000);
+
+    const fiber = yield* Effect.fork(lockedTask);
+    yield* Fiber.interrupt(fiber);
+
+    const snapshot = yield* monitor.snapshot();
+
+    assertEquals(snapshot.rss.runRunning, false);
+    assertEquals(snapshot.rss.failureCount, 0);
+    assertEquals(snapshot.rss.lastErrorMessage, null);
+    assertEquals(snapshot.rss.successCount, 0);
+  }),
+);
+
 function counterDelta(
   after: MetricSnapshot,
   before: MetricSnapshot,

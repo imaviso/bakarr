@@ -2,8 +2,12 @@ import { HttpServerRequest, HttpServerResponse, HttpRouter } from "@effect/platf
 import { Effect } from "effect";
 
 import { AnimeStreamService } from "@/features/anime/anime-stream-service.ts";
+import { FileSystem } from "@/lib/filesystem.ts";
 import { AnimeEpisodeParamsSchema, StreamQuerySchema } from "@/http/anime-request-schemas.ts";
-import { EpisodeStreamAccessError } from "@/http/streaming-errors.ts";
+import { parseEpisodeStreamRange } from "@/http/anime-streaming-range.ts";
+import { createFileChunkStream } from "@/http/file-stream.ts";
+import { contentType } from "@/http/route-fs.ts";
+import { EpisodeStreamAccessError } from "@/features/anime/anime-stream-errors.ts";
 import { decodePathParams, decodeQueryWithLabel, routeResponse } from "@/http/router-helpers.ts";
 
 export const animeStreamRouter = HttpRouter.empty.pipe(
@@ -20,21 +24,47 @@ export const animeStreamRouter = HttpRouter.empty.pipe(
 
         const request = yield* HttpServerRequest.HttpServerRequest;
         const streamService = yield* AnimeStreamService;
-        const response = yield* streamService.buildEpisodeStreamResponse({
+        const fs = yield* FileSystem;
+        const streamFile = yield* streamService.resolveAuthorizedEpisodeStreamFile({
           animeId: params.id,
           episodeNumber: params.episodeNumber,
           expiresAt: query.exp,
-          rangeHeader: request.headers.range,
           signatureHex: query.sig,
         });
 
-        return HttpServerResponse.stream(response.stream, {
-          contentType: response.contentType,
-          headers: response.headers,
-          status: response.status,
-        });
+        const byteRange = yield* parseEpisodeStreamRange(
+          request.headers.range,
+          streamFile.fileSize,
+        );
+        const contentLength = (
+          byteRange ? byteRange.end - byteRange.start + 1 : streamFile.fileSize
+        ).toString();
+        const headers: Record<string, string> = {
+          "Accept-Ranges": "bytes",
+          "Content-Disposition": inlineContentDisposition(streamFile.fileName),
+          "Content-Length": contentLength,
+        };
+
+        if (byteRange) {
+          headers["Content-Range"] =
+            `bytes ${byteRange.start}-${byteRange.end}/${streamFile.fileSize}`;
+        }
+
+        return HttpServerResponse.stream(
+          createFileChunkStream(fs, streamFile.filePath, { range: byteRange }),
+          {
+            contentType: contentType(streamFile.fileName),
+            headers,
+            status: byteRange ? 206 : 200,
+          },
+        );
       }),
       Effect.succeed,
     ),
   ),
 );
+
+function inlineContentDisposition(fileName: string) {
+  const sanitized = fileName.replace(/[\r\n]/g, "_").replace(/["\\]/g, "_");
+  return `inline; filename="${sanitized}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}

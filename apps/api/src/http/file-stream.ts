@@ -34,14 +34,15 @@ export function createFileChunkStream(
           yield* file.seek(current.start, SEEK_FROM_START);
           const read = yield* file.read(buffer);
 
-          if (read === null || read === 0) {
+          if (Option.isNone(read) || read.value === 0) {
             return [Chunk.empty<Uint8Array>(), Option.none<FileByteRange>()] as const;
           }
 
-          const nextStart = current.start + read;
+          const bytesRead = read.value;
+          const nextStart = current.start + bytesRead;
 
           return [
-            Chunk.of(buffer.subarray(0, read)),
+            Chunk.of(buffer.subarray(0, bytesRead)),
             range && nextStart > current.end
               ? Option.none<FileByteRange>()
               : Option.some({

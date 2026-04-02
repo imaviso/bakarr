@@ -161,3 +161,40 @@ it("buildScannedFileNamingPlan avoids duplicate resolution when quality already 
 
   assertEquals(result.naming_filename, "Jigokuraku - S01E01 [WEB-DL 1080p].mkv");
 });
+
+it("buildScannedFileNamingPlan keeps extension logic within file basename", () => {
+  const result = buildScannedFileNamingPlan({
+    animeRow: {
+      format: "TV",
+      rootFolder: "/library/Test",
+      startDate: "2024-01-01",
+      startYear: 2024,
+      titleRomaji: "Test",
+    },
+    episodeRows: [{ aired: "2024-01-01", title: "Episode" }],
+    file: {
+      audio_channels: "2.0",
+      audio_codec: "AAC",
+      episode_number: 1,
+      group: "Group",
+      quality: "WEB-DL",
+      resolution: "1080p",
+      season: 1,
+      source_path: "/imports.v2/Test - S01E01",
+      source_identity: {
+        episode_numbers: [1],
+        label: "S01E01",
+        scheme: "season",
+        season: 1,
+      },
+      video_codec: "HEVC",
+    },
+    namingSettings: {
+      movieNamingFormat: "{title} ({year})",
+      namingFormat: "{title} - S{season:02}E{episode:02}",
+      preferredTitle: "romaji",
+    },
+  });
+
+  assertEquals(result.naming_filename, "Test - S01E01.mkv");
+});

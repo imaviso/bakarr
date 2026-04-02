@@ -25,32 +25,33 @@ export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMet
     const animeRow = yield* getAnimeRowEffect(input.db, input.animeId);
     const metadata = yield* input.aniList.getAnimeMetadataById(input.animeId);
 
-    if (!metadata) {
+    if (Option.isNone(metadata)) {
       return { animeRow, metadata: undefined, nextAnimeRow: animeRow };
     }
+    const metadataValue = metadata.value;
 
     const nextAnimeRow = {
       ...animeRow,
-      bannerImage: metadata.bannerImage ?? animeRow.bannerImage,
-      coverImage: metadata.coverImage ?? animeRow.coverImage,
-      description: metadata.description ?? animeRow.description,
-      endDate: metadata.endDate ?? null,
-      endYear: metadata.endYear ?? null,
-      episodeCount: metadata.episodeCount ?? animeRow.episodeCount,
-      format: metadata.format,
-      malId: metadata.malId ?? animeRow.malId,
-      nextAiringAt: metadata.nextAiringEpisode?.airingAt ?? null,
-      nextAiringEpisode: metadata.nextAiringEpisode?.episode ?? null,
-      recommendedAnime: encodeAnimeDiscoveryEntries(metadata.recommendedAnime),
-      relatedAnime: encodeAnimeDiscoveryEntries(metadata.relatedAnime),
-      score: metadata.score ?? animeRow.score,
-      startDate: metadata.startDate ?? null,
-      startYear: metadata.startYear ?? null,
-      status: metadata.status,
-      synonyms: encodeAnimeSynonyms(metadata.synonyms),
-      titleEnglish: metadata.title.english ?? animeRow.titleEnglish,
-      titleNative: metadata.title.native ?? animeRow.titleNative,
-      titleRomaji: metadata.title.romaji,
+      bannerImage: metadataValue.bannerImage ?? animeRow.bannerImage,
+      coverImage: metadataValue.coverImage ?? animeRow.coverImage,
+      description: metadataValue.description ?? animeRow.description,
+      endDate: metadataValue.endDate ?? null,
+      endYear: metadataValue.endYear ?? null,
+      episodeCount: metadataValue.episodeCount ?? animeRow.episodeCount,
+      format: metadataValue.format,
+      malId: metadataValue.malId ?? animeRow.malId,
+      nextAiringAt: metadataValue.nextAiringEpisode?.airingAt ?? null,
+      nextAiringEpisode: metadataValue.nextAiringEpisode?.episode ?? null,
+      recommendedAnime: encodeAnimeDiscoveryEntries(metadataValue.recommendedAnime),
+      relatedAnime: encodeAnimeDiscoveryEntries(metadataValue.relatedAnime),
+      score: metadataValue.score ?? animeRow.score,
+      startDate: metadataValue.startDate ?? null,
+      startYear: metadataValue.startYear ?? null,
+      status: metadataValue.status,
+      synonyms: encodeAnimeSynonyms(metadataValue.synonyms),
+      titleEnglish: metadataValue.title.english ?? animeRow.titleEnglish,
+      titleNative: metadataValue.title.native ?? animeRow.titleNative,
+      titleRomaji: metadataValue.title.romaji,
     };
 
     yield* tryDatabasePromise("Failed to update anime", () =>
@@ -66,6 +67,6 @@ export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMet
       onSome: (publisher) => publisher.publishInfo(message),
     });
 
-    return { animeRow, metadata, nextAnimeRow };
+    return { animeRow, metadata: metadataValue, nextAnimeRow };
   },
 );

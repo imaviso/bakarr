@@ -97,5 +97,6 @@ export function buildScannedFileNamingPlan(input: {
 }
 
 function extensionFromPath(path: string) {
-  return path.includes(".") ? path.slice(path.lastIndexOf(".")) : ".mkv";
+  const fileName = path.split(/[\\/]/).at(-1) ?? path;
+  return fileName.includes(".") ? fileName.slice(fileName.lastIndexOf(".")) : ".mkv";
 }

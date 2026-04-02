@@ -1,15 +1,14 @@
 import { Context, Effect, Layer, Stream } from "effect";
 
-import type { DownloadStatus } from "@packages/shared/index.ts";
+import type { DownloadStatus, NotificationEvent } from "@packages/shared/index.ts";
 import type { DatabaseError } from "@/db/database.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { CatalogDownloadReadService } from "@/features/operations/catalog-download-read-service.ts";
 import type { OperationsStoredDataError } from "@/features/operations/errors.ts";
-import { buildDownloadProgressStream } from "@/http/event-stream.ts";
 
 export interface SystemEventsServiceShape {
   readonly buildEventsStream: () => Effect.Effect<
-    Stream.Stream<Uint8Array>,
+    Stream.Stream<NotificationEvent>,
     DatabaseError | OperationsStoredDataError
   >;
 }
@@ -28,9 +27,32 @@ export const SystemEventsServiceLive = Layer.effect(
     const buildEventsStream = Effect.fn("SystemEventsService.buildEventsStream")(function* () {
       const downloads: readonly DownloadStatus[] =
         yield* downloadsReadService.getDownloadProgressBootstrap();
-      return buildDownloadProgressStream(downloads, eventBus);
+
+      return buildDownloadProgressEventStream(downloads, eventBus);
     });
 
     return SystemEventsService.of({ buildEventsStream });
   }),
 );
+
+function buildDownloadProgressEventStream(
+  downloads: readonly DownloadStatus[],
+  eventBus: typeof EventBus.Service,
+) {
+  return Stream.unwrapScoped(
+    Effect.gen(function* () {
+      const subscription = yield* eventBus.subscribe();
+      const initialEvents = Stream.fromIterable<NotificationEvent>([
+        {
+          type: "DownloadProgress",
+          payload: { downloads: [...downloads] },
+        },
+      ]);
+
+      return Stream.concat(
+        initialEvents,
+        subscription.stream.pipe(Stream.withSpan("system.events.stream")),
+      );
+    }),
+  );
+}

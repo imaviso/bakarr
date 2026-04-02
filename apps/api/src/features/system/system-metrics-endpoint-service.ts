@@ -7,15 +7,8 @@ import {
 import { ClockService } from "@/lib/clock.ts";
 import { recordHttpRequestMetrics } from "@/lib/metrics.ts";
 
-export interface SystemMetricsEndpointResult {
-  readonly body: string;
-}
-
 export interface SystemMetricsEndpointServiceShape {
-  readonly renderMetricsEndpoint: () => Effect.Effect<
-    SystemMetricsEndpointResult,
-    SystemRuntimeMetricsError
-  >;
+  readonly renderMetricsEndpoint: () => Effect.Effect<string, SystemRuntimeMetricsError>;
 }
 
 export class SystemMetricsEndpointService extends Context.Tag(
@@ -44,7 +37,7 @@ export const SystemMetricsEndpointServiceLive = Layer.effect(
             status: 200,
           });
 
-          return { body: exit.value } satisfies SystemMetricsEndpointResult;
+          return exit.value;
         }
 
         yield* recordHttpRequestMetrics({

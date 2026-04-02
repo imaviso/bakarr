@@ -59,14 +59,17 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       if (action === "pause") {
         yield* torrentClientService
           .pauseTorrentIfEnabled(row.infoHash)
+          .pipe(Effect.flatMap(() => Effect.void))
           .pipe(Effect.mapError(mapQBitError("Failed to pause download")));
       } else if (action === "resume") {
         yield* torrentClientService
           .resumeTorrentIfEnabled(row.infoHash)
+          .pipe(Effect.flatMap(() => Effect.void))
           .pipe(Effect.mapError(mapQBitError("Failed to resume download")));
       } else {
         yield* torrentClientService
           .deleteTorrentIfEnabled(row.infoHash, deleteFiles)
+          .pipe(Effect.flatMap(() => Effect.void))
           .pipe(Effect.mapError(mapQBitError("Failed to remove download")));
       }
     }
@@ -153,7 +156,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       return yield* mapQBitError("Failed to retry download")(qbitResult.left);
     }
 
-    const startedInQBit = qbitResult.right;
+    const startedInQBit = qbitResult.right._tag === "Added";
 
     const retryNow = yield* nowIso();
     yield* tryDatabasePromise("Failed to retry download", () =>

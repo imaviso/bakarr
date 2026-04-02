@@ -63,12 +63,12 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
       return;
     }
 
-    if (!contentsResult.right) {
+    if (contentsResult.right._tag === "Disabled") {
       return;
     }
 
     const inferredEpisodes = inferCoveredEpisodesFromTorrentContents({
-      files: contentsResult.right,
+      files: contentsResult.right.files,
       rootName: input.torrentName,
     });
 
@@ -126,11 +126,11 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
         return;
       }
 
-      if (!torrentsResult.right) {
+      if (torrentsResult.right._tag === "Disabled") {
         return;
       }
 
-      const torrents = torrentsResult.right;
+      const torrents = torrentsResult.right.torrents;
 
       if (torrents.length === 0) {
         return;

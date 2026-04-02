@@ -1,6 +1,6 @@
 import { Layer } from "effect";
 
-import { StreamTokenSignerLive } from "@/http/stream-token-signer.ts";
+import { StreamTokenSignerLive } from "@/features/anime/stream-token-signer.ts";
 import { RandomServiceLive } from "@/lib/random.ts";
 import { AnimeFileServiceLive } from "@/features/anime/anime-file-service.ts";
 import { AnimeMaintenanceServiceLive } from "@/features/anime/anime-maintenance-service.ts";

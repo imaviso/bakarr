@@ -1,5 +1,5 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Option, Schema } from "effect";
 
 import type { AnimeSearchResult } from "@packages/shared/index.ts";
 import { ClockService } from "@/lib/clock.ts";
@@ -201,7 +201,7 @@ interface AniListClientShape {
   ) => Effect.Effect<AnimeSearchResult[], ExternalCallError>;
   readonly getAnimeMetadataById: (
     id: number,
-  ) => Effect.Effect<AnimeMetadata | null, ExternalCallError>;
+  ) => Effect.Effect<Option.Option<AnimeMetadata>, ExternalCallError>;
 }
 
 export class AniListClient extends Context.Tag("@bakarr/api/AniListClient")<
@@ -324,10 +324,10 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
   const media = payload.data.Media;
 
   if (!media) {
-    return null;
+    return Option.none();
   }
 
-  return yield* Schema.decodeUnknown(AnimeMetadataFromAniListSchema)(media).pipe(
+  const decoded = yield* Schema.decodeUnknown(AnimeMetadataFromAniListSchema)(media).pipe(
     Effect.mapError((cause) =>
       ExternalCallError.make({
         cause,
@@ -336,4 +336,6 @@ const tryFetchDetail = Effect.fn("AniListClient.tryFetchDetail")(function* (
       }),
     ),
   );
+
+  return Option.some(decoded);
 });

@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import { episodes } from "@/db/schema.ts";
 import {
@@ -85,9 +85,10 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     ),
   );
 
-  if (!resolvedPath) {
+  if (Option.isNone(resolvedPath)) {
     return;
   }
+  const resolvedPathValue = resolvedPath.value;
 
   const namingFormat = selectNamingFormat(input.animeRow, {
     movieNamingFormat: input.runtimeConfig.library.movie_naming_format,
@@ -111,13 +112,13 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     downloadSourceMetadata: input.storedSourceMetadata,
     episodeNumbers: [input.row.episodeNumber],
     episodeRows,
-    filePath: resolvedPath,
+    filePath: resolvedPathValue,
     namingFormat,
     preferredTitle: input.runtimeConfig.library.preferred_title,
   });
   const localMediaMetadata = hasMissingLocalMediaNamingFields(initialNamingPlan.missingFields)
     ? yield* input.mediaProbe
-        .probeVideoFile(resolvedPath)
+        .probeVideoFile(resolvedPathValue)
         .pipe(
           Effect.map((probeResult) =>
             probeResult._tag === "MediaProbeMetadataFound" ? probeResult.metadata : undefined,
@@ -129,7 +130,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     input.fs,
     input.animeRow,
     input.row.episodeNumber,
-    resolvedPath,
+    resolvedPathValue,
     input.importMode,
     {
       downloadSourceMetadata: input.storedSourceMetadata,

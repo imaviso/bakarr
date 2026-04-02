@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import { ProfileNotFoundError } from "@/features/system/errors.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -25,12 +25,12 @@ export const checkAnimeExistsEffect = Effect.fn("AnimeAddValidation.checkAnimeEx
 });
 
 export const requireAnimeMetadataEffect = <T>(
-  metadata: T | null | undefined,
+  metadata: Option.Option<T>,
 ): Effect.Effect<T, AnimeNotFoundError> => {
-  if (!metadata) {
+  if (Option.isNone(metadata)) {
     return Effect.fail(new AnimeNotFoundError({ message: "Anime not found" }));
   }
-  return Effect.succeed(metadata);
+  return Effect.succeed(metadata.value);
 };
 
 export const checkProfileExistsEffect = Effect.fn("AnimeAddValidation.checkProfileExists")(

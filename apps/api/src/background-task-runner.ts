@@ -82,10 +82,16 @@ const makeBackgroundTaskRunner = Effect.fn("Background.makeBackgroundTaskRunner"
     );
 
     return {
-      runDownloadSyncWorkerTask: () => runDownloadSyncWorkerTask,
-      runLibraryScanWorkerTask: () => runLibraryScanWorkerTask,
-      runMetadataRefreshWorkerTask: () => runMetadataRefreshWorkerTask,
-      runRssWorkerTask: () => runRssWorkerTask,
+      runDownloadSyncWorkerTask: Effect.fn("BackgroundTaskRunner.runDownloadSyncWorkerTask")(
+        () => runDownloadSyncWorkerTask,
+      ),
+      runLibraryScanWorkerTask: Effect.fn("BackgroundTaskRunner.runLibraryScanWorkerTask")(
+        () => runLibraryScanWorkerTask,
+      ),
+      runMetadataRefreshWorkerTask: Effect.fn("BackgroundTaskRunner.runMetadataRefreshWorkerTask")(
+        () => runMetadataRefreshWorkerTask,
+      ),
+      runRssWorkerTask: Effect.fn("BackgroundTaskRunner.runRssWorkerTask")(() => runRssWorkerTask),
     } satisfies BackgroundTaskRunnerShape;
   },
 );

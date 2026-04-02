@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type { Config, EpisodeSearchResult } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -6,7 +6,11 @@ import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
-import { OperationsInputError, type OperationsError } from "@/features/operations/errors.ts";
+import {
+  isOperationsError,
+  OperationsInputError,
+  type OperationsError,
+} from "@/features/operations/errors.ts";
 import { loadCurrentEpisodeState } from "@/features/operations/repository/anime-repository.ts";
 import {
   loadQualityProfile,
@@ -14,6 +18,7 @@ import {
 } from "@/features/operations/repository/profile-repository.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { compareEpisodeSearchResults } from "@/features/operations/release-ranking.ts";
+import { validateQualityProfileSizeLabels } from "@/features/operations/release-ranking.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import { toEpisodeSearchResult } from "@/features/operations/search-orchestration-episode-result.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
@@ -39,7 +44,7 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
   const mapSearchEpisodeError = (
     cause: unknown,
   ): ExternalCallError | OperationsError | DatabaseError =>
-    cause instanceof DatabaseError || cause instanceof ExternalCallError
+    cause instanceof DatabaseError || cause instanceof ExternalCallError || isOperationsError(cause)
       ? cause
       : new OperationsInfrastructureError({
           message: "Failed to search episode releases",
@@ -60,6 +65,8 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
       });
     }
 
+    yield* validateQualityProfileSizeLabels(profile);
+
     const rules = yield* loadReleaseRules(db, animeRow);
     const currentEpisode = yield* loadCurrentEpisodeState(db, animeId, episodeNumber);
     const results = yield* searchEpisodeReleases(animeRow, episodeNumber, runtimeConfig).pipe(
@@ -69,7 +76,7 @@ export function makeSearchEpisodeSupport(input: SearchEpisodeSupportInput) {
     return results
       .map((item) =>
         toEpisodeSearchResult({
-          currentEpisode,
+          currentEpisode: Option.getOrNull(currentEpisode),
           item,
           profile,
           rules,

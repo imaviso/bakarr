@@ -1,6 +1,6 @@
 import { assertEquals, it } from "@/test/vitest.ts";
 import { eq } from "drizzle-orm";
-import { Effect, Exit } from "effect";
+import { Effect, Exit, Option } from "effect";
 
 import type { AnimeSearchResult } from "@packages/shared/index.ts";
 import * as schema from "@/db/schema.ts";
@@ -377,7 +377,7 @@ it.scoped("searchAnimeEffect fails when AniList search fails", () =>
         const result = yield* Effect.exit(
           searchAnimeEffect({
             aniList: {
-              getAnimeMetadataById: () => Effect.succeed(null),
+              getAnimeMetadataById: () => Effect.succeed(Option.none()),
               searchAnimeMetadata: () =>
                 Effect.fail(
                   new ExternalCallError({
@@ -405,7 +405,7 @@ it.scoped("searchAnimeEffect reports non-degraded when AniList search succeeds",
         const appDb = db as AppDatabase;
         const result = yield* searchAnimeEffect({
           aniList: {
-            getAnimeMetadataById: () => Effect.succeed(null),
+            getAnimeMetadataById: () => Effect.succeed(Option.none()),
             searchAnimeMetadata: () =>
               Effect.succeed([
                 {
@@ -454,7 +454,7 @@ function makeAniListStub(metadata: {
   title: { english?: string; romaji: string; native?: string };
 }) {
   return {
-    getAnimeMetadataById: () => Effect.succeed(metadata),
+    getAnimeMetadataById: () => Effect.succeed(Option.some(metadata)),
     searchAnimeMetadata: () => Effect.succeed([]),
   };
 }

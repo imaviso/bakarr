@@ -111,7 +111,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
       return yield* mapQBitError(input.contextMessage)(qbitResult.left);
     }
 
-    if (qbitResult.right) {
+    if (qbitResult.right._tag === "Added") {
       status = "downloading";
       yield* input.tryDatabasePromise("Update download status", () =>
         input.db

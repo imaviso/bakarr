@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
@@ -34,13 +34,11 @@ export const loadCurrentEpisodeState = Effect.fn("AnimeRepository.loadCurrentEpi
 
     const [row] = rows;
 
-    if (!row) {
-      return null;
-    }
-
-    return {
-      downloaded: row.downloaded,
-      filePath: row.filePath ?? undefined,
-    };
+    return row
+      ? Option.some({
+          downloaded: row.downloaded,
+          filePath: row.filePath ?? undefined,
+        })
+      : Option.none();
   },
 );

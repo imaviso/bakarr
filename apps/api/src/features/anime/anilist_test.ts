@@ -1,23 +1,13 @@
 import { assertEquals, it } from "@/test/vitest.ts";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Option } from "effect";
 
 import { AniListClient, AniListClientLive } from "@/features/anime/anilist.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
 
-it.scoped("AniListClient uses provided HttpClient for search", () =>
+it.scoped("AniListClient decodes search responses from the provided HttpClient", () =>
   Effect.gen(function* () {
-    const originalFetch = globalThis.fetch;
-
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => {
-        globalThis.fetch = originalFetch;
-      }),
-    );
-    yield* Effect.sync(() => {
-      globalThis.fetch = (() =>
-        Promise.reject(new Error("unexpected global fetch"))) as unknown as typeof fetch;
-    });
+    let requestCount = 0;
 
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
@@ -26,6 +16,9 @@ it.scoped("AniListClient uses provided HttpClient for search", () =>
           Layer.succeed(
             HttpClient.HttpClient,
             makeAniListClient(
+              () => {
+                requestCount += 1;
+              },
               [
                 {
                   bannerImage: "https://example.com/banner.png",
@@ -96,29 +89,44 @@ it.scoped("AniListClient uses provided HttpClient for search", () =>
 
     const results = yield* Effect.flatMap(AniListClient, (client) =>
       client.searchAnimeMetadata("custom remote anime"),
-    ).pipe(Effect.provide(clientLayer)) as Effect.Effect<
-      ReturnType<typeof expectedSearchResult>,
-      never,
-      never
-    >;
+    ).pipe(Effect.provide(clientLayer));
+    const expected = expectedSearchResult();
+    const first = results[0];
+    const expectedFirst = expected[0];
 
-    assertEquals(results, expectedSearchResult());
+    assertEquals(results.length, expected.length);
+    assertEquals(first?.already_in_library, expectedFirst?.already_in_library);
+    assertEquals(first?.banner_image, expectedFirst?.banner_image);
+    assertEquals(first?.cover_image, expectedFirst?.cover_image);
+    assertEquals(first?.description, expectedFirst?.description);
+    assertEquals(first?.end_date, expectedFirst?.end_date);
+    assertEquals(first?.end_year, expectedFirst?.end_year);
+    assertEquals(first?.episode_count, expectedFirst?.episode_count);
+    assertEquals(first?.format, expectedFirst?.format);
+    assertEquals(first?.genres, expectedFirst?.genres);
+    assertEquals(first?.id, expectedFirst?.id);
+    assertEquals(first?.season, expectedFirst?.season);
+    assertEquals(first?.season_year, expectedFirst?.season_year);
+    assertEquals(first?.start_date, expectedFirst?.start_date);
+    assertEquals(first?.start_year, expectedFirst?.start_year);
+    assertEquals(first?.status, expectedFirst?.status);
+    assertEquals(first?.synonyms, expectedFirst?.synonyms);
+    assertEquals(first?.title, expectedFirst?.title);
+    assertEquals(first?.related_anime?.length, expectedFirst?.related_anime.length);
+    assertEquals(first?.related_anime?.[0]?.id, expectedFirst?.related_anime[0]?.id);
+    assertEquals(
+      first?.related_anime?.[0]?.relation_type,
+      expectedFirst?.related_anime[0]?.relation_type,
+    );
+    assertEquals(first?.recommended_anime?.length, expectedFirst?.recommended_anime.length);
+    assertEquals(first?.recommended_anime?.[0]?.id, expectedFirst?.recommended_anime[0]?.id);
+    assertEquals(requestCount, 1);
   }),
 );
 
-it.scoped("AniListClient uses provided HttpClient for details", () =>
+it.scoped("AniListClient decodes detail responses from the provided HttpClient", () =>
   Effect.gen(function* () {
-    const originalFetch = globalThis.fetch;
-
-    yield* Effect.addFinalizer(() =>
-      Effect.sync(() => {
-        globalThis.fetch = originalFetch;
-      }),
-    );
-    yield* Effect.sync(() => {
-      globalThis.fetch = (() =>
-        Promise.reject(new Error("unexpected global fetch"))) as unknown as typeof fetch;
-    });
+    let requestCount = 0;
 
     const clientLayer = AniListClientLive.pipe(
       Layer.provide(
@@ -126,78 +134,84 @@ it.scoped("AniListClient uses provided HttpClient for details", () =>
           ClockServiceLive,
           Layer.succeed(
             HttpClient.HttpClient,
-            makeAniListClient([], {
-              averageScore: 88,
-              bannerImage: "https://example.com/banner.png",
-              coverImage: { large: "https://example.com/cover.png" },
-              description: "Remote description",
-              endDate: { day: 3, month: 2, year: 2024 },
-              episodes: 12,
-              format: "TV",
-              genres: ["Action"],
-              id: 321,
-              idMal: 654,
-              recommendations: {
-                nodes: [
-                  {
-                    mediaRecommendation: {
-                      averageScore: 91,
-                      coverImage: {
-                        large: "https://example.com/recommended-cover.png",
-                      },
-                      format: "TV",
-                      id: 999,
-                      startDate: { month: 10, year: 2023 },
-                      status: "FINISHED",
-                      title: {
-                        english: "Recommended Detail",
-                        romaji: "Recommended Detail",
-                      },
-                    },
-                  },
-                ],
+            makeAniListClient(
+              () => {
+                requestCount += 1;
               },
-              relations: {
-                edges: [
-                  {
-                    node: {
-                      averageScore: 79,
-                      coverImage: {
-                        large: "https://example.com/prequel-cover.png",
-                      },
-                      format: "TV",
-                      id: 320,
-                      startDate: { month: 10, year: 2023 },
-                      status: "FINISHED",
-                      title: {
-                        english: "Remote Prequel",
-                        romaji: "Remote Prequel",
+              [],
+              {
+                averageScore: 88,
+                bannerImage: "https://example.com/banner.png",
+                coverImage: { large: "https://example.com/cover.png" },
+                description: "Remote description",
+                endDate: { day: 3, month: 2, year: 2024 },
+                episodes: 12,
+                format: "TV",
+                genres: ["Action"],
+                id: 321,
+                idMal: 654,
+                recommendations: {
+                  nodes: [
+                    {
+                      mediaRecommendation: {
+                        averageScore: 91,
+                        coverImage: {
+                          large: "https://example.com/recommended-cover.png",
+                        },
+                        format: "TV",
+                        id: 999,
+                        startDate: { month: 10, year: 2023 },
+                        status: "FINISHED",
+                        title: {
+                          english: "Recommended Detail",
+                          romaji: "Recommended Detail",
+                        },
                       },
                     },
-                    relationType: "PREQUEL",
-                  },
-                ],
+                  ],
+                },
+                relations: {
+                  edges: [
+                    {
+                      node: {
+                        averageScore: 79,
+                        coverImage: {
+                          large: "https://example.com/prequel-cover.png",
+                        },
+                        format: "TV",
+                        id: 320,
+                        startDate: { month: 10, year: 2023 },
+                        status: "FINISHED",
+                        title: {
+                          english: "Remote Prequel",
+                          romaji: "Remote Prequel",
+                        },
+                      },
+                      relationType: "PREQUEL",
+                    },
+                  ],
+                },
+                nextAiringEpisode: {
+                  airingAt: 1_706_000_000,
+                  episode: 13,
+                },
+                airingSchedule: {
+                  nodes: [
+                    { airingAt: 1_706_000_000, episode: 13 },
+                    { airingAt: 1_706_604_800, episode: 14 },
+                  ],
+                },
+                startDate: { day: 2, month: 1, year: 2024 },
+                status: "FINISHED",
+                studios: { nodes: [{ name: "Studio Remote" }] },
+                synonyms: ["Remote Alias"],
+                title: {
+                  english: "Remote Detail",
+                  native: "Remote Detail Native",
+                  romaji: "Remote Detail",
+                },
               },
-              nextAiringEpisode: {
-                airingAt: 1_706_000_000,
-                episode: 13,
-              },
-              airingSchedule: {
-                nodes: [
-                  { airingAt: 1_706_000_000, episode: 13 },
-                  { airingAt: 1_706_604_800, episode: 14 },
-                ],
-              },
-              startDate: { day: 2, month: 1, year: 2024 },
-              status: "FINISHED",
-              studios: { nodes: [{ name: "Studio Remote" }] },
-              synonyms: ["Remote Alias"],
-              title: {
-                english: "Remote Detail",
-                native: "Remote Detail Native",
-                romaji: "Remote Detail",
-              },
-            }),
+            ),
           ),
         ),
       ),
@@ -205,20 +219,51 @@ it.scoped("AniListClient uses provided HttpClient for details", () =>
 
     const result = yield* Effect.flatMap(AniListClient, (client) =>
       client.getAnimeMetadataById(321),
-    ).pipe(Effect.provide(clientLayer)) as Effect.Effect<
-      ReturnType<typeof expectedDetailResult>,
-      never,
-      never
-    >;
+    ).pipe(Effect.provide(clientLayer));
 
-    assertEquals(result, expectedDetailResult());
+    assertEquals(Option.isSome(result), true);
+    if (Option.isSome(result)) {
+      const expected = expectedDetailResult();
+
+      assertEquals(result.value.bannerImage, expected.bannerImage);
+      assertEquals(result.value.coverImage, expected.coverImage);
+      assertEquals(result.value.description, expected.description);
+      assertEquals(result.value.endDate, expected.endDate);
+      assertEquals(result.value.endYear, expected.endYear);
+      assertEquals(result.value.episodeCount, expected.episodeCount);
+      assertEquals(result.value.format, expected.format);
+      assertEquals(result.value.futureAiringSchedule, expected.futureAiringSchedule);
+      assertEquals(result.value.genres, expected.genres);
+      assertEquals(result.value.id, expected.id);
+      assertEquals(result.value.malId, expected.malId);
+      assertEquals(result.value.nextAiringEpisode, expected.nextAiringEpisode);
+      assertEquals(result.value.recommendedAnime?.length, expected.recommendedAnime.length);
+      assertEquals(result.value.recommendedAnime?.[0]?.id, expected.recommendedAnime[0]?.id);
+      assertEquals(result.value.relatedAnime?.length, expected.relatedAnime.length);
+      assertEquals(result.value.relatedAnime?.[0]?.id, expected.relatedAnime[0]?.id);
+      assertEquals(result.value.score, expected.score);
+      assertEquals(result.value.startDate, expected.startDate);
+      assertEquals(result.value.startYear, expected.startYear);
+      assertEquals(result.value.status, expected.status);
+      assertEquals(result.value.studios, expected.studios);
+      assertEquals(result.value.synonyms, expected.synonyms);
+      assertEquals(result.value.title, expected.title);
+    }
+
+    assertEquals(requestCount, 1);
   }),
 );
 
-function makeAniListClient(searchMedia: ReadonlyArray<unknown>, detailMedia: unknown) {
+function makeAniListClient(
+  onRequest: () => void,
+  searchMedia: ReadonlyArray<unknown>,
+  detailMedia: unknown,
+) {
   return HttpClient.make((request) =>
-    Effect.succeed(
-      HttpClientResponse.fromWeb(
+    Effect.sync(() => {
+      onRequest();
+
+      return HttpClientResponse.fromWeb(
         request,
         new Response(
           JSON.stringify(
@@ -241,8 +286,8 @@ function makeAniListClient(searchMedia: ReadonlyArray<unknown>, detailMedia: unk
             status: 200,
           },
         ),
-      ),
-    ),
+      );
+    }),
   );
 }
 

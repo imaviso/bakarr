@@ -9,9 +9,9 @@ export const systemMetricsRouter = HttpRouter.empty.pipe(
     "/api/metrics",
     authedRouteResponse(
       Effect.flatMap(SystemMetricsEndpointService, (service) => service.renderMetricsEndpoint()),
-      (result) =>
+      (body) =>
         Effect.succeed(
-          HttpServerResponse.text(result.body, {
+          HttpServerResponse.text(body, {
             contentType: "text/plain; version=0.0.4; charset=utf-8",
           }),
         ),

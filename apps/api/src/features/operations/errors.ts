@@ -70,3 +70,19 @@ export type OperationsError =
   | RssFeedRejectedError
   | RssFeedTooLargeError
   | ExternalCallError;
+
+export function isOperationsError(cause: unknown): cause is OperationsError {
+  return (
+    cause instanceof DownloadNotFoundError ||
+    cause instanceof DownloadConflictError ||
+    cause instanceof OperationsConflictError ||
+    cause instanceof OperationsAnimeNotFoundError ||
+    cause instanceof OperationsInputError ||
+    cause instanceof OperationsPathError ||
+    cause instanceof OperationsStoredDataError ||
+    cause instanceof OperationsInfrastructureError ||
+    cause instanceof RssFeedParseError ||
+    cause instanceof RssFeedRejectedError ||
+    cause instanceof RssFeedTooLargeError
+  );
+}

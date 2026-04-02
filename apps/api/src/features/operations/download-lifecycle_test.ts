@@ -14,16 +14,16 @@ import {
   resolveReconciledBatchEpisodeNumbers,
   toCoveredEpisodesJson,
 } from "@/features/operations/download-coverage.ts";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
 it("parseMagnetInfoHash extracts btih from magnet links", () => {
   assertEquals(
     parseMagnetInfoHash("magnet:?xt=urn:btih:ABCDEF1234567890&dn=Example"),
-    "abcdef1234567890",
+    Option.some("abcdef1234567890"),
   );
-  assertEquals(parseMagnetInfoHash(undefined), undefined);
+  assertEquals(parseMagnetInfoHash(undefined), Option.none());
 });
 
 it.scoped("resolveCompletedContentPath prefers matching episode files inside directories", () =>
@@ -36,8 +36,8 @@ it.scoped("resolveCompletedContentPath prefers matching episode files inside dir
       yield* writeTextFile(fs, first, "one");
       yield* writeTextFile(fs, second, "two");
 
-      assertEquals(yield* resolveCompletedContentPath(fs, dir, 2), second);
-      assertEquals(yield* resolveCompletedContentPath(fs, first, 1), first);
+      assertEquals(yield* resolveCompletedContentPath(fs, dir, 2), Option.some(second));
+      assertEquals(yield* resolveCompletedContentPath(fs, first, 1), Option.some(first));
     }),
   ),
 );
@@ -56,7 +56,7 @@ it.scoped("resolveCompletedContentPath matches daily files by expected air date"
         yield* resolveCompletedContentPath(fs, dir, 1, {
           expectedAirDate: "2025-03-21",
         }),
-        second,
+        Option.some(second),
       );
     }),
   ),
@@ -70,7 +70,7 @@ it.scoped("resolveCompletedContentPath falls back to a lone generic video file",
       const file = `${dir}/download.mkv`;
       yield* writeTextFile(fs, file, "video");
 
-      assertEquals(yield* resolveCompletedContentPath(fs, dir, 7), file);
+      assertEquals(yield* resolveCompletedContentPath(fs, dir, 7), Option.some(file));
     }),
   ),
 );
@@ -265,7 +265,7 @@ it.scoped(
           yield* resolveAccessibleDownloadPath(fs, "/remote/downloads/show/episode.mkv", [
             ["/remote/downloads", localRoot],
           ]),
-          localFile,
+          Option.some(localFile),
         );
       }),
     ),

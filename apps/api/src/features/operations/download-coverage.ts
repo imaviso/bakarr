@@ -23,25 +23,42 @@ export function toCoveredEpisodesJson(episodes: readonly number[]): string | nul
 }
 
 export function parseCoveredEpisodes(value: string | null | undefined): number[] {
-  try {
-    return decodeOptionalNumberList(value);
-  } catch {
-    throw new OperationsStoredDataError({
-      message: "Stored covered episode metadata is corrupt",
-    });
+  const result = parseCoveredEpisodesEither(value);
+
+  if (result._tag === "Left") {
+    throw result.left;
   }
+
+  return result.right;
 }
 
-export const parseCoveredEpisodesEffect = (value: string | null | undefined) =>
-  Effect.try({
-    try: () => parseCoveredEpisodes(value),
-    catch: (cause) =>
-      cause instanceof OperationsStoredDataError
-        ? cause
-        : new OperationsStoredDataError({
-            message: "Stored covered episode metadata is corrupt",
-          }),
-  });
+export const parseCoveredEpisodesEffect = Effect.fn("Operations.parseCoveredEpisodesEffect")(
+  function* (value: string | null | undefined) {
+    const result = parseCoveredEpisodesEither(value);
+
+    if (result._tag === "Left") {
+      return yield* result.left;
+    }
+
+    return result.right;
+  },
+);
+
+function parseCoveredEpisodesEither(value: string | null | undefined) {
+  try {
+    return {
+      _tag: "Right" as const,
+      right: decodeOptionalNumberList(value),
+    };
+  } catch {
+    return {
+      _tag: "Left" as const,
+      left: new OperationsStoredDataError({
+        message: "Stored covered episode metadata is corrupt",
+      }),
+    };
+  }
+}
 
 export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownload")(function* (
   db: AppDatabase,
@@ -77,15 +94,7 @@ export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownlo
       continue;
     }
 
-    const existingCovered = yield* Effect.try({
-      try: () => parseCoveredEpisodes(row.coveredEpisodes),
-      catch: (cause) =>
-        cause instanceof OperationsStoredDataError
-          ? cause
-          : new OperationsStoredDataError({
-              message: "Stored covered episode metadata is corrupt",
-            }),
-    });
+    const existingCovered = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
 
     if (existingCovered.some((episode) => coveredEpisodes.includes(episode))) {
       return true;

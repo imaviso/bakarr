@@ -5,12 +5,9 @@ import { Database } from "@/db/database.ts";
 import { ClockService } from "@/lib/clock.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { AnimeNotFoundError } from "@/features/anime/errors.ts";
+import { EpisodeStreamAccessError } from "@/features/anime/anime-stream-errors.ts";
 import { resolveEpisodeFileEffect } from "@/features/anime/anime-file-read.ts";
-import { createFileChunkStream } from "@/http/file-stream.ts";
-import { StreamTokenSigner } from "@/http/stream-token-signer.ts";
-import { EpisodeStreamAccessError, EpisodeStreamRangeError } from "@/http/streaming-errors.ts";
-import { contentType } from "@/http/route-fs.ts";
-import { parseEpisodeStreamRange } from "@/http/anime-streaming-range.ts";
+import { StreamTokenSigner } from "@/features/anime/stream-token-signer.ts";
 
 const STREAM_EXPIRY_MS = 6 * 60 * 60 * 1000;
 
@@ -18,13 +15,6 @@ export interface ResolvedAnimeStreamFile {
   readonly fileName: string;
   readonly filePath: string;
   readonly fileSize: number;
-}
-
-export interface AnimeEpisodeStreamResponse {
-  readonly contentType: string;
-  readonly headers: Readonly<Record<string, string>>;
-  readonly status: 200 | 206;
-  readonly stream: ReturnType<typeof createFileChunkStream>;
 }
 
 export interface AnimeStreamServiceShape {
@@ -40,16 +30,6 @@ export interface AnimeStreamServiceShape {
   }) => Effect.Effect<
     ResolvedAnimeStreamFile,
     DatabaseError | AnimeNotFoundError | EpisodeStreamAccessError
-  >;
-  readonly buildEpisodeStreamResponse: (input: {
-    readonly animeId: number;
-    readonly episodeNumber: number;
-    readonly expiresAt: number;
-    readonly signatureHex: string;
-    readonly rangeHeader?: string;
-  }) => Effect.Effect<
-    AnimeEpisodeStreamResponse,
-    DatabaseError | AnimeNotFoundError | EpisodeStreamAccessError | EpisodeStreamRangeError
   >;
 }
 
@@ -81,7 +61,7 @@ const makeAnimeStreamService = Effect.gen(function* () {
     );
 
     return {
-      url: `/api/stream/${animeId}/${episodeNumber}?exp=${expiresAt}&sig=${signature}`,
+      url: buildEpisodeStreamPath(animeId, episodeNumber, expiresAt, signature),
     };
   });
 
@@ -163,52 +143,19 @@ const makeAnimeStreamService = Effect.gen(function* () {
     } satisfies ResolvedAnimeStreamFile;
   });
 
-  const buildEpisodeStreamResponse = Effect.fn("AnimeStreamService.buildEpisodeStreamResponse")(
-    function* (input: {
-      readonly animeId: number;
-      readonly episodeNumber: number;
-      readonly expiresAt: number;
-      readonly signatureHex: string;
-      readonly rangeHeader?: string;
-    }) {
-      const streamFile = yield* resolveAuthorizedEpisodeStreamFile({
-        animeId: input.animeId,
-        episodeNumber: input.episodeNumber,
-        expiresAt: input.expiresAt,
-        signatureHex: input.signatureHex,
-      });
-      const byteRange = yield* parseEpisodeStreamRange(input.rangeHeader, streamFile.fileSize);
-      const contentLength = (
-        byteRange ? byteRange.end - byteRange.start + 1 : streamFile.fileSize
-      ).toString();
-
-      const headers: Record<string, string> = {
-        "Accept-Ranges": "bytes",
-        "Content-Disposition": `inline; filename="${streamFile.fileName}"`,
-        "Content-Length": contentLength,
-      };
-
-      if (byteRange) {
-        headers["Content-Range"] =
-          `bytes ${byteRange.start}-${byteRange.end}/${streamFile.fileSize}`;
-      }
-
-      return {
-        contentType: contentType(streamFile.fileName),
-        headers,
-        status: byteRange ? 206 : 200,
-        stream: createFileChunkStream(fs, streamFile.filePath, {
-          range: byteRange,
-        }),
-      } satisfies AnimeEpisodeStreamResponse;
-    },
-  );
-
   return AnimeStreamService.of({
-    buildEpisodeStreamResponse,
     createEpisodeStreamUrl,
     resolveAuthorizedEpisodeStreamFile,
   });
 });
 
 export const AnimeStreamServiceLive = Layer.effect(AnimeStreamService, makeAnimeStreamService);
+
+function buildEpisodeStreamPath(
+  animeId: number,
+  episodeNumber: number,
+  expiresAt: number,
+  signature: string,
+) {
+  return `/api/stream/${animeId}/${episodeNumber}?exp=${expiresAt}&sig=${signature}`;
+}

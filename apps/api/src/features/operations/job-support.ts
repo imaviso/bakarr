@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Effect } from "effect";
+import { Cause, Effect } from "effect";
 
 import type { DownloadSourceMetadata } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -159,7 +159,7 @@ export const markJobFailed = Effect.fn("JobSupport.markJobFailed")(function* (
   nowIso: NowIso,
 ) {
   const now = yield* nowIso();
-  const message = cause instanceof Error ? cause.message : String(cause);
+  const message = formatJobFailureMessage(cause);
 
   yield* tryDatabasePromise("Failed to mark job failed", () =>
     db
@@ -188,6 +188,28 @@ export const markJobFailed = Effect.fn("JobSupport.markJobFailed")(function* (
       }),
   );
 });
+
+function formatJobFailureMessage(cause: unknown): string {
+  if (Cause.isCause(cause)) {
+    return Cause.pretty(cause);
+  }
+
+  if (
+    typeof cause === "object" &&
+    cause !== null &&
+    "_tag" in cause &&
+    "message" in cause &&
+    typeof cause.message === "string"
+  ) {
+    return `${String(cause._tag)}: ${cause.message}`;
+  }
+
+  if (cause instanceof Error) {
+    return `${cause.name}: ${cause.message}`;
+  }
+
+  return String(cause);
+}
 
 export const updateJobProgress = Effect.fn("JobSupport.updateJobProgress")(function* (
   db: AppDatabase,

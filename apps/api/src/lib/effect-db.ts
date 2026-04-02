@@ -7,6 +7,7 @@ export type TryDatabasePromise = <A>(
   try_: () => Promise<A>,
 ) => Effect.Effect<A, DatabaseError>;
 
+const DATABASE_BUSY_RETRY_DELAY = "25 millis";
 const DATABASE_BUSY_RETRY_COUNT = 8;
 
 export function toDatabaseError(message: string) {
@@ -18,6 +19,8 @@ export const tryDatabasePromise = Effect.fn("Database.tryDatabasePromise")(<A>(
   message: string,
   try_: () => Promise<A>,
 ): Effect.Effect<A, DatabaseError> => {
+  const maxAttempts = DATABASE_BUSY_RETRY_COUNT + 1;
+
   const attempt = (remaining: number): Effect.Effect<A, DatabaseError> =>
     Effect.tryPromise({
       try: try_,
@@ -25,7 +28,15 @@ export const tryDatabasePromise = Effect.fn("Database.tryDatabasePromise")(<A>(
     }).pipe(
       Effect.catchTag("DatabaseError", (error) =>
         error.isBusyLock() && remaining > 0
-          ? Effect.sleep("25 millis").pipe(Effect.zipRight(attempt(remaining - 1)))
+          ? Effect.logWarning("database busy; retrying operation").pipe(
+              Effect.annotateLogs({
+                attempt: maxAttempts - remaining,
+                maxAttempts,
+                retryDelay: DATABASE_BUSY_RETRY_DELAY,
+              }),
+              Effect.zipRight(Effect.sleep(DATABASE_BUSY_RETRY_DELAY)),
+              Effect.zipRight(attempt(remaining - 1)),
+            )
           : Effect.fail(error),
       ),
     );

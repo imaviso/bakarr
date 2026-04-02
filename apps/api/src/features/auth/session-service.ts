@@ -1,5 +1,5 @@
 import { and, eq, gt } from "drizzle-orm";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Option } from "effect";
 
 import type {
   ApiKeyLoginRequest,
@@ -41,7 +41,7 @@ export interface AuthSessionServiceShape {
   readonly resolveViewer: (
     sessionToken: string | undefined,
     apiKey: string | undefined,
-  ) => Effect.Effect<AuthUser | null, DatabaseError | AuthCryptoError>;
+  ) => Effect.Effect<Option.Option<AuthUser>, DatabaseError | AuthCryptoError>;
   readonly logout: (
     sessionToken: string | undefined,
   ) => Effect.Effect<void, DatabaseError | TokenHasherError>;
@@ -211,24 +211,24 @@ const makeAuthSessionService = Effect.gen(function* () {
             .where(eq(sessions.token, hashedSessionToken)),
         );
 
-        return {
+        return Option.some({
           created_at: result[0].createdAt,
           id: result[0].id,
           must_change_password: result[0].mustChangePassword,
           updated_at: result[0].updatedAt,
           username: result[0].username,
-        };
+        });
       }
     }
 
     if (!apiKey) {
-      return null;
+      return Option.none();
     }
 
     const hashedApiKey = yield* hashToken(apiKey);
     const row = yield* findUserByApiKey(db, hashedApiKey);
 
-    return row ? toAuthUser(row) : null;
+    return row ? Option.some(toAuthUser(row)) : Option.none();
   });
 
   const logout = Effect.fn("AuthSessionService.logout")(function* (

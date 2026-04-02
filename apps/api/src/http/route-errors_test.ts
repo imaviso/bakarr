@@ -26,7 +26,10 @@ import {
 } from "@/features/system/errors.ts";
 import { mapRouteError } from "@/http/route-errors.ts";
 import { mapAuthRouteError } from "@/http/route-auth.ts";
-import { EpisodeStreamAccessError, EpisodeStreamRangeError } from "@/http/streaming-errors.ts";
+import {
+  EpisodeStreamAccessError,
+  EpisodeStreamRangeError,
+} from "@/features/anime/anime-stream-errors.ts";
 import { RequestValidationError } from "@/http/route-validation.ts";
 
 it("route errors maps known tagged errors to expected responses", () => {

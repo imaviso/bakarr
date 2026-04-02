@@ -1,5 +1,4 @@
 import { Effect, Logger, LogLevel } from "effect";
-import * as MutableRef from "effect/MutableRef";
 
 export function compactLogAnnotations(
   annotations: Record<string, unknown>,
@@ -39,40 +38,39 @@ const LOG_LEVELS = {
   warn: LogLevel.Warning,
 } as const;
 
-const runtimeLogLevel = MutableRef.make(LogLevel.Info);
+let runtimeLogLevel: LogLevel.LogLevel = LogLevel.Info;
 
 export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(function* (
   level: string | undefined,
 ) {
-  yield* Effect.sync(() => MutableRef.set(runtimeLogLevel, parseRuntimeLogLevel(level)));
+  runtimeLogLevel = parseRuntimeLogLevel(level);
 });
 
-export function getRuntimeLogLevel() {
-  return MutableRef.get(runtimeLogLevel);
-}
+export const RuntimeLoggerLayer = Logger.replace(
+  Logger.defaultLogger,
+  Logger.make<unknown, void>((options) =>
+    Effect.sync(() => {
+      if (options.logLevel.ordinal < runtimeLogLevel.ordinal) {
+        return;
+      }
 
-export const RuntimeLogger = Logger.make<unknown, void>((options) => {
-  if (options.logLevel.ordinal < MutableRef.get(runtimeLogLevel).ordinal) {
-    return;
-  }
+      const line = Logger.jsonLogger.log(options);
 
-  const line = Logger.jsonLogger.log(options);
-
-  switch (options.logLevel.label) {
-    case "ERROR":
-    case "FATAL":
-      console.error(line);
-      break;
-    case "WARN":
-      console.warn(line);
-      break;
-    default:
-      console.log(line);
-      break;
-  }
-});
-
-export const RuntimeLoggerLayer = Logger.replace(Logger.defaultLogger, RuntimeLogger);
+      switch (options.logLevel.label) {
+        case "ERROR":
+        case "FATAL":
+          console.error(line);
+          break;
+        case "WARN":
+          console.warn(line);
+          break;
+        default:
+          console.log(line);
+          break;
+      }
+    }),
+  ),
+);
 
 function parseRuntimeLogLevel(level: string | undefined) {
   switch (level?.toLowerCase()) {

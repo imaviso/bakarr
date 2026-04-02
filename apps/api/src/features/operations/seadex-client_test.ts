@@ -1,6 +1,6 @@
 import { assertEquals, it } from "@/test/vitest.ts";
 import { HttpClient, HttpClientResponse } from "@effect/platform";
-import { Effect, Either, Layer } from "effect";
+import { Effect, Either, Layer, Option } from "effect";
 
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
@@ -39,47 +39,17 @@ it.effect("SeaDexClient fetches and decodes entry by AniList ID", () =>
       ),
     );
 
-    assertEquals(
-      result
-        ? (() => {
-            const normalized = structuredClone(result) as {
-              releases: typeof result.releases;
-            } & typeof result;
-            return {
-              ...normalized,
-              releases: result.releases.map((release) => structuredClone(release)),
-            };
-          })()
-        : result,
-      {
-        alID: 20,
-        comparison: "https://releases.moe/compare/naruto",
-        incomplete: false,
-        notes: "Recommended release",
-        releases: [
-          {
-            dualAudio: true,
-            groupedUrl: "https://releases.moe/collections/naruto",
-            infoHash: "abcdef0123456789abcdef0123456789abcdef01",
-            isBest: true,
-            releaseGroup: "SubsPlease",
-            tags: ["Best", "Dual Audio"],
-            tracker: "Nyaa",
-            url: "https://nyaa.si/view/123456",
-          },
-        ],
-      },
-    );
+    assertEquals(result, Option.some(expectedEntry()));
   }),
 );
 
-it.effect("SeaDexClient returns null when entry is missing", () =>
+it.effect("SeaDexClient returns none when entry is missing", () =>
   Effect.gen(function* () {
     const result = yield* Effect.flatMap(SeaDexClient, (client) =>
       client.getEntryByAniListId(999),
     ).pipe(Effect.provide(makeSeaDexLayer({ items: [] })));
 
-    assertEquals(result, null);
+    assertEquals(result, Option.none());
   }),
 );
 
@@ -137,4 +107,25 @@ function makeSeaDexHttpClient(payload: unknown) {
       ),
     );
   });
+}
+
+function expectedEntry() {
+  return {
+    alID: 20,
+    comparison: "https://releases.moe/compare/naruto",
+    incomplete: false,
+    notes: "Recommended release",
+    releases: [
+      {
+        dualAudio: true,
+        groupedUrl: "https://releases.moe/collections/naruto",
+        infoHash: "abcdef0123456789abcdef0123456789abcdef01",
+        isBest: true,
+        releaseGroup: "SubsPlease",
+        tags: ["Best", "Dual Audio"],
+        tracker: "Nyaa",
+        url: "https://nyaa.si/view/123456",
+      },
+    ],
+  };
 }

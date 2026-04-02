@@ -1,5 +1,5 @@
 import { assertEquals, assertNotEquals, it } from "@/test/vitest.ts";
-import { Cause, Effect, Schema } from "effect";
+import { Cause, Effect, Option, Schema } from "effect";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 
 import * as schema from "@/db/schema.ts";
@@ -171,11 +171,14 @@ it.scoped("operations repository helpers load anime release rules and episode st
       ]);
 
       const episodeState = yield* loadCurrentEpisodeState(db, 20, 1);
-      assertEquals(episodeState, {
-        downloaded: true,
-        filePath: "/library/Naruto/Naruto - 01.mkv",
-      });
-      assertEquals(yield* loadCurrentEpisodeState(db, 20, 2), null);
+      assertEquals(episodeState._tag, "Some");
+      if (episodeState._tag === "Some") {
+        assertEquals(episodeState.value, {
+          downloaded: true,
+          filePath: "/library/Naruto/Naruto - 01.mkv",
+        });
+      }
+      assertEquals(yield* loadCurrentEpisodeState(db, 20, 2), Option.none());
 
       const notFoundExit = yield* Effect.exit(requireAnime(db, 999));
       assertEquals(notFoundExit._tag, "Failure");
