@@ -7,14 +7,11 @@ import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { MediaProbe } from "@/lib/media-probe.ts";
 import { RandomService } from "@/lib/random.ts";
-import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import { makeDownloadCompletedTorrentReconciliation } from "@/features/operations/download-reconciliation-completed-torrent.ts";
 import { makeReconcileDownloadByIdEffect } from "@/features/operations/download-reconciliation-lookup.ts";
 import { tryDatabasePromise, type TryDatabasePromise } from "@/lib/effect-db.ts";
-import type { QBitConfig } from "@/features/operations/qbittorrent.ts";
-import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export type DownloadReconciliationServiceShape = ReturnType<
   typeof makeDownloadReconciliationService
@@ -28,13 +25,15 @@ export function makeDownloadReconciliationService(input: {
   readonly db: AppDatabase;
   readonly fs: import("@/lib/filesystem.ts").FileSystemShape;
   readonly mediaProbe: import("@/lib/media-probe.ts").MediaProbeShape;
-  readonly qbitClient: typeof QBitTorrentClient.Service;
+  readonly torrentClientService: typeof TorrentClientService.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
   readonly randomUuid: () => Effect.Effect<string>;
-  readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
+  readonly getRuntimeConfig: () => Effect.Effect<
+    Config,
+    import("@/features/system/runtime-config-snapshot-service.ts").RuntimeConfigSnapshotError
+  >;
 }) {
   const { db, tryDatabasePromise } = input;
   const { reconcileCompletedTorrentEffect, maybeCleanupImportedTorrent } =
@@ -59,7 +58,7 @@ export const DownloadReconciliationServiceLive = Layer.effect(
     const eventBus = yield* EventBus;
     const fs = yield* FileSystem;
     const mediaProbe = yield* MediaProbe;
-    const qbitClient = yield* QBitTorrentClient;
+    const torrentClientService = yield* TorrentClientService;
     const clock = yield* ClockService;
     const random = yield* RandomService;
     const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
@@ -70,9 +69,8 @@ export const DownloadReconciliationServiceLive = Layer.effect(
       fs,
       mediaProbe,
       getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
-      maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
-      qbitClient,
+      torrentClientService,
       randomUuid: () => random.randomUuid,
       tryDatabasePromise,
     });

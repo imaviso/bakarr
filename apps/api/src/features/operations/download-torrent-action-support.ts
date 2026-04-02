@@ -1,7 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { Effect } from "effect";
 
-import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
@@ -14,20 +13,22 @@ import { decodeDownloadSourceMetadata } from "@/features/operations/repository/d
 import { parseCoveredEpisodesEffect } from "@/features/operations/download-coverage.ts";
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
-import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentActionSupportInput {
   readonly db: AppDatabase;
-  readonly qbitClient: typeof QBitTorrentClient.Service;
+  readonly torrentClientService: typeof TorrentClientService.Service;
   readonly tryDatabasePromise: TryDatabasePromise;
-  readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
-  readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
+  readonly getRuntimeConfig: () => Effect.Effect<
+    import("@packages/shared/index.ts").Config,
+    RuntimeConfigSnapshotError
+  >;
 }
 
 export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSupportInput) {
-  const { db, qbitClient, tryDatabasePromise, maybeQBitConfig, getRuntimeConfig } = input;
+  const { db, torrentClientService, tryDatabasePromise } = input;
   const { nowIso } = input;
 
   const mapQBitError = (message: string) => (cause: unknown) =>
@@ -54,21 +55,18 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       });
     }
 
-    const runtimeConfig = yield* getRuntimeConfig();
-    const qbitConfig = maybeQBitConfig(runtimeConfig);
-
-    if (qbitConfig && row.infoHash) {
+    if (row.infoHash) {
       if (action === "pause") {
-        yield* qbitClient
-          .pauseTorrent(qbitConfig, row.infoHash)
+        yield* torrentClientService
+          .pauseTorrentIfEnabled(row.infoHash)
           .pipe(Effect.mapError(mapQBitError("Failed to pause download")));
       } else if (action === "resume") {
-        yield* qbitClient
-          .resumeTorrent(qbitConfig, row.infoHash)
+        yield* torrentClientService
+          .resumeTorrentIfEnabled(row.infoHash)
           .pipe(Effect.mapError(mapQBitError("Failed to resume download")));
       } else {
-        yield* qbitClient
-          .deleteTorrent(qbitConfig, row.infoHash, deleteFiles)
+        yield* torrentClientService
+          .deleteTorrentIfEnabled(row.infoHash, deleteFiles)
           .pipe(Effect.mapError(mapQBitError("Failed to remove download")));
       }
     }
@@ -146,15 +144,16 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
       });
     }
 
-    const runtimeConfig = yield* getRuntimeConfig();
-    const qbitConfig = maybeQBitConfig(runtimeConfig);
     const coveredEpisodes = yield* parseCoveredEpisodesEffect(row.coveredEpisodes);
+    const qbitResult = yield* torrentClientService
+      .addTorrentUrlIfEnabled(row.magnet)
+      .pipe(Effect.either);
 
-    if (qbitConfig) {
-      yield* qbitClient
-        .addTorrentUrl(qbitConfig, row.magnet)
-        .pipe(Effect.mapError(mapQBitError("Failed to retry download")));
+    if (qbitResult._tag === "Left") {
+      return yield* mapQBitError("Failed to retry download")(qbitResult.left);
     }
+
+    const startedInQBit = qbitResult.right;
 
     const retryNow = yield* nowIso();
     yield* tryDatabasePromise("Failed to retry download", () =>
@@ -162,12 +161,12 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
         .update(downloads)
         .set({
           errorMessage: null,
-          externalState: qbitConfig ? "downloading" : "queued",
+          externalState: startedInQBit ? "downloading" : "queued",
           lastErrorAt: null,
           lastSyncedAt: retryNow,
           progress: 0,
           retryCount: sql`${downloads.retryCount} + 1`,
-          status: qbitConfig ? "downloading" : "queued",
+          status: startedInQBit ? "downloading" : "queued",
         })
         .where(eq(downloads.id, id)),
     );
@@ -184,7 +183,7 @@ export function makeDownloadTorrentActionSupport(input: DownloadTorrentActionSup
           source_metadata: yield* decodeDownloadSourceMetadata(row.sourceMetadata),
         },
         message: `Retried ${row.torrentName}`,
-        toStatus: qbitConfig ? "downloading" : "queued",
+        toStatus: startedInQBit ? "downloading" : "queued",
       },
       nowIso,
     );

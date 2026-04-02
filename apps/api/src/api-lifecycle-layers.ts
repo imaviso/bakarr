@@ -1,6 +1,6 @@
 import { Layer } from "effect";
 
-import { BackgroundWorkerControllerLive } from "@/background-controller-live.ts";
+import { BackgroundWorkerControllerLive } from "@/background-controller-core.ts";
 import { BackgroundTaskRunnerLive } from "@/background-task-runner.ts";
 import {
   makeAppExternalClientLayer,
@@ -11,7 +11,6 @@ import {
   type AppPlatformRuntimeOptions,
 } from "@/app-platform-runtime-core.ts";
 import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
-import { BackgroundJobStatusServiceLive } from "@/features/system/background-job-status-service.ts";
 import { MediaProbeLive } from "@/lib/media-probe.ts";
 import { AnimeFeatureLive } from "@/features/anime/anime-feature-layer.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
@@ -20,9 +19,10 @@ import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts
 import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
 import { OperationsFeatureLive } from "@/features/operations/operations-feature-layer.ts";
-import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
-import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
-import { SystemFeatureLive } from "@/features/system/system-feature-layer.ts";
+import {
+  SystemFeatureLive,
+  SystemRuntimeCoreLive,
+} from "@/features/system/system-feature-layer.ts";
 import type { AppConfigShape } from "@/config.ts";
 export type ApiLifecycleOptions = AppPlatformRuntimeOptions & AppExternalClientLayerOptions;
 
@@ -46,17 +46,11 @@ export function makeApiLifecycleLayers(
   );
   const platformLayer = Layer.mergeAll(platformWithCommandLayer, infrastructureLayer);
 
-  const runtimeConfigLayer = Layer.mergeAll(
-    SystemConfigServiceLive,
-    RuntimeConfigSnapshotServiceLive.pipe(Layer.provide(SystemConfigServiceLive)),
-  ).pipe(Layer.provideMerge(platformLayer));
-  const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(platformLayer, runtimeConfigLayer)),
-  );
+  const systemRuntimeLayer = SystemRuntimeCoreLive.pipe(Layer.provideMerge(platformLayer));
 
   const animeLayer = AnimeFeatureLive.pipe(Layer.provideMerge(platformLayer));
   const operationsLayer = OperationsFeatureLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(platformLayer, runtimeConfigLayer)),
+    Layer.provideMerge(Layer.mergeAll(platformLayer, systemRuntimeLayer)),
   );
 
   const backgroundTaskRunnerLayer = BackgroundTaskRunnerLive.pipe(
@@ -67,12 +61,7 @@ export function makeApiLifecycleLayers(
   );
   const systemLayer = SystemFeatureLive.pipe(
     Layer.provideMerge(
-      Layer.mergeAll(
-        platformLayer,
-        backgroundControllerLayer,
-        runtimeConfigLayer,
-        backgroundJobStatusLayer,
-      ),
+      Layer.mergeAll(platformLayer, backgroundControllerLayer, systemRuntimeLayer),
     ),
   );
   const authLayer = Layer.mergeAll(

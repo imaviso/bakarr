@@ -14,11 +14,14 @@ import { decodeDownloadSourceMetadata } from "@/features/operations/repository/d
 import { recordDownloadEvent } from "@/features/operations/job-support.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
 import { mapQBitState } from "@/features/operations/download-orchestration-shared.ts";
-import type { QBitConfig } from "@/features/operations/qbittorrent.ts";
 import type { DownloadTorrentActionSupportInput } from "@/features/operations/download-torrent-action-support.ts";
-import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
+import { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface DownloadTorrentSyncSupportInput extends DownloadTorrentActionSupportInput {
+  readonly getRuntimeConfig: () => Effect.Effect<
+    import("@packages/shared/index.ts").Config,
+    RuntimeConfigSnapshotError
+  >;
   readonly reconcileCompletedTorrentEffect: (
     infoHash: string,
     contentPath: string | undefined,
@@ -32,14 +35,7 @@ export interface DownloadTorrentSyncSupportInput extends DownloadTorrentActionSu
 }
 
 export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupportInput) {
-  const {
-    db,
-    qbitClient,
-    tryDatabasePromise,
-    maybeQBitConfig,
-    reconcileCompletedTorrentEffect,
-    getRuntimeConfig,
-  } = input;
+  const { db, tryDatabasePromise, reconcileCompletedTorrentEffect, torrentClientService } = input;
   const { nowIso } = input;
 
   const refineBatchCoverageFromTorrentFiles = Effect.fn(
@@ -49,16 +45,11 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
     downloadId: number;
     existingCoveredEpisodes: string | null;
     infoHash: string;
-    qbitConfig: QBitConfig | null;
     sourceMetadata?: DownloadSourceMetadata;
     torrentName: string;
   }) {
-    if (!input.qbitConfig) {
-      return;
-    }
-
-    const contentsResult = yield* qbitClient
-      .listTorrentContents(input.qbitConfig, input.infoHash)
+    const contentsResult = yield* torrentClientService
+      .listTorrentContentsIfEnabled(input.infoHash)
       .pipe(Effect.either);
 
     if (contentsResult._tag === "Left") {
@@ -69,6 +60,10 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
           infoHash: input.infoHash,
         }),
       );
+      return;
+    }
+
+    if (!contentsResult.right) {
       return;
     }
 
@@ -119,19 +114,19 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
 
   const syncDownloadsWithQBitEffect = Effect.fn("OperationsService.syncDownloadsWithQBit")(
     function* () {
-      const config = yield* getRuntimeConfig();
-      const qbitConfig = maybeQBitConfig(config);
-
-      if (!qbitConfig) {
-        return;
-      }
-
-      const torrentsResult = yield* qbitClient.listTorrents(qbitConfig).pipe(Effect.either);
+      const runtimeConfig = yield* input.getRuntimeConfig();
+      const torrentsResult = yield* torrentClientService
+        .listTorrentsIfEnabled()
+        .pipe(Effect.either);
 
       if (torrentsResult._tag === "Left") {
         yield* Effect.logWarning("qBittorrent unreachable, skipping download sync").pipe(
           Effect.annotateLogs({ error: String(torrentsResult.left) }),
         );
+        return;
+      }
+
+      if (!torrentsResult.right) {
         return;
       }
 
@@ -200,7 +195,6 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
             downloadId: existing.id,
             existingCoveredEpisodes: existing.coveredEpisodes,
             infoHash: torrent.hash.toLowerCase(),
-            qbitConfig,
             sourceMetadata: yield* decodeDownloadSourceMetadata(existing.sourceMetadata),
             torrentName: torrent.name,
           });
@@ -226,7 +220,7 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
           );
         }
 
-        if (status === "completed" && shouldReconcileCompletedDownloads(config)) {
+        if (status === "completed" && shouldReconcileCompletedDownloads(runtimeConfig)) {
           yield* reconcileCompletedTorrentEffect(
             torrent.hash.toLowerCase(),
             torrent.content_path ?? torrent.save_path,

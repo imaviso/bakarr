@@ -11,7 +11,7 @@ import {
   hasOverlappingDownload,
   parseCoveredEpisodesEffect,
 } from "@/features/operations/download-coverage.ts";
-import type { QBitConfig, QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
 import type { TryDatabasePromise } from "@/lib/effect-db.ts";
@@ -28,8 +28,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
     isBatch: boolean;
     item: ParsedRelease;
     sourceMetadata: DownloadSourceMetadata;
-    qbitClient: typeof QBitTorrentClient.Service;
-    qbitConfig: QBitConfig | null;
+    torrentClientService: typeof TorrentClientService.Service;
     nowIso: () => Effect.Effect<string>;
     tryDatabasePromise: TryDatabasePromise;
   }) {
@@ -101,18 +100,18 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
     const insertedId = insertResult.right[0].id;
     let status = "queued";
 
-    if (input.qbitConfig) {
-      const qbitResult = yield* Effect.either(
-        input.qbitClient.addTorrentUrl(input.qbitConfig, input.item.magnet),
+    const qbitResult = yield* Effect.either(
+      input.torrentClientService.addTorrentUrlIfEnabled(input.item.magnet),
+    );
+
+    if (qbitResult._tag === "Left") {
+      yield* input.tryDatabasePromise("Cleanup failed download", () =>
+        input.db.delete(downloads).where(eq(downloads.id, insertedId)),
       );
+      return yield* mapQBitError(input.contextMessage)(qbitResult.left);
+    }
 
-      if (qbitResult._tag === "Left") {
-        yield* input.tryDatabasePromise("Cleanup failed download", () =>
-          input.db.delete(downloads).where(eq(downloads.id, insertedId)),
-        );
-        return yield* mapQBitError(input.contextMessage)(qbitResult.left);
-      }
-
+    if (qbitResult.right) {
       status = "downloading";
       yield* input.tryDatabasePromise("Update download status", () =>
         input.db

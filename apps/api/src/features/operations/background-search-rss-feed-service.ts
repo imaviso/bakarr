@@ -187,7 +187,6 @@ export const BackgroundSearchRssFeedServiceLive = Layer.effect(
                 eventType: "download.rss.queued",
                 item,
                 missingEpisodes,
-                qbitConfig: queueService.maybeQBitConfig(runtimeConfig),
                 decisionReason,
               });
 

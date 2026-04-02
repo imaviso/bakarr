@@ -12,6 +12,10 @@ import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export interface CatalogLibraryReadServiceShape {
   readonly getWantedMissing: (limit: number) => Effect.Effect<MissingEpisode[], DatabaseError>;
+  readonly getCalendarWithDefaults: (input: {
+    readonly start?: string;
+    readonly end?: string;
+  }) => Effect.Effect<CalendarEvent[], DatabaseError>;
   readonly getCalendar: (
     start: string,
     end: string,
@@ -124,6 +128,13 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
       });
     });
 
+    const getCalendarWithDefaults = Effect.fn("OperationsService.getCalendarWithDefaults")(
+      function* (input: { readonly start?: string; readonly end?: string }) {
+        const nowIsoValue = yield* nowIso();
+        return yield* getCalendar(input.start ?? nowIsoValue, input.end ?? nowIsoValue);
+      },
+    );
+
     const getRenamePreview = Effect.fn("OperationsService.getRenamePreview")(function* (
       animeId: number,
     ) {
@@ -132,6 +143,7 @@ export const CatalogLibraryReadServiceLive = Layer.effect(
 
     return CatalogLibraryReadService.of({
       getCalendar,
+      getCalendarWithDefaults,
       getRenamePreview,
       getWantedMissing,
     });

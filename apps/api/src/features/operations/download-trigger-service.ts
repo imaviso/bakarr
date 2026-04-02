@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { DatabaseError } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
 import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
@@ -30,29 +30,18 @@ import {
 } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download-orchestration-shared.ts";
 import { resolveRequestedEpisodeNumber } from "@/features/operations/download-orchestration-shared.ts";
-import type { QBitConfig } from "@/features/operations/qbittorrent.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/runtime-support.ts";
 import { Database } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
 import { DownloadProgressSupport } from "@/features/operations/download-progress-support.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
-import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import type { RuntimeConfigSnapshotError } from "@/features/system/runtime-config-snapshot-service.ts";
 
 export function makeDownloadTriggerService(input: {
   readonly db: import("@/db/database.ts").AppDatabase;
-  readonly qbitClient: typeof QBitTorrentClient.Service;
+  readonly torrentClientService: typeof TorrentClientService.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise;
-  readonly maybeQBitConfig: (
-    config: import("@packages/shared/index.ts").Config,
-  ) => QBitConfig | null;
-  readonly getRuntimeConfig: () => Effect.Effect<
-    import("@packages/shared/index.ts").Config,
-    RuntimeConfigSnapshotError
-  >;
   readonly nowIso: () => Effect.Effect<string>;
   readonly downloadTriggerCoordinator: DownloadTriggerCoordinatorShape;
   readonly publishDownloadProgress: () => Effect.Effect<
@@ -62,13 +51,11 @@ export function makeDownloadTriggerService(input: {
 }) {
   const {
     db,
-    qbitClient,
+    torrentClientService,
     eventBus,
     tryDatabasePromise,
-    maybeQBitConfig: maybeQBitConfigFromInput,
     downloadTriggerCoordinator,
     publishDownloadProgress,
-    getRuntimeConfig,
   } = input;
   const { nowIso } = input;
 
@@ -78,7 +65,6 @@ export function makeDownloadTriggerService(input: {
     const animeRow = yield* requireAnime(db, triggerInput.anime_id);
 
     const now = yield* nowIso();
-    const runtimeConfig = yield* getRuntimeConfig();
     const parsedRelease = parseReleaseName(triggerInput.title);
     const effectiveIsBatch = triggerInput.is_batch ?? parsedRelease.isBatch;
     const requestedEpisode = resolveRequestedEpisodeNumber({
@@ -186,11 +172,10 @@ export function makeDownloadTriggerService(input: {
 
     const insertedId = insertResult.right[0].id;
     let status = "queued";
-    const qbitConfig: QBitConfig | null = maybeQBitConfigFromInput(runtimeConfig);
 
-    if (qbitConfig && triggerInput.magnet) {
+    if (triggerInput.magnet) {
       const qbitResult = yield* Effect.either(
-        qbitClient.addTorrentUrl(qbitConfig, triggerInput.magnet),
+        torrentClientService.addTorrentUrlIfEnabled(triggerInput.magnet),
       );
 
       if (qbitResult._tag === "Left") {
@@ -203,13 +188,15 @@ export function makeDownloadTriggerService(input: {
         });
       }
 
-      status = "downloading";
-      yield* tryDatabasePromise("Update download status", () =>
-        db
-          .update(downloads)
-          .set({ status, externalState: status })
-          .where(eq(downloads.id, insertedId)),
-      );
+      if (qbitResult.right) {
+        status = "downloading";
+        yield* tryDatabasePromise("Update download status", () =>
+          db
+            .update(downloads)
+            .set({ status, externalState: status })
+            .where(eq(downloads.id, insertedId)),
+        );
+      }
     }
 
     yield* recordDownloadEvent(
@@ -276,21 +263,18 @@ export const DownloadTriggerServiceLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const eventBus = yield* EventBus;
-    const qbitClient = yield* QBitTorrentClient;
+    const torrentClientService = yield* TorrentClientService;
     const clock = yield* ClockService;
     const progressSupport = yield* DownloadProgressSupport;
     const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
-    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
 
     return makeDownloadTriggerService({
       db,
       downloadTriggerCoordinator,
       eventBus,
-      getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
-      maybeQBitConfig,
       nowIso: () => nowIsoFromClock(clock),
       publishDownloadProgress: progressSupport.publishDownloadProgress,
-      qbitClient,
+      torrentClientService,
       tryDatabasePromise,
     });
   }),

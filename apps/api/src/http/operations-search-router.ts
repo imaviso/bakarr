@@ -1,7 +1,6 @@
 import { HttpRouter } from "@effect/platform";
 import { Effect } from "effect";
 
-import { ClockService } from "@/lib/clock.ts";
 import { DownloadTriggerService } from "@/features/operations/download-trigger-service.ts";
 import { CatalogLibraryReadService } from "@/features/operations/catalog-library-read-service.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
@@ -41,12 +40,7 @@ export const searchRouter = HttpRouter.empty.pipe(
     authedRouteResponse(
       Effect.gen(function* () {
         const query = yield* decodeQueryWithLabel(CalendarQuerySchema, "calendar");
-        const now = yield* (yield* ClockService).currentTimeMillis;
-        const nowIso = new Date(now).toISOString();
-        return yield* (yield* CatalogLibraryReadService).getCalendar(
-          query.start ?? nowIso,
-          query.end ?? nowIso,
-        );
+        return yield* (yield* CatalogLibraryReadService).getCalendarWithDefaults(query);
       }),
       jsonResponse,
     ),

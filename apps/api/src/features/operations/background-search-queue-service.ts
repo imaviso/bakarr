@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from "effect";
 
-import type { Config, DownloadAction } from "@packages/shared/index.ts";
+import type { DownloadAction } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import {
@@ -17,10 +17,9 @@ import {
 import { parseReleaseName } from "@/features/operations/release-ranking.ts";
 import { queueParsedReleaseDownload } from "@/features/operations/release-queue-support.ts";
 import type { ParsedRelease } from "@/features/operations/rss-client-parse.ts";
-import { QBitTorrentClient, type QBitConfig } from "@/features/operations/qbittorrent.ts";
+import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import { DownloadTriggerCoordinator } from "@/features/operations/runtime-support.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { maybeQBitConfig as maybeQBitConfigFromConfig } from "@/features/operations/operations-qbit-config.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 
@@ -35,12 +34,10 @@ export interface BackgroundSearchQueueServiceShape {
     eventType: string;
     item: ParsedRelease;
     missingEpisodes: readonly number[];
-    qbitConfig: QBitConfig | null;
   }) => Effect.Effect<
     { readonly _tag: "skipped" } | { readonly _tag: "queued" },
     DatabaseError | OperationsInfrastructureError
   >;
-  readonly maybeQBitConfig: (config: Config) => QBitConfig | null;
 }
 
 export class BackgroundSearchQueueService extends Context.Tag(
@@ -52,7 +49,7 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database;
     const clock = yield* ClockService;
-    const qbitClient = yield* QBitTorrentClient;
+    const torrentClientService = yield* TorrentClientService;
     const downloadTriggerCoordinator = yield* DownloadTriggerCoordinator;
 
     const nowIso = () => nowIsoFromClock(clock);
@@ -68,7 +65,6 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
         eventType: string;
         item: ParsedRelease;
         missingEpisodes: readonly number[];
-        qbitConfig: QBitConfig | null;
       }) {
         const parsedRelease = parseReleaseName(input.item.title);
         const coveredEpisodes = toCoveredEpisodesJson(
@@ -124,8 +120,7 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
                 trusted: input.item.trusted,
               }),
             ),
-            qbitClient,
-            qbitConfig: input.qbitConfig,
+            torrentClientService,
             tryDatabasePromise,
           });
 
@@ -146,7 +141,6 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
 
     return BackgroundSearchQueueService.of({
       queueReleaseIfEligible,
-      maybeQBitConfig: maybeQBitConfigFromConfig,
     });
   }),
 );

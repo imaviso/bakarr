@@ -1,6 +1,5 @@
 import { Context, Effect, Layer } from "effect";
 
-import { type BackgroundWorkerName } from "@/background-worker-model.ts";
 import { withLockEffectOrFail } from "@/background-workers.ts";
 import { BackgroundWorkerMonitor } from "@/background-monitor.ts";
 import { ClockService } from "@/lib/clock.ts";
@@ -28,9 +27,6 @@ export interface BackgroundTaskRunnerShape {
   readonly runLibraryScanWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
   readonly runMetadataRefreshWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
   readonly runRssWorkerTask: () => Effect.Effect<void, BackgroundTaskRunnerError>;
-  readonly runTaskByName: (
-    workerName: BackgroundWorkerName,
-  ) => Effect.Effect<void, BackgroundTaskRunnerError>;
 }
 
 export class BackgroundTaskRunner extends Context.Tag("@bakarr/api/BackgroundTaskRunner")<
@@ -85,30 +81,11 @@ const makeBackgroundTaskRunner = Effect.fn("Background.makeBackgroundTaskRunner"
       input.clock,
     );
 
-    const runTaskByName = Effect.fn("BackgroundTaskRunner.runTaskByName")(function* (
-      workerName: BackgroundWorkerName,
-    ) {
-      if (workerName === "download_sync") {
-        return yield* runDownloadSyncWorkerTask;
-      }
-
-      if (workerName === "library_scan") {
-        return yield* runLibraryScanWorkerTask;
-      }
-
-      if (workerName === "metadata_refresh") {
-        return yield* runMetadataRefreshWorkerTask;
-      }
-
-      return yield* runRssWorkerTask;
-    });
-
     return {
       runDownloadSyncWorkerTask: () => runDownloadSyncWorkerTask,
       runLibraryScanWorkerTask: () => runLibraryScanWorkerTask,
       runMetadataRefreshWorkerTask: () => runMetadataRefreshWorkerTask,
       runRssWorkerTask: () => runRssWorkerTask,
-      runTaskByName,
     } satisfies BackgroundTaskRunnerShape;
   },
 );

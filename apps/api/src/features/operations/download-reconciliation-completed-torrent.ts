@@ -5,7 +5,7 @@ import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
-import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
+import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import {
   shouldDeleteImportedData,
   shouldRemoveTorrentOnImport,
@@ -23,52 +23,35 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
   readonly db: AppDatabase;
   readonly fs: import("@/lib/filesystem.ts").FileSystemShape;
   readonly mediaProbe: import("@/lib/media-probe.ts").MediaProbeShape;
-  readonly qbitClient: typeof QBitTorrentClient.Service;
+  readonly torrentClientService: typeof TorrentClientService.Service;
   readonly eventBus: typeof EventBus.Service;
   readonly tryDatabasePromise: import("@/lib/effect-db.ts").TryDatabasePromise;
-  readonly maybeQBitConfig: (config: Config) => import("./qbittorrent.ts").QBitConfig | null;
   readonly nowIso: () => Effect.Effect<string>;
   readonly randomUuid: () => Effect.Effect<string>;
   readonly getRuntimeConfig: () => Effect.Effect<Config, RuntimeConfigSnapshotError>;
 }) {
-  const {
-    db,
-    fs,
-    mediaProbe,
-    qbitClient,
-    eventBus,
-    tryDatabasePromise,
-    maybeQBitConfig: maybeQBitConfigFromInput,
-  } = input;
+  const { db, fs, mediaProbe, eventBus, tryDatabasePromise, torrentClientService } = input;
   const { nowIso } = input;
   const { randomUuid } = input;
 
   const maybeCleanupImportedTorrent = Effect.fn("OperationsService.maybeCleanupImportedTorrent")(
     function* (config: Config | null | undefined, infoHash: string | null) {
-      const qbitConfig = config ? maybeQBitConfigFromInput(config) : null;
-
-      if (!qbitConfig || !infoHash || !shouldRemoveTorrentOnImport(config)) {
+      if (!infoHash || !shouldRemoveTorrentOnImport(config)) {
         return;
       }
 
-      yield* qbitClient.deleteTorrent(qbitConfig, infoHash, shouldDeleteImportedData(config)).pipe(
-        Effect.catchTags({
-          ExternalCallError: (cause) =>
+      yield* torrentClientService
+        .deleteTorrentIfEnabled(infoHash, shouldDeleteImportedData(config))
+        .pipe(
+          Effect.catchAll((cause) =>
             Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
               Effect.annotateLogs({
                 infoHash,
                 error: String(cause),
               }),
             ),
-          QBitTorrentClientError: (cause) =>
-            Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
-              Effect.annotateLogs({
-                infoHash,
-                error: String(cause),
-              }),
-            ),
-        }),
-      );
+          ),
+        );
     },
   );
 

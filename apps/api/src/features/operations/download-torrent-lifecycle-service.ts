@@ -11,8 +11,7 @@ import { Context, Effect, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
-import { QBitTorrentClient } from "@/features/operations/qbittorrent.ts";
-import { maybeQBitConfig } from "@/features/operations/operations-qbit-config.ts";
+import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { DownloadReconciliationService } from "@/features/operations/download-reconciliation-service.ts";
 import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
@@ -40,17 +39,16 @@ export const DownloadTorrentLifecycleServiceLive = Layer.effect(
   DownloadTorrentLifecycleService,
   Effect.gen(function* () {
     const { db } = yield* Database;
-    const qbitClient = yield* QBitTorrentClient;
+    const torrentClientService = yield* TorrentClientService;
     const clock = yield* ClockService;
     const reconciliationService = yield* DownloadReconciliationService;
-    const runtimeConfigSnapshotService = yield* RuntimeConfigSnapshotService;
+    const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
 
     return makeDownloadTorrentLifecycleService({
       db,
-      getRuntimeConfig: runtimeConfigSnapshotService.getRuntimeConfig,
-      maybeQBitConfig,
+      getRuntimeConfig: runtimeConfigSnapshot.getRuntimeConfig,
       nowIso: () => nowIsoFromClock(clock),
-      qbitClient,
+      torrentClientService,
       reconcileCompletedTorrentEffect: reconciliationService.reconcileCompletedTorrentEffect,
       tryDatabasePromise,
     });

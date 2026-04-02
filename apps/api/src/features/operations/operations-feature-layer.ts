@@ -21,6 +21,7 @@ import {
   DownloadTriggerCoordinatorLive,
   UnmappedScanCoordinatorLive,
 } from "@/features/operations/runtime-support.ts";
+import { TorrentClientServiceLive } from "@/features/operations/torrent-client-service.ts";
 import { SearchEpisodeServiceLive } from "@/features/operations/search-orchestration-episode-support.ts";
 import { SearchReleaseServiceLive } from "@/features/operations/search-orchestration-release-search.ts";
 import { UnmappedControlServiceLive } from "@/features/operations/unmapped-control-service.ts";
@@ -31,15 +32,23 @@ import { LibraryRootsQueryServiceLive } from "@/features/operations/library-root
 const downloadTriggerCoordinatorLayer = DownloadTriggerCoordinatorLive;
 const unmappedScanCoordinatorLayer = UnmappedScanCoordinatorLive;
 
-const downloadReconciliationLayer = DownloadReconciliationServiceLive;
+const downloadReconciliationLayer = DownloadReconciliationServiceLive.pipe(
+  Layer.provide(TorrentClientServiceLive),
+);
 const downloadTorrentLifecycleLayer = DownloadTorrentLifecycleServiceLive.pipe(
-  Layer.provide(downloadReconciliationLayer),
+  Layer.provide(Layer.mergeAll(downloadReconciliationLayer, TorrentClientServiceLive)),
 );
 const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(
   Layer.provide(downloadTorrentLifecycleLayer),
 );
 const downloadTriggerLayer = DownloadTriggerServiceLive.pipe(
-  Layer.provide(Layer.mergeAll(downloadProgressSupportLayer, downloadTriggerCoordinatorLayer)),
+  Layer.provide(
+    Layer.mergeAll(
+      downloadProgressSupportLayer,
+      downloadTriggerCoordinatorLayer,
+      TorrentClientServiceLive,
+    ),
+  ),
 );
 
 const operationsDownloadBundleLayer = Layer.mergeAll(
@@ -62,7 +71,7 @@ const operationsDownloadBundleLayer = Layer.mergeAll(
 const operationsProgressLayer = ProgressLive.pipe(Layer.provide(operationsDownloadBundleLayer));
 
 const backgroundSearchQueueLayer = BackgroundSearchQueueServiceLive.pipe(
-  Layer.provide(downloadTriggerCoordinatorLayer),
+  Layer.provide(Layer.mergeAll(downloadTriggerCoordinatorLayer, TorrentClientServiceLive)),
 );
 const backgroundSearchRssFeedLayer = BackgroundSearchRssFeedServiceLive.pipe(
   Layer.provide(backgroundSearchQueueLayer),
@@ -138,6 +147,7 @@ const operationsRuntimeBundleLayer = Layer.mergeAll(
 
 export const OperationsFeatureLive = Layer.mergeAll(
   operationsRuntimeBundleLayer,
+  TorrentClientServiceLive,
   operationsDownloadBundleLayer,
   operationsSearchBundleLayer,
   operationsLibraryBundleLayer,

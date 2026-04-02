@@ -153,7 +153,6 @@ export const SearchBackgroundMissingServiceLive = Layer.effect(
           eventType: "download.search_missing.queued",
           item: best.item,
           missingEpisodes: missingEpisodesByAnimeId.get(row.anime.id) ?? [],
-          qbitConfig: queueService.maybeQBitConfig(runtimeConfig),
         });
 
         if (queueResult._tag === "skipped") {
