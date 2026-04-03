@@ -1,15 +1,15 @@
 import { assert, it } from "@effect/vitest";
-import { Cause, Effect, Exit, Layer, Stream } from "effect";
+import { Cause, Effect, Exit, Layer } from "effect";
 
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { DnsLookupError, DnsResolver } from "@/lib/dns-resolver.ts";
 import { ExternalCallError } from "@/lib/effect-retry.ts";
+import { RssClient, RssClientLive } from "@/features/operations/rss-client.ts";
 import {
-  RssClient,
-  RssClientLive,
   RssTransport,
+  RssTransportError,
   type RssTransportShape,
-} from "@/features/operations/rss-client.ts";
+} from "@/features/operations/rss-transport.ts";
 import {
   RssFeedParseError,
   RssFeedRejectedError,
@@ -40,12 +40,27 @@ function rssLayer(
   const transport: RssTransportShape = {
     execute: (target) =>
       execute(target.parsedUrl.href).pipe(
+        Effect.mapError((cause) =>
+          cause instanceof RssTransportError
+            ? cause
+            : new RssTransportError({
+                cause,
+                message: "test rss transport failed",
+              }),
+        ),
         Effect.flatMap((response) =>
-          Effect.promise(() => response.arrayBuffer()).pipe(
+          Effect.tryPromise({
+            try: () => response.arrayBuffer(),
+            catch: (cause) =>
+              new RssTransportError({
+                cause,
+                message: "test rss transport failed",
+              }),
+          }).pipe(
             Effect.map((body) => ({
+              body: new Uint8Array(body),
               headers: response.headers,
               status: response.status,
-              stream: Stream.fromIterable([new Uint8Array(body)]),
             })),
           ),
         ),
@@ -464,6 +479,7 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
                       calls.push(target.parsedUrl.href);
 
                       return Effect.succeed({
+                        body: new Uint8Array(),
                         headers: new Headers(
                           target.parsedUrl.href.includes("feeds.example")
                             ? {
@@ -473,7 +489,6 @@ it.scoped("RssClient handles redirects manually when the transport returns 302 r
                             : { "content-type": "application/rss+xml" },
                         ),
                         status: target.parsedUrl.href.includes("feeds.example") ? 302 : 200,
-                        stream: Stream.empty,
                       });
                     },
                   }),

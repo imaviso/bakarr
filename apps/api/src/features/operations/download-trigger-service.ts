@@ -1,35 +1,16 @@
-import { Context, Effect, Layer, Option } from "effect";
-import { eq } from "drizzle-orm";
+import { Context, Effect, Layer } from "effect";
 
 import { DatabaseError } from "@/db/database.ts";
-import { downloads } from "@/db/schema.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 import { TorrentClientService } from "@/features/operations/torrent-client-service.ts";
-import { requireAnime } from "@/features/operations/repository/anime-repository.ts";
-import { encodeDownloadSourceMetadata } from "@/features/operations/repository/download-repository.ts";
 import {
-  buildDownloadSourceMetadataFromRelease,
-  mergeDownloadSourceMetadata,
-} from "@/features/operations/naming-support.ts";
-import {
-  hasOverlappingDownload,
-  inferCoveredEpisodeNumbers,
-  toCoveredEpisodesJson,
-} from "@/features/operations/download-coverage.ts";
-import { parseMagnetInfoHash } from "@/features/operations/download-paths.ts";
-import {
-  appendLog,
-  loadMissingEpisodeNumbers,
-  recordDownloadEvent,
-} from "@/features/operations/job-support.ts";
-import { parseReleaseName } from "@/features/operations/release-ranking.ts";
-import {
-  DownloadConflictError,
-  OperationsInputError,
-  OperationsInfrastructureError,
-} from "@/features/operations/errors.ts";
+  addMagnetToQueuedDownload,
+  insertQueuedDownload,
+  prepareTriggerDownload,
+} from "@/features/operations/download-trigger-support.ts";
+import { appendLog, recordDownloadEvent } from "@/features/operations/job-support.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import type { TriggerDownloadInput } from "@/features/operations/download-orchestration-shared.ts";
-import { resolveRequestedEpisodeNumber } from "@/features/operations/download-orchestration-shared.ts";
 import type { DownloadTriggerCoordinatorShape } from "@/features/operations/runtime-support.ts";
 import { Database } from "@/db/database.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
@@ -63,166 +44,44 @@ export function makeDownloadTriggerService(input: {
     triggerInput: TriggerDownloadInput,
   ) {
     yield* Effect.annotateCurrentSpan("animeId", triggerInput.anime_id);
-
-    const animeRow = yield* requireAnime(db, triggerInput.anime_id);
-
-    const now = yield* nowIso();
-    const parsedRelease = parseReleaseName(triggerInput.title);
-    const effectiveIsBatch = triggerInput.is_batch ?? parsedRelease.isBatch;
-    const requestedEpisode = resolveRequestedEpisodeNumber({
-      explicitEpisode: triggerInput.episode_number,
-      inferredEpisodes: parsedRelease.episodeNumbers,
-      isBatch: effectiveIsBatch,
+    const plan = yield* prepareTriggerDownload({
+      db,
+      nowIso,
+      triggerInput,
     });
 
-    yield* Effect.annotateCurrentSpan("isBatch", effectiveIsBatch);
+    yield* Effect.annotateCurrentSpan("isBatch", plan.effectiveIsBatch);
     yield* Effect.annotateCurrentSpan("hasMagnet", Boolean(triggerInput.magnet));
+    yield* Effect.annotateCurrentSpan("episodeNumber", plan.requestedEpisode);
 
-    if (!requestedEpisode) {
-      return yield* new OperationsInputError({
-        message:
-          "episode_number is required when the release title does not include episode information",
-      });
-    }
-
-    yield* Effect.annotateCurrentSpan("episodeNumber", requestedEpisode);
-
-    const missingEpisodes = yield* loadMissingEpisodeNumbers(db, animeRow.id);
-    const shouldDeferBatchCoverage = effectiveIsBatch && parsedRelease.episodeNumbers.length === 0;
-    const inferredCoveredEpisodes = shouldDeferBatchCoverage
-      ? []
-      : inferCoveredEpisodeNumbers({
-          explicitEpisodes: parsedRelease.episodeNumbers,
-          isBatch: effectiveIsBatch,
-          totalEpisodes: animeRow.episodeCount,
-          missingEpisodes,
-          requestedEpisode,
-        });
-    const coveredEpisodes = toCoveredEpisodesJson(inferredCoveredEpisodes);
-    const sourceMetadata = mergeDownloadSourceMetadata(
-      buildDownloadSourceMetadataFromRelease({
-        chosenFromSeadex:
-          triggerInput.release_metadata?.chosen_from_seadex ??
-          triggerInput.release_metadata?.is_seadex,
-        decisionReason: triggerInput.decision_reason,
-        group: triggerInput.group,
-        indexer: "Nyaa",
-        previousQuality: triggerInput.release_metadata?.previous_quality,
-        previousScore: triggerInput.release_metadata?.previous_score,
-        selectionKind: triggerInput.release_metadata?.selection_kind ?? "manual",
-        selectionScore: triggerInput.release_metadata?.selection_score,
-        sourceUrl: triggerInput.release_metadata?.source_url,
-        title: triggerInput.title,
-      }),
-      triggerInput.release_metadata,
-    );
-    const explicitInfoHash = triggerInput.info_hash
-      ? Option.some(triggerInput.info_hash.toLowerCase())
-      : Option.none();
-    const inferredInfoHash = parseMagnetInfoHash(triggerInput.magnet);
-    const infoHash = Option.getOrNull(
-      Option.isSome(explicitInfoHash) ? explicitInfoHash : inferredInfoHash,
-    );
-
-    if (infoHash) {
-      const overlapping = yield* hasOverlappingDownload(
-        db,
-        animeRow.id,
-        infoHash,
-        inferredCoveredEpisodes,
-      );
-
-      if (overlapping) {
-        return yield* new DownloadConflictError({
-          message: "An in-flight download already covers these episodes",
-        });
-      }
-    }
-
-    const insertResult = yield* Effect.either(
-      tryDatabasePromise("Failed to trigger download", () =>
-        db
-          .insert(downloads)
-          .values({
-            addedAt: now,
-            animeId: animeRow.id,
-            animeTitle: animeRow.titleRomaji,
-            contentPath: null,
-            coveredEpisodes,
-            downloadDate: null,
-            episodeNumber: requestedEpisode,
-            isBatch: effectiveIsBatch,
-            downloadedBytes: 0,
-            errorMessage: null,
-            etaSeconds: null,
-            externalState: "queued",
-            groupName: triggerInput.group ?? null,
-            infoHash,
-            lastSyncedAt: now,
-            magnet: triggerInput.magnet,
-            progress: 0,
-            savePath: null,
-            speedBytes: 0,
-            sourceMetadata: encodeDownloadSourceMetadata(sourceMetadata),
-            status: "queued",
-            totalBytes: null,
-            torrentName: triggerInput.title,
-          })
-          .returning({ id: downloads.id }),
-      ),
-    );
-
-    if (insertResult._tag === "Left") {
-      const insertError = insertResult.left;
-      if (insertError instanceof DatabaseError && insertError.isUniqueConstraint()) {
-        return yield* new DownloadConflictError({
-          message: "Download already exists",
-        });
-      }
-      return yield* insertError;
-    }
-
-    const insertedId = insertResult.right[0].id;
-    let status = "queued";
-
-    if (triggerInput.magnet) {
-      const qbitResult = yield* Effect.either(
-        torrentClientService.addTorrentUrlIfEnabled(triggerInput.magnet),
-      );
-
-      if (qbitResult._tag === "Left") {
-        yield* tryDatabasePromise("Cleanup failed download", () =>
-          db.delete(downloads).where(eq(downloads.id, insertedId)),
-        );
-        return yield* new OperationsInfrastructureError({
-          message: "Failed to trigger download",
-          cause: qbitResult.left,
-        });
-      }
-
-      if (qbitResult.right._tag === "Added") {
-        status = "downloading";
-        yield* tryDatabasePromise("Update download status", () =>
-          db
-            .update(downloads)
-            .set({ status, externalState: status })
-            .where(eq(downloads.id, insertedId)),
-        );
-      }
-    }
+    const insertedId = yield* insertQueuedDownload({
+      db,
+      plan,
+      triggerInput,
+      tryDatabasePromise,
+    });
+    const status = yield* addMagnetToQueuedDownload({
+      db,
+      insertedId,
+      magnet: triggerInput.magnet,
+      torrentClientService,
+      tryDatabasePromise,
+    });
+    const shouldDeferBatchCoverage =
+      plan.effectiveIsBatch && plan.inferredCoveredEpisodes.length === 0;
 
     yield* recordDownloadEvent(
       db,
       {
-        animeId: animeRow.id,
+        animeId: plan.animeRow.id,
         downloadId: insertedId,
         eventType: "download.queued",
         metadataJson: {
-          covered_episodes: inferredCoveredEpisodes,
-          source_metadata: sourceMetadata,
+          covered_episodes: plan.inferredCoveredEpisodes,
+          source_metadata: plan.sourceMetadata,
         },
         message: `Queued ${triggerInput.title}`,
-        metadata: coveredEpisodes,
+        metadata: plan.coveredEpisodes,
         toStatus: status,
       },
       nowIso,
@@ -233,16 +92,16 @@ export function makeDownloadTriggerService(input: {
       "downloads.triggered",
       "success",
       shouldDeferBatchCoverage
-        ? `Queued batch download for ${animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered episodes`
-        : `Queued download for ${animeRow.titleRomaji} episode ${requestedEpisode}`,
+        ? `Queued batch download for ${plan.animeRow.titleRomaji}; waiting for qBittorrent metadata to determine covered episodes`
+        : `Queued download for ${plan.animeRow.titleRomaji} episode ${plan.requestedEpisode}`,
       nowIso,
     );
 
     yield* eventBus.publish({
       type: "DownloadStarted",
       payload: {
-        anime_id: animeRow.id,
-        source_metadata: sourceMetadata,
+        anime_id: plan.animeRow.id,
+        source_metadata: plan.sourceMetadata,
         title: triggerInput.title,
       },
     });

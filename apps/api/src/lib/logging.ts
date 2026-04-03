@@ -101,8 +101,9 @@ const RuntimeLoggerLive = Layer.unwrapEffect(
   }),
 );
 
-export const RuntimeLoggerLayer = Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLoggerLive).pipe(
-  Layer.provide(RuntimeLogLevelStateLive),
+export const RuntimeLoggerLayer = Layer.mergeAll(
+  RuntimeLogLevelStateLive,
+  RuntimeLoggerLive.pipe(Layer.provide(RuntimeLogLevelStateLive)),
 );
 
 function parseRuntimeLogLevel(level: string | undefined) {

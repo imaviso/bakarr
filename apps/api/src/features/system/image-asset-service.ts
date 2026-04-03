@@ -6,10 +6,11 @@ import {
   ImageAssetAccessError,
   ImageAssetNotFoundError,
   ImageAssetTooLargeError,
-  type StoredConfigCorruptError,
-  type StoredConfigMissingError,
 } from "@/features/system/errors.ts";
-import { SystemConfigService } from "@/features/system/system-config-service.ts";
+import {
+  RuntimeConfigSnapshotService,
+  type RuntimeConfigSnapshotError,
+} from "@/features/system/runtime-config-snapshot-service.ts";
 
 export interface ImageAssetResult {
   readonly bytes: Uint8Array;
@@ -34,8 +35,7 @@ export interface ImageAssetServiceShape {
     | DatabaseError
     | ImageAssetNotFoundError
     | ImageAssetTooLargeError
-    | StoredConfigCorruptError
-    | StoredConfigMissingError
+    | RuntimeConfigSnapshotError
   >;
 }
 
@@ -82,7 +82,7 @@ function mapAssetPathError(error: { readonly cause?: unknown }, message: string)
 }
 
 const makeImageAssetService = Effect.gen(function* () {
-  const systemService = yield* SystemConfigService;
+  const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const fs = yield* FileSystem;
 
   const resolveImageAsset = Effect.fn("ImageAssetService.resolveImageAsset")(function* (
@@ -101,7 +101,7 @@ const makeImageAssetService = Effect.gen(function* () {
       return yield* notFoundError();
     }
 
-    const config = yield* systemService.getConfig();
+    const config = yield* runtimeConfigSnapshot.getRuntimeConfig();
 
     const imagesRoot = yield* fs
       .realPath(config.general.images_path.replace(/\/$/, ""))

@@ -3,11 +3,11 @@ import { Exit } from "effect";
 import type { Scope } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
+import type { BackgroundWorkerSpawner } from "@/background-controller-core.ts";
 import { buildBackgroundSchedule } from "@/background-schedule.ts";
 import type { BackgroundTaskRunnerShape } from "@/background-task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background-monitor.ts";
 import { type BackgroundWorkerName } from "@/background-worker-model.ts";
-import type { DatabaseError } from "@/db/database.ts";
 import type { ClockServiceShape } from "@/lib/clock.ts";
 import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
@@ -27,10 +27,6 @@ const WORKER_TIMEOUTS: Record<BackgroundWorkerName, number> = {
   metadata_refresh: 60_000,
   rss: 120_000,
 };
-
-export interface BackgroundWorkerSpawner<R = never> {
-  (scope: Scope.Scope, config: Config): Effect.Effect<void, DatabaseError, R>;
-}
 
 export function makeBackgroundWorkerSpawner(input: {
   readonly taskRunner: BackgroundTaskRunnerShape;

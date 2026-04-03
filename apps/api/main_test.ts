@@ -4,29 +4,23 @@ import { it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
 import { HttpApp } from "@effect/platform";
 import * as Context from "effect/Context";
-import { Effect, Layer, Option, Redacted } from "effect";
+import { Effect, Layer, ManagedRuntime, Option, Redacted } from "effect";
 import * as Exit from "effect/Exit";
 import * as EffectLayer from "effect/Layer";
 import * as Scope from "effect/Scope";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { bootstrapProgram } from "./src/api-startup.ts";
+import { makeApiLifecycleLayers } from "./src/api-lifecycle-layers.ts";
+import { createHttpApp } from "./src/http/http-app.ts";
 import { AniListClient } from "./src/features/anime/anilist.ts";
 import { type QBitTorrent, QBitTorrentClient } from "./src/features/operations/qbittorrent.ts";
 import { mapQBitState } from "./src/features/operations/download-orchestration-shared.ts";
 import { RssClient } from "./src/features/operations/rss-client.ts";
 import type { ParsedRelease } from "./src/features/operations/rss-client-parse.ts";
 import { SeaDexClient, type SeaDexEntry } from "./src/features/operations/seadex-client.ts";
-import { platformFsTest } from "./src/test/platform-filesystem-test.ts";
 import type { AnimeSearchResult } from "../../packages/shared/src/index.ts";
-
-const {
-  makeTempDir,
-  makeTempFile,
-  mkdirPath,
-  removePath,
-  statPath,
-  writeBinaryFile,
-  writeTextFile,
-} = platformFsTest;
 
 type TestContextOptions = {
   readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
@@ -4311,7 +4305,7 @@ itWithTestContext(
       assert.deepStrictEqual(anime.root_folder, `${rootFolder}/Hunter x Hunter (2011)`);
 
       const stats = await statPath(anime.root_folder);
-      assert.deepStrictEqual(stats.type === "Directory", true);
+      assert.deepStrictEqual(stats.isDirectory(), true);
     });
   },
 );
@@ -4629,10 +4623,9 @@ async function createTestContext(options?: {
   rssLayer?: Layer.Layer<RssClient>;
   seadexLayer?: Layer.Layer<SeaDexClient>;
 }) {
-  const { bootstrapApiTestRuntimeEffect } = await import("./src/api-test-bootstrap.ts");
   const databaseFile = await makeTempFile({ suffix: ".sqlite" });
-  const { httpApp, runtime } = await Effect.runPromise(
-    bootstrapApiTestRuntimeEffect(
+  const runtime = ManagedRuntime.make(
+    makeApiLifecycleLayers(
       {
         bootstrapPassword: Redacted.make("admin"),
         bootstrapUsername: "admin",
@@ -4663,8 +4656,10 @@ async function createTestContext(options?: {
         rssLayer: options?.rssLayer ?? testRssLayer,
         seadexLayer: options?.seadexLayer ?? testSeaDexLayer,
       },
-    ),
+    ).appLayer,
   );
+  await runtime.runPromise(bootstrapProgram());
+  const httpApp = await runtime.runPromise(createHttpApp());
   const webHandler = HttpApp.toWebHandlerRuntime(await runtime.runtime())(httpApp);
   const app = {
     request: (input: RequestInfo | URL, init?: RequestInit) => {
@@ -4744,6 +4739,37 @@ function makeCommandExecutorStub(
     string: (command, _encoding) =>
       runAsString(command as { args: ReadonlyArray<string>; command: string }),
   };
+}
+
+async function makeTempDir() {
+  return await mkdtemp(join(tmpdir(), "bakarr-api-test-"));
+}
+
+async function makeTempFile(options?: { readonly suffix?: string }) {
+  const directory = await makeTempDir();
+  const filePath = join(directory, `temp${options?.suffix ?? ""}`);
+  await writeFile(filePath, "");
+  return filePath;
+}
+
+async function mkdirPath(path: string, options?: { readonly recursive?: boolean }) {
+  await mkdir(path, { recursive: options?.recursive });
+}
+
+async function removePath(path: string, options?: { readonly recursive?: boolean }) {
+  await rm(path, { force: true, recursive: options?.recursive ?? false });
+}
+
+async function statPath(path: string) {
+  return await stat(path);
+}
+
+async function writeBinaryFile(path: string, data: Uint8Array) {
+  await writeFile(path, data);
+}
+
+async function writeTextFile(path: string, data: string) {
+  await writeFile(path, data, "utf8");
 }
 
 function createClient(input: { readonly url: string }) {

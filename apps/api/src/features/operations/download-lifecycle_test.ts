@@ -10,11 +10,11 @@ import {
 import {
   inferCoveredEpisodeNumbers,
   inferCoveredEpisodesFromTorrentContents,
-  parseCoveredEpisodes,
+  parseCoveredEpisodesEffect,
   resolveReconciledBatchEpisodeNumbers,
   toCoveredEpisodesJson,
 } from "@/features/operations/download-coverage.ts";
-import { Effect, Option } from "effect";
+import { Cause, Effect, Exit, Option } from "effect";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
@@ -231,11 +231,19 @@ it.effect(
   () =>
     Effect.gen(function* () {
       assert.deepStrictEqual(toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
-      assert.deepStrictEqual(parseCoveredEpisodes("[1,2,3]"), [1, 2, 3]);
+      assert.deepStrictEqual(yield* parseCoveredEpisodesEffect("[1,2,3]"), [1, 2, 3]);
       assert.deepStrictEqual(toCoveredEpisodesJson([]), null);
-      assert.deepStrictEqual(parseCoveredEpisodes(null), []);
+      assert.deepStrictEqual(yield* parseCoveredEpisodesEffect(null), []);
 
-      assert.throws(() => parseCoveredEpisodes("not-json"), OperationsStoredDataError);
+      const exit = yield* Effect.exit(parseCoveredEpisodesEffect("not-json"));
+      assert.deepStrictEqual(Exit.isFailure(exit), true);
+      if (Exit.isFailure(exit)) {
+        const failure = Cause.failureOption(exit.cause);
+        assert.deepStrictEqual(failure._tag, "Some");
+        if (failure._tag === "Some") {
+          assert.deepStrictEqual(failure.value instanceof OperationsStoredDataError, true);
+        }
+      }
     }),
 );
 

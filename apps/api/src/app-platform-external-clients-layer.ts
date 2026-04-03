@@ -1,4 +1,3 @@
-import { FetchHttpClient } from "@effect/platform";
 import { Layer } from "effect";
 
 import { AniListClientLive, type AniListClient } from "@/features/anime/anilist.ts";
@@ -6,36 +5,25 @@ import {
   QBitTorrentClientLive,
   type QBitTorrentClient,
 } from "@/features/operations/qbittorrent.ts";
-import {
-  RssClientLive,
-  RssTransportLive,
-  type RssClient,
-} from "@/features/operations/rss-client.ts";
+import { RssClientLive, type RssClient } from "@/features/operations/rss-client.ts";
+import { RssTransportLive } from "@/features/operations/rss-transport.ts";
 import { SeaDexClientLive, type SeaDexClient } from "@/features/operations/seadex-client.ts";
 import { DnsResolverLive } from "@/lib/dns-resolver.ts";
 
 export interface AppExternalClientLayerOptions {
-  readonly aniListLayer?: Layer.Layer<AniListClient>;
-  readonly qbitLayer?: Layer.Layer<QBitTorrentClient>;
-  readonly rssLayer?: Layer.Layer<RssClient>;
-  readonly seadexLayer?: Layer.Layer<SeaDexClient>;
+  readonly aniListLayer?: Layer.Layer<AniListClient, never, never>;
+  readonly qbitLayer?: Layer.Layer<QBitTorrentClient, never, never>;
+  readonly rssLayer?: Layer.Layer<RssClient, never, never>;
+  readonly seadexLayer?: Layer.Layer<SeaDexClient, never, never>;
 }
 
 export function makeAppExternalClientLayer(options?: AppExternalClientLayerOptions) {
-  const externalClientSupportLayer = FetchHttpClient.layer;
-
-  const aniListLayer = options?.aniListLayer
-    ? options.aniListLayer
-    : AniListClientLive.pipe(Layer.provide(externalClientSupportLayer));
+  const aniListLayer = options?.aniListLayer ? options.aniListLayer : AniListClientLive;
   const rssLayer = options?.rssLayer
     ? options.rssLayer
     : RssClientLive.pipe(Layer.provide(Layer.mergeAll(DnsResolverLive, RssTransportLive)));
-  const qbitLayer = options?.qbitLayer
-    ? options.qbitLayer
-    : QBitTorrentClientLive.pipe(Layer.provide(externalClientSupportLayer));
-  const seadexLayer = options?.seadexLayer
-    ? options.seadexLayer
-    : SeaDexClientLive.pipe(Layer.provide(externalClientSupportLayer));
+  const qbitLayer = options?.qbitLayer ? options.qbitLayer : QBitTorrentClientLive;
+  const seadexLayer = options?.seadexLayer ? options.seadexLayer : SeaDexClientLive;
 
   return Layer.mergeAll(aniListLayer, rssLayer, qbitLayer, seadexLayer);
 }

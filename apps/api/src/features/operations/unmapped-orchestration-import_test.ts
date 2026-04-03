@@ -9,9 +9,8 @@ import { makeDefaultConfig } from "@/features/system/defaults.ts";
 import { makeUnmappedImportWorkflow } from "@/features/operations/unmapped-orchestration-import.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { assert, it } from "@effect/vitest";
-import { withSqliteTestClientEffect } from "@/test/sqlite-client.ts";
 import { makeTestFileSystemEffect, writeTextFile } from "@/test/filesystem-test.ts";
-import { withSqliteTestDbEffect } from "@/test/database-test.ts";
+import { withSqliteRawClientEffect, withSqliteTestDbEffect } from "@/test/database-test.ts";
 import * as schema from "@/db/schema.ts";
 
 it.scoped("unmapped import rolls back when a later insert fails", () =>
@@ -53,12 +52,12 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         yield* writeTextFile(fs, `${importRoot}/Show - 001.mkv`, "episode 1");
         yield* writeTextFile(fs, `${importRoot}/Show - 002.mkv`, "episode 2");
 
-        yield* withSqliteTestClientEffect({
-          url: `file:${databaseFile}`,
+        yield* withSqliteRawClientEffect({
+          databaseFile,
           run: (client) =>
-            client.execute(
+            client.unsafe(
               "create trigger episode_insert_abort before insert on episodes when (select count(*) from episodes where anime_id = new.anime_id) >= 1 begin select raise(fail, 'boom'); end;",
-            ),
+            ).withoutTransform,
         });
 
         const workflow = makeUnmappedImportWorkflow({

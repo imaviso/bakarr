@@ -7,7 +7,7 @@ import {
 } from "@packages/shared/index.ts";
 import { toSharedParsedEpisodeIdentity } from "@/lib/media-identity.ts";
 import type { downloads } from "@/db/schema.ts";
-import { decodeOptionalNumberList } from "@/features/system/config-codec.ts";
+import { effectDecodeOptionalNumberList } from "@/features/system/config-codec.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 
@@ -150,11 +150,12 @@ const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpiso
     return undefined;
   }
 
-  return yield* Effect.try({
-    try: () => decodeOptionalNumberList(value),
-    catch: () =>
-      new OperationsStoredDataError({
-        message: "Stored covered episode metadata is corrupt",
-      }),
-  });
+  return yield* effectDecodeOptionalNumberList(value).pipe(
+    Effect.mapError(
+      () =>
+        new OperationsStoredDataError({
+          message: "Stored covered episode metadata is corrupt",
+        }),
+    ),
+  );
 });

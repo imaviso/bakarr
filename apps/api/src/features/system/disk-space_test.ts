@@ -7,37 +7,45 @@ import { commandName, makeCommandExecutorStub } from "@/test/stubs.ts";
 import {
   DiskSpaceError,
   makeDiskSpaceInspector,
-  mapBlockStatsToDiskSpace,
+  mapBlockStatsToDiskSpaceEffect,
   selectStoragePath,
 } from "@/features/system/disk-space.ts";
 
 const baseConfig = makeTestConfig("./test.sqlite");
 
-it("mapBlockStatsToDiskSpace converts block stats to bytes", () => {
-  const result = mapBlockStatsToDiskSpace({
-    bavail: 25n,
-    blocks: 100n,
-    bsize: 4096n,
-  });
-
-  assert.deepStrictEqual(result, { free: 102400, total: 409600 });
-});
-
-it("mapBlockStatsToDiskSpace throws a typed error for invalid stats", () => {
-  try {
-    mapBlockStatsToDiskSpace({
-      bavail: -1n,
+it.effect("mapBlockStatsToDiskSpace converts block stats to bytes", () =>
+  Effect.gen(function* () {
+    const result = yield* mapBlockStatsToDiskSpaceEffect({
+      bavail: 25n,
       blocks: 100n,
       bsize: 4096n,
     });
-    assert.fail("Expected DiskSpaceError");
-  } catch (error) {
-    assert.deepStrictEqual(error instanceof DiskSpaceError, true);
-    if (error instanceof DiskSpaceError) {
-      assert.deepStrictEqual(error.message, "Invalid available block count");
+
+    assert.deepStrictEqual(result, { free: 102400, total: 409600 });
+  }),
+);
+
+it.effect("mapBlockStatsToDiskSpace fails with a typed error for invalid stats", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(
+      mapBlockStatsToDiskSpaceEffect({
+        bavail: -1n,
+        blocks: 100n,
+        bsize: 4096n,
+      }),
+    );
+
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
+    if (Exit.isFailure(exit)) {
+      const failure = Cause.failureOption(exit.cause);
+      assert.deepStrictEqual(failure._tag, "Some");
+      if (failure._tag === "Some") {
+        assert.deepStrictEqual(failure.value instanceof DiskSpaceError, true);
+        assert.deepStrictEqual(failure.value.message, "Invalid available block count");
+      }
     }
-  }
-});
+  }),
+);
 
 it("selectStoragePath prefers library_path", () => {
   const config = {

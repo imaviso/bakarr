@@ -3,6 +3,7 @@ import { Cause, Effect, Exit, Layer } from "effect";
 import { assert, describe, it } from "@effect/vitest";
 import { makeTestConfig } from "@/test/config-fixture.ts";
 import { FileSystem, FileSystemError, type FileSystemShape } from "@/lib/filesystem.ts";
+import { makeRuntimeConfigSnapshotStub } from "@/test/stubs.ts";
 import {
   LibraryBrowseService,
   LibraryBrowseServiceLive,
@@ -11,10 +12,7 @@ import {
   LibraryRootsQueryService,
   type LibraryRootsQueryServiceShape,
 } from "@/features/operations/library-roots-query-service.ts";
-import {
-  SystemConfigService,
-  type SystemConfigServiceShape,
-} from "@/features/system/system-config-service.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 
 describe("LibraryBrowseService", () => {
   it.effect("applies a default bounded limit when omitted", () =>
@@ -125,9 +123,10 @@ function browseEffect(fs: FileSystemShape, input: { readonly path?: string }) {
               listRoots: () =>
                 Effect.succeed([{ id: 1, label: "default", path: "/allowed/library" }]),
             } satisfies LibraryRootsQueryServiceShape),
-            Layer.succeed(SystemConfigService, {
-              getConfig: () => Effect.succeed(makeTestConfig("./test.sqlite")),
-            } satisfies SystemConfigServiceShape),
+            Layer.succeed(
+              RuntimeConfigSnapshotService,
+              makeRuntimeConfigSnapshotStub(makeTestConfig("./test.sqlite")),
+            ),
           ),
         ),
       ),

@@ -24,6 +24,7 @@ export const RuntimeConfigSnapshotServiceLive = Layer.effect(
   Effect.gen(function* () {
     const systemConfigService = yield* SystemConfigService;
     const configRef = yield* Ref.make(Option.none<Config>());
+    const loadSemaphore = yield* Effect.makeSemaphore(1);
 
     const getRuntimeConfig = Effect.fn("RuntimeConfigSnapshotService.getRuntimeConfig")(
       function* () {
@@ -33,9 +34,19 @@ export const RuntimeConfigSnapshotServiceLive = Layer.effect(
           return current.value;
         }
 
-        const loaded = yield* systemConfigService.getConfig();
-        yield* Ref.set(configRef, Option.some(loaded));
-        return loaded;
+        return yield* loadSemaphore.withPermits(1)(
+          Effect.gen(function* () {
+            const reloaded = yield* Ref.get(configRef);
+
+            if (Option.isSome(reloaded)) {
+              return reloaded.value;
+            }
+
+            const loaded = yield* systemConfigService.getConfig();
+            yield* Ref.set(configRef, Option.some(loaded));
+            return loaded;
+          }),
+        );
       },
     );
 

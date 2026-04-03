@@ -3,8 +3,10 @@ import { Context, Effect, Layer } from "effect";
 import { DatabaseError } from "@/db/database.ts";
 import { FileSystem, isWithinPathRoot, type FileSystemShape } from "@/lib/filesystem.ts";
 import { LibraryRootsQueryService } from "@/features/operations/library-roots-query-service.ts";
-import { StoredConfigCorruptError, StoredConfigMissingError } from "@/features/system/errors.ts";
-import { SystemConfigService } from "@/features/system/system-config-service.ts";
+import {
+  RuntimeConfigSnapshotService,
+  type RuntimeConfigSnapshotError,
+} from "@/features/system/runtime-config-snapshot-service.ts";
 import { OperationsInputError, OperationsPathError } from "@/features/operations/errors.ts";
 
 const MAX_BROWSE_LIMIT = 500;
@@ -32,8 +34,7 @@ export type LibraryBrowseError =
   | DatabaseError
   | OperationsInputError
   | OperationsPathError
-  | StoredConfigCorruptError
-  | StoredConfigMissingError;
+  | RuntimeConfigSnapshotError;
 
 export interface LibraryBrowseServiceShape {
   readonly browse: (input: {
@@ -49,7 +50,7 @@ export class LibraryBrowseService extends Context.Tag("@bakarr/api/LibraryBrowse
 >() {}
 
 const makeLibraryBrowseService = Effect.gen(function* () {
-  const systemService = yield* SystemConfigService;
+  const runtimeConfigSnapshot = yield* RuntimeConfigSnapshotService;
   const libraryRootsService = yield* LibraryRootsQueryService;
   const fs = yield* FileSystem;
 
@@ -58,7 +59,7 @@ const makeLibraryBrowseService = Effect.gen(function* () {
     readonly limit?: number;
     readonly offset?: number;
   }) {
-    const config = yield* systemService.getConfig();
+    const config = yield* runtimeConfigSnapshot.getRuntimeConfig();
     const roots = yield* libraryRootsService.listRoots();
 
     const allowedPrefixes = [

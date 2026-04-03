@@ -44,32 +44,6 @@ export const withFileSystemSandboxEffect = Effect.fn("Test.withFileSystemSandbox
   return yield* run({ fs, root });
 });
 
-export async function makeTestFileSystem(): Promise<FileSystemShape> {
-  return await Effect.runPromise(makeTestFileSystemEffect());
-}
-
-export async function makeNoopTestFileSystem(
-  overrides: Partial<PlatformFileSystem.FileSystem>,
-): Promise<FileSystemShape> {
-  return await Effect.runPromise(makeNoopTestFileSystemEffect(overrides));
-}
-
-export async function makeNoopTestFileSystemWithOverrides(
-  overrides: Partial<FileSystemShape>,
-): Promise<FileSystemShape> {
-  return await Effect.runPromise(makeNoopTestFileSystemWithOverridesEffect(overrides));
-}
-
-export async function withFileSystemSandbox<A>(
-  run: (input: { fs: FileSystemShape; root: string }) => Promise<A>,
-): Promise<A> {
-  return await Effect.runPromise(
-    Effect.scoped(
-      withFileSystemSandboxEffect(({ fs, root }) => Effect.promise(() => run({ fs, root }))),
-    ),
-  );
-}
-
 export function writeTextFile(fs: FileSystemShape, path: string, contents: string) {
   return fs.writeFile(path, textEncoder.encode(contents));
 }

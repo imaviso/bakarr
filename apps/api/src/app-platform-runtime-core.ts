@@ -4,7 +4,7 @@ import { ConfigProvider, Layer } from "effect";
 
 import { AppRuntime } from "@/app-runtime.ts";
 import { AppConfig, type AppConfigShape } from "@/config.ts";
-import { DatabaseLayerLive, DatabaseSqlClientLive } from "@/db/database.ts";
+import { DatabaseLayerLive } from "@/db/database.ts";
 import { BackgroundWorkerMonitorLive } from "@/background-monitor.ts";
 import { EventBusLive } from "@/features/events/event-bus.ts";
 import { EventPublisherLive } from "@/features/events/publisher.ts";
@@ -15,7 +15,7 @@ import { RuntimeLoggerLayer } from "@/lib/logging.ts";
 import { TokenHasherLive } from "@/security/token-hasher.ts";
 
 export interface AppPlatformRuntimeOptions {
-  readonly commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor>;
+  readonly commandExecutorLayer?: Layer.Layer<CommandExecutor.CommandExecutor, never, never>;
   readonly configProvider?: ConfigProvider.ConfigProvider;
 }
 
@@ -35,10 +35,7 @@ export function makeAppPlatformCoreRuntimeLayer(
     : AppConfig.layer(overrides);
   const configLayer = configBaseLayer.pipe(Layer.provide(coreSupportLayer));
   const runtimeLayer = AppRuntime.layer().pipe(Layer.provide(coreSupportLayer));
-  const databaseSqlLayer = DatabaseSqlClientLive.pipe(Layer.provide(configLayer));
-  const databaseLayer = DatabaseLayerLive.pipe(
-    Layer.provide(Layer.mergeAll(configLayer, databaseSqlLayer)),
-  );
+  const databaseLayer = DatabaseLayerLive.pipe(Layer.provide(configLayer));
   const eventBusLayer = EventBusLive;
   const eventSupportLayer = Layer.mergeAll(eventBusLayer, coreSupportLayer);
   const eventPublisherLayer = EventPublisherLive.pipe(Layer.provide(eventSupportLayer));

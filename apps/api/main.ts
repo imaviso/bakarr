@@ -53,6 +53,6 @@ if (import.meta.main) {
   BunRuntime.runMain(
     Effect.scoped(mainProgram()).pipe(
       Effect.provide(makeApiLifecycleLayers({}, { configProvider: dotenvProvider }).appLayer),
-    ) as Effect.Effect<never, unknown, never>,
+    ),
   );
 }

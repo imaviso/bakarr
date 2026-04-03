@@ -17,6 +17,7 @@ class DotenvParseError extends Schema.TaggedError<DotenvParseError>()("DotenvPar
 }) {}
 
 export interface DotenvConfigProviderOptions {
+  readonly envProvider?: ConfigProvider.ConfigProvider;
   readonly path?: string;
 }
 
@@ -30,7 +31,7 @@ export const makeDotenvConfigProvider = Effect.fn("Config.makeDotenvConfigProvid
   > =>
     Effect.gen(function* () {
       const dotenvPath = options.path ?? DEFAULT_DOTENV_PATH;
-      const envProvider = ConfigProvider.fromEnv();
+      const envProvider = options.envProvider ?? ConfigProvider.fromEnv();
       const fileContent = yield* readDotenvFile(dotenvPath);
 
       if (Option.isNone(fileContent)) {

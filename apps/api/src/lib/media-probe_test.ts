@@ -5,16 +5,12 @@ import { Effect, Layer, Logger } from "effect";
 import {
   FFPROBE_CONCURRENCY_LIMIT,
   MediaProbe,
-  type MediaProbeCommandOutput,
   MediaProbeLive,
   mergeProbedMediaMetadata,
   parseFfprobeJson,
   shouldProbeMediaMetadata,
 } from "@/lib/media-probe.ts";
-import {
-  commandArgs,
-  makeCommandExecutorStub as makeSharedCommandExecutorStub,
-} from "@/test/stubs.ts";
+import { commandArgs, makeCommandExecutorStub } from "@/test/stubs.ts";
 
 it("parseFfprobeJson extracts canonical media metadata", () => {
   const result = parseFfprobeJson(
@@ -207,17 +203,3 @@ it.effect("MediaProbe returns a typed failure when ffprobe output is invalid", (
     );
   }),
 );
-
-function makeCommandExecutorStub(
-  runAsString: (
-    command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
-  ) => Effect.Effect<string, never>,
-): CommandExecutor.CommandExecutor {
-  const parseOutput = (output: string): MediaProbeCommandOutput => ({
-    stdout: output,
-  });
-
-  return makeSharedCommandExecutorStub((command) =>
-    runAsString(command).pipe(Effect.map((value) => parseOutput(value).stdout)),
-  );
-}

@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Ref } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import { AppConfig } from "@/config.ts";
@@ -6,7 +6,7 @@ import {
   BackgroundWorkerController,
   type BackgroundWorkerControllerShape,
 } from "@/background-controller-core.ts";
-import { Database } from "@/db/database.ts";
+import { Database, type AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
 import { ClockServiceLive } from "@/lib/clock.ts";
 import { RuntimeLogLevelStateLive } from "@/lib/logging.ts";
@@ -15,15 +15,13 @@ import { makeTestConfig } from "@/test/config-fixture.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
 import { makeDatabaseServiceStub } from "@/test/stubs.ts";
 import { assert, describe, it } from "@effect/vitest";
-import {
-  SystemConfigService,
-  SystemConfigServiceLive,
-} from "@/features/system/system-config-service.ts";
+import { effectDecodeStoredConfigRow } from "@/features/system/config-codec.ts";
 import {
   SystemConfigUpdateService,
   SystemConfigUpdateServiceLive,
 } from "@/features/system/system-config-update-service.ts";
-import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
+import { loadSystemConfigRow } from "@/features/system/repository/system-config-repository.ts";
 
 describe("SystemConfigUpdateService", () => {
   it.scoped("persists updated config and reloads background workers", () =>
@@ -31,25 +29,13 @@ describe("SystemConfigUpdateService", () => {
       run: (db, databaseFile) =>
         Effect.gen(function* () {
           const reloads: Config[] = [];
-          const baseLayer = Layer.mergeAll(
-            AppConfig.layer({ databaseFile }).pipe(Layer.provide(RandomServiceLive)),
-            ClockServiceLive,
-            RuntimeLogLevelStateLive,
-            Layer.succeed(Database, makeDatabaseServiceStub(db)),
-            Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(reloads)),
-          );
-          const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(baseLayer));
-          const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
-            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer)),
-          );
-          const updateServiceLayer = SystemConfigUpdateServiceLive.pipe(
-            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer, runtimeConfigSnapshotLayer)),
-          );
-          const fullLayer = Layer.mergeAll(
-            systemConfigLayer,
-            runtimeConfigSnapshotLayer,
-            updateServiceLayer,
-          );
+          const runtimeConfigRef = yield* Ref.make(makeTestConfig(databaseFile));
+          const fullLayer = makeSystemConfigUpdateTestLayer({
+            db,
+            databaseFile,
+            reloads,
+            runtimeConfigRef,
+          });
 
           const nextConfig = makeTestConfig(databaseFile, (config) => ({
             ...config,
@@ -61,13 +47,15 @@ describe("SystemConfigUpdateService", () => {
 
           yield* Effect.gen(function* () {
             const updateService = yield* SystemConfigUpdateService;
-            const configService = yield* SystemConfigService;
 
             const updated = yield* updateService.updateConfig(nextConfig);
-            const current = yield* configService.getConfig();
+            const currentConfig = yield* Ref.get(runtimeConfigRef);
+            const storedRow = yield* loadSystemConfigRow(db);
+            const storedCore = yield* effectDecodeStoredConfigRow(storedRow);
 
             assert.deepStrictEqual(updated.general.images_path, "/images/custom");
-            assert.deepStrictEqual(current.general.images_path, "/images/custom");
+            assert.deepStrictEqual(currentConfig.general.images_path, "/images/custom");
+            assert.deepStrictEqual(storedCore.general.images_path, "/images/custom");
             assert.deepStrictEqual(updated.qbittorrent.password, nextConfig.qbittorrent.password);
             assert.deepStrictEqual(reloads.length, 1);
             assert.deepStrictEqual(reloads[0]?.general.images_path, "/images/custom");
@@ -81,25 +69,13 @@ describe("SystemConfigUpdateService", () => {
     withSqliteTestDbEffect({
       run: (db, databaseFile) =>
         Effect.gen(function* () {
-          const baseLayer = Layer.mergeAll(
-            AppConfig.layer({ databaseFile }).pipe(Layer.provide(RandomServiceLive)),
-            ClockServiceLive,
-            RuntimeLogLevelStateLive,
-            Layer.succeed(Database, makeDatabaseServiceStub(db)),
-            Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub([])),
-          );
-          const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provide(baseLayer));
-          const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
-            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer)),
-          );
-          const updateServiceLayer = SystemConfigUpdateServiceLive.pipe(
-            Layer.provide(Layer.mergeAll(baseLayer, systemConfigLayer, runtimeConfigSnapshotLayer)),
-          );
-          const fullLayer = Layer.mergeAll(
-            systemConfigLayer,
-            runtimeConfigSnapshotLayer,
-            updateServiceLayer,
-          );
+          const runtimeConfigRef = yield* Ref.make(makeTestConfig(databaseFile));
+          const fullLayer = makeSystemConfigUpdateTestLayer({
+            db,
+            databaseFile,
+            reloads: [],
+            runtimeConfigRef,
+          });
 
           const nextConfig = makeTestConfig(databaseFile, (config) => ({
             ...config,
@@ -112,7 +88,6 @@ describe("SystemConfigUpdateService", () => {
 
           yield* Effect.gen(function* () {
             const updateService = yield* SystemConfigUpdateService;
-            const configService = yield* SystemConfigService;
 
             yield* updateService.updateConfig(nextConfig);
             const updated = yield* updateService.updateConfig({
@@ -122,10 +97,13 @@ describe("SystemConfigUpdateService", () => {
                 password: null,
               },
             });
-            const current = yield* configService.getConfig();
+            const currentConfig = yield* Ref.get(runtimeConfigRef);
+            const storedRow = yield* loadSystemConfigRow(db);
+            const storedCore = yield* effectDecodeStoredConfigRow(storedRow);
 
             assert.deepStrictEqual(updated.qbittorrent.password, "secret-pass");
-            assert.deepStrictEqual(current.qbittorrent.password, "secret-pass");
+            assert.deepStrictEqual(currentConfig.qbittorrent.password, "secret-pass");
+            assert.deepStrictEqual(storedCore.qbittorrent.password, "secret-pass");
           }).pipe(Effect.provide(fullLayer));
         }),
       schema,
@@ -143,4 +121,25 @@ function makeBackgroundWorkerControllerStub(reloads: Config[]): BackgroundWorker
     start: () => Effect.void,
     stop: () => Effect.void,
   };
+}
+
+function makeSystemConfigUpdateTestLayer(input: {
+  readonly db: AppDatabase;
+  readonly databaseFile: string;
+  readonly reloads: Config[];
+  readonly runtimeConfigRef: Ref.Ref<Config>;
+}) {
+  const baseLayer = Layer.mergeAll(
+    AppConfig.layer({ databaseFile: input.databaseFile }).pipe(Layer.provide(RandomServiceLive)),
+    ClockServiceLive,
+    RuntimeLogLevelStateLive,
+    Layer.succeed(Database, makeDatabaseServiceStub(input.db)),
+    Layer.succeed(BackgroundWorkerController, makeBackgroundWorkerControllerStub(input.reloads)),
+    Layer.succeed(RuntimeConfigSnapshotService, {
+      getRuntimeConfig: () => Ref.get(input.runtimeConfigRef),
+      replaceRuntimeConfig: (config) => Ref.set(input.runtimeConfigRef, config),
+    }),
+  );
+
+  return SystemConfigUpdateServiceLive.pipe(Layer.provide(baseLayer));
 }

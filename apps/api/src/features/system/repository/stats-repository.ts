@@ -12,7 +12,7 @@ import {
   systemLogs,
 } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
-import { eventTypeCondition } from "@/features/system/support.ts";
+import { buildSystemLogConditions } from "@/features/system/system-log-export.ts";
 
 const countDownloadsWhere = Effect.fn("SystemStatsRepository.countDownloadsWhere")(function* (
   db: AppDatabase,
@@ -242,12 +242,7 @@ export const loadSystemLogPage = Effect.fn("SystemStatsRepository.loadSystemLogP
     startDate?: string;
   },
 ) {
-  const conditions = [
-    input.level ? eq(systemLogs.level, input.level) : undefined,
-    input.eventType ? eventTypeCondition(input.eventType) : undefined,
-    input.startDate ? sql`${systemLogs.createdAt} >= ${input.startDate}` : undefined,
-    input.endDate ? sql`${systemLogs.createdAt} <= ${input.endDate}` : undefined,
-  ].filter((value): value is Exclude<typeof value, undefined> => value !== undefined);
+  const conditions = buildSystemLogConditions(input);
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
   const countQuery = db.select({ value: count() }).from(systemLogs);
   const rowsQuery = db

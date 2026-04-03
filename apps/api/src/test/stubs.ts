@@ -2,7 +2,12 @@ import { CommandExecutor } from "@effect/platform";
 import type { PlatformError } from "@effect/platform/Error";
 import { Effect } from "effect";
 
+import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseService } from "@/db/database.ts";
+import type {
+  RuntimeConfigSnapshotError,
+  RuntimeConfigSnapshotServiceShape,
+} from "@/features/system/runtime-config-snapshot-service.ts";
 
 export function makeDatabaseServiceStub(db: AppDatabase): DatabaseService {
   return {
@@ -57,4 +62,20 @@ export function commandName(command: Parameters<CommandExecutor.CommandExecutor[
   }
 
   return undefined;
+}
+
+export function makeRuntimeConfigSnapshotStub(config: Config): RuntimeConfigSnapshotServiceShape {
+  return {
+    getRuntimeConfig: () => Effect.succeed(config),
+    replaceRuntimeConfig: () => Effect.void,
+  };
+}
+
+export function makeFailingRuntimeConfigSnapshotStub(
+  error: RuntimeConfigSnapshotError,
+): RuntimeConfigSnapshotServiceShape {
+  return {
+    getRuntimeConfig: () => Effect.fail(error),
+    replaceRuntimeConfig: () => Effect.void,
+  };
 }

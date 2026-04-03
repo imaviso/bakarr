@@ -22,7 +22,6 @@ import {
 
 export type ConfigCore = Schema.Schema.Type<typeof ConfigCoreSchema>;
 export type ConfigCoreEncoded = Schema.Schema.Encoded<typeof ConfigCoreSchema>;
-
 const StringListJsonSchema = Schema.parseJson(StringListSchema);
 const NumberListJsonSchema = Schema.parseJson(NumberListSchema);
 const ReleaseProfileRulesJsonSchema = Schema.parseJson(ReleaseProfileRulesSchema);
@@ -140,14 +139,6 @@ export function encodeQualityProfileRow(profile: QualityProfile) {
   return Schema.encodeSync(QualityProfileRowToProfileSchema)(profile);
 }
 
-export function decodeQualityProfileRow(row: typeof qualityProfiles.$inferSelect): QualityProfile {
-  return Schema.decodeUnknownSync(QualityProfileRowToProfileSchema)(row);
-}
-
-export function decodeReleaseProfileRow(row: typeof releaseProfiles.$inferSelect): ReleaseProfile {
-  return Schema.decodeUnknownSync(ReleaseProfileRowToProfileSchema)(row);
-}
-
 export function encodeReleaseProfileRow(
   profile: CreateReleaseProfileInput | UpdateReleaseProfileInput,
 ) {
@@ -163,24 +154,12 @@ export function encodeReleaseProfileRules(rules: readonly ReleaseProfileRule[]) 
   return Schema.encodeSync(ReleaseProfileRulesJsonSchema)([...rules]);
 }
 
-export function decodeReleaseProfileRules(value: string): ReleaseProfileRule[] {
-  return [...Schema.decodeUnknownSync(ReleaseProfileRulesJsonSchema)(value)];
-}
-
-export function encodeConfigCore(core: ConfigCore | ConfigCoreEncoded): string {
-  return Schema.encodeSync(ConfigCoreJsonSchema)(core as ConfigCore);
-}
-
-export function decodeConfigCore(value: string): ConfigCore {
-  return Schema.decodeUnknownSync(ConfigCoreJsonSchema)(value);
+export function encodeConfigCore(core: ConfigCore): string {
+  return Schema.encodeSync(ConfigCoreJsonSchema)(core);
 }
 
 export function encodeStringList(values: readonly string[]) {
   return Schema.encodeSync(StringListJsonSchema)([...values]);
-}
-
-export function decodeStringList(value: string): string[] {
-  return [...Schema.decodeUnknownSync(StringListJsonSchema)(value)];
 }
 
 export function encodeNumberList(values: readonly number[]) {
@@ -206,12 +185,19 @@ export function encodeOptionalNumberList(values: readonly number[]): string | nu
   return Schema.encodeSync(NumberListJsonSchema)([...values]);
 }
 
-export function decodeOptionalNumberList(value: string | null | undefined): number[] {
+export function effectDecodeOptionalNumberList(
+  value: string | null | undefined,
+): Effect.Effect<number[], StoredConfigCorruptError> {
   if (value == null) {
-    return [];
+    return Effect.succeed([]);
   }
 
-  return [...Schema.decodeUnknownSync(NumberListJsonSchema)(value)];
+  return Schema.decodeUnknown(NumberListJsonSchema)(value).pipe(
+    Effect.map((arr) => [...arr]),
+    Effect.mapError((cause) =>
+      storedConfigCorrupt("Stored optional number list is corrupt and could not be decoded", cause),
+    ),
+  );
 }
 
 export function effectDecodeStringList(

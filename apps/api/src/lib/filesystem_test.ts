@@ -8,7 +8,6 @@ import {
   FileSystemError,
   PathSegmentError,
   isWithinPathRoot,
-  sanitizePathSegment,
   sanitizePathSegmentEffect,
 } from "@/lib/filesystem.ts";
 
@@ -41,20 +40,32 @@ it("isWithinPathRoot handles relative paths", () => {
   assert.deepStrictEqual(isWithinPathRoot("./library-evil/show/episode.mkv", "./library"), false);
 });
 
-it("sanitizePathSegment rejects traversal and nested path inputs", () => {
-  for (const value of ["../etc", "..", "nested/show", "nested\\show", ""]) {
-    assert.throws(() => sanitizePathSegment(value), PathSegmentError);
-  }
-});
+it.effect("sanitizePathSegment rejects traversal and nested path inputs", () =>
+  Effect.gen(function* () {
+    for (const value of ["../etc", "..", "nested/show", "nested\\show", ""]) {
+      const exit = yield* Effect.exit(sanitizePathSegmentEffect(value));
+      assert.deepStrictEqual(exit._tag, "Failure");
+      if (exit._tag === "Failure") {
+        const failure = Cause.failureOption(exit.cause);
+        assert.deepStrictEqual(failure._tag, "Some");
+        if (failure._tag === "Some") {
+          assert.ok(failure.value instanceof PathSegmentError);
+        }
+      }
+    }
+  }),
+);
 
-it("sanitizePathSegment allows plain folder names within root", () => {
-  const segment = sanitizePathSegment("My Show Season 2");
-  const libraryRoot = "/library";
-  const folderPath = `${libraryRoot}/${segment}`;
+it.effect("sanitizePathSegment allows plain folder names within root", () =>
+  Effect.gen(function* () {
+    const segment = yield* sanitizePathSegmentEffect("My Show Season 2");
+    const libraryRoot = "/library";
+    const folderPath = `${libraryRoot}/${segment}`;
 
-  assert.deepStrictEqual(segment, "My Show Season 2");
-  assert.deepStrictEqual(isWithinPathRoot(folderPath, libraryRoot), true);
-});
+    assert.deepStrictEqual(segment, "My Show Season 2");
+    assert.deepStrictEqual(isWithinPathRoot(folderPath, libraryRoot), true);
+  }),
+);
 
 it.effect("sanitizePathSegmentEffect rejects traversal inputs with typed errors", () =>
   Effect.gen(function* () {

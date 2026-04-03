@@ -3,7 +3,7 @@ import { Effect } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { anime, downloads, episodes } from "@/db/schema.ts";
-import { decodeOptionalNumberList } from "@/features/system/config-codec.ts";
+import { effectDecodeOptionalNumberList } from "@/features/system/config-codec.ts";
 import { OperationsStoredDataError } from "@/features/operations/errors.ts";
 import type { DownloadPresentationContext } from "@/features/operations/repository/types.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
@@ -115,13 +115,14 @@ const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpiso
     return undefined;
   }
 
-  return yield* Effect.try({
-    try: () => decodeOptionalNumberList(value),
-    catch: () =>
-      new OperationsStoredDataError({
-        message: "Stored covered episode metadata is corrupt",
-      }),
-  });
+  return yield* effectDecodeOptionalNumberList(value).pipe(
+    Effect.mapError(
+      () =>
+        new OperationsStoredDataError({
+          message: "Stored covered episode metadata is corrupt",
+        }),
+    ),
+  );
 });
 
 function chunkValues<T>(values: readonly T[], size: number) {

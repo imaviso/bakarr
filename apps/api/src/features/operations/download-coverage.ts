@@ -3,8 +3,8 @@ import { Effect } from "effect";
 import type { AppDatabase } from "@/db/database.ts";
 import { downloads } from "@/db/schema.ts";
 import {
-  decodeOptionalNumberList,
   encodeOptionalNumberList,
+  effectDecodeOptionalNumberList,
 } from "@/features/system/config-codec.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
@@ -22,43 +22,18 @@ export function toCoveredEpisodesJson(episodes: readonly number[]): string | nul
   return encodeOptionalNumberList(episodes);
 }
 
-export function parseCoveredEpisodes(value: string | null | undefined): number[] {
-  const result = parseCoveredEpisodesEither(value);
-
-  if (result._tag === "Left") {
-    throw result.left;
-  }
-
-  return result.right;
-}
-
 export const parseCoveredEpisodesEffect = Effect.fn("Operations.parseCoveredEpisodesEffect")(
   function* (value: string | null | undefined) {
-    const result = parseCoveredEpisodesEither(value);
-
-    if (result._tag === "Left") {
-      return yield* result.left;
-    }
-
-    return result.right;
+    return yield* effectDecodeOptionalNumberList(value).pipe(
+      Effect.mapError(
+        () =>
+          new OperationsStoredDataError({
+            message: "Stored covered episode metadata is corrupt",
+          }),
+      ),
+    );
   },
 );
-
-function parseCoveredEpisodesEither(value: string | null | undefined) {
-  try {
-    return {
-      _tag: "Right" as const,
-      right: decodeOptionalNumberList(value),
-    };
-  } catch {
-    return {
-      _tag: "Left" as const,
-      left: new OperationsStoredDataError({
-        message: "Stored covered episode metadata is corrupt",
-      }),
-    };
-  }
-}
 
 export const hasOverlappingDownload = Effect.fn("Operations.hasOverlappingDownload")(function* (
   db: AppDatabase,

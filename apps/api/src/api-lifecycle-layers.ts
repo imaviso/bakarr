@@ -1,5 +1,8 @@
 import { Layer } from "effect";
 
+import { makeAnimeAppLayer } from "@/app-compose-anime.ts";
+import { makeOperationsAppLayers } from "@/app-compose-operations.ts";
+import { makeSystemAppLayer } from "@/app-compose-system.ts";
 import { BackgroundWorkerControllerLive } from "@/background-controller-core.ts";
 import { BackgroundTaskRunnerLive } from "@/background-task-runner.ts";
 import {
@@ -10,20 +13,17 @@ import {
   makeAppPlatformCoreRuntimeLayer,
   type AppPlatformRuntimeOptions,
 } from "@/app-platform-runtime-core.ts";
-import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
-import { MediaProbeLive } from "@/lib/media-probe.ts";
-import { AnimeFeatureLive } from "@/features/anime/anime-feature-layer.ts";
+import type { AppConfigShape } from "@/config.ts";
 import { AnimeEnrollmentServiceLive } from "@/features/anime/anime-enrollment-service.ts";
 import { AuthBootstrapServiceLive } from "@/features/auth/bootstrap-service.ts";
 import { AuthCredentialServiceLive } from "@/features/auth/credential-service.ts";
 import { AuthSessionServiceLive } from "@/features/auth/session-service.ts";
 import { LibraryBrowseServiceLive } from "@/features/operations/library-browse-service.ts";
-import { OperationsFeatureLive } from "@/features/operations/operations-feature-layer.ts";
-import {
-  SystemFeatureLive,
-  SystemRuntimeCoreLive,
-} from "@/features/system/system-feature-layer.ts";
-import type { AppConfigShape } from "@/config.ts";
+import { RuntimeConfigSnapshotServiceLive } from "@/features/system/runtime-config-snapshot-service.ts";
+import { SystemConfigServiceLive } from "@/features/system/system-config-service.ts";
+import { DiskSpaceInspectorLive } from "@/features/system/disk-space.ts";
+import { MediaProbeLive } from "@/lib/media-probe.ts";
+
 export type ApiLifecycleOptions = AppPlatformRuntimeOptions & AppExternalClientLayerOptions;
 
 export function makeApiLifecycleLayers(
@@ -45,35 +45,40 @@ export function makeApiLifecycleLayers(
     Layer.provideMerge(platformWithCommandLayer),
   );
   const platformLayer = Layer.mergeAll(platformWithCommandLayer, infrastructureLayer);
-
-  const systemRuntimeLayer = SystemRuntimeCoreLive.pipe(Layer.provideMerge(platformLayer));
-
-  const animeLayer = AnimeFeatureLive.pipe(Layer.provideMerge(platformLayer));
-  const operationsLayer = OperationsFeatureLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(platformLayer, systemRuntimeLayer)),
+  const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provideMerge(platformLayer));
+  const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
+    Layer.provideMerge(systemConfigLayer),
+  );
+  const runtimeSupportLayer = Layer.mergeAll(
+    platformLayer,
+    systemConfigLayer,
+    runtimeConfigSnapshotLayer,
   );
 
+  const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
+  const { catalogDownloadReadLayer, operationsLayer } =
+    makeOperationsAppLayers(runtimeSupportLayer);
   const backgroundTaskRunnerLayer = BackgroundTaskRunnerLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, animeLayer)),
+    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, operationsLayer, animeLayer)),
   );
   const backgroundControllerLayer = BackgroundWorkerControllerLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(platformLayer, backgroundTaskRunnerLayer)),
+    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, backgroundTaskRunnerLayer)),
   );
-  const systemLayer = SystemFeatureLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(platformLayer, backgroundControllerLayer, systemRuntimeLayer),
-    ),
-  );
+  const systemLayer = makeSystemAppLayer({
+    backgroundControllerLayer,
+    catalogDownloadReadLayer,
+    runtimeSupportLayer,
+  });
   const authLayer = Layer.mergeAll(
     AuthBootstrapServiceLive,
     AuthCredentialServiceLive,
     AuthSessionServiceLive,
-  ).pipe(Layer.provideMerge(platformLayer));
+  ).pipe(Layer.provideMerge(runtimeSupportLayer));
   const libraryLayer = LibraryBrowseServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, systemLayer)),
+    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, operationsLayer, systemLayer)),
   );
   const animeEnrollmentLayer = AnimeEnrollmentServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(platformLayer, operationsLayer, animeLayer)),
+    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, operationsLayer, animeLayer)),
   );
 
   const appLayer = Layer.mergeAll(
@@ -85,7 +90,7 @@ export function makeApiLifecycleLayers(
     systemLayer,
     libraryLayer,
     animeEnrollmentLayer,
-  );
+  ).pipe(Layer.provideMerge(runtimeSupportLayer));
 
   return {
     appLayer,

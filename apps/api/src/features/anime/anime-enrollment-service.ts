@@ -1,8 +1,8 @@
 import { Context, Effect, Layer } from "effect";
-import { HttpClient } from "@effect/platform";
 
 import type { Anime } from "@packages/shared/index.ts";
 import { Database, type DatabaseError } from "@/db/database.ts";
+import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
 import { EventPublisher } from "@/features/events/publisher.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
@@ -54,8 +54,8 @@ const makeAnimeEnrollmentService = Effect.gen(function* () {
   const { db } = yield* Database;
   const eventPublisher = yield* EventPublisher;
   const aniList = yield* AniListClient;
+  const imageCacheService = yield* AnimeImageCacheService;
   const fs = yield* FileSystem;
-  const httpClient = yield* HttpClient.HttpClient;
   const clock = yield* ClockService;
   const searchBackgroundService = yield* SearchBackgroundMissingService;
 
@@ -66,7 +66,7 @@ const makeAnimeEnrollmentService = Effect.gen(function* () {
       db,
       eventPublisher,
       fs,
-      httpClient,
+      imageCacheService,
       nowIso: () => nowIsoFromClock(clock),
     });
 

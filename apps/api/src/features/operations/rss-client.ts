@@ -1,5 +1,3 @@
-import { request as httpRequest } from "node:http";
-import { request as httpsRequest } from "node:https";
 import { Context, Effect, Either, Layer, Stream } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
@@ -15,6 +13,7 @@ import {
   resolvePinnedRequestTarget,
   type PinnedRequestTarget,
 } from "@/features/operations/rss-client-ssrf.ts";
+import { RssTransport, type RssTransportResponse } from "@/features/operations/rss-transport.ts";
 
 interface RssClientShape {
   readonly fetchItems: (
@@ -26,21 +25,6 @@ interface RssClientShape {
 }
 
 export class RssClient extends Context.Tag("@bakarr/api/RssClient")<RssClient, RssClientShape>() {}
-
-interface RssTransportResponse {
-  readonly headers: Headers;
-  readonly status: number;
-  readonly stream: Stream.Stream<Uint8Array>;
-}
-
-export interface RssTransportShape {
-  readonly execute: (target: PinnedRequestTarget) => Effect.Effect<RssTransportResponse, unknown>;
-}
-
-export class RssTransport extends Context.Tag("@bakarr/api/RssTransport")<
-  RssTransport,
-  RssTransportShape
->() {}
 
 const MAX_REDIRECT_HOPS = 5;
 
@@ -92,7 +76,9 @@ const makeFetchItems = (
       const response = yield* tryExternalEffect("rss.fetch", executeRequest(target))();
 
       if (response.status >= 200 && response.status < 300) {
-        const itemsResult = yield* Effect.either(readRssItems(response.stream));
+        const itemsResult = yield* Effect.either(
+          readRssItems(Stream.fromIterable([response.body])),
+        );
         if (Either.isLeft(itemsResult)) {
           yield* Effect.logWarning(itemsResult.left.message).pipe(
             Effect.annotateLogs({ rss_url: sanitizeRssUrlForLogs(currentUrl) }),
@@ -161,25 +147,6 @@ const makeFetchItems = (
     });
   });
 
-export const RssTransportLive = Layer.effect(
-  RssTransport,
-  Effect.gen(function* () {
-    const execute = Effect.fn("RssTransport.execute")(function* (target: PinnedRequestTarget) {
-      return yield* Effect.tryPromise({
-        try: () =>
-          executePinnedHttpRequest({
-            pinnedAddress: target.pinnedAddress,
-            pinnedAddressFamily: target.pinnedAddressFamily,
-            url: target.parsedUrl,
-          }),
-        catch: (cause) => cause,
-      });
-    });
-
-    return RssTransport.of({ execute });
-  }),
-);
-
 export const RssClientLive = Layer.effect(
   RssClient,
   Effect.gen(function* () {
@@ -208,62 +175,4 @@ class InvalidRedirectUrlError extends Error {
     super("Invalid redirect URL");
     this.name = "InvalidRedirectUrlError";
   }
-}
-
-async function executePinnedHttpRequest(input: {
-  readonly pinnedAddress?: string;
-  readonly pinnedAddressFamily?: 4 | 6;
-  readonly url: URL;
-}): Promise<RssTransportResponse> {
-  const requestImpl = input.url.protocol === "https:" ? httpsRequest : httpRequest;
-
-  return await new Promise<RssTransportResponse>((resolve, reject) => {
-    const request = requestImpl(
-      {
-        headers: {
-          Accept: "application/rss+xml, application/xml, text/xml",
-          "User-Agent": "bakarr/1.0",
-        },
-        hostname: input.url.hostname,
-        lookup: input.pinnedAddress
-          ? (_hostname, _options, callback) =>
-              callback(null, input.pinnedAddress!, input.pinnedAddressFamily!)
-          : undefined,
-        method: "GET",
-        path: `${input.url.pathname}${input.url.search}`,
-        port: input.url.port ? Number(input.url.port) : undefined,
-        protocol: input.url.protocol,
-      },
-      (response) => {
-        const chunks: Uint8Array[] = [];
-
-        response.on("data", (chunk) => {
-          chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
-        });
-        response.on("end", () => {
-          resolve({
-            headers: new Headers(
-              Object.entries(normalizeNodeHeaders(response.headers)).filter(
-                (entry): entry is [string, string] => entry[1] !== undefined,
-              ),
-            ),
-            status: response.statusCode ?? 500,
-            stream: Stream.fromIterable(chunks),
-          });
-        });
-        response.on("error", reject);
-      },
-    );
-
-    request.on("error", reject);
-    request.end();
-  });
-}
-
-function normalizeNodeHeaders(headers: Record<string, string | string[] | undefined>) {
-  return Object.fromEntries(
-    Object.entries(headers)
-      .filter(([, value]) => value !== undefined)
-      .map(([key, value]) => [key, Array.isArray(value) ? value.join(", ") : value]),
-  );
 }

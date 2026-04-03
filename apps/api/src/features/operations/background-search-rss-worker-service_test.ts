@@ -1,25 +1,15 @@
-import { Cause, Effect, Exit, Layer } from "effect";
+import { Cause, Effect, Exit } from "effect";
 import { eq } from "drizzle-orm";
 
-import { Database } from "@/db/database.ts";
+import type { AppDatabase } from "@/db/database.ts";
 import * as schema from "@/db/schema.ts";
-import { EventBus, type EventBusShape } from "@/features/events/event-bus.ts";
+import type { EventBusShape } from "@/features/events/event-bus.ts";
 import { SearchBackgroundMissingService } from "@/features/operations/background-search-missing-support.ts";
-import {
-  BackgroundSearchRssWorkerService,
-  BackgroundSearchRssWorkerServiceLive,
-} from "@/features/operations/background-search-rss-worker-service.ts";
+import { makeBackgroundSearchRssWorkerService } from "@/features/operations/background-search-rss-worker-service.ts";
 import { SearchBackgroundRssService } from "@/features/operations/background-search-rss-support.ts";
 import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
-import {
-  OperationsProgress,
-  type OperationsProgressShape,
-} from "@/features/operations/operations-progress-service.ts";
-import { ClockServiceLive } from "@/lib/clock.ts";
-import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
-import { makeTestConfig } from "@/test/config-fixture.ts";
+import { type OperationsProgressShape } from "@/features/operations/operations-progress-service.ts";
 import { withSqliteTestDbEffect } from "@/test/database-test.ts";
-import { makeDatabaseServiceStub } from "@/test/stubs.ts";
 import { assert, describe, it } from "@effect/vitest";
 
 describe("BackgroundSearchRssWorkerService", () => {
@@ -28,43 +18,23 @@ describe("BackgroundSearchRssWorkerService", () => {
       run: (db) =>
         Effect.gen(function* () {
           const calls: string[] = [];
-          const events: string[] = [];
-          const runtimeConfig = makeTestConfig("/tmp/rss-worker.sqlite");
-
-          const baseLayer = Layer.mergeAll(
-            ClockServiceLive,
-            Layer.succeed(Database, makeDatabaseServiceStub(db)),
-            Layer.succeed(EventBus, makeEventBusStub(events)),
-            Layer.succeed(OperationsProgress, makeOperationsProgressStub()),
-            Layer.succeed(RuntimeConfigSnapshotService, {
-              getRuntimeConfig: () => Effect.succeed(runtimeConfig),
-              replaceRuntimeConfig: () => Effect.void,
-            }),
-            Layer.succeed(SearchBackgroundRssService, {
+          const result = yield* runWorkerScenario({
+            calls,
+            db,
+            missingService: {
+              triggerSearchMissing: () =>
+                Effect.sync(() => {
+                  calls.push("missing");
+                }),
+            },
+            rssService: {
               runRssCheck: () =>
                 Effect.sync(() => {
                   calls.push("rss");
                   return { newItems: 3, totalFeeds: 2 } as const;
                 }),
-            }),
-            Layer.succeed(SearchBackgroundMissingService, {
-              triggerSearchMissing: () =>
-                Effect.sync(() => {
-                  calls.push("missing");
-                }),
-            }),
-          );
-
-          const workerLayer = BackgroundSearchRssWorkerServiceLive.pipe(Layer.provide(baseLayer));
-          const exit = yield* Effect.exit(
-            Effect.flatMap(BackgroundSearchRssWorkerService, (service) =>
-              service.runRssWorker(),
-            ).pipe(Effect.provide(Layer.mergeAll(baseLayer, workerLayer))),
-          );
-
-          assert.deepStrictEqual(Exit.isSuccess(exit), true);
-          assert.deepStrictEqual(calls, ["rss", "missing"]);
-          assert.deepStrictEqual(events, ["RssCheckStarted", "RssCheckFinished"]);
+            },
+          });
 
           const [job] = yield* Effect.promise(() =>
             db
@@ -73,6 +43,10 @@ describe("BackgroundSearchRssWorkerService", () => {
               .where(eq(schema.backgroundJobs.name, "rss"))
               .limit(1),
           );
+
+          assert.deepStrictEqual(Exit.isSuccess(result.exit), true);
+          assert.deepStrictEqual(result.calls, ["rss", "missing"]);
+          assert.deepStrictEqual(result.events, ["RssCheckStarted", "RssCheckFinished"]);
 
           assert.deepStrictEqual(job.lastStatus, "success");
           assert.deepStrictEqual(job.isRunning, false);
@@ -87,26 +61,10 @@ describe("BackgroundSearchRssWorkerService", () => {
       run: (db) =>
         Effect.gen(function* () {
           const calls: string[] = [];
-          const events: string[] = [];
-          const runtimeConfig = makeTestConfig("/tmp/rss-worker.sqlite");
-
-          const baseLayer = Layer.mergeAll(
-            ClockServiceLive,
-            Layer.succeed(Database, makeDatabaseServiceStub(db)),
-            Layer.succeed(EventBus, makeEventBusStub(events)),
-            Layer.succeed(OperationsProgress, makeOperationsProgressStub()),
-            Layer.succeed(RuntimeConfigSnapshotService, {
-              getRuntimeConfig: () => Effect.succeed(runtimeConfig),
-              replaceRuntimeConfig: () => Effect.void,
-            }),
-            Layer.succeed(SearchBackgroundRssService, {
-              runRssCheck: () =>
-                Effect.sync(() => {
-                  calls.push("rss");
-                  return { newItems: 2, totalFeeds: 1 } as const;
-                }),
-            }),
-            Layer.succeed(SearchBackgroundMissingService, {
+          const result = yield* runWorkerScenario({
+            calls,
+            db,
+            missingService: {
               triggerSearchMissing: () =>
                 Effect.gen(function* () {
                   calls.push("missing");
@@ -115,21 +73,21 @@ describe("BackgroundSearchRssWorkerService", () => {
                     cause: new Error("missing search failed"),
                   });
                 }),
-            }),
-          );
+            },
+            rssService: {
+              runRssCheck: () =>
+                Effect.sync(() => {
+                  calls.push("rss");
+                  return { newItems: 2, totalFeeds: 1 } as const;
+                }),
+            },
+          });
 
-          const workerLayer = BackgroundSearchRssWorkerServiceLive.pipe(Layer.provide(baseLayer));
-          const exit = yield* Effect.exit(
-            Effect.flatMap(BackgroundSearchRssWorkerService, (service) =>
-              service.runRssWorker(),
-            ).pipe(Effect.provide(Layer.mergeAll(baseLayer, workerLayer))),
-          );
-
-          assert.deepStrictEqual(Exit.isFailure(exit), true);
-          assert.deepStrictEqual(calls, ["rss", "missing"]);
-          assert.deepStrictEqual(events, ["RssCheckStarted"]);
-          if (Exit.isFailure(exit)) {
-            const failure = Cause.failureOption(exit.cause);
+          assert.deepStrictEqual(Exit.isFailure(result.exit), true);
+          assert.deepStrictEqual(result.calls, ["rss", "missing"]);
+          assert.deepStrictEqual(result.events, ["RssCheckStarted"]);
+          if (Exit.isFailure(result.exit)) {
+            const failure = Cause.failureOption(result.exit.cause);
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
               assert.deepStrictEqual(failure.value._tag, "OperationsInfrastructureError");
@@ -156,19 +114,16 @@ describe("BackgroundSearchRssWorkerService", () => {
       run: (db) =>
         Effect.gen(function* () {
           const calls: string[] = [];
-          const events: string[] = [];
-          const runtimeConfig = makeTestConfig("/tmp/rss-worker.sqlite");
-
-          const baseLayer = Layer.mergeAll(
-            ClockServiceLive,
-            Layer.succeed(Database, makeDatabaseServiceStub(db)),
-            Layer.succeed(EventBus, makeEventBusStub(events)),
-            Layer.succeed(OperationsProgress, makeOperationsProgressStub()),
-            Layer.succeed(RuntimeConfigSnapshotService, {
-              getRuntimeConfig: () => Effect.succeed(runtimeConfig),
-              replaceRuntimeConfig: () => Effect.void,
-            }),
-            Layer.succeed(SearchBackgroundRssService, {
+          const result = yield* runWorkerScenario({
+            calls,
+            db,
+            missingService: {
+              triggerSearchMissing: () =>
+                Effect.sync(() => {
+                  calls.push("missing");
+                }),
+            },
+            rssService: {
               runRssCheck: () =>
                 Effect.gen(function* () {
                   calls.push("rss");
@@ -177,27 +132,14 @@ describe("BackgroundSearchRssWorkerService", () => {
                     cause: new Error("rss check failed"),
                   });
                 }),
-            }),
-            Layer.succeed(SearchBackgroundMissingService, {
-              triggerSearchMissing: () =>
-                Effect.sync(() => {
-                  calls.push("missing");
-                }),
-            }),
-          );
+            },
+          });
 
-          const workerLayer = BackgroundSearchRssWorkerServiceLive.pipe(Layer.provide(baseLayer));
-          const exit = yield* Effect.exit(
-            Effect.flatMap(BackgroundSearchRssWorkerService, (service) =>
-              service.runRssWorker(),
-            ).pipe(Effect.provide(Layer.mergeAll(baseLayer, workerLayer))),
-          );
-
-          assert.deepStrictEqual(Exit.isFailure(exit), true);
-          assert.deepStrictEqual(calls, ["rss"]);
-          assert.deepStrictEqual(events, ["RssCheckStarted"]);
-          if (Exit.isFailure(exit)) {
-            const failure = Cause.failureOption(exit.cause);
+          assert.deepStrictEqual(Exit.isFailure(result.exit), true);
+          assert.deepStrictEqual(result.calls, ["rss"]);
+          assert.deepStrictEqual(result.events, ["RssCheckStarted"]);
+          if (Exit.isFailure(result.exit)) {
+            const failure = Cause.failureOption(result.exit.cause);
             assert.deepStrictEqual(failure._tag, "Some");
             if (failure._tag === "Some") {
               assert.deepStrictEqual(failure.value._tag, "OperationsInfrastructureError");
@@ -237,3 +179,48 @@ function makeOperationsProgressStub(): OperationsProgressShape {
     publishRssCheckProgress: () => Effect.void,
   };
 }
+
+function makeWorkerTestLayer(input: {
+  readonly events: string[];
+  readonly missingService: typeof SearchBackgroundMissingService.Service;
+  readonly rssService: typeof SearchBackgroundRssService.Service;
+}) {
+  return {
+    eventBus: makeEventBusStub(input.events),
+    missingService: input.missingService,
+    progress: makeOperationsProgressStub(),
+    rssService: input.rssService,
+  };
+}
+
+const runWorkerScenario = Effect.fn("BackgroundSearchRssWorkerServiceTest.runWorkerScenario")(
+  function* (input: {
+    readonly calls: string[];
+    readonly db: AppDatabase;
+    readonly missingService: typeof SearchBackgroundMissingService.Service;
+    readonly rssService: typeof SearchBackgroundRssService.Service;
+  }) {
+    const events: string[] = [];
+    const deps = makeWorkerTestLayer({
+      events,
+      missingService: input.missingService,
+      rssService: input.rssService,
+    });
+    const exit = yield* Effect.exit(
+      makeBackgroundSearchRssWorkerService({
+        db: input.db,
+        eventBus: deps.eventBus,
+        missingService: deps.missingService,
+        nowIso: () => Effect.succeed("2024-01-01T00:00:00.000Z"),
+        progress: deps.progress,
+        rssService: deps.rssService,
+      }).runRssWorker(),
+    );
+
+    return {
+      calls: input.calls,
+      events,
+      exit,
+    } as const;
+  },
+);

@@ -5,6 +5,10 @@ import { Cause, Effect, Layer } from "effect";
 import { FileSystemError } from "@/lib/filesystem.ts";
 import { FileSystem } from "@/lib/filesystem.ts";
 import { makeTestConfig } from "@/test/config-fixture.ts";
+import {
+  makeFailingRuntimeConfigSnapshotStub,
+  makeRuntimeConfigSnapshotStub as makeSharedRuntimeConfigSnapshotStub,
+} from "@/test/stubs.ts";
 import { withFileSystemSandboxEffect, writeTextFile } from "@/test/filesystem-test.ts";
 import { assert, it } from "@effect/vitest";
 import {
@@ -13,10 +17,7 @@ import {
   ImageAssetTooLargeError,
   StoredConfigCorruptError,
 } from "@/features/system/errors.ts";
-import {
-  SystemConfigService,
-  type SystemConfigServiceShape,
-} from "@/features/system/system-config-service.ts";
+import { RuntimeConfigSnapshotService } from "@/features/system/runtime-config-snapshot-service.ts";
 import { ImageAssetService, ImageAssetServiceLive } from "@/features/system/image-asset-service.ts";
 
 it.scoped("resolveImageAsset reads files inside the configured image root", () =>
@@ -116,12 +117,12 @@ it.scoped("resolveImageAsset preserves system config failures", () =>
             Layer.provide(
               Layer.mergeAll(
                 Layer.succeed(FileSystem, fs),
-                Layer.succeed(SystemConfigService, {
-                  getConfig: () =>
-                    Effect.fail(
-                      new StoredConfigCorruptError({ message: "stored configuration is corrupt" }),
-                    ),
-                } satisfies SystemConfigServiceShape),
+                Layer.succeed(
+                  RuntimeConfigSnapshotService,
+                  makeFailingRuntimeConfigSnapshotStub(
+                    new StoredConfigCorruptError({ message: "stored configuration is corrupt" }),
+                  ),
+                ),
               ),
             ),
           ),
@@ -192,23 +193,19 @@ function makeImageAssetLayer(fs: typeof FileSystem.Service, imagesRoot: string) 
     Layer.provide(
       Layer.mergeAll(
         Layer.succeed(FileSystem, fs),
-        Layer.succeed(SystemConfigService, makeSystemConfigServiceStub(imagesRoot)),
+        Layer.succeed(
+          RuntimeConfigSnapshotService,
+          makeSharedRuntimeConfigSnapshotStub(
+            makeTestConfig(`${imagesRoot}/bakarr.sqlite`, (config) => ({
+              ...config,
+              general: {
+                ...config.general,
+                images_path: imagesRoot,
+              },
+            })),
+          ),
+        ),
       ),
     ),
   );
-}
-
-function makeSystemConfigServiceStub(imagesRoot: string): SystemConfigServiceShape {
-  return {
-    getConfig: () =>
-      Effect.succeed(
-        makeTestConfig(`${imagesRoot}/bakarr.sqlite`, (config) => ({
-          ...config,
-          general: {
-            ...config.general,
-            images_path: imagesRoot,
-          },
-        })),
-      ),
-  };
 }

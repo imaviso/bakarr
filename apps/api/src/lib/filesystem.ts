@@ -340,7 +340,7 @@ const resolvePath = (
   return Effect.succeed(path.toString());
 };
 
-export function sanitizePathSegment(value: string) {
+const sanitizePathSegmentEither = (value: string) => {
   const trimmed = value.trim();
 
   if (
@@ -350,27 +350,30 @@ export function sanitizePathSegment(value: string) {
     trimmed.includes("/") ||
     trimmed.includes("\\")
   ) {
-    throw new PathSegmentError({
-      message: "Invalid path segment",
-      segment: value,
-    });
+    return {
+      _tag: "Left" as const,
+      left: new PathSegmentError({
+        message: "Invalid path segment",
+        segment: value,
+      }),
+    };
   }
 
-  return trimmed;
-}
+  return {
+    _tag: "Right" as const,
+    right: trimmed,
+  };
+};
 
 export const sanitizePathSegmentEffect = Effect.fn("FileSystem.sanitizePathSegmentEffect")(
   function* (value: string) {
-    return yield* Effect.try({
-      try: () => sanitizePathSegment(value),
-      catch: (cause) =>
-        cause instanceof PathSegmentError
-          ? cause
-          : new PathSegmentError({
-              message: "Invalid path segment",
-              segment: value,
-            }),
-    });
+    const result = sanitizePathSegmentEither(value);
+
+    if (result._tag === "Left") {
+      return yield* result.left;
+    }
+
+    return result.right;
   },
 );
 

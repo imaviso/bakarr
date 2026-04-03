@@ -10,6 +10,27 @@ import { configureDatabasePragmas } from "@/db/database.ts";
 import { runEmbeddedDrizzleMigrations } from "@/db/migrate.ts";
 import { withFileSystemSandboxEffect } from "@/test/filesystem-test.ts";
 
+export const withSqliteRawClientEffect = Effect.fn("Test.withSqliteRawClientEffect")(function* <
+  A,
+  E,
+  R,
+>(input: {
+  readonly databaseFile: string;
+  readonly readwrite?: boolean;
+  readonly run: (client: BunSqliteClient.SqliteClient) => Effect.Effect<A, E, R>;
+}) {
+  const clientContext = yield* Layer.build(
+    BunSqliteClient.layer({
+      create: true,
+      filename: input.databaseFile,
+      readwrite: input.readwrite ?? true,
+    }),
+  );
+  const client = Context.get(clientContext, BunSqliteClient.SqliteClient);
+
+  return yield* input.run(client);
+});
+
 export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(function* <
   TSchema extends Record<string, unknown>,
   A,
@@ -23,38 +44,21 @@ export const withSqliteTestDbEffect = Effect.fn("Test.withSqliteTestDbEffect")(f
     Effect.scoped(
       Effect.gen(function* () {
         const databaseFile = `${root}/test.sqlite`;
-        const clientContext = yield* Layer.build(
-          BunSqliteClient.layer({
-            create: true,
-            filename: databaseFile,
-            readwrite: true,
-          }),
-        );
-        const client = Context.get(clientContext, BunSqliteClient.SqliteClient);
-        const db = yield* SqliteDrizzle.make<TSchema>({ schema: input.schema }).pipe(
-          Effect.provideService(SqlClient.SqlClient, client),
-        );
+        return yield* withSqliteRawClientEffect({
+          databaseFile,
+          run: (client) =>
+            Effect.gen(function* () {
+              const db = yield* SqliteDrizzle.make<TSchema>({ schema: input.schema }).pipe(
+                Effect.provideService(SqlClient.SqlClient, client),
+              );
 
-        yield* configureDatabasePragmas(client);
-        yield* runEmbeddedDrizzleMigrations(client);
+              yield* configureDatabasePragmas(client);
+              yield* runEmbeddedDrizzleMigrations(client);
 
-        return yield* input.run(db, databaseFile);
+              return yield* input.run(db, databaseFile);
+            }),
+        });
       }),
     ),
   );
 });
-
-export async function withSqliteTestDb<TSchema extends Record<string, unknown>, A>(input: {
-  readonly run: (db: SqliteRemoteDatabase<TSchema>, databaseFile: string) => Promise<A> | A;
-  readonly schema: TSchema;
-}): Promise<A> {
-  return await Effect.runPromise(
-    Effect.scoped(
-      withSqliteTestDbEffect({
-        run: (db, databaseFile) =>
-          Effect.tryPromise(() => Promise.resolve(input.run(db, databaseFile))),
-        schema: input.schema,
-      }),
-    ),
-  );
-}

@@ -4,19 +4,11 @@ import { rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assert, it } from "@effect/vitest";
-import { Cause, Config, Effect, Exit, Redacted } from "effect";
+import { Cause, Config, ConfigProvider, Effect, Exit, Redacted } from "effect";
 
 import { makeDotenvConfigProvider } from "@/config-provider.ts";
 
 const withBunFs = Effect.provide(BunFileSystem.layer);
-
-const ENV_KEYS = [
-  "PORT",
-  "BAKARR_BOOTSTRAP_USERNAME",
-  "BAKARR_BOOTSTRAP_PASSWORD",
-  "SESSION_COOKIE_NAME",
-  "MISSING_KEY",
-] as const;
 
 it.scoped("dotenv provider uses .env values when env vars are missing", () =>
   withTempEnvFile(
@@ -27,22 +19,22 @@ it.scoped("dotenv provider uses .env values when env vars are missing", () =>
     ].join("\n"),
     (dotenvFile) =>
       Effect.gen(function* () {
-        const provider = yield* makeDotenvConfigProvider({ path: dotenvFile }).pipe(withBunFs);
+        const provider = yield* makeDotenvConfigProvider({
+          envProvider: ConfigProvider.fromMap(new Map()),
+          path: dotenvFile,
+        }).pipe(withBunFs);
 
-        const result = yield* withTemporaryEnv(
-          {},
-          Effect.gen(function* () {
-            const port = yield* Config.number("PORT");
-            const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
-            const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
+        const result = yield* Effect.gen(function* () {
+          const port = yield* Config.number("PORT");
+          const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
+          const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
 
-            return {
-              password: Redacted.value(password),
-              port,
-              username,
-            };
-          }).pipe(Effect.withConfigProvider(provider)),
-        );
+          return {
+            password: Redacted.value(password),
+            port,
+            username,
+          };
+        }).pipe(Effect.withConfigProvider(provider));
 
         assert.deepStrictEqual(result.port, 9200);
         assert.deepStrictEqual(result.username, "dotenv-admin");
@@ -54,12 +46,12 @@ it.scoped("dotenv provider uses .env values when env vars are missing", () =>
 it.scoped("dotenv provider prioritizes environment variables over .env", () =>
   withTempEnvFile("PORT=9200\n", (dotenvFile) =>
     Effect.gen(function* () {
-      const provider = yield* makeDotenvConfigProvider({ path: dotenvFile }).pipe(withBunFs);
+      const provider = yield* makeDotenvConfigProvider({
+        envProvider: ConfigProvider.fromMap(new Map([["PORT", "9300"]])),
+        path: dotenvFile,
+      }).pipe(withBunFs);
 
-      const result = yield* withTemporaryEnv(
-        { PORT: "9300" },
-        Config.number("PORT").pipe(Effect.withConfigProvider(provider)),
-      );
+      const result = yield* Config.number("PORT").pipe(Effect.withConfigProvider(provider));
 
       assert.deepStrictEqual(result, 9300);
     }),
@@ -68,13 +60,13 @@ it.scoped("dotenv provider prioritizes environment variables over .env", () =>
 
 it.scoped("dotenv provider handles missing dotenv file", () =>
   Effect.gen(function* () {
-    const provider = yield* makeDotenvConfigProvider({ path: "./missing-dotenv-file.env" }).pipe(
-      withBunFs,
-    );
+    const provider = yield* makeDotenvConfigProvider({
+      envProvider: ConfigProvider.fromMap(new Map([["SESSION_COOKIE_NAME", "from-env"]])),
+      path: "./missing-dotenv-file.env",
+    }).pipe(withBunFs);
 
-    const value = yield* withTemporaryEnv(
-      { SESSION_COOKIE_NAME: "from-env" },
-      Config.string("SESSION_COOKIE_NAME").pipe(Effect.withConfigProvider(provider)),
+    const value = yield* Config.string("SESSION_COOKIE_NAME").pipe(
+      Effect.withConfigProvider(provider),
     );
 
     assert.deepStrictEqual(value, "from-env");
@@ -92,26 +84,26 @@ it.scoped("dotenv provider parses export comments and quoted values", () =>
     ].join("\n"),
     (dotenvFile) =>
       Effect.gen(function* () {
-        const provider = yield* makeDotenvConfigProvider({ path: dotenvFile }).pipe(withBunFs);
+        const provider = yield* makeDotenvConfigProvider({
+          envProvider: ConfigProvider.fromMap(new Map()),
+          path: dotenvFile,
+        }).pipe(withBunFs);
 
-        const result = yield* withTemporaryEnv(
-          {},
-          Effect.gen(function* () {
-            const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
-            const cookie = yield* Config.string("SESSION_COOKIE_NAME");
-            const port = yield* Config.number("PORT");
-            const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
-            const missing = yield* Config.string("MISSING_KEY");
+        const result = yield* Effect.gen(function* () {
+          const username = yield* Config.string("BAKARR_BOOTSTRAP_USERNAME");
+          const cookie = yield* Config.string("SESSION_COOKIE_NAME");
+          const port = yield* Config.number("PORT");
+          const password = yield* Config.redacted("BAKARR_BOOTSTRAP_PASSWORD");
+          const missing = yield* Config.string("MISSING_KEY");
 
-            return {
-              cookie,
-              missing,
-              password: Redacted.value(password),
-              port,
-              username,
-            };
-          }).pipe(Effect.withConfigProvider(provider)),
-        );
+          return {
+            cookie,
+            missing,
+            password: Redacted.value(password),
+            port,
+            username,
+          };
+        }).pipe(Effect.withConfigProvider(provider));
 
         assert.deepStrictEqual(result.username, "from-export");
         assert.deepStrictEqual(result.cookie, "session-from-dotenv");
@@ -159,36 +151,4 @@ const withTempEnvFile = Effect.fn("Test.withTempEnvFile")(function* <A, E, R>(
     (path) =>
       Effect.tryPromise(() => rm(path, { force: true })).pipe(Effect.catchAll(() => Effect.void)),
   );
-});
-
-const withTemporaryEnv = Effect.fn("Test.withTemporaryEnv")(function* <A, E, R>(
-  nextValues: Partial<Record<(typeof ENV_KEYS)[number], string>>,
-  effect: Effect.Effect<A, E, R>,
-) {
-  const previous = new Map<string, string | undefined>();
-
-  for (const key of ENV_KEYS) {
-    previous.set(key, process.env[key]);
-
-    const incoming = nextValues[key];
-    if (incoming === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = incoming;
-    }
-  }
-
-  yield* Effect.addFinalizer(() =>
-    Effect.sync(() => {
-      for (const [key, value] of previous.entries()) {
-        if (value === undefined) {
-          delete process.env[key];
-        } else {
-          process.env[key] = value;
-        }
-      }
-    }),
-  );
-
-  return yield* effect;
 });

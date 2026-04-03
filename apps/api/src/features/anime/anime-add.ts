@@ -1,4 +1,3 @@
-import { HttpClient } from "@effect/platform";
 import { Effect } from "effect";
 
 import { encodeNumberList, encodeStringList } from "@/features/system/config-codec.ts";
@@ -7,6 +6,7 @@ import { ExternalCallError } from "@/lib/effect-retry.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import type { EventPublisherShape } from "@/features/events/publisher.ts";
 import type { AddAnimeInput } from "@/features/anime/add-anime-input.ts";
+import { AnimeImageCacheService } from "@/features/anime/anime-image-cache-service.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
 import {
   encodeAnimeDiscoveryEntries,
@@ -14,13 +14,9 @@ import {
 } from "@/features/anime/discovery-metadata-codec.ts";
 import { toAnimeDto } from "@/features/anime/dto.ts";
 import { AnimePathError } from "@/features/anime/errors.ts";
-import { cacheAnimeMetadataImages } from "@/features/anime/image-cache.ts";
 import { buildMissingEpisodeRows } from "@/features/anime/anime-schedule-repository.ts";
 import { insertAnimeAggregateAtomicEffect } from "@/features/anime/aggregate-support.ts";
-import {
-  getConfiguredImagesPathEffect,
-  resolveAnimeRootFolderEffect,
-} from "@/features/anime/config-support.ts";
+import { resolveAnimeRootFolderEffect } from "@/features/anime/config-support.ts";
 import {
   checkAnimeExistsEffect,
   checkProfileExistsEffect,
@@ -35,7 +31,7 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
   db: AppDatabase;
   eventPublisher: Pick<EventPublisherShape, "publishInfo">;
   fs: FileSystemShape;
-  httpClient: HttpClient.HttpClient;
+  imageCacheService: typeof AnimeImageCacheService.Service;
   nowIso: () => Effect.Effect<string>;
 }) {
   yield* checkAnimeExistsEffect(input.db, input.animeInput.id);
@@ -63,25 +59,21 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     ),
   );
 
-  const imagesPath = yield* getConfiguredImagesPathEffect(input.db);
-  const cachedImages = yield* cacheAnimeMetadataImages(
-    input.fs,
-    input.httpClient,
-    imagesPath,
-    validMetadata.id,
-    {
+  const cachedImages = yield* input.imageCacheService
+    .cacheMetadataImages({
+      animeId: validMetadata.id,
       bannerImage: validMetadata.bannerImage,
       coverImage: validMetadata.coverImage,
-    },
-  ).pipe(
-    Effect.mapError((cause) =>
-      ExternalCallError.make({
-        cause,
-        message: "Failed to cache anime metadata images",
-        operation: "anime.image-cache",
-      }),
-    ),
-  );
+    })
+    .pipe(
+      Effect.mapError((cause) =>
+        ExternalCallError.make({
+          cause,
+          message: "Failed to cache anime metadata images",
+          operation: "anime.image-cache",
+        }),
+      ),
+    );
 
   const createdAt = yield* input.nowIso();
 

@@ -33,33 +33,35 @@ export class DiskSpaceInspector extends Context.Tag("@bakarr/api/DiskSpaceInspec
   DiskSpaceInspectorShape
 >() {}
 
-export function mapBlockStatsToDiskSpace(stat: BlockStatsShape): DiskSpace {
-  const blockSize = toPositiveNumber(stat.bsize, "Invalid block size");
-  if (blockSize._tag === "Left") {
-    throw blockSize.left;
-  }
-  const availableBlocks = toNonNegativeNumber(stat.bavail, "Invalid available block count");
-  if (availableBlocks._tag === "Left") {
-    throw availableBlocks.left;
-  }
-  const totalBlocks = toPositiveNumber(stat.blocks, "Invalid total block count");
-  if (totalBlocks._tag === "Left") {
-    throw totalBlocks.left;
-  }
-  const free = clampDiskBytes(availableBlocks.right * blockSize.right);
-  if (free._tag === "Left") {
-    throw free.left;
-  }
-  const total = clampDiskBytes(totalBlocks.right * blockSize.right);
-  if (total._tag === "Left") {
-    throw total.left;
-  }
+export const mapBlockStatsToDiskSpaceEffect = Effect.fn("DiskSpace.mapBlockStatsToDiskSpace")(
+  function* (stat: BlockStatsShape) {
+    const blockSize = toPositiveNumber(stat.bsize, "Invalid block size");
+    if (blockSize._tag === "Left") {
+      return yield* blockSize.left;
+    }
+    const availableBlocks = toNonNegativeNumber(stat.bavail, "Invalid available block count");
+    if (availableBlocks._tag === "Left") {
+      return yield* availableBlocks.left;
+    }
+    const totalBlocks = toPositiveNumber(stat.blocks, "Invalid total block count");
+    if (totalBlocks._tag === "Left") {
+      return yield* totalBlocks.left;
+    }
+    const free = clampDiskBytes(availableBlocks.right * blockSize.right);
+    if (free._tag === "Left") {
+      return yield* free.left;
+    }
+    const total = clampDiskBytes(totalBlocks.right * blockSize.right);
+    if (total._tag === "Left") {
+      return yield* total.left;
+    }
 
-  return {
-    free: free.right,
-    total: total.right,
-  };
-}
+    return {
+      free: free.right,
+      total: total.right,
+    };
+  },
+);
 
 function runDfCommand(commandExecutor: CommandExecutor.CommandExecutor, path: string) {
   return Command.make("df", "-Pk", path).pipe(

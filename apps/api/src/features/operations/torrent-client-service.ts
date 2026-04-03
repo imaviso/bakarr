@@ -2,12 +2,15 @@ import { Context, Effect, Layer } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import {
-  QBitConfigModel,
   QBitTorrentClient,
-  QBitTorrentClientError,
   type QBitTorrent,
   type QBitTorrentFile,
 } from "@/features/operations/qbittorrent.ts";
+import {
+  QBitConfigModel,
+  QBitTorrentClientError,
+  type QBitConfig,
+} from "@/features/operations/qbittorrent-models.ts";
 import type { ExternalCallError } from "@/lib/effect-retry.ts";
 import {
   RuntimeConfigSnapshotService,
@@ -27,7 +30,7 @@ type TorrentClientConfigState =
     }
   | {
       readonly _tag: "Enabled";
-      readonly config: import("@/features/operations/qbittorrent.ts").QBitConfig;
+      readonly config: QBitConfig;
     };
 
 export interface TorrentClientServiceShape {
