@@ -13,7 +13,11 @@ import {
   resolvePinnedRequestTarget,
   type PinnedRequestTarget,
 } from "@/features/operations/rss-client-ssrf.ts";
-import { RssTransport, type RssTransportResponse } from "@/features/operations/rss-transport.ts";
+import {
+  RssTransport,
+  RssTransportPayloadTooLargeError,
+  type RssTransportResponse,
+} from "@/features/operations/rss-transport.ts";
 
 interface RssClientShape {
   readonly fetchItems: (
@@ -27,6 +31,9 @@ interface RssClientShape {
 export class RssClient extends Context.Tag("@bakarr/api/RssClient")<RssClient, RssClientShape>() {}
 
 const MAX_REDIRECT_HOPS = 5;
+
+const isRetryableRssFetchError = (error: ExternalCallError) =>
+  !(error.cause instanceof RssTransportPayloadTooLargeError);
 
 const makeFetchItems = (
   executeRequest: (target: PinnedRequestTarget) => Effect.Effect<RssTransportResponse, unknown>,
@@ -73,7 +80,17 @@ const makeFetchItems = (
           ),
         ),
       );
-      const response = yield* tryExternalEffect("rss.fetch", executeRequest(target))();
+      const response = yield* tryExternalEffect("rss.fetch", executeRequest(target), {
+        isRetryableError: isRetryableRssFetchError,
+      })().pipe(
+        Effect.mapError((error) =>
+          error.cause instanceof RssTransportPayloadTooLargeError
+            ? new RssFeedTooLargeError({
+                message: error.cause.message,
+              })
+            : error,
+        ),
+      );
 
       if (response.status >= 200 && response.status < 300) {
         const itemsResult = yield* Effect.either(

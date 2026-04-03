@@ -52,7 +52,7 @@ const makeUnmappedScanCoordinator = Effect.fn("OperationsService.makeUnmappedSca
       completeUnmappedScan: () => coordinator.finish,
       forkUnmappedScanLoop: <A, E, R>(loop: Effect.Effect<A, E, R>) =>
         Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
-      tryBeginUnmappedScan: () => coordinator.tryStart,
+      tryBeginUnmappedScan: () => coordinator.tryStartAndMarkRunning,
     } satisfies UnmappedScanCoordinatorShape;
   },
 );

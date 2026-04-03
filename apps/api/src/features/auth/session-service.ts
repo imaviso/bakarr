@@ -53,6 +53,7 @@ export class AuthSessionService extends Context.Tag("@bakarr/api/AuthSessionServ
 >() {}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const SESSION_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const expiresAtIso = Effect.fn("AuthSessionService.expiresAtIso")(function* (
   durationDays: number,
@@ -189,6 +190,7 @@ const makeAuthSessionService = Effect.gen(function* () {
           .select({
             createdAt: users.createdAt,
             id: users.id,
+            lastSeenAt: sessions.lastSeenAt,
             mustChangePassword: users.mustChangePassword,
             updatedAt: users.updatedAt,
             username: users.username,
@@ -200,16 +202,25 @@ const makeAuthSessionService = Effect.gen(function* () {
       );
 
       if (result[0]) {
-        const expiresAt = yield* expiresAtIso(config.sessionDurationDays, currentTimeMillis);
-        yield* tryDatabasePromise("Failed to resolve the current user", () =>
-          db
-            .update(sessions)
-            .set({
-              expiresAt,
-              lastSeenAt: sessionNow,
-            })
-            .where(eq(sessions.token, hashedSessionToken)),
-        );
+        const nowMillis = Date.parse(sessionNow);
+        const lastSeenAtMillis = Date.parse(result[0].lastSeenAt);
+        const needsRefresh =
+          Number.isFinite(nowMillis) &&
+          Number.isFinite(lastSeenAtMillis) &&
+          nowMillis - lastSeenAtMillis >= SESSION_REFRESH_INTERVAL_MS;
+
+        if (needsRefresh) {
+          const expiresAt = yield* expiresAtIso(config.sessionDurationDays, currentTimeMillis);
+          yield* tryDatabasePromise("Failed to resolve the current user", () =>
+            db
+              .update(sessions)
+              .set({
+                expiresAt,
+                lastSeenAt: sessionNow,
+              })
+              .where(eq(sessions.token, hashedSessionToken)),
+          );
+        }
 
         return Option.some({
           created_at: result[0].createdAt,

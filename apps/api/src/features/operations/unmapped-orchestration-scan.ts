@@ -197,9 +197,9 @@ export function makeUnmappedScanWorkflow(input: {
   });
 
   const startUnmappedScanLoop = Effect.fn("OperationsService.startUnmappedScanLoop")(function* () {
-    const alreadyRunning = yield* unmappedScanCoordinator.tryBeginUnmappedScan();
+    const started = yield* unmappedScanCoordinator.tryBeginUnmappedScan();
 
-    if (alreadyRunning) {
+    if (!started) {
       return { folderCount: 0 };
     }
 

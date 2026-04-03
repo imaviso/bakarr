@@ -83,6 +83,52 @@ it.scoped("importDownloadedFile keeps existing destination when staging copy fai
   ),
 );
 
+it.scoped("importDownloadedFile surfaces stat access errors instead of treating as missing", () =>
+  withFileSystemSandboxEffect(({ fs, root }) =>
+    Effect.gen(function* () {
+      const { animeRoot, sourceRoot } = yield* makeImportRoots(fs, root);
+      const sourcePath = `${sourceRoot}/Naruto - 01.mkv`;
+
+      yield* writeTextFile(fs, sourcePath, "incoming");
+
+      const accessErrorFs = yield* makeNoopTestFileSystemWithOverridesEffect({
+        ...fs,
+        stat: (path) =>
+          path.toString().includes("Naruto - 01")
+            ? Effect.fail(makeFsError(path.toString(), "EACCES", "permission denied"))
+            : fs.stat(path),
+      });
+
+      const exit = yield* Effect.exit(
+        importDownloadedFile(
+          accessErrorFs,
+          {
+            rootFolder: animeRoot,
+            titleRomaji: "Naruto",
+          } as typeof anime.$inferSelect,
+          1,
+          sourcePath,
+          "copy",
+          { randomUuid: testRandomUuid },
+        ),
+      );
+
+      assert.deepStrictEqual(Exit.isFailure(exit), true);
+      if (Exit.isFailure(exit)) {
+        const failure = Cause.failureOption(exit.cause);
+        assert.deepStrictEqual(failure._tag, "Some");
+        if (failure._tag === "Some") {
+          assert.deepStrictEqual(failure.value instanceof ImportFileError, true);
+          assert.deepStrictEqual(
+            failure.value.message,
+            "Failed to determine destination file existence",
+          );
+        }
+      }
+    }),
+  ),
+);
+
 it.scoped(
   "importDownloadedFile fails when cross-filesystem move cannot delete the source file",
   () =>

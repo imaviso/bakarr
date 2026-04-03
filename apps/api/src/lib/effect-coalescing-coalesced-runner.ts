@@ -17,86 +17,90 @@ export const makeCoalescedEffectRunner = Effect.fn("EffectCoalescing.makeCoalesc
       }>({ completion: null, pending: false, running: false });
 
       const runDrain = (completion: Deferred.Deferred<void, E>): Effect.Effect<void, never, R> =>
-        Effect.gen(function* () {
-          while (true) {
-            const exit = yield* Effect.exit(effect);
+        Effect.uninterruptibleMask((restore) =>
+          Effect.gen(function* () {
+            while (true) {
+              const exit = yield* Effect.exit(restore(effect));
 
-            if (exit._tag === "Failure") {
-              yield* semaphore.withPermits(1)(
-                Ref.set(state, {
-                  completion: null,
-                  pending: false,
-                  running: false,
+              if (exit._tag === "Failure") {
+                yield* semaphore.withPermits(1)(
+                  Ref.set(state, {
+                    completion: null,
+                    pending: false,
+                    running: false,
+                  }),
+                );
+                yield* Deferred.failCause(completion, exit.cause);
+                return;
+              }
+
+              const shouldContinue = yield* semaphore.withPermits(1)(
+                Effect.gen(function* () {
+                  const current = yield* Ref.get(state);
+
+                  if (current.pending) {
+                    yield* Ref.set(state, {
+                      completion,
+                      pending: false,
+                      running: true,
+                    });
+                    return true;
+                  }
+
+                  yield* Ref.set(state, {
+                    completion: null,
+                    pending: false,
+                    running: false,
+                  });
+                  return false;
                 }),
               );
-              yield* Deferred.failCause(completion, exit.cause);
-              return;
+
+              if (!shouldContinue) {
+                yield* Deferred.succeed(completion, void 0);
+                return;
+              }
             }
-
-            const shouldContinue = yield* semaphore.withPermits(1)(
-              Effect.gen(function* () {
-                const current = yield* Ref.get(state);
-
-                if (current.pending) {
-                  yield* Ref.set(state, {
-                    completion,
-                    pending: false,
-                    running: true,
-                  });
-                  return true;
-                }
-
-                yield* Ref.set(state, {
-                  completion: null,
-                  pending: false,
-                  running: false,
-                });
-                return false;
-              }),
-            );
-
-            if (!shouldContinue) {
-              yield* Deferred.succeed(completion, void 0);
-              return;
-            }
-          }
-        });
-
-      const trigger = Effect.gen(function* () {
-        const start = yield* semaphore.withPermits(1)(
-          Effect.gen(function* () {
-            const current = yield* Ref.get(state);
-
-            if (current.running && current.completion !== null) {
-              yield* Ref.set(state, {
-                ...current,
-                pending: true,
-              });
-
-              return {
-                completion: current.completion,
-                shouldStart: false,
-              } as const;
-            }
-
-            const completion = yield* Deferred.make<void, E>();
-
-            yield* Ref.set(state, {
-              completion,
-              pending: false,
-              running: true,
-            });
-
-            return { completion, shouldStart: true } as const;
           }),
         );
 
-        if (start.shouldStart) {
-          yield* runDrain(start.completion);
-        }
+      const trigger = Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const start = yield* semaphore.withPermits(1)(
+            Effect.gen(function* () {
+              const current = yield* Ref.get(state);
 
-        yield* Deferred.await(start.completion);
-      }).pipe(Effect.withSpan("CoalescedEffectRunner.trigger"));
+              if (current.running && current.completion !== null) {
+                yield* Ref.set(state, {
+                  ...current,
+                  pending: true,
+                });
+
+                return {
+                  completion: current.completion,
+                  shouldStart: false,
+                } as const;
+              }
+
+              const completion = yield* Deferred.make<void, E>();
+
+              yield* Ref.set(state, {
+                completion,
+                pending: false,
+                running: true,
+              });
+
+              return { completion, shouldStart: true } as const;
+            }),
+          );
+
+          if (start.shouldStart) {
+            yield* runDrain(start.completion);
+          }
+
+          yield* restore(Deferred.await(start.completion));
+        }),
+      ).pipe(Effect.withSpan("CoalescedEffectRunner.trigger"));
 
       return { trigger } satisfies CoalescedEffectRunner<E, R>;
     }),

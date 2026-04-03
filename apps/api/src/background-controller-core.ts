@@ -2,19 +2,18 @@ import { Context, Effect, Exit, Ref, Scope } from "effect";
 import { Layer } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
-import type { DatabaseError } from "@/db/database.ts";
 import { BackgroundTaskRunner } from "@/background-task-runner.ts";
 import { makeBackgroundWorkerSpawner } from "@/background-workers.ts";
 import { BackgroundWorkerMonitor } from "@/background-monitor.ts";
 
 export interface BackgroundWorkerSpawner {
-  (scope: Scope.Scope, config: Config): Effect.Effect<void, DatabaseError>;
+  (scope: Scope.Scope, config: Config): Effect.Effect<void>;
 }
 
 export interface BackgroundWorkerControllerShape {
   readonly isStarted: () => Effect.Effect<boolean>;
-  readonly start: (config: Config) => Effect.Effect<void, DatabaseError>;
-  readonly reload: (config: Config) => Effect.Effect<void, DatabaseError>;
+  readonly start: (config: Config) => Effect.Effect<void>;
+  readonly reload: (config: Config) => Effect.Effect<void>;
   readonly stop: () => Effect.Effect<void>;
 }
 

@@ -2,7 +2,9 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { Context, Effect, Layer, Schema } from "effect";
 
+import { MAX_RSS_BYTES } from "@/features/operations/rss-limits.ts";
 import type { PinnedRequestTarget } from "@/features/operations/rss-client-ssrf.ts";
+import { StreamPayloadTooLargeError } from "@/lib/bounded-stream.ts";
 
 export interface RssTransportResponse {
   readonly body: Uint8Array;
@@ -18,10 +20,19 @@ export class RssTransportError extends Schema.TaggedError<RssTransportError>()(
   },
 ) {}
 
+export class RssTransportPayloadTooLargeError extends Schema.TaggedError<RssTransportPayloadTooLargeError>()(
+  "RssTransportPayloadTooLargeError",
+  {
+    actualBytes: Schema.Number,
+    maxBytes: Schema.Number,
+    message: Schema.String,
+  },
+) {}
+
 export interface RssTransportShape {
   readonly execute: (
     target: PinnedRequestTarget,
-  ) => Effect.Effect<RssTransportResponse, RssTransportError>;
+  ) => Effect.Effect<RssTransportResponse, RssTransportError | RssTransportPayloadTooLargeError>;
 }
 
 export class RssTransport extends Context.Tag("@bakarr/api/RssTransport")<
@@ -40,10 +51,16 @@ export const RssTransportLive = Layer.effect(
             target,
           }),
         catch: (cause) =>
-          new RssTransportError({
-            cause,
-            message: "RSS transport request failed",
-          }),
+          cause instanceof StreamPayloadTooLargeError
+            ? new RssTransportPayloadTooLargeError({
+                actualBytes: cause.actualBytes,
+                maxBytes: cause.maxBytes,
+                message: `RSS payload exceeded maximum size of ${cause.maxBytes} bytes`,
+              })
+            : new RssTransportError({
+                cause,
+                message: "RSS transport request failed",
+              }),
       });
     });
 
@@ -77,13 +94,51 @@ async function executePinnedHttpRequest(input: {
       },
       (response) => {
         const chunks: Uint8Array[] = [];
+        let totalLength = 0;
+
+        const failPayloadTooLarge = () => {
+          request.destroy(
+            new StreamPayloadTooLargeError({
+              actualBytes: totalLength,
+              maxBytes: MAX_RSS_BYTES,
+            }),
+          );
+        };
+
+        const contentLengthHeader = response.headers["content-length"];
+        const contentLengthValue = Array.isArray(contentLengthHeader)
+          ? contentLengthHeader[0]
+          : contentLengthHeader;
+        const contentLength =
+          contentLengthValue === undefined ? Number.NaN : Number.parseInt(contentLengthValue, 10);
+
+        if (Number.isFinite(contentLength) && contentLength > MAX_RSS_BYTES) {
+          failPayloadTooLarge();
+          return;
+        }
 
         response.on("data", (chunk) => {
-          chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+          const normalizedChunk = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk);
+          totalLength += normalizedChunk.length;
+
+          if (totalLength > MAX_RSS_BYTES) {
+            failPayloadTooLarge();
+            return;
+          }
+
+          chunks.push(normalizedChunk);
         });
         response.on("end", () => {
+          const body = new Uint8Array(totalLength);
+          let offset = 0;
+
+          for (const chunk of chunks) {
+            body.set(chunk, offset);
+            offset += chunk.length;
+          }
+
           resolve({
-            body: Uint8Array.from(chunks.flatMap((chunk) => Array.from(chunk))),
+            body,
             headers: new Headers(
               Object.entries(normalizeNodeHeaders(response.headers)).filter(
                 (entry): entry is [string, string] => entry[1] !== undefined,

@@ -1,5 +1,5 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Context, Effect, Layer, Ref, Schema } from "effect";
+import { Context, Deferred, Effect, Layer, Ref, Schema } from "effect";
 
 import { ClockService } from "@/lib/clock.ts";
 import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
@@ -10,17 +10,13 @@ import {
   makeLogin,
   makePostHashesAction,
   resolveUrl,
+  type SessionEntry,
   withSessionCache,
 } from "@/features/operations/qbittorrent-support.ts";
 import {
   QBitTorrentClientError,
   type QBitConfig,
 } from "@/features/operations/qbittorrent-models.ts";
-
-interface SessionEntry {
-  readonly cookie: string;
-  readonly createdAt: number;
-}
 
 interface QBitTorrentClientShape {
   readonly addTorrentUrl: (
@@ -95,10 +91,13 @@ export const QBitTorrentClientLive = Layer.effect(
     const clock = yield* ClockService;
     const tryExternalEffect = makeTryExternalEffect(clock);
     const sessionsRef = yield* Ref.make<Map<string, SessionEntry>>(new Map());
+    const sessionLoginRef = yield* Ref.make<
+      Map<string, Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>>
+    >(new Map());
 
     const execute = makeExecute(client, tryExternalEffect);
     const login = makeLogin(execute);
-    const withSession = withSessionCache(sessionsRef, clock, login);
+    const withSession = withSessionCache(sessionsRef, sessionLoginRef, clock, login);
     const postHashesAction = makePostHashesAction(withSession, execute);
 
     const addTorrentUrl = Effect.fn("QBitTorrentClient.addTorrentUrl")(function* (

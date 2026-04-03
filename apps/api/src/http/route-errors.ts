@@ -160,10 +160,6 @@ export function mapRouteError(error: unknown): RouteErrorResponse {
     return mapTaggedRouteError(error);
   }
 
-  if (error instanceof Error) {
-    return { message: "Unexpected server error", status: 500 };
-  }
-
   return { message: "Unexpected server error", status: 500 };
 }
 

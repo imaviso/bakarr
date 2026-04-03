@@ -1,5 +1,6 @@
 import { Effect } from "effect";
 import { and, eq, inArray } from "drizzle-orm";
+import type { ImportMode } from "@packages/shared/index.ts";
 
 import type { AppDatabase } from "@/db/database.ts";
 import { anime, episodes } from "@/db/schema.ts";
@@ -37,7 +38,7 @@ export interface LibraryImportPlan {
   readonly allEpisodeNumbers: readonly number[];
   readonly animeRow: typeof anime.$inferSelect;
   readonly destination: string;
-  readonly importMode: string;
+  readonly importMode: ImportMode;
   readonly episodeNumber: number;
   readonly localMediaMetadata?: ProbedMediaMetadata;
   readonly resolvedSource: string;

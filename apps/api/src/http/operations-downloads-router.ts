@@ -18,6 +18,21 @@ import {
   successResponse,
 } from "@/http/router-helpers.ts";
 
+const commandRoute = <E, R>(
+  action: (
+    service: typeof CatalogDownloadCommandService.Service,
+    id: number,
+  ) => Effect.Effect<void, E, R>,
+) =>
+  authedRouteResponse(
+    Effect.gen(function* () {
+      const params = yield* decodePathParams(IdParamsSchema);
+      const service = yield* CatalogDownloadCommandService;
+      yield* action(service, params.id);
+    }),
+    successResponse,
+  );
+
 export const downloadsRouter = HttpRouter.empty.pipe(
   HttpRouter.get(
     "/downloads/queue",
@@ -125,43 +140,19 @@ export const downloadsRouter = HttpRouter.empty.pipe(
   ),
   HttpRouter.post(
     "/downloads/:id/pause",
-    authedRouteResponse(
-      Effect.gen(function* () {
-        const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadCommandService).pauseDownload(params.id);
-      }),
-      successResponse,
-    ),
+    commandRoute((service, id) => service.pauseDownload(id)),
   ),
   HttpRouter.post(
     "/downloads/:id/resume",
-    authedRouteResponse(
-      Effect.gen(function* () {
-        const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadCommandService).resumeDownload(params.id);
-      }),
-      successResponse,
-    ),
+    commandRoute((service, id) => service.resumeDownload(id)),
   ),
   HttpRouter.post(
     "/downloads/:id/retry",
-    authedRouteResponse(
-      Effect.gen(function* () {
-        const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadCommandService).retryDownload(params.id);
-      }),
-      successResponse,
-    ),
+    commandRoute((service, id) => service.retryDownload(id)),
   ),
   HttpRouter.post(
     "/downloads/:id/reconcile",
-    authedRouteResponse(
-      Effect.gen(function* () {
-        const params = yield* decodePathParams(IdParamsSchema);
-        yield* (yield* CatalogDownloadCommandService).reconcileDownload(params.id);
-      }),
-      successResponse,
-    ),
+    commandRoute((service, id) => service.reconcileDownload(id)),
   ),
   HttpRouter.post(
     "/downloads/sync",

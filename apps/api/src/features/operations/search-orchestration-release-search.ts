@@ -181,16 +181,7 @@ export function makeSearchReleaseSupport(input: {
     filter?: string,
   ) {
     return yield* searchReleasesBase(query, animeId, category, filter).pipe(
-      Effect.mapError((error) =>
-        error instanceof DatabaseError ||
-        error instanceof ExternalCallError ||
-        error instanceof OperationsInputError
-          ? error
-          : new OperationsInfrastructureError({
-              message: "Failed to search releases",
-              cause: error,
-            }),
-      ),
+      Effect.mapError(mapSearchReleaseError),
     );
   });
 

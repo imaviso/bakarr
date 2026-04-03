@@ -14,33 +14,35 @@ export const makeSkippingSerializedEffectRunner = Effect.fn(
       const semaphore = yield* Effect.makeSemaphore(1);
       const runningRef = yield* Ref.make(false);
 
-      const trigger = Effect.gen(function* () {
-        const shouldRun = yield* semaphore.withPermits(1)(
-          Effect.gen(function* () {
-            const running = yield* Ref.get(runningRef);
+      const trigger = Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const shouldRun = yield* semaphore.withPermits(1)(
+            Effect.gen(function* () {
+              const running = yield* Ref.get(runningRef);
 
-            if (running) {
-              return false;
-            }
+              if (running) {
+                return false;
+              }
 
-            yield* Ref.set(runningRef, true);
-            return true;
-          }),
-        );
+              yield* Ref.set(runningRef, true);
+              return true;
+            }),
+          );
 
-        if (!shouldRun) {
-          return Option.none<A>();
-        }
+          if (!shouldRun) {
+            return Option.none<A>();
+          }
 
-        const exit = yield* Effect.exit(effect);
-        yield* semaphore.withPermits(1)(Ref.set(runningRef, false));
+          const exit = yield* Effect.exit(restore(effect));
+          yield* semaphore.withPermits(1)(Ref.set(runningRef, false));
 
-        if (exit._tag === "Failure") {
-          return yield* Effect.failCause(exit.cause);
-        }
+          if (exit._tag === "Failure") {
+            return yield* Effect.failCause(exit.cause);
+          }
 
-        return Option.some(exit.value);
-      }).pipe(Effect.withSpan("SkippingSerializedEffectRunner.trigger"));
+          return Option.some(exit.value);
+        }),
+      ).pipe(Effect.withSpan("SkippingSerializedEffectRunner.trigger"));
 
       return { trigger } satisfies SkippingSerializedEffectRunner<A, E, R>;
     }),

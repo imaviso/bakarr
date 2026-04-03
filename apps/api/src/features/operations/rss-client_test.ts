@@ -7,6 +7,7 @@ import { ExternalCallError } from "@/lib/effect-retry.ts";
 import { RssClient, RssClientLive } from "@/features/operations/rss-client.ts";
 import {
   RssTransport,
+  RssTransportPayloadTooLargeError,
   RssTransportError,
   type RssTransportShape,
 } from "@/features/operations/rss-transport.ts";
@@ -41,7 +42,7 @@ function rssLayer(
     execute: (target) =>
       execute(target.parsedUrl.href).pipe(
         Effect.mapError((cause) =>
-          cause instanceof RssTransportError
+          cause instanceof RssTransportError || cause instanceof RssTransportPayloadTooLargeError
             ? cause
             : new RssTransportError({
                 cause,
@@ -402,6 +403,26 @@ it.effect("RssClient fails with a typed error when feed payload exceeds the byte
     );
 
     assertRssFailure(exit, RssFeedTooLargeError);
+  }),
+);
+
+it.effect("RssClient maps transport payload-too-large into typed RSS too-large error", () =>
+  Effect.gen(function* () {
+    const exit = yield* Effect.exit(
+      fetchFeedItemsEffect(
+        () =>
+          Effect.fail(
+            new RssTransportPayloadTooLargeError({
+              actualBytes: 20,
+              maxBytes: 10,
+              message: "RSS payload exceeded maximum size of 10 bytes",
+            }),
+          ),
+        () => Promise.resolve(["93.184.216.34"]),
+      ),
+    );
+
+    assertRssFailure(exit, RssFeedTooLargeError, /maximum size/i);
   }),
 );
 

@@ -1,5 +1,5 @@
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "@effect/platform";
-import { Effect, Either, Ref } from "effect";
+import { Deferred, Effect, Either, Ref } from "effect";
 
 import type { ClockService } from "@/lib/clock.ts";
 import { ExternalCallError, makeTryExternalEffect } from "@/lib/effect-retry.ts";
@@ -8,7 +8,7 @@ import {
   type QBitConfig,
 } from "@/features/operations/qbittorrent-models.ts";
 
-interface SessionEntry {
+export interface SessionEntry {
   readonly cookie: string;
   readonly createdAt: number;
 }
@@ -25,9 +25,82 @@ export function getSessionKey(config: QBitConfig): string {
 
 export function withSessionCache(
   sessionsRef: Ref.Ref<Map<string, SessionEntry>>,
+  sessionLoginRef: Ref.Ref<
+    Map<string, Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>>
+  >,
   clock: typeof ClockService.Service,
   login: (config: QBitConfig) => Effect.Effect<string, ExternalCallError | QBitTorrentClientError>,
 ) {
+  type LoginGate = {
+    readonly deferred: Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>;
+    readonly leader: boolean;
+  };
+
+  const acquireFreshSessionCookie = Effect.fn("QBitTorrentClient.acquireFreshSessionCookie")(
+    function* (config: QBitConfig, sessionKey: string) {
+      return yield* Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const deferred = yield* Deferred.make<
+            string,
+            ExternalCallError | QBitTorrentClientError
+          >();
+          const gate = yield* Ref.modify(
+            sessionLoginRef,
+            (
+              map,
+            ): readonly [
+              LoginGate,
+              Map<string, Deferred.Deferred<string, ExternalCallError | QBitTorrentClientError>>,
+            ] => {
+              const existing = map.get(sessionKey);
+
+              if (existing) {
+                return [{ deferred: existing, leader: false }, map] as const;
+              }
+
+              const next = new Map(map);
+              next.set(sessionKey, deferred);
+              return [{ deferred, leader: true }, next] as const;
+            },
+          );
+
+          if (!gate.leader) {
+            return yield* restore(Deferred.await(gate.deferred));
+          }
+
+          const loginExit = yield* Effect.exit(restore(login(config)));
+
+          if (loginExit._tag === "Success") {
+            const createdAt = yield* restore(clock.currentTimeMillis);
+
+            yield* Ref.update(sessionsRef, (map) => {
+              const next = new Map(map);
+              next.set(sessionKey, { cookie: loginExit.value, createdAt });
+              return next;
+            });
+            yield* Deferred.succeed(gate.deferred, loginExit.value);
+            yield* Ref.update(sessionLoginRef, (map) => {
+              const next = new Map(map);
+              next.delete(sessionKey);
+              return next;
+            });
+
+            return loginExit.value;
+          }
+
+          yield* Deferred.failCause(gate.deferred, loginExit.cause);
+          yield* Ref.update(sessionLoginRef, (map) => {
+            const next = new Map(map);
+            next.delete(sessionKey);
+            return next;
+          });
+
+          return yield* Effect.failCause(loginExit.cause);
+        }),
+      );
+    },
+  );
+
   return Effect.fn("QBitTorrentClient.withSessionCache")(function* (
     config: QBitConfig,
     operation: (
@@ -50,18 +123,18 @@ export function withSessionCache(
         if (!isUnauthorizedStatus(response.right.status)) {
           return response.right;
         }
+
+        yield* Ref.update(sessionsRef, (map) => {
+          const next = new Map(map);
+          next.delete(sessionKey);
+          return next;
+        });
       } else {
         return yield* response.left;
       }
     }
 
-    const newCookie = yield* login(config);
-    const createdAt = yield* clock.currentTimeMillis;
-    yield* Ref.update(sessionsRef, (map) => {
-      const newMap = new Map(map);
-      newMap.set(sessionKey, { cookie: newCookie, createdAt });
-      return newMap;
-    });
+    const newCookie = yield* acquireFreshSessionCookie(config, sessionKey);
 
     return yield* operation(newCookie);
   });

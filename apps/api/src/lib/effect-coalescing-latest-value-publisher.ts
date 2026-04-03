@@ -19,67 +19,69 @@ export const makeLatestValuePublisher = Effect.fn("EffectCoalescing.makeLatestVa
         readonly running: boolean;
       }>({ completion: null, latest: undefined, running: false });
 
-      const runLoop: Effect.Effect<void, never, R> = Effect.gen(function* () {
-        while (true) {
-          const step = yield* semaphore.withPermits(1)(
-            Effect.gen(function* () {
-              const current = yield* Ref.get(state);
+      const runLoop: Effect.Effect<void, never, R> = Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          while (true) {
+            const step = yield* semaphore.withPermits(1)(
+              Effect.gen(function* () {
+                const current = yield* Ref.get(state);
 
-              if (current.completion === null) {
-                return { type: "done" } as const;
-              }
+                if (current.completion === null) {
+                  return { type: "done" } as const;
+                }
 
-              if (current.latest === undefined) {
+                if (current.latest === undefined) {
+                  yield* Ref.set(state, {
+                    completion: null,
+                    latest: undefined,
+                    running: false,
+                  });
+
+                  return {
+                    type: "complete",
+                    completion: current.completion,
+                  } as const;
+                }
+
                 yield* Ref.set(state, {
-                  completion: null,
+                  completion: current.completion,
                   latest: undefined,
-                  running: false,
+                  running: true,
                 });
 
                 return {
-                  type: "complete",
+                  type: "publish",
                   completion: current.completion,
+                  value: current.latest,
                 } as const;
-              }
-
-              yield* Ref.set(state, {
-                completion: current.completion,
-                latest: undefined,
-                running: true,
-              });
-
-              return {
-                type: "publish",
-                completion: current.completion,
-                value: current.latest,
-              } as const;
-            }),
-          );
-
-          if (step.type === "done") {
-            return;
-          }
-
-          if (step.type === "complete") {
-            yield* Deferred.succeed(step.completion, void 0);
-            return;
-          }
-
-          const exit = yield* Effect.exit(publish(step.value));
-
-          if (exit._tag === "Failure") {
-            yield* semaphore.withPermits(1)(
-              Ref.set(state, {
-                completion: null,
-                latest: undefined,
-                running: false,
               }),
             );
-            yield* Deferred.failCause(step.completion, exit.cause);
-            return;
+
+            if (step.type === "done") {
+              return;
+            }
+
+            if (step.type === "complete") {
+              yield* Deferred.succeed(step.completion, void 0);
+              return;
+            }
+
+            const exit = yield* Effect.exit(restore(publish(step.value)));
+
+            if (exit._tag === "Failure") {
+              yield* semaphore.withPermits(1)(
+                Ref.set(state, {
+                  completion: null,
+                  latest: undefined,
+                  running: false,
+                }),
+              );
+              yield* Deferred.failCause(step.completion, exit.cause);
+              return;
+            }
           }
-        }
-      });
+        }),
+      );
 
       const offer = Effect.fn("LatestValuePublisher.offer")(
         (value: A): Effect.Effect<void, never, R> =>

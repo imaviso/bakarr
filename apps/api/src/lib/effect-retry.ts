@@ -19,7 +19,10 @@ export const makeTryExternal =
   <A>(
     operation: string,
     fn: (signal: AbortSignal) => Promise<A>,
-    options?: { readonly idempotent?: boolean },
+    options?: {
+      readonly idempotent?: boolean;
+      readonly isRetryableError?: (error: ExternalCallError) => boolean;
+    },
   ) =>
     makeTryExternalEffect(clock)(
       operation,
@@ -35,7 +38,10 @@ export const makeTryExternalEffect =
   <A, E, R>(
     operation: string,
     effect: Effect.Effect<A, E, R>,
-    options?: { readonly idempotent?: boolean },
+    options?: {
+      readonly idempotent?: boolean;
+      readonly isRetryableError?: (error: ExternalCallError) => boolean;
+    },
   ) =>
     Effect.fn(`external.${operation}`)(
       function* () {
@@ -49,9 +55,9 @@ export const makeTryExternalEffect =
             Effect.scoped,
             Effect.mapError((cause) => toExternalCallError(operation, cause)),
             Effect.catchTag("ExternalCallError", (error) => {
-              const retryDelayMs = allowRetry
-                ? EXTERNAL_RETRY_DELAYS_MS[attemptNumber - 1]
-                : undefined;
+              const isRetryable = options?.isRetryableError?.(error) ?? true;
+              const retryDelayMs =
+                allowRetry && isRetryable ? EXTERNAL_RETRY_DELAYS_MS[attemptNumber - 1] : undefined;
 
               if (retryDelayMs === undefined) {
                 return Effect.fail(error);

@@ -64,7 +64,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     const accountedEpisodes = new Set<number>();
     const expectedEpisodeCount =
       coveredEpisodes.length > 0 ? new Set(coveredEpisodes).size : undefined;
-    let alreadyImportedCount = 0;
+    let alreadyImportedEpisodeCount = 0;
     let importedCount = 0;
 
     const batchItems: Array<{
@@ -154,7 +154,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
       const existingEpisode = episodeMap.get(primaryEpisode);
 
       if (existingEpisode?.downloaded && existingEpisode?.filePath) {
-        alreadyImportedCount += 1;
+        alreadyImportedEpisodeCount += relevantEpisodes.length;
         continue;
       }
 
@@ -217,7 +217,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     const batchAlreadyImported =
       importedCount === 0 &&
       accountedEpisodes.size > 0 &&
-      alreadyImportedCount === accountedEpisodes.size &&
+      alreadyImportedEpisodeCount === accountedEpisodes.size &&
       (expectedEpisodeCount === undefined || accountedEpisodes.size === expectedEpisodeCount);
 
     if (importedCount === 0 && !batchAlreadyImported) {

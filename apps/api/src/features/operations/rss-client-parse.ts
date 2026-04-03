@@ -3,6 +3,7 @@ import { XMLParser } from "fast-xml-parser";
 
 import { collectBoundedText } from "@/lib/bounded-stream.ts";
 import { RssFeedParseError, RssFeedTooLargeError } from "@/features/operations/errors.ts";
+import { MAX_RSS_BYTES } from "@/features/operations/rss-limits.ts";
 import { parseResolution } from "@/features/operations/release-ranking.ts";
 
 export const ParsedReleaseSchema = Schema.Struct({
@@ -29,8 +30,6 @@ export const ParsedReleaseSchema = Schema.Struct({
 });
 
 export type ParsedRelease = Schema.Schema.Type<typeof ParsedReleaseSchema>;
-
-const MAX_RSS_BYTES = 10 * 1024 * 1024;
 
 const xmlParser = new XMLParser({
   ignoreAttributes: false,

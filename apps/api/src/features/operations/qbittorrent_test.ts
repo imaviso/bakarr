@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { HttpClient, HttpClientError, HttpClientResponse } from "@effect/platform";
-import { Cause, Effect, Exit, Fiber, Layer, TestClock } from "effect";
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, TestClock } from "effect";
 
 import { ClockService, ClockServiceLive } from "@/lib/clock.ts";
 import { QBitTorrentClient, QBitTorrentClientLive } from "@/features/operations/qbittorrent.ts";
@@ -198,6 +198,79 @@ it.effect(
         }),
       ).pipe(Effect.provide(clientLayer));
     }),
+);
+
+it.effect("QBitTorrentClient shares in-flight login across concurrent requests", () =>
+  Effect.gen(function* () {
+    const releaseLogin = yield* Deferred.make<void>();
+    let loginCount = 0;
+
+    const clientLayer = QBitTorrentClientLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          ClockServiceLive,
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make((request, url) => {
+              if (url.pathname === "/api/v2/auth/login") {
+                loginCount += 1;
+
+                return Deferred.await(releaseLogin).pipe(
+                  Effect.as(
+                    HttpClientResponse.fromWeb(
+                      request,
+                      new Response("Ok.", {
+                        headers: { "set-cookie": "SID=singleflight; HttpOnly" },
+                        status: 200,
+                      }),
+                    ),
+                  ),
+                );
+              }
+
+              if (url.pathname === "/api/v2/torrents/info") {
+                return Effect.succeed(
+                  HttpClientResponse.fromWeb(
+                    request,
+                    new Response("[]", {
+                      headers: { "content-type": "application/json" },
+                      status: 200,
+                    }),
+                  ),
+                );
+              }
+
+              return Effect.succeed(
+                HttpClientResponse.fromWeb(request, new Response("not found", { status: 404 })),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+
+    const config = {
+      baseUrl: "https://qbit.example",
+      password: "secret",
+      username: "demo",
+    };
+
+    const effect = Effect.flatMap(QBitTorrentClient, (client) =>
+      Effect.gen(function* () {
+        const first = yield* Effect.fork(client.listTorrents(config));
+        const second = yield* Effect.fork(client.listTorrents(config));
+
+        yield* Deferred.succeed(releaseLogin, void 0);
+
+        yield* Fiber.join(first);
+        yield* Fiber.join(second);
+      }),
+    ).pipe(Effect.provide(clientLayer));
+
+    yield* effect;
+
+    assert.deepStrictEqual(loginCount, 1);
+  }),
 );
 
 function makeQBitClient(onRequest?: () => void) {

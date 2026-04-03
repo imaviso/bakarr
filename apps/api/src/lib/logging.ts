@@ -127,12 +127,11 @@ const RuntimeLoggerLive = Layer.unwrapEffect(
   }),
 );
 
+const RuntimeLoggerDependencies = Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLogSinkLive);
+
 export const RuntimeLoggerLayer = Layer.mergeAll(
-  RuntimeLogLevelStateLive,
-  RuntimeLogSinkLive,
-  RuntimeLoggerLive.pipe(
-    Layer.provide(Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLogSinkLive)),
-  ),
+  RuntimeLoggerDependencies,
+  RuntimeLoggerLive.pipe(Layer.provide(RuntimeLoggerDependencies)),
 );
 
 function parseRuntimeLogLevel(level: string | undefined) {

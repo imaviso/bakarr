@@ -33,7 +33,7 @@ export type DownloadReconciliationContext = {
   readonly eventBus: typeof EventBus.Service;
   readonly row: DownloadRow;
   readonly animeRow: AnimeRow;
-  readonly importMode: string;
+  readonly importMode: Config["library"]["import_mode"];
   readonly runtimeConfig: Config;
   readonly storedSourceMetadata: DownloadSourceMetadata | undefined;
   readonly resolvedContentRoot: string;

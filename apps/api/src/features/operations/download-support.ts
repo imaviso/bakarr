@@ -1,11 +1,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 
-import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
+import type { Config, DownloadSourceMetadata, ImportMode } from "@packages/shared/index.ts";
 import { type AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
 import { anime } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import { isCrossFilesystemError } from "@/lib/fs-errors.ts";
+import { isNotFoundError } from "@/lib/fs-errors.ts";
 import type { ProbedMediaMetadata } from "@/lib/media-probe.ts";
 import { Effect, Schema } from "effect";
 import { buildEpisodeFilenamePlan } from "@/features/operations/naming-support.ts";
@@ -44,7 +45,7 @@ export const importDownloadedFile = Effect.fn("Operations.importDownloadedFile")
   animeRow: typeof anime.$inferSelect,
   episodeNumber: number,
   sourcePath: string,
-  importMode: string,
+  importMode: ImportMode,
   options: {
     randomUuid: () => Effect.Effect<string>;
     episodeNumbers?: readonly number[];
@@ -190,7 +191,7 @@ function buildImportFilePlan(input: {
 
 function stageSourceIntoTempFile(input: {
   fs: FileSystemShape;
-  importMode: string;
+  importMode: ImportMode;
   sourcePath: string;
   tempDestination: string;
 }) {
@@ -245,8 +246,17 @@ function stageSourceIntoTempFile(input: {
 
 function hasExistingFile(fs: FileSystemShape, destination: string) {
   return fs.stat(destination).pipe(
-    Effect.either,
-    Effect.map((result) => result._tag === "Right"),
+    Effect.as(true),
+    Effect.catchTag("FileSystemError", (error) =>
+      isNotFoundError(error) ? Effect.succeed(false) : Effect.fail(error),
+    ),
+    Effect.mapError(
+      (cause) =>
+        new ImportFileError({
+          message: "Failed to determine destination file existence",
+          cause,
+        }),
+    ),
   );
 }
 
