@@ -109,8 +109,12 @@ function AnimeIndexPage() {
   }, 250);
 
   createEffect(() => {
-    const currentSearch = search();
-    localStorage.setItem("bakarr_anime_search", JSON.stringify(currentSearch));
+    try {
+      const currentSearch = search();
+      localStorage.setItem("bakarr_anime_search", JSON.stringify(currentSearch));
+    } catch {
+      // Ignore persistence errors.
+    }
   });
 
   onCleanup(() => debouncer.cancel());

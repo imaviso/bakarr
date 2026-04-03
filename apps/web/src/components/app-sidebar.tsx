@@ -197,7 +197,9 @@ export function AppSidebar() {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={() => logout()}
+              onClick={() => {
+                void logout();
+              }}
               tooltip="Sign out"
               class="h-9 transition-colors"
             >

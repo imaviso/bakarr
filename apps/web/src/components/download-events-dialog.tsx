@@ -1,5 +1,4 @@
 import { createMemo, createSignal, For, Show } from "solid-js";
-import { toast } from "solid-sonner";
 import {
   IconAlertTriangle,
   IconEye,
@@ -21,8 +20,8 @@ import {
   createDownloadEventsQuery,
   type DownloadEvent,
   type DownloadEventsExportResult,
-  exportDownloadEvents,
 } from "~/lib/api";
+import { runDownloadEventsExport } from "~/lib/download-events-export";
 
 interface DownloadEventsDialogProps {
   animeId?: number;
@@ -63,18 +62,12 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
     order: "desc" as const,
   }));
   const openExport = (format: "json" | "csv") => {
-    const exportPromise = exportDownloadEvents(exportBaseInput(), format).then((result) => {
-      setLastExportResult(result);
-      return result;
-    });
-
-    toast.promise(exportPromise, {
-      loading: `Exporting ${format.toUpperCase()} download events...`,
-      success: (result) =>
-        result.truncated
-          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
-          : `Exported ${result.exported} download events`,
-      error: (error) => `Failed to export download events: ${error.message}`,
+    void runDownloadEventsExport({
+      format,
+      input: exportBaseInput(),
+      onComplete: (result) => {
+        setLastExportResult(result);
+      },
     });
   };
 

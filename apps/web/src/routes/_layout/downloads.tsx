@@ -64,11 +64,9 @@ import {
   createSearchMissingMutation,
   createSyncDownloadsMutation,
   type Download,
-  type DownloadEventsExportInput,
   type DownloadEventsExportResult,
   downloadHistoryQueryOptions,
   type DownloadStatus,
-  exportDownloadEvents,
 } from "~/lib/api";
 import {
   formatSelectionDetail,
@@ -87,6 +85,10 @@ import {
   getDownloadReleaseConfidence,
 } from "~/lib/download-metadata";
 import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-presets";
+import {
+  buildDownloadEventsExportInput,
+  runDownloadEventsExport,
+} from "~/lib/download-events-export";
 import { getDownloadStatusPresentation } from "~/lib/download-status";
 
 function animeInitials(title: string) {
@@ -112,7 +114,6 @@ const DownloadsSearchSchema = v.object({
 });
 
 type DownloadsTab = "events" | "history" | "queue";
-
 function toDownloadsTab(value: string | null | undefined): DownloadsTab {
   if (value === "events" || value === "history" || value === "queue") {
     return value;
@@ -264,29 +265,19 @@ function DownloadsPage() {
   };
 
   const handleDownloadEventsExport = (format: "json" | "csv") => {
-    const input: DownloadEventsExportInput = {
-      animeId: parseOptionalPositiveInt(search().events_anime_id),
-      downloadId: parseOptionalPositiveInt(search().events_download_id),
-      endDate: search().events_end_date || undefined,
-      eventType: search().events_event_type === "all" ? undefined : search().events_event_type,
-      limit: 10_000,
-      order: "desc",
-      startDate: search().events_start_date || undefined,
-      status: search().events_status || undefined,
-    };
-
-    const exportPromise = exportDownloadEvents(input, format).then((result) => {
-      setLastDownloadEventsExport(result);
-      return result;
-    });
-
-    toast.promise(exportPromise, {
-      loading: `Exporting ${format.toUpperCase()} download events...`,
-      success: (result) =>
-        result.truncated
-          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
-          : `Exported ${result.exported} download events`,
-      error: (error) => `Failed to export download events: ${error.message}`,
+    void runDownloadEventsExport({
+      format,
+      input: buildDownloadEventsExportInput({
+        animeId: search().events_anime_id,
+        downloadId: search().events_download_id,
+        endDate: search().events_end_date,
+        eventType: search().events_event_type,
+        startDate: search().events_start_date,
+        status: search().events_status,
+      }),
+      onComplete: (result) => {
+        setLastDownloadEventsExport(result);
+      },
     });
   };
 
@@ -844,14 +835,16 @@ function ActiveDownloadRow(props: { item: DownloadStatus }) {
           <div class="flex flex-col justify-center min-w-0">
             <div class="flex items-center gap-2 min-w-0 flex-wrap">
               <Show when={props.item.anime_id && props.item.anime_title}>
-                <Link
-                  to="/anime/$id"
-                  params={{ id: props.item.anime_id!.toString() }}
-                  class="line-clamp-1 text-sm hover:underline min-w-0 max-w-full"
-                  title={props.item.anime_title}
-                >
-                  {props.item.anime_title}
-                </Link>
+                {(animeId) => (
+                  <Link
+                    to="/anime/$id"
+                    params={{ id: animeId().toString() }}
+                    class="line-clamp-1 text-sm hover:underline min-w-0 max-w-full"
+                    title={props.item.anime_title}
+                  >
+                    {props.item.anime_title}
+                  </Link>
+                )}
               </Show>
               <Show when={formatDownloadDecisionBadge(props.item)}>
                 {(badge) => (

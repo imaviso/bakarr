@@ -216,6 +216,10 @@ export interface AddAnimeRequest {
   use_existing_root?: boolean;
 }
 
+export interface AnimeEpisodeStreamUrl {
+  url: string;
+}
+
 export interface DownloadEventsFilterInput {
   animeId?: number;
   cursor?: string;
@@ -678,10 +682,10 @@ export function createToggleMonitorMutation() {
 export function createUpdateAnimePathMutation() {
   const queryClient = useQueryClient();
   return useMutation(() => ({
-    mutationFn: ({ id, path }: { id: number; path: string; rescan?: boolean }) =>
+    mutationFn: ({ id, path, rescan }: { id: number; path: string; rescan?: boolean }) =>
       fetchApi(`${API_BASE}/anime/${id}/path`, {
         method: "PUT",
-        body: JSON.stringify({ path }),
+        body: JSON.stringify({ path, rescan }),
       }),
     onMutate: async ({ id, path }) => {
       await queryClient.cancelQueries({ queryKey: animeKeys.detail(id) });
@@ -1748,6 +1752,12 @@ export function createRenamePreviewQuery(id: () => number) {
     ...renamePreviewQueryOptions(id()),
     enabled: false,
   }));
+}
+
+export function getAnimeEpisodeStreamUrl(animeId: number, episodeNumber: number) {
+  return fetchApi<AnimeEpisodeStreamUrl>(
+    `${API_BASE}/anime/${animeId}/stream-url?episodeNumber=${episodeNumber}`,
+  );
 }
 
 export function createExecuteRenameMutation() {

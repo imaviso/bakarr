@@ -22,13 +22,15 @@ import {
   IconTypography,
   IconX,
 } from "@tabler/icons-solidjs";
-import { createForm } from "@tanstack/solid-form";
 import { useQuery } from "@tanstack/solid-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/solid-router";
 import { createMemo, createSignal, For, Show, Suspense } from "solid-js";
 import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { AnimeError } from "~/components/anime-error";
+import { EditPathDialog } from "~/components/anime/edit-path-dialog";
+import { EditProfileDialog } from "~/components/anime/edit-profile-dialog";
+import { BulkMappingDialog, ManualMappingDialog } from "~/components/anime/mapping-dialogs";
 import { AnimeDiscoverySection } from "~/components/anime-discovery";
 import { ImportDialog } from "~/components/import-dialog";
 import { RenameDialog } from "~/components/rename-dialog";
@@ -48,15 +50,6 @@ import {
 import { Badge } from "~/components/ui/badge";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Checkbox } from "~/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,13 +57,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import {
   Table,
   TableBody,
@@ -80,15 +66,11 @@ import {
   TableRow,
 } from "~/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { TextField, TextFieldInput, TextFieldLabel } from "~/components/ui/text-field";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/components/ui/tooltip";
 import {
   animeDetailsQueryOptions,
-  createBulkMapEpisodesMutation,
   createDeleteAnimeMutation,
   createDeleteEpisodeFileMutation,
-  createListFilesQuery,
-  createMapEpisodeMutation,
   createRefreshEpisodesMutation,
   createScanFolderMutation,
   createSearchMissingMutation,
@@ -97,11 +79,9 @@ import {
   createUpdateAnimeProfileMutation,
   createUpdateAnimeReleaseProfilesMutation,
   episodesQueryOptions,
+  getAnimeEpisodeStreamUrl,
   profilesQueryOptions,
-  type QualityProfile,
-  type ReleaseProfile,
   releaseProfilesQueryOptions,
-  type VideoFile,
 } from "~/lib/api";
 import { cn, copyToClipboard } from "~/lib/utils";
 import { formatDurationSeconds } from "~/lib/scanned-file";
@@ -193,29 +173,23 @@ function AnimeDetailsPage() {
 
   const handlePlayInMpv = async (episodeNumber: number) => {
     try {
-      const response = await fetch(
-        `/api/anime/${animeId()}/stream-url?episodeNumber=${episodeNumber}`,
-      );
-      if (!response.ok) throw new Error("Failed to generate stream link");
-      const { url } = await response.json();
+      const { url } = await getAnimeEpisodeStreamUrl(animeId(), episodeNumber);
       const origin = globalThis.location.origin;
       globalThis.open(`mpv://${origin}${url}`, "_self");
-    } catch {
-      toast.error("Could not generate stream link.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not generate stream link.";
+      toast.error(message);
     }
   };
 
   const handleCopyStreamLink = async (episodeNumber: number) => {
     try {
-      const response = await fetch(
-        `/api/anime/${animeId()}/stream-url?episodeNumber=${episodeNumber}`,
-      );
-      if (!response.ok) throw new Error("Failed to generate stream link");
-      const { url } = await response.json();
+      const { url } = await getAnimeEpisodeStreamUrl(animeId(), episodeNumber);
       const origin = globalThis.location.origin;
       await copyToClipboard(`${origin}${url}`, "Stream URL");
-    } catch {
-      toast.error("Could not copy stream link.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not copy stream link.";
+      toast.error(message);
     }
   };
 
@@ -975,7 +949,8 @@ function AnimeDetailsPage() {
         onOpenChange={setEditPathOpen}
         currentPath={animeQuery.data?.root_folder || ""}
         animeId={animeId()}
-        updateMutation={updatePath}
+        updatePath={updatePath.mutateAsync}
+        isPending={updatePath.isPending}
       />
 
       <EditProfileDialog
@@ -984,571 +959,13 @@ function AnimeDetailsPage() {
         currentProfile={animeQuery.data?.profile_name || ""}
         currentReleaseProfileIds={animeQuery.data?.release_profile_ids || []}
         animeId={animeId()}
-        updateMutation={updateProfile}
-        updateReleaseProfilesMutation={updateReleaseProfiles}
+        updateProfile={updateProfile.mutateAsync}
+        isUpdatingProfile={updateProfile.isPending}
+        updateReleaseProfiles={updateReleaseProfiles.mutateAsync}
+        isUpdatingReleaseProfiles={updateReleaseProfiles.isPending}
         profiles={profilesQuery.data || []}
         releaseProfiles={releaseProfilesQuery.data || []}
       />
     </div>
-  );
-}
-
-// Valibot schema for EditProfile form
-const EditProfileSchema = v.object({
-  profile: v.string(),
-  releaseProfileIds: v.array(v.number()),
-});
-
-type EditProfileFormData = v.InferOutput<typeof EditProfileSchema>;
-
-type ProfileUpdateMutation = Pick<
-  ReturnType<typeof createUpdateAnimeProfileMutation>,
-  "isPending" | "mutateAsync"
->;
-
-type ReleaseProfilesUpdateMutation = Pick<
-  ReturnType<typeof createUpdateAnimeReleaseProfilesMutation>,
-  "isPending" | "mutateAsync"
->;
-
-type PathUpdateMutation = Pick<
-  ReturnType<typeof createUpdateAnimePathMutation>,
-  "isPending" | "mutate"
->;
-
-interface EditProfileDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  currentProfile: string;
-  currentReleaseProfileIds: number[];
-  animeId: number;
-  updateMutation: ProfileUpdateMutation;
-  updateReleaseProfilesMutation: ReleaseProfilesUpdateMutation;
-  profiles: QualityProfile[];
-  releaseProfiles: ReleaseProfile[];
-}
-
-function EditProfileDialog(props: EditProfileDialogProps) {
-  return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <Show when={props.open}>
-        <EditProfileDialogContent {...props} />
-      </Show>
-    </Dialog>
-  );
-}
-
-function EditProfileDialogContent(props: EditProfileDialogProps) {
-  const form = createForm(() => ({
-    defaultValues: {
-      profile: props.currentProfile,
-      releaseProfileIds: props.currentReleaseProfileIds,
-    } as EditProfileFormData,
-    onSubmit: async ({ value }) => {
-      const promises: Promise<unknown>[] = [];
-
-      if (value.profile !== props.currentProfile) {
-        promises.push(
-          props.updateMutation.mutateAsync({
-            id: props.animeId,
-            profileName: value.profile,
-          }),
-        );
-      }
-
-      // Check if release profiles changed
-      const currentIds = props.currentReleaseProfileIds.slice().toSorted((a, b) => a - b);
-      const newIds = value.releaseProfileIds.slice().toSorted((a, b) => a - b);
-      const changed =
-        currentIds.length !== newIds.length || currentIds.some((id, i) => id !== newIds[i]);
-
-      if (changed) {
-        promises.push(
-          props.updateReleaseProfilesMutation.mutateAsync({
-            id: props.animeId,
-            releaseProfileIds: value.releaseProfileIds,
-          }),
-        );
-      }
-
-      try {
-        await Promise.all(promises);
-        props.onOpenChange(false);
-        toast.success("Settings updated successfully");
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        toast.error(`Failed to update settings: ${message}`);
-      }
-    },
-  }));
-
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Edit Profiles</DialogTitle>
-        <DialogDescription>
-          Change the quality and release profiles for this anime.
-        </DialogDescription>
-      </DialogHeader>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          void form.handleSubmit();
-        }}
-        class="space-y-6"
-      >
-        <form.Field name="profile">
-          {(field) => (
-            <div class="space-y-2">
-              <label class="text-sm font-medium leading-none" for="profile-select">
-                Quality Profile
-              </label>
-              <Select
-                value={field().state.value}
-                onChange={(val) => val && field().handleChange(val)}
-                options={props.profiles.map((p) => p.name)}
-                placeholder="Select profile..."
-                itemComponent={(selectProps) => (
-                  <SelectItem item={selectProps.item}>{selectProps.item.rawValue}</SelectItem>
-                )}
-              >
-                <SelectTrigger class="w-full">
-                  <SelectValue<string>>{(state) => state.selectedOption()}</SelectValue>
-                </SelectTrigger>
-                <SelectContent />
-              </Select>
-            </div>
-          )}
-        </form.Field>
-
-        <div class="space-y-2">
-          <div class="text-sm font-medium leading-none">Release Profiles (Optional)</div>
-          <form.Field name="releaseProfileIds">
-            {(field) => (
-              <div class="border rounded-md p-3 max-h-[150px] overflow-y-auto space-y-2">
-                <Show
-                  when={props.releaseProfiles && props.releaseProfiles.length > 0}
-                  fallback={
-                    <div class="text-sm text-muted-foreground text-center py-2">
-                      No release profiles available
-                    </div>
-                  }
-                >
-                  <For each={props.releaseProfiles}>
-                    {(rp) => (
-                      <div class="flex items-center space-x-2">
-                        <Checkbox
-                          id={`rp-edit-${rp.id}`}
-                          checked={field().state.value.includes(rp.id)}
-                          onChange={(checked) => {
-                            const currentIds = field().state.value;
-                            if (checked) {
-                              field().handleChange([...currentIds, rp.id]);
-                            } else {
-                              field().handleChange(currentIds.filter((id) => id !== rp.id));
-                            }
-                          }}
-                        />
-                        <label
-                          for={`rp-edit-${rp.id}`}
-                          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 flex items-center justify-between"
-                        >
-                          <span>{rp.name}</span>
-                          <div class="flex gap-2">
-                            <Show when={rp.is_global}>
-                              <Badge variant="outline" class="text-xs h-4 px-1">
-                                Global
-                              </Badge>
-                            </Show>
-                            <Show when={!rp.enabled}>
-                              <Badge
-                                variant="outline"
-                                class="text-xs h-4 px-1 text-muted-foreground"
-                              >
-                                Disabled
-                              </Badge>
-                            </Show>
-                          </div>
-                        </label>
-                      </div>
-                    )}
-                  </For>
-                </Show>
-              </div>
-            )}
-          </form.Field>
-          <p class="text-xs text-muted-foreground">
-            Global profiles are applied automatically. Select specific profiles to apply them to
-            this series.
-          </p>
-        </div>
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
-            Cancel
-          </Button>
-          <form.Subscribe
-            selector={(state) => ({
-              isSubmitting: state.isSubmitting,
-            })}
-          >
-            {(state) => (
-              <Button
-                type="submit"
-                disabled={
-                  state().isSubmitting ||
-                  props.updateMutation.isPending ||
-                  props.updateReleaseProfilesMutation.isPending
-                }
-              >
-                {state().isSubmitting ||
-                props.updateMutation.isPending ||
-                props.updateReleaseProfilesMutation.isPending
-                  ? "Saving..."
-                  : "Save Changes"}
-              </Button>
-            )}
-          </form.Subscribe>
-        </DialogFooter>
-      </form>
-    </DialogContent>
-  );
-}
-
-function BulkMappingDialog(props: {
-  animeId: number;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const episodesQuery = useQuery(() => episodesQueryOptions(props.animeId));
-  const filesQuery = createListFilesQuery(() => props.animeId);
-  const bulkMapMutation = createBulkMapEpisodesMutation();
-
-  const [mappings, setMappings] = createSignal<Record<number, string>>({});
-
-  const files = () => filesQuery.data || [];
-  const allEpisodes = () => episodesQuery.data || [];
-
-  type MappingOption = { path: string; name: string } | VideoFile;
-
-  const handleMap = (episodeNumber: number, filePath: string) => {
-    setMappings((prev) => {
-      const next = { ...prev };
-      next[episodeNumber] = filePath;
-      return next;
-    });
-  };
-
-  const handleSubmit = () => {
-    const entries = Object.entries(mappings());
-    if (entries.length === 0) return;
-
-    const payload = entries.map(([epNum, path]) => ({
-      episode_number: parseInt(epNum, 10),
-      file_path: path,
-    }));
-
-    bulkMapMutation.mutate(
-      {
-        animeId: props.animeId,
-        mappings: payload,
-      },
-      {
-        onSuccess: () => {
-          toast.success(`Successfully mapped ${entries.length} episodes`);
-          props.onOpenChange(false);
-          setMappings({});
-        },
-        onError: (err: Error) => {
-          toast.error(`Failed to map episodes: ${err.message}`);
-        },
-      },
-    );
-  };
-
-  return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent class="sm:max-w-[800px] max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Bulk Manual Mapping</DialogTitle>
-          <DialogDescription>
-            Map files to episodes manually. Showing all episodes and files.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div class="flex-1 overflow-y-auto py-4">
-          <Show
-            when={episodesQuery.data && filesQuery.data}
-            fallback={
-              <div class="flex justify-center py-8">
-                <IconRefresh class="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            }
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead class="w-[80px]">Episode</TableHead>
-                  <TableHead>File to Map</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <For each={allEpisodes()}>
-                  {(episode) => (
-                    <TableRow>
-                      <TableCell class="font-medium">Ep {episode.number}</TableCell>
-                      <TableCell>
-                        <Select
-                          options={[{ path: "", name: "(Unmap / No File)" }, ...(files() || [])]}
-                          optionValue="path"
-                          optionTextValue="name"
-                          value={
-                            files().find(
-                              (f) => f.path === (mappings()[episode.number] ?? episode.file_path),
-                            ) || { path: "", name: "(Unmap / No File)" }
-                          }
-                          onChange={(value) => handleMap(episode.number, value?.path || "")}
-                          placeholder="Select file..."
-                          itemComponent={(itemProps) => {
-                            const item: MappingOption = itemProps.item.rawValue;
-                            const itemSize =
-                              "size" in item ? (item.size / 1024 / 1024).toFixed(1) : null;
-                            const itemEpisode =
-                              "episode_number" in item ? item.episode_number : null;
-                            return (
-                              <SelectItem item={itemProps.item}>
-                                {item.name}
-                                <Show when={itemSize}>
-                                  {" ("}
-                                  {itemSize} MB)
-                                </Show>
-                                <Show when={itemEpisode !== null}>{` [Ep ${itemEpisode}]`}</Show>
-                              </SelectItem>
-                            );
-                          }}
-                        >
-                          <SelectTrigger class="w-full text-xs h-8">
-                            <SelectValue<MappingOption>>
-                              {(state) => state.selectedOption()?.name}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent />
-                        </Select>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </For>
-              </TableBody>
-            </Table>
-          </Show>
-        </div>
-
-        <DialogFooter class="mt-4">
-          <Button variant="outline" onClick={() => props.onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={Object.keys(mappings()).length === 0 || bulkMapMutation.isPending}
-          >
-            {bulkMapMutation.isPending ? "Mapping..." : "Save Mappings"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function EditPathDialog(props: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  currentPath: string;
-  animeId: number;
-  updateMutation: PathUpdateMutation;
-}) {
-  const [path, setPath] = createSignal(props.currentPath);
-  const [rescan, setRescan] = createSignal(true);
-
-  createSignal(() => {
-    if (props.open && props.currentPath) setPath(props.currentPath);
-  });
-
-  const handleSubmit = (e: Event) => {
-    e.preventDefault();
-    props.updateMutation.mutate(
-      { id: props.animeId, path: path(), rescan: rescan() },
-      {
-        onSuccess: () => {
-          props.onOpenChange(false);
-          toast.success("Path updated successfully");
-        },
-        onError: (err: Error) => {
-          toast.error(`Failed to update path: ${err.message}`);
-        },
-      },
-    );
-  };
-
-  return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit Root Path</DialogTitle>
-          <DialogDescription>Change the folder path for this anime.</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} class="space-y-4">
-          <div class="space-y-2">
-            <TextField value={path()} onChange={setPath}>
-              <TextFieldLabel>Path</TextFieldLabel>
-              <TextFieldInput placeholder="/path/to/anime" />
-            </TextField>
-          </div>
-          <div class="flex items-center space-x-2">
-            <Checkbox id="rescan" checked={rescan()} onChange={setRescan} />
-            <label
-              for="rescan"
-              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Rescan folder after update
-            </label>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={props.updateMutation.isPending}>
-              {props.updateMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ManualMappingDialog(props: {
-  animeId: number;
-  episodeNumber: number;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const filesQuery = createListFilesQuery(() => props.animeId);
-  const mapMutation = createMapEpisodeMutation();
-  const [selectedFile, setSelectedFile] = createSignal<string | null>(null);
-
-  const handleSubmit = () => {
-    const file = selectedFile();
-    if (!file) return;
-
-    mapMutation.mutate(
-      {
-        animeId: props.animeId,
-        episodeNumber: props.episodeNumber,
-        filePath: file,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Episode mapped successfully");
-          props.onOpenChange(false);
-          setSelectedFile(null);
-        },
-        onError: (err) => {
-          toast.error(`Failed to map episode: ${err.message}`);
-        },
-      },
-    );
-  };
-
-  return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent class="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Manual Mapping - Episode {props.episodeNumber}</DialogTitle>
-          <DialogDescription>
-            Select a file from the anime directory to map to this episode.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div class="py-4">
-          <Show
-            when={filesQuery.data}
-            fallback={
-              <div class="flex justify-center py-8">
-                <IconRefresh class="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            }
-          >
-            {(files) => (
-              <div class="border rounded-md max-h-[300px] overflow-y-auto">
-                <Show when={files().length === 0}>
-                  <div class="p-4 text-center text-sm text-muted-foreground">
-                    No video files found in the anime directory.
-                  </div>
-                </Show>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead class="w-[30px]" />
-                      <TableHead>Filename</TableHead>
-                      <TableHead class="w-[100px] text-right">Size</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <For each={files()}>
-                      {(file) => (
-                        <TableRow
-                          class={cn(
-                            "cursor-pointer hover:bg-muted/50 focus:bg-muted focus:outline-none",
-                            selectedFile() === file.path && "bg-muted",
-                          )}
-                          onClick={() => setSelectedFile(file.path)}
-                          tabIndex={0}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setSelectedFile(file.path);
-                            }
-                          }}
-                        >
-                          <TableCell>
-                            <div
-                              class={cn(
-                                "h-4 w-4 rounded-full border border-primary",
-                                selectedFile() === file.path && "bg-primary",
-                              )}
-                            />
-                          </TableCell>
-                          <TableCell class="font-mono text-xs break-all">
-                            {file.name}
-                            <Show when={file.episode_number}>
-                              <span class="ml-2 text-muted-foreground italic">
-                                (Mapped to Ep {file.episode_number})
-                              </span>
-                            </Show>
-                          </TableCell>
-                          <TableCell class="text-right text-xs">
-                            {(file.size / 1024 / 1024).toFixed(1)} MB
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </For>
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </Show>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => props.onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!selectedFile() || mapMutation.isPending}>
-            {mapMutation.isPending ? "Mapping..." : "Map File"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

@@ -257,9 +257,13 @@ export function FileBrowser(props: FileBrowserProps) {
       </div>
 
       {/* Pagination controls */}
-      <Show when={pageInfo() && pageInfo()!.total > BROWSE_PAGE_SIZE}>
-        {(_) => {
-          const info = () => pageInfo()!;
+      <Show when={pageInfo()}>
+        {(infoAccessor) => {
+          const info = () => infoAccessor();
+          if (info().total <= BROWSE_PAGE_SIZE) {
+            return null;
+          }
+
           return (
             <div class="flex items-center justify-between px-3 py-1.5 border-t bg-muted/30 text-xs text-muted-foreground shrink-0">
               <span>

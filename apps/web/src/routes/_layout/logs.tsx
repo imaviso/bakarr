@@ -18,7 +18,6 @@ import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { format } from "date-fns";
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 import { createVirtualizer } from "@tanstack/solid-virtual";
-import { toast } from "solid-sonner";
 import * as v from "valibot";
 import { Filter, type FilterColumnConfig, type FilterState } from "~/components/filters";
 import { GeneralError } from "~/components/general-error";
@@ -78,14 +77,16 @@ import {
   createSystemDashboardQuery,
   createSystemJobsQuery,
   type DownloadEvent,
-  type DownloadEventsExportInput,
   type DownloadEventsExportResult,
-  exportDownloadEvents,
   getExportLogsUrl,
   infiniteLogsQueryOptions,
   type SystemLog,
 } from "~/lib/api";
 import { formatDateTimeLocalInput, getDateRangePresetHours } from "~/lib/date-presets";
+import {
+  buildDownloadEventsExportInput,
+  runDownloadEventsExport,
+} from "~/lib/download-events-export";
 import { cn } from "~/lib/utils";
 
 const LogsSearchSchema = v.object({
@@ -151,6 +152,15 @@ function getLevelIcon(level: string) {
     default:
       return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
   }
+}
+
+function parseOptionalPositiveInt(value: string) {
+  if (!value.trim()) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function LogsPage() {
@@ -352,29 +362,19 @@ function LogsPage() {
   };
 
   const handleDownloadEventsExport = (exportFormat: "json" | "csv") => {
-    const input: DownloadEventsExportInput = {
-      animeId: parseOptionalPositiveInt(search().download_anime_id),
-      downloadId: parseOptionalPositiveInt(search().download_download_id),
-      endDate: search().download_end_date || undefined,
-      eventType: search().download_event_type === "all" ? undefined : search().download_event_type,
-      limit: 10_000,
-      order: "desc",
-      startDate: search().download_start_date || undefined,
-      status: search().download_status || undefined,
-    };
-
-    const exportPromise = exportDownloadEvents(input, exportFormat).then((result) => {
-      setLastDownloadEventsExport(result);
-      return result;
-    });
-
-    toast.promise(exportPromise, {
-      loading: `Exporting ${exportFormat.toUpperCase()} download events...`,
-      success: (result) =>
-        result.truncated
-          ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
-          : `Exported ${result.exported} download events`,
-      error: (error) => `Failed to export download events: ${error.message}`,
+    void runDownloadEventsExport({
+      format: exportFormat,
+      input: buildDownloadEventsExportInput({
+        animeId: search().download_anime_id,
+        downloadId: search().download_download_id,
+        endDate: search().download_end_date,
+        eventType: search().download_event_type,
+        startDate: search().download_start_date,
+        status: search().download_status,
+      }),
+      onComplete: (result) => {
+        setLastDownloadEventsExport(result);
+      },
     });
   };
 
@@ -984,15 +984,6 @@ function BackgroundJobCard(props: { job: BackgroundJobStatus }) {
       </div>
     </div>
   );
-}
-
-function parseOptionalPositiveInt(value: string) {
-  if (!value.trim()) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function DashboardMetricCard(props: { label: string; value: number; highlight?: string }) {
