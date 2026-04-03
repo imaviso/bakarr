@@ -27,21 +27,16 @@ export function SseToastListener() {
 
     eventSource = new EventSource("/api/events");
 
-    eventSource.onopen = () => {
-      console.log("SSE Connected");
-    };
-
-    eventSource.onmessage = (event) => {
+    eventSource.addEventListener("message", (event) => {
       try {
         const data: NotificationEvent = JSON.parse(event.data);
         handleEvent(data);
-      } catch (e) {
-        console.error("Failed to parse SSE event", e);
+      } catch {
+        // Ignore malformed SSE payloads.
       }
-    };
+    });
 
-    eventSource.onerror = (err) => {
-      console.error("SSE Error", err);
+    eventSource.addEventListener("error", () => {
       eventSource?.close();
       eventSource = null;
 
@@ -51,7 +46,7 @@ export function SseToastListener() {
           connect();
         }, 5000);
       }
-    };
+    });
   };
 
   const handleEvent = (event: NotificationEvent) => {
@@ -77,9 +72,9 @@ export function SseToastListener() {
             description: copy?.description,
           });
         }
-        queryClient.invalidateQueries({ queryKey: ["anime"] });
+        void queryClient.invalidateQueries({ queryKey: ["anime"] });
         if (event.payload.anime_id) {
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["anime", event.payload.anime_id],
           });
         }
@@ -89,12 +84,12 @@ export function SseToastListener() {
         break;
       case "RefreshFinished":
         toast.success(`Metadata refreshed for ${event.payload.title}`);
-        queryClient.invalidateQueries({ queryKey: ["anime"] });
+        void queryClient.invalidateQueries({ queryKey: ["anime"] });
         if (event.payload.anime_id) {
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["anime", event.payload.anime_id],
           });
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["anime", event.payload.anime_id, "episodes"],
           });
         }
@@ -115,14 +110,14 @@ export function SseToastListener() {
           `Folder scan complete for ${event.payload.title}. Found ${event.payload.found} files.`,
         );
         if (event.payload.anime_id) {
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["anime", event.payload.anime_id, "episodes"],
           });
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["anime", event.payload.anime_id],
           });
         }
-        queryClient.invalidateQueries({ queryKey: ["anime"] });
+        void queryClient.invalidateQueries({ queryKey: ["anime"] });
         break;
       case "RenameStarted":
         toast.info(`Renaming files for ${event.payload.title}`);
@@ -132,7 +127,7 @@ export function SseToastListener() {
           `Renaming complete for ${event.payload.title}. Renamed ${event.payload.count} files.`,
         );
         if (event.payload.anime_id) {
-          queryClient.invalidateQueries({
+          void queryClient.invalidateQueries({
             queryKey: ["anime", event.payload.anime_id, "episodes"],
           });
         }
@@ -151,7 +146,7 @@ export function SseToastListener() {
             },
           );
         }
-        queryClient.invalidateQueries({ queryKey: ["anime"] });
+        void queryClient.invalidateQueries({ queryKey: ["anime"] });
         break;
       case "LibraryScanStarted":
         toast.info("Library file scan started");

@@ -636,7 +636,9 @@ function SortableQualityList(props: {
         onChange={(val) => val && addQuality(val)}
         options={unusedQualities()}
         placeholder="Add quality..."
-        itemComponent={(props) => <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>}
+        itemComponent={(itemProps) => (
+          <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
+        )}
       >
         <SelectTrigger class="w-full">
           <SelectValue<string>>
@@ -669,7 +671,10 @@ function SizeInput(props: {
       const match = props.value.match(/^(\d+(?:\.\d+)?)\s*(MB|GB)$/i);
       if (match) {
         setAmount(match[1]);
-        setUnit(match[2].toUpperCase() as "MB" | "GB");
+        const parsedUnit = parseSizeUnit(match[2]);
+        if (parsedUnit) {
+          setUnit(parsedUnit);
+        }
       }
     }
   });
@@ -790,7 +795,7 @@ function ProfileForm(props: {
           onSubmit={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            form.handleSubmit();
+            void form.handleSubmit();
           }}
           class="space-y-4"
         >
@@ -825,8 +830,8 @@ function ProfileForm(props: {
                   onChange={(val) => val && field().handleChange(val)}
                   options={qualityNames()}
                   placeholder="Select cutoff..."
-                  itemComponent={(props) => (
-                    <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+                  itemComponent={(itemProps) => (
+                    <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
                   )}
                 >
                   <SelectTrigger class="w-full">
@@ -1011,7 +1016,7 @@ function ReleaseProfileForm(props: {
           onSubmit={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            form.handleSubmit();
+            void form.handleSubmit();
           }}
           class="space-y-4"
         >
@@ -1126,11 +1131,11 @@ function ReleaseProfileForm(props: {
                                 value={typeField().state.value}
                                 onChange={(val) => val && typeField().handleChange(val)}
                                 options={["preferred", "must", "must_not"]}
-                                itemComponent={(props) => (
-                                  <SelectItem item={props.item}>
-                                    {props.item.rawValue === "preferred"
+                                itemComponent={(itemProps) => (
+                                  <SelectItem item={itemProps.item}>
+                                    {itemProps.item.rawValue === "preferred"
                                       ? "Preferred"
-                                      : props.item.rawValue === "must"
+                                      : itemProps.item.rawValue === "must"
                                         ? "Must Contain"
                                         : "Must Not Contain"}
                                   </SelectItem>
@@ -1158,7 +1163,7 @@ function ReleaseProfileForm(props: {
                             <div class="w-[100px]">
                               <TextField
                                 value={scoreField().state.value.toString()}
-                                onChange={(v) => scoreField().handleChange(Number(v))}
+                                onChange={(value) => scoreField().handleChange(Number(value))}
                                 disabled={
                                   form.getFieldValue(`rules[${index}].rule_type`) !== "preferred"
                                 }
@@ -1298,6 +1303,22 @@ function preferredTitleLabel(value: string) {
       return "Native";
     default:
       return "Romaji";
+  }
+}
+
+function parseSizeUnit(value: string): "MB" | "GB" | undefined {
+  const upper = value.toUpperCase();
+  if (upper === "MB" || upper === "GB") return upper;
+  return undefined;
+}
+
+function formatLastRun(dateStr?: string | null) {
+  if (!dateStr) return "Never";
+  try {
+    const date = new Date(`${dateStr.replace(" ", "T")}Z`);
+    return date.toLocaleString();
+  } catch {
+    return dateStr;
   }
 }
 
@@ -1480,7 +1501,7 @@ function SystemForm(props: {
     try {
       await triggerScan.mutateAsync();
       toast.success("Library scan started");
-    } catch (_e) {
+    } catch {
       toast.error("Failed to start scan");
     }
   };
@@ -1489,7 +1510,7 @@ function SystemForm(props: {
     try {
       await triggerRss.mutateAsync();
       toast.success("RSS check started");
-    } catch (_e) {
+    } catch {
       toast.error("Failed to start RSS check");
     }
   };
@@ -1498,18 +1519,8 @@ function SystemForm(props: {
     try {
       await triggerMetadataRefresh.mutateAsync();
       toast.success("Metadata refresh started");
-    } catch (_e) {
+    } catch {
       toast.error("Failed to start metadata refresh");
-    }
-  };
-
-  const formatLastRun = (dateStr?: string | null) => {
-    if (!dateStr) return "Never";
-    try {
-      const date = new Date(`${dateStr.replace(" ", "T")}Z`);
-      return date.toLocaleString();
-    } catch (_e) {
-      return dateStr;
     }
   };
 
@@ -1519,7 +1530,7 @@ function SystemForm(props: {
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        form.handleSubmit();
+        void form.handleSubmit();
       }}
       class="space-y-8 pb-24 max-w-3xl"
     >
@@ -2424,7 +2435,7 @@ function AccountSettingsForm() {
             onSubmit={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              passwordForm.handleSubmit();
+              void passwordForm.handleSubmit();
             }}
             class="space-y-4 max-w-md"
           >

@@ -85,6 +85,21 @@ const FILTER_LABELS: Record<string, string> = {
   trusted_only: "Trusted Only",
 };
 
+function formatDate(dateStr: string) {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "2-digit",
+  });
+}
+
 export function SearchDialog(props: SearchDialogProps) {
   const [open, setOpen] = createSignal(false);
   const [query, setQuery] = createSignal(props.defaultQuery);
@@ -140,8 +155,10 @@ export function SearchDialog(props: SearchDialogProps) {
               value={category()}
               onChange={setCategory}
               options={Object.keys(CATEGORY_LABELS)}
-              itemComponent={(props) => (
-                <SelectItem item={props.item}>{CATEGORY_LABELS[props.item.rawValue]}</SelectItem>
+              itemComponent={(itemProps) => (
+                <SelectItem item={itemProps.item}>
+                  {CATEGORY_LABELS[itemProps.item.rawValue]}
+                </SelectItem>
               )}
             >
               <SelectTrigger class="h-7 w-auto min-w-[130px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
@@ -157,8 +174,10 @@ export function SearchDialog(props: SearchDialogProps) {
               value={filter()}
               onChange={setFilter}
               options={Object.keys(FILTER_LABELS)}
-              itemComponent={(props) => (
-                <SelectItem item={props.item}>{FILTER_LABELS[props.item.rawValue]}</SelectItem>
+              itemComponent={(itemProps) => (
+                <SelectItem item={itemProps.item}>
+                  {FILTER_LABELS[itemProps.item.rawValue]}
+                </SelectItem>
               )}
             >
               <SelectTrigger class="h-7 w-auto min-w-[120px] text-xs bg-muted/30 border-transparent hover:bg-muted/50 focus:ring-0 gap-2 rounded-none shadow-none px-2.5">
@@ -227,7 +246,7 @@ function SearchResults(props: {
 
   const sortedResults = createMemo(() => {
     const list = [...results()];
-    return list.sort((a, b) => {
+    return list.toSorted((a, b) => {
       const col = sortCol();
 
       if (col === "pub_date") {
@@ -514,21 +533,6 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
         },
       },
     );
-  };
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 30) return `${diffDays}d ago`;
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "2-digit",
-    });
   };
 
   const selectionSummary = () => formatSelectionSummary(selectionMetadata());

@@ -70,6 +70,10 @@ const steps: { id: Step; label: string; description: string }[] = [
   },
 ];
 
+function toInputMode(value: string | null | undefined): "browser" | "manual" {
+  return value === "manual" ? "manual" : "browser";
+}
+
 function ImportPage() {
   const navigate = useNavigate();
   const [path, setPath] = createSignal("");
@@ -182,7 +186,7 @@ function ImportPage() {
           { id: toastId },
         );
       }
-      navigate({
+      void navigate({
         to: "/anime",
         search: { q: "", filter: "all", view: "grid" },
       });
@@ -416,7 +420,7 @@ function ImportPage() {
               <div class="flex-1 px-8 py-6 overflow-hidden flex flex-col min-h-0">
                 <Tabs
                   value={inputMode()}
-                  onChange={(v) => setInputMode(v as "browser" | "manual")}
+                  onChange={(value) => setInputMode(toInputMode(value))}
                   class="flex-1 flex flex-col min-h-0 overflow-hidden"
                 >
                   <TabsList class="w-fit">

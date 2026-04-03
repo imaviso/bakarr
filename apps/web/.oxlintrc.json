@@ -3,15 +3,15 @@
   "plugins": ["typescript", "unicorn", "jsx-a11y", "import", "oxc"],
   "categories": {
     "correctness": "error",
-    "perf": "warn",
-    "suspicious": "warn",
+    "perf": "error",
+    "suspicious": "error",
     "pedantic": "off",
-    "style": "warn"
+    "style": "off"
   },
   "rules": {
     "unicorn/prefer-destructuring": "off",
     "typescript/explicit-function-return-type": "off",
-    "typescript/no-explicit-any": "warn",
+    "typescript/no-explicit-any": "error",
     "no-async-await": "off",
     "no-console": "warn",
     "jsx-a11y/alt-text": "error",

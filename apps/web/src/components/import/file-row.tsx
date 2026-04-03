@@ -38,12 +38,18 @@ export function FileRow(props: FileRowProps) {
     props.currentSeason !== undefined ? props.currentSeason : props.file.season;
 
   const allOptions = createMemo<AnimeOption[]>(() => {
+    const candidateOptions = props.candidates
+      .filter((candidate) => !props.animeList.some((anime) => anime.id === candidate.id))
+      .map((candidate) =>
+        Object.assign(candidate, {
+          source: "candidate" as const,
+        }),
+      );
+
     return [
       ...props.animeList.map((a) => ({ ...a, source: "library" as const })),
-      ...props.candidates
-        .filter((c) => !props.animeList.some((a) => a.id === c.id))
-        .map((c) => ({ ...c, source: "candidate" as const })),
-    ].sort((a, b) => {
+      ...candidateOptions,
+    ].toSorted((a, b) => {
       const titleA = a.title.english || a.title.romaji || "";
       const titleB = b.title.english || b.title.romaji || "";
       return titleA.localeCompare(titleB);
@@ -292,11 +298,12 @@ export function FileRow(props: FileRowProps) {
                     opt.title.english || opt.title.romaji || "Unknown Title"
                   }
                   placeholder="Select anime..."
-                  itemComponent={(props) => (
-                    <SelectItem item={props.item}>
+                  itemComponent={(itemProps) => (
+                    <SelectItem item={itemProps.item}>
                       <span class="flex items-center gap-2">
-                        {props.item.rawValue?.title.english || props.item.rawValue?.title.romaji}
-                        <Show when={props.item.rawValue?.source === "candidate"}>
+                        {itemProps.item.rawValue?.title.english ||
+                          itemProps.item.rawValue?.title.romaji}
+                        <Show when={itemProps.item.rawValue?.source === "candidate"}>
                           <Badge variant="secondary" class="h-4 px-1 text-xs">
                             New
                           </Badge>
@@ -330,11 +337,12 @@ export function FileRow(props: FileRowProps) {
               options={allOptions()}
               optionValue="id"
               optionTextValue={(opt) => opt.title.english || opt.title.romaji || "Unknown Title"}
-              itemComponent={(props) => (
-                <SelectItem item={props.item}>
+              itemComponent={(itemProps) => (
+                <SelectItem item={itemProps.item}>
                   <span class="flex items-center gap-2">
-                    {props.item.rawValue?.title.english || props.item.rawValue?.title.romaji}
-                    <Show when={props.item.rawValue?.source === "candidate"}>
+                    {itemProps.item.rawValue?.title.english ||
+                      itemProps.item.rawValue?.title.romaji}
+                    <Show when={itemProps.item.rawValue?.source === "candidate"}>
                       <Badge variant="secondary" class="h-4 px-1 text-xs">
                         New
                       </Badge>

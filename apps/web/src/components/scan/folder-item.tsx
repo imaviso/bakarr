@@ -522,11 +522,18 @@ function normalizeApiErrorMessage(message: string) {
 
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
     try {
-      const parsed = JSON.parse(trimmed) as {
-        error?: string;
-        message?: string;
-      };
-      return parsed.error ?? parsed.message ?? trimmed;
+      const parsed: unknown = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object") {
+        const maybeError = "error" in parsed ? parsed.error : undefined;
+        if (typeof maybeError === "string" && maybeError.trim()) {
+          return maybeError;
+        }
+        const maybeMessage = "message" in parsed ? parsed.message : undefined;
+        if (typeof maybeMessage === "string" && maybeMessage.trim()) {
+          return maybeMessage;
+        }
+      }
+      return trimmed;
     } catch {
       return trimmed;
     }

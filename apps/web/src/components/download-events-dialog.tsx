@@ -93,7 +93,7 @@ export function DownloadEventsDialog(props: DownloadEventsDialogProps) {
           setCursor(undefined);
           setDirection("next");
           setOpen(true);
-          query.refetch();
+          void query.refetch();
         }}
       >
         <IconEye class="h-4 w-4" />

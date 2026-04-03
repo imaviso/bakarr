@@ -1,10 +1,10 @@
-/// <reference path="./vite-env.d.ts" />
-
 import { render } from "solid-js/web";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { createRouter, RouterProvider } from "@tanstack/solid-router";
 import { routeTree } from "./routeTree.gen";
+// oxlint-disable-next-line import/no-unassigned-import
 import "@fontsource-variable/geist";
+// oxlint-disable-next-line import/no-unassigned-import
 import "./styles.css";
 import { getAuthState } from "~/lib/auth";
 

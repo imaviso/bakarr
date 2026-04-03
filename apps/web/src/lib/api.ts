@@ -76,18 +76,23 @@ export async function fetchApi<T>(
   options?: ApiRequestOptions,
   signal?: AbortSignal,
 ): Promise<T> {
+  const headers = new Headers(options?.headers);
+  const authHeaders = new Headers(getAuthHeaders());
+  for (const [key, value] of authHeaders.entries()) {
+    headers.set(key, value);
+  }
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const res = await fetch(endpoint, {
     ...options,
     signal,
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (res.status === 401 && !options?.skipAutoLogoutOnUnauthorized) {
-    logout();
+    void logout();
     throw new Error("Session expired");
   }
 
@@ -96,14 +101,18 @@ export async function fetchApi<T>(
     throw new Error(errorText || `API error: ${res.status}`);
   }
 
-  const json = await res.json();
+  // oxlint-disable-next-line typescript-eslint/no-unsafe-assignment
+  const json: unknown = await res.json();
   if (json && typeof json === "object" && "data" in json && "success" in json) {
     if (!json.success) {
-      throw new Error(json.error || "Unknown API error");
+      const err = "error" in json ? json.error : undefined;
+      throw new Error(typeof err === "string" && err.length > 0 ? err : "Unknown API error");
     }
+    // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
     return json.data as T;
   }
 
+  // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
   return json as T;
 }
 
@@ -350,9 +359,9 @@ export function animeListQueryOptions() {
       const items: Anime[] = [];
       let offset = 0;
 
-      while (true) {
+      const fetchPage = async (pageOffset: number): Promise<void> => {
         const res = await fetchApi<AnimeListResponse>(
-          `${API_BASE}/anime?limit=${pageLimit}&offset=${offset}`,
+          `${API_BASE}/anime?limit=${pageLimit}&offset=${pageOffset}`,
           undefined,
           signal,
         );
@@ -360,12 +369,13 @@ export function animeListQueryOptions() {
         items.push(...res.items);
 
         if (!res.has_more || res.items.length === 0) {
-          break;
+          return;
         }
 
-        offset += res.items.length;
-      }
+        await fetchPage(pageOffset + res.items.length);
+      };
 
+      await fetchPage(offset);
       return items;
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -575,7 +585,9 @@ export function createAnimeByAnilistIdQuery(id: () => number | null) {
     if (!currentId) {
       return {
         queryKey: animeKeys.anilist(0),
-        queryFn: () => Promise.resolve({} as AnimeSearchResult),
+        queryFn: async () => {
+          throw new Error("Query disabled");
+        },
         enabled: false,
       };
     }
@@ -599,9 +611,9 @@ export function createAddAnimeMutation() {
     onSuccess: (newAnime) => {
       queryClient.setQueryData<Anime[]>(animeKeys.lists(), (old) => {
         if (!old) return [newAnime];
-        return [...old, newAnime].sort((a, b) => a.title.romaji.localeCompare(b.title.romaji));
+        return [...old, newAnime].toSorted((a, b) => a.title.romaji.localeCompare(b.title.romaji));
       });
-      queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
   }));
 }
@@ -611,8 +623,8 @@ export function createDeleteAnimeMutation() {
   return useMutation(() => ({
     mutationFn: (id: number) => fetchApi(`${API_BASE}/anime/${id}`, { method: "DELETE" }),
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
   }));
 }
@@ -657,8 +669,8 @@ export function createToggleMonitorMutation() {
       }
     },
     onSettled: (_, __, { id }) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
     },
   }));
 }
@@ -688,7 +700,7 @@ export function createUpdateAnimePathMutation() {
       }
     },
     onSettled: (_, __, { id }) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
     },
   }));
 }
@@ -718,7 +730,7 @@ export function createUpdateAnimeProfileMutation() {
       }
     },
     onSettled: (_, __, { id }) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
     },
   }));
 }
@@ -732,7 +744,7 @@ export function createUpdateAnimeReleaseProfilesMutation() {
         body: JSON.stringify({ release_profile_ids: releaseProfileIds }),
       }),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
     },
   }));
 }
@@ -745,9 +757,9 @@ export function createRefreshEpisodesMutation() {
         method: "POST",
       }),
     onSuccess: (_, animeId) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
-      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
-      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
     },
   }));
 }
@@ -760,9 +772,9 @@ export function createScanFolderMutation() {
         method: "POST",
       }),
     onSuccess: (_, animeId) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
-      queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
-      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(animeId) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
     },
   }));
 }
@@ -775,7 +787,7 @@ export function createDeleteEpisodeFileMutation() {
         method: "DELETE",
       }),
     onSuccess: (_, { animeId }) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
     },
   }));
 }
@@ -797,8 +809,8 @@ export function createMapEpisodeMutation() {
         body: JSON.stringify({ file_path: filePath }),
       }),
     onSuccess: (_, { animeId }) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
-      queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
     },
   }));
 }
@@ -818,8 +830,8 @@ export function createBulkMapEpisodesMutation() {
         body: JSON.stringify({ mappings }),
       }),
     onSuccess: (_, { animeId }) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
-      queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(animeId) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.files(animeId) });
     },
   }));
 }
@@ -843,11 +855,11 @@ export function createGrabReleaseMutation() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.downloads.queue() });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.queue() });
+      void queryClient.invalidateQueries({
         queryKey: animeKeys.downloads.history(),
       });
-      queryClient.invalidateQueries({ queryKey: animeKeys.library.activity() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.library.activity() });
     },
   }));
 }
@@ -904,7 +916,7 @@ export function createCreateProfileMutation() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
     },
   }));
 }
@@ -918,7 +930,7 @@ export function createUpdateProfileMutation() {
         body: JSON.stringify(profile),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
     },
   }));
 }
@@ -928,7 +940,7 @@ export function createDeleteProfileMutation() {
   return useMutation(() => ({
     mutationFn: (name: string) => fetchApi(`${API_BASE}/profiles/${name}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.profiles.all });
     },
   }));
 }
@@ -942,7 +954,7 @@ export function createCreateReleaseProfileMutation() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
     },
   }));
 }
@@ -956,7 +968,7 @@ export function createUpdateReleaseProfileMutation() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
     },
   }));
 }
@@ -967,7 +979,7 @@ export function createDeleteReleaseProfileMutation() {
     mutationFn: (id: number) =>
       fetchApi(`${API_BASE}/release-profiles/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.releaseProfiles });
     },
   }));
 }
@@ -999,7 +1011,7 @@ export function createUpdateSystemConfigMutation() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.system.config() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.config() });
     },
   }));
 }
@@ -1073,7 +1085,7 @@ export function createAddRssFeedMutation() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
     },
   }));
 }
@@ -1083,7 +1095,7 @@ export function createDeleteRssFeedMutation() {
   return useMutation(() => ({
     mutationFn: (id: number) => fetchApi(`${API_BASE}/rss/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
     },
   }));
 }
@@ -1097,7 +1109,7 @@ export function createToggleRssFeedMutation() {
         body: JSON.stringify({ enabled }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.rss.all });
     },
   }));
 }
@@ -1156,14 +1168,14 @@ export function createSearchMissingMutation() {
         body: JSON.stringify({ anime_id: animeId }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
     },
   }));
 }
 
 function invalidateDownloadQueries(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
-  queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
+  void queryClient.invalidateQueries({ queryKey: animeKeys.downloads.all });
+  void queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
 }
 
 export function createPauseDownloadMutation() {
@@ -1373,7 +1385,7 @@ export async function exportDownloadEvents(
   });
 
   if (response.status === 401) {
-    logout();
+    void logout();
     throw new Error("Session expired");
   }
 
@@ -1444,8 +1456,8 @@ export function createScanLibraryMutation() {
   return useMutation(() => ({
     mutationFn: () => fetchApi(`${API_BASE}/library/unmapped/scan`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
-      queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
     },
   }));
 }
@@ -1459,8 +1471,8 @@ export function createControlUnmappedFolderMutation() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
-      queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
     },
   }));
 }
@@ -1474,8 +1486,8 @@ export function createBulkControlUnmappedFoldersMutation() {
         body: JSON.stringify(data),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
-      queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.jobs() });
     },
   }));
 }
@@ -1520,15 +1532,15 @@ export function createImportUnmappedFolderMutation() {
         body: JSON.stringify(data),
       }),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
-      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({ queryKey: animeKeys.library.unmapped() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      void queryClient.invalidateQueries({
         queryKey: animeKeys.detail(variables.anime_id),
       });
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: animeKeys.episodes(variables.anime_id),
       });
-      queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
   }));
 }
@@ -1592,7 +1604,7 @@ export function createClearLogsMutation() {
   return useMutation(() => ({
     mutationFn: () => fetchApi(`${API_BASE}/system/logs`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.all });
     },
   }));
 }
@@ -1616,9 +1628,9 @@ export function createImportFilesMutation() {
         body: JSON.stringify({ files }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: animeKeys.library.all });
-      queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.lists() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.library.all });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.system.status() });
     },
   }));
 }
@@ -1718,7 +1730,7 @@ export function createRegenerateApiKeyMutation() {
         method: "POST",
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.auth.apiKey() });
     },
   }));
 }
@@ -1746,8 +1758,8 @@ export function createExecuteRenameMutation() {
         method: "POST",
       }),
     onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: animeKeys.episodes(id) });
-      queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.episodes(id) });
+      void queryClient.invalidateQueries({ queryKey: animeKeys.detail(id) });
     },
   }));
 }

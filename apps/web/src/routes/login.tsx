@@ -58,10 +58,10 @@ function LoginPage() {
         loginSuccess(value.username);
         if (data.must_change_password) {
           toast.info("Please change your password before continuing.");
-          navigate({ to: "/settings" });
+          void navigate({ to: "/settings" });
           return;
         }
-        navigate({ to: "/" });
+        void navigate({ to: "/" });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Login failed";
         toast.error(message);
@@ -84,7 +84,7 @@ function LoginPage() {
           onSubmit={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            form.handleSubmit();
+            void form.handleSubmit();
           }}
         >
           <CardContent class="space-y-4">
@@ -183,10 +183,10 @@ function LoginPage() {
                 loginSuccess(data.username, enteredApiKey);
                 if (data.must_change_password) {
                   toast.info("Please change your password before continuing.");
-                  navigate({ to: "/settings" });
+                  void navigate({ to: "/settings" });
                   return;
                 }
-                navigate({ to: "/" });
+                void navigate({ to: "/" });
               } catch (err) {
                 const message = err instanceof Error ? err.message : "API key login failed";
                 toast.error(message);

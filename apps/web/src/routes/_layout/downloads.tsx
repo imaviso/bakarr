@@ -111,6 +111,15 @@ const DownloadsSearchSchema = v.object({
   tab: v.optional(v.picklist(["events", "history", "queue"]), "queue"),
 });
 
+type DownloadsTab = "events" | "history" | "queue";
+
+function toDownloadsTab(value: string | null | undefined): DownloadsTab {
+  if (value === "events" || value === "history" || value === "queue") {
+    return value;
+  }
+  return "queue";
+}
+
 function DownloadStatusIcon(props: { status?: string }) {
   const presentation = createMemo(() => getDownloadStatusPresentation(props.status));
 
@@ -171,8 +180,8 @@ function parseOptionalPositiveInt(value: string) {
 }
 
 function DownloadsPage() {
-  let queueScrollRef!: HTMLDivElement;
-  let historyScrollRef!: HTMLDivElement;
+  let queueScrollRef: HTMLDivElement | undefined;
+  let historyScrollRef: HTMLDivElement | undefined;
   const search = Route.useSearch();
   const navigate = useNavigate();
   const [lastDownloadEventsExport, setLastDownloadEventsExport] = createSignal<
@@ -204,7 +213,7 @@ function DownloadsPage() {
     },
     estimateSize: () => 48,
     overscan: 10,
-    getScrollElement: () => queueScrollRef,
+    getScrollElement: () => queueScrollRef ?? null,
   });
   const queuePaddingTop = createMemo(() => {
     const items = queueVirtualizer.getVirtualItems();
@@ -221,7 +230,7 @@ function DownloadsPage() {
     },
     estimateSize: () => 64,
     overscan: 10,
-    getScrollElement: () => historyScrollRef,
+    getScrollElement: () => historyScrollRef ?? null,
   });
   const historyPaddingTop = createMemo(() => {
     const items = historyVirtualizer.getVirtualItems();
@@ -233,7 +242,7 @@ function DownloadsPage() {
   });
 
   const updateSearch = (patch: Partial<ReturnType<typeof search>>) => {
-    navigate({
+    void navigate({
       to: ".",
       search: { ...search(), ...patch },
       replace: true,
@@ -333,7 +342,7 @@ function DownloadsPage() {
           value={search().tab}
           onChange={(value) =>
             updateSearch({
-              tab: (value as "events" | "history" | "queue") ?? "queue",
+              tab: toDownloadsTab(value),
             })
           }
           class="h-full flex flex-col"
@@ -367,7 +376,12 @@ function DownloadsPage() {
           </div>
 
           <TabsContent value="queue" class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
-            <div ref={queueScrollRef} class="overflow-y-auto flex-1">
+            <div
+              ref={(el) => {
+                queueScrollRef = el;
+              }}
+              class="overflow-y-auto flex-1"
+            >
               <Table class="table-fixed min-w-[820px] md:min-w-0">
                 <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
                   <TableRow class="hover:bg-transparent border-none">
@@ -467,8 +481,11 @@ function DownloadsPage() {
                   />
                 </TextField>
                 <div class="flex flex-col gap-1">
-                  <label class="text-sm font-medium">Event Type</label>
+                  <label class="text-sm font-medium" for="events-event-type">
+                    Event Type
+                  </label>
                   <Select
+                    name="events-event-type"
                     value={search().events_event_type}
                     onChange={(value) =>
                       value &&
@@ -494,7 +511,7 @@ function DownloadsPage() {
                       <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
                     )}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="events-event-type">
                       <SelectValue<string>>
                         {(state) => state.selectedOption() ?? "all"}
                       </SelectValue>
@@ -669,7 +686,12 @@ function DownloadsPage() {
           </TabsContent>
 
           <TabsContent value="history" class="flex-1 mt-0 min-h-0 overflow-hidden flex flex-col">
-            <div ref={historyScrollRef} class="overflow-y-auto flex-1">
+            <div
+              ref={(el) => {
+                historyScrollRef = el;
+              }}
+              class="overflow-y-auto flex-1"
+            >
               <Table class="table-fixed min-w-[860px] md:min-w-0">
                 <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
                   <TableRow class="hover:bg-transparent border-none">

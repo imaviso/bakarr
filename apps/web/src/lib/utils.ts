@@ -14,9 +14,7 @@ export async function copyToClipboard(text: string, label = "Text") {
     try {
       await navigator.clipboard.writeText(text);
       success = true;
-    } catch (err) {
-      console.warn("Clipboard API failed, trying fallback:", err);
-    }
+    } catch {}
   }
 
   // Fallback if modern API failed or not available
@@ -44,9 +42,7 @@ export async function copyToClipboard(text: string, label = "Text") {
       document.body.removeChild(textArea);
 
       if (result) success = true;
-    } catch (err) {
-      console.error("Fallback copy failed:", err);
-    }
+    } catch {}
   }
 
   if (success) {

@@ -81,7 +81,7 @@ export function RenameDialog(props: RenameDialogProps) {
     if (props.open) {
       setResult(null);
       executeRename.reset();
-      previewQuery.refetch();
+      void previewQuery.refetch();
     }
   });
 

@@ -264,7 +264,7 @@ function AddAnimeForm(props: AddAnimeFormProps) {
       onSubmit={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        form.handleSubmit();
+        void form.handleSubmit();
       }}
       class="space-y-5 py-4"
     >
@@ -288,8 +288,8 @@ function AddAnimeForm(props: AddAnimeFormProps) {
               value={field().state.value}
               onChange={(val) => val && field().handleChange(val)}
               options={props.profiles.map((p) => p.name)}
-              itemComponent={(props) => (
-                <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+              itemComponent={(itemProps) => (
+                <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
               )}
             >
               <SelectTrigger>

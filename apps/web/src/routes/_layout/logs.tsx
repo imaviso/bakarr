@@ -123,8 +123,38 @@ function formatLogTimestamp(createdAt: string): string {
   return format(date, "yyyy-MM-dd HH:mm:ss");
 }
 
+function getLevelColorClass(level: string) {
+  switch (level.toLowerCase()) {
+    case "error":
+      return "bg-error/15 text-error hover:bg-error/25 border-error/20";
+    case "warn":
+      return "bg-warning/15 text-warning hover:bg-warning/25 border-warning/20";
+    case "success":
+      return "bg-success/15 text-success hover:bg-success/25 border-success/20";
+    case "info":
+      return "bg-info/15 text-info hover:bg-info/25 border-info/20";
+    default:
+      return "";
+  }
+}
+
+function getLevelIcon(level: string) {
+  switch (level.toLowerCase()) {
+    case "error":
+      return <IconAlertCircle class="h-3.5 w-3.5 mr-1" />;
+    case "warn":
+      return <IconAlertTriangle class="h-3.5 w-3.5 mr-1" />;
+    case "success":
+      return <IconCheck class="h-3.5 w-3.5 mr-1" />;
+    case "info":
+      return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
+    default:
+      return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
+  }
+}
+
 function LogsPage() {
-  let logsScrollRef!: HTMLDivElement;
+  let logsScrollRef: HTMLDivElement | undefined;
   const search = Route.useSearch();
   const navigate = useNavigate();
   const [autoRefresh, setAutoRefresh] = createSignal(false);
@@ -243,7 +273,7 @@ function LogsPage() {
   const jobsQuery = createSystemJobsQuery();
   const dashboardQuery = createSystemDashboardQuery();
   const updateDownloadEventSearch = (patch: Partial<ReturnType<typeof search>>) => {
-    navigate({
+    void navigate({
       to: ".",
       search: { ...search(), ...patch },
       replace: true,
@@ -271,9 +301,9 @@ function LogsPage() {
   createEffect(() => {
     if (!autoRefresh()) return;
     const interval = setInterval(() => {
-      logsQuery.refetch();
-      downloadEventsQuery.refetch();
-      dashboardQuery.refetch();
+      void logsQuery.refetch();
+      void downloadEventsQuery.refetch();
+      void dashboardQuery.refetch();
     }, 3000);
     onCleanup(() => clearInterval(interval));
   });
@@ -284,7 +314,7 @@ function LogsPage() {
     },
     estimateSize: () => 52,
     overscan: 10,
-    getScrollElement: () => logsScrollRef,
+    getScrollElement: () => logsScrollRef ?? null,
   });
 
   const logsPaddingTop = createMemo(() => {
@@ -306,22 +336,22 @@ function LogsPage() {
       logsQuery.hasNextPage &&
       !logsQuery.isFetchingNextPage
     ) {
-      logsQuery.fetchNextPage();
+      void logsQuery.fetchNextPage();
     }
   });
 
-  const handleExport = (format: "json" | "csv") => {
+  const handleExport = (exportFormat: "json" | "csv") => {
     const url = getExportLogsUrl(
       apiParams().level,
       apiParams().eventType,
       apiParams().startDate,
       apiParams().endDate,
-      format,
+      exportFormat,
     );
     globalThis.open(url, "_blank");
   };
 
-  const handleDownloadEventsExport = (format: "json" | "csv") => {
+  const handleDownloadEventsExport = (exportFormat: "json" | "csv") => {
     const input: DownloadEventsExportInput = {
       animeId: parseOptionalPositiveInt(search().download_anime_id),
       downloadId: parseOptionalPositiveInt(search().download_download_id),
@@ -333,50 +363,19 @@ function LogsPage() {
       status: search().download_status || undefined,
     };
 
-    const exportPromise = exportDownloadEvents(input, format).then((result) => {
+    const exportPromise = exportDownloadEvents(input, exportFormat).then((result) => {
       setLastDownloadEventsExport(result);
       return result;
     });
 
     toast.promise(exportPromise, {
-      loading: `Exporting ${format.toUpperCase()} download events...`,
+      loading: `Exporting ${exportFormat.toUpperCase()} download events...`,
       success: (result) =>
         result.truncated
           ? `Exported ${result.exported} of ${result.total} events (truncated at ${result.limit})`
           : `Exported ${result.exported} download events`,
       error: (error) => `Failed to export download events: ${error.message}`,
     });
-  };
-
-  // Custom color classes
-  const getLevelColorClass = (level: string) => {
-    switch (level.toLowerCase()) {
-      case "error":
-        return "bg-error/15 text-error hover:bg-error/25 border-error/20";
-      case "warn":
-        return "bg-warning/15 text-warning hover:bg-warning/25 border-warning/20";
-      case "success":
-        return "bg-success/15 text-success hover:bg-success/25 border-success/20";
-      case "info":
-        return "bg-info/15 text-info hover:bg-info/25 border-info/20";
-      default:
-        return "";
-    }
-  };
-
-  const getLevelIcon = (level: string) => {
-    switch (level.toLowerCase()) {
-      case "error":
-        return <IconAlertCircle class="h-3.5 w-3.5 mr-1" />;
-      case "warn":
-        return <IconAlertTriangle class="h-3.5 w-3.5 mr-1" />;
-      case "success":
-        return <IconCheck class="h-3.5 w-3.5 mr-1" />;
-      case "info":
-        return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
-      default:
-        return <IconInfoCircle class="h-3.5 w-3.5 mr-1" />;
-    }
   };
 
   return (
@@ -396,9 +395,9 @@ function LogsPage() {
             variant="outline"
             size="sm"
             onClick={() => {
-              logsQuery.refetch();
-              downloadEventsQuery.refetch();
-              dashboardQuery.refetch();
+              void logsQuery.refetch();
+              void downloadEventsQuery.refetch();
+              void dashboardQuery.refetch();
             }}
             disabled={logsQuery.isRefetching}
           >
@@ -556,8 +555,11 @@ function LogsPage() {
                 />
               </TextField>
               <div class="flex flex-col gap-1">
-                <label class="text-sm font-medium">Event Type</label>
+                <label class="text-sm font-medium" for="download-event-type">
+                  Event Type
+                </label>
                 <Select
+                  name="download-event-type"
                   value={search().download_event_type}
                   onChange={(value) =>
                     value &&
@@ -742,7 +744,12 @@ function LogsPage() {
       </Card>
 
       <Card class="border-primary/20 flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div ref={logsScrollRef} class="overflow-y-auto flex-1">
+        <div
+          ref={(el) => {
+            logsScrollRef = el;
+          }}
+          class="overflow-y-auto flex-1"
+        >
           <Table>
             <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
               <TableRow class="hover:bg-transparent border-none">
@@ -815,43 +822,43 @@ function LogsPage() {
                       <Show when={log()}>
                         <TableRow class="group">
                           <TableCell class="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                            {formatLogTimestamp(log()!.created_at)}
+                            {formatLogTimestamp(log().created_at)}
                           </TableCell>
                           <TableCell>
                             <Badge
                               variant="outline"
                               class={cn(
                                 "text-xs capitalize pl-1 pr-2 py-0.5",
-                                getLevelColorClass(log()!.level),
+                                getLevelColorClass(log().level),
                               )}
                             >
-                              {getLevelIcon(log()!.level)}
-                              {log()!.level}
+                              {getLevelIcon(log().level)}
+                              {log().level}
                             </Badge>
                           </TableCell>
                           <TableCell class="text-xs font-medium text-muted-foreground capitalize">
-                            {log()!.event_type}
+                            {log().event_type}
                           </TableCell>
                           <TableCell class="text-sm max-w-[500px]">
-                            <div class="truncate" title={log()!.message}>
-                              {log()!.message}
+                            <div class="truncate" title={log().message}>
+                              {log().message}
                             </div>
-                            <Show when={log()!.details}>
+                            <Show when={log().details}>
                               <div
                                 class="text-xs text-muted-foreground mt-0.5 font-mono truncate opacity-70"
-                                title={log()!.details}
+                                title={log().details}
                               >
-                                {log()!.details}
+                                {log().details}
                               </div>
                             </Show>
                           </TableCell>
                           <TableCell>
-                            <Show when={log()!.details}>
+                            <Show when={log().details}>
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 class="relative after:absolute after:-inset-2 h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-                                onClick={() => setSelectedLog(log()!)}
+                                onClick={() => setSelectedLog(log())}
                                 aria-label="View details"
                               >
                                 <IconEye class="h-4 w-4" />
@@ -884,7 +891,7 @@ function LogsPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => logsQuery.fetchNextPage()}
+              onClick={() => void logsQuery.fetchNextPage()}
               disabled={logsQuery.isFetchingNextPage}
             >
               <Show when={logsQuery.isFetchingNextPage} fallback="Load More Logs">
@@ -1011,14 +1018,14 @@ function DownloadEventsList(props: {
   events: DownloadEvent[];
   onSelectEvent: (event: DownloadEvent) => void;
 }) {
-  let scrollRef!: HTMLDivElement;
+  let scrollRef: HTMLDivElement | undefined;
 
   const virtualizer = createVirtualizer({
     get count() {
       return props.events.length;
     },
     estimateSize: () => EVENT_ROW_HEIGHT_ESTIMATE,
-    getScrollElement: () => scrollRef,
+    getScrollElement: () => scrollRef ?? null,
     overscan: 4,
   });
 
@@ -1033,7 +1040,9 @@ function DownloadEventsList(props: {
 
   return (
     <div
-      ref={scrollRef}
+      ref={(el) => {
+        scrollRef = el;
+      }}
       class="overflow-y-auto px-4 pb-4"
       style={{
         "max-height": `${EVENT_LIST_MAX_HEIGHT}px`,

@@ -28,7 +28,7 @@ export function formatEpisodeCoverage(
     return `Ep ${coveredEpisodes[0].toString().padStart(2, "0")}`;
   }
 
-  const sorted = [...coveredEpisodes].sort((a, b) => a - b);
+  const sorted = [...coveredEpisodes].toSorted((a, b) => a - b);
   return `Batch ${sorted[0].toString().padStart(2, "0")}-${sorted[sorted.length - 1]
     .toString()
     .padStart(2, "0")}`;

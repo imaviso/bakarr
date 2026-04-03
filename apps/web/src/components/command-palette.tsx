@@ -168,7 +168,7 @@ export function CommandPalette() {
 
   const handleSelect = (path: string) => {
     setOpen(false);
-    navigate({ to: path });
+    void navigate({ to: path });
   };
 
   return (

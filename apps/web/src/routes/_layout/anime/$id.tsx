@@ -126,6 +126,13 @@ export const Route = createFileRoute("/_layout/anime/$id")({
   errorComponent: AnimeError,
 });
 
+function isAired(airedDate?: string) {
+  if (!airedDate) return false;
+  const aired = new Date(airedDate);
+  const now = new Date();
+  return aired <= now;
+}
+
 function AnimeDetailsPage() {
   const params = Route.useParams();
   const animeId = () => v.parse(IdParamSchema, params().id);
@@ -172,13 +179,6 @@ function AnimeDetailsPage() {
     episodeNumber: 0,
   });
   const [bulkMappingOpen, setBulkMappingOpen] = createSignal(false);
-
-  const isAired = (airedDate?: string) => {
-    if (!airedDate) return false;
-    const aired = new Date(airedDate);
-    const now = new Date();
-    return aired <= now;
-  };
 
   const episodesData = createMemo(() => episodesQuery.data ?? []);
   const missingCount = createMemo(
@@ -472,7 +472,7 @@ function AnimeDetailsPage() {
                         onClick={() => {
                           deleteAnime.mutate(animeId(), {
                             onSuccess: () =>
-                              navigate({
+                              void navigate({
                                 to: "/anime",
                                 search: { q: "", filter: "all", view: "grid" },
                               }),
@@ -1057,8 +1057,8 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
       }
 
       // Check if release profiles changed
-      const currentIds = props.currentReleaseProfileIds.slice().sort();
-      const newIds = value.releaseProfileIds.slice().sort();
+      const currentIds = props.currentReleaseProfileIds.slice().toSorted((a, b) => a - b);
+      const newIds = value.releaseProfileIds.slice().toSorted((a, b) => a - b);
       const changed =
         currentIds.length !== newIds.length || currentIds.some((id, i) => id !== newIds[i]);
 
@@ -1094,7 +1094,7 @@ function EditProfileDialogContent(props: EditProfileDialogProps) {
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          form.handleSubmit();
+          void form.handleSubmit();
         }}
         class="space-y-6"
       >
@@ -1308,20 +1308,22 @@ function BulkMappingDialog(props: {
                               (f) => f.path === (mappings()[episode.number] ?? episode.file_path),
                             ) || { path: "", name: "(Unmap / No File)" }
                           }
-                          onChange={(v) => handleMap(episode.number, v?.path || "")}
+                          onChange={(value) => handleMap(episode.number, value?.path || "")}
                           placeholder="Select file..."
-                          itemComponent={(props) => {
-                            const item = props.item.rawValue as MappingOption;
+                          itemComponent={(itemProps) => {
+                            const item: MappingOption = itemProps.item.rawValue;
+                            const itemSize =
+                              "size" in item ? (item.size / 1024 / 1024).toFixed(1) : null;
+                            const itemEpisode =
+                              "episode_number" in item ? item.episode_number : null;
                             return (
-                              <SelectItem item={props.item}>
+                              <SelectItem item={itemProps.item}>
                                 {item.name}
-                                <Show when={"size" in item}>
+                                <Show when={itemSize}>
                                   {" ("}
-                                  {((item as VideoFile).size / 1024 / 1024).toFixed(1)} MB)
+                                  {itemSize} MB)
                                 </Show>
-                                <Show when={"episode_number" in item}>
-                                  {` [Ep ${(item as VideoFile).episode_number}]`}
-                                </Show>
+                                <Show when={itemEpisode !== null}>{` [Ep ${itemEpisode}]`}</Show>
                               </SelectItem>
                             );
                           }}

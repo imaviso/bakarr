@@ -4,7 +4,7 @@
     "target": "ES2022",
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
-    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "lib": ["DOM", "DOM.Iterable", "ES2022", "ES2023.Array"],
     // Modules
     "module": "esnext",
     "esModuleInterop": true,

@@ -61,13 +61,9 @@ function normalizeTimeZoneValue(value?: string) {
 }
 
 function loadSupportedTimeZones() {
-  const intl = Intl as typeof Intl & {
-    supportedValuesOf?: (key: string) => string[];
-  };
-
-  if (typeof intl.supportedValuesOf === "function") {
+  if ("supportedValuesOf" in Intl && typeof Intl.supportedValuesOf === "function") {
     try {
-      return intl.supportedValuesOf("timeZone");
+      return Intl.supportedValuesOf("timeZone");
     } catch {
       return [...FALLBACK_TIME_ZONES];
     }

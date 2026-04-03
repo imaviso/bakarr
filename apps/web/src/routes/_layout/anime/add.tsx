@@ -442,7 +442,7 @@ function AddAnimeDialog(props: {
           onSubmit={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            form.handleSubmit();
+            void form.handleSubmit();
           }}
           class="space-y-6 py-4"
         >
@@ -479,8 +479,8 @@ function AddAnimeDialog(props: {
                   onChange={(val) => val && field().handleChange(val)}
                   options={profilesQuery.data?.map((p) => p.name) || []}
                   placeholder="Select profile..."
-                  itemComponent={(props) => (
-                    <SelectItem item={props.item}>{props.item.rawValue}</SelectItem>
+                  itemComponent={(itemProps) => (
+                    <SelectItem item={itemProps.item}>{itemProps.item.rawValue}</SelectItem>
                   )}
                 >
                   <SelectTrigger>

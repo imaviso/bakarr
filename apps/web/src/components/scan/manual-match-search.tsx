@@ -90,6 +90,7 @@ export function ManualMatchSearch(props: { onSelect: (anime: AnimeSearchResult) 
                   <button
                     type="button"
                     role="option"
+                    aria-selected="false"
                     onClick={() => props.onSelect(anime)}
                     class="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-muted/40"
                   >

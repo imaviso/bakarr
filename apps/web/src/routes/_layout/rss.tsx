@@ -237,7 +237,7 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
           onSubmit={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            form.handleSubmit();
+            void form.handleSubmit();
           }}
           class="space-y-4"
         >
@@ -267,9 +267,9 @@ function AddFeedForm(props: { onCancel: () => void; onSuccess: () => void }) {
                       label: a.title.english || a.title.romaji,
                     })) || []
                   }
-                  itemComponent={(props) => (
-                    <SelectItem item={props.item}>
-                      {(props.item.rawValue as { label: string }).label}
+                  itemComponent={(itemProps) => (
+                    <SelectItem item={itemProps.item}>
+                      {(itemProps.item.rawValue as { label: string }).label}
                     </SelectItem>
                   )}
                   optionValue="value"

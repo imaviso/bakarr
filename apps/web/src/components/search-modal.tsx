@@ -58,6 +58,37 @@ interface SearchModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function decisionReason(release: EpisodeSearchResult) {
+  if (release.download_action.Upgrade) {
+    return `Upgrade: ${release.download_action.Upgrade.reason}`;
+  }
+  if (release.download_action.Accept) {
+    return `Accepted ${release.download_action.Accept.quality.name} (score ${release.download_action.Accept.score})`;
+  }
+  if (release.download_action.Reject) {
+    return `Manual override: ${release.download_action.Reject.reason}`;
+  }
+  return "Manual episode grab";
+}
+
+function formatSize(bytes: number) {
+  if (bytes === 0) return "N/A";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let size = bytes;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function getActionReason(action: DownloadAction) {
+  if (action.Reject) return action.Reject.reason;
+  if (action.Upgrade) return action.Upgrade.reason;
+  return null;
+}
+
 export function SearchModal(props: SearchModalProps) {
   const searchQuery = createEpisodeSearchQuery(
     () => props.animeId,
@@ -68,22 +99,9 @@ export function SearchModal(props: SearchModalProps) {
 
   createEffect(() => {
     if (props.open) {
-      searchQuery.refetch();
+      void searchQuery.refetch();
     }
   });
-
-  const decisionReason = (release: EpisodeSearchResult) => {
-    if (release.download_action.Upgrade) {
-      return `Upgrade: ${release.download_action.Upgrade.reason}`;
-    }
-    if (release.download_action.Accept) {
-      return `Accepted ${release.download_action.Accept.quality.name} (score ${release.download_action.Accept.score})`;
-    }
-    if (release.download_action.Reject) {
-      return `Manual override: ${release.download_action.Reject.reason}`;
-    }
-    return "Manual episode grab";
-  };
 
   const handleDownload = (release: EpisodeSearchResult) => {
     const selection = selectionMetadataFromDownloadAction(release.download_action);
@@ -158,24 +176,6 @@ export function SearchModal(props: SearchModalProps) {
     );
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return "N/A";
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    let size = bytes;
-    let unitIndex = 0;
-    while (size >= 1024 && unitIndex < units.length - 1) {
-      size /= 1024;
-      unitIndex++;
-    }
-    return `${size.toFixed(1)} ${units[unitIndex]}`;
-  };
-
-  const getActionReason = (action: DownloadAction) => {
-    if (action.Reject) return action.Reject.reason;
-    if (action.Upgrade) return action.Upgrade.reason;
-    return null;
-  };
-
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent class="sm:max-w-7xl w-full max-h-[85vh] flex flex-col">
@@ -211,7 +211,9 @@ export function SearchModal(props: SearchModalProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => searchQuery.refetch()}
+                    onClick={() => {
+                      void searchQuery.refetch();
+                    }}
                     class="mt-2"
                   >
                     Retry

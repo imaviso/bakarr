@@ -51,6 +51,10 @@ interface ImportDialogProps {
   tooltip?: string;
 }
 
+function toInputMode(value: string | null | undefined): "browser" | "manual" {
+  return value === "manual" ? "manual" : "browser";
+}
+
 export function ImportDialog(props: ImportDialogProps) {
   const [open, setOpen] = createSignal(false);
   const [path, setPath] = createSignal("");
@@ -71,7 +75,7 @@ export function ImportDialog(props: ImportDialogProps) {
 
   const scannedFiles = createMemo(() => {
     const files = scanMutation.data?.files || [];
-    return [...files].sort((a, b) => {
+    return [...files].toSorted((a, b) => {
       const seasonA = a.season || 0;
       const seasonB = b.season || 0;
       if (seasonA !== seasonB) return seasonA - seasonB;
@@ -354,7 +358,7 @@ export function ImportDialog(props: ImportDialogProps) {
             <div class="space-y-4 py-4 flex-1 min-h-0 flex flex-col">
               <Tabs
                 value={inputMode()}
-                onChange={(v) => setInputMode(v as "browser" | "manual")}
+                onChange={(value) => setInputMode(toInputMode(value))}
                 class="flex-1 flex flex-col min-h-0"
               >
                 <TabsList class="grid w-full grid-cols-2">

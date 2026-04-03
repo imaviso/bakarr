@@ -26,21 +26,21 @@ export function useActiveDownloads() {
     disconnect();
     eventSource = new EventSource("/api/events");
 
-    eventSource.onmessage = (event) => {
+    eventSource.addEventListener("message", (event) => {
       try {
         const data: NotificationEvent = JSON.parse(event.data);
 
         if (data.type === "DownloadProgress") {
           setDownloads(reconcile(data.payload.downloads, { key: "hash", merge: true }));
         }
-      } catch (e) {
-        console.error("Failed to parse event", e);
+      } catch {
+        // Ignore malformed SSE payloads.
       }
-    };
+    });
 
-    eventSource.onerror = (_e) => {
+    eventSource.addEventListener("error", () => {
       disconnect();
-    };
+    });
   });
 
   onCleanup(() => {

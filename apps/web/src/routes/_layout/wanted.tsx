@@ -47,7 +47,7 @@ export const Route = createFileRoute("/_layout/wanted")({
 });
 
 function WantedPage() {
-  let scrollRef!: HTMLDivElement;
+  let scrollRef: HTMLDivElement | undefined;
   const [limit] = createSignal(100);
   const wantedQuery = createWantedQuery(limit);
   const configQuery = createSystemConfigQuery();
@@ -63,7 +63,7 @@ function WantedPage() {
     },
     estimateSize: () => 56,
     overscan: 10,
-    getScrollElement: () => scrollRef,
+    getScrollElement: () => scrollRef ?? null,
   });
 
   const paddingTop = createMemo(() => {
@@ -109,7 +109,12 @@ function WantedPage() {
       </PageHeader>
 
       <Card class="overflow-hidden flex-1 min-h-0 flex flex-col">
-        <div ref={scrollRef} class="overflow-y-auto flex-1">
+        <div
+          ref={(el) => {
+            scrollRef = el;
+          }}
+          class="overflow-y-auto flex-1"
+        >
           <Table>
             <TableHeader class="sticky top-0 bg-card z-10 shadow-sm shadow-border/50">
               <TableRow class="hover:bg-transparent border-none">

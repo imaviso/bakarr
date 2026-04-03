@@ -66,9 +66,7 @@ export const loginApiKey = (apiKey: string) => {
 export const logout = async () => {
   try {
     await fetch("/api/auth/logout", { method: "POST" });
-  } catch (e) {
-    console.error("Logout failed", e);
-  }
+  } catch {}
   saveAuth({ isAuthenticated: false });
   globalThis.location.href = "/login";
 };

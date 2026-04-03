@@ -97,7 +97,7 @@ function AnimeIndexPage() {
 
   const [localQuery, setLocalQuery] = createSignal(search().q);
   const debouncer = createDebouncer((q: string) => {
-    navigate({
+    void navigate({
       to: ".",
       search: {
         q,
@@ -143,7 +143,7 @@ function AnimeIndexPage() {
   });
 
   const updateFilter = (filter: "all" | "monitored" | "unmonitored") =>
-    navigate({
+    void navigate({
       to: ".",
       search: {
         q: search().q,
@@ -153,7 +153,7 @@ function AnimeIndexPage() {
       replace: true,
     });
   const updateView = (view: "grid" | "list") =>
-    navigate({
+    void navigate({
       to: ".",
       search: {
         q: search().q,
@@ -207,7 +207,7 @@ function AnimeIndexPage() {
             <DropdownMenuContent>
               <DropdownMenuRadioGroup
                 value={search().filter}
-                onChange={(value) => updateFilter(value as "all" | "monitored" | "unmonitored")}
+                onChange={(value) => updateFilter(value)}
               >
                 <DropdownMenuRadioItem value="all">All Anime</DropdownMenuRadioItem>
                 <DropdownMenuRadioItem value="monitored">Monitored</DropdownMenuRadioItem>
@@ -399,7 +399,7 @@ function statusTone(anime: Anime) {
 }
 
 function AnimeGridView(props: AnimeViewProps) {
-  let scrollRef!: HTMLDivElement;
+  let scrollRef: HTMLDivElement | undefined;
   const [colCount, setColCount] = createSignal(getColCount());
 
   onMount(() => {
@@ -431,7 +431,7 @@ function AnimeGridView(props: AnimeViewProps) {
     },
     estimateSize: () => estimateRowSize(),
     overscan: 2,
-    getScrollElement: () => scrollRef,
+    getScrollElement: () => scrollRef ?? null,
   });
 
   const gridPaddingTop = createMemo(() => {
@@ -445,7 +445,9 @@ function AnimeGridView(props: AnimeViewProps) {
 
   return (
     <div
-      ref={scrollRef}
+      ref={(el) => {
+        scrollRef = el;
+      }}
       class="overflow-y-auto flex-1 min-h-0"
       style={{ "overflow-anchor": "none" }}
     >
@@ -598,13 +600,13 @@ function AnimeGridView(props: AnimeViewProps) {
 }
 
 function AnimeListView(props: AnimeViewProps) {
-  let scrollRef!: HTMLDivElement;
+  let scrollRef: HTMLDivElement | undefined;
   const rowVirtualizer = createVirtualizer({
     get count() {
       return props.anime.length;
     },
     estimateSize: () => 72,
-    getScrollElement: () => scrollRef,
+    getScrollElement: () => scrollRef ?? null,
     overscan: 10,
   });
 
@@ -619,7 +621,9 @@ function AnimeListView(props: AnimeViewProps) {
 
   return (
     <div
-      ref={scrollRef}
+      ref={(el) => {
+        scrollRef = el;
+      }}
       class="flex-1 min-h-0 overflow-y-auto rounded-md border"
       style={{ "overflow-anchor": "none" }}
     >
