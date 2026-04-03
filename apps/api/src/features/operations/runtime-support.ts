@@ -1,6 +1,6 @@
 import { Context, Effect, Exit, Layer, Scope } from "effect";
 
-import { makeSerializedFlagCoordinator } from "@/lib/effect-coalescing.ts";
+import { makeSerializedFlagCoordinator } from "@/lib/effect-coalescing-serialized-flag-coordinator.ts";
 
 export interface DownloadTriggerCoordinatorShape {
   readonly runExclusiveDownloadTrigger: <A, E, R>(

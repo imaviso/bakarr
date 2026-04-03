@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 
 import { Database } from "@/db/database.ts";
-import { makeSingleFlightEffectRunner } from "@/lib/effect-coalescing.ts";
+import { makeSingleFlightEffectRunner } from "@/lib/effect-coalescing-single-flight-runner.ts";
 import { ClockService, nowIsoFromClock } from "@/lib/clock.ts";
 import { AniListClient } from "@/features/anime/anilist.ts";
 import { refreshMetadataForMonitoredAnimeEffect } from "@/features/anime/anime-metadata-refresh-job.ts";

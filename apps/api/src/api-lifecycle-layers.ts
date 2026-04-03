@@ -59,7 +59,7 @@ export function makeApiLifecycleLayers(
     runtimeConfigSnapshotLayer,
   );
 
-  const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
+  const animeLayer = makeAnimeAppLayer(runtimeConfigSnapshotLayer);
   const { catalogDownloadReadLayer, operationsLayer, operationsProgressLayer, torrentClientLayer } =
     makeOperationsAppLayers(runtimeSupportLayer);
 

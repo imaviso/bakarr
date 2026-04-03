@@ -2,7 +2,10 @@ import { Context, Effect, Layer } from "effect";
 
 import type { NotificationEvent } from "@packages/shared/index.ts";
 import { ClockService } from "@/lib/clock.ts";
-import { type LatestValuePublisher, makeLatestValuePublisher } from "@/lib/effect-coalescing.ts";
+import {
+  type LatestValuePublisher,
+  makeLatestValuePublisher,
+} from "@/lib/effect-coalescing-latest-value-publisher.ts";
 import { EventBus } from "@/features/events/event-bus.ts";
 
 export interface EventPublisherShape {

@@ -9,7 +9,7 @@ import type { BackgroundTaskRunnerShape } from "@/background-task-runner.ts";
 import type { BackgroundWorkerMonitorShape } from "@/background-monitor.ts";
 import { type BackgroundWorkerName } from "@/background-worker-model.ts";
 import type { ClockServiceShape } from "@/lib/clock.ts";
-import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing.ts";
+import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing-skipping-serialized-runner.ts";
 import { compactLogAnnotations, durationMsSince, errorLogAnnotations } from "@/lib/logging.ts";
 
 export class WorkerTimeoutError extends Schema.TaggedError<WorkerTimeoutError>()(
@@ -90,14 +90,23 @@ export function makeBackgroundWorkerSpawner(input: {
       monitor,
     );
 
-    if (schedule.rssCronExpression !== null || schedule.rssCheckMs !== null) {
+    if (schedule.rssCronExpression !== null) {
       yield* forkSupervisedWorker(
         workerScope,
         "rss",
         repeatWorker(rssLoop, {
           cronExpression: schedule.rssCronExpression,
           initialDelayMs: schedule.initialDelayMs,
-          intervalMs: schedule.rssCheckMs ?? undefined,
+        }),
+        monitor,
+      );
+    } else if (schedule.rssCheckMs !== null) {
+      yield* forkSupervisedWorker(
+        workerScope,
+        "rss",
+        repeatWorker(rssLoop, {
+          initialDelayMs: schedule.initialDelayMs,
+          intervalMs: schedule.rssCheckMs,
         }),
         monitor,
       );
@@ -240,11 +249,15 @@ export const forkSupervisedWorker = Effect.fn("Background.forkSupervisedWorker")
 
 export function repeatWorker(
   task: Effect.Effect<void, never>,
-  options: {
-    readonly cronExpression?: string | null;
-    readonly initialDelayMs?: number;
-    readonly intervalMs?: number;
-  },
+  options:
+    | {
+        readonly cronExpression: string;
+        readonly initialDelayMs?: number;
+      }
+    | {
+        readonly intervalMs: number;
+        readonly initialDelayMs?: number;
+      },
 ) {
   const initialDelay = options.initialDelayMs ?? 0;
   const initialRun = Effect.gen(function* () {
@@ -255,7 +268,7 @@ export function repeatWorker(
     yield* task;
   });
 
-  if (options.cronExpression) {
+  if ("cronExpression" in options) {
     return initialRun.pipe(
       Effect.zipRight(task.pipe(Effect.repeat(Schedule.cron(options.cronExpression)))),
       Effect.asVoid,
@@ -263,7 +276,7 @@ export function repeatWorker(
   }
 
   return initialRun.pipe(
-    Effect.zipRight(task.pipe(Effect.repeat(Schedule.spaced(`${options.intervalMs ?? 0} millis`)))),
+    Effect.zipRight(task.pipe(Effect.repeat(Schedule.spaced(`${options.intervalMs} millis`)))),
     Effect.asVoid,
   );
 }

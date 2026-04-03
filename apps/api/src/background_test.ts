@@ -7,11 +7,9 @@ import { buildBackgroundSchedule } from "@/background-schedule.ts";
 import { makeBackgroundWorkerController } from "@/background-controller-core.ts";
 import { makeBackgroundWorkerMonitor } from "@/background-monitor.ts";
 import { withLockEffectOrFail } from "@/background-workers.ts";
-import {
-  makeCoalescedEffectRunner,
-  makeLatestValuePublisher,
-  makeSkippingSerializedEffectRunner,
-} from "@/lib/effect-coalescing.ts";
+import { makeCoalescedEffectRunner } from "@/lib/effect-coalescing-coalesced-runner.ts";
+import { makeLatestValuePublisher } from "@/lib/effect-coalescing-latest-value-publisher.ts";
+import { makeSkippingSerializedEffectRunner } from "@/lib/effect-coalescing-skipping-serialized-runner.ts";
 
 const baseConfig: Config = {
   downloads: {

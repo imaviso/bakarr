@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 
 import type { Config, DownloadSourceMetadata } from "@packages/shared/index.ts";
-import { type AppDatabase, isBusySqliteCause } from "@/db/database.ts";
+import { type AppDatabase } from "@/db/database.ts";
 import { episodes } from "@/db/schema.ts";
 import { anime } from "@/db/schema.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
@@ -10,8 +10,7 @@ import type { ProbedMediaMetadata } from "@/lib/media-probe.ts";
 import { Effect, Schema } from "effect";
 import { buildEpisodeFilenamePlan } from "@/features/operations/naming-support.ts";
 import type { PreferredTitle } from "@packages/shared/index.ts";
-
-const SQLITE_BUSY_RETRY_COUNT = 8;
+import { tryDatabasePromise } from "@/lib/effect-db.ts";
 
 export function shouldReconcileCompletedDownloads(config: Config | null) {
   return config?.downloads.reconcile_completed_downloads ?? true;
@@ -64,53 +63,162 @@ export const importDownloadedFile = Effect.fn("Operations.importDownloadedFile")
     return sourcePath;
   }
 
-  const extension = sourcePath.includes(".")
-    ? sourcePath.slice(sourcePath.lastIndexOf("."))
-    : ".mkv";
   const allEpisodes = options?.episodeNumbers?.length ? options.episodeNumbers : [episodeNumber];
-  const namingFormat = options?.namingFormat ?? "{title} - {episode_segment}";
-  const plan = buildEpisodeFilenamePlan({
+  const importPlan = yield* buildImportFilePlan({
     animeRow,
-    downloadSourceMetadata: options?.downloadSourceMetadata,
     episodeNumbers: allEpisodes,
-    episodeRows: options?.episodeRows,
-    filePath: sourcePath,
-    localMediaMetadata: options?.localMediaMetadata,
-    namingFormat,
-    preferredTitle: options?.preferredTitle ?? "romaji",
-    season: options?.season,
+    options,
+    randomUuid: options.randomUuid,
+    sourcePath,
   });
-  const { baseName } = plan;
-  const destination = `${animeRow.rootFolder.replace(/\/$/, "")}/${baseName}${extension}`;
-  const tempDestination = `${destination}.tmp.${yield* options.randomUuid()}`;
 
   yield* fs.mkdir(animeRow.rootFolder, { recursive: true });
+  yield* stageSourceIntoTempFile({
+    fs,
+    importMode,
+    sourcePath,
+    tempDestination: importPlan.tempDestination,
+  });
 
-  const cleanupTempDestination = fs.remove(tempDestination).pipe(
+  const hasExistingDestination = yield* hasExistingFile(fs, importPlan.destination);
+
+  if (hasExistingDestination) {
+    yield* fs
+      .rename(importPlan.destination, importPlan.backupDestination)
+      .pipe(
+        Effect.mapError(
+          (cause) =>
+            new ImportFileError({ message: "Failed to back up existing destination", cause }),
+        ),
+      );
+  }
+
+  const renameResult = yield* Effect.either(
+    fs.rename(importPlan.tempDestination, importPlan.destination),
+  );
+
+  if (renameResult._tag === "Left") {
+    if (hasExistingDestination) {
+      yield* fs.rename(importPlan.backupDestination, importPlan.destination).pipe(
+        Effect.catchTag("FileSystemError", (fsError) =>
+          Effect.logWarning("Failed to restore backup after rename failure").pipe(
+            Effect.annotateLogs({
+              backup_path: importPlan.backupDestination,
+              destination_path: importPlan.destination,
+              error: String(fsError),
+            }),
+            Effect.asVoid,
+          ),
+        ),
+      );
+    }
+    yield* fs.remove(importPlan.tempDestination).pipe(
+      Effect.catchTag("FileSystemError", (fsError) =>
+        Effect.logWarning("Failed to remove temp file after rename failure").pipe(
+          Effect.annotateLogs({
+            error: String(fsError),
+            temp_path: importPlan.tempDestination,
+          }),
+          Effect.asVoid,
+        ),
+      ),
+    );
+    return yield* new ImportFileError({
+      message: "Failed to rename temp file to destination",
+      cause: renameResult.left,
+    });
+  }
+
+  if (hasExistingDestination) {
+    yield* fs.remove(importPlan.backupDestination).pipe(
+      Effect.catchTag("FileSystemError", (fsError) =>
+        Effect.logWarning("Failed to remove backup file after successful import").pipe(
+          Effect.annotateLogs({
+            backup_path: importPlan.backupDestination,
+            error: String(fsError),
+          }),
+          Effect.asVoid,
+        ),
+      ),
+    );
+  }
+
+  return importPlan.destination;
+});
+
+function buildImportFilePlan(input: {
+  animeRow: typeof anime.$inferSelect;
+  episodeNumbers: readonly number[];
+  options: {
+    namingFormat?: string;
+    preferredTitle?: PreferredTitle;
+    episodeRows?: readonly { title?: string | null; aired?: string | null }[];
+    downloadSourceMetadata?: DownloadSourceMetadata;
+    localMediaMetadata?: ProbedMediaMetadata;
+    season?: number;
+  };
+  randomUuid: () => Effect.Effect<string>;
+  sourcePath: string;
+}) {
+  return Effect.gen(function* () {
+    const extension = input.sourcePath.includes(".")
+      ? input.sourcePath.slice(input.sourcePath.lastIndexOf("."))
+      : ".mkv";
+    const namingFormat = input.options.namingFormat ?? "{title} - {episode_segment}";
+    const namingPlan = buildEpisodeFilenamePlan({
+      animeRow: input.animeRow,
+      downloadSourceMetadata: input.options.downloadSourceMetadata,
+      episodeNumbers: input.episodeNumbers,
+      episodeRows: input.options.episodeRows,
+      filePath: input.sourcePath,
+      localMediaMetadata: input.options.localMediaMetadata,
+      namingFormat,
+      preferredTitle: input.options.preferredTitle ?? "romaji",
+      season: input.options.season,
+    });
+    const destination = `${input.animeRow.rootFolder.replace(/\/$/, "")}/${namingPlan.baseName}${extension}`;
+    const suffix = yield* input.randomUuid();
+    const backupSuffix = yield* input.randomUuid();
+
+    return {
+      backupDestination: `${destination}.bak.${backupSuffix}`,
+      destination,
+      tempDestination: `${destination}.tmp.${suffix}`,
+    } as const;
+  });
+}
+
+function stageSourceIntoTempFile(input: {
+  fs: FileSystemShape;
+  importMode: string;
+  sourcePath: string;
+  tempDestination: string;
+}) {
+  const cleanupTempDestination = input.fs.remove(input.tempDestination).pipe(
     Effect.catchTag("FileSystemError", (fsError) =>
       Effect.logWarning("Failed to clean up temp import file after move failure").pipe(
         Effect.annotateLogs({
           error: String(fsError),
-          temp_path: tempDestination,
+          temp_path: input.tempDestination,
         }),
         Effect.asVoid,
       ),
     ),
   );
 
-  yield* (
-    importMode === "move"
-      ? fs
-          .rename(sourcePath, tempDestination)
+  return (
+    input.importMode === "move"
+      ? input.fs
+          .rename(input.sourcePath, input.tempDestination)
           .pipe(
             Effect.catchTag("FileSystemError", (error) =>
               isCrossFilesystemError(error)
-                ? fs
-                    .copyFile(sourcePath, tempDestination)
+                ? input.fs
+                    .copyFile(input.sourcePath, input.tempDestination)
                     .pipe(
                       Effect.flatMap(() =>
-                        fs
-                          .remove(sourcePath)
+                        input.fs
+                          .remove(input.sourcePath)
                           .pipe(
                             Effect.catchTag("FileSystemError", (removeError) =>
                               cleanupTempDestination.pipe(
@@ -123,79 +231,24 @@ export const importDownloadedFile = Effect.fn("Operations.importDownloadedFile")
                 : Effect.fail(error),
             ),
           )
-      : fs.copyFile(sourcePath, tempDestination)
+      : input.fs.copyFile(input.sourcePath, input.tempDestination)
   ).pipe(
     Effect.mapError(
       (cause) =>
-        new ImportFileError({ message: `Failed to ${importMode} file to temp destination`, cause }),
+        new ImportFileError({
+          message: `Failed to ${input.importMode} file to temp destination`,
+          cause,
+        }),
     ),
   );
+}
 
-  const backupDestination = `${destination}.bak.${yield* options.randomUuid()}`;
-  const existingStat = yield* Effect.either(fs.stat(destination));
-  const hasExisting = existingStat._tag === "Right";
-
-  if (hasExisting) {
-    yield* fs
-      .rename(destination, backupDestination)
-      .pipe(
-        Effect.mapError(
-          (cause) =>
-            new ImportFileError({ message: "Failed to back up existing destination", cause }),
-        ),
-      );
-  }
-
-  const renameResult = yield* Effect.either(fs.rename(tempDestination, destination));
-
-  if (renameResult._tag === "Left") {
-    if (hasExisting) {
-      yield* fs.rename(backupDestination, destination).pipe(
-        Effect.catchTag("FileSystemError", (fsError) =>
-          Effect.logWarning("Failed to restore backup after rename failure").pipe(
-            Effect.annotateLogs({
-              backup_path: backupDestination,
-              destination_path: destination,
-              error: String(fsError),
-            }),
-            Effect.asVoid,
-          ),
-        ),
-      );
-    }
-    yield* fs.remove(tempDestination).pipe(
-      Effect.catchTag("FileSystemError", (fsError) =>
-        Effect.logWarning("Failed to remove temp file after rename failure").pipe(
-          Effect.annotateLogs({
-            error: String(fsError),
-            temp_path: tempDestination,
-          }),
-          Effect.asVoid,
-        ),
-      ),
-    );
-    return yield* new ImportFileError({
-      message: "Failed to rename temp file to destination",
-      cause: renameResult.left,
-    });
-  }
-
-  if (hasExisting) {
-    yield* fs.remove(backupDestination).pipe(
-      Effect.catchTag("FileSystemError", (fsError) =>
-        Effect.logWarning("Failed to remove backup file after successful import").pipe(
-          Effect.annotateLogs({
-            backup_path: backupDestination,
-            error: String(fsError),
-          }),
-          Effect.asVoid,
-        ),
-      ),
-    );
-  }
-
-  return destination;
-});
+function hasExistingFile(fs: FileSystemShape, destination: string) {
+  return fs.stat(destination).pipe(
+    Effect.either,
+    Effect.map((result) => result._tag === "Right"),
+  );
+}
 
 export const upsertEpisodeFilesAtomic = Effect.fn("Operations.upsertEpisodeFilesAtomic")(function* (
   db: AppDatabase,
@@ -207,77 +260,66 @@ export const upsertEpisodeFilesAtomic = Effect.fn("Operations.upsertEpisodeFiles
     return;
   }
 
-  const upsertOnce = Effect.tryPromise({
-    try: () =>
-      db.transaction(async (tx) => {
-        const episodeNumbersArr = [...episodeNumbers];
+  yield* tryDatabasePromise("Failed to upsert episode files", () =>
+    db.transaction(async (tx) => {
+      const episodeNumbersArr = [...episodeNumbers];
 
-        const existingRows = await tx
-          .select()
-          .from(episodes)
-          .where(and(eq(episodes.animeId, animeId), inArray(episodes.number, episodeNumbersArr)));
+      const existingRows = await tx
+        .select()
+        .from(episodes)
+        .where(and(eq(episodes.animeId, animeId), inArray(episodes.number, episodeNumbersArr)));
 
-        const existingEpisodeNumbers = new Set(existingRows.map((r) => r.number));
-        const missingEpisodeNumbers = episodeNumbersArr.filter(
-          (n) => !existingEpisodeNumbers.has(n),
-        );
+      const existingEpisodeNumbers = new Set(existingRows.map((r) => r.number));
+      const missingEpisodeNumbers = episodeNumbersArr.filter((n) => !existingEpisodeNumbers.has(n));
 
-        if (existingEpisodeNumbers.size > 0) {
-          await tx
-            .update(episodes)
-            .set({
-              downloaded: true,
-              filePath: destination,
-            })
-            .where(
-              and(
-                eq(episodes.animeId, animeId),
-                inArray(episodes.number, [...existingEpisodeNumbers]),
-              ),
-            );
-        }
-
-        if (missingEpisodeNumbers.length > 0) {
-          const valuesToInsert = missingEpisodeNumbers.map((num) => ({
-            aired: null,
-            animeId,
+      if (existingEpisodeNumbers.size > 0) {
+        await tx
+          .update(episodes)
+          .set({
             downloaded: true,
             filePath: destination,
-            number: num,
-            title: null,
-          }));
+          })
+          .where(
+            and(
+              eq(episodes.animeId, animeId),
+              inArray(episodes.number, [...existingEpisodeNumbers]),
+            ),
+          );
+      }
 
-          await tx
-            .insert(episodes)
-            .values(valuesToInsert)
-            .onConflictDoUpdate({
-              target: [episodes.animeId, episodes.number],
-              set: {
-                downloaded: true,
-                filePath: destination,
-              },
-            });
-        }
-      }),
-    catch: (cause) =>
-      new UpsertEpisodeFileError({
-        anime_id: animeId,
-        episode_number: episodeNumbers[0] ?? 0,
-        message: "Failed to upsert episode files",
-        cause,
-      }),
-  });
+      if (missingEpisodeNumbers.length > 0) {
+        const valuesToInsert = missingEpisodeNumbers.map((num) => ({
+          aired: null,
+          animeId,
+          downloaded: true,
+          filePath: destination,
+          number: num,
+          title: null,
+        }));
 
-  const attempt = (remaining: number): Effect.Effect<void, UpsertEpisodeFileError> =>
-    upsertOnce.pipe(
-      Effect.catchTag("UpsertEpisodeFileError", (error) =>
-        isBusySqliteCause(error.cause) && remaining > 0
-          ? Effect.sleep("25 millis").pipe(Effect.zipRight(attempt(remaining - 1)))
-          : Effect.fail(error),
-      ),
-    );
-
-  yield* attempt(SQLITE_BUSY_RETRY_COUNT);
+        await tx
+          .insert(episodes)
+          .values(valuesToInsert)
+          .onConflictDoUpdate({
+            target: [episodes.animeId, episodes.number],
+            set: {
+              downloaded: true,
+              filePath: destination,
+            },
+          });
+      }
+    }),
+  ).pipe(
+    Effect.mapError(
+      (cause) =>
+        new UpsertEpisodeFileError({
+          anime_id: animeId,
+          episode_number: episodeNumbers[0] ?? 0,
+          message: cause.message,
+          cause,
+        }),
+    ),
+  );
 });
 
 export const upsertEpisodeFiles = Effect.fn("Operations.upsertEpisodeFiles")(function* (

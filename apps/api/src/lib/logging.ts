@@ -43,9 +43,21 @@ export interface RuntimeLogLevelStateShape {
   readonly set: (level: string | undefined) => Effect.Effect<void>;
 }
 
+export interface RuntimeLogSinkShape {
+  readonly write: (input: {
+    readonly levelLabel: string;
+    readonly line: string;
+  }) => Effect.Effect<void>;
+}
+
 export class RuntimeLogLevelState extends Context.Tag("@bakarr/api/RuntimeLogLevelState")<
   RuntimeLogLevelState,
   RuntimeLogLevelStateShape
+>() {}
+
+export class RuntimeLogSink extends Context.Tag("@bakarr/api/RuntimeLogSink")<
+  RuntimeLogSink,
+  RuntimeLogSinkShape
 >() {}
 
 export const RuntimeLogLevelStateLive = Layer.effect(
@@ -60,6 +72,27 @@ export const RuntimeLogLevelStateLive = Layer.effect(
   }),
 );
 
+export const RuntimeLogSinkLive = Layer.succeed(
+  RuntimeLogSink,
+  RuntimeLogSink.of({
+    write: ({ levelLabel, line }) =>
+      Effect.sync(() => {
+        switch (levelLabel) {
+          case "ERROR":
+          case "FATAL":
+            console.error(line);
+            break;
+          case "WARN":
+            console.warn(line);
+            break;
+          default:
+            console.log(line);
+            break;
+        }
+      }),
+  }),
+);
+
 export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(function* (
   level: string | undefined,
 ) {
@@ -70,6 +103,7 @@ export const setRuntimeLogLevel = Effect.fn("Logging.setRuntimeLogLevel")(functi
 const RuntimeLoggerLive = Layer.unwrapEffect(
   Effect.gen(function* () {
     const state = yield* RuntimeLogLevelState;
+    const sink = yield* RuntimeLogSink;
 
     return Logger.replace(
       Logger.defaultLogger,
@@ -83,18 +117,10 @@ const RuntimeLoggerLive = Layer.unwrapEffect(
 
           const line = Logger.jsonLogger.log(options);
 
-          switch (options.logLevel.label) {
-            case "ERROR":
-            case "FATAL":
-              console.error(line);
-              break;
-            case "WARN":
-              console.warn(line);
-              break;
-            default:
-              console.log(line);
-              break;
-          }
+          yield* sink.write({
+            levelLabel: options.logLevel.label,
+            line,
+          });
         }),
       ),
     );
@@ -103,7 +129,10 @@ const RuntimeLoggerLive = Layer.unwrapEffect(
 
 export const RuntimeLoggerLayer = Layer.mergeAll(
   RuntimeLogLevelStateLive,
-  RuntimeLoggerLive.pipe(Layer.provide(RuntimeLogLevelStateLive)),
+  RuntimeLogSinkLive,
+  RuntimeLoggerLive.pipe(
+    Layer.provide(Layer.mergeAll(RuntimeLogLevelStateLive, RuntimeLogSinkLive)),
+  ),
 );
 
 function parseRuntimeLogLevel(level: string | undefined) {

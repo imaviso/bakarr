@@ -1,17 +1,18 @@
 import { FileSystem as PlatformFileSystem, Path as PlatformPath } from "@effect/platform";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
-import { win32 as PathForUtilities } from "node:path";
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect";
+
+export {
+  isWithinPathRoot,
+  PathSegmentError,
+  sanitizeFilename,
+  sanitizePathSegmentEffect,
+} from "@/lib/filesystem-path-policy.ts";
 
 export class FileSystemError extends Schema.TaggedError<FileSystemError>()("FileSystemError", {
   cause: Schema.Defect,
   message: Schema.String,
   path: Schema.String,
-}) {}
-
-export class PathSegmentError extends Schema.TaggedError<PathSegmentError>()("PathSegmentError", {
-  message: Schema.String,
-  segment: Schema.String,
 }) {}
 
 export interface FileInfo {
@@ -291,31 +292,6 @@ export function makeFileSystemNoopLayer(overrides: Partial<PlatformFileSystem.Fi
   );
 }
 
-export function isWithinPathRoot(path: string, root: string) {
-  const resolvedPath = PathForUtilities.resolve(path.replace(/[\\/]+/g, "/"));
-  const resolvedRoot = PathForUtilities.resolve(root.replace(/[\\/]+/g, "/"));
-
-  if (resolvedPath === resolvedRoot) {
-    return true;
-  }
-
-  const relativePath = PathForUtilities.relative(resolvedRoot, resolvedPath);
-
-  if (relativePath === "") {
-    return true;
-  }
-
-  if (
-    relativePath.startsWith("..") ||
-    relativePath.startsWith("/") ||
-    relativePath.startsWith("\\")
-  ) {
-    return false;
-  }
-
-  return true;
-}
-
 const resolvePath = (
   pathService: PlatformPath.Path,
   path: string | URL,
@@ -340,43 +316,6 @@ const resolvePath = (
   return Effect.succeed(path.toString());
 };
 
-const sanitizePathSegmentEither = (value: string) => {
-  const trimmed = value.trim();
-
-  if (
-    trimmed.length === 0 ||
-    trimmed === "." ||
-    trimmed === ".." ||
-    trimmed.includes("/") ||
-    trimmed.includes("\\")
-  ) {
-    return {
-      _tag: "Left" as const,
-      left: new PathSegmentError({
-        message: "Invalid path segment",
-        segment: value,
-      }),
-    };
-  }
-
-  return {
-    _tag: "Right" as const,
-    right: trimmed,
-  };
-};
-
-export const sanitizePathSegmentEffect = Effect.fn("FileSystem.sanitizePathSegmentEffect")(
-  function* (value: string) {
-    const result = sanitizePathSegmentEither(value);
-
-    if (result._tag === "Left") {
-      return yield* result.left;
-    }
-
-    return result.right;
-  },
-);
-
 function resolveSeekMode(
   path: string | URL,
   mode: number,
@@ -396,12 +335,4 @@ function resolveSeekMode(
       path: path.toString(),
     }),
   );
-}
-
-export function sanitizeFilename(name: string) {
-  return name
-    .replace(/[\\/:]/g, " ")
-    .replace(/[*?"<>|]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
