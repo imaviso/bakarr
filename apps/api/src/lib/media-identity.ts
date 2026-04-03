@@ -17,34 +17,15 @@ import {
   getSourceIdentitySeason,
   toSharedParsedEpisodeIdentity,
 } from "@/lib/media-identity-model.ts";
+import { parseResolutionLabel } from "@/lib/media-resolution.ts";
+import type { ParsedMediaFile, PathParseContext } from "@/lib/media-identity-types.ts";
 
 import { parseAbsoluteIdentity } from "@/lib/media-identity-absolute.ts";
 import { parseDailyIdentity } from "@/lib/media-identity-daily.ts";
 import { parseSeasonEpisodeIdentity } from "@/lib/media-identity-season.ts";
 
-export interface PathParseContext {
-  /** Title inferred from nearest entry folder (e.g. "Overlord II") */
-  entry_folder_title?: string;
-  /** Season hint from folder structure (e.g. 1 for "Season 1") */
-  season_hint?: number;
-  /** Whether folder indicates specials (Season 0, Specials) */
-  is_specials_folder?: boolean;
-  /** Whether folder name suggests a sequel (II, 2nd Season, etc.) */
-  sequel_hint?: string;
-}
-
-export type MediaArtifactKind = "episode" | "extra" | "sample" | "unknown";
-
-export interface ParsedMediaFile {
-  kind: MediaArtifactKind;
-  parsed_title: string;
-  source_identity?: ParsedEpisodeIdentity;
-  group?: string;
-  resolution?: string;
-  skip_reason?: string;
-}
-
 export type { ParsedEpisodeIdentity } from "@/lib/media-identity-model.ts";
+export type { ParsedMediaFile, PathParseContext } from "@/lib/media-identity-types.ts";
 
 export {
   AbsoluteEpisodeIdentity,
@@ -150,7 +131,19 @@ export function parseFileSourceIdentity(path: string, context?: PathParseContext
   if (absolute) {
     // If folder context provides a season hint, promote to season scheme
     if (context?.season_hint !== undefined || context?.is_specials_folder) {
-      const season = context.is_specials_folder ? 0 : context.season_hint!;
+      const season = context.is_specials_folder ? 0 : context.season_hint;
+
+      if (season === undefined) {
+        return {
+          kind: "episode",
+          parsed_title:
+            context?.entry_folder_title || extractTitleBeforeNumber(extensionless) || extensionless,
+          source_identity: absolute,
+          group,
+          resolution,
+        };
+      }
+
       const promoted = new SeasonEpisodeIdentity({
         scheme: "season",
         season,
@@ -577,13 +570,7 @@ function looksLikeMetadataTag(value: string): boolean {
 }
 
 function extractResolution(value: string): string | undefined {
-  const lower = value.toLowerCase();
-  if (lower.includes("2160") || lower.includes("4k")) return "2160p";
-  if (lower.includes("1080")) return "1080p";
-  if (lower.includes("720")) return "720p";
-  if (lower.includes("576")) return "576p";
-  if (lower.includes("480")) return "480p";
-  return undefined;
+  return parseResolutionLabel(value);
 }
 
 function stripExtension(filename: string): string {

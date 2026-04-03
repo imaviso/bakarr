@@ -1,4 +1,5 @@
 import type { Quality } from "@packages/shared/index.ts";
+import { parseResolutionLabel } from "@/lib/media-resolution.ts";
 
 type QualitySource =
   | "BluRayRemux"
@@ -49,15 +50,7 @@ const QUALITY_DEFS: ReadonlyArray<Quality & { readonly sourceKind: QualitySource
 ];
 
 export function parseResolution(title: string): string | undefined {
-  const lower = title.toLowerCase();
-
-  if (lower.includes("2160") || lower.includes("4k")) return "2160p";
-  if (lower.includes("1080")) return "1080p";
-  if (lower.includes("720")) return "720p";
-  if (lower.includes("576")) return "576p";
-  if (lower.includes("480")) return "480p";
-
-  return undefined;
+  return parseResolutionLabel(title);
 }
 
 export function parseQualityFromTitle(title: string): Quality {

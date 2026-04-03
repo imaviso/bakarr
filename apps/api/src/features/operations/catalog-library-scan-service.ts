@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Ref } from "effect";
+import { Cause, Context, Effect, Layer, Ref } from "effect";
 
 import type { AppDatabase, DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
@@ -35,6 +35,23 @@ function makeCatalogLibraryScanSupport(input: {
   tryDatabasePromise: TryDatabasePromise;
 }): CatalogLibraryScanServiceShape {
   const { nowIso } = input;
+  const failAfterMarkingJobFailure = (
+    cause: DatabaseError | OperationsInfrastructureError | OperationsPathError,
+  ) =>
+    markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
+      Effect.catchAllCause((markFailureCause) =>
+        Effect.logError("Failed to record library scan job failure").pipe(
+          Effect.annotateLogs({
+            job: "library_scan",
+            mark_job_failed_cause: Cause.pretty(markFailureCause),
+            run_failure: cause.message,
+          }),
+          Effect.zipRight(Effect.failCause(Cause.sequential(Cause.fail(cause), markFailureCause))),
+        ),
+      ),
+      Effect.zipRight(Effect.fail(cause)),
+    );
+
   const runLibraryScan = Effect.fn("OperationsService.runLibraryScan")(
     function* () {
       yield* Effect.annotateCurrentSpan("job", "library_scan");
@@ -83,21 +100,9 @@ function makeCatalogLibraryScanSupport(input: {
       return { matched, scanned };
     },
     Effect.catchTags({
-      DatabaseError: (cause) =>
-        markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
-          Effect.catchAll(() => Effect.void),
-          Effect.zipRight(Effect.fail(cause)),
-        ),
-      OperationsInfrastructureError: (cause) =>
-        markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
-          Effect.catchAll(() => Effect.void),
-          Effect.zipRight(Effect.fail(cause)),
-        ),
-      OperationsPathError: (cause) =>
-        markJobFailed(input.db, "library_scan", cause, nowIso).pipe(
-          Effect.catchAll(() => Effect.void),
-          Effect.zipRight(Effect.fail(cause)),
-        ),
+      DatabaseError: failAfterMarkingJobFailure,
+      OperationsInfrastructureError: failAfterMarkingJobFailure,
+      OperationsPathError: failAfterMarkingJobFailure,
     }),
   );
 

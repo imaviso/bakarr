@@ -21,8 +21,12 @@ export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE,
   readonly catalogDownloadReadLayer: Layer.Layer<CDOut, CDE, CDR>;
   readonly runtimeSupportLayer: Layer.Layer<RSOut, RSE, RSR>;
 }) {
+  const backgroundRuntimeLayer = Layer.mergeAll(
+    input.runtimeSupportLayer,
+    input.backgroundControllerLayer,
+  );
   const backgroundJobStatusLayer = BackgroundJobStatusServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(input.runtimeSupportLayer, input.backgroundControllerLayer)),
+    Layer.provideMerge(backgroundRuntimeLayer),
   );
   const systemStatusReadLayer = SystemStatusReadServiceLive.pipe(
     Layer.provideMerge(Layer.mergeAll(input.runtimeSupportLayer, backgroundJobStatusLayer)),
@@ -41,18 +45,16 @@ export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE,
       Layer.mergeAll(input.runtimeSupportLayer, systemStatusReadLayer, systemLibraryStatsReadLayer),
     ),
   );
-  const systemReadLayer = SystemReadServiceLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        backgroundJobStatusLayer,
-        systemStatusReadLayer,
-        systemLibraryStatsReadLayer,
-        systemActivityReadLayer,
-        systemDashboardReadLayer,
-        systemRuntimeMetricsLayer,
-      ),
-    ),
+
+  const systemReadSubgraphLayer = Layer.mergeAll(
+    backgroundJobStatusLayer,
+    systemStatusReadLayer,
+    systemLibraryStatsReadLayer,
+    systemActivityReadLayer,
+    systemDashboardReadLayer,
+    systemRuntimeMetricsLayer,
   );
+  const systemReadLayer = SystemReadServiceLive.pipe(Layer.provideMerge(systemReadSubgraphLayer));
   const systemMetricsEndpointLayer = SystemMetricsEndpointServiceLive.pipe(
     Layer.provideMerge(Layer.mergeAll(input.runtimeSupportLayer, systemRuntimeMetricsLayer)),
   );
@@ -74,21 +76,24 @@ export function makeSystemAppLayer<BCOut, BCE, BCR, CDOut, CDE, CDR, RSOut, RSE,
     Layer.provideMerge(input.runtimeSupportLayer),
   );
 
-  return Layer.mergeAll(
+  const runtimeOnlySubgraphLayer = Layer.mergeAll(
     systemBootstrapLayer,
-    backgroundJobStatusLayer,
-    systemConfigUpdateLayer,
-    systemStatusReadLayer,
-    systemLibraryStatsReadLayer,
-    systemActivityReadLayer,
-    systemDashboardReadLayer,
-    systemRuntimeMetricsLayer,
-    systemReadLayer,
-    systemMetricsEndpointLayer,
     imageAssetLayer,
-    systemEventsLayer,
     qualityProfileLayer,
     releaseProfileLayer,
     systemLogLayer,
+  );
+
+  const orchestrationSubgraphLayer = Layer.mergeAll(
+    systemConfigUpdateLayer,
+    systemEventsLayer,
+    systemMetricsEndpointLayer,
+  );
+
+  return Layer.mergeAll(
+    runtimeOnlySubgraphLayer,
+    systemReadSubgraphLayer,
+    systemReadLayer,
+    orchestrationSubgraphLayer,
   );
 }

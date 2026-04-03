@@ -58,9 +58,12 @@ export class AppConfig extends Context.Tag("@bakarr/api/AppConfig")<AppConfig, A
             EffectConfig.orElse(() => EffectConfig.succeed(defaultAppConfig.appVersion)),
           ),
         );
+        const normalizedBootstrapPasswordOverride = normalizePasswordOverride(
+          overrides.bootstrapPassword,
+        );
         const bootstrapPasswordFromEnv =
-          overrides.bootstrapPassword !== undefined
-            ? Option.some(normalizePasswordOverride(overrides.bootstrapPassword)!)
+          normalizedBootstrapPasswordOverride !== undefined
+            ? Option.some(normalizedBootstrapPasswordOverride)
             : yield* EffectConfig.redacted("BAKARR_BOOTSTRAP_PASSWORD").pipe(
                 Effect.map(Option.some),
                 Effect.orElse(() => Effect.succeed(Option.none())),

@@ -60,6 +60,46 @@ export function makeUnmappedScanWorkflow(input: {
       tryDatabasePromise,
     });
 
+  const failAfterMarkingJobFailure = (
+    error: DatabaseError | OperationsPathError | import("./errors.ts").OperationsStoredDataError,
+  ) =>
+    markJobFailed(db, "unmapped_scan", error, nowIso).pipe(
+      Effect.catchAllCause((markFailureCause) =>
+        Effect.logError("Failed to record unmapped scan job failure").pipe(
+          Effect.annotateLogs({
+            job: "unmapped_scan",
+            mark_job_failed_cause: Cause.pretty(markFailureCause),
+            run_failure: error.message,
+          }),
+          Effect.zipRight(Effect.failCause(Cause.sequential(Cause.fail(error), markFailureCause))),
+        ),
+      ),
+      Effect.zipRight(Effect.fail(error)),
+    );
+
+  const failInfrastructureAfterMarkingJobFailure = (cause: Cause.Cause<unknown>) => {
+    const infrastructureError = new OperationsInfrastructureError({
+      message: "Failed to scan unmapped folders",
+      cause,
+    });
+
+    return markJobFailed(db, "unmapped_scan", cause, nowIso).pipe(
+      Effect.catchAllCause((markFailureCause) =>
+        Effect.logError("Failed to record unmapped scan infrastructure failure").pipe(
+          Effect.annotateLogs({
+            job: "unmapped_scan",
+            mark_job_failed_cause: Cause.pretty(markFailureCause),
+            run_failure_cause: Cause.pretty(cause),
+          }),
+          Effect.zipRight(
+            Effect.failCause(Cause.sequential(Cause.fail(infrastructureError), markFailureCause)),
+          ),
+        ),
+      ),
+      Effect.zipRight(Effect.fail(infrastructureError)),
+    );
+  };
+
   const runUnmappedScanPass = Effect.fn("OperationsService.runUnmappedScanPass")(
     function* () {
       yield* markJobStarted(db, "unmapped_scan", nowIso);
@@ -136,37 +176,10 @@ export function makeUnmappedScanWorkflow(input: {
 
       return { folderCount: queuedFolders.length };
     },
-    Effect.catchTag("DatabaseError", (error) =>
-      markJobFailed(db, "unmapped_scan", error, nowIso).pipe(
-        Effect.catchAll(() => Effect.void),
-        Effect.zipRight(Effect.fail(error)),
-      ),
-    ),
-    Effect.catchTag("OperationsPathError", (error) =>
-      markJobFailed(db, "unmapped_scan", error, nowIso).pipe(
-        Effect.catchAll(() => Effect.void),
-        Effect.zipRight(Effect.fail(error)),
-      ),
-    ),
-    Effect.catchTag("OperationsStoredDataError", (error) =>
-      markJobFailed(db, "unmapped_scan", error, nowIso).pipe(
-        Effect.catchAll(() => Effect.void),
-        Effect.zipRight(Effect.fail(error)),
-      ),
-    ),
-    Effect.catchAllCause((cause) =>
-      markJobFailed(db, "unmapped_scan", cause, nowIso).pipe(
-        Effect.catchAll(() => Effect.void),
-        Effect.zipRight(
-          Effect.fail(
-            new OperationsInfrastructureError({
-              message: "Failed to scan unmapped folders",
-              cause,
-            }),
-          ),
-        ),
-      ),
-    ),
+    Effect.catchTag("DatabaseError", failAfterMarkingJobFailure),
+    Effect.catchTag("OperationsPathError", failAfterMarkingJobFailure),
+    Effect.catchTag("OperationsStoredDataError", failAfterMarkingJobFailure),
+    Effect.catchAllCause(failInfrastructureAfterMarkingJobFailure),
   );
 
   const unmappedScanLoop = Effect.fn("OperationsService.unmappedScanLoop")(function* () {

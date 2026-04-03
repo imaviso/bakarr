@@ -5,6 +5,7 @@ import type { AppDatabase } from "@/db/database.ts";
 import type { FileSystemShape } from "@/lib/filesystem.ts";
 import { type MediaProbeShape } from "@/lib/media-probe.ts";
 import type { AniListClient } from "@/features/anime/anilist.ts";
+import { OperationsInfrastructureError } from "@/features/operations/errors.ts";
 import {
   findBestLocalAnimeMatch,
   scoreAnimeRowMatch,
@@ -92,10 +93,16 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
     );
 
     const candidateMap = new Map<number, AnimeSearchResult>();
+    const selectedAnimeRow = input.animeId ? animeRows[0] : undefined;
 
     if (input.animeId) {
-      const [row] = animeRows;
-      candidateMap.set(row.id, yield* toAnimeSearchCandidate(row));
+      if (!selectedAnimeRow) {
+        return yield* new OperationsInfrastructureError({
+          message: `Selected anime ${input.animeId} is unavailable for import scan`,
+        });
+      }
+
+      candidateMap.set(selectedAnimeRow.id, yield* toAnimeSearchCandidate(selectedAnimeRow));
     } else {
       const parsedTitles = [
         ...new Set(
@@ -120,10 +127,9 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
 
     return {
       candidates: [...candidateMap.values()],
-      files: discovery.episodeFiles.map((_entry, index) => {
-        const file = enrichedFiles[index]!;
+      files: enrichedFiles.map((file) => {
         const localMatch = input.animeId
-          ? animeRows[0]
+          ? selectedAnimeRow
           : findBestLocalAnimeMatch(file.parsed_title, animeRows);
         const remoteMatch =
           !input.animeId && !localMatch
@@ -142,7 +148,9 @@ export const scanImportPathEffect = Effect.fn("OperationsService.scanImportPathE
         let targetAnime: { id: number; title: string } | undefined;
 
         if (input.animeId) {
-          targetAnime = { id: animeRows[0].id, title: animeRows[0].titleRomaji };
+          targetAnime = selectedAnimeRow
+            ? { id: selectedAnimeRow.id, title: selectedAnimeRow.titleRomaji }
+            : undefined;
         } else if (localMatch) {
           targetAnime = { id: localMatch.id, title: localMatch.titleRomaji };
         }

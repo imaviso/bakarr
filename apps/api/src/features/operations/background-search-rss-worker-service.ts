@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Cause, Context, Effect, Layer } from "effect";
 
 import { Database } from "@/db/database.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -33,6 +33,21 @@ export function makeBackgroundSearchRssWorkerService(input: {
   readonly progress: typeof OperationsProgress.Service;
   readonly rssService: typeof SearchBackgroundRssService.Service;
 }) {
+  const markFailureAndRethrowCause = (cause: Cause.Cause<BackgroundSearchRssWorkerError>) =>
+    markJobFailed(input.db, "rss", cause, input.nowIso).pipe(
+      Effect.catchAllCause((markFailureCause) =>
+        Effect.logError("Failed to record rss job failure").pipe(
+          Effect.annotateLogs({
+            job: "rss",
+            mark_job_failed_cause: Cause.pretty(markFailureCause),
+            run_failure_cause: Cause.pretty(cause),
+          }),
+          Effect.zipRight(Effect.failCause(Cause.sequential(cause, markFailureCause))),
+        ),
+      ),
+      Effect.zipRight(Effect.failCause(cause)),
+    );
+
   const runRssWorker = Effect.fn("BackgroundSearchRssWorkerService.runRssWorker")(function* () {
     return yield* Effect.gen(function* () {
       yield* Effect.annotateCurrentSpan("job", "rss");
@@ -55,14 +70,7 @@ export function makeBackgroundSearchRssWorkerService(input: {
         payload: { new_items: result.newItems, total_feeds: result.totalFeeds },
       });
       yield* input.progress.publishDownloadProgress();
-    }).pipe(
-      Effect.catchAllCause((cause) =>
-        markJobFailed(input.db, "rss", cause, input.nowIso).pipe(
-          Effect.catchAll(() => Effect.void),
-          Effect.zipRight(Effect.failCause(cause)),
-        ),
-      ),
-    );
+    }).pipe(Effect.catchAllCause(markFailureAndRethrowCause));
   });
 
   return BackgroundSearchRssWorkerService.of({ runRssWorker });

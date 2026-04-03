@@ -27,11 +27,17 @@ export type UrlValidationResult =
   | { readonly _tag: "Accepted" }
   | { readonly _tag: "Rejected"; readonly reason: string };
 
-export interface PinnedRequestTarget {
-  readonly parsedUrl: URL;
-  readonly pinnedAddress?: string;
-  readonly pinnedAddressFamily?: 4 | 6;
-}
+export type PinnedRequestTarget =
+  | {
+      readonly _tag: "Pinned";
+      readonly parsedUrl: URL;
+      readonly pinnedAddress: string;
+      readonly pinnedAddressFamily: 4 | 6;
+    }
+  | {
+      readonly _tag: "Unpinned";
+      readonly parsedUrl: URL;
+    };
 
 export const resolvePinnedRequestTarget = Effect.fn("RssClient.resolvePinnedRequestTarget")(
   function* (urlString: string, dns: typeof DnsResolver.Service) {
@@ -71,6 +77,7 @@ export const resolvePinnedRequestTarget = Effect.fn("RssClient.resolvePinnedRequ
       }
 
       return {
+        _tag: "Unpinned",
         parsedUrl,
       } satisfies PinnedRequestTarget;
     }
@@ -94,6 +101,7 @@ export const resolvePinnedRequestTarget = Effect.fn("RssClient.resolvePinnedRequ
     const pinnedAddress = resolvedAddrs[0];
 
     return {
+      _tag: "Pinned",
       parsedUrl,
       pinnedAddress,
       pinnedAddressFamily: isIpv4Address(pinnedAddress) ? 4 : 6,

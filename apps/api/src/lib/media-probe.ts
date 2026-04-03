@@ -23,13 +23,6 @@ export class MediaProbeMetadataFound extends Schema.TaggedClass<MediaProbeMetada
   },
 ) {}
 
-export class MediaProbeUnavailable extends Schema.TaggedClass<MediaProbeUnavailable>()(
-  "MediaProbeUnavailable",
-  {
-    message: Schema.String,
-  },
-) {}
-
 export class MediaProbeFailure extends Schema.TaggedClass<MediaProbeFailure>()(
   "MediaProbeFailure",
   {
@@ -43,11 +36,7 @@ export class MediaProbeNoMetadata extends Schema.TaggedClass<MediaProbeNoMetadat
   {},
 ) {}
 
-export type MediaProbeResult =
-  | MediaProbeFailure
-  | MediaProbeMetadataFound
-  | MediaProbeNoMetadata
-  | MediaProbeUnavailable;
+export type MediaProbeResult = MediaProbeFailure | MediaProbeMetadataFound | MediaProbeNoMetadata;
 
 class FFProbeError extends Schema.TaggedError<FFProbeError>()("FFProbeError", {
   cause: Schema.Defect,
@@ -313,9 +302,13 @@ export function parseFfprobeJson(
     });
   }
 
-  const normalized = Schema.decodeUnknownEither(ProbedMediaMetadataFromFFProbeOutputSchema)(
-    parsedOutput.right,
-  );
+  return normalizeFfprobeDecodedOutput(parsedOutput.right);
+}
+
+function normalizeFfprobeDecodedOutput(
+  output: Schema.Schema.Type<typeof FFProbeOutputSchema>,
+): MediaProbeFailure | MediaProbeMetadataFound | MediaProbeNoMetadata {
+  const normalized = Schema.decodeUnknownEither(ProbedMediaMetadataFromFFProbeOutputSchema)(output);
 
   if (normalized._tag === "Left") {
     return new MediaProbeFailure({
@@ -374,7 +367,7 @@ function runFfprobeCommand(
           args: args.join(" "),
           error: error.message,
         }),
-        Effect.as(new MediaProbeFailure({ message: error.message })),
+        Effect.as(new MediaProbeFailure({ cause: error.cause, message: error.message })),
       ),
     ),
   );
@@ -424,7 +417,7 @@ const makeMediaProbe = (
       });
     }
 
-    const parsedResult = parseFfprobeJson(stdout);
+    const parsedResult = normalizeFfprobeDecodedOutput(parsedOutput.right);
 
     if (parsedResult._tag === "MediaProbeFailure") {
       const parseError = formatParseCause(parsedResult.cause);
@@ -442,12 +435,6 @@ const makeMediaProbe = (
   return { probeVideoFile };
 };
 
-const makeUnavailableMediaProbe = (message: string): MediaProbeShape => ({
-  probeVideoFile: Effect.fn("MediaProbe.probeVideoFile")(function* () {
-    return new MediaProbeUnavailable({ message });
-  }),
-});
-
 export const MediaProbeLive = Layer.effect(
   MediaProbe,
   Effect.gen(function* () {
@@ -457,7 +444,7 @@ export const MediaProbeLive = Layer.effect(
     if (Option.isNone(executorOption)) {
       const message = "ffprobe is unavailable: command executor missing";
       yield* Effect.logWarning("ffprobe unavailable").pipe(Effect.annotateLogs({ message }));
-      return makeUnavailableMediaProbe(message);
+      return yield* Effect.die(new Error(message));
     }
 
     const availability = yield* runFfprobeCommandWith(
@@ -470,7 +457,7 @@ export const MediaProbeLive = Layer.effect(
       yield* Effect.logWarning("ffprobe unavailable").pipe(
         Effect.annotateLogs({ message: availability.message }),
       );
-      return makeUnavailableMediaProbe(availability.message);
+      return yield* Effect.die(new Error(availability.message));
     }
 
     return makeMediaProbe(ffprobeSemaphore, executorOption.value);

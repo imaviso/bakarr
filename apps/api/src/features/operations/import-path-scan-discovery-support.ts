@@ -49,7 +49,7 @@ export const discoverImportScanFiles = Effect.fn("Operations.discoverImportScanF
     );
     const analyzed = files.map((file) => analyzeScannedFile(file, canonicalPath));
     const episodeFiles = analyzed.filter((entry) => !entry.skipped);
-    const skippedFiles = analyzed.filter((entry) => entry.skipped).map((entry) => entry.skipped!);
+    const skippedFiles = analyzed.flatMap((entry) => (entry.skipped ? [entry.skipped] : []));
 
     return {
       analyzed,

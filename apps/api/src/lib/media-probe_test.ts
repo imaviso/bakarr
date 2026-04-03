@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import { CommandExecutor } from "@effect/platform";
-import { Effect, Layer, Logger } from "effect";
+import { Cause, Effect, Exit, Layer, Logger } from "effect";
 
 import {
   FFPROBE_CONCURRENCY_LIMIT,
@@ -156,13 +156,21 @@ it.effect("MediaProbe enforces global ffprobe concurrency limit", () =>
   }),
 );
 
-it.effect("MediaProbe returns unavailable when ffprobe is missing", () =>
+it.effect("MediaProbe fails startup when ffprobe is missing", () =>
   Effect.gen(function* () {
-    const result = yield* Effect.flatMap(MediaProbe, (mediaProbe) =>
-      mediaProbe.probeVideoFile("/tmp/missing.mkv"),
-    ).pipe(Effect.provide(MediaProbeLive));
+    const exit = yield* Effect.exit(
+      Effect.flatMap(MediaProbe, (mediaProbe) =>
+        mediaProbe.probeVideoFile("/tmp/missing.mkv"),
+      ).pipe(Effect.provide(MediaProbeLive)),
+    );
 
-    assert.deepStrictEqual(result._tag, "MediaProbeUnavailable");
+    assert.deepStrictEqual(Exit.isFailure(exit), true);
+    if (Exit.isFailure(exit)) {
+      assert.deepStrictEqual(
+        Cause.pretty(exit.cause).includes("ffprobe is unavailable: command executor missing"),
+        true,
+      );
+    }
   }),
 );
 

@@ -31,24 +31,28 @@ export function makeApiLifecycleLayers(
   options?: ApiLifecycleOptions,
 ) {
   const platformBaseLayer = makeAppPlatformCoreRuntimeLayer(overrides, options);
-  const externalClientLayer = makeAppExternalClientLayer({
+  const externalClientOverridesLayer = makeAppExternalClientLayer({
     aniListLayer: options?.aniListLayer,
     qbitLayer: options?.qbitLayer,
     rssLayer: options?.rssLayer,
     seadexLayer: options?.seadexLayer,
   }).pipe(Layer.provideMerge(platformBaseLayer));
   const commandLayer = options?.commandExecutorLayer;
-  const platformWithCommandLayer = commandLayer
-    ? Layer.mergeAll(platformBaseLayer, commandLayer, externalClientLayer)
-    : Layer.mergeAll(platformBaseLayer, externalClientLayer);
+
+  const platformExternalLayer = commandLayer
+    ? Layer.mergeAll(platformBaseLayer, commandLayer, externalClientOverridesLayer)
+    : Layer.mergeAll(platformBaseLayer, externalClientOverridesLayer);
+
   const infrastructureLayer = Layer.mergeAll(MediaProbeLive, DiskSpaceInspectorLive).pipe(
-    Layer.provideMerge(platformWithCommandLayer),
+    Layer.provideMerge(platformExternalLayer),
   );
-  const platformLayer = Layer.mergeAll(platformWithCommandLayer, infrastructureLayer);
+  const platformLayer = Layer.mergeAll(platformExternalLayer, infrastructureLayer);
+
   const systemConfigLayer = SystemConfigServiceLive.pipe(Layer.provideMerge(platformLayer));
   const runtimeConfigSnapshotLayer = RuntimeConfigSnapshotServiceLive.pipe(
     Layer.provideMerge(systemConfigLayer),
   );
+
   const runtimeSupportLayer = Layer.mergeAll(
     platformLayer,
     systemConfigLayer,
@@ -56,24 +60,30 @@ export function makeApiLifecycleLayers(
   );
 
   const animeLayer = makeAnimeAppLayer(runtimeSupportLayer);
-  const { catalogDownloadReadLayer, operationsLayer } =
+  const { catalogDownloadReadLayer, operationsLayer, operationsProgressLayer, torrentClientLayer } =
     makeOperationsAppLayers(runtimeSupportLayer);
+
+  const appDomainSubgraphLayer = Layer.mergeAll(animeLayer, operationsLayer);
+
   const backgroundTaskRunnerLayer = BackgroundTaskRunnerLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, operationsLayer, animeLayer)),
+    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, appDomainSubgraphLayer)),
   );
   const backgroundControllerLayer = BackgroundWorkerControllerLive.pipe(
     Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, backgroundTaskRunnerLayer)),
   );
+
   const systemLayer = makeSystemAppLayer({
     backgroundControllerLayer,
     catalogDownloadReadLayer,
     runtimeSupportLayer,
   });
+
   const authLayer = Layer.mergeAll(
     AuthBootstrapServiceLive,
     AuthCredentialServiceLive,
     AuthSessionServiceLive,
   ).pipe(Layer.provideMerge(runtimeSupportLayer));
+
   const libraryLayer = LibraryBrowseServiceLive.pipe(
     Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, operationsLayer, systemLayer)),
   );
@@ -81,20 +91,26 @@ export function makeApiLifecycleLayers(
     Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, operationsLayer, animeLayer)),
   );
 
-  const appLayer = Layer.mergeAll(
-    operationsLayer,
-    animeLayer,
+  const runtimeWorkerSubgraphLayer = Layer.mergeAll(
     backgroundTaskRunnerLayer,
     backgroundControllerLayer,
+  );
+  const appFeatureSubgraphLayer = Layer.mergeAll(
+    appDomainSubgraphLayer,
+    runtimeWorkerSubgraphLayer,
     authLayer,
     systemLayer,
     libraryLayer,
     animeEnrollmentLayer,
-  ).pipe(Layer.provideMerge(runtimeSupportLayer));
+  );
+
+  const appLayer = appFeatureSubgraphLayer.pipe(Layer.provideMerge(runtimeSupportLayer));
 
   return {
     appLayer,
+    operationsProgressLayer,
     platformLayer,
+    torrentClientLayer,
   } as const;
 }
 

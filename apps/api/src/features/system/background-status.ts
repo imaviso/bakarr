@@ -112,7 +112,7 @@ function latestStatusCandidate(
   ].filter((candidate): candidate is Candidate => candidate !== undefined);
 
   return (
-    candidates.sort((left, right) => right!.at.localeCompare(left!.at))[0] ?? {
+    candidates.sort((left, right) => right.at.localeCompare(left.at))[0] ?? {
       message: undefined,
       status: undefined,
     }

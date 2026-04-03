@@ -36,10 +36,8 @@ export const RssTransportLive = Layer.effect(
       return yield* Effect.tryPromise({
         try: (signal) =>
           executePinnedHttpRequest({
-            pinnedAddress: target.pinnedAddress,
-            pinnedAddressFamily: target.pinnedAddressFamily,
             signal,
-            url: target.parsedUrl,
+            target,
           }),
         catch: (cause) =>
           new RssTransportError({
@@ -54,12 +52,11 @@ export const RssTransportLive = Layer.effect(
 );
 
 async function executePinnedHttpRequest(input: {
-  readonly pinnedAddress?: string;
-  readonly pinnedAddressFamily?: 4 | 6;
   readonly signal?: AbortSignal;
-  readonly url: URL;
+  readonly target: PinnedRequestTarget;
 }): Promise<RssTransportResponse> {
-  const requestImpl = input.url.protocol === "https:" ? httpsRequest : httpRequest;
+  const requestImpl = input.target.parsedUrl.protocol === "https:" ? httpsRequest : httpRequest;
+  const pinnedTarget = input.target._tag === "Pinned" ? input.target : undefined;
 
   return await new Promise<RssTransportResponse>((resolve, reject) => {
     const request = requestImpl(
@@ -68,15 +65,15 @@ async function executePinnedHttpRequest(input: {
           Accept: "application/rss+xml, application/xml, text/xml",
           "User-Agent": "bakarr/1.0",
         },
-        hostname: input.url.hostname,
-        lookup: input.pinnedAddress
+        hostname: input.target.parsedUrl.hostname,
+        lookup: pinnedTarget
           ? (_hostname, _options, callback) =>
-              callback(null, input.pinnedAddress!, input.pinnedAddressFamily!)
+              callback(null, pinnedTarget.pinnedAddress, pinnedTarget.pinnedAddressFamily)
           : undefined,
         method: "GET",
-        path: `${input.url.pathname}${input.url.search}`,
-        port: input.url.port ? Number(input.url.port) : undefined,
-        protocol: input.url.protocol,
+        path: `${input.target.parsedUrl.pathname}${input.target.parsedUrl.search}`,
+        port: input.target.parsedUrl.port ? Number(input.target.parsedUrl.port) : undefined,
+        protocol: input.target.parsedUrl.protocol,
       },
       (response) => {
         const chunks: Uint8Array[] = [];

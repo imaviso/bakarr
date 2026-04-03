@@ -606,6 +606,24 @@ it.effect("invalid quality profile size labels fail validation", () =>
   }),
 );
 
+it.effect("quality profile min_size cannot exceed max_size", () =>
+  Effect.gen(function* () {
+    const result = yield* validateQualityProfileSizeLabels({
+      ...baseProfile,
+      max_size: "1 GiB",
+      min_size: "2 GiB",
+    }).pipe(Effect.either);
+
+    assert.deepStrictEqual(Either.isLeft(result), true);
+    if (Either.isLeft(result)) {
+      assert.deepStrictEqual(
+        result.left.message,
+        "Quality profile min_size cannot exceed max_size",
+      );
+    }
+  }),
+);
+
 it("compare episode search results prefers better quality over seeders when score ties", () => {
   const lowQualityMoreSeeders = {
     download_action: {

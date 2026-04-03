@@ -1,10 +1,10 @@
 import { Layer } from "effect";
 
 import { SearchBackgroundMissingServiceLive } from "@/features/operations/background-search-missing-support.ts";
+import { BackgroundSearchQueueServiceLive } from "@/features/operations/background-search-queue-service.ts";
 import { BackgroundSearchRssFeedServiceLive } from "@/features/operations/background-search-rss-feed-service.ts";
 import { SearchBackgroundRssServiceLive } from "@/features/operations/background-search-rss-support.ts";
 import { BackgroundSearchRssWorkerServiceLive } from "@/features/operations/background-search-rss-worker-service.ts";
-import { BackgroundSearchQueueServiceLive } from "@/features/operations/background-search-queue-service.ts";
 import { CatalogDownloadCommandServiceLive } from "@/features/operations/catalog-download-command-service.ts";
 import { CatalogDownloadReadServiceLive } from "@/features/operations/catalog-download-read-service.ts";
 import { CatalogLibraryReadServiceLive } from "@/features/operations/catalog-library-read-service.ts";
@@ -32,15 +32,18 @@ import { UnmappedScanServiceLive } from "@/features/operations/unmapped-scan-ser
 export function makeOperationsAppLayers<ROut, E, RIn>(
   runtimeSupportLayer: Layer.Layer<ROut, E, RIn>,
 ) {
+  const coordinatorsLayer = Layer.mergeAll(
+    DownloadTriggerCoordinatorLive,
+    UnmappedScanCoordinatorLive,
+  );
+
   const torrentClientLayer = TorrentClientServiceLive.pipe(Layer.provideMerge(runtimeSupportLayer));
-  const downloadTriggerCoordinatorLayer = DownloadTriggerCoordinatorLive;
+  const downloadRuntimeLayer = Layer.mergeAll(runtimeSupportLayer, torrentClientLayer);
   const downloadReconciliationLayer = DownloadReconciliationServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, torrentClientLayer)),
+    Layer.provideMerge(downloadRuntimeLayer),
   );
   const downloadTorrentLifecycleLayer = DownloadTorrentLifecycleServiceLive.pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(runtimeSupportLayer, torrentClientLayer, downloadReconciliationLayer),
-    ),
+    Layer.provideMerge(Layer.mergeAll(downloadRuntimeLayer, downloadReconciliationLayer)),
   );
   const downloadProgressSupportLayer = DownloadProgressSupportLive.pipe(
     Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, downloadTorrentLifecycleLayer)),
@@ -51,7 +54,7 @@ export function makeOperationsAppLayers<ROut, E, RIn>(
         runtimeSupportLayer,
         torrentClientLayer,
         downloadProgressSupportLayer,
-        downloadTriggerCoordinatorLayer,
+        DownloadTriggerCoordinatorLive,
       ),
     ),
   );
@@ -81,9 +84,20 @@ export function makeOperationsAppLayers<ROut, E, RIn>(
       ),
     ),
   );
+  const downloadSubgraphLayer = Layer.mergeAll(
+    torrentClientLayer,
+    downloadReconciliationLayer,
+    downloadTorrentLifecycleLayer,
+    downloadProgressSupportLayer,
+    downloadTriggerLayer,
+    catalogDownloadReadLayer,
+    catalogDownloadCommandLayer,
+    operationsProgressLayer,
+  );
+
   const backgroundSearchQueueLayer = BackgroundSearchQueueServiceLive.pipe(
     Layer.provideMerge(
-      Layer.mergeAll(runtimeSupportLayer, torrentClientLayer, downloadTriggerCoordinatorLayer),
+      Layer.mergeAll(runtimeSupportLayer, torrentClientLayer, DownloadTriggerCoordinatorLive),
     ),
   );
   const backgroundSearchRssFeedLayer = BackgroundSearchRssFeedServiceLive.pipe(
@@ -123,9 +137,18 @@ export function makeOperationsAppLayers<ROut, E, RIn>(
       ),
     ),
   );
-  const unmappedScanCoordinatorLayer = UnmappedScanCoordinatorLive;
+  const searchSubgraphLayer = Layer.mergeAll(
+    backgroundSearchQueueLayer,
+    backgroundSearchRssFeedLayer,
+    searchReleaseLayer,
+    searchEpisodeLayer,
+    searchBackgroundMissingLayer,
+    searchBackgroundRssLayer,
+    backgroundSearchRssWorkerLayer,
+  );
+
   const unmappedScanLayer = UnmappedScanServiceLive.pipe(
-    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, unmappedScanCoordinatorLayer)),
+    Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, UnmappedScanCoordinatorLive)),
   );
   const unmappedControlLayer = UnmappedControlServiceLive.pipe(
     Layer.provideMerge(Layer.mergeAll(runtimeSupportLayer, unmappedScanLayer)),
@@ -133,6 +156,13 @@ export function makeOperationsAppLayers<ROut, E, RIn>(
   const unmappedImportLayer = UnmappedImportServiceLive.pipe(
     Layer.provideMerge(runtimeSupportLayer),
   );
+  const unmappedSubgraphLayer = Layer.mergeAll(
+    UnmappedScanCoordinatorLive,
+    unmappedScanLayer,
+    unmappedControlLayer,
+    unmappedImportLayer,
+  );
+
   const catalogLibraryReadLayer = CatalogLibraryReadServiceLive.pipe(
     Layer.provideMerge(runtimeSupportLayer),
   );
@@ -149,33 +179,21 @@ export function makeOperationsAppLayers<ROut, E, RIn>(
   const libraryRootsQueryLayer = LibraryRootsQueryServiceLive.pipe(
     Layer.provideMerge(runtimeSupportLayer),
   );
-  const operationsLayer = Layer.mergeAll(
-    torrentClientLayer,
-    downloadTriggerCoordinatorLayer,
-    downloadReconciliationLayer,
-    downloadTorrentLifecycleLayer,
-    downloadProgressSupportLayer,
-    downloadTriggerLayer,
-    catalogDownloadReadLayer,
-    catalogDownloadCommandLayer,
-    operationsProgressLayer,
-    backgroundSearchQueueLayer,
-    backgroundSearchRssFeedLayer,
-    searchReleaseLayer,
-    searchEpisodeLayer,
-    searchBackgroundMissingLayer,
-    searchBackgroundRssLayer,
-    backgroundSearchRssWorkerLayer,
-    unmappedScanCoordinatorLayer,
-    unmappedScanLayer,
-    unmappedControlLayer,
-    unmappedImportLayer,
+  const catalogSubgraphLayer = Layer.mergeAll(
     catalogLibraryReadLayer,
     catalogLibraryWriteLayer,
     catalogLibraryScanLayer,
     importPathScanLayer,
     catalogRssLayer,
     libraryRootsQueryLayer,
+  );
+
+  const operationsLayer = Layer.mergeAll(
+    coordinatorsLayer,
+    downloadSubgraphLayer,
+    searchSubgraphLayer,
+    unmappedSubgraphLayer,
+    catalogSubgraphLayer,
   );
 
   return {
