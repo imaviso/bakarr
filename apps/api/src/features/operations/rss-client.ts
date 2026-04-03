@@ -92,6 +92,15 @@ const makeFetchItems = (
         ),
       );
 
+      if (response.status >= 400) {
+        yield* Effect.logWarning("RSS feed returned upstream error status").pipe(
+          Effect.annotateLogs({
+            rss_status: response.status,
+            rss_url: sanitizeRssUrlForLogs(currentUrl),
+          }),
+        );
+      }
+
       if (response.status >= 200 && response.status < 300) {
         const itemsResult = yield* Effect.either(
           readRssItems(Stream.fromIterable([response.body])),

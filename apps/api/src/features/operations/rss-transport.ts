@@ -84,8 +84,32 @@ async function executePinnedHttpRequest(input: {
         },
         hostname: input.target.parsedUrl.hostname,
         lookup: pinnedTarget
-          ? (_hostname, _options, callback) =>
-              callback(null, pinnedTarget.pinnedAddress, pinnedTarget.pinnedAddressFamily)
+          ? (...lookupArgs) => {
+              const callback = lookupArgs[lookupArgs.length - 1];
+
+              if (typeof callback !== "function") {
+                return;
+              }
+
+              const options = lookupArgs[1];
+              const shouldReturnAll =
+                typeof options === "object" &&
+                options !== null &&
+                "all" in options &&
+                options.all === true;
+
+              if (shouldReturnAll) {
+                callback(null, [
+                  {
+                    address: pinnedTarget.pinnedAddress,
+                    family: pinnedTarget.pinnedAddressFamily,
+                  },
+                ]);
+                return;
+              }
+
+              callback(null, pinnedTarget.pinnedAddress, pinnedTarget.pinnedAddressFamily);
+            }
           : undefined,
         method: "GET",
         path: `${input.target.parsedUrl.pathname}${input.target.parsedUrl.search}`,
@@ -114,6 +138,23 @@ async function executePinnedHttpRequest(input: {
 
         if (Number.isFinite(contentLength) && contentLength > MAX_RSS_BYTES) {
           failPayloadTooLarge();
+          return;
+        }
+
+        if (
+          response.statusCode !== undefined &&
+          (response.statusCode < 200 || response.statusCode >= 300)
+        ) {
+          resolve({
+            body: new Uint8Array(0),
+            headers: new Headers(
+              Object.entries(normalizeNodeHeaders(response.headers)).filter(
+                (entry): entry is [string, string] => entry[1] !== undefined,
+              ),
+            ),
+            status: response.statusCode,
+          });
+          response.resume();
           return;
         }
 
