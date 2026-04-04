@@ -1,7 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import type { DownloadAction } from "@packages/shared/index.ts";
-import { Database, type DatabaseError } from "@/db/database.ts";
+import { Database, DatabaseError } from "@/db/database.ts";
 import { anime } from "@/db/schema.ts";
 import {
   buildDownloadSelectionMetadata,
@@ -67,7 +67,7 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
         missingEpisodes: readonly number[];
       }) {
         const parsedRelease = parseReleaseName(input.item.title);
-        const coveredEpisodes = toCoveredEpisodesJson(
+        const coveredEpisodes = yield* toCoveredEpisodesJson(
           inferCoveredEpisodeNumbers({
             explicitEpisodes: parsedRelease.episodeNumbers,
             isBatch: parsedRelease.isBatch,
@@ -75,6 +75,14 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
             missingEpisodes: input.missingEpisodes,
             requestedEpisode: input.episodeNumber,
           }),
+        ).pipe(
+          Effect.mapError(
+            (cause) =>
+              new OperationsInfrastructureError({
+                message: "Failed to queue background release",
+                cause,
+              }),
+          ),
         );
 
         const queueEffect = Effect.gen(function* () {
@@ -122,7 +130,16 @@ export const BackgroundSearchQueueServiceLive = Layer.effect(
             ),
             torrentClientService,
             tryDatabasePromise,
-          });
+          }).pipe(
+            Effect.mapError((cause) =>
+              cause instanceof DatabaseError || cause instanceof OperationsInfrastructureError
+                ? cause
+                : new OperationsInfrastructureError({
+                    message: "Failed to queue background release",
+                    cause,
+                  }),
+            ),
+          );
 
           return { _tag: "queued" } as const;
         });

@@ -30,6 +30,10 @@ export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMet
     }
     const metadataValue = metadata.value;
 
+    const relatedAnime = yield* encodeAnimeDiscoveryEntries(metadataValue.relatedAnime);
+    const recommendedAnime = yield* encodeAnimeDiscoveryEntries(metadataValue.recommendedAnime);
+    const synonyms = yield* encodeAnimeSynonyms(metadataValue.synonyms);
+
     const nextAnimeRow = {
       ...animeRow,
       bannerImage: metadataValue.bannerImage ?? animeRow.bannerImage,
@@ -42,13 +46,13 @@ export const syncAnimeMetadataEffect = Effect.fn("AnimeMetadataSync.syncAnimeMet
       malId: metadataValue.malId ?? animeRow.malId,
       nextAiringAt: metadataValue.nextAiringEpisode?.airingAt ?? null,
       nextAiringEpisode: metadataValue.nextAiringEpisode?.episode ?? null,
-      recommendedAnime: encodeAnimeDiscoveryEntries(metadataValue.recommendedAnime),
-      relatedAnime: encodeAnimeDiscoveryEntries(metadataValue.relatedAnime),
+      recommendedAnime,
+      relatedAnime,
       score: metadataValue.score ?? animeRow.score,
       startDate: metadataValue.startDate ?? null,
       startYear: metadataValue.startYear ?? null,
       status: metadataValue.status,
-      synonyms: encodeAnimeSynonyms(metadataValue.synonyms),
+      synonyms,
       titleEnglish: metadataValue.title.english ?? animeRow.titleEnglish,
       titleNative: metadataValue.title.native ?? animeRow.titleNative,
       titleRomaji: metadataValue.title.romaji,

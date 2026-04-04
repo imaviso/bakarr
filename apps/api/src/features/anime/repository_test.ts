@@ -322,12 +322,14 @@ it.scoped("anime repository helpers use stored config when available", () =>
             id: 1,
             data: (() => {
               const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig("./test.sqlite"));
-              return encodeConfigCore({
-                ...base,
-                downloads: { ...base.downloads, create_anime_folders: false },
-                general: { ...base.general, images_path: "./custom-images" },
-                library: { ...base.library, library_path: "/anime-library" },
-              });
+              return Effect.runSync(
+                encodeConfigCore({
+                  ...base,
+                  downloads: { ...base.downloads, create_anime_folders: false },
+                  general: { ...base.general, images_path: "./custom-images" },
+                  library: { ...base.library, library_path: "/anime-library" },
+                }),
+              );
             })(),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),

@@ -25,6 +25,7 @@ import {
   type AnimeServiceError,
 } from "@/features/anime/errors.ts";
 import { ProfileNotFoundError } from "@/features/system/errors.ts";
+import { AnimeStoredDataError } from "@/features/anime/errors.ts";
 
 export interface AnimeSettingsServiceShape {
   readonly setMonitored: (
@@ -42,7 +43,7 @@ export interface AnimeSettingsServiceShape {
   readonly updateReleaseProfiles: (
     id: number,
     releaseProfileIds: number[],
-  ) => Effect.Effect<void, AnimeServiceError | DatabaseError>;
+  ) => Effect.Effect<void, AnimeServiceError | DatabaseError | AnimeStoredDataError>;
 }
 
 export class AnimeSettingsService extends Context.Tag("@bakarr/api/AnimeSettingsService")<
@@ -151,11 +152,17 @@ const makeAnimeSettingsService = Effect.gen(function* () {
     releaseProfileIds: number[],
   ) {
     yield* requireAnimeExistsEffect(db, id);
+    const encodedReleaseProfileIds = yield* encodeNumberList(releaseProfileIds).pipe(
+      Effect.mapError(
+        () => new AnimeStoredDataError({ message: "Anime release profile ids are invalid" }),
+      ),
+    );
+
     yield* tryDatabasePromise("Failed to update anime", () =>
       db
         .update(anime)
         .set({
-          releaseProfileIds: encodeNumberList(releaseProfileIds),
+          releaseProfileIds: encodedReleaseProfileIds,
         })
         .where(eq(anime.id, id)),
     );

@@ -45,25 +45,33 @@ it.scoped(
               id: 1,
               data: (() => {
                 const base = Schema.encodeSync(ConfigCoreSchema)(defaults);
-                return encodeConfigCore({
-                  ...base,
-                  library: { ...base.library, import_mode: "move", library_path: "/anime-library" },
-                });
+                return Effect.runSync(
+                  encodeConfigCore({
+                    ...base,
+                    library: {
+                      ...base.library,
+                      import_mode: "move",
+                      library_path: "/anime-library",
+                    },
+                  }),
+                );
               })(),
               updatedAt: "2024-01-01T00:00:00.000Z",
             }),
           );
           yield* Effect.promise(() =>
             db.insert(qualityProfiles).values(
-              encodeQualityProfileRow({
-                allowed_qualities: ["1080p", "720p"],
-                cutoff: "1080p",
-                max_size: "4GB",
-                min_size: null,
-                name: "Default",
-                seadex_preferred: true,
-                upgrade_allowed: true,
-              }),
+              Effect.runSync(
+                encodeQualityProfileRow({
+                  allowed_qualities: ["1080p", "720p"],
+                  cutoff: "1080p",
+                  max_size: "4GB",
+                  min_size: null,
+                  name: "Default",
+                  seadex_preferred: true,
+                  upgrade_allowed: true,
+                }),
+              ),
             ),
           );
 
@@ -125,7 +133,7 @@ it.scoped("operations repository helpers load anime release rules and episode st
             rootFolder: "/library/Naruto",
             addedAt: "2024-01-01T00:00:00.000Z",
             monitored: true,
-            releaseProfileIds: encodeNumberList([2]),
+            releaseProfileIds: Effect.runSync(encodeNumberList([2])),
           }),
         );
         yield* Effect.promise(() =>
@@ -135,23 +143,29 @@ it.scoped("operations repository helpers load anime release rules and episode st
               name: "Global",
               enabled: true,
               isGlobal: true,
-              rules: encodeReleaseProfileRules([
-                { rule_type: "preferred", score: 10, term: "SubsPlease" },
-              ]),
+              rules: Effect.runSync(
+                encodeReleaseProfileRules([
+                  { rule_type: "preferred", score: 10, term: "SubsPlease" },
+                ]),
+              ),
             },
             {
               id: 2,
               name: "Assigned",
               enabled: true,
               isGlobal: false,
-              rules: encodeReleaseProfileRules([{ rule_type: "must", score: 0, term: "1080p" }]),
+              rules: Effect.runSync(
+                encodeReleaseProfileRules([{ rule_type: "must", score: 0, term: "1080p" }]),
+              ),
             },
             {
               id: 3,
               name: "Ignored",
               enabled: true,
               isGlobal: false,
-              rules: encodeReleaseProfileRules([{ rule_type: "must_not", score: 0, term: "Dub" }]),
+              rules: Effect.runSync(
+                encodeReleaseProfileRules([{ rule_type: "must_not", score: 0, term: "Dub" }]),
+              ),
             },
           ]),
         );
@@ -201,7 +215,7 @@ it.scoped("operations repository helpers load anime release rules and episode st
 
 it.effect("operations repository helpers encode and decode download provenance", () =>
   Effect.gen(function* () {
-    const encoded = encodeDownloadSourceMetadata({
+    const encoded = yield* encodeDownloadSourceMetadata({
       chosen_from_seadex: true,
       decision_reason: "Accepted (WEB-DL 1080p, score 12)",
       group: "SubsPlease",

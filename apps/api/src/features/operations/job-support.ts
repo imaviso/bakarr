@@ -47,6 +47,10 @@ export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(f
   nowIso: NowIso,
 ) {
   const now = yield* nowIso();
+  const metadata = input.metadataJson
+    ? yield* encodeDownloadEventMetadata(input.metadataJson)
+    : (input.metadata ?? null);
+
   yield* tryDatabasePromise("Failed to record download event", () =>
     db.insert(downloadEvents).values({
       animeId: input.animeId ?? null,
@@ -55,9 +59,7 @@ export const recordDownloadEvent = Effect.fn("JobSupport.recordDownloadEvent")(f
       eventType: input.eventType,
       fromStatus: input.fromStatus ?? null,
       message: input.message,
-      metadata: input.metadataJson
-        ? encodeDownloadEventMetadata(input.metadataJson)
-        : (input.metadata ?? null),
+      metadata,
       toStatus: input.toStatus ?? null,
     }),
   );

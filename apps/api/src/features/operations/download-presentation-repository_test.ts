@@ -29,7 +29,7 @@ it.scoped("download presentation contexts load imported paths", () =>
             nextAiringAt: null,
             nextAiringEpisode: null,
             profileName: "Default",
-            releaseProfileIds: encodeNumberList([]),
+            releaseProfileIds: Effect.runSync(encodeNumberList([])),
             rootFolder: "/library/Naruto",
             score: null,
             startDate: null,

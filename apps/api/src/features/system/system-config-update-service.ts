@@ -63,7 +63,7 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
 
     const updatedAt = yield* nowIso();
     const normalizedCore = yield* effectToConfigCore(normalizedConfig);
-    const { nextState, previousState } = buildPersistedConfigStates({
+    const { nextState, previousState } = yield* buildPersistedConfigStates({
       appDatabaseFile: appConfig.databaseFile,
       existingProfileRows,
       normalizedConfig,

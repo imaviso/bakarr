@@ -57,7 +57,9 @@ export const resolveCurrentQBitPasswordState = Effect.fn(
   return currentPasswordResult.password;
 });
 
-export function buildPersistedConfigStates(input: {
+export const buildPersistedConfigStates = Effect.fn(
+  "SystemConfigUpdateService.buildPersistedConfigStates",
+)(function* (input: {
   readonly appDatabaseFile: string;
   readonly existingProfileRows: readonly {
     readonly allowedQualities: string;
@@ -79,6 +81,13 @@ export function buildPersistedConfigStates(input: {
     | undefined;
   readonly updatedAt: string;
 }) {
+  const defaultConfigData = yield* encodeConfigCore(makeDefaultConfig(input.appDatabaseFile));
+  const nextConfigData = yield* encodeConfigCore(input.normalizedCore);
+  const nextProfileRows = yield* Effect.forEach(
+    input.normalizedConfig.profiles,
+    encodeQualityProfileRow,
+  );
+
   const previousState: PersistedSystemConfigState = {
     coreRow: input.previousConfigRow
       ? {
@@ -87,19 +96,19 @@ export function buildPersistedConfigStates(input: {
           updatedAt: input.previousConfigRow.updatedAt,
         }
       : {
-          data: encodeConfigCore(makeDefaultConfig(input.appDatabaseFile)),
+          data: defaultConfigData,
           id: 1,
           updatedAt: input.updatedAt,
         },
     profileRows: input.existingProfileRows,
   };
   const nextState: PersistedSystemConfigState = {
-    coreRow: { data: encodeConfigCore(input.normalizedCore), id: 1, updatedAt: input.updatedAt },
-    profileRows: input.normalizedConfig.profiles.map(encodeQualityProfileRow),
+    coreRow: { data: nextConfigData, id: 1, updatedAt: input.updatedAt },
+    profileRows: nextProfileRows,
   };
 
   return {
     nextState,
     previousState,
   } as const;
-}
+});

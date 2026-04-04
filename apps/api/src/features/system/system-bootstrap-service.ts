@@ -41,6 +41,24 @@ const makeSystemBootstrapService = Effect.gen(function* () {
 
   const ensureInitialized = Effect.fn("SystemBootstrapService.ensureInitialized")(function* () {
     const initNow = yield* nowIso();
+    const initialConfigData = yield* encodeConfigCore(makeDefaultConfig(config.databaseFile)).pipe(
+      Effect.mapError(
+        (cause) =>
+          new DatabaseError({
+            cause,
+            message: "Failed to ensure bootstrap system state",
+          }),
+      ),
+    );
+    const initialProfiles = yield* Effect.forEach(DEFAULT_PROFILES, encodeQualityProfileRow).pipe(
+      Effect.mapError(
+        (cause) =>
+          new DatabaseError({
+            cause,
+            message: "Failed to ensure bootstrap system state",
+          }),
+      ),
+    );
 
     yield* tryDatabasePromise("Failed to ensure bootstrap system state", () =>
       db.transaction(async (tx) => {
@@ -48,7 +66,7 @@ const makeSystemBootstrapService = Effect.gen(function* () {
 
         if (configRows.length === 0) {
           await tx.insert(appConfig).values({
-            data: encodeConfigCore(makeDefaultConfig(config.databaseFile)),
+            data: initialConfigData,
             id: 1,
             updatedAt: initNow,
           });
@@ -57,7 +75,7 @@ const makeSystemBootstrapService = Effect.gen(function* () {
         const existingProfiles = await tx.select().from(qualityProfiles).limit(1);
 
         if (existingProfiles.length === 0) {
-          await tx.insert(qualityProfiles).values(DEFAULT_PROFILES.map(encodeQualityProfileRow));
+          await tx.insert(qualityProfiles).values(initialProfiles);
         }
       }),
     );

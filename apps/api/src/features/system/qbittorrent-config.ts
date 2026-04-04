@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import ipaddr from "ipaddr.js";
 
 import type { Config } from "@packages/shared/index.ts";
 import { ConfigValidationError } from "@/features/system/errors.ts";
@@ -9,6 +10,50 @@ function normalizeHostname(hostname: string): string {
     .toLowerCase()
     .replace(/^\[(.*)\]$/, "$1")
     .replace(/\.$/, "");
+}
+
+const PRIVATE_QBIT_IPV4_CIDRS: readonly [ipaddr.IPv4, number][] = [
+  ipaddr.IPv4.parseCIDR("0.0.0.0/8"),
+  ipaddr.IPv4.parseCIDR("10.0.0.0/8"),
+  ipaddr.IPv4.parseCIDR("100.64.0.0/10"),
+  ipaddr.IPv4.parseCIDR("127.0.0.0/8"),
+  ipaddr.IPv4.parseCIDR("169.254.0.0/16"),
+  ipaddr.IPv4.parseCIDR("172.16.0.0/12"),
+  ipaddr.IPv4.parseCIDR("192.168.0.0/16"),
+  ipaddr.IPv4.parseCIDR("198.18.0.0/15"),
+];
+
+const PRIVATE_QBIT_IPV6_CIDRS: readonly [ipaddr.IPv6, number][] = [
+  ipaddr.IPv6.parseCIDR("fc00::/7"),
+  ipaddr.IPv6.parseCIDR("fe80::/10"),
+];
+
+function isPrivateIpv4Address(ip: ipaddr.IPv4): boolean {
+  for (const cidr of PRIVATE_QBIT_IPV4_CIDRS) {
+    if (ip.match(cidr)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isPrivateIpv6Address(ip: ipaddr.IPv6): boolean {
+  if (ip.toString() === "::1") {
+    return true;
+  }
+
+  if (ip.isIPv4MappedAddress()) {
+    return isPrivateIpv4Address(ip.toIPv4Address());
+  }
+
+  for (const cidr of PRIVATE_QBIT_IPV6_CIDRS) {
+    if (ip.match(cidr)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function isPrivateQBitHost(hostname: string): boolean {
@@ -26,43 +71,17 @@ function isPrivateQBitHost(hostname: string): boolean {
     return true;
   }
 
-  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") {
-    return true;
-  }
+  try {
+    const parsed = ipaddr.parse(normalized);
 
-  const ipv4 = normalized.match(/^(\d{1,3})(?:\.(\d{1,3})){3}$/);
-  if (ipv4) {
-    const octets = normalized.split(".").map((part) => Number(part));
-
-    if (octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
-      return false;
+    if (parsed.kind() === "ipv4") {
+      return isPrivateIpv4Address(parsed as ipaddr.IPv4);
     }
 
-    const [first, second] = octets;
-
-    return (
-      first === 0 ||
-      first === 10 ||
-      first === 127 ||
-      (first === 100 && second >= 64 && second <= 127) ||
-      (first === 169 && second === 254) ||
-      (first === 172 && second >= 16 && second <= 31) ||
-      (first === 192 && second === 168) ||
-      (first === 198 && second >= 18 && second <= 19)
-    );
+    return isPrivateIpv6Address(parsed as ipaddr.IPv6);
+  } catch {
+    return false;
   }
-
-  if (normalized.startsWith("::ffff:")) {
-    return isPrivateQBitHost(normalized.slice(7));
-  }
-
-  if (normalized.includes(":")) {
-    return (
-      normalized.startsWith("fc") || normalized.startsWith("fd") || /^fe[89ab]/.test(normalized)
-    );
-  }
-
-  return false;
 }
 
 const configValidationError = (message: string) => new ConfigValidationError({ message });

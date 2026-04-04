@@ -84,11 +84,13 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
       return;
     }
 
+    const encodedInferredEpisodes = yield* toCoveredEpisodesJson(inferredEpisodes);
+
     yield* tryDatabasePromise("Failed to sync downloads with qBittorrent", () =>
       db
         .update(downloads)
         .set({
-          coveredEpisodes: toCoveredEpisodesJson(inferredEpisodes),
+          coveredEpisodes: encodedInferredEpisodes,
           episodeNumber: inferredEpisodes[0] ?? 1,
           isBatch: inferredEpisodes.length > 1,
         })
@@ -106,7 +108,7 @@ export function makeDownloadTorrentSyncSupport(input: DownloadTorrentSyncSupport
           source_metadata: input.sourceMetadata,
         },
         message: `Refined batch episodes from qBittorrent file list: ${inferredEpisodes.join(", ")}`,
-        metadata: toCoveredEpisodesJson(inferredEpisodes),
+        metadata: encodedInferredEpisodes,
       },
       nowIso,
     );

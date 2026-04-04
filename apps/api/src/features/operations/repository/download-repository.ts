@@ -98,11 +98,20 @@ export const toDownloadStatus = Effect.fn("OperationsRepository.toDownloadStatus
   } satisfies DownloadStatus;
 });
 
-export function encodeDownloadSourceMetadata(value: DownloadSourceMetadata): string {
-  return Schema.encodeSync(DownloadSourceMetadataJsonSchema)({
+export function encodeDownloadSourceMetadata(
+  value: DownloadSourceMetadata,
+): Effect.Effect<string, OperationsStoredDataError> {
+  return Schema.encode(DownloadSourceMetadataJsonSchema)({
     ...value,
     seadex_tags: value.seadex_tags ? [...value.seadex_tags] : undefined,
-  });
+  }).pipe(
+    Effect.mapError(
+      () =>
+        new OperationsStoredDataError({
+          message: "Download source metadata is invalid",
+        }),
+    ),
+  );
 }
 
 export const decodeDownloadSourceMetadata = Effect.fn(
@@ -135,12 +144,19 @@ export function encodeDownloadEventMetadata(value: {
   covered_episodes?: readonly number[];
   imported_path?: string;
   source_metadata?: DownloadSourceMetadata;
-}): string {
-  return Schema.encodeSync(DownloadEventMetadataJsonSchema)({
+}): Effect.Effect<string, OperationsStoredDataError> {
+  return Schema.encode(DownloadEventMetadataJsonSchema)({
     covered_episodes: value.covered_episodes ? [...value.covered_episodes] : undefined,
     imported_path: value.imported_path,
     source_metadata: value.source_metadata,
-  });
+  }).pipe(
+    Effect.mapError(
+      () =>
+        new OperationsStoredDataError({
+          message: "Download event metadata is invalid",
+        }),
+    ),
+  );
 }
 
 const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpisodes")(function* (

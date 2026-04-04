@@ -146,6 +146,12 @@ export const reconcileSingleDownloadEffect = Effect.fn(
   );
   const singleNow = yield* input.nowIso();
   const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredEpisodes);
+  const eventMetadata = yield* encodeDownloadEventMetadata({
+    covered_episodes: storedCoveredEpisodes,
+    imported_path: managedPath,
+    source_metadata: input.storedSourceMetadata,
+  });
+
   yield* finalizeDownloadImport({
     downloadId: input.row.id,
     fromStatus: input.row.status,
@@ -153,11 +159,7 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     animeId: input.row.animeId,
     eventType: "download.imported",
     eventMessage: `Imported ${input.row.animeTitle} episode ${input.row.episodeNumber}`,
-    eventMetadata: encodeDownloadEventMetadata({
-      covered_episodes: storedCoveredEpisodes,
-      imported_path: managedPath,
-      source_metadata: input.storedSourceMetadata,
-    }),
+    eventMetadata,
     logEventType: "downloads.reconciled",
     logMessage: `Mapped completed torrent for ${input.row.animeTitle} episode ${input.row.episodeNumber}`,
     db: input.db,

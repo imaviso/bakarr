@@ -29,11 +29,16 @@ export interface QualityProfileServiceShape {
     DatabaseError | StoredConfigCorruptError
   >;
   readonly listQualities: () => Effect.Effect<Quality[], never>;
-  readonly createProfile: (profile: QualityProfile) => Effect.Effect<QualityProfile, DatabaseError>;
+  readonly createProfile: (
+    profile: QualityProfile,
+  ) => Effect.Effect<QualityProfile, DatabaseError | StoredConfigCorruptError>;
   readonly updateProfile: (
     name: string,
     profile: QualityProfile,
-  ) => Effect.Effect<QualityProfile, DatabaseError | ProfileNotFoundError>;
+  ) => Effect.Effect<
+    QualityProfile,
+    DatabaseError | ProfileNotFoundError | StoredConfigCorruptError
+  >;
   readonly deleteProfile: (
     name: string,
   ) => Effect.Effect<void, DatabaseError | ConfigValidationError>;
@@ -61,7 +66,9 @@ const makeQualityProfileService = Effect.gen(function* () {
   const createProfile = Effect.fn("QualityProfileService.createProfile")(function* (
     profile: QualityProfile,
   ) {
-    yield* insertQualityProfileRow(db, encodeQualityProfileRow(profile));
+    const encodedProfile = yield* encodeQualityProfileRow(profile);
+
+    yield* insertQualityProfileRow(db, encodedProfile);
     yield* appendSystemLog(
       db,
       "profiles.created",
@@ -82,7 +89,9 @@ const makeQualityProfileService = Effect.gen(function* () {
       return yield* new ProfileNotFoundError({ message: "Quality profile not found" });
     }
 
-    yield* renameQualityProfileWithCascade(db, name, encodeQualityProfileRow(profile));
+    const encodedProfile = yield* encodeQualityProfileRow(profile);
+
+    yield* renameQualityProfileWithCascade(db, name, encodedProfile);
     yield* appendSystemLog(
       db,
       "profiles.updated",

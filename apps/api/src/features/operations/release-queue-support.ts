@@ -54,6 +54,8 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
       return { _tag: "skipped" } as const;
     }
 
+    const encodedSourceMetadata = yield* encodeDownloadSourceMetadata(input.sourceMetadata);
+
     const insertResult = yield* Effect.either(
       input.tryDatabasePromise(input.contextMessage, () =>
         input.db
@@ -78,7 +80,7 @@ export const queueParsedReleaseDownload = Effect.fn("OperationsService.queuePars
             progress: 0,
             savePath: null,
             speedBytes: 0,
-            sourceMetadata: encodeDownloadSourceMetadata(input.sourceMetadata),
+            sourceMetadata: encodedSourceMetadata,
             status: "queued",
             torrentName: input.item.title,
             totalBytes: input.item.sizeBytes,

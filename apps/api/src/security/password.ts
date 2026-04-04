@@ -1,10 +1,12 @@
 import { Effect, Schema } from "effect";
+import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 
 const PASSWORD_SCHEME = "pbkdf2_sha256";
 const ITERATIONS = 310_000;
 const KEY_LENGTH = 32;
 
 export class PasswordError extends Schema.TaggedError<PasswordError>()("PasswordError", {
+  cause: Schema.optional(Schema.Defect),
   message: Schema.String,
 }) {}
 
@@ -15,7 +17,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 }
 
 function toHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  return Buffer.from(bytes).toString("hex");
 }
 
 function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
@@ -23,13 +25,7 @@ function timingSafeEqual(left: Uint8Array, right: Uint8Array): boolean {
     return false;
   }
 
-  let result = 0;
-
-  for (let index = 0; index < left.length; index += 1) {
-    result |= left[index] ^ right[index];
-  }
-
-  return result === 0;
+  return nodeTimingSafeEqual(Buffer.from(left), Buffer.from(right));
 }
 
 const deriveKeyMaterial = Effect.fn("Password.deriveKeyMaterial")(function* (password: string) {
@@ -38,7 +34,11 @@ const deriveKeyMaterial = Effect.fn("Password.deriveKeyMaterial")(function* (pas
       crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, [
         "deriveBits",
       ]),
-    catch: () => new PasswordError({ message: "Failed to import key material" }),
+    catch: (cause) =>
+      new PasswordError({
+        cause,
+        message: "Failed to import key material",
+      }),
   });
   return keyMaterial;
 });
@@ -60,29 +60,21 @@ const deriveBits = Effect.fn("Password.deriveBits")(function* (
         keyMaterial,
         KEY_LENGTH * 8,
       ),
-    catch: () => new PasswordError({ message: "Failed to derive password hash" }),
+    catch: (cause) =>
+      new PasswordError({
+        cause,
+        message: "Failed to derive password hash",
+      }),
   });
   return new Uint8Array(bits);
 });
 
 const parseHex = Effect.fn("Password.parseHex")(function* (value: string, message: string) {
-  if (value.length % 2 !== 0) {
+  if (value.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(value)) {
     return yield* new PasswordError({ message });
   }
 
-  const bytes = new Uint8Array(value.length / 2);
-
-  for (let index = 0; index < value.length; index += 2) {
-    const byte = Number.parseInt(value.slice(index, index + 2), 16);
-
-    if (!Number.isInteger(byte) || byte < 0 || byte > 255) {
-      return yield* new PasswordError({ message });
-    }
-
-    bytes[index / 2] = byte;
-  }
-
-  return bytes;
+  return Uint8Array.from(Buffer.from(value, "hex"));
 });
 
 const parseStoredHash = Effect.fn("Password.parseStoredHash")(function* (storedHash: string) {

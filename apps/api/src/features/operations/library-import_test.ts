@@ -149,10 +149,12 @@ it.scoped("buildRenamePreview fills naming tokens from existing file metadata", 
             id: 1,
             data: (() => {
               const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
-              return encodeConfigCore({
-                ...base,
-                library: { ...base.library, naming_format: namingFormat },
-              });
+              return Effect.runSync(
+                encodeConfigCore({
+                  ...base,
+                  library: { ...base.library, naming_format: namingFormat },
+                }),
+              );
             })(),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
@@ -208,14 +210,16 @@ it.scoped("buildRenamePreview respects preferred English title and movie naming 
             id: 1,
             data: (() => {
               const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
-              return encodeConfigCore({
-                ...base,
-                library: {
-                  ...base.library,
-                  movie_naming_format: "{title} ({year})",
-                  preferred_title: "english",
-                },
-              });
+              return Effect.runSync(
+                encodeConfigCore({
+                  ...base,
+                  library: {
+                    ...base.library,
+                    movie_naming_format: "{title} ({year})",
+                    preferred_title: "english",
+                  },
+                }),
+              );
             })(),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
@@ -269,10 +273,12 @@ it.scoped("buildRenamePreview reports fallback when season metadata is missing",
             id: 1,
             data: (() => {
               const base = Schema.encodeSync(ConfigCoreSchema)(makeDefaultConfig(databaseFile));
-              return encodeConfigCore({
-                ...base,
-                library: { ...base.library, naming_format: namingFormat },
-              });
+              return Effect.runSync(
+                encodeConfigCore({
+                  ...base,
+                  library: { ...base.library, naming_format: namingFormat },
+                }),
+              );
             })(),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),

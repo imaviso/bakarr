@@ -13,7 +13,7 @@ import {
   encodeAnimeSynonyms,
 } from "@/features/anime/discovery-metadata-codec.ts";
 import { toAnimeDto } from "@/features/anime/dto.ts";
-import { AnimePathError } from "@/features/anime/errors.ts";
+import { AnimePathError, AnimeStoredDataError } from "@/features/anime/errors.ts";
 import { buildMissingEpisodeRows } from "@/features/anime/anime-schedule-repository.ts";
 import { insertAnimeAggregateAtomicEffect } from "@/features/anime/aggregate-support.ts";
 import { resolveAnimeRootFolderEffect } from "@/features/anime/config-support.ts";
@@ -86,23 +86,35 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     endYear: validMetadata.endYear ?? null,
     episodeCount: validMetadata.episodeCount ?? null,
     format: validMetadata.format,
-    genres: encodeStringList(validMetadata.genres ?? []),
+    genres: yield* encodeStringList(validMetadata.genres ?? []).pipe(
+      Effect.mapError(
+        () => new AnimeStoredDataError({ message: "Anime genres metadata is invalid" }),
+      ),
+    ),
     id: validMetadata.id,
     malId: validMetadata.malId ?? null,
     monitored: input.animeInput.monitored,
     nextAiringAt: validMetadata.nextAiringEpisode?.airingAt ?? null,
     nextAiringEpisode: validMetadata.nextAiringEpisode?.episode ?? null,
     profileName: input.animeInput.profile_name,
-    releaseProfileIds: encodeNumberList(input.animeInput.release_profile_ids),
+    releaseProfileIds: yield* encodeNumberList(input.animeInput.release_profile_ids).pipe(
+      Effect.mapError(
+        () => new AnimeStoredDataError({ message: "Anime release profile ids are invalid" }),
+      ),
+    ),
     rootFolder,
     score: validMetadata.score ?? null,
     startDate: validMetadata.startDate ?? null,
     startYear: validMetadata.startYear ?? null,
     status: validMetadata.status,
-    studios: encodeStringList(validMetadata.studios ?? []),
-    synonyms: encodeAnimeSynonyms(validMetadata.synonyms),
-    relatedAnime: encodeAnimeDiscoveryEntries(validMetadata.relatedAnime),
-    recommendedAnime: encodeAnimeDiscoveryEntries(validMetadata.recommendedAnime),
+    studios: yield* encodeStringList(validMetadata.studios ?? []).pipe(
+      Effect.mapError(
+        () => new AnimeStoredDataError({ message: "Anime studios metadata is invalid" }),
+      ),
+    ),
+    synonyms: yield* encodeAnimeSynonyms(validMetadata.synonyms),
+    relatedAnime: yield* encodeAnimeDiscoveryEntries(validMetadata.relatedAnime),
+    recommendedAnime: yield* encodeAnimeDiscoveryEntries(validMetadata.recommendedAnime),
     titleEnglish: validMetadata.title.english ?? null,
     titleNative: validMetadata.title.native ?? null,
     titleRomaji: validMetadata.title.romaji,

@@ -47,7 +47,7 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
       Effect.gen(function* () {
         yield* insertSystemConfigRow(db, {
           id: 1,
-          data: encodeConfigCore(makeDefaultConfig(databaseFile)),
+          data: yield* encodeConfigCore(makeDefaultConfig(databaseFile)),
           updatedAt: "2024-01-01T00:00:00.000Z",
         });
 
@@ -57,7 +57,7 @@ it.scoped("system repository config helpers insert and upsert config rows", () =
         const updatedEncoded = yield* Schema.encode(ConfigCoreSchema)(
           makeDefaultConfig(databaseFile),
         );
-        const updatedData = encodeConfigCore({
+        const updatedData = yield* encodeConfigCore({
           ...updatedEncoded,
           library: { ...updatedEncoded.library, library_path: "/new-library" },
         });

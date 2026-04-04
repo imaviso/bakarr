@@ -43,7 +43,7 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
         fromStatus: null,
         id: 8,
         message: "Started Naruto - 01",
-        metadata: encodeDownloadEventMetadata({
+        metadata: yield* encodeDownloadEventMetadata({
           covered_episodes: [1],
           imported_path: "/library/Naruto/Naruto - 01.mkv",
           source_metadata: {
@@ -71,7 +71,7 @@ it.effect("repository mappers convert RSS feed and download event rows", () =>
       from_status: undefined,
       id: 8,
       message: "Started Naruto - 01",
-      metadata: encodeDownloadEventMetadata({
+      metadata: yield* encodeDownloadEventMetadata({
         covered_episodes: [1],
         imported_path: "/library/Naruto/Naruto - 01.mkv",
         source_metadata: {
@@ -105,7 +105,7 @@ it.effect("toDownloadEvent decodes covered_episodes and source_metadata for life
       fromStatus: "downloading",
       id: 10,
       message: "Paused [SubsPlease] Naruto - 02",
-      metadata: encodeDownloadEventMetadata({
+      metadata: yield* encodeDownloadEventMetadata({
         covered_episodes: [2],
         source_metadata: {
           indexer: "Nyaa",
@@ -139,7 +139,7 @@ it.effect("toDownloadEvent decodes covered_episodes and source_metadata for life
       fromStatus: "queued",
       id: 15,
       message: "[Group] Anime - 05 moved to downloading",
-      metadata: encodeDownloadEventMetadata({
+      metadata: yield* encodeDownloadEventMetadata({
         covered_episodes: [5, 6],
         source_metadata: {
           decision_reason: "Upgrade from 480p",
@@ -184,7 +184,7 @@ it.effect("repository download mappers decode optional fields and derive status 
       retryCount: 2,
       savePath: "/downloads",
       speedBytes: null,
-      sourceMetadata: encodeDownloadSourceMetadata({
+      sourceMetadata: yield* encodeDownloadSourceMetadata({
         chosen_from_seadex: true,
         decision_reason: "Accepted (WEB-DL 1080p, score 12)",
         group: "SubsPlease",

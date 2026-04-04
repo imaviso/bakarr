@@ -230,9 +230,9 @@ it.effect(
   "covered episode serialization round-trips optional values and rejects corrupt data",
   () =>
     Effect.gen(function* () {
-      assert.deepStrictEqual(toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
+      assert.deepStrictEqual(yield* toCoveredEpisodesJson([1, 2, 3]), "[1,2,3]");
       assert.deepStrictEqual(yield* parseCoveredEpisodesEffect("[1,2,3]"), [1, 2, 3]);
-      assert.deepStrictEqual(toCoveredEpisodesJson([]), null);
+      assert.deepStrictEqual(yield* toCoveredEpisodesJson([]), null);
       assert.deepStrictEqual(yield* parseCoveredEpisodesEffect(null), []);
 
       const exit = yield* Effect.exit(parseCoveredEpisodesEffect("not-json"));

@@ -1,10 +1,11 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 import {
   type AnimeDiscoveryEntry,
   AnimeDiscoveryEntrySchema,
   StringListSchema,
 } from "@packages/shared/index.ts";
+import { AnimeStoredDataError } from "@/features/anime/errors.ts";
 
 const AnimeDiscoveryEntryListJsonSchema = Schema.parseJson(
   Schema.mutable(Schema.Array(AnimeDiscoveryEntrySchema)),
@@ -13,23 +14,39 @@ const AnimeSynonymsJsonSchema = Schema.parseJson(StringListSchema);
 
 export function encodeAnimeDiscoveryEntries(
   entries: ReadonlyArray<AnimeDiscoveryEntry> | undefined,
-): string | null {
+): Effect.Effect<string | null, AnimeStoredDataError> {
   if (!entries || entries.length === 0) {
-    return null;
+    return Effect.succeed(null);
   }
 
-  return Schema.encodeSync(AnimeDiscoveryEntryListJsonSchema)(
+  return Schema.encode(AnimeDiscoveryEntryListJsonSchema)(
     entries.map((entry) => ({
       ...entry,
       title: { ...entry.title },
     })),
+  ).pipe(
+    Effect.mapError(
+      () =>
+        new AnimeStoredDataError({
+          message: "Anime discovery metadata is invalid",
+        }),
+    ),
   );
 }
 
-export function encodeAnimeSynonyms(synonyms: ReadonlyArray<string> | undefined): string | null {
+export function encodeAnimeSynonyms(
+  synonyms: ReadonlyArray<string> | undefined,
+): Effect.Effect<string | null, AnimeStoredDataError> {
   if (!synonyms || synonyms.length === 0) {
-    return null;
+    return Effect.succeed(null);
   }
 
-  return Schema.encodeSync(AnimeSynonymsJsonSchema)([...synonyms]);
+  return Schema.encode(AnimeSynonymsJsonSchema)([...synonyms]).pipe(
+    Effect.mapError(
+      () =>
+        new AnimeStoredDataError({
+          message: "Anime synonyms metadata is invalid",
+        }),
+    ),
+  );
 }

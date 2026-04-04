@@ -17,7 +17,7 @@ import {
 
 it.effect("config codec round-trips config core without mutating arrays", () =>
   Effect.gen(function* () {
-    const encoded = encodeConfigCore({
+    const encoded = yield* encodeConfigCore({
       downloads: {
         create_anime_folders: true,
         delete_download_files_after_import: true,
@@ -85,7 +85,7 @@ it.effect("config codec round-trips config core without mutating arrays", () =>
 
 it.effect("profile codecs encode and decode quality and release profile rows", () =>
   Effect.gen(function* () {
-    const qualityRow = encodeQualityProfileRow({
+    const qualityRow = yield* encodeQualityProfileRow({
       allowed_qualities: ["1080p", "720p"],
       cutoff: "1080p",
       max_size: "4GB",
@@ -110,7 +110,7 @@ it.effect("profile codecs encode and decode quality and release profile rows", (
       },
     );
 
-    const rulesJson = encodeReleaseProfileRules([
+    const rulesJson = yield* encodeReleaseProfileRules([
       { rule_type: "preferred", score: 10, term: "SubsPlease" },
       { rule_type: "must", score: 0, term: "1080p" },
     ]);
@@ -145,8 +145,8 @@ it.effect(
   "optional number list codec canonicalizes positive values and rejects corrupt stored JSON",
   () =>
     Effect.gen(function* () {
-      assert.deepStrictEqual(encodeOptionalNumberList([3, 1, 3, 2]), "[1,2,3]");
-      assert.deepStrictEqual(encodeOptionalNumberList([]), null);
+      assert.deepStrictEqual(yield* encodeOptionalNumberList([3, 1, 3, 2]), "[1,2,3]");
+      assert.deepStrictEqual(yield* encodeOptionalNumberList([]), null);
       assert.deepStrictEqual(yield* effectDecodeOptionalNumberList("[3,1,2]"), [1, 2, 3]);
 
       for (const value of ["not-json", "[0,-1,2]"]) {
@@ -154,7 +154,8 @@ it.effect(
         assert.deepStrictEqual(Exit.isFailure(exit), true);
       }
 
-      assert.throws(() => encodeOptionalNumberList([3, -1, 2]));
+      const invalidEncodeExit = yield* Effect.exit(encodeOptionalNumberList([3, -1, 2]));
+      assert.deepStrictEqual(Exit.isFailure(invalidEncodeExit), true);
     }),
 );
 

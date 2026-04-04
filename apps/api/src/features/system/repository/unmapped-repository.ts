@@ -14,8 +14,9 @@ import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped
 import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 
 const AnimeSearchResultListJsonSchema = Schema.parseJson(Schema.Array(AnimeSearchResultSchema));
-const encodeAnimeSearchResultList = Schema.encodeSync(AnimeSearchResultListJsonSchema);
 const decodeAnimeSearchResultList = Schema.decodeUnknown(AnimeSearchResultListJsonSchema);
+
+const encodeAnimeSearchResultList = Schema.encodeSync(AnimeSearchResultListJsonSchema);
 
 export const listUnmappedFolderMatchRows = Effect.fn(
   "SystemUnmappedRepository.listUnmappedFolderMatchRows",

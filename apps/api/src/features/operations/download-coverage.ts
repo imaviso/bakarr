@@ -18,8 +18,17 @@ import { eq } from "drizzle-orm";
 
 const IN_FLIGHT_STATUSES = ["queued", "downloading", "paused"];
 
-export function toCoveredEpisodesJson(episodes: readonly number[]): string | null {
-  return encodeOptionalNumberList(episodes);
+export function toCoveredEpisodesJson(
+  episodes: readonly number[],
+): Effect.Effect<string | null, OperationsStoredDataError> {
+  return encodeOptionalNumberList(episodes).pipe(
+    Effect.mapError(
+      () =>
+        new OperationsStoredDataError({
+          message: "Covered episodes metadata is invalid",
+        }),
+    ),
+  );
 }
 
 export const parseCoveredEpisodesEffect = Effect.fn("Operations.parseCoveredEpisodesEffect")(

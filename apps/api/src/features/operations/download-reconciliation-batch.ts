@@ -234,6 +234,12 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
 
     const batchNow = yield* input.nowIso();
     const storedCoveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredEpisodes);
+    const eventMetadata = yield* encodeDownloadEventMetadata({
+      covered_episodes: storedCoveredEpisodes,
+      imported_path: input.animeRow.rootFolder,
+      source_metadata: input.storedSourceMetadata,
+    });
+
     yield* finalizeDownloadImport({
       downloadId: input.row.id,
       fromStatus: input.row.status,
@@ -243,11 +249,7 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
       eventMessage: batchAlreadyImported
         ? `Reconciled already-imported batch torrent for ${input.row.animeTitle}`
         : `Imported batch torrent for ${input.row.animeTitle}`,
-      eventMetadata: encodeDownloadEventMetadata({
-        covered_episodes: storedCoveredEpisodes,
-        imported_path: input.animeRow.rootFolder,
-        source_metadata: input.storedSourceMetadata,
-      }),
+      eventMetadata,
       logEventType: "downloads.reconciled.batch",
       logMessage: batchAlreadyImported
         ? `Marked already-imported batch torrent as reconciled for ${input.row.animeTitle}`

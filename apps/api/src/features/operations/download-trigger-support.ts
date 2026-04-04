@@ -72,7 +72,7 @@ export const prepareTriggerDownload = Effect.fn("Operations.prepareTriggerDownlo
           missingEpisodes,
           requestedEpisode,
         });
-    const coveredEpisodes = toCoveredEpisodesJson(inferredCoveredEpisodes);
+    const coveredEpisodes = yield* toCoveredEpisodesJson(inferredCoveredEpisodes);
     const sourceMetadata = mergeDownloadSourceMetadata(
       buildDownloadSourceMetadataFromRelease({
         chosenFromSeadex:
@@ -132,6 +132,8 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
   readonly triggerInput: TriggerDownloadInput;
   readonly tryDatabasePromise: TryDatabasePromise;
 }) {
+  const encodedSourceMetadata = yield* encodeDownloadSourceMetadata(input.plan.sourceMetadata);
+
   const insertResult = yield* Effect.either(
     input.tryDatabasePromise("Failed to trigger download", () =>
       input.db
@@ -155,7 +157,7 @@ export const insertQueuedDownload = Effect.fn("Operations.insertQueuedDownload")
           magnet: input.triggerInput.magnet,
           progress: 0,
           savePath: null,
-          sourceMetadata: encodeDownloadSourceMetadata(input.plan.sourceMetadata),
+          sourceMetadata: encodedSourceMetadata,
           speedBytes: 0,
           status: "queued",
           torrentName: input.triggerInput.title,

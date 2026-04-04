@@ -25,13 +25,15 @@ it.scoped("unmapped import rolls back when a later insert fails", () =>
         yield* Effect.tryPromise(() =>
           appDb.insert(appConfig).values({
             id: 1,
-            data: encodeConfigCore({
-              ...baseConfig,
-              library: {
-                ...baseConfig.library,
-                library_path: libraryRoot,
-              },
-            }),
+            data: Effect.runSync(
+              encodeConfigCore({
+                ...baseConfig,
+                library: {
+                  ...baseConfig.library,
+                  library_path: libraryRoot,
+                },
+              }),
+            ),
             updatedAt: "2024-01-01T00:00:00.000Z",
           }),
         );
