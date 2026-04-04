@@ -48,11 +48,13 @@ const loadDotenvConfigProvider = Effect.fn("api.loadDotenvConfigProvider")(funct
   return yield* makeDotenvConfigProvider().pipe(Effect.provide(BunFileSystem.layer));
 });
 
+const runApiProgram = Effect.fn("api.run")(function* () {
+  const dotenvProvider = yield* loadDotenvConfigProvider();
+  const appLayer = makeApiLifecycleLayers({}, { configProvider: dotenvProvider }).appLayer;
+
+  return yield* Effect.scoped(mainProgram()).pipe(Effect.provide(appLayer));
+});
+
 if (import.meta.main) {
-  const dotenvProvider = await Effect.runPromise(loadDotenvConfigProvider());
-  BunRuntime.runMain(
-    Effect.scoped(mainProgram()).pipe(
-      Effect.provide(makeApiLifecycleLayers({}, { configProvider: dotenvProvider }).appLayer),
-    ),
-  );
+  BunRuntime.runMain(runApiProgram());
 }

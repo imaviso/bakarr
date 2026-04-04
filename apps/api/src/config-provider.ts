@@ -1,4 +1,5 @@
 import { FileSystem } from "@effect/platform";
+import { parseEnv } from "node:util";
 import { ConfigProvider, Effect, Option, Schema } from "effect";
 import { isSystemNotFoundError } from "@/lib/fs-errors.ts";
 
@@ -103,8 +104,8 @@ function parseDotenvText(
   source: string,
 ): Effect.Effect<Map<string, string>, DotenvParseError, never> {
   return Effect.gen(function* () {
-    const entries = new Map<string, string>();
-    const lines = source.replace(/^\uFEFF/, "").split(/\r?\n/);
+    const normalizedSource = source.replace(/^\uFEFF/, "");
+    const lines = normalizedSource.split(/\r?\n/);
 
     for (let index = 0; index < lines.length; index += 1) {
       const lineNumber = index + 1;
@@ -138,65 +139,34 @@ function parseDotenvText(
         });
       }
 
-      const value = yield* parseDotenvValue(
-        path,
-        lineNumber,
-        normalized.slice(equalsIndex + 1).trim(),
-      );
-      entries.set(key, value);
+      const valueText = normalized.slice(equalsIndex + 1).trim();
+
+      if (valueText.startsWith('"') && (!valueText.endsWith('"') || valueText.length === 1)) {
+        return yield* new DotenvParseError({
+          line: lineNumber,
+          message: "Unterminated double-quoted dotenv value",
+          path,
+        });
+      }
+
+      if (valueText.startsWith("'") && (!valueText.endsWith("'") || valueText.length === 1)) {
+        return yield* new DotenvParseError({
+          line: lineNumber,
+          message: "Unterminated single-quoted dotenv value",
+          path,
+        });
+      }
+    }
+
+    const parsed = parseEnv(normalizedSource);
+    const entries = new Map<string, string>();
+
+    for (const [key, value] of Object.entries(parsed)) {
+      if (value !== undefined) {
+        entries.set(key, value);
+      }
     }
 
     return entries;
   });
-}
-
-function parseDotenvValue(
-  path: string,
-  line: number,
-  input: string,
-): Effect.Effect<string, DotenvParseError, never> {
-  if (input.length === 0) {
-    return Effect.succeed("");
-  }
-
-  if (input.startsWith('"')) {
-    if (!input.endsWith('"') || input.length === 1) {
-      return Effect.fail(
-        new DotenvParseError({
-          line,
-          message: "Unterminated double-quoted dotenv value",
-          path,
-        }),
-      );
-    }
-
-    const quoted = input.slice(1, -1);
-    return Effect.succeed(
-      quoted
-        .replace(/\\n/g, "\n")
-        .replace(/\\r/g, "\r")
-        .replace(/\\t/g, "\t")
-        .replace(/\\"/g, '"')
-        .replace(/\\\\/g, "\\"),
-    );
-  }
-
-  if (input.startsWith("'")) {
-    if (!input.endsWith("'") || input.length === 1) {
-      return Effect.fail(
-        new DotenvParseError({
-          line,
-          message: "Unterminated single-quoted dotenv value",
-          path,
-        }),
-      );
-    }
-
-    return Effect.succeed(input.slice(1, -1));
-  }
-
-  const commentIndex = input.search(/\s#/);
-  const value = commentIndex >= 0 ? input.slice(0, commentIndex) : input;
-
-  return Effect.succeed(value.trimEnd());
 }

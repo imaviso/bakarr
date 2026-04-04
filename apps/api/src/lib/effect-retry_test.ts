@@ -32,17 +32,9 @@ it.effect("tryExternal wraps timeout failures as ExternalCallError", () =>
   Effect.gen(function* () {
     const tryExternal = makeTryExternal(testClock);
     const fiber = yield* tryExternal("test.timeout", async (signal) => {
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(resolve, 11_000);
-
-        signal.addEventListener(
-          "abort",
-          () => {
-            clearTimeout(timeout);
-            reject(new Error("aborted"));
-          },
-          { once: true },
-        );
+      signal.throwIfAborted();
+      await new Promise((_, reject) => {
+        signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
       });
 
       return "never";

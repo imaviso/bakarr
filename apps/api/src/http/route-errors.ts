@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Match, Schema } from "effect";
 
 import type { RouteErrorResponse } from "@/http/route-types.ts";
 import { DatabaseError } from "@/db/database.ts";
@@ -163,8 +163,6 @@ export function mapRouteError(error: unknown): RouteErrorResponse {
   return { message: "Unexpected server error", status: 500 };
 }
 
-function mapTaggedRouteError<E extends TaggedRouteError>(error: E): RouteErrorResponse {
-  const mapper = taggedRouteErrorMappers[error._tag] as (error: E) => RouteErrorResponse;
-
-  return mapper(error);
+function mapTaggedRouteError(error: TaggedRouteError): RouteErrorResponse {
+  return Match.valueTags(error, taggedRouteErrorMappers);
 }

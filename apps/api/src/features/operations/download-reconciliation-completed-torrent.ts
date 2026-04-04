@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { Effect, Option } from "effect";
+import { Cause, Effect, Option } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase } from "@/db/database.ts";
@@ -48,11 +48,11 @@ export function makeDownloadCompletedTorrentReconciliation(input: {
               ? Effect.logDebug("Skipped qBittorrent cleanup because it is disabled")
               : Effect.void,
           ),
-          Effect.catchAll((cause) =>
+          Effect.catchAllCause((cause) =>
             Effect.logWarning("Failed to delete imported torrent from qBittorrent").pipe(
               Effect.annotateLogs({
                 infoHash,
-                error: String(cause),
+                cause: Cause.pretty(cause),
               }),
             ),
           ),

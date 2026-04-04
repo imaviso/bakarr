@@ -1,5 +1,5 @@
 import { Terminal } from "@effect/platform";
-import { Effect } from "effect";
+import { Cause, Effect } from "effect";
 
 export const announceBootstrapCredentials = Effect.fn(
   "AuthBootstrapOutput.announceBootstrapCredentials",
@@ -17,16 +17,16 @@ export const announceBootstrapCredentials = Effect.fn(
 
       const displayed = yield* terminal.value.display(text).pipe(
         Effect.as(true),
-        Effect.catchAllCause(() => Effect.succeed(false)),
+        Effect.catchAllCause((cause) =>
+          Effect.logWarning(
+            "Failed to display bootstrap credentials in terminal; falling back to logger output",
+          ).pipe(Effect.annotateLogs({ cause: Cause.pretty(cause) }), Effect.as(false)),
+        ),
       );
 
       if (displayed) {
         return;
       }
-
-      yield* Effect.logWarning(
-        "Failed to display bootstrap credentials in terminal; falling back to logger output",
-      );
     }
   }
 

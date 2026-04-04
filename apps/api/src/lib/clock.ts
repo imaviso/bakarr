@@ -23,35 +23,3 @@ export const nowIsoFromClock = Effect.fn("Clock.nowIsoFromClock")(
   (clock: ClockServiceShape): Effect.Effect<string> =>
     Effect.map(clock.currentTimeMillis, isoStringFromMillis),
 );
-
-export const { currentTimeMillis } = Clock;
-export const currentMonotonicMillis: Effect.Effect<number> = Effect.sync(() => performance.now());
-
-/**
- * Effect-based ISO timestamp using the Effect Clock.
- * Use `yield* nowIso` in Effect generators.
- * Deterministic under TestClock.
- */
-export const nowIso: Effect.Effect<string> = Effect.map(currentTimeMillis, (millis) =>
-  new Date(millis).toISOString(),
-);
-
-export function currentTimeMillisSync(): number {
-  return Date.now();
-}
-
-export function currentMonotonicMillisSync(): number {
-  return performance.now();
-}
-
-export function currentDateSync(): Date {
-  return new Date(currentTimeMillisSync());
-}
-
-/**
- * Sync ISO timestamp for pure/non-Effect code only (DTO assembly, parsing).
- * Prefer `nowIso` in service/orchestration code.
- */
-export function nowIsoSync(): string {
-  return new Date().toISOString();
-}

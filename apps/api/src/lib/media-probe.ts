@@ -335,15 +335,13 @@ function formatParseCause(cause: unknown) {
 }
 
 function runFfprobeCommand(
+  executeString: (
+    command: Parameters<CommandExecutor.CommandExecutor["string"]>[0],
+  ) => Effect.Effect<string, unknown>,
   args: readonly string[],
   timeoutMs: number,
-): Effect.Effect<
-  MediaProbeCommandOutput | MediaProbeFailure,
-  never,
-  CommandExecutor.CommandExecutor
-> {
-  return Command.make("ffprobe", ...args).pipe(
-    Command.string,
+): Effect.Effect<MediaProbeCommandOutput | MediaProbeFailure, never, never> {
+  return Effect.suspend(() => executeString(Command.make("ffprobe", ...args))).pipe(
     Effect.map((stdout) => ({ stdout }) satisfies MediaProbeCommandOutput),
     Effect.mapError(
       (cause) =>
@@ -378,9 +376,7 @@ function runFfprobeCommandWith(
   args: readonly string[],
   timeoutMs: number,
 ) {
-  return runFfprobeCommand(args, timeoutMs).pipe(
-    Effect.provideService(CommandExecutor.CommandExecutor, executor),
-  );
+  return runFfprobeCommand(executor.string, args, timeoutMs);
 }
 
 const makeMediaProbe = (

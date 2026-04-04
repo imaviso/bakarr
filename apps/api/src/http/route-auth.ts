@@ -1,5 +1,5 @@
 import { HttpServerRequest, HttpServerResponse } from "@effect/platform";
-import { Duration, Effect, Option } from "effect";
+import { Duration, Effect, Either, Option, Schema } from "effect";
 
 import { AppConfig } from "@/config.ts";
 import { AuthError } from "@/features/auth/errors.ts";
@@ -7,16 +7,15 @@ import { AuthSessionService } from "@/features/auth/session-service.ts";
 import { mapRouteError } from "@/http/route-errors.ts";
 import type { RouteErrorResponse } from "@/http/route-types.ts";
 
+const decodeAuthRouteError = Schema.decodeUnknownEither(AuthError);
+
 export function mapAuthRouteError(error: unknown): RouteErrorResponse {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "_tag" in error &&
-    error._tag === "AuthError"
-  ) {
+  const authError = decodeAuthRouteError(error);
+
+  if (Either.isRight(authError)) {
     return {
-      message: (error as AuthError).message,
-      status: (error as AuthError).status,
+      message: authError.right.message,
+      status: authError.right.status,
     };
   }
 

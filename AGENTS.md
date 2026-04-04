@@ -28,6 +28,4 @@ framework bridges that keep old patterns alive.
 - root: `bun run dev`, `bun run check`, `bun run test`, `bun run build`,
   `bun run lint`
 - api: `bun run check`, `bun run lint`, `bun run test`
-  (`bun run lint` intentionally goes through `tsc` so Effect diagnostics show up),
-  `dx effect-language-service diagnostics --project tsconfig.json`
 - web: `bun run check`, `bun run build`, `bun run lint`
