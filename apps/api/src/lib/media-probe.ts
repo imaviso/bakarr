@@ -290,12 +290,13 @@ export function mergeProbedMediaMetadata<
   };
 }
 
-export function parseFfprobeJson(json: string): Effect.Effect<MediaProbeResult, never> {
-  return decodeFfprobeOutput(json).pipe(
-    Effect.flatMap(normalizeFfprobeDecodedOutput),
-    Effect.catchAll((failure) => Effect.succeed(failure)),
-  );
-}
+export const parseFfprobeJson = Effect.fn("MediaProbe.parseFfprobeJson")(
+  (json: string): Effect.Effect<MediaProbeResult, never> =>
+    decodeFfprobeOutput(json).pipe(
+      Effect.flatMap(normalizeFfprobeDecodedOutput),
+      Effect.catchAll((failure) => Effect.succeed(failure)),
+    ),
+);
 
 function decodeFfprobeOutput(
   input: unknown,

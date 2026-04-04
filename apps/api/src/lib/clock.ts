@@ -11,8 +11,12 @@ export class ClockService extends Context.Tag("@bakarr/lib/ClockService")<
 >() {}
 
 export const ClockServiceLive = Layer.succeed(ClockService, {
-  currentMonotonicMillis: Effect.sync(() => performance.now()),
-  currentTimeMillis: Clock.currentTimeMillis,
+  currentMonotonicMillis: Effect.fn("ClockService.currentMonotonicMillis")(
+    (): Effect.Effect<number> => Effect.sync(() => performance.now()),
+  )(),
+  currentTimeMillis: Effect.fn("ClockService.currentTimeMillis")(
+    (): Effect.Effect<number> => Clock.currentTimeMillis,
+  )(),
 });
 
 export function isoStringFromMillis(millis: number): string {

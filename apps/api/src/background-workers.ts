@@ -47,7 +47,7 @@ export function makeBackgroundWorkerSpawner(input: {
     }
 
     if (Cause.isDie(exit.cause)) {
-      return yield* Effect.die(Cause.squash(exit.cause));
+      return yield* Effect.failCause(exit.cause as Cause.Cause<never>);
     }
 
     yield* Effect.logWarning("background worker run failed; keeping daemon alive").pipe(
@@ -181,20 +181,29 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
         return;
       }
 
-      const timeoutError = getWorkerTimeoutError(exit.cause);
-      const errorMessage = timeoutError?.message ?? Cause.pretty(exit.cause);
+      const timeoutErrorOption = getWorkerTimeoutError(exit.cause);
+      const errorMessage = Option.match(timeoutErrorOption, {
+        onNone: () => Cause.pretty(exit.cause),
+        onSome: (timeoutError) => timeoutError.message,
+      });
 
       yield* monitor.markRunFailed(workerName, errorMessage, durationMs);
       yield* Effect.logError(
-        timeoutError ? "background worker timed out" : "background worker failed",
+        Option.isSome(timeoutErrorOption)
+          ? "background worker timed out"
+          : "background worker failed",
       ).pipe(
         Effect.annotateLogs(
           compactLogAnnotations({
             cause: Cause.pretty(exit.cause),
             component: "background",
             durationMs,
-            event: timeoutError ? "background.worker.timeout" : "background.worker.failed",
-            timeoutMs: timeoutError?.timeoutMs,
+            event: Option.isSome(timeoutErrorOption)
+              ? "background.worker.timeout"
+              : "background.worker.failed",
+            timeoutMs: Option.isSome(timeoutErrorOption)
+              ? timeoutErrorOption.value.timeoutMs
+              : undefined,
             workerName,
             ...errorLogAnnotations(errorMessage),
           }),
@@ -202,7 +211,7 @@ export const withLockEffectOrFail = Effect.fn("Background.withLockEffectOrFail")
       );
 
       if (Cause.isDie(exit.cause)) {
-        return yield* Effect.die(Cause.squash(exit.cause));
+        return yield* Effect.failCause(exit.cause as Cause.Cause<never>);
       }
 
       return yield* Effect.failCause(exit.cause);
@@ -225,10 +234,10 @@ function getWorkerTimeoutError(cause: Cause.Cause<unknown>) {
   const failure = Cause.failureOption(cause);
 
   if (Option.isSome(failure) && failure.value instanceof WorkerTimeoutError) {
-    return failure.value;
+    return Option.some(failure.value);
   }
 
-  return null;
+  return Option.none<WorkerTimeoutError>();
 }
 
 export const forkSupervisedWorker = Effect.fn("Background.forkSupervisedWorker")(function* (

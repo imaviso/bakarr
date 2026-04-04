@@ -78,7 +78,7 @@ export function scanVideoFilesStream(
           const realPath = yield* fs.realPath(fullPath);
 
           if (nextVisited.has(realPath)) {
-            return null;
+            return Option.none<ScannedVideoFile>();
           }
 
           nextVisited.add(realPath);
@@ -87,18 +87,18 @@ export function scanVideoFilesStream(
 
           if (realInfo.isDirectory) {
             nextStack.push(fullPath);
-            return null;
+            return Option.none<ScannedVideoFile>();
           }
 
           if (realInfo.isFile && isVideoFile(entry.name)) {
-            return {
+            return Option.some({
               name: entry.name,
               path: fullPath,
               size: realInfo.size,
-            } satisfies ScannedVideoFile;
+            } satisfies ScannedVideoFile);
           }
 
-          return null;
+          return Option.none<ScannedVideoFile>();
         });
 
       const processFile = (entry: ScannerEntry) =>
@@ -121,7 +121,7 @@ export function scanVideoFilesStream(
       });
 
       const files: ScannedVideoFile[] = [
-        ...symlinkResults.filter((r): r is ScannedVideoFile => r !== null),
+        ...symlinkResults.flatMap((result) => (Option.isSome(result) ? [result.value] : [])),
         ...fileResults,
       ];
 

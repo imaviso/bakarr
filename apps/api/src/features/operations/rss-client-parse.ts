@@ -1,4 +1,4 @@
-import { ParseResult, Schema, Effect, Stream } from "effect";
+import { ParseResult, Schema, Effect, Option, Stream } from "effect";
 import { XMLParser } from "fast-xml-parser";
 
 import { collectBoundedText } from "@/lib/bounded-stream.ts";
@@ -91,7 +91,12 @@ const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, Par
       );
     }
 
-    if (seeders === null || leechers === null || trusted === null || remake === null) {
+    if (
+      Option.isNone(seeders) ||
+      Option.isNone(leechers) ||
+      Option.isNone(trusted) ||
+      Option.isNone(remake)
+    ) {
       return Effect.fail(
         new ParseResult.Type(
           ParsedReleaseSchema.ast,
@@ -103,7 +108,7 @@ const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, Par
 
     const sizeBytes = parseSizeToBytes(size);
 
-    if (sizeBytes === null) {
+    if (Option.isNone(sizeBytes)) {
       return Effect.fail(
         new ParseResult.Type(
           ParsedReleaseSchema.ast,
@@ -120,16 +125,16 @@ const ParsedReleaseFromRssItemSchema = Schema.transformOrFail(RssItemSchema, Par
       infoHash,
       isSeaDex: false,
       isSeaDexBest: false,
-      leechers,
+      leechers: leechers.value,
       magnet: `magnet:?xt=urn:btih:${infoHash}&dn=${encodeURIComponent(title)}`,
       pubDate,
-      remake,
+      remake: remake.value,
       resolution: parseResolution(title),
-      seeders,
+      seeders: seeders.value,
       size,
-      sizeBytes,
+      sizeBytes: sizeBytes.value,
       title,
-      trusted,
+      trusted: trusted.value,
       viewUrl: link.replace("/download/", "/view/").replace(/\.torrent$/i, ""),
     } satisfies ParsedRelease);
   },
@@ -206,11 +211,11 @@ const parseRssXml = Effect.fn("RssClient.parseRssXml")(function* (xml: string) {
   );
 });
 
-function parseSizeToBytes(size: string): number | null {
+function parseSizeToBytes(size: string): Option.Option<number> {
   const match = size.match(/([0-9.]+)\s*(KiB|MiB|GiB|TiB|KB|MB|GB|TB|B)/i);
 
   if (!match) {
-    return null;
+    return Option.none();
   }
 
   const value = Number.parseFloat(match[1]);
@@ -227,30 +232,30 @@ function parseSizeToBytes(size: string): number | null {
     multiplier = 1024 ** 3;
   }
 
-  return Math.round(value * multiplier);
+  return Option.some(Math.round(value * multiplier));
 }
 
-function parseCount(value: string | undefined): number | null {
+function parseCount(value: string | undefined): Option.Option<number> {
   if (value === undefined) {
-    return null;
+    return Option.none();
   }
 
   const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? null : parsed;
+  return Number.isNaN(parsed) ? Option.none() : Option.some(parsed);
 }
 
-function parseYesNo(value: string | undefined): boolean | null {
+function parseYesNo(value: string | undefined): Option.Option<boolean> {
   if (value === undefined) {
-    return null;
+    return Option.none();
   }
 
   if (/^yes$/i.test(value)) {
-    return true;
+    return Option.some(true);
   }
 
   if (/^no$/i.test(value)) {
-    return false;
+    return Option.some(false);
   }
 
-  return null;
+  return Option.none();
 }
