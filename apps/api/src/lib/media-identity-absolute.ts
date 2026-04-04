@@ -9,11 +9,23 @@ export function parseAbsoluteIdentity(
   },
 ): AbsoluteEpisodeIdentity | undefined {
   const epMatch = extensionless.match(
-    /(?:^|[\s._-])(?:e|ep|episode)[\s._-]*(\d{1,4})(?:v\d+)?(?:[\s._-]|$)/i,
+    /(?:^|[\s._\-[(])(?:e|ep|episode)[\s._-]*(\d{1,4})(?:v\d+)?(?:[\s._\-\])]|$)/i,
   );
   if (epMatch) {
     const num = Number(epMatch[1]);
     if (num > 0 && num < 2000) {
+      return new AbsoluteEpisodeIdentity({
+        scheme: "absolute",
+        episode_numbers: [num],
+        label: String(num).padStart(2, "0"),
+      });
+    }
+  }
+
+  const bracketNumberMatch = filename.match(/\[(\d{1,4})(?:v\d+)?\]/);
+  if (bracketNumberMatch) {
+    const num = Number(bracketNumberMatch[1]);
+    if (num > 0 && num < 2000 && !isYearLike(num)) {
       return new AbsoluteEpisodeIdentity({
         scheme: "absolute",
         episode_numbers: [num],
@@ -103,8 +115,9 @@ function parseAbsoluteRange(value: string): AbsoluteEpisodeIdentity | undefined 
   if (/s\d{1,2}[\s._-]*e/i.test(value)) return undefined;
 
   const rangePatterns = [
+    /\[(\d{1,3})\s*[-~]\s*(\d{1,3})\]/,
     /(?:^|[\s._-])(?:e|ep)[\s._-]*(\d{1,3})\s*[-~]\s*(?:e|ep)?[\s._-]*(\d{1,3})(?:[\s._-]|$)/i,
-    /(?:^|[\s._-])(\d{1,3})\s*[-~]\s*(\d{1,3})(?:[\s._-]|$)/,
+    /(?:^|[\s._\-[(])(\d{1,3})\s*[-~]\s*(\d{1,3})(?:[\s._\-\])]|$)/,
   ];
 
   for (const pattern of rangePatterns) {

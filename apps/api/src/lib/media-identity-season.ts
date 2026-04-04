@@ -3,7 +3,7 @@ import { formatSeasonLabel, rangeArray } from "@/lib/media-identity-parser-share
 
 export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity | undefined {
   const rangeMatch = value.match(
-    /(?:^|[\s._-])s(\d{1,2})[\s._-]*e(\d{1,4})\s*[-~]\s*(?:s\d{1,2}[\s._-]*)?e?(\d{1,4})(?:[\s._-]|$)/i,
+    /(?:^|[\s._\-[(])s(\d{1,2})[\s._-]*e(\d{1,4})\s*[-~]\s*(?:s\d{1,2}[\s._-]*)?e?(\d{1,4})(?:[\s._\-\])]|$)/i,
   );
   if (rangeMatch) {
     const season = Number(rangeMatch[1]);
@@ -21,7 +21,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
   }
 
   const multiMatch = value.match(
-    /(?:^|[\s._-])s(\d{1,2})[\s._-]*e(\d{1,4})(?:[\s._-]*e(\d{1,4}))+(?:[\s._-]|$)/i,
+    /(?:^|[\s._\-[(])s(\d{1,2})[\s._-]*e(\d{1,4})(?:[\s._-]*e(\d{1,4}))+(?:[\s._\-\])]|$)/i,
   );
   if (multiMatch) {
     const season = Number(multiMatch[1]);
@@ -37,7 +37,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
   }
 
   const singleMatch = value.match(
-    /(?:^|[\s._-])s(\d{1,2})[\s._-]*e(\d{1,4})(?:v\d+)?(?:[\s._-]|$)/i,
+    /(?:^|[\s._\-[(])s(\d{1,2})[\s._-]*e(\d{1,4})(?:v\d+)?(?:[\s._\-\])]|$)/i,
   );
   if (singleMatch) {
     const season = Number(singleMatch[1]);
@@ -53,7 +53,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
   }
 
   const crossRangeMatch = value.match(
-    /(?:^|[\s._-])(\d{1,2})x(\d{1,3})\s*[-~]\s*(?:\d{1,2}x)?(\d{1,3})(?:[\s._-]|$)/i,
+    /(?:^|[\s._\-[(])(\d{1,2})x(\d{1,3})\s*[-~]\s*(?:\d{1,2}x)?(\d{1,3})(?:[\s._\-\])]|$)/i,
   );
   if (crossRangeMatch) {
     const season = Number(crossRangeMatch[1]);
@@ -70,7 +70,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
     }
   }
 
-  const crossMatch = value.match(/(?:^|[\s._-])(\d{1,2})x(\d{1,3})(?:[\s._-]|$)/i);
+  const crossMatch = value.match(/(?:^|[\s._\-[(])(\d{1,2})x(\d{1,3})(?:[\s._\-\])]|$)/i);
   if (crossMatch) {
     const season = Number(crossMatch[1]);
     const ep = Number(crossMatch[2]);
@@ -85,7 +85,7 @@ export function parseSeasonEpisodeIdentity(value: string): SeasonEpisodeIdentity
   }
 
   const longMatch = value.match(
-    /(?:^|[\s._-])season[\s._-]*(\d{1,2})[\s._-]*(?:ep|e|episode)[\s._-]*(\d{1,3})(?:[\s._-]|$)/i,
+    /(?:^|[\s._\-[(])season[\s._-]*(\d{1,2})[\s._-]*(?:ep|e|episode)[\s._-]*(\d{1,3})(?:[\s._\-\])]|$)/i,
   );
   if (longMatch) {
     const season = Number(longMatch[1]);

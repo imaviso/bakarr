@@ -191,6 +191,8 @@ export function extractTitleBeforeIdentity(value: string, label: string): string
     .replace(/\s+/g, " ")
     .trim();
 
+  cleaned = choosePreferredTitleAlias(cleaned);
+
   return cleaned;
 }
 
@@ -198,7 +200,7 @@ export function extractTitleBeforeNumber(value: string): string {
   let cleaned = value.replace(/^\[[^\]]+\]\s*/g, "");
 
   cleaned = cleaned
-    .replace(/[\s._-]+\d{1,4}(?:v\d+)?(?:[\s._-].*)?$/, "")
+    .replace(/[\s._-]+\d{1,4}(?:v\d+)?(?:[\s._\-\[(].*)?$/, "")
     .replace(/\[[^\]]*?(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac)[^\]]*\]/gi, "")
     .replace(
       /\b(?:1080p|720p|2160p|480p|x264|x265|hevc|aac|flac|dual audio|webrip|web-dl|bluray|batch|complete)\b/gi,
@@ -207,6 +209,8 @@ export function extractTitleBeforeNumber(value: string): string {
     .replace(/[._]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+  cleaned = choosePreferredTitleAlias(cleaned);
 
   return cleaned;
 }
@@ -280,6 +284,47 @@ function looksLikeMetadataTag(value: string): boolean {
   }
 
   return METADATA_TAG_PATTERNS.some((pattern) => pattern.test(lower));
+}
+
+function choosePreferredTitleAlias(value: string): string {
+  const aliases = value
+    .split(/[\/|]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+
+  if (aliases.length <= 1) {
+    return value;
+  }
+
+  const latinAlias = aliases.find((alias) => /[a-z]/i.test(alias));
+  const base = latinAlias ?? aliases[0];
+
+  const mixedAlias = extractLatinAliasFromMixedTitle(base);
+  return mixedAlias ?? base;
+}
+
+function extractLatinAliasFromMixedTitle(value: string): string | undefined {
+  if (!/[a-z]/i.test(value) || !/\p{Script=Han}/u.test(value)) {
+    return undefined;
+  }
+
+  const headLatin = value.match(/^([A-Za-z][A-Za-z0-9 '&:;,.!?-]{2,})\s+\p{Script=Han}/u);
+  if (headLatin?.[1]) {
+    return headLatin[1].trim();
+  }
+
+  const chunks = value
+    .split(/[_|\/\u00B7\-]+/u)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+
+  const latinChunk = chunks.find((part) => /[a-z]/i.test(part) && !/\p{Script=Han}/u.test(part));
+  if (latinChunk) {
+    return latinChunk;
+  }
+
+  const tailLatin = value.match(/([A-Za-z][A-Za-z0-9 '&:;,.!?-]{2,})$/);
+  return tailLatin?.[1]?.trim();
 }
 
 function getExtension(filename: string): string | undefined {

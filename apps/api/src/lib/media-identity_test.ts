@@ -325,6 +325,116 @@ it("parseReleaseSourceIdentity: season-only title does not fall back to absolute
   assert.deepStrictEqual(result.kind, "unknown");
 });
 
+it("parseReleaseSourceIdentity: Chinese 第xx话 pattern maps to absolute episode", () => {
+  const result = parseReleaseSourceIdentity(
+    "【千夏字幕组】【天使降临到了我身边！_Anime Series Title】[第05话][1080p_HEVC][简繁外挂]",
+  );
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.group, "千夏字幕组");
+  assert.deepStrictEqual(result.parsed_title.includes("Anime Series Title"), true);
+  assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
+  if (result.source_identity?.scheme === "absolute") {
+    assert.deepStrictEqual(result.source_identity.episode_numbers, [5]);
+  }
+});
+
+it("parseReleaseSourceIdentity: Chinese 第x季 pattern maps to season identity", () => {
+  const result = parseReleaseSourceIdentity(
+    "[Q] 全职高手 第3季 | Series S3 - 09 (1080p HBR HEVC Multi-Sub)",
+  );
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.group, "Q");
+  assert.deepStrictEqual(result.source_identity?.scheme, "season");
+  if (result.source_identity?.scheme === "season") {
+    assert.deepStrictEqual(result.source_identity.season, 3);
+    assert.deepStrictEqual(result.source_identity.episode_numbers, [9]);
+  }
+});
+
+it("parseReleaseSourceIdentity: bracketed Chinese style title maps to absolute episode", () => {
+  const result = parseReleaseSourceIdentity(
+    "[桜都字幕组][盾之勇者成名录/Anime Series Title][01][BIG5][720P]",
+  );
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.group, "桜都字幕组");
+  assert.deepStrictEqual(result.parsed_title.includes("Anime Series Title"), true);
+  assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
+  if (result.source_identity?.scheme === "absolute") {
+    assert.deepStrictEqual(result.source_identity.episode_numbers, [1]);
+  }
+});
+
+it("parseReleaseSourceIdentity: bracketed title + year + episode normalization", () => {
+  const result = parseReleaseSourceIdentity(
+    "[YMDR][輝夜姬想讓人告白～天才們的戀愛頭腦戰～][Anime Series Title][2019][02][1080p][HEVC]",
+  );
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.group, "YMDR");
+  assert.deepStrictEqual(result.parsed_title, "Anime Series Title");
+  assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
+  if (result.source_identity?.scheme === "absolute") {
+    assert.deepStrictEqual(result.source_identity.episode_numbers, [2]);
+  }
+});
+
+it("parseReleaseSourceIdentity: slash aliases prefer latin title", () => {
+  const result = parseReleaseSourceIdentity(
+    "[Lilith-Raws] 在地下城尋求邂逅是否搞錯了什麼 / Anime-Series Title S04 - 12 [Baha][WEB-DL][1080p]",
+  );
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.group, "Lilith-Raws");
+  assert.deepStrictEqual(result.parsed_title, "Anime-Series Title");
+  assert.deepStrictEqual(result.source_identity?.scheme, "season");
+  if (result.source_identity?.scheme === "season") {
+    assert.deepStrictEqual(result.source_identity.season, 4);
+    assert.deepStrictEqual(result.source_identity.episode_numbers, [12]);
+  }
+});
+
+it("parseReleaseSourceIdentity: mixed CJK+latin title chooses latin alias", () => {
+  const result = parseReleaseSourceIdentity(
+    "[OPFans楓雪動漫][ANIME SERIES 海賊王][第1008話][典藏版][1080P][MKV][簡繁]",
+  );
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.group, "OPFans楓雪動漫");
+  assert.deepStrictEqual(result.parsed_title, "ANIME SERIES");
+  assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
+  if (result.source_identity?.scheme === "absolute") {
+    assert.deepStrictEqual(result.source_identity.episode_numbers, [1008]);
+  }
+});
+
+it("parseReleaseSourceIdentity: star-season marker normalizes Chinese releases", () => {
+  const result = parseReleaseSourceIdentity(
+    "【喵萌奶茶屋】★10月新番★[后宫之乌/后宫の乌/Series Title][07][1080p][简日双语]",
+  );
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.group, "喵萌奶茶屋");
+  assert.deepStrictEqual(result.parsed_title, "Series Title");
+  assert.deepStrictEqual(result.source_identity?.scheme, "absolute");
+  if (result.source_identity?.scheme === "absolute") {
+    assert.deepStrictEqual(result.source_identity.episode_numbers, [7]);
+  }
+});
+
+it("parseReleaseSourceIdentity: S3 - 09 is treated as season+episode, not absolute", () => {
+  const result = parseReleaseSourceIdentity("Series S3 - 09 (1080p)");
+
+  assert.deepStrictEqual(result.kind, "episode");
+  assert.deepStrictEqual(result.source_identity?.scheme, "season");
+  if (result.source_identity?.scheme === "season") {
+    assert.deepStrictEqual(result.source_identity.season, 3);
+    assert.deepStrictEqual(result.source_identity.episode_numbers, [9]);
+  }
+});
+
 it("parseFileSourceIdentity: trailing bracket group is detected", () => {
   const result = parseFileSourceIdentity(
     "Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv",

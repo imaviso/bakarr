@@ -27,6 +27,7 @@ import {
   extractTitleBeforeNumber,
   stripExtension,
 } from "@/lib/media-identity-file-helpers.ts";
+import { normalizeSourceText } from "@/lib/media-identity-normalize.ts";
 
 import { parseAbsoluteIdentity } from "@/lib/media-identity-absolute.ts";
 import { parseDailyIdentity } from "@/lib/media-identity-daily.ts";
@@ -56,16 +57,17 @@ export {
  */
 export function parseFileSourceIdentity(path: string, context?: PathParseContext): ParsedMediaFile {
   const filename = path.split("/").pop() ?? path;
-  const extensionless = stripExtension(filename);
+  const normalizedFilename = normalizeSourceText(filename);
+  const extensionless = stripExtension(normalizedFilename);
 
   // Step 1: Classify extras/samples
-  const classification = classifyMediaArtifact(path, filename, context);
+  const classification = classifyMediaArtifact(path, normalizedFilename, context);
   if (classification.kind !== "episode") {
     return classification;
   }
 
   // Step 2: Extract group and resolution
-  const group = extractGroup(filename);
+  const group = extractGroup(normalizedFilename);
   const resolution = extractResolution(extensionless);
 
   // Step 3: Try daily/airdate patterns first
@@ -99,7 +101,9 @@ export function parseFileSourceIdentity(path: string, context?: PathParseContext
   }
 
   // Step 5: Try absolute number patterns
-  const absolute = parseAbsoluteIdentity(extensionless, filename);
+  const absolute = parseAbsoluteIdentity(extensionless, normalizedFilename, {
+    avoidSeasonOnlyFallback: true,
+  });
   if (absolute) {
     // If folder context provides a season hint, promote to season scheme
     if (context?.season_hint !== undefined || context?.is_specials_folder) {
@@ -160,15 +164,16 @@ export function parseFileSourceIdentity(path: string, context?: PathParseContext
  * No folder context is available for release titles.
  */
 export function parseReleaseSourceIdentity(title: string): ParsedMediaFile {
-  const group = extractGroup(title);
-  const resolution = extractResolution(title);
+  const normalizedTitle = normalizeSourceText(title);
+  const group = extractGroup(normalizedTitle);
+  const resolution = extractResolution(normalizedTitle);
 
   // Daily
-  const daily = parseDailyIdentity(title);
+  const daily = parseDailyIdentity(normalizedTitle);
   if (daily) {
     return {
       kind: "episode",
-      parsed_title: extractTitleBeforeIdentity(title, daily.label) || title,
+      parsed_title: extractTitleBeforeIdentity(normalizedTitle, daily.label) || normalizedTitle,
       source_identity: daily,
       group,
       resolution,
@@ -176,11 +181,11 @@ export function parseReleaseSourceIdentity(title: string): ParsedMediaFile {
   }
 
   // Season/episode
-  const seasonEp = parseSeasonEpisodeIdentity(title);
+  const seasonEp = parseSeasonEpisodeIdentity(normalizedTitle);
   if (seasonEp) {
     return {
       kind: "episode",
-      parsed_title: extractTitleBeforeIdentity(title, seasonEp.label) || title,
+      parsed_title: extractTitleBeforeIdentity(normalizedTitle, seasonEp.label) || normalizedTitle,
       source_identity: seasonEp,
       group,
       resolution,
@@ -188,13 +193,13 @@ export function parseReleaseSourceIdentity(title: string): ParsedMediaFile {
   }
 
   // Absolute
-  const absolute = parseAbsoluteIdentity(title, title, {
+  const absolute = parseAbsoluteIdentity(normalizedTitle, normalizedTitle, {
     avoidSeasonOnlyFallback: true,
   });
   if (absolute) {
     return {
       kind: "episode",
-      parsed_title: extractTitleBeforeNumber(title) || title,
+      parsed_title: extractTitleBeforeNumber(normalizedTitle) || normalizedTitle,
       source_identity: absolute,
       group,
       resolution,
@@ -203,7 +208,7 @@ export function parseReleaseSourceIdentity(title: string): ParsedMediaFile {
 
   return {
     kind: "unknown",
-    parsed_title: title,
+    parsed_title: normalizedTitle,
     group,
     resolution,
     skip_reason: "No episode identity found in release title",
