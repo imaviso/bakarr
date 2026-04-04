@@ -16,11 +16,19 @@ export function formatDownloadEventCoverage(coveredEpisodes?: readonly number[])
 
 export function getDownloadEventMetadataSummary(input: DownloadEventLike) {
   const sourceMetadata = input.metadata_json?.source_metadata;
+  const coveredEpisodes = input.metadata_json?.covered_episodes;
+  const inferredBatch =
+    (coveredEpisodes?.length ?? 0) > 1 ||
+    (sourceMetadata?.source_identity?.scheme !== "daily" &&
+      (sourceMetadata?.source_identity?.episode_numbers?.length ?? 0) > 1) ||
+    sourceMetadata?.source_identity?.scheme === "season";
 
   return {
-    coverage: formatDownloadEventCoverage(input.metadata_json?.covered_episodes),
+    coverage: formatDownloadEventCoverage(coveredEpisodes),
     decision: formatDownloadDecisionSummary({
+      covered_episodes: coveredEpisodes,
       decision_reason: sourceMetadata?.decision_reason,
+      is_batch: inferredBatch,
       source_metadata: sourceMetadata,
     }),
     importedPath: input.metadata_json?.imported_path,

@@ -34,6 +34,7 @@ import {
   type EpisodeSearchResult,
   type ParsedEpisodeIdentity,
 } from "~/lib/api";
+import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/lib/batch-kind";
 import {
   formatReleaseParsedSummary,
   formatReleaseSourceSummary,
@@ -59,6 +60,28 @@ interface SearchModalProps {
 }
 
 function decisionReason(release: EpisodeSearchResult) {
+  const batchKind = inferBatchKind({
+    coveredEpisodes: release.parsed_episode_numbers,
+    isBatch:
+      (release.parsed_episode_numbers?.length ?? 0) > 1 ||
+      (release.parsed_episode_label !== undefined && release.parsed_episode_numbers === undefined),
+    sourceIdentity: release.parsed_air_date
+      ? {
+          air_dates: [release.parsed_air_date],
+          label: release.parsed_episode_label ?? release.parsed_air_date,
+          scheme: "daily",
+        }
+      : release.parsed_episode_numbers
+        ? {
+            episode_numbers: release.parsed_episode_numbers,
+            label:
+              release.parsed_episode_label ??
+              String(release.parsed_episode_numbers[0] ?? "").padStart(2, "0"),
+            scheme: "absolute",
+          }
+        : undefined,
+  });
+
   if (release.download_action.Upgrade) {
     return `Upgrade: ${release.download_action.Upgrade.reason}`;
   }
@@ -68,7 +91,13 @@ function decisionReason(release: EpisodeSearchResult) {
   if (release.download_action.Reject) {
     return `Manual override: ${release.download_action.Reject.reason}`;
   }
-  return "Manual episode grab";
+
+  return formatReleaseSearchDecisionReason({
+    batchKind,
+    isSeaDex: release.is_seadex,
+    isSeaDexBest: release.is_seadex_best,
+    trusted: release.trusted,
+  });
 }
 
 function formatSize(bytes: number) {

@@ -316,6 +316,15 @@ it("parseReleaseSourceIdentity: fansub absolute number", () => {
   assert.deepStrictEqual(result.group, "SubsPlease");
 });
 
+it("parseReleaseSourceIdentity: season-only title does not fall back to absolute episode", () => {
+  const result = parseReleaseSourceIdentity(
+    "[SubsPlease] Sono Bisque Doll wa Koi wo Suru Season 2 (1080p)",
+  );
+
+  assert.deepStrictEqual(result.source_identity, undefined);
+  assert.deepStrictEqual(result.kind, "unknown");
+});
+
 it("parseFileSourceIdentity: trailing bracket group is detected", () => {
   const result = parseFileSourceIdentity(
     "Nisemonogatari - S01E01 - Karen Bee, Part 1 -[1920x1080]-[hevc]-[aac][MTBB].mkv",

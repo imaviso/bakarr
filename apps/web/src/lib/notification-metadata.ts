@@ -4,6 +4,8 @@ import { formatReleaseSourceSummary } from "~/lib/release-metadata";
 
 export function formatDownloadNotificationDescription(input: {
   imported_path?: string;
+  covered_episodes?: number[];
+  is_batch?: boolean;
   source_metadata?: DownloadSourceMetadata;
 }) {
   const releaseSummary = formatReleaseSourceSummary({
@@ -16,7 +18,9 @@ export function formatDownloadNotificationDescription(input: {
     source_metadata: input.source_metadata,
   });
   const decisionSummary = formatDownloadDecisionSummary({
+    covered_episodes: input.covered_episodes,
     decision_reason: input.source_metadata?.decision_reason,
+    is_batch: input.is_batch,
     source_metadata: input.source_metadata,
   });
 

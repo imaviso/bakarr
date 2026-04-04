@@ -4,6 +4,9 @@ import { isYearLike, rangeArray } from "@/lib/media-identity-parser-shared.ts";
 export function parseAbsoluteIdentity(
   extensionless: string,
   filename: string,
+  options?: {
+    readonly avoidSeasonOnlyFallback?: boolean;
+  },
 ): AbsoluteEpisodeIdentity | undefined {
   const epMatch = extensionless.match(
     /(?:^|[\s._-])(?:e|ep|episode)[\s._-]*(\d{1,4})(?:v\d+)?(?:[\s._-]|$)/i,
@@ -67,6 +70,11 @@ export function parseAbsoluteIdentity(
 
   if (candidates.length > 0) {
     const num = candidates[candidates.length - 1];
+
+    if (options?.avoidSeasonOnlyFallback && looksLikeSeasonOnlyNumber(extensionless, num)) {
+      return undefined;
+    }
+
     return new AbsoluteEpisodeIdentity({
       scheme: "absolute",
       episode_numbers: [num],
@@ -75,6 +83,20 @@ export function parseAbsoluteIdentity(
   }
 
   return undefined;
+}
+
+function looksLikeSeasonOnlyNumber(value: string, number: number) {
+  return [
+    new RegExp(`(?:^|[\\s._-])s0*${number}(?![\\s._-]*e\\d)(?:[\\s._-]|\\(|\\[|$)`, "i"),
+    new RegExp(
+      `(?:^|[\\s._-])season[\\s._-]*0*${number}(?![\\s._-]*(?:e|ep|episode)\\d)(?:[\\s._-]|\\(|\\[|$)`,
+      "i",
+    ),
+    new RegExp(
+      `(?:^|[\\s._-])0*${number}(?:st|nd|rd|th)[\\s._-]+season(?:[\\s._-]|\\(|\\[|$)`,
+      "i",
+    ),
+  ].some((pattern) => pattern.test(value));
 }
 
 function parseAbsoluteRange(value: string): AbsoluteEpisodeIdentity | undefined {

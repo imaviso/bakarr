@@ -188,7 +188,9 @@ export function parseReleaseSourceIdentity(title: string): ParsedMediaFile {
   }
 
   // Absolute
-  const absolute = parseAbsoluteIdentity(title, title);
+  const absolute = parseAbsoluteIdentity(title, title, {
+    avoidSeasonOnlyFallback: true,
+  });
   if (absolute) {
     return {
       kind: "episode",

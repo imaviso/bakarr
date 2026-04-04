@@ -1,8 +1,14 @@
 import type { Download, DownloadStatus } from "@bakarr/shared";
+import { formatManualReleaseSearchDecisionReason, inferBatchKind } from "~/lib/batch-kind";
 import { formatReleaseParsedSummary, formatReleaseSourceSummary } from "~/lib/release-metadata";
 import { formatSelectionSummary, getReleaseConfidence } from "~/lib/release-selection";
 
-type DownloadLike = Partial<Pick<Download | DownloadStatus, "decision_reason" | "source_metadata">>;
+type DownloadLike = Partial<
+  Pick<
+    Download | DownloadStatus,
+    "covered_episodes" | "decision_reason" | "is_batch" | "source_metadata"
+  >
+>;
 
 export function formatDownloadParsedMeta(item: DownloadLike) {
   return formatReleaseParsedSummary({
@@ -73,7 +79,7 @@ export function formatDownloadDecisionBadge(item: DownloadLike) {
 
 export function formatDownloadDecisionSummary(item: DownloadLike) {
   const summary = formatSelectionSummary(item.source_metadata ?? {});
-  const reason = item.decision_reason;
+  const reason = normalizeLegacyManualDecisionReason(item) ?? item.decision_reason;
 
   if (!summary) {
     return reason;
@@ -91,6 +97,39 @@ export function formatDownloadDecisionSummary(item: DownloadLike) {
   }
 
   return `${summary} • ${reason}`;
+}
+
+function normalizeLegacyManualDecisionReason(item: DownloadLike) {
+  const reason = item.decision_reason;
+
+  if (!reason) {
+    return undefined;
+  }
+
+  const normalizedReason = reason.toLowerCase();
+  const isLegacyManualReason =
+    normalizedReason === "manual grab from release search" ||
+    normalizedReason === "manual grab from trusted release search";
+
+  if (!isLegacyManualReason) {
+    return reason;
+  }
+
+  const batchKind = inferBatchKind({
+    coveredEpisodes: item.covered_episodes,
+    isBatch: item.is_batch,
+    sourceIdentity: item.source_metadata?.source_identity,
+  });
+
+  if (!batchKind) {
+    return reason;
+  }
+
+  const trusted = normalizedReason.includes("trusted") || item.source_metadata?.trusted;
+  return formatManualReleaseSearchDecisionReason({
+    batchKind,
+    trusted,
+  });
 }
 
 export function formatDownloadRankingMeta(item: DownloadLike) {

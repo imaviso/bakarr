@@ -51,6 +51,7 @@ import {
   type NyaaSearchResult,
   type ParsedEpisodeIdentity,
 } from "~/lib/api";
+import { formatReleaseSearchDecisionReason, inferBatchKind } from "~/lib/batch-kind";
 import {
   formatReleaseParsedSummary,
   formatReleaseSourceSummary,
@@ -442,16 +443,15 @@ function ReleaseRow(props: { result: NyaaSearchResult; animeId: number; onGrab: 
   const [popoverOpen, setPopoverOpen] = createSignal(false);
 
   const decisionReason = () => {
-    if (props.result.is_seadex_best) {
-      return "SeaDex Best release";
-    }
-    if (props.result.is_seadex) {
-      return "SeaDex recommended release";
-    }
-    if (props.result.trusted) {
-      return "Manual grab from trusted release search";
-    }
-    return "Manual grab from release search";
+    return formatReleaseSearchDecisionReason({
+      batchKind: inferBatchKind({
+        coveredEpisodes: props.result.parsed_episode_numbers,
+        isBatch: isBatch(),
+      }),
+      isSeaDex: props.result.is_seadex,
+      isSeaDexBest: props.result.is_seadex_best,
+      trusted: props.result.trusted,
+    });
   };
 
   const selectionMetadata = (): {
