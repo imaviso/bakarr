@@ -1,6 +1,6 @@
 import { CommandExecutor } from "@effect/platform";
 import type { PlatformError } from "@effect/platform/Error";
-import { Effect } from "effect";
+import { Effect, Stream } from "effect";
 
 import type { Config } from "@packages/shared/index.ts";
 import type { AppDatabase, DatabaseService } from "@/db/database.ts";
@@ -12,7 +12,9 @@ import type {
 export function makeDatabaseServiceStub(db: AppDatabase): DatabaseService {
   return {
     get client(): never {
-      throw new Error("test database stub should not access sqlite client");
+      return Effect.runSync(
+        Effect.dieMessage("test database stub should not access sqlite client"),
+      );
     },
     db,
   };
@@ -25,22 +27,14 @@ export function makeCommandExecutorStub<E extends PlatformError = never>(
 ): CommandExecutor.CommandExecutor {
   return {
     [CommandExecutor.TypeId]: CommandExecutor.TypeId,
-    exitCode: () => {
-      throw new Error("exitCode not implemented for test");
-    },
+    exitCode: () => Effect.dieMessage("exitCode not implemented for test"),
     lines: (command, _encoding) =>
       runAsString(command).pipe(
         Effect.map((value) => value.split(/\r?\n/).filter((line) => line.length > 0)),
       ),
-    start: () => {
-      throw new Error("start not implemented for test");
-    },
-    stream: () => {
-      throw new Error("stream not implemented for test");
-    },
-    streamLines: () => {
-      throw new Error("streamLines not implemented for test");
-    },
+    start: () => Effect.dieMessage("start not implemented for test"),
+    stream: () => Stream.dieMessage("stream not implemented for test"),
+    streamLines: () => Stream.dieMessage("streamLines not implemented for test"),
     string: (command, _encoding) => runAsString(command),
   };
 }

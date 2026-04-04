@@ -30,21 +30,11 @@ it.scoped("SystemEventsService does not lose buffered events during stream boots
                 return snapshotDownloads;
               }),
             getDownloadRuntimeSummary: () => Effect.succeed({ active_count: 1 }),
-            listDownloadEvents: () => {
-              throw new Error("unused in test");
-            },
-            listDownloadHistory: () => {
-              throw new Error("unused in test");
-            },
-            listDownloadQueue: () => {
-              throw new Error("unused in test");
-            },
-            streamDownloadEventsExportCsv: () => {
-              throw new Error("unused in test");
-            },
-            streamDownloadEventsExportJson: () => {
-              throw new Error("unused in test");
-            },
+            listDownloadEvents: () => Effect.dieMessage("unused in test"),
+            listDownloadHistory: () => Effect.dieMessage("unused in test"),
+            listDownloadQueue: () => Effect.dieMessage("unused in test"),
+            streamDownloadEventsExportCsv: () => Effect.dieMessage("unused in test"),
+            streamDownloadEventsExportJson: () => Effect.dieMessage("unused in test"),
           }),
         ),
       ),

@@ -3,7 +3,7 @@ import { Context, Effect, Layer } from "effect";
 import type { Config } from "@packages/shared/index.ts";
 import { Database, DatabaseError } from "@/db/database.ts";
 import {
-  composeConfig,
+  effectComposeConfig,
   effectDecodeStoredConfigRow,
   effectDecodeQualityProfileRow,
 } from "@/features/system/config-codec.ts";
@@ -42,7 +42,9 @@ const makeSystemConfigService = Effect.gen(function* () {
     );
     const decodedProfiles = yield* Effect.forEach(profiles, effectDecodeQualityProfileRow);
 
-    return yield* normalizeConfig(composeConfig(core, decodedProfiles)).pipe(
+    const composedConfig = yield* effectComposeConfig(core, decodedProfiles);
+
+    return yield* normalizeConfig(composedConfig).pipe(
       Effect.catchTag("ConfigValidationError", (error) =>
         Effect.fail(
           new StoredConfigCorruptError({

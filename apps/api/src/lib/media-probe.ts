@@ -453,7 +453,7 @@ export const MediaProbeLive = Layer.effect(
       yield* Effect.logWarning("ffprobe unavailable").pipe(
         Effect.annotateLogs({ message: availability.message }),
       );
-      return yield* Effect.die(new Error(availability.message));
+      return yield* Effect.die(availability.cause ?? new Error(availability.message));
     }
 
     return makeMediaProbe(ffprobeSemaphore, executorOption.value);

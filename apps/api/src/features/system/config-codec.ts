@@ -142,12 +142,24 @@ export function encodeQualityProfileRow(profile: QualityProfile) {
 export function encodeReleaseProfileRow(
   profile: CreateReleaseProfileInput | UpdateReleaseProfileInput,
 ) {
-  return Schema.decodeUnknownSync(ReleaseProfilePersistedRowSchema)({
-    enabled: profile.enabled ?? true,
-    isGlobal: profile.is_global,
-    name: profile.name,
-    rules: encodeReleaseProfileRules(profile.rules),
-  });
+  return Schema.decodeUnknownSync(ReleaseProfilePersistedRowSchema)(
+    encodeReleaseProfileRowInput(profile),
+  );
+}
+
+export function effectEncodeReleaseProfileRow(
+  profile: CreateReleaseProfileInput | UpdateReleaseProfileInput,
+): Effect.Effect<
+  Schema.Schema.Type<typeof ReleaseProfilePersistedRowSchema>,
+  StoredConfigCorruptError
+> {
+  return Schema.decodeUnknown(ReleaseProfilePersistedRowSchema)(
+    encodeReleaseProfileRowInput(profile),
+  ).pipe(
+    Effect.mapError((cause) =>
+      storedConfigCorrupt("Release profile input is invalid and could not be encoded", cause),
+    ),
+  );
 }
 
 export function encodeReleaseProfileRules(rules: readonly ReleaseProfileRule[]) {
@@ -249,13 +261,29 @@ export function toConfigCore(config: Config): ConfigCore {
   return Schema.decodeUnknownSync(ConfigCoreSchema)(config);
 }
 
-export function composeConfig(core: ConfigCore, profiles: readonly QualityProfile[]): Config {
-  const encodedCore = Schema.encodeSync(ConfigCoreSchema)(core);
+export function effectToConfigCore(
+  config: Config,
+): Effect.Effect<ConfigCore, StoredConfigCorruptError> {
+  return Schema.decodeUnknown(ConfigCoreSchema)(config).pipe(
+    Effect.mapError((cause) =>
+      storedConfigCorrupt("Runtime configuration could not be projected to core schema", cause),
+    ),
+  );
+}
 
-  return Schema.decodeUnknownSync(ConfigSchema)({
-    ...encodedCore,
-    profiles: [...profiles],
-  });
+export function composeConfig(core: ConfigCore, profiles: readonly QualityProfile[]): Config {
+  return Schema.decodeUnknownSync(ConfigSchema)(composeConfigInput(core, profiles));
+}
+
+export function effectComposeConfig(
+  core: ConfigCore,
+  profiles: readonly QualityProfile[],
+): Effect.Effect<Config, StoredConfigCorruptError> {
+  return Schema.decodeUnknown(ConfigSchema)(composeConfigInput(core, profiles)).pipe(
+    Effect.mapError((cause) =>
+      storedConfigCorrupt("Stored configuration is corrupt and could not be composed", cause),
+    ),
+  );
 }
 
 export function effectDecodeConfigCore(
@@ -310,4 +338,24 @@ export function effectDecodeImagePath(
   return effectDecodeConfigCore(row.data).pipe(
     Effect.map((config) => config.general.images_path.trim()),
   );
+}
+
+function composeConfigInput(core: ConfigCore, profiles: readonly QualityProfile[]) {
+  const encodedCore = Schema.encodeSync(ConfigCoreSchema)(core);
+
+  return {
+    ...encodedCore,
+    profiles: [...profiles],
+  } satisfies Schema.Schema.Encoded<typeof ConfigSchema>;
+}
+
+function encodeReleaseProfileRowInput(
+  profile: CreateReleaseProfileInput | UpdateReleaseProfileInput,
+) {
+  return {
+    enabled: profile.enabled ?? true,
+    isGlobal: profile.is_global,
+    name: profile.name,
+    rules: encodeReleaseProfileRules(profile.rules),
+  } satisfies Schema.Schema.Encoded<typeof ReleaseProfilePersistedRowSchema>;
 }

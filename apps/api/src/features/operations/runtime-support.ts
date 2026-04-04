@@ -34,6 +34,17 @@ export interface UnmappedScanCoordinatorShape {
     loop: Effect.Effect<A, E, R>,
   ) => Effect.Effect<void, never, R>;
   readonly tryBeginUnmappedScan: () => Effect.Effect<boolean>;
+  readonly withUnmappedScanLease: <A, E, R>(input: {
+    readonly whenAcquired: Effect.Effect<
+      {
+        readonly keepLease?: boolean;
+        readonly value: A;
+      },
+      E,
+      R
+    >;
+    readonly whenBusy: Effect.Effect<A, E, R>;
+  }) => Effect.Effect<A, E, R>;
 }
 
 export class UnmappedScanCoordinator extends Context.Tag("@bakarr/api/UnmappedScanCoordinator")<
@@ -53,6 +64,37 @@ const makeUnmappedScanCoordinator = Effect.fn("OperationsService.makeUnmappedSca
       forkUnmappedScanLoop: <A, E, R>(loop: Effect.Effect<A, E, R>) =>
         Effect.forkIn(scope)(loop).pipe(Effect.asVoid),
       tryBeginUnmappedScan: () => coordinator.tryStartAndMarkRunning,
+      withUnmappedScanLease: <A, E, R>(input: {
+        readonly whenAcquired: Effect.Effect<
+          {
+            readonly keepLease?: boolean;
+            readonly value: A;
+          },
+          E,
+          R
+        >;
+        readonly whenBusy: Effect.Effect<A, E, R>;
+      }) =>
+        Effect.gen(function* () {
+          const acquired = yield* coordinator.tryStartAndMarkRunning;
+
+          if (!acquired) {
+            return yield* input.whenBusy;
+          }
+
+          const exit = yield* Effect.exit(input.whenAcquired);
+
+          if (Exit.isSuccess(exit)) {
+            if (!exit.value.keepLease) {
+              yield* coordinator.finish;
+            }
+
+            return exit.value.value;
+          }
+
+          yield* coordinator.finish;
+          return yield* Effect.failCause(exit.cause);
+        }),
     } satisfies UnmappedScanCoordinatorShape;
   },
 );

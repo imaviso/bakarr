@@ -9,10 +9,10 @@
  */
 
 import type { Config } from "@packages/shared/index.ts";
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 import { ConfigCoreSchema } from "@/features/system/config-schema.ts";
 import {
-  composeConfig,
+  effectComposeConfig,
   type ConfigCore,
   type ConfigCoreEncoded,
 } from "@/features/system/config-codec.ts";
@@ -41,5 +41,7 @@ export function makeTestConfig(
   const core = makeDefaultConfig(databasePath);
   const encoded = Schema.encodeSync(ConfigCoreSchema)(core);
   const modified = override ? override(encoded) : encoded;
-  return composeConfig(Schema.decodeUnknownSync(ConfigCoreSchema)(modified), []);
+  const decoded = Schema.decodeUnknownSync(ConfigCoreSchema)(modified);
+
+  return Effect.runSync(effectComposeConfig(decoded, []));
 }

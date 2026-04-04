@@ -8,7 +8,7 @@ import { RuntimeLogLevelState } from "@/lib/logging.ts";
 import { BackgroundWorkerController } from "@/background-controller-core.ts";
 import { persistAndActivateConfig } from "@/features/system/config-activation.ts";
 import { validateConfigUpdate } from "@/features/system/config-update-validation.ts";
-import { toConfigCore } from "@/features/system/config-codec.ts";
+import { effectToConfigCore } from "@/features/system/config-codec.ts";
 import { normalizeConfig } from "@/features/system/qbittorrent-config.ts";
 import { ConfigValidationError, StoredConfigCorruptError } from "@/features/system/errors.ts";
 import { appendSystemLog } from "@/features/system/support.ts";
@@ -62,7 +62,7 @@ const makeSystemConfigUpdateService = Effect.gen(function* () {
     });
 
     const updatedAt = yield* nowIso();
-    const normalizedCore = toConfigCore(normalizedConfig);
+    const normalizedCore = yield* effectToConfigCore(normalizedConfig);
     const { nextState, previousState } = buildPersistedConfigStates({
       appDatabaseFile: appConfig.databaseFile,
       existingProfileRows,

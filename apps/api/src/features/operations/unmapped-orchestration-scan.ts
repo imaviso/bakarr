@@ -197,41 +197,37 @@ export function makeUnmappedScanWorkflow(input: {
   });
 
   const startUnmappedScanLoop = Effect.fn("OperationsService.startUnmappedScanLoop")(function* () {
-    const started = yield* unmappedScanCoordinator.tryBeginUnmappedScan();
+    return yield* unmappedScanCoordinator.withUnmappedScanLease({
+      whenAcquired: Effect.gen(function* () {
+        const { queuedFolders } = yield* loadQueuedUnmappedFolders();
+        const folderCount = queuedFolders.length;
 
-    if (!started) {
-      return { folderCount: 0 };
-    }
+        if (!queuedFolders.some(isUnmappedFolderQueuedForMatch)) {
+          return {
+            keepLease: false,
+            value: { folderCount: 0 },
+          } as const;
+        }
 
-    let forked = false;
-
-    try {
-      const { queuedFolders } = yield* loadQueuedUnmappedFolders();
-      const folderCount = queuedFolders.length;
-
-      if (!queuedFolders.some(isUnmappedFolderQueuedForMatch)) {
-        return { folderCount: 0 };
-      }
-
-      const loop = unmappedScanLoop().pipe(
-        Effect.catchAllCause((cause) =>
-          Effect.logError("Unmapped scan loop failed").pipe(
-            Effect.annotateLogs({ error: Cause.pretty(cause) }),
-            Effect.zipRight(Effect.failCause(cause)),
+        const loop = unmappedScanLoop().pipe(
+          Effect.catchAllCause((cause) =>
+            Effect.logError("Unmapped scan loop failed").pipe(
+              Effect.annotateLogs({ error: Cause.pretty(cause) }),
+              Effect.zipRight(Effect.failCause(cause)),
+            ),
           ),
-        ),
-        Effect.ensuring(unmappedScanCoordinator.completeUnmappedScan()),
-      );
+          Effect.ensuring(unmappedScanCoordinator.completeUnmappedScan()),
+        );
 
-      yield* unmappedScanCoordinator.forkUnmappedScanLoop(loop);
-      forked = true;
+        yield* unmappedScanCoordinator.forkUnmappedScanLoop(loop);
 
-      return { folderCount };
-    } finally {
-      if (!forked) {
-        yield* unmappedScanCoordinator.completeUnmappedScan();
-      }
-    }
+        return {
+          keepLease: true,
+          value: { folderCount },
+        } as const;
+      }),
+      whenBusy: Effect.succeed({ folderCount: 0 }),
+    });
   });
 
   const runUnmappedScan = Effect.fn("OperationsService.runUnmappedScan")(function* () {

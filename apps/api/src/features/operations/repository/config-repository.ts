@@ -5,7 +5,7 @@ import { DatabaseError } from "@/db/database.ts";
 import { appConfig, qualityProfiles } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import {
-  composeConfig,
+  effectComposeConfig,
   effectDecodeQualityProfileRow,
   effectDecodeStoredConfigRow,
   effectDecodeStoredLibraryConfig,
@@ -33,7 +33,9 @@ export const loadRuntimeConfig = Effect.fn("ConfigRepository.loadRuntimeConfig")
     effectDecodeQualityProfileRow(row).pipe(mapConfigError("Failed to load runtime config")),
   );
 
-  return composeConfig(core, profiles);
+  return yield* effectComposeConfig(core, profiles).pipe(
+    mapConfigError("Failed to load runtime config"),
+  );
 });
 
 export const getConfigLibraryPath = Effect.fn("ConfigRepository.getConfigLibraryPath")(function* (

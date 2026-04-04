@@ -6,7 +6,7 @@ import { nowIsoFromClock, ClockService } from "@/lib/clock.ts";
 import { StoredConfigCorruptError } from "@/features/system/errors.ts";
 import {
   effectDecodeReleaseProfileRow,
-  encodeReleaseProfileRow,
+  effectEncodeReleaseProfileRow,
 } from "@/features/system/config-codec.ts";
 import type {
   CreateReleaseProfileInput,
@@ -31,7 +31,7 @@ export interface ReleaseProfileServiceShape {
   readonly updateReleaseProfile: (
     id: number,
     input: UpdateReleaseProfileInput,
-  ) => Effect.Effect<void, DatabaseError>;
+  ) => Effect.Effect<void, DatabaseError | StoredConfigCorruptError>;
   readonly deleteReleaseProfile: (id: number) => Effect.Effect<void, DatabaseError>;
 }
 
@@ -53,7 +53,8 @@ const makeReleaseProfileService = Effect.gen(function* () {
   const createReleaseProfile = Effect.fn("ReleaseProfileService.createReleaseProfile")(function* (
     input: CreateReleaseProfileInput,
   ) {
-    const created = yield* insertReleaseProfileRow(db, encodeReleaseProfileRow(input));
+    const row = yield* effectEncodeReleaseProfileRow(input);
+    const created = yield* insertReleaseProfileRow(db, row);
 
     yield* appendSystemLog(
       db,
@@ -69,7 +70,8 @@ const makeReleaseProfileService = Effect.gen(function* () {
     id: number,
     input: UpdateReleaseProfileInput,
   ) {
-    yield* updateReleaseProfileRow(db, id, encodeReleaseProfileRow(input));
+    const row = yield* effectEncodeReleaseProfileRow(input);
+    yield* updateReleaseProfileRow(db, id, row);
 
     yield* appendSystemLog(
       db,
