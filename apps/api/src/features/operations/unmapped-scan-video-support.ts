@@ -9,8 +9,9 @@ export const loadUnmappedFolderVideoSize = Effect.fn(
 )(function* (fs: FileSystemShape, path: string) {
   const files = yield* scanVideoFiles(fs, path).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsPathError({
+          cause,
           message: `Unmapped folder is inaccessible: ${path}`,
         }),
     ),

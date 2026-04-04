@@ -64,11 +64,9 @@ export const mapBlockStatsToDiskSpaceEffect = Effect.fn("DiskSpace.mapBlockStats
 );
 
 function runDfCommand(commandExecutor: CommandExecutor.CommandExecutor, path: string) {
-  return Command.make("df", "-Pk", path).pipe(
-    Command.string,
-    Effect.mapError(toDiskSpaceError(`Failed to get disk space for ${path}`)),
-    Effect.provideService(CommandExecutor.CommandExecutor, commandExecutor),
-  );
+  return commandExecutor
+    .string(Command.make("df", "-Pk", path))
+    .pipe(Effect.mapError(toDiskSpaceError(`Failed to get disk space for ${path}`)));
 }
 
 export function makeDiskSpaceInspector(

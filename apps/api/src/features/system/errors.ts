@@ -4,12 +4,12 @@ import { DiskSpaceError } from "@/features/system/disk-space.ts";
 
 export class ConfigValidationError extends Schema.TaggedError<ConfigValidationError>()(
   "ConfigValidationError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class StoredConfigCorruptError extends Schema.TaggedError<StoredConfigCorruptError>()(
   "StoredConfigCorruptError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class StoredConfigMissingError extends Schema.TaggedError<StoredConfigMissingError>()(
@@ -25,6 +25,7 @@ export class ProfileNotFoundError extends Schema.TaggedError<ProfileNotFoundErro
 export class ImageAssetNotFoundError extends Schema.TaggedError<ImageAssetNotFoundError>()(
   "ImageAssetNotFoundError",
   {
+    cause: Schema.optional(Schema.Defect),
     message: Schema.String,
     status: Schema.Literal(404),
   },
@@ -49,7 +50,7 @@ export class ImageAssetAccessError extends Schema.TaggedError<ImageAssetAccessEr
 
 export class StoredUnmappedFolderCorruptError extends Schema.TaggedError<StoredUnmappedFolderCorruptError>()(
   "StoredUnmappedFolderCorruptError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export type StoredConfigReadError = StoredConfigCorruptError | StoredConfigMissingError;

@@ -43,8 +43,9 @@ const makeFetchItems = (
   Effect.fn("RssClient.fetchItems")(function* (url: string) {
     const parsedUrl = yield* Effect.try({
       try: () => new URL(url),
-      catch: () =>
+      catch: (cause) =>
         new RssFeedRejectedError({
+          cause,
           message: "RSS feed URL is invalid",
         }),
     });
@@ -86,6 +87,7 @@ const makeFetchItems = (
         Effect.mapError((error) =>
           error.cause instanceof RssTransportPayloadTooLargeError
             ? new RssFeedTooLargeError({
+                cause: error.cause,
                 message: error.cause.message,
               })
             : error,
@@ -126,7 +128,7 @@ const makeFetchItems = (
 
         const redirectResult = yield* Effect.try({
           try: () => new URL(location, currentUrl),
-          catch: () => new InvalidRedirectUrlError(),
+          catch: (cause) => new InvalidRedirectUrlError(cause),
         }).pipe(Effect.either);
 
         if (Either.isLeft(redirectResult)) {
@@ -197,8 +199,9 @@ function sanitizeRssUrlForLogs(url: string): string {
 }
 
 class InvalidRedirectUrlError extends Error {
-  constructor() {
+  constructor(cause: unknown) {
     super("Invalid redirect URL");
     this.name = "InvalidRedirectUrlError";
+    this.cause = cause;
   }
 }

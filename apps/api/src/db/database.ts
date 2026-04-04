@@ -1,4 +1,3 @@
-import * as SqlClient from "@effect/sql/SqlClient";
 import * as SqliteDrizzle from "@effect/sql-drizzle/Sqlite";
 import * as BunSqliteClient from "@effect/sql-sqlite-bun/SqliteClient";
 import { Context, Effect, Layer, Schema } from "effect";
@@ -110,9 +109,7 @@ const makeDatabase = Effect.gen(function* () {
 
   yield* setAndVerifyPragmas(client);
 
-  const db = yield* SqliteDrizzle.make<typeof schema>({ schema }).pipe(
-    Effect.provideService(SqlClient.SqlClient, client),
-  );
+  const db = yield* SqliteDrizzle.make<typeof schema>({ schema });
 
   return {
     client,
@@ -136,4 +133,4 @@ export const DatabaseSqlClientLive = Layer.unwrapEffect(
   }),
 );
 
-export const DatabaseLayerLive = DatabaseLive.pipe(Layer.provide(DatabaseSqlClientLive));
+export const DatabaseLayerLive = DatabaseLive.pipe(Layer.provideMerge(DatabaseSqlClientLive));

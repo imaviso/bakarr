@@ -154,7 +154,11 @@ const makeAnimeSettingsService = Effect.gen(function* () {
     yield* requireAnimeExistsEffect(db, id);
     const encodedReleaseProfileIds = yield* encodeNumberList(releaseProfileIds).pipe(
       Effect.mapError(
-        () => new AnimeStoredDataError({ message: "Anime release profile ids are invalid" }),
+        (cause) =>
+          new AnimeStoredDataError({
+            cause,
+            message: "Anime release profile ids are invalid",
+          }),
       ),
     );
 

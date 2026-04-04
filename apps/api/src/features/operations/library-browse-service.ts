@@ -102,8 +102,9 @@ const makeLibraryBrowseService = Effect.gen(function* () {
     // falling back to the un-canonicalized path (fixes P1.7).
     const canonicalPath = yield* fs.realPath(requestedPath).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new OperationsPathError({
+            cause,
             message: `Path is inaccessible: ${requestedPath}`,
           }),
       ),
@@ -145,8 +146,9 @@ function browseFsPath(
 
     const dirEntries = yield* fs.readDir(path).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new OperationsPathError({
+            cause,
             message: `Path is inaccessible: ${path}`,
           }),
       ),
@@ -186,8 +188,9 @@ function browseFsPath(
                 size: stats.isFile ? stats.size : undefined,
               })),
               Effect.mapError(
-                () =>
+                (cause) =>
                   new OperationsPathError({
+                    cause,
                     message: `Path is inaccessible: ${entry.path}`,
                   }),
               ),

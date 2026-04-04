@@ -37,8 +37,9 @@ export const decodeDownloadEventMetadata = Effect.fn(
 
   return yield* Schema.decodeUnknown(DownloadEventMetadataJsonSchema)(value).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsStoredDataError({
+          cause,
           message: "Stored download event metadata is corrupt",
         }),
     ),

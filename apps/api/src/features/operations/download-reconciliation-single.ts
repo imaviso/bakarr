@@ -78,8 +78,9 @@ export const reconcileSingleDownloadEffect = Effect.fn(
     { expectedAirDate },
   ).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsPathError({
+          cause,
           message: `Download content path is inaccessible: ${input.resolvedContentRoot}`,
         }),
     ),

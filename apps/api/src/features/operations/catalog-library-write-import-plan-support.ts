@@ -57,8 +57,9 @@ export function buildLibraryImportPlan(
   return Effect.gen(function* () {
     const resolvedSource = yield* fs.realPath(file.source_path).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new OperationsPathError({
+            cause,
             message: `Source path is inaccessible: ${file.source_path}`,
           }),
       ),

@@ -12,6 +12,7 @@ export class EpisodeStreamRangeError extends Schema.TaggedError<EpisodeStreamRan
 export class EpisodeStreamAccessError extends Schema.TaggedError<EpisodeStreamAccessError>()(
   "EpisodeStreamAccessError",
   {
+    cause: Schema.optional(Schema.Defect),
     message: Schema.String,
     status: Schema.Literal(400, 403, 404),
   },

@@ -23,8 +23,9 @@ export function toCoveredEpisodesJson(
 ): Effect.Effect<string | null, OperationsStoredDataError> {
   return encodeOptionalNumberList(episodes).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsStoredDataError({
+          cause,
           message: "Covered episodes metadata is invalid",
         }),
     ),
@@ -35,8 +36,9 @@ export const parseCoveredEpisodesEffect = Effect.fn("Operations.parseCoveredEpis
   function* (value: string | null | undefined) {
     return yield* effectDecodeOptionalNumberList(value).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new OperationsStoredDataError({
+            cause,
             message: "Stored covered episode metadata is corrupt",
           }),
       ),

@@ -26,8 +26,9 @@ export function encodeAnimeDiscoveryEntries(
     })),
   ).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new AnimeStoredDataError({
+          cause,
           message: "Anime discovery metadata is invalid",
         }),
     ),
@@ -43,8 +44,9 @@ export function encodeAnimeSynonyms(
 
   return Schema.encode(AnimeSynonymsJsonSchema)([...synonyms]).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new AnimeStoredDataError({
+          cause,
           message: "Anime synonyms metadata is invalid",
         }),
     ),

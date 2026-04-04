@@ -117,8 +117,9 @@ const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpiso
 
   return yield* effectDecodeOptionalNumberList(value).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsStoredDataError({
+          cause,
           message: "Stored covered episode metadata is corrupt",
         }),
     ),

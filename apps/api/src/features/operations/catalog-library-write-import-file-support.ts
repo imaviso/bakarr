@@ -27,8 +27,9 @@ export function writeLibraryImportFile(
     if (plan.importMode === "move") {
       yield* fs.rename(plan.resolvedSource, plan.destination).pipe(
         Effect.mapError(
-          () =>
+          (cause) =>
             new OperationsPathError({
+              cause,
               message: `Failed to move file into library: ${plan.sourcePath}`,
             }),
         ),
@@ -36,8 +37,9 @@ export function writeLibraryImportFile(
     } else {
       yield* fs.copyFile(plan.resolvedSource, plan.destination).pipe(
         Effect.mapError(
-          () =>
+          (cause) =>
             new OperationsPathError({
+              cause,
               message: `Failed to copy file into library: ${plan.sourcePath}`,
             }),
         ),

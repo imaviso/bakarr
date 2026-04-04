@@ -18,7 +18,7 @@ export class AnimePathError extends Schema.TaggedError<AnimePathError>()("AnimeP
 
 export class AnimeStoredDataError extends Schema.TaggedError<AnimeStoredDataError>()(
   "AnimeStoredDataError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export type AnimeServiceError =

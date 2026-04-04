@@ -29,27 +29,27 @@ export class OperationsConflictError extends Schema.TaggedError<OperationsConfli
 
 export class OperationsPathError extends Schema.TaggedError<OperationsPathError>()(
   "OperationsPathError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class RssFeedRejectedError extends Schema.TaggedError<RssFeedRejectedError>()(
   "RssFeedRejectedError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class RssFeedParseError extends Schema.TaggedError<RssFeedParseError>()(
   "RssFeedParseError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class RssFeedTooLargeError extends Schema.TaggedError<RssFeedTooLargeError>()(
   "RssFeedTooLargeError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class OperationsStoredDataError extends Schema.TaggedError<OperationsStoredDataError>()(
   "OperationsStoredDataError",
-  { message: Schema.String },
+  { cause: Schema.optional(Schema.Defect), message: Schema.String },
 ) {}
 
 export class OperationsInfrastructureError extends Schema.TaggedError<OperationsInfrastructureError>()(

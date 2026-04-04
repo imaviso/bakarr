@@ -152,8 +152,9 @@ export const readRssItems = Effect.fn("RssClient.readRssItems")(function* (
 ) {
   const text = yield* collectBoundedText(body, MAX_RSS_BYTES).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new RssFeedTooLargeError({
+          cause,
           message: `RSS payload exceeded maximum size of ${MAX_RSS_BYTES} bytes`,
         }),
     ),
@@ -175,16 +176,18 @@ const readInlineRssItems = Effect.fn("RssClient.readInlineRssItems")(function* (
 const parseRssXml = Effect.fn("RssClient.parseRssXml")(function* (xml: string) {
   const parsed = yield* Effect.try({
     try: () => xmlParser.parse(xml),
-    catch: () =>
+    catch: (cause) =>
       new RssFeedParseError({
+        cause,
         message: "RSS feed XML could not be parsed",
       }),
   });
 
   const decoded = yield* Schema.decodeUnknown(RssRootSchema)(parsed).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new RssFeedParseError({
+          cause,
           message: "RSS feed payload did not match the expected schema",
         }),
     ),
@@ -193,8 +196,9 @@ const parseRssXml = Effect.fn("RssClient.parseRssXml")(function* (xml: string) {
   return yield* Effect.forEach(decoded.rss.channel.item, (item) =>
     Schema.decodeUnknown(ParsedReleaseFromRssItemSchema)(item).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new RssFeedParseError({
+            cause,
             message: "RSS feed item payload was invalid",
           }),
       ),

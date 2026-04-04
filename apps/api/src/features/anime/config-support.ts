@@ -22,8 +22,9 @@ export const resolveAnimeRootFolderEffect = Effect.fn("AnimeConfigSupport.resolv
     const configCore = rows[0]
       ? yield* effectDecodeConfigCore(rows[0].data).pipe(
           Effect.mapError(
-            () =>
+            (cause) =>
               new AnimeStoredDataError({
+                cause,
                 message: "Stored anime configuration is corrupt",
               }),
           ),
@@ -59,8 +60,9 @@ export const getConfiguredImagesPathEffect = Effect.fn(
 
   return yield* effectDecodeImagePath(rows[0]).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new AnimeStoredDataError({
+          cause,
           message: "Stored anime image path configuration is corrupt",
         }),
     ),
@@ -77,8 +79,9 @@ export const getConfiguredLibraryPathEffect = Effect.fn(
   const configCore = rows[0]
     ? yield* effectDecodeConfigCore(rows[0].data).pipe(
         Effect.mapError(
-          () =>
+          (cause) =>
             new AnimeStoredDataError({
+              cause,
               message: "Stored anime configuration is corrupt",
             }),
         ),

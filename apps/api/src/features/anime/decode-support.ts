@@ -17,8 +17,9 @@ export const decodeStoredStringListEffect = Effect.fn(
   return yield* Schema.decodeUnknown(StringListJsonSchema)(value).pipe(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
-      () =>
+      (cause) =>
         new AnimeStoredDataError({
+          cause,
           message: `Stored anime ${field} JSON is corrupt`,
         }),
     ),
@@ -35,8 +36,9 @@ export const decodeStoredNumberListEffect = Effect.fn(
   return yield* Schema.decodeUnknown(NumberListJsonSchema)(value).pipe(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
-      () =>
+      (cause) =>
         new AnimeStoredDataError({
+          cause,
           message: `Stored anime ${field} JSON is corrupt`,
         }),
     ),
@@ -53,8 +55,9 @@ export const decodeStoredDiscoveryEntriesEffect = Effect.fn(
   return yield* Schema.decodeUnknown(AnimeDiscoveryEntryListJsonSchema)(value).pipe(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
-      () =>
+      (cause) =>
         new AnimeStoredDataError({
+          cause,
           message: `Stored anime ${field} JSON is corrupt`,
         }),
     ),
@@ -74,8 +77,9 @@ export const decodeStoredSynonymsEffect = Effect.fn(
       return filtered.length > 0 ? filtered : undefined;
     }),
     Effect.mapError(
-      () =>
+      (cause) =>
         new AnimeStoredDataError({
+          cause,
           message: "Stored anime synonyms JSON is corrupt",
         }),
     ),

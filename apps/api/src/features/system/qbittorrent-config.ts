@@ -89,7 +89,11 @@ const configValidationError = (message: string) => new ConfigValidationError({ m
 const parseUrl = (raw: string) =>
   Effect.try({
     try: () => new URL(raw.trim()),
-    catch: () => configValidationError("qBittorrent URL is invalid"),
+    catch: (cause) =>
+      new ConfigValidationError({
+        cause,
+        message: "qBittorrent URL is invalid",
+      }),
   });
 
 const normalizeBaseUrl = Effect.fn("SystemConfig.normalizeQBitTorrentBaseUrl")(function* (

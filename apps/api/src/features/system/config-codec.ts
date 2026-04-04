@@ -159,6 +159,7 @@ function storedConfigCorrupt(message: string, cause?: unknown) {
       : undefined;
 
   return new StoredConfigCorruptError({
+    cause,
     message: detail ? `${message}: ${detail}` : message,
   });
 }
@@ -391,6 +392,7 @@ export function effectDecodeStoredLibraryConfig(
   if (!row) {
     return Effect.fail(
       new StoredConfigCorruptError({
+        cause: new Error("Missing stored configuration row"),
         message: "Stored configuration is missing library settings",
       }),
     );
@@ -405,6 +407,7 @@ export function effectDecodeImagePath(
   if (!row) {
     return Effect.fail(
       new StoredConfigCorruptError({
+        cause: new Error("Missing stored configuration row"),
         message: "Stored configuration is missing image path settings",
       }),
     );

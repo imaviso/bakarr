@@ -43,8 +43,9 @@ const decodeAnimeGenres = Effect.fn("Operations.decodeAnimeGenres")(function* (
   return yield* Schema.decodeUnknown(AnimeGenresJsonSchema)(value).pipe(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsStoredDataError({
+          cause,
           message: "Stored anime genres are corrupt",
         }),
     ),

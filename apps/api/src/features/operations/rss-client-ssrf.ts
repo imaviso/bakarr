@@ -43,8 +43,9 @@ export const resolvePinnedRequestTarget = Effect.fn("RssClient.resolvePinnedRequ
   function* (urlString: string, dns: typeof DnsResolver.Service) {
     const parsedUrlResult = yield* Effect.try({
       try: () => new URL(urlString),
-      catch: () =>
+      catch: (cause) =>
         new RssFeedRejectedError({
+          cause,
           message: "RSS feed URL format is invalid",
         }),
     }).pipe(Effect.either);

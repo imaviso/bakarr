@@ -52,8 +52,9 @@ const makeAnimeStreamService = Effect.gen(function* () {
     const expiresAt = now + STREAM_EXPIRY_MS;
     const signature = yield* signer.sign({ animeId, episodeNumber, expiresAt }).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new EpisodeStreamAccessError({
+            cause,
             message: "Failed to sign stream URL",
             status: 400,
           }),
@@ -84,7 +85,12 @@ const makeAnimeStreamService = Effect.gen(function* () {
       })
       .pipe(
         Effect.mapError(
-          (cause) => new EpisodeStreamAccessError({ message: cause.message, status: 403 }),
+          (cause) =>
+            new EpisodeStreamAccessError({
+              cause,
+              message: cause.message,
+              status: 403,
+            }),
         ),
       );
 
@@ -128,13 +134,16 @@ const makeAnimeStreamService = Effect.gen(function* () {
       Match.exhaustive,
     );
 
-    const fileInfo = yield* fs
-      .stat(episodeFile.filePath)
-      .pipe(
-        Effect.mapError(
-          () => new EpisodeStreamAccessError({ message: "Episode file not found", status: 404 }),
-        ),
-      );
+    const fileInfo = yield* fs.stat(episodeFile.filePath).pipe(
+      Effect.mapError(
+        (cause) =>
+          new EpisodeStreamAccessError({
+            cause,
+            message: "Episode file not found",
+            status: 404,
+          }),
+      ),
+    );
 
     return {
       fileName: episodeFile.fileName,

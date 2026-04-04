@@ -88,7 +88,11 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     format: validMetadata.format,
     genres: yield* encodeStringList(validMetadata.genres ?? []).pipe(
       Effect.mapError(
-        () => new AnimeStoredDataError({ message: "Anime genres metadata is invalid" }),
+        (cause) =>
+          new AnimeStoredDataError({
+            cause,
+            message: "Anime genres metadata is invalid",
+          }),
       ),
     ),
     id: validMetadata.id,
@@ -99,7 +103,11 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     profileName: input.animeInput.profile_name,
     releaseProfileIds: yield* encodeNumberList(input.animeInput.release_profile_ids).pipe(
       Effect.mapError(
-        () => new AnimeStoredDataError({ message: "Anime release profile ids are invalid" }),
+        (cause) =>
+          new AnimeStoredDataError({
+            cause,
+            message: "Anime release profile ids are invalid",
+          }),
       ),
     ),
     rootFolder,
@@ -109,7 +117,11 @@ export const addAnimeEffect = Effect.fn("AnimeAdd.addAnimeEffect")(function* (in
     status: validMetadata.status,
     studios: yield* encodeStringList(validMetadata.studios ?? []).pipe(
       Effect.mapError(
-        () => new AnimeStoredDataError({ message: "Anime studios metadata is invalid" }),
+        (cause) =>
+          new AnimeStoredDataError({
+            cause,
+            message: "Anime studios metadata is invalid",
+          }),
       ),
     ),
     synonyms: yield* encodeAnimeSynonyms(validMetadata.synonyms),

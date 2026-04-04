@@ -34,8 +34,9 @@ export function renameLibraryFiles(
     for (const item of preview) {
       const result = yield* fs.rename(item.current_path, item.new_path).pipe(
         Effect.mapError(
-          () =>
+          (cause) =>
             new OperationsPathError({
+              cause,
               message: `Failed to rename file ${item.current_path}`,
             }),
         ),

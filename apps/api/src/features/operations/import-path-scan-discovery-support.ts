@@ -23,8 +23,9 @@ export const discoverImportScanFiles = Effect.fn("Operations.discoverImportScanF
   }) {
     const canonicalPath = yield* input.fs.realPath(input.path).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new OperationsPathError({
+            cause,
             message: `Import path is inaccessible: ${input.path}`,
           }),
       ),
@@ -36,8 +37,9 @@ export const discoverImportScanFiles = Effect.fn("Operations.discoverImportScanF
         Stream.take(limit + 1),
         Stream.runCollect,
         Effect.mapError(
-          () =>
+          (cause) =>
             new OperationsPathError({
+              cause,
               message: `Import path is inaccessible: ${canonicalPath}`,
             }),
         ),

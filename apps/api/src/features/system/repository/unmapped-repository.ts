@@ -7,7 +7,7 @@ import {
   UnmappedFolderMatchStatusSchema,
   UnmappedFolderSchema,
 } from "@packages/shared/index.ts";
-import type { AppDatabase } from "@/db/database.ts";
+import { DatabaseError, type AppDatabase } from "@/db/database.ts";
 import { unmappedFolderMatches } from "@/db/schema.ts";
 import { tryDatabasePromise } from "@/lib/effect-db.ts";
 import { buildUnmappedFolderSearchQueries } from "@/features/operations/unmapped-folders.ts";
@@ -16,7 +16,16 @@ import { StoredUnmappedFolderCorruptError } from "@/features/system/errors.ts";
 const AnimeSearchResultListJsonSchema = Schema.parseJson(Schema.Array(AnimeSearchResultSchema));
 const decodeAnimeSearchResultList = Schema.decodeUnknown(AnimeSearchResultListJsonSchema);
 
-const encodeAnimeSearchResultList = Schema.encodeSync(AnimeSearchResultListJsonSchema);
+const encodeAnimeSearchResultList = (path: string, matches: UnmappedFolder["suggested_matches"]) =>
+  Schema.encode(AnimeSearchResultListJsonSchema)(matches).pipe(
+    Effect.mapError(
+      (cause) =>
+        new DatabaseError({
+          cause,
+          message: `Failed to encode unmapped folder suggestions for ${path}`,
+        }),
+    ),
+  );
 
 export const listUnmappedFolderMatchRows = Effect.fn(
   "SystemUnmappedRepository.listUnmappedFolderMatchRows",
@@ -48,9 +57,15 @@ export const upsertUnmappedFolderMatchRows = Effect.fn(
     return;
   }
 
+  const persistedFolders = yield* Effect.forEach(folders, (folder) =>
+    encodeAnimeSearchResultList(folder.path, folder.suggested_matches).pipe(
+      Effect.map((suggestedMatches) => ({ folder, suggestedMatches })),
+    ),
+  );
+
   yield* tryDatabasePromise("Failed to upsert unmapped folder matches", () =>
     db.transaction(async (tx) => {
-      for (const folder of folders) {
+      for (const { folder, suggestedMatches } of persistedFolders) {
         await tx
           .insert(unmappedFolderMatches)
           .values({
@@ -61,7 +76,7 @@ export const upsertUnmappedFolderMatchRows = Effect.fn(
             name: folder.name,
             path: folder.path,
             size: folder.size,
-            suggestedMatches: encodeAnimeSearchResultList(folder.suggested_matches),
+            suggestedMatches,
             updatedAt,
           })
           .onConflictDoUpdate({
@@ -73,7 +88,7 @@ export const upsertUnmappedFolderMatchRows = Effect.fn(
               matchStatus: folder.match_status ?? "pending",
               name: folder.name,
               size: folder.size,
-              suggestedMatches: encodeAnimeSearchResultList(folder.suggested_matches),
+              suggestedMatches,
               updatedAt,
             },
           });
@@ -98,8 +113,9 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
   const suggestedMatches = yield* decodeAnimeSearchResultList(row.suggestedMatches).pipe(
     Effect.map((decoded) => [...decoded]),
     Effect.mapError(
-      () =>
+      (cause) =>
         new StoredUnmappedFolderCorruptError({
+          cause,
           message: `Stored unmapped folder suggestions are corrupt for ${row.path}`,
         }),
     ),
@@ -108,8 +124,9 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
     row.matchStatus,
   ).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new StoredUnmappedFolderCorruptError({
+          cause,
           message: `Stored unmapped folder match status is corrupt for ${row.path}`,
         }),
     ),
@@ -127,8 +144,9 @@ export const decodeUnmappedFolderMatchRow = Effect.fn(
     suggested_matches: suggestedMatches,
   }).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new StoredUnmappedFolderCorruptError({
+          cause,
           message: `Stored unmapped folder row is corrupt for ${row.path}`,
         }),
     ),

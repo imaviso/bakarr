@@ -89,7 +89,14 @@ const makeImageAssetService = Effect.gen(function* () {
     rawRelativePath: string,
   ) {
     const decodedRelativePath = yield* Effect.try(() => decodeURIComponent(rawRelativePath)).pipe(
-      Effect.mapError(() => notFoundError()),
+      Effect.mapError(
+        (cause) =>
+          new ImageAssetNotFoundError({
+            cause,
+            message: "Not Found",
+            status: 404,
+          }),
+      ),
     );
 
     const segments = decodedRelativePath.split("/").filter((segment) => segment.length > 0);

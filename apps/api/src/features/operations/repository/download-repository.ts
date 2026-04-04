@@ -106,8 +106,9 @@ export function encodeDownloadSourceMetadata(
     seadex_tags: value.seadex_tags ? [...value.seadex_tags] : undefined,
   }).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsStoredDataError({
+          cause,
           message: "Download source metadata is invalid",
         }),
     ),
@@ -124,8 +125,9 @@ export const decodeDownloadSourceMetadata = Effect.fn(
   return yield* Schema.decodeUnknown(DownloadSourceMetadataJsonSchema)(value).pipe(
     Effect.map((decoded) => cloneDownloadSourceMetadata(decoded)),
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsStoredDataError({
+          cause,
           message: "Stored download source metadata is corrupt",
         }),
     ),
@@ -151,8 +153,9 @@ export function encodeDownloadEventMetadata(value: {
     source_metadata: value.source_metadata,
   }).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsStoredDataError({
+          cause,
           message: "Download event metadata is invalid",
         }),
     ),
@@ -168,8 +171,9 @@ const decodeCoveredEpisodes = Effect.fn("OperationsRepository.decodeCoveredEpiso
 
   return yield* effectDecodeOptionalNumberList(value).pipe(
     Effect.mapError(
-      () =>
+      (cause) =>
         new OperationsStoredDataError({
+          cause,
           message: "Stored covered episode metadata is corrupt",
         }),
     ),

@@ -33,6 +33,7 @@ export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmap
         Effect.mapError(
           (error) =>
             new OperationsStoredDataError({
+              cause: error.cause,
               message: error.message,
             }),
         ),
@@ -41,8 +42,9 @@ export const loadUnmappedFolderSnapshot = Effect.fn("OperationsService.loadUnmap
     const cachedByPath = new Map(decodedRows.map((decoded) => [decoded.path, decoded] as const));
     const entries = yield* input.fs.readDir(root).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new OperationsPathError({
+            cause,
             message: `Library root is inaccessible: ${root}`,
           }),
       ),

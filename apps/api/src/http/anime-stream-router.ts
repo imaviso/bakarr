@@ -18,7 +18,12 @@ export const animeStreamRouter = HttpRouter.empty.pipe(
         const params = yield* decodePathParams(AnimeEpisodeParamsSchema);
         const query = yield* decodeQueryWithLabel(StreamQuerySchema, "stream access").pipe(
           Effect.mapError(
-            () => new EpisodeStreamAccessError({ message: "Forbidden or expired", status: 403 }),
+            (cause) =>
+              new EpisodeStreamAccessError({
+                cause,
+                message: "Forbidden or expired",
+                status: 403,
+              }),
           ),
         );
 

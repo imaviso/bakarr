@@ -50,8 +50,9 @@ export const reconcileBatchDownloadEffect = Effect.fn("OperationsService.reconci
     const coveredEpisodes = yield* parseCoveredEpisodesEffect(input.row.coveredEpisodes);
     const batchPaths = yield* resolveBatchContentPaths(input.fs, input.resolvedContentRoot).pipe(
       Effect.mapError(
-        () =>
+        (cause) =>
           new OperationsPathError({
+            cause,
             message: `Download content path is inaccessible: ${input.resolvedContentRoot}`,
           }),
       ),
